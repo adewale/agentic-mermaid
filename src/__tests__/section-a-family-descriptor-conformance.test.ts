@@ -10,7 +10,7 @@ import {
   type BuiltinFamilyId,
   type FamilyDescriptor,
 } from '../agent/families.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -22,6 +22,7 @@ import { CORE_SCENE_PRIMITIVES, sceneNodePrimitives } from '../scene/capabilitie
 import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { assertRenderableMarker, serializeMarkerResource } from '../scene/marker-resources.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 
@@ -311,11 +312,11 @@ describe('family descriptor capability authority', () => {
         const markerResources = new Map<string, NonNullable<Extract<SceneNode, { kind: 'document' }>['markerResources']>[number]>()
         visitScene(scene.parts, node => {
           if (node.kind !== 'document') return
-          if (node.crisp.includes('<marker')) expect(node.markerResources?.length, `${id} has untyped marker XML`).toBeGreaterThan(0)
+          if (sceneNodeSerialization(node).includes('<marker')) expect(node.markerResources?.length, `${id} has untyped marker XML`).toBeGreaterThan(0)
           for (const marker of node.markerResources ?? []) {
             assertRenderableMarker(marker)
             expect(markerResources.has(marker.id), `${id} duplicate marker resource ${marker.id}`).toBe(false)
-            expect(node.crisp, `${id} marker ${marker.id} serializer ownership`).toContain(serializeMarkerResource(marker))
+            expect(sceneNodeSerialization(node), `${id} marker ${marker.id} serializer ownership`).toContain(serializeMarkerResource(marker))
             markerResources.set(marker.id, marker)
           }
         })

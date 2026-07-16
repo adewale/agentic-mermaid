@@ -6,7 +6,7 @@ import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScri
 import { buildSubagentPromptEvalRequest, finalizeSubagentPromptEval, prepareSubagentPromptEval } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { DEFAULT_CASES, checkAgentUsageTaskSource, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES } from '../../eval/agent-usage/render-quality.ts'
-import { parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 
 const TRANSCRIPT_ROOT = join(import.meta.dir, '..', '..', 'eval', 'agent-usage', 'transcripts')
 const REQUIRED_RELEASE_TRANSCRIPT_DIR = 'pi-subagent-release-2026-06-10'
@@ -21,14 +21,14 @@ function committedTranscriptDirs(): string[] {
 
 describe('live agent-usage eval harness', () => {
   test('extracts fenced Code Mode JavaScript without markdown', () => {
-    const script = extractCodeModeScript('Here you go:\n```js\nconst r = mermaid.parseMermaid(\'flowchart TD\\n A --> B\')\nreturn r\n```')
-    expect(script).toContain('mermaid.parseMermaid')
+    const script = extractCodeModeScript('Here you go:\n```js\nconst r = mermaid.parseRegisteredMermaid(\'flowchart TD\\n A --> B\')\nreturn r\n```')
+    expect(script).toContain('mermaid.parseRegisteredMermaid')
     expect(script).not.toContain('```')
   })
 
   test('unwraps common Cloudflare-style arrow-function responses into our execute body', () => {
-    const script = extractCodeModeScript('async () => {\n  const r = mermaid.parseMermaid(\'flowchart TD\\n A --> B\')\n  return r\n};')
-    expect(script.startsWith('const r = mermaid.parseMermaid')).toBe(true)
+    const script = extractCodeModeScript('async () => {\n  const r = mermaid.parseRegisteredMermaid(\'flowchart TD\\n A --> B\')\n  return r\n};')
+    expect(script.startsWith('const r = mermaid.parseRegisteredMermaid')).toBe(true)
     expect(script).toContain('return r')
     expect(script).not.toContain('async () =>')
   })
@@ -162,7 +162,7 @@ describe('live agent-usage eval harness', () => {
     await expect(runLiveAgentUsageEval({ provider: 'anthropic', model: 'unused', apiKey: 'unused', maxTokens: 1, temperature: 0 }, { caseIds: ['nope'] })).rejects.toThrow('Unknown live eval case')
   })
 
-  test('committed live-model transcripts replay through the deterministic oracle', async () => {
+  test('committed live-model transcripts remain honest across the parser API break', async () => {
     const dirs = committedTranscriptDirs()
     const dirNames = dirs.map(d => basename(d))
     expect(dirNames).toContain(REQUIRED_RELEASE_TRANSCRIPT_DIR)
@@ -195,6 +195,17 @@ describe('live agent-usage eval harness', () => {
           expect(parsed.ok).toBe(true)
           if (parsed.ok) expect(verifyMermaid(parsed.value).ok).toBe(true)
         }
+        continue
+      }
+      // Code-mode evidence captured before parseRegisteredMermaid became the
+      // sole public parser remains immutable evidence of the API at capture
+      // time. Do not rewrite or adapt those scripts in memory: doing so would
+      // reintroduce the removed parseMermaid compatibility surface into the
+      // current evaluator.
+      const removedParserScripts = transcripts.filter(t => /\bmermaid\.parseMermaid\s*\(/.test(t.script))
+      if (removedParserScripts.length > 0) {
+        expect(removedParserScripts).toHaveLength(transcripts.length)
+        expect(removedParserScripts.every(t => t.result.ok)).toBe(true)
         continue
       }
       const replayCases = transcripts.map(t => {

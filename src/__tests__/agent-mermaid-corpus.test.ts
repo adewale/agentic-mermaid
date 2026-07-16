@@ -6,7 +6,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { runParseVerifyRoundtrip } from '../../eval/shared/run-bench.ts'
 import { countStructuralElements } from '../../eval/shared/structural-count.ts'
 import { isDrop } from '../agent/structural-count.ts'

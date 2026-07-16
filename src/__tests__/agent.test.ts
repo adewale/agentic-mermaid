@@ -3,7 +3,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -21,7 +21,7 @@ function flowchart(src: string): FlowchartValidDiagram {
 function sequence(src: string): SequenceValidDiagram {
   const s = asSequence(parse(src)); if (!s) throw new Error('not sequence'); return s
 }
-describe('parseMermaid', () => {
+describe('parseRegisteredMermaid', () => {
   test('flowchart', () => { expect(parse('flowchart TD\n  A --> B').body.kind).toBe('flowchart') })
   test('frontmatter into meta', () => {
     expect(parse('---\ntitle: T\n---\nflowchart TD\n  A --> B').meta.frontmatter?.title).toBe('T')
@@ -34,9 +34,15 @@ describe('parseMermaid', () => {
     expect(d.meta.accessibility.title).toBe('T'); expect(d.meta.accessibility.descr).toBe('D')
   })
   test('empty source errors', () => { expect(parseMermaid('').ok).toBe(false) })
-  test('unknown header errors', () => {
-    const r = parseMermaid('notADiagram\n X'); expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error[0]!.code).toBe('UNKNOWN_HEADER')
+  test('unknown headers use the open preserved-family envelope', () => {
+    const r = parseMermaid('notADiagram\n X')
+    expect(r).toMatchObject({
+      ok: true,
+      value: {
+        kind: 'family:unknown',
+        body: { kind: 'preserved', diagnostic: { code: 'UNKNOWN_HEADER' } },
+      },
+    })
   })
   test('mutable families are structured (xychart promoted by BUILD-16)', () => {
     for (const [s, k] of [
@@ -491,7 +497,12 @@ describe('synthesizeFromGraph', () => {
   test('sequence payload', () => {
     const r = synthesizeFromGraph({
       kind: 'sequence',
-      body: { kind: 'sequence', participants: [{ id: 'A', label: 'A', kind: 'participant' }, { id: 'B', label: 'B', kind: 'participant' }], messages: [{ from: 'A', to: 'B', text: 'Hi', style: 'sync' }] },
+      body: {
+        kind: 'sequence',
+        participants: [{ id: 'A', label: 'A', kind: 'participant' }, { id: 'B', label: 'B', kind: 'participant' }],
+        messages: [{ from: 'A', to: 'B', text: 'Hi', style: 'sync' }],
+        statements: [{ kind: 'participant', ref: 0 }, { kind: 'participant', ref: 1 }, { kind: 'message', ref: 0 }],
+      },
     })
     expect(r.ok && r.value.canonicalSource.includes('A->>B: Hi')).toBe(true)
   })

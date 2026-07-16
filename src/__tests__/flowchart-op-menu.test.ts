@@ -16,7 +16,7 @@ import { describe, it, expect } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import {
-  asFlowchart, mutate, parseMermaid, serializeMermaid, opMenu, validateOp,
+  asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, opMenu, validateOp,
 } from '../agent/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram } from '../agent/types.ts'

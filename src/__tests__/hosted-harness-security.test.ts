@@ -46,7 +46,7 @@ describe('wrapper breakout: import / statement injection is a SyntaxError', () =
   test('legitimate code of every shape still compiles and runs', async () => {
     const cases: Array<[string, boolean]> = [
       ['1 + 1', true], ['{ answer: 42 }', true], ['const x = 2; return x * 21', false],
-      ["mermaid.parseMermaid('flowchart LR\\n A --> B').ok", true],
+      ["mermaid.parseRegisteredMermaid('flowchart LR\\n A --> B').ok", true],
     ]
     for (const [code, useExpr] of cases) {
       const w = userModuleSources(code)

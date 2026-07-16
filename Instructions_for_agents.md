@@ -14,7 +14,7 @@ Choose the narrowest channel. New diagrams: build with `buildMermaid(kind, ops)`
 
 ```ts
 const source = 'flowchart TD\n  API --> DB'
-const d0 = mermaid.parseMermaid(source)
+const d0 = mermaid.parseRegisteredMermaid(source)
 if (!d0.ok) throw new Error('parse')
 
 const flow = mermaid.asFlowchart(d0.value)
@@ -61,9 +61,9 @@ Tier 3 (lint and inspect-only policy): `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DE
 
 ## CLI verbs
 
-`am capabilities --json` — JSON envelope listing families, `families[].editPolicy`, `families[].mutationOps`, warning codes, output formats (`svg`, `ascii`, `unicode`, `png`, `json`). Schema-stable; use it to self-discover.
+`am capabilities --json` — JSON envelope listing families, `families[].editPolicy`, `families[].mutationOps`, warning codes, output formats (`svg`, `ascii`, `unicode`, `png`, `layout`). Schema-stable; use it to self-discover.
 `am batch --jsonl` — JSONL stdin → JSONL stdout for render/verify/parse/serialize/mutate. Malformed lines surface error but don't abort the stream.
-`am render <file…> --format svg|ascii|unicode|json [--security strict] [--style <names|file.json>] [--seed N]` — JSON = layout shape; --security strict = no external-fetch refs; `--style` takes a stack (comma-separated names and/or .json spec files, merged left → right, e.g. `--style hand-drawn,dracula`) and applies to graphical and terminal projection; `--seed` re-rolls styled ink. Multiple files → results array for non-PNG formats. `--watch` is single-file/non-PNG only. PNG uses `--format png --output file.png` for one input and does not support watch/multi-input.
+`am render <file…> --format svg|ascii|unicode|layout [--security strict] [--style <names|file.json>] [--seed N]` — layout emits the JSON layout shape; --security strict = no external-fetch refs; `--style` takes a stack (comma-separated names and/or .json spec files, merged left → right, e.g. `--style hand-drawn,dracula`) and applies to graphical and terminal projection; `--seed` re-rolls styled ink. Multiple files → results array for non-PNG formats. `--watch` is single-file/non-PNG only. PNG uses `--format png --output file.png` for one input and does not support watch/multi-input.
 `am preview <file|-> [--output out.html] [--open] [--json] [--security strict]` — standalone strict-mode HTML preview for human inspection.
 `am mutate <file|-> (--op '<JSON>'|--ops '<JSON array|file>') [--json]` — apply mutation(s), run verify, emit source only if verify succeeds. JSON success includes `{ok,source,verify}`; verify failure exits 3 and omits source.
 `am verify <file|-> [--json] [--label-cap N] [--suppress CODES] [--style <names|file.json>]` — full tiered verify; `--style` evaluates inspect-only Brand constraints against the same styled Scene used by render; exit 3 only on error-severity findings. `am parse` (ValidDiagram JSON), `am serialize` (ValidDiagram JSON on stdin → canonical source), and `am format` (idempotent reformat) round out the loop.
@@ -78,7 +78,7 @@ Library extras: `renderMermaidPNG(src,{fitTo,background,style,seed,fontDirs})` r
 
 ## Styles
 
-Every library render call accepts `style`: a registered Look or Palette discovered through `am styles --json`, an inline spec (a plain JSON record of palette/font/stroke/fill/backdrop fields, all optional), or a stack merged left → right (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls the ink wobble of styled looks and never moves layout, so `(source, style, seed)` reproduces an image exactly. Custom styles are data, not code: check untrusted records with `validateStyleSpec(json)` (returns problems; `[]` = usable) and register reusable ones with a canonical identity such as `registerStyle({ name: 'look:acme', ... })` — importable from `agentic-mermaid` and `agentic-mermaid/agent`. `style: 'crisp'` (or unset) is the byte-identical default. Styles apply uniformly to built-in families and to extensions that advertise native Scene/style support. The authoring guide and quality rubric live in docs/style-authoring.md. SVG declares any font; PNG bundles the faces the built-in looks use and uses Inter with DejaVu per-glyph fallback for unbundled families (supply extras via `fontDirs`).
+Every library render call accepts `style`: a registered Look or Palette discovered through `am styles --json`, an inline spec (a plain JSON record of palette/font/stroke/fill/backdrop fields, all optional), or a stack merged left → right (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls the ink wobble of styled looks and never moves layout, so `(source, style, seed)` reproduces an image exactly. Custom styles are data, not code: check untrusted records with `validateStyleSpec(json)` (returns problems; `[]` = usable) and register reusable ones with a canonical identity such as `registerStyle({ name: 'look:acme', ... })` — importable from `agentic-mermaid` and `agentic-mermaid/agent`. `style: 'crisp'` (or unset) selects the canonical default renderer. Styles apply uniformly to built-in families and to extensions that advertise native Scene/style support. The authoring guide and quality rubric live in docs/style-authoring.md. SVG declares any font; PNG bundles the faces the built-in looks use and uses Inter with DejaVu per-glyph fallback for unbundled families (supply extras via `fontDirs`).
 
 ## Anti-patterns
 

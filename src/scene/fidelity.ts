@@ -10,6 +10,7 @@
 
 import type { Geometry, SceneDoc, SceneNode, SceneTransform } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
+import { sceneNodeSerialization } from './serialization.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
  *  paired), ignoring nested content. Good enough for our own emitters. */
@@ -150,10 +151,11 @@ function transformProblems(node: SceneNode, attrs: Map<string, string> | undefin
 }
 
 export function nodeProblems(node: SceneNode, path: string, problems: string[]): void {
-  if (node.kind !== 'raw' && node.kind !== 'prelude') {
-    const first = topLevelElements(node.kind === 'group' ? node.open : node.crisp)[0]
+  const serialized = sceneNodeSerialization(node)
+  if (node.kind !== 'document') {
+    const first = topLevelElements(node.kind === 'group' ? node.open : serialized)[0]
     transformProblems(node, first?.attrs, path, problems)
-    if (node.crisp !== '' && hasDomSvgIdentityRole(node.role)) {
+    if (serialized !== '' && hasDomSvgIdentityRole(node.role)) {
       if (!node.identity) problems.push(`${path}(${node.kind}:${node.id}): missing typed identity`)
       if (!first) problems.push(`${path}(${node.kind}:${node.id}): no SVG element for identity`)
       if (first && node.identity) {
@@ -171,32 +173,16 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
   }
   switch (node.kind) {
     case 'shape': {
-      const els = topLevelElements(node.crisp)
+      const els = topLevelElements(serialized)
       geometryProblems(node.geometry, els, `${path}(shape:${node.id})`, problems)
       return
     }
     case 'connector': {
-      if (node.crisp === '') {
-        if (node.lineStyle !== 'invisible') problems.push(`${path}(connector:${node.id}): empty crisp but lineStyle=${node.lineStyle}`)
-        return
-      }
-      const els = topLevelElements(node.crisp)
-      geometryProblems(node.geometry as Geometry, els, `${path}(connector:${node.id})`, problems)
-      const el = els[0]
-      if (el && node.endMarker && !(el.attrs.get('marker-end') ?? '').includes(`#${node.endMarker.id}`)) {
-        problems.push(`${path}(connector:${node.id}): endMarker ${node.endMarker.id} not in crisp marker-end`)
-      }
-      if (el && node.startMarker && !(el.attrs.get('marker-start') ?? '').includes(`#${node.startMarker.id}`)) {
-        problems.push(`${path}(connector:${node.id}): startMarker ${node.startMarker.id} not in crisp marker-start`)
-      }
-      if (el && node.markers.mid.length > 0 && !(el.attrs.get('marker-mid') ?? '').includes(`#${node.markers.mid[0]!.id}`)) {
-        problems.push(`${path}(connector:${node.id}): mid marker ${node.markers.mid[0]!.id} not in crisp marker-mid`)
-      }
       return
     }
     case 'text': {
-      if (node.crisp === '') { problems.push(`${path}(text:${node.id}): empty crisp`); return }
-      const els = topLevelElements(node.crisp)
+      if (serialized === '') { problems.push(`${path}(text:${node.id}): empty crisp`); return }
+      const els = topLevelElements(serialized)
       const el = els.find(e => e.tag === 'text')
       if (!el) { problems.push(`${path}(text:${node.id}): crisp has no <text>`); return }
       const fs = el.attrs.get('font-size')
@@ -234,28 +220,25 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
         .replace(/\s+/g, ' ')
         .trim()
       const wantText = normalize(node.text)
-      if (wantText && !normalize(node.crisp).includes(wantText.split(' ')[0]!)) {
+      if (wantText && !normalize(serialized).includes(wantText.split(' ')[0]!)) {
         problems.push(`${path}(text:${node.id}): text "${wantText.slice(0, 40)}" not found in crisp`)
       }
       return
     }
     case 'group': {
-      if (!node.crisp.startsWith(node.open)) problems.push(`${path}(group:${node.id}): crisp does not start with open tag`)
-      if (!node.crisp.endsWith(node.close)) problems.push(`${path}(group:${node.id}): crisp does not end with close tag`)
+      if (!serialized.startsWith(node.open)) problems.push(`${path}(group:${node.id}): crisp does not start with open tag`)
+      if (!serialized.endsWith(node.close)) problems.push(`${path}(group:${node.id}): crisp does not end with close tag`)
       node.children.forEach((child, i) => nodeProblems(child.node, `${path}/${i}`, problems))
       return
     }
     case 'document': {
       if (node.element === 'title' || node.element === 'description') {
         const tag = node.element === 'title' ? 'title' : 'desc'
-        if (!node.crisp.startsWith(`<${tag}`) || !node.crisp.endsWith(`</${tag}>`)) problems.push(`${path}(doc-mark:${node.id}): malformed ${tag}`)
-        if (node.text !== undefined && !unescapeXml(node.crisp).includes(node.text)) problems.push(`${path}(doc-mark:${node.id}): text drift`)
+        if (!serialized.startsWith(`<${tag}`) || !serialized.endsWith(`</${tag}>`)) problems.push(`${path}(doc-mark:${node.id}): malformed ${tag}`)
+        if (node.text !== undefined && !unescapeXml(serialized).includes(node.text)) problems.push(`${path}(doc-mark:${node.id}): text drift`)
       }
       return
     }
-    case 'raw':
-    case 'prelude':
-      return
   }
 }
 

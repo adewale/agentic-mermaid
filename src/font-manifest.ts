@@ -41,7 +41,7 @@ function fontResourceLocalId(face: HostedFontFace): string {
   return `font/${face.file.toLowerCase().replace(/[^a-z0-9._/-]+/g, '-')}`
 }
 
-/** Canonical installed-resource view; consumers derive legacy face/file lists. */
+/** Canonical installed-resource view. */
 export const HOSTED_FONT_RESOURCES: readonly HostedFontResource[] = Object.freeze(
   HOSTED_FONT_RESOURCE_SEEDS.map(face => Object.freeze({
     family: face.family,
@@ -90,19 +90,12 @@ export function hostedFontResource(file: string): HostedFontResource {
   return resource
 }
 
-/** Compatibility projection retained for existing browser/raster consumers. */
-export const HOSTED_FONT_FACES: readonly HostedFontFace[] = Object.freeze(
-  HOSTED_FONT_RESOURCES.map(({ family, file, weight, style }) => Object.freeze({ family, file, weight, style })),
-)
-
-export const HOSTED_FONT_FILES = [...new Set(HOSTED_FONT_FACES.map((font) => font.file))] as readonly string[]
-
 function cssString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
 
 export function hostedFontFaceCss(prefix = '/fonts/'): string {
-  return HOSTED_FONT_FACES.map((font) =>
+  return HOSTED_FONT_RESOURCES.map((font) =>
     `@font-face { font-family: '${cssString(font.family)}'; src: url('${prefix}${font.file}') format('truetype'); font-weight: ${font.weight}; font-style: ${font.style}; font-display: swap; }`,
   ).join('\n')
 }

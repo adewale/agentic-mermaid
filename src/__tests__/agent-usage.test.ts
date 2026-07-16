@@ -12,7 +12,7 @@ import { buildSubagentPromptEvalRequest, extractBareTask, prepareSubagentPromptE
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest } from '../mcp/server.ts'
-import { parseMermaid, verifyMermaid, serializeMermaid, mutate, buildMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid, serializeMermaid, mutate, buildMermaid } from '../agent/index.ts'
 import { asFlowchart } from '../agent/types.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 
@@ -41,7 +41,7 @@ function classifyRawAgentFailure(text: string): string[] {
   const findings = new Set<string>()
   if (/```mermaid/i.test(text)) findings.add('MERMAID_FENCE_NOT_CODE_MODE')
   if (/`?am\s+(mutate|render|verify|batch|preview)\b/i.test(text)) findings.add('CLI_MISUSE')
-  if (!/\bmermaid\.(parseMermaid|asFlowchart|asSequence|asTimeline|asClass|asEr|mutate|verifyMermaid|serializeMermaid)\b/.test(text)) findings.add('NO_SDK_CALLS')
+  if (!/\bmermaid\.(parseRegisteredMermaid|asFlowchart|asSequence|asTimeline|asClass|asEr|mutate|verifyMermaid|serializeMermaid)\b/.test(text)) findings.add('NO_SDK_CALLS')
   if (/^\s*```mermaid/i.test(text) && !/\bverifyMermaid\b/.test(text)) findings.add('REGENERATED_SOURCE')
   if (/\n\s*```mermaid/i.test(text) && /Used Agentic Mermaid|Verification result|source-level path/i.test(text)) findings.add('PROSE_NOT_CODE_MODE')
   if (/source-level path/i.test(text) && /alt/i.test(text) && /```mermaid\s*sequenceDiagram/i.test(text)) findings.add('SOURCE_LEVEL_OPAQUE_EDIT')
@@ -310,7 +310,7 @@ describe('homepage prompt eval contract', () => {
       const request = buildSubagentPromptEvalRequest(c, 'none', 'chat')
       // The baseline exists to measure what the docs add; any leaked guidance
       // (product name, channels, workflow, response contract) poisons it.
-      for (const leak of ['Agentic Mermaid', 'agentic-mermaid', 'parseMermaid', 'verifyMermaid', 'am capabilities', 'Updated Mermaid', 'Trace']) {
+      for (const leak of ['Agentic Mermaid', 'agentic-mermaid', 'parseRegisteredMermaid', 'verifyMermaid', 'am capabilities', 'Updated Mermaid', 'Trace']) {
         expect({ id: c.id, leak, leaked: request.includes(leak) }).toEqual({ id: c.id, leak, leaked: false })
       }
       expect(request).toContain(bare.task)
@@ -400,7 +400,7 @@ describe('stored agent-usage eval', () => {
   test('new-diagram source authoring passes without structured mutation', async () => {
     const summary = await runAgentUsageEval([{ id: 'author_auth_flow_source', prompt: 'author new source', script: `
       const source = '---\\ntitle: Auth Flow\\n---\\nflowchart LR\\n  A[User] --> B[Login Page]\\n  B --> C{Valid Credentials?}\\n  C -->|No| B\\n  C -->|Yes| D{MFA Enabled?}\\n  D -->|Yes| E[Enter MFA Code]\\n  E --> F{Code Valid?}\\n  F -->|No| E\\n  D -->|No| G[Create Session]\\n  F -->|Yes| G\\n  G --> H[Dashboard]'
-      const parsed = mermaid.parseMermaid(source)
+      const parsed = mermaid.parseRegisteredMermaid(source)
       if (!parsed.ok) return { error: parsed.error }
       const verify = mermaid.verifyMermaid(parsed.value)
       if (!verify.ok) return { error: verify.warnings }
@@ -422,7 +422,7 @@ describe('stored agent-usage eval', () => {
 
   test('decoy structured trace with regenerated output does not pass', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
@@ -450,7 +450,7 @@ describe('stored agent-usage eval', () => {
     // not match the serialized output, so the task check rejects it: returning
     // a regenerated source instead of the serialized mutation is unsafe.
     const summary = await runAgentUsageEval([{ id: 'sequence_alt_add_message', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
+      const r0 = mermaid.parseRegisteredMermaid('sequenceDiagram\\n  A->>B: hi\\n  alt ok\\n    B-->>A: yes\\n  end')
       const seq = mermaid.asSequence(r0.value)
       const r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'A', to: 'B', text: 'bye' })
       const verify = mermaid.verifyMermaid(r1.value)
@@ -465,7 +465,7 @@ describe('stored agent-usage eval', () => {
 
   test('manual ValidDiagram clones cannot be used to fake structured mutation lineage', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const clone = JSON.parse(JSON.stringify(r0.value))
       clone.body.graph.nodes.Cache = { id: 'Cache', label: 'Cache' }
       clone.body.graph.edges = [{ source: 'API', target: 'Cache' }, { source: 'Cache', target: 'DB' }]
@@ -473,12 +473,12 @@ describe('stored agent-usage eval', () => {
     ` }])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
-    expect(summary.results[0]!.error).toContain('must come from mermaid.parseMermaid')
+    expect(summary.results[0]!.error).toContain('must come from mermaid.parseRegisteredMermaid')
   })
 
   test('forged proxies cannot fake trusted diagram lineage', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const clone = JSON.parse(JSON.stringify(r0.value))
       clone.body.graph.nodes.Cache = { id: 'Cache', label: 'Cache' }
       clone.body.graph.edges = [{ source: 'API', target: 'Cache' }, { source: 'Cache', target: 'DB' }]
@@ -487,12 +487,12 @@ describe('stored agent-usage eval', () => {
     ` }])
     expect(summary.ok).toBe(false)
     expect(summary.results[0]!.traceOk).toBe(false)
-    expect(summary.results[0]!.error).toContain('must come from mermaid.parseMermaid')
+    expect(summary.results[0]!.error).toContain('must come from mermaid.parseRegisteredMermaid')
   })
 
   test('direct IR edits after verify are rejected by read-only SDK results', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
@@ -510,7 +510,7 @@ describe('stored agent-usage eval', () => {
 
   test('decoy mutations on regenerated already-correct source do not satisfy input lineage', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\n  API --> Cache\n  Cache --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> Cache\n  Cache --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Unused', label: 'Unused' })
       const r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->Cache' })
@@ -526,7 +526,7 @@ describe('stored agent-usage eval', () => {
 
   test('failed required mutation ops do not satisfy trace requirements', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
       mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'missing-edge' })
@@ -542,7 +542,7 @@ describe('stored agent-usage eval', () => {
 
   test('repeating required mutation kinds must satisfy required counts, not just a set', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
       const r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->DB' })
@@ -557,7 +557,7 @@ describe('stored agent-usage eval', () => {
 
   test('Proxy ops cannot spoof trace opKind differently from the executed mutation', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const spoof = (fakeKind) => {
         let calls = 0
@@ -581,7 +581,7 @@ describe('stored agent-usage eval', () => {
 
   test('result getters cannot inspect verify then serialize during output JSON conversion', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
       const r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->DB' })
@@ -636,7 +636,7 @@ describe('EVAL-2 failure corpus (captured bad-agent paths stay failing)', () => 
 describe('real Code Mode trace instrumentation', () => {
   test('safe execute() script produces a clean trace', async () => {
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
@@ -652,7 +652,7 @@ describe('real Code Mode trace instrumentation', () => {
     // opaque case is an un-segmentable one (stray `end`). Mutating it returns
     // a structured error AND the trace flags MUTATE_ON_OPAQUE.
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: hi\\n  end')
+      const r0 = mermaid.parseRegisteredMermaid('sequenceDiagram\\n  A->>B: hi\\n  end')
       return mermaid.mutate(r0.value, { kind: 'add_message', from: 'A', to: 'B', text: 'bad' })
     `, { trace: true })
     expect(r.ok).toBe(true)
@@ -663,7 +663,7 @@ describe('real Code Mode trace instrumentation', () => {
 
   test('unsafe execute() script is linted from its actual trace', async () => {
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       return mermaid.serializeMermaid(r1.value)
@@ -674,7 +674,7 @@ describe('real Code Mode trace instrumentation', () => {
 
   test('returning verify after source does not count as pre-serialize inspection', async () => {
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
@@ -686,7 +686,7 @@ describe('real Code Mode trace instrumentation', () => {
 
   test('MCP tools/call execute matches traced replay', async () => {
     const code = `
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       if (!r0.ok) return { error: 'parse' }
       const flow = mermaid.asFlowchart(r0.value)
       if (!flow) return { error: 'narrow' }

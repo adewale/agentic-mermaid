@@ -7,7 +7,7 @@
 // source chars — see label-metrics.ts.
 // ============================================================================
 
-import { parseMermaid as parseValidDiagram, parseRegisteredMermaid } from './parse.ts'
+import { parseRegisteredMermaid } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
@@ -84,7 +84,7 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
   const before = countStructuralElements(d)
   if (!before) return []
   try {
-    const reparsed = parseValidDiagram(serializeMermaid(d))
+    const reparsed = parseRegisteredMermaid(serializeMermaid(d))
     if (!reparsed.ok) return faithfulnessWarning(before, null)  // total loss
     const after = countStructuralElements(reparsed.value)
     if (!after) return []  // reparsed to an opaque body — the round-trip gate owns that
@@ -301,14 +301,16 @@ function radarAuthoredContrastWarnings(positioned: VerificationArtifact): Layout
   }
 }
 
-export function configWarningsForDiagram(d: ValidDiagram): LayoutWarning[] {
-  const familySpecific = d.kind === 'gantt' ? ganttTodayMarkerWarnings(d) : []
-  return dedupedConcat(familySpecific, familyConfigShapeWarnings(d))
+export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
+  if (d.body.kind === 'extension' || d.body.kind === 'preserved') return []
+  const builtin = d as ValidDiagram
+  const familySpecific = builtin.kind === 'gantt' ? ganttTodayMarkerWarnings(builtin) : []
+  return dedupedConcat(familySpecific, familyConfigShapeWarnings(builtin))
 }
 
 /** Lightweight source-only config diagnostics; never lays out or renders. */
 export function configWarningsForMermaid(source: string): LayoutWarning[] {
-  const parsed = parseValidDiagram(source)
+  const parsed = parseRegisteredMermaid(source)
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
@@ -510,11 +512,6 @@ function familyLayoutForVerify(
   d: ParsedDiagram,
   positioned: VerificationArtifact,
 ): { layout: RenderedLayout; warnings: LayoutWarning[] } {
-  // Retain the historical public VerifyResult projection for source-preserved
-  // state bodies. The clean renderability gate still positions/renders once.
-  if (d.kind === 'state' && d.body.kind === 'opaque') {
-    return { layout: emptyRenderedLayout(d.kind), warnings: [] }
-  }
   try {
     const artifact = positioned()
     return artifact
@@ -817,7 +814,7 @@ function verifySequence(
   // BUILD-18: a segment-preserving body may carry content only in opaque-block
   // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
   // not an empty diagram — it just isn't structurally modeled.
-  const hasOpaqueContent = (body.statements ?? []).some(
+  const hasOpaqueContent = body.statements.some(
     s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0),
   )
   const allMessages = sequenceMessages(body)
@@ -839,7 +836,7 @@ function verifySequence(
     const w = labelOverflowWarning(p.id, p.label, cap)
     if (w) warnings.push(w)
   }
-  for (const statement of body.statements ?? []) if (statement.kind === 'fragment') {
+  for (const statement of body.statements) if (statement.kind === 'fragment') {
     if (statement.fragment.label) {
       const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, statement.fragment.label, cap)
       if (w) warnings.push(w)
@@ -852,7 +849,7 @@ function verifySequence(
   // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
   // universal LABEL_OVERFLOW via the family's label extractor, so the safety
   // check survives the move from whole-body-opaque to structured-with-segments.
-  const opaqueLines = (body.statements ?? [])
+  const opaqueLines = body.statements
     .filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
     .flatMap(s => s.lines)
   if (opaqueLines.length > 0) {

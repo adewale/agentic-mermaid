@@ -13,7 +13,7 @@ export function externalFamilyDescribeUnavailable(family: string) {
     code: EXTERNAL_FAMILY_DESCRIBE_UNAVAILABLE_CODE,
     capability: 'describe' as const,
     family,
-    message: `Registered external family "${family}" has no semantic describe contract in FamilyDescriptor v1.`,
+    message: `Registered external family "${family}" has no semantic describe contract in FamilyDescriptor v2.`,
   })
 }
 
@@ -49,7 +49,7 @@ export function mcpDescribeFormat(args: Readonly<Record<string, unknown>>): McpD
  * Transport envelopes use the open parser so an installed extension is
  * identified truthfully. Built-in descriptions are gated by the same complete
  * verification contract as the verify tool, so a source that cannot render can
- * never be reported as successfully described. FamilyDescriptor v1
+ * never be reported as successfully described. FamilyDescriptor v2
  * intentionally has no semantic description hook, however, so external bodies
  * receive one stable unavailable diagnostic instead of being misreported as a
  * parse failure or guessed from opaque source.

@@ -4,7 +4,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { describeMermaidSource, describeMermaid, describeMermaidTree } from '../agent/describe.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 describe('describeMermaid', () => {
@@ -67,9 +67,9 @@ describe('describeMermaid', () => {
     }
   })
 
-  test('unparseable source returns a non-empty error description (not a throw)', () => {
+  test('an unregistered source returns a non-empty preservation description', () => {
     const out = describeMermaidSource('not a diagram')
     expect(out.length).toBeGreaterThan(0)
-    expect(out.toLowerCase()).toMatch(/unparseable|error/)
+    expect(out.toLowerCase()).toMatch(/unregistered|preserved/)
   })
 })

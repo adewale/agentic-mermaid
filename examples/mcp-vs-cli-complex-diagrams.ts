@@ -64,7 +64,7 @@ erDiagram
 
 async function buildViaMcpCodeMode(c: typeof CASES[number]): Promise<string> {
   const code = `
-    const parsed = mermaid.parseMermaid(${JSON.stringify(c.initialSource)})
+    const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(c.initialSource)})
     if (!parsed.ok) return { error: parsed.error }
     const narrow = parsed.value.kind === 'er' ? mermaid.asEr(parsed.value) : mermaid.asFlowchart(parsed.value)
     if (!narrow) return { error: 'unsupported-family', family: parsed.value.kind }

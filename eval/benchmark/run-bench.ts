@@ -10,7 +10,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVG, renderMermaidASCII } from '../../src/index.ts'
-import { parseMermaid } from '../../src/agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 
 const CORPUS = join(import.meta.dir, '..', 'mermaid-docs-corpus', 'corpus.json')
 

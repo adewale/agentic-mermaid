@@ -32,10 +32,8 @@ function setTheme(key) {
   diagramThemeIsAuto = false;
   if (key) {
     safeLocalStorageSet("bm-editor-palette", state.palette);
-    safeLocalStorageRemove("bm-editor-theme");
   } else {
     safeLocalStorageRemove("bm-editor-palette");
-    safeLocalStorageRemove("bm-editor-theme");
   }
   applyThemeToPage(key);
   updateThemeButton();
@@ -68,12 +66,11 @@ applyColorMode(isDark);
 
 // Restore saved theme, otherwise start on the brand Paper theme so the editor
 // opens with the same diagram palette the public site renders.
-var savedPaletteInput = safeLocalStorageGet("bm-editor-palette") || safeLocalStorageGet("bm-editor-theme") || "";
+var savedPaletteInput = safeLocalStorageGet("bm-editor-palette") || "";
 var savedPalette = editorPaletteInput(savedPaletteInput);
 if (savedPalette) {
   state.palette = savedPalette;
   safeLocalStorageSet("bm-editor-palette", savedPalette);
-  safeLocalStorageRemove("bm-editor-theme");
   diagramThemeIsAuto = false;
 } else if (!editorPaletteInput(state.palette)) {
   state.palette = DEFAULT_EDITOR_PALETTE;
@@ -153,7 +150,6 @@ var DEFAULT_SOURCE = [
 // Draft restore notice: polite, transient, with an explicit way to discard.
 var draftNotice = document.getElementById("draft-notice");
 var draftDiscardBtn = document.getElementById("draft-discard-btn");
-var draftPrivacyBtn = document.getElementById("draft-privacy-btn");
 var draftNoticeTimer = null;
 
 function hideDraftNotice() {
@@ -183,10 +179,6 @@ function discardRestoredDraft() {
 }
 
 if (draftDiscardBtn) draftDiscardBtn.addEventListener("click", discardRestoredDraft);
-if (draftPrivacyBtn) draftPrivacyBtn.addEventListener("click", function() {
-  if (typeof toggleDraftStorageMode === "function") toggleDraftStorageMode();
-});
-if (typeof updateDraftPrivacyControl === "function") updateDraftPrivacyControl();
 
 function shouldOpenEmptyEditor() {
   try {

@@ -103,10 +103,7 @@ export interface SequenceBody {
   kind: 'sequence'
   participants: SequenceParticipant[]
   messages: SequenceMessage[]
-  // Optional for back-compat: synthesizeFromGraph payloads and hand-built
-  // bodies may omit it; the serializer falls back to participants-then-messages
-  // ordering when absent. Parsed bodies always populate it.
-  statements?: SequenceStatement[]
+  statements: SequenceStatement[]
 }
 
 // ---- Timeline body --------------------------------------------------------
@@ -746,7 +743,7 @@ export interface GanttScheduleAnalysisSummary {
 }
 
 export interface DiagramAnalysis {
-  kind: DiagramKind
+  kind: FamilyId
   feedbackEdges: FeedbackEdgeAnalysis[]
   actions: DiagramActionRecord[]
   gantt?: GanttScheduleAnalysisSummary
@@ -894,61 +891,61 @@ export type GitGraphValidDiagram = ValidDiagram & { body: GitGraphBody }
 export type RadarValidDiagram = ValidDiagram & { body: RadarBody }
 export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram | MindmapValidDiagram | GitGraphValidDiagram | RadarValidDiagram
 
-export function asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null {
+export function asFlowchart(d: ParsedDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
 }
-export function asState(d: ValidDiagram): StateValidDiagram | null {
+export function asState(d: ParsedDiagram): StateValidDiagram | null {
   return d.body.kind === 'state' ? (d as StateValidDiagram) : null
 }
-export function asSequence(d: ValidDiagram): SequenceValidDiagram | null {
+export function asSequence(d: ParsedDiagram): SequenceValidDiagram | null {
   return d.body.kind === 'sequence' ? (d as SequenceValidDiagram) : null
 }
 
-export function asTimeline(d: ValidDiagram): TimelineValidDiagram | null {
+export function asTimeline(d: ParsedDiagram): TimelineValidDiagram | null {
   return d.body.kind === 'timeline' ? (d as TimelineValidDiagram) : null
 }
 
-export function asClass(d: ValidDiagram): ClassValidDiagram | null {
+export function asClass(d: ParsedDiagram): ClassValidDiagram | null {
   return d.body.kind === 'class' ? (d as ClassValidDiagram) : null
 }
 
-export function asEr(d: ValidDiagram): ErValidDiagram | null {
+export function asEr(d: ParsedDiagram): ErValidDiagram | null {
   return d.body.kind === 'er' ? (d as ErValidDiagram) : null
 }
 
-export function asJourney(d: ValidDiagram): JourneyValidDiagram | null {
+export function asJourney(d: ParsedDiagram): JourneyValidDiagram | null {
   return d.body.kind === 'journey' ? (d as JourneyValidDiagram) : null
 }
 
-export function asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null {
+export function asArchitecture(d: ParsedDiagram): ArchitectureValidDiagram | null {
   return d.body.kind === 'architecture' ? (d as ArchitectureValidDiagram) : null
 }
 
-export function asXyChart(d: ValidDiagram): XyChartValidDiagram | null {
+export function asXyChart(d: ParsedDiagram): XyChartValidDiagram | null {
   return d.body.kind === 'xychart' ? (d as XyChartValidDiagram) : null
 }
 
-export function asPie(d: ValidDiagram): PieValidDiagram | null {
+export function asPie(d: ParsedDiagram): PieValidDiagram | null {
   return d.body.kind === 'pie' ? (d as PieValidDiagram) : null
 }
 
-export function asQuadrant(d: ValidDiagram): QuadrantValidDiagram | null {
+export function asQuadrant(d: ParsedDiagram): QuadrantValidDiagram | null {
   return d.body.kind === 'quadrant' ? (d as QuadrantValidDiagram) : null
 }
 
-export function asRadar(d: ValidDiagram): RadarValidDiagram | null {
+export function asRadar(d: ParsedDiagram): RadarValidDiagram | null {
   return d.body.kind === 'radar' ? (d as RadarValidDiagram) : null
 }
 
-export function asGantt(d: ValidDiagram): GanttValidDiagram | null {
+export function asGantt(d: ParsedDiagram): GanttValidDiagram | null {
   return d.body.kind === 'gantt' ? (d as GanttValidDiagram) : null
 }
 
-export function asMindmap(d: ValidDiagram): MindmapValidDiagram | null {
+export function asMindmap(d: ParsedDiagram): MindmapValidDiagram | null {
   return d.body.kind === 'mindmap' ? (d as MindmapValidDiagram) : null
 }
 
-export function asGitGraph(d: ValidDiagram): GitGraphValidDiagram | null {
+export function asGitGraph(d: ParsedDiagram): GitGraphValidDiagram | null {
   return d.body.kind === 'gitgraph' ? (d as GitGraphValidDiagram) : null
 }
 
@@ -957,7 +954,7 @@ export function asGitGraph(d: ValidDiagram): GitGraphValidDiagram | null {
 export interface SourcePreservationReceipt {
   version: 1
   classification: 'unsupported' | 'inventory-only' | 'unknown'
-  /** Exact authored bytes supplied to parseMermaid. */
+  /** Exact authored bytes supplied to parseRegisteredMermaid. */
   source: string
   header: string
   upstreamFamilyId?: string
@@ -1278,7 +1275,6 @@ export type GanttMutationOp =
   | { kind: 'move_section'; from: number; to: number }
 
 export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp | MindmapMutationOp | GitGraphMutationOp | RadarMutationOp
-export type MutationOp = FlowchartMutationOp // legacy alias
 
 // ---- Branded Finite -------------------------------------------------------
 

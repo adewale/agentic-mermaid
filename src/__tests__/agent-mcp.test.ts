@@ -11,7 +11,7 @@ import pkg from '../../package.json'
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value); if (!flow) return { kind: r0.value.kind }
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       const v = mermaid.verifyMermaid(r1.value); if (!v.ok) return { warnings: v.warnings }
@@ -21,7 +21,7 @@ describe('sandbox — happy', () => {
   })
   test('sequence workflow', async () => {
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('sequenceDiagram\\n  A->>B: Hi')
+      const r0 = mermaid.parseRegisteredMermaid('sequenceDiagram\\n  A->>B: Hi')
       const seq = mermaid.asSequence(r0.value); if (!seq) return { kind: r0.value.kind }
       const r1 = mermaid.mutate(seq, { kind: 'add_message', from: 'B', to: 'A', text: 'Bye', style: 'reply' })
       const v = mermaid.verifyMermaid(r1.value); if (!v.ok) return { warnings: v.warnings }
@@ -31,7 +31,7 @@ describe('sandbox — happy', () => {
   })
   test('Architecture B04 workflow stays typed in Code Mode', async () => {
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('architecture-beta\\n  accTitle: Topology\\n  group app[App]\\n  service api[API] in app\\n  junction bus\\n  api{group}:R --> L:bus')
+      const r0 = mermaid.parseRegisteredMermaid('architecture-beta\\n  accTitle: Topology\\n  group app[App]\\n  service api[API] in app\\n  junction bus\\n  api{group}:R --> L:bus')
       const arch = mermaid.asArchitecture(r0.value); if (!arch) return { kind: r0.value.body.kind }
       const r1 = mermaid.mutate(arch, { kind: 'update_edge', index: 0, fromBoundary: 'item', label: 'events' })
       if (!r1.ok) return { error: r1.error }
@@ -44,8 +44,8 @@ describe('sandbox — happy', () => {
     expect((r.value as any).source).toContain('group app[App Plane]')
   })
   test('ValidDiagram render inputs use mutated body, not stale canonicalSource', () => {
-    const { parseMermaid, asFlowchart, mutate, serializeMermaid, renderMermaidSVG, renderMermaidASCII } = require('../agent/index.ts')
-    const r0 = parseMermaid('flowchart TD\n  API --> DB')
+    const { parseRegisteredMermaid, asFlowchart, mutate, serializeMermaid, renderMermaidSVG, renderMermaidASCII } = require('../agent/index.ts')
+    const r0 = parseRegisteredMermaid('flowchart TD\n  API --> DB')
     const flow = asFlowchart(r0.value)
     const r1 = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
     expect(serializeMermaid(r1.value)).toContain('Cache')
@@ -105,13 +105,13 @@ describe('sandbox — isolation + sad paths', () => {
     expect((await executeInSandbox(`return Function('return 7')()`)).ok).toBe(false)
     expect((await executeInSandbox(`return Object.constructor('return 7')()`)).ok).toBe(false)
     expect((await executeInSandbox(`return console.log.constructor('return 7')()`)).ok).toBe(false)
-    expect((await executeInSandbox(`const r = mermaid.parseMermaid('flowchart TD\\n  A --> B'); const flow = mermaid.asFlowchart(r.value); return flow.body.graph.edges.push.constructor('return 7')()`)).ok).toBe(false)
-    expect((await executeInSandbox(`const r = mermaid.parseMermaid('flowchart TD\\n  A --> B'); return Object.getOwnPropertyDescriptor(r.value, 'body').value.constructor.constructor('return 7')()`)).ok).toBe(false)
-    expect((await executeInSandbox(`try { const r = mermaid.parseMermaid('flowchart TD\\n  A --> B'); const flow = mermaid.asFlowchart(r.value); flow.body.graph.edges.push({ source: 'B', target: 'C' }) } catch (e) { return e.constructor.constructor('return 7')() }`)).ok).toBe(false)
-    expect((await executeInSandbox(`try { const r = mermaid.parseMermaid('flowchart TD\\n  A --> B'); Object.preventExtensions(r.value) } catch (e) { return e.constructor.constructor('return 7')() }`)).ok).toBe(false)
-    expect((await executeInSandbox(`return mermaid.parseMermaid.constructor('return 7')()`)).ok).toBe(false)
-    expect((await executeInSandbox(`const fakeSource = { replace: String.prototype.replace.bind('flowchart TD\\n  A --> B'), split: String.prototype.split.bind('flowchart TD\\n  A --> B'), trim: String.prototype.trim.bind('flowchart TD\\n  A --> B') }; return mermaid.parseMermaid(fakeSource)`)).error).toContain('source must be a string')
-    expect((await executeInSandbox(`const r = mermaid.parseMermaid('flowchart TD\\n A --> B'); return r.value.constructor.constructor('return 7')()`)).ok).toBe(false)
+    expect((await executeInSandbox(`const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B'); const flow = mermaid.asFlowchart(r.value); return flow.body.graph.edges.push.constructor('return 7')()`)).ok).toBe(false)
+    expect((await executeInSandbox(`const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B'); return Object.getOwnPropertyDescriptor(r.value, 'body').value.constructor.constructor('return 7')()`)).ok).toBe(false)
+    expect((await executeInSandbox(`try { const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B'); const flow = mermaid.asFlowchart(r.value); flow.body.graph.edges.push({ source: 'B', target: 'C' }) } catch (e) { return e.constructor.constructor('return 7')() }`)).ok).toBe(false)
+    expect((await executeInSandbox(`try { const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B'); Object.preventExtensions(r.value) } catch (e) { return e.constructor.constructor('return 7')() }`)).ok).toBe(false)
+    expect((await executeInSandbox(`return mermaid.parseRegisteredMermaid.constructor('return 7')()`)).ok).toBe(false)
+    expect((await executeInSandbox(`const fakeSource = { replace: String.prototype.replace.bind('flowchart TD\\n  A --> B'), split: String.prototype.split.bind('flowchart TD\\n  A --> B'), trim: String.prototype.trim.bind('flowchart TD\\n  A --> B') }; return mermaid.parseRegisteredMermaid(fakeSource)`)).error).toContain('source must be a string')
+    expect((await executeInSandbox(`const r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B'); return r.value.constructor.constructor('return 7')()`)).ok).toBe(false)
     expect((await executeInSandbox(`return globalThis.constructor.constructor('return typeof process')()`)).ok).toBe(false)
     expect((await executeInSandbox(`Error.prepareStackTrace = (_, frames) => frames; return new Error().stack[0].constructor.constructor('return process.cwd()')()`)).ok).toBe(false)
     expect((await executeInSandbox(`Error.prepareStackTrace = (_, frames) => frames; return Array.isArray(new Error().stack)`)).value).toBe(false)
@@ -121,66 +121,66 @@ describe('sandbox — isolation + sad paths', () => {
 
   test('SDK results are read-only; structured edits must go through mutate', async () => {
     const setProp = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.edges[0].target = 'C'
       return 'unreachable'
     `)
     const pushArray = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.edges.push({ source: 'B', target: 'C' })
       return 'unreachable'
     `)
     const mapSet = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.nodes.set('C', {})
       return 'unreachable'
     `)
     const toJson = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       r.value.toJSON = () => 'hide-drift'
       return 'unreachable'
     `)
     const constructHostHelper = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       const arr = new (flow.body.graph.edges.toSpliced)(0, 0)
       return arr.constructor.constructor('return process.cwd()')()
     `)
     const reflectConstructNewTarget = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       const C = flow.body.graph.edges.toSpliced
       const o = Reflect.construct(Object, [], C)
       return o.constructor.constructor('return process.cwd()')()
     `)
     const mapOwnGetOverride = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.nodes.get = function () { return this.constructor.constructor('return process.cwd()')() }
       return flow.body.graph.nodes.get('A')
     `)
     const mapIteratorInjection = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.nodes[Symbol.iterator] = function * () { yield ['C', { id: 'C', label: 'Cache', shape: 'rectangle' }] }
       return mermaid.serializeMermaid(flow)
     `)
     const mapDefineProperty = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       Object.defineProperty(flow.body.graph.nodes, 'get', { value: () => 'owned' })
       return 'unreachable'
     `)
     const manualClone = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const clone = JSON.parse(JSON.stringify(r.value))
       return mermaid.mutate(clone, { kind: 'add_node', id: 'C', label: 'C' })
     `)
     const forgedProxy = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const clone = JSON.parse(JSON.stringify(r.value))
       const forged = new Proxy(clone, { has: () => true, get: (target, prop) => target[prop] })
       return mermaid.mutate(forged, { kind: 'add_node', id: 'C', label: 'C' })
@@ -194,58 +194,58 @@ describe('sandbox — isolation + sad paths', () => {
     expect(mapOwnGetOverride.error).toContain('read-only')
     expect(mapIteratorInjection.error).toContain('read-only')
     expect(mapDefineProperty.error).toContain('read-only')
-    expect(manualClone.error).toContain('must come from mermaid.parseMermaid')
-    expect(forgedProxy.error).toContain('must come from mermaid.parseMermaid')
+    expect(manualClone.error).toContain('must come from mermaid.parseRegisteredMermaid')
+    expect(forgedProxy.error).toContain('must come from mermaid.parseRegisteredMermaid')
   })
 
   test('collection callback helpers expose hardened values, not raw host objects', async () => {
     const ctor = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       let leaked = 'blocked'
       flow.body.graph.edges.forEach(e => { try { leaked = e.constructor.constructor('return typeof process')() } catch (_) { leaked = 'blocked' } })
       return leaked
     `)
     const arrayMutation = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.edges.map(e => { e.target = 'C'; return e })
       return mermaid.serializeMermaid(flow)
     `)
     const mapMutation = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.nodes.forEach(n => { n.label = 'Changed' })
       return mermaid.serializeMermaid(flow)
     `)
     const findLastCtor = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       let leaked = 'blocked'
       flow.body.graph.edges.findLast(e => { try { leaked = e.constructor.constructor('return typeof process')() } catch (_) { leaked = 'blocked' }; return false })
       return leaked
     `)
     const toSortedCtor = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B\\n  C --> D')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B\\n  C --> D')
       const flow = mermaid.asFlowchart(r.value)
       let leaked = 'blocked'
       flow.body.graph.edges.toSorted((a, b) => { try { leaked = a.constructor.constructor('return typeof process')() } catch (_) { leaked = 'blocked' }; return 0 })
       return leaked
     `)
     const mapGetOrInsert = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.nodes.getOrInsert('C', { id: 'C', label: 'Cache', shape: 'rectangle' })
       return mermaid.serializeMermaid(flow)
     `)
     const defineGetter = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.edges[0].__defineGetter__('target', () => 'C')
       return mermaid.serializeMermaid(flow)
     `)
     const lookupProtoMapMutator = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       const protoGetter = flow.body.graph.nodes.__lookupGetter__('__proto__')
       const proto = protoGetter && protoGetter.call(flow.body.graph.nodes)
@@ -253,14 +253,14 @@ describe('sandbox — isolation + sad paths', () => {
       return mermaid.serializeMermaid(flow)
     `)
     const callbackThisArgEscape = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       let leaked = 'blocked'
       flow.body.graph.edges.forEach(function () { try { leaked = this.constructor.constructor('return typeof process')() } catch (_) { leaked = 'blocked' } }, flow.body.graph.edges[0])
       return leaked
     `)
     const callbackThisArgMutation = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r.value)
       flow.body.graph.nodes.forEach(function () { this.label = 'Changed' }, flow.body.graph.nodes.get('A'))
       return mermaid.serializeMermaid(flow)
@@ -278,7 +278,7 @@ describe('sandbox — isolation + sad paths', () => {
   })
   test('result getters are rejected instead of running after the VM timeout/commit point', async () => {
     const r = await executeInSandbox(`
-      const r0 = mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
@@ -305,7 +305,7 @@ describe('sandbox — isolation + sad paths', () => {
     ).join('\n')
     const startedAt = performance.now()
     const r = await executeInSandbox(
-      `return mermaid.parseMermaid(${JSON.stringify(source)}).value`,
+      `return mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value`,
       { timeoutMs: 2_000 },
     )
     const elapsedMs = performance.now() - startedAt
@@ -318,7 +318,7 @@ describe('sandbox — isolation + sad paths', () => {
 
   test('the post-close commit watchdog never exposes a raw host callable', async () => {
     const r = await executeInSandbox(`
-      mermaid.parseMermaid('flowchart TD\\n  A --> B')
+      mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       return new Proxy({ guard: null }, {
         get(target, property, receiver) {
           if (property === 'ok') {
@@ -374,7 +374,7 @@ describe('sandbox — isolation + sad paths', () => {
     expect(thrown.error).toMatch(/timed out|timeout|sandbox error/i)
 
     const spoof = await executeInSandbox(`
-      const r = mermaid.parseMermaid('flowchart TD\\n A --> B')
+      const r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B')
       throw { get name() { mermaid.serializeMermaid(r.value); return 'SyntaxError' }, message: 'fake' }
     `, { trace: true })
     expect(spoof.ok).toBe(false)
@@ -383,7 +383,7 @@ describe('sandbox — isolation + sad paths', () => {
 
   test('SDK facade descriptors expose wrapped traced functions, not raw SDK functions', async () => {
     const traced = await executeInSandbox(`
-      const parse = Object.getOwnPropertyDescriptor(mermaid, 'parseMermaid').value
+      const parse = Object.getOwnPropertyDescriptor(mermaid, 'parseRegisteredMermaid').value
       const verifyMermaid = Object.getOwnPropertyDescriptor(mermaid, 'verifyMermaid').value
       const r0 = parse('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
@@ -394,7 +394,7 @@ describe('sandbox — isolation + sad paths', () => {
     expect((traced.trace ?? []).map(c => c.verb)).toEqual(['parse', 'narrow', 'verify', 'verify_inspect'])
 
     const closed = await executeInSandbox(`
-      const parse = Object.getOwnPropertyDescriptor(mermaid, 'parseMermaid').value
+      const parse = Object.getOwnPropertyDescriptor(mermaid, 'parseRegisteredMermaid').value
       const verifyMermaid = Object.getOwnPropertyDescriptor(mermaid, 'verifyMermaid').value
       const r0 = parse('flowchart TD\\n  A --> B')
       return { get late() { return verifyMermaid(r0.value).ok } }
@@ -425,11 +425,11 @@ describe('sandbox — isolation + sad paths', () => {
 
   test('Bun rejects unsafe sub-second SDK watchdogs as a tagged result', async () => {
     expect(await executeInSandbox('return "mermaid"', { timeoutMs: 100 })).toMatchObject({ ok: true, value: 'mermaid' })
-    const result = await executeInSandbox('return mermaid.parseMermaid("flowchart TD\\n A --> B")', { timeoutMs: 100 })
+    const result = await executeInSandbox('return mermaid.parseRegisteredMermaid("flowchart TD\\n A --> B")', { timeoutMs: 100 })
     if (typeof Bun !== 'undefined') {
       expect(result).toMatchObject({ ok: false })
       expect(result.error).toContain('timeoutMs >= 1000')
-      const computed = await executeInSandbox('return globalThis["mer" + "maid"].parseMermaid("flowchart TD\\n A --> B")', { timeoutMs: 100 })
+      const computed = await executeInSandbox('return globalThis["mer" + "maid"].parseRegisteredMermaid("flowchart TD\\n A --> B")', { timeoutMs: 100 })
       expect(computed.error).toContain('timeoutMs >= 1000')
     }
   })
@@ -510,6 +510,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
       expect(tools[0].description).toContain(signature)
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
+    expect(tools[0].description).toContain('interface RenderRequestReceipt { version: 2;')
     // Includes the compact strict StyleSpec contract; remain bounded.
     expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(14_500)
   })
@@ -545,8 +546,8 @@ describe('MCP — JSON-RPC happy + sad', () => {
       { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', scale: 'large' } },
       { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', scale: 0 } },
       { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', background: 123 } },
-      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', seed: 'bad' } },
-      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', style: 'not-a-registered-style' } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', options: { seed: 'bad' } } },
+      { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', options: { style: 'not-a-registered-style' } } },
       { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', options: { padding: 'wide' } } },
       { name: 'render_png', arguments: { source: 'flowchart LR\nA-->B', unexpected: true } },
     ]
@@ -585,7 +586,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
 describe('MCP bin shim', () => {
   test('parseMcpCliOptions is the shared flag parser for both bins', () => {
     const parsed = parseMcpCliOptions([
-      '--http', '--host', '0.0.0.0', '--port', '3001', '--artifact-dir', '/tmp/am',
+      '--transport', 'http', '--host', '0.0.0.0', '--port', '3001', '--artifact-dir', '/tmp/am',
       '--public-url', 'https://example.test/artifacts', '--max-artifact-bytes', '123',
       '--artifact-ttl-ms', '456', '--max-rpc-body-bytes', '789', '--auth-token', 'secret',
       '--max-sandbox-timeout-ms', '1000',
@@ -617,6 +618,11 @@ describe('MCP bin shim', () => {
     expect(err.join('')).toContain('unknown transport: smtp')
     expect(await runMcpCli(['--port', '70000'], io)).toBe(1)
     expect(err.join('')).toContain('--port must be an integer between 0 and 65535')
+    expect(await runMcpCli(['--http'], io)).toBe(1)
+    expect(err.join('')).toContain('unknown option: --http')
+    expect(await runMcpCli(['--bogus'], io)).toBe(1)
+    expect(err.join('')).toContain('unknown option: --bogus')
+    expect(() => parseMcpCliOptions(['--host'])).toThrow('--host requires a value')
   })
 })
 

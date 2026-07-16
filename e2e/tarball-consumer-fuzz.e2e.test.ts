@@ -90,7 +90,7 @@ const codeArb = fc.oneof(
   fc.string({ maxLength: 80 }).map(s => s.replace(/[\n\r]/g, ' ')),
   fc.constantFrom(
     'return 1 + 1',
-    'return mermaid.parseMermaid("flowchart TD\\n A --> B")',
+    'return mermaid.parseRegisteredMermaid("flowchart TD\\n A --> B")',
     'while (true) {}',
     'throw new Error("boom")',
     'undefined.x',
@@ -144,7 +144,7 @@ const inputs = JSON.parse(readFileSync(process.env.AM_FUZZ_INPUT, 'utf8'))
 const base = await import('agentic-mermaid')
 const agent = await import('agentic-mermaid/agent')
 const resolved = {
-  baseSvg: typeof base.renderMermaidSVG, baseAscii: typeof base.renderMermaidASCII, baseThemes: typeof base.THEMES,
+  baseSvg: typeof base.renderMermaidSVG, baseAscii: typeof base.renderMermaidASCII, baseStyles: typeof base.knownStyleDescriptors,
   agentVerify: typeof agent.verifyMermaid, agentSvg: typeof agent.renderMermaidSVG, agentPng: typeof agent.renderMermaidPNG,
 }
 const { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG } = agent
@@ -152,7 +152,7 @@ const sha = (s) => createHash('sha256').update(s).digest('hex')
 const tag = (fn) => { try { return sha(String(fn())) } catch { return 'THREW' } }
 const PNG_N = Number(process.env.AM_FUZZ_PNG_N || 0)
 const results = inputs.map((src, i) => {
-  const parsed = agent.parseMermaid(src)
+  const parsed = agent.parseRegisteredMermaid(src)
   const r = {
     kind: parsed.ok ? parsed.value.body.kind : 'THREW',
     layout: tag(() => JSON.stringify(verifyMermaid(src).layout ?? null)),
@@ -184,7 +184,7 @@ describe('installed tarball — library', () => {
     }
     // Bare-specifier resolution through the exports map.
     expect(resolved).toEqual({
-      baseSvg: 'function', baseAscii: 'function', baseThemes: 'object',
+      baseSvg: 'function', baseAscii: 'function', baseStyles: 'function',
       agentVerify: 'function', agentSvg: 'function', agentPng: 'function',
     })
 
@@ -233,7 +233,7 @@ describe('installed tarball — am bin', () => {
     const flow = fc.sample(flowchartArb, 30)
     const lines: string[] = []
     const asciiAt = new Map<number, string>() // line index -> source
-    flow.forEach((src) => { asciiAt.set(lines.length, src); lines.push(JSON.stringify({ op: 'render', source: src, options: { ascii: true } })) })
+    flow.forEach((src) => { asciiAt.set(lines.length, src); lines.push(JSON.stringify({ op: 'render', source: src, options: { format: 'ascii' } })) })
     // Sample sources and ops in ONE draw each — `fc.sample(arb, 1)` inside a loop
     // re-seeds from the pinned global seed every call and returns the same pick.
     const mixedSrcs = fc.sample(mixedArb, 20)
@@ -278,7 +278,7 @@ describe('installed tarball — am bin', () => {
       expect(installedParse.stdout).toBe(sourceParse.stdout)
       expect(JSON.parse(installedParse.stdout).body.kind).toBe(fixture.family)
 
-      for (const format of ['svg', 'ascii', 'unicode', 'json'] as const) {
+      for (const format of ['svg', 'ascii', 'unicode', 'layout'] as const) {
         const installed = spawnSync(NODE!, [amBin, 'render', file, '--format', format], {
           cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
         })
@@ -295,7 +295,7 @@ describe('installed tarball — am bin', () => {
     expect(haveConsumer).toBe(true)
     const file = join(work, 'd.mmd')
     writeFileSync(file, 'flowchart TD\n  A[Start] --> B{Choice}\n  B -->|yes| C\n  B -->|no| D\n')
-    for (const fmt of ['svg', 'ascii', 'unicode', 'json'] as const) {
+    for (const fmt of ['svg', 'ascii', 'unicode', 'layout'] as const) {
       const r = spawnSync(NODE!, [amBin, 'render', file, '--format', fmt], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 })
       expect(r.status).toBe(0)
       expect(r.stdout.length).toBeGreaterThan(0)
@@ -326,7 +326,7 @@ describe('installed tarball — mcp bin', () => {
     const requests = PACKAGE_FAMILY_FIXTURES.map((fixture, index) => ({
       jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
         name: 'execute', arguments: {
-          code: `const source = ${JSON.stringify(fixture.source)}; const parsed = mermaid.parseMermaid(source); return { ok: parsed.ok, kind: parsed.ok ? parsed.value.body.kind : null, svg: mermaid.renderMermaidSVG(source), ascii: mermaid.renderMermaidASCII(source) }`,
+          code: `const source = ${JSON.stringify(fixture.source)}; const parsed = mermaid.parseRegisteredMermaid(source); return { ok: parsed.ok, kind: parsed.ok ? parsed.value.body.kind : null, svg: mermaid.renderMermaidSVG(source), ascii: mermaid.renderMermaidASCII(source) }`,
         },
       },
     }))

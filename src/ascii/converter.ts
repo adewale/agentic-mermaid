@@ -81,6 +81,8 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     const from = nodeMap.get(mEdge.source) ?? (fromSubgraph ? chooseSubgraphAnchor(parsed, fromSubgraph, 'out') : undefined)
     const to = nodeMap.get(mEdge.target) ?? (toSubgraph ? chooseSubgraphAnchor(parsed, toSubgraph, 'in') : undefined)
     if (!from || !to) continue
+    const routeClass = routeClasses[edgeIndex]
+    if (!routeClass) throw new Error(`ASCII route classification missing for edge ${edgeIndex}`)
 
     edges.push({
       from,
@@ -92,7 +94,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
       labelLine: [],
       startDir: { x: 0, y: 0 },
       endDir: { x: 0, y: 0 },
-      routeClass: routeClasses[edgeIndex],
+      routeClass,
       style: mEdge.style,
       hasArrowStart: mEdge.hasArrowStart,
       hasArrowEnd: mEdge.hasArrowEnd,

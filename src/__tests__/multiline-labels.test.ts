@@ -15,7 +15,7 @@ import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { measureMultilineText, LINE_HEIGHT_RATIO, measureTextWidth } from '../text-metrics.ts'
-import { renderMermaid } from '../index.ts'
+import { renderMermaidSVGAsync } from '../index.ts'
 import { normalizeBrTags, stripFormattingTags } from '../multiline-utils.ts'
 
 // ============================================================================
@@ -253,9 +253,9 @@ describe('measureMultilineText', () => {
 // Renderer: <tspan> element generation
 // ============================================================================
 
-describe('renderMermaid – multi-line labels', () => {
+describe('renderMermaidSVGAsync – multi-line labels', () => {
   it('renders single-line node label without tspan', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Single Line]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Single Line]')
 
     // Should have text element with direct content
     expect(svg).toContain('Single Line</text>')
@@ -264,7 +264,7 @@ describe('renderMermaid – multi-line labels', () => {
   })
 
   it('renders multi-line node label with tspan elements', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Line1<br>Line2]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Line1<br>Line2]')
 
     // Should have tspan elements
     expect(svg).toContain('<tspan')
@@ -273,7 +273,7 @@ describe('renderMermaid – multi-line labels', () => {
   })
 
   it('renders 3-line node label with 3 tspan elements', async () => {
-    const svg = await renderMermaid('graph TD\n  A[One<br>Two<br>Three]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[One<br>Two<br>Three]')
 
     // Count tspan occurrences
     const tspanMatches = svg.match(/<tspan/g)
@@ -285,7 +285,7 @@ describe('renderMermaid – multi-line labels', () => {
   })
 
   it('renders multi-line edge label with tspan elements', async () => {
-    const svg = await renderMermaid('graph TD\n  A -->|First<br>Second| B')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A -->|First<br>Second| B')
 
     expect(svg).toContain('<tspan')
     expect(svg).toContain('>First</tspan>')
@@ -293,7 +293,7 @@ describe('renderMermaid – multi-line labels', () => {
   })
 
   it('includes x attribute on each tspan for horizontal reset', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Line1<br>Line2]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Line1<br>Line2]')
 
     // Each tspan should have an x attribute
     const tspanRegex = /<tspan x="[^"]+"/g
@@ -302,7 +302,7 @@ describe('renderMermaid – multi-line labels', () => {
   })
 
   it('includes dy attribute on each tspan for vertical positioning', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Line1<br>Line2]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Line1<br>Line2]')
 
     // Each tspan should have a dy attribute
     const tspanRegex = /<tspan[^>]*dy="[^"]+"/g
@@ -311,7 +311,7 @@ describe('renderMermaid – multi-line labels', () => {
   })
 
   it('escapes XML characters in multi-line labels', async () => {
-    const svg = await renderMermaid('graph TD\n  A[First &<br>Second >]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[First &<br>Second >]')
 
     expect(svg).toContain('&amp;')
     expect(svg).toContain('&gt;')
@@ -324,10 +324,10 @@ describe('renderMermaid – multi-line labels', () => {
 // Integration: layout sizing
 // ============================================================================
 
-describe('renderMermaid – multi-line layout sizing', () => {
+describe('renderMermaidSVGAsync – multi-line layout sizing', () => {
   it('multi-line node is taller than single-line node', async () => {
-    const singleSvg = await renderMermaid('graph TD\n  A[Single]')
-    const multiSvg = await renderMermaid('graph TD\n  A[Line1<br>Line2]')
+    const singleSvg = await renderMermaidSVGAsync('graph TD\n  A[Single]')
+    const multiSvg = await renderMermaidSVGAsync('graph TD\n  A[Line1<br>Line2]')
 
     // Extract node rect heights
     const singleHeight = extractFirstRectHeight(singleSvg)
@@ -337,8 +337,8 @@ describe('renderMermaid – multi-line layout sizing', () => {
   })
 
   it('3-line node is taller than 2-line node', async () => {
-    const twoLineSvg = await renderMermaid('graph TD\n  A[One<br>Two]')
-    const threeLineSvg = await renderMermaid('graph TD\n  A[One<br>Two<br>Three]')
+    const twoLineSvg = await renderMermaidSVGAsync('graph TD\n  A[One<br>Two]')
+    const threeLineSvg = await renderMermaidSVGAsync('graph TD\n  A[One<br>Two<br>Three]')
 
     const twoLineHeight = extractFirstRectHeight(twoLineSvg)
     const threeLineHeight = extractFirstRectHeight(threeLineSvg)
@@ -348,11 +348,11 @@ describe('renderMermaid – multi-line layout sizing', () => {
 
   it('node width matches longest line', async () => {
     // "Much Longer" is wider than "Short"
-    const svg = await renderMermaid('graph TD\n  A[Short<br>Much Longer Line]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Short<br>Much Longer Line]')
     const width = extractFirstRectWidth(svg)
 
     // Compare to single-line with long text
-    const longSvg = await renderMermaid('graph TD\n  A[Much Longer Line]')
+    const longSvg = await renderMermaidSVGAsync('graph TD\n  A[Much Longer Line]')
     const longWidth = extractFirstRectWidth(longSvg)
 
     // Widths should be approximately equal (multi-line uses max line width)
@@ -364,9 +364,9 @@ describe('renderMermaid – multi-line layout sizing', () => {
 // Integration: sequence diagram multi-line rendering
 // ============================================================================
 
-describe('renderMermaid – sequence diagram multi-line', () => {
+describe('renderMermaidSVGAsync – sequence diagram multi-line', () => {
   it('renders multi-line message labels with tspan elements', async () => {
-    const svg = await renderMermaid(`sequenceDiagram
+    const svg = await renderMermaidSVGAsync(`sequenceDiagram
       A->>B: Hello<br>World
     `)
 
@@ -376,7 +376,7 @@ describe('renderMermaid – sequence diagram multi-line', () => {
   })
 
   it('renders multi-line actor labels with tspan elements', async () => {
-    const svg = await renderMermaid(`sequenceDiagram
+    const svg = await renderMermaidSVGAsync(`sequenceDiagram
       participant A as First<br>Line
       A->>A: test
     `)
@@ -387,7 +387,7 @@ describe('renderMermaid – sequence diagram multi-line', () => {
   })
 
   it('renders multi-line note text with tspan elements', async () => {
-    const svg = await renderMermaid(`sequenceDiagram
+    const svg = await renderMermaidSVGAsync(`sequenceDiagram
       A->>B: msg
       Note over A,B: Note<br>Text
     `)
@@ -402,9 +402,9 @@ describe('renderMermaid – sequence diagram multi-line', () => {
 // Integration: class diagram multi-line rendering
 // ============================================================================
 
-describe('renderMermaid – class diagram multi-line', () => {
+describe('renderMermaidSVGAsync – class diagram multi-line', () => {
   it('renders multi-line relationship labels with tspan elements', async () => {
-    const svg = await renderMermaid(`classDiagram
+    const svg = await renderMermaidSVGAsync(`classDiagram
       A --> B : uses<br>data
     `)
 
@@ -414,7 +414,7 @@ describe('renderMermaid – class diagram multi-line', () => {
   })
 
   it('renders multi-line cardinality with tspan elements', async () => {
-    const svg = await renderMermaid(`classDiagram
+    const svg = await renderMermaidSVGAsync(`classDiagram
       A "one<br>to" --> B
     `)
 
@@ -428,9 +428,9 @@ describe('renderMermaid – class diagram multi-line', () => {
 // Integration: ER diagram multi-line rendering
 // ============================================================================
 
-describe('renderMermaid – ER diagram multi-line', () => {
+describe('renderMermaidSVGAsync – ER diagram multi-line', () => {
   it('renders multi-line relationship labels with tspan elements', async () => {
-    const svg = await renderMermaid(`erDiagram
+    const svg = await renderMermaidSVGAsync(`erDiagram
       CUSTOMER ||--o{ ORDER : places<br>orders
     `)
 
@@ -444,41 +444,41 @@ describe('renderMermaid – ER diagram multi-line', () => {
 // Edge cases
 // ============================================================================
 
-describe('renderMermaid – edge cases', () => {
+describe('renderMermaidSVGAsync – edge cases', () => {
   it('handles consecutive <br><br> tags (empty lines)', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Line1<br><br>Line3]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Line1<br><br>Line3]')
     const tspanMatches = svg.match(/<tspan/g)
     expect(tspanMatches).toHaveLength(3)
   })
 
   it('handles very long single line with <br>', async () => {
     const longLine = 'VeryLongTextHere'
-    const svg = await renderMermaid(`graph TD\n  A[${longLine}<br>Short]`)
+    const svg = await renderMermaidSVGAsync(`graph TD\n  A[${longLine}<br>Short]`)
     expect(svg).toContain(`>${longLine}</tspan>`)
     expect(svg).toContain('>Short</tspan>')
   })
 
   it('handles single character lines', async () => {
-    const svg = await renderMermaid('graph TD\n  A[X<br>Y<br>Z]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[X<br>Y<br>Z]')
     expect(svg).toContain('>X</tspan>')
     expect(svg).toContain('>Y</tspan>')
     expect(svg).toContain('>Z</tspan>')
   })
 
   it('handles unicode with <br>', async () => {
-    const svg = await renderMermaid('graph TD\n  A[日本<br>語]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[日本<br>語]')
     expect(svg).toContain('>日本</tspan>')
     expect(svg).toContain('>語</tspan>')
   })
 
   it('handles many lines (5+)', async () => {
-    const svg = await renderMermaid('graph TD\n  A[1<br>2<br>3<br>4<br>5<br>6]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[1<br>2<br>3<br>4<br>5<br>6]')
     const tspanMatches = svg.match(/<tspan/g)
     expect(tspanMatches).toHaveLength(6)
   })
 
   it('handles mixed single-line and multi-line nodes', async () => {
-    const svg = await renderMermaid(`graph TD
+    const svg = await renderMermaidSVGAsync(`graph TD
       A[Single] --> B[Multi<br>Line]
       B --> C[Also Single]
     `)
@@ -492,9 +492,9 @@ describe('renderMermaid – edge cases', () => {
 // Subgraph multi-line
 // ============================================================================
 
-describe('renderMermaid – subgraph multi-line', () => {
+describe('renderMermaidSVGAsync – subgraph multi-line', () => {
   it('renders multi-line group headers with tspan', async () => {
-    const svg = await renderMermaid(`graph TD
+    const svg = await renderMermaidSVGAsync(`graph TD
       subgraph sg [Group<br>Header]
         A[Node]
       end
@@ -508,7 +508,7 @@ describe('renderMermaid – subgraph multi-line', () => {
 // All flowchart shapes with multi-line
 // ============================================================================
 
-describe('renderMermaid – all flowchart shapes with multi-line', () => {
+describe('renderMermaidSVGAsync – all flowchart shapes with multi-line', () => {
   const shapes: [string, string][] = [
     ['rectangle', 'A[Line1<br>Line2]'],
     ['rounded', 'A(Line1<br>Line2)'],
@@ -526,7 +526,7 @@ describe('renderMermaid – all flowchart shapes with multi-line', () => {
 
   shapes.forEach(([name, syntax]) => {
     it(`renders multi-line in ${name} shape`, async () => {
-      const svg = await renderMermaid(`graph TD\n  ${syntax}`)
+      const svg = await renderMermaidSVGAsync(`graph TD\n  ${syntax}`)
       expect(svg).toContain('<tspan')
       expect(svg).toContain('>Line1</tspan>')
       expect(svg).toContain('>Line2</tspan>')
@@ -538,68 +538,68 @@ describe('renderMermaid – all flowchart shapes with multi-line', () => {
 // Inline formatting: <b>, <i>, <u>, <s> → SVG tspan attributes
 // ============================================================================
 
-describe('renderMermaid – inline formatting', () => {
+describe('renderMermaidSVGAsync – inline formatting', () => {
   it('renders <b> as font-weight="bold"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello <b>bold</b> text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello <b>bold</b> text]')
     expect(svg).toContain('font-weight="bold"')
     expect(svg).toContain('>bold</tspan>')
   })
 
   it('renders <strong> as font-weight="bold"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello <strong>bold</strong>]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello <strong>bold</strong>]')
     expect(svg).toContain('font-weight="bold"')
   })
 
   it('renders <i> as font-style="italic"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello <i>italic</i> text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello <i>italic</i> text]')
     expect(svg).toContain('font-style="italic"')
     expect(svg).toContain('>italic</tspan>')
   })
 
   it('renders <em> as font-style="italic"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello <em>italic</em>]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello <em>italic</em>]')
     expect(svg).toContain('font-style="italic"')
   })
 
   it('renders <u> as text-decoration="underline"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello <u>underline</u> text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello <u>underline</u> text]')
     expect(svg).toContain('text-decoration="underline"')
     expect(svg).toContain('>underline</tspan>')
   })
 
   it('renders <s> as text-decoration="line-through"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello <s>strike</s> text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello <s>strike</s> text]')
     expect(svg).toContain('text-decoration="line-through"')
     expect(svg).toContain('>strike</tspan>')
   })
 
   it('renders <del> as text-decoration="line-through"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello <del>deleted</del>]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello <del>deleted</del>]')
     expect(svg).toContain('text-decoration="line-through"')
   })
 
   it('renders nested <b><i> with both attributes', async () => {
-    const svg = await renderMermaid('graph TD\n  A[<b><i>bold italic</i></b>]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[<b><i>bold italic</i></b>]')
     expect(svg).toContain('font-weight="bold"')
     expect(svg).toContain('font-style="italic"')
     expect(svg).toContain('>bold italic</tspan>')
   })
 
   it('renders formatting combined with <br> multiline', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Line1<br><b>Bold Line2</b>]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Line1<br><b>Bold Line2</b>]')
     expect(svg).toContain('font-weight="bold"')
     expect(svg).toContain('>Bold Line2</tspan>')
   })
 
   it('does not include raw tag text in rendered text', async () => {
-    const svg = await renderMermaid('graph TD\n  A[<b>bold</b>]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[<b>bold</b>]')
     // Tags should not appear as escaped text content inside <text> elements
     expect(svg).toMatch(/<tspan font-weight="bold">bold<\/tspan>/)
     expect(svg).not.toMatch(/<text[^>]*>&lt;b&gt;/)
   })
 
   it('renders plain text without formatting tspan wrappers', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Plain text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Plain text]')
     // Should not have bold/italic formatting tspans (font-weight="500" on the text element is fine)
     expect(svg).not.toContain('font-weight="bold"')
     expect(svg).not.toContain('font-style="italic"')
@@ -696,10 +696,10 @@ describe('measureMultilineText – formatting tag exclusion', () => {
 // HTML entity decoding — prevents double-escaping in SVG output
 // ============================================================================
 
-describe('renderMermaid – HTML entity decoding', () => {
+describe('renderMermaidSVGAsync – HTML entity decoding', () => {
   it('decodes &lt; and &gt; in node labels (prevents double-escaping)', async () => {
     // Input has pre-encoded entities (as delivered by react-markdown + rehype-raw)
-    const svg = await renderMermaid('graph LR\n  A[AsyncGenerator&lt;AgentEvent&gt;]')
+    const svg = await renderMermaidSVGAsync('graph LR\n  A[AsyncGenerator&lt;AgentEvent&gt;]')
 
     // SVG should contain single-encoded &lt; (correct XML), NOT double-encoded &amp;lt;
     expect(svg).toContain('AsyncGenerator&lt;AgentEvent&gt;')
@@ -708,7 +708,7 @@ describe('renderMermaid – HTML entity decoding', () => {
   })
 
   it('decodes &amp; in node labels', async () => {
-    const svg = await renderMermaid('graph LR\n  A[Tom &amp; Jerry]')
+    const svg = await renderMermaidSVGAsync('graph LR\n  A[Tom &amp; Jerry]')
 
     expect(svg).toContain('Tom &amp; Jerry')
     expect(svg).not.toContain('&amp;amp;')
@@ -716,7 +716,7 @@ describe('renderMermaid – HTML entity decoding', () => {
 
   it('decodes numeric entity references (decimal)', async () => {
     // &#60; = <, &#62; = >
-    const svg = await renderMermaid('graph LR\n  A[List&#60;Item&#62;]')
+    const svg = await renderMermaidSVGAsync('graph LR\n  A[List&#60;Item&#62;]')
 
     expect(svg).toContain('List&lt;Item&gt;')
     expect(svg).not.toContain('&#60;')
@@ -725,7 +725,7 @@ describe('renderMermaid – HTML entity decoding', () => {
 
   it('decodes numeric entity references (hex)', async () => {
     // &#x3C; = <, &#x3E; = >
-    const svg = await renderMermaid('graph LR\n  A[Map&#x3C;K, V&#x3E;]')
+    const svg = await renderMermaidSVGAsync('graph LR\n  A[Map&#x3C;K, V&#x3E;]')
 
     expect(svg).toContain('Map&lt;K, V&gt;')
     expect(svg).not.toContain('&#x3C;')
@@ -733,14 +733,14 @@ describe('renderMermaid – HTML entity decoding', () => {
   })
 
   it('decodes entities in edge labels', async () => {
-    const svg = await renderMermaid('graph LR\n  A -->|returns &lt;T&gt;| B')
+    const svg = await renderMermaidSVGAsync('graph LR\n  A -->|returns &lt;T&gt;| B')
 
     expect(svg).toContain('returns &lt;T&gt;')
     expect(svg).not.toContain('&amp;lt;')
   })
 
   it('decodes entities in class diagram generics', async () => {
-    const svg = await renderMermaid(`classDiagram
+    const svg = await renderMermaidSVGAsync(`classDiagram
       class MyService~T~
       MyService --> Handler : uses
     `)
@@ -751,8 +751,8 @@ describe('renderMermaid – HTML entity decoding', () => {
 
   it('handles raw angle brackets the same as decoded entities', async () => {
     // Raw < and decoded &lt; should produce identical SVG output
-    const svgRaw = await renderMermaid('graph LR\n  A[List<Item>]')
-    const svgEncoded = await renderMermaid('graph LR\n  A[List&lt;Item&gt;]')
+    const svgRaw = await renderMermaidSVGAsync('graph LR\n  A[List<Item>]')
+    const svgEncoded = await renderMermaidSVGAsync('graph LR\n  A[List&lt;Item&gt;]')
 
     // Both should contain the same single-encoded entity in SVG
     expect(svgRaw).toContain('List&lt;Item&gt;')
@@ -809,27 +809,27 @@ describe('normalizeBrTags – markdown formatting', () => {
   })
 })
 
-describe('renderMermaid – markdown formatting in labels', () => {
+describe('renderMermaidSVGAsync – markdown formatting in labels', () => {
   it('renders **bold** as font-weight="bold"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello **bold** text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello **bold** text]')
     expect(svg).toContain('font-weight="bold"')
     expect(svg).toContain('>bold</tspan>')
   })
 
   it('renders *italic* as font-style="italic"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello *italic* text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello *italic* text]')
     expect(svg).toContain('font-style="italic"')
     expect(svg).toContain('>italic</tspan>')
   })
 
   it('renders ~~strike~~ as text-decoration="line-through"', async () => {
-    const svg = await renderMermaid('graph TD\n  A[Hello ~~strike~~ text]')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello ~~strike~~ text]')
     expect(svg).toContain('text-decoration="line-through"')
     expect(svg).toContain('>strike</tspan>')
   })
 
   it('renders **bold** in edge labels', async () => {
-    const svg = await renderMermaid('graph TD\n  A -->|**important**| B')
+    const svg = await renderMermaidSVGAsync('graph TD\n  A -->|**important**| B')
     expect(svg).toContain('font-weight="bold"')
     expect(svg).toContain('>important</tspan>')
   })

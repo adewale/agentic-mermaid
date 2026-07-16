@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 414 188" width="414" height="188" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="414" height="188" viewBox="0 0 414 188" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
 <style>
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {

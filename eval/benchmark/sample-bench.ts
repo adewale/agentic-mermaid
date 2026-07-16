@@ -8,8 +8,8 @@
  */
 
 import { samples } from '../../scripts/site/samples-data.ts'
-import { renderMermaid } from '../../src/index.ts'
-import { renderMermaidAscii } from '../../src/ascii/index.ts'
+import { renderMermaidSVGAsync } from '../../src/index.ts'
+import { renderMermaidASCII } from '../../src/ascii/index.ts'
 
 // ============================================================================
 // Types
@@ -64,7 +64,7 @@ for (let i = 0; i < samples.length; i++) {
   // Render SVG (async — uses dagre layout for flowcharts/state/class/ER)
   try {
     const t0 = performance.now()
-    await renderMermaid(sample.source, sample.options)
+    await renderMermaidSVGAsync(sample.source, sample.options)
     svgMs = performance.now() - t0
   } catch (err) {
     svgError = String(err)
@@ -74,7 +74,7 @@ for (let i = 0; i < samples.length; i++) {
   // Render ASCII (sync — custom text layout, no dagre)
   try {
     const t0 = performance.now()
-    renderMermaidAscii(sample.source)
+    renderMermaidASCII(sample.source)
     asciiMs = performance.now() - t0
   } catch (err) {
     asciiError = String(err)

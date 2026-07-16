@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
-import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 function nodeIds(source: string): string[] {

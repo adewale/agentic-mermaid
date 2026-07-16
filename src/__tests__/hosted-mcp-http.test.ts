@@ -9,7 +9,7 @@ import type { HostedMcpContext } from '../mcp/hosted-server.ts'
 import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
-const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
+const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
 
 function makeCache(): McpCache & { store: Map<string, string> } {
   const store = new Map<string, string>()

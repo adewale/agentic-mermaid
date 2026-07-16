@@ -475,14 +475,13 @@ export interface RenderOptions {
 
   /**
    * How the diagram looks: a registered style name ('hand-drawn',
-   * 'look:tufte', or any THEMES palette name like 'dracula'),
+   * 'tufte', or any registered Palette input name like 'dracula'),
    * an inline StyleSpec, or a STACK
    * of either merged left-to-right ({ style: ['hand-drawn', 'dracula'] } is
    * hand-drawn geometry with the dracula palette). A colors-only style is a
    * palette.
    * Precedence: defaults < style stack < themeVariables < explicit color
-   * options. Unknown names throw. Unset (or 'crisp') = the default renderer,
-   * byte-identical to previous releases.
+   * options. Unknown names throw. Unset (or 'crisp') = the default renderer.
    */
   style?: StyleInput | StyleInput[]
 
@@ -543,8 +542,7 @@ export interface RenderOptions {
      * Draw dependency connectors — deterministic elbow arrows from each
      * predecessor bar's end to its successor bar's start — for every
      * `after`/`until` reference. No new Mermaid syntax: the edges come from
-     * the scheduler's dependency graph. Default: `false` (output without it
-     * is byte-identical to previous releases).
+     * the scheduler's dependency graph. Default: `false`.
      */
     dependencyArrows?: boolean
     /**
@@ -565,7 +563,7 @@ export interface RenderOptions {
   onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
   /**
    * Whether to embed the Google Fonts `@import` line in the SVG `<style>` block.
-   * Default: `true` (preserves wire compatibility with all existing consumers).
+   * Default: `false`; opt in only when the target permits a network font import.
    *
    * CLI / PNG paths set `false` explicitly to render offline / CSP-friendly.
    * The CSS variable `--font` is always emitted on the SVG root regardless,
@@ -586,8 +584,8 @@ export interface RenderOptions {
   compact?: boolean
   /**
    * Namespace prefix for all generated SVG def ids (markers, filters) and
-   * their `url(#…)` references. Default '' = current behavior (back-compat,
-   * zero snapshot churn). Set a distinct prefix per diagram when rendering
+   * their `url(#…)` references. Omit it to leave ids unprefixed. Set a distinct
+   * non-empty prefix per diagram when rendering
    * multiple diagrams onto one HTML page so their `<defs>` don't collide
    * (e.g. two `arrowhead` markers — the browser dedupes by id and the second
    * diagram's arrows break). `am batch` auto-assigns per-line prefixes.

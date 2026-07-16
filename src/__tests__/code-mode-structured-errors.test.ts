@@ -15,7 +15,7 @@ function nonGraphicalDescriptor(
 ): FamilyDescriptor {
   const id = `family:test/${localId}` as ExternalFamilyId
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id,
       kind: 'family',
@@ -141,7 +141,7 @@ describe('Code Mode structured render errors', () => {
     }
   })
 
-  test('rejects parsed-family mismatch sources before Code Mode and preserves legacy width detail', async () => {
+  test('rejects parsed-family mismatch sources before Code Mode and preserves structured width detail', async () => {
     const header = 'codeModeMismatchedSerializerDiagram'
     const descriptor = nonGraphicalDescriptor(
       'mismatched-serializer',

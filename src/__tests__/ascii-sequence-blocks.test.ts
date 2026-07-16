@@ -7,7 +7,7 @@
 // sits to the LEFT of the block's right border on every row.
 
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidAscii } from '../ascii/index.ts'
+import { renderMermaidASCII } from '../ascii/index.ts'
 
 describe('ASCII sequence blocks — self-arrow extent', () => {
   it('alt block right border sits past a self-arrow label (bug 3.2)', () => {
@@ -16,7 +16,7 @@ describe('ASCII sequence blocks — self-arrow extent', () => {
   alt success
     A->>A: very long self-label here
   end`
-    const ascii = renderMermaidAscii(src, { useAscii: false })
+    const ascii = renderMermaidASCII(src, { useAscii: false })
 
     // The block header text "alt" should appear in the canvas.
     expect(ascii).toContain('alt')
@@ -42,7 +42,7 @@ describe('ASCII sequence blocks — self-arrow extent', () => {
   loop forever
     A->>A: line1<br/>line2longerthanline1
   end`
-    const ascii = renderMermaidAscii(src, { useAscii: false })
+    const ascii = renderMermaidASCII(src, { useAscii: false })
     expect(ascii).toContain('line1')
     expect(ascii).toContain('line2longerthanline1')
 

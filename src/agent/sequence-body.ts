@@ -231,7 +231,6 @@ export type SequenceMessageContext =
 
 /** Preserve control-flow location while exposing messages for read-back. */
 export function sequenceMessageContexts(body: SequenceBody): SequenceMessageContext[] {
-  if (!body.statements) return body.messages.map(message => ({ scope: 'top-level', message }))
   const out: SequenceMessageContext[] = []
   let fragmentIndex = 0
   for (const statement of body.statements) {
@@ -285,7 +284,7 @@ function styleForArrow(a: string): SequenceMessageStyle {
 export function renderSequence(body: SequenceBody): string {
   const lines: string[] = ['sequenceDiagram']
 
-  if (body.statements && body.statements.length > 0) {
+  if (body.statements.length > 0) {
     // Segment-preserving path: emit statements in order.
     for (const st of body.statements) {
       if (st.kind === 'opaque-block') {
@@ -305,11 +304,6 @@ export function renderSequence(body: SequenceBody): string {
     return lines.join('\n') + '\n'
   }
 
-  // Legacy / synthesized path (no statements): participants then messages.
-  for (const p of body.participants) {
-    if (p.label !== p.id || p.kind === 'actor') lines.push(renderParticipant(p))
-  }
-  for (const m of body.messages) lines.push(renderMessage(m))
   return lines.join('\n') + '\n'
 }
 
@@ -350,8 +344,8 @@ export function arrowForStyle(s: SequenceMessageStyle): string {
 
 // ---- Mutator ----------------------------------------------------------------
 //
-// Index semantics (backward compatible): remove_message / set_message_text
-// indexes address the `messages` array exactly as before — TOP-LEVEL
+// remove_message / set_message_text indexes address the `messages` array's
+// TOP-LEVEL
 // structured messages only. Messages inside opaque blocks are invisible to ops
 // and are never touched. The statements list is updated consistently on every
 // op and refs are re-indexed when a message is removed.
@@ -359,7 +353,7 @@ export function arrowForStyle(s: SequenceMessageStyle): string {
 export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Result<SequenceBody, MutationError> {
   const participants = body.participants.map(p => ({ ...p, ...(p.links ? { links: { ...p.links } } : {}) }))
   const messages = body.messages.map(m => ({ ...m }))
-  const statements: SequenceStatement[] = (body.statements ?? deriveStatements(body)).map(cloneStatement)
+  const statements: SequenceStatement[] = body.statements.map(cloneStatement)
 
   switch (op.kind) {
     case 'add_participant': {
@@ -571,15 +565,6 @@ function findFragmentBranch(statements: SequenceStatement[], fragmentIndex: numb
   return branch ? ok(branch) : err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment ${fragmentIndex}` })
 }
 
-// Build a default statements list (participants then messages) for a body that
-// lacks one — e.g. a synthesized payload mutated directly.
-function deriveStatements(body: SequenceBody): SequenceStatement[] {
-  const out: SequenceStatement[] = []
-  body.participants.forEach((p, i) => { if (p.label !== p.id || p.kind === 'actor') out.push({ kind: 'participant', ref: i }) })
-  body.messages.forEach((_, i) => out.push({ kind: 'message', ref: i }))
-  return out
-}
-
 // Insert a participant declaration statement after the last participant
 // statement, or at the top of the body (before everything) when there is none.
 function insertParticipantStatement(statements: SequenceStatement[], st: SequenceStatement): void {
@@ -606,8 +591,7 @@ function removeMessageStatement(statements: SequenceStatement[], index: number):
 
 // Insert the statement for a message just spliced into the messages array at
 // `index`: shift refs >= index up, then place the new statement where the
-// displaced message's statement was (append when inserting at the end, which
-// matches the historical add_message behavior).
+// displaced message's statement was (append when inserting at the end).
 function insertMessageStatement(statements: SequenceStatement[], index: number): void {
   const pos = statements.findIndex(s => s.kind === 'message' && s.ref === index)
   for (const s of statements) if (s.kind === 'message' && s.ref >= index) s.ref++

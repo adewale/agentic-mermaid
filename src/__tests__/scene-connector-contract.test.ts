@@ -10,6 +10,7 @@ import { hitTestConnector, hitTestSceneConnectors } from '../scene/hit-test.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { lowerGraphScene } from '../renderer.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 
 describe('typed Scene connector contract', () => {
   const crisp = '<line data-id="typed-id" data-role="edge" data-from="typed-a" data-to="typed-b" x1="0" y1="2" x2="10" y2="2" stroke="#00aa55" stroke-width="4" stroke-opacity="0" stroke-dasharray="9 2" stroke-dashoffset="0" stroke-linecap="square" stroke-linejoin="bevel" stroke-miterlimit="7" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-end="url(#typed-arrow)" />'
@@ -33,13 +34,10 @@ describe('typed Scene connector contract', () => {
       nonScaling: true,
     },
     labels: [{ id: 'edge-label', text: 'ships', anchor: { x: 5, y: 0 }, halo: { width: 3 } }],
-    endMarker: {
-      id: 'typed-arrow',
-      shape: 'arrow',
-      bounds: { x0: -2, y0: -4, x1: 4, y1: 4 },
-      units: 'userSpaceOnUse',
-      scale: 2,
-    },
+    markers: { end: {
+      id: 'typed-arrow', shape: 'arrow', bounds: { x0: -2, y0: -4, x1: 4, y1: 4 },
+      units: 'userSpaceOnUse', scale: 2,
+    } },
   }, crisp)
 
   test('semantic fields are authoritative and complete without crisp parsing', () => {
@@ -48,7 +46,6 @@ describe('typed Scene connector contract', () => {
     expect(connector.endpoints.start?.point).toEqual({ x: 0, y: 2 })
     expect(connector.relationship).toEqual({ kind: 'dependency', direction: 'forward' })
     expect(connector.route.ownership).toBe('layout')
-    expect(connector.route.geometry).toBe(connector.geometry)
     expect(connector.route.startTangent).toEqual({ x: 1, y: 0 })
     expect(connector.route.endTangent).toEqual({ x: 1, y: 0 })
     expect(connector.stroke).toMatchObject({
@@ -80,16 +77,6 @@ describe('typed Scene connector contract', () => {
       'paint-order', 'non-scaling-stroke',
     ]))
     expect(connector.terminalProjection.diagnostics.length).toBeGreaterThan(0)
-  })
-
-  test('rejects a crisp compatibility projection that disagrees with typed semantics', () => {
-    expect(() => marks.connector({
-      id: 'divergent',
-      role: 'edge',
-      geometry: { kind: 'line', x1: 0, y1: 0, x2: 4, y2: 0 },
-      lineStyle: 'solid',
-      paint: { stroke: '#00aa55', strokeWidth: '2' },
-    }, '<line x1="0" y1="0" x2="4" y2="0" stroke="#ff0000" stroke-width="2" />')).toThrow('crisp stroke disagrees')
   })
 
   test('terminal projection derives start/mid/end markers and labels from typed semantics', () => {
@@ -192,7 +179,7 @@ describe('typed Scene connector contract', () => {
     }
     expect(validateSceneDoc(forgedRouteGeometry).diagnostics).toContainEqual(expect.objectContaining({
       code: 'SCENE_FIDELITY',
-      path: `scene.parts[${edgeIndex}].route.geometry`,
+      path: `scene.parts[${edgeIndex}].endpoints.start.point`,
     }))
 
     const forgedContourTangent = {
@@ -251,9 +238,9 @@ describe('typed Scene connector contract', () => {
   })
 
   test('default preserves the canonical semantic carrier while rough and hybrid consume typed stroke', () => {
-    expect(DefaultBackend.drawNode(connector, { seed: 1 })).toBe(connector.crisp)
-    expect(connector.crisp).toContain('data-relationship="dependency"')
-    expect(connector.crisp).toContain('data-direction="forward"')
+    expect(DefaultBackend.drawNode(connector, { seed: 1 })).toBe(sceneNodeSerialization(connector))
+    expect(sceneNodeSerialization(connector)).toContain('data-relationship="dependency"')
+    expect(sceneNodeSerialization(connector)).toContain('data-direction="forward"')
     for (const backend of [RoughBackend, HybridBackend]) {
       const output = backend.drawNode(connector, {
         seed: 11,
@@ -314,8 +301,8 @@ describe('typed Scene connector contract', () => {
         fontSize: 10, textAnchor: 'middle', halo: { width: 3 }, visual: { kind: 'inline' },
       }],
     }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="1" />')
-    expect(node.crisp).toContain('stroke="var(--bg)"')
-    expect(node.crisp).not.toContain('var(--_bg)')
+    expect(sceneNodeSerialization(node)).toContain('stroke="var(--bg)"')
+    expect(sceneNodeSerialization(node)).not.toContain('var(--_bg)')
   })
 
   test('path route points and exact marker vertices keep independent semantics', () => {
@@ -364,7 +351,7 @@ describe('typed Scene connector contract', () => {
     expect(hitTestConnector(connector, { x: 5, y: 4.9 })).toBe(true)
     expect(hitTestConnector(connector, { x: 5, y: 6.1 })).toBe(false)
     const hits = hitTestSceneConnectors({
-      family: 'test', width: 20, height: 20, colors: { bg: '#fff', fg: '#000' }, parts: [connector],
+      family: 'test', width: 20, height: 20, colors: { bg: '#fff', fg: '#000' }, transparent: true, parts: [connector],
     }, { x: 5, y: 2 })
     expect(hits.map(hit => hit.id)).toEqual(['typed-id'])
     expect(hits[0]?.connector).toBe(connector)
@@ -382,12 +369,12 @@ describe('typed Scene connector contract', () => {
       `<defs>\n${serializeMarkerResource(marker)}\n</defs>`,
     )
     const colors = { bg: '#fff', fg: '#000' }
-    const root = marks.prelude({
+    const root = marks.documentOpen({
       id: 'typed-marker-root', width: 20, height: 20, colors,
       transparent: true, font: 'Inter', hasMonoFont: false,
     }, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">')
     const output = RoughBackend.render({
-      family: 'test', width: 20, height: 20, colors,
+      family: 'test', width: 20, height: 20, colors, transparent: true,
       parts: [root, definitions, marks.documentClose()],
     }, { seed: 1 })
     expect(output).not.toContain('markerUnits=')

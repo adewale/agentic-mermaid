@@ -1,6 +1,6 @@
 // Loop 11 M1 (#7540/#6621): namespace SVG def ids so multiple diagrams on one
 // HTML page don't collide on shared def ids (arrowhead, bm-shadow, …).
-// Opt-in via RenderOptions.idPrefix; default '' preserves current behavior.
+// Opt-in via a non-empty RenderOptions.idPrefix.
 
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
@@ -12,7 +12,7 @@ const ariaRefs = (s: string) => [...s.matchAll(/\saria-(?:labelledby|describedby
   .flatMap(m => m[1]!.split(/\s+/).filter(Boolean))
 
 describe('#7540 unique SVG ids across diagrams', () => {
-  test('default (no idPrefix) is unchanged — back-compat', () => {
+  test('omitting idPrefix leaves built-in ids unprefixed', () => {
     const s = renderMermaidSVG('flowchart TD\n A[Start]-->B')
     expect(s).toContain('id="arrowhead"')
   })
@@ -65,9 +65,9 @@ describe('#7540 unique SVG ids across diagrams', () => {
     }
   })
 
-  test('namespaceSvgIds: empty prefix is a no-op', () => {
+  test('namespaceSvgIds rejects an empty prefix', () => {
     const s = renderMermaidSVG('flowchart TD\n A-->B')
-    expect(namespaceSvgIds(s, '')).toBe(s)
+    expect(() => namespaceSvgIds(s, '')).toThrow('idPrefix must be non-empty')
   })
 
   test('namespaceSvgIds does not rewrite a url(#…) that is not a declared id', () => {

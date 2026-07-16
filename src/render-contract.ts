@@ -58,7 +58,8 @@ import { TERMINAL_OUTPUT_POLICY_VERSION } from './terminal-contract.ts'
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
 
-export const RENDER_CONTRACT_VERSION = 1 as const
+export const RENDER_CONTRACT_VERSION = 2 as const
+const RENDER_CONTRACT_EVIDENCE = `render-contract@${RENDER_CONTRACT_VERSION}`
 
 export type RenderTransportAvailability = 'direct' | 'projected' | 'indirect' | 'unavailable'
 
@@ -77,7 +78,7 @@ export type LibraryRenderTransport = RenderTransportClaim<'direct' | 'projected'
 
 export type CliRenderTransport =
   | (RenderTransportClaim<'direct'> & {
-      /** Public CLI spelling. Layout deliberately retains its historical `json` alias. */
+      /** Canonical public CLI spelling. */
       readonly format: string
       readonly order: number
       readonly help: string
@@ -128,7 +129,7 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'direct', entrypoint: 'diagram preview / Save SVG', selector: 'renderMermaidSVGWithReceipt', evidence: ['editor/js/rendering.js', 'editor/js/export.js'] },
       website: { availability: 'direct', entrypoint: 'website build-time renderMermaidSVG', selector: 'embedded examples and diagram assets', evidence: ['website/build.ts'] },
     },
-    evidence: ['output-security@2', 'render-contract@1'],
+    evidence: ['output-security@2', RENDER_CONTRACT_EVIDENCE],
   },
   png: {
     availability: 'public', security: 'enforced', color: 'srgb', terminal: 'not-applicable',
@@ -146,20 +147,20 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'direct', entrypoint: 'Save PNG / Copy PNG', selector: 'renderMermaidPNGInBrowserWithReceipt', evidence: ['editor/js/export.js', 'src/browser-png.ts'] },
       website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site build copies curated PNG assets but exposes no PNG render adapter', evidence: ['website/build.ts'] },
     },
-    evidence: ['output-security@2', 'output-color-profile@1', `png-output-policy@${PNG_OUTPUT_POLICY_VERSION}`, 'render-contract@1'],
+    evidence: ['output-security@2', 'output-color-profile@1', `png-output-policy@${PNG_OUTPUT_POLICY_VERSION}`, RENDER_CONTRACT_EVIDENCE],
   },
   ascii: {
     availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
     transports: {
       library: { availability: 'direct', entrypoint: 'renderMermaidASCII', selector: 'useAscii: true', evidence: ['src/ascii/index.ts'] },
-      cli: { availability: 'direct', entrypoint: 'am render', selector: '--format ascii', evidence: ['src/cli/index.ts'], format: 'ascii', order: 1, help: '7-bit ASCII art (also via --ascii)' },
+      cli: { availability: 'direct', entrypoint: 'am render', selector: '--format ascii', evidence: ['src/cli/index.ts'], format: 'ascii', order: 1, help: '7-bit ASCII art' },
       codeMode: { availability: 'direct', entrypoint: 'mermaid.renderMermaidASCIIWithReceipt', selector: 'useAscii: true', evidence: ['src/mcp/facade.ts', 'src/mcp/sdk-decl.ts'], method: 'renderMermaidASCIIWithReceipt', optionsType: 'AsciiRenderOptions', returnType: 'RenderedAscii' },
       localMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.renderMermaidASCIIWithReceipt({ useAscii: true })', evidence: ['src/mcp/server.ts', 'src/mcp/facade.ts'] },
       hostedMcp: { availability: 'direct', entrypoint: 'render_ascii', selector: 'useAscii: true', evidence: ['src/mcp/hosted-server.ts'] },
       editor: { availability: 'direct', entrypoint: 'ASCII canvas tab', selector: 'renderMermaidASCII({ useAscii: true })', evidence: ['editor/js/rendering.js', 'editor/html/right-panel.html'] },
       website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site build emits one Unicode diagram asset but no 7-bit ASCII output', evidence: ['website/build.ts'] },
     },
-    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'render-contract@1'],
+    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', RENDER_CONTRACT_EVIDENCE],
   },
   unicode: {
     availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
@@ -172,7 +173,7 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'direct', entrypoint: 'Unicode canvas tab', selector: 'renderMermaidASCII({ useAscii: false })', evidence: ['editor/js/rendering.js', 'editor/html/right-panel.html'] },
       website: { availability: 'direct', entrypoint: 'website build-time renderMermaidASCII', selector: 'diagrams/workflow.txt; useAscii: false', evidence: ['website/build.ts'] },
     },
-    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'render-contract@1'],
+    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', RENDER_CONTRACT_EVIDENCE],
   },
   html: {
     availability: 'public', security: 'enforced', color: 'terminal-projected', terminal: 'projected',
@@ -185,20 +186,20 @@ const OUTPUT_DESCRIPTOR_BY_ID = {
       editor: { availability: 'unavailable', entrypoint: 'none', reason: 'The editor exposes diagram, Unicode and ASCII canvas tabs only', evidence: ['editor/js/buttons.js', 'editor/html/right-panel.html'] },
       website: { availability: 'unavailable', entrypoint: 'none', reason: 'The site does not emit terminal-HTML diagram artifacts', evidence: ['website/build.ts'] },
     },
-    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'html-text-escaping', 'render-contract@1'],
+    evidence: ['terminal-style@1', `terminal-output-policy@${TERMINAL_OUTPUT_POLICY_VERSION}`, 'terminal-control-sanitization', 'html-text-escaping', RENDER_CONTRACT_EVIDENCE],
   },
   layout: {
     availability: 'public', security: 'not-applicable', color: 'not-applicable', terminal: 'not-applicable',
     transports: {
       library: { availability: 'direct', entrypoint: 'layoutMermaid', evidence: ['src/agent/core.ts'] },
-      cli: { availability: 'direct', entrypoint: 'am render', selector: '--format json', evidence: ['src/cli/index.ts'], format: 'json', order: 4, help: 'Layout JSON (nodes, edges, groups, bounds)' },
+      cli: { availability: 'direct', entrypoint: 'am render', selector: '--format layout', evidence: ['src/cli/index.ts'], format: 'layout', order: 4, help: 'Layout JSON (nodes, edges, groups, bounds)' },
       codeMode: { availability: 'direct', entrypoint: 'mermaid.layoutMermaidWithReceipt', evidence: ['src/mcp/facade.ts', 'src/mcp/sdk-decl.ts'], method: 'layoutMermaidWithReceipt', optionsType: 'LayoutRenderOptions', returnType: 'RenderedLayoutArtifact' },
       localMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.layoutMermaidWithReceipt', evidence: ['src/mcp/server.ts', 'src/mcp/facade.ts'] },
       hostedMcp: { availability: 'indirect', entrypoint: 'execute', selector: 'mermaid.layoutMermaidWithReceipt', evidence: ['src/mcp/hosted-server.ts', 'src/mcp/facade.ts'] },
       editor: { availability: 'indirect', entrypoint: 'verification panel', selector: 'verifyMermaid(source).layout (consumed, not exported)', evidence: ['editor/js/rendering.js'] },
       website: { availability: 'unavailable', entrypoint: 'none', reason: 'Website verification consumes layout internally but publishes no layout artifact', evidence: ['website/build.ts'] },
     },
-    evidence: ['positioned-artifact@1', 'render-contract@1'],
+    evidence: ['positioned-artifact@1', RENDER_CONTRACT_EVIDENCE],
   },
 } as const satisfies Record<RenderOutput, Omit<RenderOutputDescriptor, 'id'>>
 
@@ -240,7 +241,7 @@ type DirectCliOutputDescriptor = RenderOutputDescriptor & {
   readonly transports: RenderOutputTransports & { readonly cli: Extract<CliRenderTransport, { availability: 'direct' }> }
 }
 
-/** CLI discovery projection. HTML is intentionally absent; layout is `json`. */
+/** CLI discovery projection. HTML is intentionally absent. */
 export const CLI_RENDER_OUTPUT_DESCRIPTORS: readonly DirectCliOutputDescriptor[] = Object.freeze(
   RENDER_OUTPUT_DESCRIPTORS
     .filter((descriptor): descriptor is DirectCliOutputDescriptor => descriptor.transports.cli.availability === 'direct')
@@ -250,7 +251,7 @@ export const CLI_RENDER_OUTPUT_DESCRIPTORS: readonly DirectCliOutputDescriptor[]
 type RawOutputDescriptor = typeof OUTPUT_DESCRIPTOR_BY_ID[RenderOutput]
 export type CliRenderFormat = Extract<RawOutputDescriptor['transports']['cli'], { availability: 'direct' }>['format']
 
-/** Backward-compatible CLI spellings, generated from the output descriptors. */
+/** Canonical CLI spellings, generated from the output descriptors. */
 export const CLI_RENDER_FORMATS: readonly CliRenderFormat[] = Object.freeze(
   CLI_RENDER_OUTPUT_DESCRIPTORS.map(descriptor => descriptor.transports.cli.format as CliRenderFormat),
 )
@@ -490,9 +491,9 @@ export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   journey: { typeScript: '{ experienceCurve?: boolean }', description: 'User-journey graphical controls.', defaultLabel: '`experienceCurve: true`', validationExpectation: 'be a journey options object', schema: closedObjectSchema({ experienceCurve: booleanSchema('Connect journey score markers with an experience curve.', true) }, 'User-journey graphical controls.'), terminal: 'not-applicable', terminalNote: 'experience curves are graphical-only', applicableBuiltinFamilies: ['journey'] },
   gantt: { typeScript: '{ dependencyArrows?: boolean; criticalPath?: boolean }', description: 'Gantt dependency and critical-path overlays.', defaultLabel: 'both `false`', validationExpectation: 'be a Gantt options object', schema: closedObjectSchema({ dependencyArrows: booleanSchema('Draw scheduled dependency connectors.', false), criticalPath: booleanSchema('Emphasize critical-path tasks and connectors.', false) }, 'Gantt dependency and critical-path overlays.'), terminal: 'not-applicable', terminalNote: 'graphical Gantt connector emphasis is not represented in cells', applicableBuiltinFamilies: ['gantt'] },
   mermaidConfig: { typeScript: 'MermaidRuntimeConfig', description: 'Mermaid-style recursive runtime configuration.', defaultLabel: 'source config', validationExpectation: 'be a plain JSON object', schema: { type: 'object', description: 'Mermaid-style recursive runtime configuration.', additionalProperties: { $ref: '#/$defs/jsonValue' } }, terminal: 'consumed' },
-  embedFontImport: { typeScript: 'boolean', description: 'Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization.', defaultLabel: '`true` (SVG)', validationExpectation: 'be a boolean', schema: booleanSchema('Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization.', true), terminal: 'not-applicable', terminalNote: 'terminal output embeds no web-font import' },
+  embedFontImport: { typeScript: 'boolean', description: 'Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization.', false), terminal: 'not-applicable', terminalNote: 'terminal output embeds no web-font import' },
   compact: { typeScript: 'boolean', description: 'Compact SVG serialization while preserving agent hooks.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Compact SVG serialization while preserving agent hooks.', false), terminal: 'not-applicable', terminalNote: 'compact controls SVG serialization' },
-  idPrefix: { typeScript: 'string', description: 'Namespace generated SVG definition IDs and local references.', defaultLabel: "`''`", validationExpectation: 'contain only ASCII letters, digits, underscore, hyphen, dot, and colon', schema: { ...stringSchema('Namespace generated SVG definition IDs and local references.', ''), pattern: '^[A-Za-z0-9_.:-]*$' }, terminal: 'not-applicable', terminalNote: 'terminal output has no SVG definition ids' },
+  idPrefix: { typeScript: 'string', description: 'Non-empty namespace for generated SVG definition IDs and local references.', defaultLabel: 'unset', validationExpectation: 'be non-empty and contain only ASCII letters, digits, underscore, hyphen, dot, and colon', schema: { ...stringSchema('Non-empty namespace for generated SVG definition IDs and local references.'), pattern: '^[A-Za-z0-9_.:-]+$' }, terminal: 'not-applicable', terminalNote: 'terminal output has no SVG definition ids' },
   security: { typeScript: "'default' | 'strict'", description: 'Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes.', defaultLabel: '`default`', validationExpectation: 'be default or strict', schema: { type: 'string', enum: ['default', 'strict'], description: 'Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes.', default: 'default' }, terminal: 'not-applicable', terminalNote: 'terminal text has its own control-character and HTML-color safety projection' },
   ganttToday: { typeScript: 'string', description: 'Explicit deterministic date for the Gantt today marker.', defaultLabel: 'unset', validationExpectation: 'be a string', schema: stringSchema('Explicit deterministic date for the Gantt today marker.'), terminal: 'consumed', applicableBuiltinFamilies: ['gantt'] },
   seed: { typeScript: 'number', description: 'Deterministic re-roll seed for stochastic Styles.', defaultLabel: '`0`', validationExpectation: 'be a finite number', schema: numberSchema('Deterministic re-roll seed for stochastic Styles.', 0), terminal: 'not-applicable', terminalNote: 'terminal glyph geometry is deterministic and has no stochastic ink' },
@@ -912,7 +913,7 @@ export interface ResolvedAppearance {
   readonly face?: Readonly<InternalStyleFace>
   readonly styled: boolean
   readonly inferredBackend: string
-  /** Canonical identities and compatibility diagnostics for named stack entries. */
+  /** Canonical identities for named stack entries. */
   readonly styleReferences: readonly ResolvedStyleReference[]
   /** Raw Mermaid theme keys rejected during the sole boundary resolution. */
   readonly unsafeThemeColorKeys?: readonly string[]
@@ -925,18 +926,13 @@ export interface ResolvedAppearance {
 export interface ResolvedStyleReference {
   readonly input: string
   readonly canonicalId: string
-  readonly diagnostic?: {
-    readonly code: string
-    readonly message: string
-    readonly removal: { readonly release: string; readonly date: string }
-  }
 }
 
 export interface ResolvedRenderRequest {
   readonly version: typeof RENDER_CONTRACT_VERSION
   readonly output: RenderOutput
   readonly source: Readonly<NormalizedMermaidSource>
-  /** Normalized compatibility projection consumed by existing family code. */
+  /** Canonical normalized options consumed by family code. */
   readonly renderOptions: Readonly<RenderOptions>
   readonly appearance: ResolvedAppearance
   /** Family-owned normalized geometry/config data, kept separate from appearance. */
@@ -959,9 +955,8 @@ export interface RenderRequestReceipt {
   sharedRequestDigest: string
   requestDigest: string
   appearanceDigest: string
-  /** Present on receipts emitted by this version; optional for host-supplied compatibility fixtures. */
-  capabilityDecision?: CapabilityDecision
-  /** Request-resolution, compatibility, and output-policy decisions. */
+  capabilityDecision: CapabilityDecision
+  /** Request-resolution and output-policy decisions. */
   diagnostics?: readonly RenderArtifactDiagnostic[]
   /** Digest of the secured graphical projection emitted by this execution. */
   graphicalProjectionDigest?: string
@@ -1068,12 +1063,6 @@ export interface RenderArtifactDiagnostic {
   readonly message?: string
   readonly reference?: string
   readonly feature?: string
-  /** Compatibility input that caused this diagnostic, when applicable. */
-  readonly input?: string
-  /** Canonical extension identity selected for a compatibility input. */
-  readonly canonicalId?: string
-  /** Published compatibility-removal boundary, when applicable. */
-  readonly removal?: { readonly release: string; readonly date: string }
 }
 
 function renderOptionApplicabilityDiagnostics(
@@ -1113,31 +1102,15 @@ function receiptDiagnostics(
   request: ResolvedRenderRequest,
   diagnostics: readonly RenderArtifactDiagnostic[],
 ): readonly RenderArtifactDiagnostic[] {
-  const compatibilityDiagnostics = request.appearance.styleReferences.flatMap(reference =>
-    reference.diagnostic
-      ? [{
-          code: reference.diagnostic.code,
-          message: reference.diagnostic.message,
-          input: reference.input,
-          canonicalId: reference.canonicalId,
-          removal: reference.diagnostic.removal,
-        } satisfies RenderArtifactDiagnostic]
-      : [])
   const seen = new Set<string>()
   return Object.freeze([
-    ...compatibilityDiagnostics,
     ...(request.resolutionDiagnostics ?? []),
     ...diagnostics,
   ].flatMap(diagnostic => {
     const key = canonicalJson(diagnostic)
     if (seen.has(key)) return []
     seen.add(key)
-    return [Object.freeze({
-      ...diagnostic,
-      ...(diagnostic.removal
-        ? { removal: Object.freeze({ ...diagnostic.removal }) }
-        : {}),
-    })]
+    return [Object.freeze({ ...diagnostic })]
   }))
 }
 
@@ -1551,7 +1524,6 @@ function namedStyleReferences(input: RenderOptions['style']): readonly ResolvedS
     return [{
       input: entry,
       canonicalId: resolution.canonicalId,
-      ...(resolution.diagnostic ? { diagnostic: resolution.diagnostic } : {}),
     }]
   }))
 }

@@ -159,10 +159,6 @@ function json(status: number, payload: unknown, cors: Record<string, string>, ex
   })
 }
 
-// Backward-compatible named export retained for the hosted transport tests and
-// any source consumers that imported the first implementation directly.
-export const preserveUnsafeJsonRpcIds = preserveExactJsonRpcIds
-
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys)
   if (value && typeof value === 'object') {

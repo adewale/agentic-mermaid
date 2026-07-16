@@ -2,8 +2,7 @@
  * Loop 8 M2 — CSS-variable fonts + embedFontImport toggle.
  *
  * Asserts that:
- *  - The default SVG STILL contains the Google Fonts @import (back-compat;
- *    4 SVG fixtures + an explicit renderer.test.ts assertion lock this in).
+ *  - The default SVG does not fetch Google Fonts; imports are explicit opt-in.
  *  - `--font:` is now emitted on the SVG root inline style so consumers can
  *    swap the family post-render by mutating `style="--font:Roboto"`.
  *  - When `embedFontImport: false` is passed, the @import line is absent
@@ -18,10 +17,10 @@ import { inlineFontVarForRaster } from '../theme.ts'
 const SRC = 'graph TD\n  A --> B\n'
 
 describe('Loop 8 M2 — CSS-variable fonts + embedFontImport toggle', () => {
-  it('default render still embeds the Google Fonts @import (back-compat)', () => {
+  it('default render does not embed a Google Fonts @import', () => {
     const svg = renderMermaidSVG(SRC)
-    expect(svg).toContain('fonts.googleapis.com')
-    expect(svg).toContain('@import url')
+    expect(svg).not.toContain('fonts.googleapis.com')
+    expect(svg).not.toContain('@import url')
   })
 
   it('default render emits --font on the SVG root style', () => {
@@ -145,21 +144,18 @@ describe('issue #18 — var() and font-stack font values', () => {
     expect(inlined).toContain('text { font-family: Inter, system-ui, system-ui, sans-serif; }')
   })
 
-  it('the JetBrains Mono @import survives var() font suppression (mono diagrams)', () => {
-    // Class diagrams request the mono face; only the family import derived
-    // from the font setting is garbage, so only that one is suppressed.
-    const svg = renderMermaidSVG('classDiagram\n  class A', { font: VAR_FONT })
+  it('explicit font-import opt-in includes the concrete mono face but not a var() family', () => {
+    const svg = renderMermaidSVG('classDiagram\n  class A', { font: VAR_FONT, embedFontImport: true })
     expect(svg).toContain('family=JetBrains+Mono')
     expect(svg).not.toContain('family=var')
   })
 
-  it('plain names keep the exact @import URL and quoted fallback (byte-compat)', () => {
-    const svg = renderMermaidSVG(SRC, { font: 'IBM Plex Sans' })
+  it('plain names use the exact @import URL when explicitly enabled', () => {
+    const svg = renderMermaidSVG(SRC, { font: 'IBM Plex Sans', embedFontImport: true })
     expect(svg).toContain(
       "@import url('https://fonts.googleapis.com/css2?family=IBM%20Plex%20Sans:wght@400;500;600;700&amp;display=swap');",
     )
     expect(svg).toContain("text { font-family: var(--font, 'IBM Plex Sans'), system-ui, sans-serif; }")
-    // Raster inlining of plain names is also byte-identical to before.
     expect(inlineFontVarForRaster(svg)).toContain("text { font-family: 'IBM Plex Sans', system-ui, sans-serif; }")
   })
 })

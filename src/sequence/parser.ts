@@ -92,14 +92,11 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     ensureActor(diagram, actorIds, to)
 
     const endpoint = parseMessageArrow(arrow)
-    const arrowHead = endpoint.endHead === 'filled' || endpoint.endHead === 'cross' ? 'filled' : 'open'
-
     const msg: Message = {
       from,
       to,
       label: normalizeBrTags(rawLabel.trim()),
       lineStyle: endpoint.lineStyle,
-      arrowHead,
       startHead: endpoint.startHead,
       endHead: endpoint.endHead,
       centralStart,

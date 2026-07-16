@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { describeMermaidFacts, describeMermaidFactsSource, checkMermaid } from '../agent/facts.ts'
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -101,7 +101,7 @@ describe('checkMermaid semantic read-back', () => {
 describe('facts through Code Mode and CLI surfaces', () => {
   test('Code Mode exposes facts and checks through mermaid.*', async () => {
     const result = await executeInSandbox(`
-      const parsed = mermaid.parseMermaid('classDiagram\\n  class Duck {\\n    +quack()\\n  }')
+      const parsed = mermaid.parseRegisteredMermaid('classDiagram\\n  class Duck {\\n    +quack()\\n  }')
       if (!parsed.ok) return { error: 'parse' }
       return {
         facts: mermaid.describeMermaidFacts(parsed.value),

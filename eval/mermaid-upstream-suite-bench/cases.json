@@ -12331,7 +12331,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12416,8 +12416,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 3,
+      "edgeCount": 2,
       "groupCount": 0
     }
   },
@@ -12436,8 +12436,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 3,
+      "edgeCount": 2,
       "groupCount": 0
     }
   },
@@ -12485,7 +12485,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12505,7 +12505,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12525,7 +12525,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12546,7 +12546,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12659,8 +12659,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 5,
+      "edgeCount": 4,
       "groupCount": 0
     }
   },
@@ -12679,8 +12679,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 5,
+      "edgeCount": 4,
       "groupCount": 0
     }
   },
@@ -12748,8 +12748,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 5,
+      "edgeCount": 4,
       "groupCount": 0
     }
   },
@@ -12768,8 +12768,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 5,
+      "edgeCount": 4,
       "groupCount": 0
     }
   },
@@ -12788,8 +12788,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 3,
+      "edgeCount": 2,
       "groupCount": 0
     }
   },
@@ -12808,8 +12808,8 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
+      "nodeCount": 3,
+      "edgeCount": 2,
       "groupCount": 0
     }
   },
@@ -13095,7 +13095,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -13135,7 +13135,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -13277,9 +13277,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "nodeCount": 7,
+      "edgeCount": 9,
+      "groupCount": 3
     }
   },
   {
@@ -13297,9 +13297,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "nodeCount": 7,
+      "edgeCount": 9,
+      "groupCount": 3
     }
   },
   {
@@ -13785,9 +13785,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "nodeCount": 10,
+      "edgeCount": 11,
+      "groupCount": 1
     }
   },
   {
@@ -13805,9 +13805,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "nodeCount": 10,
+      "edgeCount": 11,
+      "groupCount": 1
     }
   },
   {

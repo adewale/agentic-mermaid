@@ -328,7 +328,7 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
 
       // A non-adjacent relationship must not tunnel through a foreign card.
       // Detour in the reserved row gap while keeping endpoint cardinalities on
-      // the authored entities. Adjacent pairs retain their historical bytes.
+      // the authored entities. Adjacent pairs keep the direct route.
       const blockers = [...placed.values()].filter(candidate =>
         candidate !== left && candidate !== right
         && candidate.x <= endX && candidate.x + candidate.width - 1 >= startX

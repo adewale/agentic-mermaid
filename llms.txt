@@ -22,7 +22,7 @@ you haven't inspected.
 
 ## CLI verbs (`am <verb>`)
 
-- render --format svg, ascii, unicode, png, json [--security strict] — render a diagram; PNG requires --output and does not support multi-input/watch
+- render --format svg, ascii, unicode, png, layout [--security strict] — render a diagram; PNG requires --output and does not support multi-input/watch
 - render --style <names|file.json> --seed N — styled graphical/terminal output; comma-separate to stack (--style hand-drawn,dracula)
 - styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
@@ -51,7 +51,7 @@ through `x-agentic-mermaid-compute-cache`.
 
 ## Output formats
 
-Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. Full capability list: svg, ascii, unicode, png, json. SVG strict mode (security: 'strict') emits zero external-fetch
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. Full capability list: svg, ascii, unicode, png, layout. SVG strict mode (security: 'strict') emits zero external-fetch
 references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 
 ## Diagram families
@@ -69,7 +69,7 @@ EMPTY_DIAGRAM (structural/error), UNRESOLVABLE_SCHEDULE (structural/error), REND
 
 ## Library
 
-`import { parseMermaid, mutate, verifyMermaid, analyzeMermaid,
+`import { parseRegisteredMermaid, mutate, verifyMermaid, analyzeMermaid,
 analyzeMermaidSource, serializeMermaid, renderMermaidASCII,
 renderMermaidPNG, renderMermaidSVG, renderMermaidASCIIWithMeta,
 describeMermaid, asciiToMermaid, verifyNoExternalRefs,

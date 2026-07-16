@@ -29,7 +29,7 @@ const EVIDENCE = 'src/__tests__/extension-family-public-api.test.ts'
 function extensionDescriptor(localId: string, header: string): FamilyDescriptor {
   const id = `family:test/${localId}` as ExternalFamilyId
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id,
       kind: 'family',
@@ -448,7 +448,7 @@ describe('registered family public layout and verify APIs', () => {
     expect(getFamily(descriptor.id)).toBeUndefined()
   })
 
-  test('keeps the compatibility parser closed while CLI, batch, and Code Mode expose registered parsing', async () => {
+  test('CLI, batch, and Code Mode expose the canonical registered parser', async () => {
     const descriptor: FamilyDescriptor = {
       ...extensionDescriptor('transport-parse', 'transportParseDiagram'),
       example: 'transportParseDiagram\n  example payload',
@@ -460,9 +460,7 @@ describe('registered family public layout and verify APIs', () => {
     writeFileSync(path, source)
     try {
       const sdk = createTracingMermaid()
-      const compatible = sdk.parseMermaid(source)
-      expect(compatible.ok).toBe(false)
-      if (!compatible.ok) expect(compatible.error[0]?.code).toBe('EXTENSION_PARSE_REQUIRES_OPEN_ENVELOPE')
+      expect('parseMermaid' in sdk).toBe(false)
       const open = sdk.parseRegisteredMermaid(source)
       expect(open.ok).toBe(true)
       if (open.ok) {

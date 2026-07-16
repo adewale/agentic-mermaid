@@ -18,7 +18,7 @@
  */
 
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
-import { HOSTED_FONT_FACES, hostedFontFaceCss } from '../../src/font-manifest.ts'
+import { HOSTED_FONT_RESOURCES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
 import { EDITOR_SUPPORTED_FAMILY_LIST } from '../../src/editor-family-data.ts'
 import { PNG_DEFAULT_SCALE } from '../../src/png-contract.ts'
@@ -63,7 +63,7 @@ function editorFamilyDataJs(): string {
 }
 
 function editorFontDataJs(): string {
-  const hostedFamilies = Array.from(new Set(HOSTED_FONT_FACES.map(font => font.family)))
+  const hostedFamilies = Array.from(new Set(HOSTED_FONT_RESOURCES.map(font => font.family)))
   const hosted = hostedFamilies.map(family => ({ name: family, value: family, group: 'Self-hosted' }))
   const system = [
     { name: 'System UI', value: 'system-ui', group: 'System' },

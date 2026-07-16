@@ -25,7 +25,7 @@ Use it when you want to describe a diagram in plain language and get back someth
 | An agent to draft the diagram | Mermaid source plus a verified render path |
 | Beautiful defaults | Built-in looks such as `watercolor`, `blueprint`, `hand-drawn`, and `publication-figure` |
 | Brand fit | Style + Palette stacks and custom JSON palettes you can keep in your repo |
-| Safe edits later | `parseMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
+| Safe edits later | `parseRegisteredMermaid` → family narrower → `mutate` → `verifyMermaid` → `serializeMermaid` |
 | Reviewable artifacts | SVG, PNG, ASCII, Unicode, and JSON layout from the same source |
 
 The agent workflow is the guardrail behind the polish: agents should not guess from pixels, concatenate strings, or regenerate whole diagrams when a structured edit is available.
@@ -144,9 +144,9 @@ Local-first is the default posture: prefer the library, CLI, or a self-hosted MC
 ## Structured edit example
 
 ```ts
-import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
+import { parseRegisteredMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid } from 'agentic-mermaid/agent'
 
-const parsed = parseMermaid('flowchart TD\n  API --> DB')
+const parsed = parseRegisteredMermaid('flowchart TD\n  API --> DB')
 if (!parsed.ok) throw new Error('parse failed')
 
 const flow = asFlowchart(parsed.value)

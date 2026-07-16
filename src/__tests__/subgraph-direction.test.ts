@@ -7,7 +7,7 @@
 // silently regress it.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid, layoutMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 import { renderMermaidASCII } from '../index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'

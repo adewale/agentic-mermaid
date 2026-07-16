@@ -7,7 +7,7 @@
   // into the warning vocabulary as lint/warning.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 import { WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
 
 const FAITHFUL: Record<string, string> = {

@@ -78,20 +78,20 @@ describe('parseSequenceDiagram – messages', () => {
     expect(d.messages[0]!.to).toBe('B')
     expect(d.messages[0]!.label).toBe('Hello')
     expect(d.messages[0]!.lineStyle).toBe('solid')
-    expect(d.messages[0]!.arrowHead).toBe('filled')
+    expect(d.messages[0]!.endHead).toBe('filled')
   })
 
   it('parses dashed arrow message: A-->>B', () => {
     const d = parse(`sequenceDiagram
       A-->>B: Response`)
     expect(d.messages[0]!.lineStyle).toBe('dashed')
-    expect(d.messages[0]!.arrowHead).toBe('filled')
+    expect(d.messages[0]!.endHead).toBe('filled')
   })
 
   it('parses open arrow message: A-)B', () => {
     const d = parse(`sequenceDiagram
       A-)B: Async`)
-    expect(d.messages[0]!.arrowHead).toBe('open')
+    expect(d.messages[0]!.endHead).toBe('open')
     expect(d.messages[0]!.lineStyle).toBe('solid')
   })
 

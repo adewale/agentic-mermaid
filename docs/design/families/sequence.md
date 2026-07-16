@@ -35,10 +35,8 @@ wiring and the verify lint cannot drift.
 | `activationWidth` | activation rect width (10) | activation rect width (historical 10) |
 | `showSequenceNumbers` | show node numbers (false) | starts the diagram with autonumbering on, threaded into `parseSequenceDiagram` so SVG **and** ASCII agree; an explicit `autonumber` directive still wins from its own line |
 
-Hard gate (tested in `src/__tests__/sequence-config.test.ts` and by the
-svg-equivalence corpus baseline): absent or empty config keeps default
-geometry **byte-identical** — every wired knob falls back to the historical
-constant.
+Absent or empty config uses the canonical sequence defaults; each explicit
+knob overrides only its documented layout field.
 
 ### Unwired keys → INEFFECTIVE_CONFIG
 

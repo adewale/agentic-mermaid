@@ -6,7 +6,7 @@ import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor } from './color-resolver.ts'
-import type { ConnectorLabelDescriptor, Geometry, MarkerDescriptor, MarkerRef, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import type { ConnectorLabelDescriptor, Geometry, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
@@ -25,10 +25,8 @@ import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from 
 //
 // The graph is first lowered to a SceneGraph (SPEC §3.1): every visual mark
 // becomes a scene node carrying semantic fields (role, geometry, paint,
-// channels, stable id) plus its exact crisp serialization, built here from
-// the same inputs. renderSvg() is DefaultBackend serialization of that scene,
-// so the default path stays byte-identical to the historical string renderer
-// (corpus-gated by svg-equivalence.test.ts); styled backends redraw the same
+// channels, stable id). renderSvg() uses DefaultBackend serialization of that
+// scene; styled backends redraw the same
 // scene without re-parsing SVG.
 //
 // Renders back-to-front: groups → edges → arrow heads → edge labels → nodes.
@@ -46,7 +44,7 @@ import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from 
 // - Font: Inter with weight per element type
 // ============================================================================
 
-/** A shape emission: semantic geometry + the exact crisp serialization. */
+/** A shape emission: semantic geometry plus default-backend serialization. */
 interface ShapePiece {
   geometry: Geometry
   crisp: string
@@ -67,8 +65,7 @@ export function renderSvg(
 }
 
 /**
- * Lower a positioned graph to the SceneGraph IR. Mark order matches the
- * historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a positioned graph to the SceneGraph IR in canonical mark order.
  */
 export function lowerGraphScene(
   ctx: RenderContext<PositionedGraph>,
@@ -83,7 +80,7 @@ export function lowerGraphScene(
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults, resolved.styleFace)
 
   // SVG root with CSS variables + style block + defs
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: graph.width,
@@ -153,7 +150,7 @@ export function lowerGraphScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'flowchart', width: graph.width, height: graph.height, colors, parts }
+  return { family: 'flowchart', width: graph.width, height: graph.height, colors, transparent, parts }
 }
 
 // ============================================================================
@@ -467,7 +464,6 @@ function renderEdge(
       labelAnchors: edge.labelPosition ? [edge.labelPosition] : [],
     },
     labels,
-    projectAccessibilityToSvg: true,
   } as const
   // Invisible links (~~~) shape the layout but draw no stroke or markers.
   if (edge.style === 'invisible') {
@@ -503,8 +499,8 @@ function renderEdge(
   // Use color-specific markers when edge has a custom stroke from linkStyle
   const suffix = markerColor ? `-${markerSuffix(markerColor)}` : ''
   let markers = ''
-  let endMarker: MarkerRef | undefined
-  let startMarker: MarkerRef | undefined
+  let endMarker: MarkerDescriptor | undefined
+  let startMarker: MarkerDescriptor | undefined
   if (edge.hasArrowEnd) {
     const prefix = markerIdPrefix(edge.endMarker ?? 'arrow')
     endMarker = markerResources.find(marker => marker.id === `${prefix}${suffix}`)
@@ -555,8 +551,7 @@ function renderEdge(
       geometry: pathProjection.geometry,
       lineStyle,
       paint,
-      startMarker,
-      endMarker,
+      markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: pathProjection.contours },
     },
@@ -570,8 +565,7 @@ function renderEdge(
     geometry: { kind: 'polyline', points: edge.points },
     lineStyle,
     paint,
-    startMarker,
-    endMarker,
+    markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
   },
     `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${strokeColor}" ` +
@@ -656,9 +650,8 @@ export function compactSvg(svg: string): string {
  * and any id that already starts with the prefix.
  */
 export function namespaceSvgIds(svg: string, prefix: string): string {
-  if (!prefix) return svg
   if (!/^[A-Za-z0-9_.:-]+$/.test(prefix)) {
-    throw new Error('idPrefix may contain only ASCII letters, digits, underscore, hyphen, dot, and colon')
+    throw new Error('idPrefix must be non-empty and contain only ASCII letters, digits, underscore, hyphen, dot, and colon')
   }
   // Collect declared ids so we only rewrite refs that point at our defs
   // (never an accidental `url(#…)` inside escaped label text).
@@ -893,14 +886,14 @@ function renderFlowchartMedia(node: PositionedNode, style: ResolvedRenderStyle):
     if (glyph) {
       const scale = size / 24
       const paths = glyph.paths.map(path => `<path d="${path}"/>`).join('')
-      return marks.raw({ id: `node:${node.id}:icon`, role: 'icon' }, `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})" fill="${color}" stroke="${color}" stroke-width="0.8">${paths}</g>`)
+      return marks.documentContent({ id: `node:${node.id}:icon`, role: 'icon' }, `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})" fill="${color}" stroke="${color}" stroke-width="0.8">${paths}</g>`)
     }
     const token = node.icon.split(/[:/\s-]+/).filter(Boolean).at(-1)?.slice(0, 2).toUpperCase() || '?'
     return marks.text({ id: `node:${node.id}:icon`, role: 'icon', text: token, x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: color } }, `<text class="flowchart-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${cx}" y="${y + size / 2}" text-anchor="middle" font-size="10" fill="${color}">${escapeXml(token)}</text>`)
   }
   if (node.image) {
     const left = cx - size / 2
-    return marks.raw({ id: `node:${node.id}:image`, role: 'icon' }, `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}" fill="none" stroke="${color}" stroke-width="1.2"><rect x="${left}" y="${y}" width="${size}" height="${size * 0.72}" rx="2"/><circle cx="${left + size * 0.72}" cy="${y + size * 0.2}" r="${size * 0.08}"/><path d="M${left + 2} ${y + size * 0.66}L${left + size * 0.36} ${y + size * 0.36}L${left + size * 0.52} ${y + size * 0.5}L${left + size * 0.7} ${y + size * 0.32}L${left + size - 2} ${y + size * 0.66}"/></g>`)
+    return marks.documentContent({ id: `node:${node.id}:image`, role: 'icon' }, `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}" fill="none" stroke="${color}" stroke-width="1.2"><rect x="${left}" y="${y}" width="${size}" height="${size * 0.72}" rx="2"/><circle cx="${left + size * 0.72}" cy="${y + size * 0.2}" r="${size * 0.08}"/><path d="M${left + 2} ${y + size * 0.66}L${left + size * 0.36} ${y + size * 0.36}L${left + size * 0.52} ${y + size * 0.5}L${left + size * 0.7} ${y + size * 0.32}L${left + size - 2} ${y + size * 0.66}"/></g>`)
   }
   return null
 }

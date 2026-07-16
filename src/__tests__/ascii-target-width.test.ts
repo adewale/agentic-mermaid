@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { AsciiWidthError, renderMermaidASCII } from '../ascii/index.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { TerminalOutputPolicyError } from '../terminal-contract.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { createTracingMermaid } from '../mcp/facade.ts'
 import type { DiagramKind } from '../agent/types.ts'
@@ -149,8 +150,8 @@ describe('targetWidth hard terminal contract', () => {
     }
   })
 
-  test('rejects ambiguous legacy maxWidth plus targetWidth', () => {
+  test('rejects ambiguous maxWidth plus targetWidth with the canonical policy error', () => {
     expect(() => renderMermaidASCII('flowchart TD\n  A', { maxWidth: 40, targetWidth: 40 }))
-      .toThrow(AsciiWidthError)
+      .toThrow(TerminalOutputPolicyError)
   })
 })

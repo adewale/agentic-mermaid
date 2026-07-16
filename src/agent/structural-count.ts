@@ -19,7 +19,7 @@
 // which the round-trip-stability gate already covers).
 // ============================================================================
 
-import type { ValidDiagram, StateNode, LayoutWarning } from './types.ts'
+import type { ParsedDiagram, StateNode, LayoutWarning } from './types.ts'
 import type { MermaidSubgraph } from '../types.ts'
 import { sequenceMessages } from './sequence-body.ts'
 
@@ -68,7 +68,7 @@ function countSubgraphs(subgraphs: MermaidSubgraph[]): number {
  * carry no structured arrays — their faithfulness is byte-verbatim, covered by
  * the round-trip gate).
  */
-export function countStructuralElements(d: ValidDiagram): StructuralCount | null {
+export function countStructuralElements(d: ParsedDiagram): StructuralCount | null {
   const body = d.body
   switch (body.kind) {
     case 'flowchart': {
@@ -133,6 +133,8 @@ export function countStructuralElements(d: ValidDiagram): StructuralCount | null
       // Vertices (curves × axes) are the marks; axes are the reference groups.
       return { nodes: body.curves.reduce((sum, c) => sum + c.values.length, 0), edges: 0, groups: body.axes.length }
     case 'opaque':
+    case 'extension':
+    case 'preserved':
       return null
     default: {
       // Exhaustiveness guard: a new family must declare its count here.

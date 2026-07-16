@@ -25,7 +25,7 @@ import * as publicAgentApi from '../agent/index.ts'
 import { DefaultBackend, knownBackendDescriptors, registerBackend } from '../scene/backend.ts'
 
 const EVIDENCE = 'src/__tests__/capability-negotiation.test.ts'
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^1.0.0' })
+const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^2.0.0' })
 
 function extensionDescriptor(
   localId: string,
@@ -35,7 +35,7 @@ function extensionDescriptor(
   const id = `family:test/${localId}` as ExternalFamilyId
   const hasSvg = options.renderSvg ?? false
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id,
       kind: 'family',
@@ -198,7 +198,7 @@ describe('versioned capability negotiation', () => {
         id: descriptor.identity.id,
         kind: 'family',
         version: descriptor.identity.version,
-        compatibility: { ...descriptor.identity.compatibility, scene: '^1.0.0' },
+        compatibility: { ...descriptor.identity.compatibility, scene: '^2.0.0' },
         provenance: descriptor.identity.provenance,
       }),
       lowerScene: () => { throw new Error('unreachable') },
@@ -250,7 +250,7 @@ describe('versioned capability negotiation', () => {
         id: original.identity.id,
         version: original.identity.version,
       })
-      expect(rendered.receipt.capabilityDecision?.resolutions).toContainEqual({
+      expect(rendered.receipt.capabilityDecision.resolutions).toContainEqual({
         id: original.identity.id,
         range: original.identity.version,
         level: 'required',

@@ -1,7 +1,7 @@
 // Phase C: structured ER diagram support.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid, asEr, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, asEr, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 const parse = (s: string) => {
   const r = parseMermaid(s)

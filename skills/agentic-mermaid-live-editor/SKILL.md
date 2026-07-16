@@ -19,7 +19,8 @@ This skill is for coding agents modifying the repository. It is not tied to Clau
 | `editor.html` | Generated output — never edit directly |
 | `src/browser.ts` | Bundles the renderer for the browser as `window.__mermaid` |
 | `src/types.ts` | `RenderOptions` — all supported render options |
-| `src/theme.ts` | `THEMES`, `buildStyleBlock`, `svgOpenTag` — CSS variable system |
+| `src/scene/style-registry.ts` | Palette/Look discovery and registration |
+| `src/theme.ts` | `buildStyleBlock`, `svgOpenTag` — CSS variable system |
 | `src/styles.ts` | `STROKE_WIDTHS`, `FONT_SIZES` — hardcoded constants |
 | `scripts/site/samples-data.ts` | Sample presets used by eval tooling; the editor uses its own inline `SAMPLES` array |
 
@@ -72,7 +73,7 @@ editor input
   → scheduleRender(debounce ms)
     → doRender()
       → buildOptions()        // merges theme (base) + config (overrides)
-      → renderMermaid(source, opts)   // window.__mermaid.renderMermaidSVGAsync
+      → renderMermaidSVGAsync(source, opts)   // window.__mermaid.renderMermaidSVGAsync
       → previewInner.innerHTML = svg
       → applyStrokeOverrides(svgEl)   // injects <style> for stroke widths
       → applyZoom(state.zoom)         // sets SVG width/height from viewBox × zoom

@@ -5,7 +5,7 @@
  * groups (only when interactive: true), and Mermaid-compat behavior.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderMermaid } from '../index.ts'
+import { renderMermaidSVGAsync } from '../index.ts'
 
 const BAR_CHART = `xychart-beta
   x-axis [Jan, Feb, Mar, Apr]
@@ -102,7 +102,7 @@ function getSvgSize(svg: string): { width: number; height: number } {
 
 describe('xychart – data attributes', () => {
   it('emits data-value and data-label on bars', async () => {
-    const svg = await renderMermaid(BAR_CHART)
+    const svg = await renderMermaidSVGAsync(BAR_CHART)
     expect(svg).toContain('data-value="30"')
     expect(svg).toContain('data-value="80"')
     expect(svg).toContain('data-label="Jan"')
@@ -111,7 +111,7 @@ describe('xychart – data attributes', () => {
 
   it('emits data-value and data-label on line dots (interactive)', async () => {
     // Line dots are only rendered when interactive: true
-    const svg = await renderMermaid(LINE_CHART, { interactive: true })
+    const svg = await renderMermaidSVGAsync(LINE_CHART, { interactive: true })
     expect(svg).toContain('data-value="100"')
     expect(svg).toContain('data-value="400"')
     expect(svg).toContain('data-label="Jan"')
@@ -119,7 +119,7 @@ describe('xychart – data attributes', () => {
   })
 
   it('does not render line dots unless interactive, matching Mermaid', async () => {
-    const svg = await renderMermaid(LINE_CHART)
+    const svg = await renderMermaidSVGAsync(LINE_CHART)
     expect(svg).not.toContain('<circle')
     expect(svg).not.toContain('data-value="100"')
     expect(svg).not.toContain('xychart-tip-bg')
@@ -127,7 +127,7 @@ describe('xychart – data attributes', () => {
   })
 
   it('emits data attributes on mixed chart elements', async () => {
-    const svg = await renderMermaid(MIXED_CHART, { interactive: true })
+    const svg = await renderMermaidSVGAsync(MIXED_CHART, { interactive: true })
     // Bars
     expect(svg).toContain('data-value="50"')
     expect(svg).toContain('data-value="120"')
@@ -146,14 +146,14 @@ describe('xychart – data attributes', () => {
 
 describe('xychart – interactive tooltips', () => {
   it('does not emit tooltip elements by default', async () => {
-    const svg = await renderMermaid(BAR_CHART)
+    const svg = await renderMermaidSVGAsync(BAR_CHART)
     expect(svg).not.toContain('xychart-tip')
     expect(svg).not.toContain('xychart-bar-group')
     expect(svg).not.toContain('<title>')
   })
 
   it('emits tooltip groups for bars when interactive', async () => {
-    const svg = await renderMermaid(BAR_CHART, { interactive: true })
+    const svg = await renderMermaidSVGAsync(BAR_CHART, { interactive: true })
     expect(svg).toContain('class="xychart-bar-group"')
     expect(svg).toContain('class="xychart-tip xychart-tip-bg"')
     expect(svg).toContain('class="xychart-tip xychart-tip-text"')
@@ -162,14 +162,14 @@ describe('xychart – interactive tooltips', () => {
   })
 
   it('emits tooltip groups for line dots when interactive', async () => {
-    const svg = await renderMermaid(LINE_CHART, { interactive: true })
+    const svg = await renderMermaidSVGAsync(LINE_CHART, { interactive: true })
     expect(svg).toContain('class="xychart-dot-group"')
     expect(svg).toContain('<title>Jan: 100</title>')
     expect(svg).toContain('<title>Mar: 400</title>')
   })
 
   it('includes hover CSS rules when interactive', async () => {
-    const svg = await renderMermaid(BAR_CHART, { interactive: true })
+    const svg = await renderMermaidSVGAsync(BAR_CHART, { interactive: true })
     expect(svg).toContain('.xychart-tip {')
     expect(svg).toContain('opacity: 0')
     expect(svg).toContain('.xychart-bar-group:hover .xychart-tip')
@@ -178,13 +178,13 @@ describe('xychart – interactive tooltips', () => {
   })
 
   it('does not include hover CSS when not interactive', async () => {
-    const svg = await renderMermaid(BAR_CHART)
+    const svg = await renderMermaidSVGAsync(BAR_CHART)
     expect(svg).not.toContain('.xychart-tip {')
     expect(svg).not.toContain('.xychart-bar-group:hover')
   })
 
   it('still emits data attributes when interactive', async () => {
-    const svg = await renderMermaid(BAR_CHART, { interactive: true })
+    const svg = await renderMermaidSVGAsync(BAR_CHART, { interactive: true })
     expect(svg).toContain('data-value="30"')
     expect(svg).toContain('data-label="Jan"')
   })
@@ -196,7 +196,7 @@ describe('xychart – interactive tooltips', () => {
 
 describe('xychart – CSS variable color inputs', () => {
   it('does not produce NaN colors when accent/bg are CSS variables', async () => {
-    const svg = await renderMermaid(MIXED_CHART, {
+    const svg = await renderMermaidSVGAsync(MIXED_CHART, {
       bg: 'var(--background)',
       fg: 'var(--foreground)',
       accent: 'var(--accent)',
@@ -209,14 +209,14 @@ describe('xychart – CSS variable color inputs', () => {
 
 describe('xychart – Mermaid parity', () => {
   it('accepts the stable xychart header and cleans quoted category labels', async () => {
-    const svg = await renderMermaid(STABLE_XYCHART)
+    const svg = await renderMermaidSVGAsync(STABLE_XYCHART)
     expect(svg).toContain('>Revenue</text>')
     expect(svg).toContain('Q2 Growth')
     expect(svg).not.toContain('&quot;Q2 Growth&quot;')
   })
 
   it('supports Mermaid frontmatter config and theme variables', async () => {
-    const svg = await renderMermaid(FRONTMATTER_XYCHART)
+    const svg = await renderMermaidSVGAsync(FRONTMATTER_XYCHART)
     expect(svg).toContain('class="xychart-data-label')
     expect(svg).toContain('--xychart-color-0: #ff6b6b;')
     expect(svg).toContain('--xychart-color-1: #0ea5e9;')
@@ -231,7 +231,7 @@ describe('xychart – Mermaid parity', () => {
   })
 
   it('renders showDataLabel for bars only, matching Mermaid behavior', async () => {
-    const svg = await renderMermaid(FRONTMATTER_XYCHART)
+    const svg = await renderMermaidSVGAsync(FRONTMATTER_XYCHART)
     expect(svg).toContain('>30</text>')
     expect(svg).toContain('>60</text>')
     expect(svg).toContain('>45</text>')
@@ -239,12 +239,12 @@ describe('xychart – Mermaid parity', () => {
   })
 
   it('supports CRLF frontmatter for orientation, title visibility, and chart sizing', async () => {
-    const defaultSvg = await renderMermaid(`xychart horizontal
+    const defaultSvg = await renderMermaidSVGAsync(`xychart horizontal
   title Revenue
   x-axis [A, B, C]
   y-axis Users 0 --> 100
   bar [10, 20, 30]`)
-    const svg = await renderMermaid(FRONTMATTER_HORIZONTAL_XYCHART)
+    const svg = await renderMermaidSVGAsync(FRONTMATTER_HORIZONTAL_XYCHART)
     const defaultSize = getSvgSize(defaultSvg)
     const configuredSize = getSvgSize(svg)
 
@@ -256,9 +256,10 @@ describe('xychart – Mermaid parity', () => {
   })
 
   it('supports Mermaid init directives for routing, theme, font, and xychart config', async () => {
-    const svg = await renderMermaid(INIT_DIRECTIVE_XYCHART)
+    const svg = await renderMermaidSVGAsync(INIT_DIRECTIVE_XYCHART)
     expect(svg).toContain('--bg:#18181B')
-    expect(svg).toContain('Fira%20Code')
+    expect(svg).toContain('--font:Fira Code')
+    expect(svg).not.toContain('@import')
     expect(svg).toContain('class="xychart-data-label"')
     expect(svg).toContain('--xychart-color-0: #ff6b6b;')
     expect(svg).toContain('--xychart-color-1: #0ea5e9;')
@@ -266,7 +267,7 @@ describe('xychart – Mermaid parity', () => {
   })
 
   it('renders accessibility metadata on the root SVG without duplicate ARIA attributes', async () => {
-    const svg = await renderMermaid(`xychart
+    const svg = await renderMermaidSVGAsync(`xychart
   accTitle: Revenue chart
   accDescr {
     Quarterly sales
@@ -287,7 +288,7 @@ describe('xychart – Mermaid parity', () => {
   })
 
   it('sets xychart role for title-only and description-only accessibility metadata', async () => {
-    const titleOnly = await renderMermaid(`xychart
+    const titleOnly = await renderMermaidSVGAsync(`xychart
   accTitle: Revenue chart
   bar [10, 20]`)
     const titleOpen = titleOnly.match(/<svg[^>]+>/)?.[0] ?? ''
@@ -295,7 +296,7 @@ describe('xychart – Mermaid parity', () => {
     expect(titleOpen).toContain('aria-labelledby="chart-title-mermaid-')
     expect(titleOpen).not.toContain('aria-describedby=')
 
-    const descOnly = await renderMermaid(`xychart
+    const descOnly = await renderMermaidSVGAsync(`xychart
   accDescr: Quarterly sales by region
   bar [10, 20]`)
     const descOpen = descOnly.match(/<svg[^>]+>/)?.[0] ?? ''
@@ -305,7 +306,7 @@ describe('xychart – Mermaid parity', () => {
   })
 
   it('supports semicolon-separated Mermaid xychart statements', async () => {
-    const svg = await renderMermaid('xychart; title Revenue; x-axis [Q1, Q2]; bar [10, 20]')
+    const svg = await renderMermaidSVGAsync('xychart; title Revenue; x-axis [Q1, Q2]; bar [10, 20]')
 
     expect(svg).toContain('>Revenue</text>')
     expect(svg).toContain('data-label="Q1"')

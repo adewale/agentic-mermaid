@@ -61,8 +61,8 @@ export function semanticIdentityForSvg(
     return value === undefined ? undefined : decodeAttr(value)
   }
   const classNames = (attr('class') ?? '').split(/\s+/).filter(Boolean)
-  const from = attr('data-from') ?? attr('data-entity1')
-  const to = attr('data-to') ?? attr('data-entity2')
+  const from = attr('data-from')
+  const to = attr('data-to')
   return {
     id: attr('data-id') ?? fallback.id,
     role: fallback.role,
@@ -97,11 +97,7 @@ export function ensureSvgIdentity(svg: string, identity: SvgSemanticIdentity): s
   }
   let authoritativeOpening = set(set(opening, 'data-id', identity.id), 'data-role', identity.role)
 
-  const legacyFrom = opening.match(/\sdata-entity1="([^"]*)"/)?.[1]
-  const legacyTo = opening.match(/\sdata-entity2="([^"]*)"/)?.[1]
-  const from = identity.from ?? legacyFrom
-  const to = identity.to ?? legacyTo
-  if (from !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-from', from)
-  if (to !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-to', to)
+  if (identity.from !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-from', identity.from)
+  if (identity.to !== undefined) authoritativeOpening = set(authoritativeOpening, 'data-to', identity.to)
   return authoritativeOpening === opening ? svg : svg.replace(opening, authoritativeOpening)
 }

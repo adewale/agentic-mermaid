@@ -4,7 +4,7 @@
 // Defines all built-in structured operations. The registry combines these
 // hooks with each family's render hooks and metadata, validates the complete
 // descriptor, and only then makes it discoverable. Structured families own
-// their parse/serialize/mutate here (BUILD-3 consolidation): parseMermaid,
+// their parse/serialize/mutate here (BUILD-3 consolidation): parseRegisteredMermaid,
 // serializeMermaid, and mutate dispatch through these hooks, so adding a
 // family means one registration plus a body module — no core edits.
 //

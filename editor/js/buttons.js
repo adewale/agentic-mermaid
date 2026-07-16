@@ -116,11 +116,12 @@ if (copyTextOutputBtn) copyTextOutputBtn.addEventListener('click', function() {
     showToast(name + ' output no longer matches the current diagram.');
     return;
   }
-  // Oversize/error panes carry an explanatory string but no render artifact;
-  // preserve the historical ability to copy that message.
-  var el = document.getElementById(currentCanvasFormat + '-output');
-  var value = artifact ? artifact.text : (el ? el.textContent : '');
-  writeClipboardText(value, name + ' output copied.', 'Copy ' + name + ' failed.', copyTextOutputBtn);
+  if (!artifact) {
+    setCopyFeedback(copyTextOutputBtn, 'err');
+    showToast(name + ' output is unavailable.');
+    return;
+  }
+  writeClipboardText(artifact.text, name + ' output copied.', 'Copy ' + name + ' failed.', copyTextOutputBtn);
 });
 
 document.addEventListener('click', function(e) {

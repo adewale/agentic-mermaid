@@ -19,7 +19,7 @@ family.
 - `harvest.ts` — regenerates the main-revision manifest, cases, exclusions, and ratchet from the pinned upstream checkout and current public behavior, while incorporating the separately pinned Mindmap/GitGraph companion accounting. It refuses to run if the main upstream checkout is not at its pinned revision.
 - `refresh-check.ts` — fetches upstream `develop` and reports whether any newer commits changed the harvested diagram spec files.
 - `manifest.json` — pinned upstream revision plus family-by-family parser/DB files considered, upstream block counts, imported case counts, imported block counts, excluded block counts, and deferred block counts.
-- `cases.json` — portable source-level parser/DB cases. Each case records upstream files/blocks, source text, and public-surface assertions (`parseMermaid`, family narrower where structured, `verifyMermaid`, `serializeMermaid`, `layoutMermaid`).
+- `cases.json` — portable source-level parser/DB cases. Each case records upstream files/blocks, source text, and public-surface assertions (`parseRegisteredMermaid`, family narrower where structured, `verifyMermaid`, `serializeMermaid`, `layoutMermaid`).
 - `exclusions.json` — accounted non-portable or local-gap upstream behavior. Reason codes are validated by `src/__tests__/mermaid-upstream-suite-bench.test.ts`; entries with an `ours` expectation are executable.
 - `mindmap-gitgraph-f3dea583.json` — verbatim source cases, normalized upstream expectations, exact 26/69 block inventory, five source-inexpressible config-accessor exclusions, plus executable duplicate-id and already-reachable-cherry-pick divergences. The two source spec SHA-256 values bind the inventory to the pinned commit.
 - `ratchet.json` — imported coverage floors plus local-gap budgets. The harvester may tighten these budgets when gaps shrink, but the test runner fails if local gaps grow or imported coverage falls.
@@ -84,7 +84,7 @@ interface ManifestFamily {
 
 - `api-internal` — upstream tests exercise DB reset helpers, renderer DOM details, browser integration, or theme/security internals rather than portable Mermaid source semantics.
 - `upstream-negative` — upstream intentionally asserts that an input throws or is rejected; these are accounted in the ledger instead of imported as positive cases.
-- `local-parse-gap` — upstream positive parser coverage is rejected by `parseMermaid`.
+- `local-parse-gap` — upstream positive parser coverage is rejected by `parseRegisteredMermaid`.
 - `local-verify-gap` — upstream positive parser coverage parses locally, but `verifyMermaid` returns warnings or throws.
 - `local-layout-gap` — upstream positive parser coverage parses/verifies locally, but `layoutMermaid` throws.
 - `local-roundtrip-gap` — upstream positive parser coverage parses/verifies/lays out locally, but `serialize`/`parse`/`serialize` is not stable.

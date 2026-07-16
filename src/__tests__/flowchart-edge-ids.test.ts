@@ -17,7 +17,7 @@ import { describe, it, expect } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { asFlowchart, mutate, parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 const SOURCE = 'flowchart LR\n  A e1@--> B\n'
 

@@ -29,8 +29,6 @@ export interface BrowserPngDiagnostic {
 }
 
 export interface BrowserPngRasterContext {
-  /** @deprecated Read `outputPolicy.scale`; retained for callback compatibility. */
-  readonly scale: number
   readonly outputPolicy: ResolvedPngOutputPolicy
   /** Exact integer canvas dimensions approved by the shared raster budget. */
   readonly rasterDimensions: PngRasterDimensions
@@ -219,7 +217,6 @@ async function renderMermaidPNGInBrowserWithReceiptForHost(
     graphical.rasterDimensions,
   )
   const raster = await hostOptions.rasterize(rasterSvg, {
-    scale: graphical.outputPolicy.scale,
     outputPolicy: graphical.outputPolicy,
     rasterDimensions: graphical.rasterDimensions,
     rasterBackground: graphical.rasterBackground,

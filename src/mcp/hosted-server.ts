@@ -17,13 +17,10 @@ import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
 import { verifyNoExternalRefs } from '../index.ts'
-import { THEMES } from '../theme.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
-  MCP_PNG_RENDER_OPTION_CONVENIENCES,
-  MCP_SVG_RENDER_OPTION_CONVENIENCES,
   PURE_COMPUTE_ANNOTATIONS,
   createDescribeTool,
   createExecuteTool,
@@ -99,12 +96,6 @@ const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
   .filter(descriptor => descriptor.kind === 'palette')
   .map(descriptor => descriptor.inputName)
 
-export const LEGACY_THEME_INPUT_DIAGNOSTIC = Object.freeze({
-  code: 'THEME_INPUT_DEPRECATED',
-  message: 'The render_svg theme field is a legacy compatibility input; use style with a Palette name instead.',
-  removal: Object.freeze({ release: '0.3.0', date: '2027-01-31' }),
-})
-
 export const HOSTED_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
   withClosedMcpInputSchema(createDescribeSdkTool()),
@@ -118,19 +109,8 @@ boundary forces security:'strict' and embedFontImport:false.`,
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
-        theme: {
-          type: 'string',
-          enum: Object.keys(THEMES),
-          deprecated: true,
-          'x-agentic-mermaid-diagnostic': LEGACY_THEME_INPUT_DIAGNOSTIC,
-          description: `Deprecated compatibility input (one of: ${Object.keys(THEMES).join(', ')}); use style with a Palette name.`,
-        },
         ...mcpRenderOptionSchemaProperties(
-          MCP_SVG_RENDER_OPTION_CONVENIENCES,
-          `Shared advanced RenderOptions object; compatibility conveniences override matching values. Styles accept a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
-          {
-            style: `Style: a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
-          },
+          `Shared advanced RenderOptions object. Styles accept a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
         ),
       },
       required: ['source'],
@@ -149,7 +129,7 @@ targetWidth sets a hard terminal display-cell bound; impossible bounds return a 
         source: { type: 'string', description: 'Mermaid source.' },
         useAscii: { type: 'boolean', description: 'true = ASCII characters, false = Unicode (default).' },
         targetWidth: { type: 'integer', minimum: 1, description: 'Hard maximum line width in terminal display cells.' },
-        ...mcpRenderOptionSchemaProperties([], 'Shared advanced RenderOptions object, including style/palette/config/security.'),
+        ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object, including style/palette/config/security.'),
       },
       required: ['source'],
     },
@@ -253,7 +233,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
         return rpcError(id, -32602, e instanceof Error ? e.message : String(e))
       }
     }
-    case 'render_svg': return sourceTool(id, args, 'SVG_RENDER_FAILED', source => {
+    case 'render_svg': return sourceTool(id, args, source => {
       const rendered = renderMermaidSVGWithReceipt(source, svgOptions(args))
       const safety = verifyNoExternalRefs(rendered.svg)
       if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
@@ -261,13 +241,13 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
         ok: true as const,
         svg: rendered.svg,
         receipt: rendered.receipt,
-        warnings: [...sourceConfigWarnings(source), ...legacyThemeInputWarnings(args)],
+        warnings: sourceConfigWarnings(source),
       }
     })
-    case 'render_ascii': return sourceTool(id, args, 'ASCII_RENDER_FAILED', source => {
+    case 'render_ascii': return sourceTool(id, args, source => {
       const projectionWarnings: unknown[] = []
       const rendered = renderMermaidASCIIWithReceipt(source, {
-        ...projectMcpRenderOptions(args, []),
+        ...projectMcpRenderOptions(args),
         ...HOSTED_RENDER_OPTIONS,
         useAscii: args.useAscii === true,
         targetWidth: args.targetWidth as number | undefined,
@@ -282,7 +262,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       }
     })
     case 'render_png': return handleRenderPng(id, args, context)
-    case 'verify': return sourceTool(id, args, 'VERIFY_FAILED', source => {
+    case 'verify': return sourceTool(id, args, source => {
       const parsed = parseRegisteredMermaid(source)
       if (!parsed.ok) {
         // Self-describing tool: when the header names a known family, hand back
@@ -305,7 +285,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       // having to know to call `describe` separately.
       return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
-    case 'describe': return sourceTool(id, args, 'DESCRIBE_FAILED', source => mcpDescribePayload(source, args))
+    case 'describe': return sourceTool(id, args, source => mcpDescribePayload(source, args))
     case 'mutate': return handleApplyOps(id, args, 'source')
     case 'build': return handleApplyOps(id, args, 'family')
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
@@ -322,10 +302,6 @@ function sourceConfigWarnings(source: string) {
   return configWarningsForMermaid(source)
 }
 
-function legacyThemeInputWarnings(args: Readonly<Record<string, unknown>>) {
-  return args.theme === undefined ? [] : [LEGACY_THEME_INPUT_DIAGNOSTIC]
-}
-
 function familyExampleForSource(source: string): { family: string; example: string } | undefined {
   const first = source.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
   const header = first.split(/\s+/)[0] ?? ''
@@ -336,19 +312,11 @@ function familyExampleForSource(source: string): { family: string; example: stri
 }
 
 function svgOptions(args: Record<string, unknown>): RenderOptions {
-  const theme = args.theme
-  if (theme !== undefined && (typeof theme !== 'string' || !(theme in THEMES))) {
-    throw new Error(`unknown theme; expected one of: ${Object.keys(THEMES).join(', ')}`)
-  }
   // Public MCP SVG is commonly embedded by downstream agent UIs. It must
   // never carry active tags/event handlers or external fetches from Mermaid
   // init/config payloads; unlike the local library, this direct tool exposes no
   // caller-selectable security mode.
-  const opts = projectMcpRenderOptions(
-    args,
-    MCP_SVG_RENDER_OPTION_CONVENIENCES,
-    typeof theme === 'string' ? THEMES[theme] : {},
-  )
+  const opts = projectMcpRenderOptions(args)
   // The hosted boundary owns this policy. An advanced options object cannot
   // weaken it even though the same canonical request fields are accepted.
   return { ...opts, ...HOSTED_RENDER_OPTIONS }
@@ -377,7 +345,7 @@ function normalizedHostedPngRequest(args: Record<string, unknown>): NormalizedHo
   return {
     output,
     render: {
-      ...projectMcpRenderOptions(args, MCP_PNG_RENDER_OPTION_CONVENIENCES),
+      ...projectMcpRenderOptions(args),
       ...HOSTED_RENDER_OPTIONS,
     },
   }
@@ -386,15 +354,7 @@ function normalizedHostedPngRequest(args: Record<string, unknown>): NormalizedHo
 /** Cache identity is the normalized request projection, not another copied
  * list of shared fields. */
 function effectiveSvgArgs(args: Record<string, unknown>): Record<string, unknown> {
-  return {
-    render: svgOptions(args),
-    // The legacy field can resolve to exactly the same RenderOptions as a
-    // canonical `options` object, but its response carries a deprecation
-    // warning. Keep that response-affecting distinction in cache identity so
-    // a canonical request cannot inherit the warning (or a legacy request
-    // lose it) through an otherwise equivalent cached render.
-    legacyThemeDiagnostic: args.theme !== undefined,
-  }
+  return { render: svgOptions(args) }
 }
 
 /**
@@ -424,7 +384,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
         source: args.source,
         useAscii: args.useAscii === true,
         targetWidth: typeof args.targetWidth === 'number' ? args.targetWidth : undefined,
-        render: { ...projectMcpRenderOptions(args, []), ...HOSTED_RENDER_OPTIONS },
+        render: { ...projectMcpRenderOptions(args), ...HOSTED_RENDER_OPTIONS },
       } : null
     case 'render_png': {
       if (typeof args.source !== 'string') return null
@@ -488,7 +448,7 @@ function handleApplyOps(id: number | string | null, args: Record<string, unknown
 }
 
 /** Shared shape for the pure source→payload tools: validate, cap, run, wrap errors. */
-function sourceTool(id: number | string | null, args: Record<string, unknown>, errorCode: string, run: (source: string) => { ok: boolean } & Record<string, unknown>): JsonRpcResponse {
+function sourceTool(id: number | string | null, args: Record<string, unknown>, run: (source: string) => { ok: boolean } & Record<string, unknown>): JsonRpcResponse {
   const source = args.source
   if (typeof source !== 'string') return rpcError(id, -32602, 'tool requires `source` (string)')
   if (boundedUtf8ByteLength(source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
@@ -498,10 +458,9 @@ function sourceTool(id: number | string | null, args: Record<string, unknown>, e
     const payload = run(source)
     return toolResult(id, payload, !payload.ok)
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
     return toolResult(id, {
       ok: false as const,
-      error: projectRenderErrorDiagnostic(e) ?? { code: errorCode, message: msg },
+      error: projectRenderErrorDiagnostic(e),
     }, true)
   }
 }
@@ -574,10 +533,9 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
       warnings,
     }, false)
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
     return toolResult(id, {
       ok: false as const,
-      error: projectRenderErrorDiagnostic(e) ?? { code: 'PNG_RENDER_FAILED', message: msg },
+      error: projectRenderErrorDiagnostic(e),
     }, true)
   }
 }

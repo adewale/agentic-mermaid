@@ -20,10 +20,7 @@ import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registr
 //
 // The positioned diagram is first lowered to a SceneGraph (SPEC §3.1): every
 // visual mark becomes a scene node carrying semantic fields (role, geometry,
-// paint, channels, stable id) plus its exact crisp serialization, built here
-// from the same inputs. renderErSvg() is DefaultBackend serialization of that
-// scene, so the default path stays byte-identical to the historical string
-// renderer (corpus-gated by svg-equivalence.test.ts).
+// paint, channels, stable id). renderErSvg() uses DefaultBackend serialization of that scene.
 //
 // All colors use CSS custom properties (var(--_xxx)) from the theme system.
 //
@@ -43,7 +40,7 @@ const ER_FONT = {
   keyWeight: 600,
 } as const
 
-/** A shape emission: semantic geometry + the exact crisp serialization. */
+/** A shape emission: semantic geometry plus default-backend serialization. */
 interface ShapePiece {
   geometry: Geometry
   crisp: string
@@ -62,8 +59,7 @@ export function renderErSvg(
 }
 
 /**
- * Lower a positioned ER diagram to the SceneGraph IR. Mark order matches the
- * historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a positioned ER diagram to the SceneGraph IR in canonical mark order.
  */
 export function lowerErScene(
   ctx: RenderContext<PositionedErDiagram>,
@@ -80,7 +76,7 @@ export function lowerErScene(
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
 
   // SVG root with CSS variables + style block (with mono font) + defs
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: diagram.width,
@@ -101,11 +97,11 @@ export function lowerErScene(
   parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(marks.raw({ id: 'acc-title', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'acc-title', role: 'chrome' },
       `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(marks.raw({ id: 'acc-desc', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'acc-desc', role: 'chrome' },
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
@@ -150,7 +146,7 @@ export function lowerErScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'er', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'er', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): SceneNode {
@@ -411,7 +407,6 @@ function renderRelationshipLine(
     relationship: { kind: rel.identifying ? 'identifying' : 'non-identifying' },
     route: { ownership: 'layout', bendRadius },
     labels: rel.label ? [{ text: rel.label }] : [],
-    projectAccessibilityToSvg: true,
   } as const
 
   // Degenerate relationships draw nothing (empty crisp keeps the part slot).
@@ -434,8 +429,8 @@ function renderRelationshipLine(
   const labelAttr = rel.label ? ` data-label="${escapeAttr(rel.label)}"` : ''
   const dataAttrs = [
     'class="er-relationship"',
-    `data-entity1="${escapeAttr(rel.entity1)}"`,
-    `data-entity2="${escapeAttr(rel.entity2)}"`,
+    `data-from="${escapeAttr(rel.entity1)}"`,
+    `data-to="${escapeAttr(rel.entity2)}"`,
     `data-cardinality1="${rel.cardinality1}"`,
     `data-cardinality2="${rel.cardinality2}"`,
     `data-identifying="${rel.identifying}"`,

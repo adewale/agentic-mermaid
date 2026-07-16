@@ -123,12 +123,12 @@ function descriptor(
 ): FamilyDescriptor {
   const id = `family:test/${localId}` as ExternalFamilyId
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1', scene: '^1.0.0' },
+      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
       provenance: { owner: 'external-scene-public-api-test', source: 'test', reference: EVIDENCE },
     }),
     id,
@@ -210,11 +210,11 @@ describe('public external Scene construction and admission', () => {
     const unregister = registerFamily(family)
     try {
       const source = 'safeScene\n  opaque extension payload'
-      const crisp = renderMermaidSVG(source)
+      const precise = renderMermaidSVG(source)
       const rough = renderMermaidSVG(source, { style: { stroke: 'jittered', roughness: 0.9 } })
       const hybrid = renderMermaidSVG(source, { style: { stroke: 'freehand', strokeWidth: 1.4 } })
 
-      for (const svg of [crisp, rough, hybrid]) {
+      for (const svg of [precise, rough, hybrid]) {
         expect(svg).toStartWith('<svg')
         expect(svg).toContain('data-id="left-node"')
         expect(svg).toContain('data-role="edge"')
@@ -228,11 +228,13 @@ describe('public external Scene construction and admission', () => {
         expect(svg).not.toContain('<script')
         expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
       }
-      expect(crisp).toContain('<rect x="20" y="35" width="55" height="40" rx="7" ry="7"')
-      expect(crisp).not.toContain('stroke-opacity="0"')
+      for (const attribute of ['x="20"', 'y="35"', 'width="55"', 'height="40"', 'rx="7"', 'ry="7"']) {
+        expect(precise).toContain(attribute)
+      }
+      expect(precise).not.toContain('stroke-opacity="0"')
       expect(rough).toContain('stroke-opacity="0"')
       expect(hybrid).toContain('stroke-opacity="0"')
-      expect(rough).not.toBe(crisp)
+      expect(rough).not.toBe(precise)
       expect(hybrid).not.toBe(rough)
     } finally {
       unregister()
@@ -252,7 +254,7 @@ describe('public external Scene construction and admission', () => {
         children: [container.children[0]!, { ...node, text: '<script>alert(1)</script>', x: 110, fontSize: 8 }],
       }, ...safe.parts.slice(1)],
     })
-    const svg = escaped.parts.map(part => part.crisp).join('\n')
+    const svg = DefaultBackend.render(escaped, { seed: 0 })
     expect(svg).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
     expect(svg).not.toContain('<script>')
 
@@ -263,17 +265,8 @@ describe('public external Scene construction and admission', () => {
       parts: [unsafePaint.parts[0]!, { ...data, paint: { fill: 'url(https://evil.example/fill.svg)' } }, ...unsafePaint.parts.slice(2)],
     })).toThrow(/safe non-fetching CSS paint/)
 
-    const prelude = escaped.parts[0]!
-    expect(prelude.kind).toBe('prelude')
-    if (prelude.kind !== 'prelude') return
-    const forged = {
-      ...escaped,
-      parts: [{ ...prelude, crisp: prelude.crisp.replace('</style>', '*{fill:red}</style>') }, ...escaped.parts.slice(1)],
-    }
-    expect(validateSceneDoc(forged).diagnostics).toContainEqual(expect.objectContaining({
-      code: 'SCENE_SECURITY',
-      message: expect.stringMatching(/canonical/),
-    }))
+    expect(escaped.parts[0]).toMatchObject({ kind: 'document', element: 'open' })
+    expect(escaped.parts.every(part => !Object.prototype.hasOwnProperty.call(part, 'crisp'))).toBe(true)
   })
 
   test('rejects every unvalidated paint escape and unknown paint fields', () => {
@@ -394,38 +387,11 @@ describe('public external Scene construction and admission', () => {
         { ...edge, geometry: { kind: 'path', d: 'M 75 58 L 165 58', points } },
       ],
     })
-    const openIndex = openScene.parts.findIndex(part => part.kind === 'connector')
-    const openConnector = openScene.parts[openIndex]
+    const openConnector = openScene.parts.find(part => part.kind === 'connector')
     expect(openConnector?.kind).toBe('connector')
     if (openConnector?.kind === 'connector') {
-      const forgedTopology = {
-        ...openScene,
-        parts: openScene.parts.map((part, index) => index === openIndex
-          ? { ...openConnector, route: { ...openConnector.route, closed: true }, hit: { ...openConnector.hit, closed: true } }
-          : part),
-      }
-      expect(validateSceneDoc(forgedTopology, { mode: 'external' })).toMatchObject({
-        valid: false,
-        diagnostics: expect.arrayContaining([expect.objectContaining({
-          code: 'SCENE_FIDELITY',
-          message: expect.stringMatching(/closed must exactly match/),
-        })]),
-      })
-
-      const forgedTangent = {
-        ...openScene,
-        parts: openScene.parts.map((part, index) => index === openIndex
-          ? { ...openConnector, route: { ...openConnector.route, startTangent: { x: 2, y: 0 } } }
-          : part),
-      }
-      expect(validateSceneDoc(forgedTangent, { mode: 'external' })).toMatchObject({
-        valid: false,
-        diagnostics: expect.arrayContaining([expect.objectContaining({
-          code: 'SCENE_FINITE',
-          path: `scene.parts[${openIndex}].route.startTangent`,
-          message: 'must be a finite unit vector',
-        })]),
-      })
+      expect(openConnector.route.closed).toBe(false)
+      expect(openConnector.hit.closed).toBe(false)
     }
   })
 
@@ -453,7 +419,7 @@ describe('public external Scene construction and admission', () => {
     const connector = scene.parts.find(part => part.kind === 'connector')
     expect(connector?.kind).toBe('connector')
     if (!connector || connector.kind !== 'connector') return
-    expect(connector.crisp).toContain('marker-mid="url(#external-arrow)"')
+    expect(DefaultBackend.drawNode(connector, { seed: 0 })).toContain('marker-mid="url(#external-arrow)"')
     expect(connector.markers.mid).toEqual([expect.objectContaining({ id: ARROW.id })])
     expect(connector.terminalProjection.markers.mid).toEqual([expect.objectContaining({ id: ARROW.id })])
     expect(validateSceneDoc(scene, { mode: 'external' }).valid).toBe(true)
@@ -602,7 +568,7 @@ describe('public external Scene construction and admission', () => {
     })
 
     const scene = buildExternalScene(input)
-    const svg = scene.parts.map(part => part.crisp).join('\n')
+    const svg = DefaultBackend.render(scene, { seed: 0 })
     expect(svg).toContain('Safe external Scene')
     expect(svg).not.toContain('FORGED LIVE TITLE')
     expect(liveGetCalls).toBe(0)
@@ -656,9 +622,7 @@ describe('public external Scene construction and admission', () => {
     const family = descriptor('late-swap-scene', 'lateSwapScene', ROLES, ctx => {
       const safe = buildExternalScene(sceneInput(id, ctx.colors))
       if (!armed) return safe
-      const forged = [{
-        crisp: '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="120"><image href="https://audit.invalid/fetch"/></svg>',
-      }]
+      const forged = [{ kind: 'document', element: 'content', id: 'forged', role: 'chrome' }]
       let scenePartsReads = 0
       return new Proxy(safe, {
         get(target, property, receiver) {
@@ -667,7 +631,7 @@ describe('public external Scene construction and admission', () => {
             scenePartsReads++
             // Before snapshot admission, the family gate and DefaultBackend
             // completed 70 validation reads and serialized the 71st value.
-            if (scenePartsReads >= 71) return forged as typeof safe.parts
+            if (scenePartsReads >= 71) return forged as unknown as typeof safe.parts
           }
           return Reflect.get(target, property, receiver)
         },
@@ -708,10 +672,7 @@ describe('public external Scene construction and admission', () => {
     expect(validateSceneDoc(measuring, { mode: 'external' }).valid).toBe(true)
     expect(validationPartsReads).toBeGreaterThan(0)
 
-    const forgedParts = [{
-      kind: 'raw',
-      crisp: '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://audit.invalid/fetch"/></svg>',
-    }]
+    const forgedParts = [{ kind: 'document', element: 'content', id: 'forged', role: 'chrome' }]
     const backends = [DefaultBackend, getBackend('rough'), getBackend('hybrid')]
     for (const backend of backends) {
       expect(backend).toBeDefined()
@@ -732,48 +693,7 @@ describe('public external Scene construction and admission', () => {
     }
   })
 
-  test('rejects forged sibling, style, and container crisp projections', () => {
-    const scene = buildExternalScene(sceneInput('family:test/canonical-projection', { bg: '#fff', fg: '#111' }))
-    const shapeIndex = scene.parts.findIndex(part => part.kind === 'shape')
-    const shape = scene.parts[shapeIndex]!
-    expect(shape.kind).toBe('shape')
-    if (shape.kind !== 'shape') return
-
-    for (const suffix of [
-      '<text x="1" y="2">FORGED</text>',
-      '<style>body{display:none}</style>',
-    ]) {
-      const forged = {
-        ...scene,
-        parts: scene.parts.map((part, index) => index === shapeIndex ? { ...shape, crisp: shape.crisp + suffix } : part),
-      }
-      expect(validateSceneDoc(forged, { mode: 'external' })).toMatchObject({
-        valid: false,
-        diagnostics: expect.arrayContaining([expect.objectContaining({
-          code: 'SCENE_FIDELITY',
-          path: expect.stringContaining('.crisp'),
-        })]),
-      })
-    }
-
-    const groupIndex = scene.parts.findIndex(part => part.kind === 'group')
-    const group = scene.parts[groupIndex]!
-    expect(group.kind).toBe('group')
-    if (group.kind !== 'group') return
-    const forgedOpen = `${group.open}<style>body{display:none}</style>`
-    const forgedGroup = {
-      ...scene,
-      parts: scene.parts.map((part, index) => index === groupIndex
-        ? { ...group, open: forgedOpen, crisp: group.crisp.replace(group.open, forgedOpen) }
-        : part),
-    }
-    expect(validateSceneDoc(forgedGroup, { mode: 'external' })).toMatchObject({
-      valid: false,
-      diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'SCENE_FIDELITY' })]),
-    })
-  })
-
-  test('bounds aggregate text, points, crisp projections, and final SVG before concatenation', () => {
+  test('bounds aggregate text and point collections before compilation', () => {
     const textBase = sceneInput('family:test/text-budget', { bg: '#fff', fg: '#111' })
     const textChunk = 'x'.repeat(Math.floor(SCENE_VALIDATION_LIMITS.maxTextBytes / 3) + 1)
     expect(() => buildExternalScene({
@@ -850,25 +770,6 @@ describe('public external Scene construction and admission', () => {
       message: expect.stringContaining('Scene points exceed the aggregate'),
     }))
 
-    const largeCrisp = `${shape.crisp}${' '.repeat(Math.floor(SCENE_VALIDATION_LIMITS.maxFinalSvgBytes / 2) + 100)}`
-    const prefix = valid.parts.slice(0, -1).filter(part => part !== shape)
-    const copy = (index: number) => ({
-      ...shape,
-      id: `large-shape-${index}`,
-      crisp: largeCrisp,
-    })
-
-    const finalTooLarge = validateSceneDoc({ ...valid, parts: [...prefix, copy(0), copy(1), close] }, { mode: 'external' })
-    expect(finalTooLarge.diagnostics).toContainEqual(expect.objectContaining({
-      code: 'SCENE_BOUNDS',
-      message: expect.stringContaining('serialized SVG exceeds the aggregate'),
-    }))
-
-    const crispTooLarge = validateSceneDoc({ ...valid, parts: [...prefix, copy(0), copy(1), copy(2), copy(3), close] }, { mode: 'external' })
-    expect(crispTooLarge.diagnostics).toContainEqual(expect.objectContaining({
-      code: 'SCENE_BOUNDS',
-      message: expect.stringContaining('crisp projections exceed the aggregate'),
-    }))
   })
 
   test('applies the point limit to typed point collections rather than x/y-bearing shapes', () => {

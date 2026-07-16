@@ -15,11 +15,11 @@ import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { parseMermaid } from '../../src/parser.ts'
 import { layoutGraphSync } from '../../src/layout-engine.ts'
-import { THEMES } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
-const THEME = THEMES['github-light']!
+const THEME = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'github-light')!.colors
 const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
   join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),

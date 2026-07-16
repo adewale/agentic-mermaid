@@ -9,7 +9,6 @@ import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
-  MCP_PNG_RENDER_OPTION_CONVENIENCES,
   EXECUTE_TIMEOUT_ERROR,
   createDescribeTool,
   createExecuteTool,
@@ -139,7 +138,7 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
     const fontWarnings: Array<Record<string, unknown>> = []
     const pngOutput = projectNativePngOutputPolicyInput(args)
     const rendered = renderMermaidPNGWithReceipt(source, {
-      ...projectMcpRenderOptions(args, MCP_PNG_RENDER_OPTION_CONVENIENCES),
+      ...projectMcpRenderOptions(args),
       ...pngOutput,
       onWarning: warning => fontWarnings.push(warning as unknown as Record<string, unknown>),
     })
@@ -156,10 +155,9 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
     const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), receipt: rendered.receipt, runtime: rendered.runtime, warnings }
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
     const payload = {
       ok: false as const,
-      error: projectRenderErrorDiagnostic(e) ?? { code: 'PNG_RENDER_FAILED', message: msg },
+      error: projectRenderErrorDiagnostic(e),
     }
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true })
   }

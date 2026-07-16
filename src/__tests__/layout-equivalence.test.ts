@@ -23,7 +23,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseMermaid, layoutMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 

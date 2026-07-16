@@ -14,7 +14,7 @@ import fc from 'fast-check'
 
 import {
   describeMermaidSource, describeMermaidFactsSource, analyzeMermaidSource, checkMermaidSource,
-  asciiToMermaid, parseMermaid, serializeMermaid, createMermaid,
+  asciiToMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, createMermaid,
   describeMermaid, describeMermaidTree, describeMermaidFacts, analyzeMermaid, checkMermaid,
 } from '../agent/index.ts'
 import type { DiagramKind } from '../agent/types.ts'

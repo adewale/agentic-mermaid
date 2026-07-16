@@ -66,7 +66,7 @@ function applyOneMutation(
   if (d.body.kind === 'extension') {
     return err({
       code: 'INVALID_OP',
-      message: `Registered external family "${d.kind}" has no typed mutation contract in FamilyDescriptor v1`,
+      message: `Registered external family "${d.kind}" has no typed mutation contract in FamilyDescriptor v2`,
     })
   }
   const plugin = getFamily(d.kind)

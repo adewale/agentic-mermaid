@@ -7,8 +7,8 @@
 // This module never executes callbacks and never mutates source/render output.
 // ============================================================================
 
-import { parseMermaid } from './parse.ts'
-import type { DiagramActionRecord, DiagramAnalysis, ParseError, Result, ValidDiagram } from './types.ts'
+import { parseRegisteredMermaid } from './parse.ts'
+import type { DiagramActionRecord, DiagramAnalysis, ParseError, Result, ParsedDiagram } from './types.ts'
 import { err, ok } from './types.ts'
 import { classifyRoutes } from '../route-contracts.ts'
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
@@ -18,7 +18,7 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { normalizeMermaidSource, toMermaidLines } from '../mermaid-source.ts'
 import type { MermaidGraph } from '../types.ts'
 
-export function analyzeMermaid(d: ValidDiagram): DiagramAnalysis {
+export function analyzeMermaid(d: ParsedDiagram): DiagramAnalysis {
   return {
     kind: d.kind,
     feedbackEdges: feedbackEdges(d),
@@ -28,11 +28,11 @@ export function analyzeMermaid(d: ValidDiagram): DiagramAnalysis {
 }
 
 export function analyzeMermaidSource(source: string): Result<DiagramAnalysis, ParseError[]> {
-  const parsed = parseMermaid(source)
+  const parsed = parseRegisteredMermaid(source)
   return parsed.ok ? ok(analyzeMermaid(parsed.value)) : err(parsed.error)
 }
 
-function feedbackEdges(d: ValidDiagram): DiagramAnalysis['feedbackEdges'] {
+function feedbackEdges(d: ParsedDiagram): DiagramAnalysis['feedbackEdges'] {
   let graph: MermaidGraph | null = null
   if (d.body.kind === 'flowchart') graph = d.body.graph
   else if (d.body.kind === 'state') graph = stateBodyToGraph(d.body)
@@ -47,7 +47,7 @@ function feedbackEdges(d: ValidDiagram): DiagramAnalysis['feedbackEdges'] {
     : [])
 }
 
-function ganttAnalysis(d: ValidDiagram): Pick<DiagramAnalysis, 'gantt'> {
+function ganttAnalysis(d: ParsedDiagram): Pick<DiagramAnalysis, 'gantt'> {
   if (d.body.kind !== 'gantt') return {}
   try {
     const normalized = normalizeMermaidSource(d.canonicalSource)
@@ -66,8 +66,10 @@ function ganttAnalysis(d: ValidDiagram): Pick<DiagramAnalysis, 'gantt'> {
   }
 }
 
-export function collectActionRecords(d: ValidDiagram): DiagramActionRecord[] {
-  const source = d.body.kind === 'opaque' ? d.body.source : d.canonicalSource
+export function collectActionRecords(d: ParsedDiagram): DiagramActionRecord[] {
+  const source = d.body.kind === 'opaque' || d.body.kind === 'extension' || d.body.kind === 'preserved'
+    ? d.body.source
+    : d.canonicalSource
   const records: DiagramActionRecord[] = []
   if (d.kind === 'flowchart') records.push(...collectFlowchartActions(source))
   if (d.body.kind === 'gantt') records.push(...collectGanttActions(d))
@@ -103,7 +105,7 @@ function collectFlowchartActions(source: string): DiagramActionRecord[] {
   return out
 }
 
-function collectGanttActions(d: ValidDiagram): DiagramActionRecord[] {
+function collectGanttActions(d: ParsedDiagram): DiagramActionRecord[] {
   if (d.body.kind !== 'gantt') return []
   try {
     const model = parseGanttModel(toMermaidLines(d.canonicalSource))

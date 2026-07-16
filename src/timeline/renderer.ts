@@ -26,10 +26,7 @@ import { DefaultBackend } from '../scene/backend.ts'
 //
 // The positioned diagram is lowered to the SceneGraph IR (SPEC §3.1): every
 // visual mark carries semantic fields (role, geometry, paint, channels,
-// stable id) plus its exact crisp serialization, built here from the same
-// inputs. renderTimelineSvg() is DefaultBackend serialization of that scene,
-// so the default path stays byte-identical to the historical string renderer
-// (corpus-gated by svg-equivalence.test.ts).
+// stable id). renderTimelineSvg() uses DefaultBackend serialization of that scene.
 // ============================================================================
 
 const TL = {
@@ -67,8 +64,7 @@ export function renderTimelineSvg(
 }
 
 /**
- * Lower a positioned timeline diagram to the SceneGraph IR. Mark order matches
- * the historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a positioned timeline diagram to the SceneGraph IR in canonical mark order.
  */
 export function lowerTimelineScene(
   ctx: RenderContext<PositionedTimelineDiagram>,
@@ -109,7 +105,7 @@ export function lowerTimelineScene(
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
   preludeSegments.push(extraCss)
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: diagram.width,
@@ -124,13 +120,13 @@ export function lowerTimelineScene(
   ))
 
   if (accessibleTitle) {
-    parts.push(marks.raw(
+    parts.push(marks.documentContent(
       { id: 'a11y-title', role: 'chrome' },
       `<title id="${titleId}">${escapeXml(accessibleTitle)}</title>`,
     ))
   }
   if (accessibleDescription) {
-    parts.push(marks.raw(
+    parts.push(marks.documentContent(
       { id: 'a11y-desc', role: 'chrome' },
       `<desc id="${descId}">${escapeXml(accessibleDescription)}</desc>`,
     ))
@@ -190,7 +186,7 @@ export function lowerTimelineScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'timeline', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'timeline', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 /** Resolved per-role paints — mirrors the class rules in timelineStyles(), so

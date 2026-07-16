@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { parseErDiagram } from '../er/parser.ts'
-import { parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 
 const UPSTREAM_FORM = `erDiagram subgraph WithRL

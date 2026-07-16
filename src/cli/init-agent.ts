@@ -62,7 +62,7 @@ Use Agentic Mermaid for Mermaid diagram work. Prefer the narrowest safe channel:
 New diagrams: author Mermaid source directly, then parse, verify, and render.
 Existing structured diagrams:
 
-1. \`parseMermaid(source)\`.
+1. \`parseRegisteredMermaid(source)\`.
 2. Narrow with ${STRUCTURED_NARROWERS}.
 3. Edit with \`mutate(d, op)\`; mutation ops use \`kind\`, not \`type\`.
 4. Run \`verifyMermaid(d)\` and inspect \`ok\`, \`warnings\`, and layout evidence.

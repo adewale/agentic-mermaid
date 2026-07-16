@@ -80,52 +80,21 @@ export function isValidExecuteTimeout(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
 
-/** Existing top-level fields remain as compatibility conveniences, but their
- * schema and overlay semantics are projected from the shared RenderOptions
- * authority instead of being copied by each MCP tool. */
-export const MCP_SVG_RENDER_OPTION_CONVENIENCES = Object.freeze([
-  'bg', 'fg', 'style', 'seed',
-] as const satisfies readonly SharedRenderOptionField[])
-
-export const MCP_PNG_RENDER_OPTION_CONVENIENCES = Object.freeze([
-  'style', 'seed',
-] as const satisfies readonly SharedRenderOptionField[])
-
 export function mcpRenderOptionSchemaProperties(
-  convenienceFields: readonly SharedRenderOptionField[],
   optionsDescription: string,
-  descriptions: Readonly<Partial<Record<SharedRenderOptionField, string>>> = {},
 ): Record<string, unknown> {
-  const sharedSchema = sharedRenderOptionsJsonSchema() as {
-    properties: Record<SharedRenderOptionField, Record<string, unknown>>
-  }
   return {
-    ...Object.fromEntries(convenienceFields.map(field => [field, {
-      ...sharedSchema.properties[field],
-      ...(descriptions[field] === undefined ? {} : { description: descriptions[field] }),
-    }])),
     options: { ...sharedRenderOptionsJsonSchema(), description: optionsDescription },
   }
 }
 
-/** Apply one precedence rule for every direct MCP renderer:
- * nested canonical options < legacy compatibility projection < top-level
- * convenience fields. The merged value is checked by the canonical validator. */
 export function projectMcpRenderOptions(
   args: Readonly<Record<string, unknown>>,
-  convenienceFields: readonly SharedRenderOptionField[],
-  compatibilityProjection: Readonly<Partial<RenderOptions>> = {},
 ): RenderOptions {
   const nested = args.options === undefined ? {} : args.options
   const nestedProblems = validateSerializableRenderOptions(nested)
   if (nestedProblems.length > 0) throw new Error(`invalid render options: ${nestedProblems.join('; ')}`)
-  const projected: Record<string, unknown> = {
-    ...(nested as RenderOptions),
-    ...compatibilityProjection,
-  }
-  for (const field of convenienceFields) {
-    if (args[field] !== undefined) projected[field] = args[field]
-  }
+  const projected: Record<string, unknown> = { ...(nested as RenderOptions) }
   const problems = validateSerializableRenderOptions(projected)
   if (problems.length > 0) throw new Error(`invalid render options: ${problems.join('; ')}`)
   return projected as RenderOptions
@@ -481,10 +450,7 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
         ...pngProperties,
-        ...mcpRenderOptionSchemaProperties(
-          MCP_PNG_RENDER_OPTION_CONVENIENCES,
-          'Shared advanced RenderOptions object; compatibility convenience fields above override matching values.',
-        ),
+        ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object.'),
         ...(hosted ? {} : {
           output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' },
         }),

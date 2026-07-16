@@ -159,8 +159,8 @@ export type PrimitiveRealization = (typeof PRIMITIVE_REALIZATIONS)[number]
 import type { SceneNode } from './ir.ts'
 
 /**
- * Project a concrete Scene node onto the stable primitive vocabulary. Raw,
- * prelude, and document nodes are document-level serialization; marker
+ * Project a concrete Scene node onto the stable primitive vocabulary. Document
+ * nodes are document-level serialization; marker
  * resources are an additional marker primitive; quantitative shapes are also
  * data marks. Keeping this projection here prevents conformance/report code
  * from growing its own family-specific classifiers.
@@ -172,9 +172,6 @@ export function sceneNodePrimitives(node: SceneNode): readonly CoreScenePrimitiv
     case 'group': return ['container']
     case 'connector': return ['connector']
     case 'document': return node.markerResources?.length ? ['document', 'marker'] : ['document']
-    case 'raw':
-    case 'prelude':
-      return ['document']
   }
 }
 
@@ -195,7 +192,7 @@ export interface PrimitiveCapabilityClaim {
  * Canonical capability projection for the three graphical Scene backends.
  * The crisp backend serializes authored marks natively. Sketch backends keep
  * semantic/identity carriers native while re-realizing visual geometry and
- * paint; marker artwork remains a crisp projection by design.
+ * paint; marker artwork remains a typed projection by design.
  */
 export function graphicalBackendCapabilityClaims(
   target: `backend:${string}`,
@@ -239,7 +236,7 @@ export function graphicalBackendCapabilityClaims(
     }
     if (feature === 'marker-orientation' || feature === 'marker-overflow') return {
       realization: 'projected',
-      diagnostic: 'Marker geometry, orientation, and overflow remain on the typed crisp carrier instead of being sketched.',
+      diagnostic: 'Marker geometry, orientation, and overflow remain in the typed marker projection instead of being sketched.',
     }
     return { realization: 'emulated' }
   }

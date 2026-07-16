@@ -27,7 +27,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import { countViaMermaidAst } from '../../eval/differential/mermaid-ast-oracle.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'

@@ -83,6 +83,6 @@
     "Instructions_for_agents.md (lines 32-38): Tier definitions for warning codes",
     "skills/.../upstream/*.md: Family-specific syntax documentation",
     "Type definitions (agent.d.ts): Exported narrower functions for each family",
-    "Agent API: parseMermaid, verifyMermaid functions enable programmatic validation"
+    "Agent API: parseRegisteredMermaid, verifyMermaid functions enable programmatic validation"
   ]
 }

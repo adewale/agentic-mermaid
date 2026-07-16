@@ -66,15 +66,14 @@ Because the generated SVG references variables directly, host pages can switch l
 
 ## Built-in Palettes
 
-The canonical Palette catalog generates the legacy `THEMES` compatibility
-view. `theme` is not a registry kind; discovery returns `kind: "palette"`.
-Discover current identities and stable input names with
+`theme` is not a registry kind; discovery returns `kind: "palette"`.
+Discover current Palette identities and stable input names with
 `knownStyleDescriptors()` or `am styles`; this guide does not copy the registry.
 
 ```ts
-import { THEMES, renderMermaidSVG } from 'agentic-mermaid'
+import { renderMermaidSVG } from 'agentic-mermaid'
 
-const svg = renderMermaidSVG(source, THEMES['tokyo-night'])
+const svg = renderMermaidSVG(source, { style: 'tokyo-night' })
 ```
 
 ## Custom themes

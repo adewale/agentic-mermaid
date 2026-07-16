@@ -25,7 +25,7 @@ describe('#959 multi-input rendering', () => {
     const a = tmp('flowchart TD\n A --> B')
     const b = tmp('flowchart LR\n X --> Y')
     const bad = tmp('not a diagram')
-    const { code, out } = capture(() => runCli(['render', a, b, bad, '--ascii']))
+    const { code, out } = capture(() => runCli(['render', a, b, bad, '--format', 'ascii']))
     expect(code).toBe(0)
     const payload = JSON.parse(out)
     expect(payload.files.length).toBe(3)
@@ -38,7 +38,7 @@ describe('#959 multi-input rendering', () => {
   test('multi-input json parse errors expose structured details, not stringified blobs', () => {
     const good = tmp('flowchart TD\n A --> B')
     const bad = tmp('flowchart XX\n  A --> B')
-    const { code, out } = capture(() => runCli(['render', good, bad, '--format', 'json']))
+    const { code, out } = capture(() => runCli(['render', good, bad, '--format', 'layout']))
     expect(code).toBe(0)
     const payload = JSON.parse(out)
     expect(payload.files[1].ok).toBe(false)
@@ -49,7 +49,7 @@ describe('#959 multi-input rendering', () => {
 
   test('single input keeps single-output behavior (no results array)', () => {
     const a = tmp('flowchart TD\n A --> B')
-    const { code, out } = capture(() => runCli(['render', a, '--ascii']))
+    const { code, out } = capture(() => runCli(['render', a, '--format', 'ascii']))
     expect(code).toBe(0)
     expect(() => JSON.parse(out)).toThrow() // raw ASCII, not a JSON envelope
   })
@@ -88,9 +88,9 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
     expect(renderFileOnce(f, 'ascii')).toContain('After')
   })
 
-  test('json format returns layout', () => {
+  test('layout format returns layout', () => {
     const f = tmp('flowchart TD\n A --> B')
-    const out = JSON.parse(renderFileOnce(f, 'json'))
+    const out = JSON.parse(renderFileOnce(f, 'layout'))
     expect(out.kind).toBe('flowchart')
   })
 

@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { parseMermaid as agentParse, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as agentParse, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 function edges(src: string) {
   return parseMermaid(src).edges

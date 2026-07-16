@@ -7,7 +7,7 @@ import {
   serializeGitGraph, serializeMindmap, verifyNoExternalRefs,
 } from '../index.ts'
 import {
-  asGitGraph, asMindmap, layoutMermaid, mutate, parseMermaid, serializeMermaid, verifyMermaid,
+  asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
@@ -15,7 +15,8 @@ import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { contrastRatio } from '../shared/color-math.ts'
-import { DEFAULTS, THEMES } from '../theme.ts'
+import { DEFAULTS } from '../theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
 
 const MINDMAP = `mindmap
@@ -102,11 +103,11 @@ describe('Mindmap full-family citizenship', () => {
     first.edges.forEach((edge, index) => {
       const connector = connectors[index]!
       expect(connector.kind).toBe('connector')
-      if (connector.kind !== 'connector' || connector.geometry.kind !== 'path') return
+      if (connector.kind !== 'connector' || connector.route.geometry.kind !== 'path') return
       const [start, control1, control2, end] = edge.points
-      expect(connector.geometry.points).not.toEqual(edge.points)
-      expect(connector.geometry.points[0]).toEqual(start)
-      expect(connector.geometry.points.at(-1)).toEqual(end)
+      expect(connector.route.geometry.points).not.toEqual(edge.points)
+      expect(connector.route.geometry.points[0]).toEqual(start)
+      expect(connector.route.geometry.points.at(-1)).toEqual(end)
       expect(connector.route.startTangent).toEqual(connectorUnitTangent(start!, control1!))
       expect(connector.route.endTangent).toEqual(connectorUnitTangent(control2!, end!))
     })
@@ -142,7 +143,7 @@ describe('Mindmap full-family citizenship', () => {
   })
 
   test('root text remains WCAG AA against the accent fill in every built-in palette', () => {
-    for (const [name, theme] of Object.entries(THEMES)) {
+    for (const { inputName: name, colors: theme } of BUILTIN_PALETTE_DEFINITIONS) {
       const svg = renderMermaidSVG('mindmap\n  Root\n    Child', { ...theme, embedFontImport: false })
       const root = svg.match(/<g class="mindmap-node depth-0"[^>]*>[\s\S]*?<\/g>/)?.[0] ?? ''
       const fill = root.match(/<(?:rect|circle|ellipse|polygon)[^>]*\sfill="([^"]+)"/)?.[1]
@@ -312,7 +313,7 @@ describe('GitGraph full-family citizenship', () => {
   })
 
   test('branch and tag text remains WCAG AA against its badge in every built-in palette', () => {
-    for (const [name, theme] of Object.entries(THEMES)) {
+    for (const { inputName: name, colors: theme } of BUILTIN_PALETTE_DEFINITIONS) {
       const svg = renderMermaidSVG(GITGRAPH, { ...theme, embedFontImport: false })
       const pairs = [
         ...[...svg.matchAll(/<g class="git-branch"[^>]*>([\s\S]*?)<\/g>/g)].map(match => ({

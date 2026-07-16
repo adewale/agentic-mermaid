@@ -47,7 +47,7 @@ describe('renderMermaidPNG', () => {
   })
 
   test('accepts ValidDiagram input as well as string', async () => {
-    const { parseMermaid } = await import('../agent/parse.ts')
+    const { parseRegisteredMermaid: parseMermaid } = await import('../agent/parse.ts')
     const r = parseMermaid('flowchart LR\n  A --> B')
     expect(r.ok).toBe(true)
     if (!r.ok) return

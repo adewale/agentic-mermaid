@@ -10,8 +10,7 @@
 // this test will catch it.
 
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidAscii } from '../ascii/index.ts'
-import { renderMermaidASCII } from '../agent/index.ts'
+import { renderMermaidASCII } from '../ascii/index.ts'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -100,7 +99,10 @@ describe('ASCII full-corpus determinism', () => {
     expect(rendered).toBe(EXPECTED_CORPUS_RENDERED)
     expect(errors.sort()).toEqual(EXPECTED_CORPUS_ASCII_ERRORS)
     expect(unstable).toEqual([])
-  })
+  // Whole-suite coverage instrumentation pushes this corpus pass just beyond
+  // 10 seconds on shared CI runners; keep the determinism work intact and give
+  // the bounded test enough scheduling headroom.
+  }, 20_000)
 })
 
 describe('ASCII pathfinder determinism', () => {
@@ -108,7 +110,7 @@ describe('ASCII pathfinder determinism', () => {
     it(`renders ${fx.name} byte-identically across 10 runs`, () => {
       const hashes = new Set<string>()
       for (let i = 0; i < 10; i++) {
-        const out = renderMermaidAscii(fx.src, { useAscii: false })
+        const out = renderMermaidASCII(fx.src, { useAscii: false })
         hashes.add(createHash('sha256').update(out).digest('hex'))
       }
       expect(hashes.size).toBe(1)
@@ -119,7 +121,7 @@ describe('ASCII pathfinder determinism', () => {
     const src = FIXTURES[0]!.src
     const hashes = new Set<string>()
     for (let i = 0; i < 10; i++) {
-      const out = renderMermaidAscii(src, { useAscii: true })
+      const out = renderMermaidASCII(src, { useAscii: true })
       hashes.add(createHash('sha256').update(out).digest('hex'))
     }
     expect(hashes.size).toBe(1)

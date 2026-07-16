@@ -19,7 +19,7 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { detectSvg, parseSvg, type Finding, type Rendered } from '../../eval/ugly-detector/detect.ts'
-import { parseMermaid, layoutMermaid, measureQuality, type QualityMetrics } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, type QualityMetrics } from '../agent/index.ts'
 
 function renderedSvg(src: string): string {
   return renderMermaidSVG(src, { embedFontImport: false })

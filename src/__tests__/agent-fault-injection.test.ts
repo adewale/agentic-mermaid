@@ -4,14 +4,14 @@
 // it. This proves the assertions have teeth for the behaviors we rely on.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asFlowchart, asSequence } from '../agent/types.ts'
-import type { ValidDiagram } from '../agent/types.ts'
+import type { ParsedDiagram } from '../agent/types.ts'
 
-function P(src: string): ValidDiagram {
+function P(src: string): ParsedDiagram {
   const r = parseMermaid(src)
   if (!r.ok) throw new Error('parse: ' + JSON.stringify(r.error))
   return r.value

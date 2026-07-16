@@ -64,6 +64,22 @@ describe('am render --gantt-today', () => {
 })
 
 describe('unknown CLI flags error instead of being silently swallowed', () => {
+  test('removed render --ascii shorthand exits 2', () => {
+    const f = tmpFile(GANTT)
+    const r = capture(() => runCli(['render', f, '--ascii']))
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('--ascii')
+    expect(r.out).not.toContain('<svg')
+  })
+
+  test('removed layout spelling --format json exits 2', () => {
+    const f = tmpFile(GANTT)
+    const r = capture(() => runCli(['render', f, '--format', 'json']))
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('json')
+    expect(r.out).not.toContain('<svg')
+  })
+
   test('a typo flag exits 2 and names itself', () => {
     const f = tmpFile(GANTT)
     const r = capture(() => runCli(['render', f, '--gantt-toady', '2024-01-05']))

@@ -4,7 +4,7 @@
 // (including unmodeled journey / xychart / sequence constructs) silently loses formatting.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 
 describe('opaque-body fidelity (indentation + blank lines)', () => {

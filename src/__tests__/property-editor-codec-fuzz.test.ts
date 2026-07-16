@@ -193,8 +193,9 @@ describe('editor-codec fuzz: sanitizeEditorConfig allowlist', () => {
     )))
     ;(window.location as { hash: string }).hash = '#' + hostileSeed
     state.seed = 23
-    await api.getHashSource()
-    expect(state.seed).toBe(0)
+    expect(await api.getHashSource()).toBeNull()
+    expect(api.hashDecodeFailure).toBe('corrupt')
+    expect(state.seed).toBe(23)
 
     const fractionalSeed = await api.encodeSourceCompressed(JSON.stringify({
       source: 'flowchart TD\n  A --> B',

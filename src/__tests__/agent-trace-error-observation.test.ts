@@ -7,7 +7,7 @@ import { describe, test, expect, afterEach } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate, mutateChecked } from '../agent/mutate.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
 

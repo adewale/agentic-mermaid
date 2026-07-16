@@ -151,27 +151,6 @@ export interface ExtensionRegistration<Value, Kind extends string = string> {
   readonly value: Value
 }
 
-export interface CompatibilityRemoval {
-  /** First release in which the alias may be absent. */
-  readonly release: string
-  /** ISO date after which removal may ship. */
-  readonly date: string
-}
-
-export interface CompatibilityAliasDiagnostic {
-  readonly code: string
-  readonly message: string
-  readonly removal: CompatibilityRemoval
-}
-
-export interface CompatibilityAlias {
-  readonly alias: string
-  readonly targetId: `${string}:${string}`
-  /** Compatibility aliases are temporary by definition. Stable, preferred
-   * short inputs belong on the kind-specific descriptor instead. */
-  readonly diagnostic: CompatibilityAliasDiagnostic
-}
-
 const KIND_RE = /^[a-z][a-z0-9-]*$/
 const LOCAL_ID_RE = /^[a-z0-9][a-z0-9._/-]*$/
 /** Preserve the exact immutable identity reference used by disposer guards,
@@ -311,60 +290,5 @@ export function registerExtension<Value, Kind extends string>(
     registry.set(id, captured)
   } finally {
     endRegistryMutation(registry, mutation)
-  }
-}
-
-/** Add an alias without implicit retargeting. Canonical IDs may not be aliases. */
-export function registerCompatibilityAlias(
-  aliases: Map<string, CompatibilityAlias>,
-  input: CompatibilityAlias,
-): void {
-  const mutation = beginRegistryMutation(aliases, 'compatibility alias registration')
-  try {
-    const alias = input.alias
-    const targetId = input.targetId
-    const diagnosticInput = input.diagnostic
-    const removalInput = diagnosticInput?.removal
-    const diagnostic = diagnosticInput && removalInput
-      ? Object.freeze({
-          code: diagnosticInput.code,
-          message: diagnosticInput.message,
-          removal: Object.freeze({
-            release: removalInput.release,
-            date: removalInput.date,
-          }),
-        })
-      : undefined
-
-    if (!LOCAL_ID_RE.test(alias) || alias.includes(':')) {
-      throw new Error(`Compatibility alias "${alias}" must be an unqualified legacy name`)
-    }
-    if (!parseExtensionId(targetId)) {
-      throw new Error(`Compatibility alias "${alias}" requires a canonical target id`)
-    }
-    if (!diagnostic) {
-      throw new Error(
-        `Compatibility alias "${alias}" requires a diagnostic and removal release/date; ` +
-        'use a kind-specific inputName for a stable short input',
-      )
-    }
-    const existing = aliases.get(alias)
-    if (existing) {
-      throw new Error(`Compatibility alias "${alias}" already targets "${existing.targetId}"`)
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(diagnostic.removal.date)) {
-      throw new Error(`Compatibility alias "${alias}" requires an ISO removal date`)
-    }
-    if (diagnostic.removal.release.trim().length === 0) {
-      throw new Error(`Compatibility alias "${alias}" requires a removal release`)
-    }
-    assertRegistryMutationAtomic(mutation)
-    aliases.set(alias, Object.freeze({
-      alias,
-      targetId,
-      diagnostic,
-    }))
-  } finally {
-    endRegistryMutation(aliases, mutation)
   }
 }

@@ -15,7 +15,7 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { layoutGantt, GANTT_DEP_STUB } from '../gantt/layout.ts'
 import type { GanttBarLayout, GanttDependencyLayout, GanttLayoutResult } from '../gantt/types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { analyzeMermaid } from '../agent/analyze.ts'
 
 function layoutOf(src: string) {

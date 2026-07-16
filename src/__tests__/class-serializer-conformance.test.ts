@@ -13,7 +13,7 @@
 import { describe, test, expect } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
 import type { ClassNamespace } from '../class/types.ts'
-import { parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts } from '../agent/index.ts'
 import type { ClassValidDiagram, ClassMutationOp } from '../agent/types.ts'
 
 function classDiagram(src: string): ClassValidDiagram {

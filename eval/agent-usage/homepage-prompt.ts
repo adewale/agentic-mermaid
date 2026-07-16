@@ -85,7 +85,7 @@ export function homepagePromptChecklist(prompt = buildHomepageFullPrompt()): str
     'Do not assume this repository is checked out',
     'one channel available to you',
     'Library imports, when available',
-    'parseMermaid',
+    'parseRegisteredMermaid',
     'verifyMermaid',
     'serializeMermaid',
     'mutate',

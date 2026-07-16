@@ -34,7 +34,7 @@ describe('am capabilities', () => {
     expect(payload.families.length).toBeGreaterThan(0)
     expect(Array.isArray(payload.warningCodes)).toBe(true)
     expect(payload.warningCodes.length).toBeGreaterThan(0)
-    expect(payload.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'json'])
+    expect(payload.outputFormats).toEqual(['svg', 'ascii', 'unicode', 'png', 'layout'])
     const flowchart = payload.families.find((f: any) => f.id === 'flowchart')
     expect(flowchart.mutationOps).toContain('add_node')
   })
@@ -63,12 +63,12 @@ describe('am preview', () => {
     }
   })
 
-  test('invalid source returns a structured parse error', () => {
+  test('an unknown family returns its structured capability diagnostic', () => {
     const r = runAm(['preview', '-', '--json'], 'not a diagram')
     expect(r.status).toBe(2)
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(false)
-    expect(payload.error.code).toBe('PARSE_FAILED')
+    expect(payload.error.code).toBe('UNKNOWN_HEADER')
   })
 
   test('opener failures are not reported as success', () => {
@@ -123,14 +123,14 @@ describe('am render multi-input', () => {
     }
   })
 
-  test('--format json returns layout JSON per file, not ASCII strings', () => {
+  test('--format layout returns layout JSON per file, not ASCII strings', () => {
     const { writeFileSync, existsSync, unlinkSync } = require('node:fs') as typeof import('node:fs')
     const a = `/tmp/am-json-a-${Date.now()}.mmd`
     const b = `/tmp/am-json-b-${Date.now()}.mmd`
     writeFileSync(a, 'flowchart LR\n  A --> B\n')
     writeFileSync(b, 'flowchart LR\n  C --> D\n')
     try {
-      const r = runAm(['render', '--format', 'json', a, b])
+      const r = runAm(['render', '--format', 'layout', a, b])
       expect(r.status).toBe(0)
       const payload = JSON.parse(r.stdout)
       expect(payload.files.length).toBe(2)
@@ -173,14 +173,14 @@ describe('am batch', () => {
   })
 
   test('processes 5 lines with mixed validity and exits 0', () => {
-    const validRender = JSON.stringify({ op: 'render', source: 'flowchart LR\n  A --> B', options: { ascii: true } })
+    const validRender = JSON.stringify({ op: 'render', source: 'flowchart LR\n  A --> B', options: { format: 'ascii' } })
     const validVerify = JSON.stringify({ op: 'verify', source: 'flowchart LR\n  A --> B' })
     const malformed = '{not valid json'
     const unknownOp = JSON.stringify({ op: 'nope', source: 'x' })
     // Large source > 10KB. Use long ASCII labels rather than many nodes so the
     // layout engine doesn't blow the wallclock budget.
     const longLabel = 'x'.repeat(200)
-    const big = JSON.stringify({ op: 'render', source: `flowchart LR\n  A["${longLabel}"] --> B["${longLabel}"]\n  B --> C["${longLabel}"]\n  C --> D["${longLabel}"]\n  D --> E["${longLabel}"]\n  E --> F["${longLabel}"]\n  F --> G["${longLabel}"]\n  G --> H["${longLabel}"]\n  H --> I["${longLabel}"]\n  I --> J["${longLabel}"]\n  J --> K["${longLabel}"]\n  K --> L["${longLabel}"]\n  L --> M["${longLabel}"]\n  M --> N["${longLabel}"]\n`, options: { ascii: true } })
+    const big = JSON.stringify({ op: 'render', source: `flowchart LR\n  A["${longLabel}"] --> B["${longLabel}"]\n  B --> C["${longLabel}"]\n  C --> D["${longLabel}"]\n  D --> E["${longLabel}"]\n  E --> F["${longLabel}"]\n  F --> G["${longLabel}"]\n  G --> H["${longLabel}"]\n  H --> I["${longLabel}"]\n  I --> J["${longLabel}"]\n  J --> K["${longLabel}"]\n  K --> L["${longLabel}"]\n  L --> M["${longLabel}"]\n  M --> N["${longLabel}"]\n`, options: { format: 'ascii' } })
     const stdin = [validRender, validVerify, malformed, unknownOp, big].join('\n') + '\n'
 
     const { status, stdout } = runAm(['batch'], stdin)

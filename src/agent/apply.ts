@@ -16,7 +16,7 @@
 // through mutateChecked — there is no second validator to drift from.
 // ============================================================================
 
-import { parseMermaid } from './parse.ts'
+import { parseRegisteredMermaid } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { createMermaid, type CreateMermaidOptions } from './create.ts'
 import { mutateChecked } from './mutate.ts'
@@ -166,7 +166,7 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
   let d: MutableValidDiagram
 
   if (typeof source === 'string' && source.trim().length > 0) {
-    const parsed = parseMermaid(source)
+    const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) {
       const primary = parsed.error[0]
       return {

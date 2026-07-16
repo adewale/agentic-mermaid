@@ -7,7 +7,7 @@
 // source, pinning the projection a mutant would have to change.
 
 import { describe, test, expect } from 'bun:test'
-import { createMermaid, parseMermaid } from '../agent/index.ts'
+import { createMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import { countStructuralElements, countsEqual, faithfulnessWarning, isDrop, type StructuralCount } from '../agent/structural-count.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 

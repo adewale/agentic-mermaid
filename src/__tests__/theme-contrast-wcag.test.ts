@@ -30,14 +30,14 @@ const AA = 4.5
 // contrast palettes like Solarized cannot, by construction — when full fg/bg
 // is only ~5:1 a "muted" tier that also clears 4.5:1 would equal primary text;
 // those lift to >=3:1 instead.) bg/fg only, so the tiers are the derived mix.
-const THEMES: ReadonlyArray<readonly [string, string, string]> = [
+const THEME_CASES: ReadonlyArray<readonly [string, string, string]> = [
   ['engine default (zinc light)', DEFAULTS.bg, DEFAULTS.fg],
   ['warm light (paper)', '#F5F0E4', '#221E16'],
   ['warm dark (dusk)', '#2A2521', '#E9DFCC'],
 ]
 
 describe('diagram text contrast (WCAG AA)', () => {
-  for (const [name, bg, fg] of THEMES) {
+  for (const [name, bg, fg] of THEME_CASES) {
     it(`muted diagram text clears AA ${AA}:1 on ${name}`, () => {
       const { textMuted } = resolveColors({ bg, fg })
       expect(contrast(textMuted, bg)).toBeGreaterThanOrEqual(AA)

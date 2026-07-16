@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
-import { renderMermaidAscii } from '../ascii/index.ts'
+import { renderMermaidASCII } from '../ascii/index.ts'
 
 function rowContaining(rendered: string, ...tokens: string[]): string {
   const row = rendered.split('\n').find(line => tokens.every(token => line.includes(token)))
@@ -22,7 +22,7 @@ describe('ASCII edge styles', () => {
       ] as const
 
       for (const [source, connector] of cases) {
-        const row = rowContaining(renderMermaidAscii(source), 'A', 'B')
+        const row = rowContaining(renderMermaidASCII(source), 'A', 'B')
         expect(row).toContain(connector)
       }
     })
@@ -35,13 +35,13 @@ describe('ASCII edge styles', () => {
       ] as const
 
       for (const [source, connector] of cases) {
-        const row = rowContaining(renderMermaidAscii(source, { useAscii: true }), 'A', 'B')
+        const row = rowContaining(renderMermaidASCII(source, { useAscii: true }), 'A', 'B')
         expect(row).toContain(connector)
       }
     })
 
     it('keeps bidirectional endpoint markers on the connector row in direction order', () => {
-      const row = rowContaining(renderMermaidAscii('graph LR\n  A o--x B'), 'A', 'B')
+      const row = rowContaining(renderMermaidASCII('graph LR\n  A o--x B'), 'A', 'B')
       expect(row).toContain('◯────✕')
       expect(row.indexOf('◯')).toBeLessThan(row.indexOf('✕'))
     })
@@ -65,7 +65,7 @@ describe('ASCII edge styles', () => {
           fc.boolean(),
           (a, b, style, ascii) => {
             if (a === b) return true
-            const out = renderMermaidAscii(`graph LR\n  ${a} ${OP[style]} ${b}`, ascii ? { useAscii: true } : undefined)
+            const out = renderMermaidASCII(`graph LR\n  ${a} ${OP[style]} ${b}`, ascii ? { useAscii: true } : undefined)
             const glyph = ascii ? GLYPH.ascii : GLYPH.unicode
             if (!out.includes(glyph[style])) return false
             // No OTHER style's special (dashed/thick) glyph leaks in.
@@ -82,7 +82,7 @@ describe('ASCII edge styles', () => {
 
   describe('solid edges (default)', () => {
     it('renders solid edges with ─ in unicode mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A --> B
       `)
@@ -92,7 +92,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders solid edges with - in ascii mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A --> B
       `, { useAscii: true })
@@ -102,7 +102,7 @@ describe('ASCII edge styles', () => {
 
   describe('dotted edges (-.->)', () => {
     it('renders dotted edges with ┄ in unicode mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A -.-> B
       `)
@@ -111,7 +111,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders dotted edges with . in ascii mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A -.-> B
       `, { useAscii: true })
@@ -120,7 +120,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders dotted vertical edges with ┆ in unicode mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph TD
           A -.-> B
       `)
@@ -129,7 +129,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders dotted vertical edges with : in ascii mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph TD
           A -.-> B
       `, { useAscii: true })
@@ -138,7 +138,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders dotted edges with labels', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A -.->|optional| B
       `)
@@ -149,7 +149,7 @@ describe('ASCII edge styles', () => {
 
   describe('thick edges (==>)', () => {
     it('renders thick edges with ━ in unicode mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A ==> B
       `)
@@ -158,7 +158,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders thick edges with = in ascii mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A ==> B
       `, { useAscii: true })
@@ -167,7 +167,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders thick vertical edges with ┃ in unicode mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph TD
           A ==> B
       `)
@@ -178,21 +178,21 @@ describe('ASCII edge styles', () => {
 
   describe('circle and cross endpoint markers', () => {
     it('renders --o and --x target markers while preserving target nodes', () => {
-      const circle = renderMermaidAscii('graph LR\n  A --o B')
+      const circle = renderMermaidASCII('graph LR\n  A --o B')
       expect(circle).toContain('◯')
       expect(circle).toContain('B')
 
-      const cross = renderMermaidAscii('graph LR\n  A --x B')
+      const cross = renderMermaidASCII('graph LR\n  A --x B')
       expect(cross).toContain('✕')
       expect(cross).toContain('B')
     })
 
     it('renders mixed endpoint markers in unicode and ascii modes', () => {
-      const unicode = renderMermaidAscii('graph LR\n  A o--x B')
+      const unicode = renderMermaidASCII('graph LR\n  A o--x B')
       expect(unicode).toContain('◯')
       expect(unicode).toContain('✕')
 
-      const ascii = renderMermaidAscii('graph LR\n  A x--o B', { useAscii: true })
+      const ascii = renderMermaidASCII('graph LR\n  A x--o B', { useAscii: true })
       expect(ascii).toContain('x')
       expect(ascii).toContain('o')
     })
@@ -216,7 +216,7 @@ describe('ASCII edge styles', () => {
 
     for (const [op, expectedMarkers] of forms) {
       it(`renders A ${op} B with correct markers`, () => {
-        const result = renderMermaidAscii(`graph LR\n  A ${op} B`)
+        const result = renderMermaidASCII(`graph LR\n  A ${op} B`)
         for (const m of expectedMarkers) {
           expect(result).toContain(m)
         }
@@ -227,7 +227,7 @@ describe('ASCII edge styles', () => {
     }
 
     it('renders both endpoints for o--x in unicode mode', () => {
-      const result = renderMermaidAscii('graph LR\n  A o--x B')
+      const result = renderMermaidASCII('graph LR\n  A o--x B')
       const lines = result.split('\n')
       // Find the edge line — the row with one of the markers.
       const edgeRow = lines.find(l => l.includes('◯') || l.includes('✕'))!
@@ -241,7 +241,7 @@ describe('ASCII edge styles', () => {
 
   describe('mixed edge styles', () => {
     it('renders different styles in the same diagram', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A --> B
           B -.-> C
@@ -254,7 +254,7 @@ describe('ASCII edge styles', () => {
     })
 
     it('renders mixed styles in ascii mode', () => {
-      const result = renderMermaidAscii(`
+      const result = renderMermaidASCII(`
         graph LR
           A --> B
           B -.-> C

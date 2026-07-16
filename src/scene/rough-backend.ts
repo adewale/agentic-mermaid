@@ -18,7 +18,7 @@
 // Shape paint truth still comes from the mark's owned-format element attributes
 // with semantic MarkPaint as the fallback for class-painted marks. Connector
 // paint/stroke/route truth is wholly typed: styled backends never inspect a
-// connector's crisp serialization. A shape child with
+// connector's backend-private serialization. A shape child with
 // stroke="none" — or an author-suppressed stroke-width of 0 — never grows a
 // synthesized outline, and fills keep their semantic colors (gantt status,
 // pie slices) unless the style's fill policy redraws them.
@@ -36,6 +36,7 @@ import { ensureSvgIdentity } from './identity.ts'
 import { sceneRoleTraits } from './roles.ts'
 import { graphicalBackendCapabilityClaims } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
+import { sceneNodeSerialization } from './serialization.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 
 const gen = new RoughGenerator()
@@ -288,12 +289,13 @@ function transformedStyledGeometry(svg: string, transform: SceneTransform | unde
 
 function sketchShape(node: ShapeMark, walk: Walk): string {
   const p = walk.p
-  const els = topLevelElements(node.crisp)
+  const sourceSvg = sceneNodeSerialization(node)
+  const els = topLevelElements(sourceSvg)
   const geoms: Geometry[] = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
-  if (els.length < geoms.length) return node.crisp // crisp/semantic mismatch → stay safe
+  if (els.length < geoms.length) return sourceSvg
   // Multi-element crisps in this codebase place one element per line.
-  const crispLines = node.crisp.split('\n')
-  const crispElementOf = (i: number) => (crispLines.length === 1 && i === 0 ? node.crisp : crispLines[i] ?? '')
+  const crispLines = sourceSvg.split('\n')
+  const crispElementOf = (i: number) => (crispLines.length === 1 && i === 0 ? sourceSvg : crispLines[i] ?? '')
   const out: string[] = []
   for (let i = 0; i < geoms.length; i++) {
     const el = els[i]!
@@ -346,10 +348,11 @@ function isBoxFill(fill: string): boolean {
 }
 
 function sketchConnector(node: ConnectorMark, walk: Walk): string {
-  if (node.lineStyle === 'invisible' || node.crisp === '') return node.crisp
+  const serialized = sceneNodeSerialization(node)
+  if (node.lineStyle === 'invisible' || serialized === '') return serialized
   const stroke = node.stroke.color
   const widthRatio = strokeWidthRatio(node.stroke.width)
-  if (widthRatio <= 0) return node.crisp // author-suppressed stroke stays suppressed
+  if (widthRatio <= 0) return serialized
   const width = walk.p.strokeWidth * widthRatio
   const seed = nodeSeed(walk.ctx.seed, node.id, 'stroke') || 1
   const dash = node.stroke.dash
@@ -367,7 +370,7 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
     nonScaling: node.stroke.nonScaling,
   }
   let sketched = ''
-  const geom = node.geometry
+  const geom = node.route.geometry
   if (geom.kind === 'polyline') {
     sketched = sketchGeometryVia(walk, { kind: 'polyline', points: geom.points }, seed, stroke, width, undefined, dash, strokeProjection)
   } else if (geom.kind === 'line') {
@@ -404,16 +407,16 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
       sketched = projected.every(Boolean) ? projected.join('\n') : ''
     }
   }
-  if (!sketched) return node.crisp
+  if (!sketched) return serialized
   // Keep the original element as an invisible carrier: markers, class/data-*
   // attributes, and hit geometry survive (stroke-opacity 0 hides the crisp
   // stroke while markers still render at full opacity from markerUnits defs).
-  const hidden = node.crisp.replace(
+  const hidden = serialized.replace(
     /\sstroke-opacity=(?:"[^"]*"|'[^']*')/,
     ' stroke-opacity="0"',
   )
-  const carrier = hidden === node.crisp
-    ? injectAttrs(node.crisp, node.geometry.kind, 'stroke-opacity="0"')
+  const carrier = hidden === serialized
+    ? injectAttrs(serialized, node.route.geometry.kind, 'stroke-opacity="0"')
     : hidden
   return `${carrier}\n${transformedStyledGeometry(sketched, node.transform)}`
 }
@@ -422,7 +425,7 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
 // directly on strokes/fills. Injected on every <text> in the chunk; tspans
 // inherit. paint-order draws the stroke behind the glyph.
 function haloText(node: TextMark): string {
-  return node.crisp.replace(/<text /g, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ')
+  return sceneNodeSerialization(node).replace(/<text /g, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ')
 }
 
 function backdropFor(style: StyleSpec | undefined, doc: SceneDoc): string {
@@ -447,18 +450,14 @@ function backdropFor(style: StyleSpec | undefined, doc: SceneDoc): string {
 
 function drawNodeStyled(node: SceneNode, walk: Walk): string {
   switch (node.kind) {
-    case 'prelude':
-      return node.crisp
     case 'document':
-      return node.crisp
-    case 'raw':
-      return node.crisp
+      return sceneNodeSerialization(node)
     case 'shape':
-      return sceneRoleTraits(node.role).sketch === 'shape' ? sketchShape(node, walk) : node.crisp
+      return sceneRoleTraits(node.role).sketch === 'shape' ? sketchShape(node, walk) : sceneNodeSerialization(node)
     case 'connector':
-      return sceneRoleTraits(node.role).sketch === 'connector' ? sketchConnector(node, walk) : node.crisp
+      return sceneRoleTraits(node.role).sketch === 'connector' ? sketchConnector(node, walk) : sceneNodeSerialization(node)
     case 'text':
-      return sceneRoleTraits(node.role).textHalo ? haloText(node) : node.crisp
+      return sceneRoleTraits(node.role).textHalo ? haloText(node) : sceneNodeSerialization(node)
     case 'group':
       return composeGroup(
         node.open,
@@ -483,7 +482,7 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
       for (let i = 0; i < admitted.parts.length; i++) {
         const part = admitted.parts[i]!
         out.push(drawNodeStyled(part, walk))
-        if (i === 0 && part.kind === 'prelude') {
+        if (i === 0 && part.kind === 'document' && part.element === 'open') {
           const pageRect = pageRectFor(admitted, ctx)
           if (pageRect) out.push(pageRect)
           const backdrop = backdropFor(ctx.style, admitted)

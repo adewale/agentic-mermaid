@@ -7,7 +7,7 @@ import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
 import { getStyle, renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
-import { asGitGraph, asMindmap, layoutMermaid, parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asGitGraph, asMindmap, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { audit as auditSvgOverlaps } from '../../eval/overlap-audit/audit.ts'
 

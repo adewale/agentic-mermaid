@@ -60,7 +60,7 @@ function fileForPath(pathname: string) {
 }
 
 // Shipped hexes, as computed rgb() strings. Paper/tokyo-night come from the
-// render THEMES; the pine values from the chrome triplets in rendering.js.
+// registered palettes; the pine values come from the chrome triplets in rendering.js.
 const PAPER_ARROW = 'rgb(154, 74, 36)'        // #9A4A24
 const TOKYO_ARROW = 'rgb(122, 162, 247)'      // #7AA2F7
 const PINE_LIGHT = '#1B6E52'

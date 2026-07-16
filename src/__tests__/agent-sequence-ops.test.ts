@@ -9,7 +9,7 @@
  *   - set_participant_label { id, label }
  */
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'

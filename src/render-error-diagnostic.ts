@@ -13,17 +13,18 @@ export type AsciiWidthErrorDiagnostic = Readonly<{
   reason: AsciiWidthError['reason']
 }>
 
-export type RenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic
+export type KnownRenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic
+export type RenderErrorDiagnostic = KnownRenderErrorDiagnostic
+  | Readonly<{ code: 'RENDER_FAILED'; message: 'Rendering failed' }>
 
 /**
- * Project the two documented render failures that transports may safely expose.
+ * Project documented render failures and one transport-neutral generic error.
  *
  * Deliberately use nominal checks and copy an explicit field allowlist: an
  * arbitrary thrown object cannot smuggle accessors, prototypes, stacks, or a
- * transport-specific error vocabulary into a CLI/MCP response. Unknown errors
- * return undefined so each adapter retains its existing compatibility fallback.
+ * transport-specific error vocabulary into a CLI/MCP response.
  */
-export function projectRenderErrorDiagnostic(error: unknown): RenderErrorDiagnostic | undefined {
+export function projectKnownRenderErrorDiagnostic(error: unknown): KnownRenderErrorDiagnostic | undefined {
   if (error instanceof MermaidFamilyDetectionError) {
     return {
       code: error.code,
@@ -44,4 +45,9 @@ export function projectRenderErrorDiagnostic(error: unknown): RenderErrorDiagnos
     }
   }
   return undefined
+}
+
+export function projectRenderErrorDiagnostic(error: unknown): RenderErrorDiagnostic {
+  return projectKnownRenderErrorDiagnostic(error)
+    ?? { code: 'RENDER_FAILED', message: 'Rendering failed' }
 }

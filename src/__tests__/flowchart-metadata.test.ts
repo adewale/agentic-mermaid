@@ -5,7 +5,7 @@ import { parseMermaid as parseGraph } from '../parser.ts'
 import {
   asFlowchart,
   layoutMermaid,
-  parseMermaid,
+  parseRegisteredMermaid as parseMermaid,
   renderMermaidASCII,
   renderMermaidSVG,
   serializeMermaid,

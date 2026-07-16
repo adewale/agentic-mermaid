@@ -5,14 +5,14 @@
 // serialize, plus the opaque fallback for constructs we don't structurally model.
 
 import {
-  parseMermaid, asFlowchart, asSequence, mutate, verifyMermaid, serializeMermaid,
+  parseRegisteredMermaid, asFlowchart, asSequence, mutate, verifyMermaid, serializeMermaid,
 } from '../src/agent/index.ts'
 
 function line(s: string) { process.stdout.write(s + '\n') }
 
 // 1. Flowchart: insert a Cache between API and DB.
 {
-  const d0 = parseMermaid('flowchart TD\n  API --> DB')
+  const d0 = parseRegisteredMermaid('flowchart TD\n  API --> DB')
   if (!d0.ok) throw new Error('parse failed')
   const flow = asFlowchart(d0.value)!
   const a = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
@@ -30,7 +30,7 @@ function line(s: string) { process.stdout.write(s + '\n') }
 
 // 2. Sequence: add a reply.
 {
-  const d0 = parseMermaid('sequenceDiagram\n  Alice->>Bob: Hi')
+  const d0 = parseRegisteredMermaid('sequenceDiagram\n  Alice->>Bob: Hi')
   if (!d0.ok) throw new Error('parse failed')
   const seq = asSequence(d0.value)!
   const a = mutate(seq, { kind: 'add_message', from: 'Bob', to: 'Alice', text: 'Hello', style: 'reply' })
@@ -45,7 +45,7 @@ function line(s: string) { process.stdout.write(s + '\n') }
 // 3. Opaque fallback: a sequence diagram with a Note isn't structurally
 //    mutable, but it round-trips losslessly via preserved body.source.
 {
-  const d0 = parseMermaid('sequenceDiagram\n  Alice->>Bob: Hi\n  Note over Bob: thinking')
+  const d0 = parseRegisteredMermaid('sequenceDiagram\n  Alice->>Bob: Hi\n  Note over Bob: thinking')
   if (!d0.ok) throw new Error('parse failed')
   line('--- opaque sequence (has a Note) ---')
   line(`asSequence is null (not mutable): ${asSequence(d0.value) === null}`)

@@ -262,7 +262,7 @@ describe('forward-compatible unregistered family envelopes', () => {
     })
   })
 
-  test('render, layout, verify, and mutation return the same stable capability classification', () => {
+  test('the open parser admits preserved families while render and mutation retain canonical diagnostics', () => {
     for (const fixture of CASES) {
       const result = parseRegisteredMermaid(fixture.source)
       if (!result.ok) throw new Error('expected a preserved parsed envelope')
@@ -294,7 +294,7 @@ describe('forward-compatible unregistered family envelopes', () => {
       })
       expect(applyOps({ source: fixture.source, ops: [] })).toMatchObject({
         ok: false,
-        error: { code: fixture.code },
+        error: { code: 'INVALID_OP' },
       })
     }
   })

@@ -70,8 +70,6 @@ export interface Message {
   label: string
   /** Arrow style: solid line or dashed line */
   lineStyle: 'solid' | 'dashed'
-  /** Legacy end-head projection retained for API compatibility. */
-  arrowHead: 'filled' | 'open'
   /** Exact source and target endpoint semantics. */
   startHead: SequenceMessageHead
   endHead: SequenceMessageHead
@@ -175,7 +173,6 @@ export interface PositionedMessage {
   to: string
   label: string
   lineStyle: 'solid' | 'dashed'
-  arrowHead: 'filled' | 'open'
   startHead: SequenceMessageHead
   endHead: SequenceMessageHead
   centralStart: boolean

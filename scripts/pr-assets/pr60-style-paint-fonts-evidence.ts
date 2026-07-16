@@ -12,13 +12,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
-import { inlineFontVarForRaster, THEMES } from '../../src/theme.ts'
+import { inlineFontVarForRaster } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
 const BEFORE_SHA = '1d3fd948026b0329ced32d4ddf7803830c3ca2a1'
 
-const THEME = THEMES['github-light']!
+const THEME = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'github-light')!.colors
 const COLORS = {
   bg: THEME.bg,
   surface: THEME.bg,

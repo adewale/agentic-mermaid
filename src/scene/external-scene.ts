@@ -1,8 +1,8 @@
 /**
  * Safe, declarative Scene construction for external diagram families.
  *
- * The compatibility-only `crisp`, `raw`, and `prelude` fields in SceneDoc are
- * deliberately not inputs here. This compiler owns their SVG projection so
+ * SVG serialization is deliberately not an input here. This compiler owns
+ * the backend-private projection so
  * extensions cannot smuggle markup, CSS, or fetching references into a
  * backend. The result is the same SceneDoc consumed by built-in backends; this
  * is a construction surface, not a parallel rendering pipeline.
@@ -37,6 +37,7 @@ import {
   assertValidSceneDoc,
 } from './scene-validation.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { sceneNodeSerialization } from './serialization.ts'
 import {
   EXTERNAL_SCENE_INPUT_SNAPSHOT_LIMITS,
   snapshotBoundedExternalData,
@@ -319,33 +320,43 @@ function assertExternalSceneInputShape(input: Record<string, unknown>): void {
 
 function connectorPaint(input: ExternalSceneConnector): MarkPaint {
   const lineStyle = input.lineStyle ?? 'solid'
+  const supplied = input.paint ?? {}
   return {
     fill: 'none',
-    stroke: 'var(--_line)',
-    strokeWidth: lineStyle === 'thick' ? '3' : '1.5',
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    ...(lineStyle === 'dotted' ? { strokeDasharray: '2 4' } : {}),
-    ...(lineStyle === 'dashed' ? { strokeDasharray: '6 4' } : {}),
-    ...(input.paint ?? {}),
+    stroke: supplied.stroke ?? 'var(--_line)',
+    strokeWidth: supplied.strokeWidth ?? (lineStyle === 'thick' ? '3' : '1.5'),
+    ...(supplied.opacity === undefined ? {} : { opacity: supplied.opacity }),
+    ...(supplied.strokeDasharray !== undefined
+      ? { strokeDasharray: supplied.strokeDasharray }
+      : lineStyle === 'dotted'
+        ? { strokeDasharray: '2 4' }
+        : lineStyle === 'dashed'
+          ? { strokeDasharray: '6 4' }
+          : {}),
+    ...(supplied.strokeDashoffset === undefined ? {} : { strokeDashoffset: supplied.strokeDashoffset }),
+    strokeLinecap: supplied.strokeLinecap ?? 'round',
+    strokeLinejoin: supplied.strokeLinejoin ?? 'round',
+    strokeMiterlimit: supplied.strokeMiterlimit ?? '4',
+    ...(supplied.vectorEffect === undefined ? {} : { vectorEffect: supplied.vectorEffect }),
+    ...(supplied.paintOrder === undefined ? {} : { paintOrder: supplied.paintOrder }),
   }
 }
 
 interface ExternalCompileState {
   count: number
-  crispBytes: number
+  serializationBytes: number
 }
 
 function accountCompiledNode<T extends SceneNode>(node: T, state: ExternalCompileState): T {
   if (++state.count > SCENE_VALIDATION_LIMITS.maxNodes) {
     throw new Error(`External Scene compilation exceeds maximum node count ${SCENE_VALIDATION_LIMITS.maxNodes}`)
   }
-  const remaining = Math.max(0, SCENE_VALIDATION_LIMITS.maxAggregateCrispBytes - state.crispBytes)
-  const bytes = boundedUtf8ByteLength(node.crisp, remaining)
+  const remaining = Math.max(0, SCENE_VALIDATION_LIMITS.maxAggregateSerializationBytes - state.serializationBytes)
+  const bytes = boundedUtf8ByteLength(sceneNodeSerialization(node), remaining)
   if (bytes > remaining) {
-    throw new Error(`External Scene crisp projections exceed the aggregate ${SCENE_VALIDATION_LIMITS.maxAggregateCrispBytes}-byte limit`)
+    throw new Error(`External Scene serializations exceed the aggregate ${SCENE_VALIDATION_LIMITS.maxAggregateSerializationBytes}-byte limit`)
   }
-  state.crispBytes += bytes
+  state.serializationBytes += bytes
   return node
 }
 
@@ -454,7 +465,6 @@ function compileNode(
     route: { closed },
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: midMarker ? [midMarker] : [], ...(endMarker ? { end: endMarker } : {}) },
     labels,
-    projectAccessibilityToSvg: true,
     ...(input.channels ? { channels: input.channels } : {}),
   }, externalConnectorSvg({
     geometry: input.geometry,
@@ -486,7 +496,7 @@ export function buildExternalScene(untrustedInput: ExternalSceneInput): SceneDoc
   const ariaIds = [titleId, ...(input.metadata.description !== undefined ? [descriptionId] : [])].join(' ')
   const colors: DiagramColors = { ...input.colors, embedFontImport: false }
   const font = colors.font ?? 'Inter'
-  const root = marks.prelude({
+  const root = marks.documentOpen({
     id: 'external-scene-prelude',
     width: input.width,
     height: input.height,
@@ -519,13 +529,20 @@ export function buildExternalScene(untrustedInput: ExternalSceneInput): SceneDoc
       `<defs>\n${serializeMarkerResources(markerResources)}\n</defs>`,
     ))
   }
-  const compileState: ExternalCompileState = { count: 0, crispBytes: 0 }
+  const compileState: ExternalCompileState = { count: 0, serializationBytes: 0 }
   for (let index = 0; index < input.parts.length; index++) {
     parts.push(...compileNode(input.parts[index]!, markerById, compileState, 0))
   }
   parts.push(marks.documentClose())
 
-  const scene: SceneDoc = { family: input.family, width: input.width, height: input.height, colors, parts }
+  const scene: SceneDoc = {
+    family: input.family,
+    width: input.width,
+    height: input.height,
+    colors,
+    transparent: input.metadata.transparent ?? false,
+    parts,
+  }
   assertValidSceneDoc(scene, { mode: 'external' })
   return scene
 }

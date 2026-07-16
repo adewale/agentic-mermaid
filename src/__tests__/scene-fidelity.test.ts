@@ -1,6 +1,6 @@
 // Scene-fidelity gate: for every family with a SceneGraph lowering, the
 // semantic fields on each mark (geometry, markers, text) must agree with the
-// mark's crisp serialization. Styled backends redraw from the semantic fields,
+// mark's canonical serialization. Styled backends redraw from the semantic fields,
 // so a divergence here means a styled render would silently draw different
 // geometry than the crisp output shows — the regex-era blindness the IR
 // exists to eliminate (SPEC §3.1).
@@ -65,7 +65,7 @@ describe('scene fidelity', () => {
     expect(scenes.length).toBeGreaterThan(0)
   })
 
-  test('semantic fields agree with crisp serialization for every lowered mark', () => {
+  test('semantic fields agree with canonical serialization for every lowered mark', () => {
     const problems: string[] = []
     for (const scene of scenes) {
       for (const problem of sceneFidelityProblems(scene.doc)) {
@@ -77,11 +77,11 @@ describe('scene fidelity', () => {
     }
   })
 
-  test('document furniture and definitions do not regress to RawMark', () => {
+  test('public Scene nodes expose no serialization carriers', () => {
     const violations: string[] = []
     const visit = (node: SceneDoc['parts'][number], family: string): void => {
-      if (node.kind === 'raw' && (node.role === 'defs' || node.id === 'svg-close' || ((family === 'mindmap' || family === 'gitgraph') && (node.id === 'acc-title' || node.id === 'acc-desc')))) {
-        violations.push(`${family}:${node.id}`)
+      for (const key of ['crisp', 'raw', 'prelude']) {
+        if (Object.prototype.hasOwnProperty.call(node, key)) violations.push(`${family}:${node.id}:${key}`)
       }
       if (node.kind === 'group') for (const child of node.children) visit(child.node, family)
     }
@@ -94,7 +94,6 @@ describe('scene fidelity', () => {
       const first = DefaultBackend.render(scene.doc, { seed: 0 })
       const second = DefaultBackend.render(scene.doc, { seed: 0 })
       expect(second, `${scene.id} (${scene.family})`).toBe(first)
-      expect(first, `${scene.id} (${scene.family})`).toBe(scene.doc.parts.map(part => part.crisp).join('\n'))
       expect(first, `${scene.id} (${scene.family})`).toContain('<svg')
       expect(first, `${scene.id} (${scene.family})`).not.toMatch(/NaN|undefined/)
     }

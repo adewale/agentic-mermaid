@@ -74,7 +74,7 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 
 | Syntax / behavior | First release | Notes |
 |---|---|---|
-| `gantt` header | parse + render | Add `gantt` to `RoutedDiagramType`, loose detection, CLI/MCP capabilities, docs, gallery, and editor examples. |
+| `gantt` header | parse + render | Add `gantt` to registered `FamilyId` detection, CLI/MCP capabilities, docs, gallery, and editor examples. |
 | `title ...` | parse + render | Also included in label extraction and accessibility summary. |
 | `accTitle`, `accDescr` | parse + render | Use existing SVG accessibility injection. Do not duplicate family-owned ARIA. |
 | `dateFormat ...` | parse + render | Required for date parsing. Default is `YYYY-MM-DD`; test the docs claim behind [#5655](https://github.com/mermaid-js/mermaid/issues/5655). |
@@ -331,7 +331,7 @@ Use the `testing-best-practices` approach: public contracts first, real parser/l
 | Layout tests | `src/__tests__/gantt-layout.test.ts` | Bars stay in plot area; labels stay in label column; compact rows do not overlap; `vert` consumes no row; `topAxis` geometry. |
 | SVG integration/snapshots | `src/__tests__/gantt-svg-snapshot.test.ts` | Deterministic SVG; accessibility IDs; strict security; status classes; theme contrast; supplied-clock today marker. |
 | ASCII/Unicode golden tests | existing `ascii.test.ts` fixture flow | Basic project, sections, dependencies, excludes, milestone, vert marker, compact dense chart, CJK labels, 7-bit ASCII. |
-| Agent surface tests | `src/__tests__/agent-gantt.test.ts` | `parseMermaid` detects `kind:'gantt'`; serialize preserves opaque segments verbatim and is serialize-idempotent for structured bodies; `capabilities` reports structured mutation with the `asGantt` op list; each op round-trips through `am mutate`; fast-check round-trip property; label overflow works. |
+| Agent surface tests | `src/__tests__/agent-gantt.test.ts` | `parseRegisteredMermaid` detects `kind:'gantt'`; serialize preserves opaque segments verbatim and is serialize-idempotent for structured bodies; `capabilities` reports structured mutation with the `asGantt` op list; each op round-trips through `am mutate`; fast-check round-trip property; label overflow works. |
 | Corpus/differential tests | Mermaid docs corpus + `mermaid-ast`/Mermaid-core oracle | Docs examples parse; supported examples render; parse/render decisions match the pinned compatibility target. |
 | E2E/editor tests | browser/editor suite | Gallery/editor can load a Gantt example, export SVG/PNG, and show ASCII. |
 

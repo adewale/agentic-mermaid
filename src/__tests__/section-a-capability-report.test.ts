@@ -163,7 +163,7 @@ describe('Section A capability report', () => {
     ]
     const unregister = registerBackend(
       { ...DefaultBackend, id, capabilities },
-      { compatibility: { core: '^0.1.1', scene: '^1.0.0' } },
+      { compatibility: { core: '^0.1.1', scene: '^2.0.0' } },
     )
     try {
       const report = createSectionACapabilityReport()
@@ -320,7 +320,7 @@ describe('Section A capability report', () => {
       return '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="24" viewBox="0 0 80 24"></svg>'
     }
     const descriptor: FamilyDescriptor = {
-      contractVersion: 1,
+      contractVersion: 2,
       identity: createExtensionIdentity({
         id: 'family:report-probe',
         kind: 'family',

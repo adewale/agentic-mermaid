@@ -236,8 +236,13 @@ function monoRoleConstraint(
 ): BrandWarning {
   const paints: Array<{ mark: string; value: string }> = []
   visit(scene.parts, node => {
-    if (node.role !== constraint.role || !('paint' in node)) return
-    for (const value of [node.paint.fill, node.paint.stroke]) {
+    if (node.role !== constraint.role) return
+    const values = node.kind === 'connector'
+      ? [node.stroke.color]
+      : 'paint' in node
+        ? [node.paint.fill, node.paint.stroke]
+        : []
+    for (const value of values) {
       const paint = resolvedPaint(value, request)
       if (paint && paint !== 'none') paints.push({ mark: node.id, value: paint })
     }

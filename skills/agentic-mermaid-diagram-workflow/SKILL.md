@@ -33,9 +33,9 @@ Gantt diagrams are segment-preserving: `asGantt` keeps title/section/task ops li
 
 ## Workflow
 
-For new diagrams, author Mermaid source directly, then `parseMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
+For new diagrams, author Mermaid source directly, then `parseRegisteredMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
 
-1. `parseMermaid(source)` → `ValidDiagram`.
+1. `parseRegisteredMermaid(source)` → `ValidDiagram`.
 2. Use the family entry's advertised narrower (for example `asFlowchart(d)` or
    `asState(d)`) before mutating.
 3. `mutate(d, op)` (typed per family).
@@ -48,7 +48,7 @@ Do not regenerate or concatenate source to edit an existing structured diagram w
 Minimal existing-flowchart pattern:
 
 ```ts
-const parsed = parseMermaid(source)
+const parsed = parseRegisteredMermaid(source)
 if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
 let cur = asFlowchart(parsed.value)
 if (!cur) return { phase: 'narrow', family: parsed.value.kind }

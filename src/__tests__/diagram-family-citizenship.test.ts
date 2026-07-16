@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'

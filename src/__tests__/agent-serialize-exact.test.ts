@@ -4,7 +4,7 @@
 // clusters Stryker surfaced.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 
 function ser(src: string): string {

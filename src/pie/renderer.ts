@@ -26,10 +26,7 @@ import { resolveRoleStyle } from '../scene/style-registry.ts'
 //
 // The chart is first lowered to a SceneGraph (SPEC §3.1): every visual mark
 // becomes a scene node carrying semantic fields (role, geometry, paint,
-// channels, stable id) plus its exact crisp serialization, built here from
-// the same inputs. renderPieSvg() is DefaultBackend serialization of that
-// scene, so the default path stays byte-identical to the historical string
-// renderer (corpus-gated by svg-equivalence.test.ts).
+// channels, stable id). renderPieSvg() uses DefaultBackend serialization of that scene.
 //
 // Visual language:
 //   - circle of clockwise slices (SVG <path> wedges; annular in donut mode)
@@ -65,8 +62,7 @@ export function renderPieSvg(
 }
 
 /**
- * Lower a positioned pie chart to the SceneGraph IR. Mark order matches the
- * historical parts[] order exactly; DefaultBackend joins crisps with '\n'.
+ * Lower a positioned pie chart to the SceneGraph IR in canonical mark order.
  */
 export function lowerPieScene(
   ctx: RenderContext<PositionedPieChart>,
@@ -111,7 +107,7 @@ export function lowerPieScene(
   if (shadowDefs) headParts.push(`<defs>${shadowDefs}</defs>`)
   const pieCss = pieStyles(style, visual, interactive, baseSliceRole)
   headParts.push(pieCss)
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: chart.width,
@@ -334,7 +330,7 @@ export function lowerPieScene(
       const hoverTargetAttrs = hoverHighlight
         ? ` class="pie-slice-hover-target" stroke="transparent" stroke-width="${hoverEmphasisStrokeWidth}"`
         : ''
-      parts.push(marks.raw(
+      parts.push(marks.documentContent(
         { id: occurrenceId('tooltip:slice', slice.label), role: 'chrome' },
         `<g class="pie-slice-group">` +
           `<path d="${slice.path}" fill="transparent"${hoverTargetAttrs}/>` +
@@ -348,7 +344,7 @@ export function lowerPieScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'pie', width: chart.width, height: chart.height, colors, parts }
+  return { family: 'pie', width: chart.width, height: chart.height, colors, transparent, parts }
 }
 
 function outerStrokeColor(visual: PieVisualConfig, style: ResolvedRenderStyle): string {

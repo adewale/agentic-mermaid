@@ -10,7 +10,7 @@ import {
   type FamilyDescriptor,
 } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
-import { parseMermaid, parseRegisteredMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { projectPositionedView } from '../agent/index.ts'
 import { ok, toFinite } from '../agent/types.ts'
@@ -34,7 +34,7 @@ import {
 function syntheticFamily(localId: string, header: string): FamilyDescriptor {
   const id = canonicalExtensionId('family', localId) as ExternalFamilyId
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     identity: createExtensionIdentity({
       id,
       kind: 'family',
@@ -269,39 +269,41 @@ describe('forward-compatible family classification', () => {
         family: { id: family.id },
         header: { value: header.value, agenticStatus: header.agenticStatus },
       })
-      const parsed = parseMermaid(source)
-      expect(parsed.ok).toBe(false)
-      if (parsed.ok) continue
-      expect(parsed.error[0]).toMatchObject({
-        code: 'UNSUPPORTED_FAMILY',
-        preservation: {
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed).toMatchObject({
+        ok: true,
+        value: { body: {
+          kind: 'preserved',
+          diagnostic: { code: 'UNSUPPORTED_FAMILY' },
+          preservation: {
           version: 1,
           classification: header.agenticStatus === 'inventory-only' ? 'inventory-only' : 'unsupported',
           source,
           upstreamFamilyId: family.id,
           mermaidVersion: '11.16.0',
-        },
+          },
+        } },
       })
     }
   })
 
   test('C4 and unknown future sources preserve every authored byte on diagnostics', () => {
     const c4 = '---\ntitle: Deployment\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nC4Deployment\n  Deployment_Node(a, "A")\n'
-    const c4Result = parseMermaid(c4)
-    expect(c4Result.ok).toBe(false)
-    if (!c4Result.ok) {
-      expect(c4Result.error[0]?.code).toBe('UNSUPPORTED_FAMILY')
-      expect(c4Result.error[0]?.preservation).toMatchObject({
+    const c4Result = parseRegisteredMermaid(c4)
+    expect(c4Result.ok).toBe(true)
+    if (c4Result.ok && c4Result.value.body.kind === 'preserved') {
+      expect(c4Result.value.body.diagnostic.code).toBe('UNSUPPORTED_FAMILY')
+      expect(c4Result.value.body.preservation).toMatchObject({
         classification: 'inventory-only', source: c4, header: 'C4Deployment', upstreamFamilyId: 'c4',
       })
     }
 
     const future = '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n'
-    const futureResult = parseMermaid(future)
-    expect(futureResult.ok).toBe(false)
-    if (!futureResult.ok) {
-      expect(futureResult.error[0]).toMatchObject({
-        code: 'UNKNOWN_HEADER',
+    const futureResult = parseRegisteredMermaid(future)
+    expect(futureResult.ok).toBe(true)
+    if (futureResult.ok && futureResult.value.body.kind === 'preserved') {
+      expect(futureResult.value.body).toMatchObject({
+        diagnostic: { code: 'UNKNOWN_HEADER' },
         preservation: { classification: 'unknown', source: future, header: 'futureDiagram-v99' },
       })
     }
@@ -418,7 +420,7 @@ describe('synthetic family registration', () => {
         expect(runCli(['render', cliFile, '--format', 'svg'])).toBe(0)
         expect(chunks.join('')).toContain('>future</text>')
         chunks.length = 0
-        expect(runCli(['render', cliFile, '--format', 'json'])).toBe(0)
+        expect(runCli(['render', cliFile, '--format', 'layout'])).toBe(0)
         expect(JSON.parse(chunks.join(''))).toMatchObject({
           version: 1,
           bounds: { w: 80, h: 24 },
@@ -450,15 +452,8 @@ describe('synthetic family registration', () => {
       ])
       expect(Object.isFrozen(getFamily(descriptor.id)?.config?.keys)).toBe(true)
 
-      const parsed = parseMermaid('futureDiagram\n  A -> B')
-      expect(parsed.ok).toBe(false)
-      if (!parsed.ok) expect(parsed.error[0]).toMatchObject({
-        code: 'EXTENSION_PARSE_REQUIRES_OPEN_ENVELOPE',
-        preservation: { source: 'futureDiagram\n  A -> B', upstreamFamilyId: 'family:acme/future' },
-        help: expect.stringContaining('parseRegisteredMermaid'),
-      })
-      const openParsed = parseRegisteredMermaid('futureDiagram\n  A -> B')
-      expect(openParsed).toMatchObject({
+      const parsed = parseRegisteredMermaid('futureDiagram\n  A -> B')
+      expect(parsed).toMatchObject({
         ok: true,
         value: {
           kind: 'family:acme/future',

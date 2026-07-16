@@ -131,40 +131,12 @@ describe('Section A transport and backend parity receipts', () => {
     }
   })
 
-  test('deprecated Style diagnostics cross library, CLI, local MCP, and hosted MCP receipts', async () => {
-    const options = { style: 'default' } as const
-    const library = renderMermaidSVGWithReceipt(SOURCE, options)
-    const dir = mkdtempSync(join(tmpdir(), 'am-section-a-alias-'))
-    const input = join(dir, 'alias.mmd')
-    writeFileSync(input, SOURCE)
-    const cliRun = captureStdout(() => runCli([
-      'render', input,
-      '--format', 'svg',
-      '--options', JSON.stringify(options),
-      '--json',
-    ]))
-    const cli = JSON.parse(cliRun.stdout) as { receipt: typeof library.receipt }
-    const local = payloadOf(await handleRequest(call('execute', {
-      code: `return mermaid.renderMermaidSVGWithReceipt(${JSON.stringify(SOURCE)}, ${JSON.stringify(options)})`,
-    })))
-    const hosted = payloadOf(await handleHostedRequest(
-      call('render_svg', { source: SOURCE, options }),
-      hostedContext(),
-    ))
-
-    expect(cliRun.code).toBe(0)
-    expect(local.ok).toBe(true)
-    for (const receipt of [library.receipt, cli.receipt, local.value.receipt, hosted.receipt]) {
-      expect(receipt.diagnostics).toContainEqual(expect.objectContaining({
-        code: 'STYLE_ALIAS_DEPRECATED',
-        input: 'default',
-        canonicalId: 'look:crisp',
-        removal: { release: '0.3.0', date: '2027-01-31' },
-      }))
-    }
+  test('removed Style aliases are rejected', () => {
+    expect(() => renderMermaidSVGWithReceipt(SOURCE, { style: 'default' }))
+      .toThrow('Unknown style "default"')
   })
 
-  test('CLI JSON delegates every built-in family to the canonical layout request', () => {
+  test('CLI layout delegates every built-in family to the canonical layout request', () => {
     const layoutOptions = {
       security: 'strict',
       padding: 13,
@@ -174,15 +146,15 @@ describe('Section A transport and backend parity receipts', () => {
     } as const satisfies RenderOptions
     for (const family of BUILTIN_FAMILY_METADATA) {
       const library = layoutMermaidWithReceipt(family.example, layoutOptions)
-      const cli = renderSourceToFormatWithReceipt(family.example, 'json', layoutOptions)
+      const cli = renderSourceToFormatWithReceipt(family.example, 'layout', layoutOptions)
       expect(cli.output).toEqual(library.layout)
       expect(cli.receipt).toEqual(library.receipt)
     }
   })
 
-  test('CLI JSON applies geometry options instead of changing only its receipt', () => {
-    const natural = renderSourceToFormatWithReceipt('flowchart LR\n  A --> B', 'json')
-    const spaced = renderSourceToFormatWithReceipt('flowchart LR\n  A --> B', 'json', {
+  test('CLI layout applies geometry options instead of changing only its receipt', () => {
+    const natural = renderSourceToFormatWithReceipt('flowchart LR\n  A --> B', 'layout')
+    const spaced = renderSourceToFormatWithReceipt('flowchart LR\n  A --> B', 'layout', {
       nodeSpacing: 200,
       layerSpacing: 200,
     })
@@ -318,7 +290,7 @@ architecture-beta
       source: SOURCE,
       scale: 0.1,
       fitTo: { width: 64 },
-      style,
+      options: { style },
     }), hostedContext()))
     const dir = mkdtempSync(join(tmpdir(), 'am-section-a-png-'))
     const input = join(dir, 'diagram.mmd')

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  createMermaid, buildMermaid, mutate, parseMermaid, serializeMermaid, verifyMermaid,
+  createMermaid, buildMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/core.ts'
 import type { DiagramKind } from '../agent/types.ts'
 

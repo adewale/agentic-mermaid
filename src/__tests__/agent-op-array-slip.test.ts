@@ -6,7 +6,7 @@
 // and the checked path (validateOp), which share unknownOpMessage.
 
 import { describe, test, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
 import { validateOp } from '../agent/op-schema.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'

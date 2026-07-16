@@ -16,7 +16,7 @@ verify-before-commit loop is one round-trip.
 ## SDK shape
 
 ```text
-mermaid.parseMermaid(source): Result<ValidDiagram, ParseError[]>
+mermaid.parseRegisteredMermaid(source): Result<ValidDiagram, ParseError[]>
 mermaid.asFlowchart(d): FlowchartValidDiagram | null  // example narrower
 mermaid.mutate(narrowed, op): Result<ValidDiagram, MutationError> // concrete overload preserves the family
 // Call describe_sdk({ family, detail: 'fields' }) for the registry-derived
@@ -37,7 +37,7 @@ All SDK methods are synchronous and pure. Code Mode does not support `async`/`aw
 
 ```ts
 const source = 'flowchart LR\n  User --> Login\n  Login --> Dashboard'
-const parsed = mermaid.parseMermaid(source)
+const parsed = mermaid.parseRegisteredMermaid(source)
 if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
 const v = mermaid.verifyMermaid(parsed.value)
 if (!v.ok) return { phase: 'verify', warnings: v.warnings }
@@ -52,7 +52,7 @@ const ops = [
   { kind: 'add_node', id: 'Cache', label: 'Cache' },
   { kind: 'add_edge', from: 'API', to: 'Cache' },
 ]
-const r0 = mermaid.parseMermaid(source)
+const r0 = mermaid.parseRegisteredMermaid(source)
 if (!r0.ok) return { phase: 'parse', errors: r0.error }
 const flow = mermaid.asFlowchart(r0.value)
 if (!flow) return { phase: 'narrow', kind: r0.value.kind }
@@ -70,7 +70,7 @@ return { source: mermaid.serializeMermaid(cur) }
 ## Sequence pattern
 
 ```ts
-const r0 = mermaid.parseMermaid('sequenceDiagram\n  Alice->>Bob: Hi')
+const r0 = mermaid.parseRegisteredMermaid('sequenceDiagram\n  Alice->>Bob: Hi')
 if (!r0.ok) return { errors: r0.error }
 const seq = mermaid.asSequence(r0.value)
 if (!seq) return { kind: r0.value.kind, note: 'opaque — no structured sequence mutation' }
@@ -86,7 +86,7 @@ return { source: mermaid.serializeMermaid(r1.value) }
 ```ts
 const sources = ['flowchart TD\n  A --> C', 'timeline\n  2024 : A ships']
 return sources.map(src => {
-  const r = mermaid.parseMermaid(src)
+  const r = mermaid.parseRegisteredMermaid(src)
   if (!r.ok) return { err: r.error }
   const flow = mermaid.asFlowchart(r.value)
   if (!flow) return { skipped: true, family: r.value.kind, reason: 'no matching structured op' }

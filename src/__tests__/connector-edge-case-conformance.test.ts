@@ -135,7 +135,7 @@ describe('connector named edge-case conformance', () => {
       markers: { start: endpointMarker, mid: [], end: endpointMarker },
     }, '<path d="M 10 20 L 50 20 M 90 20 L 130 20" fill="none" stroke="#243447" stroke-width="2" />')
 
-    expect(connectorEndpointAnchors(node.geometry)).toEqual({
+    expect(connectorEndpointAnchors(node.route.geometry)).toEqual({
       starts: [{ x: 10, y: 20 }, { x: 90, y: 20 }],
       ends: [{ x: 50, y: 20 }, { x: 130, y: 20 }],
     })

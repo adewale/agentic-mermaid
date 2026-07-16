@@ -15,7 +15,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 describe('am capabilities', () => {
-  it('emits a JSON object with the legacy discovery fields and bounded Section A summary', () => {
+  it('emits a JSON object with bounded built-in discovery and Section A summary fields', () => {
     const cap = buildCapabilities()
     expect(typeof cap.sdkVersion).toBe('string')
     expect(cap.sdkVersion.length).toBeGreaterThan(0)
@@ -182,7 +182,7 @@ describe('am capabilities', () => {
 
 describe('family examples', () => {
   it('every built-in family ships a canonical example that parses, verifies clean, and renders', async () => {
-    const { parseMermaid } = await import('../agent/parse.ts')
+    const { parseRegisteredMermaid: parseMermaid } = await import('../agent/parse.ts')
     const { serializeMermaid } = await import('../agent/serialize.ts')
     const { describeMermaidFacts } = await import('../agent/facts.ts')
     const { verifyMermaid } = await import('../agent/verify.ts')

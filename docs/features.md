@@ -5,7 +5,7 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 ## Core IR & editing loop
 
 - **Typed `ValidDiagram` IR** — parse Mermaid into a sealed, typed value.
-- **`parseMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
+- **`parseRegisteredMermaid(source)`** → `Result<ValidDiagram, ParseError[]>`. Never
   throws on malformed input; structured errors.
 - **`mutate(d, op)`** — family-overloaded typed mutation. The generated
   `am capabilities --json` response and SDK declaration expose the authoritative
@@ -62,7 +62,7 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   `createMermaidPNGRenderer`, and `createMermaidBrowserPNGRenderer`; backend
   selection is host policy and cannot be smuggled through serializable render
   options or Styles.
-- **JSON layout** — `layoutMermaid` / `am render --format json`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.
+- **JSON layout** — `layoutMermaid` / `am render --format layout`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.
 - **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ ascii, regions, warnings, routeParity }`
   for TUI click-mapping.
 - **Reverse** — `asciiToMermaid` reconstructs flowchart source from ASCII

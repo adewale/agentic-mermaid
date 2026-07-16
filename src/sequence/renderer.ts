@@ -9,7 +9,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
-import type { MarkerDescriptor, MarkerRef, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -23,10 +23,7 @@ import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registr
 // Renders a positioned sequence diagram to SVG string.
 // The diagram is first lowered to a SceneGraph (SPEC §3.1): every visual mark
 // becomes a scene node carrying semantic fields (role, geometry, paint,
-// channels, stable id) plus its exact crisp serialization, built here from
-// the same inputs. renderSequenceSvg() is DefaultBackend serialization of
-// that scene, so the default path stays byte-identical to the historical
-// string renderer (corpus-gated by svg-equivalence.test.ts).
+// channels, stable id). renderSequenceSvg() uses DefaultBackend serialization of that scene.
 //
 // All colors use CSS custom properties (var(--_xxx)) from the theme system.
 //
@@ -53,9 +50,7 @@ export function renderSequenceSvg(
 }
 
 /**
- * Lower a positioned sequence diagram to the SceneGraph IR. Mark order
- * matches the historical parts[] order exactly; DefaultBackend joins crisps
- * with '\n'.
+ * Lower a positioned sequence diagram to the SceneGraph IR in canonical mark order.
  */
 export function lowerSequenceScene(
   ctx: RenderContext<PositionedSequenceDiagram>,
@@ -72,7 +67,7 @@ export function lowerSequenceScene(
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
 
   // SVG root with CSS variables + style block + defs
-  parts.push(marks.prelude(
+  parts.push(marks.documentOpen(
     {
       id: 'prelude',
       width: diagram.width,
@@ -97,11 +92,11 @@ export function lowerSequenceScene(
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(marks.raw({ id: 'a11y-title', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome' },
       `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(marks.raw({ id: 'a11y-desc', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome' },
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
@@ -176,7 +171,7 @@ export function lowerSequenceScene(
 
   parts.push(marks.documentClose())
 
-  return { family: 'sequence', width: diagram.width, height: diagram.height, colors, parts }
+  return { family: 'sequence', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
 // ============================================================================
@@ -198,7 +193,7 @@ function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDes
   ] satisfies readonly MarkerDescriptor[]
 }
 
-function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['endHead']): MarkerRef | undefined {
+function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
   if (head === 'none') return undefined
   const id = head === 'filled' ? 'seq-arrow'
     : head === 'cross' ? 'seq-arrow-cross'
@@ -257,7 +252,7 @@ function renderActor(
     // geometry contract can't express — kept as a raw icon mark.
     children.push({
       indent: 2,
-      node: marks.raw({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
+      node: marks.documentContent({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
         `<g transform="translate(${tx},${ty}) scale(${s})">` +
         // Outer circle
         `\n  <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="${iconStroke}" stroke-width="${sw}" />` +
@@ -302,7 +297,7 @@ function renderActor(
               : type === 'control'
                 ? `<circle cx="${x}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/><path d="M${x - 4} ${top + 4}L${x + 4} ${top}L${x + 2} ${top + 8}"/>`
                 : `<circle cx="${x}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/>`
-    children.push({ indent: 2, node: marks.raw({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
+    children.push({ indent: 2, node: marks.documentContent({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
       `<g class="sequence-actor-glyph sequence-actor-${type}" fill="${rawFill}" stroke="${rawStroke}" stroke-width="${lineWidth}">${glyph}</g>`) })
     children.push({ indent: 2, node: marks.text({
       id: `actor:${id}:label`, role: 'label', text: displayLabel, x, y: y + height + 14,
@@ -396,7 +391,8 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
 
 /**
  * Render a message arrow with label.
- * Wrapped in <g class="message"> with semantic data attributes.
+ * Wrapped in <g class="message"> with presentation metadata. The child
+ * ConnectorMark is the sole authority for relation endpoints.
  */
 function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
@@ -422,15 +418,11 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
     },
     route: { ownership: 'layout' },
     labels: msg.label ? [{ text: msg.label }] : [],
-    // The message wrapper is the public relation identity because it owns the
-    // connector, label, and optional central-connection marks as one message.
-    projectEndpointIdentityToSvg: false,
   } as const
 
   // Semantic wrapper with message metadata
   const open =
-    `<g class="message" data-from="${escapeAttr(msg.from)}" data-to="${escapeAttr(msg.to)}" ` +
-    `data-label="${escapeAttr(msg.label)}" data-line-style="${msg.lineStyle}" ` +
+    `<g class="message" data-label="${escapeAttr(msg.label)}" data-line-style="${msg.lineStyle}" ` +
     `data-start-head="${msg.startHead}" data-end-head="${msg.endHead}" data-central-start="${msg.centralStart}" data-central-end="${msg.centralEnd}" data-self="${msg.isSelf}">`
 
   if (msg.isSelf) {

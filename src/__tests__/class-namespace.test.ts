@@ -16,7 +16,7 @@ import { describe, it, expect } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { layoutMermaid, parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 
 const parse = (src: string) => parseClassDiagram(toMermaidLines(src))

@@ -14,6 +14,7 @@ import { nodeWorldBounds } from '../scene/bounds.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
 import { hitTestConnector } from '../scene/hit-test.ts'
 import type { ConnectorMark, SceneDoc, ScenePoint } from '../scene/ir.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 
 const COLORS = { bg: '#ffffff', fg: '#111827' } as const
 const RIGHT_ANGLE_POINTS = [
@@ -58,11 +59,11 @@ function pointToRouteDistance(point: ScenePoint, route: readonly ScenePoint[]): 
 }
 
 function assertRoundedProjection(connector: ConnectorMark): void {
-  expect(connector.geometry.kind).toBe('path')
-  if (connector.geometry.kind !== 'path') return
-  expect(connector.geometry.d).toBe(ROUNDED_D)
-  expect(connector.geometry.points.length).toBeGreaterThan(RIGHT_ANGLE_POINTS.length)
-  expect(connector.geometry.points.some(point =>
+  expect(connector.route.geometry.kind).toBe('path')
+  if (connector.route.geometry.kind !== 'path') return
+  expect(connector.route.geometry.d).toBe(ROUNDED_D)
+  expect(connector.route.geometry.points.length).toBeGreaterThan(RIGHT_ANGLE_POINTS.length)
+  expect(connector.route.geometry.points.some(point =>
     Math.hypot(point.x - ROUNDED_MIDPOINT.x, point.y - ROUNDED_MIDPOINT.y) < 1e-9)).toBe(true)
   expect(pointToRouteDistance(ROUNDED_MIDPOINT, RIGHT_ANGLE_POINTS))
     .toBeGreaterThan(connector.hit.strokeWidth / 2)
@@ -76,10 +77,9 @@ function assertRoundedProjection(connector: ConnectorMark): void {
   }])
   expect(connector.route.startTangent).toEqual({ x: 1, y: 0 })
   expect(connector.route.endTangent).toEqual({ x: 0, y: 1 })
-  expect(connector.route.geometry).toBe(connector.geometry)
-  expect(connector.hit.geometry).toBe(connector.geometry)
-  expect(connector.terminalProjection.geometry).toBe(connector.geometry)
-  expect(connector.crisp).toContain(`d="${ROUNDED_D}"`)
+  expect(connector.hit.geometry).toBe(connector.route.geometry)
+  expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+  expect(sceneNodeSerialization(connector)).toContain(`d="${ROUNDED_D}"`)
 }
 
 interface Cubic {
@@ -120,11 +120,11 @@ function unit(from: ScenePoint, to: ScenePoint): ScenePoint {
 }
 
 function assertCubicProjection(connector: ConnectorMark, oldRoute: readonly ScenePoint[]): void {
-  expect(connector.geometry.kind).toBe('path')
-  if (connector.geometry.kind !== 'path') return
-  const cubic = firstCubic(connector.geometry.d)
+  expect(connector.route.geometry.kind).toBe('path')
+  if (connector.route.geometry.kind !== 'path') return
+  const cubic = firstCubic(connector.route.geometry.d)
   const visiblePoint = cubicPoint(cubic, 0.25)
-  expect(connector.geometry.points.length).toBeGreaterThan(oldRoute.length)
+  expect(connector.route.geometry.points.length).toBeGreaterThan(oldRoute.length)
   expect(pointToRouteDistance(visiblePoint, oldRoute)).toBeGreaterThan(connector.hit.strokeWidth / 2)
   expect(hitTestConnector(connector, visiblePoint)).toBe(true)
   expect(connector.route.startTangent).toEqual(unit(cubic.start, cubic.control1))
@@ -136,10 +136,9 @@ function assertCubicProjection(connector: ConnectorMark, oldRoute: readonly Scen
     startTangent: unit(cubic.start, cubic.control1),
     endTangent: unit(cubic.control2, cubic.end),
   }])
-  expect(connector.route.geometry).toBe(connector.geometry)
-  expect(connector.hit.geometry).toBe(connector.geometry)
-  expect(connector.terminalProjection.geometry).toBe(connector.geometry)
-  expect(connector.crisp).toContain(`d="${connector.geometry.d}"`)
+  expect(connector.hit.geometry).toBe(connector.route.geometry)
+  expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
+  expect(sceneNodeSerialization(connector)).toContain(`d="${connector.route.geometry.d}"`)
 }
 
 describe('curved connector lowering projections', () => {
@@ -211,7 +210,7 @@ describe('curved connector lowering projections', () => {
       resolved: { renderOptions: {} },
     }))
     assertCubicProjection(connector, [{ x: 0, y: 0 }, { x: 100, y: 100 }])
-    expect(connector.geometry.kind === 'path' ? connector.geometry.d : '').toBe(
+    expect(connector.route.geometry.kind === 'path' ? connector.route.geometry.d : '').toBe(
       'M 0 0 C 50 0, 50 100, 100 100',
     )
   })

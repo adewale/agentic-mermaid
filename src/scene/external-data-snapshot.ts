@@ -10,6 +10,7 @@
 import type { SceneDoc } from './ir.ts'
 import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc } from './scene-validation.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { transferSceneNodeSerialization } from './serialization.ts'
 
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
@@ -43,22 +44,17 @@ export const EXTERNAL_SCENE_INPUT_SNAPSHOT_LIMITS: ExternalDataSnapshotLimits = 
 })
 
 /**
- * A compiled Scene duplicates authored semantics in canonical crisp strings,
- * so its text allowance includes both semantic and serialized SVG budgets.
+ * A compiled Scene has private backend serialization beside its authored
+ * semantics, so its text allowance includes both semantic and SVG budgets.
  */
 export const EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS: ExternalDataSnapshotLimits = Object.freeze({
   ...EXTERNAL_SCENE_INPUT_SNAPSHOT_LIMITS,
   maxObjects: SCENE_VALIDATION_LIMITS.maxNodes * 8,
   maxTextBytes:
     SCENE_VALIDATION_LIMITS.maxTextBytes
-    + SCENE_VALIDATION_LIMITS.maxAggregateCrispBytes
+    + SCENE_VALIDATION_LIMITS.maxAggregateSerializationBytes
     + SCENE_VALIDATION_LIMITS.maxFinalSvgBytes,
 })
-
-/** Root identities produced by this module are deeply immutable and contain
- * only captured own data. The private brand lets the family gate and public
- * backend gate share one snapshot without cloning the same document twice. */
-const BOUNDED_EXTERNAL_SCENE_DOCUMENT_ROOTS = new WeakSet<object>()
 
 /**
  * Materialize a JSON-like external data graph exclusively from own enumerable
@@ -147,6 +143,7 @@ export function snapshotBoundedExternalData(
         }
         const snapshot = new Array<unknown>(length)
         snapshots.set(candidate, snapshot)
+        transferSceneNodeSerialization(candidate, snapshot)
         for (let index = 0; index < length; index++) {
           const descriptor = descriptors.get(String(index))
           if (!descriptor) throw new TypeError(`External Scene ${path} must not be sparse`)
@@ -187,6 +184,7 @@ export function snapshotBoundedExternalData(
       // getters, or later prototype mutation must not survive admission.
       const snapshot = Object.create(null) as Record<string, unknown>
       snapshots.set(candidate, snapshot)
+      transferSceneNodeSerialization(candidate, snapshot)
       for (const key of keys) {
         if (typeof key !== 'string') throw new TypeError(`External Scene ${path} must not contain symbol keys`)
         const descriptor = Reflect.getOwnPropertyDescriptor(candidate, key)
@@ -206,30 +204,19 @@ export function snapshotBoundedExternalData(
     }
   }
 
-  const snapshot = visit(value, 0, rootPath)
-  if (snapshot !== null && typeof snapshot === 'object') {
-    if (limits === EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS) {
-      BOUNDED_EXTERNAL_SCENE_DOCUMENT_ROOTS.add(snapshot)
-    }
-  }
-  return snapshot
+  return visit(value, 0, rootPath)
 }
 
 /** The sole public-backend Scene admission waist. Direct backend consumers
  * receive the same validate-the-snapshot/use-the-snapshot guarantee as family
- * rendering. Already-admitted roots are reused; all other documents are
- * reduced to bounded, immutable own data before validation. */
+ * rendering. Every document is reduced to bounded, immutable own data before
+ * validation. */
 export function admitBackendSceneDocument(value: unknown): SceneDoc {
-  const reusable = value !== null
-    && typeof value === 'object'
-    && BOUNDED_EXTERNAL_SCENE_DOCUMENT_ROOTS.has(value)
-  const admitted = reusable
-    ? value
-    : snapshotBoundedExternalData(
-        value,
-        EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-        'scene',
-      )
+  const admitted = snapshotBoundedExternalData(
+    value,
+    EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
+    'scene',
+  )
   assertValidSceneDoc(admitted)
   return admitted as SceneDoc
 }

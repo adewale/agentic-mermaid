@@ -1,5 +1,5 @@
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
-import { BUILTIN_FAMILY_METADATA, parseMermaid, renderMermaidSVG, verifyMermaid, verifyNoExternalRefs, type DiagramKind } from '../../src/agent/index.ts'
+import { BUILTIN_FAMILY_METADATA, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, verifyMermaid, verifyNoExternalRefs, type DiagramKind } from '../../src/agent/index.ts'
 import { DEFAULT_CASES, type AgentUsageEvalCase } from './run.ts'
 
 export const AGENT_USAGE_SUPPORTED_FAMILIES: readonly DiagramKind[] = BUILTIN_FAMILY_METADATA.map(family => family.id)
@@ -109,7 +109,7 @@ export async function scoreAgentUsageRenderedQuality(cases: AgentUsageEvalCase[]
       const labelsOk = renderOk && semanticLabelsOk(c.id, svg)
       const result: AgentUsageRenderQualityResult = {
         id: c.id,
-        family: c.family ?? parsed.value.kind,
+        family: c.family ?? (AGENT_USAGE_SUPPORTED_FAMILIES.includes(parsed.value.kind as DiagramKind) ? parsed.value.kind as DiagramKind : 'unknown'),
         ok: verify.ok && renderOk && safeSvg.ok && boundsOk && labelsOk,
         sourceOk: true,
         verifyOk: verify.ok,

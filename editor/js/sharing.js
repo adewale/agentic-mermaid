@@ -1,7 +1,4 @@
-// Share-link encoding. New links compress the payload with native deflate-raw
-// and carry a "deflate:" prefix; legacy plain-base64 hashes (old links, old
-// bookmarks) stay decodable forever. encodeSource stays synchronous as the
-// fallback for browsers without CompressionStream.
+// Share-link encoding uses one canonical deflate-raw payload.
 var HASH_DEFLATE_PREFIX = 'deflate:';
 // These caps are deliberately expressed in UTF-8 bytes, not JavaScript string
 // length.  A share URL is already an unsuitable transport for diagrams this
@@ -36,10 +33,6 @@ function limitError(kind) {
   return error;
 }
 
-function encodeSource(src) {
-  try { return btoa(unescape(encodeURIComponent(src))); } catch(e) { return ''; }
-}
-
 function bytesToBase64Url(bytes) {
   var bin = '';
   for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -56,17 +49,6 @@ function base64UrlToBytes(encoded) {
   var bytes = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes;
-}
-
-function base64ToUtf8(encoded) {
-  if (!encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded) || encoded.length % 4 !== 0) {
-    throw new Error('Invalid base64 payload');
-  }
-  var bin = atob(encoded);
-  if (bin.length > MAX_SHARE_DECODED_BYTES) throw limitError('Decoded share link');
-  var bytes = new Uint8Array(bin.length);
-  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
 async function readUtf8StreamWithLimit(stream, byteLimit) {
@@ -97,9 +79,9 @@ async function encodeSourceCompressed(src) {
     throw limitError('Share link source');
   }
   if (typeof CompressionStream === 'undefined') {
-    var legacy = encodeSource(src);
-    if (!legacy || utf8ByteLength(legacy) > MAX_SHARE_ENCODED_BYTES) throw limitError('Encoded share link');
-    return legacy;
+    var unsupported = new Error('CompressionStream is unavailable');
+    unsupported.code = 'unsupported';
+    throw unsupported;
   }
   try {
     var stream = new Blob([src]).stream().pipeThrough(new CompressionStream('deflate-raw'));
@@ -109,17 +91,13 @@ async function encodeSourceCompressed(src) {
     return encoded;
   } catch(e) {
     if (e && e.code === 'too-large') throw e;
-    var fallback = encodeSource(src);
-    if (!fallback || utf8ByteLength(fallback) > MAX_SHARE_ENCODED_BYTES) {
-      throw limitError('Encoded share link');
-    }
-    return fallback;
+    throw e;
   }
 }
 
 // Why the last hash decode produced nothing: 'unsupported' (deflate: link in a
-// browser without DecompressionStream — never fall through to legacy decode,
-// which would silently open the wrong content), 'corrupt' (truncated/damaged
+// browser without DecompressionStream — never reinterpret the bytes through
+// another encoding, which could silently open the wrong content), 'corrupt' (truncated/damaged
 // link), 'too-large' (encoded or expanded payload exceeded a hard cap), or
 // null. init.js reads this to tell the recipient instead of
 // silently showing their draft or the default diagram.
@@ -145,17 +123,13 @@ async function decodeSource(encoded) {
       return '';
     }
   }
-  try {
-    return base64ToUtf8(encoded);
-  } catch(e) {
-    hashDecodeFailure = e && e.code === 'too-large' ? 'too-large' : 'corrupt';
-    return '';
-  }
+  hashDecodeFailure = 'corrupt';
+  return '';
 }
 
 function sanitizeEditorConfig(config) {
   if (!config || typeof config !== 'object' || Array.isArray(config)) return {};
-  // Share hashes and localStorage are untrusted inputs. Project the browser
+  // Share hashes and browser storage are untrusted inputs. Project the browser
   // API's canonical serializable field manifest instead of maintaining a
   // second editor schema; buildOptions validates this same projection and
   // enforces the editor-owned strict security/font policy.
@@ -205,16 +179,15 @@ async function getHashSource() {
         return null;
       }
       // A share payload is a complete per-diagram snapshot. Reset omitted
-      // legacy fields before projection so recipient browser preferences cannot
+      // appearance fields before projection so recipient browser preferences cannot
       // silently alter crisp/default links.
       state.palette = DEFAULT_EDITOR_PALETTE;
       state.style = 'crisp';
       state.seed = 0;
       state.config = {};
       var hasPalette = Object.prototype.hasOwnProperty.call(obj, 'palette');
-      var hasTheme = Object.prototype.hasOwnProperty.call(obj, 'theme');
-      var sharedPalette = hasPalette ? obj.palette : obj.theme;
-      if (hasPalette || hasTheme) {
+      var sharedPalette = obj.palette;
+      if (hasPalette) {
         if (sharedPalette === '') state.palette = '';
         else {
           var importedPalette = editorPaletteInput(sharedPalette);
@@ -265,43 +238,29 @@ function updateHash() {
     // Never leave an older, valid hash in place for newer content it does not
     // represent.  A stale URL is more dangerous than no share URL at all.
     window.history.replaceState(null, '', window.location.pathname);
-    if (error && error.code === 'too-large' && typeof showToast === 'function') {
-      showToast('This diagram is too large for a share URL. Export or copy the source instead.');
+    if (typeof showToast === 'function') {
+      if (error && error.code === 'too-large') {
+        showToast('This diagram is too large for a share URL. Export or copy the source instead.');
+      } else if (error && error.code === 'unsupported') {
+        showToast('This browser cannot create compressed share links (missing CompressionStream). Export or copy the source instead.');
+      }
     }
     return false;
   });
 }
 
 // ── Draft autosave ────────────────────────────────────────────────────────────
-// Source + per-diagram config survive refresh through the user's visible
-// persistence choice: localStorage for compatibility, or sessionStorage for a
-// private tab-only draft.  The URL hash updates only after a successful render,
+// Source + per-diagram config survive refresh within the current tab through
+// sessionStorage. The URL hash updates only after a successful render,
 // so autosave still protects a never-valid diagram. Restored in init.js only
 // when the URL carries no #source and no ?example= param.
 var DRAFT_STORAGE_KEY = 'bm-editor-draft';
-var DRAFT_MODE_STORAGE_KEY = 'bm-editor-draft-mode';
-var DRAFT_MODE_PERSISTENT = 'persistent';
-var DRAFT_MODE_SESSION = 'session';
 var draftSaveTimer = null;
 var draftRestoreFailure = null;
 var draftSaveLimitNotified = false;
 
-function storedDraftMode() {
-  try {
-    return localStorage.getItem(DRAFT_MODE_STORAGE_KEY) === DRAFT_MODE_SESSION
-      ? DRAFT_MODE_SESSION
-      : DRAFT_MODE_PERSISTENT;
-  } catch(e) {
-    // If persistent storage itself is unavailable, retain drafts only for the
-    // current tab rather than silently weakening the user's privacy.
-    return DRAFT_MODE_SESSION;
-  }
-}
-
-var draftStorageMode = storedDraftMode();
-
-function storageForDraftMode(mode) {
-  try { return mode === DRAFT_MODE_SESSION ? sessionStorage : localStorage; }
+function draftStorage() {
+  try { return sessionStorage; }
   catch(e) { return null; }
 }
 
@@ -309,55 +268,12 @@ function removeDraftFrom(storage) {
   try { if (storage) storage.removeItem(DRAFT_STORAGE_KEY); } catch(e) {}
 }
 
-// Honour a previously selected private mode before any restore occurs.  The
-// mode preference contains no diagram content and may remain in localStorage;
-// the source/config payload may not.
-if (draftStorageMode === DRAFT_MODE_SESSION) removeDraftFrom(storageForDraftMode(DRAFT_MODE_PERSISTENT));
-
-function updateDraftPrivacyControl() {
-  var button = document.getElementById('draft-privacy-btn');
-  if (!button) return;
-  var privateMode = draftStorageMode === DRAFT_MODE_SESSION;
-  button.textContent = privateMode ? 'Autosave: private' : 'Autosave: this browser';
-  button.setAttribute('aria-pressed', privateMode ? 'true' : 'false');
-  button.setAttribute('aria-label', privateMode
-    ? 'Private autosave is on. Draft content is kept only for this tab session. Select to allow persistent browser autosave.'
-    : 'Persistent autosave is on. Draft content is stored in plaintext in this browser. Select for private session-only autosave.');
-  button.title = privateMode
-    ? 'Private: draft content is kept only for this tab session'
-    : 'Draft content is stored in plaintext in this browser; select for private mode';
-}
-
-function setDraftStorageMode(mode) {
-  var next = mode === DRAFT_MODE_SESSION ? DRAFT_MODE_SESSION : DRAFT_MODE_PERSISTENT;
-  if (draftSaveTimer) clearTimeout(draftSaveTimer);
-  draftSaveTimer = null;
-  // Never leave a second copy behind when the user changes privacy scope.
-  removeDraftFrom(storageForDraftMode(DRAFT_MODE_PERSISTENT));
-  removeDraftFrom(storageForDraftMode(DRAFT_MODE_SESSION));
-  draftStorageMode = next;
-  try {
-    if (next === DRAFT_MODE_SESSION) localStorage.setItem(DRAFT_MODE_STORAGE_KEY, DRAFT_MODE_SESSION);
-    else localStorage.removeItem(DRAFT_MODE_STORAGE_KEY);
-  } catch(e) {}
-  updateDraftPrivacyControl();
-  saveEditorDraft();
-  // Do not immediately replace the more important size-limit warning emitted
-  // by saveEditorDraft(); the button already reflects the successful mode
-  // change even when this particular draft cannot be stored.
-  if (!draftSaveLimitNotified && typeof showToast === 'function') {
-    showToast(next === DRAFT_MODE_SESSION
-      ? 'Private autosave enabled. Draft content now stays in this tab session.'
-      : 'Persistent autosave enabled. Draft content is stored in this browser until cleared.');
-  }
-}
-
-function toggleDraftStorageMode() {
-  setDraftStorageMode(draftStorageMode === DRAFT_MODE_SESSION ? DRAFT_MODE_PERSISTENT : DRAFT_MODE_SESSION);
-}
+// Discard stale persistent drafts without reading or restoring them.
+safeLocalStorageRemove(DRAFT_STORAGE_KEY);
 
 function saveEditorDraft() {
-  var storage = storageForDraftMode(draftStorageMode);
+  safeLocalStorageRemove(DRAFT_STORAGE_KEY);
+  var storage = draftStorage();
   if (!storage) return;
   try {
     if (!editor || !editor.value || !editor.value.trim()) {
@@ -396,7 +312,7 @@ function scheduleDraftSave() {
 
 function readEditorDraft() {
   draftRestoreFailure = null;
-  var storage = storageForDraftMode(draftStorageMode);
+  var storage = draftStorage();
   if (!storage) return null;
   try {
     var raw = storage.getItem(DRAFT_STORAGE_KEY) || '';
@@ -420,6 +336,6 @@ function readEditorDraft() {
 function discardEditorDraft() {
   if (draftSaveTimer) clearTimeout(draftSaveTimer);
   draftSaveTimer = null;
-  removeDraftFrom(storageForDraftMode(DRAFT_MODE_PERSISTENT));
-  removeDraftFrom(storageForDraftMode(DRAFT_MODE_SESSION));
+  removeDraftFrom(draftStorage());
+  safeLocalStorageRemove(DRAFT_STORAGE_KEY);
 }

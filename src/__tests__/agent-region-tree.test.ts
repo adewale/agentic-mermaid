@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { layoutMermaid, parseMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 
 const SOURCE = `flowchart TD

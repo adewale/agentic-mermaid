@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
-import { asClass, asMindmap, asRadar, layoutMermaid, parseMermaid } from '../agent/index.ts'
+import { asClass, asMindmap, asRadar, layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 
 function example(id: string): string {
   const entry = EDITOR_EXAMPLES.find(candidate => candidate.id === id)

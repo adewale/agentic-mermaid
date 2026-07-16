@@ -49,7 +49,7 @@ const useTestPngPlaceholder = process.argv.includes('--test-png-placeholder')
 mkdirSync(outDir, { recursive: true })
 
 const AGENT_CODE = `
-const parsed = mermaid.parseMermaid('---\\ntitle: Auth Flow Draft\\n---\\nflowchart LR\\n')
+const parsed = mermaid.parseRegisteredMermaid('---\\ntitle: Auth Flow Draft\\n---\\nflowchart LR\\n')
 if (!parsed.ok) return { phase: 'parse', errors: parsed.error }
 
 const flow = mermaid.asFlowchart(parsed.value)

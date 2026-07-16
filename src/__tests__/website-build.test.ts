@@ -7,7 +7,7 @@ import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
-import { HOSTED_FONT_FACES, HOSTED_FONT_FILES } from '../font-manifest.ts'
+import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveBuildGitSha } from '../../website/build-provenance.ts'
@@ -19,7 +19,7 @@ import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
-const TEST_PNG_RECEIPT = { version: 1, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance' } as const
+const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
 
 function read(rel: string) {
   return readFileSync(join(SITE, rel), 'utf8')
@@ -415,7 +415,7 @@ describe('Workers Static Assets website contract', () => {
     // fallback second); DejaVu (PNG parity face) stays TTF-only. The editor
     // page keeps the plain TTF faces — its export path embeds full fonts.
     const SUBSET = new Set(['Caveat.ttf', 'EBGaramond.ttf', 'ShareTechMono.ttf', 'ArchitectsDaughter.ttf'])
-    for (const font of HOSTED_FONT_FACES) {
+    for (const font of HOSTED_FONT_RESOURCES) {
       const publicFace = `@font-face { font-family: '${font.family}'; src: url('/fonts/${font.file}') format('truetype'); font-weight: ${font.weight}; font-style: ${font.style}; font-display: swap; }`
       const subsetFace = publicFace.replace(
         `src: url('/fonts/${font.file}') format('truetype');`,
@@ -428,13 +428,13 @@ describe('Workers Static Assets website contract', () => {
       const rel = `fonts/${file.replace(/\.ttf$/, '.subset.woff2')}`
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
     }
-    for (const file of HOSTED_FONT_FILES) {
+    for (const { file } of HOSTED_FONT_RESOURCES) {
       const rel = `fonts/${file}`
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: true })
     }
     const editorScript = read(editorScriptRel(editor))
     const presetFonts = readJsonGlobal<Array<{ name: string; value: string; group: string }>>(editorScript, 'EDITOR_PRESET_FONTS')
-    const hostedFamilies = Array.from(new Set(HOSTED_FONT_FACES.map((font) => font.family)))
+    const hostedFamilies = Array.from(new Set(HOSTED_FONT_RESOURCES.map((font) => font.family)))
     expect(presetFonts.filter((font) => font.group === 'Self-hosted').map((font) => font.value)).toEqual(hostedFamilies)
     const allowedSystem = new Set(['system-ui', 'Arial', 'Georgia', 'Courier New'])
     for (const font of presetFonts) {
@@ -518,7 +518,7 @@ describe('Workers Static Assets website contract', () => {
     expect(gettingStarted).toContain('Run from the cloned repo root')
     expect(home).not.toContain('data-copy-name="MCP config"')
     expect(home).not.toContain('class="copy-btn"')
-    expect(home).toContain('<span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span>')
+    expect(home).toContain('<span>parseRegisteredMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span>')
     expect(home).toContain('aria-label="Agent entrypoints"')
     expect(home).toContain('Agent quick start')
     expect(home).toContain('Prompt, style, verify')

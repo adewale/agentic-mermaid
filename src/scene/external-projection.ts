@@ -158,7 +158,7 @@ function assertExternalPathPointAgreement(
 }
 
 export function externalConnectorSvg(
-  fields: Pick<ConnectorMark, 'geometry' | 'lineStyle' | 'paint'>,
+  fields: { geometry: ConnectorGeometry; lineStyle: ConnectorMark['lineStyle']; paint: MarkPaint },
   startMarker: MarkerDescriptor | undefined,
   midMarker: MarkerDescriptor | undefined,
   endMarker: MarkerDescriptor | undefined,
@@ -173,8 +173,7 @@ export function externalConnectorSvg(
 }
 
 /** Rebuild one structured external mark using only fields exposed by the
- * declarative builder. Admission compares the result with the supplied mark,
- * closing the compatibility `crisp` escape hatch without a second serializer. */
+ * declarative builder. Admission compares the result with the supplied mark. */
 export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | ConnectorMark): SceneNode {
   switch (node.kind) {
     case 'shape':
@@ -210,13 +209,29 @@ export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | C
       const start = node.markers.start
       const mid = node.markers.mid.length === 1 ? node.markers.mid[0] : undefined
       const end = node.markers.end
-      assertExternalConnectorTopology(node.geometry, node.route.closed)
+      const geometry = node.route.geometry
+      const paint: MarkPaint = {
+        fill: 'none',
+        stroke: node.stroke.color,
+        strokeWidth: String(node.stroke.width),
+        ...(node.stroke.opacity === undefined ? {} : { opacity: String(node.stroke.opacity) }),
+        ...(node.stroke.dash === undefined ? {} : {
+          strokeDasharray: typeof node.stroke.dash.array === 'string' ? node.stroke.dash.array : node.stroke.dash.array.join(' '),
+          ...(node.stroke.dash.offset === undefined ? {} : { strokeDashoffset: String(node.stroke.dash.offset) }),
+        }),
+        strokeLinecap: node.stroke.lineCap,
+        strokeLinejoin: node.stroke.lineJoin,
+        strokeMiterlimit: String(node.stroke.miterLimit),
+        ...(node.stroke.paintOrder === undefined ? {} : { paintOrder: node.stroke.paintOrder }),
+        ...(node.stroke.nonScaling ? { vectorEffect: 'non-scaling-stroke' as const } : {}),
+      }
+      assertExternalConnectorTopology(geometry, node.route.closed)
       return marks.connector({
         id: node.id,
         role: node.role,
-        geometry: node.geometry,
+        geometry,
         lineStyle: node.lineStyle,
-        paint: node.paint,
+        paint,
         endpoints: {
           ...(node.endpoints.from === undefined ? {} : { from: node.endpoints.from }),
           ...(node.endpoints.to === undefined ? {} : { to: node.endpoints.to }),
@@ -225,9 +240,8 @@ export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | C
         route: { closed: node.route.closed },
         markers: { ...(start ? { start } : {}), mid: mid ? [mid] : [], ...(end ? { end } : {}) },
         labels: node.labels,
-        projectAccessibilityToSvg: true,
         ...(node.channels ? { channels: node.channels } : {}),
-      }, externalConnectorSvg(node, start, mid, end))
+      }, externalConnectorSvg({ geometry, lineStyle: node.lineStyle, paint }, start, mid, end))
     }
   }
 }

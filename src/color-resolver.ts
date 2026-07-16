@@ -1,24 +1,17 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
 import { tryParseHex, luma255 } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
-import { DEFAULTS, THEMES } from './theme.ts'
+import { DEFAULTS } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 import { safeCssPaint } from './shared/css-color.ts'
-
-const ZINC_DARK = THEMES['zinc-dark'] ?? { bg: '#18181B', fg: '#FAFAFA' }
 
 const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   default: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
   base: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
   neutral: { bg: '#ffffff', fg: '#1f2937', line: '#9ca3af', accent: '#6b7280', muted: '#6b7280' },
   dark: {
-    bg: ZINC_DARK.bg,
-    fg: ZINC_DARK.fg,
-    line: ZINC_DARK.line,
-    accent: ZINC_DARK.accent,
-    muted: ZINC_DARK.muted,
-    surface: ZINC_DARK.surface,
-    border: ZINC_DARK.border,
+    bg: '#18181B',
+    fg: '#FAFAFA',
   },
   forest: { bg: '#f0fdf4', fg: '#14532d', line: '#4d7c0f', accent: '#15803d', muted: '#65a30d', border: '#86efac' },
 }
@@ -69,7 +62,6 @@ export function resolveDiagramColors(
 
 export function resolveThemeColors(themeName: string | undefined): DiagramColors | undefined {
   if (!themeName) return undefined
-  if (themeName in THEMES) return THEMES[themeName as keyof typeof THEMES]
   return MERMAID_THEME_COLORS[themeName.toLowerCase()]
 }
 

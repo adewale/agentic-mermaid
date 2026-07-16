@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
-import { layoutMermaid, parseMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
@@ -94,7 +94,7 @@ function expectedRelationTuples(family: DiagramKind, layout: ReturnType<typeof l
     const occurrence = occurrences.get(key) ?? 0
     occurrences.set(key, occurrence + 1)
     const arrow = `${edge.from}-&gt;${edge.to}`
-    if (family === 'sequence') return { id: `message:${arrow}#${occurrence}`, role: 'message', from: edge.from, to: edge.to }
+    if (family === 'sequence') return { id: `message:${arrow}#${occurrence}:line`, role: 'message', from: edge.from, to: edge.to }
     if (family === 'class') return { id: `rel:${arrow}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
     if (family === 'er') return { id: `rel:${edge.from}-${edge.to}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
     if (family === 'mindmap' || family === 'gitgraph') return { id: arrow, role: 'edge', from: edge.from, to: edge.to }

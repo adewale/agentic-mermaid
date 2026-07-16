@@ -264,10 +264,6 @@ export function layoutFamilyToRendered(
 ): RenderedLayout | null {
   const descriptor = getFamily(d.kind)
   if (!descriptor?.layout || !descriptor.projectPositioned) return null
-  // Before descriptor convergence, source-preserved state diagrams had no
-  // RenderedLayout adapter. Keep that observable 0x0 fallback stable; typed
-  // state bodies still use the descriptor-owned positioned graph below.
-  if (d.kind === 'state' && d.body.kind === 'opaque') return emptyRenderedLayout(d.kind)
   return positionFamilyArtifact(d, options)?.rendered ?? null
 }
 
@@ -277,7 +273,6 @@ export function layoutResolvedFamilyToRendered(
   request: ResolvedRenderRequest,
   options: FamilyPositionedProjectionOptions = {},
 ): RenderedLayout | null {
-  if (d.kind === 'state' && d.body.kind === 'opaque') return emptyRenderedLayout(d.kind)
   return positionResolvedFamilyArtifact(d, request, options)?.rendered ?? null
 }
 

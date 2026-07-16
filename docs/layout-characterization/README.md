@@ -141,7 +141,7 @@ study.
 ### The pipeline in one line
 
 ```
-parseMermaid → convertToAsciiGraph → createMapping (grid + A*) → drawGraph → canvasToString
+parseRegisteredMermaid → convertToAsciiGraph → createMapping (grid + A*) → drawGraph → canvasToString
 ```
 
 `createMapping` (`grid.ts`) is the heart: it places each node as a **3×3 grid

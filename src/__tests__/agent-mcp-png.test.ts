@@ -77,7 +77,7 @@ describe('MCP — render_png tool', () => {
     expect(a.png_base64).not.toBe(b.png_base64)
   })
 
-  test('top-level style and seed override the canonical options object', async () => {
+  test('style and seed are accepted only through the canonical options object', async () => {
     const source = 'flowchart TD\n  A --> B'
     const render = async (arguments_: Record<string, unknown>) => {
       const response = await handleRequest({
@@ -89,14 +89,18 @@ describe('MCP — render_png tool', () => {
         receipt: unknown
       }
     }
-    const direct = await render({ style: 'crisp', seed: 7 })
-    const overlaid = await render({
+    const crisp = await render({ options: { style: 'crisp', seed: 7 } })
+    const handDrawn = await render({
       options: { style: 'hand-drawn', seed: 1 },
-      style: 'crisp',
-      seed: 7,
     })
-    expect(overlaid.png_base64).toBe(direct.png_base64)
-    expect(overlaid.receipt).toEqual(direct.receipt)
+    expect(handDrawn.png_base64).not.toBe(crisp.png_base64)
+    expect(handDrawn.receipt).not.toEqual(crisp.receipt)
+
+    const removed = await handleRequest({
+      jsonrpc: '2.0', id: 51, method: 'tools/call',
+      params: { name: 'render_png', arguments: { source, scale: 0.1, style: 'crisp', seed: 7 } },
+    })
+    expect(removed?.error?.code).toBe(-32602)
   })
 
   test('missing source → -32602', async () => {

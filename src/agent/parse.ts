@@ -1,5 +1,5 @@
 // ============================================================================
-// parseMermaid: source → ValidDiagram (multi-error).
+// parseRegisteredMermaid: source → ParsedDiagram (multi-error).
 //
 // v4 sequence fidelity: parseSequenceBody returns null if it encounters ANY
 // non-blank, non-comment line it doesn't fully understand. parse then falls
@@ -9,21 +9,19 @@
 
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { decodeXML } from 'entities'
-import { isBuiltinFamilyId } from './families.ts'
 import {
   classifyMermaidFamilyDescriptorFromFirstLine,
   familyDetectionDiagnostic,
-  familyDetectionDiagnosticFromPreservedBody,
 } from '../family-detection.ts'
 import { serializeMermaid } from './serialize.ts'
-import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
-  ValidDiagram, ParsedDiagram, ExtensionValidDiagram, PreservedValidDiagram, ParseError, Result, ValidDiagramMeta,
+  ParsedDiagram, ExtensionValidDiagram, PreservedValidDiagram, ParseError, Result, ValidDiagram, ValidDiagramMeta,
   SourceMap, SourceComment,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { assertJsonConfigAdmission } from '../shared/json-config-admission.ts'
+import { isBuiltinFamilyId } from './families.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
 export { parseSequenceBody } from './sequence-body.ts'
@@ -102,35 +100,6 @@ function admittedExtensionData(value: unknown, family: string): unknown {
   return snapshotExtensionJson(value)
 }
 
-/** Backward-compatible built-in parser. Use parseRegisteredMermaid for open family ids. */
-export function parseMermaid(source: string): Result<ValidDiagram, ParseError[]> {
-  const parsed = parseRegisteredMermaid(source)
-  if (!parsed.ok) return err(parsed.error)
-  if (isBuiltinParsedDiagram(parsed.value)) return ok(parsed.value)
-  if (parsed.value.body.kind === 'preserved') {
-    const diagnostic = familyDetectionDiagnosticFromPreservedBody(parsed.value.body)
-    return err([diagnostic])
-  }
-  return err([{
-    code: 'EXTENSION_PARSE_REQUIRES_OPEN_ENVELOPE',
-    message: `Installed family "${parsed.value.kind}" parsed successfully through its descriptor, but this compatibility entrypoint returns built-in bodies only`,
-    line: 1,
-    preservation: {
-      version: 1,
-      classification: 'unsupported',
-      source,
-      header: parsed.value.canonicalSource.split(/\r?\n/, 1)[0] ?? '',
-      upstreamFamilyId: parsed.value.kind,
-      mermaidVersion: UPSTREAM_MERMAID_FAMILY_INDEX.provenance.version,
-    },
-    help: 'Call parseRegisteredMermaid to receive the namespaced extension body envelope.',
-  }])
-}
-
-function isBuiltinParsedDiagram(diagram: ParsedDiagram): diagram is ValidDiagram {
-  return isBuiltinFamilyId(diagram.kind)
-}
-
 function semanticFamilyLineSource(
   source: string,
   familyLineBoundary: number,
@@ -184,8 +153,8 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   const canonicalSource = authoredEnvelope.text
   // For opaque bodies, preserve original indentation/blank lines so the
   // serializer can re-emit the untouched body. canonicalSource at the
-  // ValidDiagram level remains the normalized (line-trimmed) form for
-  // back-compat with the existing flowchart/legacy paths.
+  // ValidDiagram level remains the normalized (line-trimmed) form used by
+  // the built-in renderer paths.
   const opaqueSource = authoredEnvelope.body
 
   if (normalized.lines.length === 0) {

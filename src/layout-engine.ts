@@ -37,7 +37,7 @@ import type {
 import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
-import { resolvedStateVisualOf, type ResolvedStateVisualConfig } from './state/config.ts'
+import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -1670,7 +1670,7 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
-  const stateVisual = resolvedStateVisualOf(options)
+  const stateVisual = (options as StateRenderOptions).stateVisual
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults, options.styleFace)
   const elkGraph = mermaidToElk(graph, opts, style)
@@ -1763,7 +1763,7 @@ export function convertToElkFormat(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): ElkNode {
-  const stateVisual = resolvedStateVisualOf(options)
+  const stateVisual = (options as StateRenderOptions).stateVisual
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults, options.styleFace)
   return mermaidToElk(graph, opts, style)

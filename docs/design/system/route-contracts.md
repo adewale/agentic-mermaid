@@ -654,7 +654,7 @@ while exposing richer final endpoint metadata. Labeled feedback keeps its
 outer-channel route and does not compete for the facing side. This closes the
 #26/#38 dynamic-port slice without changing default JSON: assignments are
 visible only on opt-in debug certificates (`layoutMermaid(d, { debug: true })`
-or `am render --format json --certificates`).
+or `am render --format layout --certificates`).
 
 All of these compositions are pinned by the **contact sheet**
 (`eval/visual-rubric/scenarios.ts`, lettered A–V; rendered for humans by
@@ -843,11 +843,11 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 5. Diamond endpoints land on the diamond polygon, not bbox corners — ray-intersection re-anchoring + property test + `ROUTE_SHAPE_MISANCHOR` tripwire.
 6. No node movement after the route pass — pipeline placement + `ROUTE_STALE_AFTER_NODE_MOVE` tripwire.
 7. Corpus diff shows no regressions — `eval/layout-compare` runs recorded in the PR (18 changed / 0 regressions for the full batch).
-8. Diagnostics available to tests and tooling — `classifyRoutes` / `auditRouteContracts` / `findRouteHitches` exported; `layoutMermaid(d, { debug: true })` attaches graph `RouteCertificate`s, family `FamilyEdgeRouteCertificate`s, and `RegionContainmentCertificate`s to layout JSON; and `am render --format json --certificates` exposes the same opt-in certificate schema without changing default JSON output.
+8. Diagnostics available to tests and tooling — `classifyRoutes` / `auditRouteContracts` / `findRouteHitches` exported; `layoutMermaid(d, { debug: true })` attaches graph `RouteCertificate`s, family `FamilyEdgeRouteCertificate`s, and `RegionContainmentCertificate`s to layout JSON; and `am render --format layout --certificates` exposes the same opt-in certificate schema without changing default JSON output.
 
 ## 12. Issue #25 open questions, resolved
 
-1. *Certificates public or test-only?* — public but opt-in: `layoutMermaid(d, { debug: true })` and `am render --format json --certificates` expose route certificates; default JSON remains certificate-free for schema stability. V1 certificates keep the concrete `AnyPort = N|E|S|W|NE|SE|SW|NW` vocabulary, and the additive side+slot+semantic-role allocator is exposed as `sourcePortAssignment` / `targetPortAssignment`.
+1. *Certificates public or test-only?* — public but opt-in: `layoutMermaid(d, { debug: true })` and `am render --format layout --certificates` expose route certificates; default JSON remains certificate-free for schema stability. V1 certificates keep the concrete `AnyPort = N|E|S|W|NE|SE|SW|NW` vocabulary, and the additive side+slot+semantic-role allocator is exposed as `sourcePortAssignment` / `targetPortAssignment`.
 2. *Mermaid source route hints?* — no, as recommended; intent stays inferred from semantics and author order.
 3. *Should feedback always detour?* — resolved by adopting ELK's feedbackEdges outer-channel routing plus loop tightening: labeled feedback loops around the nodes (label riding the loop with reserved space), unlabeled feedback collapses to a parallel straight back-arrow when provably clear. Feedback never shares the forward lane.
 4. *Should labels force a bend?* — a label may only sit ON its own route (Kakoulis–Tollis unambiguity; dot's virtual-node doctrine). If the straight lane cannot host the pill, the edge keeps its outer loop — the canvas grows to make room, the label never floats beside a lane it doesn't belong to.

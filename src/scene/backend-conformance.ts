@@ -30,7 +30,6 @@ import {
   type ConnectorMark,
   type DocumentMark,
   type GroupMark,
-  type PreludeMark,
   type SceneDoc,
   type SceneNode,
   type ShapeMark,
@@ -45,12 +44,13 @@ import {
   documentClose,
   documentText,
   group,
-  prelude,
+  documentOpen,
   shape,
   text,
 } from './marks.ts'
+import { sceneNodeSerialization } from './serialization.ts'
 
-export const BACKEND_CONFORMANCE_VERSION = 3 as const
+export const BACKEND_CONFORMANCE_VERSION = 4 as const
 export const BACKEND_CONFORMANCE_FIXTURE_ID = 'backend-claim-matrix@3' as const
 
 export const BACKEND_CONFORMANCE_CHECK_IDS = Object.freeze([
@@ -122,7 +122,7 @@ interface ConformanceProbe {
 }
 
 interface ConformanceNodes {
-  readonly root: PreludeMark
+  readonly root: DocumentMark
   readonly marker: DocumentMark
   readonly shape: ShapeMark
   readonly container: GroupMark
@@ -161,7 +161,7 @@ function createFixture(): ConformanceFixture {
     overflow: 'visible' as const,
     paint: { fill: '#a33b20', stroke: '#334155', strokeWidth: '1' },
   }
-  const root = prelude({
+  const root = documentOpen({
     id: 'backend-conformance-prelude',
     width: 120,
     height: 80,
@@ -255,7 +255,6 @@ function createFixture(): ConformanceFixture {
       clearance: 2, halo: { color: '#ffffff', width: 3 }, paint: { fill: '#172033' },
       fontSize: 11, textAnchor: 'middle', visual: { kind: 'inline' },
     }],
-    projectAccessibilityToSvg: true,
   }, '<path d="M 42 28 L 62 14 Q 66 12 70 14 L 90 28" fill="none" stroke="#334155" stroke-width="2" stroke-opacity="0.65" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="7" stroke-dasharray="6 3" stroke-dashoffset="2" pathLength="77" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-start="url(#backend-conformance-arrow)" marker-mid="url(#backend-conformance-arrow)" marker-end="url(#backend-conformance-arrow)" />')
   const freehandConnector = connector({
     id: 'backend-conformance-freehand-relation',
@@ -275,7 +274,6 @@ function createFixture(): ConformanceFixture {
     relationship: { kind: 'association', direction: 'forward' },
     stroke: { lineCap: 'square', lineJoin: 'miter', miterLimit: 7, nonScaling: true },
     transform: { kind: 'rotate', angle: 90, cx: 42, cy: 58 },
-    projectAccessibilityToSvg: true,
   }, '<line x1="42" y1="58" x2="90" y2="58" fill="none" stroke="#334155" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="7" vector-effect="non-scaling-stroke" />')
   const closedConnector = connector({
     id: 'backend-conformance-closed-relation',
@@ -323,6 +321,7 @@ function createFixture(): ConformanceFixture {
     width: 120,
     height: 80,
     colors,
+    transparent: false,
     parts: [root, title, description, marker, container, dataMark, richConnector, label, documentClose()],
   }
   const probes: ConformanceProbe[] = [
@@ -421,7 +420,7 @@ function nativeOrEmulated(
   extra: (output: string, visible: string) => boolean = () => true,
 ): WitnessOutcome {
   const output = drawn(backend, node)
-  const visible = visibleSketchProjection(output, node.crisp)
+  const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
   const nativeObserved = node.kind === 'text'
     ? output.includes(node.text) && output.includes(`x="${node.x}"`) && output.includes(`y="${node.y}"`)
     : node.kind === 'shape' && node.geometry.kind === 'rect'
@@ -429,17 +428,17 @@ function nativeOrEmulated(
         && output.includes(`y="${node.geometry.y}"`)
         && output.includes(`width="${node.geometry.width}"`)
         && output.includes(`height="${node.geometry.height}"`)
-      : node.kind === 'connector' && node.geometry.kind === 'line'
-        ? output.includes(`x1="${node.geometry.x1}"`)
-          && output.includes(`y1="${node.geometry.y1}"`)
-          && output.includes(`x2="${node.geometry.x2}"`)
-          && output.includes(`y2="${node.geometry.y2}"`)
-        : node.kind === 'connector' && node.geometry.kind === 'path'
-          ? output.includes(`d="${node.geometry.d}"`)
-      : output === node.crisp
+      : node.kind === 'connector' && node.route.geometry.kind === 'line'
+        ? output.includes(`x1="${node.route.geometry.x1}"`)
+          && output.includes(`y1="${node.route.geometry.y1}"`)
+          && output.includes(`x2="${node.route.geometry.x2}"`)
+          && output.includes(`y2="${node.route.geometry.y2}"`)
+        : node.kind === 'connector' && node.route.geometry.kind === 'path'
+          ? output.includes(`d="${node.route.geometry.d}"`)
+      : output === sceneNodeSerialization(node)
   const realizationMatches = claim.realization === 'native'
     ? nativeObserved
-    : claim.realization === 'emulated' && output !== node.crisp && visible.includes('<path')
+    : claim.realization === 'emulated' && output !== sceneNodeSerialization(node) && visible.includes('<path')
   const hybridNonConnector = claim.target === 'backend:hybrid' && node.kind === 'shape'
     ? output.includes('fill-opacity=') && output.includes('stroke="none"')
     : true
@@ -458,17 +457,17 @@ function connectorProjectedField(
 ): WitnessOutcome {
   const node = claim.realization === 'lossy' ? FIXTURE.nodes.freehandConnector : FIXTURE.nodes.richConnector
   const output = drawn(backend, node)
-  const visible = visibleSketchProjection(output, node.crisp)
+  const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
   if (claim.realization === 'lossy') {
     return outcome(
-      output !== node.crisp && visible.includes('stroke="none"') && !visible.includes(`${attribute}="`),
-      `visible freehand ribbon intentionally omits ${attribute}; crisp carrier remains non-visual`,
+      output !== sceneNodeSerialization(node) && visible.includes('stroke="none"') && !visible.includes(`${attribute}="`),
+      `visible freehand ribbon intentionally omits ${attribute}; typed semantic projection remains non-visual`,
       `lossy ${attribute} projection was not observable on the visible freehand ribbon`,
     )
   }
   const carrierMode = claim.realization === 'native'
     ? output.includes('data-id="backend-conformance-relation"')
-    : output !== node.crisp
+    : output !== sceneNodeSerialization(node)
   return outcome(
     carrierMode && visible.includes(`${attribute}="${value}"`),
     `${attribute}=${value} present on the ${claim.realization === 'native' ? 'authored' : 'visible generated'} stroke`,
@@ -577,12 +576,12 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/geometry/render': (backend, claim) => {
     const node = FIXTURE.nodes.richConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     return outcome(
       claim.realization === 'native'
-        ? node.geometry.kind === 'path' && output.includes(`d="${node.geometry.d}"`)
+        ? node.route.geometry.kind === 'path' && output.includes(`d="${node.route.geometry.d}"`)
         : claim.realization === 'lossy'
-          && output !== node.crisp
+          && output !== sceneNodeSerialization(node)
           && output.includes('Q 66 12 70 14')
           && !visible.includes('Q 66 12 70 14'),
       claim.realization === 'lossy'
@@ -600,7 +599,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/transform/render': (backend, claim) => {
     const node = FIXTURE.nodes.freehandConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     const projected = output.includes('transform="rotate(90 42 58)"')
       && hitTestConnector(node, { x: 42, y: 82 })
       && !hitTestConnector(node, { x: 66, y: 58 })
@@ -615,12 +614,12 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/topology/render': (backend, claim) => {
     const node = FIXTURE.nodes.richConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     return outcome(
       claim.realization === 'native'
-        ? node.geometry.kind === 'path' && output.includes(`d="${node.geometry.d}"`)
+        ? node.route.geometry.kind === 'path' && output.includes(`d="${node.route.geometry.d}"`)
         : claim.realization === 'lossy'
-          && output !== node.crisp
+          && output !== sceneNodeSerialization(node)
           && output.includes('Q 66 12 70 14')
           && !visible.includes('Q 66 12 70 14'),
       claim.realization === 'lossy'
@@ -632,7 +631,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/subpaths/render': (backend, claim) => {
     const node = FIXTURE.nodes.multiSubpathConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     const noBridge = hitTestConnector(node, { x: 18, y: 72 })
       && hitTestConnector(node, { x: 62, y: 72 })
       && !hitTestConnector(node, { x: 40, y: 72 })
@@ -640,7 +639,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
       && node.route.contours.every(contour => contour.startTangent?.x === 1 && contour.endTangent?.x === 1)
     const realization = claim.realization === 'native'
       ? occurrences(output.match(/^\s*<path\b[^>]*>/)?.[0] ?? '', 'M ') === 2
-      : claim.realization === 'emulated' && output !== node.crisp && occurrences(visible, '<path') >= 2
+      : claim.realization === 'emulated' && output !== sceneNodeSerialization(node) && occurrences(visible, '<path') >= 2
     return outcome(
       noBridge && realization,
       'two typed contours render and hit-test without a synthetic bridge',
@@ -650,12 +649,12 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/closedness/render': (backend, claim) => {
     const node = FIXTURE.nodes.closedConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     const closingSegmentHits = hitTestConnector(node, { x: 25, y: 65 })
     const passed = closingSegmentHits && (claim.realization === 'native'
       ? /\sZ(?:\s|&quot;|")/.test(output.match(/^\s*<path\b[^>]*>/)?.[0] ?? '')
       : claim.realization === 'lossy'
-        && output !== node.crisp
+        && output !== sceneNodeSerialization(node)
         && /\sZ(?:\s|&quot;|")/.test(output.slice(0, output.indexOf('\n')))
         && !visible.includes('M 10 65 L 25 50 L 40 65 Z'))
     return outcome(
@@ -669,12 +668,12 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/bend-radius/render': (backend, claim) => {
     const node = FIXTURE.nodes.richConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     const carrierHasCurve = output.includes('Q 66 12 70 14') && node.route.bendRadius === 4
     return outcome(
       carrierHasCurve && (claim.realization === 'native'
         ? !/\sstroke-opacity="0"/.test(output.match(/^\s*<path\b[^>]*>/)?.[0] ?? '')
-        : claim.realization === 'lossy' && output !== node.crisp && !visible.includes('Q 66 12 70 14')),
+        : claim.realization === 'lossy' && output !== sceneNodeSerialization(node) && !visible.includes('Q 66 12 70 14')),
       claim.realization === 'lossy'
         ? 'exact rounded carrier retained while the visible sketch uses the declared routed projection'
         : 'authored rounded connector geometry retained',
@@ -690,7 +689,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/dash-restart/render': (backend, claim) => {
     const node = FIXTURE.nodes.richConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     const count = occurrences(visible, 'stroke-dasharray="6 3"')
     const subpaths = occurrences(visible, 'M')
     return outcome(
@@ -704,7 +703,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'connector/path-length/render': (backend, claim) => {
     const node = FIXTURE.nodes.richConnector
     const output = drawn(backend, node)
-    const visible = visibleSketchProjection(output, node.crisp)
+    const visible = visibleSketchProjection(output, sceneNodeSerialization(node))
     const count = occurrences(visible, 'pathLength="77"')
     const subpaths = occurrences(visible, 'M')
     return outcome(
@@ -736,7 +735,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
     const projected = claim.realization !== 'projected' || svg.includes('markerUnits="userSpaceOnUse"')
     return outcome(
       (claim.realization === 'native' || claim.realization === 'projected') && base && projected,
-      claim.realization === 'projected' ? 'typed marker kept on the crisp carrier with projected units/orientation' : 'native marker orientation retained',
+      claim.realization === 'projected' ? 'typed marker kept in the marker projection with projected units/orientation' : 'native marker orientation retained',
       'marker orientation/carrier projection did not match the declaration',
     )
   },
@@ -756,7 +755,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
         && svg.includes('overflow="visible"')
         && attached,
       claim.realization === 'projected'
-        ? 'visible overflow remains on the typed crisp marker resource and carrier'
+        ? 'visible overflow remains in the typed marker resource projection'
         : 'native marker overflow retained',
       'marker overflow or its connector attachment was not preserved',
     )
@@ -831,7 +830,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
         && output.includes('marker-start="url(#backend-conformance-arrow)"')
         && output.includes('marker-mid="url(#backend-conformance-arrow)"')
         && output.includes('marker-end="url(#backend-conformance-arrow)"'),
-      claim.realization === 'projected' ? 'marker retained on the invisible crisp carrier' : 'native connector marker retained',
+      claim.realization === 'projected' ? 'marker retained in the typed marker projection' : 'native connector marker retained',
       'connector marker projection did not match the declaration',
     )
   },
@@ -871,7 +870,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
       (claim.realization === 'native' || claim.realization === 'projected')
         && output.includes('M 0 0 L 8 4 L 0 8 Z')
         && output.includes('viewBox="0 0 8 8"'),
-      claim.realization === 'projected' ? 'typed marker geometry reserialized on crisp resource carrier' : 'native marker geometry retained',
+      claim.realization === 'projected' ? 'typed marker geometry reserialized in the marker resource projection' : 'native marker geometry retained',
       'marker geometry was not present in backend output',
     )
   },
@@ -881,7 +880,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
       (claim.realization === 'native' || claim.realization === 'projected')
         && output.includes('fill="#a33b20"')
         && output.includes('stroke="#334155"'),
-      claim.realization === 'projected' ? 'typed marker paint retained on crisp resource carrier' : 'native marker paint retained',
+      claim.realization === 'projected' ? 'typed marker paint retained in the marker resource projection' : 'native marker paint retained',
       'marker paint was not present in backend output',
     )
   },

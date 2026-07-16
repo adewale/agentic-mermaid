@@ -52,7 +52,7 @@
       <li><strong>Let the agent edit.</strong> Existing diagrams go through typed mutation; new diagrams start as Mermaid source and then get checked.</li>
       <li><strong>Verify before export.</strong> Render SVG or PNG only after warnings are read and the source still says what you asked for.</li>
     </ol>
-    <p class="agent-trace" aria-label="Expected agent trace"><span>parseMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
+    <p class="agent-trace" aria-label="Expected agent trace"><span>parseRegisteredMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span></p>
     {{WORKFLOW_FIGURE}}
   </section>
 
@@ -91,10 +91,10 @@
       </div>
       <div class="tab-panel" role="tabpanel" id="channel-panel-library" aria-labelledby="channel-tab-library" tabindex="0">
         <p class="meta-label tab-panel-label">Library</p>
-        <pre><code>import { parseMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid }
+        <pre><code>import { parseRegisteredMermaid, asFlowchart, mutate, verifyMermaid, serializeMermaid }
   from 'agentic-mermaid/agent'
 
-const flow = asFlowchart(parseMermaid(source).value)
+const flow = asFlowchart(parseRegisteredMermaid(source).value)
 const r = mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
 if (!verifyMermaid(r.value).ok) throw new Error('edit left structural warnings')
 const next = serializeMermaid(r.value)</code></pre>
@@ -112,7 +112,7 @@ const next = serializeMermaid(r.value)</code></pre>
 <span class="c">// The whole loop runs in one execute(code) call; the SDK is bound as `mermaid`.</span>
 execute(`
   const source = 'flowchart LR\n  UI[Web app] --> API\n  API --> DB[(Postgres)]'
-  const flow = mermaid.asFlowchart(mermaid.parseMermaid(source).value)
+  const flow = mermaid.asFlowchart(mermaid.parseRegisteredMermaid(source).value)
   const r = mermaid.mutate(flow, { kind: 'add_edge', from: 'API', to: 'Cache' })
   const v = mermaid.verifyMermaid(r.value)
   return v.ok ? { source: mermaid.serializeMermaid(r.value) }

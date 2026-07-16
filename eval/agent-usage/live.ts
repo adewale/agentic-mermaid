@@ -73,7 +73,7 @@ export function buildLiveEvalSystemPrompt(instructions = readFileSync(join(impor
   return `You are generating JavaScript for agentic-mermaid Code Mode.
 Return ONLY the JavaScript body that will be passed to execute(code). Do not include markdown.
 The code runs synchronously in a node:vm sandbox with global mermaid.*; do not use async/await, Promise jobs, dynamic import, filesystem, network, or template-literal interpolation.
-For new diagrams, author Mermaid source directly, then parseMermaid and verifyMermaid. For existing modeled diagrams, use family narrowers, mutate, verifyMermaid, and serializeMermaid. Inspect verify.ok/warnings before returning or serializing. SDK-returned diagrams are read-only; structured edits must use mermaid.mutate.
+For new diagrams, author Mermaid source directly, then parseRegisteredMermaid and verifyMermaid. For existing modeled diagrams, use family narrowers, mutate, verifyMermaid, and serializeMermaid. Inspect verify.ok/warnings before returning or serializing. SDK-returned diagrams are read-only; structured edits must use mermaid.mutate.
 
 ${instructions}
 

@@ -51,7 +51,7 @@
     },
     "outputFormats": {
       "type": "array",
-      "items": { "type": "string", "enum": ["svg", "ascii", "unicode", "png", "json"] }
+      "items": { "type": "string", "enum": ["svg", "ascii", "unicode", "png", "layout"] }
     },
     "sectionA": {
       "type": "object",

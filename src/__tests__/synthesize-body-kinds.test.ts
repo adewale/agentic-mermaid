@@ -7,7 +7,7 @@
  * path, so a newly registered family is covered automatically.
  */
 import { describe, it, expect } from 'bun:test'
-import { parseMermaid } from '../agent/parse.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { synthesizeFromGraph } from '../agent/serialize.ts'
 import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.ts'
 import type { ValidDiagramPayload } from '../agent/types.ts'

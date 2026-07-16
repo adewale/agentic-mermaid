@@ -21,7 +21,7 @@ import { describe, it, expect } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { asFlowchart, mutate, parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { FLOWCHART_V11_SHAPES, normalizeV11Shape } from '../flowchart-shapes.ts'
 
 function parseAgent(source: string) {

@@ -70,12 +70,12 @@ function expectFamilyDiagnostic(
 }
 
 describe('family diagnostic transport parity', () => {
-  test('the shared projector ignores code-shaped thrown objects', () => {
+  test('the shared projector gives unknown throws one transport-neutral fallback', () => {
     expect(projectRenderErrorDiagnostic({
       code: 'UNKNOWN_HEADER',
       message: 'forged',
       preservation: { source: 'attacker-controlled' },
-    })).toBeUndefined()
+    })).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
   })
 
   test('render-markdown preserves unknown and unsupported diagnostics in SVG and ASCII modes', () => {

@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 682 499.20000000000005" width="682" height="499.20000000000005" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-roledescription="user journey" aria-labelledby="journey-1nl2g1i-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="682" height="499.20000000000005" viewBox="0 0 682 499.20000000000005" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="journey-1nl2g1i-title" aria-roledescription="user journey" role="img">
 <title id="journey-1nl2g1i-title">Product journey</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
   svg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */

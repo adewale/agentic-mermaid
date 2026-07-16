@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { spawnSync } from 'node:child_process'
-import { layoutMermaid, parseMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { layoutCertificateProof } from '../agent/certificates.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
@@ -336,7 +336,7 @@ describe('property: FamilyDescriptor render waist', () => {
           if (seen.has(familyId)) continue
           seen.add(familyId)
           registerFamily({
-            contractVersion: 1,
+            contractVersion: 2,
             identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: '^0.1.1' }, provenance: { owner: 'property-test', source: 'test' } },
             id: familyId,
             label: familyId,

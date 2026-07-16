@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
-import { renderMermaidAscii } from '../src/ascii/index.ts'
+import { renderMermaidASCII } from '../src/ascii/index.ts'
 
 interface TestCase {
   sourceLines: string[]
@@ -114,7 +114,7 @@ const changed: string[] = []
 for (const file of expandInputs(inputs)) {
   const content = readFileSync(file, 'utf-8')
   const tc = parseFixture(content)
-  const actual = normalizeGolden(renderMermaidAscii(tc.mermaid, {
+  const actual = normalizeGolden(renderMermaidASCII(tc.mermaid, {
     useAscii: useAsciiFor(file),
     paddingX: tc.paddingX,
     paddingY: tc.paddingY,

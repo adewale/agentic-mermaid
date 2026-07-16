@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
-import { THEMES } from '../../src/theme.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
@@ -22,7 +22,7 @@ const OPTIONS = {
   seed: 3,
 }
 
-const COLORS = THEMES.salmon!
+const COLORS = BUILTIN_PALETTE_DEFINITIONS.find(palette => palette.inputName === 'salmon')!.colors
 const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
   join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
@@ -49,10 +49,9 @@ function renderSvgAtSha(sha: string): string {
     if (!existsSync(modules)) symlinkSync(join(ROOT, 'node_modules'), modules, 'dir')
     writeFileSync(join(wt, 'issue-38-probe.ts'), `
       import { renderMermaidSVG } from './src/index.ts'
-      import { THEMES } from './src/theme.ts'
       const source = ${JSON.stringify(SOURCE)}
       const options = ${JSON.stringify(OPTIONS)}
-      console.log(renderMermaidSVG(source, { ...THEMES.salmon, ...options, embedFontImport: false }))
+      console.log(renderMermaidSVG(source, { style: 'salmon', ...options, embedFontImport: false }))
     `)
     return execFileSync('bun', ['issue-38-probe.ts'], {
       cwd: wt,

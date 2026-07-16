@@ -115,27 +115,6 @@
   align-items: center;
   gap: 8px;
 }
-.draft-privacy-btn {
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--fg3);
-  font: inherit;
-  padding: 2px 6px;
-  cursor: pointer;
-  white-space: nowrap;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.draft-privacy-btn:hover,
-.draft-privacy-btn:focus-visible {
-  color: var(--fg);
-  background: var(--control-bg-hover);
-}
-.draft-privacy-btn[aria-pressed="true"] {
-  color: var(--info);
-  text-decoration: none;
-}
 .report-issue-link {
   color: var(--fg3);
   text-decoration: underline;
