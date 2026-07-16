@@ -1,6 +1,6 @@
 // Loop 13 M3 (#1018): single-binary distribution via `bun build --compile`.
 // Builds the standalone executable and smoke-runs it across formats.
-// Skips gracefully if `bun build --compile` isn't available.
+// Compilation is the distribution gate: failure must fail, never skip.
 
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
@@ -18,33 +18,40 @@ const work = mkdtempSync(join(tmpdir(), 'am-bin-'))
 const BIN = join(work, 'am')
 const build = spawnSync('bun', ['build', ENTRY, '--compile', '--outfile', BIN], { encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
 const haveBinary = build.status === 0 && existsSync(BIN)
-
-const fn = haveBinary ? test : test.skip
+if (!haveBinary) {
+  throw new Error([
+    'single-binary compilation failed',
+    `status=${String(build.status)} signal=${String(build.signal)}`,
+    `error=${build.error?.message ?? ''}`,
+    `stdout=${build.stdout ?? ''}`,
+    `stderr=${build.stderr ?? ''}`,
+  ].join('\n'))
+}
 
 const fixture = join(work, 'd.mmd')
 writeFileSync(fixture, 'flowchart TD\n  A[Start] --> B[End]\n')
 
 describe('#1018 single-binary distribution', () => {
-  fn('binary renders SVG', () => {
+  test('binary renders SVG', () => {
     const r = spawnSync(BIN, ['render', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     expect(r.stdout).toContain('<svg')
   })
 
-  fn('binary renders ASCII', () => {
+  test('binary renders ASCII', () => {
     const r = spawnSync(BIN, ['render', '--format', 'ascii', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     expect(r.stdout.length).toBeGreaterThan(0)
   })
 
-  fn('binary emits capabilities JSON', () => {
+  test('binary emits capabilities JSON', () => {
     const r = spawnSync(BIN, ['capabilities', '--json'], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     const cap = JSON.parse(r.stdout)
     expect(Array.isArray(cap.families)).toBe(true)
   })
 
-  fn('binary renders PNG (resvg native addon embeds)', () => {
+  test('binary renders PNG (resvg native addon embeds)', () => {
     const out = join(work, 'd.png')
     // An unrelated cwd proves the executable is not rediscovering this repo's
     // installed assets. Its complete required resource closure must be inside
@@ -59,7 +66,7 @@ describe('#1018 single-binary distribution', () => {
     expect([...readFileSync(out).subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
   })
 
-  fn('binary cold-start is under 1s (improvement over bun-run TS source)', () => {
+  test('binary cold-start is under 1s (improvement over bun-run TS source)', () => {
     const t = Date.now()
     spawnSync(BIN, ['render', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(Date.now() - t).toBeLessThan(1500) // generous CI ceiling; ~440ms observed
