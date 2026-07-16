@@ -99,7 +99,10 @@ describe('ASCII full-corpus determinism', () => {
     expect(rendered).toBe(EXPECTED_CORPUS_RENDERED)
     expect(errors.sort()).toEqual(EXPECTED_CORPUS_ASCII_ERRORS)
     expect(unstable).toEqual([])
-  }, 10_000)
+  // Whole-suite coverage instrumentation pushes this corpus pass just beyond
+  // 10 seconds on shared CI runners; keep the determinism work intact and give
+  // the bounded test enough scheduling headroom.
+  }, 20_000)
 })
 
 describe('ASCII pathfinder determinism', () => {
