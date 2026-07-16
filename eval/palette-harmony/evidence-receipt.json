@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-harmony-experiment.ts",
   "inputCount": 699,
-  "inputTreeSha256": "0f0b5e2b38fc4da7261816b2c6406159c58fb9596cf7af097b37b03bd69b15ae",
+  "inputTreeSha256": "50cd990d4b051e9c6e2959a74ddcac535aa35f603bb8fb6544b73f7d8d27359d",
   "outputs": [
     {
       "path": "eval/palette-harmony/report.json",
-      "sha256": "5a454bfa6370af76308f89f1a6c79aaee57a4bbed3f63f59d0aef3e1548941fc"
+      "sha256": "665dabc68eaa1d2beebf42266d0aa23c066116ce1ec44f3953c2f37b03bd611f"
     },
     {
       "path": "docs/pr-assets/pr-179/palette-harmony-experiment.png",
-      "sha256": "2485fd8109974c8bb44777fb52a2a67dcbe00b6c443b4e9a9a6c20f6a5a5f58d"
+      "sha256": "4bf6a1df344da89b19bb60a7debfe6ff6fb1326381a9e73a828905b6e8dbaab6"
     }
   ]
 }

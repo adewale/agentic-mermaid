@@ -39,7 +39,7 @@ that one scalar score certifies beauty.
 
 ## What the first implementation taught us
 
-The audit and controlled rollout changed the plan in eleven ways.
+The audit and controlled rollout changed the plan in twelve ways.
 
 1. **Runtime is part of correctness.** A deterministic pairwise repair still
    fails the product if an allowed 1,000-slice input takes seconds. The ΔE
@@ -105,6 +105,14 @@ The audit and controlled rollout changed the plan in eleven ways.
     [testing-best-practices guidance](https://github.com/adewale/testing-best-practices/tree/e50479920006aa010850a2c37f9bee1e02b5badf),
     CI gates deterministic complexity and evidence freshness, never a portable
     millisecond threshold.
+
+12. **Normalize at the algorithm boundary without erasing compatibility.**
+    StyleSpec accepts concrete `#RGB`, named, `rgb()`, and `hsl()` colors, while
+    the perceptual math requires six-digit sRGB. The high-count path now
+    normalizes every parser-resolvable concrete color before repair. The ≤6
+    path deliberately preserves each family's historical spelling or fallback
+    policy byte-for-byte; a global normalizer at that boundary would be a
+    compatibility regression disguised as cleanup.
 
 ## Shipped color contract and family reach
 

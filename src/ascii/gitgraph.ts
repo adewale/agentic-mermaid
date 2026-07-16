@@ -88,9 +88,14 @@ export function renderGitGraphAscii(
   }
   const plain = canvasToString(canvas, { roleCanvas: roles, colorMode: 'none', theme }).split('\n').map(line => line.trimEnd())
   if (colorMode !== 'none') {
-    const accent = /^#[0-9a-f]{6}$/i.test(theme.accent ?? '') ? theme.accent! : '#3b82f6'
-    const bg = /^#[0-9a-f]{6}$/i.test(theme.bg ?? '') ? theme.bg! : '#ffffff'
-    const derivedPalette = categoricalPalette(branches.length, { accent, bg })
+    const rawAccent = theme.accent ?? '#3b82f6'
+    const rawBg = theme.bg ?? '#ffffff'
+    const accent = /^#[0-9a-f]{6}$/i.test(rawAccent) ? rawAccent : '#3b82f6'
+    const bg = /^#[0-9a-f]{6}$/i.test(rawBg) ? rawBg : '#ffffff'
+    const derivedPalette = categoricalPalette(
+      branches.length,
+      branches.length <= 6 ? { accent, bg } : { accent: rawAccent, bg: rawBg },
+    )
     branches.forEach((branch, index) => {
       const row = yFor(branch.name)
       const override = safeCssColor(themeVariables?.[`git${index % 8}`])

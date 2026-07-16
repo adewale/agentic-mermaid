@@ -185,9 +185,17 @@ interface GitGraphPaints {
 
 function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors: DiagramColors): GitGraphPaints {
   const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
-  const accent = typeof colors.accent === 'string' && /^#[0-9a-f]{6}$/i.test(colors.accent) ? colors.accent : '#3b82f6'
-  const bg = typeof colors.bg === 'string' && /^#[0-9a-f]{6}$/i.test(colors.bg) ? colors.bg : '#ffffff'
-  const derivedPalette = categoricalPalette(diagram.branches.length, { accent, bg })
+  const rawAccent = typeof colors.accent === 'string' ? colors.accent : '#3b82f6'
+  const rawBg = typeof colors.bg === 'string' ? colors.bg : '#ffffff'
+  const accent = /^#[0-9a-f]{6}$/i.test(rawAccent) ? rawAccent : '#3b82f6'
+  const bg = /^#[0-9a-f]{6}$/i.test(rawBg) ? rawBg : '#ffffff'
+  // GitGraph's <=6 path historically used strict six-digit fallbacks. Above
+  // the compatibility boundary, pass through supported CSS spellings so the
+  // shared waist can normalize and repair them against the actual background.
+  const derivedPalette = categoricalPalette(
+    diagram.branches.length,
+    diagram.branches.length <= 6 ? { accent, bg } : { accent: rawAccent, bg: rawBg },
+  )
   const branches = new Map<string, GitGraphBranchPaint>()
   diagram.branches.forEach((branch, index) => {
     const paletteIndex = index % 8

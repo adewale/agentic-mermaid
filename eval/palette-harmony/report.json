@@ -32,7 +32,7 @@
       "template": "X",
       "orientationDegrees": 125,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#b59d3c",
         "#3e8749",
         "#04b4b9",
@@ -76,7 +76,7 @@
       "template": "X",
       "orientationDegrees": 132,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#bc9a3b",
         "#568336",
         "#2ab6a0",
@@ -122,7 +122,7 @@
       "template": "X",
       "orientationDegrees": 110,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#c1983c",
         "#668027",
         "#49b58b",
@@ -170,7 +170,7 @@
       "template": "X",
       "orientationDegrees": 106,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#c5953d",
         "#717c19",
         "#60b379",
@@ -220,7 +220,7 @@
       "template": "X",
       "orientationDegrees": 91,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#c8943f",
         "#7a7a0b",
         "#71b16c",
@@ -272,7 +272,7 @@
       "template": "X",
       "orientationDegrees": 120,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#ca9240",
         "#807700",
         "#7faf60",
@@ -326,7 +326,7 @@
       "template": "X",
       "orientationDegrees": 118,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#cc9142",
         "#867500",
         "#8aac58",
@@ -382,7 +382,7 @@
       "template": "X",
       "orientationDegrees": 100,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#cd9043",
         "#8a7300",
         "#93aa50",
@@ -440,7 +440,7 @@
       "template": "X",
       "orientationDegrees": 93,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#cf8f45",
         "#8d7100",
         "#a4b055",
@@ -500,7 +500,7 @@
       "template": "X",
       "orientationDegrees": 69,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d08f46",
         "#907000",
         "#97a84d",
@@ -562,7 +562,7 @@
       "template": "X",
       "orientationDegrees": 91,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d18e47",
         "#9c7715",
         "#b9b657",
@@ -626,7 +626,7 @@
       "template": "X",
       "orientationDegrees": 138,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d18d48",
         "#9e7615",
         "#beb555",
@@ -692,7 +692,7 @@
       "template": "X",
       "orientationDegrees": 161,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d28d49",
         "#a07515",
         "#9da74a",
@@ -760,7 +760,7 @@
       "template": "X",
       "orientationDegrees": 1,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d38d4a",
         "#a17415",
         "#a0a647",
@@ -830,7 +830,7 @@
       "template": "X",
       "orientationDegrees": 116,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d38c4b",
         "#a37315",
         "#d2b95a",
@@ -902,7 +902,7 @@
       "template": "X",
       "orientationDegrees": 9,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d48c4c",
         "#a47215",
         "#d5b85a",
@@ -976,7 +976,7 @@
       "template": "X",
       "orientationDegrees": 114,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d48b4d",
         "#a57215",
         "#d7b75a",
@@ -1052,7 +1052,7 @@
       "template": "X",
       "orientationDegrees": 78,
       "base": [
-        "#9A4A24",
+        "#9a4a24",
         "#d48b4d",
         "#a67115",
         "#d9b65a",
@@ -1130,7 +1130,7 @@
       "template": "X",
       "orientationDegrees": 113,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#86852c",
         "#66c093",
         "#0091a6",
@@ -1174,7 +1174,7 @@
       "template": "X",
       "orientationDegrees": 100,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#8d8227",
         "#79be82",
         "#009492",
@@ -1220,7 +1220,7 @@
       "template": "X",
       "orientationDegrees": 151,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#928024",
         "#89bb76",
         "#059580",
@@ -1268,7 +1268,7 @@
       "template": "X",
       "orientationDegrees": 156,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#967e23",
         "#94b96d",
         "#2c9570",
@@ -1318,7 +1318,7 @@
       "template": "X",
       "orientationDegrees": 154,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#997d22",
         "#9eb666",
         "#409364",
@@ -1370,7 +1370,7 @@
       "template": "X",
       "orientationDegrees": 104,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9c7b22",
         "#a5b461",
         "#4f9259",
@@ -1424,7 +1424,7 @@
       "template": "X",
       "orientationDegrees": 104,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9e7a23",
         "#abb25d",
         "#5a9050",
@@ -1480,7 +1480,7 @@
       "template": "X",
       "orientationDegrees": 88,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#a07923",
         "#b0b05a",
         "#6c9852",
@@ -1538,7 +1538,7 @@
       "template": "X",
       "orientationDegrees": 95,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#987017",
         "#b4af58",
         "#74964b",
@@ -1598,7 +1598,7 @@
       "template": "X",
       "orientationDegrees": 104,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#996f18",
         "#c1b860",
         "#7a9446",
@@ -1660,7 +1660,7 @@
       "template": "X",
       "orientationDegrees": 115,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9a6e18",
         "#c5b65f",
         "#7f9341",
@@ -1724,7 +1724,7 @@
       "template": "X",
       "orientationDegrees": 19,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9b6e1a",
         "#c8b55e",
         "#7a9546",
@@ -1790,7 +1790,7 @@
       "template": "X",
       "orientationDegrees": 76,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9c6d1b",
         "#cab45e",
         "#7f9342",
@@ -1858,7 +1858,7 @@
       "template": "X",
       "orientationDegrees": 104,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9d6d1b",
         "#ccb25d",
         "#959842",
@@ -1928,7 +1928,7 @@
       "template": "X",
       "orientationDegrees": 13,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9d6c1c",
         "#ceb25d",
         "#869d4d",
@@ -2000,7 +2000,7 @@
       "template": "X",
       "orientationDegrees": 97,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9e6c1c",
         "#cfb15d",
         "#889c4b",
@@ -2074,7 +2074,7 @@
       "template": "X",
       "orientationDegrees": 33,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#9e6c1d",
         "#c9b45d",
         "#8c9b48",
@@ -2150,7 +2150,7 @@
       "template": "X",
       "orientationDegrees": 135,
       "base": [
-        "#CC8A57",
+        "#cc8a57",
         "#003df6",
         "#55ff12",
         "#df40ff",
@@ -2228,7 +2228,7 @@
       "template": "X",
       "orientationDegrees": 2,
       "base": [
-        "#27272A",
+        "#27272a",
         "#c47ce1",
         "#bd4264",
         "#e6811a",
@@ -2272,7 +2272,7 @@
       "template": "X",
       "orientationDegrees": 176,
       "base": [
-        "#27272A",
+        "#27272a",
         "#bb80e9",
         "#b8437b",
         "#ef764d",
@@ -2318,7 +2318,7 @@
       "template": "X",
       "orientationDegrees": 171,
       "base": [
-        "#27272A",
+        "#27272a",
         "#b482ee",
         "#b2468b",
         "#f2716c",
@@ -2366,7 +2366,7 @@
       "template": "X",
       "orientationDegrees": 0,
       "base": [
-        "#27272A",
+        "#27272a",
         "#ae84f2",
         "#ab4998",
         "#f06f84",
@@ -2416,7 +2416,7 @@
       "template": "X",
       "orientationDegrees": 0,
       "base": [
-        "#27272A",
+        "#27272a",
         "#a986f5",
         "#a64ba1",
         "#ec6e96",
@@ -2468,7 +2468,7 @@
       "template": "X",
       "orientationDegrees": 7,
       "base": [
-        "#27272A",
+        "#27272a",
         "#a588f7",
         "#a04ea8",
         "#e86fa5",
@@ -2522,7 +2522,7 @@
       "template": "X",
       "orientationDegrees": 174,
       "base": [
-        "#27272A",
+        "#27272a",
         "#a189f9",
         "#9c50ae",
         "#e371b1",
@@ -2578,7 +2578,7 @@
       "template": "X",
       "orientationDegrees": 2,
       "base": [
-        "#27272A",
+        "#27272a",
         "#9e8afa",
         "#9751b3",
         "#df72bb",
@@ -2636,7 +2636,7 @@
       "template": "X",
       "orientationDegrees": 178,
       "base": [
-        "#27272A",
+        "#27272a",
         "#9b8bfb",
         "#9353b7",
         "#da74c4",
@@ -2696,7 +2696,7 @@
       "template": "X",
       "orientationDegrees": 177,
       "base": [
-        "#27272A",
+        "#27272a",
         "#988cfc",
         "#9055ba",
         "#d675cb",
@@ -2758,7 +2758,7 @@
       "template": "X",
       "orientationDegrees": 174,
       "base": [
-        "#27272A",
+        "#27272a",
         "#968dfd",
         "#8c56bd",
         "#d277d1",
@@ -2822,7 +2822,7 @@
       "template": "X",
       "orientationDegrees": 171,
       "base": [
-        "#27272A",
+        "#27272a",
         "#948efd",
         "#8957bf",
         "#ce78d6",
@@ -2888,7 +2888,7 @@
       "template": "X",
       "orientationDegrees": 151,
       "base": [
-        "#27272A",
+        "#27272a",
         "#928efe",
         "#8758c1",
         "#ca7ada",
@@ -2956,7 +2956,7 @@
       "template": "X",
       "orientationDegrees": 0,
       "base": [
-        "#27272A",
+        "#27272a",
         "#908ffe",
         "#8459c3",
         "#d184e8",
@@ -3026,7 +3026,7 @@
       "template": "X",
       "orientationDegrees": 7,
       "base": [
-        "#27272A",
+        "#27272a",
         "#8f8ffe",
         "#825ac4",
         "#cc79d8",
@@ -3098,7 +3098,7 @@
       "template": "X",
       "orientationDegrees": 0,
       "base": [
-        "#27272A",
+        "#27272a",
         "#8d90ff",
         "#805bc5",
         "#ca7adb",
@@ -3172,7 +3172,7 @@
       "template": "X",
       "orientationDegrees": 92,
       "base": [
-        "#27272A",
+        "#27272a",
         "#8c90ff",
         "#7e5cc7",
         "#c77cde",
@@ -3248,7 +3248,7 @@
       "template": "X",
       "orientationDegrees": 113,
       "base": [
-        "#27272A",
+        "#27272a",
         "#8b91ff",
         "#7c5dc8",
         "#ba73d7",
@@ -3326,7 +3326,7 @@
       "template": "X",
       "orientationDegrees": 170,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#a45ec0",
         "#fd7b9a",
         "#c46200",
@@ -3335,7 +3335,7 @@
         "#00c3e6"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#bb54a0",
         "#f67cb4",
         "#cb545d",
@@ -3370,7 +3370,7 @@
       "template": "X",
       "orientationDegrees": 176,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#9c61c7",
         "#f67cb2",
         "#cc562d",
@@ -3380,7 +3380,7 @@
         "#0093c0"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#ba55a1",
         "#f77cae",
         "#cc4e66",
@@ -3416,7 +3416,7 @@
       "template": "X",
       "orientationDegrees": 1,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#9563cd",
         "#ef7ec3",
         "#ce514f",
@@ -3427,7 +3427,7 @@
         "#00bef5"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b954a3",
         "#f87baa",
         "#cb4f71",
@@ -3464,7 +3464,7 @@
       "template": "X",
       "orientationDegrees": 1,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#9065d0",
         "#e880d1",
         "#cd4f66",
@@ -3476,7 +3476,7 @@
         "#008fca"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b755a6",
         "#f77bb0",
         "#ca4f78",
@@ -3514,7 +3514,7 @@
       "template": "X",
       "orientationDegrees": 169,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#8b67d3",
         "#e183db",
         "#c94f78",
@@ -3527,7 +3527,7 @@
         "#00bbfd"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b058b1",
         "#ef7ec1",
         "#c3518c",
@@ -3566,7 +3566,7 @@
       "template": "X",
       "orientationDegrees": 10,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#8769d5",
         "#db85e3",
         "#c55087",
@@ -3580,7 +3580,7 @@
         "#008cd0"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b855a5",
         "#f57cb5",
         "#cb4f6f",
@@ -3620,7 +3620,7 @@
       "template": "X",
       "orientationDegrees": 175,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#846ad7",
         "#d687ea",
         "#c15292",
@@ -3635,7 +3635,7 @@
         "#00b8ff"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b158b2",
         "#ef7ec5",
         "#c55086",
@@ -3676,7 +3676,7 @@
       "template": "X",
       "orientationDegrees": 2,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#816bd8",
         "#d189ef",
         "#bd539c",
@@ -3692,7 +3692,7 @@
         "#008ad3"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b357ae",
         "#ef7ec4",
         "#c84f80",
@@ -3734,7 +3734,7 @@
       "template": "X",
       "orientationDegrees": 178,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#7e6cd9",
         "#cc8bf3",
         "#b955a4",
@@ -3751,7 +3751,7 @@
         "#26b6ff"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b058b2",
         "#eb80ca",
         "#c55088",
@@ -3794,7 +3794,7 @@
       "template": "X",
       "orientationDegrees": 176,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#7b6dda",
         "#c88cf7",
         "#b557ab",
@@ -3812,7 +3812,7 @@
         "#0088d6"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#ae59b5",
         "#e980cf",
         "#c3518e",
@@ -3856,7 +3856,7 @@
       "template": "X",
       "orientationDegrees": 4,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#796eda",
         "#c48df9",
         "#b158b0",
@@ -3875,7 +3875,7 @@
         "#4db0ff"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#b258af",
         "#ea7fcb",
         "#c4508a",
@@ -3920,7 +3920,7 @@
       "template": "X",
       "orientationDegrees": 177,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#776fdb",
         "#c18ffc",
         "#ad5ab5",
@@ -3940,7 +3940,7 @@
         "#0074c3"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#ad5ab5",
         "#e781d3",
         "#c15293",
@@ -3986,7 +3986,7 @@
       "template": "X",
       "orientationDegrees": 170,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#756fdb",
         "#be90fe",
         "#aa5bb9",
@@ -4007,7 +4007,7 @@
         "#67abff"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#a95bba",
         "#e382d9",
         "#bd539b",
@@ -4054,7 +4054,7 @@
       "template": "X",
       "orientationDegrees": 110,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#7370dc",
         "#bb91ff",
         "#a75cbd",
@@ -4076,7 +4076,7 @@
         "#0073c5"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#806cd8",
         "#ac96ff",
         "#8d66d2",
@@ -4124,7 +4124,7 @@
       "template": "X",
       "orientationDegrees": 165,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#7270dc",
         "#b892ff",
         "#ac5bb7",
@@ -4147,7 +4147,7 @@
         "#adc9ff"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#a55dbf",
         "#dd84de",
         "#bc549e",
@@ -4196,7 +4196,7 @@
       "template": "X",
       "orientationDegrees": 165,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#7171dc",
         "#b693ff",
         "#a95cbb",
@@ -4220,7 +4220,7 @@
         "#0069bc"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#a55ebf",
         "#dc85de",
         "#bb54a0",
@@ -4270,7 +4270,7 @@
       "template": "X",
       "orientationDegrees": 129,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#6f71dd",
         "#b394ff",
         "#a65dbd",
@@ -4295,7 +4295,7 @@
         "#b0c8ff"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#9165d0",
         "#c48ef5",
         "#9d61c6",
@@ -4346,7 +4346,7 @@
       "template": "X",
       "orientationDegrees": 91,
       "base": [
-        "#FAFAFA",
+        "#fafafa",
         "#6e72dd",
         "#b194ff",
         "#a45ebf",
@@ -4372,7 +4372,7 @@
         "#0068bc"
       ],
       "harmony": [
-        "#FAFAFA",
+        "#fafafa",
         "#6076df",
         "#929fff",
         "#7e6cd8",
@@ -18698,7 +18698,7 @@
       "template": "X",
       "orientationDegrees": 83,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#c89600",
         "#3b891d",
         "#00bcb5",
@@ -18742,7 +18742,7 @@
       "template": "X",
       "orientationDegrees": 94,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#d09100",
         "#5d8300",
         "#00bd91",
@@ -18788,7 +18788,7 @@
       "template": "X",
       "orientationDegrees": 22,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#d68d00",
         "#717e00",
         "#26bb73",
@@ -18836,7 +18836,7 @@
       "template": "X",
       "orientationDegrees": 97,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#da8a00",
         "#7f7900",
         "#58b759",
@@ -18886,7 +18886,7 @@
       "template": "X",
       "orientationDegrees": 83,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#dd8800",
         "#897500",
         "#73b342",
@@ -18938,7 +18938,7 @@
       "template": "X",
       "orientationDegrees": 19,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#e08600",
         "#917100",
         "#86af2d",
@@ -18992,7 +18992,7 @@
       "template": "X",
       "orientationDegrees": 101,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#e28500",
         "#976e00",
         "#94ab14",
@@ -19048,7 +19048,7 @@
       "template": "X",
       "orientationDegrees": 92,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#e38308",
         "#9c6b00",
         "#a0a800",
@@ -19106,7 +19106,7 @@
       "template": "X",
       "orientationDegrees": 107,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#e58212",
         "#a06800",
         "#a9a400",
@@ -19166,7 +19166,7 @@
       "template": "X",
       "orientationDegrees": 94,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#e68119",
         "#a36600",
         "#b1a100",
@@ -19228,7 +19228,7 @@
       "template": "X",
       "orientationDegrees": 10,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#e7801e",
         "#a66400",
         "#b79f00",
@@ -19292,7 +19292,7 @@
       "template": "X",
       "orientationDegrees": 9,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#e77f22",
         "#a86200",
         "#bc9c00",
@@ -19358,7 +19358,7 @@
       "template": "X",
       "orientationDegrees": 102,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#f28833",
         "#aa6100",
         "#b79100",
@@ -19426,7 +19426,7 @@
       "template": "X",
       "orientationDegrees": 7,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#f38734",
         "#ac5f00",
         "#bb8f00",
@@ -19496,7 +19496,7 @@
       "template": "X",
       "orientationDegrees": 169,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#f38737",
         "#ad5e00",
         "#bf9b00",
@@ -19568,7 +19568,7 @@
       "template": "X",
       "orientationDegrees": 103,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#f48639",
         "#af5d00",
         "#c39900",
@@ -19642,7 +19642,7 @@
       "template": "X",
       "orientationDegrees": 153,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#f4863a",
         "#b05c00",
         "#bc8e00",
@@ -19718,7 +19718,7 @@
       "template": "X",
       "orientationDegrees": 95,
       "base": [
-        "#FF4801",
+        "#ff4801",
         "#f4853c",
         "#b15b00",
         "#bf8c00",
@@ -19796,7 +19796,7 @@
       "template": "X",
       "orientationDegrees": 9,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#a47900",
         "#6ac361",
         "#009c9b",
@@ -19840,7 +19840,7 @@
       "template": "X",
       "orientationDegrees": 177,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#ac7500",
         "#8abe45",
         "#009d79",
@@ -19886,7 +19886,7 @@
       "template": "X",
       "orientationDegrees": 173,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#b27100",
         "#a0b82c",
         "#009c5c",
@@ -19934,7 +19934,7 @@
       "template": "X",
       "orientationDegrees": 2,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#b66e00",
         "#b0b310",
         "#269942",
@@ -19984,7 +19984,7 @@
       "template": "X",
       "orientationDegrees": 107,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#b96c00",
         "#bbaf00",
         "#4c9528",
@@ -20036,7 +20036,7 @@
       "template": "X",
       "orientationDegrees": 176,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#bb6a00",
         "#c4ab00",
         "#619100",
@@ -20090,7 +20090,7 @@
       "template": "X",
       "orientationDegrees": 106,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#bd6800",
         "#cba800",
         "#708e00",
@@ -20146,7 +20146,7 @@
       "template": "X",
       "orientationDegrees": 95,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#bf6600",
         "#d1a500",
         "#7c8a00",
@@ -20204,7 +20204,7 @@
       "template": "X",
       "orientationDegrees": 104,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c06500",
         "#d6a200",
         "#858700",
@@ -20264,7 +20264,7 @@
       "template": "X",
       "orientationDegrees": 102,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c16400",
         "#daa000",
         "#8d8400",
@@ -20326,7 +20326,7 @@
       "template": "X",
       "orientationDegrees": 102,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c26300",
         "#dd9e00",
         "#938200",
@@ -20390,7 +20390,7 @@
       "template": "X",
       "orientationDegrees": 7,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c36200",
         "#e09c00",
         "#a18817",
@@ -20456,7 +20456,7 @@
       "template": "X",
       "orientationDegrees": 1,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c46200",
         "#e29b00",
         "#958105",
@@ -20524,7 +20524,7 @@
       "template": "X",
       "orientationDegrees": 86,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c46100",
         "#e49900",
         "#a38818",
@@ -20594,7 +20594,7 @@
       "template": "X",
       "orientationDegrees": 120,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c56100",
         "#e69800",
         "#958003",
@@ -20666,7 +20666,7 @@
       "template": "X",
       "orientationDegrees": 3,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c56000",
         "#e89700",
         "#998000",
@@ -20740,7 +20740,7 @@
       "template": "X",
       "orientationDegrees": 14,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c66000",
         "#e99600",
         "#8e5b00",
@@ -20816,7 +20816,7 @@
       "template": "X",
       "orientationDegrees": 5,
       "base": [
-        "#FF6B35",
+        "#ff6b35",
         "#c65f00",
         "#ea9506",
         "#905a00",
@@ -20894,7 +20894,7 @@
       "template": "X",
       "orientationDegrees": 17,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a97428",
         "#9db765",
         "#0b957c",
@@ -20938,7 +20938,7 @@
       "template": "X",
       "orientationDegrees": 153,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a36823",
         "#aeb15a",
         "#3f9463",
@@ -20984,7 +20984,7 @@
       "template": "X",
       "orientationDegrees": 154,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a66629",
         "#baad54",
         "#59904f",
@@ -21032,7 +21032,7 @@
       "template": "X",
       "orientationDegrees": 103,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a8642d",
         "#c3a952",
         "#6c8d40",
@@ -21082,7 +21082,7 @@
       "template": "X",
       "orientationDegrees": 134,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a05a28",
         "#caa651",
         "#798934",
@@ -21134,7 +21134,7 @@
       "template": "X",
       "orientationDegrees": 125,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a1592c",
         "#cfa353",
         "#84862c",
@@ -21188,7 +21188,7 @@
       "template": "X",
       "orientationDegrees": 123,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a1582f",
         "#d3a154",
         "#8c8326",
@@ -21244,7 +21244,7 @@
       "template": "X",
       "orientationDegrees": 102,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a25731",
         "#d69f56",
         "#928022",
@@ -21302,7 +21302,7 @@
       "template": "X",
       "orientationDegrees": 11,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a35733",
         "#d99d58",
         "#987e20",
@@ -21362,7 +21362,7 @@
       "template": "X",
       "orientationDegrees": 41,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a35636",
         "#db9c5b",
         "#9c7c20",
@@ -21424,7 +21424,7 @@
       "template": "X",
       "orientationDegrees": 85,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a35638",
         "#dd9b5d",
         "#9f7a21",
@@ -21488,7 +21488,7 @@
       "template": "X",
       "orientationDegrees": 102,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a45539",
         "#de9a5f",
         "#ab812d",
@@ -21554,7 +21554,7 @@
       "template": "X",
       "orientationDegrees": 78,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a4553a",
         "#df9961",
         "#ae802f",
@@ -21622,7 +21622,7 @@
       "template": "X",
       "orientationDegrees": 64,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a4553c",
         "#e09862",
         "#b17e31",
@@ -21692,7 +21692,7 @@
       "template": "X",
       "orientationDegrees": 32,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a4553d",
         "#e19764",
         "#ad802e",
@@ -21764,7 +21764,7 @@
       "template": "X",
       "orientationDegrees": 88,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a4543e",
         "#e29766",
         "#ae7f30",
@@ -21838,7 +21838,7 @@
       "template": "X",
       "orientationDegrees": 29,
       "base": [
-        "#C87070",
+        "#c87070",
         "#a4543f",
         "#e39667",
         "#b17e31",
@@ -21914,7 +21914,7 @@
       "template": "X",
       "orientationDegrees": 137,
       "base": [
-        "#C87070",
+        "#c87070",
         "#55ff12",
         "#312cf7",
         "#ffe9ff",

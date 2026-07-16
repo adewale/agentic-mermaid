@@ -57,7 +57,7 @@ best-in-repo technique for each concern."
 |---|---|---|
 | L1 | **Signature shape → a `sketch:'shape'` role** | A ruler-perfect primary glyph beside wobbly boxes reads as broken; the sketch look coheres only if the defining element gets the treatment. |
 | L2 | **Scaffold → a `sketch:'none'` role (recedes)** | Lively translucent data reads only on a quiet ground; a jittery scaffold turns overlaps into noise. |
-| L3 | **Categorical color from the shared `categoricalPalette`** (hue-spread >6) | One color language across applicable peer-series families; palette swaps recolor free; 7–24 categories have a hard perceptual-separation floor. Above 24, visibility remains guaranteed while uniqueness and separation are best-effort. |
+| L3 | **Categorical color from the shared `categoricalPalette`** (hue-spread >6) | One color language across applicable peer-series families; palette swaps recolor free; 7–24 categories have a hard perceptual-separation floor. Against parser-resolvable opaque sRGB backgrounds, visibility remains guaranteed above 24 while uniqueness and separation are best-effort. |
 | L4 | **Translucent fill + crisp bg-stroked marker** | Translucency lets overlaps blend legibly; the bg-stroked bead keeps the precise data point sharp on a busy ground ("the sketch marks the measurement"). |
 | L5 | **Measure-then-reserve gutters** (wrap; widen for title) | Clipping is the loudest "unfinished" signal; reserving space *before* the plot expands keeps the composition whole at any label length. |
 | L6 | **Single-scale contract** (resolve auto-max once; degenerate → throw) | A chart whose SVG and ASCII clamp differently, or that emits NaN, is broken; beauty presupposes the floor. |
@@ -262,7 +262,7 @@ fills at WCAG 1.01:1; worst pair ΔE_OK 0.049). `hueSpreadColors` now:
 
 This is the first step toward §6's open gap — the rubric still does not *score* a rendered
 diagram's palette harmony, but the palette *generator* now guarantees perceptual distinctness
-and visibility by construction. Primitives in `src/shared/perceptual-color.ts` (OKLab/OKLCH,
+for 7–24 fills and visibility against parser-resolvable opaque sRGB backgrounds by construction. Primitives in `src/shared/perceptual-color.ts` (OKLab/OKLCH,
 ΔE_OK, APCA); the cross-family impact is guarded end-to-end in
 `src/__tests__/perceptual-palette-impact.test.ts` (an 8-curve radar renders 8 distinct,
 visible curve colors). It also strengthens the §4 item 4 recommendation: swapping the four

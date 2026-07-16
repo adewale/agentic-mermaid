@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
+import { pieSliceColors } from '../pie/palette.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
 import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
@@ -85,10 +86,47 @@ function colorsFromSvg(family: keyof typeof sources, svg: string): string[] {
 
 describe('controlled {1,2,3} categorical palette rollout', () => {
   it('keeps the legacy ladder byte-for-byte for diagrams with at most six categories', () => {
-    for (let count = 1; count <= 6; count++) {
-      const expected = Array.from({ length: count }, (_unused, index) => getSeriesColor(index, '#0969da', '#ffffff'))
-      expect(categoricalPalette(count, { accent: '#0969da', bg: '#ffffff' })).toEqual(expected)
+    const inputs = [
+      { accent: '#0969da', bg: '#ffffff' },
+      { accent: '#38f', bg: '#fff' },
+      { accent: 'royalblue', bg: 'white' },
+      { accent: 'rgb(9, 105, 218)', bg: 'rgb(255, 255, 255)' },
+    ]
+    for (const colors of inputs) {
+      for (let count = 1; count <= 6; count++) {
+        const expected = Array.from({ length: count }, (_unused, index) => getSeriesColor(index, colors.accent, colors.bg))
+        expect(categoricalPalette(count, colors)).toEqual(expected)
+      }
     }
+  })
+
+  it('preserves each family-specific low-count CSS compatibility contract', () => {
+    const svg = renderMermaidSVG(`mindmap
+  root((Root))
+    One
+    Two`, {
+      style: { colors: { bg: '#fff', fg: '#111', accent: '#f00' } },
+      embedFontImport: false,
+    })
+    const firstBranch = [...svg.matchAll(/<path class="mindmap-edge"[^>]+>/gi)]
+      .find(match => match[0].includes('data-branch-index="0"'))?.[0]
+    expect(firstBranch).toContain('stroke="#f00"')
+
+    // Pie/radar and GitGraph historically required strict six-digit inputs and
+    // fell back; their <=6 bytes must not inherit Mindmap/XY's passthrough.
+    expect(pieSliceColors(2, { accent: '#f00', bg: '#fff' })).toEqual(
+      Array.from({ length: 2 }, (_unused, index) => getSeriesColor(index, '#3b82f6')),
+    )
+    const gitgraph = renderMermaidSVG(`gitGraph LR:
+  commit id: "root"
+  branch feature
+  commit id: "feature"`, {
+      style: { colors: { bg: '#fff', fg: '#111', accent: '#f00' } },
+      embedFontImport: false,
+    })
+    expect(colorsFromSvg('gitgraph', gitgraph)).toEqual(
+      categoricalPalette(2, { accent: '#3b82f6', bg: '#ffffff' }),
+    )
   })
 
   it("keeps Journey's established low-cardinality actor colors", () => {
@@ -129,6 +167,40 @@ describe('controlled {1,2,3} categorical palette rollout', () => {
     expect(terminal).toContain('color:#aee2ff')
     expect(wcagContrastRatio(svgColors[0]!, '#ffffff')).toBeGreaterThanOrEqual(1.25)
     expect(apcaContrast(svgColors[0]!, '#ffffff')).toBeGreaterThanOrEqual(15)
+  })
+
+  it('normalizes supported concrete CSS colors before public-renderer repair', () => {
+    const cases = [
+      { css: '#38f', hex: '#3388ff' },
+      { css: 'royalblue', hex: '#4169e1' },
+      { css: 'rgb(51, 136, 255)', hex: '#3388ff' },
+      { css: 'hsl(217, 100%, 60%)', hex: '#3381ff' },
+    ]
+    for (const { css, hex } of cases) {
+      const style = { colors: { bg: css, fg: '#111111', accent: css } } as const
+      const expected = categoricalPalette(8, { accent: css, bg: css })
+      const svgColors = colorsFromSvg('xychart', renderMermaidSVG(sources.xychart, { style, embedFontImport: false }))
+
+      expect(svgColors, css).toEqual(expected)
+      expect(new Set(svgColors).size, css).toBe(8)
+      expect(minPairwiseDeltaEOK(svgColors), css).toBeGreaterThanOrEqual(0.10)
+      for (const color of svgColors) {
+        expect(wcagContrastRatio(color, hex)!, `${css}: ${color}`).toBeGreaterThanOrEqual(1.25)
+        expect(Math.abs(apcaContrast(color, hex)!), `${css}: ${color}`).toBeGreaterThanOrEqual(15)
+      }
+      for (const color of categoricalPalette(25, { accent: css, bg: css })) {
+        expect(wcagContrastRatio(color, hex)!, `${css} linear tail: ${color}`).toBeGreaterThanOrEqual(1.25)
+        expect(Math.abs(apcaContrast(color, hex)!), `${css} linear tail: ${color}`).toBeGreaterThanOrEqual(15)
+      }
+    }
+
+    const css = '#38f'
+    const expected = categoricalPalette(8, { accent: css, bg: css })
+    const style = { colors: { bg: css, fg: '#111', accent: css } } as const
+    const gitgraphSvg = colorsFromSvg('gitgraph', renderMermaidSVG(sources.gitgraph, { style, embedFontImport: false }))
+    const gitgraphTerminal = renderMermaidASCII(sources.gitgraph, { style, colorMode: 'html' })
+    expect(gitgraphSvg).toEqual(expected)
+    for (const color of expected) expect(gitgraphTerminal).toContain(`color:${color}`)
   })
 
   it('is deterministic and does not use a fixed-size modulo palette', () => {

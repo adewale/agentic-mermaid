@@ -20,7 +20,8 @@
 //     read as the same color, up to a couple dozen slices (idea #2). Past that
 //     the sRGB gamut is exhausted: pairwise repair stops, generation stays
 //     linear, and uniqueness/separation become best-effort while background
-//     visibility remains enforced. The hard range is covered by the test.
+//     visibility remains enforced when the background resolves to opaque sRGB.
+//     The hard range is covered by the test.
 //   - every color is nudged (deterministically) away from the background until
 //     it clears BOTH a WCAG floor (the historical guard) and an APCA lightness-
 //     contrast floor. APCA is polarity-aware, so it catches wedges that WCAG
@@ -32,17 +33,17 @@
 // after this derived palette, so explicit author intent remains authoritative.
 // ============================================================================
 
-import { getSeriesColor, isValidHex, CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
-import { wcagContrastRatio } from './color-math.ts'
+import { getSeriesColor, CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
+import { toHex, tryParseCssColor, wcagContrastRatio } from './color-math.ts'
 import {
   hexToOklab, hexToOklch, oklchToHex, apcaContrast, deltaEOK,
   minPairwiseDeltaEOK, type Oklab, type Oklch,
 } from './perceptual-color.ts'
 
 export interface CategoricalPaletteInputs {
-  /** Theme accent (any string; non-hex falls back to the chart accent). */
+  /** Theme accent. Parser-resolvable CSS colors are normalized above six peers. */
   accent?: string
-  /** Theme background (any string; non-hex is ignored). */
+  /** Theme background. Parser-resolvable opaque CSS colors are normalized. */
   bg?: string
 }
 
@@ -121,11 +122,39 @@ function categoricalPaletteInternal(
   inputs: CategoricalPaletteInputs,
   diagnostics?: CategoricalPaletteDiagnostics,
 ): string[] {
-  const safeAccent = inputs.accent && isValidHex(inputs.accent) ? inputs.accent : CHART_ACCENT_FALLBACK
-  const safeBg = inputs.bg && isValidHex(inputs.bg) ? inputs.bg : undefined
-  return count <= MONO_LADDER_MAX
-    ? Array.from({ length: Math.max(0, count) }, (_unused, index) => getSeriesColor(index, safeAccent, safeBg))
-    : hueSpreadColors(count, safeAccent, safeBg, diagnostics)
+  if (count <= MONO_LADDER_MAX) {
+    // Preserve the exact legacy getSeriesColor contract, including authored
+    // CSS spelling in slot zero and its historical fallback behaviour for the
+    // remaining ladder. Normalizing here would change #rgb/named/rgb() bytes.
+    const legacyAccent = inputs.accent ?? CHART_ACCENT_FALLBACK
+    return Array.from(
+      { length: Math.max(0, count) },
+      (_unused, index) => getSeriesColor(index, legacyAccent, inputs.bg),
+    )
+  }
+
+  const safeBg = concreteCssHex(inputs.bg)
+  const safeAccent = concreteCssHex(inputs.accent, safeBg) ?? CHART_ACCENT_FALLBACK
+  return hueSpreadColors(count, safeAccent, safeBg, diagnostics)
+}
+
+/** Normalize the concrete CSS forms accepted by StyleSpec into the six-digit
+ * sRGB representation required by the perceptual math. A translucent accent
+ * can be resolved exactly when its opaque rendered background is known;
+ * translucent backgrounds and dynamic CSS forms remain intentionally unknown. */
+function concreteCssHex(value: string | undefined, opaqueBackground?: string): string | undefined {
+  if (value === undefined) return undefined
+  const parsed = tryParseCssColor(value)
+  if (!parsed) return undefined
+  if (parsed[3] === 1) return toHex(parsed[0], parsed[1], parsed[2])
+  if (opaqueBackground === undefined) return undefined
+  const bg = tryParseCssColor(opaqueBackground)
+  if (!bg || bg[3] !== 1) return undefined
+  return toHex(
+    parsed[0] * parsed[3] + bg[0] * (1 - parsed[3]),
+    parsed[1] * parsed[3] + bg[1] * (1 - parsed[3]),
+    parsed[2] * parsed[3] + bg[2] * (1 - parsed[3]),
+  )
 }
 
 function hueSpreadColors(
