@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
@@ -65,7 +65,7 @@ describe('agent-readiness standards syntax', () => {
     expect(unitSteps.find((step: any) => step.name === 'Run test shard (coverage = under-tested finder, NOT an adequacy target)')?.run)
       .toBe('bun run test -- --shard=${{ matrix.shard }}')
     expect(unitSteps.find((step: any) => step.name === 'Upload shard coverage')?.uses)
-      .toBe('actions/upload-artifact@v4')
+      .toBe('actions/upload-artifact@v7')
     expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage'])
     expect(aggregateSteps.find((step: any) => step.name === 'Merge shard coverage')?.run)
       .toBe('bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3')
@@ -83,6 +83,40 @@ describe('agent-readiness standards syntax', () => {
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')
     expect(agentGuide).toContain('`bun run test`')
+  })
+
+  test('GitHub Actions use Node 24 runtimes and skip the flaky Bun executable cache', () => {
+    const workflowsDir = join(REPO, '.github', 'workflows')
+    const actionSteps = readdirSync(workflowsDir)
+      .filter((file) => file.endsWith('.yml') || file.endsWith('.yaml'))
+      .flatMap((file) => {
+        const workflow = parseYaml(readFileSync(join(workflowsDir, file), 'utf8'))
+        return Object.values(workflow.jobs ?? {}).flatMap((job: any) => job.steps ?? [])
+      })
+      .filter((step: any) => typeof step.uses === 'string')
+
+    const actionRefs = actionSteps.map((step: any) => step.uses)
+    const expectedRefs = new Map([
+      ['actions/checkout@', 'actions/checkout@v7'],
+      ['actions/upload-artifact@', 'actions/upload-artifact@v7'],
+      ['actions/download-artifact@', 'actions/download-artifact@v8'],
+      ['actions/setup-node@', 'actions/setup-node@v7'],
+    ])
+    for (const [prefix, expected] of expectedRefs) {
+      const matching = actionRefs.filter((ref: string) => ref.startsWith(prefix))
+      expect(matching.length).toBeGreaterThan(0)
+      expect([...new Set(matching)]).toEqual([expected])
+    }
+
+    const setupBunSteps = actionSteps.filter((step: any) => step.uses.startsWith('oven-sh/setup-bun@'))
+    expect(setupBunSteps.length).toBeGreaterThan(0)
+    for (const step of setupBunSteps) {
+      expect([
+        'oven-sh/setup-bun@v2',
+        'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6',
+      ]).toContain(step.uses)
+      expect(step.with?.['no-cache']).toBe(true)
+    }
   })
 
   test('llms.txt follows the published parser-compatible Markdown shape', () => {

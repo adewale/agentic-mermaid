@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Read the reviewed upstream pin
         id: pin
         run: |
@@ -26,7 +26,7 @@ jobs:
           test "$commit" != "null"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Checkout upstream Mermaid docs
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: mermaid-js/mermaid
           ref: ${{ steps.pin.outputs.commit }}
