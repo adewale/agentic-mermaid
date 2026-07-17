@@ -1132,7 +1132,7 @@
     },
     {
       "path": "src/__tests__/png-output-options-contract.test.ts",
-      "sha256": "c7725be392cb652e9a4b88d6ba648d03585bde6b557230741185f2e40d973b07"
+      "sha256": "176d091908894801703718cef8775a93e242b53dc97ab332ebc717d05d0c4b41"
     },
     {
       "path": "src/__tests__/positioned-artifact-convergence.test.ts",
