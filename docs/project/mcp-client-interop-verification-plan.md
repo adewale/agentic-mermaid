@@ -189,6 +189,39 @@ red→green standard.
 | 2 | `tools/list` replies `{}` (shared dispatch) | **2 tests fail** (hosted + stdio) — SDK zod validation throws `invalid_type: expected array, received undefined` |
 | 3 | GET answers `200` + JSON instead of `405` | **1 test fails — but not the way predicted above.** The SDK **silently tolerated** the malformed response: it read the JSON body as an SSE stream, got no events, and surfaced nothing through `onerror`. The failure comes from the test's own wire-log assertion (`served` records no `GET → 405` exchange). Lesson: the prediction "the transport must surface the confusion" was wrong; the explicit server-side wire assertion is load-bearing, and SDK leniency means a real-client test alone under-discriminates transport-shape regressions. |
 
+## Multi-client verification: Python and Go reference SDKs
+
+The unit lane covers the TypeScript reference SDK. The other two official reference
+clients are covered by repeatable probe scripts under `scripts/interop/` — run manually
+(they need `uv`/`go` toolchains and network installs, so they stay out of the CI gate):
+
+```bash
+bun run scripts/interop/serve-hosted.ts              # prints the local hosted URL
+uv run --with mcp scripts/interop/probe-python.py <url>
+cd scripts/interop/probe-go && go run . <url>
+```
+
+Each probe drives the hosted endpoint (initialize → downgrade negotiation →
+`tools/list` → real `render_svg`) and the stdio bin (spawn → `2024-11-05` negotiation →
+4-tool surface → real vm-sandbox `execute`), printing PASS/FAIL per check and exiting
+nonzero on failure.
+
+**Observed results (2026-07-17):**
+
+| Client | Version | Hosted | stdio | Notes |
+|---|---|---|---|---|
+| TypeScript `@modelcontextprotocol/sdk` | 1.29.0 | ✅ | ✅ | Unit lane (`mcp-client-interop.test.ts`); offered `2025-11-25`, accepted `2025-03-26` |
+| Python `mcp` | 1.28.1 | ✅ 6/6 | ✅ 4/4 | Same downgrade path; `get_session_id()` stays `None` (sessionless accepted) |
+| Go `go-sdk` | v1.6.1 | ✅ 6/6 | ✅ 4/4 | **Default config with the standalone SSE GET stream enabled** — its retry machinery treats the stateless 405 as benign; supports back to `2024-11-05` |
+
+All three SDKs independently exercised the same two load-bearing stateless behaviors:
+accepting a server that never issues `Mcp-Session-Id`, and tolerating GET → 405. All
+three negotiated `2025-03-26` on hosted (each offered `2025-11-25`, two releases newer
+than our ceiling) and `2024-11-05` on stdio — live confirmation that the ecosystem's
+backwards-compatibility mechanism is downgrade negotiation, and that the #186 version
+cliff bites only clients that pin a version header without negotiating (the 2026-07-28
+no-`initialize` flow), not today's SDK population.
+
 ## Promotion-checklist addition (dashboard-side, manual)
 
 The hosted promotion checklist in `website/README.md` verifies the `LOADER` binding with a
@@ -232,8 +265,11 @@ this before, or alongside, the #186 `SUPPORTED_PROTOCOL_VERSIONS` change.
 
 ## Trust / honest limitations
 
-- Reference-SDK interop validates against **one** client implementation. It is the one
-  Claude Code uses and the canonical spec reference, but it is not "every MCP client".
+- Reference-SDK interop validates against the **three official reference implementations**
+  (TypeScript in the CI lane; Python and Go via the manual `scripts/interop/` probes).
+  That transitively covers the dominant client base, but it is still not "every MCP
+  client" — hand-rolled clients and other-language SDKs remain untested, and the Python/Go
+  probes are manual, so they can rot between runs.
 - In-process `Bun.serve` + fake `execute`/Cache seams are not the production edge; the
   promotion-checklist smoke against the live URL covers the gap the unit lane cannot.
 - This does not close `testing-strategy.md`'s structural gap in general — it closes it for
