@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "bun.lock",
-      "sha256": "1113b76a6fc3292046b07a7578fb6d8849379c029df7b3fbdb03f03b56d2da00"
+      "sha256": "016705b887ec9b3297077ea9f11f70a41ae608e4a18824a44959e8e24a71ab5e"
     },
     {
       "path": "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "54663bbef14fccaf0d8409cd13f63d02d8d75b36ca9028bc94f167f516d2c47f"
+      "sha256": "1698d2c5837e4caedd05c6b05e607590ea15e2ce24a1ff5ca8615fb53ddbed2f"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -896,7 +896,7 @@
     },
     {
       "path": "src/__tests__/hosted-mcp-http.test.ts",
-      "sha256": "0f350c67d2d55286c426a5801cb70d259171d7c710af4147deda6b65cf965e47"
+      "sha256": "09a646df816af9edf1dcf21b7cec1c67512dd91dffa531761ec425bffe2a2166"
     },
     {
       "path": "src/__tests__/hosted-mcp.test.ts",
@@ -1017,6 +1017,10 @@
     {
       "path": "src/__tests__/linkstyle.test.ts",
       "sha256": "944651909e8652af984b4e8a6808061e4fbd8e438f68bb0e5f33f78f24afd052"
+    },
+    {
+      "path": "src/__tests__/mcp-client-interop.test.ts",
+      "sha256": "5ab864e90c4adc4f0d7891087541fc15a288c5c725af31c51fa687fde8982d55"
     },
     {
       "path": "src/__tests__/mcp-protocol.test.ts",
@@ -2910,11 +2914,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "101ec42ecd973b114f8c7ec5a95b773936cb3cb022c66e21f1384c5df45f8ba8"
+      "sha256": "4d5d2e4c13c60f4e62408d70ef38e1e254f58310fd7293afd751207a69034f54"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "bb0064d50473f88dafac1098de591719c5d2f0a8ca8eeb9ed2250730b2d0e762"
+      "sha256": "f94b5b9d3afb5f116df26ad405115b8eb3d01d8dd0cb387de28de20d94c88df5"
     }
   ]
 }
