@@ -81,7 +81,10 @@ configs, marker-based scopes, survivor classifications, incremental gate, and
 sabotage probes remain because they are independently useful.
 
 The causal record is in
-[`project/archive/mutation-infrastructure-postmortem-2026-07.md`](./project/archive/mutation-infrastructure-postmortem-2026-07.md).
+[`project/archive/mutation-infrastructure-postmortem-2026-07.md`](./project/archive/mutation-infrastructure-postmortem-2026-07.md);
+a deeper forensic companion — run-level CI evidence, the provenance of the
+guidance that inspired the lanes, and the published research context — is in
+[`project/archive/mutation-nightly-forensics-2026-07.md`](./project/archive/mutation-nightly-forensics-2026-07.md).
 The durable stop rule is: after three consecutive scheduled failures, an owner
 must fix, narrow, disable, or delete the diagnostic before adding scope. Any new
 recurring lane also needs a demonstrated fault class, one complete retained
