@@ -16,23 +16,23 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
+import { layoutMermaid, parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { renderMermaidASCIIWithMeta } from '../../src/ascii/meta.ts'
 import { contactSheetScenarios } from '../visual-rubric/scenarios.ts'
 import { trackedExamples } from '../heuristic-tracker/catalog.ts'
 import { samples } from '../../scripts/site/samples-data.ts'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
-import { detectSvg, parseSvg, detectPngPixels, detectAscii, type Finding } from './detect.ts'
+import { detect, parseSvg, detectPngPixels, detectAscii, type Finding } from './detect.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..', '..')
 const PNG_SCALE = 2
 
 type TerminalFormat = 'ascii' | 'unicode'
-interface Diagram {
+export interface Diagram {
   corpus: string
   name: string
   source: string
-  terminalFormats?: TerminalFormat[]
   terminalOptions?: { paddingX: number; paddingY: number }
 }
 
@@ -52,7 +52,6 @@ function corpora(): Diagram[] {
         corpus: `golden-${sub}`,
         name: f,
         source: fixture.mermaid,
-        terminalFormats: [sub],
         terminalOptions: { paddingX: fixture.paddingX, paddingY: fixture.paddingY },
       })
     }
@@ -60,36 +59,108 @@ function corpora(): Diagram[] {
   return out
 }
 
-interface Result { d: Diagram; format: 'svg' | 'png' | TerminalFormat; findings: Finding[]; error?: string }
+interface StructuralAdmission { source: 'rendered-layout'; nodes: number; edges: number; groups: number }
+export interface Result {
+  d: Diagram
+  format: 'svg' | 'png' | TerminalFormat
+  findings: Finding[]
+  error?: string
+  structuralAdmission?: StructuralAdmission
+  svgMarkupAdmission?: { nodes: number; edges: number }
+}
 
-function auditOne(d: Diagram): Result[] {
+function inspectRenderedLayout(source: string): { admission?: StructuralAdmission; findings: Finding[]; error?: string } {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) return { findings: [], error: parsed.error.map(error => error.message).join('; ') }
+  let layout: ReturnType<typeof layoutMermaid>
+  try {
+    layout = layoutMermaid(parsed.value)
+  } catch (error) {
+    return { findings: [], error: String(error) }
+  }
+  if (layout.nodes.length === 0 && layout.edges.length === 0 && layout.groups.length === 0) {
+    return { findings: [], error: `${parsed.value.kind} produced no structural layout evidence` }
+  }
+  const findings: Finding[] = []
+  const finite = (value: unknown): boolean => typeof value === 'number' && Number.isFinite(value)
+  for (const node of layout.nodes) {
+    if (![node.x, node.y, node.w, node.h].every(finite) || Number(node.w) < 0 || Number(node.h) < 0) {
+      findings.push({ kind: 'invalid-layout-geometry', severity: 'hard', detail: `${node.id} has non-finite or negative bounds` })
+    }
+  }
+  for (const edge of layout.edges) {
+    if (edge.path.length < 2 || edge.path.some(point => !finite(point[0]) || !finite(point[1]))) {
+      findings.push({ kind: 'invalid-layout-geometry', severity: 'hard', detail: `${edge.id} has an invalid rendered path` })
+    }
+  }
+  for (const group of layout.groups) {
+    if (![group.x, group.y, group.w, group.h].every(finite) || Number(group.w) < 0 || Number(group.h) < 0) {
+      findings.push({ kind: 'invalid-layout-geometry', severity: 'hard', detail: `${group.id} has non-finite or negative bounds` })
+    }
+  }
+  return {
+    admission: { source: 'rendered-layout', nodes: layout.nodes.length, edges: layout.edges.length, groups: layout.groups.length },
+    findings,
+  }
+}
+
+export function auditOne(d: Diagram): Result[] {
   const res: Result[] = []
-  // SVG (authoritative)
+  // Every registered family admits its renderer-owned RenderedLayout for
+  // family-generic finite/path/shared-label checks. The SVG parser adds deeper
+  // mark-level checks where the markup carries the flowchart node/edge shape.
+  const structure = inspectRenderedLayout(d.source)
   let svg = ''
+  let markup = { nodes: 0, edges: 0 }
+  let svgError: string | undefined = structure.error
+  let svgFindings = [...structure.findings]
   try {
     svg = renderMermaidSVG(d.source, { embedFontImport: false })
-    res.push({ d, format: 'svg', findings: detectSvg(svg) })
-  } catch (e) { res.push({ d, format: 'svg', findings: [], error: String(e) }) }
-  // PNG (raster of the SVG: inherit SVG findings + pixel sanity pass)
+    const parsedSvg = parseSvg(svg)
+    markup = { nodes: parsedSvg.nodes.length, edges: parsedSvg.edges.length }
+    svgFindings = [...svgFindings, ...detect(parsedSvg)]
+  } catch (error) {
+    const renderError = String(error)
+    svgError = svgError ? `${svgError}; ${renderError}` : renderError
+  }
+  res.push({
+    d,
+    format: 'svg',
+    findings: svgFindings,
+    ...(svgError ? { error: svgError } : {}),
+    ...(structure.admission ? { structuralAdmission: structure.admission } : {}),
+    svgMarkupAdmission: markup,
+  })
+
+  // PNG (raster of the SVG: inherit structural findings + pixel sanity pass)
   if (svg) {
     try {
       const img = new Resvg(svg, { background: 'white', fitTo: { mode: 'zoom', value: PNG_SCALE } }).render()
       const nodes = parseSvg(svg).nodes
       const pixel = detectPngPixels({ data: img.pixels, width: img.width, height: img.height }, nodes, PNG_SCALE)
-      res.push({ d, format: 'png', findings: [...detectSvg(svg), ...pixel] })
+      res.push({
+        d,
+        format: 'png',
+        findings: [...svgFindings, ...pixel],
+        ...(structure.admission ? { structuralAdmission: structure.admission } : {}),
+        svgMarkupAdmission: markup,
+      })
     } catch (e) { res.push({ d, format: 'png', findings: [], error: String(e) }) }
   } else {
     res.push({ d, format: 'png', findings: [], error: 'SVG render unavailable; PNG audit could not run' })
   }
   // Terminal projections are separate contracts: plain ASCII and Unicode must
   // both be exercised rather than reporting the Unicode default as "ASCII".
-  for (const format of d.terminalFormats ?? ['ascii', 'unicode']) {
+  for (const format of ['ascii', 'unicode'] as const) {
     try {
-      const { ascii, regions } = renderMermaidASCIIWithMeta(d.source, {
+      const { ascii, regions, warnings } = renderMermaidASCIIWithMeta(d.source, {
         ...d.terminalOptions,
         useAscii: format === 'ascii',
       })
-      res.push({ d, format, findings: detectAscii(ascii, regions, { useAscii: format === 'ascii' }) })
+      const failure = warnings.find(warning => warning.code === 'ASCII_RENDER_FAILED')
+      if (failure) res.push({ d, format, findings: [], error: failure.message })
+      else if (!ascii.trim()) res.push({ d, format, findings: [], error: 'Terminal renderer returned empty output without a failure diagnostic' })
+      else res.push({ d, format, findings: detectAscii(ascii, regions, { useAscii: format === 'ascii' }) })
     } catch (e) { res.push({ d, format, findings: [], error: String(e) }) }
   }
   return res
@@ -105,10 +176,15 @@ function main(): void {
   const hard = all.flatMap(r => r.findings.filter(f => f.severity === 'hard').map(f => ({ r, f })))
   const soft = all.flatMap(r => r.findings.filter(f => f.severity === 'soft').map(f => ({ r, f })))
   const errors = all.filter(r => r.error)
+  const svgResults = all.filter(result => result.format === 'svg')
+  const coverage = {
+    renderedLayoutStructural: svgResults.filter(result => result.structuralAdmission).length,
+    svgMarkupStructural: svgResults.filter(result => (result.svgMarkupAdmission?.nodes ?? 0) + (result.svgMarkupAdmission?.edges ?? 0) > 0).length,
+  }
 
   if (asJson) {
     console.log(JSON.stringify({
-      diagrams: diagrams.length, audits: all.length,
+      diagrams: diagrams.length, audits: all.length, coverage,
       hard: hard.map(({ r, f }) => ({ corpus: r.d.corpus, name: r.d.name, format: r.format, ...f })),
       soft: soft.map(({ r, f }) => ({ corpus: r.d.corpus, name: r.d.name, format: r.format, ...f })),
       errors: errors.map(r => ({ corpus: r.d.corpus, name: r.d.name, format: r.format, error: r.error })),
@@ -130,7 +206,8 @@ function main(): void {
     console.log(c.padEnd(16), String(ds.length).padStart(9), `   ${h('svg')} / ${h('png')} / ${h('ascii')} / ${h('unicode')}`.padEnd(30), String(s).padStart(4), String(err).padStart(10))
   }
   console.log('—'.repeat(64))
-  console.log(`${diagrams.length} diagrams · ${all.length} format-audits · ${hard.length} HARD · ${soft.length} soft · ${errors.length} render-errors\n`)
+  console.log(`${diagrams.length} diagrams · ${all.length} format-audits · ${hard.length} HARD · ${soft.length} soft · ${errors.length} render-errors`)
+  console.log(`structural admission: ${coverage.renderedLayoutStructural}/${diagrams.length} renderer layouts; ${coverage.svgMarkupStructural}/${diagrams.length} SVG markup adapters\n`)
 
   if (hard.length) {
     console.log('HARD findings (a finished render must have zero):')
@@ -151,4 +228,4 @@ function main(): void {
   process.exit(hard.length || errors.length ? 1 : 0)
 }
 
-main()
+if (import.meta.main) main()

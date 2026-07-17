@@ -546,9 +546,9 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       ...(descriptor ? { registrationId: descriptor.id } : {}),
       ...(descriptor ? { identity: familyIdentity(descriptor) } : {}),
       headers: liveFamilyHeaders(family, descriptor, owners),
-      aliases: descriptor ? [...descriptor.aliases].sort() : [],
+      aliases: descriptor ? [...descriptor.aliases].sort(compareCodePointStrings) : [],
       applicableRenderOptions: descriptor ? [...applicableFamilyScopedRenderOptions(descriptor)] : [],
-      semanticRoles: descriptor ? [...descriptor.semanticRoles].sort() : [],
+      semanticRoles: descriptor ? [...descriptor.semanticRoles].sort(compareCodePointStrings) : [],
       scenePrimitiveEvidence: descriptor ? descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })) : [],
       capabilities: descriptorCapabilities(descriptor),
       evidence: descriptor ? [...descriptor.capabilityEvidence] : [],
@@ -567,9 +567,9 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       registrationId: descriptor.id,
       identity: familyIdentity(descriptor),
       headers: descriptor.headers.map(value => ({ value, status: 'extension' as const })),
-      aliases: [...descriptor.aliases].sort(),
+      aliases: [...descriptor.aliases].sort(compareCodePointStrings),
       applicableRenderOptions: [...applicableFamilyScopedRenderOptions(descriptor)],
-      semanticRoles: [...descriptor.semanticRoles].sort(),
+      semanticRoles: [...descriptor.semanticRoles].sort(compareCodePointStrings),
       scenePrimitiveEvidence: descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })),
       capabilities: descriptorCapabilities(descriptor),
       evidence: [...descriptor.capabilityEvidence],
@@ -678,7 +678,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
         conformanceKind: 'claim-keyed-svg-matrix' as const,
         // Registration reports are already deeply frozen, JSON-safe snapshots.
         conformance: descriptor.conformance,
-        primitiveIds: [...new Set(claims.map(claim => claim.primitive))].sort(),
+        primitiveIds: [...new Set(claims.map(claim => claim.primitive))].sort(compareCodePointStrings),
         rolePolicyIds: roles.map(role => role.id),
         claims,
         compatibility: stringRecord(descriptor.identity.compatibility),
@@ -715,7 +715,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
     + syntax.families.reduce((count, row) => count + (row.processing
       ? Object.values(row.processing).filter(state => state === 'absent').length
       : 0), 0)
-  const familyDescriptorVersions = [...new Set(descriptors.map(descriptor => descriptor.contractVersion))].sort()
+  const familyDescriptorVersions = [...new Set(descriptors.map(descriptor => descriptor.contractVersion))].sort((a, b) => a - b)
   const payload: Omit<SectionACapabilityReport, 'digest'> = {
     schemaVersion: SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION,
     contracts: {
@@ -847,8 +847,8 @@ function unique(values: readonly string[]): boolean {
 
 function hasExactKeys(value: object | undefined, expected: readonly string[]): boolean {
   if (!value) return false
-  const actual = Object.keys(value).sort()
-  const orderedExpected = [...expected].sort()
+  const actual = Object.keys(value).sort(compareCodePointStrings)
+  const orderedExpected = [...expected].sort(compareCodePointStrings)
   return actual.length === orderedExpected.length
     && actual.every((key, index) => key === orderedExpected[index])
 }

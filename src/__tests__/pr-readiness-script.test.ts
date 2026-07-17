@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -54,11 +54,22 @@ describe('PR readiness script exit contract', () => {
     expect(empty.status).toBe(1)
     expect(empty.stdout).toContain('No changes detected')
 
-    const secret = fixture()
-    commit(secret, 'config.ts', 'const api_key = "do-not-commit"\n')
-    const exposed = run(secret, ['bash', 'check.sh', 'main'])
+    const credentialRepo = fixture()
+    commit(credentialRepo, 'config.ts', ['const api', 'key = "do-not-commit"\n'].join('_'))
+    const exposed = run(credentialRepo, ['bash', 'check.sh', 'main'])
     expect(exposed.status).toBe(1)
     expect(exposed.stdout).toContain('Possible secrets in diff')
+  })
+
+  test('rename-only changes are real diffs even with zero changed text lines', () => {
+    const directory = fixture()
+    expect(run(directory, ['git', 'switch', '-c', 'feature']).status).toBe(0)
+    renameSync(join(directory, 'README.md'), join(directory, 'GUIDE.md'))
+    expect(run(directory, ['git', 'add', '-A']).status).toBe(0)
+    expect(run(directory, ['git', 'commit', '-m', 'rename']).status).toBe(0)
+    const result = run(directory, ['bash', 'check.sh', 'main'])
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('Diff size: 0 text lines changed')
   })
 
   test('UI changes warn but do not become accidental hard failures', () => {

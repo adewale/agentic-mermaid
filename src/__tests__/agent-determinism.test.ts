@@ -135,6 +135,7 @@ describe('edit stability — small source mutations preserve the unchanged prima
 describe('determinism — locale-independent ordering authority', () => {
   test('code-point comparison does not inherit locale collation', () => {
     expect(['ä', 'z', 'a'].sort(compareCodePointStrings)).toEqual(['a', 'z', 'ä'])
+    expect(['\u{10000}', '\uE000'].sort(compareCodePointStrings)).toEqual(['\uE000', '\u{10000}'])
   })
 
   test('executable TypeScript and JavaScript do not call ambient locale collation', () => {

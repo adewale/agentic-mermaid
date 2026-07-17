@@ -18,12 +18,15 @@ echo "PR Readiness Check (comparing against $BASE)"
 echo "============================================="
 echo ""
 
-# Check 1: Diff size
-LINES_CHANGED=$(git diff "$BASE"...HEAD --stat | tail -1 | grep -oE '[0-9]+ insertion|[0-9]+ deletion' | grep -oE '[0-9]+' | paste -sd+ - | bc 2>/dev/null || echo "0")
+# Check 1: Diff presence and text size. --numstat handles rename-only and
+# binary-only changes without depending on bc or localized --stat prose.
+HAS_DIFF=0
+if ! git diff --quiet "$BASE"...HEAD --; then HAS_DIFF=1; fi
+LINES_CHANGED=$(git diff "$BASE"...HEAD --numstat | awk '{ if ($1 != "-") total += $1; if ($2 != "-") total += $2 } END { print total + 0 }')
 if [ "$LINES_CHANGED" -gt 500 ]; then
     echo "$WARN  Large diff: $LINES_CHANGED lines changed. Consider splitting into smaller PRs."
-elif [ "$LINES_CHANGED" -gt 0 ]; then
-    echo "$PASS  Diff size: $LINES_CHANGED lines changed"
+elif [ "$HAS_DIFF" -eq 1 ]; then
+    echo "$PASS  Diff size: $LINES_CHANGED text lines changed"
 else
     echo "$FAIL  No changes detected against $BASE"
     FAILURES=$((FAILURES + 1))
@@ -42,7 +45,10 @@ COMMIT_COUNT=$(git rev-list --count "$BASE"...HEAD 2>/dev/null || echo "0")
 echo "$PASS  Commits: $COMMIT_COUNT"
 
 # Check 4: Check for possible secrets in diff
-SECRETS=$(git diff "$BASE"...HEAD | grep -iE '(api_key|secret|password|token)\s*=' | head -5 || true)
+SECRETS=$(git diff "$BASE"...HEAD --unified=0 -- . ':(exclude)website/src/generated/**' \
+  | grep -E '^\+[^+]' \
+  | grep -iE '(api_key|secret|password|token)\s*=' \
+  | head -5 || true)
 if [ -n "$SECRETS" ]; then
     echo "$FAIL  Possible secrets in diff:"
     echo "$SECRETS" | sed 's/^/       /'
@@ -52,7 +58,10 @@ else
 fi
 
 # Check 5: Console/debug statements
-DEBUG=$(git diff "$BASE"...HEAD | grep -E '^\+' | grep -iE '(console\.log|debugger|binding\.pry|import pdb|print\()' | head -5 || true)
+DEBUG=$(git diff "$BASE"...HEAD --unified=0 -- . ':(exclude)website/src/generated/**' \
+  | grep -E '^\+[^+]' \
+  | grep -iE '(console\.log|debugger|binding\.pry|import pdb|print\()' \
+  | head -5 || true)
 if [ -n "$DEBUG" ]; then
     echo "$WARN  Possible debug statements in diff:"
     echo "$DEBUG" | sed 's/^/       /'

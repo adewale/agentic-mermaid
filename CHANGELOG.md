@@ -60,7 +60,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Removed five stale, unreferenced website SVG snapshots and one obsolete terminal snapshot that were copied into the public deployment despite no page consuming them. The authored `.mmd` sources remain, `workflow-themeable.svg` remains generated from the current renderer, and a build contract now rejects checked-in renderer snapshots in `website/source/diagrams`.
 
 ### Fixed
-- Prevented multiline ASCII/Unicode action and label regions from absorbing a shared trailing token from a neighboring node; terminal hit bounds now compare and claim display cells rather than UTF-16 offsets.
+- Prevented ASCII/Unicode action and label regions from absorbing matching text from neighboring nodes or edge labels, and from binding punctuation-only labels to box borders; multiline hit bounds now compare and claim display cells rather than UTF-16 offsets.
 - Preserved the exact Style, Palette, seed, and render configuration when opening every Examples, homepage, comparison, and warning reproducer in the Editor. Examples and the Editor now share one render-state resolver, and browser coverage checks every distinct handoff shape for complete SVG and appearance parity.
 - Restored public editor deep links after legacy hash decoding was removed. Website and checked-in links now share one bounded canonical deflate codec and current `palette` schema, with repository, generated-site, and real-browser navigation gates to catch producer/consumer drift before deployment.
 - Prevented the editor’s Style and Palette dropdowns from flashing during startup. Idempotent initialization closes no longer trigger the visible closing animation; real open-to-closed transitions retain it.

@@ -10,6 +10,7 @@ export interface ReleaseIdentity {
   packageServerVersion: string
   head: string
   tagCommit: string
+  mainContainsHead: boolean
 }
 
 export function validateReleaseIdentity(identity: ReleaseIdentity): void {
@@ -18,6 +19,7 @@ export function validateReleaseIdentity(identity: ReleaseIdentity): void {
   if (identity.serverVersion !== identity.packageVersion) throw new Error(`server.json version ${identity.serverVersion} does not match package version ${identity.packageVersion}`)
   if (identity.packageServerVersion !== identity.packageVersion) throw new Error(`server.json package version ${identity.packageServerVersion} does not match package version ${identity.packageVersion}`)
   if (identity.tagCommit !== identity.head) throw new Error(`Release tag ${identity.tag} points to ${identity.tagCommit}, not checked-out HEAD ${identity.head}`)
+  if (!identity.mainContainsHead) throw new Error(`Checked-out release commit ${identity.head} is not contained in origin/main`)
 }
 
 function git(root: string, args: string[]): string {
@@ -40,6 +42,14 @@ if (import.meta.main) {
     packageServerVersion: serverJson.packages[0]?.version ?? '',
     head: git(root, ['rev-parse', 'HEAD']),
     tagCommit: git(root, ['rev-list', '-n', '1', tag]),
+    mainContainsHead: (() => {
+      try {
+        execFileSync('git', ['merge-base', '--is-ancestor', 'HEAD', 'origin/main'], { cwd: root, stdio: 'ignore' })
+        return true
+      } catch {
+        return false
+      }
+    })(),
   }
   validateReleaseIdentity(identity)
   console.log(`Release identity verified: ${identity.tag} -> ${identity.head}`)

@@ -55,7 +55,7 @@ function layoutTidy(
 ): PositionedMindmapDiagram {
   const maxWidthAtDepth = widthsByDepth(entries)
   const xAtDepth = new Map<number, number>([[0, padding]])
-  const maxDepth = Math.max(...entries.values().map(node => node.depth))
+  const maxDepth = Math.max(...Array.from(entries.values(), node => node.depth))
   for (let depth = 1; depth <= maxDepth; depth++) {
     xAtDepth.set(depth, xAtDepth.get(depth - 1)! + (maxWidthAtDepth.get(depth - 1) ?? 0) + layerGap)
   }
@@ -208,7 +208,7 @@ function widthsByDepth(entries: Map<string, PositionedMindmapNode>): Map<number,
 }
 
 function normalizeY(entries: Map<string, PositionedMindmapNode>, padding: number): void {
-  const minY = Math.min(...entries.values().map(node => node.y))
+  const minY = Math.min(...Array.from(entries.values(), node => node.y))
   if (minY < padding) for (const node of entries.values()) node.y += padding - minY
 }
 
@@ -217,7 +217,7 @@ function finish(
   entries: Map<string, PositionedMindmapNode>,
   padding: number,
 ): PositionedMindmapDiagram {
-  const edges: PositionedMindmapEdge[] = [...entries.values()].flatMap(node => {
+  const edges: PositionedMindmapEdge[] = Array.from(entries.values()).flatMap(node => {
     if (!node.parentId) return []
     const parent = entries.get(node.parentId)!
     const leftward = node.side === 'left'
@@ -240,7 +240,7 @@ function finish(
       d: `M ${round(start.x)} ${round(start.y)} C ${round(c1.x)} ${round(c1.y)} ${round(c2.x)} ${round(c2.y)} ${round(end.x)} ${round(end.y)}`,
     }]
   })
-  const minX = Math.min(...entries.values().map(node => node.x))
+  const minX = Math.min(...Array.from(entries.values(), node => node.x))
   if (minX < padding) {
     const delta = padding - minX
     for (const node of entries.values()) node.x += delta
@@ -250,8 +250,8 @@ function finish(
       edge.d = `M ${round(start!.x)} ${round(start!.y)} C ${round(c1!.x)} ${round(c1!.y)} ${round(c2!.x)} ${round(c2!.y)} ${round(end!.x)} ${round(end!.y)}`
     }
   }
-  const width = Math.max(...entries.values().map(node => node.x + node.width)) + padding
-  const height = Math.max(...entries.values().map(node => node.y + node.height)) + padding
+  const width = Math.max(...Array.from(entries.values(), node => node.x + node.width)) + padding
+  const height = Math.max(...Array.from(entries.values(), node => node.y + node.height)) + padding
   return {
     width, height,
     accessibilityTitle: diagram.accessibilityTitle,

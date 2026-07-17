@@ -8,6 +8,7 @@ const valid: ReleaseIdentity = {
   packageServerVersion: '1.2.3',
   head: 'abc123',
   tagCommit: 'abc123',
+  mainContainsHead: true,
 }
 
 describe('release identity gate', () => {
@@ -20,6 +21,7 @@ describe('release identity gate', () => {
     ['server', { serverVersion: '1.2.2' }, /server\.json version/i],
     ['package projection', { packageServerVersion: '1.2.2' }, /server\.json package version/i],
     ['commit', { tagCommit: 'def456' }, /not checked-out HEAD/i],
+    ['main ancestry', { mainContainsHead: false }, /not contained in origin\/main/i],
   ] as const)('rejects mismatched %s identity', (_name, patch, message) => {
     expect(() => validateReleaseIdentity({ ...valid, ...patch })).toThrow(message)
   })

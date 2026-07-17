@@ -108,6 +108,7 @@
     "examples/styles/",
     "skills/",
     "skill-evals/",
+    "!skill-evals/private/**",
     "examples/agent-loop.ts",
     "examples/mcp-vs-cli-complex-diagrams.ts",
     "examples/agent-improve-auth-flow.ts",

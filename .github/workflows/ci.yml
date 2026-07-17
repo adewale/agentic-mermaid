@@ -116,7 +116,7 @@ jobs:
       - name: Run sketch prototype style checks
         run: bun run sketch:check
 
-      - name: Audit every rendered corpus for hard layout defects
+      - name: Audit rendered corpora and family structural evidence
         run: bun run audit:ugly
 
       - name: Type check
@@ -216,7 +216,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [cli, dist-artifact, tarball-consumer, browser]
+        suite: [cli, dist-artifact, tarball-consumer, tarball-consumer-node18, browser]
 
     steps:
       - uses: actions/checkout@v7
@@ -230,10 +230,10 @@ jobs:
           no-cache: true
 
       - name: Setup Node for shipped-artifact gates
-        if: ${{ matrix.suite == 'dist-artifact' || matrix.suite == 'tarball-consumer' }}
+        if: ${{ matrix.suite == 'dist-artifact' || matrix.suite == 'tarball-consumer' || matrix.suite == 'tarball-consumer-node18' }}
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.suite == 'tarball-consumer-node18' && '18' || '22' }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -260,7 +260,7 @@ jobs:
         run: cd e2e && bun test dist-artifact-fuzz.e2e.test.ts --timeout 400000
 
       - name: Run tarball-consumer fuzz (npm pack -> install -> drive bins under Node)
-        if: ${{ matrix.suite == 'tarball-consumer' }}
+        if: ${{ matrix.suite == 'tarball-consumer' || matrix.suite == 'tarball-consumer-node18' }}
         # Packs, installs into a clean project, and fuzzes the installed library
         # + `am`/`agentic-mermaid-mcp` bins as spawned Node processes — the real
         # consumer path (exports resolution, files[], bin linking, native deps).
@@ -294,3 +294,22 @@ jobs:
         # config's thresholds.break. A full run on this lane is ~1 min, so it
         # runs in full every PR (no --since scoping needed for so few files).
         run: bun run mutation-test:incremental
+
+  # One protectable result that cannot turn green before the downstream E2E
+  # matrix and mutation lane finish. Repository rules should require this job.
+  ci-complete:
+    name: CI complete
+    runs-on: ubuntu-latest
+    needs: [test, e2e, mutation-incremental]
+    if: ${{ always() }}
+    steps:
+      - name: Require every CI lane to pass
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          MUTATION_RESULT: ${{ needs.mutation-incremental.result }}
+        run: |
+          if [[ "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || "$MUTATION_RESULT" != "success" ]]; then
+            echo "test=$TEST_RESULT e2e=$E2E_RESULT mutation=$MUTATION_RESULT"
+            exit 1
+          fi

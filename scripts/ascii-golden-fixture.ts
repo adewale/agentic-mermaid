@@ -18,7 +18,7 @@ export function parseAsciiGoldenFixture(content: string): AsciiGoldenFixture {
       break
     }
   }
-  if (separatorIndex < 0) separatorIndex = lines.length
+  if (separatorIndex < 0) throw new Error('golden fixture is missing --- separator')
 
   const fixture: AsciiGoldenFixture = {
     sourceLines: lines.slice(0, separatorIndex),

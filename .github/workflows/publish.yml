@@ -5,6 +5,7 @@ on:
     types: [published]
 
 permissions:
+  actions: read # verify canonical CI succeeded for the exact release commit
   contents: read
   id-token: write # required for OIDC trusted publishing + provenance
 
@@ -33,6 +34,23 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: bun run scripts/ci/release-identity.ts
+
+      - name: Require successful canonical CI for the exact release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          runs="$(gh api -X GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f head_sha="$GITHUB_SHA" \
+            -f branch=main \
+            -f status=success \
+            -f per_page=100)"
+          successes="$(printf '%s' "$runs" | jq --arg sha "$GITHUB_SHA" \
+            '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | length')"
+          if [ "$successes" -lt 1 ]; then
+            echo "No successful CI workflow run exists for release commit $GITHUB_SHA on main" >&2
+            exit 1
+          fi
 
       - name: Setup Node.js (for npm publish)
         uses: actions/setup-node@v7
@@ -77,12 +95,26 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # --- Release gate: mirror ci.yml's deterministic `test` job so a tagged
+      - name: Reject new high or critical dependency advisories
+        run: bun run audit:dependencies
+
+      # --- Release gate: mirror ci.yml's deterministic test and quality jobs so a tagged
       # release cannot publish a commit that would fail CI.
       # Runs before the test step, whose preload overwrites the committed worker
       # inputs this check pins.
       - name: Check the committed website worker inputs are current
         run: bun run website:check
+
+      - name: Check controlled palette evidence and deterministic performance
+        run: |
+          bun run gallery:palette-rollout:check
+          bun run gallery:palette-harmony:check
+          bun run benchmark:palette:check
+
+      - name: Run sketch and whole-corpus layout quality gates
+        run: |
+          bun run sketch:check
+          bun run audit:ugly
 
       - name: Run tests
         # Use the same bounded covered suite as CI; a release must not have a
@@ -91,6 +123,12 @@ jobs:
 
       - name: Type check
         run: bun run typecheck
+
+      - name: Install Chromium for browser contracts
+        run: bunx playwright install chromium --with-deps
+
+      - name: Run canonical browser contracts
+        run: bun run test:browser
 
       - name: Check README hero image is current with the renderer
         run: bun run hero:check
@@ -101,11 +139,32 @@ jobs:
       - name: Incremental mutation lane (faithfulness counter)
         run: bun run mutation-test:incremental
 
-      - name: Fuzz the shipped artifact (built bundle + packed tarball, under Node)
-        # The strongest pre-publish signal: builds dist/, and packs+installs the
-        # tarball, then drives the library + bins under plain Node. Validates the
-        # exact files[]/exports/bin a release commit may have changed.
-        run: cd e2e && bun test dist-artifact-fuzz.e2e.test.ts tarball-consumer-fuzz.e2e.test.ts --timeout 600000
+      - name: Prove focused route regressions fail
+        run: bun run sabotage:routes
+
+      - name: Fuzz the shipped artifact (built bundle + packed tarball, under Node 22)
+        # The strongest pre-publish signal: builds dist/, compiles the standalone
+        # binary, and packs+installs the tarball, then drives the library + bins
+        # under plain Node. Validates the exact files[]/exports/bin a release
+        # commit may have changed.
+        run: cd e2e && bun test cli-smoke.e2e.test.ts dist-artifact-fuzz.e2e.test.ts single-binary.e2e.test.ts tarball-consumer-fuzz.e2e.test.ts --timeout 600000
+
+      - name: Setup minimum supported Node.js consumer runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version: '18'
+
+      - name: Pack, install, and fuzz the tarball under Node 18
+        run: cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000
+
+      - name: Restore trusted-publishing Node.js runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify pinned npm publisher survived the runtime switch
+        run: test "$(npm --version)" = "11.18.0"
 
       - name: Build distributable
         run: bun run build

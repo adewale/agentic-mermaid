@@ -78,7 +78,8 @@ independent spec:
   golden never moves silently.
 
 **Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
-per PR — it is the four-lane `e2e` matrix in `ci.yml` (`needs: test`). Its
+per PR — it is the five-lane `e2e` matrix in `ci.yml` (`needs: test`), including
+an installed-tarball consumer run at the advertised Node 18 floor. Its
 browser lane installs Chromium and runs `browser.test.ts` (screenshot diff)
 plus the security contracts and the explicitly enabled theme/style/accessibility
 browser suites. The browser lane builds the gitignored `website/public` tree once
@@ -281,7 +282,9 @@ table here, which would drift. In broad strokes:
   the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
   type check, the hero check, the
   golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
-  incremental mutation lane, and the independent focused sabotage lane.
+  incremental mutation lane, and the independent focused sabotage lane. A final
+  `CI complete` job waits for the required test aggregate, every E2E matrix job,
+  and mutation, providing one protectable result that cannot turn green early.
 - **Manual / periodic:** opt-in broad Stryker survivor harvests,
   `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.
@@ -356,7 +359,9 @@ gates rather than adding new machinery:
    byte equality is not asserted.
 5. `QualityBounds` thresholds are now provenance-tagged, but the `chosen`
    bands are still not validated against human-perception evidence.
-6. The snapshot drift sentinel warns but does not block.
+6. Golden movement still needs human judgment, but the snapshot drift sentinel
+   blocks unless the change is committed with the explicit `[approve-goldens]`
+   review token; the token proves acknowledgment, not visual quality.
 
 The deepest gap is structural, and `project/lessons-learned.md` (Loop 13)
 names it: every quality signal here is self-generated. The portfolio above

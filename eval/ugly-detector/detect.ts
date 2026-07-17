@@ -230,6 +230,7 @@ export interface AsciiRegion {
   kind: string; id: string
   canvasRow: number; canvasColStart: number; canvasColEnd: number; rowSpan?: number
   projectedText?: string
+  authoredTextCells?: Array<{ row: number; column: number; glyph: string }>
 }
 export function detectAscii(ascii: string, regions: AsciiRegion[], options: { useAscii?: boolean } = {}): Finding[] {
   const out: Finding[] = []
@@ -237,12 +238,12 @@ export function detectAscii(ascii: string, regions: AsciiRegion[], options: { us
   const lineGlyphs = options.useAscii ? ASCII_LINE_GLYPHS : UNICODE_LINE_GLYPHS
   for (const r of regions) {
     if (r.kind !== 'node') continue
-    const authoredGlyphs = new Set(graphemes(r.projectedText ?? ''))
+    const authoredCells = new Set((r.authoredTextCells ?? []).map(cell => `${cell.row}\0${cell.column}\0${cell.glyph}`))
     const r0 = r.canvasRow, r1 = r.canvasRow + (r.rowSpan ?? 1)
     for (let gy = r0; gy < r1; gy++) {
       for (let gx = r.canvasColStart; gx < r.canvasColEnd; gx++) {
         const glyph = displayCellAt(rows[gy], gx)
-        if (glyph && lineGlyphs.has(glyph) && !authoredGlyphs.has(glyph)) {
+        if (glyph && lineGlyphs.has(glyph) && !authoredCells.has(`${gy}\0${gx}\0${glyph}`)) {
           out.push({ kind: 'ascii-edge-through-node', severity: 'hard', detail: `${r.id}: line glyph '${glyph}' on label band at (${gx},${gy})` })
           gy = r1; break
         }

@@ -43,6 +43,7 @@ import { ParsedDiagramFamilyMismatchError } from '../render-contract.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { plainTextFromInlineFormatting } from '../shared/inline-format.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { graphemes } from '../shared/graphemes.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import { decodeXML } from 'entities'
 import type { MermaidGraph } from '../types.ts'
@@ -76,6 +77,9 @@ export interface AsciiRegion {
   rowSpan?: number
   /** Normalized text this best-effort label region was matched from. */
   projectedText?: string
+  /** Exact rendered cells claimed by authored label glyphs. Route detectors use
+   * this position-specific mask instead of exempting a glyph everywhere. */
+  authoredTextCells?: Array<{ row: number; column: number; glyph: string }>
 }
 
 export interface AsciiWithMeta {
@@ -174,7 +178,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
   for (const c of sorted) {
     const candidateKey = `${c.kind ?? 'node'}\u0000${c.id}`
     if (used.has(candidateKey)) continue
-    const match = matchProjectedLabel(lines, c.label, occupied)
+    const match = matchProjectedLabel(lines, c.label, occupied, (c.kind ?? 'node') === 'node')
     if (!match) continue
     out.push({
       kind: c.kind ?? 'node',
@@ -185,6 +189,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
       canvasColEnd: match.colEnd,
       ...(match.rowSpan > 1 ? { rowSpan: match.rowSpan } : {}),
       projectedText: projectedLabelText(c.label),
+      authoredTextCells: match.authoredTextCells,
     })
     used.add(candidateKey)
   }
@@ -193,7 +198,13 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
   return out
 }
 
-interface ProjectedLabelMatch { row: number; colStart: number; colEnd: number; rowSpan: number }
+interface ProjectedLabelMatch {
+  row: number
+  colStart: number
+  colEnd: number
+  rowSpan: number
+  authoredTextCells: Array<{ row: number; column: number; glyph: string }>
+}
 interface TextOccurrence {
   row: number
   /** UTF-16 offsets used only to continue searching the source string. */
@@ -202,6 +213,7 @@ interface TextOccurrence {
   /** Terminal display-cell coordinates used for every spatial decision. */
   colStart: number
   colEnd: number
+  text: string
 }
 
 function overlapsOccupied(occupied: Map<number, Array<readonly [number, number]>>, occurrence: TextOccurrence): boolean {
@@ -221,11 +233,39 @@ function occurrencesOf(lines: string[], text: string, occupied: Map<number, Arra
         end,
         colStart: visualWidth(line.slice(0, start)),
         colEnd: visualWidth(line.slice(0, end)),
+        text,
       }
       if (!overlapsOccupied(occupied, occurrence)) out.push(occurrence)
     }
   }
   return out
+}
+
+const NODE_TEXT_BOUNDARY_GLYPHS = new Set(['|', '│', '║', '├', '┤', '┼', '╫', '╪', '+'])
+
+/** Prefer occurrences enclosed by a rendered node's vertical borders. This
+ * disambiguates node labels from identical edge labels and prevents authored
+ * punctuation such as "-" from binding to a horizontal box border. Families
+ * without boxed labels retain deterministic top-to-bottom fallback order. */
+function nodeTextBandScore(lines: string[], occurrence: TextOccurrence): number {
+  const line = lines[occurrence.row] ?? ''
+  const before = graphemes(line.slice(0, occurrence.start).trimEnd()).at(-1)
+  const after = graphemes(line.slice(occurrence.end).trimStart())[0]
+  return before !== undefined && after !== undefined
+    && NODE_TEXT_BOUNDARY_GLYPHS.has(before) && NODE_TEXT_BOUNDARY_GLYPHS.has(after)
+    ? 1
+    : 0
+}
+
+function preferredOccurrences(
+  lines: string[],
+  occurrences: TextOccurrence[],
+  preferNodeTextBand: boolean,
+): TextOccurrence[] {
+  return [...occurrences].sort((a, b) =>
+    (preferNodeTextBand ? nodeTextBandScore(lines, b) - nodeTextBandScore(lines, a) : 0)
+    || a.row - b.row
+    || a.colStart - b.colStart)
 }
 
 function projectedLabelText(label: string): string {
@@ -245,11 +285,20 @@ function claimOccurrences(
   }
   const firstRow = Math.min(...occurrences.map(occurrence => occurrence.row))
   const lastRow = Math.max(...occurrences.map(occurrence => occurrence.row))
+  const authoredTextCells = occurrences.flatMap(occurrence => {
+    let column = occurrence.colStart
+    return graphemes(occurrence.text).map(glyph => {
+      const cell = { row: occurrence.row, column, glyph }
+      column += visualWidth(glyph)
+      return cell
+    })
+  })
   return {
     row: firstRow,
     colStart: Math.min(...occurrences.map(occurrence => occurrence.colStart)),
     colEnd: Math.max(...occurrences.map(occurrence => occurrence.colEnd)),
     rowSpan: lastRow - firstRow + 1,
+    authoredTextCells,
   }
 }
 
@@ -261,27 +310,28 @@ function matchProjectedLabel(
   lines: string[],
   label: string,
   occupied: Map<number, Array<readonly [number, number]>>,
+  preferNodeTextBand: boolean,
 ): ProjectedLabelMatch | undefined {
   const projected = projectedLabelText(label)
   for (const text of new Set([label, projected])) {
-    const occurrence = occurrencesOf(lines, text, occupied)[0]
+    const occurrence = preferredOccurrences(lines, occurrencesOf(lines, text, occupied), preferNodeTextBand)[0]
     if (occurrence) return claimOccurrences([occurrence], occupied)
   }
 
   const tokens = projected.split(/\s+/).filter(Boolean)
   if (tokens.length < 2) return undefined
-  for (const first of occurrencesOf(lines, tokens[0]!, occupied)) {
+  for (const first of preferredOccurrences(lines, occurrencesOf(lines, tokens[0]!, occupied), preferNodeTextBand)) {
     const matches = [first]
     let previous = first
-    let rowStart = first.start
-    let rowEnd = first.end
+    let rowStart = first.colStart
+    let rowEnd = first.colEnd
     let complete = true
     for (const token of tokens.slice(1)) {
       // A projected label is one contiguous text cluster: tokens either remain
       // on the same row with only ordinary inter-word spacing, or continue on
       // the immediately following row with overlapping display columns. Without
       // this bound, a trailing token can be stolen from a neighbouring node.
-      const next = occurrencesOf(lines, token, occupied).find(candidate =>
+      const next = preferredOccurrences(lines, occurrencesOf(lines, token, occupied), preferNodeTextBand).find(candidate =>
         (candidate.row === previous.row
           && candidate.colStart >= previous.colEnd
           && candidate.colStart - previous.colEnd <= 3)

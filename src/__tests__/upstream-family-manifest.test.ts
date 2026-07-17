@@ -252,6 +252,16 @@ describe('pinned Mermaid public-family manifest', () => {
     expect(diff.removedThemeVariables).toEqual([removedThemeId])
     expect(diff.changedThemeVariables).toEqual([{ id: changedThemeId, fields: ['defaultSha256'] }])
   })
+
+  test('diff identifiers use Unicode code-point order rather than UTF-16 order', () => {
+    const next = structuredClone(UPSTREAM_MERMAID_MANIFEST)
+    next.semanticInventory.configKeys.push(
+      { id: '\u{10000}', type: 'string', optional: true },
+      { id: '\uE000', type: 'string', optional: true },
+    )
+    expect(diffUpstreamMermaidManifests(UPSTREAM_MERMAID_MANIFEST, next).addedConfigKeys)
+      .toEqual(['\uE000', '\u{10000}'])
+  })
 })
 
 describe('forward-compatible family classification', () => {

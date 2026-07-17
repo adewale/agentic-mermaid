@@ -11,6 +11,7 @@ import {
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
+import { auditOne } from '../../eval/ugly-detector/audit.ts'
 
 const rect = (id: string, x: number, y: number, w = 40, h = 20) =>
   ({ id, shape: 'rectangle' as const, x, y, w, h })
@@ -124,8 +125,20 @@ describe('detectAscii — glyph grid', () => {
     const line = [{ kind: 'node', id: 'A', canvasRow: 0, canvasColStart: 0, canvasColEnd: 2, projectedText: 'X' }]
     expect(kinds(detectAscii('|X', line, { useAscii: true }))).toContain('ascii-edge-through-node')
 
-    const punctuation = [{ kind: 'node', id: 'B', canvasRow: 0, canvasColStart: 0, canvasColEnd: 4, projectedText: 'a-b+' }]
+    const punctuation = [{
+      kind: 'node', id: 'B', canvasRow: 0, canvasColStart: 0, canvasColEnd: 4, projectedText: 'a-b+',
+      authoredTextCells: [
+        { row: 0, column: 0, glyph: 'a' }, { row: 0, column: 1, glyph: '-' },
+        { row: 0, column: 2, glyph: 'b' }, { row: 0, column: 3, glyph: '+' },
+      ],
+    }]
     expect(detectAscii('a-b+', punctuation, { useAscii: true })).toEqual([])
+
+    const injected = [{
+      kind: 'node', id: 'C', canvasRow: 0, canvasColStart: 0, canvasColEnd: 3, projectedText: '-X',
+      authoredTextCells: [{ row: 0, column: 0, glyph: '-' }, { row: 0, column: 1, glyph: 'X' }],
+    }]
+    expect(kinds(detectAscii('--X', injected, { useAscii: true }))).toContain('ascii-edge-through-node')
   })
 
   test('CJK Gantt label regions do not include timeline glyphs', () => {
@@ -143,6 +156,26 @@ describe('ASCII/Unicode golden fixture admission', () => {
       paddingX: 2,
       paddingY: 3,
     }))
+    expect(() => parseAsciiGoldenFixture('flowchart LR\n  A --> B\n')).toThrow(/missing --- separator/)
+  })
+})
+
+describe('whole-corpus audit admission', () => {
+  test('non-flowchart families carry renderer-layout structural admission', () => {
+    const results = auditOne({
+      corpus: 'test', name: 'sequence',
+      source: 'sequenceDiagram\n  Alice->>Bob: hello',
+    })
+    expect(results.find(result => result.format === 'svg')?.structuralAdmission)
+      .toEqual(expect.objectContaining({ source: 'rendered-layout', nodes: expect.any(Number), edges: expect.any(Number) }))
+    expect(results.find(result => result.format === 'svg')?.structuralAdmission?.nodes).toBeGreaterThan(0)
+  })
+
+  test('terminal render failures become audit errors rather than empty passing grids', () => {
+    const results = auditOne({ corpus: 'test', name: 'invalid', source: 'not a diagram' })
+    for (const format of ['ascii', 'unicode']) {
+      expect(results.find(result => result.format === format)?.error).toMatch(/failed/i)
+    }
   })
 })
 
