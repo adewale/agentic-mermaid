@@ -68,7 +68,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "8316f4b96ceb1ea8d90d735893cb026610ba66d5eca69e062da33054dd9910bc"
+      "sha256": "54663bbef14fccaf0d8409cd13f63d02d8d75b36ca9028bc94f167f516d2c47f"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -1008,11 +1008,11 @@
     },
     {
       "path": "src/__tests__/link-grammar.test.ts",
-      "sha256": "0f61d391b12c5e33b7ce52ea9d979f183fdfab779415ff265bc3c291411e20f4"
+      "sha256": "5220a762d1859c06d509c9d25dda9b732bb86af68ef263d375da49b092850211"
     },
     {
       "path": "src/__tests__/linkrank-packing.test.ts",
-      "sha256": "a56f315a17e0478eba8e7c9d3a78ca0c9aae04bc25dbdfe3b2ee101d21c6f1de"
+      "sha256": "3d3695c84aa0613ced292c5651f47ac818c1ce0d6d4af2e640de003cd5d68262"
     },
     {
       "path": "src/__tests__/linkstyle.test.ts",
@@ -1072,7 +1072,7 @@
     },
     {
       "path": "src/__tests__/mutation-config.test.ts",
-      "sha256": "f5f3f6e6e4c2ee70ba10bb68e5280547c48d384f81d7484f73c13a990076323c"
+      "sha256": "a6d657a891361821a2243da3c47ec96f02615eca08cae52797272f743a37399b"
     },
     {
       "path": "src/__tests__/no-dom-in-product.test.ts",
@@ -2272,7 +2272,7 @@
     },
     {
       "path": "src/layout/passes/index.ts",
-      "sha256": "4d906f6f6f76fb14b41ec828fd817d58a3ecb0e3c4cfc65171113beadaae6054"
+      "sha256": "cb2cdf6cbd922baf2a7b4780ce3e1b49ebbc43d300186b15b84b6125cc15b053"
     },
     {
       "path": "src/layout/passes/translation.ts",

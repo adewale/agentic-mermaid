@@ -759,9 +759,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
 
   // A subgraph endpoint (`container` edge) expands to every node it encloses, so
   // shoving the unit moves the whole box. `cross-hierarchy` and `container` links
-  // set rank distance just like `primary-forward`; only feedback (back) edges and
-  // self-loops are excluded from the forward walk — a lengthened back edge is pure
-  // styling and a cycle must never drag the lengthened edge's own source forward.
+  // set rank distance just like `primary-forward`. A feedback edge constrains the
+  // same two ranks in their geometric (forward) order: reverse its endpoints for
+  // spacing, while leaving its authored direction and feedback route untouched.
   const collectMembers = (sg: MermaidSubgraph, acc: string[]): void => {
     for (const id of sg.nodeIds) acc.push(id)
     for (const child of sg.children) collectMembers(child, acc)
@@ -799,10 +799,14 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     for (const sgId of tgtChain) if (!srcScopes.has(sgId)) return unitNodes(sgId)
     return [tgt]
   }
-  const setsRankDistance = (i: number): boolean => {
-    const cls = classes[i] ?? 'primary-forward'
-    return cls === 'primary-forward' || cls === 'cross-hierarchy' || cls === 'container'
+  type RankConstraint = { source: string; target: string }
+  // mutation-scope:feedback-link-rank-distance:start
+  const rankConstraint = (i: number): RankConstraint => {
+    const edge = graph.edges[i]!
+    if (classes[i] === 'feedback') return { source: edge.target, target: edge.source }
+    return { source: edge.source, target: edge.target }
   }
+  // mutation-scope:feedback-link-rank-distance:end
 
   // Main-axis entry/exit of an endpoint that may be a node OR a subgraph box.
   const mainSpan = (id: string): { start: number; size: number } | null => {
@@ -822,10 +826,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // Forward adjacency over node ids, with subgraph endpoints expanded to members.
   const outgoing = new Map<string, string[]>()
   for (let i = 0; i < graph.edges.length; i++) {
-    if (!setsRankDistance(i)) continue
-    const edge = graph.edges[i]!
-    if (!isForwardish(edge.source, edge.target)) continue
-    for (const u of unitNodes(edge.source)) for (const v of unitNodes(edge.target)) {
+    const constraint = rankConstraint(i)
+    if (!isForwardish(constraint.source, constraint.target)) continue
+    for (const u of unitNodes(constraint.source)) for (const v of unitNodes(constraint.target)) {
       if (!outgoing.has(u)) outgoing.set(u, [])
       outgoing.get(u)!.push(v)
     }
@@ -912,16 +915,16 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   const preShovePairs = new Set(overlappingPairs().map(([a, b]) => pairKey(a, b)))
 
   for (let i = 0; i < graph.edges.length; i++) {
-    if (!setsRankDistance(i)) continue
     const spec = graph.edges[i]!
+    const constraint = rankConstraint(i)
     const length = spec.length ?? 1
     if (length <= 1) continue
-    if (!isForwardish(spec.source, spec.target)) continue
-    const exitS = endpointExit(spec.source), entryT = endpointEntry(spec.target)
+    if (!isForwardish(constraint.source, constraint.target)) continue
+    const exitS = endpointExit(constraint.source), entryT = endpointEntry(constraint.target)
     if (exitS === null || entryT === null) continue
     const currentGap = (entryT - exitS) * f.sign
     const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
-    if (currentGap < minGap) moveSet(movableUnit(spec.source, spec.target), (minGap - currentGap) * f.sign)
+    if (currentGap < minGap) moveSet(movableUnit(constraint.source, constraint.target), (minGap - currentGap) * f.sign)
   }
 
   // Treat the shove as physical: whatever it lands on is pushed ahead, never
@@ -935,14 +938,6 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     for (const sgId of scopeChainOf.get(id) ?? []) if (!otherScopes.has(sgId)) return unitNodes(sgId)
     return [id]
   }
-  const pushAhead = (unit: string[], delta: number): void => {
-    for (const id of unit) {
-      const n = nodeMap.get(id)
-      if (!n) continue
-      n[f.main] += delta
-      mainDelta.set(id, (mainDelta.get(id) ?? 0) + delta)
-    }
-  }
   for (let round = 0; round < nodes.length * 4; round++) {
     const created = overlappingPairs().filter(([a, b]) => !preShovePairs.has(pairKey(a, b)))
     if (created.length === 0) break
@@ -953,7 +948,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const delta = f.sign === 1
       ? behind[f.main] + nodeMainSize(behind, graph.direction) + DEFAULTS.nodeSpacing - ahead[f.main]
       : ahead[f.main] + nodeMainSize(ahead, graph.direction) + DEFAULTS.nodeSpacing - behind[f.main]
-    pushAhead(separationUnit(ahead.id, behind.id), delta * f.sign)
+    // mutation-scope:link-rank-packing-closure:start
+    moveSet(separationUnit(ahead.id, behind.id), f.sign === 1 ? delta : -delta)
+    // mutation-scope:link-rank-packing-closure:end
   }
 
   // Grow/translate every container so it still encloses its (possibly moved) members.

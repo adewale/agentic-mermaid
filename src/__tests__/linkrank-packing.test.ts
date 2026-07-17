@@ -12,6 +12,7 @@ import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { auditRouteContracts } from '../route-contracts.ts'
 import { createHash } from 'node:crypto'
 
 const cases: [string, string][] = [
@@ -56,12 +57,35 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
     })
   }
 
+  test('packing preserves every requested long-link gap in all four directions', () => {
+    const template = (dir: 'LR' | 'RL' | 'TD' | 'BT') =>
+      `flowchart ${dir}\n  N2((x))\n  N9 ===>|x| N6\n  N7 ----> N0\n  N2 ---> N7`
+    const mainGap = (positioned: ReturnType<typeof layoutGraphSync>, dir: 'LR' | 'RL' | 'TD' | 'BT'): number => {
+      const source = positioned.nodes.find(n => n.id === 'N7')!
+      const target = positioned.nodes.find(n => n.id === 'N0')!
+      switch (dir) {
+        case 'LR': return target.x - (source.x + source.width)
+        case 'RL': return source.x - (target.x + target.width)
+        case 'TD': return target.y - (source.y + source.height)
+        default: return source.y - (target.y + target.height)
+      }
+    }
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const graph = parseMermaid(template(dir))
+      const positioned = layoutGraphSync(graph)
+      // `---->` parses as length 3: 48 + 2 × (48 + 40) = 224px.
+      expect(mainGap(positioned, dir)).toBeGreaterThanOrEqual(223.5)
+      expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+      expect(auditRouteContracts(positioned, graph)).toEqual([])
+    }
+  })
+
   // Characterization: pin the exact repaired geometry. Explicit hashes avoid
   // Bun's concurrent cross-file snapshot-writer race in the full suite.
   const expectedHashes: Record<string, string> = {
     'shove overlap, LR diamond': '6d93304a97f9175b33a0366fb1782132563efa614106b5f943874bb81aa25b27',
-    'shove overlap, TD 2 components': 'be325ac3cff9edfc747f394e89de96615e1f33065b6536bdc3f79774d2dfbbf5',
-    'shove overlap, RL long-link fan': '07a9a8d24ef74000d95a6187cc8dfbe16214b5403ef0d1f497087d031b9921cd',
+    'shove overlap, TD 2 components': 'b3aa838a9a3521ae523945719599a5bf5970629396552f5af259c758869dd987',
+    'shove overlap, RL long-link fan': '1488a87ddbae1535e35cb3267bab248e87804d4ccc982fef13029c7c3bab30ef',
     'feedback rung, BT 3 components': 'c32f0dff6c2f8a499091a5f34eddd0cc3365c17084b310775719a68bf43134fa',
     'dogleg staircase, TD': '5bb57ff4f46a0c23a30adf5518b6d3d791e7e053a0c261a5822625b4502ccd39',
   }

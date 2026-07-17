@@ -8,6 +8,7 @@ import { describe, expect, it } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseRegisteredMermaid as agentParse, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
 
 function edges(src: string) {
   return parseMermaid(src).edges
@@ -198,6 +199,52 @@ describe('link length is honored across a feedback (back) edge', () => {
         }
       }
       expect(gapAB(long)).toBeGreaterThan(gapAB(base) + 40)
+    }
+  })
+})
+
+// Issue #87: the tests above prove that a long FORWARD edge still works when
+// the graph also contains feedback. They do not prove that the FEEDBACK edge
+// itself carries Mermaid's minimum-rank intent. A back edge is forwardized for
+// rank constraints (target → source), so lengthening it widens the return span
+// without pulling the upstream target through the cycle.
+describe('a lengthened feedback edge sets minimum rank distance', () => {
+  const gap = (layout: ReturnType<typeof layoutGraphSync>, dir: 'LR' | 'RL' | 'TD' | 'BT', first: string, last: string): number => {
+    const a = layout.nodes.find(n => n.id === first)!
+    const b = layout.nodes.find(n => n.id === last)!
+    switch (dir) {
+      case 'LR': return b.x - (a.x + a.width)
+      case 'RL': return a.x - (b.x + b.width)
+      case 'TD': return b.y - (a.y + a.height)
+      default: return a.y - (b.y + b.height)
+    }
+  }
+
+  it('widens a reciprocal pair in all four directions while staying feedback', () => {
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const source = (op: string) => `flowchart ${dir}\n  A --> B\n  B ${op} A`
+      const base = layoutGraphSync(parseMermaid(source('-->')))
+      const long = layoutGraphSync(parseMermaid(source('---->')))
+      expect(gap(long, dir, 'A', 'B')).toBeGreaterThanOrEqual(223.5)
+      expect(gap(long, dir, 'A', 'B')).toBeGreaterThan(gap(base, dir, 'A', 'B') + 80)
+      expect(long.edges[1]!.routeCertificate?.routeClass).toBe('feedback')
+
+      const verified = verifyMermaid(source('---->'))
+      expect(verified.ok).toBe(true)
+      expect(verified.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
+      expect(verified.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
+    }
+  })
+
+  it('widens the return span of a three-node cycle', () => {
+    for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
+      const source = (op: string) => `flowchart ${dir}\n  A --> B\n  B --> C\n  C ${op} A`
+      const base = layoutGraphSync(parseMermaid(source('-->')))
+      const long = layoutGraphSync(parseMermaid(source('---->')))
+      expect(gap(long, dir, 'A', 'C')).toBeGreaterThanOrEqual(223.5)
+      expect(gap(long, dir, 'A', 'C')).toBeGreaterThan(gap(base, dir, 'A', 'C') + 40)
+      expect(long.edges[2]!.routeCertificate?.routeClass).toBe('feedback')
+      expect(verifyMermaid(source('---->')).ok).toBe(true)
     }
   })
 })

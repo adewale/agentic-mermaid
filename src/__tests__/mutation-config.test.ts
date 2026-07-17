@@ -39,10 +39,13 @@ describe('mutation config policy', () => {
     expect(scopedSource(subgraph.mutate[1]!)).toContain('function deepestCommonAncestor')
 
     const links = (await import('../../stryker.link-grammar.config.mjs')).default
-    expect(links.mutate).toHaveLength(1)
+    expect(links.mutate).toHaveLength(3)
     expect(scopedSource(links.mutate[0]!)).toContain('extraOpen')
     expect(scopedSource(links.mutate[0]!)).toContain('extraClose')
     expect(scopedSource(links.mutate[0]!)).toContain('Math.max(extraOpen, extraClose)')
+    expect(scopedSource(links.mutate[1]!)).toContain("classes[i] === 'feedback'")
+    expect(scopedSource(links.mutate[1]!)).toContain('edge.target, target: edge.source')
+    expect(scopedSource(links.mutate[2]!)).toContain('moveSet(separationUnit(ahead.id, behind.id)')
   })
 
   test('package scripts reference real configs', () => {
