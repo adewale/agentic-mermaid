@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import {
@@ -151,6 +153,30 @@ describe('canonical PNG output-option authority', () => {
       loadSystemFonts: ['system-fonts'],
       onWarning: [],
     })
+  })
+
+  test('the live hosted MCP smoke payload conforms to the canonical render_png tool schema', () => {
+    const script = readFileSync(join(import.meta.dir, '..', '..', 'website', 'e2e-mcp.sh'), 'utf8')
+    const payload = script.match(/png_response="\$\(j '(\{[^\n]+\})'\)"/)?.[1]
+    expect(payload).toBeDefined()
+    const request = JSON.parse(payload!) as {
+      jsonrpc: string
+      method: string
+      params: { name: string; arguments: Record<string, unknown> }
+    }
+    expect(request).toMatchObject({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'render_png' },
+    })
+    const args = request.params.arguments
+    expect(args.options).toMatchObject({
+      padding: 19,
+      security: 'strict',
+      style: ['watercolor', 'paper'],
+      seed: 13,
+    })
+    expect(validateMcpToolArguments(createRenderPngTool('hosted'), args)).toEqual([])
   })
 
   test('MCP admission enforces the canonical fit and native-font shapes', () => {
