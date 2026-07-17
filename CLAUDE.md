@@ -56,7 +56,7 @@ Quick automated hygiene check (diff size, tests touched, secrets, debug
 statements, UI files):
 
 ```bash
-bash .agents/skills/good-pr/scripts/check-pr-readiness.sh main   # if installed locally
+bash scripts/ci/check-pr-readiness.sh main
 ```
 
 Do not create a PR unless explicitly asked.

@@ -1,4 +1,5 @@
 import rawManifest from '../docs/project/upstream-mermaid-manifest.json'
+import { compareCodePointStrings } from './shared/deterministic-order.ts'
 
 export { findUpstreamFamilyByHeader } from './upstream-family-index.ts'
 export type { UpstreamHeaderMatch } from './upstream-family-index.ts'
@@ -137,7 +138,7 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   if (value && typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => compareCodePointStrings(a, b))
       .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
     return `{${entries.join(',')}}`
   }
@@ -193,7 +194,7 @@ function changedFields<T extends { id: string }>(before: T, after: T): string[] 
   const keys = new Set([...Object.keys(before), ...Object.keys(after)])
   keys.delete('id')
   return Array.from(keys)
-    .sort()
+    .sort(compareCodePointStrings)
     .filter(key => canonicalJson((before as Record<string, unknown>)[key]) !== canonicalJson((after as Record<string, unknown>)[key]))
 }
 
@@ -204,11 +205,11 @@ function diffEntries<T extends { id: string }>(before: T[], after: T[]): {
 } {
   const left = new Map(before.map(entry => [entry.id, entry]))
   const right = new Map(after.map(entry => [entry.id, entry]))
-  const added = Array.from(right.keys()).filter(id => !left.has(id)).sort()
-  const removed = Array.from(left.keys()).filter(id => !right.has(id)).sort()
+  const added = Array.from(right.keys()).filter(id => !left.has(id)).sort(compareCodePointStrings)
+  const removed = Array.from(left.keys()).filter(id => !right.has(id)).sort(compareCodePointStrings)
   const changed = Array.from(left.keys())
     .filter(id => right.has(id))
-    .sort()
+    .sort(compareCodePointStrings)
     .map(id => ({ id, fields: changedFields(left.get(id)!, right.get(id)!) }))
     .filter(change => change.fields.length > 0)
   return { added, removed, changed }
@@ -271,7 +272,7 @@ export function validateUpstreamMermaidManifest(manifest: UpstreamMermaidManifes
   if (surfaceIds.join(',') !== ['detectors', 'configuration', 'themes', 'grammar'].join(',')) errors.push('surface inventory is incomplete or out of order')
   for (const surface of manifest.surfaces) {
     if (!/^[0-9a-f]{64}$/.test(surface.sha256) || /^0+$/.test(surface.sha256)) errors.push(`surface ${surface.id} sha256 is invalid`)
-    if (surface.files.length === 0 || new Set(surface.files).size !== surface.files.length || [...surface.files].sort().join('\0') !== surface.files.join('\0')) {
+    if (surface.files.length === 0 || new Set(surface.files).size !== surface.files.length || [...surface.files].sort(compareCodePointStrings).join('\0') !== surface.files.join('\0')) {
       errors.push(`surface ${surface.id} files are empty, duplicated, or unsorted`)
     }
   }
@@ -290,7 +291,7 @@ export function validateUpstreamMermaidManifest(manifest: UpstreamMermaidManifes
       const entryIds = entries.map(entry => entry.id)
       if (entryIds.length === 0) errors.push(`${label} inventory is empty`)
       if (new Set(entryIds).size !== entryIds.length) errors.push(`${label} ids are not unique`)
-      if ([...entryIds].sort().join('\0') !== entryIds.join('\0')) errors.push(`${label} ids are not sorted`)
+      if ([...entryIds].sort(compareCodePointStrings).join('\0') !== entryIds.join('\0')) errors.push(`${label} ids are not sorted`)
     }
     const artifactsById = new Map(semantic.sourceArtifacts.map(artifact => [artifact.id, artifact]))
     const knownFamilyIds = new Set(manifest.families.map(family => family.id))
@@ -325,7 +326,7 @@ export function validateUpstreamMermaidManifest(manifest: UpstreamMermaidManifes
     }
     for (const feature of semantic.syntaxFeatures) {
       if (!['syntax-features', 'official-doc'].includes(artifactsById.get(feature.artifact)?.kind ?? '')) errors.push(`syntax feature ${feature.id} references invalid artifact`)
-      if (feature.families.length === 0 || new Set(feature.families).size !== feature.families.length || [...feature.families].sort().join('\0') !== feature.families.join('\0') || feature.families.some(family => !knownFamilyIds.has(family))) errors.push(`syntax feature ${feature.id} has invalid families`)
+      if (feature.families.length === 0 || new Set(feature.families).size !== feature.families.length || [...feature.families].sort(compareCodePointStrings).join('\0') !== feature.families.join('\0') || feature.families.some(family => !knownFamilyIds.has(family))) errors.push(`syntax feature ${feature.id} has invalid families`)
       if (!syntaxStatuses.has(feature.status)) errors.push(`syntax feature ${feature.id} has invalid status`)
       if (!/^[0-9a-f]{64}$/.test(feature.fingerprint)) errors.push(`syntax feature ${feature.id} fingerprint is invalid`)
       if (feature.sourceSha256 && !/^[0-9a-f]{64}$/.test(feature.sourceSha256)) errors.push(`syntax feature ${feature.id} sourceSha256 is invalid`)
@@ -333,7 +334,7 @@ export function validateUpstreamMermaidManifest(manifest: UpstreamMermaidManifes
     for (const example of semantic.examples) {
       if (!/^[0-9a-f]{64}$/.test(example.sourceSha256)) errors.push(`example ${example.id} sourceSha256 is invalid`)
       if (!knownFamilyIds.has(example.family)) errors.push(`example ${example.id} has unknown family`)
-      if (example.artifacts.length === 0 || new Set(example.artifacts).size !== example.artifacts.length || [...example.artifacts].sort().join('\0') !== example.artifacts.join('\0') || example.artifacts.some(artifact => !['examples', 'official-doc'].includes(artifactsById.get(artifact)?.kind ?? ''))) errors.push(`example ${example.id} has invalid artifacts`)
+      if (example.artifacts.length === 0 || new Set(example.artifacts).size !== example.artifacts.length || [...example.artifacts].sort(compareCodePointStrings).join('\0') !== example.artifacts.join('\0') || example.artifacts.some(artifact => !['examples', 'official-doc'].includes(artifactsById.get(artifact)?.kind ?? ''))) errors.push(`example ${example.id} has invalid artifacts`)
       if (!Number.isInteger(example.index) || example.index < 0) errors.push(`example ${example.id} index is invalid`)
     }
     const documentedFeatureFamilies = new Set(semantic.syntaxFeatures

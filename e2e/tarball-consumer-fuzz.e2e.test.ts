@@ -20,7 +20,7 @@
 // (that is the shipping path breaking), it does not skip.
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, writeFileSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, writeFileSync, mkdtempSync, readFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
@@ -117,7 +117,17 @@ beforeAll(() => {
 
   work = mkdtempSync(join(tmpdir(), 'am-consumer-'))
   const version = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')).version as string
-  const pack = spawnSync(NPM, ['pack', '--pack-destination', work], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+  const privateEvalDir = join(REPO, 'skill-evals', 'private')
+  mkdirSync(privateEvalDir, { recursive: true })
+  const privateProbeDir = mkdtempSync(join(privateEvalDir, 'pack-exclusion-'))
+  const privateSentinel = join(privateProbeDir, 'sentinel.txt')
+  writeFileSync(privateSentinel, 'must never ship\n')
+  let pack: ReturnType<typeof spawnSync>
+  try {
+    pack = spawnSync(NPM, ['pack', '--pack-destination', work], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+  } finally {
+    rmSync(privateProbeDir, { recursive: true, force: true })
+  }
   if (pack.status !== 0) throw new Error(`npm pack failed (${pack.status}):\n${pack.stderr ?? ''}`)
   const tarball = join(work, `agentic-mermaid-${version}.tgz`)
   if (!existsSync(tarball)) throw new Error(`expected tarball missing: ${tarball}`)
@@ -127,6 +137,9 @@ beforeAll(() => {
   if (install.status !== 0) throw new Error(`npm install <tarball> failed (${install.status}):\n${install.stderr ?? ''}`)
 
   packageDir = join(work, 'node_modules', 'agentic-mermaid')
+  if (existsSync(join(packageDir, 'skill-evals', 'private'))) {
+    throw new Error('npm package leaked ignored private skill-eval material')
+  }
   amBin = join(packageDir, 'dist', 'am.js')
   mcpBin = join(packageDir, 'dist', 'agentic-mermaid-mcp.js')
   binShimAm = join(work, 'node_modules', '.bin', 'am')

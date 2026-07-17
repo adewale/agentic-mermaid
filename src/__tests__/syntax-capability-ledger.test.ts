@@ -7,6 +7,7 @@ import {
   knownFamilies,
   type FamilyDescriptor,
 } from '../agent/families.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import {
   FAMILY_SYNTAX_STATES,
   SYNTAX_CAPABILITY_DIMENSIONS,
@@ -155,7 +156,7 @@ describe('generated Mermaid syntax capability ledger', () => {
       fingerprint: 'f'.repeat(64),
       sourceSha256: 'e'.repeat(64),
     })
-    manifest.semanticInventory.syntaxFeatures.sort((a, b) => a.id.localeCompare(b.id))
+    manifest.semanticInventory.syntaxFeatures.sort((a, b) => compareCodePointStrings(a.id, b.id))
 
     const ledger = createSyntaxCapabilityLedger(manifest, descriptors())
     expect(ledger.features.find(row => row.featureId === 'official-doc:flowchart:section:future-click-assets'))

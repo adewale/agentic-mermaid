@@ -66,6 +66,47 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(a.canvasColStart).toBeGreaterThanOrEqual(b.canvasColEnd)
   })
 
+  test('multiline label tokens cannot escape into a neighboring node', () => {
+    const rendered = renderMermaidASCIIWithMeta(
+      'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]',
+      { colorMode: 'none' },
+    )
+    const g = rendered.regions.find(region => region.id === 'G')!
+    const h = rendered.regions.find(region => region.id === 'H')!
+    expect(g.rowSpan).toBe(2)
+    expect(g.canvasColEnd).toBeLessThanOrEqual(h.canvasColStart)
+  })
+
+  test('multiline regions remain mapped after a wide display-cell prefix', () => {
+    const rendered = renderMermaidASCIIWithMeta(
+      'flowchart LR\n  B["界界界"] --> A["High<br>Tr"]\n  click A href "https://example.com"',
+      { colorMode: 'none' },
+    )
+    expect(rendered.regions.find(region => region.id === 'A')).toEqual(expect.objectContaining({ rowSpan: 2 }))
+  })
+
+  test('node regions prefer boxed labels over identical edge labels', () => {
+    const source = 'flowchart TD\n  X[X] -->|Yes| Y[Y]\n  Y --> C[Yes]\n  click C href "https://example.com"'
+    for (const useAscii of [true, false]) {
+      const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none', useAscii })
+      const region = rendered.regions.find(candidate => candidate.id === 'C')!
+      const line = rendered.ascii.split('\n')[region.canvasRow]!
+      expect(line.slice(region.canvasColStart, region.canvasColEnd)).toBe('Yes')
+      expect(line.trim()).toMatch(useAscii ? /^\|\s*Yes\s*\|$/ : /^│\s*Yes\s*│$/)
+    }
+  })
+
+  test('punctuation-only node labels do not bind to box borders', () => {
+    for (const useAscii of [true, false]) {
+      const rendered = renderMermaidASCIIWithMeta('flowchart TD\n  A[-]', { colorMode: 'none', useAscii })
+      const region = rendered.regions.find(candidate => candidate.id === 'A')!
+      const line = rendered.ascii.split('\n')[region.canvasRow]!
+      expect(line.slice(region.canvasColStart, region.canvasColEnd)).toBe('-')
+      expect(line.trim()).toMatch(useAscii ? /^\|\s*-\s*\|$/ : /^│\s*-\s*│$/)
+      expect(region.authoredTextCells).toEqual([{ row: region.canvasRow, column: region.canvasColStart, glyph: '-' }])
+    }
+  })
+
   test('terminal action metadata contains no authored control bytes', () => {
     const osc = '\u001b]52;c;SEVMTE8=\u0007'
     const rendered = renderMermaidASCIIWithMeta(

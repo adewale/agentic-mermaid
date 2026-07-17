@@ -7,6 +7,7 @@
 // not a second family or feature inventory.
 // ============================================================================
 
+import { compareCodePointStrings } from './shared/deterministic-order.ts'
 import {
   FAMILY_CAPABILITY_COLUMNS,
   UNREGISTERED_FAMILY_CAPABILITY_STATES,
@@ -420,7 +421,7 @@ function familyDimensionRows(
       if (descriptor) matched.add(descriptor.id)
       return { id: upstream.id, upstream, descriptor }
     })
-  for (const descriptor of descriptors.filter(candidate => !matched.has(candidate.id)).sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const descriptor of descriptors.filter(candidate => !matched.has(candidate.id)).sort((a, b) => compareCodePointStrings(a.id, b.id))) {
     families.push({ id: descriptor.id, descriptor })
   }
 

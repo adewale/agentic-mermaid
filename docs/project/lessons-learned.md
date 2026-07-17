@@ -50,8 +50,11 @@ family docs, and `TODO.md`.
     no-op values need the same policy across wrappers and explicit options.
 11. **Generated freshness is delivery evidence, not semantic truth.** Receipts
     must hash complete inputs and deterministic ordering, while independent tests
-    validate the generated artifact’s meaning. Gitignored deploy builds are not
-    committed product inputs.
+    validate the generated artifact’s meaning. Local↔production byte equality
+    proves deployment parity, not current provenance. Every deployable file needs
+    an owner—authored input, generated output with a freshness oracle, or versioned
+    external asset—and blind copies of unowned renderer snapshots are forbidden.
+    Gitignored deploy builds are not committed product inputs.
 12. **Citizenship is default-by-default.** A family is not shipped until library,
     CLI, MCP, editor, website, terminal, accessibility, security, configuration,
     eval, package, and documentation surfaces derive from the same registry with
@@ -110,12 +113,13 @@ family docs, and `TODO.md`.
   did not make a stale `file#symbol` authority true. Contract tests resolve the
   declared path and exported symbol, while the manifest remains a navigation
   index rather than proof of the behavior it cites.
-- **Run generators after the final source and test edit.** Dependency-complete
-  receipts correctly became stale after a late test change. The reliable order is
-  implementation → tests → audit remediation → generation → freshness gates →
-  resulting-head CI. Receipts should include package and lock inputs, but still
-  disclose environmental fonts, browser binaries, and rasterizers they cannot
-  pin.
+- **Run generators after the final source/test edit and final rebase.**
+  Dependency-complete receipts correctly became stale after late test changes and
+  again when a moving base changed the merge-ref input tree. The reliable order is
+  implementation → tests → audit remediation → final rebase → generation →
+  freshness gates → merge-ref CI. Receipts should include package and lock inputs,
+  but still disclose environmental fonts, browser binaries, and rasterizers they
+  cannot pin.
 - **Conditional skips are capability gaps, not passes.** A skipped positive-path
   integration test must name the missing external capability, retain adjacent
   deterministic coverage for behavior available everywhere, and be reported
@@ -145,6 +149,11 @@ family docs, and `TODO.md`.
   named package script shared by CI and release workflows, and run it after the
   final test edit; transpile-only builds and Bun tests do not prove strict
   TypeScript compilation.
+- **Workflow success is not delivery success.** A deployment job can conclude
+  green after its deploy step was skipped for missing credentials. Model external
+  effects as explicit `deployed`/`skipped`/`failed` outcomes, retain the platform
+  version identity, and close delivery only after live positive and negative route
+  probes. A green orchestration wrapper is not evidence that production changed.
 - **Prototype maturity is an evidence ladder, not a naming promotion.** Move a
   design probe from temporary research to a checked-in prototype only when its
   public data validates, its own fixture executes the claimed roles/policy, its

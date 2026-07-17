@@ -1,6 +1,7 @@
 import type { MermaidRuntimeConfig, StateRuntimeConfig } from '../mermaid-source.ts'
 import type { ConfigDiagnostic, RenderOptions } from '../types.ts'
 import { FLOWCHART_STYLE_DEFAULTS, type RenderStyleDefaults } from '../styles.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 /** State config fields with a faithful equivalent in this renderer. */
 export const STATE_WIRED_CONFIG_FIELDS = [
@@ -61,7 +62,7 @@ export function stateConfigDiagnostics(configs: unknown[], includeUnknown = fals
   }
 
   const diagnostics: ConfigDiagnostic[] = []
-  for (const [field, value] of [...found].sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [field, value] of [...found].sort(([a], [b]) => compareCodePointStrings(a, b))) {
     if (!KNOWN_FIELDS.has(field)) {
       if (includeUnknown) diagnostics.push({
         code: 'INEFFECTIVE_CONFIG',

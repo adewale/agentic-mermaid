@@ -25,6 +25,7 @@ import type { RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge } from './t
 import { measureMultilineText } from '../text-metrics.ts'
 import { FONT_SIZES, FONT_WEIGHTS } from '../styles.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 export interface QualityMetrics {
   edgeCrossings: number
@@ -273,7 +274,7 @@ function buildSpacingTree(items: SpacingItem[]): SpacingTree {
   const axis = box.w >= box.h ? 'x' : 'y'
   const sorted = [...items].sort((a, b) =>
     (axis === 'x' ? a.box.x + a.box.w / 2 - b.box.x - b.box.w / 2 : a.box.y + a.box.h / 2 - b.box.y - b.box.h / 2)
-    || a.node.id.localeCompare(b.node.id))
+    || compareCodePointStrings(a.node.id, b.node.id))
   const middle = Math.floor(sorted.length / 2)
   return { box, left: buildSpacingTree(sorted.slice(0, middle)), right: buildSpacingTree(sorted.slice(middle)) }
 }

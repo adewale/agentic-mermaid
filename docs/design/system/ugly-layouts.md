@@ -3,7 +3,7 @@
 This document states the working definition of an *ugly* diagram layout that
 this project has converged on, and maps each defect to a detector. It is the
 specification for `eval/ugly-detector/` (which audits **rendered** output —
-SVG, PNG, ASCII — not just the internal geometry the rubric checks).
+SVG, PNG, ASCII, and Unicode — not just the internal geometry the rubric checks).
 
 ## The one-line definition
 
@@ -61,9 +61,12 @@ from the choices made across this project:
 
 ## Why detect from rendered output (not just geometry)
 
-The `assessLayout` rubric (`src/layout-rubric.ts`) checks the **internal
-geometry** (`PositionedGraph`). The ugly-detector checks the **rendered
-artifact** — the SVG/PNG/ASCII a consumer actually sees — so it:
+The `assessLayout` rubric (`src/layout-rubric.ts`) checks the flowchart
+`PositionedGraph`. The ugly-detector combines the **rendered artifact** — the
+SVG/PNG/ASCII/Unicode a consumer actually sees — with every family's canonical
+`RenderedLayout` admission. The latter proves finite bounds and paths for
+families whose SVG vocabulary is not parsed by the deeper flowchart markup
+adapter. Together they:
 
 1. catches rendering bugs where clean geometry renders wrong;
 2. works on *any* diagram, including external SVGs and golden fixtures not
@@ -71,41 +74,43 @@ artifact** — the SVG/PNG/ASCII a consumer actually sees — so it:
 3. validates the ASCII pipeline, which is a separate renderer that never sees
    the `RouteCertificate` contracts.
 
-The three formats degrade in fidelity: **SVG** is the authoritative analysis
-(vector paths + shape geometry are recoverable exactly); **PNG** is a faithful
-raster of an SVG, so its check is "analyze the source SVG, plus a coarse
-pixel-orthogonality sanity pass"; **ASCII** is a glyph grid, so detection is
-limited to what the grid reveals (diagonal line glyphs, edge glyphs inside a
-box interior).
+The formats degrade in fidelity: **SVG** supplies the deepest markup analysis
+where typed node/edge marks are recoverable, while the receipt separately counts
+that markup coverage and all-family `RenderedLayout` structural admission.
+**PNG** is a faithful raster of the SVG, so its extra check is a coarse
+pixel-orthogonality sanity pass. **ASCII and Unicode** are separately rendered
+display-cell grids; their conservative detector samples mapped label bands, not
+every blank interior cell, and uses an exact authored-cell mask so punctuation
+cannot hide route ink elsewhere in the region.
 
 ## Running the audit
 
 ```
-bun run audit:ugly                # render every corpus to SVG/PNG/ASCII, report
+bun run audit:ugly                # render every enrolled source to SVG/PNG/ASCII/Unicode
 bun run audit:ugly -- --verbose   # also list soft findings
 bun run audit:ugly -- --json      # machine-readable report
 ```
 
-The runner (`eval/ugly-detector/audit.ts`) renders every diagram corpus in the
-project — the contact-sheet scenarios, the heuristic-tracker examples, the
-site samples, the layout-compare fixtures, and the ASCII/Unicode golden
-fixture sources — to all three formats and runs the detectors. It exits
-non-zero if any **hard** finding is present, so it doubles as a CI gate.
-`src/__tests__/ugly-detector.test.ts` pins the detector's behavior.
+The runner (`eval/ugly-detector/audit.ts`) renders every enrolled quality
+source — the contact-sheet scenarios, heuristic-tracker examples, site
+samples, every authored `eval/**/*.mmd` (including the real-content
+Mindmap/GitGraph corpus and layout-compare fixtures), and ASCII/Unicode golden
+fixture sources — to graphical output plus both terminal modes and runs the
+detectors. Eval Mermaid files are discovered recursively rather than listed by
+hand, and an enrollment test fails if any such file is omitted. Golden tests,
+the updater, and this audit share one strict fixture parser, so
+`paddingX`/`paddingY` lines cannot become fake Mermaid headers and a missing
+final separator fails closed. It exits non-zero for any **hard** finding or
+render/corpus error and runs in the CI quality job.
+`src/__tests__/ugly-detector.test.ts` pins display-cell lookup, plain-ASCII and
+Unicode detection, wide labels, corpus enrollment, and fixture admission.
 
-### What the audit found (2026-06)
-
-Current result on PR #30 after the nested-subgraph route fixes:
-
-```text
-338 diagrams / 1009 format-audits
-0 hard layout defects
-0 soft layout findings
-6 render/corpus errors
-```
-
-The non-clean entries are **render errors** (a diagram type or config header a
-given renderer rejects), not layout defects, and are bucketed as such.
+Current diagram, format, and adapter totals are deliberately not copied into
+this prose: `bun run audit:ugly -- --json` is the live receipt. Its `coverage`
+record distinguishes all-family renderer-layout admission from deeper SVG
+markup admission. A passing gate means every enrolled source rendered in all
+four formats, every family produced structural evidence, and there were zero hard
+findings or render/corpus errors; soft findings remain reported for review.
 
 Historical note: an earlier audit found one real hard defect — a
 cross-hierarchy edge into a nested subgraph missing the containing subgraph's
