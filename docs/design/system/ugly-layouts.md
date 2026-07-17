@@ -86,27 +86,30 @@ cannot hide route ink elsewhere in the region.
 ## Running the audit
 
 ```
-bun run audit:ugly                # render every corpus to SVG/PNG/ASCII/Unicode, report
+bun run audit:ugly                # render every enrolled source to SVG/PNG/ASCII/Unicode
 bun run audit:ugly -- --verbose   # also list soft findings
 bun run audit:ugly -- --json      # machine-readable report
 ```
 
-The runner (`eval/ugly-detector/audit.ts`) renders every diagram corpus in the
-project — the contact-sheet scenarios, the heuristic-tracker examples, the
-site samples, the layout-compare fixtures, and the ASCII/Unicode golden
+The runner (`eval/ugly-detector/audit.ts`) renders every enrolled quality
+source — the contact-sheet scenarios, heuristic-tracker examples, site
+samples, every authored `eval/**/*.mmd` (including the real-content
+Mindmap/GitGraph corpus and layout-compare fixtures), and ASCII/Unicode golden
 fixture sources — to graphical output plus both terminal modes and runs the
-detectors. Golden tests, the updater, and this audit share one strict fixture
-parser, so `paddingX`/`paddingY` lines cannot become fake Mermaid headers and a
-missing final separator fails closed. It exits non-zero for any **hard** finding or render/corpus error and
-runs in the CI quality job. `src/__tests__/ugly-detector.test.ts` pins display-
-cell lookup, plain-ASCII and Unicode detection, wide labels, and fixture
-admission.
+detectors. Eval Mermaid files are discovered recursively rather than listed by
+hand, and an enrollment test fails if any such file is omitted. Golden tests,
+the updater, and this audit share one strict fixture parser, so
+`paddingX`/`paddingY` lines cannot become fake Mermaid headers and a missing
+final separator fails closed. It exits non-zero for any **hard** finding or
+render/corpus error and runs in the CI quality job.
+`src/__tests__/ugly-detector.test.ts` pins display-cell lookup, plain-ASCII and
+Unicode detection, wide labels, corpus enrollment, and fixture admission.
 
 Current diagram, format, and adapter totals are deliberately not copied into
 this prose: `bun run audit:ugly -- --json` is the live receipt. Its `coverage`
 record distinguishes all-family renderer-layout admission from deeper SVG
-markup admission. A passing gate means every corpus rendered in all four
-formats, every family produced structural evidence, and there were zero hard
+markup admission. A passing gate means every enrolled source rendered in all
+four formats, every family produced structural evidence, and there were zero hard
 findings or render/corpus errors; soft findings remain reported for review.
 
 Historical note: an earlier audit found one real hard defect — a

@@ -4,6 +4,8 @@
 // the two false positives the project audit surfaced (cylinder multi-primitive
 // footprint, sub-pixel clip-floor jog).
 import { describe, test, expect } from 'bun:test'
+import { readdirSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import {
   detect, detectSvg, detectAscii, parseSvg, detectPngPixels,
   type Rendered, type Finding,
@@ -11,11 +13,21 @@ import {
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
-import { auditOne } from '../../eval/ugly-detector/audit.ts'
+import { auditOne, collectCorpusDiagrams } from '../../eval/ugly-detector/audit.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 const rect = (id: string, x: number, y: number, w = 40, h = 20) =>
   ({ id, shape: 'rectangle' as const, x, y, w, h })
-const kinds = (fs: Finding[]) => fs.map(f => f.kind).sort()
+const kinds = (fs: Finding[]) => fs.map(f => f.kind).sort(compareCodePointStrings)
+
+function mermaidFilesUnder(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => compareCodePointStrings(a.name, b.name))
+    .flatMap(entry => {
+      const path = join(dir, entry.name)
+      return entry.isDirectory() ? mermaidFilesUnder(path) : entry.name.endsWith('.mmd') ? [path] : []
+    })
+}
 
 describe('detect — geometric core', () => {
   test('a clean orthogonal edge between two boxes is not ugly', () => {
@@ -161,6 +173,19 @@ describe('ASCII/Unicode golden fixture admission', () => {
 })
 
 describe('whole-corpus audit admission', () => {
+  test('automatically enrolls every authored eval Mermaid fixture', () => {
+    const evalRoot = join(import.meta.dir, '..', '..', 'eval')
+    const expected = mermaidFilesUnder(evalRoot)
+      .map(path => relative(evalRoot, path).replaceAll('\\', '/'))
+      .sort(compareCodePointStrings)
+    const enrolled = collectCorpusDiagrams()
+      .filter(diagram => diagram.corpus === 'fixtures' || diagram.corpus.startsWith('eval-'))
+      .map(diagram => diagram.name)
+      .sort(compareCodePointStrings)
+    expect(enrolled).toEqual(expected)
+    expect(enrolled.filter(name => name.startsWith('mindmap-gitgraph-content-corpus/'))).toHaveLength(13)
+  })
+
   test('non-flowchart families carry renderer-layout structural admission', () => {
     const results = auditOne({
       corpus: 'test', name: 'sequence',

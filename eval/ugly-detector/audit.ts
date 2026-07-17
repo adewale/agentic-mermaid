@@ -1,6 +1,6 @@
 /**
- * Ugly-layout audit — renders every diagram corpus in this project to SVG, PNG
- * and ASCII and runs the ugly-layout detectors (eval/ugly-detector/detect.ts,
+ * Ugly-layout audit — renders every enrolled quality source in this project to
+ * SVG, PNG, ASCII, and Unicode and runs the ugly-layout detectors (eval/ugly-detector/detect.ts,
  * specified by docs/design/system/ugly-layouts.md) over the RENDERED output.
  *
  *   bun run eval/ugly-detector/audit.ts            # audit, summary + hard findings
@@ -9,10 +9,10 @@
  *
  * Exit code is non-zero if any HARD finding is present, so it doubles as a CI
  * gate. SVG is authoritative; PNG inherits SVG structure plus a pixel sanity
- * pass; ASCII is the fidelity-degraded glyph-grid check.
+ * pass; terminal outputs are fidelity-degraded glyph-grid checks.
  */
 import { readFileSync, readdirSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Resvg } from '@resvg/resvg-js'
 import { renderMermaidSVG } from '../../src/index.ts'
@@ -23,6 +23,7 @@ import { trackedExamples } from '../heuristic-tracker/catalog.ts'
 import { samples } from '../../scripts/site/samples-data.ts'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
 import { detect, parseSvg, detectPngPixels, detectAscii, type Finding } from './detect.ts'
+import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..', '..')
@@ -36,21 +37,41 @@ export interface Diagram {
   terminalOptions?: { paddingX: number; paddingY: number }
 }
 
-function corpora(): Diagram[] {
+function filesUnder(dir: string, extension: string): string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => compareCodePointStrings(a.name, b.name))
+    .flatMap(entry => {
+      const path = join(dir, entry.name)
+      return entry.isDirectory() ? filesUnder(path, extension) : entry.name.endsWith(extension) ? [path] : []
+    })
+}
+
+/** Enroll every authored eval .mmd automatically so a new repository corpus
+ * cannot sit outside the quality gate merely because this roster was not
+ * hand-edited. Code-defined scenarios and terminal goldens remain explicit
+ * authorities with separate corpus labels. */
+export function collectCorpusDiagrams(): Diagram[] {
   const out: Diagram[] = []
   for (const s of contactSheetScenarios()) out.push({ corpus: 'contact-sheet', name: s.letter, source: s.source })
   for (const e of trackedExamples()) out.push({ corpus: 'tracker', name: `${e.group}/${e.name}`, source: e.source })
   for (const s of samples) out.push({ corpus: 'samples', name: s.title, source: s.source })
-  const fixDir = join(root, 'eval', 'layout-compare', 'fixtures')
-  for (const f of readdirSync(fixDir).filter(f => f.endsWith('.mmd')))
-    out.push({ corpus: 'fixtures', name: f, source: readFileSync(join(fixDir, f), 'utf8') })
+  const evalRoot = join(root, 'eval')
+  for (const path of filesUnder(evalRoot, '.mmd')) {
+    const name = relative(evalRoot, path).replaceAll('\\', '/')
+    const topLevelCorpus = name.split('/')[0]!
+    out.push({
+      corpus: topLevelCorpus === 'layout-compare' ? 'fixtures' : `eval-${topLevelCorpus}`,
+      name,
+      source: readFileSync(path, 'utf8'),
+    })
+  }
   for (const sub of ['ascii', 'unicode'] as const) {
     const dir = join(root, 'src', '__tests__', 'testdata', sub)
-    for (const f of readdirSync(dir).filter(f => f.endsWith('.txt'))) {
-      const fixture = parseAsciiGoldenFixture(readFileSync(join(dir, f), 'utf8'))
+    for (const path of filesUnder(dir, '.txt')) {
+      const fixture = parseAsciiGoldenFixture(readFileSync(path, 'utf8'))
       if (fixture.mermaid.trim()) out.push({
         corpus: `golden-${sub}`,
-        name: f,
+        name: relative(dir, path).replaceAll('\\', '/'),
         source: fixture.mermaid,
         terminalOptions: { paddingX: fixture.paddingX, paddingY: fixture.paddingY },
       })
@@ -169,7 +190,7 @@ export function auditOne(d: Diagram): Result[] {
 function main(): void {
   const args = process.argv.slice(2)
   const verbose = args.includes('--verbose'), asJson = args.includes('--json')
-  const diagrams = corpora()
+  const diagrams = collectCorpusDiagrams()
   const all: Result[] = []
   for (const d of diagrams) all.push(...auditOne(d))
 
