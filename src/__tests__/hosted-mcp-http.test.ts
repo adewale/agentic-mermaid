@@ -2,6 +2,13 @@
 // (website/src/mcp-handler.ts), driven with real Request/Response objects.
 // The only fakes are the seams that need workerd: the Cache API (Map-backed,
 // same match/put contract) and the execute sandbox (call-recording).
+//
+// Complementary coverage: mcp-client-interop.test.ts drives this same
+// handler with the reference @modelcontextprotocol/sdk client over a real
+// socket. This file proves each spec clause (forced versions, malformed
+// frames, batch rules, CORS edges — sequences the SDK cannot be told to
+// send); that file proves a real client's default path works. Neither alone
+// is total coverage.
 
 import { describe, expect, test } from 'bun:test'
 import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache, type McpRequestEvent } from '../../website/src/mcp-handler.ts'

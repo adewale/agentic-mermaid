@@ -1,11 +1,13 @@
 # MCP client interop verification: plan
 
-> **Status: planned, not implemented.** This document specifies a new test lane that
-> drives both MCP servers in this repo with the **reference MCP client SDK**
-> (`@modelcontextprotocol/sdk`), so compatibility is *observed against a real client*
-> rather than *asserted from our own reading of the spec*. It supplies motivation,
-> design, decisions, and acceptance detail; `TODO.md` remains the authoritative
-> backlog. Related: the 2026-07-28 spec-adoption issue (#186), which this lane de-risks.
+> **Status: implemented** (`src/__tests__/mcp-client-interop.test.ts`, SDK `1.29.0`
+> pinned as a devDependency; see the red→green record below). This document specifies
+> a test lane that drives both MCP servers in this repo with the **reference MCP client
+> SDK** (`@modelcontextprotocol/sdk`), so compatibility is *observed against a real
+> client* rather than *asserted from our own reading of the spec*. It supplies
+> motivation, design, decisions, and acceptance detail; `TODO.md` remains the
+> authoritative backlog. Related: the 2026-07-28 spec-adoption issue (#186), which
+> this lane de-risks.
 
 ## Problem: every MCP signal we have is self-generated
 
@@ -178,6 +180,14 @@ dependency is broken, and record the result in the PR:
 State the outcome ("N interop assertions fail when X is reverted") in the PR per the repo's
 red→green standard.
 
+**Observed results (SDK 1.29.0, at implementation):**
+
+| Lever | Mutation | Result |
+|---|---|---|
+| 1 | `hostedProtocolVersion` returns `'1999-01-01'` | **2 tests fail** — the SDK's own `client.connect()` throws `Server's protocol version is not supported: 1999-01-01` |
+| 2 | `tools/list` replies `{}` (shared dispatch) | **2 tests fail** (hosted + stdio) — SDK zod validation throws `invalid_type: expected array, received undefined` |
+| 3 | GET answers `200` + JSON instead of `405` | **1 test fails — but not the way predicted above.** The SDK **silently tolerated** the malformed response: it read the JSON body as an SSE stream, got no events, and surfaced nothing through `onerror`. The failure comes from the test's own wire-log assertion (`served` records no `GET → 405` exchange). Lesson: the prediction "the transport must surface the confusion" was wrong; the explicit server-side wire assertion is load-bearing, and SDK leniency means a real-client test alone under-discriminates transport-shape regressions. |
+
 ## Promotion-checklist addition (dashboard-side, manual)
 
 The hosted promotion checklist in `website/README.md` verifies the `LOADER` binding with a
@@ -201,20 +211,22 @@ this before, or alongside, the #186 `SUPPORTED_PROTOCOL_VERSIONS` change.
 
 ## Acceptance criteria
 
-- [ ] `@modelcontextprotocol/sdk` added to `devDependencies` (pinned); confirmed out of
-      `dist/` and `files[]`.
-- [ ] `src/__tests__/mcp-client-interop.test.ts`: reference `Client` +
+- [x] `@modelcontextprotocol/sdk` added to `devDependencies` (pinned `1.29.0`); confirmed
+      out of `dist/` (no SDK code or import specifiers bundled — the one string match is
+      the devDependencies line of the pre-existing inlined `package.json` metadata) and out
+      of `files[]` (tests are excluded by `!src/**/__tests__/**`).
+- [x] `src/__tests__/mcp-client-interop.test.ts`: reference `Client` +
       `StreamableHTTPClientTransport` completes initialize → list → call → notification
       against `createMcpHandler` bound to an ephemeral port; asserts sessionless operation,
-      GET-405 tolerance, negotiated-version membership, and a well-formed `render_svg`
-      result.
-- [ ] stdio interop: reference `Client` + `StdioClientTransport` completes the lifecycle
-      against the bin; asserts `2024-11-05` negotiation and the 4-tool surface; subprocess
-      reaped deterministically.
-- [ ] Red→green recorded for each interop test.
-- [ ] `bun run test` and `bunx tsc --noEmit` green; full suite run.
-- [ ] `website/README.md` promotion checklist gains the real-client smoke step.
-- [ ] Headers of both interop and hand-rolled suites cross-reference each other so neither
+      GET-405 tolerance (positively, via a served-request wire log), negotiated-version
+      membership, and a well-formed `render_svg` result.
+- [x] stdio interop: reference `Client` + `StdioClientTransport` completes the lifecycle
+      against the bin (source-under-Bun); asserts `2024-11-05` negotiation via a
+      `setProtocolVersion` spy and the 4-tool surface; subprocess reaped in `finally`.
+- [x] Red→green recorded for each lever (table above).
+- [x] `bun run test` and `bunx tsc --noEmit` green; full suite run.
+- [x] `website/README.md` promotion checklist gains the real-client smoke step.
+- [x] Headers of both interop and hand-rolled suites cross-reference each other so neither
       is read as total coverage.
 
 ## Trust / honest limitations
@@ -230,7 +242,8 @@ this before, or alongside, the #186 `SUPPORTED_PROTOCOL_VERSIONS` change.
 ## File layout
 
 - `docs/project/mcp-client-interop-verification-plan.md` — this spec.
-- `src/__tests__/mcp-client-interop.test.ts` — new (implementation phase).
-- `package.json` — `@modelcontextprotocol/sdk` in `devDependencies` (implementation phase).
-- `website/README.md` — promotion-checklist addition (implementation phase).
-- `docs/testing-strategy.md` — update the "Honest gaps" entry once the lane lands.
+- `src/__tests__/mcp-client-interop.test.ts` — the interop tests.
+- `package.json` — `@modelcontextprotocol/sdk` pinned in `devDependencies`.
+- `website/README.md` — promotion-checklist real-client smoke step.
+- `docs/testing-strategy.md` — "Honest gaps" updated: the MCP transport boundary is now
+  exercised by an external consumer; everything else remains self-generated.
