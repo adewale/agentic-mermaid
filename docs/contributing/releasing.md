@@ -2,9 +2,12 @@
 
 The package is published by [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml),
 which triggers on a **published GitHub Release**. The workflow reproduces CI's
-deterministic gate (tests, `tsc`, `hero:check`, `website:check`, golden-drift,
-incremental mutation), fuzzes the built bundle + packed tarball under Node,
-builds with `tsup`, and runs `npm publish --access public`. There is no manual
+deterministic gate (tests, dependency/palette/sketch/whole-corpus quality,
+`tsc`, browser contracts, route sabotage, `hero:check`, `website:check`,
+golden-drift, and incremental mutation), requires a successful canonical CI run
+for the exact release commit, fuzzes shipped artifacts under Node 22 and the
+packed tarball under the minimum supported Node 18, builds with `tsup`, and runs
+`npm publish --access public`. There is no manual
 `npm publish` step. After npm succeeds, a separate dependent job publishes
 [`server.json`](../../server.json) to the official MCP Registry. Keeping that
 step separate lets a failed registry publication be retried without attempting
@@ -34,8 +37,11 @@ automatically** (no `--provenance` flag).
 - `npm view agentic-mermaid version` — confirm the version isn't already
   published (first release: expect a 404).
 
-The workflow pins Node 22 and upgrades to the latest npm (trusted publishing
-needs npm ≥ 11.5.1 / Node ≥ 22.14).
+The workflow pins Node 22 and npm 11.18.0 (trusted publishing needs npm ≥
+11.5.1 / Node ≥ 22.14). The publish job also rejects a release whose tag,
+checked-out commit, `origin/main` ancestry, package version, or MCP server
+versions disagree, and fails before building if that immutable npm version
+already exists.
 
 ## Cutting a release
 

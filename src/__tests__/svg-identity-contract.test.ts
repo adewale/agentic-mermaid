@@ -3,6 +3,7 @@ import { renderMermaidSVG } from '../index.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 function semanticElements(svg: string): string[] {
   return [...svg.matchAll(/<[a-z]+\b[^>]*\sdata-id="[^"]+"[^>]*>/g)].map(match => match[0])
@@ -53,7 +54,7 @@ function primaryGroupIdentities(family: DiagramKind, tuples: IdentityTuple[]): I
 }
 
 interface IdentityPair { id: string; role: string }
-const sortedPairs = (pairs: IdentityPair[]): IdentityPair[] => pairs.sort((a, b) => `${a.role}\0${a.id}`.localeCompare(`${b.role}\0${b.id}`))
+const sortedPairs = (pairs: IdentityPair[]): IdentityPair[] => pairs.sort((a, b) => compareCodePointStrings(`${a.role}\0${a.id}`, `${b.role}\0${b.id}`))
 function expectedNodePairs(family: DiagramKind, layout: ReturnType<typeof layoutMermaid>): IdentityPair[] {
   // Radar's primary data marks are the curve vertex dots (role 'point'); its
   // layout also projects axis-label boxes (role 'labelled-mark') for the rubric,
@@ -85,7 +86,7 @@ function expectedGroupPairs(family: DiagramKind, layout: ReturnType<typeof layou
   }))
 }
 const sortedTuples = (tuples: IdentityTuple[]): IdentityTuple[] => tuples.sort((left, right) =>
-  `${left.role}\0${left.id}\0${left.from}\0${left.to}`.localeCompare(`${right.role}\0${right.id}\0${right.from}\0${right.to}`),
+  compareCodePointStrings(`${left.role}\0${left.id}\0${left.from}\0${left.to}`, `${right.role}\0${right.id}\0${right.from}\0${right.to}`),
 )
 function expectedRelationTuples(family: DiagramKind, layout: ReturnType<typeof layoutMermaid>): IdentityTuple[] {
   const occurrences = new Map<string, number>()

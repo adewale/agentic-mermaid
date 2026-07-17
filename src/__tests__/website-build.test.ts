@@ -308,6 +308,17 @@ describe('Workers Static Assets website contract', () => {
     const js = await worker.fetch(new Request('https://agentic-mermaid.dev/editor/editor-abcdef123456.js'), env(() => new Response('export {}', { headers: { 'content-type': 'text/javascript; charset=utf-8' } })))
     expect(js.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
 
+    for (const [pathname, contentType] of [
+      ['/apple-touch-icon.png', 'image/png'],
+      ['/favicon.ico', 'image/x-icon'],
+      ['/fonts/Inter.subset.woff2', 'font/woff2'],
+    ] as const) {
+      const asset = await worker.fetch(new Request(`https://agentic-mermaid.dev${pathname}`), env(() => new Response('asset', { headers: { 'content-type': contentType } })))
+      expect({ pathname, cache: asset.headers.get('cache-control') }).toEqual({ pathname, cache: 'public, max-age=3600' })
+    }
+    const unknownAsset = await worker.fetch(new Request('https://agentic-mermaid.dev/data.unknown'), env(() => new Response('asset', { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'public, max-age=999' } })))
+    expect(unknownAsset.headers.get('cache-control')).toBe('no-cache')
+
     // /mcp is the live hosted MCP endpoint (stateless, POST-only) — no longer
     // the 501 placeholder. A GET is 405 and never touches Static Assets.
     assetFetches = 0

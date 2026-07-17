@@ -4,8 +4,12 @@
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { verifyMermaid } from '../agent/verify.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 function findNodeBinary(): string | null {
   const candidates = [process.env.NODE_BINARY, 'node', '/opt/node22/bin/node'].filter((x): x is string => Boolean(x))
@@ -126,6 +130,53 @@ describe('edit stability — small source mutations preserve the unchanged prima
       expectRelativeAxisOrder(before, centersById(src), stableIds, 'x')
     })
   }
+})
+
+describe('determinism — locale-independent ordering authority', () => {
+  test('code-point comparison does not inherit locale collation', () => {
+    expect(['ä', 'z', 'a'].sort(compareCodePointStrings)).toEqual(['a', 'z', 'ä'])
+    expect(['\u{10000}', '\uE000'].sort(compareCodePointStrings)).toEqual(['\uE000', '\u{10000}'])
+  })
+
+  test('executable TypeScript and JavaScript do not call ambient locale collation', () => {
+    const forbidden = 'locale' + 'Compare'
+    const scan = spawnSync('git', ['grep', '-n', forbidden, '--', '*.ts', '*.js', '*.mjs', '*.cjs'], { encoding: 'utf8' })
+    expect(scan.status).not.toBeNull()
+    expect([0, 1]).toContain(scan.status!)
+    expect(scan.stderr).toBe('')
+    expect(scan.stdout).toBe('')
+  })
+
+  const NODE = findNodeBinary()
+  const fn = NODE ? test : test.skip
+  fn('Scene shell bytes are identical under English and Swedish Node locales', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'agentic-mermaid-locale-'))
+    try {
+      const built = await Bun.build({
+        entrypoints: [join(import.meta.dir, '..', 'scene', 'serialization.ts')],
+        target: 'node',
+        format: 'esm',
+        outdir: directory,
+        naming: 'serialization.mjs',
+      })
+      expect(built.success).toBe(true)
+      expect(built.outputs).toHaveLength(1)
+      const moduleUrl = pathToFileURL(built.outputs[0]!.path).href
+      const script = `import { canonicalizeSceneNodeSerialization as canonicalize } from ${JSON.stringify(moduleUrl)}; process.stdout.write(canonicalize('<svg data-z="1" data-ä="2"></svg>'))`
+      const run = (lang: string) => spawnSync(NODE!, ['--input-type=module', '-e', script], {
+        encoding: 'utf8',
+        env: { ...process.env, LANG: lang, LC_ALL: lang },
+      })
+      const english = run('en_US.UTF-8')
+      const swedish = run('sv_SE.UTF-8')
+      expect(english.status).toBe(0)
+      expect(swedish.status).toBe(0)
+      expect(swedish.stdout).toBe(english.stdout)
+      expect(english.stdout).toBe('<svg data-z="1" data-ä="2"></svg>')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('determinism — REAL cross-process (the test I claimed but never wrote before)', () => {

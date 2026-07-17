@@ -1,4 +1,5 @@
 import rawIndex from './upstream-mermaid-family-index.json'
+import { compareCodePointStrings } from './shared/deterministic-order.ts'
 import type {
   UpstreamFamilyDescriptor,
   UpstreamHeaderDescriptor,
@@ -42,6 +43,6 @@ export function findUpstreamFamilyByHeader(
   const line = normalizeFirstLine(firstLine)
   const candidates = index.families
     .flatMap(family => family.headers.map(header => ({ family, header })))
-    .sort((a, b) => b.header.value.length - a.header.value.length || a.family.id.localeCompare(b.family.id))
+    .sort((a, b) => b.header.value.length - a.header.value.length || compareCodePointStrings(a.family.id, b.family.id))
   return candidates.find(candidate => headerMatches(line, candidate.header.value)) ?? null
 }

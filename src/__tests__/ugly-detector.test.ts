@@ -4,16 +4,30 @@
 // the two false positives the project audit surfaced (cylinder multi-primitive
 // footprint, sub-pixel clip-floor jog).
 import { describe, test, expect } from 'bun:test'
+import { readdirSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import {
   detect, detectSvg, detectAscii, parseSvg, detectPngPixels,
   type Rendered, type Finding,
 } from '../../eval/ugly-detector/detect.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
+import { auditOne, collectCorpusDiagrams } from '../../eval/ugly-detector/audit.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 const rect = (id: string, x: number, y: number, w = 40, h = 20) =>
   ({ id, shape: 'rectangle' as const, x, y, w, h })
-const kinds = (fs: Finding[]) => fs.map(f => f.kind).sort()
+const kinds = (fs: Finding[]) => fs.map(f => f.kind).sort(compareCodePointStrings)
+
+function mermaidFilesUnder(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => compareCodePointStrings(a.name, b.name))
+    .flatMap(entry => {
+      const path = join(dir, entry.name)
+      return entry.isDirectory() ? mermaidFilesUnder(path) : entry.name.endsWith('.mmd') ? [path] : []
+    })
+}
 
 describe('detect — geometric core', () => {
   test('a clean orthogonal edge between two boxes is not ugly', () => {
@@ -114,9 +128,79 @@ describe('detectAscii — glyph grid', () => {
     expect(kinds(detectAscii('─X', regions))).toContain('ascii-edge-through-node')
   })
 
-  test('label punctuation (hyphen / pipe / plus) is not a line glyph', () => {
-    const regions = [{ kind: 'node', id: 'A', canvasRow: 0, canvasColStart: 0, canvasColEnd: 5 }]
-    expect(detectAscii('a-b+', regions)).toEqual([])
+  test('display-cell coordinates do not reinterpret a wide label as following route ink', () => {
+    const regions = [{ kind: 'node', id: 'A', canvasRow: 0, canvasColStart: 0, canvasColEnd: 2, projectedText: '界' }]
+    expect(detectAscii('界─', regions)).toEqual([])
+  })
+
+  test('plain ASCII route glyphs are detected unless they belong to authored label text', () => {
+    const line = [{ kind: 'node', id: 'A', canvasRow: 0, canvasColStart: 0, canvasColEnd: 2, projectedText: 'X' }]
+    expect(kinds(detectAscii('|X', line, { useAscii: true }))).toContain('ascii-edge-through-node')
+
+    const punctuation = [{
+      kind: 'node', id: 'B', canvasRow: 0, canvasColStart: 0, canvasColEnd: 4, projectedText: 'a-b+',
+      authoredTextCells: [
+        { row: 0, column: 0, glyph: 'a' }, { row: 0, column: 1, glyph: '-' },
+        { row: 0, column: 2, glyph: 'b' }, { row: 0, column: 3, glyph: '+' },
+      ],
+    }]
+    expect(detectAscii('a-b+', punctuation, { useAscii: true })).toEqual([])
+
+    const injected = [{
+      kind: 'node', id: 'C', canvasRow: 0, canvasColStart: 0, canvasColEnd: 3, projectedText: '-X',
+      authoredTextCells: [{ row: 0, column: 0, glyph: '-' }, { row: 0, column: 1, glyph: 'X' }],
+    }]
+    expect(kinds(detectAscii('--X', injected, { useAscii: true }))).toContain('ascii-edge-through-node')
+  })
+
+  test('CJK Gantt label regions do not include timeline glyphs', () => {
+    const source = 'gantt\n  dateFormat YYYY-MM-DD\n  section 设计阶段\n    界面设计 :ui, 2024-04-01, 5d'
+    const rendered = renderMermaidASCIIWithMeta(source, { useAscii: false })
+    expect(detectAscii(rendered.ascii, rendered.regions)).toEqual([])
+  })
+})
+
+describe('ASCII/Unicode golden fixture admission', () => {
+  test('option prelude is not passed to graphical renderers as Mermaid source', () => {
+    const fixture = parseAsciiGoldenFixture('paddingX=2\npaddingY=3\nflowchart LR\n  A --> B\n---\nexpected\n')
+    expect(fixture).toEqual(expect.objectContaining({
+      mermaid: 'flowchart LR\n  A --> B\n',
+      paddingX: 2,
+      paddingY: 3,
+    }))
+    expect(() => parseAsciiGoldenFixture('flowchart LR\n  A --> B\n')).toThrow(/missing --- separator/)
+  })
+})
+
+describe('whole-corpus audit admission', () => {
+  test('automatically enrolls every authored eval Mermaid fixture', () => {
+    const evalRoot = join(import.meta.dir, '..', '..', 'eval')
+    const expected = mermaidFilesUnder(evalRoot)
+      .map(path => relative(evalRoot, path).replaceAll('\\', '/'))
+      .sort(compareCodePointStrings)
+    const enrolled = collectCorpusDiagrams()
+      .filter(diagram => diagram.corpus === 'fixtures' || diagram.corpus.startsWith('eval-'))
+      .map(diagram => diagram.name)
+      .sort(compareCodePointStrings)
+    expect(enrolled).toEqual(expected)
+    expect(enrolled.filter(name => name.startsWith('mindmap-gitgraph-content-corpus/'))).toHaveLength(13)
+  })
+
+  test('non-flowchart families carry renderer-layout structural admission', () => {
+    const results = auditOne({
+      corpus: 'test', name: 'sequence',
+      source: 'sequenceDiagram\n  Alice->>Bob: hello',
+    })
+    expect(results.find(result => result.format === 'svg')?.structuralAdmission)
+      .toEqual(expect.objectContaining({ source: 'rendered-layout', nodes: expect.any(Number), edges: expect.any(Number) }))
+    expect(results.find(result => result.format === 'svg')?.structuralAdmission?.nodes).toBeGreaterThan(0)
+  })
+
+  test('terminal render failures become audit errors rather than empty passing grids', () => {
+    const results = auditOne({ corpus: 'test', name: 'invalid', source: 'not a diagram' })
+    for (const format of ['ascii', 'unicode']) {
+      expect(results.find(result => result.format === format)?.error).toMatch(/failed/i)
+    }
   })
 })
 

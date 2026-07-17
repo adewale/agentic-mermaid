@@ -9,6 +9,7 @@ import {
 import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 interface BenchCase {
   id: string
@@ -160,12 +161,12 @@ function localGapBudget(): LocalGapBudget {
     totalBlocks: budget.totalBlocks,
     byReason: sortRecord(budget.byReason),
     byFamily: sortRecord(budget.byFamily),
-    byFamilyReason: Object.fromEntries(Object.entries(budget.byFamilyReason).sort(([a], [b]) => a.localeCompare(b)).map(([family, values]) => [family, sortRecord(values)])),
+    byFamilyReason: Object.fromEntries(Object.entries(budget.byFamilyReason).sort(([a], [b]) => compareCodePointStrings(a, b)).map(([family, values]) => [family, sortRecord(values)])),
   }
 }
 
 function sortRecord(values: Record<string, number>): Record<string, number> {
-  return Object.fromEntries(Object.entries(values).filter(([, n]) => n > 0).sort(([a], [b]) => a.localeCompare(b)))
+  return Object.fromEntries(Object.entries(values).filter(([, n]) => n > 0).sort(([a], [b]) => compareCodePointStrings(a, b)))
 }
 
 function expectBudgetAtOrBelow(observed: LocalGapBudget, budget: LocalGapBudget): void {

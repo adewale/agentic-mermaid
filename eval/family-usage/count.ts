@@ -22,6 +22,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, extname } from 'node:path'
+import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 
 /** Default file extensions scanned for fenced mermaid blocks. */
 const DEFAULT_EXTENSIONS = new Set(['.md', '.markdown', '.mdx', '.mdown', '.mkd'])
@@ -197,7 +198,7 @@ export function countDirectories(
 
 /** Rank counts descending; ties broken alphabetically for determinism. */
 export function rankCounts(counts: FamilyCounts): Array<[string, number]> {
-  return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  return Object.entries(counts).sort((a, b) => b[1] - a[1] || compareCodePointStrings(a[0], b[0]))
 }
 
 function formatReport(result: CountResult): string {

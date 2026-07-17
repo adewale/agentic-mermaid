@@ -46,6 +46,7 @@ import { BUILTIN_AGENT_HOOKS } from './families-builtin.ts'
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
 
 export interface ExtractedLabel {
@@ -1333,7 +1334,7 @@ export function detectRegisteredFamilyDescriptorFromFirstLine(
 ): FamilyDescriptor | null {
   const line = normalizeDetectionLine(firstLine)
   const descriptors = Array.from(REGISTRY.values()).sort((a, b) =>
-    b.collisionPriority - a.collisionPriority || a.id.localeCompare(b.id))
+    b.collisionPriority - a.collisionPriority || compareCodePointStrings(a.id, b.id))
   for (const descriptor of descriptors) {
     if (!descriptorOwnsDetectionLine(descriptor, line)) continue
     const detector = mode === 'loose' ? descriptor.detectLoose ?? descriptor.detect : descriptor.detect

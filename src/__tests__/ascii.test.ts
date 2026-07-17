@@ -12,79 +12,7 @@ import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines, DIAGONAL_CHARS } from '../ascii/validate.ts'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-
-// ============================================================================
-// Test case parser — matches Go's testutil.ReadTestCase format
-// ============================================================================
-
-interface TestCase {
-  mermaid: string
-  expected: string
-  paddingX: number
-  paddingY: number
-}
-
-/**
- * Parse a golden test file into its components.
- * Format:
- *   [paddingX=N]     (optional)
- *   [paddingY=N]     (optional)
- *   <mermaid code>
- *   ---                 (the final --- line; source may contain frontmatter)
- *   <expected output>
- */
-function parseTestCase(content: string): TestCase {
-  const tc: TestCase = { mermaid: '', expected: '', paddingX: 5, paddingY: 5 }
-  const lines = content.split('\n')
-  const paddingRegex = /^(?:padding([xy]))\s*=\s*(\d+)\s*$/i
-  let separatorIndex = -1
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (lines[i] === '---') {
-      separatorIndex = i
-      break
-    }
-  }
-  if (separatorIndex < 0) throw new Error('golden fixture is missing --- separator')
-
-  let mermaidStarted = false
-  const mermaidLines: string[] = []
-  const expectedLines = lines.slice(separatorIndex + 1)
-
-  for (const line of lines.slice(0, separatorIndex)) {
-    const trimmed = line.trim()
-
-    // Before mermaid code starts, parse padding directives and skip blanks.
-    // The final `---` line is the fixture separator, so frontmatter `---`
-    // delimiters can appear in the Mermaid source above it.
-    if (!mermaidStarted) {
-      if (trimmed === '') continue
-      const match = trimmed.match(paddingRegex)
-      if (match) {
-        const value = parseInt(match[2]!, 10)
-        if (match[1]!.toLowerCase() === 'x') {
-          tc.paddingX = value
-        } else {
-          tc.paddingY = value
-        }
-        continue
-      }
-    }
-
-    mermaidStarted = true
-    mermaidLines.push(line)
-  }
-
-  tc.mermaid = mermaidLines.join('\n') + '\n'
-
-  // Strip final trailing newline (matches Go's strings.TrimSuffix(expected, "\n"))
-  let expected = expectedLines.join('\n')
-  if (expected.endsWith('\n')) {
-    expected = expected.slice(0, -1)
-  }
-  tc.expected = expected
-
-  return tc
-}
+import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
 
 // ============================================================================
 // Whitespace normalization — matches Go's testutil.NormalizeWhitespace
@@ -128,7 +56,7 @@ function runGoldenTests(dir: string, useAscii: boolean): void {
 
     it(testName, () => {
       const content = readFileSync(join(dir, file), 'utf-8')
-      const tc = parseTestCase(content)
+      const tc = parseAsciiGoldenFixture(content)
 
       const actual = renderMermaidASCII(tc.mermaid, {
         useAscii,
@@ -202,7 +130,7 @@ describe('Diagonal validation', () => {
     const files = readdirSync(asciiDir).filter((f) => f.endsWith('.txt'))
     for (const file of files) {
       const content = readFileSync(join(asciiDir, file), 'utf-8')
-      const { mermaid, paddingX, paddingY } = parseTestCase(content)
+      const { mermaid, paddingX, paddingY } = parseAsciiGoldenFixture(content)
       const output = renderMermaidASCII(mermaid, {
         useAscii: true,
         boxBorderPadding: paddingX,
@@ -221,7 +149,7 @@ describe('Diagonal validation', () => {
     const files = readdirSync(unicodeDir).filter((f) => f.endsWith('.txt'))
     for (const file of files) {
       const content = readFileSync(join(unicodeDir, file), 'utf-8')
-      const { mermaid, paddingX, paddingY } = parseTestCase(content)
+      const { mermaid, paddingX, paddingY } = parseAsciiGoldenFixture(content)
       const output = renderMermaidASCII(mermaid, {
         useAscii: false,
         boxBorderPadding: paddingX,

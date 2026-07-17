@@ -33,6 +33,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import type { ParsedDiagram, RenderedLayout } from '../agent/types.ts'
 import type { MermaidGraph } from '../types.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 const SEED = 0x5eed1234
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
@@ -64,7 +65,7 @@ function assertWellFormedSvg(svg: string): void {
 }
 
 interface SemanticInventory { nodes: string[]; edges: string[]; groups: string[] }
-const sorted = (values: string[]): string[] => values.sort((a, b) => a.localeCompare(b))
+const sorted = (values: string[]): string[] => values.sort(compareCodePointStrings)
 const item = (id: string, label?: string): string => `${id}|${label ?? ''}`
 const edge = (from: string, to: string, label?: string): string => `${from}->${to}|${label ?? ''}`
 const group = (id: string, label: string | undefined, members: string[]): string => `${id}|${label ?? ''}|${[...members].sort().join(',')}`
@@ -193,7 +194,7 @@ function rendererInventory(d: ParsedDiagram, canonical: string): SemanticInvento
 }
 
 function rendererSemanticProjection(layout: RenderedLayout): unknown {
-  const sortJson = <T>(values: T[]): T[] => values.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+  const sortJson = <T>(values: T[]): T[] => values.sort((a, b) => compareCodePointStrings(JSON.stringify(a), JSON.stringify(b)))
   return {
     kind: layout.kind,
     nodes: sortJson(layout.nodes.map(({ id, shape, label, role }) => ({ id, shape, label, role }))),

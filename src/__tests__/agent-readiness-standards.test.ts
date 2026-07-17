@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -49,12 +50,15 @@ describe('agent-readiness standards syntax', () => {
     const pullRequestTemplate = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8')
     const agentGuide = readFileSync(join(REPO, 'CLAUDE.md'), 'utf8')
     const ci = parseYaml(ciWorkflow)
+    const publish = parseYaml(publishWorkflow)
     const unitSteps = ci.jobs.unit.steps
     const aggregateSteps = ci.jobs.test.steps
+    const qualitySteps = ci.jobs.quality.steps
     const e2eSteps = ci.jobs.e2e.steps
+    const publishSteps = publish.jobs.publish.steps
 
     expect(packageJson.scripts.test).toBe('bun test --coverage --timeout 30000 src/__tests__/')
-    expect(ciWorkflow.match(/run: bun run test/g)?.length).toBe(1)
+    expect(ciWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
     expect(ci.concurrency).toEqual({
       group: 'ci-${{ github.event.pull_request.number || github.ref }}',
       'cancel-in-progress': true,
@@ -69,17 +73,53 @@ describe('agent-readiness standards syntax', () => {
     expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage'])
     expect(aggregateSteps.find((step: any) => step.name === 'Merge shard coverage')?.run)
       .toBe('bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3')
-    expect(ci.jobs.e2e.strategy.matrix.suite).toEqual(['cli', 'dist-artifact', 'tarball-consumer', 'browser'])
-    const browserContractCommands = [
-      'AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts --timeout 600000',
-      'AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-style-switch.test.ts --timeout 600000',
-      'AM_BROWSER_TESTS=1 bun test ../src/__tests__/website-browser-a11y.test.ts --timeout 600000',
-    ]
-    expect(e2eSteps.find((step: any) => step.name === 'Run browser-gated unit contracts')?.run.trim().split('\n'))
-      .toEqual(['bun run website', 'cd e2e', ...browserContractCommands])
-    expect(packageJson.scripts['test:browser'])
-      .toBe(['bun run website', 'cd e2e', 'bun test . --timeout 600000', ...browserContractCommands].join(' && '))
-    expect(publishWorkflow.match(/run: bun run test/g)?.length).toBe(1)
+    expect(ci.jobs.e2e.strategy.matrix.suite).toEqual(['cli', 'dist-artifact', 'tarball-consumer', 'tarball-consumer-node18', 'browser'])
+    expect(ci.jobs['ci-complete'].needs).toEqual(['test', 'e2e', 'mutation-incremental'])
+    expect(ci.jobs['ci-complete'].if).toBe('${{ always() }}')
+    expect(ci.jobs['ci-complete'].steps.find((step: any) => step.name === 'Require every CI lane to pass')?.run)
+      .toContain('E2E_RESULT')
+    expect(BROWSER_CONTRACT_FILES).toEqual([
+      { file: 'security-csp.e2e.test.ts' },
+      { file: 'browser.test.ts' },
+      { file: '../src/__tests__/editor-theme-switch.test.ts', browserOptIn: true },
+      { file: '../src/__tests__/editor-style-switch.test.ts', browserOptIn: true },
+      { file: '../src/__tests__/website-browser-a11y.test.ts', browserOptIn: true },
+    ])
+    const browserMarkers = /from ['"]playwright['"]|findChromiumExecutable|AM_BROWSER_TESTS/
+    const discoveredBrowserFiles = [
+      ...readdirSync(join(REPO, 'e2e')).filter(file => file.endsWith('.ts') && file !== 'run-browser-contracts.ts')
+        .filter(file => browserMarkers.test(readFileSync(join(REPO, 'e2e', file), 'utf8'))),
+      ...readdirSync(join(REPO, 'src', '__tests__')).filter(file => file.endsWith('.test.ts') && file !== 'agent-readiness-standards.test.ts')
+        .filter(file => browserMarkers.test(readFileSync(join(REPO, 'src', '__tests__', file), 'utf8')))
+        .map(file => `../src/__tests__/${file}`),
+    ].sort()
+    expect(BROWSER_CONTRACT_FILES.map(contract => contract.file).sort()).toEqual(discoveredBrowserFiles)
+    expect(e2eSteps.find((step: any) => step.name === 'Run canonical browser contract suite')?.run)
+      .toBe('bun run test:browser')
+    expect(packageJson.scripts['test:browser']).toBe('bun run e2e/run-browser-contracts.ts')
+    expect(packageJson.scripts['audit:dependencies']).toBe('bun audit --audit-level=high')
+    expect(qualitySteps.find((step: any) => step.name === 'Audit rendered corpora and family structural evidence')?.run)
+      .toBe('bun run audit:ugly')
+    expect(qualitySteps.find((step: any) => step.name === 'Reject new high or critical dependency advisories')?.run)
+      .toBe('bun run audit:dependencies')
+    expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
+    expect(publishSteps.find((step: any) => step.name === 'Verify release tag, package versions, and checked-out commit agree')?.run)
+      .toBe('bun run scripts/ci/release-identity.ts')
+    expect(publish.permissions.actions).toBe('read')
+    expect(publishSteps.find((step: any) => step.name === 'Require successful canonical CI for the exact release commit')?.run)
+      .toContain('actions/workflows/ci.yml/runs')
+    expect(publishSteps.find((step: any) => step.name === 'Pack, install, and fuzz the tarball under Node 18')?.run)
+      .toContain('tarball-consumer-fuzz.e2e.test.ts')
+    expect(publishSteps.find((step: any) => step.name === 'Refuse an already-published immutable npm version')?.run)
+      .toContain('npm view "agentic-mermaid@$version" version')
+    expect(publishSteps.find((step: any) => step.name === 'Reject new high or critical dependency advisories')?.run)
+      .toBe('bun run audit:dependencies')
+    expect(publishSteps.find((step: any) => step.name === 'Run sketch and whole-corpus layout quality gates')?.run)
+      .toContain('bun run audit:ugly')
+    expect(publishSteps.find((step: any) => step.name === 'Run canonical browser contracts')?.run)
+      .toBe('bun run test:browser')
+    expect(publishSteps.find((step: any) => step.name === 'Prove focused route regressions fail')?.run)
+      .toBe('bun run sabotage:routes')
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')
     expect(agentGuide).toContain('`bun run test`')

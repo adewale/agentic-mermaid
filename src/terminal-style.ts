@@ -12,6 +12,7 @@ import type { DiagramColors } from './theme.ts'
 import type { ResolvedRenderRequest } from './render-contract.ts'
 import { renderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
 import { safeCssColor } from './shared/css-color.ts'
+import { compareCodePointStrings } from './shared/deterministic-order.ts'
 import { toHex, tryParseCssColor } from './shared/color-math.ts'
 import { sanitizeTerminalText } from './terminal-security.ts'
 import type {
@@ -340,7 +341,7 @@ function projectConnectorScene(
     })
   }
   for (const signature of [...signatures.values()].sort((left, right) =>
-    `${left.realization}:${left.topology}`.localeCompare(`${right.realization}:${right.topology}`))) {
+    compareCodePointStrings(`${left.realization}:${left.topology}`, `${right.realization}:${right.topology}`))) {
     if (signature.realization === 'native') continue
     const unsupported = signature.realization === 'unsupported'
     diagnostics.push({

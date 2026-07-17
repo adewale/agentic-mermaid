@@ -78,6 +78,12 @@ describe('test-quality lint (testing-best-practices guardrails)', () => {
     expect(findTestQualitySmells()).toEqual([])
   })
 
+  test('CPU-heavy styled matrices keep the approved 20-second contention budget', () => {
+    const source = readFileSync(join(REPO, 'src', '__tests__', 'styled-output.test.ts'), 'utf8')
+    expect(source.match(/\}, 20_000\)/g)?.length).toBe(2)
+    expect(source).not.toMatch(/\}, 10_000\)/)
+  })
+
   test('the lint has teeth for each guarded anti-pattern', () => {
     const examples = [
       'test' + '.only("debug", () => {})',

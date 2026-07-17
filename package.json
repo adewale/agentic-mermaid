@@ -108,6 +108,7 @@
     "examples/styles/",
     "skills/",
     "skill-evals/",
+    "!skill-evals/private/**",
     "examples/agent-loop.ts",
     "examples/mcp-vs-cli-complex-diagrams.ts",
     "examples/agent-improve-auth-flow.ts",
@@ -130,7 +131,7 @@
   "scripts": {
     "test": "bun test --coverage --timeout 30000 src/__tests__/",
     "typecheck": "tsc --noEmit",
-    "test:browser": "bun run website && cd e2e && bun test . --timeout 600000 && AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-theme-switch.test.ts --timeout 600000 && AM_BROWSER_TESTS=1 bun test ../src/__tests__/editor-style-switch.test.ts --timeout 600000 && AM_BROWSER_TESTS=1 bun test ../src/__tests__/website-browser-a11y.test.ts --timeout 600000",
+    "test:browser": "bun run e2e/run-browser-contracts.ts",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run website:dev",
     "bench": "bun run eval/benchmark/sample-bench.ts",
@@ -213,7 +214,8 @@
     "gallery:section-b": "bun run scripts/pr-assets/section-b-brand-evidence.ts",
     "gallery:section-b:check": "bun run scripts/pr-assets/section-b-brand-evidence.ts --check",
     "track": "bun run eval/heuristic-tracker/run.ts",
-    "audit:ugly": "bun run eval/ugly-detector/audit.ts"
+    "audit:ugly": "bun run eval/ugly-detector/audit.ts",
+    "audit:dependencies": "bun audit --audit-level=high"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
@@ -223,6 +225,12 @@
     "perfect-freehand": "1.2.3",
     "roughjs": "4.6.6",
     "yaml": "^2.8.3"
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "lodash-es": "4.18.1",
+    "picomatch": "4.0.5",
+    "qs": "6.15.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

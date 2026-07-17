@@ -8,6 +8,44 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — public-artifact freshness and delivery closure (#184)
+
+**Byte-identical production is not proof of current provenance.** The deployed
+site matched the repository byte-for-byte, yet five public SVGs predated the
+current deterministic text-geometry contract and a copied terminal snapshot no
+longer matched current output. Rule: inventory every deployable file and classify
+it as authored input, generated output with a freshness oracle, or versioned
+external asset. Local↔production equality proves deployment parity only; it does
+not prove that either side was derived from current code.
+
+**Unreferenced assets are still public when a build publishes them.** No page
+linked the six stale snapshots, but direct URLs remained stable and observable
+because `copyDir` admitted every file in the source directory. Rule: do not use a
+blind directory copy as an artifact-admission policy. Allowlist generated output,
+keep authored source separate from rendered derivatives, and test the exact
+non-source public inventory. If an obsolete derivative has no consumer, delete
+it rather than preserving an unaudited compatibility surface.
+
+**Dependency-complete evidence must be regenerated after the final rebase.** A
+late base update added website/test inputs after the branch receipts were fresh;
+GitHub evaluated the merge ref and correctly found palette and visual receipts
+stale even though branch-head checks had passed earlier. Rule: use the order
+implementation → tests → final rebase → generation → freshness checks → merge-ref
+CI. When a moving base changes an evidence input tree, regenerate from the new
+base; do not copy conflict-side hashes or assume the earlier receipt survives.
+
+**A successful workflow is not proof that its external side effect happened.**
+The post-merge deployment workflow concluded `success` after explicitly skipping
+the Cloudflare deploy because its secrets were unavailable; live probes still
+returned the removed files. Rule: distinguish `deployed`, `skipped`, and `failed`
+in automation and reports. Delivery closes only with a deployment/version
+identity plus live HTTP probes for both retained and removed routes.
+
+**A retry classifies a flake; it does not erase it.** The first PR CI attempt hit
+two existing 10-second styled-matrix timeouts; the unchanged rerun passed. Rule:
+record the first failure and why a rerun is justified. A repeated timeout needs a
+budget, isolation, or performance fix instead of becoming ritual rerun policy.
+
 ## 2026-07 — cross-family aesthetics from the radar family (#161)
 
 The full plan, the families-that-beat-radar table, a before/after radar mock, and an

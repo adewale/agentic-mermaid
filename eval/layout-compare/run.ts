@@ -23,6 +23,7 @@ import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, renderMermaidSVG, renderMermaidASCII } from '../../src/agent/index.ts'
 import type { QualityMetrics } from '../../src/agent/index.ts'
+import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -170,7 +171,7 @@ const VERDICT_ORDER: Record<Verdict, number> = { 'status-changed': 0, regression
 
 export function buildReportHtml(before: Snapshot, after: Snapshot): string {
   const comparisons = compareSnapshots(before, after).sort((a, b) =>
-    VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict] || a.id.localeCompare(b.id))
+    VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict] || compareCodePointStrings(a.id, b.id))
   const counts = new Map<Verdict, number>()
   for (const c of comparisons) counts.set(c.verdict, (counts.get(c.verdict) ?? 0) + 1)
 
