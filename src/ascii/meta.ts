@@ -42,6 +42,7 @@ import { prepareRenderInput } from '../agent/render-input.ts'
 import { ParsedDiagramFamilyMismatchError } from '../render-contract.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { plainTextFromInlineFormatting } from '../shared/inline-format.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import { decodeXML } from 'entities'
 import type { MermaidGraph } from '../types.ts'
@@ -73,6 +74,8 @@ export interface AsciiRegion {
   canvasColEnd: number
   /** Optional row count when the region spans multiple lines (boxed node). */
   rowSpan?: number
+  /** Normalized text this best-effort label region was matched from. */
+  projectedText?: string
 }
 
 export interface AsciiWithMeta {
@@ -181,6 +184,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
       canvasColStart: match.colStart,
       canvasColEnd: match.colEnd,
       ...(match.rowSpan > 1 ? { rowSpan: match.rowSpan } : {}),
+      projectedText: projectedLabelText(c.label),
     })
     used.add(candidateKey)
   }
@@ -190,10 +194,18 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
 }
 
 interface ProjectedLabelMatch { row: number; colStart: number; colEnd: number; rowSpan: number }
-interface TextOccurrence { row: number; start: number; end: number }
+interface TextOccurrence {
+  row: number
+  /** UTF-16 offsets used only to continue searching the source string. */
+  start: number
+  end: number
+  /** Terminal display-cell coordinates used for every spatial decision. */
+  colStart: number
+  colEnd: number
+}
 
 function overlapsOccupied(occupied: Map<number, Array<readonly [number, number]>>, occurrence: TextOccurrence): boolean {
-  return (occupied.get(occurrence.row) ?? []).some(([start, end]) => occurrence.start < end && occurrence.end > start)
+  return (occupied.get(occurrence.row) ?? []).some(([start, end]) => occurrence.colStart < end && occurrence.colEnd > start)
 }
 
 function occurrencesOf(lines: string[], text: string, occupied: Map<number, Array<readonly [number, number]>>): TextOccurrence[] {
@@ -202,7 +214,14 @@ function occurrencesOf(lines: string[], text: string, occupied: Map<number, Arra
   for (let row = 0; row < lines.length; row++) {
     const line = lines[row]!
     for (let start = line.indexOf(text); start >= 0; start = line.indexOf(text, start + Math.max(1, text.length))) {
-      const occurrence = { row, start, end: start + text.length }
+      const end = start + text.length
+      const occurrence = {
+        row,
+        start,
+        end,
+        colStart: visualWidth(line.slice(0, start)),
+        colEnd: visualWidth(line.slice(0, end)),
+      }
       if (!overlapsOccupied(occupied, occurrence)) out.push(occurrence)
     }
   }
@@ -216,23 +235,20 @@ function projectedLabelText(label: string): string {
 }
 
 function claimOccurrences(
-  lines: string[],
   occurrences: TextOccurrence[],
   occupied: Map<number, Array<readonly [number, number]>>,
 ): ProjectedLabelMatch {
   for (const occurrence of occurrences) {
     const spans = occupied.get(occurrence.row) ?? []
-    spans.push([occurrence.start, occurrence.end])
+    spans.push([occurrence.colStart, occurrence.colEnd])
     occupied.set(occurrence.row, spans)
   }
   const firstRow = Math.min(...occurrences.map(occurrence => occurrence.row))
   const lastRow = Math.max(...occurrences.map(occurrence => occurrence.row))
-  const starts = occurrences.map(occurrence => visualWidth(lines[occurrence.row]!.slice(0, occurrence.start)))
-  const ends = occurrences.map(occurrence => visualWidth(lines[occurrence.row]!.slice(0, occurrence.end)))
   return {
     row: firstRow,
-    colStart: Math.min(...starts),
-    colEnd: Math.max(...ends),
+    colStart: Math.min(...occurrences.map(occurrence => occurrence.colStart)),
+    colEnd: Math.max(...occurrences.map(occurrence => occurrence.colEnd)),
     rowSpan: lastRow - firstRow + 1,
   }
 }
@@ -249,7 +265,7 @@ function matchProjectedLabel(
   const projected = projectedLabelText(label)
   for (const text of new Set([label, projected])) {
     const occurrence = occurrencesOf(lines, text, occupied)[0]
-    if (occurrence) return claimOccurrences(lines, [occurrence], occupied)
+    if (occurrence) return claimOccurrences([occurrence], occupied)
   }
 
   const tokens = projected.split(/\s+/).filter(Boolean)
@@ -261,26 +277,32 @@ function matchProjectedLabel(
     let rowEnd = first.end
     let complete = true
     for (const token of tokens.slice(1)) {
+      // A projected label is one contiguous text cluster: tokens either remain
+      // on the same row with only ordinary inter-word spacing, or continue on
+      // the immediately following row with overlapping display columns. Without
+      // this bound, a trailing token can be stolen from a neighbouring node.
       const next = occurrencesOf(lines, token, occupied).find(candidate =>
-        (candidate.row === previous.row && candidate.start >= previous.end)
+        (candidate.row === previous.row
+          && candidate.colStart >= previous.colEnd
+          && candidate.colStart - previous.colEnd <= 3)
         || (candidate.row === previous.row + 1
-          && candidate.start < rowEnd
-          && candidate.end > rowStart))
+          && candidate.colStart < rowEnd
+          && candidate.colEnd > rowStart))
       if (!next) {
         complete = false
         break
       }
       matches.push(next)
       if (next.row === previous.row) {
-        rowStart = Math.min(rowStart, next.start)
-        rowEnd = Math.max(rowEnd, next.end)
+        rowStart = Math.min(rowStart, next.colStart)
+        rowEnd = Math.max(rowEnd, next.colEnd)
       } else {
-        rowStart = next.start
-        rowEnd = next.end
+        rowStart = next.colStart
+        rowEnd = next.colEnd
       }
       previous = next
     }
-    if (complete) return claimOccurrences(lines, matches, occupied)
+    if (complete) return claimOccurrences(matches, occupied)
   }
   return undefined
 }
@@ -408,7 +430,7 @@ function addSemanticContainerRegions(ascii: string, source: string, regions: Asc
       rowSpan: Math.max(1, lastRow - firstRow),
     })
   }
-  result.sort((a, b) => a.canvasRow - b.canvasRow || a.canvasColStart - b.canvasColStart || a.id.localeCompare(b.id))
+  result.sort((a, b) => a.canvasRow - b.canvasRow || a.canvasColStart - b.canvasColStart || compareCodePointStrings(a.id, b.id))
   return result
 }
 

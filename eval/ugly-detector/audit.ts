@@ -20,19 +20,20 @@ import { renderMermaidASCIIWithMeta } from '../../src/ascii/meta.ts'
 import { contactSheetScenarios } from '../visual-rubric/scenarios.ts'
 import { trackedExamples } from '../heuristic-tracker/catalog.ts'
 import { samples } from '../../scripts/site/samples-data.ts'
+import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
 import { detectSvg, parseSvg, detectPngPixels, detectAscii, type Finding } from './detect.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..', '..')
 const PNG_SCALE = 2
 
-interface Diagram { corpus: string; name: string; source: string }
-
-/** Source above the final line that is exactly `---` (golden-fixture format). */
-function goldenSource(text: string): string {
-  const lines = text.split('\n')
-  for (let i = lines.length - 1; i >= 0; i--) if (lines[i]!.trim() === '---') return lines.slice(0, i).join('\n')
-  return ''
+type TerminalFormat = 'ascii' | 'unicode'
+interface Diagram {
+  corpus: string
+  name: string
+  source: string
+  terminalFormats?: TerminalFormat[]
+  terminalOptions?: { paddingX: number; paddingY: number }
 }
 
 function corpora(): Diagram[] {
@@ -43,17 +44,23 @@ function corpora(): Diagram[] {
   const fixDir = join(root, 'eval', 'layout-compare', 'fixtures')
   for (const f of readdirSync(fixDir).filter(f => f.endsWith('.mmd')))
     out.push({ corpus: 'fixtures', name: f, source: readFileSync(join(fixDir, f), 'utf8') })
-  for (const sub of ['ascii', 'unicode']) {
+  for (const sub of ['ascii', 'unicode'] as const) {
     const dir = join(root, 'src', '__tests__', 'testdata', sub)
     for (const f of readdirSync(dir).filter(f => f.endsWith('.txt'))) {
-      const src = goldenSource(readFileSync(join(dir, f), 'utf8'))
-      if (src.trim()) out.push({ corpus: `golden-${sub}`, name: f, source: src })
+      const fixture = parseAsciiGoldenFixture(readFileSync(join(dir, f), 'utf8'))
+      if (fixture.mermaid.trim()) out.push({
+        corpus: `golden-${sub}`,
+        name: f,
+        source: fixture.mermaid,
+        terminalFormats: [sub],
+        terminalOptions: { paddingX: fixture.paddingX, paddingY: fixture.paddingY },
+      })
     }
   }
   return out
 }
 
-interface Result { d: Diagram; format: 'svg' | 'png' | 'ascii'; findings: Finding[]; error?: string }
+interface Result { d: Diagram; format: 'svg' | 'png' | TerminalFormat; findings: Finding[]; error?: string }
 
 function auditOne(d: Diagram): Result[] {
   const res: Result[] = []
@@ -71,12 +78,20 @@ function auditOne(d: Diagram): Result[] {
       const pixel = detectPngPixels({ data: img.pixels, width: img.width, height: img.height }, nodes, PNG_SCALE)
       res.push({ d, format: 'png', findings: [...detectSvg(svg), ...pixel] })
     } catch (e) { res.push({ d, format: 'png', findings: [], error: String(e) }) }
+  } else {
+    res.push({ d, format: 'png', findings: [], error: 'SVG render unavailable; PNG audit could not run' })
   }
-  // ASCII (glyph grid)
-  try {
-    const { ascii, regions } = renderMermaidASCIIWithMeta(d.source)
-    res.push({ d, format: 'ascii', findings: detectAscii(ascii, regions) })
-  } catch (e) { res.push({ d, format: 'ascii', findings: [], error: String(e) }) }
+  // Terminal projections are separate contracts: plain ASCII and Unicode must
+  // both be exercised rather than reporting the Unicode default as "ASCII".
+  for (const format of d.terminalFormats ?? ['ascii', 'unicode']) {
+    try {
+      const { ascii, regions } = renderMermaidASCIIWithMeta(d.source, {
+        ...d.terminalOptions,
+        useAscii: format === 'ascii',
+      })
+      res.push({ d, format, findings: detectAscii(ascii, regions, { useAscii: format === 'ascii' }) })
+    } catch (e) { res.push({ d, format, findings: [], error: String(e) }) }
+  }
   return res
 }
 
@@ -98,21 +113,21 @@ function main(): void {
       soft: soft.map(({ r, f }) => ({ corpus: r.d.corpus, name: r.d.name, format: r.format, ...f })),
       errors: errors.map(r => ({ corpus: r.d.corpus, name: r.d.name, format: r.format, error: r.error })),
     }, null, 2))
-    process.exit(hard.length ? 1 : 0)
+    process.exit(hard.length || errors.length ? 1 : 0)
   }
 
   // Per-corpus × per-format summary table.
   const corpusNames = [...new Set(diagrams.map(d => d.corpus))]
-  console.log('Ugly-layout audit — rendered SVG / PNG / ASCII')
-  console.log('(SVG authoritative; PNG = SVG structure + pixel sanity; ASCII = glyph grid)\n')
-  console.log('corpus'.padEnd(16), 'diagrams'.padStart(9), '  hard(svg/png/ascii)   soft   render-err')
+  console.log('Ugly-layout audit — rendered SVG / PNG / ASCII / Unicode')
+  console.log('(SVG authoritative; PNG = SVG structure + pixel sanity; terminal projections = display-cell grids)\n')
+  console.log('corpus'.padEnd(16), 'diagrams'.padStart(9), '  hard(svg/png/ascii/unicode)   soft   render-err')
   for (const c of corpusNames) {
     const ds = diagrams.filter(d => d.corpus === c)
     const rs = all.filter(r => r.d.corpus === c)
     const h = (fmt: string) => rs.filter(r => r.format === fmt).reduce((a, r) => a + r.findings.filter(f => f.severity === 'hard').length, 0)
     const s = rs.reduce((a, r) => a + r.findings.filter(f => f.severity === 'soft').length, 0)
     const err = rs.filter(r => r.error).length
-    console.log(c.padEnd(16), String(ds.length).padStart(9), `   ${h('svg')} / ${h('png')} / ${h('ascii')}`.padEnd(20), String(s).padStart(4), String(err).padStart(10))
+    console.log(c.padEnd(16), String(ds.length).padStart(9), `   ${h('svg')} / ${h('png')} / ${h('ascii')} / ${h('unicode')}`.padEnd(30), String(s).padStart(4), String(err).padStart(10))
   }
   console.log('—'.repeat(64))
   console.log(`${diagrams.length} diagrams · ${all.length} format-audits · ${hard.length} HARD · ${soft.length} soft · ${errors.length} render-errors\n`)
@@ -133,7 +148,7 @@ function main(): void {
     for (const r of errors) { const k = `${r.format}: ${r.error!.split('\n')[0]!.slice(0, 70)}`; byErr.set(k, (byErr.get(k) ?? 0) + 1) }
     for (const [k, n] of byErr) console.log(`  ×${n}  ${k}`)
   }
-  process.exit(hard.length ? 1 : 0)
+  process.exit(hard.length || errors.length ? 1 : 0)
 }
 
 main()

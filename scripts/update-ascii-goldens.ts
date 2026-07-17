@@ -2,60 +2,11 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { renderMermaidASCII } from '../src/ascii/index.ts'
-
-interface TestCase {
-  sourceLines: string[]
-  mermaid: string
-  expected: string
-  paddingX: number
-  paddingY: number
-}
+import { parseAsciiGoldenFixture } from './ascii-golden-fixture.ts'
 
 const root = resolve(import.meta.dir, '..')
 const testdataDir = join(root, 'src', '__tests__', 'testdata')
 const defaultDirs = [join(testdataDir, 'ascii'), join(testdataDir, 'unicode')]
-
-function parseFixture(content: string): TestCase {
-  const lines = content.replaceAll('\r\n', '\n').split('\n')
-  const paddingRegex = /^(?:padding([xy]))\s*=\s*(\d+)\s*$/i
-  let separatorIndex = -1
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (lines[i] === '---') {
-      separatorIndex = i
-      break
-    }
-  }
-  if (separatorIndex < 0) separatorIndex = lines.length
-
-  const tc: TestCase = {
-    sourceLines: lines.slice(0, separatorIndex),
-    mermaid: '',
-    expected: separatorIndex < lines.length ? lines.slice(separatorIndex + 1).join('\n') : '',
-    paddingX: 5,
-    paddingY: 5,
-  }
-
-  let mermaidStarted = false
-  const mermaidLines: string[] = []
-  for (const line of tc.sourceLines) {
-    const trimmed = line.trim()
-    if (!mermaidStarted) {
-      if (trimmed === '') continue
-      const match = trimmed.match(paddingRegex)
-      if (match) {
-        const value = parseInt(match[2]!, 10)
-        if (match[1]!.toLowerCase() === 'x') tc.paddingX = value
-        else tc.paddingY = value
-        continue
-      }
-    }
-    mermaidStarted = true
-    mermaidLines.push(line)
-  }
-
-  tc.mermaid = mermaidLines.join('\n') + '\n'
-  return tc
-}
 
 function normalizeGolden(s: string): string {
   return s
@@ -113,7 +64,7 @@ if (help) {
 const changed: string[] = []
 for (const file of expandInputs(inputs)) {
   const content = readFileSync(file, 'utf-8')
-  const tc = parseFixture(content)
+  const tc = parseAsciiGoldenFixture(content)
   const actual = normalizeGolden(renderMermaidASCII(tc.mermaid, {
     useAscii: useAsciiFor(file),
     paddingX: tc.paddingX,

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join, relative, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { plainTextFromInlineFormatting } from '../../src/shared/inline-format.ts'
+import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import {
   asArchitecture,
   asClass,
@@ -332,11 +333,11 @@ function main(): void {
     }
   }
 
-  const cases = [...casesByKey.values()].sort((a, b) => a.family.localeCompare(b.family) || a.id.localeCompare(b.id))
+  const cases = [...casesByKey.values()].sort((a, b) => compareCodePointStrings(a.family, b.family) || compareCodePointStrings(a.id, b.id))
   const manifest = buildManifest(cases, exclusions)
   const ratchet = buildRatchet(cases, exclusions)
   writeJson(join(BENCH, 'cases.json'), cases)
-  writeJson(join(BENCH, 'exclusions.json'), exclusions.sort((a, b) => a.families[0].localeCompare(b.families[0]) || a.id.localeCompare(b.id)))
+  writeJson(join(BENCH, 'exclusions.json'), exclusions.sort((a, b) => compareCodePointStrings(a.families[0]!, b.families[0]!) || compareCodePointStrings(a.id, b.id)))
   writeJson(join(BENCH, 'manifest.json'), manifest)
   writeJson(join(BENCH, 'ratchet.json'), ratchet)
 
@@ -477,14 +478,14 @@ function normalizeBudget(budget: LocalGapBudget): LocalGapBudget {
     byFamily: sortRecord(budget.byFamily),
     byFamilyReason: Object.fromEntries(
       Object.entries(budget.byFamilyReason)
-        .sort(([a], [b]) => a.localeCompare(b))
+        .sort(([a], [b]) => compareCodePointStrings(a, b))
         .map(([family, values]) => [family, sortRecord(values)]),
     ),
   }
 }
 
 function sortRecord(values: Record<string, number>): Record<string, number> {
-  return Object.fromEntries(Object.entries(values).filter(([, n]) => n > 0).sort(([a], [b]) => a.localeCompare(b)))
+  return Object.fromEntries(Object.entries(values).filter(([, n]) => n > 0).sort(([a], [b]) => compareCodePointStrings(a, b)))
 }
 
 function minLocalGapBudget(previous: LocalGapBudget, observed: LocalGapBudget): LocalGapBudget {

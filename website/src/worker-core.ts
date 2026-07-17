@@ -91,6 +91,8 @@ function prefersMarkdown(accept: string | null): boolean {
   return markdownQuality > 0 && markdownQuality > htmlQuality
 }
 
+const HOURLY_STATIC_ASSET = /\.(?:css|js|svg|ttf|woff2|png|ico)$/i
+
 function withHeaders(response: Response, pathname: string, negotiatesHomepage = false): Response {
   const headers = new Headers(response.headers)
   headers.set('X-Content-Type-Options', 'nosniff')
@@ -108,8 +110,12 @@ function withHeaders(response: Response, pathname: string, negotiatesHomepage = 
     headers.set('Cache-Control', 'no-cache')
   } else if (/^\/(?:editor\/editor-[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i.test(pathname)) {
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  } else if (/\.(css|js|svg|ttf)$/i.test(pathname)) {
+  } else if (HOURLY_STATIC_ASSET.test(pathname)) {
     headers.set('Cache-Control', 'public, max-age=3600')
+  } else {
+    // Deleting the Static Assets header must never leave an unclassified public
+    // file with ambient platform policy. Unknown extensions revalidate.
+    headers.set('Cache-Control', 'no-cache')
   }
 
   if (negotiatesHomepage) {

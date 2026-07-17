@@ -269,6 +269,20 @@ describe('renderer-neutral action surface', () => {
     }
   })
 
+  test('terminal action hit regions cannot absorb a shared token from a neighboring node', () => {
+    const rendered = renderMermaidWithActions(
+      'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]\n  click G href "https://example.com"',
+      { format: 'unicode', options: { colorMode: 'none' } },
+    )
+    const region = rendered.actionSurface.actions[0]!.region!
+    const h = renderMermaidASCIIWithMeta(
+      'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]',
+      { colorMode: 'none' },
+    ).regions.find(candidate => candidate.id === 'H')!
+    expect(Number(region.bounds.h)).toBe(2)
+    expect(Number(region.bounds.x) + Number(region.bounds.w)).toBeLessThanOrEqual(h.canvasColStart)
+  })
+
   test('escaped quoted hrefs match the inert SVG metadata they produced', () => {
     for (const authored of ['https://example.com/a\\"b', 'https://example.com/a\\\\b']) {
       const rendered = renderMermaidWithActions(

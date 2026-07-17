@@ -26,6 +26,7 @@ import { join } from 'node:path'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import type { RenderedLayout } from '../agent/types.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 const BASELINE = join(import.meta.dir, 'testdata', 'layout-geometry-baseline.json')
 const UPDATE = process.env.UPDATE_LAYOUT_BASELINE === '1'
@@ -61,7 +62,7 @@ const canon = (r: Record_ | undefined): string => JSON.stringify(r ?? null)
  *  the exact diagram that moved. Sorted by id for a stable, corpus-order-
  *  independent file. */
 function serializeBaseline(m: Map<string, Record_>): string {
-  const entries = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  const entries = [...m.entries()].sort((a, b) => compareCodePointStrings(a[0], b[0]))
   return '{\n' + entries.map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(',\n') + '\n}\n'
 }
 

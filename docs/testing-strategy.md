@@ -84,9 +84,10 @@ plus the security contracts and the explicitly enabled theme/style/accessibility
 browser suites. The browser lane builds the gitignored `website/public` tree once
 before those contracts serve it (`browser.test.ts` builds only the separate root
 `editor.html`). Each browser contract file then runs in its own Bun process so its
-Chromium/server hooks cannot overlap and exhaust a constrained hosted runner, while
-independent lanes run the CLI/single-binary, dist-artifact, and tarball-consumer
-suites. The broad contact sheets are not on the per-PR gate.
+Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. The
+package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
+list also fails if any contract executes zero positive tests, while independent
+lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites. The broad contact sheets are not on the per-PR gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
@@ -276,8 +277,9 @@ table here, which would drift. In broad strokes:
 
 - **Per-PR (`ci.yml`):** the three-shard unit/property suite (`bun run test`) —
   Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
-  `measureQuality`/ugly-detector/layout-rubric, the heuristic-tracker ratchet,
-  the corpus/seqbench/upstream benches — plus type check, the hero check, the
+  `measureQuality`/whole-corpus ugly-detector/layout-rubric, the heuristic-tracker ratchet,
+  the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
+  type check, the hero check, the
   golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
   incremental mutation lane, and the independent focused sabotage lane.
 - **Manual / periodic:** opt-in broad Stryker survivor harvests,

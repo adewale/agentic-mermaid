@@ -66,6 +66,17 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(a.canvasColStart).toBeGreaterThanOrEqual(b.canvasColEnd)
   })
 
+  test('multiline label tokens cannot escape into a neighboring node', () => {
+    const rendered = renderMermaidASCIIWithMeta(
+      'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]',
+      { colorMode: 'none' },
+    )
+    const g = rendered.regions.find(region => region.id === 'G')!
+    const h = rendered.regions.find(region => region.id === 'H')!
+    expect(g.rowSpan).toBe(2)
+    expect(g.canvasColEnd).toBeLessThanOrEqual(h.canvasColStart)
+  })
+
   test('terminal action metadata contains no authored control bytes', () => {
     const osc = '\u001b]52;c;SEVMTE8=\u0007'
     const rendered = renderMermaidASCIIWithMeta(

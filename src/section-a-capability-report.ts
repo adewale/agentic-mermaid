@@ -10,6 +10,7 @@
 
 import './scene/builtin-backends.ts'
 
+import { compareCodePointStrings } from './shared/deterministic-order.ts'
 import characterizationIndex from '../docs/design/system/consolidation-characterization.json'
 import {
   FAMILY_CAPABILITY_COLUMNS,
@@ -556,7 +557,7 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
   })
   const extensionRows = descriptors
     .filter(descriptor => !matched.has(descriptor.id))
-    .sort((a, b) => a.id.localeCompare(b.id))
+    .sort((a, b) => compareCodePointStrings(a.id, b.id))
     .map(descriptor => ({
       id: descriptor.id,
       label: descriptor.label,
@@ -639,7 +640,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
     return capabilityReportCache.report
   }
   const roles = Object.entries(BUILTIN_SCENE_ROLE_TRAITS)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => compareCodePointStrings(a, b))
     .map(([id, traits]) => ({ id, ...traits }))
   const schema = sharedRenderOptionsJsonSchema() as { properties?: Record<string, unknown> }
   const request: SectionARequestCapabilityRow[] = [
@@ -684,7 +685,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
         provenance: stringRecord(descriptor.identity.provenance),
       }
     })
-    .sort((a, b) => a.id.localeCompare(b.id))
+    .sort((a, b) => compareCodePointStrings(a.id, b.id))
   const outputs = RENDER_OUTPUT_DESCRIPTORS.map(descriptor => ({
     id: descriptor.id,
     availability: descriptor.availability,

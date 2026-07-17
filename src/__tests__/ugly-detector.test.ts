@@ -10,6 +10,7 @@ import {
 } from '../../eval/ugly-detector/detect.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
 
 const rect = (id: string, x: number, y: number, w = 40, h = 20) =>
   ({ id, shape: 'rectangle' as const, x, y, w, h })
@@ -114,9 +115,34 @@ describe('detectAscii — glyph grid', () => {
     expect(kinds(detectAscii('─X', regions))).toContain('ascii-edge-through-node')
   })
 
-  test('label punctuation (hyphen / pipe / plus) is not a line glyph', () => {
-    const regions = [{ kind: 'node', id: 'A', canvasRow: 0, canvasColStart: 0, canvasColEnd: 5 }]
-    expect(detectAscii('a-b+', regions)).toEqual([])
+  test('display-cell coordinates do not reinterpret a wide label as following route ink', () => {
+    const regions = [{ kind: 'node', id: 'A', canvasRow: 0, canvasColStart: 0, canvasColEnd: 2, projectedText: '界' }]
+    expect(detectAscii('界─', regions)).toEqual([])
+  })
+
+  test('plain ASCII route glyphs are detected unless they belong to authored label text', () => {
+    const line = [{ kind: 'node', id: 'A', canvasRow: 0, canvasColStart: 0, canvasColEnd: 2, projectedText: 'X' }]
+    expect(kinds(detectAscii('|X', line, { useAscii: true }))).toContain('ascii-edge-through-node')
+
+    const punctuation = [{ kind: 'node', id: 'B', canvasRow: 0, canvasColStart: 0, canvasColEnd: 4, projectedText: 'a-b+' }]
+    expect(detectAscii('a-b+', punctuation, { useAscii: true })).toEqual([])
+  })
+
+  test('CJK Gantt label regions do not include timeline glyphs', () => {
+    const source = 'gantt\n  dateFormat YYYY-MM-DD\n  section 设计阶段\n    界面设计 :ui, 2024-04-01, 5d'
+    const rendered = renderMermaidASCIIWithMeta(source, { useAscii: false })
+    expect(detectAscii(rendered.ascii, rendered.regions)).toEqual([])
+  })
+})
+
+describe('ASCII/Unicode golden fixture admission', () => {
+  test('option prelude is not passed to graphical renderers as Mermaid source', () => {
+    const fixture = parseAsciiGoldenFixture('paddingX=2\npaddingY=3\nflowchart LR\n  A --> B\n---\nexpected\n')
+    expect(fixture).toEqual(expect.objectContaining({
+      mermaid: 'flowchart LR\n  A --> B\n',
+      paddingX: 2,
+      paddingY: 3,
+    }))
   })
 })
 

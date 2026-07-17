@@ -1,4 +1,5 @@
 import type { SceneNode } from './ir.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
 // Construction-time markup is normalized before admission: callers cannot use
@@ -57,7 +58,7 @@ function canonicalOpeningTag(tag: string): string {
   attributes.sort((a, b) => {
     const aOrder = shellOrder.get(a.name) ?? 100
     const bOrder = shellOrder.get(b.name) ?? 100
-    return aOrder - bOrder || a.name.localeCompare(b.name) || a.index - b.index
+    return aOrder - bOrder || compareCodePointStrings(a.name, b.name) || a.index - b.index
   })
   const serialized = attributes.map(attribute => `${attribute.name}="${attribute.value}"`).join(' ')
   return `<${name}${serialized ? ` ${serialized}` : ''}${selfClosing ? ' /' : ''}>`

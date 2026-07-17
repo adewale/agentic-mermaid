@@ -34,8 +34,10 @@ automatically** (no `--provenance` flag).
 - `npm view agentic-mermaid version` — confirm the version isn't already
   published (first release: expect a 404).
 
-The workflow pins Node 22 and upgrades to the latest npm (trusted publishing
-needs npm ≥ 11.5.1 / Node ≥ 22.14).
+The workflow pins Node 22 and npm 11.18.0 (trusted publishing needs npm ≥
+11.5.1 / Node ≥ 22.14). The publish job also rejects a release whose tag,
+checked-out commit, package version, or MCP server versions disagree, and
+fails before building if that immutable npm version already exists.
 
 ## Cutting a release
 

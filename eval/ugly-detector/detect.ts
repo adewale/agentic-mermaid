@@ -9,6 +9,8 @@
  * region metadata to find edge glyphs inside node interiors.
  */
 import { onShapeOutline } from '../../src/layout-rubric.ts'
+import { graphemes } from '../../src/shared/graphemes.ts'
+import { visualWidth } from '../../src/ascii/width.ts'
 import type { NodeShape, PositionedNode } from '../../src/types.ts'
 
 export interface Finding { kind: string; severity: 'hard' | 'soft'; detail: string }
@@ -209,23 +211,39 @@ export function detectPngPixels(px: Pixels, nodes: RNode[], scale: number): Find
 // label band, not the full interior) but has no false positives: nothing but
 // the label and blank padding should ever occupy those cells.
 // --------------------------------------------------------------------------
-const LINE_GLYPHS = new Set('─│┌┐└┘├┤┬┴┼╴╵╶╷▶◀▲▼►◄↑↓←→'.split(''))
+const UNICODE_LINE_GLYPHS = new Set(graphemes('─│┌┐└┘├┤┬┴┼╴╵╶╷▶◀▲▼►◄↑↓←→'))
+const ASCII_LINE_GLYPHS = new Set(graphemes('-|+<>^v'))
+
+function displayCellAt(line: string | undefined, column: number): string | undefined {
+  if (line === undefined || column < 0) return undefined
+  let cursor = 0
+  for (const cluster of graphemes(line)) {
+    const width = visualWidth(cluster)
+    if (column >= cursor && column < cursor + width) return cluster
+    cursor += width
+  }
+  return undefined
+}
+
 /** Subset of renderMermaidASCIIWithMeta's AsciiRegion that we read. */
 export interface AsciiRegion {
   kind: string; id: string
   canvasRow: number; canvasColStart: number; canvasColEnd: number; rowSpan?: number
+  projectedText?: string
 }
-export function detectAscii(ascii: string, regions: AsciiRegion[]): Finding[] {
+export function detectAscii(ascii: string, regions: AsciiRegion[], options: { useAscii?: boolean } = {}): Finding[] {
   const out: Finding[] = []
   const rows = ascii.split('\n')
+  const lineGlyphs = options.useAscii ? ASCII_LINE_GLYPHS : UNICODE_LINE_GLYPHS
   for (const r of regions) {
     if (r.kind !== 'node') continue
+    const authoredGlyphs = new Set(graphemes(r.projectedText ?? ''))
     const r0 = r.canvasRow, r1 = r.canvasRow + (r.rowSpan ?? 1)
     for (let gy = r0; gy < r1; gy++) {
       for (let gx = r.canvasColStart; gx < r.canvasColEnd; gx++) {
-        const ch = rows[gy]?.[gx]
-        if (ch && LINE_GLYPHS.has(ch)) {
-          out.push({ kind: 'ascii-edge-through-node', severity: 'hard', detail: `${r.id}: line glyph '${ch}' on label band at (${gx},${gy})` })
+        const glyph = displayCellAt(rows[gy], gx)
+        if (glyph && lineGlyphs.has(glyph) && !authoredGlyphs.has(glyph)) {
+          out.push({ kind: 'ascii-edge-through-node', severity: 'hard', detail: `${r.id}: line glyph '${glyph}' on label band at (${gx},${gy})` })
           gy = r1; break
         }
       }

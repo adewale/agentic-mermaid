@@ -3,7 +3,7 @@
 This document states the working definition of an *ugly* diagram layout that
 this project has converged on, and maps each defect to a detector. It is the
 specification for `eval/ugly-detector/` (which audits **rendered** output —
-SVG, PNG, ASCII — not just the internal geometry the rubric checks).
+SVG, PNG, ASCII, and Unicode — not just the internal geometry the rubric checks).
 
 ## The one-line definition
 
@@ -63,7 +63,7 @@ from the choices made across this project:
 
 The `assessLayout` rubric (`src/layout-rubric.ts`) checks the **internal
 geometry** (`PositionedGraph`). The ugly-detector checks the **rendered
-artifact** — the SVG/PNG/ASCII a consumer actually sees — so it:
+artifact** — the SVG/PNG/ASCII/Unicode a consumer actually sees — so it:
 
 1. catches rendering bugs where clean geometry renders wrong;
 2. works on *any* diagram, including external SVGs and golden fixtures not
@@ -71,17 +71,17 @@ artifact** — the SVG/PNG/ASCII a consumer actually sees — so it:
 3. validates the ASCII pipeline, which is a separate renderer that never sees
    the `RouteCertificate` contracts.
 
-The three formats degrade in fidelity: **SVG** is the authoritative analysis
-(vector paths + shape geometry are recoverable exactly); **PNG** is a faithful
-raster of an SVG, so its check is "analyze the source SVG, plus a coarse
-pixel-orthogonality sanity pass"; **ASCII** is a glyph grid, so detection is
-limited to what the grid reveals (diagonal line glyphs, edge glyphs inside a
-box interior).
+The formats degrade in fidelity: **SVG** is the authoritative analysis (vector
+paths + shape geometry are recoverable exactly); **PNG** is a faithful raster
+of an SVG, so its check is "analyze the source SVG, plus a coarse
+pixel-orthogonality sanity pass"; **ASCII and Unicode** are separately rendered
+display-cell grids, so detection is limited to what each grid reveals, including
+edge glyphs inside a node's label band.
 
 ## Running the audit
 
 ```
-bun run audit:ugly                # render every corpus to SVG/PNG/ASCII, report
+bun run audit:ugly                # render every corpus to SVG/PNG/ASCII/Unicode, report
 bun run audit:ugly -- --verbose   # also list soft findings
 bun run audit:ugly -- --json      # machine-readable report
 ```
@@ -89,23 +89,18 @@ bun run audit:ugly -- --json      # machine-readable report
 The runner (`eval/ugly-detector/audit.ts`) renders every diagram corpus in the
 project — the contact-sheet scenarios, the heuristic-tracker examples, the
 site samples, the layout-compare fixtures, and the ASCII/Unicode golden
-fixture sources — to all three formats and runs the detectors. It exits
-non-zero if any **hard** finding is present, so it doubles as a CI gate.
-`src/__tests__/ugly-detector.test.ts` pins the detector's behavior.
+fixture sources — to graphical output plus both terminal modes and runs the
+detectors. Golden option preludes are parsed by the same authority as the
+golden updater, so `paddingX`/`paddingY` lines cannot become fake Mermaid
+headers. It exits non-zero for any **hard** finding or render/corpus error and
+runs in the CI quality job. `src/__tests__/ugly-detector.test.ts` pins display-
+cell lookup, plain-ASCII and Unicode detection, wide labels, and fixture
+admission.
 
-### What the audit found (2026-06)
-
-Current result on PR #30 after the nested-subgraph route fixes:
-
-```text
-338 diagrams / 1009 format-audits
-0 hard layout defects
-0 soft layout findings
-6 render/corpus errors
-```
-
-The non-clean entries are **render errors** (a diagram type or config header a
-given renderer rejects), not layout defects, and are bucketed as such.
+Current diagram and format totals are deliberately not copied into this prose:
+`bun run audit:ugly -- --json` is the live receipt. A passing gate means zero
+hard layout findings and zero render/corpus errors; soft findings remain
+reported for review.
 
 Historical note: an earlier audit found one real hard defect — a
 cross-hierarchy edge into a nested subgraph missing the containing subgraph's

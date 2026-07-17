@@ -4,6 +4,7 @@ import fc from 'fast-check'
 import { mergeMermaidConfigs, normalizeMermaidSource, type MermaidRuntimeConfig } from '../mermaid-source.ts'
 import { parseMermaid } from '../parser.ts'
 import type { MermaidGraph, MermaidNode } from '../types.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 const PROPERTY_RUNS = 60
 const ID_HEAD = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
@@ -73,10 +74,10 @@ function normalizeGraph(graph: MermaidGraph): Record<string, unknown> {
         nodeIds: [...child.nodeIds],
       })),
     })),
-    classDefs: [...graph.classDefs.entries()].sort(([a], [b]) => a.localeCompare(b)),
-    classAssignments: [...graph.classAssignments.entries()].sort(([a], [b]) => a.localeCompare(b)),
-    nodeStyles: [...graph.nodeStyles.entries()].sort(([a], [b]) => a.localeCompare(b)),
-    linkStyles: [...graph.linkStyles.entries()].sort(([a], [b]) => String(a).localeCompare(String(b))),
+    classDefs: [...graph.classDefs.entries()].sort(([a], [b]) => compareCodePointStrings(a, b)),
+    classAssignments: [...graph.classAssignments.entries()].sort(([a], [b]) => compareCodePointStrings(a, b)),
+    nodeStyles: [...graph.nodeStyles.entries()].sort(([a], [b]) => compareCodePointStrings(a, b)),
+    linkStyles: [...graph.linkStyles.entries()].sort(([a], [b]) => compareCodePointStrings(String(a), String(b))),
   }
 }
 

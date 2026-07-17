@@ -1,4 +1,5 @@
 import rawManifest from '../docs/project/upstream-mermaid-manifest.json'
+import { compareCodePointStrings } from './shared/deterministic-order.ts'
 
 export { findUpstreamFamilyByHeader } from './upstream-family-index.ts'
 export type { UpstreamHeaderMatch } from './upstream-family-index.ts'
@@ -137,7 +138,7 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   if (value && typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => compareCodePointStrings(a, b))
       .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
     return `{${entries.join(',')}}`
   }
