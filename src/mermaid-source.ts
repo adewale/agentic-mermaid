@@ -507,17 +507,19 @@ function sourceEnvelopeMetadata(text: string): {
   comments: MermaidSourceComment[]
   accessibility: MermaidSourceAccessibility
 } {
+  const frontmatter = text.match(FRONTMATTER_REGEX)
+  const frontmatterEnd = frontmatter?.[0].length ?? 0
   const initDirectives: MermaidSourceInitDirective[] = []
   const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
   let match: RegExpExecArray | null
-  while ((match = directiveRegex.exec(text)) !== null) {
+  const directiveSource = text.slice(frontmatterEnd)
+  while ((match = directiveRegex.exec(directiveSource)) !== null) {
     initDirectives.push({
       raw: match[0],
       parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
     })
   }
 
-  const frontmatter = text.match(FRONTMATTER_REGEX)
   const withoutUniversalConfig = text
     .replace(FRONTMATTER_REGEX, '')
     .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')

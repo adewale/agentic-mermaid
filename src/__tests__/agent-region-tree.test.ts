@@ -33,7 +33,7 @@ describe('stable region tree MVP', () => {
 
     const layout = layoutMermaid(parsed.value, { debug: true })
     expect(layout.regions).toContainEqual(expect.objectContaining({ id: 'canvas', kind: 'canvas' }))
-    expect(layout.regions).toContainEqual(expect.objectContaining({ id: 'group:Outer', kind: 'group', sourceLine: 2 }))
+    expect(layout.regions).toContainEqual(expect.objectContaining({ id: 'group:Outer', kind: 'cluster', sourceLine: 2 }))
     expect(layout.regions).toContainEqual(expect.objectContaining({ id: 'node:A', kind: 'node', parentId: 'group:Outer', sourceLine: 3 }))
     expect(layout.actions).toContainEqual(expect.objectContaining({ id: 'action:flowchart:A:0', regionId: 'node:A', executable: false, security: 'safe' }))
   })
@@ -82,5 +82,57 @@ describe('stable region tree MVP', () => {
     expect(regions).toContainEqual(expect.objectContaining({ kind: 'subgraph', id: 'Inner', sourceLine: 4 }))
     expect(regions).toContainEqual(expect.objectContaining({ kind: 'node', id: 'A', sourceLine: 3 }))
     expect(regions).toContainEqual(expect.objectContaining({ kind: 'node', id: 'B', sourceLine: 5 }))
+  })
+
+  test('group regions expose family semantics instead of a single generic kind', () => {
+    const cases = [
+      { kind: 'lane', source: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"' },
+      { kind: 'band', source: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n  Core :core, 2024-01-01, 1d' },
+      { kind: 'compartment', source: 'sequenceDiagram\n  participant A\n  participant B\n  alt success\n    A->>B: ok\n  end' },
+      { kind: 'plot', source: 'xychart-beta\n  x-axis [Jan, Feb]\n  bar [3, 7]' },
+      { kind: 'ring', source: 'radar-beta\n  axis quality["Quality"], speed["Speed"]\n  curve now{4,3}' },
+    ] as const
+    for (const entry of cases) {
+      const parsed = parseMermaid(entry.source)
+      expect(parsed.ok, entry.source).toBe(true)
+      if (!parsed.ok) continue
+      const regions = layoutMermaid(parsed.value, { regions: true }).regions ?? []
+      expect(regions.some(region => region.kind === entry.kind), entry.source).toBe(true)
+    }
+  })
+
+  test('terminal metadata preserves semantic container kinds across families', () => {
+    const cases = [
+      { kind: 'cluster', source: 'stateDiagram-v2\n  state Parent {\n    A --> B\n  }' },
+      { kind: 'compartment', source: 'sequenceDiagram\n  participant A\n  participant B\n  alt success\n    A->>B: ok\n  end' },
+      { kind: 'cluster', source: 'classDiagram\n  namespace Domain {\n    class A\n  }' },
+      { kind: 'plot', source: 'xychart-beta\n  x-axis [Jan, Feb]\n  bar [3, 7]' },
+      { kind: 'ring', source: 'radar-beta\n  axis quality["Quality"], speed["Speed"]\n  curve now{4,3}' },
+    ] as const
+    for (const entry of cases) {
+      const regions = renderMermaidASCIIWithMeta(entry.source).regions
+      expect(regions.some(region => region.kind === entry.kind), entry.source).toBe(true)
+    }
+  })
+
+  test('terminal metadata matches graphical state-region and ER-group container ids', () => {
+    for (const source of [
+      'stateDiagram-v2\n state Active {\n [*] --> A\n --\n [*] --> B\n }',
+      'erDiagram\n subgraph Domain\n A ||--o{ B : owns\n end',
+    ]) {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      const graphical = (layoutMermaid(parsed.value, { regions: true }).regions ?? [])
+        .filter(region => region.kind === 'cluster')
+        .map(region => region.elementId)
+        .filter((id): id is string => id !== undefined)
+        .sort()
+      const terminal = renderMermaidASCIIWithMeta(source).regions
+        .filter(region => region.kind === 'cluster')
+        .map(region => region.id)
+        .sort()
+      expect(terminal).toEqual(graphical)
+    }
   })
 })

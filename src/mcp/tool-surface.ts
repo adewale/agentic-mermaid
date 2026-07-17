@@ -407,11 +407,9 @@ embedFontImport:false; caller code cannot weaken that host policy.
   const runtime = options.hosted ? 'an isolated sandbox' : 'a sandboxed node:vm context'
   return {
     name: 'execute',
-    description: `Run synchronous JavaScript against the mermaid SDK in ${runtime}.
-Code runs as an expression or statement body — return the final value. Promise jobs,
-async/await, and dynamic import are not supported.
-Multi-step diagram edits should be one execute() call. The SDK declaration is
-TypeScript-shaped for guidance; the sandbox does not transpile type annotations.
+    description: `Run JavaScript in ${runtime}; return a value.
+One call composes edits. Submit JavaScript; declaration types are guidance.
+No promises, async/await, dynamic import, or type annotations.
 ${hostedNote}SDK declaration:
 ${options.sdkDeclaration}`,
     inputSchema: {

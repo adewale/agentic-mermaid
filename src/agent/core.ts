@@ -23,7 +23,7 @@ export type {
   PieBody, PieSlice, QuadrantBody, QuadrantAxis, QuadrantPoint,
   GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttStatement,
   MindmapBody, GitGraphBody, RadarBody, RadarBodyAxis, RadarBodyCurve,
-  SourceMap, SourceComment, InitDirective, Accessibility,
+  SourceMap, SourceMapSpans, SourceComment, InitDirective, Accessibility,
   ParseError, SourcePreservationReceipt, MutationError, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
   ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, MindmapMutationOp, GitGraphMutationOp, RadarMutationOp, AnyMutationOp,
   NodeId, EdgeId, GroupId, ParticipantId,
@@ -46,7 +46,7 @@ export { validateOp, hasOpSchema, opMenu, describeOps, opSignatures } from './op
 export type { OpFamily, OpValidationError, OpFieldDoc } from './op-schema.ts'
 export { verifyMermaid } from './verify.ts'
 export { measureQuality, checkQuality, DEFAULT_BOUNDS, BOUND_PROVENANCE } from './quality.ts'
-export type { QualityMetrics, QualityBounds, QualityVerdict, RankedViolation, BoundProvenance, BoundBasis, ViolationSeverity } from './quality.ts'
+export type { QualityMetrics, QualityBounds, QualityMeasurementOptions, QualityVerdict, RankedViolation, BoundProvenance, BoundBasis, ViolationSeverity } from './quality.ts'
 export { layoutCertificateProof } from './certificates.ts'
 export type { LayoutCertificateProof } from './certificates.ts'
 export type { RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from '../types.ts'
@@ -187,7 +187,7 @@ export type {
 import { renderMermaidASCII as _ascii, renderMermaidASCIIWithReceipt as _asciiWithReceipt } from '../ascii/index.ts'
 import { parseRegisteredMermaid as _parse } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
-import type { ParsedDiagram, ValidDiagram, RenderedLayout, RenderedRegion } from './types.ts'
+import type { ParsedDiagram, ValidDiagram, RenderedLayout, RenderedRegion, RenderedRegionKind } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import { receiptOf as _receiptOf, resolveRenderRequestForExecution as _resolveRenderRequest } from '../render-contract.ts'
 import { layoutResolvedFamilyToRendered } from './family-layouts.ts'
@@ -292,7 +292,7 @@ function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): Rendere
   for (const group of layout.groups) {
     regions.push({
       id: `group:${group.id}`,
-      kind: 'group',
+      kind: group.regionKind ?? renderedGroupRegionKind(layout.kind),
       elementId: group.id,
       parentId: group.parentId ? `group:${group.parentId}` : 'canvas',
       bounds: { x: group.x, y: group.y, w: group.w, h: group.h },
@@ -338,6 +338,25 @@ function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): Rendere
     }
   }
   return regions
+}
+
+function renderedGroupRegionKind(kind: ParsedDiagram['kind']): RenderedRegionKind {
+  switch (kind) {
+    case 'flowchart':
+    case 'state':
+    case 'class':
+    case 'er':
+    case 'architecture': return 'cluster'
+    case 'gitgraph': return 'lane'
+    case 'timeline':
+    case 'journey':
+    case 'gantt': return 'band'
+    case 'sequence':
+    case 'quadrant': return 'compartment'
+    case 'xychart': return 'plot'
+    case 'radar': return 'ring'
+    default: return 'group'
+  }
 }
 
 function sourceLineHints(d: ParsedDiagram): { nodes: Map<string, number>; groups: Map<string, number> } {

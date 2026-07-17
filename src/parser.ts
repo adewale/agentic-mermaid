@@ -14,6 +14,7 @@ import {
   parseClassShorthandStatement,
 } from './shared/mermaid-identifiers.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
+import { flowchartTextArrowLabelRanges } from './flowchart-statement-labels.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -197,8 +198,11 @@ function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
   return { text: normalizeBrTags(raw), markdown: false }
 }
 
-function splitFlowchartStatements(line: string): string[] {
+/** Shared statement splitter for renderer and source-side action analysis. */
+export function splitFlowchartStatements(line: string): string[] {
   const out: string[] = []
+  const textArrowLabelRanges = flowchartTextArrowLabelRanges(line)
+  let textArrowRangeIndex = 0
   let start = 0
   let depth = 0
   let quote: '"' | "'" | '`' | null = null
@@ -218,29 +222,21 @@ function splitFlowchartStatements(line: string): string[] {
     if (inPipeLabel) continue
     if (ch === '[' || ch === '(' || ch === '{') depth++
     else if (ch === ']' || ch === ')' || ch === '}') depth = Math.max(0, depth - 1)
-    else if (ch === ';' && depth === 0 && !semicolonInsideTextArrowLabel(line, i, start)) {
-      const part = line.slice(start, i).trim()
-      if (part) out.push(part)
-      start = i + 1
+    else if (ch === ';' && depth === 0) {
+      while (textArrowLabelRanges[textArrowRangeIndex]
+        && textArrowLabelRanges[textArrowRangeIndex]!.end <= i) textArrowRangeIndex++
+      const range = textArrowLabelRanges[textArrowRangeIndex]
+      if (!range || i < range.start || i >= range.end) {
+        const part = line.slice(start, i).trim()
+        if (part) out.push(part)
+        start = i + 1
+      }
     }
   }
 
   const tail = line.slice(start).trim()
   if (tail) out.push(tail)
   return out
-}
-
-function semicolonInsideTextArrowLabel(line: string, index: number, start: number): boolean {
-  const before = line.slice(start, index)
-  const after = line.slice(index + 1)
-  const openerRe = /(?:^|\s)(?:[\w-]+@\s*)?(?:<)?(?:-{2,}|-\.+|={2,})\s+/g
-  const closerRe = /(?:^|\s)(?:-{2,}>|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
-  let activeTextLabel = false
-  for (const match of before.matchAll(openerRe)) {
-    const tail = before.slice((match.index ?? 0) + match[0].length)
-    if (!closerRe.test(tail)) activeTextLabel = true
-  }
-  return activeTextLabel && closerRe.test(after)
 }
 
 function isFlowchartInteractionDirective(line: string): boolean {

@@ -193,7 +193,11 @@ interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: Rend
 /** Compact tools/list projection. It shares the exact generated public option
  * fields, output-option interfaces, and receipt contract with the full SDK,
  * while intentionally summarizing the full terminal evidence records. */
-export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `${styleSpecTypeScriptDeclaration({ compact: true })}
+const CODE_MODE_CORE_STYLE_SPEC_DECLARATION = styleSpecTypeScriptDeclaration({ compact: true })
+  .replaceAll(' | ', '|')
+  .replaceAll(', ', ',')
+
+export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
 type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
 
 ${CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION}
@@ -292,8 +296,27 @@ interface SourceSpan {
 interface PreservedSourceSpans {
   readonly source: SourceSpan
   readonly wrapper?: SourceSpan
+  readonly frontmatter?: SourceSpan
+  readonly initDirectives?: readonly SourceSpan[]
+  readonly accessibilityDirectives?: readonly SourceSpan[]
   readonly header: SourceSpan
   readonly body: SourceSpan
+}
+
+interface SourceLocation { readonly line: number; readonly col: number }
+interface SourceMapSpans {
+  readonly preserved: PreservedSourceSpans
+  readonly nodes: ReadonlyMap<string, SourceSpan>
+  readonly edges: ReadonlyMap<string, SourceSpan>
+  readonly groups: ReadonlyMap<string, SourceSpan>
+  readonly labels: ReadonlyMap<string, SourceSpan>
+}
+interface SourceMap {
+  readonly nodes: ReadonlyMap<string, SourceLocation>
+  readonly edges: ReadonlyMap<string, SourceLocation>
+  readonly groups: ReadonlyMap<string, SourceLocation>
+  readonly labels: ReadonlyMap<string, SourceLocation>
+  readonly spans?: SourceMapSpans
 }
 
 interface SourcePreservationReceipt {
@@ -318,6 +341,7 @@ interface ParseError {
 
 interface ValidDiagram {
   readonly kind: DiagramKind
+  readonly source: SourceMap
   readonly meta: {
     frontmatter?: Record<string, unknown>
     initDirectives: { raw: string; parsed: Record<string, unknown> }[]
@@ -344,6 +368,7 @@ interface ExtensionValidDiagram {
   readonly descriptorIdentity: ExtensionIdentity<'family'>
   readonly meta: ValidDiagram['meta']
   readonly body: ExtensionDiagramBody
+  readonly source: SourceMap
   readonly canonicalSource: string
 }
 
@@ -362,6 +387,7 @@ interface PreservedValidDiagram {
       readonly help: string
     }
   }
+  readonly source: SourceMap
   readonly canonicalSource: string
 }
 
@@ -748,6 +774,12 @@ type GanttMutationOp =
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST,
 // BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
+type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
+type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
+interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};sourceLine?:number }
+interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;security:DiagramActionSecurity;executable:false;message?:string }
+interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; regions?: RenderedRegion[]; actions?: DiagramActionRecord[]; bounds: { w: number; h: number } }
+
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
   | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
@@ -761,7 +793,7 @@ type WarningCode =
 interface VerifyResult {
   ok: boolean
   warnings: { code: WarningCode; [field: string]: unknown }[]
-  layout: { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; bounds: { w: number; h: number } }
+  layout: RenderedLayout
 }
 
 interface DiagramAnalysis {

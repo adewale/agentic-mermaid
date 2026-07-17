@@ -70,7 +70,7 @@ export function parseClassReference(token: string): { id: string; generic?: stri
 
 /** Shared safe-link grammar for renderer and agent class parsers. */
 export function parseClassInteraction(line: string): { id: string; generic?: string; href: string } | null {
-  const link = line.match(/^(?:click|link)\s+(\S+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+  const link = line.match(/^(?:click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
   if (!link) return null
   const ref = parseClassReference(link[1]!)
   const href = (link[2] ?? link[3] ?? '').replace(/\\(["\\])/g, '$1')

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460.98" height="344.25" viewBox="0 0 460.98 344.25" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-radar-radar-17nf6lt-title" aria-roledescription="radar chart" id="char-radar-radar-17nf6lt" role="img">
+<title id="char-radar-radar-17nf6lt-title">Skills</title>
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .radar-ring { stroke: #939395; stroke-width: 1; stroke-opacity: 0.7; fill: none; }
+  .radar-ring-outer { stroke-width: 1.4; stroke-opacity: 0.7; }
+  .radar-axis-line { stroke: #939395; stroke-width: 1; }
+  .radar-leader { stroke: #939395; stroke-width: 1; stroke-opacity: 0.5; }
+  .radar-area { stroke-width: 2.2; fill-opacity: 0.5; stroke-linejoin: round; }
+  .radar-dot { stroke: #FFFFFF; stroke-width: 1.2; }
+  .radar-axis-label { fill: #27272A; }
+  .radar-tick-box { fill: #FFFFFF; stroke: #939395; stroke-opacity: 0.35; stroke-width: 0.75; }
+  .radar-tick-label { fill: #27272A; }
+  .radar-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .radar-legend-text { fill: #27272A; }
+  .radar-title { fill: #27272A; }
+</style>
+<circle class="radar-ring" cx="180.54" cy="202.25" r="24" fill="none" />
+<circle class="radar-ring" cx="180.54" cy="202.25" r="48" fill="none" />
+<circle class="radar-ring" cx="180.54" cy="202.25" r="72" fill="none" />
+<circle class="radar-ring" cx="180.54" cy="202.25" r="96" fill="none" />
+<circle class="radar-ring radar-ring-outer" cx="180.54" cy="202.25" r="120" fill="none" />
+<line class="radar-axis-line" x1="180.54" y1="202.25" x2="180.54" y2="82.25" />
+<line class="radar-axis-line" x1="180.54" y1="202.25" x2="284.47" y2="262.25" />
+<line class="radar-axis-line" x1="180.54" y1="202.25" x2="76.62" y2="262.25" />
+<path class="radar-area" d="M 180.54 106.25 C 208.81 102.17 260.57 211.73 242.9 238.25 C 225.23 264.77 87.22 284.69 76.62 262.25 C 66.02 239.81 152.27 110.33 180.54 106.25 Z" fill="#3b82f6" stroke="#3b82f6" fill-opacity="0.5" data-curve="Current" data-id="curve:now" data-role="pie-slice" />
+<path class="radar-area" d="M 180.54 82.25 C 212.34 84.29 298.6 233.69 284.47 262.25 C 270.34 290.81 115.08 280.85 97.41 250.25 C 79.74 219.65 148.74 80.21 180.54 82.25 Z" fill="#0d5ba5" stroke="#0d5ba5" fill-opacity="0.5" data-curve="Target" data-id="curve:goal" data-role="pie-slice" />
+<circle class="radar-dot" cx="180.54" cy="106.25" r="3" fill="#3b82f6" data-id="dot:now:0" data-role="point" />
+<circle class="radar-dot" cx="242.9" cy="238.25" r="3" fill="#3b82f6" data-id="dot:now:1" data-role="point" />
+<circle class="radar-dot" cx="76.62" cy="262.25" r="3" fill="#3b82f6" data-id="dot:now:2" data-role="point" />
+<circle class="radar-dot" cx="180.54" cy="82.25" r="3" fill="#0d5ba5" data-id="dot:goal:0" data-role="point" />
+<circle class="radar-dot" cx="284.47" cy="262.25" r="3" fill="#0d5ba5" data-id="dot:goal:1" data-role="point" />
+<circle class="radar-dot" cx="97.41" cy="250.25" r="3" fill="#0d5ba5" data-id="dot:goal:2" data-role="point" />
+<text class="radar-axis-label" aria-label="Speed" x="180.54" y="64.13" text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="180.54" dy="0em" textLength="38.925" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Speed</tspan></text>
+<text class="radar-axis-label" aria-label="Power" x="300.16" y="271.31" text-anchor="start" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="300.16" dy="0em" textLength="38.925" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Power</tspan></text>
+<text class="radar-axis-label" aria-label="Range" x="60.93" y="271.31" text-anchor="end" dominant-baseline="middle" font-size="12.5" font-weight="500"><tspan x="60.93" dy="0em" textLength="38.925" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Range</tspan></text>
+<rect class="radar-legend-swatch" x="369.09" y="182.63" width="14" height="14" rx="2" ry="2" fill="#3b82f6" fill-opacity="0.5" />
+<text class="radar-legend-text" x="391.09" y="189.63" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500"><tspan x="391.09" dy="0em" textLength="47.892" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Current</tspan></text>
+<rect class="radar-legend-swatch" x="369.09" y="207.88" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" fill-opacity="0.5" />
+<text class="radar-legend-text" x="391.09" y="214.88" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500"><tspan x="391.09" dy="0em" textLength="41.964" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Target</tspan></text>
+<text class="radar-title" x="180.54" y="31" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" data-id="title" data-role="title" textLength="50.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Skills</text>
+</svg>

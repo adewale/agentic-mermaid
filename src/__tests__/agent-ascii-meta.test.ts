@@ -39,6 +39,45 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(lines[byId.B!.canvasRow]!.slice(byId.B!.canvasColStart, byId.B!.canvasColEnd)).toContain('Dashboard')
   })
 
+  test('flowchart projected labels retain stable regions after terminal normalization and wrapping', () => {
+    const cases = [
+      { source: 'flowchart LR\n  A["\`Target\`"] --> B[Done]', options: {} },
+      { source: 'flowchart LR\n  A["Line<br>Break"] --> B[Done]', options: {} },
+      { source: 'flowchart LR\n  A["Map&#x3C;K,V&#x3E;"] --> B[Done]', options: {} },
+      {
+        source: 'flowchart LR\n  A[This is a very long action label that must wrap] --> B[Done]',
+        options: { targetWidth: 40 },
+      },
+    ]
+    for (const { source, options } of cases) {
+      const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none', ...options })
+      expect(rendered.regions).toContainEqual(expect.objectContaining({ id: 'A', kind: 'node' }))
+    }
+  })
+
+  test('wrapped label tokens stay within one rendered node', () => {
+    const rendered = renderMermaidASCIIWithMeta(
+      'flowchart RL\n  A[Alpha Beta] --> B[Alpha]\n  click A href https://example.com/a',
+      { colorMode: 'none', targetWidth: 20 },
+    )
+    const a = rendered.regions.find(region => region.id === 'A')!
+    const b = rendered.regions.find(region => region.id === 'B')!
+    expect(a.rowSpan).toBe(2)
+    expect(a.canvasColStart).toBeGreaterThanOrEqual(b.canvasColEnd)
+  })
+
+  test('terminal action metadata contains no authored control bytes', () => {
+    const osc = '\u001b]52;c;SEVMTE8=\u0007'
+    const rendered = renderMermaidASCIIWithMeta(
+      `flowchart LR\n  A[Docs]\n  click A href "https://example.com/${osc}"`,
+      { colorMode: 'none' },
+    )
+    expect(rendered.ascii).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/)
+    const actionText = Object.values(rendered.actions[0] ?? {}).filter(value => typeof value === 'string').join('')
+    expect(actionText).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/)
+    expect(rendered.actions[0]).toEqual(expect.objectContaining({ security: 'unsafe', href: expect.stringContaining('?') }))
+  })
+
   test('sequence: participants appear in regions', () => {
     const src = 'sequenceDiagram\n  Alice->>Bob: Hi\n  Bob->>Carol: Hello\n'
     const { regions } = renderMermaidASCIIWithMeta(src)
@@ -92,12 +131,12 @@ describe('renderMermaidASCIIWithMeta', () => {
     {
       family: 'quadrant',
       source: 'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Bad --> Good\n  quadrant-1 Big wins\n  Feature A: [0.8, 0.8]\n',
-      ids: ['title', 'x-axis-near', 'x-axis-far', 'y-axis-near', 'y-axis-far', 'quadrant-1', 'point-0'],
+      ids: ['title', 'x-axis-near', 'x-axis-far', 'y-axis-near', 'y-axis-far', 'quadrant#1', 'quadrant#2', 'quadrant#3', 'quadrant#4', 'point-0'],
     },
     {
       family: 'gantt',
       source: 'gantt\n  title Release\n  section Build\n    Core engine :core, 2024-01-01, 2d\n    Polish :polish, after core, 1d\n',
-      ids: ['section-0', 'core', 'polish'],
+      ids: ['section#0', 'core', 'polish'],
     },
   ]
 
@@ -115,6 +154,19 @@ describe('renderMermaidASCIIWithMeta', () => {
       }
     })
   }
+
+  test('terminal semantic containers use the same identities and counts as graphical regions', () => {
+    const radar = renderMermaidASCIIWithMeta('radar-beta\n axis a, b\n curve c{1,2}\n ticks 5')
+    expect(radar.regions.filter(region => region.kind === 'ring').map(region => region.id).sort())
+      .toEqual(['ring:0', 'ring:1', 'ring:2', 'ring:3', 'ring:4'])
+
+    const quadrant = renderMermaidASCIIWithMeta('quadrantChart\n Point: [0.2, 0.3]')
+    expect(quadrant.regions.filter(region => region.kind === 'compartment').map(region => region.id).sort())
+      .toEqual(['quadrant#1', 'quadrant#2', 'quadrant#3', 'quadrant#4'])
+
+    const gantt = renderMermaidASCIIWithMeta('gantt\n section Build\n Task :t, 2024-01-01, 1d')
+    expect(gantt.regions).toContainEqual(expect.objectContaining({ id: 'section#0', kind: 'band' }))
+  })
 
   test('route parity contract is explicit and edge-region gaps are structured warnings', () => {
     const result = renderMermaidASCIIWithMeta('flowchart LR\n  A --> B\n')

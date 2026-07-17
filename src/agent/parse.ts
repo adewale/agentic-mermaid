@@ -12,6 +12,9 @@ import { decodeXML } from 'entities'
 import {
   classifyMermaidFamilyDescriptorFromFirstLine,
   familyDetectionDiagnostic,
+  familyDetectionDiagnosticFromPreservedBody,
+  maskAccessibilityDirectivesForSourceMap,
+  sourcePreservationSpans,
 } from '../family-detection.ts'
 import { serializeMermaid } from './serialize.ts'
 import { attachAccessibilityToBody } from './accessibility-envelope.ts'
@@ -22,6 +25,7 @@ import type {
 import { ok, err } from './types.ts'
 import { assertJsonConfigAdmission } from '../shared/json-config-admission.ts'
 import { isBuiltinFamilyId } from './families.ts'
+import { attachSourceMapSpans } from './source-map-spans.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
 export { parseSequenceBody } from './sequence-body.ts'
@@ -109,7 +113,19 @@ function semanticFamilyLineSource(
   const physicalEnd = newline < 0 ? source.length : newline
   const lineEnd = source.charCodeAt(physicalEnd - 1) === 13 ? physicalEnd - 1 : physicalEnd
   const line = source.slice(lineStart, lineEnd)
-  const authoredHeader = line.trim()
+  const authoredLine = line.trim()
+  // Mermaid accepts a family declaration followed by a semicolon-delimited
+  // statement on the same physical line. Only the declaration is the header;
+  // the suffix belongs to the preserved body and the family grammar.
+  let semicolon = -1
+  for (let index = 0; index < authoredLine.length; index++) {
+    if (authoredLine.charCodeAt(index) !== 59) continue
+    const ampersand = authoredLine.lastIndexOf('&', index)
+    if (ampersand >= 0 && /^#?(?:x[0-9a-f]+|\d+|[a-z][a-z0-9]+)$/i.test(authoredLine.slice(ampersand + 1, index))) continue
+    semicolon = index
+    break
+  }
+  const authoredHeader = (semicolon >= 0 ? authoredLine.slice(0, semicolon) : authoredLine).trimEnd()
   if (!authoredHeader) return { source, authoredHeader }
   const relativeStart = line.indexOf(authoredHeader)
   const headerStart = lineStart + relativeStart
@@ -151,6 +167,14 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       }
   const meta = extractMeta(authoredEnvelope)
   const canonicalSource = authoredEnvelope.text
+  const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource)
+  const documentSpans = sourcePreservationSpans(
+    source,
+    familyLine.authoredHeader || semanticHeader,
+    familyLineBoundary,
+  )
+  const tracedSourceMap = (map: SourceMap): SourceMap =>
+    attachSourceMapSpans(map, canonicalSource, source, documentSpans)
   // For opaque bodies, preserve original indentation/blank lines so the
   // serializer can re-emit the untouched body. canonicalSource at the
   // ValidDiagram level remains the normalized (line-trimmed) form used by
@@ -190,7 +214,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
           help: diagnostic.help,
         },
       },
-      source: emptySourceMap(),
+      source: tracedSourceMap(emptySourceMap()),
       canonicalSource,
     }
     return ok(diagram)
@@ -255,7 +279,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
           source: opaqueSource,
           ...(data === undefined ? {} : { data }),
         }),
-        source: emptySourceMap(),
+        source: tracedSourceMap(emptySourceMap()),
         canonicalSource,
       }
       return ok(diagram)
@@ -268,7 +292,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       }])
     }
     attachUniversalAccessibility(parsed.value, meta)
-    const sourceMap = plugin.buildSourceMap?.(parsed.value, canonicalSource) ?? emptySourceMap()
+    const sourceMap = tracedSourceMap(plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource) ?? emptySourceMap())
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     markDroppedComments(diagram, normalized.body)
     return ok(diagram)
@@ -276,7 +300,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
 
   if (isBuiltinFamilyId(kind)) {
     return ok<ParsedDiagram>({
-      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: emptySourceMap(), canonicalSource,
+      kind, meta, body: { kind: 'opaque', family: kind, source: opaqueSource }, source: tracedSourceMap(emptySourceMap()), canonicalSource,
     })
   }
   return ok<ParsedDiagram>({
@@ -284,7 +308,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     descriptorIdentity: plugin.identity,
     meta,
     body: { kind: 'extension', family: kind, source: opaqueSource },
-    source: emptySourceMap(),
+    source: tracedSourceMap(emptySourceMap()),
     canonicalSource,
   })
 }

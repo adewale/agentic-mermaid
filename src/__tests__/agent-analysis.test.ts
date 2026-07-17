@@ -43,4 +43,141 @@ describe('analyzeMermaidSource', () => {
       expect.objectContaining({ family: 'gantt', target: 'b', action: 'call', executable: false, security: 'source-only' }),
     ])
   })
+
+  test('reports class link/click hrefs through the shared action model', () => {
+    const result = analyzeMermaidSource(`classDiagram
+  class API
+  click API href "https://example.com/api"
+`)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.actions).toEqual([
+      expect.objectContaining({ family: 'class', target: 'API', action: 'href', href: 'https://example.com/api', security: 'safe' }),
+    ])
+  })
+
+  test('uses renderer statement context for compound actions and ignores accessibility prose', () => {
+    const flow = analyzeMermaidSource(`flowchart LR
+  A; click A href "https://example.com/flow"
+  accDescr {
+  click A href https://example.com/not-an-action
+  }
+`)
+    expect(flow.ok).toBe(true)
+    if (!flow.ok) return
+    expect(flow.value.actions).toEqual([
+      expect.objectContaining({ target: 'A', href: 'https://example.com/flow', line: 2 }),
+    ])
+
+    const cls = analyzeMermaidSource(`classDiagram
+  namespace X { class A; click A href "https://example.com/class" }
+  class B {
+    click A href "https://example.com/member-text"
+  }
+  accDescr {
+  click A href https://example.com/not-an-action
+  }
+`)
+    expect(cls.ok).toBe(true)
+    if (!cls.ok) return
+    expect(cls.value.actions).toEqual([
+      expect.objectContaining({ target: 'A', href: 'https://example.com/class', line: 2 }),
+    ])
+  })
+
+  test('classifies entity- and control-obfuscated active schemes as unsafe', () => {
+    for (const href of [
+      'javascript&#58;alert(1)',
+      'java\tscript:alert(1)',
+      'javascript&colon;alert(1)',
+      'javascript&amp;#58;alert(1)',
+      'javascript&#0000058alert(1)',
+    ]) {
+      const analyzed = analyzeMermaidSource(`flowchart LR\n A\n click A href "${href}"`)
+      expect(analyzed.ok).toBe(true)
+      if (analyzed.ok) expect(analyzed.value.actions[0]).toEqual(expect.objectContaining({ security: 'unsafe' }))
+    }
+  })
+
+  test('does not extract phantom actions from multiline markdown-string prose', () => {
+    const analyzed = analyzeMermaidSource(`flowchart LR
+  A["\`Docs say:
+  click B href https://evil.example/not-action
+  do not run\`"] --> B[Safe target]
+`)
+    expect(analyzed.ok).toBe(true)
+    if (analyzed.ok) expect(analyzed.value.actions).toEqual([])
+  })
+
+  test('decodes quoted href escapes with the renderer grammar', () => {
+    for (const [authored, href] of [
+      ['https://example.com/a\\"b', 'https://example.com/a"b'],
+      ['https://example.com/a\\\\b', 'https://example.com/a\\b'],
+    ]) {
+      const analyzed = analyzeMermaidSource(`flowchart LR\n  A\n  click A href "${authored}"`)
+      expect(analyzed.ok).toBe(true)
+      if (analyzed.ok) expect(analyzed.value.actions[0]).toEqual(expect.objectContaining({ href, security: 'safe' }))
+    }
+  })
+
+  test('control-bearing hrefs are unsafe even behind a safe scheme', () => {
+    for (const href of [
+      'https://example.com/\u001b]52;c;payload\u0007',
+      'https://example.com/&#27;]52;c;payload&#7;',
+    ]) {
+      const analyzed = analyzeMermaidSource(`flowchart LR\n  A\n  click A href "${href}"`)
+      expect(analyzed.ok).toBe(true)
+      if (analyzed.ok) expect(analyzed.value.actions[0]).toEqual(expect.objectContaining({ security: 'unsafe' }))
+    }
+  })
+
+  test('preserves callback grammar and backticks in genuine action payloads', () => {
+    for (const [directive, raw] of [
+      ['click A callback', ''],
+      ['click A callback "tooltip"', '"tooltip"'],
+      ['click A call doThing(`x`)', 'doThing(`x`)'],
+      ['click A myHandler', 'myHandler'],
+      ['click A myHandler(1)', 'myHandler(1)'],
+    ] as const) {
+      const analyzed = analyzeMermaidSource(`flowchart LR\n A\n ${directive}`)
+      expect(analyzed.ok).toBe(true)
+      if (analyzed.ok) expect(analyzed.value.actions[0]).toEqual(expect.objectContaining({
+        action: directive.includes(' call ') ? 'call' : 'callback', raw, security: 'source-only',
+      }))
+    }
+
+    const cls = analyzeMermaidSource('classDiagram\n class Shape\n callback Shape "callbackFunction" "tip"')
+    expect(cls.ok).toBe(true)
+    if (cls.ok) expect(cls.value.actions[0]).toEqual(expect.objectContaining({
+      family: 'class', target: 'Shape', action: 'callback', raw: '"callbackFunction" "tip"',
+    }))
+  })
+
+  test('distinguishes quoted relative links from bare callback handlers', () => {
+    const analyzed = analyzeMermaidSource('flowchart LR\n A\n click A "click.html" "tooltip"')
+    expect(analyzed.ok).toBe(true)
+    if (analyzed.ok) expect(analyzed.value.actions[0]).toEqual(expect.objectContaining({
+      family: 'flowchart', target: 'A', action: 'href', href: 'click.html', security: 'safe',
+    }))
+
+    for (const href of ['javascript:alert(1)', 'javascript&#58;alert(1)']) {
+      const unsafe = analyzeMermaidSource(`flowchart LR\n A\n click A "${href}"`)
+      expect(unsafe.ok).toBe(true)
+      if (unsafe.ok) expect(unsafe.value.actions[0]).toEqual(expect.objectContaining({
+        family: 'flowchart', target: 'A', action: 'href', href, security: 'unsafe',
+      }))
+    }
+  })
+
+  test('enrolls safe sequence actor menus in the unified action model', () => {
+    const analyzed = analyzeMermaidSource(`sequenceDiagram
+ participant Alice
+ link Alice: Dashboard @ https://example.com/dash`)
+    expect(analyzed.ok).toBe(true)
+    if (analyzed.ok) expect(analyzed.value.actions).toEqual([
+      expect.objectContaining({
+        family: 'sequence', target: 'Alice', action: 'href', href: 'https://example.com/dash', security: 'safe',
+      }),
+    ])
+  })
 })

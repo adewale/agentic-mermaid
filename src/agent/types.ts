@@ -697,12 +697,28 @@ export interface ValidDiagramMeta {
 
 export interface SourceLocation { line: number; col: number }
 
+export interface SourceMapSpans {
+  /** Exact authored document spans, including wrapper/config directives. */
+  preserved: PreservedSourceSpans
+  /** Exact authored statement spans keyed like the corresponding location map. */
+  nodes: Map<string, SourceSpan>
+  edges: Map<string, SourceSpan>
+  groups: Map<string, SourceSpan>
+  /** Exact authored sub-statement spans (labels, members, values, cardinalities). */
+  labels: Map<string, SourceSpan>
+}
+
 export interface SourceMap {
   nodes: Map<string, SourceLocation>
   edges: Map<string, SourceLocation>
   groups: Map<string, SourceLocation>
   /** Stable label spans where known: `node:<id>`, `edge#<i>:<from>-><to>`, `group:<id>`. */
   labels: Map<string, SourceLocation>
+  /**
+   * Exact authored spans. The legacy location maps above remain canonical-source
+   * coordinates for compatibility; this sidecar is authored-source based.
+   */
+  spans?: SourceMapSpans
 }
 
 export type DiagramActionKind = 'href' | 'call' | 'callback'
@@ -800,6 +816,12 @@ export interface PreservedSourceSpans {
   /** Exact span of the complete authored source. */
   readonly source: SourceSpan
   readonly wrapper?: SourceSpan
+  /** YAML frontmatter including its delimiters and trailing newline. */
+  readonly frontmatter?: SourceSpan
+  /** Mermaid `%%{init...}%%` / `%%{initialize...}%%` directives. */
+  readonly initDirectives?: readonly SourceSpan[]
+  /** Exact source spans of `accTitle` / `accDescr` directives. */
+  readonly accessibilityDirectives?: readonly SourceSpan[]
   readonly header: SourceSpan
   /** Authored payload after the header line. */
   readonly body: SourceSpan
@@ -1447,7 +1469,14 @@ export interface VerifyOptions {
   renderOptions?: RenderOptions
 }
 
-export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'group' | 'canvas'
+/**
+ * Semantic region vocabulary shared by layout/action surfaces. `group` is the
+ * compatibility fallback; built-in families use the more precise container
+ * kinds wherever their layout model can prove one.
+ */
+export type RenderedRegionKind =
+  | 'node' | 'edge' | 'label' | 'canvas' | 'group'
+  | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'
 
 export interface RenderedRegion {
   id: string
@@ -1474,6 +1503,8 @@ export interface RenderedLayoutGroup {
   id: GroupId; x: Finite; y: Finite; w: Finite; h: Finite; members: NodeId[]; label?: string
   /** Parent group id for flattened region-tree consumers; undefined means root-level group. */
   parentId?: GroupId
+  /** Semantic region kind used by the renderer/action sidecar. */
+  regionKind?: Exclude<RenderedRegionKind, 'node' | 'edge' | 'label' | 'canvas'>
 }
 export interface RenderedLayout {
   version: 1

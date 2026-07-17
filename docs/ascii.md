@@ -62,10 +62,10 @@ Agents and TUIs can use `renderMermaidASCIIWithMeta` to map terminal cells back 
 ```ts
 import { renderMermaidASCIIWithMeta } from 'agentic-mermaid/agent'
 
-const { ascii, regions, warnings, routeParity } = renderMermaidASCIIWithMeta(source)
+const { ascii, regions, actions, warnings, routeParity } = renderMermaidASCIIWithMeta(source)
 ```
 
-`regions` includes best-effort terminal spans for load-bearing node labels, edge labels where mapped, participant/task/chart labels, and subgraph label spans suitable for click mapping. It is not a full cell-by-cell box/edge hit-test tree yet. `routeParity` is an explicit V1 contract: ASCII/Unicode does not consume SVG route certificates directly; the converter seeds edges with shared `classifyRoutes()` route intent and the grid router maps that intent into terminal placement/routing. `warnings` reports structured degradation such as `ASCII_EDGE_REGION_UNMAPPED` when edge cell spans are not instrumented even though route drawing still follows the parity mapping.
+`regions` includes best-effort terminal spans for load-bearing node labels, edge labels where mapped, participant/task/chart labels, and semantic containers such as clusters, sequence fragments, class compartments, chart plots, and radar rings. It is suitable for click mapping, but is not a full cell-by-cell box/edge hit-test tree. `actions` contains inert action metadata only; a host must decide whether and how to handle it. `routeParity` is an explicit V1 contract: ASCII/Unicode does not consume SVG route certificates directly; the converter seeds edges with shared `classifyRoutes()` route intent and the grid router maps that intent into terminal placement/routing. `warnings` reports structured degradation such as `ASCII_EDGE_REGION_UNMAPPED` when edge cell spans are not instrumented even though route drawing still follows the parity mapping.
 
 ## Reversing simple flowcharts
 

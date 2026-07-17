@@ -65,7 +65,7 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   selection is host policy and cannot be smuggled through serializable render
   options or Styles.
 - **JSON layout** — `layoutMermaid` / `am render --format layout`; add `--certificates` (or `layoutMermaid(d, { debug: true })`) to include opt-in graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), V1 region/action sidecars, exact ports, and side/slot/role assignments where applicable.
-- **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ ascii, regions, warnings, routeParity }`
+- **ASCII with metadata** — `renderMermaidASCIIWithMeta` → `{ ascii, regions, actions, warnings, routeParity }`
   for TUI click-mapping.
 - **Reverse** — `asciiToMermaid` reconstructs flowchart source from ASCII
   (best-effort, lossy, structural round-trip).

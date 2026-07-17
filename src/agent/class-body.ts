@@ -66,7 +66,7 @@ const MEMBER_DECL_RE = /^(\S+)\s*:\s*(.+)$/
 const NOTE_RE = /^note(?:\s+for\s+(\S+))?\s+"([^"]+)"\s*$/
 const TITLE_RE = /^title\s+(.+)$/i
 
-function parseRelation(line: string): (ClassRelation & { fromGeneric?: string; toGeneric?: string }) | null {
+export function parseClassRelationSyntax(line: string): (ClassRelation & { fromGeneric?: string; toGeneric?: string }) | null {
   const shared = parseClassRelationship(line)
   if (shared) {
     return {
@@ -237,7 +237,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     }
 
     // Relation — try this before member because relations may have `:` too
-    const rel = parseRelation(raw)
+    const rel = parseClassRelationSyntax(raw)
     if (rel) {
       upsert(rel.from, undefined, rel.fromGeneric)
       upsert(rel.to, undefined, rel.toGeneric)

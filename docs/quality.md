@@ -25,6 +25,9 @@ A diagram is considered **good looking** when it satisfies, in order:
    | `labelLegibility` | fraction of node labels whose rendered length fits the node width | ≥ 85% |
    | `whitespaceBalance` | node area ÷ canvas area | 5%–55% (too sparse AND too dense lose) |
    | `labelEdgeProximity` | min pixel distance between any edge-label box and a non-attached node, another edge-label box, or another edge path (graph families; cross-family label/box occlusion is gated by `eval/overlap-audit` + `label-overlap-gate.test.ts`) | ≥ 4 px |
+   | `minimumNodeSpacing` | nearest gap between semantically distinct node/mark boxes; XY and Radar same-coordinate series adjacency/overlays are excluded | ≥ 8 px |
+   | `elementDensity` | nodes + edges per 10,000 canvas pixels | 0.02–6 |
+   | `minimumTextContrast` | WCAG contrast ratio between foreground and supplied background/surface colors; `null` when a requested paint cannot be resolved | ≥ 4.5:1 |
    | `aspectRatio` | canvas w/h | 0.2–5.0 |
 
    These are computed by `measureQuality(layout)` and gated by
@@ -136,9 +139,15 @@ geometry assertions, screenshot/PNG review, or human inspection.
 - **No font-substitution check.** Different OSes render different
   default fonts. Our `labelLegibility` heuristic uses a 7 px-per-char
   approximation; under condensed fonts it under-estimates fit.
-- **No quality-metric color-contrast score.** Runtime auto-contrast exists
-  for custom fills, but `measureQuality` does not include a separate WCAG
-  contrast metric. Promote to `TODO.md` only if it becomes release-gating.
+- **Contrast needs resolved paints.** `measureQuality(layout)` scores the crisp
+  default palette. For a custom style, pass `{ foreground, background,
+  surfaces }` as its second argument, or pass the actual rendered text/surface
+  associations as `textPairs`. Concrete named, hex, `rgb()`/`rgba()`, and
+  `hsl()`/`hsla()` paints—including alpha and `transparent`—are composited over
+  the supplied background. Any unresolved requested paint makes contrast
+  unmeasurable (`null`), and `checkQuality` reports a violation instead of
+  guessing or passing open. The generated visual-quality characterization reads
+  text and containing-surface paints from the rendered SVG.
 
 ## ASCII determinism
 
