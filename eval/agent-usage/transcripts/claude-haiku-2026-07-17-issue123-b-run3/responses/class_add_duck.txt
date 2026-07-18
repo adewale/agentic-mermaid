@@ -1,0 +1,37 @@
+# Updated Mermaid
+
+```mermaid
+classDiagram
+  class Animal
+  class Duck["Duck"] {
+    +quack()
+  }
+```
+
+# Verification
+
+The diagram verifies successfully (`verify.ok = true`). The mutation was performed using structured operations:
+
+1. Parsed the existing class diagram containing the Animal class
+2. Applied `add_class` mutation with:
+   - id: "Duck"
+   - label: "Duck"
+   - members: ["+quack()"]
+3. Verified the result produces valid Mermaid
+4. Serialized to canonical form
+5. Confirmed the result parses back as structured (not opaque/preserved)
+
+The Duck class is added as a standalone class with a single public quack() member function, matching the class diagram syntax where `+` denotes public visibility.
+
+# Trace
+
+Channel: Library imports (TypeScript via agentic-mermaid/src/agent/index.ts)
+
+Operations:
+- parseRegisteredMermaid: source parsed successfully
+- mutate with add_class op: success
+- verifyMermaid: ok=true, no warnings
+- serializeMermaid: produced canonical class diagram format
+- parseRegisteredMermaid on serialized: reparsed as structured (asClass result is not null)
+
+Trace log: /home/user/agentic-mermaid/eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run3/traces/class_add_duck.jsonl

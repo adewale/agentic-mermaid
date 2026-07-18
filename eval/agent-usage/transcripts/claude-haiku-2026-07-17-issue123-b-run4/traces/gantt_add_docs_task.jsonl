@@ -1,3 +1,9 @@
 {"verb":"capabilities"}
 {"verb":"mutate","ok":true}
 {"verb":"verify"}
+{"verb":"mutate","ok":true}
+{"verb":"verify"}
+{"verb":"mutate","ok":true}
+{"verb":"verify"}
+{"verb":"describe"}
+{"verb":"verify"}
