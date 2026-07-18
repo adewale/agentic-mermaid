@@ -276,7 +276,7 @@
     },
     {
       "path": "src/__tests__/agent-usage.test.ts",
-      "sha256": "8cedaca5fbe4b0a5bf370e8d1730089e5b8b88a0acc91710ded9374f1a4f1361"
+      "sha256": "24eb91dfc0ebe7fbe21ba9d014f782fa36971ae7b821155d057dc647af9a5dc6"
     },
     {
       "path": "src/__tests__/agent-wrapper-fidelity.test.ts",
@@ -2918,11 +2918,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "101ec42ecd973b114f8c7ec5a95b773936cb3cb022c66e21f1384c5df45f8ba8"
+      "sha256": "4d5d2e4c13c60f4e62408d70ef38e1e254f58310fd7293afd751207a69034f54"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "bb0064d50473f88dafac1098de591719c5d2f0a8ca8eeb9ed2250730b2d0e762"
+      "sha256": "f94b5b9d3afb5f116df26ad405115b8eb3d01d8dd0cb387de28de20d94c88df5"
     }
   ]
 }
