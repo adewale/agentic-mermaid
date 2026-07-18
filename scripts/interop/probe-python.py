@@ -1,14 +1,17 @@
 # Official Python MCP SDK probe against both agentic-mermaid servers.
 # Run from the repo root (see the plan doc's multi-client section):
 #   bun run scripts/interop/serve-hosted.ts   # note the printed URL
+#   uv run --with 'mcp==1.28.1' scripts/interop/probe-python.py <hosted-url>
+# To probe the latest SDK as a compatibility canary instead:
 #   uv run --with mcp scripts/interop/probe-python.py <hosted-url>
 # Probes the hosted Streamable HTTP endpoint and the local stdio bin with the
 # reference Python client, printing one PASS/FAIL line per check and exiting
-# nonzero on any failure.
+# nonzero on any failure or if the combined probe exceeds two minutes.
 
 import asyncio
 import json
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import mcp
@@ -18,6 +21,19 @@ from mcp.client.streamable_http import streamablehttp_client
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FLOW = "flowchart LR\n  A --> B"
+TIMEOUT_SECONDS = 120
+HOSTED_TOOL_NAMES = [
+    "build",
+    "describe",
+    "describe_sdk",
+    "execute",
+    "mutate",
+    "render_ascii",
+    "render_png",
+    "render_svg",
+    "verify",
+]
+LOCAL_TOOL_NAMES = ["describe", "describe_sdk", "execute", "render_png"]
 failures = []
 
 
@@ -41,7 +57,7 @@ async def probe_hosted(url: str) -> None:
             check("hosted: sessionless (no session id issued)", get_session_id() is None, str(get_session_id()))
             tools = await session.list_tools()
             names = sorted(tool.name for tool in tools.tools)
-            check("hosted: 9-tool surface", len(names) == 9, ",".join(names))
+            check("hosted: exact 9-tool surface", names == HOSTED_TOOL_NAMES, ",".join(names))
             rendered = await session.call_tool("render_svg", {"source": FLOW})
             text = rendered.content[0].text if rendered.content else ""
             check("hosted: render_svg round-trip", "<svg" in text, f"{len(text)} bytes")
@@ -56,7 +72,7 @@ async def probe_stdio() -> None:
             check("stdio: negotiates the pinned 2024-11-05", init.protocolVersion == "2024-11-05", init.protocolVersion)
             tools = await session.list_tools()
             names = sorted(tool.name for tool in tools.tools)
-            check("stdio: 4-tool surface", len(names) == 4, ",".join(names))
+            check("stdio: exact 4-tool surface", names == LOCAL_TOOL_NAMES, ",".join(names))
             executed = await session.call_tool("execute", {"code": "return 1 + 41"})
             text = executed.content[0].text if executed.content else ""
             value = json.loads(text).get("value") if text else None
@@ -64,11 +80,22 @@ async def probe_stdio() -> None:
 
 
 async def main() -> None:
-    print(f"python-sdk version: {mcp.__version__ if hasattr(mcp, '__version__') else 'unknown'}")
+    print(f"python-sdk version: {version('mcp')}")
     await probe_hosted(sys.argv[1])
     await probe_stdio()
 
 
-asyncio.run(main())
+async def run_with_timeout() -> None:
+    try:
+        await asyncio.wait_for(main(), timeout=TIMEOUT_SECONDS)
+    except asyncio.TimeoutError:
+        check("combined probe timeout", False, f"exceeded {TIMEOUT_SECONDS}s")
+
+
+if len(sys.argv) != 2:
+    print("usage: probe-python.py <hosted-mcp-url>")
+    sys.exit(2)
+
+asyncio.run(run_with_timeout())
 if failures:
     sys.exit(1)

@@ -197,14 +197,21 @@ clients are covered by repeatable probe scripts under `scripts/interop/` — run
 
 ```bash
 bun run scripts/interop/serve-hosted.ts              # prints the local hosted URL
-uv run --with mcp scripts/interop/probe-python.py <url>
+uv run --with 'mcp==1.28.1' scripts/interop/probe-python.py <url>
 cd scripts/interop/probe-go && go run . <url>
 ```
 
+The Python command above is the reproducible baseline used for the recorded result.
+To detect compatibility drift in the newest published Python client, run the same probe
+as an explicitly unpinned canary with
+`uv run --with mcp scripts/interop/probe-python.py <url>`. The Python and Go probes
+both bound the combined hosted-plus-stdio lifecycle to 120 seconds.
+
 Each probe drives the hosted endpoint (initialize → downgrade negotiation →
 `tools/list` → real `render_svg`) and the stdio bin (spawn → `2024-11-05` negotiation →
-4-tool surface → real vm-sandbox `execute`), printing PASS/FAIL per check and exiting
-nonzero on failure.
+exact 4-tool surface → real vm-sandbox `execute`), printing PASS/FAIL per check and
+exiting nonzero on failure. Both tool-list checks compare the exact sorted names, not
+only the expected cardinality.
 
 **Observed results (2026-07-17):**
 

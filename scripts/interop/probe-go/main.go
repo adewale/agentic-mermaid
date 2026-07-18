@@ -25,6 +25,8 @@ import (
 )
 
 var serverSupported = []string{"2024-11-05", "2025-03-26", "2025-06-18"}
+var hostedToolNames = []string{"build", "describe", "describe_sdk", "execute", "mutate", "render_ascii", "render_png", "render_svg", "verify"}
+var localToolNames = []string{"describe", "describe_sdk", "execute", "render_png"}
 var failures int
 
 func check(label string, ok bool, detail string) {
@@ -78,7 +80,7 @@ func probeHosted(ctx context.Context, url string) {
 		return
 	}
 	names := sortedNames(tools)
-	check("hosted: 9-tool surface", len(names) == 9, strings.Join(names, ","))
+	check("hosted: exact 9-tool surface", slices.Equal(names, hostedToolNames), strings.Join(names, ","))
 
 	rendered, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "render_svg", Arguments: map[string]any{"source": "flowchart LR\n  A --> B"}})
 	if err != nil {
@@ -113,7 +115,7 @@ func probeStdio(ctx context.Context) {
 		return
 	}
 	names := sortedNames(tools)
-	check("stdio: 4-tool surface", len(names) == 4, strings.Join(names, ","))
+	check("stdio: exact 4-tool surface", slices.Equal(names, localToolNames), strings.Join(names, ","))
 
 	executed, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "execute", Arguments: map[string]any{"code": "return 1 + 41"}})
 	if err != nil {
