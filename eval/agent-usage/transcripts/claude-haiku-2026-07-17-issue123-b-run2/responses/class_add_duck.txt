@@ -1,0 +1,31 @@
+Updated Mermaid
+
+```mermaid
+classDiagram
+  class Animal
+  class Duck {
+    +quack()
+  }
+```
+
+Verification
+
+Structural verification passed:
+- ok: true
+- warnings: []
+- Layout: Two classes rendered (Animal, Duck)
+- Duck class contains one member: +quack()
+
+The diagram is structurally valid and the requested change is present. The Duck class was added as a standalone class with the public method +quack().
+
+Trace
+
+Channel: Agentic Mermaid CLI (`bun run bin/am.ts`)
+Operations executed:
+1. `mutate /tmp/class_diagram.mmd --op {"kind": "add_class", "id": "Duck", "members": ["+quack()"]}`
+   - Successfully added Duck class with +quack() method
+2. `verify /tmp/class_diagram_updated.mmd --json`
+   - Verified diagram structure
+   - Result: ok=true, warnings=[], 2 nodes (Animal, Duck)
+
+Trace log location: /home/user/agentic-mermaid/eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run2/traces/class_add_duck.jsonl

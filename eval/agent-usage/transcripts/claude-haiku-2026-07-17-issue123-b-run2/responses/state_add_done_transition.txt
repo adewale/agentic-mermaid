@@ -1,0 +1,24 @@
+Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+
+- **Channel:** Library imports (agentic-mermaid/src/agent/index.ts)
+- **Parse:** ✓ Source parsed and narrowed to state diagram
+- **Mutation:** ✓ Applied `add_transition` op to add Processing → [*] with label "done"
+- **Verify:** ✓ ok=true, no warnings
+- **Serialized:** ✓ Source reconstructed with new transition
+
+Trace
+
+Operations run:
+- `mutate(parsed, { kind: "add_transition", from: "Processing", to: "[*]", label: "done" })` ✓
+- `verifyMermaid(mutated)` ✓ ok=true
+
+Channel trace log: `/home/user/agentic-mermaid/eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run2/traces/state_add_done_transition.jsonl`

@@ -1,0 +1,20 @@
+Updated Mermaid
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+- Parse: ok=true
+- Mutation (add_task): ok=true, no errors
+- Verify after mutation: ok=true, no warnings
+- Serialize: successful
+- Final verify on serialized: ok=true, no warnings
+
+Trace
+- Channel: library imports (./src/agent/index.ts via bun)
+- Calls: parseRegisteredMermaid(), asGantt(), mutate(parsed, {kind: 'add_task', sectionIndex: 0, label: 'Docs', taskId: 'docs', start: 'after core', end: '2d'}), verifyMermaid(), serializeMermaid()
+- Result: Structured mutation successful. Docs task added to Build section with start 'after core' and 2d duration. All verifications passed.

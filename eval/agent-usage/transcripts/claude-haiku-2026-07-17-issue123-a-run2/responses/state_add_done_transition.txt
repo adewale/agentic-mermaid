@@ -1,0 +1,33 @@
+Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+
+✓ Diagram verified successfully (ok: true)
+✓ All transitions present:
+  - [*] → Idle (initial state)
+  - Idle → Processing (label: "start")
+  - Processing → [*] (label: "done") ← newly added transition
+
+The structured mutation successfully added the done transition from Processing to [*] without modifying existing transitions.
+
+Trace
+
+Channel: Library imports (TypeScript, Bun runtime)
+Operations executed:
+1. parseRegisteredMermaid(source) - parsed existing state diagram
+2. mutate(diagram, { kind: 'add_transition', from: 'Processing', to: '[*]', label: 'done' }) - added transition using structured op
+3. verifyMermaid(mutatedDiagram) - verified result (ok: true, no warnings)
+4. serializeMermaid(mutatedDiagram) - serialized to canonical Mermaid source
+
+Implementation details:
+- Used typed API from /home/user/agentic-mermaid/src/agent/index.ts
+- asState() confirmed diagram parsed as StateBody (structured, not opaque)
+- Mutation op applied declaratively without hand-assembling source
+- Canonical serialization produced idiomatic state-diagram-v2 syntax

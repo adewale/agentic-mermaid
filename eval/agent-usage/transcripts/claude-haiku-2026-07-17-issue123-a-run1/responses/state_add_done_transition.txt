@@ -1,0 +1,25 @@
+Updated Mermaid
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+- Channel: Library imports (`/home/user/agentic-mermaid/src/agent/index.ts`)
+- Verify result: `ok: true`, no warnings
+- Structured mutation operation: `add_transition` from `Processing` to `[*]` with label `done`
+- Layout confirmed: Processing state connected to end state ([*]) with "done" label
+- Serialization confirmed: diagram parses to typed state body (structured, not opaque)
+
+Trace
+- Channel: Library imports via `parseRegisteredMermaid`, `mutate` (with Result handling), `verifyMermaid`, `serializeMermaid`
+- Operations executed:
+  1. Parse source via `parseRegisteredMermaid` → Result ok
+  2. Narrow to state diagram via `asState` → verified
+  3. Apply `mutate(diagram, { kind: "add_transition", from: "Processing", to: "[*]", label: "done" })` → Result ok with mutated diagram
+  4. Verify via `verifyMermaid` → ok: true
+  5. Serialize via `serializeMermaid` → final source returned
+- Environment: AM_TRACE_LOG set to eval traces file
+- Result: All structured operations succeeded; the done transition is present, labeled, and verified

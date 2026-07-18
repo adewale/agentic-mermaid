@@ -1,0 +1,22 @@
+Updated Mermaid
+```mermaid
+classDiagram
+  class Animal
+  class Duck {
+    +quack() void
+  }
+```
+
+Verification
+ok: true
+warnings: []
+
+Trace
+Channel: Library imports (bun with src/agent/index.ts)
+Calls/Ops:
+- parseRegisteredMermaid(source): parsed initial diagram
+- applyOps({ source, ops }): applied add_class mutation with Duck class and +quack() void member
+  - Op: { kind: "add_class", id: "Duck", members: ["+quack() void"] }
+  - Result: ok=true, family="class", verify.ok=true, verify.warnings=[]
+- parseRegisteredMermaid(result.source): verified mutated source parses correctly
+- asClass(mutated.value): confirmed typed structure (not opaque/preserved)

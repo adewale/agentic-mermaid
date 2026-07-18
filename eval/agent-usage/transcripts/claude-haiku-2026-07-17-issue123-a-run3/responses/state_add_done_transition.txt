@@ -1,0 +1,28 @@
+Updated Mermaid
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+✓ ok: true
+✓ warnings: none
+✓ layout: rendered successfully
+  - 4 nodes: start state [*], Idle, Processing, end state [*]
+  - 3 edges: [*]→Idle (no label), Idle→Processing (label: "start"), Processing→[*] (label: "done")
+  - bounds: 196w × 490h
+
+The new "done" transition from Processing to [*] was added successfully without modifying existing transitions. The state diagram maintains structural validity and all edges are properly positioned in the layout.
+
+Trace
+Channel: Library imports (agentic-mermaid/src/agent/index.ts)
+Operations performed:
+1. parseRegisteredMermaid(source) → ParseResult with ok: true, value: ParsedDiagram
+2. asState(parsed.value) → StateValidDiagram (successfully narrowed)
+3. mutate(diagram, { kind: "add_transition", from: "Processing", to: "[*]", label: "done" }) → MutateResult with ok: true
+4. verifyMermaid(mutated) → VerifyResult with ok: true, no warnings
+5. serializeMermaid(mutated) → source string
+
+The AM_TRACE_LOG environment variable was set for trace recording during execution.

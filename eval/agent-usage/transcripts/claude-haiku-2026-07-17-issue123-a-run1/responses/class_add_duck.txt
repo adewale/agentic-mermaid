@@ -1,0 +1,23 @@
+Updated Mermaid
+```mermaid
+classDiagram
+  class Animal
+  class Duck["Duck"] {
+    +quack()
+  }
+```
+
+Verification
+Verify OK: true — no warnings or errors.
+
+Trace
+Channel: Library imports via `bun` with `./src/agent/index.ts`.
+
+Operations run:
+1. parseRegisteredMermaid(source) — parsed existing diagram
+2. mutate(diagram, { kind: "add_class", id: "Duck", label: "Duck" }) — added Duck class
+3. mutate(diagram, { kind: "add_member", class: "Duck", text: "+quack()" }) — added public quack() method to Duck
+4. verifyMermaid(diagram) — verified the result (ok: true)
+5. serializeMermaid(diagram) — serialized to canonical source
+
+The structured mutation operations successfully added the Duck class with the +quack() public method to the existing Animal class diagram. The result is a typed class diagram (not opaque) confirming the mutations applied correctly.

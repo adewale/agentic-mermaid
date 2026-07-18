@@ -1,0 +1,26 @@
+Updated Mermaid
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*]
+```
+
+Verification
+Diagram verified successfully. The mutation operation `add_transition` was applied with:
+- From: Processing
+- To: [*]
+
+Verification result: ok=true, warnings=[], structural: 4 nodes, 3 edges, valid layout generated.
+The diagram now flows: [*] (start) → Idle → Processing (labeled "start") → [*] (done).
+
+Trace
+Channel: Library imports (agentic-mermaid/src/agent/index.ts, via bun)
+Operations performed:
+1. parseRegisteredMermaid(source) → Parsed as state diagram, 2 states, 2 existing transitions
+2. asState(parsed) → Narrowed to StateValidDiagram
+3. mutate(parsed, { kind: "add_transition", from: "Processing", to: "[*]" }) → Applied successfully, 3 transitions total
+4. verifyMermaid(mutated.value) → Verified ok, no warnings
+5. serializeMermaid(mutated.value) → Serialized to canonical source
+
+All operations completed without errors. Existing transitions preserved; new transition added as specified.

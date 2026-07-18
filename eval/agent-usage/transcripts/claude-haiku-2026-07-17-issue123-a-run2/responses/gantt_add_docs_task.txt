@@ -1,0 +1,30 @@
+Updated Mermaid
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+- Status: ok (true)
+- Warnings: none
+- Layout verification passed with 2 tasks in the Build section
+- Core task: x=62, y=46, w=300, h=22
+- Docs task: x=362, y=76, w=300, h=22 (positioned after Core as expected)
+- Build section bounds: w=600, h=90
+
+Trace
+- Channel: Library imports (src/agent/index.ts from checked-out repo)
+- Parsed the input Gantt source with parseRegisteredMermaid
+- Applied structured mutation with mutate() operation:
+  - kind: "add_task"
+  - sectionIndex: 0 (Build section)
+  - label: "Docs"
+  - taskId: "docs"
+  - start: "after core"
+  - end: "2d"
+- Verified the result with verifyMermaid - ok=true, no warnings
+- Serialized with serializeMermaid to final Mermaid source
+- Trace log captured at AM_TRACE_LOG path (7 calls: 2 capabilities lookups, 3 mutate operations, 2 verify operations)

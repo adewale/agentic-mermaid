@@ -1,0 +1,31 @@
+Updated Mermaid
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+
+- Verification status: ok
+- No warnings
+
+Trace
+
+- Channel: Library imports (src/agent/index.ts)
+- Operations performed:
+  1. parseRegisteredMermaid() — parsed the input diagram
+  2. asGantt() — extracted typed gantt body
+  3. mutate() — applied add_task operation with:
+     - sectionIndex: 0 (Build section)
+     - label: "Docs"
+     - taskId: "docs"
+     - start: "after core"
+     - end: "2d"
+  4. verifyMermaid() — verified result (ok: true, no warnings)
+  5. serializeMermaid() — serialized to final source
+
+The Docs task was successfully added after the Core task with a 2-day duration, starting immediately after Core completes.
