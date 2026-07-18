@@ -1,0 +1,24 @@
+Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+Verification
+
+ok: true
+warnings: none
+
+Trace
+
+Channel: Library imports (bun + src/agent/index.ts)
+Operations: parseRegisteredMermaid → mutate(add_transition) → verifyMermaid → serializeMermaid
+- Parsed: stateDiagram-v2 source successfully
+- Mutated: add_transition from 'Processing' to '[*]' with label 'done'
+- Verified: Diagram structure is valid, no warnings
+- Serialized: Final source with 3 transitions (start transition from [*] to Idle, start transition from Idle to Processing, done transition from Processing to [*])
+
+The transition was added using structured mutation operation (add_transition) as requested. The done label marks the completion of the Processing state.

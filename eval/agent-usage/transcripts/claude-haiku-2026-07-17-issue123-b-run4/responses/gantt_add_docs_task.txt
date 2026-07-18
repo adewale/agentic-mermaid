@@ -1,0 +1,29 @@
+# Updated Mermaid
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+# Verification
+
+Parsed and verified successfully using `verifyMermaid()`. The diagram structure is correct:
+- Family: gantt
+- Sections: 1 (Build)
+- Tasks: 2 (Core with id 'core' starting 2024-01-01 for 2d, Docs with id 'docs' starting after core for 2d)
+- Verification result: ok=true, no warnings
+- Described as: "A Gantt chart with 1 sections and 2 tasks. Schedule: 2024-01-01 to 2024-01-05. Critical path: core -> docs. Sections: Build. Tasks: Core (2024-01-01, 2d); Docs (after core, 2d)."
+
+# Trace
+
+Channel: Local library (parseRegisteredMermaid, mutate, verifyMermaid, serializeMermaid from ./src/agent/index.ts)
+
+Operations:
+1. parseRegisteredMermaid(source) - parsed the existing Gantt diagram successfully
+2. asGantt(parsed) - narrowed to Gantt family
+3. mutate(parsed, { kind: "add_task", sectionIndex: 0, label: "Docs", taskId: "docs", start: "after core", end: "2d" }) - applied structured mutation to add Docs task after Core
+4. verifyMermaid(mutated) - verified the result (ok=true)
+5. serializeMermaid(mutated) - serialized to canonical Mermaid source
