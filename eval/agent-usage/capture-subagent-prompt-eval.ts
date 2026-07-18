@@ -4,7 +4,7 @@ import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
-import { HOMEPAGE_PROMPT_VARIANTS, type HomepagePromptVariant } from './homepage-prompt.ts'
+import { HOMEPAGE_AGENT_POINTER, HOMEPAGE_PROMPT_VARIANTS, buildHomepageFullPrompt, readStartMd, type HomepagePromptVariant } from './homepage-prompt.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const TRANSCRIPT_ROOT = join(import.meta.dir, 'transcripts')
@@ -28,6 +28,11 @@ export interface SubagentPromptEvalManifest {
   surface: PromptEvalSurface
   mode: PromptEvalMode
   promptVariant: PromptEvalVariant
+  /** Homepage surface only: the exact start.md body (variant applied) was
+   *  inlined into each request instead of the fetch pointer, so an A/B arm
+   *  controls every byte the agent reads (see README "Comparing prompt
+   *  variants"). */
+  inlineStartMd: boolean
   cases: string[]
   requests: SubagentPromptEvalRequest[]
 }
@@ -39,6 +44,7 @@ export interface PrepareSubagentPromptEvalOptions {
   surface?: PromptEvalSurface
   mode?: PromptEvalMode
   promptVariant?: PromptEvalVariant
+  inlineStartMd?: boolean
   caseIds?: string[]
   capturedAt?: string
 }
@@ -127,8 +133,14 @@ function selectedCases(caseIds?: string[]): AgentUsageEvalCase[] {
   return cases
 }
 
-function surfaceContext(surface: PromptEvalSurface): string {
+function surfaceContext(surface: PromptEvalSurface, inlineStartMd = false, variant: PromptEvalVariant = 'baseline'): string {
   if (surface === 'homepage') {
+    if (inlineStartMd) {
+      // Variant A/B arms must control every byte the agent reads: fetching the
+      // deployed start.md would serve both arms the same production text, so the
+      // exact (variant-applied) body ships inline and the fetch is forbidden.
+      return `The homepage prompt under test is normally fetch-only. For this run the exact body of https://agentic-mermaid.dev/start.md is inlined below; do NOT fetch that URL — follow the inlined protocol as if fetched.\n\n${buildHomepageFullPrompt(readStartMd(), variant)}`
+    }
     return 'The homepage prompt under test is fetch-only. Follow it as a normal user prompt; do not use product guidance except what that prompt tells you to fetch.'
   }
   if (surface === 'instructions') {
@@ -141,9 +153,17 @@ function surfaceContext(surface: PromptEvalSurface): string {
   ].map(([path, text]) => `# ${path}\n\n${String(text).trim()}`).join('\n\n---\n\n')
 }
 
-function promptForVariant(prompt: string, surface: PromptEvalSurface, variant: PromptEvalVariant): string {
+function promptForVariant(prompt: string, surface: PromptEvalSurface, variant: PromptEvalVariant, inlineStartMd = false): string {
+  if (surface === 'homepage' && inlineStartMd) {
+    // The surface context above carries the inlined start.md body, so the task
+    // prompt's fetch pointer must be redirected at it — otherwise the agent
+    // would fetch the deployed (non-variant) protocol and the A/B collapses.
+    const next = prompt.replace(HOMEPAGE_AGENT_POINTER, 'Follow the start.md protocol inlined above; do not fetch it.')
+    if (next === prompt) throw new Error('--inline-start-md requires the fetch-only homepage pointer in the case prompt')
+    return next
+  }
   if (surface === 'homepage' && variant !== 'baseline') {
-    throw new Error('--prompt-variant is not compatible with the fetch-only homepage surface; compare start.md variants separately')
+    throw new Error('--prompt-variant on the fetch-only homepage surface requires --inline-start-md; the deployed start.md cannot carry an eval variant')
   }
   return prompt
 }
@@ -180,7 +200,7 @@ ${source ? `\nExisting Mermaid source to edit:\n\`\`\`mermaid\n${source}\n\`\`\`
 Return your final Mermaid diagram source in a \`\`\`mermaid fence.`
 }
 
-export function buildSubagentPromptEvalRequest(c: AgentUsageEvalCase, surface: PromptEvalSurface = 'homepage', mode: PromptEvalMode = 'code', promptVariant: PromptEvalVariant = 'baseline'): string {
+export function buildSubagentPromptEvalRequest(c: AgentUsageEvalCase, surface: PromptEvalSurface = 'homepage', mode: PromptEvalMode = 'code', promptVariant: PromptEvalVariant = 'baseline', inlineStartMd = false): string {
   if (surface === 'none') {
     if (mode !== 'chat') throw new Error('--surface none is chat-only: Code Mode ships the SDK declaration, which is guidance')
     return buildBareTaskRequest(c)
@@ -191,11 +211,11 @@ export function buildSubagentPromptEvalRequest(c: AgentUsageEvalCase, surface: P
 Mode: raw chat prompt. Follow the agent-facing surface under test as a normal third-party coding agent would. Do not return Code Mode JavaScript unless the prompt itself requires it.
 
 Agent-facing surface under test (${surface}):
-${surfaceContext(surface)}
+${surfaceContext(surface, inlineStartMd, promptVariant)}
 
 Task ID: ${c.id}
 Task prompt under test:
-${promptForVariant(c.prompt, surface, promptVariant)}
+${promptForVariant(c.prompt, surface, promptVariant, inlineStartMd)}
 
 Return the human-facing response requested by the prompt.`
   }
@@ -206,11 +226,11 @@ Runtime contract for this eval:
 ${CODE_MODE_CONTRACT}
 
 Agent-facing surface under test (${surface}):
-${surfaceContext(surface)}
+${surfaceContext(surface, inlineStartMd, promptVariant)}
 
 Task ID: ${c.id}
 Task prompt under test:
-${promptForVariant(c.prompt, surface, promptVariant)}
+${promptForVariant(c.prompt, surface, promptVariant, inlineStartMd)}
 ${c.input ? `\nInput Mermaid source, repeated for exactness:\n\`\`\`mermaid\n${c.input}\n\`\`\`\n` : ''}
 SDK declaration available in Code Mode:
 ${SDK_DECLARATION}
@@ -247,6 +267,7 @@ function writeRunReadme(outDir: string, manifest: SubagentPromptEvalManifest) {
     `Surface: ${manifest.surface}`,
     `Mode: ${manifest.mode}`,
     `Prompt variant: ${manifest.promptVariant}`,
+    `Inline start.md: ${manifest.inlineStartMd ? 'yes (variant-applied body inlined; fetch forbidden)' : 'no'}`,
     '',
     'Requests:',
     ...manifest.requests.map(r => `- ${r.caseId}: ${rel(r.requestPath)} → ${rel(r.responsePath)}`),
@@ -261,6 +282,8 @@ export function prepareSubagentPromptEval(opts: PrepareSubagentPromptEvalOptions
   const surface = opts.surface ?? 'homepage'
   const mode = opts.mode ?? 'code'
   const promptVariant = opts.promptVariant ?? 'baseline'
+  const inlineStartMd = opts.inlineStartMd ?? false
+  if (inlineStartMd && surface !== 'homepage') throw new Error('--inline-start-md applies only to the homepage surface')
   const capturedAt = opts.capturedAt ?? new Date().toISOString()
   const outDir = opts.outDir ? abs(opts.outDir) : defaultOutDir(provider, capturedAt)
   const requestsDir = join(outDir, 'requests')
@@ -278,11 +301,11 @@ export function prepareSubagentPromptEval(opts: PrepareSubagentPromptEvalOptions
   for (const c of cases) {
     const requestPath = join(requestsDir, `${c.id}.md`)
     const responsePath = join(responsesDir, `${c.id}.txt`)
-    writeFileSync(requestPath, buildSubagentPromptEvalRequest(c, surface, mode, promptVariant) + '\n')
+    writeFileSync(requestPath, buildSubagentPromptEvalRequest(c, surface, mode, promptVariant, inlineStartMd) + '\n')
     requests.push({ caseId: c.id, requestPath, responsePath })
   }
 
-  const manifest: SubagentPromptEvalManifest = { schemaVersion: 1, capturedAt, provider, model, surface, mode, promptVariant, cases: cases.map(c => c.id), requests }
+  const manifest: SubagentPromptEvalManifest = { schemaVersion: 1, capturedAt, provider, model, surface, mode, promptVariant, inlineStartMd, cases: cases.map(c => c.id), requests }
   writeFileSync(join(outDir, MANIFEST_FILE), JSON.stringify({ ...manifest, requests: manifest.requests.map(r => ({ ...r, requestPath: rel(r.requestPath), responsePath: rel(r.responsePath) })) }, null, 2) + '\n')
   writeRunReadme(outDir, manifest)
   return manifest
@@ -297,6 +320,7 @@ function loadManifest(runDir: string): SubagentPromptEvalManifest {
     ...raw,
     mode: raw.mode ?? 'code',
     promptVariant: raw.promptVariant ?? 'baseline',
+    inlineStartMd: raw.inlineStartMd ?? false,
     requests: raw.requests.map(r => ({ ...r, requestPath: abs(r.requestPath), responsePath: abs(r.responsePath) })),
   }
 }
@@ -438,7 +462,7 @@ function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c
     promptVariant: manifest.promptVariant,
     prompts: {
       system: `${SUBAGENT_PROMPT_EVAL_PARENT_CONTEXT}\nSurface: ${manifest.surface}. Mode: ${manifest.mode}. Prompt variant: ${manifest.promptVariant}. Pi/Claude/Codex hidden subagent system prompts are not exposed here.`,
-      user: buildSubagentPromptEvalRequest(c, manifest.surface, manifest.mode, manifest.promptVariant),
+      user: buildSubagentPromptEvalRequest(c, manifest.surface, manifest.mode, manifest.promptVariant, manifest.inlineStartMd),
     },
     rawResponse,
     script,
@@ -565,13 +589,13 @@ function parsePromptVariant(args: string[]): PromptEvalVariant {
 
 function usage() {
   return `Usage:
-  bun run eval:agent-subagent -- prepare [--provider pi-subagent] [--model delegate] [--surface homepage|instructions|skill|none] [--mode code|chat] [--prompt-variant baseline|no-semantic-readback] [--cases id1,id2] [--out-dir dir]
+  bun run eval:agent-subagent -- prepare [--provider pi-subagent] [--model delegate] [--surface homepage|instructions|skill|none] [--mode code|chat] [--prompt-variant baseline|no-semantic-readback|no-literal-reframe] [--inline-start-md] [--cases id1,id2] [--out-dir dir]
   bun run eval:agent-subagent -- record --run-dir dir --case id [--response-file file]
   bun run eval:agent-subagent -- finalize --run-dir dir
 
 Prepare writes requests under eval/agent-usage/transcripts/<provider>-<timestamp>/requests/.
 Dispatch each request to a fresh subagent in Pi, Claude, Codex, or another harness, save exact raw responses under responses/, then finalize.
-Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. The homepage surface is fetch-only; compare start.md variants separately rather than with --prompt-variant.`
+Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. The homepage surface is fetch-only; to A/B a start.md variant, pass --inline-start-md so both arms receive the exact (variant-applied) start.md body inline instead of fetching the deployed protocol.`
 }
 
 async function readStdin(): Promise<string> {
@@ -596,6 +620,7 @@ if (import.meta.main) {
         surface: parseSurface(rest),
         mode: parseMode(rest),
         promptVariant: parsePromptVariant(rest),
+        inlineStartMd: hasArg(rest, '--inline-start-md'),
         caseIds: parseCaseIds(rest),
         outDir: argValue(rest, '--out-dir'),
       })

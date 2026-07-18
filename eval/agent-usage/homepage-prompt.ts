@@ -16,10 +16,16 @@ function startBody(md = readStartMd()): string {
   return md.replace(/^#[^\n]*\n+/, '').trim()
 }
 
-export const HOMEPAGE_PROMPT_VARIANTS = ['baseline', 'no-semantic-readback'] as const
+export const HOMEPAGE_PROMPT_VARIANTS = ['baseline', 'no-semantic-readback', 'no-literal-reframe'] as const
 export type HomepagePromptVariant = typeof HOMEPAGE_PROMPT_VARIANTS[number]
 
-const SEMANTIC_READBACK_GUIDANCE = `Before returning, confirm the specific change the task asked for is actually present. Treat every label, value, endpoint, and prefix the task names as a required op argument, not descriptive prose — put it in the op verbatim (a dropped \`: done\` transition label or a dropped \`+\` visibility marker still verifies clean). \`verify.ok\` is structural; it does not check that you made the right edit. A diagram can verify yet be the wrong family or shape: read it back with \`describe\` and compare to the request, and if it does not match — or a family's syntax keeps failing — consult that family's \`example\` in \`capabilities.json\` and redo rather than settling for a verifying-but-wrong diagram. For a new diagram, also confirm it parsed **structured**, not opaque: the matching \`as*\` helper (\`asXyChart\`, \`asClass\`, …) returns the typed body, and returns \`null\` when your syntax fell to the source-level/opaque path (a \`UNSUPPORTED_SYNTAX\` warning names it) — an opaque body still renders but cannot be edited with typed ops, so fix the syntax against the family \`example\` rather than shipping something that only renders.`
+// PR #111 tweak #3, measured by issue #123: the "every named literal is a
+// required op argument" reframe. Composed into SEMANTIC_READBACK_GUIDANCE below
+// so the no-literal-reframe variant toggles exactly this sentence and nothing
+// else, and the two constants cannot drift apart.
+const LITERAL_REFRAME_SENTENCE = `Treat every label, value, endpoint, and prefix the task names as a required op argument, not descriptive prose — put it in the op verbatim (a dropped \`: done\` transition label or a dropped \`+\` visibility marker still verifies clean).`
+
+const SEMANTIC_READBACK_GUIDANCE = `Before returning, confirm the specific change the task asked for is actually present. ${LITERAL_REFRAME_SENTENCE} \`verify.ok\` is structural; it does not check that you made the right edit. A diagram can verify yet be the wrong family or shape: read it back with \`describe\` and compare to the request, and if it does not match — or a family's syntax keeps failing — consult that family's \`example\` in \`capabilities.json\` and redo rather than settling for a verifying-but-wrong diagram. For a new diagram, also confirm it parsed **structured**, not opaque: the matching \`as*\` helper (\`asXyChart\`, \`asClass\`, …) returns the typed body, and returns \`null\` when your syntax fell to the source-level/opaque path (a \`UNSUPPORTED_SYNTAX\` warning names it) — an opaque body still renders but cannot be edited with typed ops, so fix the syntax against the family \`example\` rather than shipping something that only renders.`
 
 /**
  * Eval-only start.md variants. The hosted start.md remains the source of truth;
@@ -31,6 +37,11 @@ export function applyHomepagePromptVariant(prompt: string, variant: HomepageProm
   if (variant === 'no-semantic-readback') {
     const next = prompt.replace(`\n\n${SEMANTIC_READBACK_GUIDANCE}\n\n`, '\n\n')
     if (next === prompt) throw new Error('Homepage prompt variant no-semantic-readback could not find semantic read-back guidance')
+    return next
+  }
+  if (variant === 'no-literal-reframe') {
+    const next = prompt.replace(` ${LITERAL_REFRAME_SENTENCE}`, '')
+    if (next === prompt) throw new Error('Homepage prompt variant no-literal-reframe could not find the literal-reframe sentence')
     return next
   }
   const _never: never = variant

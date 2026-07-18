@@ -194,6 +194,65 @@ describe('homepage prompt eval contract', () => {
     expect(() => applyHomepagePromptVariant('not the start.md protocol', 'no-semantic-readback')).toThrow('semantic read-back guidance')
   })
 
+  test('no-literal-reframe removes exactly the PR #111 tweak-#3 sentence and nothing else', () => {
+    // Issue #123's A/B toggles only the "every named literal is a required op
+    // argument" sentence; the rest of the semantic read-back paragraph (the
+    // #122 describe/checkMermaid rail) must survive in the treatment arm.
+    const baseline = buildHomepageFullPrompt()
+    const treatment = applyHomepagePromptVariant(baseline, 'no-literal-reframe')
+    const sentence = 'Treat every label, value, endpoint, and prefix the task names as a required op argument, not descriptive prose'
+    expect(baseline).toContain(sentence)
+    expect(treatment).not.toContain(sentence)
+    for (const heldConstant of [
+      'Before returning, confirm the specific change the task asked for is actually present',
+      'read it back with `describe` and compare to the request',
+      '`verify.ok` is structural; it does not check that you made the right edit',
+      'Run `verifyMermaid` at every commit point',
+      'Mutation ops use a `kind` discriminator',
+    ]) {
+      expect({ heldConstant, baseline: baseline.includes(heldConstant), treatment: treatment.includes(heldConstant) })
+        .toEqual({ heldConstant, baseline: true, treatment: true })
+    }
+    // Single-sentence toggle: the arms differ by the sentence and its leading
+    // space only, so no other prompt text can ride along with the treatment.
+    expect(baseline.length - treatment.length).toBeLessThan(sentence.length + 160)
+    expect(() => applyHomepagePromptVariant('not the start.md protocol', 'no-literal-reframe')).toThrow('literal-reframe sentence')
+  })
+
+  test('--inline-start-md ships the exact variant-applied start.md body and forbids the fetch', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-inline-start-md-'))
+    const c = DEFAULT_CASES.find(c => c.id === 'state_add_done_transition')!
+    const sentence = 'Treat every label, value, endpoint, and prefix the task names as a required op argument, not descriptive prose'
+    const prep = (promptVariant: 'baseline' | 'no-literal-reframe', outDir: string) => prepareSubagentPromptEval({
+      outDir,
+      provider: 'unit',
+      model: 'unit',
+      surface: 'homepage',
+      mode: 'chat',
+      promptVariant,
+      inlineStartMd: true,
+      caseIds: [c.id],
+      capturedAt: '2026-07-17T00:00:00.000Z',
+    })
+    const control = readFileSync(prep('baseline', join(dir, 'a')).requests[0]!.requestPath, 'utf8')
+    const treatment = readFileSync(prep('no-literal-reframe', join(dir, 'b')).requests[0]!.requestPath, 'utf8')
+    for (const request of [control, treatment]) {
+      expect(request).toContain('do NOT fetch that URL')
+      expect(request).toContain('Run `verifyMermaid` at every commit point')
+      expect(request).toContain('Follow the start.md protocol inlined above; do not fetch it.')
+      expect(request).not.toContain(HOMEPAGE_AGENT_POINTER)
+    }
+    expect(control).toContain(sentence)
+    expect(treatment).not.toContain(sentence)
+    expect(JSON.parse(readFileSync(join(dir, 'b', 'subagent-prompt-eval.json'), 'utf8')).inlineStartMd).toBe(true)
+    // Without the inline, a homepage variant still has no delivery path.
+    expect(() => prepareSubagentPromptEval({ outDir: join(dir, 'c'), surface: 'homepage', mode: 'chat', promptVariant: 'no-literal-reframe', caseIds: [c.id], capturedAt: '2026-07-17T00:00:00.000Z' }))
+      .toThrow('--inline-start-md')
+    expect(() => prepareSubagentPromptEval({ outDir: join(dir, 'd'), surface: 'skill', mode: 'chat', inlineStartMd: true, caseIds: [c.id], capturedAt: '2026-07-17T00:00:00.000Z' }))
+      .toThrow('homepage surface')
+    rmSync(dir, { recursive: true, force: true })
+  })
+
   test('subagent prompt capture keeps the homepage surface fetch-only', () => {
     const dir = mkdtempSync(join(tmpdir(), 'am-homepage-fetch-only-'))
     const c = DEFAULT_CASES.find(c => c.id === 'state_add_done_transition')!

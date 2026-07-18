@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-17T22:33:21.875Z",
+  "provider": "claude-subagent",
+  "model": "claude-haiku-4-5",
+  "surface": "homepage",
+  "mode": "chat",
+  "promptVariant": "no-literal-reframe",
+  "inlineStartMd": true,
+  "cases": [
+    "state_add_done_transition",
+    "class_add_duck",
+    "gantt_add_docs_task"
+  ],
+  "requests": [
+    {
+      "caseId": "state_add_done_transition",
+      "requestPath": "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run6/requests/state_add_done_transition.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run6/responses/state_add_done_transition.txt"
+    },
+    {
+      "caseId": "class_add_duck",
+      "requestPath": "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run6/requests/class_add_duck.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run6/responses/class_add_duck.txt"
+    },
+    {
+      "caseId": "gantt_add_docs_task",
+      "requestPath": "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run6/requests/gantt_add_docs_task.md",
+      "responsePath": "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run6/responses/gantt_add_docs_task.txt"
+    }
+  ]
+}
