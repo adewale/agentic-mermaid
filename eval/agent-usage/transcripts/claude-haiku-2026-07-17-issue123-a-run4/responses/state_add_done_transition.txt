@@ -1,0 +1,29 @@
+## Updated Mermaid
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*] : done
+```
+
+## Verification
+
+Verification successful with no warnings:
+- `ok: true`
+- No errors or warnings
+- Layout computed successfully with 4 nodes (start, Idle, Processing, end) and 3 edges
+- The new "done" transition from Processing to [*] is properly rendered with label at position (96, 364)
+- All existing transitions ([*]→Idle and Idle→Processing:start) are preserved
+
+## Trace
+
+Channel: Library imports via Agentic Mermaid SDK
+Operations:
+1. `parseRegisteredMermaid(source)` - Parsed the initial state diagram
+2. `asState(parsed)` - Narrowed to state diagram family
+3. `mutate(parsed, {kind: "add_transition", from: "Processing", to: "[*]", label: "done"})` - Applied structured mutation to add the done transition
+4. `verifyMermaid(mutated)` - Verified the result with no errors
+5. `serializeMermaid(mutated)` - Serialized the final diagram
+
+The done transition was successfully added from Processing to [*] using the add_transition operation, preserving all existing transitions ([*]→Idle and Idle→Processing:start).

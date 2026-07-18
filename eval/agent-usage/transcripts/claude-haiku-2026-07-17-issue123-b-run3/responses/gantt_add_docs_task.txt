@@ -1,0 +1,22 @@
+Updated Mermaid
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+The diagram verifies successfully with no warnings or errors. The layout confirms:
+- Core task: id=core, start=2024-01-01, duration=2d (Jan 1-3)
+- Docs task: id=docs, start after core, duration=2d (Jan 3-5)
+- Both tasks in Build section
+- Docs task correctly positioned after Core in the timeline
+
+Trace
+Channel: Library (agentic-mermaid/src/agent/index.ts via `bun run bin/am.ts`)
+Operations:
+1. verify: Initial Gantt source
+2. mutate: Applied add_task op with sectionIndex=0, label="Docs", taskId="docs", start="after core", end="2d"
+3. verify: Final diagram verification passed, ok=true, warnings=[]

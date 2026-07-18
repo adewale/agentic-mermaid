@@ -1,0 +1,21 @@
+Updated Mermaid
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing : start
+  Processing --> [*]
+```
+
+Verification
+The diagram was successfully parsed from stateDiagram-v2, the add_transition mutation was applied to create a transition from Processing to [*] (the end state), and the result verified with no warnings. The layout computed 4 nodes (start, Idle, Processing, end) and 3 edges with correct positioning. The serialization confirms the structured mutation was applied correctly.
+
+Trace
+Channel: Library imports from ./src/agent/index.ts
+Operations executed:
+1. parseRegisteredMermaid() - parsed state diagram successfully
+2. asState() - narrowed to StateValidDiagram
+3. mutate() with add_transition op (from: "Processing", to: "[*]") - applied successfully
+4. verifyMermaid() - verification passed, ok: true, warnings: []
+5. serializeMermaid() - serialized to updated source
+
+Mutation operation: { kind: "add_transition", from: "Processing", to: "[*]" }

@@ -1,0 +1,19 @@
+Updated Mermaid
+```mermaid
+classDiagram
+  class Animal
+  class Duck["Duck"] {
+    +quack()
+  }
+```
+
+Verification
+- Status: OK
+- No warnings
+- Structured: Yes (asClass() confirmed typed parsing)
+- Change verified: Duck class added with public quack() method as requested
+
+Trace
+- Channel: Library imports (SDK from ./src/agent/index.ts)
+- Operations: parseRegisteredMermaid → asClass narrowing → mutate(add_class: Duck, members: ["+quack()"]) → verifyMermaid → serializeMermaid
+- Environment: AM_TRACE_LOG set to /home/user/agentic-mermaid/eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run4/traces/class_add_duck.jsonl
