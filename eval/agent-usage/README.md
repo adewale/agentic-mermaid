@@ -125,11 +125,14 @@ Prompt changes are gated three ways, cheapest-first:
    surfaces here without any model calls.
 3. **Paired live runs (on demand).** The homepage surface is fetch-only, so
    prompt variants now belong to `website/source/start.md` experiments rather
-   than `--surface homepage --prompt-variant`. To compare start.md variant A
-   against variant B, prepare separate request sets with the exact start.md body
-   each model will receive (or deploy a variant URL), dispatch every
-   `requests/*.md` to a fresh subagent, run `finalize`, and keep the case list,
-   harness, and model fixed. Follow the `skill-evals/shared-benchmark.json` run
+   than `--surface homepage --prompt-variant` alone. To compare start.md
+   variant A against variant B, prepare each arm with `--inline-start-md
+   --prompt-variant <variant>` — the exact (variant-applied) start.md body
+   ships inline and the fetch is forbidden, so the arm request sets differ only
+   by the toggled text — then dispatch every `requests/*.md` to a fresh
+   subagent, run `finalize`, and keep the case list, harness, and model fixed.
+   Worked example: `issue-123-literal-reframe-ab.md` (the Haiku A/B of the
+   PR #111 tweak-#3 sentence, 4 seeds per arm, observed traces). Follow the `skill-evals/shared-benchmark.json` run
    policy (≥3 runs per variant, 5 recommended) because single runs are noise.
    Prefer `--mode code` when the question allows it so `traceSource` is
    `observed`; otherwise report when chat runs fall back to narrated Trace

@@ -1,0 +1,23 @@
+{
+  "ok": false,
+  "capturedAt": "2026-07-17T22:32:27.662Z",
+  "provider": "claude-subagent",
+  "model": "claude-haiku-4-5",
+  "surface": "homepage",
+  "mode": "chat",
+  "promptVariant": "baseline",
+  "total": 3,
+  "taskOk": 2,
+  "taskOkRate": 0.6666666666666666,
+  "traceOk": 3,
+  "traceOkRate": 1,
+  "traceSource": "observed",
+  "passed": 2,
+  "safePathRate": 1,
+  "structuredPathRate": 1,
+  "transcripts": [
+    "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-a-run4/state_add_done_transition.json",
+    "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-a-run4/class_add_duck.json",
+    "eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-a-run4/gantt_add_docs_task.json"
+  ]
+}
