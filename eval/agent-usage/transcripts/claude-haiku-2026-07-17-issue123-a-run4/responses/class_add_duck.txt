@@ -1,0 +1,24 @@
+Updated Mermaid
+
+```mermaid
+classDiagram
+  class Animal
+  class Duck {
+    +quack() void
+  }
+```
+
+Verification
+
+- **ok**: true
+- **warnings**: none
+- **structure**: class diagram with 2 classes (Animal and Duck)
+- **Duck class members**: +quack() void (public method with void return type)
+
+Trace
+
+- **Channel**: CLI (`bun run bin/am.ts`)
+- **Operations**:
+  1. `mutate` with op `{"kind":"add_class","id":"Duck","members":["+quack() void"]}` on the initial class diagram
+  2. `verify` on the mutated diagram (ok=true, no warnings)
+  3. `describe` on the mutated diagram (confirmed 2 classes: Animal and Duck)

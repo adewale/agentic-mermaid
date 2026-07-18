@@ -1,0 +1,30 @@
+Updated Mermaid
+
+```mermaid
+gantt
+  dateFormat YYYY-MM-DD
+  section Build
+  Core :core, 2024-01-01, 2d
+  Docs :docs, after core, 2d
+```
+
+Verification
+
+✓ Diagram verified successfully
+- Structure: valid Gantt chart with one section (Build)
+- Tasks: Core (2024-01-01, 2d) and Docs (after core, 2d)
+- Mutation: add_task operation applied structured
+- No warnings
+- Verified ok: true
+
+Trace
+
+Channel: Library imports from ./src/agent/index.ts
+Operations executed:
+1. parseRegisteredMermaid(source) - parsed Gantt diagram
+2. asGantt(diagram) - narrowed to Gantt type
+3. mutate(diagram, { kind: 'add_task', sectionIndex: 0, label: 'Docs', taskId: 'docs', start: 'after core', end: '2d' }) - added Docs task after Core
+4. verifyMermaid(mutated) - verified result
+5. serializeMermaid(mutated) - serialized to source
+
+Trace log: /home/user/agentic-mermaid/eval/agent-usage/transcripts/claude-haiku-2026-07-17-issue123-b-run2/traces/gantt_add_docs_task.jsonl
