@@ -366,7 +366,14 @@ gates rather than adding new machinery:
 The deepest gap is structural, and `project/lessons-learned.md` (Loop 13)
 names it: every quality signal here is self-generated. The portfolio above
 produces breadth and internal consistency; it cannot substitute for a real
-external consumer.
+external consumer. One boundary is now an exception: the MCP transport is
+exercised by the reference `@modelcontextprotocol/sdk` client
+(`src/__tests__/mcp-client-interop.test.ts`, per
+`project/mcp-client-interop-verification-plan.md`) — a consumer we did not
+write — over a real socket (hosted) and a real subprocess (stdio). That
+closes the self-generated loop for the one boundary where a canonical
+external consumer exists off the shelf; every other signal above remains
+self-generated.
 
 ## References
 

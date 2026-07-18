@@ -66,16 +66,16 @@
       "after": 224.00000000000003
     }
   ],
-  "inputCount": 726,
-  "inputTreeSha256": "870c13ec2bd7409eeac5439aee145ed1cd12e22d4ee07c14612486dc93923caa",
+  "inputCount": 727,
+  "inputTreeSha256": "58e0a839f13d7da07bc3fc6c7ae826fa884111d23b30bc3ff47be6db21ffe118",
   "outputs": [
     {
       "path": "docs/pr-assets/issue-87-linkrank-feedback-packing-before-after.png",
-      "sha256": "3b42a5d10a9a6d5ac0dc50eaf86200452c74f1231de8fdf103cc4105d1ca7f5d"
+      "sha256": "2a235d3660189a2e7d322fe9e72c23d1cca47a714147f7d2a715bf06bf6e4942"
     },
     {
       "path": "docs/pr-assets/issue-87-linkrank-feedback-packing-after.png",
-      "sha256": "ea793b888219408c471591093cc9eff7698b093744322c1d370a11a6889a14f7"
+      "sha256": "8a358e4dc293fd8b1b08e6042a4301857701f2134606ac713c18bb0ee9ac8b5c"
     }
   ]
 }
