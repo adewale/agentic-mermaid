@@ -64,6 +64,9 @@ describe('TEST-3 measured candidate report', () => {
       ['mindmapGitgraph', 'eval/mindmap-gitgraph-content-corpus/gallery-receipt.json'],
       ['pieHighlight', 'eval/pie-highlightslice/evidence-receipt.json'],
       ['sectionB', 'eval/section-b-brand-evidence/evidence-receipt.json'],
+      ['paletteRollout', 'eval/palette-rollout/evidence-receipt.json'],
+      ['paletteHarmony', 'eval/palette-harmony/evidence-receipt.json'],
+      ['linkrankFeedbackPacking', 'eval/linkrank-feedback-packing/evidence-receipt.json'],
     ] as const
     for (const [key, path] of receipts) {
       const receipt = JSON.parse(readFileSync(join(ROOT, path), 'utf8'))

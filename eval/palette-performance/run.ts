@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
-import { fileReceiptEntries, hashFileTree, sha256File } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { fileReceiptEntries, hashFileTree, sha256File, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(import.meta.dir, 'report.json')
@@ -15,18 +15,10 @@ const LARGE_COUNTS = [25, 64, 256, 1000] as const
 const WARMUP_CALLS = 200
 const SAMPLES_PER_FIXTURE = 20
 const ORDER_SEED = 179
-const INPUTS = [
-  'package.json',
-  'bun.lock',
-  'scripts/pr-assets/artifact-receipt.ts',
-  'src/palette-catalog.ts',
-  'src/shared/categorical-palette.ts',
-  'src/shared/color-math.ts',
-  'src/shared/css-named-colors.ts',
-  'src/shared/perceptual-color.ts',
-  'src/xychart/colors.ts',
-  'eval/palette-performance/run.ts',
-].map(path => join(ROOT, path))
+const INPUTS = sortRepositoryPaths(ROOT, [
+  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
+  join(ROOT, 'bun.lock'),
+])
 
 const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
 const round = (value: number): number => Math.round(value * 1_000_000) / 1_000_000

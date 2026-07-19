@@ -105,7 +105,7 @@ Same-machine, same-dependency observations:
 | Focused styled-output wall time | 13.90s | 8.76s | −5.14s / −37.0% |
 | Visible Style/Palette subtotal, holding other baseline observations fixed | 109.07s | 103.93s | −5.14s / −4.7% |
 
-The first full-suite run also supplied direct build-graph evidence: one new test file plus the styled-test edit invalidated four unrelated visual receipts (Pie, Mermaid-doc showcase, Mindmap/GitGraph and Section B) even though all committed gallery PNG bytes remained unchanged. Receipt-only refreshes restored green. The implemented transitive local-import graph now excludes unrelated tests while failing closed on unresolved dependencies; the four receipt input sets fell by 59.9–64.5% with zero visual-output byte changes.
+The first full-suite run also supplied direct build-graph evidence: one new test file plus the styled-test edit invalidated four unrelated visual receipts (Pie, Mermaid-doc showcase, Mindmap/GitGraph and Section B) even though all committed gallery PNG bytes remained unchanged. A later merge-ref CI run exposed three more broad authorities after `package.json` changed (palette rollout, palette harmony, and LinkRank feedback packing). Receipt-only refreshes restored green without rewriting their browser-generated PNGs. The implemented transitive local-import graph now excludes unrelated tests while failing closed on unresolved dependencies; the seven visual receipt input sets fell by 59.9–98.5% with zero visual-output byte changes.
 
 ### Final measured candidate
 

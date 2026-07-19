@@ -18,7 +18,7 @@ date; do not delete old ones — supersede them in place.
 
 **Treat contact sheets as bounded probes in a complex domain.** Machine oracles establish structure, safety, determinism, and finite geometry; they do not establish hierarchy, rhythm, or taste. A registry-derived contact sheet supports pattern recognition across comparable cells, but a scaled overview cannot prove native-size readability. Rule: bind row/source/dimension/output hashes, record inspected cell IDs and findings, and never equate an agent/model sanity scan with independent human approval.
 
-**A broad receipt hash can create work without creating confidence.** Test-only changes invalidated four galleries even though all image bytes were unchanged. Replacing `src/**/*.ts` globs with a fail-closed transitive import graph cut receipt inputs by roughly 60–65% and preserved true-dependency invalidation. Rule: evidence freshness follows the artifact's build graph; unrelated repository churn is not provenance.
+**A broad receipt hash can create work without creating confidence.** Test-only changes invalidated four galleries even though all image bytes were unchanged; the first merge-ref CI attempts then exposed three more broad visual authorities after a `package.json` script-only edit. Replacing `src/**/*.ts` globs with a fail-closed transitive import graph cut the seven receipt input sets by 59.9–98.5% and preserved true-dependency invalidation. Rule: evidence freshness follows the artifact's build graph; unrelated repository churn is not provenance.
 
 ## 2026-07 — public-artifact freshness and delivery closure (#184)
 

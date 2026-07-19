@@ -44,15 +44,24 @@ describe('generated-artifact receipt kernel', () => {
   })
 
   test('visual receipt graphs include production dependencies but exclude unrelated tests', () => {
-    const generators = [
-      'pie-highlightslice-evidence.ts',
-      'mermaid-doc-showcase-gallery.ts',
-      'mindmap-gitgraph-content-gallery.ts',
-      'section-b-brand-evidence.ts',
-    ]
-    for (const generator of generators) {
-      const inputs = transitiveLocalInputs(REPO, [join(REPO, 'scripts', 'pr-assets', generator)])
-        .map(path => path.slice(REPO.length + 1).replaceAll('\\', '/'))
+    const generators: Record<string, string[]> = {
+      'pie-highlightslice-evidence.ts': [],
+      'mermaid-doc-showcase-gallery.ts': [],
+      'mindmap-gitgraph-content-gallery.ts': [],
+      'section-b-brand-evidence.ts': [],
+      'palette-rollout-evidence.ts': [],
+      'palette-harmony-experiment.ts': [],
+      'linkrank-feedback-packing-evidence.ts': [
+        'src/parser.ts',
+        'src/layout-engine.ts',
+        'src/index.ts',
+      ],
+    }
+    for (const [generator, dynamicRoots] of Object.entries(generators)) {
+      const inputs = transitiveLocalInputs(REPO, [
+        join(REPO, 'scripts', 'pr-assets', generator),
+        ...dynamicRoots.map(path => join(REPO, path)),
+      ]).map(path => path.slice(REPO.length + 1).replaceAll('\\', '/'))
       expect(inputs.some(path => path.startsWith('src/') && !path.startsWith('src/__tests__/')), generator).toBe(true)
       expect(inputs.filter(path => path.startsWith('src/__tests__/')), generator).toEqual([])
       expect(inputs).toContain(`scripts/pr-assets/${generator}`)

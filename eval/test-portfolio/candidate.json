@@ -229,6 +229,21 @@
       "afterInputs": 266,
       "percentReduction": 63.1
     },
+    "paletteRollout": {
+      "beforeInputs": 723,
+      "afterInputs": 262,
+      "percentReduction": 63.8
+    },
+    "paletteHarmony": {
+      "beforeInputs": 715,
+      "afterInputs": 11,
+      "percentReduction": 98.5
+    },
+    "linkrankFeedbackPacking": {
+      "beforeInputs": 727,
+      "afterInputs": 266,
+      "percentReduction": 63.4
+    },
     "visualOutputBytesChanged": 0
   },
   "faultSensitivity": {
