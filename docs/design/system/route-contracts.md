@@ -793,8 +793,9 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 20. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
 21. `repairLabelsOffOwnRoute` - re-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)
 22. `separateEdgeLabelPills` - slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)
-23. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
-24. `placeStateNotes` - place state-diagram note boxes on their declared side, clear of nodes/groups/routes (state diagrams only; translate-only)
+23. `closeRouteContracts` - re-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)
+24. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
+25. `placeStateNotes` - place state-diagram note boxes on their declared side, clear of nodes/groups/routes (state diagrams only; translate-only)
 
 <!-- LAYOUT-PIPELINE:end -->
 

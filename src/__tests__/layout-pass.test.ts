@@ -34,6 +34,12 @@ describe('LAYOUT_PIPELINE manifest', () => {
     }
   })
 
+  test('final route-contract closure runs after late label repair and before translation', () => {
+    const ids = LAYOUT_PIPELINE.map(pass => pass.id)
+    expect(ids.indexOf('separateEdgeLabelPills')).toBeLessThan(ids.indexOf('closeRouteContracts'))
+    expect(ids.indexOf('closeRouteContracts')).toBeLessThan(ids.indexOf('translateGeometryToNonNegativeOrigin'))
+  })
+
   test('the three symmetric passes are mutually unordered (spec §8 R1: order is empirically free)', () => {
     const trio = ['applySymmetricFanoutEmissions', 'applySymmetricParallelEdgeLanes', 'applyParallelDuplicateLanes']
     for (const id of trio) {

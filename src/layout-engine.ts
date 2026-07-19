@@ -42,7 +42,7 @@ import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations } from './layout-rubric.ts'
-import { applyRouteContracts, classifyRoutes, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
@@ -1360,8 +1360,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { separateEdgeLabelPills({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
+    id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
+    after: ['separateEdgeLabelPills'], mutates: ['edges'], determinism: 'fixed-point',
+    mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
+    run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+  },
+  {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
-    after: ['repairLabelsOffOwnRoute'], mutates: ['translate'], determinism: 'in-place',
+    after: ['closeRouteContracts'], mutates: ['translate'], determinism: 'in-place',
     run: c => { translateGeometryToNonNegativeOrigin(c.nodes, c.edges, c.groups, c.layoutPadding) },
   },
   {

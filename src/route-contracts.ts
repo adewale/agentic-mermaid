@@ -453,6 +453,8 @@ interface LaneContext {
   classes?: RouteClass[]
   /** Lines per (nodeId:side) — the port-ranking occupancy (see facingSide). */
   sideUse?: Map<string, number>
+  /** Final closure proves label slots against rendered 8px halos. */
+  finalLabelClearance?: boolean
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -617,6 +619,42 @@ export function allocateRoutePorts(
   }
 
   return { byEdge, sideUse }
+}
+
+/** Build the proof context shared by route production and final hitch auditing.
+ * Bundle-owned routes do not compete for the independent flow-side slots used
+ * by the diamond vertex policy, so both callers must remove the same endpoints
+ * from the allocator's semantic-side occupancy. */
+function buildRouteLaneContext(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+  classes: RouteClass[],
+  isBundleOwned: (edge: PositionedEdge) => boolean,
+  finalLabelClearance = false,
+): { ctx: LaneContext; axis: Axis } {
+  const axis = axisFor(graph.direction)
+  const sideUse = allocateRoutePorts(positioned, graph, classes).sideUse
+
+  for (const edge of positioned.edges) {
+    if (!isBundleOwned(edge) || edge.edgeIndex === undefined) continue
+    const routeClass = classes[edge.edgeIndex]
+    if (routeClass !== 'primary-forward' && !(routeClass === 'feedback' && !edge.label)) continue
+
+    for (const endpoint of ['source', 'target'] as const) {
+      const nodeId = endpoint === 'source' ? edge.source : edge.target
+      const { side } = roleAndSide(routeClass, endpoint, axis)
+      const key = `${nodeId}:${side}`
+      const remaining = (sideUse.get(key) ?? 0) - 1
+      if (remaining > 0) sideUse.set(key, remaining)
+      else sideUse.delete(key)
+    }
+  }
+
+  return {
+    axis,
+    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance },
+  }
 }
 
 /** Port-ranking sharpness: a diamond's vertex is the strongest anchor. */
@@ -914,24 +952,38 @@ export function findLabelSlot(
   if (!edge.label) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
   const m = measureMultilineText(applyTextTransform(edge.label, ctx.style.edgeTextTransform), ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
   const PAD = 2
-  const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) =>
-    ax < bx + bw + PAD && ax + aw + PAD > bx && ay < by + bh + PAD && ay + ah + PAD > by
+  const rectsOverlap = (
+    ax: number, ay: number, aw: number, ah: number,
+    bx: number, by: number, bw: number, bh: number,
+    gap = PAD,
+  ) => ax < bx + bw + gap && ax + aw + gap > bx && ay < by + bh + gap && ay + ah + gap > by
 
   const slotClear = (cx: number, cy: number): boolean => {
     const pill = pillRect(cx, cy, m)
     for (const node of ctx.nodes) {
-      if (node.id === edge.source || node.id === edge.target) continue
-      if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, node.x, node.y, node.width, node.height)) return false
+      const endpoint = node.id === edge.source || node.id === edge.target
+      if (endpoint && !ctx.finalLabelClearance) continue
+      // The final closure runs after the last label pass, so its candidate
+      // must already satisfy the renderer's 8px label halo against every node.
+      const clearance = ctx.finalLabelClearance ? 8 : PAD
+      if (pill.x < node.x + node.width + clearance && pill.x + pill.w + clearance > node.x &&
+        pill.y < node.y + node.height + clearance && pill.y + pill.h + clearance > node.y) return false
     }
     for (const other of ctx.edges) {
       if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-      const rect = isMovableReciprocalLabel(edge, other, ctx) ? null : labelRect(other, ctx.style)
-      if (rect && rectsOverlap(pill.x, pill.y, pill.w, pill.h, rect.x, rect.y, rect.w, rect.h)) return false
+      // Production may ignore a reciprocal feedback label because a later
+      // label pass can move it. Final closure has no such future pass: both
+      // rendered 8px halos must clear now (16px between the inner pills).
+      const movable = !ctx.finalLabelClearance && isMovableReciprocalLabel(edge, other, ctx)
+      const rect = movable ? null : labelRect(other, ctx.style)
+      const labelGap = ctx.finalLabelClearance ? 16 : PAD
+      if (rect && rectsOverlap(pill.x, pill.y, pill.w, pill.h, rect.x, rect.y, rect.w, rect.h, labelGap)) return false
       for (let i = 1; i < other.points.length; i++) {
         const a = other.points[i - 1]!, b = other.points[i]!
         const sxLo = Math.min(a.x, b.x), sxHi = Math.max(a.x, b.x)
         const syLo = Math.min(a.y, b.y), syHi = Math.max(a.y, b.y)
-        if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, sxLo, syLo, sxHi - sxLo, syHi - syLo)) return false
+        const routeGap = ctx.finalLabelClearance ? 8 : PAD
+        if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, sxLo, syLo, sxHi - sxLo, syHi - syLo, routeGap)) return false
       }
     }
     return true
@@ -1274,33 +1326,16 @@ export function applyRouteContracts(
   style: LabelMetricsStyle,
 ): RouteCertificate[] {
   const classes = classifyRoutes(graph)
-  const axis = axisFor(graph.direction)
+  const { axis, ctx } = buildRouteLaneContext(
+    positioned,
+    graph,
+    style,
+    classes,
+    edge => bundled.has(edge),
+    false,
+  )
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const groupMap = flattenGroups(positioned.groups)
-  // Port-ranking occupancy: how many lines each facing side will carry.
-  // Derived by the dynamic port allocator, but intentionally counted on the
-  // semantic facing side (primary flow sides; unlabeled feedback flipped
-  // sides) so routing behavior stays independent of the current, possibly
-  // not-yet-repaired endpoint coordinates.
-  const sideUse = allocateRoutePorts(positioned, graph, classes).sideUse
-  for (const edge of bundled) {
-    if (edge.edgeIndex === undefined) continue
-    const cls = classes[edge.edgeIndex]
-    if (cls !== 'primary-forward' && !(cls === 'feedback' && !edge.label)) continue
-    const sourceSide = cls === 'feedback'
-      ? facingSide({ ...axis, sign: axis.sign === 1 ? -1 : 1 }, 1)
-      : facingSide(axis, 1)
-    const targetSide = cls === 'feedback'
-      ? facingSide({ ...axis, sign: axis.sign === 1 ? -1 : 1 }, -1)
-      : facingSide(axis, -1)
-    for (const [nodeId, side] of [[edge.source, sourceSide], [edge.target, targetSide]] as const) {
-      const key = `${nodeId}:${side}`
-      const next = (sideUse.get(key) ?? 0) - 1
-      if (next > 0) sideUse.set(key, next)
-      else sideUse.delete(key)
-    }
-  }
-  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse }
   const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
 
   // Attempt one proof-carrying straightening; updates geometry + certificate.
@@ -2387,41 +2422,47 @@ export interface RouteHitch {
  * Re-prove the straight-lane invariant over FINAL geometry. A hitch is a
  * primary-forward or feedback edge that still bends although a clear
  * candidate lane exists for it. The layout pass straightens these itself, so
- * any hit here means a later pass mutated geometry after certification — the
- * tripwire issue #25 acceptance criterion 3 asks for.
+ * any hit here means final route-contract closure failed to reconcile a late
+ * edge or label repair — the tripwire issue #25 acceptance criterion 3 asks for.
  */
 export function findRouteHitches(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
   graph: MermaidGraph,
   style: LabelMetricsStyle = resolveRenderStyle({}),
 ): RouteHitch[] {
-  const axis = axisFor(graph.direction)
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
-  // Mirror the layout pass's priority rules using the certified classes.
+  return scanRouteHitches(positioned, graph, style, false)
+}
+
+/** Run the final hitch proof over settled geometry. In closing mode, mutate
+ * only edges for which that exact proof succeeds. Every successful mutation
+ * removes one bent edge and never bends a straight edge, so repeated scans
+ * terminate after at most `edges.length` rounds without relying on geometry
+ * equality or an empirical retry count. */
+function scanRouteHitches(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+  close: boolean,
+): RouteHitch[] {
+  // Reuse the producer's priority and occupancy rules with the final certified
+  // classes. In particular, bundle-owned routes must not become audit-only
+  // diamond-side competitors.
   const classes: RouteClass[] = []
   for (const e of positioned.edges) {
     if (e.edgeIndex !== undefined && e.routeCertificate) classes[e.edgeIndex] = e.routeCertificate.routeClass
   }
-  // And mirror the port-ranking occupancy so the prover applies the same
-  // vertex-emit policy (a deliberate vertex Z is not a hitch).
-  const sideUse = new Map<string, number>()
-  const bumpSide = (nodeId: string, side: PortSide) => {
-    const key = `${nodeId}:${side}`
-    sideUse.set(key, (sideUse.get(key) ?? 0) + 1)
-  }
-  for (const e of positioned.edges) {
-    const cls = e.routeCertificate?.routeClass
-    if (cls === 'primary-forward') {
-      bumpSide(e.source, facingSide(axis, 1))
-      bumpSide(e.target, facingSide(axis, -1))
-    } else if (cls === 'feedback' && !e.label) {
-      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
-      bumpSide(e.source, facingSide(flipped, 1))
-      bumpSide(e.target, facingSide(flipped, -1))
-    }
-  }
-  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse }
+  const { axis, ctx } = buildRouteLaneContext(
+    positioned,
+    graph,
+    style,
+    classes,
+    edge => edge.routeCertificate?.invariant === 'bundle',
+    true,
+  )
+  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const sideUse = ctx.sideUse!
   const hitches: RouteHitch[] = []
+  const closedEdges = new Set<PositionedEdge>()
 
   for (const edge of positioned.edges) {
     const cert = edge.routeCertificate
@@ -2447,11 +2488,39 @@ export function findRouteHitches(
     const vertexLane = emitFromVertex
       ? source[edgeAxis.cross] + (edgeAxis.cross === 'y' ? source.height : source.width) / 2
       : undefined
-    // Probe on a copy so validation never mutates the layout.
-    const probe: PositionedEdge = { ...edge, points: points.map(p => ({ ...p })) }
+    // Validation probes a copy; final closure applies the same proof to the
+    // actual edge. Because the context owns the live edge array, later edges
+    // see every earlier closure and cannot be admitted against stale routes.
+    const probe: PositionedEdge = close
+      ? edge
+      : { ...edge, points: points.map(p => ({ ...p })) }
     const attempt = tryStraighten(probe, source, target, ctx, edgeAxis, vertexLane)
     if (attempt.applied) {
       hitches.push({ edge: edgeId(edge), deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
+      if (close) closedEdges.add(edge)
+    }
+  }
+
+  if (closedEdges.size > 0) {
+    const finalPortPlan = allocateRoutePorts(positioned, graph, classes)
+    for (const edge of closedEdges) {
+      const saved = edge.routeCertificate
+      if (!saved || edge.points.length !== 2 || bendCount(edge.points) !== 0) continue
+      const source = nodeMap.get(edge.source)
+      const target = nodeMap.get(edge.target)
+      const assignments = finalPortPlan.byEdge.get(edge)
+      edge.routeCertificate = {
+        edgeIndex: saved.edgeIndex,
+        routeClass: saved.routeClass,
+        invariant: 'straight',
+        bendCount: 0,
+        directLaneClear: true,
+        sourcePort: source ? portAt(source, edge.points[0]!) : undefined,
+        targetPort: target ? portAt(target, edge.points[1]!) : undefined,
+        sourcePortAssignment: assignments?.source,
+        targetPortAssignment: assignments?.target,
+        straightened: true,
+      }
     }
   }
   return hitches
@@ -2856,6 +2925,21 @@ export function separateEdgeLabelPills(
     }
     if (conflicts === 0) break
   }
+}
+
+/** Close the route contract over settled label geometry. Each scan changes
+ * only routes accepted by the final hitch proof, so the closer and auditor
+ * cannot disagree about lane occupancy. A successful change removes one bent
+ * edge and never introduces a bend; at most `edges.length` scans are needed. */
+export function closeRouteContracts(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+): RouteCertificate[] {
+  for (let round = 0; round < positioned.edges.length; round++) {
+    if (scanRouteHitches(positioned, graph, style, true).length === 0) break
+  }
+  return positioned.edges.flatMap(edge => edge.routeCertificate ? [edge.routeCertificate] : [])
 }
 
 export function auditRouteContracts(
