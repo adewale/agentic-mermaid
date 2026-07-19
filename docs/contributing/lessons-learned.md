@@ -8,7 +8,7 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
-## 2026-07 — complexity-aware test portfolio
+## 2026-07 — complexity-aware test portfolio (#193)
 
 **Optimize declared obligations, not test count.** The old 4,500-render matrix was exhaustive only for family × Look × Palette while fixing source complexity, output, transport, security, seed, and background. The replacement exhausts cheap Style algebra, covers expensive factors with independently verified variable strength, retains exact goldens and fault probes, and publishes the missing-tuple count. Rule: state what a row proves before optimizing it; fewer rows are useful only when the declared interaction and oracle strength improve.
 
