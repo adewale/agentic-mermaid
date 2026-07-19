@@ -620,7 +620,7 @@
     },
     {
       "path": "src/layout-engine.ts",
-      "sha256": "ec858188a75da3808489015097518661d98a351d54eb984330c49d1f00a949d6"
+      "sha256": "3cb6adc5b5260b9c28aef985348608845593f6bca2fcda9c869faa6ce174f096"
     },
     {
       "path": "src/layout-rubric.ts",
@@ -808,7 +808,7 @@
     },
     {
       "path": "src/route-contracts.ts",
-      "sha256": "5c677b13700f86c21240d24e692e61370c8e0fc1f2e4e25811e4fe47cd7d0537"
+      "sha256": "47947d90bb0596bb083812915e85a2d8b95764cf39b12ed1d7b55eed60138de6"
     },
     {
       "path": "src/scene/accessibility.ts",
