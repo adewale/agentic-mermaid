@@ -5,7 +5,7 @@ import { chromium } from 'playwright'
 import { renderMermaidASCII, renderMermaidSVG } from '../../src/index.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import { visualWidth } from '../../src/ascii/width.ts'
-import { fileReceiptEntries, filesUnder, repositoryPath, sortRepositoryPaths } from './artifact-receipt.ts'
+import { fileReceiptEntries, repositoryPath, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS = join(ROOT, 'eval', 'mindmap-gitgraph-content-corpus')
@@ -20,14 +20,9 @@ const inputPaths = (): string[] => sortRepositoryPaths(ROOT, [
   join(CORPUS, 'fork-snapshot.json'),
   join(ROOT, 'package.json'),
   join(ROOT, 'bun.lock'),
-  import.meta.filename,
-  join(import.meta.dir, 'artifact-receipt.ts'),
   ...(['mindmap', 'gitgraph'] as const).flatMap(family =>
     readdirSync(join(CORPUS, family)).filter(name => name.endsWith('.mmd')).sort().map(name => join(CORPUS, family, name))),
-  // Conservative by design: public render/verify/terminal APIs cross agent, ASCII,
-  // Scene IR, theme, and shared helpers. Hash all TypeScript source so a transitive
-  // renderer change can never leave a stale gallery receipt green.
-  ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
 ])
 const outputPaths = (): string[] => (['mindmap', 'gitgraph'] as const).map(family => join(OUT, `${family}-content-gallery.png`))
 const receiptForCurrentFiles = () => ({

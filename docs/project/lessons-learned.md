@@ -65,7 +65,9 @@ family docs, and `TODO.md`.
 14. **Archive completion; promote remaining work.** Completed implementation
     ledgers and release retrospectives retain provenance under `project/archive/`.
     Genuine defects receive stable IDs and acceptance criteria in `TODO.md`.
-15. **Aesthetics live on scene roles, not in family renderers.** A family inherits
+15. **A test portfolio needs separate authorities for finite algebra, expensive interactions, fixed faults, and human sense-making.** Exhaust cheap closed domains, use independently verified variable-strength arrays for expensive crossings, retain exact regressions/goldens for known failures, and use contact sheets for emergent aesthetic judgment. Calling one rectangular matrix “exhaustive” hides every dimension it holds constant.
+16. **Coverage generators are claims; independent obligation enumerators are evidence.** A planner can omit the same family or tuple in both its rows and its self-check. Derive enrollment from registries, make family conformance data exact-closed, and verify required pairs/triples with a separately implemented enumerator plus fake/removed-member sabotage.
+17. **Aesthetics live on scene roles, not in family renderers.** A family inherits
     the whole house style — hand-drawn/wash, every registered Palette × Look combination, text halos, DOM
     identity — by lowering its marks onto existing scene roles whose traits the
     backends dispatch on; it never draws styled pixels or branches on family. Assign
@@ -113,6 +115,10 @@ family docs, and `TODO.md`.
   did not make a stale `file#symbol` authority true. Contract tests resolve the
   declared path and exported symbol, while the manifest remains a navigation
   index rather than proof of the behavior it cites.
+- **A combinatorial estimate must respect its mathematical lower bound.** The planned 350–600-row Style portfolio could never satisfy the declared Look × Palette × three-background obligation: that triple alone requires 900 rows. Keep the obligation and report the miss; never tune a covering-array budget by silently dropping the tuple that made it valuable.
+- **Complexity is a vector and a registration obligation, not one score.** Entity count cannot stand in for nesting, reciprocal/parallel routes, cycles, Unicode classes, authored text volume, configuration, or family-risk syntax. Every family now supplies minimal, representative, dense, text-stress, risk, and real-corpus-outlier sources; adding a family without those witnesses fails closure rather than reducing its test depth invisibly.
+- **Contact sheets are Cynefin probes, not visual proof.** A diversity-selected overview lets a reviewer sense repeated patterns and surprising outliers in a complex aesthetic space, while native-size cells answer readability questions. Bind the selection, source, dimensions, and HTML bytes in a manifest; keep model sanity separate from independent human approval, and fail a release rather than inventing reviewer identity or minutes.
+- **Receipt dependencies should follow the build graph, not the repository tree.** Hashing every `src/**/*.ts` file invalidated four visual receipts after unrelated test-only edits while every output byte stayed unchanged. A fail-closed transitive local-import graph reduced those input sets by roughly 60–65%, still invalidates true renderer dependencies, and turns receipt churn into causal evidence instead of source-tree noise.
 - **Run generators after the final source/test edit and final rebase.**
   Dependency-complete receipts correctly became stale after late test changes and
   again when a moving base changed the merge-ref input tree. The reliable order is

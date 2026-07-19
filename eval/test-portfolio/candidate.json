@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "kind": "complexity-aware-test-portfolio-candidate",
+  "validity": {
+    "claim": "Measured candidate portfolio after registry-derived enrollment, variable-strength rendering, format crossing, contact-sheet generation, fault sensitivity, and precise visual-receipt dependency graphs.",
+    "warrant": "The generator and an independently implemented tuple enumerator agree on every declared obligation; same-machine focused commands record before/after cost; fixed fault probes and existing regressions remain executable.",
+    "rebuttal": "Timing is diagnostic and not portable. The release platform matrix is configured but has not run for this working-tree candidate. Independent human contact-sheet approval remains pending and is a deliberate release blocker. Thirty-merge escaped-defect observation cannot exist yet."
+  },
+  "provenance": {
+    "baseCommit": "cb2412b15b48ae41e55ace80f613be3723072d49",
+    "sourceState": "content-addressed-candidate",
+    "capturedAt": "2026-07-19T02:10:00Z",
+    "generator": "manual-command-capture/v1",
+    "inputTreeSha256": "4626397522d5b2619d1ac9b53a1d501539fd9b679e92f800606feb5059004155",
+    "inputs": [
+      {
+        "path": "eval/test-portfolio/contact-sheets/citizenship-review.json",
+        "sha256": "f56cc097c141e2a83736f770f2e3c48d2f5e55e343bca2f8a7613841caf5f63a"
+      },
+      {
+        "path": "eval/test-portfolio/contact-sheets/citizenship.html",
+        "sha256": "9cea262a03a97ab0ee98a4bd8bd30d13139a1fd158ca452be502d91be798b3ce"
+      },
+      {
+        "path": "eval/test-portfolio/contact-sheets/citizenship.manifest.json",
+        "sha256": "9df46a1240e4c08efb8ed96e79c4330692d12d7853245c83ce05dc5b7c523355"
+      },
+      {
+        "path": "scripts/ci/test-portfolio-visual-review.ts",
+        "sha256": "9e5d9f4bc0932e6ba8f3557debe4ca24bb305bd43bbfa4a1f2804fb84e128d3a"
+      },
+      {
+        "path": "scripts/pr-assets/artifact-receipt.ts",
+        "sha256": "1b865e56a736b105a0807245e40376da36cad7ec11a2951a35c519a097f37d8f"
+      },
+      {
+        "path": "scripts/pr-assets/test-portfolio-contact-sheet.ts",
+        "sha256": "5242271d4075395fd6019ab6a7fb8f85cf13beee70b10ac19dde33a1b1dfcfd1"
+      },
+      {
+        "path": "src/__tests__/helpers/diagram-complexity.ts",
+        "sha256": "75e69bb42fbcdd948d8d7e9512fe836e5d1f488b2593442c1c3d3e9dd54fd760"
+      },
+      {
+        "path": "src/__tests__/helpers/family-conformance-profiles.ts",
+        "sha256": "c00531dbd970f1938234bf4d795e3c328e83688cddc4570a38677a91aeccd93a"
+      },
+      {
+        "path": "src/__tests__/helpers/render-conformance-plan.ts",
+        "sha256": "d31447fe4182cc5f16b8541296b489878b903ba9e2accfa42754d3162ce84ecd"
+      },
+      {
+        "path": "src/__tests__/helpers/render-conformance-verifier.ts",
+        "sha256": "0622c9f3674895597ff13f029a4a46b7eeabfe206db751f8ad1dc4a4103693cd"
+      },
+      {
+        "path": "src/__tests__/mermaid-doc-showcase.test.ts",
+        "sha256": "cd0203daa0e187c1d69a15e2ae3c07898e140b007eeb625dfb841d3a7d8f513f"
+      },
+      {
+        "path": "src/__tests__/render-conformance-plan.test.ts",
+        "sha256": "6fd07d9705b92d10c031f983a5729d615d1274cc0a7e8142ae9cf89ee1094a1a"
+      },
+      {
+        "path": "src/__tests__/styled-output.test.ts",
+        "sha256": "075b2ed87aa3f5a7749468d2b70c109d8b74619e9b1bf409cafe1a97d6b26fab"
+      },
+      {
+        "path": "src/__tests__/test-portfolio-contact-sheet.test.ts",
+        "sha256": "178760b238575730aacb33e5bdd503377ae8c2bf5f03bbf1282360256e911a99"
+      },
+      {
+        "path": "src/__tests__/test-portfolio-fault-sensitivity.test.ts",
+        "sha256": "2d9425fc5b0b6a35b1ef25ebe41ad3b549a4254d50908932c12794262e19e9a3"
+      }
+    ]
+  },
+  "environment": {
+    "runtime": "Bun 1.3.13",
+    "os": "Darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpuModel": "Apple M2 Ultra",
+    "logicalCpus": 24,
+    "coverageInstrumentation": true
+  },
+  "authorities": {
+    "families": 15,
+    "nonDefaultLooks": 15,
+    "palettes": 20,
+    "complexityStrata": 6,
+    "securityModes": 2,
+    "backgroundPolarities": 3,
+    "outputFormats": 4,
+    "backendClasses": 3
+  },
+  "observations": {
+    "renderConformance": {
+      "command": "bun test src/__tests__/render-conformance-plan.test.ts",
+      "exitCode": 0,
+      "wallSeconds": 25.28,
+      "userSeconds": 26.74,
+      "systemSeconds": 1.18,
+      "passed": 9,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 9854
+    },
+    "docsShowcase": {
+      "command": "bun test src/__tests__/mermaid-doc-showcase.test.ts",
+      "exitCode": 0,
+      "wallSeconds": 1.17,
+      "userSeconds": 1.51,
+      "systemSeconds": 0.17,
+      "passed": 3,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 123
+    },
+    "styledOutput": {
+      "command": "bun test src/__tests__/styled-output.test.ts",
+      "exitCode": 0,
+      "wallSeconds": 8.22,
+      "userSeconds": 9.46,
+      "systemSeconds": 0.4,
+      "passed": 23,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 478
+    },
+    "sectionBVisualEvidence": {
+      "command": "bun test src/__tests__/section-b-visual-evidence.test.ts",
+      "exitCode": 0,
+      "wallSeconds": 6.24,
+      "userSeconds": 6.42,
+      "systemSeconds": 1.16,
+      "passed": 4,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 36
+    },
+    "paletteAndRoleGates": {
+      "command": "bun test src/__tests__/palette-rollout-evidence-integrity.test.ts src/__tests__/palette-harmony-experiment.test.ts src/__tests__/palette-performance-evidence.test.ts src/__tests__/style-role-audit.test.ts",
+      "exitCode": 0,
+      "wallSeconds": 2.91,
+      "userSeconds": 3.1,
+      "systemSeconds": 0.82,
+      "passed": 12,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 56
+    },
+    "citizenshipContactSheetGeneration": {
+      "command": "bun run contact:sheet:test-portfolio --kind citizenship --output-dir /tmp/am-test3-contact-sheet",
+      "exitCode": 0,
+      "wallSeconds": 1.86,
+      "userSeconds": 2.98,
+      "systemSeconds": 0.19,
+      "passed": 60,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 0
+    },
+    "fullCoveredUnitSuite": {
+      "command": "bun run test",
+      "exitCode": 0,
+      "wallSeconds": 311.65,
+      "userSeconds": 315.1,
+      "systemSeconds": 40.27,
+      "passed": 6779,
+      "skipped": 39,
+      "failed": 0,
+      "testFiles": 394,
+      "assertions": 338379
+    }
+  },
+  "portfolio": {
+    "coreRows": 1047,
+    "mixedFormatRows": 135,
+    "coreRequiredObligations": 2739,
+    "coreCoveredObligations": 2739,
+    "mixedRequiredObligations": 309,
+    "mixedCoveredObligations": 309,
+    "missingObligations": [],
+    "pureLookPaletteRows": 300,
+    "focusedGoldenRows": 360,
+    "docsCanonicalRows": 15,
+    "externalReferenceRows": 8,
+    "mandatoryFamilyStrata": 90,
+    "citizenshipContactSheetRows": 60,
+    "interactionContactSheetRows": 120,
+    "outlierContactSheetRows": 66
+  },
+  "beforeAfter": {
+    "visibleStylePaletteWallSecondsBefore": 109.07,
+    "visibleStylePaletteWallSecondsAfter": 43.82,
+    "wallSecondsSaved": 65.25,
+    "percentReduction": 59.82,
+    "docsCartesianRendersBefore": 4500,
+    "docsCartesianRendersAfter": 0,
+    "duplicateStyledRendersBefore": 360,
+    "duplicateStyledRendersAfter": 0,
+    "styledOutputWallSecondsBefore": 13.9,
+    "styledOutputWallSecondsAfter": 8.22,
+    "notes": "The candidate is slower than the provisional 20\u201336s estimate because the declared Look \u00d7 Palette \u00d7 background three-way obligation alone has a mathematical lower bound of 900 real SVG rows. Reliability obligations were retained instead of forcing the estimate.",
+    "fullCoveredSuiteWallSecondsBefore": 410.73,
+    "fullCoveredSuiteWallSecondsAfter": 311.65,
+    "fullCoveredSuiteWallSecondsSaved": 99.08,
+    "fullCoveredSuitePercentReduction": 24.12
+  },
+  "receiptDependencyReduction": {
+    "mermaidDocs": {
+      "beforeInputs": 715,
+      "afterInputs": 254,
+      "percentReduction": 64.5
+    },
+    "mindmapGitgraph": {
+      "beforeInputs": 729,
+      "afterInputs": 292,
+      "percentReduction": 59.9
+    },
+    "pieHighlight": {
+      "beforeInputs": 714,
+      "afterInputs": 259,
+      "percentReduction": 63.7
+    },
+    "sectionB": {
+      "beforeInputs": 721,
+      "afterInputs": 266,
+      "percentReduction": 63.1
+    },
+    "visualOutputBytesChanged": 0
+  },
+  "faultSensitivity": {
+    "newExecutableProbes": [
+      "fake/omitted family",
+      "missing variable-strength background rows",
+      "reversed Look/Palette precedence",
+      "strict external-reference leakage",
+      "transparent page repainting",
+      "rough seed nondeterminism",
+      "Unicode connector leakage into ASCII"
+    ],
+    "retainedEvidence": [
+      "src/__tests__/png-output-options-contract.test.ts",
+      "src/__tests__/custom-font-geometry.test.ts",
+      "src/__tests__/agent-determinism.test.ts",
+      "src/__tests__/ascii-reciprocal-terminal.test.ts",
+      "src/__tests__/property-all-families-fuzz.test.ts",
+      "src/__tests__/test-portfolio-fault-sensitivity.test.ts"
+    ],
+    "knownHistoricalFaultLoss": 0
+  },
+  "boundaries": {
+    "perPullRequest": [
+      "library SVG/PNG/ASCII/Unicode variable-strength portfolio",
+      "CLI, package, browser and MCP boundary suites already in canonical CI",
+      "Node 18 minimum and Node 22 consumer lanes"
+    ],
+    "release": [
+      "Ubuntu canonical CI",
+      "macOS and Windows registry-derived render/resource smoke",
+      "Chromium browser contracts",
+      "TypeScript, Python and Go MCP clients",
+      "installed tarball and exact release identity",
+      "hash-bound independent human citizenship-sheet approval"
+    ],
+    "unprovisionedOrNarrowed": [
+      "Firefox and WebKit are not claimed browser targets; Chromium is the executable browser contract",
+      "Linux ARM is not a hosted release row; local baseline supplies macOS arm64 evidence only"
+    ]
+  },
+  "contactSheet": {
+    "artifact": "eval/test-portfolio/contact-sheets/citizenship.html",
+    "manifest": "eval/test-portfolio/contact-sheets/citizenship.manifest.json",
+    "review": "eval/test-portfolio/contact-sheets/citizenship-review.json",
+    "generationSeconds": 1.86,
+    "humanReviewStatus": "pending-independent-human-review",
+    "releaseGate": "configured-fail-closed",
+    "modelSanityIsHumanApproval": false
+  },
+  "futureObservation": {
+    "thirtyMergeEscapedDefectComparison": "pending",
+    "ciP50P95AfterThirtyMerges": "pending",
+    "flakeRetryAfterThirtyMerges": "pending",
+    "humanReviewMinutesAndFindings": "pending-independent-human-review"
+  }
+}

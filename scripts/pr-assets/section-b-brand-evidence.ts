@@ -9,7 +9,7 @@ import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
 import { inspectPngDimensions } from '../../src/output-color-profile.ts'
 import { renderMermaidASCII, renderMermaidSVG, validateStyleSpec, type StyleSpec } from '../../src/index.ts'
-import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths } from './artifact-receipt.ts'
+import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 export const OUTPUT = join(ROOT, 'docs', 'design', 'families', 'section-b-brand-evidence.png')
@@ -187,9 +187,7 @@ const inputPaths = sortRepositoryPaths(ROOT, [
   VISUAL_APPROVAL,
   PRODUCTION_COMPARISON,
   ...FONT_FILES,
-  import.meta.filename,
-  join(import.meta.dir, 'artifact-receipt.ts'),
-  ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
 ])
 
 interface VisualApprovalRecord {

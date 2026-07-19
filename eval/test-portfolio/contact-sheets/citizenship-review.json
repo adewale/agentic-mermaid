@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "status": "pending-independent-human-review",
+  "kind": "citizenship",
+  "manifest": "eval/test-portfolio/contact-sheets/citizenship.manifest.json",
+  "manifestSha256": "9df46a1240e4c08efb8ed96e79c4330692d12d7853245c83ce05dc5b7c523355",
+  "reviewedAt": null,
+  "reviewer": null,
+  "minutes": null,
+  "nativeSizeCellsInspected": [],
+  "findings": [],
+  "automatedAndModelSanity": {
+    "status": "passed-without-human-approval-claim",
+    "checks": [
+      "60 registry-derived cells rendered without error",
+      "manifest binds every row, source and HTML byte",
+      "overview scan found no empty, clipped-canvas, or catastrophic overlap cell"
+    ],
+    "limitations": "A scaled overview cannot establish native-size label readability or aesthetic approval. Another human must complete the review fields before this record can become approved."
+  }
+}

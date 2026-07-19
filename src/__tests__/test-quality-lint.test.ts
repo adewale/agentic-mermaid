@@ -78,10 +78,20 @@ describe('test-quality lint (testing-best-practices guardrails)', () => {
     expect(findTestQualitySmells()).toEqual([])
   })
 
-  test('CPU-heavy styled matrices keep the approved 20-second contention budget', () => {
+  test('the CPU-heavy styled golden matrix renders once under the approved contention budget', () => {
     const source = readFileSync(join(REPO, 'src', '__tests__', 'styled-output.test.ts'), 'utf8')
-    expect(source.match(/\}, 20_000\)/g)?.length).toBe(2)
+    expect(source.match(/\}, 20_000\)/g)?.length).toBe(1)
+    expect(source).not.toContain("test('no styled render throws on any fixture'")
     expect(source).not.toMatch(/\}, 10_000\)/)
+  })
+
+  test('the 4,500-row showcase stays replaced by bounded conformance portfolios', () => {
+    const showcase = readFileSync(join(REPO, 'src', '__tests__', 'mermaid-doc-showcase.test.ts'), 'utf8')
+    const portfolio = readFileSync(join(REPO, 'src', '__tests__', 'render-conformance-plan.test.ts'), 'utf8')
+    expect(showcase).not.toContain('every built-in Look × Palette combination renders every docs family')
+    expect(showcase).not.toMatch(/\}, 300_000\)/)
+    expect(portfolio.match(/\}, 60_000\)/g)?.length).toBe(2)
+    expect(portfolio.match(/\}, 20_000\)/g)?.length).toBe(1)
   })
 
   test('the lint has teeth for each guarded anti-pattern', () => {

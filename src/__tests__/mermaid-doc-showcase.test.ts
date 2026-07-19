@@ -3,11 +3,11 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { getStyle, knownStyleDescriptors, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
-import { filesUnder, hashFileTree, sortRepositoryPaths } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { hashFileTree, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const manifest = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'), 'utf8')) as {
@@ -68,43 +68,6 @@ describe('official Mermaid documentation showcase', () => {
     expect(branchFills.size).toBeGreaterThanOrEqual(3)
   })
 
-  test('every built-in Look × Palette combination renders every docs family', () => {
-    const descriptors = knownStyleDescriptors()
-    const looks = descriptors
-      .filter(descriptor => descriptor.kind === 'look' && !descriptor.isDefault)
-      .map(descriptor => descriptor.inputName)
-    const palettes = descriptors
-      .filter(descriptor => descriptor.kind === 'palette')
-      .map(descriptor => descriptor.inputName)
-    expect(looks).not.toContain('crisp')
-    expect(palettes.length).toBeGreaterThan(0)
-    let combinations = 0
-    for (const entry of manifest.cases) {
-      for (const look of looks) {
-        for (const paletteName of palettes) {
-          const palette = getStyle(paletteName)!.colors!
-          const svg = renderMermaidSVG(entry.source, {
-            style: [look, paletteName], seed: 19, security: 'strict', embedFontImport: false,
-          })
-          const context = `${entry.family} × ${look} × ${paletteName}`
-          expect(svg, context).toContain(`--bg:${palette.bg}`)
-          expect(svg, context).toContain(`--fg:${palette.fg}`)
-          expect(svg, context).not.toMatch(/(?:NaN|Infinity|undefined)/)
-          expect(verifyNoExternalRefs(svg), context).toEqual({ ok: true, refs: [] })
-          const viewBox = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)
-          expect(viewBox, `${context} viewBox`).not.toBeNull()
-          expect(Number(viewBox![1])).toBeGreaterThan(0)
-          expect(Number(viewBox![2])).toBeGreaterThan(0)
-          combinations++
-        }
-      }
-    }
-    expect(combinations).toBe(manifest.cases.length * looks.length * palettes.length)
-  // This is the deliberately exhaustive family × Look × Palette gate (tens
-  // of thousands of assertions), not a unit-test timeout sentinel. Coverage
-  // instrumentation takes roughly 2.5 minutes on the covered Linux runner.
-  }, 300_000)
-
   test('generated docs gallery receipt covers current sources and PNG bytes', () => {
     const receipt = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'gallery-receipt.json'), 'utf8')) as {
       schemaVersion: number
@@ -120,9 +83,7 @@ describe('official Mermaid documentation showcase', () => {
       join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'),
       join(ROOT, 'package.json'),
       join(ROOT, 'bun.lock'),
-      join(ROOT, receipt.generator),
-      join(ROOT, 'scripts/pr-assets/artifact-receipt.ts'),
-      ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+      ...transitiveLocalInputs(ROOT, [join(ROOT, receipt.generator)]),
     ])
     expect(receipt.inputCount).toBe(inputs.length)
     expect(receipt.inputTreeSha256).toBe(hashFileTree(ROOT, inputs))

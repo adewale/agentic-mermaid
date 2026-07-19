@@ -153,6 +153,24 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and owner.
 
 
+## Testing architecture backlog
+
+- [ ] **TEST-3 — Complexity-aware, registry-derived test portfolio** (`todo`).
+  The executable migration in
+  [`docs/project/complexity-aware-test-portfolio-plan.md`](docs/project/complexity-aware-test-portfolio-plan.md)
+  is implemented: immutable before/candidate reports, exhaustive finite
+  authorities, automatic family enrollment, focused exact goldens,
+  independently verified variable-strength arrays, six mandatory complexity
+  strata, mixed outputs, fault probes, precise receipt dependency graphs,
+  platform release smoke, and plan-derived Cynefin contact sheets. The former
+  4,500-row matrix is removed. Keep this item open only for evidence that cannot
+  be manufactured in the implementation turn: an independent human must review
+  the current hash-bound citizenship sheet, the configured macOS/Windows
+  release jobs must execute, and the after-report must be revisited after 30
+  merges for CI p50/p95, flake/retry, human findings, churn, and escaped defects.
+  Upstream cost/covering-array research is tracked in
+  [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
+
 ## Consolidation / dedup backlog
 
 - [ ] **CONS-11 — One shape-outline module** (`todo`). Every non-rectangular
