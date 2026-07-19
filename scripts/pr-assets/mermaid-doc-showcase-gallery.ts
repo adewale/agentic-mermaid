@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../../src/index.ts'
-import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths } from './artifact-receipt.ts'
+import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const MANIFEST = join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json')
@@ -15,7 +15,12 @@ const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrom
 type Entry = { family: string; title: string; officialDocs: string; origin: string; index: number; source: string }
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as { mermaidVersion: string; cases: Entry[] }
 const repoPath = (path: string): string => repositoryPath(ROOT, path)
-const inputPaths = sortRepositoryPaths(ROOT, [MANIFEST, join(ROOT, 'package.json'), join(ROOT, 'bun.lock'), import.meta.filename, join(import.meta.dir, 'artifact-receipt.ts'), ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts'))])
+const inputPaths = sortRepositoryPaths(ROOT, [
+  MANIFEST,
+  join(ROOT, 'package.json'),
+  join(ROOT, 'bun.lock'),
+  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
+])
 const currentReceipt = () => ({
   schemaVersion: 1,
   generator: repoPath(import.meta.filename),

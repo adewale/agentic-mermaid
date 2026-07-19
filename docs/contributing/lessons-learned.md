@@ -8,6 +8,18 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — complexity-aware test portfolio (#193)
+
+**Optimize declared obligations, not test count.** The old 4,500-render matrix was exhaustive only for family × Look × Palette while fixing source complexity, output, transport, security, seed, and background. The replacement exhausts cheap Style algebra, covers expensive factors with independently verified variable strength, retains exact goldens and fault probes, and publishes the missing-tuple count. Rule: state what a row proves before optimizing it; fewer rows are useful only when the declared interaction and oracle strength improve.
+
+**Independently verify a generated test plan.** A covering-array generator can share its own blind spot with a self-check. The replacement uses a separate tuple enumerator and fake/removed-family sabotage; family registration is compile-time closed over mandatory conformance profiles. Rule: the producer of evidence does not get to be the only judge of completeness.
+
+**Do the arithmetic before promising a cost target.** The provisional 350–600-row estimate conflicted with a named 15 × 20 × 3 triple obligation, whose lower bound is 900. The implementation kept the obligation, produced 1,047 core rows, and reported the estimate miss instead of weakening coverage. Rule: budgets are hypotheses; hard combinatorial lower bounds and measured fault sensitivity win.
+
+**Treat contact sheets as bounded probes in a complex domain.** Machine oracles establish structure, safety, determinism, and finite geometry; they do not establish hierarchy, rhythm, or taste. A registry-derived contact sheet supports pattern recognition across comparable cells, but a scaled overview cannot prove native-size readability. Rule: bind row/source/dimension/output hashes, record inspected cell IDs and findings, and never equate an agent/model sanity scan with independent human approval.
+
+**A broad receipt hash can create work without creating confidence.** Test-only changes invalidated four galleries even though all image bytes were unchanged; the first merge-ref CI attempts then exposed three more broad visual authorities after a `package.json` script-only edit. Replacing `src/**/*.ts` globs with a fail-closed transitive import graph cut the seven receipt input sets by 59.9–98.5% and preserved true-dependency invalidation. Rule: evidence freshness follows the artifact's build graph; unrelated repository churn is not provenance.
+
 ## 2026-07 — public-artifact freshness and delivery closure (#184)
 
 **Byte-identical production is not proof of current provenance.** The deployed

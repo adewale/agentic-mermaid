@@ -7,7 +7,7 @@ import { categoricalPalette } from '../../src/shared/categorical-palette.ts'
 import { wcagContrastRatio } from '../../src/shared/color-math.ts'
 import { apcaContrast, deltaEOK, minPairwiseDeltaEOK } from '../../src/shared/perceptual-color.ts'
 import { bestHarmonyFit, harmonizePalette, harmonyLoss } from '../../eval/palette-harmony/harmony.ts'
-import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths } from './artifact-receipt.ts'
+import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(ROOT, 'eval', 'palette-harmony', 'report.json')
@@ -103,10 +103,9 @@ function buildReport() {
 const report = buildReport()
 const repoPath = (path: string): string => repositoryPath(ROOT, path)
 const inputPaths = sortRepositoryPaths(ROOT, [
-  join(ROOT, 'package.json'), join(ROOT, 'bun.lock'), import.meta.filename,
-  join(import.meta.dir, 'artifact-receipt.ts'),
-  ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
-  ...filesUnder(join(ROOT, 'eval', 'palette-harmony'), path => path.endsWith('.ts')),
+  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
+  join(ROOT, 'package.json'),
+  join(ROOT, 'bun.lock'),
 ])
 const currentReceipt = () => ({
   schemaVersion: 1,
@@ -115,6 +114,15 @@ const currentReceipt = () => ({
   inputTreeSha256: hashFileTree(ROOT, inputPaths),
   outputs: [REPORT, CONTACT_SHEET].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
 })
+
+if (process.argv.includes('--receipt-only')) {
+  if (JSON.stringify(JSON.parse(readFileSync(REPORT, 'utf8'))) !== JSON.stringify(report)) {
+    throw new Error('Cannot refresh palette harmony receipt while the report is stale')
+  }
+  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
+  console.log('Refreshed palette harmony receipt without rewriting visual output')
+  process.exit(0)
+}
 
 if (process.argv.includes('--check')) {
   if (JSON.stringify(JSON.parse(readFileSync(REPORT, 'utf8'))) !== JSON.stringify(report)) {

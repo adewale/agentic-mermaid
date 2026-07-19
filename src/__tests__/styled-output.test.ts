@@ -11,8 +11,10 @@ import { describe, test, expect } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
+import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
@@ -58,20 +60,16 @@ describe('styled output', () => {
     }
   })
 
-  test('every style × fixture is hash-stable against the committed baseline', () => {
+  test('every style × fixture renders once and is hash-stable against the committed baseline', () => {
     const records: Record<string, string> = {}
     for (const fixture of fixtures) {
       for (const style of LOOKS) {
         const key = `${fixture.name}#${style}`
-        try {
-          const svg = renderMermaidSVG(fixture.source, { style })
-          records[key] = createHash('sha256').update(svg).digest('hex')
-        } catch (e) {
-          records[key] = `error:${(e as Error).message}`
-        }
+        const svg = renderMermaidSVG(fixture.source, { style })
+        records[key] = createHash('sha256').update(svg).digest('hex')
       }
     }
-    expect(Object.keys(records).length).toBeGreaterThanOrEqual(16 * LOOKS.length)
+    expect(Object.keys(records).length).toBe(fixtures.length * LOOKS.length)
 
     if (UPDATE || !existsSync(BASELINE)) {
       const sorted: Record<string, string> = {}
@@ -94,14 +92,6 @@ describe('styled output', () => {
     const stale = Object.keys(baseline).filter(k => !(k in records))
     if (stale.length > 0) {
       throw new Error(`styled-output: ${stale.length} stale baseline records (e.g. ${stale[0]}) — regenerate with UPDATE_STYLED_BASELINE=1`)
-    }
-  }, 20_000)
-
-  test('no styled render throws on any fixture', () => {
-    for (const fixture of fixtures) {
-      for (const style of LOOKS) {
-        renderMermaidSVG(fixture.source, { style }) // throws = fail
-      }
     }
   }, 20_000)
 
@@ -177,28 +167,14 @@ describe('style consolidation', () => {
 
   test('Style + Palette stacks stay deterministic and finite across all elevated family features', () => {
     const demoRoot = join(import.meta.dir, '..', '..', 'docs', 'design', 'families')
-    const familyFixtures = [
-      ['flowchart-v11-shapes-demo.mmd', {}],
-      ['state-pseudostates-demo.mmd', {}],
-      ['sequence-config-demo.mmd', {}],
-      ['timeline-vertical-demo.mmd', {}],
-      ['class-namespaces-demo.mmd', {}],
-      ['er-direction-demo.mmd', {}],
-      ['journey-section-overlap-demo.mmd', {}],
-      ['architecture-align-demo.mmd', {}],
-      ['xychart-legend-demo.mmd', {}],
-      ['pie-donut-labels-demo.mmd', {}],
-      ['quadrant-styling-demo.mmd', {}],
-      ['gantt-dependency-overlay-demo.mmd', { gantt: { dependencyArrows: true, criticalPath: true } }],
-      ['mindmap-demo.mmd', {}],
-      ['gitgraph-demo.mmd', {}],
-    ] as const
     const stacks = [
       ['hand-drawn', 'dracula'],
       ['publication-figure', 'github-light'],
       ['watercolor', 'nord-light'],
     ]
-    for (const [fixture, renderOptions] of familyFixtures) {
+    for (const { id } of BUILTIN_FAMILY_METADATA) {
+      const { riskFixture, riskOptions: renderOptions } = FAMILY_CONFORMANCE_PROFILES[id]
+      const fixture = riskFixture
       const source = readFileSync(join(demoRoot, fixture), 'utf8')
       for (const stack of stacks) {
         const palette = getStyle(stack[1]!)!.colors!

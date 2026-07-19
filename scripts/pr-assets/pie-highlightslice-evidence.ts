@@ -5,7 +5,7 @@ import { chromium } from 'playwright'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
 import { wcagCssContrastRatio } from '../../src/shared/color-math.ts'
-import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths } from './artifact-receipt.ts'
+import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const MATRIX_OUTPUT = join(ROOT, 'docs', 'design', 'families', 'pie-highlightslice-regression-matrix.png')
@@ -18,9 +18,7 @@ const repoPath = (path: string): string => repositoryPath(ROOT, path)
 const inputPaths = sortRepositoryPaths(ROOT, [
   join(ROOT, 'package.json'),
   join(ROOT, 'bun.lock'),
-  import.meta.filename,
-  join(import.meta.dir, 'artifact-receipt.ts'),
-  ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
 ])
 const currentReceipt = () => ({
   schemaVersion: 1,

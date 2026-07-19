@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
-import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths } from './artifact-receipt.ts'
+import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const EVAL_DIR = join(ROOT, 'eval', 'linkrank-feedback-packing')
@@ -139,13 +139,16 @@ const measurements = cases.map(spec => {
 const repoPath = (path: string): string => repositoryPath(ROOT, path)
 const baselineInputs = [BASELINE_LAYOUT, ...cases.map(svgPath)]
 const inputPaths = sortRepositoryPaths(ROOT, [
+  ...transitiveLocalInputs(ROOT, [
+    import.meta.filename,
+    join(ROOT, 'src', 'parser.ts'),
+    join(ROOT, 'src', 'layout-engine.ts'),
+    join(ROOT, 'src', 'index.ts'),
+  ]),
   join(ROOT, 'package.json'),
   join(ROOT, 'bun.lock'),
-  import.meta.filename,
-  join(import.meta.dir, 'artifact-receipt.ts'),
   ...filesUnder(FIXTURE_DIR, path => path.endsWith('.mmd')),
   ...baselineInputs,
-  ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
 ])
 const currentReceipt = () => ({
   schemaVersion: 1,
@@ -156,6 +159,12 @@ const currentReceipt = () => ({
   inputTreeSha256: hashFileTree(ROOT, inputPaths),
   outputs: [MATRIX_OUTPUT, AFTER_OUTPUT].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
 })
+
+if (process.argv.includes('--receipt-only')) {
+  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
+  console.log('Refreshed Issue #87 receipt without rewriting visual output')
+  process.exit(0)
+}
 
 if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))

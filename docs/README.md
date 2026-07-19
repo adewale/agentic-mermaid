@@ -53,7 +53,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`design/system/layout-rubric.md`](./design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
 | [`design/system/source-preservation-ladder.md`](./design/system/source-preservation-ladder.md) | The structured\|opaque family-adoption contract (levels L0–L4). |
 | [`design/mermaid-family-fidelity-audit.md`](./design/mermaid-family-fidelity-audit.md) | Mermaid 11.16 syntax accounting and Mermaid/Wikipedia visual-metaphor audit for every registered family. |
-| [`design/style-palette-compatibility.md`](./design/style-palette-compatibility.md) | Registry-derived exhaustive Look × Palette × family compatibility receipt. |
+| [`design/style-palette-compatibility.md`](./design/style-palette-compatibility.md) | Registry-derived exhaustive algebra plus complexity-aware variable-strength Style/Palette/family compatibility receipt. |
 | [`design/system/ugly-layouts.md`](./design/system/ugly-layouts.md) | Ugly-layout detector: catalogued failure shapes and heuristics. |
 
 ### Per-family design notes
@@ -85,6 +85,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`project/divergences.md`](./project/divergences.md) | Deliberate divergences and guardrails. |
 | [`project/lessons-learned.md`](./project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
 | [`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |
+| [`project/complexity-aware-test-portfolio-plan.md`](./project/complexity-aware-test-portfolio-plan.md) | Implemented measured migration from overlapping family/style matrices to automatic complexity-aware conformance, variable-strength interaction coverage, and periodic contact-sheet review. |
 | [`contributing/lessons-learned.md`](./contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
 | [`project/dogfooding-docs-strategy.md`](./project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
 | [`project/archive/`](./project/archive/) | Status-marked landing/completion evidence and frozen historical records; never live backlog authority. |

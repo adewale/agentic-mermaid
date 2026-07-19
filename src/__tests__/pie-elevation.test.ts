@@ -45,7 +45,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
-import { filesUnder, hashFileTree, sortRepositoryPaths } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { hashFileTree, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const LEGEND_FONT = { size: 13, weight: 500 }
@@ -537,9 +537,7 @@ pie showData
     const inputs = sortRepositoryPaths(ROOT, [
       join(ROOT, 'package.json'),
       join(ROOT, 'bun.lock'),
-      join(ROOT, receipt.generator),
-      join(ROOT, 'scripts/pr-assets/artifact-receipt.ts'),
-      ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
+      ...transitiveLocalInputs(ROOT, [join(ROOT, receipt.generator)]),
     ])
     expect(receipt.inputCount).toBe(inputs.length)
     expect(receipt.inputTreeSha256).toBe(hashFileTree(ROOT, inputs))

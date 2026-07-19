@@ -10,6 +10,11 @@ For the *definition* of "good looking" and the determinism guarantees, see
 [`quality.md`](./quality.md). For mutation specifics, see
 [`mutation-testing.md`](./mutation-testing.md). For the layout/visual
 contracts, see [`layout-characterization/README.md`](./layout-characterization/README.md).
+The current measured complexity-aware and registry-derived interaction
+portfolio is specified in
+[`project/complexity-aware-test-portfolio-plan.md`](./project/complexity-aware-test-portfolio-plan.md);
+its immutable before and content-addressed candidate reports live under
+`eval/test-portfolio/`.
 
 ## The central problem: this is a partly non-testable program
 
@@ -88,10 +93,40 @@ before those contracts serve it (`browser.test.ts` builds only the separate root
 Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. The
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
 list also fails if any contract executes zero positive tests, while independent
-lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites. The broad contact sheets are not on the per-PR gate.
+lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites.
+Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep;
+the committed citizenship manifest and pending review state remain cheap
+per-PR contracts. Publication fails closed until an independent human review
+binds the current manifest hash.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
+
+## 2a. Registry-derived combinatorial conformance
+
+`render-conformance-plan.test.ts` replaces the former exhaustive
+family × Look × Palette docs-example matrix. The new family registry,
+Style registries and mandatory family conformance profiles generate:
+
+- exhaustive pure Look × Palette resolution;
+- pairwise real-render coverage across family, Look, Palette, security,
+  background polarity and six complexity strata;
+- higher-strength Look/Palette/background, family/backend/complexity,
+  palette-sensitive role, external-reference and contact-sheet obligations;
+- a separate SVG/PNG/ASCII/Unicode portfolio with every-family Unicode stress.
+
+An independently implemented tuple enumerator must report zero missing
+obligations. Fake/removed-family, precedence, strict-reference, transparency,
+seed and terminal sabotage probes guard fault sensitivity. A new `DiagramKind`
+cannot compile without its minimal, representative, dense, text-stress,
+family-risk and eval-corpus-outlier conformance material.
+
+**Runs:** executable conformance and the bounded fault probes run per PR. The
+larger citizenship/interaction/outlier contact sheets run when visual inputs
+change, during periodic design review, or before release.
+**Does not prove:** an unrendered three-way family/Look/Palette combination is
+beautiful. The exact retained obligations are published by the candidate
+report rather than implied by the word “exhaustive.”
 
 ## 3. Derived oracles — differential corpora
 

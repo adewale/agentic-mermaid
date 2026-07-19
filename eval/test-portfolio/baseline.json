@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "kind": "pre-test-portfolio-baseline",
+  "validity": {
+    "claim": "Diagnostic cost and coverage-state baseline captured before TEST-3 changes on the named clean commit.",
+    "warrant": "Canonical and focused test commands ran in a detached worktree with the frozen dependency lock; finite-domain row counts are exact arithmetic from the then-current registries and fixture corpus.",
+    "rebuttal": "Wall times are one-machine observations with repository coverage instrumentation, not portable thresholds. Missing central coverage data is recorded as unknown rather than zero. Raw session logs remain local and the commands are the reproducibility authority."
+  },
+  "provenance": {
+    "sourceCommit": "cb2412b15b48ae41e55ace80f613be3723072d49",
+    "trackedTreeClean": true,
+    "capturedAt": "2026-07-19T00:19:09Z",
+    "captureMethod": "Detached git worktree at sourceCommit; bun install --frozen-lockfile; serial /usr/bin/time -p observations.",
+    "generator": "manual-command-capture/v1"
+  },
+  "environment": {
+    "runtime": "Bun 1.3.13",
+    "os": "Darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpuModel": "Apple M2 Ultra",
+    "logicalCpus": 24
+  },
+  "authorities": {
+    "families": 15,
+    "nonDefaultLooks": 15,
+    "palettes": 20,
+    "layoutFixtures": 24
+  },
+  "observations": {
+    "fullCoveredUnitSuite": {
+      "command": "bun run test",
+      "coverageInstrumentation": true,
+      "exitCode": 0,
+      "wallSeconds": 410.73,
+      "userSeconds": 406.8,
+      "systemSeconds": 47.03,
+      "passed": 6743,
+      "skipped": 47,
+      "failed": 0,
+      "testFiles": 389,
+      "assertions": 360233
+    },
+    "docsShowcase": {
+      "command": "bun test src/__tests__/mermaid-doc-showcase.test.ts",
+      "coverageInstrumentation": true,
+      "exitCode": 0,
+      "wallSeconds": 86.5,
+      "userSeconds": 86.94,
+      "systemSeconds": 2.68,
+      "passed": 4,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 31626,
+      "dominantTestSeconds": 85.41355
+    },
+    "styledOutput": {
+      "command": "bun test src/__tests__/styled-output.test.ts",
+      "coverageInstrumentation": true,
+      "exitCode": 0,
+      "wallSeconds": 13.9,
+      "userSeconds": 15.37,
+      "systemSeconds": 0.6,
+      "passed": 24,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 457,
+      "goldenMatrixSeconds": 5.73989,
+      "duplicateNoThrowMatrixSeconds": 5.43323
+    },
+    "sectionBVisualEvidence": {
+      "command": "bun test src/__tests__/section-b-visual-evidence.test.ts",
+      "coverageInstrumentation": true,
+      "exitCode": 0,
+      "wallSeconds": 6.01,
+      "userSeconds": 6.23,
+      "systemSeconds": 1.15,
+      "passed": 4,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 36
+    },
+    "paletteAndRoleGates": {
+      "command": "bun test src/__tests__/palette-rollout-evidence-integrity.test.ts src/__tests__/palette-harmony-experiment.test.ts src/__tests__/palette-performance-evidence.test.ts src/__tests__/style-role-audit.test.ts",
+      "coverageInstrumentation": true,
+      "exitCode": 0,
+      "wallSeconds": 2.66,
+      "userSeconds": 2.89,
+      "systemSeconds": 0.75,
+      "passed": 12,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 56
+    },
+    "browserContracts": {
+      "command": "bun run test:browser",
+      "coverageInstrumentation": true,
+      "exitCode": 0,
+      "wallSeconds": 326.71,
+      "userSeconds": 56.73,
+      "systemSeconds": 14.94,
+      "passed": 50,
+      "skipped": 0,
+      "failed": 0,
+      "assertions": 614,
+      "note": "Single aggregate observation including website build and isolated process startup/teardown; diagnostic only."
+    }
+  },
+  "stylePortfolio": {
+    "docsShowcaseRows": 4500,
+    "styledGoldenRows": 360,
+    "duplicateStyledRenderRows": 360,
+    "elevatedStackRows": 42,
+    "elevatedFamiliesCovered": 14,
+    "missingElevatedFamilies": [
+      "radar"
+    ],
+    "visibleStylePaletteWallSeconds": 109.07,
+    "visibleStylePaletteComponents": [
+      "docsShowcase",
+      "styledOutput",
+      "sectionBVisualEvidence",
+      "paletteAndRoleGates"
+    ]
+  },
+  "ciWindow": {
+    "repository": "adewale/agentic-mermaid",
+    "workflow": "ci.yml",
+    "branch": "main",
+    "event": "push",
+    "windowStart": "2026-07-13T14:06:45Z",
+    "windowEnd": "2026-07-18T20:00:14Z",
+    "runCount": 30,
+    "successful": 25,
+    "failed": 5,
+    "cancelled": 0,
+    "p50Seconds": 604,
+    "p95Seconds": 985.8,
+    "retrievalCommand": "gh run list -R adewale/agentic-mermaid --workflow ci.yml --branch main --limit 60 --json databaseId,headSha,status,conclusion,event,startedAt,updatedAt,url",
+    "newestRunId": 29658563694,
+    "oldestRunId": 29256552226
+  },
+  "artifactChurn": {
+    "mergeCount": 30,
+    "oldestMerge": "f05ecbaaacb625ad12bfa96f8ca8fbf90ac3d162",
+    "newestMerge": "cb2412b15b48ae41e55ace80f613be3723072d49",
+    "classifier": "eval JSON/images; docs images; testdata/snapshots; website generated",
+    "mergesWithArtifactChanges": 27,
+    "artifactTouchEvents": 332,
+    "uniqueArtifactPaths": 97,
+    "newStateBytesReviewed": 78602504,
+    "absoluteSizeDeltaBytes": 9195216,
+    "netSizeDeltaBytes": 7921868,
+    "note": "newStateBytesReviewed sums the post-merge blob size for every classified file-touch event; it is review volume, not a byte-edit distance."
+  },
+  "contactSheetInventory": {
+    "nameMatchedFiles": 15,
+    "nameMatchedBytes": 11913511,
+    "paths": [
+      "docs/design/families/gitgraph-content-gallery.png",
+      "docs/design/families/mermaid-doc-examples-all-families.png",
+      "docs/design/families/mindmap-content-gallery.png",
+      "docs/design/families/pie-highlightslice-regression-matrix.png",
+      "docs/design/families/style-palette-all-families-after.png",
+      "docs/design/families/style-switch-contact-sheet.html",
+      "docs/layout-characterization/contact-sheet-families.md",
+      "docs/layout-characterization/contact-sheet.md",
+      "docs/pr-assets/contact-sheet.png",
+      "docs/pr-assets/issue-38-style-permutation-contact-sheet.png",
+      "docs/pr-assets/new-style-gallery.png",
+      "docs/pr-assets/new-style-palette-gallery.png",
+      "docs/pr-assets/pr134-comparisons-style-matrix.png",
+      "docs/pr-assets/pr154-rich-gallery-before-after.png",
+      "eval/visual-rubric/contact-sheet.ts"
+    ],
+    "selectionRuleAuthority": false,
+    "centralReviewLedger": false,
+    "reviewerMinutesRecorded": false,
+    "note": "The repository has contact sheets, galleries, matrices, generators and focused approval records, but no single plan-derived inventory binding reviewed hashes, reviewer time and findings."
+  },
+  "unknowns": {
+    "globalInteractionCoverage": {
+      "status": "not-measurable-before-central-ledger",
+      "reason": "Existing matrices do not publish a shared one-way, pairwise or variable-strength tuple inventory."
+    },
+    "renderCallsByOutputAndBoundary": {
+      "status": "not-measurable-before-central-ledger",
+      "reason": "The current renderer has no cross-suite call telemetry partitioned by format, transport and runtime."
+    },
+    "perFamilyComplexityAndOracleDepth": {
+      "status": "not-measurable-before-central-ledger",
+      "reason": "No shared complexity authority or comparable per-family oracle-strength census exists."
+    },
+    "historicalFaultKillSet": {
+      "status": "not-measurable-before-central-ledger",
+      "reason": "Regression, sabotage and mutation evidence is fragmented and lacks one machine-readable kill-set identity."
+    },
+    "ciRetryClassification": {
+      "status": "not-measurable-before-central-ledger",
+      "reason": "Workflow conclusions are captured, but retry lineage and conditional-skip causes are not normalized in this baseline."
+    },
+    "humanVisualReviewCostAndFindings": {
+      "status": "not-measurable-before-central-ledger",
+      "reason": "Existing visual approvals do not consistently record reviewed sheet hashes, minutes, findings and dispositions."
+    }
+  }
+}

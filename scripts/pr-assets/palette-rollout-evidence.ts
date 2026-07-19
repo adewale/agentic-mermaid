@@ -7,7 +7,7 @@ import { chromium } from 'playwright'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { wcagContrastRatio } from '../../src/shared/color-math.ts'
 import { apcaContrast, minPairwiseDeltaEOK } from '../../src/shared/perceptual-color.ts'
-import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths } from './artifact-receipt.ts'
+import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 type Family = 'xychart' | 'journey' | 'mindmap' | 'gitgraph'
 interface EvidenceCase { id: string; family: Family; theme: 'github-light' | 'dracula'; source: string }
@@ -385,13 +385,11 @@ async function main(): Promise<void> {
   const baselineCases = verifiedBaselineCases(baseline)
 
   const inputPaths = sortRepositoryPaths(ROOT, [
+    ...transitiveLocalInputs(ROOT, [import.meta.filename]),
     join(ROOT, 'package.json'),
     join(ROOT, 'bun.lock'),
-    import.meta.filename,
-    join(import.meta.dir, 'artifact-receipt.ts'),
     BASELINE_JSON,
     ...cases.map(item => baselineSvgPath(item.id)),
-    ...filesUnder(join(ROOT, 'src'), path => path.endsWith('.ts')),
   ])
   const currentReceipt = () => ({
     schemaVersion: 1,
@@ -401,18 +399,32 @@ async function main(): Promise<void> {
     outputs: [REPORT, CONTACT_SHEET].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
   })
 
-  if (process.argv.includes('--check')) {
+  const expectedReport = () => {
     const rendered = renderAll()
-    const expectedReport = buildReport(rendered.map(item => item.result), baseline, baselineCases)
+    return buildReport(rendered.map(item => item.result), baseline, baselineCases)
+  }
+
+  if (process.argv.includes('--receipt-only')) {
     const recordedReport = JSON.parse(readFileSync(REPORT, 'utf8'))
-    if (JSON.stringify(recordedReport) !== JSON.stringify(expectedReport)) {
+    if (JSON.stringify(recordedReport) !== JSON.stringify(expectedReport())) {
+      throw new Error('Cannot refresh palette rollout receipt while the report is stale')
+    }
+    writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
+    console.log('Refreshed palette rollout receipt without rewriting visual output')
+    return
+  }
+
+  if (process.argv.includes('--check')) {
+    const expected = expectedReport()
+    const recordedReport = JSON.parse(readFileSync(REPORT, 'utf8'))
+    if (JSON.stringify(recordedReport) !== JSON.stringify(expected)) {
       throw new Error('Palette rollout report is stale; run bun run gallery:palette-rollout')
     }
     const recordedReceipt = JSON.parse(readFileSync(RECEIPT, 'utf8'))
     if (JSON.stringify(recordedReceipt) !== JSON.stringify(currentReceipt())) {
       throw new Error('Palette rollout evidence is stale; run bun run gallery:palette-rollout')
     }
-    if (expectedReport.summary.automaticVerdict !== 'improvement') throw new Error('Palette rollout does not clear the automatic improvement gate')
+    if (expected.summary.automaticVerdict !== 'improvement') throw new Error('Palette rollout does not clear the automatic improvement gate')
     console.log('Palette rollout evidence is synchronized and clears the improvement gate')
     return
   }

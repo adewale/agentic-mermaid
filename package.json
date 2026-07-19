@@ -194,6 +194,8 @@
     "eval:agent-subagent": "bun run eval/agent-usage/capture-subagent-prompt-eval.ts",
     "rubric:visual": "bun run eval/visual-rubric/run.ts",
     "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts",
+    "contact:sheet:test-portfolio": "bun run scripts/pr-assets/test-portfolio-contact-sheet.ts",
+    "contact:sheet:test-portfolio:review": "bun run scripts/ci/test-portfolio-visual-review.ts",
     "gallery:custom-styles": "bun run scripts/docs/custom-style-cookbook.ts",
     "gallery:custom-styles:check": "bun run scripts/docs/custom-style-cookbook.ts --check",
     "gallery:linkrank-feedback-packing": "bun run scripts/pr-assets/linkrank-feedback-packing-evidence.ts",
