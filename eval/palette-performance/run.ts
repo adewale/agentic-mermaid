@@ -21,6 +21,27 @@ const INPUTS = sortRepositoryPaths(ROOT, [
 ])
 
 const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
+export const PALETTE_PROVENANCE_AUTHORITY = 'content-addressed-inputs-v1' as const
+
+export function verifyPaletteSourceProvenance(
+  provenance: any,
+  expectedSourceTreeSha256: string,
+  expectedInputs: unknown,
+): void {
+  if (provenance?.authority !== PALETTE_PROVENANCE_AUTHORITY) {
+    throw new Error(`Palette performance provenance authority must be ${PALETTE_PROVENANCE_AUTHORITY}`)
+  }
+  if (provenance.dirty !== false) throw new Error('Palette performance report does not attest a clean source tree')
+  if (!/^[0-9a-f]{40}$/.test(String(provenance.sourceCommit ?? ''))) {
+    throw new Error('Palette performance sourceCommit must identify the clean recording checkout')
+  }
+  if (provenance.sourceTreeSha256 !== expectedSourceTreeSha256) {
+    throw new Error('Palette performance report inputs are stale; record on a clean committed tree')
+  }
+  if (JSON.stringify(provenance.inputs) !== JSON.stringify(expectedInputs)) {
+    throw new Error('Palette performance report input manifest is stale')
+  }
+}
 const round = (value: number): number => Math.round(value * 1_000_000) / 1_000_000
 const PALETTE_FIXTURES = BUILTIN_PALETTE_DEFINITIONS.map(definition =>
   [definition.inputName, definition.colors] as const)
@@ -141,6 +162,7 @@ function record(): void {
       rebuttal: 'Absolute timings are observational, are not portable across machines, and are not a CI threshold.',
     },
     provenance: {
+      authority: PALETTE_PROVENANCE_AUTHORITY,
       sourceCommit,
       sourceTreeSha256: hashFileTree(ROOT, INPUTS),
       dirty: false,
@@ -181,6 +203,7 @@ function record(): void {
       'This measures palette generation, not an entire diagram render.',
       'Most controlled families generate one peer-category channel; Journey independently generates section and actor palettes.',
       'No cross-machine latency guarantee follows from this report.',
+      'The recording commit is informational and can become unreachable after a squash merge; exact input hashes are the durable source authority.',
       'CI checks source freshness and deterministic complexity invariants, but does not gate on wall-clock time.',
     ],
   }
@@ -216,17 +239,11 @@ function check(): void {
   const report = JSON.parse(readFileSync(REPORT, 'utf8')) as any
   const samples = JSON.parse(readFileSync(SAMPLES, 'utf8')) as any
   if (report.schemaVersion !== 1) throw new Error('Unsupported palette performance report schema')
-  if (report.provenance?.dirty !== false) throw new Error('Palette performance report does not attest a clean source tree')
-  if (report.provenance?.sourceTreeSha256 !== hashFileTree(ROOT, INPUTS)) {
-    throw new Error('Palette performance report inputs are stale; record on a clean committed tree')
-  }
-  if (JSON.stringify(report.provenance.inputs) !== JSON.stringify(fileReceiptEntries(ROOT, INPUTS))) {
-    throw new Error('Palette performance report input manifest is stale')
-  }
-  const commit = String(report.provenance.sourceCommit ?? '')
-  if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error('Palette performance source commit must be a full SHA')
-  execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: ROOT, stdio: 'ignore' })
-  execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], { cwd: ROOT, stdio: 'ignore' })
+  verifyPaletteSourceProvenance(
+    report.provenance,
+    hashFileTree(ROOT, INPUTS),
+    fileReceiptEntries(ROOT, INPUTS),
+  )
   if (JSON.stringify(report.complexity?.deterministicLargeCountEvidence) !== JSON.stringify(complexityEvidence())) {
     throw new Error('Palette deterministic complexity evidence is stale')
   }

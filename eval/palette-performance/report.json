@@ -7,8 +7,9 @@
     "rebuttal": "Absolute timings are observational, are not portable across machines, and are not a CI threshold."
   },
   "provenance": {
-    "sourceCommit": "0ce6d7f4f8763833f5f89f7de925b7fde1b9e6e3",
-    "sourceTreeSha256": "b97264a456331e418bf5ae5cf82e9c2796b0ca5a855060275d606c8dd20bab0b",
+    "authority": "content-addressed-inputs-v1",
+    "sourceCommit": "f533cb461d26bc09763d24d8d81f0dfe39815713",
+    "sourceTreeSha256": "17c7610a570e4298b97f94b38888121058926da42c2e2aded1855abfe8cfef31",
     "dirty": false,
     "inputs": [
       {
@@ -17,7 +18,7 @@
       },
       {
         "path": "eval/palette-performance/run.ts",
-        "sha256": "f3d2b8e69d1db509994869ec809feb777b550824f5da2665cb6eaa03d7b4bab0"
+        "sha256": "7648e33e4510357b70f8ebfc067abdec0675105ff1d9b7238425d3f654b508c2"
       },
       {
         "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -69,7 +70,7 @@
   },
   "timingEvidence": {
     "samplesPath": "eval/palette-performance/samples.json",
-    "samplesSha256": "7ae713c08a8544182e876ea5fc8282f4fd78e16084d4003b8308ed1101b803c2"
+    "samplesSha256": "0818bb3461c05423618a95a79c7164dccc0fdaecb0582083df24223cb26e1670"
   },
   "complexity": {
     "regimes": {
@@ -116,136 +117,136 @@
     "unit": "milliseconds per palette-generation call",
     "overall": {
       "samples": 7200,
-      "p50": 0.238834,
-      "mean": 1.079238,
-      "p95": 2.087708
+      "p50": 0.239416,
+      "mean": 1.072372,
+      "p95": 2.10525
     },
     "byCount": [
       {
         "count": 7,
         "samples": 400,
-        "p50": 0.029875,
-        "mean": 0.037274,
-        "p95": 0.055916
+        "p50": 0.03025,
+        "mean": 0.035108,
+        "p95": 0.056041
       },
       {
         "count": 8,
         "samples": 400,
-        "p50": 0.037084,
-        "mean": 0.042349,
-        "p95": 0.060334
+        "p50": 0.037459,
+        "mean": 0.042345,
+        "p95": 0.057792
       },
       {
         "count": 9,
         "samples": 400,
-        "p50": 0.049833,
-        "mean": 0.054645,
-        "p95": 0.097291
+        "p50": 0.049917,
+        "mean": 0.054832,
+        "p95": 0.101292
       },
       {
         "count": 10,
         "samples": 400,
-        "p50": 0.054583,
-        "mean": 0.060485,
-        "p95": 0.1135
+        "p50": 0.053875,
+        "mean": 0.061346,
+        "p95": 0.113542
       },
       {
         "count": 11,
         "samples": 400,
-        "p50": 0.074459,
-        "mean": 0.087391,
-        "p95": 0.152375
+        "p50": 0.0745,
+        "mean": 0.087367,
+        "p95": 0.151791
       },
       {
         "count": 12,
         "samples": 400,
-        "p50": 0.075292,
-        "mean": 0.089849,
-        "p95": 0.177125
+        "p50": 0.07525,
+        "mean": 0.089745,
+        "p95": 0.182834
       },
       {
         "count": 13,
         "samples": 400,
-        "p50": 0.11775,
-        "mean": 0.125573,
-        "p95": 0.21525
+        "p50": 0.110292,
+        "mean": 0.125826,
+        "p95": 0.219125
       },
       {
         "count": 14,
         "samples": 400,
-        "p50": 0.106792,
-        "mean": 0.164612,
-        "p95": 0.375417
+        "p50": 0.104542,
+        "mean": 0.16449,
+        "p95": 0.39525
       },
       {
         "count": 15,
         "samples": 400,
-        "p50": 0.186542,
-        "mean": 0.24897,
-        "p95": 0.557792
+        "p50": 0.189042,
+        "mean": 0.248158,
+        "p95": 0.534041
       },
       {
         "count": 16,
         "samples": 400,
-        "p50": 0.248959,
-        "mean": 0.340129,
-        "p95": 0.697834
+        "p50": 0.249708,
+        "mean": 0.337763,
+        "p95": 0.702584
       },
       {
         "count": 17,
         "samples": 400,
-        "p50": 0.442917,
-        "mean": 0.545343,
-        "p95": 1.175958
+        "p50": 0.438334,
+        "mean": 0.542672,
+        "p95": 1.179542
       },
       {
         "count": 18,
         "samples": 400,
-        "p50": 0.659667,
-        "mean": 0.695456,
-        "p95": 1.128666
+        "p50": 0.666333,
+        "mean": 0.691853,
+        "p95": 1.091042
       },
       {
         "count": 19,
         "samples": 400,
-        "p50": 0.775625,
-        "mean": 0.854846,
-        "p95": 1.548083
+        "p50": 0.776167,
+        "mean": 0.843916,
+        "p95": 1.508
       },
       {
         "count": 20,
         "samples": 400,
-        "p50": 1.059417,
-        "mean": 1.107009,
-        "p95": 1.80975
+        "p50": 1.050709,
+        "mean": 1.099822,
+        "p95": 1.807875
       },
       {
         "count": 21,
         "samples": 400,
-        "p50": 1.296792,
-        "mean": 1.325487,
-        "p95": 1.937666
+        "p50": 1.310958,
+        "mean": 1.313896,
+        "p95": 1.89975
       },
       {
         "count": 22,
         "samples": 400,
-        "p50": 1.418166,
-        "mean": 1.560006,
-        "p95": 2.3185
+        "p50": 1.4185,
+        "mean": 1.544744,
+        "p95": 2.283834
       },
       {
         "count": 23,
         "samples": 400,
-        "p50": 1.586667,
-        "mean": 2.916664,
-        "p95": 3.83825
+        "p50": 1.590042,
+        "mean": 2.898406,
+        "p95": 3.673875
       },
       {
         "count": 24,
         "samples": 400,
-        "p50": 2.191917,
-        "mean": 9.170189,
-        "p95": 26.618792
+        "p50": 2.218,
+        "mean": 9.120412,
+        "p95": 26.561541
       }
     ]
   },
@@ -253,6 +254,7 @@
     "This measures palette generation, not an entire diagram render.",
     "Most controlled families generate one peer-category channel; Journey independently generates section and actor palettes.",
     "No cross-machine latency guarantee follows from this report.",
+    "The recording commit is informational and can become unreachable after a squash merge; exact input hashes are the durable source authority.",
     "CI checks source freshness and deterministic complexity invariants, but does not gate on wall-clock time."
   ]
 }
