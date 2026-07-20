@@ -2,6 +2,55 @@
    copyable agent prompts/config snippets. The public site no longer has a
    global theme picker — diagram themes live in the editor. */
 (function () {
+  function initNavigation() {
+    document.querySelectorAll('.masthead').forEach((header) => {
+      const toggle = header.querySelector('.nav-toggle');
+      const navigation = header.querySelector('#site-navigation');
+      if (!toggle || !navigation || !window.matchMedia) return;
+      const mobile = window.matchMedia('(max-width: 640px)');
+
+      function setOpen(open, focusToggle) {
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+        navigation.hidden = !open;
+        if (focusToggle) toggle.focus();
+      }
+
+      function syncViewport() {
+        if (mobile.matches) {
+          toggle.hidden = false;
+          header.dataset.navReady = 'true';
+          setOpen(false, false);
+        } else {
+          delete header.dataset.navReady;
+          toggle.hidden = true;
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.setAttribute('aria-label', 'Open navigation');
+          navigation.hidden = false;
+        }
+      }
+
+      toggle.addEventListener('click', () => {
+        setOpen(toggle.getAttribute('aria-expanded') !== 'true', false);
+      });
+      navigation.addEventListener('click', (event) => {
+        if (mobile.matches && event.target instanceof Element && event.target.closest('a')) setOpen(false, false);
+      });
+      document.addEventListener('pointerdown', (event) => {
+        if (mobile.matches && toggle.getAttribute('aria-expanded') === 'true' && !header.contains(event.target)) {
+          setOpen(false, false);
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && mobile.matches && toggle.getAttribute('aria-expanded') === 'true') {
+          setOpen(false, true);
+        }
+      });
+      mobile.addEventListener?.('change', syncViewport);
+      syncViewport();
+    });
+  }
+
   function initCopyButtons() {
     document.querySelectorAll('[data-copy-target], [data-copy-text]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -149,7 +198,7 @@
   }
 
 
-  function init() { initCopyButtons(); initTabs(); initGallery(); initMotionStrips(); }
+  function init() { initNavigation(); initCopyButtons(); initTabs(); initGallery(); initMotionStrips(); }
   if (document.readyState !== 'loading') init();
   else document.addEventListener('DOMContentLoaded', init);
 })();

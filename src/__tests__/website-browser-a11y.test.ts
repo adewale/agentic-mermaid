@@ -209,6 +209,47 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
+  test('mobile hamburger exposes every destination and preserves no-JS navigation', async () => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
+    await page.goto(baseUrl + '/', { waitUntil: 'networkidle' })
+    const toggle = page.locator('.nav-toggle')
+    const navigation = page.locator('#site-navigation')
+    expect(await toggle.isVisible()).toBe(true)
+    expect(await toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(await navigation.isHidden()).toBe(true)
+
+    await toggle.click()
+    expect(await toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(await navigation.isVisible()).toBe(true)
+    expect(await navigation.locator('a').allTextContents()).toEqual([
+      'About', 'Examples', 'Comparisons', 'Docs', 'GitHub', 'Open editor',
+    ])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+
+    await page.keyboard.press('Escape')
+    expect(await toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(await navigation.isHidden()).toBe(true)
+    expect(await page.evaluate(() => document.activeElement === document.querySelector('.nav-toggle'))).toBe(true)
+
+    await toggle.click()
+    await page.locator('main').click({ position: { x: 2, y: 2 } })
+    expect(await toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(await navigation.isHidden()).toBe(true)
+
+    await page.setViewportSize({ width: 900, height: 900 })
+    expect(await toggle.isHidden()).toBe(true)
+    expect(await navigation.isVisible()).toBe(true)
+    await page.close()
+
+    const noJs = await browser.newContext({ viewport: { width: 390, height: 900 }, javaScriptEnabled: false })
+    const noJsPage = await noJs.newPage()
+    await noJsPage.goto(baseUrl + '/', { waitUntil: 'networkidle' })
+    expect(await noJsPage.locator('.nav-toggle').isHidden()).toBe(true)
+    expect(await noJsPage.locator('#site-navigation').isVisible()).toBe(true)
+    expect(await noJsPage.locator('#site-navigation a').count()).toBe(6)
+    await noJs.close()
+  }, 30_000)
+
   test('every distinct Examples state shape crosses the real Editor resolver with complete render parity', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.addInitScript(() => {
