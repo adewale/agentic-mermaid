@@ -161,15 +161,18 @@ single import path for all formats, import everything from there.
 
 ## Prefer the command line?
 
-The same renderers ship as the `am` CLI — no code required:
+The same renderers ship as the `am` CLI — no code required. After the local
+install above, use the package runner so the command resolves without a global
+install:
 
 ```bash
-am render diagram.mmd --format svg
-am render diagram.mmd --format png --output diagram.png
-am render diagram.mmd --format ascii
+npx --no-install agentic-mermaid render diagram.mmd --format svg
+npx --no-install agentic-mermaid render diagram.mmd --format png --output diagram.png
+npx --no-install agentic-mermaid render diagram.mmd --format ascii
 ```
 
-Run `am --help` for the full command set.
+Run `npx --no-install agentic-mermaid --help` for the full command set. Inside
+an npm script, the shorter `am …` binary name is available automatically.
 
 ## Next steps
 
