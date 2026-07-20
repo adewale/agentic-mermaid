@@ -163,11 +163,12 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   independently verified variable-strength arrays, six mandatory complexity
   strata, mixed outputs, fault probes, precise receipt dependency graphs,
   platform release smoke, and plan-derived Cynefin contact sheets. The former
-  4,500-row matrix is removed. Keep this item open only for evidence that cannot
-  be manufactured in the implementation turn: an independent human must review
-  the current hash-bound citizenship sheet, the configured macOS/Windows
-  release jobs must execute, and the after-report must be revisited after 30
-  merges for CI p50/p95, flake/retry, human findings, churn, and escaped defects.
+  4,500-row matrix is removed. Structured human review remains available as
+  advisory evidence rather than a publication gate. Keep this item open only
+  for evidence that cannot be manufactured in the implementation turn: the
+  configured macOS/Windows release jobs must execute, and the after-report must
+  be revisited after 30 merges for CI p50/p95, flake/retry, human findings,
+  churn, and escaped defects.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
 

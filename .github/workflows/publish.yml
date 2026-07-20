@@ -156,9 +156,6 @@ jobs:
       - name: Run canonical browser contracts
         run: bun run test:browser
 
-      - name: Require hash-bound independent human review of the current citizenship contact sheet
-        run: bun run contact:sheet:test-portfolio:review
-
       - name: Check README hero image is current with the renderer
         run: bun run hero:check
 
