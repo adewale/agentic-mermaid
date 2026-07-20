@@ -165,7 +165,7 @@ describe('canonical browser PNG adapter', () => {
           : svg
       },
     }, {
-      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
+      compatibility: { core: '^0.2.0', scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     let rasterCalls = 0
@@ -199,7 +199,7 @@ describe('canonical browser PNG adapter', () => {
           .replace('<svg ', '<svg data-comparison="1 > 0" ')
       },
     }, {
-      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
+      compatibility: { core: '^0.2.0', scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     try {

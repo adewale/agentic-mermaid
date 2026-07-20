@@ -30,7 +30,7 @@ import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
 import '../scene/builtin-backends.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^2.0.0' })
+const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.2.0', scene: '^2.0.0' })
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({ compatibility: BACKEND_COMPATIBILITY })
 const PACKAGE_VERSION = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')).version as string
 const ESCAPED_PACKAGE_VERSION = PACKAGE_VERSION.replaceAll('.', '\\.')
@@ -72,18 +72,25 @@ describe('shared extension identity', () => {
       compatibility: { core: '^99.0.0' },
       provenance: { owner: 'test', source: 'test' },
     })).toThrow(new RegExp(`core.*\\^99\\.0\\.0.*host version ${ESCAPED_PACKAGE_VERSION}`, 'i'))
+    expect(() => createExtensionIdentity({
+      id: 'family:test/previous-core-line',
+      kind: 'family',
+      version: '1.0.0',
+      compatibility: { core: '^0.1.1' },
+      provenance: { owner: 'test', source: 'test' },
+    })).toThrow(/core.*\^0\.1\.1.*host version 0\.2\.0/i)
 
     const forwardCompatible = createExtensionIdentity({
       id: 'look:test/future-contract',
       kind: 'look',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1', 'acme:future-scene': '^99.0.0' },
+      compatibility: { core: '^0.2.0', 'acme:future-scene': '^99.0.0' },
       provenance: { owner: 'test', source: 'test' },
     })
     expect(evaluateExtensionCompatibility(forwardCompatible)).toEqual({
       accepted: true,
       resolutions: [
-        { contract: 'core', range: '^0.1.1', status: 'compatible', version: PACKAGE_VERSION },
+        { contract: 'core', range: '^0.2.0', status: 'compatible', version: PACKAGE_VERSION },
         { contract: 'acme:future-scene', range: '^99.0.0', status: 'deferred' },
       ],
     })
@@ -96,7 +103,7 @@ describe('shared extension identity', () => {
       enumerable: true,
       get() {
         reads.core++
-        return reads.core === 1 ? '^0.1.1' : '^99.0.0'
+        return reads.core === 1 ? '^0.2.0' : '^99.0.0'
       },
     })
     const provenance: Record<string, unknown> = { source: 'test' }
@@ -145,7 +152,7 @@ describe('shared extension identity', () => {
       id: 'look:test/identity-snapshot',
       kind: 'look',
       version: '1.2.3',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: 'snapshot-owner', source: 'test' },
     })
   })
@@ -340,7 +347,7 @@ describe('canonical style identities', () => {
     try {
       expect(knownStyleDescriptors()
         .find(descriptor => descriptor.identity.id === 'palette:test/core-default')
-        ?.identity.compatibility).toMatchObject({ core: '^0.1.1' })
+        ?.identity.compatibility).toMatchObject({ core: '^0.2.0' })
     } finally {
       unregister()
     }
@@ -404,7 +411,7 @@ describe('canonical style identities', () => {
       enumerable: true,
       get() {
         reads.core++
-        return reads.core === 1 ? '^0.1.1' : '^99.0.0'
+        return reads.core === 1 ? '^0.2.0' : '^99.0.0'
       },
     })
     const provenance: Record<string, unknown> = { source: 'test' }
@@ -464,7 +471,7 @@ describe('canonical style identities', () => {
       const descriptor = knownStyleDescriptors().find(candidate => candidate.identity.id === id)!
       expect(descriptor.identity).toMatchObject({
         version: '1.2.3',
-        compatibility: { core: '^0.1.1' },
+        compatibility: { core: '^0.2.0' },
         provenance: { owner: 'style-snapshot-test', source: 'test' },
       })
       expect(Object.isFrozen(descriptor.spec)).toBe(true)
@@ -666,7 +673,7 @@ describe('backend registration and host policy', () => {
         incompatibleWitnessCalls++
         return DefaultBackend.render(document, context)
       },
-    }, { compatibility: { core: '^0.1.1', scene: '^99.0.0' } }))
+    }, { compatibility: { core: '^0.2.0', scene: '^99.0.0' } }))
       .toThrow(/scene.*\^99\.0\.0.*host version 2\.0\.0/i)
     expect(incompatibleWitnessCalls).toBe(0)
     expect(() => registerBackendFromJs({
@@ -676,7 +683,7 @@ describe('backend registration and host policy', () => {
         ...claim,
         target: 'backend:test/scene-v1',
       })),
-    }, { compatibility: { core: '^0.1.1', scene: '^1.0.0' } }))
+    }, { compatibility: { core: '^0.2.0', scene: '^1.0.0' } }))
       .toThrow(/scene.*\^1\.0\.0.*host version 2\.0\.0/i)
   })
 
@@ -695,7 +702,7 @@ describe('backend registration and host policy', () => {
         witnessCalls++
         return DefaultBackend.render(document, context)
       },
-    }, { compatibility: { core: '^0.1.1' } }))
+    }, { compatibility: { core: '^0.2.0' } }))
       .toThrow(/must declare an explicit compatible "scene" range/i)
     expect(witnessCalls).toBe(0)
     expect(getBackend(id)).toBeUndefined()

@@ -33,7 +33,7 @@ function extensionDescriptor(
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: 'positioned-artifact-test', source: 'test' },
     }),
     id,

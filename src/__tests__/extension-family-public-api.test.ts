@@ -34,7 +34,7 @@ function extensionDescriptor(localId: string, header: string): FamilyDescriptor 
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: 'extension-public-api-test', source: 'test' },
     }),
     id,
@@ -92,7 +92,7 @@ describe('registered family public layout and verify APIs', () => {
           id,
           kind: 'family',
           version: '1.0.0',
-          compatibility: { core: '^0.1.1' },
+          compatibility: { core: '^0.2.0' },
           provenance: { owner: 'extension-public-api-test', source: 'test' },
         }),
       }
@@ -356,7 +356,7 @@ family payload
         id: v2Base.id,
         kind: 'family',
         version: '2.0.0',
-        compatibility: { core: '^0.1.1' },
+        compatibility: { core: '^0.2.0' },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
       capabilityEvidence: v2Base.capabilityEvidence.map(claim =>
@@ -421,7 +421,7 @@ family payload
         id: v2Base.id,
         kind: 'family',
         version: '2.0.0',
-        compatibility: { core: '^0.1.1' },
+        compatibility: { core: '^0.2.0' },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
       capabilityEvidence: v2Base.capabilityEvidence.map(claim =>

@@ -33,7 +33,7 @@ function descriptor(): FamilyDescriptor {
       id: FAMILY_ID,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: 'parsed-render-composition-test', source: 'test' },
     }),
     id: FAMILY_ID,

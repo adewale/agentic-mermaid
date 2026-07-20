@@ -4,12 +4,24 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.2.0 — 2026-07-23
+
+### Added
+- Added deterministic website build-fingerprint, success-only cache, and initial request-graph authorities with exact raw, gzip, and Brotli budgets for the homepage, Examples, and blank Editor routes.
+- Added a reproducible Linux-pinned Inter WOFF2 subset pipeline with content-addressed public assets while preserving full-TTF Editor and SVG-export authority.
+- Added stable no-JavaScript Style × Palette and rich-corpus routes plus retryable, content-addressed deferred fragments that preserve Editor/render parity and all published Examples deep links.
+- Added one canonical 2,800-case degenerate-route CI gate with hard hitch, edge-through-node, certificate-consistency, corpus-closure, and execution-error checks backed by focused sabotage.
+
 ### Changed
 - Consolidated Mermaid-universal `accTitle`/`accDescr` parsing at source normalization. Every registered family, including future extensions, now receives directive-free grammar lines and the same accessibility metadata automatically; extension serializers also regain that envelope on output without family-specific code. Existing renderer, structured-agent, and source-action analysis paths use the shared grammar and source-line provenance rather than family-local scanners. Class, ER, and Timeline retain their explicit failure on unclosed description blocks.
 - Made build ownership explicit: `typecheck` now runs only TypeScript, website-consuming tests opt into their fixture build, and the global website preload plus the `site`/`site:check` aliases were removed. The production editor build also drops author-only HTML and inline CSS comments and ratchets its measured raw, gzip, and Brotli ceilings downward.
 - Consolidated repeated agent-body indexed-ID allocation and label-overflow collection behind shared utilities.
 - Reduced the release workflow to exact-SHA CI attestation, cross-platform smoke, and the unique publish boundary. Unprivileged jobs now attest CI, build once, compare a real npm tarball against a reviewed fail-closed manifest, and transfer it under a fixed filename with bound SHA-256 and SHA-512 digests; minimal job-scoped OIDC jobs require the closed regular-file set before publishing that exact artifact to npm or extracting its matching MCP metadata, without checking out or executing repository code. Npm publication is retry-safe after ambiguous remote success: an existing immutable version advances the workflow only when its registry integrity is byte-identical to the verified tarball. The verified artifact is retained for the 30-day MCP retry window, release actions and npm are immutable, and npm's bundled Sigstore tree replaces the mutable `sigstore@latest` workaround.
 - Updated the `fast-uri` transitive override to 3.1.4, the first release outside the host-confusion advisory range used by MCP schema validation and mutation tooling.
+- Reduced the deterministic initial Examples route from 2,426,844 to 380,391 raw bytes, from 648,659 to 66,938 gzip bytes, and from 564,048 to 53,180 Brotli bytes while retaining every registered family proof in the initial document. Homepage and blank-Editor request graphs remain unchanged.
+
+### Breaking
+- Advanced the core extension compatibility line to `^0.2.0`; extensions declaring only `^0.1.1` are rejected explicitly and must be reviewed against the current contracts before updating their range.
 
 ## 0.1.2 — 2026-07-21
 

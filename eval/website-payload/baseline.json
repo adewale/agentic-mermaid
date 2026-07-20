@@ -26,10 +26,10 @@
         {
           "path": "/",
           "count": 1,
-          "sha256": "e2393799bd5ba5171b87f51c249f9985e923809c5b74d8f5d25eb00170e5769d",
+          "sha256": "b31c533a4a9005a781aad95af7b7833a496dd840434639d39d65ebeb46076741",
           "rawBytes": 264916,
           "gzipBytes": 62293,
-          "brotliBytes": 47244
+          "brotliBytes": 47234
         },
         {
           "path": "/fonts/Caveat.subset.woff2",
@@ -100,7 +100,7 @@
         "requests": 9,
         "rawBytes": 682619,
         "gzipBytes": 406567,
-        "brotliBytes": 387899
+        "brotliBytes": 387889
       }
     },
     {
@@ -130,10 +130,10 @@
         {
           "path": "/examples/",
           "count": 1,
-          "sha256": "2826214969767a90e74ed4fcc6ff8675bb6cd5e513d65ef82afc16d9c37efbc7",
+          "sha256": "46c9e5706461f0ff76300d69063337d741cac28b3d52fdafbe7d8d073a7e05eb",
           "rawBytes": 272439,
           "gzipBytes": 39061,
-          "brotliBytes": 29484
+          "brotliBytes": 29481
         },
         {
           "path": "/shader-mark.js",
@@ -164,7 +164,7 @@
         "requests": 6,
         "rawBytes": 380391,
         "gzipBytes": 66938,
-        "brotliBytes": 53183
+        "brotliBytes": 53180
       }
     },
     {
@@ -178,25 +178,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "d9e70a13e30b42243db3488ffd70e89b0144b09c51f8ec7446c1c3bd92a81c97",
+          "sha256": "0ea848064cde27ae642ed1fdc5eac534a13a2a84c1815d0224b3120f3d788128",
           "rawBytes": 102590,
-          "gzipBytes": 18090,
-          "brotliBytes": 15352
+          "gzipBytes": 18089,
+          "brotliBytes": 15356
         },
         {
-          "path": "/editor/editor-6157b438a465.js",
+          "path": "/editor/editor-5eb7ca9280f7.js",
           "count": 1,
-          "sha256": "6673ef1f0d7a4354ed81217b68921bf391e49de64b69c34079e19ba0d02bc0d8",
+          "sha256": "b42b0aa13b7b7df062fbddb134e15bdadaf87ea5c038be2ce4ea35fb5eda4aae",
           "rawBytes": 3186018,
-          "gzipBytes": 947499,
-          "brotliBytes": 744390
+          "gzipBytes": 947488,
+          "brotliBytes": 744273
         }
       ],
       "totals": {
         "requests": 2,
         "rawBytes": 3288608,
-        "gzipBytes": 965589,
-        "brotliBytes": 759742
+        "gzipBytes": 965577,
+        "brotliBytes": 759629
       }
     }
   ]
