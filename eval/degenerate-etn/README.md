@@ -18,19 +18,22 @@ symptom of a `nodeOverlaps` packing failure) is confirmed by the collapse.
 ## How to reproduce
 
 ```bash
-bun run eval/degenerate-etn/enum-etn.ts
+bun run eval:degenerate-routes
 ```
 
-`enum-etn.ts` runs two deterministic generators — a dense multi-component DAG with
-back-edges / high fan-out / mixed shapes / variable-length links, and an extreme
-diamond-fan — over fixed integer seeds (1200 + 800 cases, no RNG), keeps every case
-whose layout has an `edgeThroughNode` HARD violation, greedily **delta-debugs** each to
-a minimal repro (line removal that preserves the violation), then buckets by a structural
-**signature** `direction · #components · has-diamond · has-variable-length-link`.
+The canonical runner imports the shared deterministic generators — a dense
+multi-component DAG with back-edges / high fan-out / mixed shapes /
+variable-length links, and an extreme diamond-fan — over fixed integer seeds
+(2,000 + 800 cases, no RNG). It lays out every source once and derives
+`edgeThroughNode`, hitch, route-audit, and certificate observations from that
+result. It prints complete sources for gated failures; minimization happens only
+after a finding is promoted to a focused regression. CI runs the same command
+outside coverage in the route-sabotage lane.
 
 The enumeration is deterministic (hash-seeded generators + deterministic layout), so the
-set below is stable across runs. As of PR #80 it yielded **18 distinct minimal
-signatures**; with the packing fix it yields **0** (run it to confirm).
+set below is stable historical evidence. The retired `enum-etn.ts` minimizer
+yielded **18 distinct signatures** as of PR #80; the canonical runner now
+reports `edgeThroughNode = 0` (run it to confirm).
 
 ## Finding (pre-fix)
 

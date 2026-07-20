@@ -171,6 +171,9 @@ jobs:
       - name: Prove focused route regressions fail
         run: bun run sabotage:routes
 
+      - name: Audit the canonical 2,800-case degenerate-route corpus
+        run: bun run eval:degenerate-routes
+
       - name: Fuzz the shipped artifact (built bundle + packed tarball, under Node 24)
         # The strongest pre-publish signal: builds dist/, compiles the standalone
         # binary, and packs+installs the tarball, then drives the library + bins

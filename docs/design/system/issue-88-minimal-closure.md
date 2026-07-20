@@ -49,7 +49,7 @@ Thus the alternative uses the existing proof once more at the only point where i
 
 ```bash
 bun test src/__tests__/issue-88-minimal-hitch-closure.test.ts src/__tests__/issue-88-closure-idempotence.test.ts
-bun run eval/degenerate-etn/enum-hitches.ts
+bun run eval:degenerate-routes
 ```
 
-The focused test pins all 19 `main` failures. Separate bucket tests prove that a real late-closure case loses bends and is idempotent, while a context-only case retains its route because two settled label pills do not have the required combined 16 px halo clearance. The existing route-contract suite retains determinism and certificate coverage. The enumerator remains an explicit evidence command rather than adding 2,800 layouts to every CI run.
+The focused test pins all 19 `main` failures. Separate bucket tests prove that a real late-closure case loses bends and is idempotent, while a context-only case retains its route because two settled label pills do not have the required combined 16 px halo clearance. The existing route-contract suite retains determinism and certificate coverage. CI runs the canonical enumerator outside coverage so all 2,800 layouts remain one bounded route gate rather than inflating every unit-test shard.
