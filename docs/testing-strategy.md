@@ -96,8 +96,8 @@ list also fails if any contract executes zero positive tests, while independent
 lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites.
 Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep;
 the committed citizenship manifest and pending review state remain cheap
-per-PR contracts. Publication fails closed until an independent human review
-binds the current manifest hash.
+per-PR contracts. Structured human review is recommended for visual releases
+and remains hash-bound when recorded, but it is advisory rather than a package-publication gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).

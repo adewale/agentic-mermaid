@@ -6,8 +6,7 @@ deterministic gate (tests, dependency/palette/sketch/whole-corpus quality,
 `tsc`, browser contracts, route sabotage, `hero:check`, `website:check`,
 golden-drift, and incremental mutation), requires a successful canonical CI run
 for the exact release commit, runs the registry-derived render portfolio on
-macOS and Windows, requires independent hash-bound human approval of the current
-citizenship contact sheet, fuzzes shipped artifacts under Node 22 and the packed
+macOS and Windows, fuzzes shipped artifacts under Node 22 and the packed
 tarball under the minimum supported Node 18, builds with `tsup`, and runs
 `npm publish --access public`. There is no manual
 `npm publish` step. After npm succeeds, a separate dependent job publishes
@@ -58,21 +57,29 @@ already exists.
 3. **Roll the changelog.** Retitle `## Unreleased` in
    [`CHANGELOG.md`](../../CHANGELOG.md) to `## <version> — <YYYY-MM-DD>` and open a
    fresh empty `## Unreleased` above it.
-4. **Refresh and independently review the citizenship contact sheet.** Run
-   `bun run contact:sheet:test-portfolio --kind citizenship --output-dir eval/test-portfolio/contact-sheets`, inspect the overview and high-risk cells at native size, then update `citizenship-review.json` with status `approved`, the exact manifest SHA-256, reviewer identity, ISO date, positive review minutes, inspected row IDs, and findings/dispositions. `bun run contact:sheet:test-portfolio:review` must pass. Model/agent sanity review is not independent human approval.
-5. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
-6. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
+4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
+5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
    publication fires `publish.yml`, which gates, builds, publishes to npm, and
    then publishes the matching server metadata to the MCP Registry.
-7. **Verify:** `npm view agentic-mermaid version` shows the new version;
+6. **Verify:** `npm view agentic-mermaid version` shows the new version;
    `npm install agentic-mermaid` into a scratch project resolves and its bins
    run; and
    `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale/agentic-mermaid"`
    returns the matching server and version. The official registry is still in
    preview, so verify its record after every release.
-8. **After the first publish,** set the package on npmjs.com to
+7. **After the first publish,** set the package on npmjs.com to
    "Require two-factor authentication and disallow tokens" — trusted publishing
    keeps working, and token-based publishing is locked out.
+
+### Optional visual review
+
+For releases with visual changes, generate the citizenship sheet with
+`bun run contact:sheet:test-portfolio --kind citizenship --output-dir eval/test-portfolio/contact-sheets`
+and inspect affected/high-risk cells at native size. The structured
+`citizenship-review.json` record and `bun run contact:sheet:test-portfolio:review`
+remain available when a reviewer wants hash-bound evidence, but they are advisory
+and do not block package publication. Never invent reviewer identity, duration,
+row IDs, or findings.
 
 ## The "published" flip
 

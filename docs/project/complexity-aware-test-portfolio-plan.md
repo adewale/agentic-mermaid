@@ -1,6 +1,6 @@
 # Complexity-aware test portfolio plan
 
-Status: implemented and measured; tracked by `TODO.md` **TEST-3** until the configured release rows execute, an independent human approves the current contact sheet, and the 30-merge observation window exists. The executable before/candidate authorities are `eval/test-portfolio/{baseline,candidate}.json`.
+Status: implemented and measured; tracked by `TODO.md` **TEST-3** until the configured release rows execute and the 30-merge observation window exists. Structured contact-sheet review remains available as advisory evidence after the owner removed it as a publication gate in #200. The executable before/candidate authorities are `eval/test-portfolio/{baseline,candidate}.json`.
 
 ## Decision
 
@@ -160,11 +160,11 @@ Positive foundations to preserve:
 - upstream/docs differential corpora;
 - strong semantic, finite-geometry, determinism, security and route oracles;
 - focused mutation and sabotage where measured cost is justified;
-- explicit human approval for visual claims.
+- optional structured human review for visual claims.
 
 ### Gap-closure map
 
-Every baseline gap has an implemented owner below. Evidence requiring an external release runner, production deployment, independent human, or elapsed 30-merge window remains explicitly pending.
+Every baseline gap has an implemented owner below. Evidence requiring an external release runner, production deployment, or elapsed 30-merge window remains explicitly pending. Human contact-sheet review is tracked when performed but is not a publication prerequisite.
 
 | Current gap | Owning change | Closure evidence |
 |---|---|---|
@@ -182,7 +182,7 @@ Every baseline gap has an implemented owner below. Evidence requiring an externa
 | Broad receipt invalidation | Per-artifact declared dependency graph and trigger policy | Unrelated-source sabotage leaves artifact freshness valid; a true dependency change invalidates it. |
 | Narrow platform scope | Risk-tiered runtime/OS/browser release matrix | macOS/Windows jobs are configured fail-loud for release but await execution; Chromium is the explicit browser contract and other engines remain unclaimed. |
 | Separate production/client evidence | Release/post-deploy conformance layer | Exact artifact identity plus TS/Python/Go client and live positive/negative probes. |
-| Weak aesthetic oracle | Periodic plan-derived contact sheets and structured human review | Artifact/manifest/review schema exist and release fails closed; independent reviewer identity, minutes and findings remain honestly pending. |
+| Weak aesthetic oracle | Periodic plan-derived contact sheets and optional structured human review | Artifact/manifest/review schema exist; generated selection stays reproducible, while human findings are advisory and recorded only when supplied. |
 
 ## Sources of truth and automatic enrollment
 
@@ -404,7 +404,7 @@ Generate four plan-derived sheet types:
 
 Every cell carries a stable row ID, family/source provenance, complexity tags, Look, Palette, backend, output format, dimensions and candidate/base commit. Sheets must provide native-size files or drill-down links; a dense thumbnail alone cannot establish label readability. Generated manifests bind exact inputs, selection algorithm/version and output hashes.
 
-Human review protocol:
+Optional human review protocol:
 
 - inspect the sheet as a whole for repeated patterns, family outliers, hierarchy, rhythm, color semantics and suspicious metric-green ugliness;
 - inspect every changed/high-risk cell at native size;
@@ -413,7 +413,7 @@ Human review protocol:
 - treat “no finding” as a result, not proof; approval expires when sheet bytes or its selection plan changes;
 - prefer a second independent human for release-level visual approval when available.
 
-The 60-cell citizenship artifact and manifest are committed; 120-cell interaction, 66-cell outlier and bounded change selectors are executable. The compute artifact can be regenerated automatically, but human review is scheduled only when information can change a decision: a visual PR, registry/style growth, periodic design review or release. Heavy historical galleries such as the Section B 60-cell artifact regenerate only when precise declared dependencies change or at pre-release—not after unrelated source/test edits.
+The 60-cell citizenship artifact and manifest are committed; 120-cell interaction, 66-cell outlier and bounded change selectors are executable. The compute artifact can be regenerated automatically, while human review is requested only when information can change a decision: a visual PR, registry/style growth, periodic design review or release. It remains advisory. Heavy historical galleries such as the Section B 60-cell artifact regenerate only when precise declared dependencies change or at pre-release—not after unrelated source/test edits.
 
 Live smoke, SLOs and external-consumer evidence remain separate from deterministic render conformance. Contact-sheet findings feed new fixed regressions, complexity tags or interaction-strength changes; they do not become an ever-growing screenshot gate by default.
 
@@ -483,7 +483,7 @@ The versioned [`baseline.json`](../../eval/test-portfolio/baseline.json) and [`c
 | Mandatory complexity strata per family | none centrally enforced | six | 90/90 family-stratum sources |
 | Every-family Unicode/text stress | scattered | graphical and terminal | every family × SVG/PNG/ASCII/Unicode text-stress triple |
 | Historical/new fault probes | fragmented | no known loss | retained paths plus seven new executable probes |
-| Contact-sheet compute and review | no central ledger | bounded and hash-bound | 1.86s generation; independent human minutes/findings pending |
+| Contact-sheet compute and review | no central ledger | bounded and hash-bound | 1.86s generation; optional review record remains pending |
 | Receipt dependency inputs | broad `src/**/*.ts` trees | precise fail-closed import graphs | 59.9–64.5% fewer inputs; zero output-byte change |
 | Supported platform/client rows | Ubuntu/Chromium centered | explicit release/narrowed policy | macOS/Windows configured; TS/Python/Go clients present; Firefox/WebKit/Linux ARM unclaimed/unprovisioned |
 | CI p50/p95, flake, churn and escaped defects after 30 merges | baseline captured | report after observation window | pending by definition, not fabricated |
@@ -504,7 +504,6 @@ The provisional runtime target is not an acceptance shortcut. If stronger covera
 - [x] No known historical regression path is deleted; new fault probes execute for the replacement's load-bearing assumptions.
 - [x] Expensive rows have per-PR versus triggered/release cadence and fail-loud capability requirements.
 - [x] Exact goldens remain focused and exceptions cannot become approvable baseline values.
-- [ ] An independent human must complete the current hash-bound citizenship review; model sanity is explicitly not approval and publication fails closed meanwhile.
 - [x] Receipt dependency sabotage proves unrelated tests stay outside visual graphs and unresolved/changed true dependencies invalidate them.
 - [x] Before/after runtime, compute, churn, fault and coverage results are published; estimates are distinguished from measurements.
 - [ ] CI/flake/churn/escaped-defect after-results require the declared 30-merge observation window.
