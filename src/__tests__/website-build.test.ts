@@ -261,9 +261,18 @@ describe('Workers Static Assets website contract', () => {
       },
     })
 
-    const www = await worker.fetch(new Request('https://www.agentic-mermaid.dev/docs?ref=nav#top'), env(() => new Response('duplicate')))
-    expect(www.status).toBe(301)
-    expect(www.headers.get('location')).toBe('https://agentic-mermaid.dev/docs?ref=nav#top')
+    for (const [requestUrl, canonicalUrl] of [
+      ['http://agentic-mermaid.dev/docs?ref=nav#top', 'https://agentic-mermaid.dev/docs?ref=nav#top'],
+      ['http://www.agentic-mermaid.dev/docs?ref=nav#top', 'https://agentic-mermaid.dev/docs?ref=nav#top'],
+      ['https://www.agentic-mermaid.dev/docs?ref=nav#top', 'https://agentic-mermaid.dev/docs?ref=nav#top'],
+    ] as const) {
+      const canonical = await worker.fetch(new Request(requestUrl), env(() => new Response('duplicate')))
+      expect({ requestUrl, status: canonical.status, location: canonical.headers.get('location') }).toEqual({
+        requestUrl,
+        status: 301,
+        location: canonicalUrl,
+      })
+    }
     expect(assetFetches).toBe(0)
 
     const slash = await worker.fetch(new Request('https://agentic-mermaid.dev/editor?empty=1'), env(() => new Response('editor')))
@@ -303,6 +312,7 @@ describe('Workers Static Assets website contract', () => {
     expect(html.status).toBe(200)
     expect(html.headers.get('content-security-policy')).toContain("default-src 'self'")
     expect(html.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(html.headers.get('strict-transport-security')).toBe('max-age=31536000')
     expect(html.headers.get('cache-control')).toBe('no-cache')
 
     const js = await worker.fetch(new Request('https://agentic-mermaid.dev/editor/editor-abcdef123456.js'), env(() => new Response('export {}', { headers: { 'content-type': 'text/javascript; charset=utf-8' } })))
@@ -325,6 +335,7 @@ describe('Workers Static Assets website contract', () => {
     const mcp = await worker.fetch(new Request('https://agentic-mermaid.dev/mcp'), env(() => new Response('should not run')))
     expect(mcp.status).toBe(405)
     expect(((await mcp.json()) as any).error.message).toContain('stateless')
+    expect(mcp.headers.get('strict-transport-security')).toBe('max-age=31536000')
     expect(assetFetches).toBe(0)
 
     const wellKnownMcp = await worker.fetch(new Request('https://agentic-mermaid.dev/.well-known/mcp'), env(() => new Response('should not run')))
@@ -440,6 +451,16 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'agents/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/harnesses/index.html'))).toBe(false)
     expect(existsSync(join(SITE, 'agents/workflow/index.html'))).toBe(false)
+  })
+
+  test('getting started uses installed package bins rather than repository-only paths', () => {
+    const page = read('docs/getting-started/index.html')
+    expect(page).toContain('npx --no-install agentic-mermaid verify diagram.mmd --json')
+    expect(page).toContain('npx --no-install agentic-mermaid render diagram.mmd --format svg')
+    expect(page).toContain('"command": "npx"')
+    const packageVersion = JSON.parse(readRepo('package.json')).version
+    expect(page).toContain(`"agentic-mermaid@${packageVersion}"`)
+    expect(page).not.toContain('bun run bin/')
   })
 
   test('getting started publishes the agent-facing vocabulary without reviving the removed route', () => {
@@ -635,7 +656,7 @@ describe('Workers Static Assets website contract', () => {
     const gettingStarted = read('docs/getting-started/index.html')
     expect(gettingStarted).toContain('data-copy-name="MCP config"')
     expect(gettingStarted).toContain('Copy MCP config')
-    expect(gettingStarted).toContain('Run from the cloned repo root')
+    expect(gettingStarted).toContain('The config pins the package version shown on this site')
     expect(home).not.toContain('data-copy-name="MCP config"')
     expect(home).not.toContain('class="copy-btn"')
     expect(home).toContain('<span>parseRegisteredMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span>')
@@ -918,6 +939,7 @@ describe('Workers Static Assets website contract', () => {
     for (const route of CLEAN_PAGE_ROUTES) expect(existsSync(join(SITE, route, 'index.html'))).toBe(true)
     expect(read('_redirects')).toContain('/why /about/ 308')
     expect(read('_redirects')).toContain('/gallery /examples/ 308')
+    expect(read('_headers')).toContain('Strict-Transport-Security: max-age=31536000')
     expect(read('_redirects')).toContain('/getting-started /docs/getting-started/ 308')
     expect(read('_redirects')).toContain('/getting-started/ /docs/getting-started/ 308')
     expect(read('_redirects')).toContain('/warnings/index.md /warning-codes.md 308')

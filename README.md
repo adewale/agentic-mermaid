@@ -44,8 +44,8 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 
 ```bash
 npm install agentic-mermaid       # or: bun add agentic-mermaid / pnpm add agentic-mermaid
-am --help
-agentic-mermaid-mcp
+npx --no-install agentic-mermaid --help
+npx --no-install agentic-mermaid mcp
 ```
 
 For repository development, install from source and run the Bun entrypoints:
@@ -62,8 +62,10 @@ bun run bin/agentic-mermaid-mcp.ts   # MCP stdio server
 > **ESM-only.** `agentic-mermaid` ships ES modules (there is no CommonJS build);
 > `require()` consumers should use dynamic `import()` instead. Requires Node ≥ 18.
 >
-> The `am …` commands shown below assume the published bin. From a source
-> checkout, run them as `bun run bin/am.ts …` instead.
+> The `am …` examples below name the published bin. After a project-local npm
+> install, invoke it from a shell as `npx --no-install agentic-mermaid …` (or
+> from an npm script as `am …`). From a source checkout, use
+> `bun run bin/am.ts …` instead.
 
 ## Output quick starts
 

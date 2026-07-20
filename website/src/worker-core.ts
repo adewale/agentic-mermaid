@@ -92,6 +92,14 @@ function prefersMarkdown(accept: string | null): boolean {
 }
 
 const HOURLY_STATIC_ASSET = /\.(?:css|js|svg|ttf|woff2|png|ico)$/i
+const STRICT_TRANSPORT_SECURITY = 'max-age=31536000'
+
+function withTransportSecurity(response: Response, httpsRequest: boolean): Response {
+  if (!httpsRequest) return response
+  const headers = new Headers(response.headers)
+  headers.set('Strict-Transport-Security', STRICT_TRANSPORT_SECURITY)
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+}
 
 function withHeaders(response: Response, pathname: string, negotiatesHomepage = false): Response {
   const headers = new Headers(response.headers)
@@ -132,20 +140,26 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
   return {
     async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
       const url = new URL(request.url)
+      const httpsRequest = url.protocol === 'https:'
+      const finish = (response: Response) => withTransportSecurity(response, httpsRequest)
 
-      // Canonical host redirect. This must run before Static Assets so the
-      // homepage and other asset-backed paths do not serve duplicate www content.
-      if (url.hostname === 'www.agentic-mermaid.dev') {
+      // Canonical scheme + host redirect. Keep this one hop: preserving http on
+      // the www redirect would still expose the complete site over plaintext.
+      // Scope the scheme redirect to production hosts so local Wrangler remains
+      // usable over http.
+      const productionHost = url.hostname === 'agentic-mermaid.dev' || url.hostname === 'www.agentic-mermaid.dev'
+      if (productionHost && (!httpsRequest || url.hostname === 'www.agentic-mermaid.dev')) {
+        url.protocol = 'https:'
         url.hostname = 'agentic-mermaid.dev'
-        return Response.redirect(url.toString(), 301)
+        return finish(Response.redirect(url.toString(), 301))
       }
 
       const pathname = url.pathname.replace(/\/$/, '') || '/'
 
       const redirectTo = redirects.get(url.pathname) || redirects.get(pathname)
-      if (redirectTo) return Response.redirect(new URL(redirectTo + url.search + url.hash, url).toString(), 308)
+      if (redirectTo) return finish(Response.redirect(new URL(redirectTo + url.search + url.hash, url).toString(), 308))
       if ((cleanRoutes.has(pathname) || /^\/(warnings|errors)\/[^/.]+$/.test(pathname)) && !url.pathname.endsWith('/')) {
-        return Response.redirect(new URL(pathname + '/' + url.search + url.hash, url).toString(), 308)
+        return finish(Response.redirect(new URL(pathname + '/' + url.search + url.hash, url).toString(), 308))
       }
 
       // `/.well-known/mcp` is the standard discovery alias for the same hosted
@@ -169,7 +183,7 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
           // handler awaits cache writes inline instead of deferring them.
           waitUntil: ctx ? (p => ctx.waitUntil(p)) : undefined,
         })
-        return handler(request)
+        return finish(await handler(request))
       }
 
       const negotiatesHomepage = url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD')
@@ -183,7 +197,7 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
       }
 
       const response = await env.ASSETS.fetch(assetRequest)
-      return withHeaders(response, assetPathname, negotiatesHomepage)
+      return finish(withHeaders(response, assetPathname, negotiatesHomepage))
     },
   }
 }
