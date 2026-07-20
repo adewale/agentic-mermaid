@@ -254,8 +254,9 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
 .masthead .bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 7px; font-family: var(--serif); font-weight: 600; font-size: 1.125rem; line-height: var(--lh-tight); letter-spacing: -0.01em; color: var(--ink); text-decoration: none; }
 .brand:hover { color: var(--ink); text-decoration: none; }
+.masthead .nav-menu { display: none; margin-left: auto; }
+.masthead .nav-menu > .links { margin-left: 0; }
 .masthead .nav-toggle {
-  margin-left: auto;
   min-width: 44px;
   min-height: 44px;
   padding: 0 11px;
@@ -270,7 +271,8 @@ body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-i
   font: 600 var(--t-sm)/1 var(--sans);
   cursor: pointer;
 }
-.masthead .nav-toggle[hidden] { display: none; }
+.masthead .nav-toggle::-webkit-details-marker { display: none; }
+.masthead .nav-toggle::marker { content: ""; }
 .masthead .nav-toggle:hover { background: var(--control-bg-hover); color: var(--ink); }
 .masthead .nav-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .brand .mark { width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--brand-pine); color: var(--brand-on); display: inline-grid; place-items: center; }
@@ -980,28 +982,35 @@ figcaption { color: var(--ink-faint); font-size: var(--t-label); line-height: 1.
    stay close and `auto` pins the real size after first render. */
 .example-source, .example-rich-group article { content-visibility: auto; contain-intrinsic-size: auto 520px; }
 
-/* Progressive mobile menu. Without JavaScript the toggle remains hidden and
-   the ordinary wrapping navigation stays visible. Once enhanced, the button
-   owns the menu's hidden state and all destinations fit in one bounded panel. */
+/* Native disclosure keeps the menu useful without JavaScript and gives the
+   first paint its final geometry. The open panel overlays rather than shifting
+   the document; the small script adds outside-click and Escape conveniences. */
 @media (max-width: 640px) {
-  .masthead { padding-top: var(--sp-4); }
-  .masthead .bar { align-items: center; }
-  .masthead[data-nav-ready] .nav-toggle:not([hidden]) { display: inline-flex; }
-  .masthead[data-nav-ready] .links {
+  .masthead { position: relative; z-index: 10; padding-top: var(--sp-4); }
+  .masthead .bar { position: relative; align-items: center; }
+  .masthead .desktop-links { display: none; }
+  .masthead .nav-menu { display: block; margin-left: auto; }
+  .masthead .nav-toggle { display: inline-flex; }
+  .masthead .nav-menu > .links {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
     display: grid;
     grid-template-columns: 1fr;
     gap: 2px;
-    width: 100%;
-    margin: 2px 0 0;
+    width: auto;
+    margin: 0;
     padding: var(--sp-2);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--surface-raised);
-    box-shadow: var(--shadow-hairline);
+    box-shadow: var(--shadow-popover);
   }
-  .masthead[data-nav-ready] .links[hidden] { display: none; }
-  .masthead[data-nav-ready] .links a,
-  .masthead[data-nav-ready] .links .link-editor {
+  .masthead .nav-menu:not([open]) > .links { display: none; }
+  .masthead .nav-menu > .links a,
+  .masthead .nav-menu > .links .link-editor {
     width: 100%;
     min-height: 44px;
     padding: 0 10px;

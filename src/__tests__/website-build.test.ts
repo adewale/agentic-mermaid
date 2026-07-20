@@ -897,10 +897,10 @@ describe('Workers Static Assets website contract', () => {
     for (const rel of ['index.html', 'docs/index.html', 'about/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
       const html = read(rel)
       const masthead = html.match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
-      expect(masthead).toContain('class="nav-toggle"')
-      expect(masthead).toContain('aria-controls="site-navigation"')
-      expect(masthead).toContain('aria-expanded="false"')
+      expect(masthead).toContain('<details class="nav-menu"><summary class="nav-toggle">')
       expect(masthead).toContain('<nav id="site-navigation" class="links" aria-label="Primary navigation">')
+      expect(masthead).not.toContain('aria-expanded=')
+      expect(masthead).not.toContain('class="nav-toggle" hidden')
       expect(masthead).toContain('href="/examples/"')
       expect(masthead).toContain('href="/comparisons/"')
       expect(masthead).toContain('href="/about/"')

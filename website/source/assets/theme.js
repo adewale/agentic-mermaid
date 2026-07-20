@@ -1,53 +1,30 @@
-/* Shared site helpers: shader-mark handles the logo; this file only wires
-   copyable agent prompts/config snippets. The public site no longer has a
-   global theme picker — diagram themes live in the editor. */
+/* Shared site helpers: shader-mark handles the logo; this file wires small
+   progressive controls such as navigation conveniences and copyable agent
+   snippets. Diagram themes live in the editor, not in the public shell. */
 (function () {
   function initNavigation() {
     document.querySelectorAll('.masthead').forEach((header) => {
-      const toggle = header.querySelector('.nav-toggle');
-      const navigation = header.querySelector('#site-navigation');
-      if (!toggle || !navigation || !window.matchMedia) return;
+      const menu = header.querySelector('.nav-menu');
+      const toggle = menu?.querySelector('.nav-toggle');
+      const navigation = menu?.querySelector('#site-navigation');
+      if (!menu || !toggle || !navigation || !window.matchMedia) return;
       const mobile = window.matchMedia('(max-width: 640px)');
 
-      function setOpen(open, focusToggle) {
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
-        navigation.hidden = !open;
+      function close(focusToggle) {
+        menu.removeAttribute('open');
         if (focusToggle) toggle.focus();
       }
 
-      function syncViewport() {
-        if (mobile.matches) {
-          toggle.hidden = false;
-          header.dataset.navReady = 'true';
-          setOpen(false, false);
-        } else {
-          delete header.dataset.navReady;
-          toggle.hidden = true;
-          toggle.setAttribute('aria-expanded', 'false');
-          toggle.setAttribute('aria-label', 'Open navigation');
-          navigation.hidden = false;
-        }
-      }
-
-      toggle.addEventListener('click', () => {
-        setOpen(toggle.getAttribute('aria-expanded') !== 'true', false);
-      });
       navigation.addEventListener('click', (event) => {
-        if (mobile.matches && event.target instanceof Element && event.target.closest('a')) setOpen(false, false);
+        if (mobile.matches && event.target instanceof Element && event.target.closest('a')) close(false);
       });
       document.addEventListener('pointerdown', (event) => {
-        if (mobile.matches && toggle.getAttribute('aria-expanded') === 'true' && !header.contains(event.target)) {
-          setOpen(false, false);
-        }
+        if (mobile.matches && menu.hasAttribute('open') && !header.contains(event.target)) close(false);
       });
       document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && mobile.matches && toggle.getAttribute('aria-expanded') === 'true') {
-          setOpen(false, true);
-        }
+        if (event.key === 'Escape' && mobile.matches && menu.hasAttribute('open')) close(true);
       });
-      mobile.addEventListener?.('change', syncViewport);
-      syncViewport();
+      mobile.addEventListener?.('change', () => close(false));
     });
   }
 
