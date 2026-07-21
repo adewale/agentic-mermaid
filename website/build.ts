@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve, sep } from 'node:path'
 import { renderMermaidSVG as renderBeautifulMermaidSVG } from 'beautiful-mermaid'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import type { BuiltinFamilyId } from '../src/agent/families.ts'
@@ -35,7 +36,12 @@ const SOURCE = join(import.meta.dir, 'source')
 const SOURCE_PAGES = join(SOURCE, 'pages')
 const SOURCE_ASSETS = join(SOURCE, 'assets')
 const SOURCE_DIAGRAMS = join(SOURCE, 'diagrams')
-const OUT = join(import.meta.dir, 'public')
+const OUTPUT_OVERRIDE = process.env.AM_WEBSITE_PUBLIC_DIR
+const OUT = OUTPUT_OVERRIDE ? resolve(OUTPUT_OVERRIDE) : join(import.meta.dir, 'public')
+const TEMP_ROOT = resolve(tmpdir())
+if (OUTPUT_OVERRIDE && (OUT === TEMP_ROOT || !OUT.startsWith(TEMP_ROOT + sep))) {
+  throw new Error('AM_WEBSITE_PUBLIC_DIR must be a child of the system temporary directory')
+}
 const CHECK = process.argv.includes('--check')
 const PUBLIC_ONLY = process.argv.includes('--public-only')
 const VERIFIED_FONT_BY_ID = new Map(
@@ -2993,5 +2999,6 @@ if (CHECK) {
   // hold; CI no longer compares or churns checked-in copies.
   console.log(`website/build --check: regenerated ${generated.size} public and ${workerGenerated.size} Worker artifacts successfully.`)
 } else {
-  console.log(`website/build: wrote ${generated.size} files to website/public${PUBLIC_ONLY ? ' (public only)' : ''}`)
+  const outputLabel = OUTPUT_OVERRIDE ? OUT : 'website/public'
+  console.log(`website/build: wrote ${generated.size} files to ${outputLabel}${PUBLIC_ONLY ? ' (public only)' : ''}`)
 }

@@ -38,9 +38,10 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   Follow [`docs/project/website-payload-plan.md`](docs/project/website-payload-plan.md):
   ship reproducible Inter WOFF2 subsets first, externalize/defer the complete
   Examples card payload without losing searchable permalinks or Editor parity,
-  then split the editor only at measured cold-feature boundaries. Establish
-  deterministic raw/gzip budgets after each reduction and retain cold/warm
-  Chromium transfer evidence; do not promote network timing to a source gate.
+  then split the editor only at measured cold-feature boundaries. The initial
+  request graphs and raw/gzip/Brotli ceilings are executable authorities; ratchet
+  the affected route after each reduction and retain cold/warm Chromium transfer
+  evidence without promoting network timing to a source gate.
 ## Security backlog
 
 - [ ] **SEC-4 — Implement and drill hosted MCP abuse controls** (`todo`; the
