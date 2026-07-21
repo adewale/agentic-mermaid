@@ -32,6 +32,8 @@ import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 
 const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^2.0.0' })
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({ compatibility: BACKEND_COMPATIBILITY })
+const PACKAGE_VERSION = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')).version as string
+const ESCAPED_PACKAGE_VERSION = PACKAGE_VERSION.replaceAll('.', '\\.')
 const registerBackendFromJs = registerBackend as unknown as (
   backend: Parameters<typeof registerBackend>[0],
   options?: { readonly compatibility?: Readonly<Record<string, string>> },
@@ -69,7 +71,7 @@ describe('shared extension identity', () => {
       version: '1.0.0',
       compatibility: { core: '^99.0.0' },
       provenance: { owner: 'test', source: 'test' },
-    })).toThrow(/core.*\^99\.0\.0.*host version 0\.1\.1/i)
+    })).toThrow(new RegExp(`core.*\\^99\\.0\\.0.*host version ${ESCAPED_PACKAGE_VERSION}`, 'i'))
 
     const forwardCompatible = createExtensionIdentity({
       id: 'look:test/future-contract',
@@ -81,7 +83,7 @@ describe('shared extension identity', () => {
     expect(evaluateExtensionCompatibility(forwardCompatible)).toEqual({
       accepted: true,
       resolutions: [
-        { contract: 'core', range: '^0.1.1', status: 'compatible', version: '0.1.1' },
+        { contract: 'core', range: '^0.1.1', status: 'compatible', version: PACKAGE_VERSION },
         { contract: 'acme:future-scene', range: '^99.0.0', status: 'deferred' },
       ],
     })

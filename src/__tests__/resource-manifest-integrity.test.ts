@@ -21,6 +21,8 @@ import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { snapshotResourceManifest, verifyResourceBytes, type ResourceManifest, type ResourceManifestEntry } from '../resource-manifest.ts'
 
 const roots: string[] = []
+const PACKAGE_VERSION = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')).version as string
+const ESCAPED_PACKAGE_VERSION = PACKAGE_VERSION.replaceAll('.', '\\.')
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
@@ -186,7 +188,7 @@ describe('content-addressed installed resource manifest', () => {
       }],
     }
     expect(validateResourceManifest(incompatibleCore).join('\n'))
-      .toMatch(/incompatible requirements.*core.*\^99\.0\.0.*host version 0\.1\.1/i)
+      .toMatch(new RegExp(`incompatible requirements.*core.*\\^99\\.0\\.0.*host version ${ESCAPED_PACKAGE_VERSION}`, 'i'))
     expect(() => snapshotResourceManifest(badVersion)).toThrow('INVALID_RESOURCE_MANIFEST')
     expect(() => snapshotResourceManifest(incompatibleCore)).toThrow('INVALID_RESOURCE_MANIFEST')
   })
