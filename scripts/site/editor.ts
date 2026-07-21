@@ -17,6 +17,8 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_RESOURCES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
@@ -25,10 +27,10 @@ import { PNG_DEFAULT_SCALE } from '../../src/png-contract.ts'
 
 // ── File helpers ──────────────────────────────────────────────────────────────
 
-const editorDir = new URL('../../editor/', import.meta.url).pathname
+const editorDir = fileURLToPath(new URL('../../editor/', import.meta.url))
 
 async function readFile(relativePath: string): Promise<string> {
-  const file = Bun.file(editorDir + relativePath)
+  const file = Bun.file(join(editorDir, relativePath))
   return file.text()
 }
 
@@ -174,7 +176,7 @@ async function readHtmlPartials(themeItems: string): Promise<{
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
   const buildResult = await Bun.build({
-    entrypoints: [new URL('../../src/browser.ts', import.meta.url).pathname],
+    entrypoints: [fileURLToPath(new URL('../../src/browser.ts', import.meta.url))],
     target: 'browser',
     format: 'esm',
     minify: true,
@@ -256,6 +258,6 @@ ${appJs}
 }
 
 const result = await generateEditorHtml()
-const outPath = new URL('../../editor.html', import.meta.url).pathname
+const outPath = fileURLToPath(new URL('../../editor.html', import.meta.url))
 await Bun.write(outPath, result)
 console.log(`Written to ${outPath} (${(result.length / 1024).toFixed(1)} KB)`)

@@ -624,6 +624,8 @@ describe('Workers Static Assets website contract', () => {
     const editorBuilder = readFileSync(join(REPO, 'scripts/site/editor.ts'), 'utf8')
     const websiteBuilder = readFileSync(join(REPO, 'website/build.ts'), 'utf8')
     expect(editorBuilder).toContain("AM_EDITOR_FONT_PREFIX || 'assets/fonts/'")
+    expect(editorBuilder).toContain("fileURLToPath(new URL('../../src/browser.ts', import.meta.url))")
+    expect(editorBuilder).not.toMatch(/new URL\([^\n]+import\.meta\.url\)\.pathname/)
     expect(websiteBuilder).toContain("AM_EDITOR_FONT_PREFIX: '/fonts/'")
   })
 
