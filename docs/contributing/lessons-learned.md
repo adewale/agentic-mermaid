@@ -8,6 +8,14 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — subtraction and release readiness (#205)
+
+**A live dependency audit is a release input, not background noise.** The PR's behavioral lanes were green, but a newly disclosed advisory in Stryker's `minimatch` chain stopped the quality job before the repository-specific checks ran. Rule: preserve the audit gate, resolve the smallest compatible transitive version explicitly, prove the dependent tool still runs, and distinguish inherited aggregate failures from product regressions.
+
+**Subtraction must retain an explicit portable boundary.** Removing audit-only exports was useful, but an initial pass also removed the only clearly browser/workerd-safe agent entry and left consumers to depend on bundler tree-shaking around native PNG code. Rule: name and test the portable contract directly; package reduction is successful only when each retained runtime has an install-and-import proof.
+
+**The final dependency graph belongs before final evidence generation.** Package and lockfile edits after gallery generation left provenance receipts stale even though image bytes did not change. Rule: finish exports, dependency placement, overrides, and version metadata before regenerating receipts; then run the merge-ref CI rather than treating branch-head freshness as final.
+
 ## 2026-07 — complexity-aware test portfolio (#193)
 
 **Optimize declared obligations, not test count.** The old 4,500-render matrix was exhaustive only for family × Look × Palette while fixing source complexity, output, transport, security, seed, and background. The replacement exhausts cheap Style algebra, covers expensive factors with independently verified variable strength, retains exact goldens and fault probes, and publishes the missing-tuple count. Rule: state what a row proves before optimizing it; fewer rows are useful only when the declared interaction and oracle strength improve.

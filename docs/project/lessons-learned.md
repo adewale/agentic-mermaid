@@ -78,6 +78,13 @@ family docs, and `TODO.md`.
     certifies only a hygiene floor; the aesthetic ceiling comes from a per-family
     thesis plus good role choices. Full cross-family analysis in
     [`../design/system/cross-family-aesthetics.md`](../design/system/cross-family-aesthetics.md).
+18. **Security gates are time-dependent release inputs.** A dependency audit can
+    change while application bytes do not. Never suppress or reorder the gate to
+    make CI green: identify the exact vulnerable chain, select the smallest
+    compatible fixed version, pin it through the repository's dependency policy,
+    and execute the dependent tool as a compatibility proof. Aggregate failures
+    that inherit the security result should be reported as such, not mislabelled
+    as independent test failures.
 
 ## Lessons from the consolidation audits
 

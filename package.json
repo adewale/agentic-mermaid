@@ -1,7 +1,7 @@
 {
   "name": "agentic-mermaid",
   "mcpName": "io.github.adewale/agentic-mermaid",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "description": "Agentic Mermaid: render, verify, and safely edit Mermaid diagrams as ASCII, PNG, SVG, or structured agent workflows — with composable styles (hand-drawn, excalidraw, watercolor, or your own as JSON).",
   "type": "module",
@@ -177,6 +177,7 @@
     "yaml": "^2.8.3"
   },
   "overrides": {
+    "brace-expansion": "5.0.7",
     "esbuild": "0.28.1",
     "lodash-es": "4.18.1",
     "picomatch": "4.0.5",
