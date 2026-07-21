@@ -21,7 +21,7 @@ The Examples page already uses `content-visibility: auto`; that reduces off-scre
 | Route | requests | raw | gzip | Brotli |
 |---|---:|---:|---:|---:|
 | `/` | 9 | 682,619 B | 406,567 B | 387,899 B |
-| `/examples/` | 11 | 2,426,844 B | 648,659 B | 564,048 B |
+| `/examples/` | 6 | 380,408 B | 66,947 B | 53,157 B |
 | `/editor/?empty=1` | 2 | 3,314,199 B | 974,886 B | 767,057 B |
 
 The matching ceilings live separately in `scripts/site/website-payload-budgets.ts`. Review policy requires an optimization to ratchet its own route downward without rewriting measurement logic or unrelated route budgets in the same PR. Lighthouse timings remain diagnostic review evidence.
@@ -62,11 +62,30 @@ Starting → subset ratchets:
 
 ### 2. Examples delivery
 
-The page embeds the complete gallery as roughly 1.97 MB of decoded HTML. `template`, `content-visibility`, or CSS hiding alone cannot reduce transfer bytes.
+Before this intervention, the page embedded the complete gallery as roughly 1.97 MB of decoded HTML. `template`, `content-visibility`, or CSS hiding alone could not reduce transfer bytes.
 
-Split the catalog into a server-rendered searchable index plus independently cacheable family/card payloads. Render a representative initial tranche and fetch further cards on explicit “Show more” or near-viewport intent. Preserve stable anchors/permalinks, captions, source access, no-JS access to the index, and every Examples → Editor state handoff.
+Delivered by the standalone/deferred Examples authority:
 
-Target: at least a 40% reduction in initial decoded HTML and transferred document bytes, with no loss in sitemap/link closure or browser parity.
+- the initial page retains every registered family proof, prompt, trace, source, render, and Editor handoff;
+- Style × Palette and the rich corpus are server-rendered at stable, canonical, sitemap-listed `/examples/style-palette/` and `/examples/corpus/` routes that work without JavaScript;
+- the same build projection emits exact-byte content-hashed fragments plus hashed JS/CSS; fragment responses are successful-status/MIME/root validated, immutable only under the shared success-only cache policy, and carry `X-Robots-Tag: noindex, nofollow`;
+- the loader retains only in-flight promises, deduplicates concurrent intent, exposes explicit Load/Retry and permanent standalone links, and changes focus/history only after insertion and target resolution. Abort, 503, wrong-MIME, malformed-root, retry, intercepted-link fallback, absent `fetch`, absent/throwing `IntersectionObserver`, and no-JS paths are browser-tested;
+- current main-page hashes and all 127 published numeric rich-example aliases retain lightweight `:target` continuation records. The numeric map is frozen rather than re-derived from mutable corpus positions;
+- the complete union of index + standalone pages is exact-closed against all prior cards, Editor states, source, and SVG render parity.
+
+Inter-subset baseline → deferred Examples ratchet:
+
+| Metric | Before | After | Change |
+|---|---:|---:|---:|
+| Initial route raw | 2,426,844 B | 380,408 B | −84.3% |
+| Initial route gzip | 648,659 B | 66,947 B | −89.7% |
+| Initial route Brotli | 564,048 B | 53,157 B | −90.6% |
+| Initial requests | 11 | 6 | −5 |
+| Document raw | 1,966,916 B | 272,449 B | −86.1% |
+| Document gzip | 262,408 B | 39,065 B | −85.1% |
+| Document Brotli | 181,482 B | 29,398 B | −83.8% |
+
+Homepage and blank-editor graphs and byte ceilings remain unchanged.
 
 ### 3. Editor module graph
 

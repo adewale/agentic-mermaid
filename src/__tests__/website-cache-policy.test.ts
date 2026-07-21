@@ -23,6 +23,7 @@ describe('website static asset cache authority', () => {
       ['/examples/fragments/style-palette-abcdef123456.html', 'text/html; charset=utf-8'],
       ['/examples/fragments/corpus-abcdef123456.html', 'text/html'],
       ['/examples-abcdef123456.js', 'text/javascript'],
+      ['/examples-abcdef123456.css', 'text/css'],
       ['/generated/inline-abcdef123456.js', 'text/javascript'],
       ['/fonts/Inter-Regular.subset-abcdef123456.woff2', 'font/woff2'],
       ['/fonts/Inter-Medium.subset-abcdef123456.woff2', 'font/woff2'],
@@ -43,6 +44,7 @@ describe('website static asset cache authority', () => {
     expect(classify({ contentType: 'text/html' })).toBe('no-store')
     expect(classify({ contentType: 'text/javascript-invalid' })).toBe('no-store')
     expect(classify({ contentType: 'text/html; profile=text/javascript' })).toBe('no-store')
+    expect(classify({ pathname: '/examples-abcdef123456.css', contentType: 'text/javascript' })).toBe('no-store')
     expect(classify({ contentType: '' })).toBe('no-store')
     expect(classify({ hasSetCookie: true })).toBe('no-store')
 
