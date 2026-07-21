@@ -23,7 +23,11 @@ describe('website static asset cache authority', () => {
       ['/examples/fragments/style-palette-abcdef123456.html', 'text/html; charset=utf-8'],
       ['/examples/fragments/corpus-abcdef123456.html', 'text/html'],
       ['/examples-abcdef123456.js', 'text/javascript'],
+      ['/generated/inline-abcdef123456.js', 'text/javascript'],
       ['/fonts/Inter-Regular.subset-abcdef123456.woff2', 'font/woff2'],
+      ['/fonts/Inter-Medium.subset-abcdef123456.woff2', 'font/woff2'],
+      ['/fonts/Inter-SemiBold.subset-abcdef123456.woff2', 'font/woff2'],
+      ['/fonts/Inter-Bold.subset-abcdef123456.woff2', 'font/woff2'],
     ] as const) {
       expect(classify({ pathname, contentType }), pathname).toBe(IMMUTABLE)
       expect(classify({ pathname, contentType, method: 'HEAD' }), `${pathname} HEAD`).toBe(IMMUTABLE)
@@ -37,6 +41,8 @@ describe('website static asset cache authority', () => {
     expect(classify({ method: 'POST' })).toBe('no-store')
     expect(classify({ method: 'OPTIONS' })).toBe('no-store')
     expect(classify({ contentType: 'text/html' })).toBe('no-store')
+    expect(classify({ contentType: 'text/javascript-invalid' })).toBe('no-store')
+    expect(classify({ contentType: 'text/html; profile=text/javascript' })).toBe('no-store')
     expect(classify({ contentType: '' })).toBe('no-store')
     expect(classify({ hasSetCookie: true })).toBe('no-store')
 
@@ -50,13 +56,18 @@ describe('website static asset cache authority', () => {
     expect(classify({ pathname: '/editor/editor-abcdef12345g.js' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/fonts/Inter-Regular.subset.woff2', contentType: 'font/woff2' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/styles.css', contentType: 'text/css' })).toBe('public, max-age=3600')
+    expect(classify({ pathname: '/styles.css', contentType: 'text/css', method: 'POST' })).toBe('no-store')
+    expect(classify({ pathname: '/styles.css', contentType: 'text/css', hasSetCookie: true })).toBe('no-store')
     expect(classify({ pathname: '/index.html', contentType: 'text/html' })).toBe('no-cache')
+    expect(classify({ pathname: '/index.html', contentType: 'text/html', hasSetCookie: true })).toBe('no-store')
+    expect(classify({ pathname: '/index.html', contentType: 'text/html', status: 500 })).toBe('no-store')
     expect(classify({ pathname: '/data.unknown', contentType: 'application/octet-stream' })).toBe('no-cache')
   })
 
   test('keeps machine-readable success cacheable but never caches its errors', () => {
     expect(classify({ pathname: '/capabilities.json', contentType: 'application/json' })).toBe('public, max-age=300')
     expect(classify({ pathname: '/capabilities.json', contentType: 'application/json', status: 500 })).toBe('no-store')
+    expect(classify({ pathname: '/capabilities.json', contentType: 'application/json', hasSetCookie: true })).toBe('no-store')
     expect(classify({ pathname: '/llms.txt', contentType: 'text/plain', method: 'POST' })).toBe('no-store')
   })
 })

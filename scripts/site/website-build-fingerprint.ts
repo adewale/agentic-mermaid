@@ -20,9 +20,18 @@ export const WEBSITE_BUILD_FINGERPRINT_PATHS = Object.freeze([
   'shared',
   'src',
   'eval/agent-usage/homepage-prompt.ts',
+  'eval/mindmap-gitgraph-content-corpus',
   'assets/fonts',
   'package.json',
   'bun.lock',
+] as const)
+
+export const WEBSITE_BUILD_ENVIRONMENT_KEYS = Object.freeze([
+  'SITE_ORIGIN',
+  'SITE_GIT_SHA',
+  'SITE_BUILD_TIME',
+  'SITE_NPM_STATUS',
+  'SITE_NPM_PUBLISHED',
 ] as const)
 
 const EXCLUDED_PATHS = Object.freeze([
@@ -36,6 +45,15 @@ export interface WebsiteBuildFingerprintOptions {
   paths?: readonly string[]
   /** Tests may inject stable provenance instead of consulting a Git checkout. */
   provenance?: readonly string[]
+  environment?: Readonly<Record<string, string | undefined>>
+}
+
+export interface StableFingerprintBuildOptions {
+  fingerprint(): string
+  build(): void
+  reset(): void
+  commit(fingerprint: string): void
+  maxAttempts?: number
 }
 
 export function isWebsiteBuildFingerprintInput(path: string): boolean {
@@ -51,8 +69,35 @@ export function computeWebsiteBuildFingerprint(root: string, options: WebsiteBui
     hash.update(value)
     hash.update('\0')
   }
+  const environment = options.environment ?? process.env
+  for (const key of WEBSITE_BUILD_ENVIRONMENT_KEYS) {
+    hash.update(key)
+    hash.update('=')
+    hash.update(environment[key] ?? '<unset>')
+    hash.update('\0')
+  }
   for (const rel of options.paths ?? WEBSITE_BUILD_FINGERPRINT_PATHS) addPathToHash(hash, root, rel)
   return hash.digest('hex')
+}
+
+/** Runs a synchronous generator only across a stable input snapshot. An input
+ * mutation during generation discards the mixed output and retries boundedly. */
+export function runStableFingerprintBuild(options: StableFingerprintBuildOptions): void {
+  const maxAttempts = options.maxAttempts ?? 3
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const before = options.fingerprint()
+    try { options.build() } catch (error) {
+      options.reset()
+      throw error
+    }
+    const after = options.fingerprint()
+    if (before === after) {
+      options.commit(after)
+      return
+    }
+    options.reset()
+  }
+  throw new Error(`Website inputs changed during ${maxAttempts} consecutive build attempts`)
 }
 
 function gitProvenance(root: string): string[] {

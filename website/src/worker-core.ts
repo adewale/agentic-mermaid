@@ -99,7 +99,7 @@ type ImmutableAssetRule = Readonly<{ path: RegExp, contentTypes: readonly string
 const IMMUTABLE_ASSET_RULES: readonly ImmutableAssetRule[] = Object.freeze([
   Object.freeze({ path: /^\/(?:editor\/editor-(?:(?:app|renderer)-)?[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
   Object.freeze({ path: /^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}\.html$/i, contentTypes: ['text/html'] }),
-  Object.freeze({ path: /^\/examples-[a-f0-9]{12}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
+  Object.freeze({ path: /^\/(?:examples|generated\/inline)-[a-f0-9]{12}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
   Object.freeze({ path: /^\/fonts\/Inter-(?:Regular|Medium|SemiBold|Bold)\.subset-[a-f0-9]{12}\.woff2$/i, contentTypes: ['font/woff2'] }),
 ])
 
@@ -114,20 +114,16 @@ export interface WebsiteAssetCacheInput {
 /** Cache authority for static assets. A hash-shaped path is only immutable
  * when the asset response itself proves it is the complete expected object. */
 export function classifyWebsiteAssetCache(input: WebsiteAssetCacheInput): string {
-  const contentType = input.contentType.toLowerCase()
+  const contentType = input.contentType.split(';', 1)[0]!.trim().toLowerCase()
+  const cacheableMethod = input.method === 'GET' || input.method === 'HEAD'
+  if (!cacheableMethod || input.hasSetCookie || input.status !== 200) return 'no-store'
+
   const immutableRule = IMMUTABLE_ASSET_RULES.find(rule => rule.path.test(input.pathname))
   if (immutableRule) {
-    const complete = input.method === 'GET' || input.method === 'HEAD'
-    const expectedType = immutableRule.contentTypes.some(type => contentType.includes(type))
-    return complete && input.status === 200 && expectedType && !input.hasSetCookie ? IMMUTABLE_CACHE : 'no-store'
+    return immutableRule.contentTypes.includes(contentType) ? IMMUTABLE_CACHE : 'no-store'
   }
-  if (/\.(json|md|txt)$/i.test(input.pathname)) {
-    return input.status === 200 && (input.method === 'GET' || input.method === 'HEAD')
-      ? 'public, max-age=300'
-      : 'no-store'
-  }
-  if (contentType.includes('text/html') || input.status === 404) return 'no-cache'
-  if (input.status !== 200) return 'no-store'
+  if (/\.(json|md|txt)$/i.test(input.pathname)) return 'public, max-age=300'
+  if (contentType === 'text/html') return 'no-cache'
   if (HOURLY_STATIC_ASSET.test(input.pathname)) return 'public, max-age=3600'
   return 'no-cache'
 }
@@ -146,8 +142,11 @@ function withHeaders(response: Response, pathname: string, method: string, negot
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()')
 
   const type = headers.get('content-type') || ''
+  const typeEssence = type.split(';', 1)[0]!.trim().toLowerCase()
   headers.delete('Cache-Control')
-  if (type.includes('text/html')) headers.set('Content-Security-Policy', csp)
+  headers.delete('CDN-Cache-Control')
+  headers.delete('Cloudflare-CDN-Cache-Control')
+  if (typeEssence === 'text/html') headers.set('Content-Security-Policy', csp)
 
   if (/\.(json|md|txt)$/i.test(pathname)) headers.set('Access-Control-Allow-Origin', '*')
   headers.set('Cache-Control', classifyWebsiteAssetCache({
