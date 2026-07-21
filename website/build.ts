@@ -464,7 +464,7 @@ function mastheadHtml(currentHref = '') {
     const attrs = [cls ? `class="${cls}"` : '', currentHref === href ? 'aria-current="page"' : ''].filter(Boolean).join(' ')
     return `<a ${attrs ? attrs + ' ' : ''}href="${href}">${label}</a>`
   }).join('')
-  return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><span class="links">${nav}</span></div><hr></header>`
+  return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><nav class="links desktop-links" aria-label="Primary navigation">${nav}</nav><details class="nav-menu"><summary class="nav-toggle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></summary><nav id="site-navigation" class="links" aria-label="Primary navigation">${nav}</nav></details></div><hr></header>`
 }
 
 // One quiet footer on every document page: the trust signals an evaluating

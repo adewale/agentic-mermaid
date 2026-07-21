@@ -897,6 +897,10 @@ describe('Workers Static Assets website contract', () => {
     for (const rel of ['index.html', 'docs/index.html', 'about/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
       const html = read(rel)
       const masthead = html.match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
+      expect(masthead).toContain('<details class="nav-menu"><summary class="nav-toggle">')
+      expect(masthead).toContain('<nav id="site-navigation" class="links" aria-label="Primary navigation">')
+      expect(masthead).not.toContain('aria-expanded=')
+      expect(masthead).not.toContain('class="nav-toggle" hidden')
       expect(masthead).toContain('href="/examples/"')
       expect(masthead).toContain('href="/comparisons/"')
       expect(masthead).toContain('href="/about/"')
@@ -954,6 +958,8 @@ describe('Workers Static Assets website contract', () => {
     expect(read('_redirects')).not.toContain('/home')
     const styles = read('styles.css')
     expect(styles).toContain('.masthead .links .link-editor')
+    expect(styles).toContain('.masthead .nav-toggle')
+    expect(styles).not.toContain('scrollbar-width: none')
     expect(styles).not.toContain('footlinks')
     // The only footer styling is the site-footer trust strip.
     expect(styles).toContain('.site-footer')
