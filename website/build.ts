@@ -2972,7 +2972,9 @@ await emit('sitemap.xml', sitemapXml)
 // The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker
 // isolate, the resvg wasm module, and the bundled PNG fonts. They live under
 // src/generated (not public/): they are Worker modules, not servable assets.
-// The directory is gitignored and rebuilt before typecheck, tests, and deploy.
+// The directory is gitignored and rebuilt by website checks, tests that need
+// Worker artifacts, and deploy. worker-env.d.ts owns the stable import types so
+// repository typecheck remains read-only and works from a fresh checkout.
 const SRC_GENERATED = join(import.meta.dir, 'src', 'generated')
 const workerGenerated = new Map<string, Buffer>()
 
