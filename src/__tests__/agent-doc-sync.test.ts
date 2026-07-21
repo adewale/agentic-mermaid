@@ -300,16 +300,16 @@ describe('vocabulary doc-sync', () => {
     const ci = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
     const packageJson = readFileSync(join(REPO, 'package.json'), 'utf8')
     for (const command of [
-      'mutation-test:incremental',
-      'mutation-test:routes',
-      'mutation-test:routes:certs',
-      'mutation-test:routes:subgraph',
-      'sabotage:routes',
+      'mutation-test -- incremental',
+      'mutation-test -- routes',
+      'mutation-test -- routes:certs',
+      'mutation-test -- routes:subgraph',
     ]) {
       expect(docs).toContain(command)
-      expect(packageJson).toContain(`"${command}"`)
     }
-    expect(ci).toContain('bun run mutation-test:incremental')
+    expect(packageJson).toContain('"mutation-test"')
+    expect(packageJson).toContain('"sabotage:routes"')
+    expect(ci).toContain('bun run mutation-test -- incremental')
     expect(ci).toContain('bun run sabotage:routes')
     expect(existsSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'))).toBe(false)
   })
@@ -996,7 +996,8 @@ describe('shipped distribution artifacts present', () => {
   test('npm package includes bundled PNG fonts and delegated docs', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     expect(pkg.files).toContain('assets/fonts/')
-    for (const doc of ['TODO.md', 'SECURITY.md', 'docs/', 'skills/', 'skill-evals/']) expect(pkg.files).toContain(doc)
+    for (const doc of ['SECURITY.md', 'docs/schemas/style-spec.schema.json', 'skills/']) expect(pkg.files).toContain(doc)
+    for (const repositoryOnly of ['src/', 'TODO.md', 'docs/', 'skill-evals/']) expect(pkg.files).not.toContain(repositoryOnly)
     for (const removedRootDoc of ['FEATURES.md', 'FORK_DIFFERENCES.md', 'QUALITY.md']) expect(pkg.files).not.toContain(removedRootDoc)
     // Paths are in npm's canonical (no `./`) form after `npm pkg fix`; both
     // forms resolve identically at install, and the canonical form keeps
@@ -1008,12 +1009,12 @@ describe('shipped distribution artifacts present', () => {
     })
     expect(pkg.publishConfig).toMatchObject({ access: 'public', provenance: true })
     expect(pkg.engines.node).toBe('>=18')
-    for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).toContain(example)
+    for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).not.toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)
-    // Tarball slimming: sourcemaps, shipped tests, and PR-evidence images are
-    // kept out of the npm tarball via files negation (keeps unpacked size ~10MB).
-    for (const exclude of ['!dist/**/*.map', '!src/**/__tests__/**', '!src/**/*.test.ts', '!docs/pr-assets/**']) expect(pkg.files).toContain(exclude)
+    // Tarball slimming starts from a runtime-only allowlist; only sourcemaps
+    // need a negation because source, tests, and evidence are never included.
+    expect(pkg.files).toContain('!dist/**/*.map')
     // Redundant Bun source bins are not published; the bin map points at dist/*.js.
     expect(pkg.files).not.toContain('bin/')
   })

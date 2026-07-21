@@ -72,6 +72,16 @@ describe('pie structured parse', () => {
     expect(d2.body).toEqual(d.body)
     expect(serializeMermaid(d2)).toBe(out)
   })
+
+  test('serializes parser-normalized line breaks as one Mermaid statement', () => {
+    const d = pie('pie\n  title Road<br/>map\n  "A<br/>B" : 1')
+    expect(d.body.title).toBe('Road\nmap')
+    expect(d.body.slices[0]!.label).toBe('A\nB')
+    const out = serializeMermaid(d)
+    expect(out).toContain('title Road<br/>map')
+    expect(out).toContain('"A<br/>B" : 1')
+    expect(pie(out).body).toEqual(d.body)
+  })
 })
 
 describe('pie differential vs legacy parsePieChart', () => {

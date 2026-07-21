@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "bun.lock",
-      "sha256": "22a51a8925cc8ca493ff583d16bc4578ebb8a645a83ca91d025a6d7e461994da"
+      "sha256": "ec0f08e5dad9ff0e378e17f45faba87962f57b33b42e9af9bd1dc75707c8b95b"
     },
     {
       "path": "docs/project/upstream-mermaid-manifest.json",
@@ -72,11 +72,11 @@
     },
     {
       "path": "package.json",
-      "sha256": "d75274f56430f1afed14d480212ff5bbfcb7f60a2ff9c3510d3992ab50a71f71"
+      "sha256": "a68cd3948bd92c66398b616770a115af1320701ce516e54a2c6f0b3b782cce4f"
     },
     {
       "path": "package.json",
-      "sha256": "d75274f56430f1afed14d480212ff5bbfcb7f60a2ff9c3510d3992ab50a71f71"
+      "sha256": "a68cd3948bd92c66398b616770a115af1320701ce516e54a2c6f0b3b782cce4f"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -140,7 +140,7 @@
     },
     {
       "path": "src/agent/families.ts",
-      "sha256": "75303c4b6aa7cd860ab7b0b4b12a12aa0ea0279e340b89977d188a22cc87c8b4"
+      "sha256": "742d5256becef2dfb38e21817d1d3f5712643798a6d14399fcbf21824ae8ed88"
     },
     {
       "path": "src/agent/family-labels.ts",
@@ -180,7 +180,7 @@
     },
     {
       "path": "src/agent/index.ts",
-      "sha256": "3958d3f998af90b8e8cedabe99a5585d03e7352cc86100b8cd28131eadc0df7a"
+      "sha256": "649c4264256476f8c2da9518f29900c0fa3f8649fe05aa64d49fd8a85370c6d7"
     },
     {
       "path": "src/agent/journey-body.ts",
@@ -220,7 +220,7 @@
     },
     {
       "path": "src/agent/pie-body.ts",
-      "sha256": "11779e30f2c25d67e7a54c80f146ebf9594af638b5e9d077249e50bf18500f6e"
+      "sha256": "467ed64acef8075d738401ee78eac9fad470ba5c8ce145ce7997f28179a919be"
     },
     {
       "path": "src/agent/png.ts",
@@ -228,7 +228,7 @@
     },
     {
       "path": "src/agent/quadrant-body.ts",
-      "sha256": "aed1734ed0a4b54eb2cbe2e1ee1f48435644c31d3b3f66d9655a44bb3858d003"
+      "sha256": "eb6269eddd544ec1bbc751b4999445cac7f3a6a87a4a2f61ae158767fb5efc19"
     },
     {
       "path": "src/agent/quality.ts",
@@ -1174,11 +1174,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "4d5d2e4c13c60f4e62408d70ef38e1e254f58310fd7293afd751207a69034f54"
+      "sha256": "101ec42ecd973b114f8c7ec5a95b773936cb3cb022c66e21f1384c5df45f8ba8"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "f94b5b9d3afb5f116df26ad405115b8eb3d01d8dd0cb387de28de20d94c88df5"
+      "sha256": "bb0064d50473f88dafac1098de591719c5d2f0a8ca8eeb9ed2250730b2d0e762"
     }
   ]
 }

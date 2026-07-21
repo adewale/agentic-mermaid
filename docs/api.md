@@ -7,10 +7,17 @@ Agentic Mermaid exposes these library surfaces:
 - `agentic-mermaid/agent` — agent-native API with
   parse/narrow/mutate/verify/serialize plus SVG, native Node/Bun PNG, and ASCII
   output helpers.
-- `agentic-mermaid/capabilities` — audit/discovery reports and the full pinned upstream semantic manifest; intentionally separate from renderer bundles.
-- `agentic-mermaid/resources` — trusted Node-host verification/resolution for installed content-addressed resources; intentionally absent from browser bundles.
+- `agentic-mermaid/agent/core` — the same structured-edit, SVG, and ASCII
+  surface without the native PNG dependency; use this entry in browser and
+  workerd bundles.
+
+Capability reports, the pinned upstream manifest, and trusted Node-host
+resource resolution remain repository audit/host tooling rather than published
+runtime entry points.
 
 Use `agentic-mermaid/agent` when you want one import path for agents.
+Use `agentic-mermaid/agent/core` when the target runtime cannot load Node native
+addons.
 
 ### Canonical requests and comparable receipts
 
@@ -328,16 +335,15 @@ Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source
 
 ## Capability and extension discovery
 
-Import `createSectionACapabilityReport()` from
-`agentic-mermaid/capabilities`. It returns the JSON-safe, registry-derived
+Repository audit tooling can import `createSectionACapabilityReport()` from
+`src/section-a-capability-report.ts`. It returns the JSON-safe, registry-derived
 request/backend/output/family/Scene matrix. `am capabilities --json` →
 `sectionA` intentionally exposes only its version, pin, digest, counts,
 no-absent status, and directions to this full report. Validate a stored snapshot with
 `validateSectionACapabilityReport(report)`. The generated human projection is
 [`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
-Keeping this audit surface on a separate entry point prevents the full
-characterization and upstream syntax corpora from entering renderer/browser
-bundles.
+Keeping this audit surface out of the package prevents the full characterization
+and upstream syntax corpora from entering renderer/browser bundles.
 
 Canonical extension identities are kind-qualified (`look:`, `palette:`,
 `backend:`, `family:`, `role:`, and `resource:`), versioned, provenance-bearing,
@@ -365,7 +371,7 @@ copied here.
 | Theme conversion | `fromShikiTheme` | Converts a Shiki-compatible editor theme into diagram colors | Pure library helper; the result is ordinary declarative color input. |
 | Live host retheming | CSS custom-property values in graphical color/font inputs | Lets a host page switch SVG palette and font values without re-rendering | SVG/browser-only and limited to safe property values; this is not a raw CSS rule or selector hook. Static outputs need values resolved under their rasterization environment to remain reproducible. |
 | Terminal output projection | `AsciiRenderOptions` (`useAscii`, `paddingX`, `paddingY`, `boxBorderPadding`, `colorMode`, `theme`, `targetWidth`/`maxWidth`, `onProjectionDiagnostic`) | Selects Unicode/ASCII encoding, cell spacing, width policy, ANSI/HTML colors, terminal-only theme overrides, and projection-loss reporting | Output-adapter customization, not a second shared Style system. Serializable fields have transport-specific availability; the diagnostic callback is host-only and remains outside receipts. |
-| Fonts and installed resources | `font`, Node PNG `fontDirs`/`loadSystemFonts`/`onWarning`, browser `BrowserPngRasterizer`, `ResourceManifest`, and `agentic-mermaid/resources` → `NodeResourceResolver` | Selects a safe font stack, supplies host-dependent raster fonts, reports missing glyph coverage, or verifies bounded installed bytes | Font family names do not install fonts. Browser and warning callbacks remain outside serializable options and every digest. Node `fontDirs`/`loadSystemFonts` are trusted host inputs outside shared `RenderOptions` and the shared/appearance digests, but their resolved PNG output policy is included in the output-specific request digest; runtime provenance still marks host-dependent resources explicitly. Manifests require path, size, media-type, digest, and licence evidence and never fall back to network access. |
+| Fonts and installed resources | `font`, Node PNG `fontDirs`/`loadSystemFonts`/`onWarning`, browser `BrowserPngRasterizer`, `ResourceManifest`, and repository host tooling via `NodeResourceResolver` | Selects a safe font stack, supplies host-dependent raster fonts, reports missing glyph coverage, or verifies bounded installed bytes | Font family names do not install fonts. Browser and warning callbacks remain outside serializable options and every digest. Node `fontDirs`/`loadSystemFonts` are trusted host inputs outside shared `RenderOptions` and the shared/appearance digests, but their resolved PNG output policy is included in the output-specific request digest; runtime provenance still marks host-dependent resources explicitly. Manifests require path, size, media-type, digest, and licence evidence and never fall back to network access. |
 | Graphical backend | `registerBackend`, `runBackendConformance`, `createMermaidRenderer`, `createMermaidPNGRenderer`, `createMermaidBrowserPNGRenderer` (each with a host-only `backendPolicy`) | Serializes the typed Scene contract with a different drawing implementation for SVG, native Node/Bun PNG, and injected-rasterizer browser PNG | Trusted in-process host only. Host registrations must explicitly declare compatible core and Scene ranges; identity/compatibility admission precedes executable conformance. Registration then must pass bounded, deterministic, semantic, well-formed, secure SVG conformance plus an exact witness for every first-party core primitive/feature/operation claim; namespaced extension claims without a core witness remain explicitly unverified. All listed factories use the same admitted and secured graphical request; PNG adapters do not reparse or rerender source. Serializable styles and `RenderOptions` cannot select arbitrary executable backends. |
 | Diagram family | `registerFamily`, `getFamilyConformanceReport`, `parseRegisteredMermaid`, `projectPositionedView` | Adds a namespaced language with detection, parse/preservation, verification, layout, Scene/SVG, terminal, and discovery claims | Every versioned `family:<owner/name>` descriptor declares a compatible core range and supplies one bounded canonical `example`. It also lists consumed family-scoped shared fields in `applicableRenderOptions`; omission means none, unknown or duplicate fields fail registration, and the frozen declaration appears in the capability report. Registration stages the frozen candidate, runs native claims twice through canonical parse/serialize, non-empty positive-bounds layout, strict SVG, portable PNG pre-raster, terminal, Scene and verify paths, and rolls back on failure, reentrancy or nondeterminism. Discovery reports `native` only beside a passed per-capability witness. Native tuples still require layout + `projectPositioned`, Scene requires layout + `lowerScene`, and extension verification requires its hook plus executable SVG. An external Scene family additionally declares a compatible Scene range, and its example witnesses every positive role/primitive cell. Built-in-only unions stay closed; extension bodies use the open envelope. Remote transports gain the family only when their trusted host installs it. |
 | Scene semantics | `SceneDoc`, typed connectors/markers/hit geometry, namespaced `SceneRole` | Lets a family/backend exchange identity, relationship, accessibility, geometry, and terminal-projection intent | This is a versioned typed contract, not a raw SVG hook. Unknown namespaced roles deliberately receive inert identity-only traits and cannot acquire core behavior by local-name collision. There is no public arbitrary primitive/trait mutation registry. |
@@ -397,7 +403,8 @@ PNG is single-input and requires `--output` so binary bytes are never accidental
 
 ## MCP
 
-The published package exposes Node-runnable bins: `am`, `agentic-mermaid`, and `agentic-mermaid-mcp`.
+The published package exposes Node-runnable bins: `am`, the package-runner
+alias `agentic-mermaid`, and `agentic-mermaid-mcp`.
 
 Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
 

@@ -41,10 +41,8 @@ import type {
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
-import {
-  parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix,
-  renderPointStyleEntries,
-} from '../quadrant/point-style.ts'
+import { renderPointStyleEntries } from '../quadrant/point-style.ts'
+import { parseQuadrantChart } from '../quadrant/parser.ts'
 
 // ---- Number format ----------------------------------------------------------
 
@@ -58,33 +56,6 @@ function isCoord(n: unknown): n is number {
 
 // ---- Parser -----------------------------------------------------------------
 
-const TITLE_RE = /^title\s+(.+)$/i
-const AXIS_RE = /^([xy])-axis\s+(.+)$/i
-const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/i
-const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/
-const CLASSDEF_RE = /^classDef\s+(.+)$/i
-const COORD_RE = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/
-
-function parseCoord(raw: string): number | null {
-  if (!COORD_RE.test(raw)) return null
-  const v = Number.parseFloat(raw)
-  return isCoord(v) ? v : null
-}
-
-/** Parse an axis tail `<near> [--> <far>]`, or null when malformed. */
-function parseAxis(tail: string): QuadrantAxis | null {
-  const arrow = tail.indexOf('-->')
-  if (arrow >= 0) {
-    const near = tail.slice(0, arrow).trim()
-    const far = tail.slice(arrow + 3).trim()
-    if (!near || !far) return null
-    return { near, far }
-  }
-  const near = tail.trim()
-  if (!near) return null
-  return { near }
-}
-
 /**
  * Parse quadrant body lines (header excluded). Returns a structured body only
  * if EVERY non-blank, non-comment line is a modeled title / axis / quadrant /
@@ -94,97 +65,56 @@ function parseAxis(tail: string): QuadrantAxis | null {
  * floor.
  */
 export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
-  const body: QuadrantBody = {
-    kind: 'quadrant',
-    quadrants: [undefined, undefined, undefined, undefined],
-    points: [],
-  }
-  const seen = new Set<string>()
-
-  for (const raw of lines) {
-    const line = raw.trim()
-    if (!line) continue
-    if (line.startsWith('%%')) continue
-
-    let m: RegExpMatchArray | null
-
-    // classDef <name> <styles> — modeled via the shared style grammar; a
-    // malformed classDef falls back to opaque (legacy parser errors loudly).
-    if ((m = line.match(CLASSDEF_RE))) {
-      const parsed = parseClassDefTail(m[1]!)
-      if (!parsed.ok) return null
-      // Null prototype: `__proto__` is a legal class name (see point-style.ts).
-      body.classDefs = body.classDefs ?? (Object.create(null) as NonNullable<QuadrantBody['classDefs']>)
-      body.classDefs[parsed.name] = parsed.style
-      continue
+  try {
+    const parsed = parseQuadrantChart(['quadrantChart', ...lines])
+    const body: QuadrantBody = {
+      kind: 'quadrant',
+      ...(parsed.title === undefined ? {} : { title: parsed.title }),
+      ...(parsed.xAxis === undefined ? {} : { xAxis: { ...parsed.xAxis } }),
+      ...(parsed.yAxis === undefined ? {} : { yAxis: { ...parsed.yAxis } }),
+      quadrants: [...parsed.quadrants],
+      points: parsed.points.map(point => ({
+        ...point,
+        ...(point.style === undefined ? {} : { style: { ...point.style } }),
+      })),
     }
-
-    if ((m = line.match(TITLE_RE))) {
-      const title = m[1]!.trim()
-      if (!title) return null
-      body.title = title
-      continue
+    if (Object.keys(parsed.classDefs).length > 0) {
+      body.classDefs = Object.assign(Object.create(null), parsed.classDefs)
     }
-
-    if ((m = line.match(AXIS_RE))) {
-      const axis = parseAxis(m[2]!.trim())
-      if (!axis) return null
-      if (m[1]!.toLowerCase() === 'x') body.xAxis = axis
-      else body.yAxis = axis
-      continue
-    }
-
-    if ((m = line.match(QUADRANT_RE))) {
-      const idx = Number.parseInt(m[1]!, 10) - 1
-      const label = m[2]!.trim()
-      if (!label) return null
-      body.quadrants[idx] = label
-      continue
-    }
-
-    if ((m = line.match(POINT_RE))) {
-      const { label, className } = splitPointClassSuffix(m[1]!.trim())
-      const x = parseCoord(m[2]!.trim())
-      const y = parseCoord(m[3]!.trim())
-      const styleTail = parsePointStyleEntries(m[4]!)
-      if (!label || x === null || y === null || !styleTail.ok) return null
-      if (seen.has(label)) return null
-      seen.add(label)
-      const point: QuadrantBody['points'][number] = { label, x, y }
-      if (className !== undefined) point.className = className
-      if (styleTail.style !== undefined) point.style = styleTail.style
-      body.points.push(point)
-      continue
-    }
-
-    // Unmodeled line → opaque fallback.
+    return body
+  } catch {
     return null
   }
-
-  return body
 }
 
 // ---- Serializer -------------------------------------------------------------
 
+/** Mermaid represents semantic line breaks inside one statement as `<br/>`. */
+function encodeMultilineText(text: string): string {
+  return text.replace(/\r?\n/g, '<br/>')
+}
+
 function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
-  const far = axis.far !== undefined ? ` --> ${axis.far}` : ''
-  return `  ${keyword} ${axis.near}${far}`
+  const far = axis.far !== undefined ? ` --> ${encodeMultilineText(axis.far)}` : ''
+  return `  ${keyword} ${encodeMultilineText(axis.near)}${far}`
 }
 
 export function renderQuadrant(body: QuadrantBody): string {
   const lines: string[] = ['quadrantChart']
   appendAccessibilityLines(lines, body)
-  if (body.title !== undefined) lines.push(`  title ${body.title}`)
+  if (body.title !== undefined) lines.push(`  title ${encodeMultilineText(body.title)}`)
   if (body.xAxis) lines.push(renderAxis('x-axis', body.xAxis))
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
   for (let i = 0; i < 4; i++) {
     const label = body.quadrants[i]
-    if (label !== undefined) lines.push(`  quadrant-${i + 1} ${label}`)
+    // JSON round-trips sparse/undefined tuple slots as null. Treat both forms
+    // as an absent optional label at the untrusted synthesis boundary.
+    if (label != null) lines.push(`  quadrant-${i + 1} ${encodeMultilineText(label)}`)
   }
   for (const p of body.points) {
     const cls = p.className !== undefined ? `:::${p.className}` : ''
     const tail = renderPointStyleEntries(p.style)
-    lines.push(`  ${p.label}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
+    lines.push(`  ${encodeMultilineText(p.label)}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
   }
   // classDefs after points (the upstream docs' canonical order).
   for (const [name, style] of Object.entries(body.classDefs ?? {})) {

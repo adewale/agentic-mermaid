@@ -79,3 +79,4 @@ eval/agent-usage/transcripts/opusfinal-*/
 
 # Generated Cloudflare site bundle (built by `bun run website`, at deploy, and by the test preload)
 website/public/
+website/src/generated/

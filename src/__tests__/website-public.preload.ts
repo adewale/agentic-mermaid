@@ -1,4 +1,5 @@
-// Ensures the Cloudflare site bundle exists before the tests that read it.
+// Ensures the Cloudflare site bundle and generated Worker inputs exist before
+// the tests that read them.
 //
 // website/public/ is a build artifact (gitignored, rebuilt at deploy by
 // .github/workflows/deploy-cloudflare.yml). On a fresh checkout it is absent,
@@ -18,8 +19,24 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT = join(ROOT, 'website', 'public')
+const GENERATED = join(ROOT, 'website', 'src', 'generated')
 const SENTINEL = join(OUT, '.preload-built')
 const LOCK = join(OUT, '.preload-build.lock')
+const GENERATED_FILES = [
+  'ArchitectsDaughter.ttf',
+  'Caveat.ttf',
+  'DejaVuSans-Bold.ttf',
+  'DejaVuSans.ttf',
+  'EBGaramond.ttf',
+  'Inter-Bold.ttf',
+  'Inter-Medium.ttf',
+  'Inter-Regular.ttf',
+  'Inter-SemiBold.ttf',
+  'ShareTechMono.ttf',
+  'deploy-version.ts',
+  'execute-harness.js.txt',
+  'resvg.wasm',
+] as const
 const FINGERPRINT_PATHS = [
   'website/build.ts',
   'website/source',
@@ -54,10 +71,11 @@ function ensureBuilt(): void {
   try {
     const latest = buildFingerprint()
     if (readSentinel() === latest) return
-    const r = Bun.spawnSync(['bun', 'run', 'website/build.ts', '--public-only'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
+    const r = Bun.spawnSync(['bun', 'run', 'website/build.ts'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
     if (r.exitCode !== 0) {
       rmSync(OUT, { recursive: true, force: true })
-      throw new Error('website/public build (test preload) failed')
+      rmSync(GENERATED, { recursive: true, force: true })
+      throw new Error('website and Worker artifact build (test preload) failed')
     }
     writeFileSync(SENTINEL, buildFingerprint())
   } finally {
@@ -83,7 +101,7 @@ function sleepSync(ms: number): void {
 }
 
 function readSentinel(): string | null {
-  if (!existsSync(SENTINEL)) return null
+  if (!existsSync(SENTINEL) || GENERATED_FILES.some(file => !existsSync(join(GENERATED, file)))) return null
   return readFileSync(SENTINEL, 'utf8')
 }
 

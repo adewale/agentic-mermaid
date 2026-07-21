@@ -348,7 +348,7 @@ export const ALL_FAMILY_CAPABILITY_KEYS_ORDERED: ExactKeySet<
 
 /**
  * Small, stable projection for routine agent discovery. The exhaustive report
- * deliberately stays on the audit-only package subpath and in its generated
+ * deliberately stays in repository audit tooling and its generated
  * Markdown artifact; returning its evidence corpora from every
  * `am capabilities` call makes ordinary discovery needlessly expensive.
  */
@@ -365,7 +365,7 @@ export interface SectionACapabilityDiscoverySummary {
   counts: SectionACapabilityReport['summary']
   noAbsentSyntaxCapabilities: boolean
   fullReport: {
-    packageExport: 'agentic-mermaid/capabilities'
+    repositoryModule: 'src/section-a-capability-report.ts'
     factory: 'createSectionACapabilityReport'
     markdown: 'docs/project/section-a-capability-report.md'
     regenerateCommand: 'bun run section-a-report'
@@ -833,7 +833,7 @@ export function sectionACapabilityDiscoverySummary(
     counts: { ...report.summary },
     noAbsentSyntaxCapabilities: report.summary.syntaxAbsentCount === 0,
     fullReport: {
-      packageExport: 'agentic-mermaid/capabilities',
+      repositoryModule: 'src/section-a-capability-report.ts',
       factory: 'createSectionACapabilityReport',
       markdown: 'docs/project/section-a-capability-report.md',
       regenerateCommand: 'bun run section-a-report',

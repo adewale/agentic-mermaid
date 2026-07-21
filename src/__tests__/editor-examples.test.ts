@@ -13,16 +13,17 @@ interface EditorExample {
   label: string
   category?: string
   diagramType?: string
+  glyph?: string
   description?: string
   source: string
   options?: unknown
 }
 
-function loadEditorExamples(): { examples: EditorExample[]; exampleGlyph: (example: { diagramType?: string }) => string } {
+function loadEditorExamples(): { examples: EditorExample[]; exampleGlyph: (example: { diagramType?: string; glyph?: string }) => string } {
   const source = readFileSync(join(REPO, 'editor/js/examples.js'), 'utf8')
   const context: {
     EDITOR_EXAMPLES: EditorExample[]
-    exampleGlyph?: (example: { diagramType?: string }) => string
+    exampleGlyph?: (example: { diagramType?: string; glyph?: string }) => string
     document: {
       getElementById: () => null
       addEventListener: () => void
@@ -68,11 +69,12 @@ describe('live editor examples', () => {
     }
   })
 
-  test('example picker glyphs are explicitly mapped for every built-in family', () => {
-    const { exampleGlyph } = loadEditorExamples()
+  test('example picker glyphs project from every built-in family descriptor', () => {
+    const { examples, exampleGlyph } = loadEditorExamples()
+    const byId = new Map(examples.map(example => [example.id, example]))
 
     for (const family of BUILTIN_FAMILY_METADATA) {
-      expect({ family: family.id, glyph: exampleGlyph({ diagramType: family.editorDiagramType }) })
+      expect({ family: family.id, glyph: exampleGlyph(byId.get(family.editorExampleId)!) })
         .toEqual({ family: family.id, glyph: family.editorGlyph })
     }
   })

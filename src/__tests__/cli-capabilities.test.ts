@@ -39,7 +39,7 @@ describe('am capabilities', () => {
       .toBe(UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures.length)
     expect('matrices' in cap.sectionA).toBe(false)
     expect(cap.sectionA.fullReport).toEqual({
-      packageExport: 'agentic-mermaid/capabilities',
+      repositoryModule: 'src/section-a-capability-report.ts',
       factory: 'createSectionACapabilityReport',
       markdown: 'docs/project/section-a-capability-report.md',
       regenerateCommand: 'bun run section-a-report',

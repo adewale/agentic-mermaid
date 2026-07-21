@@ -820,7 +820,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
 - **Goldens**: ASCII goldens must not change (`goldens:ascii:check`); SVG
   changes are reviewed via the corpus comparison harness
   (`eval/layout-compare`) — regressions-first verdicts, not eyeball-only.
-- **Fault sensitivity**: `bun run mutation-test:routes` remains an opt-in
+- **Fault sensitivity**: `bun run mutation-test -- routes` remains an opt-in
   survivor harvest; the bounded `sabotage:routes` PR gate proves five named
   route/link regressions still make their focused tests fail.
 

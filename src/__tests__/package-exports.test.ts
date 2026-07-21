@@ -11,7 +11,6 @@ describe('package exports', () => {
   })
   it('defines a default export fallback for runtimes resolving conditional exports', () => {
     expect(packageJson.exports['.']).toMatchObject({
-      bun: './src/index.ts',
       import: './dist/index.js',
       types: './dist/index.d.ts',
       default: './dist/index.js',
@@ -33,10 +32,27 @@ describe('package exports', () => {
     const pkg = JSON.parse(raw)
     expect(pkg.exports['./agent']).toBeDefined()
     expect(pkg.exports['./agent'].default).toBe('./dist/agent.js')
-    expect(pkg.exports['./agent'].bun).toBe('./src/agent/index.ts')
-    expect(pkg.exports['./agent/core'].default).toBe('./dist/agent-core.js')
-    expect(pkg.exports['./agent/core'].bun).toBe('./src/agent/core.ts')
     expect(pkg.exports['./agent'].types).toBe('./dist/agent.d.ts')
+  })
+
+  it('publishes a runtime-neutral agent entry for browser and workerd bundles', () => {
+    expect(packageJson.exports['./agent/core']).toEqual({
+      types: './dist/agent-core.d.ts',
+      import: './dist/agent-core.js',
+      default: './dist/agent-core.js',
+    })
+  })
+
+  it('publishes only supported runtime entry points', () => {
+    expect(Object.keys(packageJson.exports)).toEqual([
+      '.',
+      './agent',
+      './agent/core',
+      './style-spec.schema.json',
+      './package.json',
+    ])
+    expect(packageJson.files).not.toContain('src/')
+    expect(packageJson.files).not.toContain('docs/')
   })
 
   it('TypeScript path aliases match the published import paths', () => {

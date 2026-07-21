@@ -35,18 +35,12 @@ const ROOT = join(import.meta.dir, '..', '..')
 const MARKDOWN = join(ROOT, 'docs', 'project', 'section-a-capability-report.md')
 
 describe('Section A capability report', () => {
-  test('ships on a dedicated subpath without pulling audit corpora into the renderer barrel', () => {
+  test('stays repository tooling without pulling audit corpora into the published surface', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
-    expect(pkg.exports['./capabilities']).toMatchObject({
-      types: './dist/capabilities.d.ts',
-      bun: './src/capabilities.ts',
-      import: './dist/capabilities.js',
-    })
-    expect(pkg.exports['./resources']).toMatchObject({
-      types: './dist/resources.d.ts',
-      bun: './src/resources.ts',
-      import: './dist/resources.js',
-    })
+    expect(pkg.exports['./capabilities']).toBeUndefined()
+    expect(pkg.exports['./resources']).toBeUndefined()
+    expect(existsSync(join(ROOT, 'src', 'capabilities.ts'))).toBe(false)
+    expect(existsSync(join(ROOT, 'src', 'resources.ts'))).toBe(false)
     const rendererBarrel = readFileSync(join(ROOT, 'src/index.ts'), 'utf8')
     expect(rendererBarrel).not.toContain("'./section-a-capability-report.ts'")
     expect(rendererBarrel).not.toContain("'./upstream-mermaid-manifest.ts'")

@@ -1,9 +1,8 @@
 // ============================================================================
 // agentic-mermaid — public agent surface (v4)
 // Re-exports the runtime-neutral core plus the Node-native PNG renderer.
-// Workerd/browser bundles import the published `agentic-mermaid/agent/core`
-// entry instead: `renderMermaidPNG` loads the napi resvg addon, which only
-// exists on Node/Bun.
+// Browser/workerd consumers should import `agentic-mermaid/agent/core` so
+// their bundle never resolves the native PNG dependency tree.
 // ============================================================================
 
 export * from './core.ts'

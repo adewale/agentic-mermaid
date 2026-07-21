@@ -198,10 +198,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `src/<family>/parser.ts` already owns, kept in sync only by differential
   tests. Build agent bodies as a projection of the legacy parser's AST so the
   legacy parser is the single grammar authority. Schedule separately.
-- [ ] **CONS-27 — Canonical minimal diagram per family** (`todo`). The
-  "minimal diagram" is duplicated across family metadata, editor examples,
-  website comparisons, and test fixture helpers, and has drifted. Make `BUILTIN_FAMILY_METADATA[].example`
-  canonical and derive `COMPARISON_CASES` + fixtures from it.
 - [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanically
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize

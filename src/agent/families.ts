@@ -370,11 +370,17 @@ export interface BuiltinFamilyMetadata {
   narrower: `as${string}`
   /** Editor example category label. */
   editorDiagramType: string
-  /** Basic editor example that must exist for this family. */
+  /** User-facing editor example label and summary. */
+  editorLabel: string
+  editorDescription: string
+  /** Stable id for the representative editor/comparison example. */
   editorExampleId: string
   /** Short glyph used by the editor example picker. */
   editorGlyph: string
-  /** Minimal canonical source: correct header + core syntax. Exposed via
+  /** Representative source shared by the editor and website comparisons. */
+  editorExample: string
+  /** Minimal conformance/discovery witness: correct header plus core syntax.
+   *  This is intentionally smaller than `editorExample`. Exposed via
    *  `am capabilities` so agents learn each family's dialect from the
    *  discovery envelope instead of error-message trial-and-error (the
    *  onboarding probes burned most of their iterations on exactly this —
@@ -453,109 +459,270 @@ function nativeSceneRole(
 }
 
 const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
-  { id: 'flowchart', upstreamId: 'flowchart-v2', maturity: 'stable', label: 'Flowchart', headers: ['flowchart', 'graph'], narrower: 'asFlowchart', editorDiagramType: 'Flowchart', editorExampleId: 'flowchart-basic', editorGlyph: 'F',
+  { id: 'flowchart', upstreamId: 'flowchart-v2', maturity: 'stable', label: 'Flowchart', headers: ['flowchart', 'graph'], narrower: 'asFlowchart', editorDiagramType: 'Flowchart', editorLabel: 'Flowchart', editorDescription: 'Decision flow with labeled branches.', editorExampleId: 'flowchart-basic', editorGlyph: 'F',
     config: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'], noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'padding', 'subGraphTitleMargin', 'titleTopMargin'] },
     aliases: ['swimlane'],
     semanticChannels: [],
     detect: (line: string) => /^(?:flowchart|graph|swimlane)(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text')],
-    example: 'flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]' },
-  { id: 'state', upstreamId: 'stateDiagram', maturity: 'stable', label: 'State', headers: ['stateDiagram', 'stateDiagram-v2'], narrower: 'asState', editorDiagramType: 'State', editorExampleId: 'state-basic', editorGlyph: 'S',
+    example: 'flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]',
+    editorExample: `flowchart TD
+  A[Start] --> B{Decision?}
+  B -->|Yes| C[Do the thing]
+  B -->|No| D[Skip it]
+  C --> E[End]
+  D --> E` },
+  { id: 'state', upstreamId: 'stateDiagram', maturity: 'stable', label: 'State', headers: ['stateDiagram', 'stateDiagram-v2'], narrower: 'asState', editorDiagramType: 'State', editorLabel: 'State diagram', editorDescription: 'Lifecycle using Mermaid stateDiagram-v2 syntax.', editorExampleId: 'state-basic', editorGlyph: 'S',
     config: { section: 'state', keys: ['arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin', 'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth', 'labelHeight', 'miniPadding', 'nodeSpacing', 'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin'] },
     semanticChannels: ['status'],
     detect: (line: string) => /^statediagram(?:-v2)?\s*$/.test(line),
     detectLoose: (line: string) => /^statediagram(?:-v2)?(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
-    example: 'stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve' },
-  { id: 'sequence', upstreamId: 'sequence', maturity: 'stable', label: 'Sequence', headers: ['sequenceDiagram'], narrower: 'asSequence', editorDiagramType: 'Sequence', editorExampleId: 'sequence-basic', editorGlyph: 'Q',
+    example: 'stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve',
+    editorExample: `stateDiagram-v2
+  [*] --> Idle
+  Idle --> Processing: start
+  Processing --> Complete: done
+  Processing --> Failed: error
+  Failed --> Idle: retry
+  Complete --> [*]` },
+  { id: 'sequence', upstreamId: 'sequence', maturity: 'stable', label: 'Sequence', headers: ['sequenceDiagram'], narrower: 'asSequence', editorDiagramType: 'Sequence', editorLabel: 'Sequence', editorDescription: 'Request/response messages between participants.', editorExampleId: 'sequence-basic', editorGlyph: 'Q',
     config: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight', 'useMaxWidth', 'useWidth'], noopKeys: ['actorFontFamily', 'actorFontSize', 'actorFontWeight', 'arrowMarkerAbsolute', 'bottomMarginAdj', 'boxMargin', 'boxTextMargin', 'forceMenus', 'hideUnusedParticipants', 'labelBoxHeight', 'labelBoxWidth', 'messageAlign', 'messageFontFamily', 'messageFontSize', 'messageFontWeight', 'mirrorActors', 'noteAlign', 'noteFontFamily', 'noteFontSize', 'noteFontWeight', 'rightAngles', 'useMaxWidth', 'useWidth', 'wrap', 'wrapPadding'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^sequencediagram\s*$/.test(line),
     detectLoose: (line: string) => /^sequencediagram(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'connector'), nativeSceneRole('activation', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text', 'shape')],
-    example: 'sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response' },
-  { id: 'timeline', upstreamId: 'timeline', maturity: 'experimental', label: 'Timeline', headers: ['timeline'], narrower: 'asTimeline', editorDiagramType: 'Timeline', editorExampleId: 'timeline-basic', editorGlyph: 'T',
+    example: 'sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response',
+    editorExample: `sequenceDiagram
+  participant User
+  participant App
+  participant API
+  User->>App: Click export
+  App->>API: Render SVG
+  API-->>App: SVG string
+  App-->>User: Download` },
+  { id: 'timeline', upstreamId: 'timeline', maturity: 'experimental', label: 'Timeline', headers: ['timeline'], narrower: 'asTimeline', editorDiagramType: 'Timeline', editorLabel: 'Timeline', editorDescription: 'Chronological milestones with sections.', editorExampleId: 'timeline-basic', editorGlyph: 'T',
     config: { section: 'timeline', keys: ['disableMulticolor', 'sectionFills', 'sectionColours', 'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'], noopKeys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^timeline(?:\s+(?:td|tb|lr|bt|rl))?\s*$/.test(line),
     detectLoose: (line: string) => /^timeline(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('rail', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('section', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('period', 'container', 'shape'), nativeSceneRole('event', 'container', 'shape'), nativeSceneRole('label', 'text')],
-    example: 'timeline\n  title Roadmap\n  2025 : Alpha : Beta\n  2026 : GA' },
-  { id: 'class', upstreamId: 'classDiagram', maturity: 'stable', label: 'Class', headers: ['classDiagram'], narrower: 'asClass', editorDiagramType: 'Class', editorExampleId: 'class-basic', editorGlyph: 'C',
+    example: 'timeline\n  title Roadmap\n  2025 : Alpha : Beta\n  2026 : GA',
+    editorExample: `timeline
+  title Product roadmap
+  section Foundation
+  2024 Q1 : Prototype
+          : Parser coverage
+  section Launch
+  2024 Q2 : Public editor
+          : SVG export` },
+  { id: 'class', upstreamId: 'classDiagram', maturity: 'stable', label: 'Class', headers: ['classDiagram'], narrower: 'asClass', editorDiagramType: 'Class', editorLabel: 'Class', editorDescription: 'Classes with members, inheritance, and composition.', editorExampleId: 'class-basic', editorGlyph: 'C',
     config: { section: 'class', keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces'], noopKeys: ['arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin', 'hideEmptyMembersBox', 'htmlLabels', 'padding', 'textHeight', 'titleTopMargin'] },
     semanticChannels: [],
     detect: (line: string) => /^classdiagram\s*$/.test(line),
     detectLoose: (line: string) => /^classdiagram(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('class-box', 'container', 'shape'), nativeSceneRole('member', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'text'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
-    example: 'classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account "1" o-- "*" Transaction : logs' },
-  { id: 'er', upstreamId: 'er', maturity: 'stable', label: 'ER', headers: ['erDiagram'], narrower: 'asEr', editorDiagramType: 'ER', editorExampleId: 'er-basic', editorGlyph: 'ER',
+    example: 'classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account "1" o-- "*" Transaction : logs',
+    editorExample: `classDiagram
+  class Renderer {
+    <<abstract>>
+    +render(source) string
+  }
+  class SVGRenderer {
+    +render(source) string
+  }
+  class RenderPipeline {
+    +run(source) string
+  }
+  Renderer <|-- SVGRenderer
+  RenderPipeline *-- SVGRenderer : owns` },
+  { id: 'er', upstreamId: 'er', maturity: 'stable', label: 'ER', headers: ['erDiagram'], narrower: 'asEr', editorDiagramType: 'ER', editorLabel: 'ER diagram', editorDescription: 'Entities, attributes, keys, and cardinality markers.', editorExampleId: 'er-basic', editorGlyph: 'ER',
     config: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'], noopKeys: ['diagramPadding', 'entityPadding', 'fill', 'fontSize', 'minEntityHeight', 'minEntityWidth', 'stroke', 'titleTopMargin'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^erdiagram(?:\s+subgraph\b.*)?\s*$/.test(line),
     detectLoose: (line: string) => /^erdiagram(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('entity', 'container', 'shape'), nativeSceneRole('attribute', 'container', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'shape'), nativeSceneRole('label', 'text')],
-    example: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }' },
-  { id: 'journey', upstreamId: 'journey', maturity: 'stable', label: 'Journey', headers: ['journey'], narrower: 'asJourney', editorDiagramType: 'Journey', editorExampleId: 'journey-basic', editorGlyph: 'J',
+    example: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }',
+    editorExample: `erDiagram
+  CUSTOMER {
+    string id PK
+    string email
+  }
+  ORDER {
+    string id PK
+    date created
+  }
+  LINE_ITEM {
+    string id PK
+    int quantity
+  }
+  CUSTOMER ||--o{ ORDER : places
+  ORDER ||--|{ LINE_ITEM : contains` },
+  { id: 'journey', upstreamId: 'journey', maturity: 'stable', label: 'Journey', headers: ['journey'], narrower: 'asJourney', editorDiagramType: 'Journey', editorLabel: 'User journey', editorDescription: 'Scored user tasks grouped by section.', editorExampleId: 'journey-basic', editorGlyph: 'J',
     config: { section: 'journey', keys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'actorColours', 'sectionFills', 'sectionColours', 'titleColor', 'titleFontFamily', 'titleFontSize', 'useMaxWidth', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'], noopKeys: ['boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'] },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^journey\s*$/.test(line),
     detectLoose: (line: string) => /^journey(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('series', 'connector'), nativeSceneRole('grid', 'container', 'connector'), nativeSceneRole('axis', 'text'), nativeSceneRole('rail', 'connector'), nativeSceneRole('legend', 'container', 'text'), nativeSceneRole('actor', 'shape'), nativeSceneRole('section', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('task', 'container', 'shape', 'data-mark'), nativeSceneRole('marker-line', 'connector'), nativeSceneRole('label', 'text'), nativeSceneRole('score', 'container', 'shape', 'data-mark')],
-    example: 'journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper' },
-  { id: 'architecture', upstreamId: 'architecture', maturity: 'stable', label: 'Architecture', headers: ['architecture', 'architecture-beta'], narrower: 'asArchitecture', editorDiagramType: 'Architecture', editorExampleId: 'architecture-basic', editorGlyph: 'A',
+    example: 'journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper',
+    editorExample: `journey
+  title Editor adoption
+  section Try
+    Open editor: 5: User
+    Load example: 4: User, Developer
+  section Share
+    Copy URL: 5: User
+    Export SVG: 4: Developer` },
+  { id: 'architecture', upstreamId: 'architecture', maturity: 'stable', label: 'Architecture', headers: ['architecture', 'architecture-beta'], narrower: 'asArchitecture', editorDiagramType: 'Architecture', editorLabel: 'Architecture', editorDescription: 'Services, groups, icons, and routed connections.', editorExampleId: 'architecture-basic', editorGlyph: 'A',
     config: { section: 'architecture', keys: ['padding', 'iconSize', 'fontSize', 'nodeSeparation', 'idealEdgeLengthMultiplier', 'edgeElasticity', 'numIter', 'seed', 'randomize'], noopKeys: ['edgeElasticity', 'numIter', 'randomize', 'seed'] },
     semanticChannels: [],
     detect: (line: string) => /^architecture(?:-beta)?\s*$/.test(line),
     detectLoose: (line: string) => /^architecture(?:-beta)?(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('icon', 'document'), nativeSceneRole('label', 'text'), nativeSceneRole('service', 'container', 'shape'), nativeSceneRole('junction', 'container', 'shape'), nativeSceneRole('edge', 'connector')],
-    example: 'architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache' },
-  { id: 'xychart', upstreamId: 'xychart', maturity: 'stable', label: 'XY chart', headers: ['xychart', 'xychart-beta'], narrower: 'asXyChart', editorDiagramType: 'XY Chart', editorExampleId: 'xychart-basic', editorGlyph: 'XY',
+    example: 'architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache',
+    editorExample: `architecture-beta
+  group app(cloud)[Application]
+  group data(database)[Data]
+  service web(server)[Web App] in app
+  service api(server)[API] in app
+  service db(database)[Postgres] in data
+  web:R --> L:api
+  api:R --> L:db` },
+  { id: 'xychart', upstreamId: 'xychart', maturity: 'stable', label: 'XY chart', headers: ['xychart', 'xychart-beta'], narrower: 'asXyChart', editorDiagramType: 'XY Chart', editorLabel: 'XY chart', editorDescription: 'Bar and line series using xychart syntax.', editorExampleId: 'xychart-basic', editorGlyph: 'XY',
     config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^xychart(?:-beta)?(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
-    example: 'xychart-beta\n  title "Revenue"\n  x-axis [Q1, Q2, Q3]\n  y-axis "USD" 0 --> 100\n  bar [45, 62, 80]' },
-  { id: 'pie', upstreamId: 'pie', maturity: 'stable', label: 'Pie', headers: ['pie'], narrower: 'asPie', editorDiagramType: 'Pie', editorExampleId: 'pie-basic', editorGlyph: 'P',
+    example: 'xychart-beta\n  title "Revenue"\n  x-axis [Q1, Q2, Q3]\n  y-axis "USD" 0 --> 100\n  bar [45, 62, 80]',
+    editorExample: `xychart
+  title "Weekly renders"
+  x-axis [Mon, Tue, Wed, Thu, Fri]
+  y-axis "Renders" 0 --> 100
+  bar [25, 42, 58, 74, 88]
+  line [18, 35, 52, 70, 95]` },
+  { id: 'pie', upstreamId: 'pie', maturity: 'stable', label: 'Pie', headers: ['pie'], narrower: 'asPie', editorDiagramType: 'Pie', editorLabel: 'Pie chart', editorDescription: 'Proportional slices with values shown in the legend.', editorExampleId: 'pie-basic', editorGlyph: 'P',
     config: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: ['useMaxWidth', 'useWidth'] },
     semanticChannels: ['value', 'category', 'emphasis'],
     detect: (line: string) => /^pie(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
-    example: 'pie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10' },
-  { id: 'quadrant', upstreamId: 'quadrantChart', maturity: 'stable', label: 'Quadrant', headers: ['quadrantChart'], narrower: 'asQuadrant', editorDiagramType: 'Quadrant', editorExampleId: 'quadrant-basic', editorGlyph: '4Q',
+    example: 'pie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10',
+    editorExample: `pie showData
+  title Export requests by format
+  "SVG" : 42
+  "PNG" : 28
+  "ASCII" : 18
+  "Unicode" : 12` },
+  { id: 'quadrant', upstreamId: 'quadrantChart', maturity: 'stable', label: 'Quadrant', headers: ['quadrantChart'], narrower: 'asQuadrant', editorDiagramType: 'Quadrant', editorLabel: 'Quadrant chart', editorDescription: 'Two-axis priority map with labeled regions and points.', editorExampleId: 'quadrant-basic', editorGlyph: '4Q',
     config: { section: 'quadrantChart', keys: ['chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointLabelFontSize', 'pointRadius', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth', 'useMaxWidth', 'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'], noopKeys: ['quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'] },
     aliases: ['quadrant'],
     semanticChannels: ['category'],
     detect: (line: string) => /^quadrant(?:chart)?\s*$/.test(line),
     detectLoose: (line: string) => /^quadrant(?:chart)?(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('plate', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
-    example: 'quadrantChart\n  title Prioritize\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  Quick win: [0.2, 0.8]\n  Money pit: [0.8, 0.2]' },
-  { id: 'gantt', upstreamId: 'gantt', maturity: 'stable', label: 'Gantt', headers: ['gantt'], narrower: 'asGantt', editorDiagramType: 'Gantt', editorExampleId: 'gantt-basic', editorGlyph: 'G',
+    example: 'quadrantChart\n  title Prioritize\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  Quick win: [0.2, 0.8]\n  Money pit: [0.8, 0.2]',
+    editorExample: `quadrantChart
+  title Feature priorities
+  x-axis Low impact --> High impact
+  y-axis Low effort --> High effort
+  quadrant-1 Plan carefully
+  quadrant-2 Big bets
+  quadrant-3 Defer
+  quadrant-4 Quick wins
+  SVG export: [0.78, 0.28]
+  MCP setup: [0.62, 0.72]
+  Palette polish: [0.35, 0.24]` },
+  { id: 'gantt', upstreamId: 'gantt', maturity: 'stable', label: 'Gantt', headers: ['gantt'], narrower: 'asGantt', editorDiagramType: 'Gantt', editorLabel: 'Gantt chart', editorDescription: 'Sections, dependencies, status tags, and a milestone.', editorExampleId: 'gantt-basic', editorGlyph: 'G',
     config: { section: 'gantt', keys: ['displayMode', 'barHeight', 'topAxis', 'tickInterval', 'axisFormat', 'barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'], noopKeys: ['barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'] },
     semanticChannels: ['status', 'progress', 'emphasis', 'category'],
     detect: (line: string) => /^gantt\s*$/.test(line),
     detectLoose: (line: string) => /^gantt(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document'), nativeSceneRole('section', 'text', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('label', 'text'), nativeSceneRole('task', 'shape'), nativeSceneRole('milestone', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('marker-line', 'shape'), nativeSceneRole('title', 'text')],
-    example: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d' },
-  { id: 'mindmap', upstreamId: 'mindmap', maturity: 'stable', label: 'Mindmap', headers: ['mindmap'], narrower: 'asMindmap', editorDiagramType: 'Mindmap', editorExampleId: 'mindmap-basic', editorGlyph: 'M',
+    example: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d',
+    editorExample: `gantt
+  title Release train
+  dateFormat YYYY-MM-DD
+  excludes weekends
+  section Build
+    Completed task :done, des1, 2024-01-08, 2024-01-10
+    Active task    :active, des2, 2024-01-11, 3d
+    Future task    :des3, after des2, 5d
+  section Ship
+    Crit review    :crit, rev1, after des3, 2d
+    Release        :milestone, m1, after rev1, 0d` },
+  { id: 'mindmap', upstreamId: 'mindmap', maturity: 'stable', label: 'Mindmap', headers: ['mindmap'], narrower: 'asMindmap', editorDiagramType: 'Mindmap', editorLabel: 'Mindmap', editorDescription: 'A centered, bilateral hierarchy with shapes, Markdown, Unicode, accessibility, and deep quality branches.', editorExampleId: 'mindmap-basic', editorGlyph: 'M',
     config: { section: 'mindmap', keys: ['padding', 'maxNodeWidth'] },
     semanticChannels: ['importance', 'category'],
     detect: (line: string) => /^mindmap\s*$/.test(line),
     detectLoose: (line: string) => /^mindmap(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('icon', 'document', 'text'), nativeSceneRole('label', 'text')],
-    example: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch' },
-  { id: 'gitgraph', upstreamId: 'gitGraph', maturity: 'stable', label: 'GitGraph', headers: ['gitGraph'], narrower: 'asGitGraph', editorDiagramType: 'GitGraph', editorExampleId: 'gitgraph-basic', editorGlyph: 'Git',
+    example: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch',
+    editorExample: `mindmap
+  root((Agent-native release))
+    discovery[Discovery]
+      ::icon(fa fa-book)
+      :::urgent large
+      evidence["\`**Evidence** across
+interviews, benchmarks, and Unicode naïve café\`"]
+      constraints{{Constraints}}
+        Security
+        Determinism
+    delivery(Delivery)
+      beta))Beta signal((
+      launch)Launch cloud(
+      quality[Quality gates]
+        Parser round-trip
+        SVG identity
+        Terminal width
+    Ecosystem
+      Mermaid parity
+      Terminal tools` },
+  { id: 'gitgraph', upstreamId: 'gitGraph', maturity: 'stable', label: 'GitGraph', headers: ['gitGraph'], narrower: 'asGitGraph', editorDiagramType: 'GitGraph', editorLabel: 'GitGraph', editorDescription: 'Ordered branches, commit types, tags, a semantic merge, and a merge-parent backport.', editorExampleId: 'gitgraph-basic', editorGlyph: 'Git',
     config: { section: 'gitGraph', keys: ['showBranches', 'showCommitLabel', 'mainBranchName', 'mainBranchOrder', 'parallelCommits', 'rotateCommitLabel'] },
     semanticChannels: ['status', 'category'],
     detect: (line: string) => /^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line),
     detectLoose: (line: string) => /^gitgraph(?:\s|:|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container'), nativeSceneRole('rail', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('label', 'text')],
-    example: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  commit id:"release"\n  merge feature id:"merge"' },
-  { id: 'radar', upstreamId: 'radar', maturity: 'experimental', label: 'Radar', headers: ['radar-beta'], narrower: 'asRadar', editorDiagramType: 'Radar', editorExampleId: 'radar-basic', editorGlyph: 'R',
+    example: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  commit id:"release"\n  merge feature id:"merge"',
+    editorExample: `---
+title: Release train with backport
+config:
+  gitGraph:
+    mainBranchName: main
+    mainBranchOrder: 0
+    showBranches: true
+    showCommitLabel: true
+    rotateCommitLabel: true
+---
+gitGraph LR:
+  accTitle: Release history with feature merge and backport
+  accDescr: Develop and release branches diverge, main merges develop, and release cherry-picks the merge
+  commit id:"ROOT" tag:"v1.0.0" msg:"Foundation"
+  branch develop order:2
+  commit id:"API" type:HIGHLIGHT tag:"beta" msg:"Build API"
+  branch release order:3
+  commit id:"RC" type:REVERSE tag:"rc.1" msg:"Cut release candidate"
+  checkout develop
+  commit id:"UI" msg:"Finish interface"
+  checkout main
+  commit id:"HOTFIX" type:REVERSE msg:"Patch production"
+  merge develop id:"MERGE" tag:"v2.0.0" type:HIGHLIGHT
+  checkout release
+  cherry-pick id:"MERGE" parent:"UI" tag:"backport"
+  commit id:"PATCH" msg:"Verify release"` },
+  { id: 'radar', upstreamId: 'radar', maturity: 'experimental', label: 'Radar', headers: ['radar-beta'], narrower: 'asRadar', editorDiagramType: 'Radar', editorLabel: 'Radar chart', editorDescription: 'Multivariate profiles compared across shared axes — the silhouette is the message.', editorExampleId: 'radar-basic', editorGlyph: 'R',
     config: { section: 'radar', keys: ['width', 'height', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'axisScaleFactor', 'axisLabelFactor', 'curveTension', 'useMaxWidth', 'tickLabels', 'useWidth'], noopKeys: ['useWidth'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^radar-beta(?:\s|:|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('pie-slice', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('legend', 'shape', 'text'), nativeSceneRole('title', 'text')],
-    example: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5' },
+    example: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5',
+    editorExample: `radar-beta
+  title Model comparison
+  axis speed["Speed"], accuracy["Accuracy"], cost["Cost"]
+  axis latency["Latency"], context["Context"], safety["Safety"]
+  curve a["Model A"]{4, 5, 3, 4, 4, 5}
+  curve b["Model B"]{5, 3, 4, 3, 5, 3}
+  graticule polygon
+  max 5` },
 ] as const satisfies readonly BuiltinFamilyDescriptorSeed[]
 
 export type BuiltinFamilyId = typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS[number]['id']
@@ -565,8 +732,11 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDes
     sceneRoles,
     narrower: _narrower,
     editorDiagramType: _editorDiagramType,
+    editorLabel: _editorLabel,
+    editorDescription: _editorDescription,
     editorExampleId: _editorExampleId,
     editorGlyph: _editorGlyph,
+    editorExample: _editorExample,
     ...descriptor
   } = seed
   const semanticRoles = sceneRoles.map(row => row.role)
@@ -595,8 +765,8 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDes
 }
 
 export const BUILTIN_FAMILY_METADATA: readonly BuiltinFamilyMetadata[] = Object.freeze(
-  BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(({ id, label, headers, narrower, editorDiagramType, editorExampleId, editorGlyph, example }) =>
-    Object.freeze({ id, label, headers, narrower, editorDiagramType, editorExampleId, editorGlyph, example })),
+  BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(({ id, label, headers, narrower, editorDiagramType, editorLabel, editorDescription, editorExampleId, editorGlyph, editorExample, example }) =>
+    Object.freeze({ id, label, headers, narrower, editorDiagramType, editorLabel, editorDescription, editorExampleId, editorGlyph, editorExample, example })),
 )
 
 type BuiltinFamilyMetadataCoversDiagramKind =

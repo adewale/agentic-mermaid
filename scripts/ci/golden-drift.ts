@@ -106,9 +106,10 @@ if (import.meta.main) {
   // synthetic merge commit whose parents are [base, prHead]. `git show HEAD`
   // there surfaces whatever the BASE branch changed since the fork point (e.g.
   // main regenerating goldens), not what this PR changed — a false positive.
-  // When HEAD has 2+ parents, scope the gate to the PR's own net change
-  // (base...prHead) and read the token from the PR's own commit messages, not
-  // the auto-generated merge message.
+  // When HEAD has 2+ parents, scope the gate to the PR's own net change by
+  // comparing the synthetic merge's base and PR-head parents directly. This
+  // works in a depth-2 checkout because it needs no merge base. Approval must
+  // live on the PR head commit rather than the auto-generated merge message.
   const parents = run('git rev-list --parents -n 1 HEAD').trim().split(/\s+/).slice(1)
   const isMerge = parents.length >= 2
   const [base, prHead] = parents
@@ -121,12 +122,12 @@ if (import.meta.main) {
   const facts: GoldenDriftFacts = {
     uncommittedGoldenFiles: parseGitStatusPorcelainZ(run(`git status --porcelain=v1 -z --untracked-files=all -- ${GOLDEN_DIR}`)),
     headGoldenFiles: isMerge
-      ? lines(`git diff --name-only ${base}...${prHead} -- ${GOLDEN_DIR}`)
+      ? lines(`git diff --name-only ${base} ${prHead} -- ${GOLDEN_DIR}`)
       : pushBefore
         ? lines(`git diff --name-only ${pushBefore}..HEAD -- ${GOLDEN_DIR}`)
       : lines(`git show --name-only --format= HEAD -- ${GOLDEN_DIR}`),
     commitMessage: isMerge
-      ? run(`git log --format=%B ${base}..${prHead}`)
+      ? run(`git log -1 --format=%B ${prHead}`)
       : pushBefore
         ? run(`git log --format=%B ${pushBefore}..HEAD`)
       : run('git log -1 --format=%B'),

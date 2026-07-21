@@ -27,24 +27,7 @@ function exampleGroups() {
 
 function exampleGlyph(example) {
   var type = example.diagramType || 'Example';
-  var glyphs = {
-    Flowchart: 'F',
-    State: 'S',
-    Architecture: 'A',
-    Sequence: 'Q',
-    Class: 'C',
-    ER: 'ER',
-    Timeline: 'T',
-    Journey: 'J',
-    'XY Chart': 'XY',
-    Pie: 'P',
-    Quadrant: '4Q',
-    Gantt: 'G',
-    Mindmap: 'M',
-    GitGraph: 'Git',
-    Radar: 'R',
-  };
-  return glyphs[type] || type.slice(0, 2).toUpperCase();
+  return example.glyph || type.slice(0, 2).toUpperCase();
 }
 
 function renderExamplePaletteHtml() {

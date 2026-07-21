@@ -243,8 +243,8 @@ avoid duplicating them.
   whole framing: pin actual behaviour, review diffs, approve changes.
 - **Bartocci et al. (2023), property-based mutation testing.** The "load-bearing
   = kills a unique mutant" criterion used in [§ Minimality](#minimality);
-  Stryker (`stryker.characterization.config.json` for selected ranges,
-  `stryker.ascii.config.json` for the broader run) is one tool that can explore
+  Stryker (`characterization` profile for selected ranges, `ascii` for the
+  broader run) is one tool that can explore
   it.
 
 Both characterization configs are opt-in diagnostics without break floors or
@@ -271,8 +271,8 @@ bun run scripts/characterization/visual-quality.ts
 bun run characterization:check
 
 # Quick mutation evidence for the load-bearing ranges
-bun run mutation-test:characterization
+bun run mutation-test -- characterization
 
 # Exhaustive but slow: mutates the whole ASCII layout core
-bun run mutation-test:ascii
+bun run mutation-test -- ascii
 ```

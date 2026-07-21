@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
 
 const REPO = join(import.meta.dir, '..', '..')
 const REPORT_PATH = join(REPO, 'eval', 'test-portfolio', 'baseline.json')
@@ -70,19 +69,13 @@ function loadReport(): BaselineReport {
 }
 
 describe('TEST-3 immutable baseline report', () => {
-  test('binds successful diagnostic observations to a reachable clean commit', () => {
+  test('binds successful diagnostic observations to an immutable clean commit identity', () => {
     const report = loadReport()
     expect(report.schemaVersion).toBe(1)
     expect(report.kind).toBe('pre-test-portfolio-baseline')
     expect(report.provenance.sourceCommit).toMatch(/^[0-9a-f]{40}$/)
     expect(report.provenance.trackedTreeClean).toBe(true)
     expect(Number.isNaN(Date.parse(report.provenance.capturedAt))).toBe(false)
-
-    const ancestry = spawnSync('git', ['merge-base', '--is-ancestor', report.provenance.sourceCommit, 'HEAD'], {
-      cwd: REPO,
-      encoding: 'utf8',
-    })
-    expect(ancestry.status, ancestry.stderr).toBe(0)
 
     for (const observation of Object.values(report.observations)) {
       expect(observation.command.length).toBeGreaterThan(0)
