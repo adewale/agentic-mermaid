@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../../src/index.ts'
-import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
+import { hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const MANIFEST = join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json')
@@ -15,17 +15,18 @@ const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrom
 type Entry = { family: string; title: string; officialDocs: string; origin: string; index: number; source: string }
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as { mermaidVersion: string; cases: Entry[] }
 const repoPath = (path: string): string => repositoryPath(ROOT, path)
+const receiptEntrypoints = [import.meta.filename]
 const inputPaths = sortRepositoryPaths(ROOT, [
   MANIFEST,
-  join(ROOT, 'package.json'),
-  join(ROOT, 'bun.lock'),
-  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
+  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
 ])
+const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
 const currentReceipt = () => ({
   schemaVersion: 1,
   generator: repoPath(import.meta.filename),
   inputCount: inputPaths.length,
-  inputTreeSha256: hashFileTree(ROOT, inputPaths),
+  inputTreeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies),
+  runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
   output: repoPath(OUTPUT),
   outputSha256: sha256File(OUTPUT),
 })

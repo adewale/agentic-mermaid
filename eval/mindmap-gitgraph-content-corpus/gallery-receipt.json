@@ -3,10 +3,6 @@
   "generator": "scripts/pr-assets/mindmap-gitgraph-content-gallery.ts",
   "inputs": [
     {
-      "path": "bun.lock",
-      "sha256": "86c9bb38f6ceccb1256eb8e6675e375e786d695578fc08a5620440d4735d129d"
-    },
-    {
       "path": "docs/project/upstream-mermaid-manifest.json",
       "sha256": "2e30b96dee9eeaa84286d6910874c9f501ce454b6e6e7c9b03c7d2312377a299"
     },
@@ -71,16 +67,12 @@
       "sha256": "8d44fc89793a85ee47f5e9552dc33d250e37cb9c0a41b51e391f21341dea16f6"
     },
     {
-      "path": "package.json",
-      "sha256": "a8d31f9240832e42d6129a7ca276973ad863e3846a6f20185bdeae1d0e6c0006"
-    },
-    {
       "path": "scripts/pr-assets/artifact-receipt.ts",
-      "sha256": "1b865e56a736b105a0807245e40376da36cad7ec11a2951a35c519a097f37d8f"
+      "sha256": "8a8bae5bb700d2677d7fadaac8c205eb3ae3968eca600cb3322e673e98285037"
     },
     {
       "path": "scripts/pr-assets/mindmap-gitgraph-content-gallery.ts",
-      "sha256": "41fdf383b93e00100ad09d3ca01e97419bca7356108fe2b425846658573a926b"
+      "sha256": "f475381c30f6c878c1fc917b1078baed56257428b8e1ca999b55484f3c2ec2cf"
     },
     {
       "path": "src/agent/accessibility-envelope.ts",
@@ -1171,6 +1163,21 @@
       "sha256": "a03ae3528f0db2d83131858e15ff6a3f244b1861fe421e43c09332c1ccf489cf"
     }
   ],
+  "runtimeDependencies": {
+    "algorithm": "bun-lock-transitive-v1",
+    "roots": [
+      "@resvg/resvg-js",
+      "elkjs",
+      "entities",
+      "perfect-freehand",
+      "playwright",
+      "roughjs",
+      "typescript",
+      "yaml"
+    ],
+    "packageCount": 26,
+    "sha256": "f26ddc250b58c5eea9ad944162b7cc70218899207227b6e9b36461c37c60807c"
+  },
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",

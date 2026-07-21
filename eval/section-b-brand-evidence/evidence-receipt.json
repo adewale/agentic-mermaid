@@ -2,8 +2,22 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 266,
-    "treeSha256": "00ddf833769e53e36e8dfc561364d67475924d2db9d436b275d2225a9ce99fce"
+    "count": 264,
+    "treeSha256": "f4fd52db6d5fd29880b2ed6703d9b8c3f22cd8373270cbe4938c94727ce73153"
+  },
+  "runtimeDependencies": {
+    "algorithm": "bun-lock-transitive-v1",
+    "roots": [
+      "@resvg/resvg-js",
+      "elkjs",
+      "entities",
+      "perfect-freehand",
+      "roughjs",
+      "typescript",
+      "yaml"
+    ],
+    "packageCount": 23,
+    "sha256": "4baecb188fb9502a023324ed25b8da6f6be45dcf26df8b69849cff22e80dfda9"
   },
   "fontInputs": [
     {

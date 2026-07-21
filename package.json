@@ -106,6 +106,8 @@
     "typecheck": "bun run typecheck:core && bun run typecheck:repo",
     "typecheck:core": "tsc --noEmit -p tsconfig.json",
     "typecheck:repo": "bun run website/build.ts && tsc --noEmit -p tsconfig.repo.json",
+    "quality:check": "bun run scripts/ci/quality-gates.ts",
+    "evidence:check": "bun run scripts/ci/quality-gates.ts --evidence-only",
     "format": "biome format --write .",
     "format:changed": "biome format --write --changed",
     "test:browser": "bun run e2e/run-browser-contracts.ts",

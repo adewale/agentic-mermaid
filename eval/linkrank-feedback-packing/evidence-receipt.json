@@ -66,8 +66,22 @@
       "after": 224.00000000000003
     }
   ],
-  "inputCount": 266,
-  "inputTreeSha256": "1166c82d90a7e85e8a9c7cc6360c47bc2f08a878e0b67fe82dcdf9ae3243c845",
+  "inputCount": 264,
+  "inputTreeSha256": "fbbb523a259a2a6f1aca9e9526b03bf9278f9bd39bcf4824a153d72f7a5eb0fe",
+  "runtimeDependencies": {
+    "algorithm": "bun-lock-transitive-v1",
+    "roots": [
+      "elkjs",
+      "entities",
+      "perfect-freehand",
+      "playwright",
+      "roughjs",
+      "typescript",
+      "yaml"
+    ],
+    "packageCount": 13,
+    "sha256": "bd6dfd108f0aa358076e8a60a39c51162c8db2dc3bf2846cf72bf9955982b027"
+  },
   "outputs": [
     {
       "path": "docs/pr-assets/issue-87-linkrank-feedback-packing-before-after.png",

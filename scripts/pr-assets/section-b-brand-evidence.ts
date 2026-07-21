@@ -9,7 +9,7 @@ import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
 import { inspectPngDimensions } from '../../src/output-color-profile.ts'
 import { renderMermaidASCII, renderMermaidSVG, validateStyleSpec, type StyleSpec } from '../../src/index.ts'
-import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
+import { hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 export const OUTPUT = join(ROOT, 'docs', 'design', 'families', 'section-b-brand-evidence.png')
@@ -178,17 +178,17 @@ export function buildSectionBBrandEvidence(): Uint8Array {
   }).render().asPng()
 }
 
+const receiptEntrypoints = [import.meta.filename]
 const inputPaths = sortRepositoryPaths(ROOT, [
-  join(ROOT, 'package.json'),
-  join(ROOT, 'bun.lock'),
   join(ROOT, 'eval', 'section-b-brand-evidence', 'baseline.mmd'),
   join(ROOT, 'eval', 'section-b-brand-evidence', 'role-style.json'),
   join(ROOT, 'eval', 'section-b-brand-evidence', 'usability-agent-session.json'),
   VISUAL_APPROVAL,
   PRODUCTION_COMPARISON,
   ...FONT_FILES,
-  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
+  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
 ])
+const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
 
 interface VisualApprovalRecord {
   schemaVersion: 1
@@ -273,7 +273,8 @@ export const buildSectionBBrandEvidenceReceipt = () => {
   return {
     schemaVersion: 3,
     generator: repositoryPath(ROOT, import.meta.filename),
-    inputs: { count: inputPaths.length, treeSha256: hashFileTree(ROOT, inputPaths) },
+    inputs: { count: inputPaths.length, treeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies) },
+    runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
     fontInputs: sortRepositoryPaths(ROOT, FONT_FILES).map(path => ({
       path: repositoryPath(ROOT, path),
       sha256: sha256File(path),

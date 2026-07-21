@@ -1,8 +1,22 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-rollout-evidence.ts",
-  "inputCount": 262,
-  "inputTreeSha256": "083e6e979492bedbfaa4fe2695d8886df07a7cc08004c3c8dffcdee4e9451361",
+  "inputCount": 260,
+  "inputTreeSha256": "28f4c62477d988965ff485a93f5a6bb1ea3b74178c991f9494834e70c620b6fc",
+  "runtimeDependencies": {
+    "algorithm": "bun-lock-transitive-v1",
+    "roots": [
+      "elkjs",
+      "entities",
+      "perfect-freehand",
+      "playwright",
+      "roughjs",
+      "typescript",
+      "yaml"
+    ],
+    "packageCount": 13,
+    "sha256": "bd6dfd108f0aa358076e8a60a39c51162c8db2dc3bf2846cf72bf9955982b027"
+  },
   "outputs": [
     {
       "path": "eval/palette-rollout/report.json",

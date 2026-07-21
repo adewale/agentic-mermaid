@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { fileReceiptEntries, hashFileTree, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { fileReceiptEntries, hashFileTree, runtimeDependencyClosure, sourceDependencyGraph, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -34,6 +34,47 @@ describe('generated-artifact receipt kernel', () => {
 
     expect(transitiveLocalInputs(root, [join(root, 'entry.ts')]).map(path => path.slice(root.length + 1)))
       .toEqual(['entry.ts', 'src/a.ts', 'src/b.ts'])
+  })
+
+  test('captures external package roots while ignoring built-ins', () => {
+    const root = mkdtempSync(join(tmpdir(), 'am-receipt-packages-'))
+    writeFileSync(join(root, 'entry.ts'), `import 'node:fs'\nimport '@scope/runtime/subpath'\nimport './local.ts'\n`)
+    writeFileSync(join(root, 'local.ts'), `import 'plain-runtime/feature'\n`)
+    expect(sourceDependencyGraph(root, [join(root, 'entry.ts')]).externalPackages)
+      .toEqual(['@scope/runtime', 'plain-runtime'])
+  })
+
+  test('hashes only the imported package closure, not unrelated tooling', () => {
+    const root = mkdtempSync(join(tmpdir(), 'am-receipt-lock-'))
+    writeFileSync(join(root, 'entry.ts'), `import 'runtime/feature'\n`)
+    const lock = {
+      lockfileVersion: 1,
+      workspaces: {
+        '': {
+          dependencies: { runtime: '^1.0.0', unused: '1.0.0' },
+          devDependencies: { formatter: '1.0.0' },
+        },
+      },
+      packages: {
+        runtime: ['runtime@1.2.0', '', { dependencies: { transitive: '^2.0.0' } }, 'sha-runtime'],
+        transitive: ['transitive@2.1.0', '', {}, 'sha-transitive'],
+        unused: ['unused@1.0.0', '', {}, 'sha-unused'],
+        formatter: ['formatter@1.0.0', '', {}, 'sha-formatter'],
+      },
+    }
+    writeFileSync(join(root, 'bun.lock'), `${JSON.stringify(lock, null, 2)}\n`)
+    const before = runtimeDependencyClosure(root, [join(root, 'entry.ts')])
+    expect(before.roots).toEqual(['runtime'])
+    expect(before.packages.map(entry => entry.key)).toEqual(['runtime', 'transitive'])
+
+    lock.workspaces[''].devDependencies.formatter = '2.0.0'
+    lock.packages.formatter = ['formatter@2.0.0', '', {}, 'sha-formatter-2']
+    writeFileSync(join(root, 'bun.lock'), `${JSON.stringify(lock, null, 2)}\n`)
+    expect(runtimeDependencyClosure(root, [join(root, 'entry.ts')]).sha256).toBe(before.sha256)
+
+    lock.packages.transitive = ['transitive@2.1.0', '', {}, 'sha-transitive-changed']
+    writeFileSync(join(root, 'bun.lock'), `${JSON.stringify(lock, null, 2)}\n`)
+    expect(runtimeDependencyClosure(root, [join(root, 'entry.ts')]).sha256).not.toBe(before.sha256)
   })
 
   test('fails closed on unresolved or escaping local imports', () => {

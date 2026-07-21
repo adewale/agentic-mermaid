@@ -1,8 +1,23 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/pie-highlightslice-evidence.ts",
-  "inputCount": 259,
-  "inputTreeSha256": "2e81be88f370fc144f77c3b4c8f185e147fbec6a44a63856796eb27f0f892b39",
+  "inputCount": 257,
+  "inputTreeSha256": "6aa419854e57b431d47bbfb5be14329e8396984830fb576179145cdefee6531c",
+  "runtimeDependencies": {
+    "algorithm": "bun-lock-transitive-v1",
+    "roots": [
+      "@resvg/resvg-js",
+      "elkjs",
+      "entities",
+      "perfect-freehand",
+      "playwright",
+      "roughjs",
+      "typescript",
+      "yaml"
+    ],
+    "packageCount": 26,
+    "sha256": "f26ddc250b58c5eea9ad944162b7cc70218899207227b6e9b36461c37c60807c"
+  },
   "outputs": [
     {
       "path": "docs/design/families/pie-highlightslice-regression-matrix.png",
