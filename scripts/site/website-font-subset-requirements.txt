@@ -1,0 +1,2 @@
+fonttools @ https://files.pythonhosted.org/packages/77/c7/2342da9830e3e9d4870305ca5d2091d2a83284f2953079b7bdd3b5e029d8/fonttools-4.63.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=58dc6bb86a78d782f00f9190ca02c119cf5bbe2807536e361e18d42019f877d8
+brotli @ https://files.pythonhosted.org/packages/03/a7/03aa61fbc3c5cbf99b44d158665f9b0dd3d8059be16c460208d9e385c837/brotli-1.2.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl#sha256=072e7624b1fc4d601036ab3f4f27942ef772887e876beff0301d261210bca97f

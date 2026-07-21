@@ -20,8 +20,8 @@ The Examples page already uses `content-visibility: auto`; that reduces off-scre
 
 | Route | requests | raw | gzip | Brotli |
 |---|---:|---:|---:|---:|
-| `/` | 9 | 1,252,938 B | 642,665 B | 557,024 B |
-| `/examples/` | 11 | 3,283,215 B | 1,007,440 B | 821,122 B |
+| `/` | 9 | 682,619 B | 406,567 B | 387,899 B |
+| `/examples/` | 11 | 2,426,844 B | 648,659 B | 564,048 B |
 | `/editor/?empty=1` | 2 | 3,314,199 B | 974,886 B | 767,057 B |
 
 The matching ceilings live separately in `scripts/site/website-payload-budgets.ts`. Review policy requires an optimization to ratchet its own route downward without rewriting measurement logic or unrelated route budgets in the same PR. Lighthouse timings remain diagnostic review evidence.
@@ -43,13 +43,22 @@ For every payload PR:
 
 The shell currently downloads full Inter TTF files while four display faces already have Latin-subset WOFF2 companions. Extend the reproducible subset pipeline to the Inter weights actually used by each route.
 
-Requirements:
+Delivered by the canonical Inter subset authority:
 
-- pin the fonttools/Brotli versions and subset character set;
-- use explicit `unicode-range` faces and retain a tested fallback for uncovered glyphs;
-- keep full TTFs available to trusted editor/export embedding without making every document page fetch them;
-- verify regular, medium, semibold, bold, punctuation, and representative non-ASCII fallback in Chromium;
-- target at least a 30% cold-transfer reduction on both `/` and `/examples/` before setting the first budget.
+- a digest-pinned Linux/amd64 Python 3.12.10 image installs only hash-locked FontTools 4.63.0 and Brotli 1.2.0 wheels;
+- `bun run scripts/site/subset-website-inter-fonts.ts --write` stages and atomically replaces the four-face directory, while `--check` regenerates and byte-compares its manifest and every WOFF2;
+- exact `unicode-range` faces use content-addressed URLs; unrestricted full TTFs remain fallback and the editor/export CSS remains full-TTF-only;
+- Chromium verifies weights 400/500/600/700, covered punctuation/currency/arrows/mathematical/technical/geometric probes, Greek/Cyrillic full-TTF fallback, and same-run full/subset pixels; CJK/emoji remain explicitly host-dependent;
+- homepage gzip/Brotli fell 36.7%/30.4%, and Examples fell 35.6%/31.3%. Raw bytes fell 45.5%/26.1%; a 30% raw Examples reduction is mathematically impossible through its 977,820 B of initial full Inter alone because the 3,283,215 B route also contains 1.97 MB of HTML. The cold-transfer criterion therefore applies to both fixed compressed authorities, with raw bytes still ratcheted exactly;
+- the blank editor graph and all three byte totals remain unchanged.
+
+Starting → subset ratchets:
+
+| Route | raw | gzip | Brotli |
+|---|---:|---:|---:|
+| `/` | 1,252,938 → 682,619 B (−45.5%) | 642,665 → 406,567 B (−36.7%) | 557,024 → 387,899 B (−30.4%) |
+| `/examples/` | 3,283,215 → 2,426,844 B (−26.1%) | 1,007,440 → 648,659 B (−35.6%) | 821,122 → 564,048 B (−31.3%) |
+| `/editor/?empty=1` | unchanged | unchanged | unchanged |
 
 ### 2. Examples delivery
 

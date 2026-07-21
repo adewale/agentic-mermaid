@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
@@ -11,10 +12,13 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 import { SHARED_RENDER_OPTION_FIELDS, validateSerializableRenderOptions } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
+import interSubsetManifestJson from '../../website/source/assets/fonts/inter/manifest.json'
+import { WEBSITE_INTER_GLYPH_PROBES, type WebsiteInterSubsetManifest } from '../../scripts/site/website-font-subsets.ts'
 import type { RenderOptions } from '../types.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
+const INTER_SUBSET_MANIFEST = interSubsetManifestJson as unknown as WebsiteInterSubsetManifest
 
 let server: ReturnType<typeof Bun.serve>
 let browser: Browser
@@ -44,6 +48,7 @@ const mime: Record<string, string> = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.ttf': 'font/ttf',
+  '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
 }
@@ -145,6 +150,7 @@ describeBrowser('website browser accessibility smoke', () => {
       preferredPort: 4720,
       fetch(req) {
         const url = new URL(req.url)
+        if (url.pathname === '/__font-probe') return new Response('<!doctype html><html><body></body></html>', { headers: { 'content-type': 'text/html; charset=utf-8' } })
         const abs = fileForPath(url.pathname)
         if (!abs) return new Response('Not found', { status: 404 })
         return new Response(Bun.file(abs), { headers: { 'content-type': mime[extname(abs)] || 'application/octet-stream' } })
@@ -447,6 +453,67 @@ describeBrowser('website browser accessibility smoke', () => {
     await page.close()
   }, 30_000)
 
+  test('each Inter weight selects its covered subset and full-only TTF fallback', async () => {
+    const covered = WEBSITE_INTER_GLYPH_PROBES.covered.join(' ')
+    const fullOnly = WEBSITE_INTER_GLYPH_PROBES.fullOnly.join(' ')
+    for (const output of INTER_SUBSET_MANIFEST.outputs) {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+      await page.goto(baseUrl + '/__font-probe')
+      const fontRequests: string[] = []
+      page.on('request', request => {
+        const path = new URL(request.url()).pathname
+        if (path.startsWith('/fonts/Inter-')) fontRequests.push(path)
+      })
+      await page.setContent(`<link rel="stylesheet" href="${baseUrl}/styles.css"><span style="font: ${output.weight} 16px Inter">${covered}</span>`)
+      await page.evaluate(async () => { await document.fonts.ready })
+      expect(fontRequests, `${output.weight} covered`).toEqual([`/fonts/${output.file}`])
+      const fallbackRequest = page.waitForRequest(request => new URL(request.url()).pathname === `/fonts/${output.source}`)
+      await page.evaluate(({ weight, text }) => {
+        const span = document.createElement('span')
+        span.style.font = `${weight} 16px Inter`
+        span.textContent = text
+        document.body.append(span)
+      }, { weight: output.weight, text: fullOnly })
+      await fallbackRequest
+      await page.evaluate(async () => { await document.fonts.ready })
+      expect(fontRequests, `${output.weight} full-only`).toEqual([`/fonts/${output.file}`, `/fonts/${output.source}`])
+      await page.close()
+    }
+  }, 60_000)
+
+  test('covered Inter subset and full-TTF glyphs have identical same-run Chromium pixels', async () => {
+    const page = await browser.newPage({ viewport: { width: 3000, height: 500 } })
+    await page.goto(baseUrl + '/__font-probe')
+    const fontRequests: string[] = []
+    page.on('request', request => {
+      const path = new URL(request.url()).pathname
+      if (path.startsWith('/fonts/Inter-')) fontRequests.push(path)
+    })
+    const text = WEBSITE_INTER_GLYPH_PROBES.covered.join(' ')
+    const faces = INTER_SUBSET_MANIFEST.outputs.map((output, index) => `
+      @font-face { font-family: 'Subset${index}'; src: url('${baseUrl}/fonts/${output.file}') format('woff2'); font-weight: ${output.weight}; }
+      @font-face { font-family: 'Full${index}'; src: url('${baseUrl}/fonts/${output.source}') format('truetype'); font-weight: ${output.weight}; }
+    `).join('')
+    const rows = INTER_SUBSET_MANIFEST.outputs.map((output, index) => `
+      <div id="subset-${index}" style="font-family:Subset${index};font-weight:${output.weight}">${text}</div>
+      <div id="full-${index}" style="font-family:Full${index};font-weight:${output.weight}">${text}</div>
+    `).join('')
+    await page.setContent(`<style>${faces} div { width:max-content; white-space:nowrap; font-size:24px; line-height:32px; font-variant-numeric:tabular-nums; color:#111; background:#fff; }</style>${rows}`)
+    await page.evaluate(async () => { await document.fonts.ready })
+    expect(fontRequests.sort()).toEqual(INTER_SUBSET_MANIFEST.outputs.flatMap(output => [
+      `/fonts/${output.file}`, `/fonts/${output.source}`,
+    ]).sort())
+    for (let index = 0; index < INTER_SUBSET_MANIFEST.outputs.length; index++) {
+      const subset = page.locator(`#subset-${index}`)
+      const full = page.locator(`#full-${index}`)
+      const subsetBox = await subset.boundingBox()
+      const fullBox = await full.boundingBox()
+      expect({ width: subsetBox?.width, height: subsetBox?.height }).toEqual({ width: fullBox?.width, height: fullBox?.height })
+      expect(await subset.screenshot()).toEqual(await full.screenshot())
+    }
+    await page.close()
+  }, 60_000)
+
   test('editor blank-start URL opens an empty canvas instead of the default or saved draft', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(baseUrl + '/editor/', { waitUntil: 'networkidle' })
@@ -605,6 +672,26 @@ describeBrowser('website browser accessibility smoke', () => {
     }
     await page.close()
   }, 30_000)
+
+  test('SVG export embeds canonical full Inter TTFs and never public subsets', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/editor/?example=flowchart-basic', { waitUntil: 'networkidle' })
+    await page.locator('#preview-inner svg').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.click('#export-chevron-btn')
+    const downloadPromise = page.waitForEvent('download', { timeout: 15_000 })
+    await page.click('#export-svg-btn')
+    const download = await downloadPromise
+    const path = await download.path()
+    expect(typeof path).toBe('string')
+    const svg = readFileSync(path!, 'utf8')
+    const embedded = Array.from(svg.matchAll(/data:font\/ttf;base64,([A-Za-z0-9+/=]+)/g), match => Buffer.from(match[1]!, 'base64'))
+    const hashes = embedded.map(bytes => createHash('sha256').update(bytes).digest('hex')).sort()
+    const expected = INTER_SUBSET_MANIFEST.sources.map(source => source.sha256).sort()
+    expect(hashes).toEqual(expected)
+    expect(svg).not.toContain('data:font/woff2')
+    expect(svg).not.toContain('.subset-')
+    await page.close()
+  }, 60_000)
 
   test('editor share links cannot inject active SVG through render config', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
