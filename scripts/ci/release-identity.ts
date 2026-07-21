@@ -2,10 +2,12 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { PACKAGE_VERSION } from '../../src/version.ts'
 
 export interface ReleaseIdentity {
   tag: string
   packageVersion: string
+  sourceVersion: string
   serverVersion: string
   packageServerVersion: string
   head: string
@@ -16,6 +18,7 @@ export interface ReleaseIdentity {
 export function validateReleaseIdentity(identity: ReleaseIdentity): void {
   const expectedTag = `v${identity.packageVersion}`
   if (identity.tag !== expectedTag) throw new Error(`Release tag ${identity.tag} does not match package version ${expectedTag}`)
+  if (identity.sourceVersion !== identity.packageVersion) throw new Error(`src/version.ts version ${identity.sourceVersion} does not match package version ${identity.packageVersion}`)
   if (identity.serverVersion !== identity.packageVersion) throw new Error(`server.json version ${identity.serverVersion} does not match package version ${identity.packageVersion}`)
   if (identity.packageServerVersion !== identity.packageVersion) throw new Error(`server.json package version ${identity.packageServerVersion} does not match package version ${identity.packageVersion}`)
   if (identity.tagCommit !== identity.head) throw new Error(`Release tag ${identity.tag} points to ${identity.tagCommit}, not checked-out HEAD ${identity.head}`)
@@ -38,6 +41,7 @@ if (import.meta.main) {
   const identity: ReleaseIdentity = {
     tag,
     packageVersion: packageJson.version,
+    sourceVersion: PACKAGE_VERSION,
     serverVersion: serverJson.version,
     packageServerVersion: serverJson.packages[0]?.version ?? '',
     head: git(root, ['rev-parse', 'HEAD']),

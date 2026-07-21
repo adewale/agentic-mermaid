@@ -18,7 +18,7 @@
 
 import { userModuleSources, MAX_RESULT_BYTES } from '../../src/mcp/harness-runtime.ts'
 import type { ExecuteResult, HostedExecuteTelemetry } from '../../src/mcp/hosted-server.ts'
-import pkg from '../../package.json'
+import { PACKAGE_VERSION } from '../../src/version.ts'
 
 // Keep in sync with wrangler.jsonc `compatibility_date`: the isolate should
 // see the same runtime semantics as the Worker that spawned it.
@@ -49,7 +49,7 @@ async function sha256Hex(text: string): Promise<string> {
  * changes without a version bump.
  */
 export async function deployTag(harnessSource: string): Promise<string> {
-  return `v${pkg.version}-${(await sha256Hex(harnessSource)).slice(0, 16)}`
+  return `v${PACKAGE_VERSION}-${(await sha256Hex(harnessSource)).slice(0, 16)}`
 }
 
 /** Read a body with a hard byte cap, cancelling the stream on overrun. */

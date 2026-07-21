@@ -22,7 +22,7 @@ import {
   serializeMermaid,
   verifyMermaid,
 } from '../../src/agent/index.ts'
-import type { DiagramKind, ValidDiagram } from '../../src/agent/types.ts'
+import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../../src/agent/types.ts'
 
 type Family = Exclude<DiagramKind, 'mindmap' | 'gitgraph'>
 
@@ -711,13 +711,13 @@ function localBehavior(source: string, family: Family): Exclusion['ours'] {
   }
   return {
     parseOk: true,
-    structured: Boolean(narrowers[family](parsed.value)),
+    structured: parsed.value.kind === family && Boolean(narrowers[family](parsed.value as ValidDiagram)),
     verifyOk: verification.ok,
     layoutOk,
   }
 }
 
-function safeVerify(diagram: ValidDiagram): { ok: boolean } {
+function safeVerify(diagram: ParsedDiagram): { ok: boolean } {
   try {
     return verifyMermaid(diagram)
   } catch {

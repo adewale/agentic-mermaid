@@ -84,7 +84,7 @@ independent spec:
 
 **Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
 per PR — it is the five-lane `e2e` matrix in `ci.yml` (`needs: test`), including
-an installed-tarball consumer run at the advertised Node 18 floor. Its
+an installed-tarball consumer run at the advertised Node 22 floor. Its
 browser lane installs Chromium and runs `browser.test.ts` (screenshot diff)
 plus the security contracts and the explicitly enabled theme/style/accessibility
 browser suites. The browser lane builds the gitignored `website/public` tree once

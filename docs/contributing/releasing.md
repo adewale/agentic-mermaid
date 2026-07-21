@@ -6,8 +6,8 @@ deterministic gate (tests, dependency/palette/sketch/whole-corpus quality,
 `tsc`, browser contracts, route sabotage, `hero:check`, `website:check`,
 golden-drift, and incremental mutation), requires a successful canonical CI run
 for the exact release commit, runs the registry-derived render portfolio on
-macOS and Windows, fuzzes shipped artifacts under Node 22 and the packed
-tarball under the minimum supported Node 18, builds with `tsup`, and runs
+macOS and Windows, fuzzes shipped artifacts under Node 24 and the packed
+tarball under the minimum supported Node 22, builds with `tsup`, and runs
 `npm publish --access public`. There is no manual
 `npm publish` step. After npm succeeds, a separate dependent job publishes
 [`server.json`](../../server.json) to the official MCP Registry. Keeping that
@@ -38,7 +38,7 @@ automatically** (no `--provenance` flag).
 - `npm view agentic-mermaid version` — confirm the version isn't already
   published (first release: expect a 404).
 
-The workflow pins Node 22 and npm 11.18.0 (trusted publishing needs npm ≥
+The workflow pins Node 24 and npm 11.18.0 (trusted publishing needs npm ≥
 11.5.1 / Node ≥ 22.14). The publish job also rejects a release whose tag,
 checked-out commit, `origin/main` ancestry, package version, or MCP server
 versions disagree, and fails before building if that immutable npm version
@@ -50,10 +50,10 @@ already exists.
    has already run; `publish.yml` re-runs the deterministic gate + artifact fuzz
    as a backstop.
 2. **Bump the package and MCP server versions together.** Update `version` in
-   `package.json`, the top-level `version` in `server.json`, and
+   `package.json`, `PACKAGE_VERSION` in `src/version.ts`, the top-level `version` in `server.json`, and
    `packages[0].version` in `server.json`. The readiness tests require an exact
-   match. `llms.txt` / `am capabilities` derive the version from `package.json`,
-   so no manual edit is needed for those files.
+   match. Generated surfaces such as `llms.txt` and `am capabilities` read the
+   runtime-safe `PACKAGE_VERSION`, so no additional generated-file edit is needed.
 3. **Roll the changelog.** Retitle `## Unreleased` in
    [`CHANGELOG.md`](../../CHANGELOG.md) to `## <version> — <YYYY-MM-DD>` and open a
    fresh empty `## Unreleased` above it.

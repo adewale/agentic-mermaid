@@ -21,7 +21,7 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { existsSync, writeFileSync, mkdtempSync, readFileSync, mkdirSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import fc from 'fast-check'
@@ -182,6 +182,23 @@ process.stdout.write(JSON.stringify({ resolved, results }))
 `
 
 describe('installed tarball — library', () => {
+  test('published documentation entry points have no broken relative links', () => {
+    expect(haveConsumer).toBe(true)
+    for (const relativeHubPath of ['README.md', 'docs/README.md']) {
+      const hubPath = join(packageDir, relativeHubPath)
+      const hub = readFileSync(hubPath, 'utf8')
+      const relativeLinks = [...hub.matchAll(/\]\(([^)]+)\)/g)]
+        .map(match => match[1]!.trim())
+        .filter(href => href !== '' && !href.startsWith('#') && !/^[a-z][a-z\d+.-]*:/i.test(href))
+        .map(href => href.split('#', 1)[0]!)
+
+      expect(relativeLinks.length).toBeGreaterThan(0)
+      for (const href of relativeLinks) {
+        expect({ hub: relativeHubPath, href, exists: existsSync(resolve(dirname(hubPath), href)) }).toEqual({ hub: relativeHubPath, href, exists: true })
+      }
+    }
+  })
+
   test('resolves all three entry points and renders identically to source (crash parity + flowchart byte-equality)', () => {
     expect(haveConsumer).toBe(true)
     const flow = fc.sample(flowchartArb, 50)

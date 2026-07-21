@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "bin/**/*.ts",
+    "e2e/**/*.ts",
+    "editor/**/*.ts",
+    "eval/**/*.ts",
+    "examples/**/*.ts",
+    "website/**/*.ts",
+    "tsup.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "website/public",
+    "website/src/generated",
+    "eval/mermaid-upstream-suite-bench/upstream-*/**"
+  ]
+}

@@ -149,7 +149,7 @@ The candidate misses the provisional 20–36s target but retains the declared 90
 | Palette/Look integration repeats resolved behavior | 4,500 full renders re-test many palette values after stack resolution | Pure composition/color authorities and renderer consumption are not separated enough from end-to-end sampling. |
 | Exact goldens and semantic oracles are mixed | Hash matrices, no-throw tests and evidence receipts overlap | Rows repeat while some assertions remain change detection rather than causal correctness. |
 | Expensive historical evidence stays broadly invalidated | Several receipts hash large source/test trees | Unrelated edits trigger regeneration and merge-ref churn. |
-| Cross-platform scope is narrow | CI is Ubuntu/Chromium with Node 18/22 and Bun; local macOS checks are manual | Windows, WebKit/Firefox, ARM Linux and cross-architecture byte stability are not established. |
+| Cross-platform scope is narrow | CI is Ubuntu/Chromium with Node 22/24 and Bun; local macOS checks are manual | Windows, WebKit/Firefox, ARM Linux and cross-architecture byte stability are not established. |
 | Production/client evidence is separate and recent | PR #189 added TypeScript/Python/Go MCP conformance, while hosted deployment smoke and exact live identity remain separate | Internal all-family coverage and local reference clients still do not establish deployed behavior. |
 | Aesthetic oracle remains weak | Deterministic geometry metrics and approved galleries exist | Human readability/taste is not implied by exhaustive matrix success. |
 
@@ -360,7 +360,7 @@ Per PR:
 
 - every public transport/tool has a golden path and schema rejection path;
 - pairwise transport × tool × format × security over local deterministic environments;
-- Node 18 minimum, current Node, Bun and Chromium requirements remain fail-loud;
+- Node 22 minimum, current Node, Bun and Chromium requirements remain fail-loud;
 - the plan reports unexecuted supported OS/browser/architecture cells rather than implying Ubuntu/Chromium proves them.
 
 Release/post-deploy:

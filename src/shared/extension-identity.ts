@@ -12,8 +12,8 @@ import {
   parseSemVer,
   semVerSatisfies,
 } from '../capability-negotiation.ts'
-import pkg from '../../package.json'
 import { SCENE_CONTRACT_SEMVER } from '../scene/version.ts'
+import { PACKAGE_VERSION } from '../version.ts'
 
 export interface ExtensionCompatibility {
   readonly [contract: string]: string | undefined
@@ -65,7 +65,7 @@ export function sameExtensionIdentity<Kind extends string>(
 /** Host contract versions understood by this runtime. Requirements for other
  * namespaced contracts are retained but deliberately deferred to their owner. */
 export const KNOWN_EXTENSION_CONTRACT_VERSIONS = Object.freeze({
-  core: pkg.version,
+  core: PACKAGE_VERSION,
   scene: SCENE_CONTRACT_SEMVER,
 } as const)
 

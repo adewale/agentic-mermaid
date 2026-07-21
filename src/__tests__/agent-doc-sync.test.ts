@@ -996,7 +996,8 @@ describe('shipped distribution artifacts present', () => {
   test('npm package includes bundled PNG fonts and delegated docs', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     expect(pkg.files).toContain('assets/fonts/')
-    for (const doc of ['SECURITY.md', 'docs/schemas/style-spec.schema.json', 'skills/']) expect(pkg.files).toContain(doc)
+    expect(pkg.files).toContain('assets/hero.png')
+    for (const doc of ['SECURITY.md', 'docs/*.md', 'docs/schemas/style-spec.schema.json', 'AGENT_NATIVE.md', 'Instructions_for_agents.md', 'skills/']) expect(pkg.files).toContain(doc)
     for (const repositoryOnly of ['src/', 'TODO.md', 'docs/', 'skill-evals/']) expect(pkg.files).not.toContain(repositoryOnly)
     for (const removedRootDoc of ['FEATURES.md', 'FORK_DIFFERENCES.md', 'QUALITY.md']) expect(pkg.files).not.toContain(removedRootDoc)
     // Paths are in npm's canonical (no `./`) form after `npm pkg fix`; both
@@ -1008,7 +1009,7 @@ describe('shipped distribution artifacts present', () => {
       'agentic-mermaid-mcp': 'dist/agentic-mermaid-mcp.js',
     })
     expect(pkg.publishConfig).toMatchObject({ access: 'public', provenance: true })
-    expect(pkg.engines.node).toBe('>=18')
+    expect(pkg.engines.node).toBe('>=22')
     for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).not.toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)

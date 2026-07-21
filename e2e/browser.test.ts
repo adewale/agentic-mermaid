@@ -668,6 +668,7 @@ pie showData
         .__mermaid.getStyle('salmon')?.colors?.bg,
     )
     expect(typeof salmonBg).toBe('string')
+    if (typeof salmonBg !== 'string') throw new Error('salmon style must define a background colour')
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')

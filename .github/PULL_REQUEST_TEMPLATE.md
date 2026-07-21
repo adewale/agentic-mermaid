@@ -9,7 +9,7 @@ The checklist below covers the two CI gates that need a human decision.
 
 ## Checklist
 
-- [ ] Tests pass locally (`bun run test`) and `bun x tsc --noEmit` is clean.
+- [ ] Tests pass locally (`bun run test`), `bun run lint` is clean, and `bun run typecheck` passes.
 - [ ] **Golden snapshots:** I did **not** change committed goldens under
       `src/__tests__/testdata/` **— OR —** I reviewed the golden diff, it is
       intended, and **a commit-message line starts with `[approve-goldens]`**.

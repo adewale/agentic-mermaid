@@ -81,14 +81,14 @@ jobs:
       - name: Setup Node.js (for npm publish)
         uses: actions/setup-node@v7
         with:
-          # OIDC trusted publishing requires Node >= 22.14 and npm >= 11.5.1.
-          # (Node 20 is also EOL as of 2026-04-30.)
-          node-version: '22'
+          # Use the current LTS for release gates and publication; the minimum
+          # supported Node line is tested separately below.
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Upgrade npm for trusted publishing
-        # Node 22 bundles npm 10.9.x; trusted publishing needs npm >= 11.5.1.
-        # Pin npm instead of using the moving `latest` tag: npm 12.0.0 shipped
+        # Trusted publishing needs npm >= 11.5.1. Pin npm instead of using the
+        # moving `latest` tag: npm 12.0.0 shipped
         # without the `sigstore` module needed by libnpmpublish's provenance
         # path on GitHub-hosted runners. Install `sigstore` in a temp prefix,
         # then copy that node_modules tree into npm's own module tree so
@@ -150,6 +150,9 @@ jobs:
       - name: Type check
         run: bun run typecheck
 
+      - name: Lint TypeScript and repository contracts
+        run: bun run lint
+
       - name: Install Chromium for browser contracts
         run: bunx playwright install chromium --with-deps
 
@@ -168,7 +171,7 @@ jobs:
       - name: Prove focused route regressions fail
         run: bun run sabotage:routes
 
-      - name: Fuzz the shipped artifact (built bundle + packed tarball, under Node 22)
+      - name: Fuzz the shipped artifact (built bundle + packed tarball, under Node 24)
         # The strongest pre-publish signal: builds dist/, compiles the standalone
         # binary, and packs+installs the tarball, then drives the library + bins
         # under plain Node. Validates the exact files[]/exports/bin a release
@@ -178,15 +181,15 @@ jobs:
       - name: Setup minimum supported Node.js consumer runtime
         uses: actions/setup-node@v7
         with:
-          node-version: '18'
+          node-version: '22'
 
-      - name: Pack, install, and fuzz the tarball under Node 18
+      - name: Pack, install, and fuzz the tarball under Node 22
         run: cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000
 
       - name: Restore trusted-publishing Node.js runtime
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Verify pinned npm publisher survived the runtime switch

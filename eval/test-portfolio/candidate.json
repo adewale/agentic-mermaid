@@ -270,7 +270,7 @@
     "perPullRequest": [
       "library SVG/PNG/ASCII/Unicode variable-strength portfolio",
       "CLI, package, browser and MCP boundary suites already in canonical CI",
-      "Node 18 minimum and Node 22 consumer lanes"
+      "Node 22 minimum and Node 24 consumer lanes"
     ],
     "release": [
       "Ubuntu canonical CI",
