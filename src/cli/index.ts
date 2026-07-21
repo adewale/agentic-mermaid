@@ -6,6 +6,7 @@ import { readFileSync, existsSync, writeFileSync, mkdtempSync, statSync, watch }
 import { spawnSync } from 'node:child_process'
 import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { PACKAGE_VERSION } from '../version.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
@@ -1211,14 +1212,7 @@ function familyConformanceDiscovery(report: FamilyConformanceReport): FamilyConf
 }
 
 export function buildCapabilities(): CapabilitiesEnvelope {
-  const sdkVersion = (() => {
-    try {
-      const pkg = require('../../package.json') as { version: string }
-      return pkg.version
-    } catch {
-      return 'unknown'
-    }
-  })()
+  const sdkVersion = PACKAGE_VERSION
   const mutableFamilies = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
   const families: FamilyCapability[] = knownFamilies().map((id) => {
     const p = getFamily(id)!

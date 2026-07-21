@@ -12,7 +12,7 @@ It is forked from [`lukilabs/beautiful-mermaid`](https://github.com/lukilabs/bea
 
 [Live Demo & Samples](https://agentic-mermaid.dev/) · [Live Editor](https://agentic-mermaid.dev/editor)
 
-Docs: [docs index](./docs/) · [getting started](./docs/getting-started.md) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [design system](./DESIGN.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
+Docs: [docs index](./docs/) · [getting started](./docs/getting-started.md) · [agent guide](./Instructions_for_agents.md) · [agent API cookbook](./docs/agent-api-cookbook.md) · [design system](https://github.com/adewale/agentic-mermaid/blob/main/DESIGN.md) · [skills](./skills/) · [fork differences](./docs/fork-differences.md) · [vs Mermaid & Beautiful Mermaid](./docs/comparison.md) · [changelog](./CHANGELOG.md)
 
 </div>
 
@@ -60,7 +60,7 @@ bun run bin/agentic-mermaid-mcp.ts   # MCP stdio server
 ```
 
 > **ESM-only.** `agentic-mermaid` ships ES modules (there is no CommonJS build);
-> `require()` consumers should use dynamic `import()` instead. Requires Node ≥ 18.
+> `require()` consumers should use dynamic `import()` instead. Requires Node ≥ 22.
 >
 > The `am …` examples below name the published bin. After a project-local npm
 > install, invoke it from a shell as `npx --no-install agentic-mermaid …` (or
@@ -174,13 +174,13 @@ Rules:
 
 Family support and its executable evidence are projected from the
 `FamilyDescriptor` registry into the generated
-[Section A capability report](./docs/project/section-a-capability-report.md).
+[Section A capability report](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/section-a-capability-report.md).
 See [diagram families](./docs/diagram-families.md) for syntax examples and
 compatibility notes.
 
 ## More documentation
 
-- [System architecture](./docs/design/system/README.md) — **start here** for the rendered resolved-request, family-descriptor, positioned-artifact, and output-security overview (dogfooded, drift-proof).
+- [System architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) — **start here** for the rendered resolved-request, family-descriptor, positioned-artifact, and output-security overview (dogfooded, drift-proof).
 - [API reference](./docs/api.md) — renderers, agent API, options, CLI/MCP pointers.
 - [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
 - [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.
@@ -190,15 +190,15 @@ compatibility notes.
 - [ASCII output](./docs/ascii.md) — terminal output, color modes, XY charts.
 - [Mermaid config](./docs/config.md) — frontmatter, init directives, runtime config.
 - [Features](./docs/features.md), [quality](./docs/quality.md), [security](./SECURITY.md), [fork differences](./docs/fork-differences.md).
-- [Adding diagram types](./docs/contributing/adding-diagram-types.md) for contributors.
+- [Adding diagram types](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/adding-diagram-types.md) for contributors.
 
 ## Live editor and examples
 
 - [Examples](https://agentic-mermaid.dev/examples/) — supported families, Style + Palette combinations, and the rich shared examples corpus.
 - [Live editor](https://agentic-mermaid.dev/editor) — SVG/PNG exports and URL sharing.
-- [`examples/agent-loop.ts`](./examples/agent-loop.ts)
-- [`examples/mcp-vs-cli-complex-diagrams.ts`](./examples/mcp-vs-cli-complex-diagrams.ts)
-- [`examples/agent-improve-auth-flow.ts`](./examples/agent-improve-auth-flow.ts)
+- [`examples/agent-loop.ts`](https://github.com/adewale/agentic-mermaid/blob/main/examples/agent-loop.ts)
+- [`examples/mcp-vs-cli-complex-diagrams.ts`](https://github.com/adewale/agentic-mermaid/blob/main/examples/mcp-vs-cli-complex-diagrams.ts)
+- [`examples/agent-improve-auth-flow.ts`](https://github.com/adewale/agentic-mermaid/blob/main/examples/agent-improve-auth-flow.ts)
 
 ## Attribution
 

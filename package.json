@@ -32,7 +32,7 @@
     "agentic-mermaid-mcp": "dist/agentic-mermaid-mcp.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public",
@@ -85,9 +85,13 @@
   "files": [
     "dist/",
     "assets/fonts/",
+    "assets/hero.png",
+    "docs/*.md",
     "docs/schemas/style-spec.schema.json",
     "examples/styles/",
     "skills/",
+    "AGENT_NATIVE.md",
+    "Instructions_for_agents.md",
     "server.json",
     "CHANGELOG.md",
     "SECURITY.md",
@@ -99,7 +103,11 @@
   ],
   "scripts": {
     "test": "bun test --coverage --timeout 30000 src/__tests__/",
-    "typecheck": "bun run website/build.ts && tsc --noEmit",
+    "typecheck": "bun run typecheck:core && bun run typecheck:repo",
+    "typecheck:core": "tsc --noEmit -p tsconfig.json",
+    "typecheck:repo": "bun run website/build.ts && tsc --noEmit -p tsconfig.repo.json",
+    "format": "biome format --write .",
+    "format:changed": "biome format --write --changed",
     "test:browser": "bun run e2e/run-browser-contracts.ts",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run website:dev",
@@ -141,7 +149,9 @@
     "mutation-test": "bun run scripts/quality/mutation-profile.ts",
     "sabotage:routes": "bun run eval/sabotage/route-regressions.ts",
     "test:family-elevation-reverts": "bun run scripts/quality/family-elevation-revert-probes.ts",
-    "lint": "bun test src/__tests__/agent-substrate-lint.test.ts src/__tests__/test-quality-lint.test.ts",
+    "lint": "bun run lint:biome && bun run lint:contracts",
+    "lint:biome": "biome lint .",
+    "lint:contracts": "bun test src/__tests__/agent-substrate-lint.test.ts src/__tests__/test-quality-lint.test.ts",
     "eval:agent-live": "bun run eval/agent-usage/live.ts",
     "eval:agent-subagent": "bun run eval/agent-usage/capture-subagent-prompt-eval.ts",
     "rubric:visual": "bun run eval/visual-rubric/run.ts",
@@ -186,6 +196,7 @@
     "qs": "6.15.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.5",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@resvg/resvg-wasm": "2.6.2",
     "@stryker-mutator/core": "^9.6.1",

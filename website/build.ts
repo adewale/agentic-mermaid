@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
 import { renderMermaidSVG as renderBeautifulMermaidSVG } from 'beautiful-mermaid'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import type { BuiltinFamilyId } from '../src/agent/families.ts'
+import type { BuiltinFamilyId, BuiltinFamilyMetadata } from '../src/agent/families.ts'
 import { verifyMermaid } from '../src/agent/index.ts'
 import { buildCapabilities } from '../src/cli/index.ts'
 import { renderWebsiteASCII as renderMermaidASCII, renderWebsiteSVG as renderMermaidSVG } from './src/rendering.ts'
@@ -617,7 +617,7 @@ const installNotice = npmPublished
   ? 'Install the published npm package.'
   : 'The npm package is not yet published; install from source.'
 
-const familyByExampleId = new Map<string, any>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
+const familyByExampleId = new Map<string, BuiltinFamilyMetadata>(BUILTIN_FAMILY_METADATA.map((f) => [f.editorExampleId, f]))
 const familyByDiagramType = new Map(BUILTIN_FAMILY_METADATA.map((family) => [family.editorDiagramType, family]))
 function familyForExample(example: any) {
   return familyByExampleId.get(example.id) ?? familyByDiagramType.get(example.diagramType)
@@ -2240,7 +2240,7 @@ ${aboutDiagram('flowchart TD\n  M[Mermaid] --> BM[Beautiful Mermaid]\n  MA[merma
 `
 // Example-jump descriptions. This replaces the removed Diagram families page:
 // users choose a concrete example instead of landing on a second reference list.
-const FAMILY_DESCRIPTION: Record<BuiltinFamilyId, string> = {
+const FAMILY_DESCRIPTION: Partial<Record<BuiltinFamilyId, string>> = {
   flowchart: 'Decision flow with labeled branches.',
   state: 'Lifecycle using Mermaid stateDiagram-v2 syntax.',
   sequence: 'Request/response messages between participants.',
@@ -2258,7 +2258,7 @@ const FAMILY_DESCRIPTION: Record<BuiltinFamilyId, string> = {
 }
 // Labels and ordering come from the descriptor projection. The keyed prose map
 // is exhaustive, so a new built-in cannot silently disappear from the website.
-const FAMILY_REFERENCE: Array<[id: BuiltinFamilyId, label: string, draws: string]> = BUILTIN_FAMILY_METADATA.map(
+const FAMILY_REFERENCE: Array<[id: BuiltinFamilyId, label: string, draws: string | undefined]> = BUILTIN_FAMILY_METADATA.map(
   family => [family.id, family.label, FAMILY_DESCRIPTION[family.id]],
 )
 const examplesLead = `${BUILTIN_FAMILY_METADATA.length} diagram families with agent tasks, Style + Palette combinations, and the richer shared examples corpus used by project tooling.`
@@ -2517,7 +2517,8 @@ const forkAddedFamilyList = BUILTIN_FAMILY_METADATA
   .map(family => family.label)
   .join(', ')
 
-const docPages = [
+type DocPage = readonly [rel: string, title: string, lead: string, body: string, currentHref?: string]
+const docPages: DocPage[] = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
   ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
   ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
@@ -2710,7 +2711,7 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
 // a full machine surface (code + tier + severity + what/triggers/fix), matching
 // the HTML pages and their .md siblings. Prose is stored as Markdown, not the
 // page HTML, so an agent gets clean text.
-for (const w of capabilities.warningCodes as Array<Record<string, unknown>>) {
+for (const w of capabilities.warningCodes as unknown as Array<Record<string, unknown>>) {
   const d = WARNING_DETAIL[w.code as string]
   if (!d) continue
   w.what = inlineHtmlToMarkdown(d.what)

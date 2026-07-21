@@ -1,5 +1,5 @@
 import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
-import pkg from '../../package.json'
+import { PACKAGE_VERSION } from '../version.ts'
 import {
   sharedRenderOptionsJsonSchema,
   validateSerializableRenderOptions,
@@ -48,9 +48,9 @@ export interface McpServerSurface<Context> {
 // cache tool lists by server identity, and the two surfaces expose different
 // tools (4 local vs 9 hosted), so they must not share one.
 export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
-// Derived from package.json so every MCP handshake reports the same package
-// version as the published npm artifact.
-export const MCP_SERVER_VERSION = pkg.version
+// The release identity gate keeps this runtime-safe constant synchronized with
+// package.json so every MCP handshake reports the published package version.
+export const MCP_SERVER_VERSION = PACKAGE_VERSION
 export const PURE_COMPUTE_ANNOTATIONS = {
   readOnlyHint: true,
   destructiveHint: false,

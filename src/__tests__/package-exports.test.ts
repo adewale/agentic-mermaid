@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 const packageJson = require('../../package.json')
 const tsconfig = require('../../tsconfig.json')
+const repoTsconfig = require('../../tsconfig.repo.json')
 
 describe('package exports', () => {
   it('uses the Agentic Mermaid npm package name', () => {
@@ -60,5 +61,19 @@ describe('package exports', () => {
       'agentic-mermaid': ['./src/index.ts'],
       'agentic-mermaid/*': ['./src/*'],
     })
+  })
+
+  it('typechecks runtime entrypoints, examples, evaluation tools, and the website', () => {
+    expect(repoTsconfig.extends).toBe('./tsconfig.json')
+    expect(repoTsconfig.include).toEqual([
+      'bin/**/*.ts',
+      'e2e/**/*.ts',
+      'editor/**/*.ts',
+      'eval/**/*.ts',
+      'examples/**/*.ts',
+      'website/**/*.ts',
+      'tsup.config.ts',
+    ])
+    expect(repoTsconfig.exclude).toContain('eval/mermaid-upstream-suite-bench/upstream-*/**')
   })
 })

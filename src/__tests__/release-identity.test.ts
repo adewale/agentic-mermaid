@@ -4,6 +4,7 @@ import { validateReleaseIdentity, type ReleaseIdentity } from '../../scripts/ci/
 const valid: ReleaseIdentity = {
   tag: 'v1.2.3',
   packageVersion: '1.2.3',
+  sourceVersion: '1.2.3',
   serverVersion: '1.2.3',
   packageServerVersion: '1.2.3',
   head: 'abc123',
@@ -18,6 +19,7 @@ describe('release identity gate', () => {
 
   test.each([
     ['tag', { tag: 'v1.2.2' }, /tag .* package version/i],
+    ['source', { sourceVersion: '1.2.2' }, /src\/version\.ts version/i],
     ['server', { serverVersion: '1.2.2' }, /server\.json version/i],
     ['package projection', { packageServerVersion: '1.2.2' }, /server\.json package version/i],
     ['commit', { tagCommit: 'def456' }, /not checked-out HEAD/i],

@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "bun.lock",
-      "sha256": "ec0f08e5dad9ff0e378e17f45faba87962f57b33b42e9af9bd1dc75707c8b95b"
+      "sha256": "86c9bb38f6ceccb1256eb8e6675e375e786d695578fc08a5620440d4735d129d"
     },
     {
       "path": "docs/project/upstream-mermaid-manifest.json",
@@ -72,11 +72,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "685d12c5c5b2b5a05af927b1ab6e8bf358db8bf444fa2664e0ea90915ff0dd89"
-    },
-    {
-      "path": "package.json",
-      "sha256": "685d12c5c5b2b5a05af927b1ab6e8bf358db8bf444fa2664e0ea90915ff0dd89"
+      "sha256": "a8d31f9240832e42d6129a7ca276973ad863e3846a6f20185bdeae1d0e6c0006"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -1000,7 +996,7 @@
     },
     {
       "path": "src/shared/extension-identity.ts",
-      "sha256": "ba053e98ce48a72020af0b8a71e81d705ea4efdd224e892706de799b829e03f0"
+      "sha256": "b05cfb5c8ee787e81f8984f3e46da19c37c95e2d225a5f5aa678a307d9f95485"
     },
     {
       "path": "src/shared/family-config-diagnostics.ts",
@@ -1137,6 +1133,10 @@
     {
       "path": "src/upstream-mermaid-manifest.ts",
       "sha256": "e4ec17f2c487291a52f45e3f8760f8f8820e199fceb211147bafaac3bc4752aa"
+    },
+    {
+      "path": "src/version.ts",
+      "sha256": "6c0133d122c789d0530f56d0faccf3d86f02b9b285c4ae9ba05d3312a2328421"
     },
     {
       "path": "src/xychart/axis-utils.ts",
