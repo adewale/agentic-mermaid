@@ -680,7 +680,7 @@
     },
     {
       "path": "src/node-resource-resolver.ts",
-      "sha256": "6e5241b1e79fb297c9e865b9b6da7c2634e61f717729b36d221b32df715ac24d"
+      "sha256": "916badf287d77c5bf6e848f25c9da0e1f7830ce0942735e9529868f1e936d79a"
     },
     {
       "path": "src/output-color-profile.ts",
