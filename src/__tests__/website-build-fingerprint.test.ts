@@ -129,6 +129,10 @@ describe('website build fingerprint authority', () => {
       writeFileSync(join(root, excluded), 'changed output')
       expect(computeWebsiteBuildFingerprint(root, options), excluded).toBe(initial)
     }
+    for (const excludedDir of ['website/public', 'website/.wrangler', 'website/src/generated']) {
+      rmSync(join(root, excludedDir), { recursive: true, force: true })
+      expect(computeWebsiteBuildFingerprint(root, options), `${excludedDir} absent`).toBe(initial)
+    }
     writeFileSync(join(root, 'website/source/input.txt'), 'changed source')
     expect(computeWebsiteBuildFingerprint(root, options)).not.toBe(initial)
 

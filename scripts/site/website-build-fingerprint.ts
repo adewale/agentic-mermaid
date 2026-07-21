@@ -129,13 +129,9 @@ function gitProvenance(root: string): string[] {
 }
 
 function addPathToHash(hash: Hash, root: string, rel: string): void {
+  if (EXCLUDED_PATHS.some(excluded => rel === excluded || rel.startsWith(`${excluded}/`))) return
   hash.update(rel)
   hash.update('\0')
-  if (EXCLUDED_PATHS.some(excluded => rel === excluded || rel.startsWith(`${excluded}/`))) {
-    hash.update('excluded')
-    hash.update('\0')
-    return
-  }
   const abs = join(root, rel)
   if (!existsSync(abs)) {
     hash.update('missing')
