@@ -107,7 +107,9 @@ export function renderQuadrant(body: QuadrantBody): string {
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
   for (let i = 0; i < 4; i++) {
     const label = body.quadrants[i]
-    if (label !== undefined) lines.push(`  quadrant-${i + 1} ${encodeMultilineText(label)}`)
+    // JSON round-trips sparse/undefined tuple slots as null. Treat both forms
+    // as an absent optional label at the untrusted synthesis boundary.
+    if (label != null) lines.push(`  quadrant-${i + 1} ${encodeMultilineText(label)}`)
   }
   for (const p of body.points) {
     const cls = p.className !== undefined ? `:::${p.className}` : ''
