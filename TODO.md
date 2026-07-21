@@ -34,6 +34,13 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `Sitemap: https://agentic-mermaid.dev/sitemap.xml`. Then verify the live body
   and status with `curl` and both search consoles. The repo deliberately ships
   no competing `robots.txt`, so the dashboard remains the single source.
+- [ ] **WEB-2 — Ratchet public-site payloads after measured reductions** (`todo`).
+  Follow [`docs/project/website-payload-plan.md`](docs/project/website-payload-plan.md):
+  ship reproducible Inter WOFF2 subsets first, externalize/defer the complete
+  Examples card payload without losing searchable permalinks or Editor parity,
+  then split the editor only at measured cold-feature boundaries. Establish
+  deterministic raw/gzip budgets after each reduction and retain cold/warm
+  Chromium transfer evidence; do not promote network timing to a source gate.
 ## Security backlog
 
 - [ ] **SEC-4 — Implement and drill hosted MCP abuse controls** (`todo`; the

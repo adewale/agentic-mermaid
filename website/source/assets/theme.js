@@ -1,7 +1,33 @@
-/* Shared site helpers: shader-mark handles the logo; this file only wires
-   copyable agent prompts/config snippets. The public site no longer has a
-   global theme picker — diagram themes live in the editor. */
+/* Shared site helpers: shader-mark handles the logo; this file wires small
+   progressive controls such as navigation conveniences and copyable agent
+   snippets. Diagram themes live in the editor, not in the public shell. */
 (function () {
+  function initNavigation() {
+    document.querySelectorAll('.masthead').forEach((header) => {
+      const menu = header.querySelector('.nav-menu');
+      const toggle = menu?.querySelector('.nav-toggle');
+      const navigation = menu?.querySelector('#site-navigation');
+      if (!menu || !toggle || !navigation || !window.matchMedia) return;
+      const mobile = window.matchMedia('(max-width: 640px)');
+
+      function close(focusToggle) {
+        menu.removeAttribute('open');
+        if (focusToggle) toggle.focus();
+      }
+
+      navigation.addEventListener('click', (event) => {
+        if (mobile.matches && event.target instanceof Element && event.target.closest('a')) close(false);
+      });
+      document.addEventListener('pointerdown', (event) => {
+        if (mobile.matches && menu.hasAttribute('open') && !header.contains(event.target)) close(false);
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && mobile.matches && menu.hasAttribute('open')) close(true);
+      });
+      mobile.addEventListener?.('change', () => close(false));
+    });
+  }
+
   function initCopyButtons() {
     document.querySelectorAll('[data-copy-target], [data-copy-text]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -149,7 +175,7 @@
   }
 
 
-  function init() { initCopyButtons(); initTabs(); initGallery(); initMotionStrips(); }
+  function init() { initNavigation(); initCopyButtons(); initTabs(); initGallery(); initMotionStrips(); }
   if (document.readyState !== 'loading') init();
   else document.addEventListener('DOMContentLoaded', init);
 })();
