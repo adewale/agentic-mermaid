@@ -8,13 +8,13 @@
   },
   "provenance": {
     "authority": "content-addressed-inputs-v1",
-    "sourceCommit": "f533cb461d26bc09763d24d8d81f0dfe39815713",
-    "sourceTreeSha256": "17c7610a570e4298b97f94b38888121058926da42c2e2aded1855abfe8cfef31",
+    "sourceCommit": "89db657715490d75508f787475ae8dc127a43341",
+    "sourceTreeSha256": "38815cbcd6f00193a20b3485f2de61334c3ea1d5e20ba5eb194870fd25e67980",
     "dirty": false,
     "inputs": [
       {
         "path": "bun.lock",
-        "sha256": "d9d65da7fe7794a948b90c4bc35cd6d79ebfe802017b18fa27dc778001e621e2"
+        "sha256": "22a51a8925cc8ca493ff583d16bc4578ebb8a645a83ca91d025a6d7e461994da"
       },
       {
         "path": "eval/palette-performance/run.ts",

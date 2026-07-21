@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "bun.lock",
-      "sha256": "d9d65da7fe7794a948b90c4bc35cd6d79ebfe802017b18fa27dc778001e621e2"
+      "sha256": "22a51a8925cc8ca493ff583d16bc4578ebb8a645a83ca91d025a6d7e461994da"
     },
     {
       "path": "docs/project/upstream-mermaid-manifest.json",
@@ -72,11 +72,11 @@
     },
     {
       "path": "package.json",
-      "sha256": "fd505f2723240e39b9907ba4a26033349d99216c72a431b7008071f7f38c87b4"
+      "sha256": "d75274f56430f1afed14d480212ff5bbfcb7f60a2ff9c3510d3992ab50a71f71"
     },
     {
       "path": "package.json",
-      "sha256": "fd505f2723240e39b9907ba4a26033349d99216c72a431b7008071f7f38c87b4"
+      "sha256": "d75274f56430f1afed14d480212ff5bbfcb7f60a2ff9c3510d3992ab50a71f71"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
