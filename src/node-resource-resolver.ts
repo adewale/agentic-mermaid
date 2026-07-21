@@ -74,6 +74,13 @@ function sha256(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex')
 }
 
+/** @internal Exported only so the cross-platform security fallback is testable. */
+export function openedResourceDescriptorPath(platform: NodeJS.Platform, fd: number): string | undefined {
+  if (platform === 'linux') return `/proc/self/fd/${fd}`
+  if (platform === 'darwin') return `/dev/fd/${fd}`
+  return undefined
+}
+
 /**
  * Read-only installed-resource resolver. It has no URL or callback fallback:
  * every returned byte came from the declared package root and passed the
@@ -165,12 +172,17 @@ export class NodeResourceResolver {
       // not: realpathSync('/dev/fd/N') returns the descriptor path unchanged.
       // Treat descriptor canonicalization as an additional proof when the
       // runtime supplies it, never as the only portable proof of rootedness.
-      const descriptorPath = process.platform === 'linux' ? `/proc/self/fd/${fd}` : `/dev/fd/${fd}`
-      const openedPath = realpathSync(descriptorPath)
-      if (openedPath !== descriptorPath && !openedPath.startsWith(`${descriptorPath}${sep}`)) {
-        const escaped = relative(this.#root, openedPath)
-        if (escaped === '..' || escaped.startsWith(`..${sep}`) || isAbsolute(escaped)) {
-          throw new ResourceResolutionError('RESOURCE_PATH_ESCAPE', entry.identity.id, `opened file escapes package root: ${declaredPath}`)
+      // Windows and other platforms do not expose either descriptor path. They
+      // skip this additional proof and use the portable rooted identity re-walk
+      // below; attempting /dev/fd there fails before any resource can verify.
+      const descriptorPath = openedResourceDescriptorPath(process.platform, fd)
+      if (descriptorPath) {
+        const openedPath = realpathSync(descriptorPath)
+        if (openedPath !== descriptorPath && !openedPath.startsWith(`${descriptorPath}${sep}`)) {
+          const escaped = relative(this.#root, openedPath)
+          if (escaped === '..' || escaped.startsWith(`..${sep}`) || isAbsolute(escaped)) {
+            throw new ResourceResolutionError('RESOURCE_PATH_ESCAPE', entry.identity.id, `opened file escapes package root: ${declaredPath}`)
+          }
         }
       }
 

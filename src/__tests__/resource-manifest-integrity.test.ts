@@ -16,6 +16,7 @@ import { HOSTED_FONT_RESOURCES, RESOURCE_MANIFEST, validateResourceManifest } fr
 import {
   NodeResourceResolver,
   ResourceResolutionError,
+  openedResourceDescriptorPath,
 } from '../node-resource-resolver.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { snapshotResourceManifest, verifyResourceBytes, type ResourceManifest, type ResourceManifestEntry } from '../resource-manifest.ts'
@@ -81,6 +82,13 @@ function expectCode(run: () => unknown, code: ResourceResolutionError['code']): 
 }
 
 describe('content-addressed installed resource manifest', () => {
+  test('uses descriptor canonicalization only on platforms that expose a descriptor path', () => {
+    expect(openedResourceDescriptorPath('linux', 7)).toBe('/proc/self/fd/7')
+    expect(openedResourceDescriptorPath('darwin', 7)).toBe('/dev/fd/7')
+    expect(openedResourceDescriptorPath('win32', 7)).toBeUndefined()
+    expect(openedResourceDescriptorPath('freebsd', 7)).toBeUndefined()
+  })
+
   test('the shipped font manifest is structurally valid and every declared byte verifies', () => {
     expect(validateResourceManifest()).toEqual([])
     const root = join(import.meta.dir, '..', '..')
