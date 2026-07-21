@@ -30,6 +30,13 @@ import {
   WEBSITE_EXAMPLE_THEME,
 } from '../scripts/site/example-render-state.ts'
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
+import interSubsetManifestJson from './source/assets/fonts/inter/manifest.json'
+import {
+  WEBSITE_INTER_SUBSET_DIRECTORY,
+  WEBSITE_INTER_UNICODE_RANGES,
+  validateWebsiteInterSubsetManifest,
+  type WebsiteInterSubsetManifest,
+} from '../scripts/site/website-font-subsets.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const SOURCE = join(import.meta.dir, 'source')
@@ -44,6 +51,10 @@ if (OUTPUT_OVERRIDE && (OUT === TEMP_ROOT || !OUT.startsWith(TEMP_ROOT + sep))) 
 }
 const CHECK = process.argv.includes('--check')
 const PUBLIC_ONLY = process.argv.includes('--public-only')
+const INTER_SUBSET_MANIFEST = interSubsetManifestJson as unknown as WebsiteInterSubsetManifest
+const INTER_SUBSET_MANIFEST_PROBLEMS = validateWebsiteInterSubsetManifest(INTER_SUBSET_MANIFEST)
+if (INTER_SUBSET_MANIFEST_PROBLEMS.length) throw new Error(`Invalid Inter subset manifest: ${INTER_SUBSET_MANIFEST_PROBLEMS.join(', ')}`)
+const INTER_SUBSET_BY_SOURCE = new Map(INTER_SUBSET_MANIFEST.outputs.map(output => [output.source, output] as const))
 const VERIFIED_FONT_BY_ID = new Map(
   new NodeResourceResolver(ROOT, RESOURCE_MANIFEST).verifyInstalled().resources
     .map(resource => [resource.entry.identity.id, resource] as const),
@@ -391,16 +402,24 @@ async function copySourceAsset(rel: string, destRel = rel) {
   await copyFileFrom(join(SOURCE_ASSETS, rel), destRel)
 }
 
-// Latin-subset woff2 companions (committed under source/assets/fonts, built
-// once with pyftsubset) for the display faces the styled site SVGs actually
-// use. Browsers pick the woff2 source, cutting ~1.34MB of render-competing TTF
-// transfer to ~255KB; the full TTFs still ship for the editor's export
-// embedding and any glyph outside the subset's fallback chain.
-const SUBSET_FONT_FILES = ['Caveat', 'EBGaramond', 'ShareTechMono', 'ArchitectsDaughter']
+// Public documents prefer committed WOFF2 subsets. Inter has a canonical,
+// content-addressed four-weight manifest and an unrestricted full-TTF fallback;
+// the editor keeps its separate full-TTF-only CSS/export authority. Legacy
+// display-face subsets retain their existing dual-source declarations.
+const DISPLAY_SUBSET_FONT_STEMS = ['Caveat', 'EBGaramond', 'ShareTechMono', 'ArchitectsDaughter']
 async function emitStylesheet() {
   const css = await Bun.file(join(SOURCE_ASSETS, 'styles.css')).text()
   let fontFace = hostedFontFaceCss('/fonts/')
-  for (const name of SUBSET_FONT_FILES) {
+  for (const [source, output] of INTER_SUBSET_BY_SOURCE) {
+    const fullSource = `src: url('/fonts/${source}') format('truetype');`
+    const fullFace = fontFace.split('\n').find(face => face.includes(fullSource))
+    if (!fullFace) throw new Error(`Missing full public font face for ${source}`)
+    const subsetFace = fullFace
+      .replace(fullSource, `src: url('/fonts/${output.file}') format('woff2');`)
+      .replace('font-display: swap; }', `font-display: swap; unicode-range: ${WEBSITE_INTER_UNICODE_RANGES.join(', ')}; }`)
+    fontFace = fontFace.replace(fullFace, `${fullFace}\n${subsetFace}`)
+  }
+  for (const name of DISPLAY_SUBSET_FONT_STEMS) {
     fontFace = fontFace.replace(
       `src: url('/fonts/${name}.ttf') format('truetype');`,
       `src: url('/fonts/${name}.subset.woff2') format('woff2'), url('/fonts/${name}.ttf') format('truetype');`,
@@ -1854,7 +1873,15 @@ for (const font of HOSTED_FONT_RESOURCES) {
   if (!verified) throw new Error(`Required font was not verified: ${font.identity.id}`)
   await emit(`fonts/${font.file}`, Buffer.from(verified.readBytes()))
 }
-for (const name of SUBSET_FONT_FILES) await copyFileFrom(join(SOURCE_ASSETS, 'fonts', `${name}.subset.woff2`), `fonts/${name}.subset.woff2`)
+for (const name of DISPLAY_SUBSET_FONT_STEMS) await copyFileFrom(join(SOURCE_ASSETS, 'fonts', `${name}.subset.woff2`), `fonts/${name}.subset.woff2`)
+for (const output of INTER_SUBSET_MANIFEST.outputs) {
+  const source = join(ROOT, WEBSITE_INTER_SUBSET_DIRECTORY, output.file)
+  const bytes = Buffer.from(await Bun.file(source).arrayBuffer())
+  if (bytes.subarray(0, 4).toString('ascii') !== 'wOF2' || bytes.byteLength !== output.bytes || sha256(bytes) !== output.sha256) {
+    throw new Error(`Inter subset bytes do not match manifest: ${output.file}`)
+  }
+  await emit(`fonts/${output.file}`, bytes)
+}
 await copyDir(SOURCE_DIAGRAMS, 'diagrams')
 await copyFileFrom(join(ROOT, 'docs', 'schemas', 'style-spec.schema.json'), 'schemas/style-spec.schema.json')
 await emitJson('schemas/render-options.schema.json', sharedRenderOptionsJsonSchema())

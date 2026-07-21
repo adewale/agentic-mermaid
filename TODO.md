@@ -36,9 +36,10 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   no competing `robots.txt`, so the dashboard remains the single source.
 - [ ] **WEB-2 — Ratchet public-site payloads after measured reductions** (`todo`).
   Follow [`docs/project/website-payload-plan.md`](docs/project/website-payload-plan.md):
-  ship reproducible Inter WOFF2 subsets first, externalize/defer the complete
-  Examples card payload without losing searchable permalinks or Editor parity,
-  then split the editor only at measured cold-feature boundaries. The initial
+  the reproducible content-addressed Inter WOFF2 step is complete; next,
+  externalize/defer the complete Examples card payload without losing searchable
+  permalinks or Editor parity, then split the editor only at measured
+  cold-feature boundaries. The initial
   request graphs and raw/gzip/Brotli ceilings are executable authorities; ratchet
   the affected route after each reduction and retain cold/warm Chromium transfer
   evidence without promoting network timing to a source gate.

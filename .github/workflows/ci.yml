@@ -89,6 +89,9 @@ jobs:
       - name: Reject new high or critical dependency advisories
         run: bun run audit:dependencies
 
+      - name: Regenerate and byte-verify canonical Inter subsets
+        run: bun run scripts/site/subset-website-inter-fonts.ts --check
+
       - name: Verify website and Worker artifacts regenerate cleanly
         run: bun run website:check
 
