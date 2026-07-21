@@ -263,6 +263,10 @@ jobs:
         # per Bun process, and fails if any contract executes zero positive tests.
         run: bun run test:browser
 
+      - name: Verify deterministic website payload request graphs and budgets
+        if: ${{ matrix.suite == 'browser' }}
+        run: bun run website:payload:check
+
   # Bounded fault-detection check for a small, pure module. This lane is kept
   # because a full run is about one minute and its measured ~97% kill score is
   # stable; broad scheduled mutation was removed because its recurring runner

@@ -72,11 +72,11 @@
     },
     {
       "path": "package.json",
-      "sha256": "a68cd3948bd92c66398b616770a115af1320701ce516e54a2c6f0b3b782cce4f"
+      "sha256": "685d12c5c5b2b5a05af927b1ab6e8bf358db8bf444fa2664e0ea90915ff0dd89"
     },
     {
       "path": "package.json",
-      "sha256": "a68cd3948bd92c66398b616770a115af1320701ce516e54a2c6f0b3b782cce4f"
+      "sha256": "685d12c5c5b2b5a05af927b1ab6e8bf358db8bf444fa2664e0ea90915ff0dd89"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",

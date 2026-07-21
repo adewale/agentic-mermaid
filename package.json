@@ -112,6 +112,8 @@
     "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
     "website": "bun run website/build.ts",
     "website:check": "bun run website/build.ts --check",
+    "website:payload:write": "bun run scripts/site/website-payload-report.ts --write",
+    "website:payload:check": "bun run scripts/site/website-payload-report.ts --check",
     "website:dev": "cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1",
     "deploy": "bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy",
     "prepublishOnly": "npm run build",
