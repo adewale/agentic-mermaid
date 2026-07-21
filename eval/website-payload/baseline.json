@@ -178,25 +178,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "a4e46f0406a957d83467b58c076f44e32dac2c69b4885588bec49272ff7aae34",
+          "sha256": "24b93036e9854657215b40c8a1878e001cf09863748087fd8b922195e87acc64",
           "rawBytes": 114762,
-          "gzipBytes": 23600,
-          "brotliBytes": 19870
+          "gzipBytes": 23601,
+          "brotliBytes": 19845
         },
         {
-          "path": "/editor/editor-ad48dd941007.js",
+          "path": "/editor/editor-53c04e732ff4.js",
           "count": 1,
-          "sha256": "dbd09c94653eb4c2fcc23195ebf0901f5c604dae479035b7035f6815c8d0d843",
-          "rawBytes": 3191618,
-          "gzipBytes": 948869,
-          "brotliBytes": 745636
+          "sha256": "306ed8874f432c9e17adfcbb9b81aa4e033b5a9e492c65985b5ff04732c379f4",
+          "rawBytes": 3186390,
+          "gzipBytes": 947654,
+          "brotliBytes": 744511
         }
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3306380,
-        "gzipBytes": 972469,
-        "brotliBytes": 765506
+        "rawBytes": 3301152,
+        "gzipBytes": 971255,
+        "brotliBytes": 764356
       }
     }
   ]

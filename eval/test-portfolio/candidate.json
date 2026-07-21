@@ -211,28 +211,28 @@
   "receiptDependencyReduction": {
     "mermaidDocs": {
       "beforeInputs": 715,
-      "afterInputs": 252,
-      "percentReduction": 64.8
+      "afterInputs": 253,
+      "percentReduction": 64.6
     },
     "mindmapGitgraph": {
       "beforeInputs": 729,
-      "afterInputs": 290,
-      "percentReduction": 60.2
+      "afterInputs": 291,
+      "percentReduction": 60.1
     },
     "pieHighlight": {
       "beforeInputs": 714,
-      "afterInputs": 257,
-      "percentReduction": 64
+      "afterInputs": 258,
+      "percentReduction": 63.9
     },
     "sectionB": {
       "beforeInputs": 721,
-      "afterInputs": 264,
-      "percentReduction": 63.4
+      "afterInputs": 265,
+      "percentReduction": 63.2
     },
     "paletteRollout": {
       "beforeInputs": 723,
-      "afterInputs": 260,
-      "percentReduction": 64
+      "afterInputs": 261,
+      "percentReduction": 63.9
     },
     "paletteHarmony": {
       "beforeInputs": 715,
@@ -241,8 +241,8 @@
     },
     "linkrankFeedbackPacking": {
       "beforeInputs": 727,
-      "afterInputs": 264,
-      "percentReduction": 63.7
+      "afterInputs": 265,
+      "percentReduction": 63.5
     },
     "visualOutputBytesChanged": 0
   },
