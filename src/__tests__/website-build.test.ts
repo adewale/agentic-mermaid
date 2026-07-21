@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { decodeEditorStateHash, EDITOR_SHARE_STATE_KEYS } from '../../scripts/site/editor-state-url.ts'
+import { WEBSITE_BUILD_FINGERPRINT_PATHS } from '../../scripts/site/website-build-fingerprint.ts'
 import { createStyledExampleRenderState, WEBSITE_EXAMPLE_THEME } from '../../scripts/site/example-render-state.ts'
 import { renderWebsiteSVG } from '../../website/src/rendering.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
@@ -318,6 +319,43 @@ describe('Workers Static Assets website contract', () => {
     const js = await worker.fetch(new Request('https://agentic-mermaid.dev/editor/editor-abcdef123456.js'), env(() => new Response('export {}', { headers: { 'content-type': 'text/javascript; charset=utf-8' } })))
     expect(js.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
 
+    const emittedHashedAssets = files().filter(rel => /(?:^|\/)[^/]+-[a-f0-9]{12}(?:\.min)?\.(?:js|html|woff2)$/i.test(rel)).sort()
+    expect(emittedHashedAssets).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^editor\/editor-[a-f0-9]{12}\.js$/),
+      expect.stringMatching(/^generated\/inline-[a-f0-9]{12}\.js$/),
+      expect.stringMatching(/^vendor\/mermaid-[a-f0-9]{12}\.min\.js$/),
+    ]))
+    for (const rel of emittedHashedAssets) {
+      const contentType = rel.endsWith('.html') ? 'text/html' : rel.endsWith('.woff2') ? 'font/woff2' : 'text/javascript'
+      const asset = await worker.fetch(new Request(`https://agentic-mermaid.dev/${rel}`), env(() => new Response('asset', { headers: { 'content-type': contentType } })))
+      expect({ rel, cache: asset.headers.get('cache-control') }).toEqual({ rel, cache: 'public, max-age=31536000, immutable' })
+    }
+
+    for (const [pathname, response] of [
+      ['/examples/fragments/corpus-deadbeefdead.html', new Response('missing', { status: 404, headers: { 'content-type': 'text/html' } })],
+      ['/editor/editor-abcdef123456.js', new Response('broken', { status: 500, headers: { 'content-type': 'text/javascript' } })],
+      ['/editor/editor-abcdef123456.js', new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } })],
+      ['/editor/editor-abcdef123456.js', new Response('export {}', { headers: { 'content-type': 'text/javascript', 'set-cookie': 'session=unexpected' } })],
+    ] as const) {
+      const rejected = await worker.fetch(new Request(`https://agentic-mermaid.dev${pathname}`), env(() => response.clone()))
+      expect({ pathname, status: rejected.status, cache: rejected.headers.get('cache-control') }).toEqual({ pathname, status: response.status, cache: 'no-store' })
+    }
+
+    const poisoned = await worker.fetch(new Request('https://agentic-mermaid.dev/editor/editor-abcdef123456.js'), env(() => new Response('broken', {
+      status: 500,
+      headers: {
+        'content-type': 'text/javascript',
+        'cdn-cache-control': 'public, max-age=999',
+        'cloudflare-cdn-cache-control': 'public, max-age=888',
+      },
+    })))
+    expect(poisoned.headers.get('cache-control')).toBe('no-store')
+    expect(poisoned.headers.get('cdn-cache-control')).toBeNull()
+    expect(poisoned.headers.get('cloudflare-cdn-cache-control')).toBeNull()
+
+    const mixedCaseHtml = await worker.fetch(new Request('https://agentic-mermaid.dev/about/'), env(() => new Response('<!doctype html>', { headers: { 'content-type': 'Text/HTML; Charset=UTF-8' } })))
+    expect(mixedCaseHtml.headers.get('content-security-policy')).toContain("default-src 'self'")
+
     for (const [pathname, contentType] of [
       ['/apple-touch-icon.png', 'image/png'],
       ['/favicon.ico', 'image/x-icon'],
@@ -412,13 +450,12 @@ describe('Workers Static Assets website contract', () => {
     }
     expect(readRepo('package.json')).toContain('"site:check": "bun run website:check"')
     const preload = readRepo('src/__tests__/website-public.preload.ts')
-    expect(preload).toContain('buildFingerprint')
-    expect(preload).toContain('FINGERPRINT_PATHS')
+    expect(preload).toContain('computeWebsiteBuildFingerprint')
     expect(preload).not.toContain("'--public-only'")
     expect(preload).toContain('GENERATED_FILES')
     expect(preload).toContain("'deploy-version.ts'")
-    for (const rel of ['docs/schemas/style-spec.schema.json', 'docs/assets/style-cookbook', 'examples/styles', 'skills/agentic-mermaid-diagram-workflow', 'Instructions_for_agents.md']) {
-      expect(preload).toContain(`'${rel}'`)
+    for (const rel of ['website', 'editor', 'scripts/site', 'scripts/docs', 'shared', 'docs/schemas/style-spec.schema.json', 'docs/assets/style-cookbook', 'examples/styles', 'skills/agentic-mermaid-diagram-workflow', 'Instructions_for_agents.md']) {
+      expect(WEBSITE_BUILD_FINGERPRINT_PATHS as readonly string[]).toContain(rel)
     }
   })
 
@@ -1611,7 +1648,7 @@ describe('Workers Static Assets website contract', () => {
     expect(examples).not.toContain('aria-labelledby="journey-')
     expect(read('_headers')).not.toContain('Cache-Control')
     expect(workerCore).toContain("headers.delete('Cache-Control')")
-    expect(workerCore).toContain("/^\\/(?:editor\\/editor-[a-f0-9]{12}|vendor\\/mermaid-[a-f0-9]{12}\\.min)\\.js$/i.test(pathname)")
+    expect(workerCore).toContain('classifyWebsiteAssetCache')
     expect(workerCore).toContain("public, max-age=31536000, immutable")
     expect(read('shader-mark.js')).toContain('runs a short sweep only on direct hover/focus')
     expect(read('shader-mark.js')).not.toContain('requestAnimationFrame(frame);\n    }\n    requestAnimationFrame(frame);')

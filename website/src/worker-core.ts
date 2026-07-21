@@ -93,6 +93,40 @@ function prefersMarkdown(accept: string | null): boolean {
 
 const HOURLY_STATIC_ASSET = /\.(?:css|js|svg|ttf|woff2|png|ico)$/i
 const STRICT_TRANSPORT_SECURITY = 'max-age=31536000'
+const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
+
+type ImmutableAssetRule = Readonly<{ path: RegExp, contentTypes: readonly string[] }>
+const IMMUTABLE_ASSET_RULES: readonly ImmutableAssetRule[] = Object.freeze([
+  Object.freeze({ path: /^\/(?:editor\/editor-(?:(?:app|renderer)-)?[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
+  Object.freeze({ path: /^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}\.html$/i, contentTypes: ['text/html'] }),
+  Object.freeze({ path: /^\/(?:examples|generated\/inline)-[a-f0-9]{12}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
+  Object.freeze({ path: /^\/fonts\/Inter-(?:Regular|Medium|SemiBold|Bold)\.subset-[a-f0-9]{12}\.woff2$/i, contentTypes: ['font/woff2'] }),
+])
+
+export interface WebsiteAssetCacheInput {
+  pathname: string
+  method: string
+  status: number
+  contentType: string
+  hasSetCookie?: boolean
+}
+
+/** Cache authority for static assets. A hash-shaped path is only immutable
+ * when the asset response itself proves it is the complete expected object. */
+export function classifyWebsiteAssetCache(input: WebsiteAssetCacheInput): string {
+  const contentType = input.contentType.split(';', 1)[0]!.trim().toLowerCase()
+  const cacheableMethod = input.method === 'GET' || input.method === 'HEAD'
+  if (!cacheableMethod || input.hasSetCookie || input.status !== 200) return 'no-store'
+
+  const immutableRule = IMMUTABLE_ASSET_RULES.find(rule => rule.path.test(input.pathname))
+  if (immutableRule) {
+    return immutableRule.contentTypes.includes(contentType) ? IMMUTABLE_CACHE : 'no-store'
+  }
+  if (/\.(json|md|txt)$/i.test(input.pathname)) return 'public, max-age=300'
+  if (contentType === 'text/html') return 'no-cache'
+  if (HOURLY_STATIC_ASSET.test(input.pathname)) return 'public, max-age=3600'
+  return 'no-cache'
+}
 
 function withTransportSecurity(response: Response, httpsRequest: boolean): Response {
   if (!httpsRequest) return response
@@ -101,30 +135,27 @@ function withTransportSecurity(response: Response, httpsRequest: boolean): Respo
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 
-function withHeaders(response: Response, pathname: string, negotiatesHomepage = false): Response {
+function withHeaders(response: Response, pathname: string, method: string, negotiatesHomepage = false): Response {
   const headers = new Headers(response.headers)
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()')
 
   const type = headers.get('content-type') || ''
+  const typeEssence = type.split(';', 1)[0]!.trim().toLowerCase()
   headers.delete('Cache-Control')
-  if (type.includes('text/html')) headers.set('Content-Security-Policy', csp)
+  headers.delete('CDN-Cache-Control')
+  headers.delete('Cloudflare-CDN-Cache-Control')
+  if (typeEssence === 'text/html') headers.set('Content-Security-Policy', csp)
 
-  if (/\.(json|md|txt)$/i.test(pathname)) {
-    headers.set('Access-Control-Allow-Origin', '*')
-    headers.set('Cache-Control', 'public, max-age=300')
-  } else if (type.includes('text/html') || response.status === 404) {
-    headers.set('Cache-Control', 'no-cache')
-  } else if (/^\/(?:editor\/editor-[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i.test(pathname)) {
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  } else if (HOURLY_STATIC_ASSET.test(pathname)) {
-    headers.set('Cache-Control', 'public, max-age=3600')
-  } else {
-    // Deleting the Static Assets header must never leave an unclassified public
-    // file with ambient platform policy. Unknown extensions revalidate.
-    headers.set('Cache-Control', 'no-cache')
-  }
+  if (/\.(json|md|txt)$/i.test(pathname)) headers.set('Access-Control-Allow-Origin', '*')
+  headers.set('Cache-Control', classifyWebsiteAssetCache({
+    pathname,
+    method,
+    status: response.status,
+    contentType: type,
+    hasSetCookie: headers.has('Set-Cookie'),
+  }))
 
   if (negotiatesHomepage) {
     appendVary(headers, 'Accept')
@@ -197,7 +228,7 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
       }
 
       const response = await env.ASSETS.fetch(assetRequest)
-      return finish(withHeaders(response, assetPathname, negotiatesHomepage))
+      return finish(withHeaders(response, assetPathname, assetRequest.method, negotiatesHomepage))
     },
   }
 }
