@@ -1,6 +1,6 @@
 # Features — capability inventory
 
-What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid`, `agentic-mermaid/agent`, the audit-only `agentic-mermaid/capabilities`, and the trusted Node-host `agentic-mermaid/resources`; implementation history lives in [`project/divergences.md`](./project/divergences.md); active backlog is only [`../TODO.md`](../TODO.md).
+What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; audit and trusted host-resource helpers remain repository tooling. Implementation history lives in [`project/divergences.md`](./project/divergences.md); active backlog is only [`../TODO.md`](../TODO.md).
 
 ## Core IR & editing loop
 
@@ -128,7 +128,7 @@ endpoint is a convenience surface rather than a REST render API.
 
 ## Distribution
 
-- npm library (`agentic-mermaid`, `agentic-mermaid/agent`, audit-only `agentic-mermaid/capabilities`, and trusted Node-host `agentic-mermaid/resources`) with Node-runnable bins (`am`, `agentic-mermaid`, `agentic-mermaid-mcp`).
+- npm library (`agentic-mermaid` and `agentic-mermaid/agent`) with Node-runnable bins (`am`, the package-runner alias `agentic-mermaid`, and `agentic-mermaid-mcp`).
 - **Single binary** — `bun run build:binary` → `dist/am`, standalone
   executable, no runtime dependency (#1018).
 - **llms.txt** agent-discovery digest, derived from capabilities.

@@ -4,44 +4,45 @@ The original ASCII Stryker lane is scoped to the five layout modules where a
 silent logic regression is most expensive: `src/ascii/pathfinder.ts`,
 `src/ascii/edge-routing.ts`, `src/ascii/converter.ts`, `src/ascii/grid.ts`,
 `src/ascii/draw.ts`.
-The config is `stryker.ascii.config.json`; its command runner executes the
+The `ascii` profile in the single `stryker.config.mjs` authority executes the
 ASCII test files (goldens, invariants, properties, unit tests) per mutant.
 
 ## Running
 
 ```bash
 # One module (preferred — a full module takes 5–15 minutes):
-npx stryker run stryker.ascii.config.json --mutate 'src/ascii/pathfinder.ts'
+bun run mutation-test -- ascii --mutate 'src/ascii/pathfinder.ts'
 
-# All five (also available as `bun run mutation-test:ascii`):
-npx stryker run stryker.ascii.config.json
+# All five:
+bun run mutation-test -- ascii
+
+# Discover every available profile:
+bun run mutation-test -- --list
 ```
 
-(`stryker.families.config.json` / `bun run mutation-test:families` covers the
+(`bun run mutation-test -- families` covers the
 shared Architecture, XYChart, Mindmap, GitGraph, and Radar parser/layout/renderer
-cores plus Radar's structured editing body, and `stryker.routes.config.json` /
-`bun run mutation-test:routes` covers
+cores plus Radar's structured editing body, and `bun run mutation-test -- routes` covers
 the route-contracts module
 (`docs/design/system/route-contracts.md`), all with the same policy.)
 
 Narrow lanes for PR-scale survivor harvests:
 
 ```bash
-bun run mutation-test:links            # text-embedded link-length parsing
-bun run mutation-test:routes:certs     # route-certificate finality + stale-route audit
-bun run mutation-test:routes:subgraph  # subgraph endpoint/LCA routing
+bun run mutation-test -- links            # text-embedded link-length parsing
+bun run mutation-test -- routes:certs     # route-certificate finality + stale-route audit
+bun run mutation-test -- routes:subgraph  # subgraph endpoint/LCA routing
 bun run sabotage:routes                # one-line revert checks against committed HEAD; expects focused tests to fail
 ```
 
-JSON reports land in `reports/mutation/` (gitignored). Stryker configs may be
-static `.json` files or executable `.mjs` files. The route-certificate,
-subgraph-routing, and link-grammar configs use `.mjs` so source-adjacent marker
-pairs resolve their narrow mutation ranges at load time; inserting code above
-the behavior cannot silently move those lanes onto unrelated lines.
+JSON reports land in `reports/mutation/` (gitignored). The single executable
+config resolves route-certificate, subgraph-routing, and link-grammar ranges
+from source-adjacent markers; inserting code above the behavior cannot silently
+move those lanes onto unrelated lines.
 
 Beyond the lanes documented here, configs exist for every built-in renderable
-family through named package scripts: flowchart uses `mutation-test:routes`;
-XYChart, Architecture, and Radar share `mutation-test:families`; State, Sequence,
+family through named profiles: flowchart uses `mutation-test -- routes`;
+XYChart, Architecture, and Radar share `mutation-test -- families`; State, Sequence,
 Timeline, Class, ER, Journey, Pie, Quadrant, Gantt, Mindmap, and GitGraph each
 have a focused command. These are **opt-in diagnostic survivor harvests**. They
 emit scores and JSON reports, but have no `thresholds.break` and are neither
@@ -49,7 +50,7 @@ scheduled nor acceptance gates.
 
 Two bounded checks run automatically on each PR:
 
-- `mutation-test:incremental` mutates one small, pure module in about one minute
+- `mutation-test -- incremental` mutates one small, pure module in about one minute
   and enforces its measured score.
 - `sabotage:routes` injects five named one-line regressions and requires the
   focused behavioral tests to fail.
@@ -97,8 +98,8 @@ PR acceptance gate or a current break floor.
 
 | Lane | Mutants | Killed | Survived | Score |
 |---|---:|---:|---:|---:|
-| `bun run mutation-test:mindmap` (`src/agent/mindmap-body.ts`) | 405 | 400 | 5 | **98.77%** |
-| `bun run mutation-test:gitgraph` (`src/agent/gitgraph-body.ts`) | 303 | 294 | 9 | **97.03%** |
+| `bun run mutation-test -- mindmap` (`src/agent/mindmap-body.ts`) | 405 | 400 | 5 | **98.77%** |
+| `bun run mutation-test -- gitgraph` (`src/agent/gitgraph-body.ts`) | 303 | 294 | 9 | **97.03%** |
 
 The operation suites exercise every happy path, validation branch, source-order
 rewrite, recursive/cycle guard, null-clearing path, and verification warning.
@@ -236,7 +237,7 @@ rounds were outside the recorded real-input corpus.
   orientationMatches`): the labeled-fanout invariants pin the TD vertical-drop
   case; LR orientation and the index>1 exclusion lack direct coverage.
 
-## Incremental per-PR lane (`stryker.incremental.config.json`)
+## Incremental per-PR profile
 
 A fast lane gates the small, pure faithfulness counter on every PR (the
 `mutation-incremental` CI job), separate from the opt-in diagnostic configs. It

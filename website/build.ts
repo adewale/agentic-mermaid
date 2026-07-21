@@ -932,165 +932,11 @@ const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/
 const mermaidRuntimeRel = `vendor/mermaid-${sha256(mermaidRuntimeBytes).slice(0, 12)}.min.js`
 
 type ComparisonCase = { id: string; family: string; source: string }
-const COMPARISON_CASES: ComparisonCase[] = [
-  { id: 'flowchart', family: 'Flowchart', source: `flowchart LR
-  Source([Source]) --> Parse[Parse]
-  Parse --> Verify{Warnings?}
-  Verify -->|none| Render[Render]
-  Verify -->|repair| Mutate[Mutate]
-  Mutate --> Parse
-  Render --> Cache[(Cache)]
-  Render --> Ship([Ship])` },
-  { id: 'state', family: 'State', source: `stateDiagram-v2
-  direction LR
-  [*] --> Idle
-  Idle --> Running: start
-  state Running {
-    direction LR
-    [*] --> Fetch
-    Fetch --> Verify
-    Verify --> Fetch: retry
-    Verify --> Commit: ok
-  }
-  Running --> Failed: error
-  Failed --> Idle: reset
-  Running --> [*]: done` },
-  { id: 'sequence', family: 'Sequence', source: `sequenceDiagram
-  actor User
-  participant Agent
-  participant CLI
-  participant Renderer
-  User->>Agent: change diagram
-  Agent->>CLI: mutate
-  CLI->>Renderer: verify
-  alt clean
-    Renderer-->>CLI: ok
-  else warnings
-    Renderer-->>CLI: codes
-    CLI-->>Agent: repair
-  end
-  CLI-->>Agent: source` },
-  { id: 'class', family: 'Class', source: `classDiagram
-  class Diagram {
-    +kind
-    +source
-    +verify()
-  }
-  class Flowchart {
-    +nodes
-    +edges
-    +mutate()
-  }
-  class Warning {
-    +code
-    +tier
-  }
-  Diagram <|-- Flowchart
-  Diagram "1" --> "*" Warning : emits` },
-  { id: 'er', family: 'ER', source: `erDiagram
-  FAMILY ||--o{ DIAGRAM : accepts
-  DIAGRAM ||--o{ WARNING : reports
-  DIAGRAM ||--o{ RENDER : produces
-  FAMILY {
-    string id PK
-    string name
-  }
-  DIAGRAM {
-    string id PK
-    string source
-    string kind
-  }
-  WARNING {
-    string code PK
-    string tier
-  }
-  RENDER {
-    string format PK
-    string hash
-  }` },
-  { id: 'xychart', family: 'XY Chart', source: `xychart
-  title "Layout score"
-  x-axis [Mermaid, Beautiful, Agentic]
-  y-axis "score" 0 --> 100
-  bar [68, 74, 91]
-  line [64, 77, 94]` },
-  { id: 'timeline', family: 'Timeline', source: `timeline
-  title Diagram edit loop
-  Source : Mermaid text
-  Parse : typed model
-  Mutate : one operation
-  Verify : structural warnings
-  Render : SVG : ASCII : PNG` },
-  { id: 'journey', family: 'Journey', source: `journey
-  title Agent editing a diagram
-  section Guess
-    Rewrite whole diagram: 2: Agent
-    Ask human to inspect: 1: Reviewer
-  section Verify
-    Parse source: 5: Agent
-    Mutate target: 5: Agent
-    Check warnings: 5: Agent` },
-  { id: 'architecture', family: 'Architecture', source: `architecture-beta
-  group app(cloud)[Application]
-  group data(database)[Data]
-  service web(server)[Web App] in app
-  service api(server)[API] in app
-  service queue(server)[Queue] in app
-  service db(database)[Postgres] in data
-  web:R --> L:api
-  api:B --> T:queue
-  api:R --> L:db
-  queue:R --> L:db` },
-  { id: 'pie', family: 'Pie', source: `pie showData
-  title Output formats
-  "SVG" : 42
-  "PNG" : 28
-  "ASCII" : 18
-  "Unicode" : 12` },
-  { id: 'quadrant', family: 'Quadrant', source: `quadrantChart
-  title Edit decisions
-  x-axis Low confidence --> High confidence
-  y-axis Low reversibility --> High reversibility
-  quadrant-1 Commit
-  quadrant-2 Review
-  quadrant-3 Ask
-  quadrant-4 Repair
-  typed mutate: [0.82, 0.78]
-  source rewrite: [0.24, 0.22]
-  verify warnings: [0.71, 0.48]` },
-  { id: 'gantt', family: 'Gantt', source: `gantt
-  title Release train
-  dateFormat YYYY-MM-DD
-  excludes weekends
-  section Build
-    Parser        :done, p1, 2024-01-08, 2024-01-10
-    Layout pass   :active, l1, 2024-01-11, 3d
-    Verify        :v1, after l1, 2d
-  section Ship
-    Review        :crit, r1, after v1, 2d
-    Release       :milestone, m1, after r1, 0d` },
-  { id: 'mindmap', family: 'Mindmap', source: `mindmap
-  root((Agent workflow))
-    Parse
-      Preserve source
-    Mutate
-      Typed operation
-    Verify
-      Inspect warnings` },
-  { id: 'gitgraph', family: 'GitGraph', source: `gitGraph LR:
-  commit id:"SOURCE" msg:"Parse source"
-  branch edit order:2
-  commit id:"MUTATE" type:HIGHLIGHT msg:"Apply typed op"
-  checkout main
-  merge edit id:"VERIFY" tag:"checked"` },
-  { id: 'radar', family: 'Radar', source: `radar-beta
-  title Agent capability
-  axis parse["Parse"], mutate["Mutate"], verify["Verify"]
-  axis render["Render"], ascii["ASCII"], types["Types"]
-  curve agentic["Agentic"]{5, 5, 5, 4, 5, 5}
-  curve baseline["Baseline"]{3, 1, 2, 4, 1, 2}
-  max 5` },
-]
+const COMPARISON_CASES: ComparisonCase[] = BUILTIN_FAMILY_METADATA.map(family => ({
+  id: family.id,
+  family: family.editorDiagramType,
+  source: family.editorExample,
+}))
 
 function comparisonSvg(svg: string, id: string, engine: string, family: string) {
   const localSvg = svg.replace(/^\s*@import\s+url\([^)]*\);\n?/gm, '')
@@ -3051,10 +2897,11 @@ await emit('sitemap.xml', sitemapXml)
 // robots.txt at the edge, which would override an asset here. The sitemap's
 // `Sitemap:` line is added via the Cloudflare dashboard instead (TODO DEC-5).
 
-// ---- Worker artifacts (website/src/generated) ------------------------------
+// ---- Ephemeral Worker artifacts (website/src/generated) --------------------
 // The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker
 // isolate, the resvg wasm module, and the bundled PNG fonts. They live under
 // src/generated (not public/): they are Worker modules, not servable assets.
+// The directory is gitignored and rebuilt before typecheck, tests, and deploy.
 const SRC_GENERATED = join(import.meta.dir, 'src', 'generated')
 const workerGenerated = new Map<string, Buffer>()
 
@@ -3157,21 +3004,10 @@ assertNoPlaceholders()
 assertContractShapes()
 
 if (CHECK) {
-  // website/public is a build artifact (gitignored, rebuilt at deploy and by
-  // the test preload), so it is not drift-checked here. Only the worker's
-  // committed src/generated inputs — imported by src/worker.ts and needed for
-  // typecheck — are pinned against the source.
-  const stale: string[] = []
-  for (const [rel, expected] of workerGenerated) {
-    const file = Bun.file(join(SRC_GENERATED, rel))
-    if (!await file.exists()) { stale.push(`src/generated/${rel}`); continue }
-    if (!Buffer.from(await file.arrayBuffer()).equals(expected)) stale.push(`src/generated/${rel}`)
-  }
-  if (stale.length) {
-    console.error(`website/build --check: ${stale.length} stale src/generated file(s):\n  ${stale.join('\n  ')}\nRegenerate with \`bun run website\`.`)
-    process.exit(1)
-  }
-  console.log(`website/build --check: ${workerGenerated.size} src/generated file(s) in sync (website/public is a build artifact, not checked).`)
+  // Both output trees are ephemeral. Reaching this point proves every public
+  // page and Worker module can be regenerated and all build-time contracts
+  // hold; CI no longer compares or churns checked-in copies.
+  console.log(`website/build --check: regenerated ${generated.size} public and ${workerGenerated.size} Worker artifacts successfully.`)
 } else {
   console.log(`website/build: wrote ${generated.size} files to website/public${PUBLIC_ONLY ? ' (public only)' : ''}`)
 }

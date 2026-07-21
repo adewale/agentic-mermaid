@@ -74,7 +74,7 @@ jobs:
         if: steps.cloudflare-secrets.outputs.available == 'true'
         # Stamp public machine catalogs with both the exact CI-validated commit
         # and this deployment bundle's build time. The deploy build is not the
-        # committed deterministic website:check artifact.
+        # deterministic website:check build.
         run: SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website
       - name: Deploy to Cloudflare Workers
         if: steps.cloudflare-secrets.outputs.available == 'true'

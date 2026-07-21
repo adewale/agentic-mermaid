@@ -163,7 +163,7 @@ jobs:
         run: bun run scripts/ci/golden-drift.ts
 
       - name: Incremental mutation lane (faithfulness counter)
-        run: bun run mutation-test:incremental
+        run: bun run mutation-test -- incremental
 
       - name: Prove focused route regressions fail
         run: bun run sabotage:routes

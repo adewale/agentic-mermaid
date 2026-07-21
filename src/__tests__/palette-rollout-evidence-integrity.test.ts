@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   cleanHeadCommit,
   verifyBaselineCommit,
-  verifyFrozenBaselineRender,
   verifiedBaselineCases,
   type BaselineFile,
 } from '../../scripts/pr-assets/palette-rollout-evidence.ts'
@@ -59,22 +58,6 @@ describe('palette rollout evidence integrity', () => {
       expect(() => verifyBaselineCommit(baseline, repo)).not.toThrow()
     } finally {
       rmSync(repo, { recursive: true, force: true })
-    }
-  })
-
-  test('binds every frozen SVG byte to the named historical renderer commit across lock updates', async () => {
-    const baseline = JSON.parse(readFileSync(join(BASELINE_DIR, 'baseline.json'), 'utf8')) as BaselineFile
-    await expect(verifyFrozenBaselineRender(baseline.commit, BASELINE_DIR, ROOT)).resolves.toBeUndefined()
-
-    const corrupted = mkdtempSync(join(tmpdir(), 'palette-baseline-svg-'))
-    try {
-      cpSync(BASELINE_DIR, corrupted, { recursive: true })
-      const path = join(corrupted, 'xychart-github-light.svg')
-      writeFileSync(path, `${readFileSync(path, 'utf8')}\n`)
-      await expect(verifyFrozenBaselineRender(baseline.commit, corrupted, ROOT))
-        .rejects.toThrow('does not match the renderer at commit')
-    } finally {
-      rmSync(corrupted, { recursive: true, force: true })
     }
   })
 

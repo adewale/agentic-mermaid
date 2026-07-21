@@ -73,7 +73,7 @@ For future layout changes:
 |-----------------|---------------|---------------|
 | Flowchart/state/architecture routing geometry | `bun test src/__tests__/contact-sheet.test.ts src/__tests__/layout-rubric.test.ts` and `bun run track` | Hard rubric violations must stay zero; baseline deltas must be explained as improvement or intended drift. |
 | Generated characterisation artifacts | `bun run characterization:check` | Regenerate the contact sheets / visual snapshots only after reviewing the visual diff. |
-| ASCII grid mechanics | `bun test src/__tests__/characterization-layout.test.ts`; optionally probe selected ranges with `bun run mutation-test:characterization` | Update P-properties only when the algorithm deliberately changes. |
+| ASCII grid mechanics | `bun test src/__tests__/characterization-layout.test.ts`; optionally probe selected ranges with `bun run mutation-test -- characterization` | Update P-properties only when the algorithm deliberately changes. |
 | Renderer-family dispatch/output surfaces | `bun test src/__tests__/characterization-families.test.ts` | Drift outside the PR's claimed layout surface is suspicious and needs a separate explanation. |
 
 ## Coverage across renderers
@@ -131,7 +131,7 @@ This project has **two** distinct layout engines:
 **This characterisation targets the ASCII grid engine.** It is the genuinely
 "ours" algorithm (the ELK one delegates placement), it is pure / synchronous /
 deterministic / dependency-free, and it is the surface the project already
-mutation-tests (`stryker.ascii.config.json`). It is therefore the ideal
+mutation-tests (the `ascii` profile in `stryker.config.mjs`). It is therefore the ideal
 characterisation subject. The Flowchart and State families share this exact
 pipeline (`src/ascii/index.ts`). Every other registered family has its own
 terminal projection and participates in the registry-complete family
@@ -227,10 +227,10 @@ bun test src/__tests__/contact-sheet.test.ts src/__tests__/layout-rubric.test.ts
 bun run track
 
 # (optional) quick mutation evidence for the load-bearing ranges
-bun run mutation-test:characterization
+bun run mutation-test -- characterization
 
 # exhaustive but slow: mutates the whole ASCII layout core
-bun run mutation-test:ascii
+bun run mutation-test -- ascii
 ```
 
 ## Sources

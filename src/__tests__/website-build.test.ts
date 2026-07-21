@@ -1073,9 +1073,8 @@ describe('Workers Static Assets website contract', () => {
         compact: true,
       })
     }
-    expect(comparisons).toContain('Source([Source]) --&gt; Parse[Parse]')
-    expect(comparisons).toContain('Render --&gt; Cache[(Cache)]')
-    expect(comparisons).not.toContain('Start([Start]) --&gt; Parse[Parse]')
+    expect(comparisons).toContain('A[Start] --&gt; B{Decision?}')
+    expect(comparisons).toContain('B --&gt;|Yes| C[Do the thing]')
     expect(comparisons).toContain('group app(cloud)[Application]')
     expect(comparisons).not.toContain('group client(cloud)[Client]')
     for (const id of ['flowchart', 'state', 'sequence', 'class', 'er', 'xychart']) {

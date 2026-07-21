@@ -72,11 +72,11 @@
     },
     {
       "path": "package.json",
-      "sha256": "fd505f2723240e39b9907ba4a26033349d99216c72a431b7008071f7f38c87b4"
+      "sha256": "061eaef201f439edc845170f09cb8a25e473deab071ce3063ab2160451514cf4"
     },
     {
       "path": "package.json",
-      "sha256": "fd505f2723240e39b9907ba4a26033349d99216c72a431b7008071f7f38c87b4"
+      "sha256": "061eaef201f439edc845170f09cb8a25e473deab071ce3063ab2160451514cf4"
     },
     {
       "path": "scripts/pr-assets/artifact-receipt.ts",
@@ -140,7 +140,7 @@
     },
     {
       "path": "src/agent/families.ts",
-      "sha256": "75303c4b6aa7cd860ab7b0b4b12a12aa0ea0279e340b89977d188a22cc87c8b4"
+      "sha256": "91a896650d4bc71902ad0fe5f06f18f8e247b20dd226d076e1caf818531fa0eb"
     },
     {
       "path": "src/agent/family-labels.ts",
@@ -180,7 +180,7 @@
     },
     {
       "path": "src/agent/index.ts",
-      "sha256": "3958d3f998af90b8e8cedabe99a5585d03e7352cc86100b8cd28131eadc0df7a"
+      "sha256": "a93185febbc31ed7120fb1f01e3982f11539330f01946465c7723c3e4aee8e73"
     },
     {
       "path": "src/agent/journey-body.ts",
@@ -220,7 +220,7 @@
     },
     {
       "path": "src/agent/pie-body.ts",
-      "sha256": "11779e30f2c25d67e7a54c80f146ebf9594af638b5e9d077249e50bf18500f6e"
+      "sha256": "f02ad0b9c58660ff8aa0d1199dec2e00c4cc72049190ba5fbc7696a818c4d867"
     },
     {
       "path": "src/agent/png.ts",
@@ -228,7 +228,7 @@
     },
     {
       "path": "src/agent/quadrant-body.ts",
-      "sha256": "aed1734ed0a4b54eb2cbe2e1ee1f48435644c31d3b3f66d9655a44bb3858d003"
+      "sha256": "b2117eb8d5bae913c6285df080d6f18b3166eeeeed5bbc76e433080d872e0d37"
     },
     {
       "path": "src/agent/quality.ts",
@@ -1174,11 +1174,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "4d5d2e4c13c60f4e62408d70ef38e1e254f58310fd7293afd751207a69034f54"
+      "sha256": "101ec42ecd973b114f8c7ec5a95b773936cb3cb022c66e21f1384c5df45f8ba8"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "f94b5b9d3afb5f116df26ad405115b8eb3d01d8dd0cb387de28de20d94c88df5"
+      "sha256": "bb0064d50473f88dafac1098de591719c5d2f0a8ca8eeb9ed2250730b2d0e762"
     }
   ]
 }

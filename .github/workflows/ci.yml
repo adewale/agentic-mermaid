@@ -21,10 +21,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Baseline-integrity tests execute immutable historical palette and
-          # pre-Section-B commits; a depth-1 PR merge checkout omits them.
-          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -77,12 +73,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # Full history (not the default shallow depth-1). On a pull_request the
-          # checkout is the merge ref: HEAD is a merge commit whose parents
-          # [base, prHead] the golden-drift gate diffs to find the PR's OWN
-          # golden changes. Shallow checkout omits those parents, so the gate
-          # saw a parentless commit and flagged the whole testdata tree.
-          fetch-depth: 0
+          # The golden-drift gate only needs a PR merge commit's two parents,
+          # not the repository's complete history.
+          fetch-depth: 2
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -96,9 +89,7 @@ jobs:
       - name: Reject new high or critical dependency advisories
         run: bun run audit:dependencies
 
-      # This runs in a pristine job before sketch:check invokes bun:test and its
-      # preload rebuilds website/public and website/src/generated.
-      - name: Check the committed website worker inputs are current
+      - name: Verify website and Worker artifacts regenerate cleanly
         run: bun run website:check
 
       - name: Check controlled palette rollout evidence is current and passes its improvement gate
@@ -293,7 +284,7 @@ jobs:
         # Mutates the small, pure faithfulness counter; gated by the
         # config's thresholds.break. A full run on this lane is ~1 min, so it
         # runs in full every PR (no --since scoping needed for so few files).
-        run: bun run mutation-test:incremental
+        run: bun run mutation-test -- incremental
 
   # One protectable result that cannot turn green before the downstream E2E
   # matrix and mutation lane finish. Repository rules should require this job.

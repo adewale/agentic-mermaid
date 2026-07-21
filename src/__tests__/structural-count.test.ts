@@ -2,7 +2,7 @@
 //
 // These exercise every branch of countStructuralElements without going through
 // layout, so they run in well under a second — which is what lets the
-// stryker.incremental.config.json lane mutate this module and gate per-PR
+// The `incremental` profile in stryker.config.mjs mutates this module and gates per-PR
 // (Move 7). Each family asserts the exact {nodes, edges, groups} for a known
 // source, pinning the projection a mutant would have to change.
 

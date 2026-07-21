@@ -8,7 +8,6 @@ import {
   buildSectionBBrandEvidence,
   buildSectionBBrandEvidenceReceipt,
   sectionBVariantHeadingMarkup,
-  verifySectionBCausalBaseline,
 } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -94,11 +93,4 @@ describe('Section B generated visual evidence', () => {
     expect(readFileSync(join(ROOT, 'docs/style-authoring.md'), 'utf8')).toContain('plus three holdout styles')
   }, 120_000)
 
-  test('the pinned pre-Section-B commit executes the documented hard-error baseline', () => {
-    expect(verifySectionBCausalBaseline()).toMatchObject({
-      commit: SECTION_B_BASELINE_COMMIT,
-      exitCode: 2,
-      diagnostic: expect.stringContaining('unknown field "roles"'),
-    })
-  }, 30_000)
 })

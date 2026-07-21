@@ -32,6 +32,7 @@ import type {
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
+import { parsePieChart } from '../pie/parser.ts'
 
 // ---- Number format ----------------------------------------------------------
 //
@@ -49,16 +50,7 @@ function isPositiveFinite(n: unknown): n is number {
 
 // ---- Parser -----------------------------------------------------------------
 
-/** Entry line: a quoted label, a colon, and a value (shape mirrors legacy). */
-const ENTRY_RE = /^"((?:[^"\\]|\\.)*)"\s*:\s*(.+)$/
-/** Mermaid pie values: positive numbers, up to two decimal places. */
-const NUMBER_RE = /^\+?(?:\d+(?:\.\d+)?|\.\d+)$/
-
-function decodeEscapes(raw: string): string {
-  return raw.replace(/\\(["\\])/g, '$1')
-}
-
-/** Re-encode a label for emission inside `"..."` (inverse of decodeEscapes). */
+/** Re-encode a label for emission inside `"..."`. */
 function encodeLabel(label: string): string {
   return label.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
@@ -74,48 +66,21 @@ function encodeLabel(label: string): string {
  * data to render).
  */
 export function parsePieBody(lines: string[], header: { showData: boolean; title?: string }): PieBody | null {
-  const body: PieBody = { kind: 'pie', showData: header.showData, slices: [] }
-  if (header.title !== undefined) body.title = header.title
-  let sIdx = 0
-
-  for (const raw of lines) {
-    const line = raw.trim()
-    if (!line) continue
-    if (line.startsWith('%%')) continue
-
-    if (/^showData\s*$/i.test(line)) {
-      body.showData = true
-      continue
+  const tail = `${header.showData ? ' showData' : ''}${header.title === undefined ? '' : ` title ${header.title}`}`
+  try {
+    const parsed = parsePieChart([`pie${tail}`, ...lines])
+    // Typed mutation keeps the existing positive-value floor even though the
+    // rendering grammar also admits zero-width slices.
+    if (parsed.entries.some(entry => !isPositiveFinite(entry.value))) return null
+    return {
+      kind: 'pie',
+      ...(parsed.title === undefined ? {} : { title: parsed.title }),
+      showData: parsed.showData,
+      slices: parsed.entries.map((entry, index) => ({ id: `slice-${index}`, ...entry })),
     }
-
-    const titleMatch = line.match(/^title\s+(.+)$/i)
-    if (titleMatch) {
-      const title = titleMatch[1]!.trim()
-      if (!title) return null
-      body.title = title
-      continue
-    }
-
-    const entryMatch = line.match(ENTRY_RE)
-    if (entryMatch) {
-      const label = decodeEscapes(entryMatch[1]!)
-      const rawValue = entryMatch[2]!.trim()
-      if (!NUMBER_RE.test(rawValue)) return null
-      const value = Number.parseFloat(rawValue)
-      if (!isPositiveFinite(value)) return null
-      // A label that wouldn't round-trip (newlines, etc.) falls back to opaque.
-      if (label.includes('\n')) return null
-      body.slices.push({ id: `slice-${sIdx++}`, label, value })
-      continue
-    }
-
-    // Unmodeled family line (malformed entry/anything else) → opaque.
+  } catch {
     return null
   }
-
-  if (body.slices.length === 0) return null
-
-  return body
 }
 
 // ---- Serializer -------------------------------------------------------------

@@ -10,9 +10,8 @@ detection then selects a registered `FamilyDescriptor`; unknown and unsupported
 headers produce a source-preserving diagnostic instead of falling through to a
 default family. The registry is the family authority. Built-in metadata and the
 generated capability/documentation tables are projections of it, not competing
-family lists. Website example registries still enroll explicit fixture data and
-are checked against the family authority; `CONS-27` owns the remaining
-minimal-example consolidation.
+family lists. Website editor and comparison examples are projections of the
+same bounded canonical examples.
 
 Every rendering adapter resolves an immutable `ResolvedRenderRequest` once. Its
 `ResolvedAppearance` owns the final palette, typography, style face, and backend

@@ -361,7 +361,7 @@ Scheduler properties should use finite generated DAGs, not arbitrary line string
 
 ### Mutation-testing diagnostic
 
-`bun run mutation-test:gantt` remains an opt-in survivor harvest over the Gantt
+`bun run mutation-test -- gantt` remains an opt-in survivor harvest over the Gantt
 parser, scheduler, layout, terminal renderer, and agent body. It has no break
 floor or release authority; any acceptance claim needs separately retained and
 reviewed evidence.

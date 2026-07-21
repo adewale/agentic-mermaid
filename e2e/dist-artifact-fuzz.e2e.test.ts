@@ -127,7 +127,7 @@ beforeAll(() => {
     throw new Error(`\`bun run build\` failed (status ${build.status}); dist artifact fuzz cannot run.\n${build.stderr ?? ''}`)
   }
   haveDist = true
-})
+}, BUILD_TIMEOUT_MS)
 
 function runDriver(inputs: string[], pngN: number): Array<{ layout: string; svg: string; ascii: string; pngLen?: number }> {
   const work = mkdtempSync(join(tmpdir(), 'am-dist-fuzz-'))
@@ -148,7 +148,7 @@ describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
     expect(haveDist).toBe(true)
     for (const [source, declaration] of [
       ['src/index.ts', 'dist/index.d.ts'],
-      ['src/agent/core.ts', 'dist/agent-core.d.ts'],
+      ['src/agent/index.ts', 'dist/agent.d.ts'],
     ] as const) {
       expect(readFileSync(join(REPO, source), 'utf8'), source).not.toContain('TUFTE_STYLE_ALIAS')
       expect(readFileSync(join(REPO, declaration), 'utf8'), declaration).not.toContain('TUFTE_STYLE_ALIAS')
