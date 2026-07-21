@@ -20,8 +20,8 @@ describe('website static asset cache authority', () => {
       ['/editor/editor-app-abcdef123456.js', 'application/javascript'],
       ['/editor/editor-renderer-abcdef123456.js', 'text/javascript'],
       ['/vendor/mermaid-abcdef123456.min.js', 'text/javascript'],
-      ['/examples/fragments/style-palette-abcdef123456.html', 'text/html; charset=utf-8'],
-      ['/examples/fragments/corpus-abcdef123456.html', 'text/html'],
+      ['/examples/fragments/style-palette-abcdef123456', 'text/html; charset=utf-8'],
+      ['/examples/fragments/corpus-abcdef123456', 'text/html'],
       ['/examples-abcdef123456.js', 'text/javascript'],
       ['/examples-abcdef123456.css', 'text/css'],
       ['/generated/inline-abcdef123456.js', 'text/javascript'],
@@ -48,7 +48,7 @@ describe('website static asset cache authority', () => {
     expect(classify({ contentType: '' })).toBe('no-store')
     expect(classify({ hasSetCookie: true })).toBe('no-store')
 
-    const fragment = '/examples/fragments/corpus-deadbeefdead.html'
+    const fragment = '/examples/fragments/corpus-deadbeefdead'
     expect(classify({ pathname: fragment, status: 404, contentType: 'text/html' })).toBe('no-store')
     expect(classify({ pathname: fragment, status: 500, contentType: 'text/html' })).toBe('no-store')
   })
@@ -57,6 +57,7 @@ describe('website static asset cache authority', () => {
     expect(classify({ pathname: '/editor/editor-short.js' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/editor/editor-abcdef12345g.js' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/fonts/Inter-Regular.subset.woff2', contentType: 'font/woff2' })).toBe('public, max-age=3600')
+    expect(classify({ pathname: '/examples/fragments/corpus-abcdef123456.html', contentType: 'text/html' })).toBe('no-cache')
     expect(classify({ pathname: '/styles.css', contentType: 'text/css' })).toBe('public, max-age=3600')
     expect(classify({ pathname: '/styles.css', contentType: 'text/css', method: 'POST' })).toBe('no-store')
     expect(classify({ pathname: '/styles.css', contentType: 'text/css', hasSetCookie: true })).toBe('no-store')

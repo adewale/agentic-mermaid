@@ -98,7 +98,7 @@ const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
 type ImmutableAssetRule = Readonly<{ path: RegExp, contentTypes: readonly string[] }>
 const IMMUTABLE_ASSET_RULES: readonly ImmutableAssetRule[] = Object.freeze([
   Object.freeze({ path: /^\/(?:editor\/editor-(?:(?:app|renderer)-)?[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
-  Object.freeze({ path: /^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}\.html$/i, contentTypes: ['text/html'] }),
+  Object.freeze({ path: /^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}$/i, contentTypes: ['text/html'] }),
   Object.freeze({ path: /^\/(?:examples|generated\/inline)-[a-f0-9]{12}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
   Object.freeze({ path: /^\/examples-[a-f0-9]{12}\.css$/i, contentTypes: ['text/css'] }),
   Object.freeze({ path: /^\/fonts\/Inter-(?:Regular|Medium|SemiBold|Bold)\.subset-[a-f0-9]{12}\.woff2$/i, contentTypes: ['font/woff2'] }),
@@ -150,7 +150,7 @@ function withHeaders(response: Response, pathname: string, method: string, negot
   if (typeEssence === 'text/html') headers.set('Content-Security-Policy', csp)
 
   if (/\.(json|md|txt)$/i.test(pathname)) headers.set('Access-Control-Allow-Origin', '*')
-  if (/^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}\.html$/i.test(pathname)) {
+  if (/^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}$/i.test(pathname)) {
     headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
   headers.set('Cache-Control', classifyWebsiteAssetCache({

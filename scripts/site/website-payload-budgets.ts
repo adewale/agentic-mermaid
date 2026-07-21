@@ -17,9 +17,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    maxRawBytes: 380_408,
-    maxGzipBytes: 66_947,
-    maxBrotliBytes: 53_157,
+    maxRawBytes: 380_391,
+    maxGzipBytes: 66_938,
+    maxBrotliBytes: 53_183,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),

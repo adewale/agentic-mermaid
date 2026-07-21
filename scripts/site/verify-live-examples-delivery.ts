@@ -27,7 +27,7 @@ async function live(path: string, expectedType: string, immutable = false) {
 }
 
 const localIndex = readFileSync(join(PUBLIC, 'examples', 'index.html'), 'utf8')
-const expectedAssets = Array.from(localIndex.matchAll(/(?:href|src)="\/(examples-[a-f0-9]{12}\.(?:css|js))"|data-example-fragment="\/(examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}\.html)"/g))
+const expectedAssets = Array.from(localIndex.matchAll(/(?:href|src)="\/(examples-[a-f0-9]{12}\.(?:css|js))"|data-example-fragment="\/(examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12})"/g))
   .map(match => match[1] || match[2])
   .filter((asset): asset is string => Boolean(asset))
   .sort()
@@ -52,7 +52,8 @@ for (const asset of expectedAssets) {
   const response = await live(path, expectedType, true)
   if (asset.includes('/fragments/')) requireCondition(response.headers.get('x-robots-tag') === 'noindex, nofollow', `${path}: missing X-Robots-Tag`)
   const bytes = new Uint8Array(await response.arrayBuffer())
-  const local = new Uint8Array(readFileSync(join(PUBLIC, asset)))
+  const localRel = asset.includes('/fragments/') ? `${asset}.html` : asset
+  const local = new Uint8Array(readFileSync(join(PUBLIC, localRel)))
   requireCondition(bytes.byteLength === local.byteLength && digest(bytes) === digest(local), `${path}: live bytes differ from local output`)
   requireCondition(asset.includes(digest(bytes).slice(0, 12)), `${path}: filename digest mismatch`)
   const head = await fetch(origin + path, { method: 'HEAD', headers: { 'cache-control': 'no-cache' } })
@@ -64,7 +65,7 @@ for (const asset of expectedAssets) {
 for (const missingPath of [
   '/examples-000000000000.js',
   '/examples-000000000000.css',
-  '/examples/fragments/corpus-000000000000.html',
+  '/examples/fragments/corpus-000000000000',
 ]) {
   const response = await fetch(origin + missingPath, { headers: { 'cache-control': 'no-cache' } })
   requireCondition(response.status !== 200, `${missingPath}: nonexistent hash returned 200`)
