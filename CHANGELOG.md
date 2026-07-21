@@ -9,6 +9,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ### Fixed
 - Updated the transitive `brace-expansion` development dependency to 5.0.7 so the high-severity dependency audit remains enforced without blocking CI on GHSA-3jxr-9vmj-r5cp. The override stays within `minimatch`'s declared compatible range and is exercised by the retained Stryker mutation lane.
 - Completed the 0.1.2 version projection across package, hosted MCP registry, generated agent guidance, and compatibility tests; host-version assertions now derive from the package authority instead of embedding the previous release.
+- Made installed-resource verification portable to Windows by applying `/proc/self/fd` and `/dev/fd` canonicalization only on Linux and macOS; other platforms retain the rooted post-open file-identity proof instead of probing a nonexistent `/dev/fd` path.
 
 ### Changed
 - Simplified the published package to compiled ESM entries and removed the internal `./capabilities` and `./resources` subpaths. The supported library entries are `agentic-mermaid`, `agentic-mermaid/agent`, and the browser/workerd-safe `agentic-mermaid/agent/core`.
