@@ -25,6 +25,8 @@ export const CLEAN_PAGE_ROUTES: readonly string[] = [
   'editor',
   'errors',
   'examples',
+  'examples/corpus',
+  'examples/style-palette',
   'skills/agentic-mermaid-diagram-workflow',
   'warnings',
 ]

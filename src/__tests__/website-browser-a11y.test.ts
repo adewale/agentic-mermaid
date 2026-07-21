@@ -6,6 +6,7 @@ import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
 import { serveWithAvailablePort } from '../../e2e/test-port.ts'
 import { decodeEditorStateHash } from '../../scripts/site/editor-state-url.ts'
+import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { renderWebsiteSVGWithReceipt } from '../../website/src/rendering.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
@@ -172,7 +173,7 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('public routes have named controls, valid ARIA references, and no mobile horizontal overflow', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
-    for (const route of ['/', '/examples/#gantt', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
+    for (const route of ['/', '/examples/#gantt', '/examples/style-palette/', '/examples/corpus/', '/comparisons/', '/about/', '/docs/getting-started/', '/docs/', '/skills/agentic-mermaid-diagram-workflow/']) {
       await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
       expect({ route, unnamed: await namedControls(page) }).toEqual({ route, unnamed: [] })
       expect({ route, broken: await brokenAriaControls(page) }).toEqual({ route, broken: [] })
@@ -280,13 +281,17 @@ describeBrowser('website browser accessibility smoke', () => {
       })
     })
 
-    await page.goto(`${baseUrl}/examples/`, { waitUntil: 'networkidle' })
-    const cards = await page.locator('article.example-sample').evaluateAll(articles => articles.map((article) => ({
-      id: article.id,
-      source: article.querySelector('.example-source code')?.textContent?.trim() ?? '',
-      href: article.querySelector<HTMLAnchorElement>('a.go')?.getAttribute('href') ?? '',
-    })))
+    const cards: Array<{ id: string, source: string, href: string }> = []
+    for (const route of ['/examples/', '/examples/style-palette/', '/examples/corpus/']) {
+      await page.goto(baseUrl + route, { waitUntil: 'networkidle' })
+      cards.push(...await page.locator('article.example-sample').evaluateAll(articles => articles.map((article) => ({
+        id: article.id,
+        source: article.querySelector('.example-source code')?.textContent?.trim() ?? '',
+        href: article.querySelector<HTMLAnchorElement>('a.go')?.getAttribute('href') ?? '',
+      }))))
+    }
     expect(cards.length).toBeGreaterThan(150)
+    expect(new Set(cards.map(card => card.id)).size).toBe(cards.length)
 
     // One live-browser startup per distinct state/config shape, plus the
     // longest payload and the formerly transparent card. The exhaustive unit
@@ -372,6 +377,160 @@ describeBrowser('website browser accessibility smoke', () => {
     }
     await page.close()
   }, 240_000)
+
+  test('Examples starts fragment-free and explicitly loads one validated section', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const fragmentRequests: string[] = []
+    page.on('request', request => {
+      const path = new URL(request.url()).pathname
+      if (path.startsWith('/examples/fragments/')) fragmentRequests.push(path)
+    })
+    await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    expect(fragmentRequests).toEqual([])
+    expect(await page.locator('article.example-sample').count()).toBe(EDITOR_EXAMPLES.length)
+    const section = page.locator('[data-example-fragment][data-example-kind="style-palette"]')
+    const button = section.locator('[data-example-load]')
+    expect(await button.isVisible()).toBe(true)
+    await button.evaluate((element: HTMLButtonElement) => { element.click(); element.click(); element.click() })
+    await section.locator('[data-example-fragment-root="style-palette"]').waitFor({ state: 'attached' })
+    expect(fragmentRequests).toHaveLength(1)
+    expect(await section.getAttribute('data-example-state')).toBe('loaded')
+    expect(await section.locator('[data-example-status]').textContent()).toBe('Examples loaded.')
+    expect(await page.locator('article.example-sample').count()).toBe(EDITOR_EXAMPLES.length + BUILTIN_FAMILY_METADATA.length)
+    await page.close()
+  }, 30_000)
+
+  test('Examples near-viewport intent loads at most one adjacent deferred section', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const requests: string[] = []
+    page.on('request', request => {
+      const path = new URL(request.url()).pathname
+      if (path.startsWith('/examples/fragments/')) requests.push(path)
+    })
+    await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    await page.locator('[data-example-fragment][data-example-kind="style-palette"]').scrollIntoViewIfNeeded()
+    await page.locator('[data-example-fragment-root="style-palette"]').waitFor({ state: 'attached' })
+    expect(requests).toHaveLength(1)
+    expect(await page.locator('[data-example-fragment][data-example-kind="corpus"]').getAttribute('data-example-state')).toBe('idle')
+    await page.close()
+  }, 30_000)
+
+  test('Examples resolves current and frozen numeric deep links only after loading', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/examples/#style-palette-flowchart', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.activeElement?.id === 'style-palette-flowchart')
+    expect(new URL(page.url()).hash).toBe('#style-palette-flowchart')
+    expect(await page.locator('#style-palette-flowchart').count()).toBe(1)
+
+    await page.goto(baseUrl + '/examples/#rich-1-agentic-mermaid', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.activeElement?.id === 'rich-agentic-mermaid')
+    expect(new URL(page.url()).hash).toBe('#rich-agentic-mermaid')
+    expect(await page.locator('#rich-agentic-mermaid').count()).toBe(1)
+    await page.close()
+
+    const noJs = await browser.newContext({ viewport: { width: 390, height: 900 }, javaScriptEnabled: false })
+    const noJsPage = await noJs.newPage()
+    await noJsPage.goto(baseUrl + '/examples/#rich-1-agentic-mermaid', { waitUntil: 'networkidle' })
+    const continuation = noJsPage.locator('#rich-1-agentic-mermaid a')
+    expect(await continuation.isVisible()).toBe(true)
+    expect(await continuation.getAttribute('href')).toBe('/examples/corpus/#rich-agentic-mermaid')
+    expect(await noJsPage.locator('article.example-sample').count()).toBe(EDITOR_EXAMPLES.length)
+    await noJsPage.goto(baseUrl + '/examples/style-palette/', { waitUntil: 'networkidle' })
+    expect(await noJsPage.locator('article.example-sample').count()).toBe(BUILTIN_FAMILY_METADATA.length)
+    await noJsPage.goto(baseUrl + '/examples/corpus/', { waitUntil: 'networkidle' })
+    expect(await noJsPage.locator('article.example-sample').count()).toBeGreaterThan(100)
+    await noJs.close()
+  }, 60_000)
+
+  test('Examples fragment failures are retryable and cross-origin fragment URLs fail before fetch', async () => {
+    async function exerciseFailure(kind: 'abort' | 'status' | 'mime' | 'malformed' | 'active') {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+      let attempts = 0
+      await context.route(/\/examples\/fragments\/style-palette-[a-f0-9]{12}\.html$/, async route => {
+        attempts++
+        if (attempts > 1) { await route.continue(); return }
+        if (kind === 'abort') await route.abort('failed')
+        else if (kind === 'status') await route.fulfill({ status: 503, contentType: 'text/html', body: 'unavailable' })
+        else if (kind === 'mime') await route.fulfill({ status: 200, contentType: 'application/json', body: '<section data-example-fragment-root="style-palette"></section>' })
+        else if (kind === 'active') await route.fulfill({ status: 200, contentType: 'text/html', body: '<section data-example-fragment-root="style-palette"><script>throw new Error("unexpected")</script></section>' })
+        else await route.fulfill({ status: 200, contentType: 'text/html', body: '<div data-example-fragment-root="wrong"></div>' })
+      })
+      const page = await context.newPage()
+      await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+      const section = page.locator('[data-example-fragment][data-example-kind="style-palette"]')
+      const button = section.locator('[data-example-load]')
+      await button.click()
+      await page.waitForFunction(() => document.querySelector('[data-example-fragment][data-example-kind="style-palette"]')?.getAttribute('data-example-state') === 'failed')
+      expect(await button.textContent(), kind).toBe('Retry loading examples')
+      expect(await section.locator('[data-example-status]').textContent(), kind).toContain('Could not load examples')
+      expect(new URL(page.url()).hash, kind).toBe('')
+      expect(await page.evaluate(() => document.activeElement?.hasAttribute('data-example-load')), kind).toBe(true)
+      await button.click()
+      await section.locator('[data-example-fragment-root="style-palette"]').waitFor({ state: 'attached' })
+      expect(attempts, kind).toBe(2)
+      expect(await section.getAttribute('data-example-state'), kind).toBe('loaded')
+      await context.close()
+    }
+    await exerciseFailure('abort')
+    await exerciseFailure('status')
+    await exerciseFailure('mime')
+    await exerciseFailure('malformed')
+    await exerciseFailure('active')
+
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    const thirdPartyRequests: string[] = []
+    page.on('request', request => { if (new URL(request.url()).origin !== baseUrl) thirdPartyRequests.push(request.url()) })
+    await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    const section = page.locator('[data-example-fragment][data-example-kind="style-palette"]')
+    await section.evaluate(element => element.setAttribute('data-example-fragment', 'https://example.com/examples/fragments/style-palette-deadbeefdead.html'))
+    await section.locator('[data-example-load]').click()
+    await page.waitForFunction(() => document.querySelector('[data-example-fragment][data-example-kind="style-palette"]')?.getAttribute('data-example-state') === 'failed')
+    expect(thirdPartyRequests).toEqual([])
+    await context.close()
+  }, 60_000)
+
+  test('Examples preserves ordinary navigation when interception or browser APIs are unavailable', async () => {
+    const failedContext = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    await failedContext.route(/\/examples\/fragments\/style-palette-[a-f0-9]{12}\.html$/, route => route.abort('failed'))
+    const failedPage = await failedContext.newPage()
+    await failedPage.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    await failedPage.locator('a[data-example-deferred="style-palette"]').first().click()
+    await failedPage.waitForURL(/\/examples\/style-palette\/#style-palette-/)
+    expect(await failedPage.locator('[data-example-fragment-root="style-palette"]').count()).toBe(1)
+    await failedContext.close()
+
+    const noObserver = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    await noObserver.addInitScript(() => { Object.defineProperty(window, 'IntersectionObserver', { configurable: true, value: undefined }) })
+    const noObserverPage = await noObserver.newPage()
+    const requests: string[] = []
+    noObserverPage.on('request', request => { if (new URL(request.url()).pathname.startsWith('/examples/fragments/')) requests.push(request.url()) })
+    await noObserverPage.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    expect(requests).toEqual([])
+    expect(await noObserverPage.locator('[data-example-load]').first().isVisible()).toBe(true)
+    await noObserver.close()
+
+    const throwingObserver = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    await throwingObserver.addInitScript(() => {
+      Object.defineProperty(window, 'IntersectionObserver', { configurable: true, value: function BrokenIntersectionObserver() { throw new Error('observer unavailable') } })
+    })
+    const throwingObserverPage = await throwingObserver.newPage()
+    const pageErrors: string[] = []
+    throwingObserverPage.on('pageerror', error => pageErrors.push(error.message))
+    await throwingObserverPage.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    expect(await throwingObserverPage.locator('[data-example-load]').first().isVisible()).toBe(true)
+    expect(pageErrors).toEqual([])
+    await throwingObserver.close()
+
+    const noFetch = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    await noFetch.addInitScript(() => { Object.defineProperty(window, 'fetch', { configurable: true, value: undefined }) })
+    const noFetchPage = await noFetch.newPage()
+    await noFetchPage.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
+    expect(await noFetchPage.locator('[data-example-load]').first().isHidden()).toBe(true)
+    await noFetchPage.locator('a[data-example-deferred="style-palette"]').first().click()
+    await noFetchPage.waitForURL(/\/examples\/style-palette\/#style-palette-/)
+    await noFetch.close()
+  }, 60_000)
 
   test('design motion specimen supports keyboard and direct manipulation without reduced-motion coast', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
