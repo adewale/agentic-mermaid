@@ -4,7 +4,120 @@
 // directive-free grammar view plus this typed projection; they must not scan
 // the source for the same metadata a second time.
 
-import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
+export interface MermaidAccessibility {
+  title?: string
+  descr?: string
+}
+
+export interface ParsedAccessibilityDirective {
+  kind: 'title' | 'description'
+  form: 'inline' | 'block'
+  value: string
+  /** Index of the last physical line consumed by this directive. */
+  endIndex: number
+  /** A family statement authored after the closing brace on the same line. */
+  suffixLine?: string
+}
+
+export interface AccessibilityScan {
+  accessibility: MermaidAccessibility
+  /** Original physical lines with valid universal directives removed. */
+  familyLines: string[]
+  /** First unterminated accDescr block, retained in `familyLines`. */
+  unclosedIndex?: number
+}
+
+const ACC_TITLE_RE = /^\s*accTitle(?:\s*:\s*|\s+)(.+)$/i
+const ACC_DESCR_INLINE_RE = /^\s*accDescr(?:\s*:\s*|\s+)(.+)$/i
+const ACC_DESCR_BLOCK_RE = /^\s*accDescr\s*:?\s*\{(.*)$/i
+const ACC_PREFIX_RE = /^\s*acc(?:Title|Descr)\b/i
+
+/** True for reserved universal accessibility prefixes, including malformed
+ * directives that the scanner deliberately leaves to family error handling. */
+export function isAccessibilityDirectivePrefix(line: string): boolean {
+  return ACC_PREFIX_RE.test(line)
+}
+
+/**
+ * Parse one universal accessibility directive. `null` means the line is not
+ * a directive; `undefined` means it opens an unclosed description block and
+ * must remain family-visible so normal parse/opaque error handling still
+ * applies.
+ */
+export function parseAccessibilityDirective(
+  lines: readonly string[],
+  startIndex: number,
+): ParsedAccessibilityDirective | null | undefined {
+  const line = lines[startIndex]
+  if (line === undefined) return null
+
+  const block = line.match(ACC_DESCR_BLOCK_RE)
+  if (block) {
+    const parts: string[] = []
+    for (let index = startIndex; index < lines.length; index++) {
+      const content = index === startIndex ? block[1]! : lines[index]!
+      const closing = content.indexOf('}')
+      if (closing < 0) {
+        if (content.trim()) parts.push(content.trim())
+        continue
+      }
+      const beforeClosing = content.slice(0, closing).trim()
+      if (beforeClosing) parts.push(beforeClosing)
+      const suffix = content.slice(closing + 1)
+      const indent = lines[index]!.match(/^\s*/)?.[0] ?? ''
+      return {
+        kind: 'description',
+        form: 'block',
+        value: parts.join('\n').trim(),
+        endIndex: index,
+        ...(suffix.trim() ? { suffixLine: indent + suffix.trimStart() } : {}),
+      }
+    }
+    return undefined
+  }
+
+  const title = line.match(ACC_TITLE_RE)
+  if (title) return { kind: 'title', form: 'inline', value: title[1]!.trim(), endIndex: startIndex }
+  const description = line.match(ACC_DESCR_INLINE_RE)
+  if (description) return { kind: 'description', form: 'inline', value: description[1]!.trim(), endIndex: startIndex }
+  return null
+}
+
+/**
+ * Remove valid universal directives and collect their last-authored values in
+ * one pass. Invalid/unclosed blocks and everything after them are preserved
+ * byte-for-byte for the family parser. This is the source-normalization waist:
+ * registered families receive its `familyLines` automatically and never need
+ * their own accTitle/accDescr grammar.
+ */
+export function scanAccessibilityDirectives(lines: readonly string[]): AccessibilityScan {
+  const accessibility: MermaidAccessibility = {}
+  const familyLines: string[] = []
+  let unclosedIndex: number | undefined
+
+  for (let index = 0; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) {
+      unclosedIndex = index
+      familyLines.push(...lines.slice(index))
+      break
+    }
+    if (directive === null) {
+      familyLines.push(lines[index]!)
+      continue
+    }
+    if (directive.kind === 'title') accessibility.title = directive.value
+    else accessibility.descr = directive.value
+    if (directive.suffixLine) familyLines.push(directive.suffixLine)
+    index = directive.endIndex
+  }
+
+  return {
+    accessibility,
+    familyLines,
+    ...(unclosedIndex !== undefined ? { unclosedIndex } : {}),
+  }
+}
 
 export interface AccessibilityFieldProjection {
   accessibilityTitle?: string
@@ -18,7 +131,7 @@ export interface AccessibilityObjectProjection {
 /** Project the normalized universal envelope onto the field shape used by
  * sequence/class/ER/timeline/journey/architecture/mindmap/gitgraph models. */
 export function accessibilityFields(
-  accessibility: MermaidSourceAccessibility,
+  accessibility: MermaidAccessibility,
 ): AccessibilityFieldProjection {
   return {
     ...(accessibility.title !== undefined ? { accessibilityTitle: accessibility.title } : {}),
@@ -30,7 +143,7 @@ export function accessibilityFields(
  * The original model is retained when the envelope is empty. */
 export function withAccessibilityFields<T extends object>(
   value: T,
-  accessibility: MermaidSourceAccessibility,
+  accessibility: MermaidAccessibility,
 ): T & AccessibilityFieldProjection {
   if (accessibility.title === undefined && accessibility.descr === undefined) {
     return value as T & AccessibilityFieldProjection
@@ -42,7 +155,7 @@ export function withAccessibilityFields<T extends object>(
  * XYChart and Quadrant renderer models. */
 export function withAccessibilityObject<T extends object>(
   value: T,
-  accessibility: MermaidSourceAccessibility,
+  accessibility: MermaidAccessibility,
 ): T & AccessibilityObjectProjection {
   if (accessibility.title === undefined && accessibility.descr === undefined) {
     return value as T & AccessibilityObjectProjection
@@ -54,21 +167,4 @@ export function withAccessibilityObject<T extends object>(
       ...(accessibility.descr !== undefined ? { description: accessibility.descr } : {}),
     },
   }
-}
-
-/**
- * If `lines[i]` starts an accessibility directive, return the index of its
- * LAST line (the caller's loop increment then steps past it); otherwise -1.
- * Handles single-line `accTitle:`/`accDescr:` and multi-line `accDescr {`
- * blocks terminated by a line containing `}`.
- */
-export function accessibilityDirectiveEnd(lines: readonly string[], i: number): number {
-  const line = lines[i]!.trim()
-  if (/^acc(Title|Descr)\s*:/i.test(line)) return i
-  if (/^accDescr\s*\{/i.test(line)) {
-    let end = i
-    while (end < lines.length && !lines[end]!.includes('}')) end++
-    return end
-  }
-  return -1
 }

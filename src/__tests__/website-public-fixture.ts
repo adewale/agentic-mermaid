@@ -1,5 +1,5 @@
-// Ensures the Cloudflare site bundle and generated Worker inputs exist before
-// the tests that read them.
+// Explicit fixture for tests that consume the Cloudflare site bundle and
+// generated Worker inputs.
 //
 // website/public/ and website/src/generated/ are build artifacts (gitignored,
 // rebuilt at deploy). Build them once in a separate process so coverage
@@ -14,8 +14,8 @@ import { acquireWebsiteBuildLock, computeWebsiteBuildFingerprint, runStableFinge
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT = join(ROOT, 'website', 'public')
 const GENERATED = join(ROOT, 'website', 'src', 'generated')
-const SENTINEL = join(OUT, '.preload-built')
-const LOCK = join(ROOT, '.website-preload-build.lock')
+const SENTINEL = join(OUT, '.fixture-built')
+const LOCK = join(ROOT, '.website-fixture-build.lock')
 const GENERATED_FILES = [
   'ArchitectsDaughter.ttf',
   'Caveat.ttf',
@@ -32,9 +32,10 @@ const GENERATED_FILES = [
   'resvg.wasm',
 ] as const
 
-ensureBuilt()
-
-function ensureBuilt(): void {
+/** Build website artifacts only for tests that consume them. This module is
+ * deliberately not a global Bun preload: ordinary parser/layout tests must
+ * not acquire website build ownership as a hidden startup side effect. */
+export function ensureWebsiteBuilt(): void {
   const fingerprint = buildFingerprint()
   if (readSentinel() === fingerprint) return
 
@@ -56,7 +57,7 @@ function ensureBuilt(): void {
       fingerprint: buildFingerprint,
       build() {
         const result = Bun.spawnSync(['bun', 'run', 'website/build.ts'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
-        if (result.exitCode !== 0) throw new Error('website and Worker artifact build (test preload) failed')
+        if (result.exitCode !== 0) throw new Error('website and Worker artifact fixture build failed')
       },
       reset() {
         rmSync(OUT, { recursive: true, force: true })

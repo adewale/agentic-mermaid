@@ -1,14 +1,15 @@
 # Releasing `agentic-mermaid` to npm
 
 The package is published by [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml),
-which triggers on a **published GitHub Release**. The workflow reproduces CI's
-deterministic gate (tests, dependency/palette/sketch/whole-corpus quality,
-`tsc`, browser contracts, route sabotage, `hero:check`, `website:check`,
-golden-drift, and incremental mutation), requires a successful canonical CI run
-for the exact release commit, runs the registry-derived render portfolio on
-macOS and Windows, fuzzes shipped artifacts under Node 24 and the packed
-tarball under the minimum supported Node 22, builds with `tsup`, and runs
-`npm publish --access public`. There is no manual
+which triggers on a **published GitHub Release**. The workflow requires a
+successful canonical `ci.yml` run for the exact release commit. CI owns tests,
+dependency/palette/sketch/whole-corpus quality, TypeScript and Biome checks,
+browser contracts, route sabotage, `hero:check`, `website:check`, golden drift,
+mutation, and packed-consumer fuzzing under Node 24 and the minimum supported
+Node 22. The release workflow retains the registry-derived macOS/Windows smoke,
+then owns only the publish boundary: it builds once, inspects the exact
+`npm pack --dry-run --ignore-scripts --json` file set with the publishing npm,
+and runs `npm publish --ignore-scripts --access public`. There is no manual
 `npm publish` step. After npm succeeds, a separate dependent job publishes
 [`server.json`](../../server.json) to the official MCP Registry. Keeping that
 step separate lets a failed registry publication be retried without attempting
@@ -46,9 +47,10 @@ already exists.
 
 ## Cutting a release
 
-1. **Land everything on `main` green.** Releases are cut from `main`, whose CI
-   has already run; `publish.yml` re-runs the deterministic gate + artifact fuzz
-   as a backstop.
+1. **Land everything on `main` green.** Releases are cut from `main`.
+   `publish.yml` refuses to publish unless canonical CI succeeded for that exact
+   immutable SHA; it does not duplicate the same source gates under a second
+   event with different setup and drift risk.
 2. **Bump the package and MCP server versions together.** Update `version` in
    `package.json`, `PACKAGE_VERSION` in `src/version.ts`, the top-level `version` in `server.json`, and
    `packages[0].version` in `server.json`. The readiness tests require an exact

@@ -1,5 +1,5 @@
 import type { PieChart, PieEntry } from './types.ts'
-import { accessibilityDirectiveEnd } from '../shared/accessibility-directives.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 
@@ -35,6 +35,7 @@ const NUMBER_RE = /^\+?(?:\d+(?:\.\d+)?|\.\d+)$/
  *   - an unquoted label
  */
 export function parsePieChart(lines: string[]): PieChart {
+  lines = scanAccessibilityDirectives(lines).familyLines
   if (lines.length === 0) {
     throw new Error('Pie chart is empty')
   }
@@ -66,11 +67,6 @@ export function parsePieChart(lines: string[]): PieChart {
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!.trim()
     if (line.length === 0 || line.startsWith('%%')) continue
-
-    // Mermaid-universal accessibility directives: accept and skip
-    // (sequence models them fully; pie has no aria slot to carry them yet).
-    const accEnd = accessibilityDirectiveEnd(lines, i)
-    if (accEnd !== -1) { i = accEnd; continue }
 
     // showData may also appear as a standalone directive on its own line.
     if (/^showData\s*$/i.test(line)) {

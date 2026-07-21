@@ -6,10 +6,10 @@
 // ops cover the modeled statements — title, sections, tasks — while calendar
 // directives (dateFormat, axisFormat, excludes, includes, weekend, weekday,
 // todayMarker, tickInterval, inclusiveEndDates, topAxis), click lines,
-// accTitle/accDescr, and comments ride along VERBATIM as opaque-block
-// segments in their original position. Never dropped; edited at the source
-// level only. Promoting a directive to a typed op is future work gated on the
-// scheduler being able to re-resolve it.
+// comments ride along VERBATIM as opaque-block segments in their original
+// position. Universal accTitle/accDescr are removed by the source envelope;
+// direct body-parser callers retain them as opaque blocks through the shared
+// accessibility parser.
 //
 // Whole-opaque fallback (return null) only for structure-level failures:
 // header suffix, unclosed accDescr block, or duplicate Mermaid task ids
@@ -27,14 +27,13 @@ import type {
   GanttStatement, GanttMutationOp, MutationError, Result, VerifyOptions, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
 import { parseGanttTaskMeta, renderGanttTaskMeta, GANTT_TASK_TAGS, type ParsedTaskMeta } from '../gantt/parser.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
-// Directive openers that are NEVER task lines even though they may contain `:`
-// (accTitle:/accDescr:). Everything matched here becomes an opaque segment.
-const DIRECTIVE_LINE_RE = /^(dateFormat|axisFormat|tickInterval|inclusiveEndDates|topAxis|excludes|includes|todayMarker|weekday|weekend|click|accTitle|accDescr)\b/i
-const ACC_DESCR_BLOCK_OPEN_RE = /^accDescr\s*\{\s*$/i
+// Directive openers that are NEVER task lines even though they may contain `:`.
+const DIRECTIVE_LINE_RE = /^(dateFormat|axisFormat|tickInterval|inclusiveEndDates|topAxis|excludes|includes|todayMarker|weekday|weekend|click)\b/i
 const TITLE_RE = /^title\s+(.+)$/i
 const SECTION_RE = /^section\s+(.+)$/i
 const TASK_ID_RE = /^[\w-]+$/
@@ -76,20 +75,11 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
       continue
     }
 
-    if (ACC_DESCR_BLOCK_OPEN_RE.test(line)) {
-      // Capture the whole block verbatim; inner lines may contain `:` and must
-      // not be misread as tasks. Unclosed block → whole-opaque fallback.
-      const blockLines: string[] = [rawLine]
-      i++
-      let closed = false
-      while (i < raw.length) {
-        const inner = raw[i]!
-        blockLines.push(inner)
-        i++
-        if (/^\}\s*$/.test(inner.trim())) { closed = true; break }
-      }
-      if (!closed) return null
-      appendOpaqueSegment(statements, blockLines, ganttOpaqueBlock)
+    const accessibility = parseAccessibilityDirective(raw, i)
+    if (accessibility === undefined) return null
+    if (accessibility !== null) {
+      appendOpaqueSegment(statements, raw.slice(i, accessibility.endIndex + 1), ganttOpaqueBlock)
+      i = accessibility.endIndex + 1
       continue
     }
 
@@ -233,15 +223,10 @@ function deriveStatements(b: GanttBody): GanttStatement[] {
 }
 
 function makeIdAllocator(body: GanttBody, prefix: 'section' | 'task'): () => string {
-  const seen = new Set<string>()
-  for (const s of body.sections) { seen.add(s.id); for (const t of s.tasks) seen.add(t.id) }
-  return () => {
-    let n = 0
-    while (seen.has(`${prefix}-${n}`)) n++
-    const id = `${prefix}-${n}`
-    seen.add(id)
-    return id
-  }
+  return indexedIdAllocator(
+    body.sections.flatMap(section => [section.id, ...section.tasks.map(task => task.id)]),
+    prefix,
+  )
 }
 
 // Correctness by construction: render the candidate task to its canonical
@@ -741,10 +726,7 @@ export function verifyGantt(body: GanttBody, opts: VerifyOptions): LayoutWarning
     return [{ code: 'EMPTY_DIAGRAM' }]
   }
 
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts, cap)
   if (body.title !== undefined) overflow('title', body.title)
   for (const s of body.sections) {
     if (s.label !== undefined) overflow(s.id, s.label)

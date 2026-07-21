@@ -1,7 +1,7 @@
 [test]
 # Determinism: pin the fast-check global seed for every property suite
 # (AM_FC_SEED=random rolls fresh seeds; see docs/testing-strategy.md).
-preload = ["./src/__tests__/fc-seed.preload.ts", "./src/__tests__/website-public.preload.ts"]
+preload = ["./src/__tests__/fc-seed.preload.ts"]
 coverage = true
 # lcov only: the text reporter's giant padded table intermittently kills
 # bun's stdout writer (`error: An internal error occurred (WriteFailed)`,

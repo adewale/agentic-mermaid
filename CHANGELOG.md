@@ -4,6 +4,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+- Consolidated Mermaid-universal `accTitle`/`accDescr` parsing at source normalization. Every registered family, including future extensions, now receives directive-free grammar lines and the same accessibility metadata automatically; existing renderer and structured-agent parsers use that shared grammar rather than family-local scanners.
+- Made build ownership explicit: `typecheck` now runs only TypeScript, website-consuming tests opt into their fixture build, and the global website preload plus the `site`/`site:check` aliases were removed.
+- Consolidated repeated agent-body indexed-ID allocation and label-overflow collection behind shared utilities.
+- Reduced the release workflow to exact-SHA CI attestation, cross-platform smoke, and the unique publish boundary. The publishing npm now verifies the exact dry-run package manifest before an `--ignore-scripts` publish, eliminating a second copy of CI and a redundant lifecycle rebuild.
+
 ## 0.1.2 — 2026-07-21
 
 ### Fixed

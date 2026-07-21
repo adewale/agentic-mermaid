@@ -18,6 +18,9 @@ import {
   validateWebsiteInterSubsetManifest,
   type WebsiteInterSubsetManifest,
 } from '../../scripts/site/website-font-subsets.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PUBLIC = join(ROOT, 'website', 'public')
@@ -76,7 +79,7 @@ describe('canonical website Inter subsets', () => {
       .toEqual(manifest.outputs.map(output => output.file).sort())
   })
 
-  test('clears both compressed-route stop gates without changing the blank editor', () => {
+  test('clears both compressed-route stop gates while retaining the full-font blank editor', () => {
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },

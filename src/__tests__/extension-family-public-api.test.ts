@@ -189,6 +189,39 @@ describe('registered family public layout and verify APIs', () => {
     }
   })
 
+  test('gives newly registered families directive-free grammar and shared accessibility metadata', () => {
+    const base = extensionDescriptor('shared-accessibility', 'sharedAccessibilityDiagram')
+    let observed: { lines: readonly string[]; accessibility: unknown } | undefined
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: context => {
+        observed = { lines: [...context.lines], accessibility: context.meta.accessibility }
+        return ok({ kind: 'extension', family: base.id as ExternalFamilyId, source: context.opaqueSource })
+      },
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      observed = undefined
+      const parsed = parseRegisteredMermaid(`sharedAccessibilityDiagram
+  accTitle Shared title
+  accDescr {
+    Shared description
+  }
+  family payload`)
+      expect(parsed.ok).toBe(true)
+      expect(observed as { lines: readonly string[]; accessibility: unknown } | undefined).toEqual({
+        lines: ['sharedAccessibilityDiagram', 'family payload'],
+        accessibility: { title: 'Shared title', descr: 'Shared description' },
+      })
+    } finally {
+      unregister()
+    }
+  })
+
   test('publishes an admitted, deeply immutable snapshot of extension parse data', () => {
     const base = extensionDescriptor('parse-data-snapshot', 'parseDataSnapshotDiagram')
     const owned = {

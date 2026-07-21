@@ -1,4 +1,6 @@
 // ============================================================================
+
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 // Journey parse core — the single grammar shared by the renderer parser
 // (src/journey/parser.ts), the structured agent parser
 // (src/agent/journey-body.ts), and the opaque-verify scan
@@ -25,8 +27,6 @@ export const JOURNEY_TITLE_RE = /^title\s+(.+)$/i
 export const JOURNEY_SECTION_RE = /^section\s+(.+)$/i
 export const JOURNEY_TASK_RE = /^([^:]+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/
 const TASK_LIKE_RE = /^([^:]+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/
-const ACC_LINE_RE = (directive: 'accTitle' | 'accDescr') => new RegExp(`^${directive}\\s*:[ \\t]*(.+)$`, 'i')
-const ACC_DESCR_BLOCK_START_RE = /^accDescr\s*:?\s*\{\s*(.*)$/i
 
 /** Inline markup normalization shared by every Journey text surface. */
 export function normalizeJourneyLabel(label: string): string {
@@ -103,10 +103,8 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
 
     // Block-form accessibility spans lines, so it is classified before the
     // `;`-statement split; block interiors are free text.
-    const accDescrStart = line.match(ACC_DESCR_BLOCK_START_RE)
-    if (accDescrStart) {
-      const collected = collectJourneyAccessibilityBlock(accDescrStart[1] ?? '', lines, i)
-      if (!collected) {
+    const accessibility = parseAccessibilityDirective(lines, i)
+    if (accessibility === undefined) {
         const outcome = events.issue?.({
           code: 'unclosed_accdescr',
           lineIndex: i,
@@ -115,11 +113,12 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
         })
         if (outcome === 'stop') return
         return // the unterminated block consumes the rest of the source
-      }
-      events.accDescr?.(normalizeJourneyText(collected.text), i)
-      i = collected.nextIndex
-      for (const statement of splitJourneyStatements(collected.suffix)) {
-        const outcome = classifyStatement(statement, collected.nextIndex, events)
+    }
+    if (accessibility?.form === 'block') {
+      events.accDescr?.(normalizeJourneyText(accessibility.value), i)
+      i = accessibility.endIndex
+      for (const statement of splitJourneyStatements(accessibility.suffixLine ?? '')) {
+        const outcome = classifyStatement(statement, accessibility.endIndex, events)
         if (outcome === 'stop') return
       }
       continue
@@ -136,15 +135,11 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
   const issue = (code: JourneyIssueCode, detail: string): void | 'stop' =>
     events.issue?.({ code, lineIndex, statement, detail })
 
-  const accTitle = matchAccessibilityLine(statement, 'accTitle')
-  if (accTitle !== undefined) {
-    events.accTitle?.(accTitle, lineIndex)
-    return
-  }
-
-  const accDescr = matchAccessibilityLine(statement, 'accDescr')
-  if (accDescr !== undefined) {
-    events.accDescr?.(accDescr, lineIndex)
+  const accessibility = parseAccessibilityDirective([statement], 0)
+  if (accessibility) {
+    const text = normalizeJourneyText(accessibility.value)
+    if (accessibility.kind === 'title') events.accTitle?.(text, lineIndex)
+    else events.accDescr?.(text, lineIndex)
     return
   }
 
@@ -229,44 +224,4 @@ function splitJourneyStatements(line: string): string[] {
   }
   parts.push(line.slice(start))
   return parts.map(part => part.trim()).filter(part => part && !isJourneyComment(part))
-}
-
-function matchAccessibilityLine(line: string, directive: 'accTitle' | 'accDescr'): string | undefined {
-  const match = line.match(ACC_LINE_RE(directive))
-  return match ? normalizeJourneyText(match[1]!) : undefined
-}
-
-/** Returns null when the block never closes. */
-export function collectJourneyAccessibilityBlock(
-  initial: string,
-  lines: string[],
-  startIndex: number,
-): { text: string; nextIndex: number; suffix: string } | null {
-  const initialEnd = initial.indexOf('}')
-  if (initialEnd !== -1) {
-    return {
-      text: initial.slice(0, initialEnd).trim(),
-      nextIndex: startIndex,
-      suffix: initial.slice(initialEnd + 1).trim(),
-    }
-  }
-
-  const parts = [initial.trim()].filter(Boolean)
-
-  for (let i = startIndex + 1; i < lines.length; i++) {
-    const line = lines[i]!
-    const end = line.indexOf('}')
-    if (end !== -1) {
-      const beforeBrace = line.slice(0, end).trim()
-      if (beforeBrace) parts.push(beforeBrace)
-      return {
-        text: parts.join('\n'),
-        nextIndex: i,
-        suffix: line.slice(end + 1).trim(),
-      }
-    }
-    parts.push(line)
-  }
-
-  return null
 }

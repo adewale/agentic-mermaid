@@ -28,6 +28,7 @@ import type {
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -99,9 +100,12 @@ export function parseArchitectureBody(
   lines: string[],
   accessibility: import('./types.ts').Accessibility = {},
 ): ArchitectureBody | null {
+  const scanned = scanAccessibilityDirectives(lines)
+  if (scanned.unclosedIndex !== undefined) return null
+  lines = scanned.familyLines
   let title: string | undefined
-  let accessibilityTitle = accessibility.title
-  let accessibilityDescription = accessibility.descr
+  const accessibilityTitle = scanned.accessibility.title ?? accessibility.title
+  const accessibilityDescription = scanned.accessibility.descr ?? accessibility.descr
   const groups: ArchitectureGroup[] = []
   const services: ArchitectureService[] = []
   const junctions: ArchitectureJunction[] = []
@@ -122,46 +126,6 @@ export function parseArchitectureBody(
       if (title !== undefined) return null
       title = normalizeText(titleMatch[1]!)
       if (!title) return null
-      continue
-    }
-
-    const accessibilityTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
-    if (accessibilityTitleMatch) {
-      accessibilityTitle = normalizeText(accessibilityTitleMatch[1]!)
-      if (!accessibilityTitle) return null
-      continue
-    }
-
-    const accessibilityDescriptionMatch = line.match(/^accDescr\s*:\s*(?!\{)(.+)$/i)
-    if (accessibilityDescriptionMatch) {
-      accessibilityDescription = normalizeText(accessibilityDescriptionMatch[1]!)
-      if (!accessibilityDescription) return null
-      continue
-    }
-
-    const accessibilityDescriptionBlock = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
-    if (accessibilityDescriptionBlock) {
-      const blockLines: string[] = []
-      let remainder = accessibilityDescriptionBlock[1]!
-      let closed = false
-      if (remainder.includes('}')) {
-        blockLines.push(remainder.slice(0, remainder.indexOf('}')).trim())
-        closed = true
-      } else {
-        if (remainder.trim()) blockLines.push(remainder.trim())
-        while (++lineIndex < lines.length) {
-          const blockLine = lines[lineIndex]!
-          if (blockLine.includes('}')) {
-            const before = blockLine.slice(0, blockLine.indexOf('}')).trim()
-            if (before) blockLines.push(before)
-            closed = true
-            break
-          }
-          blockLines.push(blockLine.trim())
-        }
-      }
-      if (!closed) return null
-      accessibilityDescription = blockLines.filter(Boolean).join('\n')
       continue
     }
 

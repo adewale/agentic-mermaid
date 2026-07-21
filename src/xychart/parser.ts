@@ -12,6 +12,7 @@ import type {
   XYChartSeries,
   XYChartTheme,
 } from './types.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ============================================================================
 // XY Chart parser
@@ -35,13 +36,12 @@ import type {
  * Lines should already be trimmed and comment-stripped.
  */
 export function parseXYChart(lines: string[]): XYChart {
+  const accessibility = scanAccessibilityDirectives(lines)
   const xAxis: XYAxis = {}
   const yAxis: XYAxis = {}
   const series: XYChartSeries[] = []
-  const statements = expandXYChartStatements(lines)
+  const statements = expandXYChartStatements(accessibility.familyLines)
   let title: string | undefined
-  let accTitle: string | undefined
-  let accDescription: string | undefined
   let horizontal = false
   let headerOrientation: 'vertical' | 'horizontal' | undefined
 
@@ -57,30 +57,6 @@ export function parseXYChart(lines: string[]): XYChart {
         horizontal = false
         headerOrientation = 'vertical'
       }
-      continue
-    }
-
-    const accTitleMatch = line.match(/^accTitle\s*:?\s*(.+)$/i)
-    if (accTitleMatch) {
-      accTitle = parseDirectiveText(accTitleMatch[1]!)
-      continue
-    }
-
-    const accDescrBlockMatch = line.match(/^accDescr\s*:?\s*\{\s*$/i)
-    if (accDescrBlockMatch) {
-      const block: string[] = []
-      for (index += 1; index < statements.length; index++) {
-        const blockLine = statements[index]!
-        if (blockLine === '}') break
-        block.push(blockLine)
-      }
-      accDescription = block.join('\n').trim() || undefined
-      continue
-    }
-
-    const accDescrMatch = line.match(/^accDescr\s*:?\s*(.+)$/i)
-    if (accDescrMatch) {
-      accDescription = parseDirectiveText(accDescrMatch[1]!)
       continue
     }
 
@@ -151,7 +127,10 @@ export function parseXYChart(lines: string[]): XYChart {
 
   return {
     title,
-    accessibility: accTitle || accDescription ? { title: accTitle, description: accDescription } : undefined,
+    accessibility: accessibility.accessibility.title || accessibility.accessibility.descr ? {
+      title: accessibility.accessibility.title,
+      description: accessibility.accessibility.descr,
+    } : undefined,
     horizontal,
     headerOrientation,
     xAxis,
@@ -460,23 +439,13 @@ function getString(root: MermaidFrontmatterMap, path: readonly string[]): string
 
 function expandXYChartStatements(lines: string[]): string[] {
   const statements: string[] = []
-  let inAccDescrBlock = false
 
   for (const rawLine of lines) {
     const line = rawLine.trim()
     if (!line) continue
 
-    if (inAccDescrBlock) {
-      statements.push(line)
-      if (line === '}') inAccDescrBlock = false
-      continue
-    }
-
     const parts = splitSemicolonStatements(line)
-    for (const part of parts) {
-      statements.push(part)
-      if (/^accDescr\s*:?\s*\{\s*$/i.test(part)) inAccDescrBlock = true
-    }
+    statements.push(...parts)
   }
 
   return statements

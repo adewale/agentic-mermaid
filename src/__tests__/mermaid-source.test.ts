@@ -61,6 +61,32 @@ bar [1]`)
 })
 
 describe('normalizeMermaidSource', () => {
+  it('owns universal accessibility grammar and preserves family suffixes', () => {
+    const normalized = normalizeMermaidSource(`flowchart TD
+  accTitle Accessible graph
+  accDescr: {
+    First line
+    Second line
+  } A --> B`)
+
+    expect(normalized.accessibility).toEqual({
+      title: 'Accessible graph',
+      descr: 'First line\nSecond line',
+    })
+    expect(normalized.familyLines).toEqual(['flowchart TD', 'A --> B'])
+  })
+
+  it('leaves an unclosed accessibility block visible to family error handling', () => {
+    const normalized = normalizeMermaidSource(`journey
+  accDescr {
+    never closed
+  Task: 3: Me`)
+
+    expect(normalized.accessibility).toEqual({})
+    expect(normalized.familyBody).toContain('accDescr {')
+    expect(normalized.familyBody).toContain('Task: 3: Me')
+  })
+
   it('merges base config with parsed frontmatter and directive overrides', () => {
     const normalized = normalizeMermaidSource(`---
 theme: neutral

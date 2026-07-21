@@ -7,6 +7,9 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { computeDeployVersion } from '../../website/src/deploy-hash.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const bytes = (s: string) => new TextEncoder().encode(s)
 

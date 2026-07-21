@@ -445,9 +445,9 @@ const RADAR_RENDER_HOOKS = {
     familyConfig: { visual: resolveRadarVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutRadarChart(
-    parseRadarChart(ctx.source.lines, {
+    withAccessibilityObject(parseRadarChart(ctx.source.familyLines, {
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
-    }),
+    }), ctx.source.accessibility),
     ctx.renderOptions,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolveRadarVisualConfig> } | undefined)?.visual
       ?? resolveRadarVisualConfig(ctx.source.frontmatter),
@@ -455,7 +455,7 @@ const RADAR_RENDER_HOOKS = {
   ), { injectAccessibility: false }),
   projectPositioned: positionedView(projectRadarPositioned),
   lowerScene: scene(lowerRadarScene),
-  renderAscii: ctx => renderRadarAscii(ctx.source.lines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, ctx.styleFace),
+  renderAscii: ctx => renderRadarAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, ctx.styleFace),
 } satisfies BuiltinRenderHooks
 
 const GANTT_RENDER_HOOKS = {

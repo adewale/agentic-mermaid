@@ -19,6 +19,7 @@ import type {
 import { GanttError } from './types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 export const GANTT_TASK_TAGS: readonly GanttTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert']
 
@@ -109,9 +110,6 @@ const DIRECTIVE_RES = {
   weekend: /^weekend\s+(.+)$/i,
   section: /^section\s+(.+)$/i,
   click: /^click\s+([\w-]+)\s+(href|call)\s+(.+)$/i,
-  accTitle: /^accTitle\s*:\s*(.+)$/i,
-  accDescrInline: /^accDescr\s*:\s*(.+)$/i,
-  accDescrBlock: /^accDescr\s*\{\s*$/i,
 } as const
 
 /**
@@ -120,6 +118,11 @@ const DIRECTIVE_RES = {
  * construct. Lines is the normalized list, so `lineNo` refers to it.
  */
 export function parseGanttModel(lines: string[]): GanttModel {
+  const accessibility = scanAccessibilityDirectives(lines)
+  if (accessibility.unclosedIndex !== undefined) {
+    throw new GanttError('GANTT_BAD_DIRECTIVE', 'Unclosed accDescr block', accessibility.unclosedIndex + 1)
+  }
+  lines = accessibility.familyLines
   const header = (lines[0] ?? '').trim()
   if (!/^gantt\s*$/i.test(header)) {
     throw new GanttError('GANTT_BAD_DIRECTIVE', `Expected "gantt" header, got "${header}"`, 1)
@@ -136,26 +139,18 @@ export function parseGanttModel(lines: string[]): GanttModel {
     sections: [{ taskIndexes: [] }],
     tasks: [],
     clicks: [],
+    ...(accessibility.accessibility.title !== undefined ? { accTitle: accessibility.accessibility.title } : {}),
+    ...(accessibility.accessibility.descr !== undefined
+      ? { accDescr: accessibility.accessibility.descr.replace(/\s*\n\s*/g, ' ') }
+      : {}),
   }
   const seenIds = new Set<string>()
   let currentSection = 0
-  let inAccDescr = false
-  const accDescrBuf: string[] = []
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!.trim()
     const lineNo = i + 1
     if (!line || line.startsWith('%%')) continue
-
-    if (inAccDescr) {
-      if (/^\}\s*$/.test(line)) {
-        model.accDescr = accDescrBuf.join(' ').trim()
-        inAccDescr = false
-      } else {
-        accDescrBuf.push(line)
-      }
-      continue
-    }
 
     let m: RegExpMatchArray | null
 
@@ -208,9 +203,6 @@ export function parseGanttModel(lines: string[]): GanttModel {
       model.clicks.push({ taskId: m[1]!, action: m[2]!.toLowerCase() as 'href' | 'call', rest: m[3]!.trim(), line: lineNo })
       continue
     }
-    if ((m = line.match(DIRECTIVE_RES.accTitle))) { model.accTitle = m[1]!.trim(); continue }
-    if (DIRECTIVE_RES.accDescrBlock.test(line)) { inAccDescr = true; continue }
-    if ((m = line.match(DIRECTIVE_RES.accDescrInline))) { model.accDescr = m[1]!.trim(); continue }
     if ((m = line.match(DIRECTIVE_RES.section))) {
       model.sections.push({ label: m[1]!.trim(), taskIndexes: [], line: lineNo })
       currentSection = model.sections.length - 1
@@ -250,7 +242,6 @@ export function parseGanttModel(lines: string[]): GanttModel {
     throw new GanttError('GANTT_BAD_DIRECTIVE', `Unrecognized gantt line "${line}"`, lineNo)
   }
 
-  if (inAccDescr) throw new GanttError('GANTT_BAD_DIRECTIVE', 'Unclosed accDescr block')
   return model
 }
 

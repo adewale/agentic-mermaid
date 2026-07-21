@@ -18,6 +18,9 @@ import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
@@ -463,12 +466,14 @@ describe('Workers Static Assets website contract', () => {
       const text = readRepo(rel)
       expect({ rel, hasMockupDependency: /mockups\/(?:site-gen|home\.html)|join\([^\n]*['"]mockups['"]|\bMOCKUPS\b|readMock\b|copyMockFile\b/.test(text) }).toEqual({ rel, hasMockupDependency: false })
     }
-    expect(readRepo('package.json')).toContain('"site:check": "bun run website:check"')
-    const preload = readRepo('src/__tests__/website-public.preload.ts')
+    expect(readRepo('package.json')).not.toContain('"site"')
+    expect(readRepo('package.json')).not.toContain('"site:check"')
+    const preload = readRepo('src/__tests__/website-public-fixture.ts')
     expect(preload).toContain('computeWebsiteBuildFingerprint')
     expect(preload).not.toContain("'--public-only'")
     expect(preload).toContain('GENERATED_FILES')
     expect(preload).toContain("'deploy-version.ts'")
+    expect(readRepo('bunfig.toml')).not.toContain('website-public-fixture.ts')
     for (const rel of ['website', 'editor', 'scripts/site', 'scripts/docs', 'shared', 'docs/schemas/style-spec.schema.json', 'docs/assets/style-cookbook', 'examples/styles', 'skills/agentic-mermaid-diagram-workflow', 'Instructions_for_agents.md']) {
       expect(WEBSITE_BUILD_FINGERPRINT_PATHS as readonly string[]).toContain(rel)
     }

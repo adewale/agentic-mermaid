@@ -5,6 +5,9 @@ import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
 import { QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -43,7 +46,7 @@ function expectAbsoluteHttps(url: unknown) {
 }
 
 describe('agent-readiness standards syntax', () => {
-  test('local, CI, and release gates share one bounded covered-suite command', () => {
+  test('local and CI own source gates while release owns exact-SHA attestation and packing', () => {
     const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     const ciWorkflow = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
     const publishWorkflow = readFileSync(join(REPO, '.github/workflows/publish.yml'), 'utf8')
@@ -110,7 +113,7 @@ describe('agent-readiness standards syntax', () => {
       'bun run lint',
       'bun run audit:dependencies',
     ]))
-    expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
+    expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm) ?? []).toHaveLength(0)
     expect(publish.jobs.publish.needs).toBe('platform-smoke')
     expect(publish.jobs['platform-smoke'].strategy.matrix.os).toEqual(['macos-latest', 'windows-latest'])
     expect(publish.jobs['platform-smoke'].steps.find((step: any) => step.name === 'Run registry-derived cross-platform rendering contracts')?.run)
@@ -120,23 +123,20 @@ describe('agent-readiness standards syntax', () => {
     expect(publish.permissions.actions).toBe('read')
     expect(publishSteps.find((step: any) => step.name === 'Require successful canonical CI for the exact release commit')?.run)
       .toContain('actions/workflows/ci.yml/runs')
-    expect(publishSteps.find((step: any) => step.name === 'Pack, install, and fuzz the tarball under Node 22')?.run)
-      .toContain('tarball-consumer-fuzz.e2e.test.ts')
-    expect(publishSteps.find((step: any) => step.name === 'Setup minimum supported Node.js consumer runtime')?.with?.['node-version'])
-      .toBe('22')
+    expect(publishSteps.find((step: any) => step.name === 'Verify exports, bins, and package contents with publishing npm')?.run)
+      .toBe('bun run scripts/ci/verify-publish-package.ts')
     expect(publishSteps.find((step: any) => step.name === 'Refuse an already-published immutable npm version')?.run)
       .toContain('npm view "agentic-mermaid@$version" version')
-    expect(publishSteps.find((step: any) => step.name === 'Reject new high or critical dependency advisories')?.run)
-      .toBe('bun run audit:dependencies')
-    expect(publishSteps.find((step: any) => step.name === 'Run sketch and whole-corpus layout quality gates')?.run)
-      .toContain('bun run audit:ugly')
-    expect(publishSteps.find((step: any) => step.name === 'Run canonical browser contracts')?.run)
-      .toBe('bun run test:browser')
-    expect(publishSteps.find((step: any) => step.name === 'Lint TypeScript and repository contracts')?.run)
-      .toBe('bun run lint')
+    for (const duplicate of [
+      'Reject new high or critical dependency advisories',
+      'Run sketch and whole-corpus layout quality gates',
+      'Run canonical browser contracts',
+      'Lint TypeScript and repository contracts',
+      'Prove focused route regressions fail',
+    ]) expect(publishSteps.find((step: any) => step.name === duplicate)).toBeUndefined()
     expect(publishSteps.find((step: any) => /human review/i.test(step.name ?? ''))).toBeUndefined()
-    expect(publishSteps.find((step: any) => step.name === 'Prove focused route regressions fail')?.run)
-      .toBe('bun run sabotage:routes')
+    expect(publishSteps.find((step: any) => step.name === 'Publish to npm (OIDC trusted publishing)')?.run)
+      .toBe('npm publish --ignore-scripts --access public')
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')
     expect(agentGuide).toContain('`bun run test`')

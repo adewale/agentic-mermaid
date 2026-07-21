@@ -38,8 +38,8 @@ import type {
   QuadrantBody, QuadrantAxis, QuadrantMutationOp, QuadrantPointStyle,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { renderPointStyleEntries } from '../quadrant/point-style.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
@@ -302,12 +302,8 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyQuadrant(body: QuadrantBody, opts: VerifyOptions): LayoutWarning[] {
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   // A quadrant chart with no axes, no quadrant labels, and no points renders as
   // an empty grid — flag it as empty, mirroring the other families' floor.
   const empty = body.title === undefined && !body.xAxis && !body.yAxis &&

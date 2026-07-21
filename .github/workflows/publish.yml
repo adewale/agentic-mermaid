@@ -121,92 +121,25 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Reject new high or critical dependency advisories
-        run: bun run audit:dependencies
-
-      # --- Release gate: mirror ci.yml's deterministic test and quality jobs so a tagged
-      # release cannot publish a commit that would fail CI.
-      # Runs before the test step, whose preload overwrites the committed worker
-      # inputs this check pins.
-      - name: Check the committed website worker inputs are current
-        run: bun run website:check
-
-      - name: Check controlled palette evidence and deterministic performance
-        run: |
-          bun run gallery:palette-rollout:check
-          bun run gallery:palette-harmony:check
-          bun run benchmark:palette:check
-
-      - name: Run sketch and whole-corpus layout quality gates
-        run: |
-          bun run sketch:check
-          bun run audit:ugly
-
-      - name: Run tests
-        # Use the same bounded covered suite as CI; a release must not have a
-        # weaker timeout or omit the under-tested-code finder.
-        run: bun run test
-
-      - name: Type check
-        run: bun run typecheck
-
-      - name: Lint TypeScript and repository contracts
-        run: bun run lint
-
-      - name: Install Chromium for browser contracts
-        run: bunx playwright install chromium --with-deps
-
-      - name: Run canonical browser contracts
-        run: bun run test:browser
-
-      - name: Check README hero image is current with the renderer
-        run: bun run hero:check
-
-      - name: Golden snapshot drift gate
-        run: bun run scripts/ci/golden-drift.ts
-
-      - name: Incremental mutation lane (faithfulness counter)
-        run: bun run mutation-test -- incremental
-
-      - name: Prove focused route regressions fail
-        run: bun run sabotage:routes
-
-      - name: Audit the canonical 2,800-case degenerate-route corpus
-        run: bun run eval:degenerate-routes
-
-      - name: Fuzz the shipped artifact (built bundle + packed tarball, under Node 24)
-        # The strongest pre-publish signal: builds dist/, compiles the standalone
-        # binary, and packs+installs the tarball, then drives the library + bins
-        # under plain Node. Validates the exact files[]/exports/bin a release
-        # commit may have changed.
-        run: cd e2e && bun test cli-smoke.e2e.test.ts dist-artifact-fuzz.e2e.test.ts single-binary.e2e.test.ts tarball-consumer-fuzz.e2e.test.ts --timeout 600000
-
-      - name: Setup minimum supported Node.js consumer runtime
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-
-      - name: Pack, install, and fuzz the tarball under Node 22
-        run: cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000
-
-      - name: Restore trusted-publishing Node.js runtime
-        uses: actions/setup-node@v7
-        with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Verify pinned npm publisher survived the runtime switch
-        run: test "$(npm --version)" = "11.18.0"
-
-      - name: Build distributable
+      # Canonical CI already proved this exact immutable SHA across unit,
+      # browser, mutation, sabotage, Biome, and Node 22/24 packed-consumer lanes.
+      # Release owns only the boundary CI cannot prove: the exact tree packed
+      # by the pinned publishing npm plus the OIDC registry transaction.
+      - name: Build the exact publish tree
         run: bun run build
+
+      - name: Verify exports, bins, and package contents with publishing npm
+        run: bun run scripts/ci/verify-publish-package.ts
 
       - name: Publish to npm (OIDC trusted publishing)
         # No NODE_AUTH_TOKEN: auth is via the OIDC id-token minted above, so the
         # trusted publisher must be configured on npmjs.com first (see
         # docs/contributing/releasing.md). Provenance is generated automatically
         # under trusted publishing — no `--provenance` flag needed.
-        run: npm publish --access public
+        # Build and pack verification already ran explicitly. Disable lifecycle
+        # scripts so npm publishes that same inspected tree rather than running
+        # prepublishOnly and rebuilding it a second time.
+        run: npm publish --ignore-scripts --access public
 
   publish-mcp:
     # Keep registry publication in a retryable job. If it fails after npm has

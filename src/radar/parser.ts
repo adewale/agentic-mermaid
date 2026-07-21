@@ -1,6 +1,7 @@
 import type { RadarChart, RadarAxis, RadarCurve } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ============================================================================
 // Radar chart parser
@@ -18,9 +19,6 @@ export const MAX_RADAR_AXES = 256
 
 const HEADER_RE = /^radar-beta(?:[\t ]*:)?(?=$|\s)/i
 const TITLE_RE = /^title(?:[\t ]+(.*))?$/i
-const ACC_TITLE_RE = /^accTitle[\t ]*:[\t ]*(.*)$/i
-const ACC_DESCR_RE = /^accDescr[\t ]*:[\t ]*(.*)$/i
-const ACC_DESCR_BLOCK_RE = /^accDescr\s*:?\s*\{/i
 const AXIS_RE = /^axis\s+(.+)$/i
 const CURVE_RE = /^curve\s+([\s\S]+)$/i
 const OPTION_RE = /^(showLegend|ticks|max|min|graticule)\b(.*)$/i
@@ -303,14 +301,21 @@ function parseCurveItem(item: string, axes: RadarAxis[]): RadarCurve {
 
 /** Parse Mermaid radar source after wrapper normalization/comment extraction. */
 export function parseRadarChart(lines: string[], options: RadarParseOptions = {}): RadarChart {
-  const source = stripComments(lines.join('\n')).trimStart()
+  // Radar has an unusually broad inline-comment token. Apply that family
+  // rule first, then let the universal scanner own accessibility grammar.
+  const scanned = scanAccessibilityDirectives(stripComments(lines.join('\n')).split(/\r?\n/))
+  if (scanned.unclosedIndex !== undefined) throw new Error('Radar accDescr block is missing a closing "}"')
+  const source = scanned.familyLines.join('\n').trimStart()
   if (!source) throw new Error('Radar chart is empty')
   const header = source.match(HEADER_RE)
   if (!header) throw new Error(`Radar chart must start with "radar-beta", got: "${source.split(/\r?\n/, 1)[0]}"`)
   const statements = bodyStatements(source.slice(header[0].length))
 
   let title = options.title
-  const accessibility: NonNullable<RadarChart['accessibility']> = {}
+  const accessibility: NonNullable<RadarChart['accessibility']> = {
+    ...(scanned.accessibility.title !== undefined ? { title: normalizeBrTags(scanned.accessibility.title) } : {}),
+    ...(scanned.accessibility.descr !== undefined ? { description: normalizeBrTags(scanned.accessibility.descr) } : {}),
+  }
   const axes: RadarAxis[] = []
   const pendingCurves: string[] = []
   let min = 0
@@ -323,16 +328,13 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
     const line = statements[i]!
     let match: RegExpMatchArray | null
 
-    if ((match = line.match(ACC_TITLE_RE))) { accessibility.title = normalizeBrTags(match[1]!.trim()); continue }
-    if (ACC_DESCR_BLOCK_RE.test(line)) {
-      const open = line.indexOf('{')
-      const close = line.lastIndexOf('}')
-      if (open < 0 || close <= open) throw new Error('Radar accDescr block is missing a closing "}"')
-      if (line.slice(close + 1).trim()) throw new Error(`Unrecognized text after radar accDescr block: "${line.slice(close + 1).trim()}"`)
-      accessibility.description = normalizeBrTags(line.slice(open + 1, close).trim().split('\n').map(part => part.trim()).filter(Boolean).join('\n'))
+    const accessibilityDirective = parseAccessibilityDirective([line], 0)
+    if (accessibilityDirective === undefined) throw new Error('Radar accDescr block is missing a closing "}"')
+    if (accessibilityDirective !== null) {
+      if (accessibilityDirective.kind === 'title') accessibility.title = normalizeBrTags(accessibilityDirective.value)
+      else accessibility.description = normalizeBrTags(accessibilityDirective.value)
       continue
     }
-    if ((match = line.match(ACC_DESCR_RE))) { accessibility.description = normalizeBrTags(match[1]!.trim()); continue }
     if ((match = line.match(TITLE_RE))) { title = normalizeBrTags((match[1] ?? '').trim()); continue }
     if ((match = line.match(AXIS_RE))) {
       for (const item of splitTopLevel(match[1]!, 'axis list')) {

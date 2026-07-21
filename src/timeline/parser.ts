@@ -2,11 +2,8 @@ import type { TimelineDiagram, TimelineSection, TimelinePeriod, TimelineEvent } 
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
-import { accessibilityFields } from '../shared/accessibility-directives.ts'
+import { accessibilityFields, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import {
-  TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE,
-  TIMELINE_ACCESSIBILITY_DESCRIPTION_RE,
-  TIMELINE_ACCESSIBILITY_TITLE_RE,
   TIMELINE_CONTINUATION_RE,
   TIMELINE_HEADER_DIRECTION_RE,
   TIMELINE_PERIOD_RE,
@@ -42,7 +39,12 @@ export function parseTimelineDiagram(
   lines: string[],
   accessibility: MermaidSourceAccessibility = {},
 ): TimelineDiagram {
-  const diagram: TimelineDiagram = { sections: [], ...accessibilityFields(accessibility) }
+  const scanned = scanAccessibilityDirectives(lines)
+  lines = scanned.familyLines
+  const diagram: TimelineDiagram = {
+    sections: [],
+    ...accessibilityFields({ ...accessibility, ...scanned.accessibility }),
+  }
 
   const headerDirection = lines[0]?.trim().match(TIMELINE_HEADER_DIRECTION_RE)
   if (headerDirection) {
@@ -87,39 +89,6 @@ export function parseTimelineDiagram(
     const titleMatch = line.match(TIMELINE_TITLE_RE)
     if (titleMatch) {
       diagram.title = normalizeBrTags(titleMatch[1]!.trim())
-      continue
-    }
-
-    const accTitleMatch = line.match(TIMELINE_ACCESSIBILITY_TITLE_RE)
-    if (accTitleMatch) {
-      diagram.accessibilityTitle = normalizeBrTags(accTitleMatch[1]!.trim())
-      continue
-    }
-
-    const accDescrMatch = line.match(TIMELINE_ACCESSIBILITY_DESCRIPTION_RE)
-    if (accDescrMatch) {
-      diagram.accessibilityDescription = normalizeBrTags(accDescrMatch[1]!.trim())
-      continue
-    }
-
-    if (TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE.test(line)) {
-      const descriptionLines: string[] = []
-      let foundClosingBrace = false
-
-      while (++i < lines.length) {
-        const blockLine = lines[i]!
-        if (blockLine === '}') {
-          foundClosingBrace = true
-          break
-        }
-        descriptionLines.push(blockLine)
-      }
-
-      if (!foundClosingBrace) {
-        throw new Error('Timeline accDescr block was not closed with "}"')
-      }
-
-      diagram.accessibilityDescription = normalizeBrTags(descriptionLines.join('\n').trim())
       continue
     }
 
