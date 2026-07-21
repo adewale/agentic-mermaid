@@ -20,6 +20,8 @@ date; do not delete old ones — supersede them in place.
 
 **A release-only platform gate is still part of the product test topology.** Making Worker outputs ephemeral caused the Windows release smoke to build the website during test preload, exposing a resolver branch that treated every non-Linux host as macOS and probed `/dev/fd`. Rule: enumerate platform capabilities explicitly, keep the portable security proof authoritative when an optional OS proof is unavailable, and exercise release-platform setup before a release event can become the first caller.
 
+**A file URL pathname is not a portable filesystem path.** After the resolver fix, the same Windows release smoke advanced far enough to expose editor generation passing `/D:/...` from `URL.pathname` into `Bun.build`; POSIX CI had hidden the distinction because URL paths and local paths coincide there. Rule: convert `file:` URLs with `fileURLToPath`, join local descendants with `node:path`, and keep a Windows execution lane for generators that feed release tests.
+
 ## 2026-07 — complexity-aware test portfolio (#193)
 
 **Optimize declared obligations, not test count.** The old 4,500-render matrix was exhaustive only for family × Look × Palette while fixing source complexity, output, transport, security, seed, and background. The replacement exhausts cheap Style algebra, covers expensive factors with independently verified variable strength, retains exact goldens and fault probes, and publishes the missing-tuple count. Rule: state what a row proves before optimizing it; fewer rows are useful only when the declared interaction and oracle strength improve.
