@@ -39,6 +39,19 @@ describe('parseXYChart – syntax', () => {
     expect(chart.series[0]!.data).toEqual([10, 20])
   })
 
+  it('keeps accessibility directives in semicolon-separated statements', () => {
+    const inline = parse('xychart; accTitle: Revenue chart; accDescr: Quarterly sales; bar [10, 20]')
+    expect(inline.accessibility).toEqual({
+      title: 'Revenue chart',
+      description: 'Quarterly sales',
+    })
+
+    const block = parse(`xychart; accDescr { First; still description
+      } ; bar [10, 20]`)
+    expect(block.accessibility).toEqual({ description: 'First; still description' })
+    expect(block.series[0]!.data).toEqual([10, 20])
+  })
+
   it('parses numeric axes and quoted axis titles', () => {
     const chart = parse(`xychart-beta
       x-axis "Month Index" 0 --> 12

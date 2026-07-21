@@ -36,7 +36,12 @@ import { scanAccessibilityDirectives } from '../shared/accessibility-directives.
  * Lines should already be trimmed and comment-stripped.
  */
 export function parseXYChart(lines: string[]): XYChart {
-  const accessibility = scanAccessibilityDirectives(lines)
+  // XYChart permits semicolon-separated statements. Expand that family syntax
+  // before the universal scan so `xychart; accTitle: …; bar […]` keeps the
+  // same accessibility semantics as one-statement-per-line source. The second
+  // expansion handles a family statement authored after a block's closing
+  // brace, while the first pass keeps semicolons inside block text intact.
+  const accessibility = scanAccessibilityDirectives(expandXYChartStatements(lines))
   const xAxis: XYAxis = {}
   const yAxis: XYAxis = {}
   const series: XYChartSeries[] = []
@@ -439,13 +444,24 @@ function getString(root: MermaidFrontmatterMap, path: readonly string[]): string
 
 function expandXYChartStatements(lines: string[]): string[] {
   const statements: string[] = []
+  let inAccDescrBlock = false
 
   for (const rawLine of lines) {
     const line = rawLine.trim()
     if (!line) continue
 
+    if (inAccDescrBlock) {
+      statements.push(line)
+      if (line.includes('}')) inAccDescrBlock = false
+      continue
+    }
+
     const parts = splitSemicolonStatements(line)
-    statements.push(...parts)
+    for (const part of parts) {
+      statements.push(part)
+      const block = part.match(/^accDescr\s*:?\s*\{(.*)$/i)
+      if (block && !block[1]!.includes('}')) inAccDescrBlock = true
+    }
   }
 
   return statements
