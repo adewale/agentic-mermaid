@@ -55,7 +55,7 @@ function examplesCatalogHtml() {
 }
 
 function exampleFragmentRels(index = read('examples/index.html')) {
-  return Array.from(index.matchAll(/data-example-fragment="\/([^"]+)"/g), match => match[1]!)
+  return Array.from(index.matchAll(/data-example-fragment="\/([^"]+)"/g), match => `${match[1]!}.html`)
 }
 
 function editorExampleIds() {
@@ -340,13 +340,14 @@ describe('Workers Static Assets website contract', () => {
     ]))
     for (const rel of emittedHashedAssets) {
       const contentType = rel.endsWith('.html') ? 'text/html' : rel.endsWith('.woff2') ? 'font/woff2' : rel.endsWith('.css') ? 'text/css' : 'text/javascript'
-      const asset = await worker.fetch(new Request(`https://agentic-mermaid.dev/${rel}`), env(() => new Response('asset', { headers: { 'content-type': contentType } })))
+      const requestRel = rel.startsWith('examples/fragments/') ? rel.replace(/\.html$/, '') : rel
+      const asset = await worker.fetch(new Request(`https://agentic-mermaid.dev/${requestRel}`), env(() => new Response('asset', { headers: { 'content-type': contentType } })))
       expect({ rel, cache: asset.headers.get('cache-control') }).toEqual({ rel, cache: 'public, max-age=31536000, immutable' })
       if (rel.startsWith('examples/fragments/')) expect(asset.headers.get('x-robots-tag'), rel).toBe('noindex, nofollow')
     }
 
     for (const [pathname, response] of [
-      ['/examples/fragments/corpus-deadbeefdead.html', new Response('missing', { status: 404, headers: { 'content-type': 'text/html' } })],
+      ['/examples/fragments/corpus-deadbeefdead', new Response('missing', { status: 404, headers: { 'content-type': 'text/html' } })],
       ['/editor/editor-abcdef123456.js', new Response('broken', { status: 500, headers: { 'content-type': 'text/javascript' } })],
       ['/editor/editor-abcdef123456.js', new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } })],
       ['/editor/editor-abcdef123456.js', new Response('export {}', { headers: { 'content-type': 'text/javascript', 'set-cookie': 'session=unexpected' } })],
@@ -864,6 +865,7 @@ describe('Workers Static Assets website contract', () => {
     const corpusPage = read('examples/corpus/index.html')
     const fragments = exampleFragmentRels(index)
     expect(fragments).toHaveLength(2)
+    expect(index).not.toMatch(/data-example-fragment="[^"]+\.html"/)
     expect(fragments).toEqual(expect.arrayContaining([
       expect.stringMatching(/^examples\/fragments\/style-palette-[a-f0-9]{12}\.html$/),
       expect.stringMatching(/^examples\/fragments\/corpus-[a-f0-9]{12}\.html$/),

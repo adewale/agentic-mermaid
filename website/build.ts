@@ -974,14 +974,14 @@ ${examples.map((example) => {
     .map(([id, canonical]) => exampleAliasTarget(id, 'corpus', canonical, '/examples/corpus/')).join('\n')
   const script = `<script src="/${EXAMPLES_LOADER_REL}" defer></script>`
   const deferred = `${styleAliases}\n${corpusCurrentAliases}\n${corpusLegacyAliases}
-<section class="example-deferred" data-example-kind="style-palette" data-example-fragment="/${styleFragment.rel}" data-example-state="idle" aria-labelledby="examples-style-palette-deferred-title">
+<section class="example-deferred" data-example-kind="style-palette" data-example-fragment="/${styleFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-style-palette-deferred-title">
   <h2 id="examples-style-palette-deferred-title">Style × Palette combinations</h2>
   <p>The complete rendered matrix is available on its standalone page and can also load here on request.</p>
   <p data-example-status role="status" aria-live="polite">Examples are not loaded yet.</p>
   <div class="example-deferred-actions"><button type="button" data-example-load hidden>Load examples</button><a href="/examples/style-palette/">Open complete Style × Palette page</a></div>
   <div data-example-content></div>
 </section>
-<section class="example-deferred" data-example-kind="corpus" data-example-fragment="/${corpusFragment.rel}" data-example-state="idle" aria-labelledby="examples-corpus-deferred-title">
+<section class="example-deferred" data-example-kind="corpus" data-example-fragment="/${corpusFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-corpus-deferred-title">
   <h2 id="examples-corpus-deferred-title">Rich shared example gallery</h2>
   <p>The full project corpus remains searchable and linkable on a stable standalone page.</p>
   <p data-example-status role="status" aria-live="polite">Examples are not loaded yet.</p>

@@ -21,7 +21,7 @@ The Examples page already uses `content-visibility: auto`; that reduces off-scre
 | Route | requests | raw | gzip | Brotli |
 |---|---:|---:|---:|---:|
 | `/` | 9 | 682,619 B | 406,567 B | 387,899 B |
-| `/examples/` | 6 | 380,408 B | 66,947 B | 53,157 B |
+| `/examples/` | 6 | 380,391 B | 66,938 B | 53,183 B |
 | `/editor/?empty=1` | 2 | 3,314,199 B | 974,886 B | 767,057 B |
 
 The matching ceilings live separately in `scripts/site/website-payload-budgets.ts`. Review policy requires an optimization to ratchet its own route downward without rewriting measurement logic or unrelated route budgets in the same PR. Lighthouse timings remain diagnostic review evidence.
@@ -77,9 +77,9 @@ Inter-subset baseline → deferred Examples ratchet:
 
 | Metric | Before | After | Change |
 |---|---:|---:|---:|
-| Initial route raw | 2,426,844 B | 380,408 B | −84.3% |
-| Initial route gzip | 648,659 B | 66,947 B | −89.7% |
-| Initial route Brotli | 564,048 B | 53,157 B | −90.6% |
+| Initial route raw | 2,426,844 B | 380,391 B | −84.3% |
+| Initial route gzip | 648,659 B | 66,938 B | −89.7% |
+| Initial route Brotli | 564,048 B | 53,183 B | −90.6% |
 | Initial requests | 11 | 6 | −5 |
 | Document raw | 1,966,916 B | 272,449 B | −86.1% |
 | Document gzip | 262,408 B | 39,065 B | −85.1% |

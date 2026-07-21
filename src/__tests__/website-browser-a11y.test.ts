@@ -90,6 +90,10 @@ function fileForPath(pathname: string) {
   const abs = normalize(join(SITE, candidate))
   if (!abs.startsWith(SITE)) return null
   if (existsSync(abs)) return abs
+  if (/^examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}$/.test(rel)) {
+    const htmlAsset = normalize(join(SITE, `${rel}.html`))
+    if (htmlAsset.startsWith(SITE) && existsSync(htmlAsset)) return htmlAsset
+  }
   const index = normalize(join(SITE, rel, 'index.html'))
   if (index.startsWith(SITE) && existsSync(index)) return index
   return null
@@ -446,7 +450,7 @@ describeBrowser('website browser accessibility smoke', () => {
     async function exerciseFailure(kind: 'abort' | 'status' | 'mime' | 'malformed' | 'active') {
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
       let attempts = 0
-      await context.route(/\/examples\/fragments\/style-palette-[a-f0-9]{12}\.html$/, async route => {
+      await context.route(/\/examples\/fragments\/style-palette-[a-f0-9]{12}$/, async route => {
         attempts++
         if (attempts > 1) { await route.continue(); return }
         if (kind === 'abort') await route.abort('failed')
@@ -483,7 +487,7 @@ describeBrowser('website browser accessibility smoke', () => {
     page.on('request', request => { if (new URL(request.url()).origin !== baseUrl) thirdPartyRequests.push(request.url()) })
     await page.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
     const section = page.locator('[data-example-fragment][data-example-kind="style-palette"]')
-    await section.evaluate(element => element.setAttribute('data-example-fragment', 'https://example.com/examples/fragments/style-palette-deadbeefdead.html'))
+    await section.evaluate(element => element.setAttribute('data-example-fragment', 'https://example.com/examples/fragments/style-palette-deadbeefdead'))
     await section.locator('[data-example-load]').click()
     await page.waitForFunction(() => document.querySelector('[data-example-fragment][data-example-kind="style-palette"]')?.getAttribute('data-example-state') === 'failed')
     expect(thirdPartyRequests).toEqual([])
@@ -492,7 +496,7 @@ describeBrowser('website browser accessibility smoke', () => {
 
   test('Examples preserves ordinary navigation when interception or browser APIs are unavailable', async () => {
     const failedContext = await browser.newContext({ viewport: { width: 1280, height: 900 } })
-    await failedContext.route(/\/examples\/fragments\/style-palette-[a-f0-9]{12}\.html$/, route => route.abort('failed'))
+    await failedContext.route(/\/examples\/fragments\/style-palette-[a-f0-9]{12}$/, route => route.abort('failed'))
     const failedPage = await failedContext.newPage()
     await failedPage.goto(baseUrl + '/examples/', { waitUntil: 'networkidle' })
     await failedPage.locator('a[data-example-deferred="style-palette"]').first().click()

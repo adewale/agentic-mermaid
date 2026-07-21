@@ -70,7 +70,7 @@
     var fragmentUrl;
     try {
       fragmentUrl = new URL(url, location.href);
-      var expectedPath = new RegExp('^/examples/fragments/' + kind + '-[a-f0-9]{12}\\.html$');
+      var expectedPath = new RegExp('^/examples/fragments/' + kind + '-[a-f0-9]{12}$');
       if (fragmentUrl.origin !== location.origin || fragmentUrl.search || fragmentUrl.hash || !expectedPath.test(fragmentUrl.pathname)) throw new Error('invalid example fragment URL');
     } catch (error) {
       setState(section, 'failed');
