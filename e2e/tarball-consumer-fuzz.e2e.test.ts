@@ -157,9 +157,11 @@ import { createHash } from 'node:crypto'
 const inputs = JSON.parse(readFileSync(process.env.AM_FUZZ_INPUT, 'utf8'))
 const base = await import('agentic-mermaid')
 const agent = await import('agentic-mermaid/agent')
+const core = await import('agentic-mermaid/agent/core')
 const resolved = {
   baseSvg: typeof base.renderMermaidSVG, baseAscii: typeof base.renderMermaidASCII, baseStyles: typeof base.knownStyleDescriptors,
   agentVerify: typeof agent.verifyMermaid, agentSvg: typeof agent.renderMermaidSVG, agentPng: typeof agent.renderMermaidPNG,
+  coreVerify: typeof core.verifyMermaid, coreSvg: typeof core.renderMermaidSVG, corePng: typeof core.renderMermaidPNG,
 }
 const { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG } = agent
 const sha = (s) => createHash('sha256').update(s).digest('hex')
@@ -180,7 +182,7 @@ process.stdout.write(JSON.stringify({ resolved, results }))
 `
 
 describe('installed tarball — library', () => {
-  test('resolves both entry points and renders identically to source (crash parity + flowchart byte-equality)', () => {
+  test('resolves all three entry points and renders identically to source (crash parity + flowchart byte-equality)', () => {
     expect(haveConsumer).toBe(true)
     const flow = fc.sample(flowchartArb, 50)
     const mixed = fc.sample(mixedArb, 50)
@@ -200,6 +202,7 @@ describe('installed tarball — library', () => {
     expect(resolved).toEqual({
       baseSvg: 'function', baseAscii: 'function', baseStyles: 'function',
       agentVerify: 'function', agentSvg: 'function', agentPng: 'function',
+      coreVerify: 'function', coreSvg: 'function', corePng: 'undefined',
     })
 
     const crashParity: unknown[] = []

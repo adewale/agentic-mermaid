@@ -89,25 +89,30 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
 
 // ---- Serializer -------------------------------------------------------------
 
+/** Mermaid represents semantic line breaks inside one statement as `<br/>`. */
+function encodeMultilineText(text: string): string {
+  return text.replace(/\r?\n/g, '<br/>')
+}
+
 function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
-  const far = axis.far !== undefined ? ` --> ${axis.far}` : ''
-  return `  ${keyword} ${axis.near}${far}`
+  const far = axis.far !== undefined ? ` --> ${encodeMultilineText(axis.far)}` : ''
+  return `  ${keyword} ${encodeMultilineText(axis.near)}${far}`
 }
 
 export function renderQuadrant(body: QuadrantBody): string {
   const lines: string[] = ['quadrantChart']
   appendAccessibilityLines(lines, body)
-  if (body.title !== undefined) lines.push(`  title ${body.title}`)
+  if (body.title !== undefined) lines.push(`  title ${encodeMultilineText(body.title)}`)
   if (body.xAxis) lines.push(renderAxis('x-axis', body.xAxis))
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
   for (let i = 0; i < 4; i++) {
     const label = body.quadrants[i]
-    if (label !== undefined) lines.push(`  quadrant-${i + 1} ${label}`)
+    if (label !== undefined) lines.push(`  quadrant-${i + 1} ${encodeMultilineText(label)}`)
   }
   for (const p of body.points) {
     const cls = p.className !== undefined ? `:::${p.className}` : ''
     const tail = renderPointStyleEntries(p.style)
-    lines.push(`  ${p.label}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
+    lines.push(`  ${encodeMultilineText(p.label)}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
   }
   // classDefs after points (the upstream docs' canonical order).
   for (const [name, style] of Object.entries(body.classDefs ?? {})) {

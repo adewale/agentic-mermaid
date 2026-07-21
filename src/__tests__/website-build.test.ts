@@ -414,7 +414,9 @@ describe('Workers Static Assets website contract', () => {
     const preload = readRepo('src/__tests__/website-public.preload.ts')
     expect(preload).toContain('buildFingerprint')
     expect(preload).toContain('FINGERPRINT_PATHS')
-    expect(preload).toContain("'--public-only'")
+    expect(preload).not.toContain("'--public-only'")
+    expect(preload).toContain('GENERATED_FILES')
+    expect(preload).toContain("'deploy-version.ts'")
     for (const rel of ['docs/schemas/style-spec.schema.json', 'docs/assets/style-cookbook', 'examples/styles', 'skills/agentic-mermaid-diagram-workflow', 'Instructions_for_agents.md']) {
       expect(preload).toContain(`'${rel}'`)
     }

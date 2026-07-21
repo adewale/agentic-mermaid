@@ -8,9 +8,9 @@ The committed baseline SVGs are deliberately frozen before the rollout. The
 generator extracts the colors actually serialized by each renderer, checks
 uniqueness, pairwise ΔE_OK, WCAG contrast, and APCA lightness contrast, then
 generates a side-by-side contact sheet and a machine-readable comparison.
-The baseline manifest is not trusted on its own: checks reconstruct every color
-and metric from the exact frozen SVG set and require the recorded baseline
-commit to resolve as an ancestor of the current revision.
+The baseline manifest is not trusted on its own: routine checks reconstruct
+every color and metric from the exact frozen SVG set. The recorded commit is
+provenance metadata; shallow CI does not need to resolve it.
 
 ```sh
 bun run gallery:palette-rollout
@@ -29,5 +29,7 @@ bun run scripts/pr-assets/palette-rollout-evidence.ts --record-baseline \
   --baseline-commit <full-pre-rollout-ancestor-sha>
 ```
 
-That path archives and executes the named historical source, verifies its lock
-file and ancestry, and freezes those bytes under that exact commit identity.
+That explicit baseline-recording path archives and executes the named
+historical source, verifies its lock file and shared history, and freezes those
+bytes under that exact commit identity. Routine checks trust the committed
+frozen bytes rather than replaying history.

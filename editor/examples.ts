@@ -10,6 +10,7 @@ export const EDITOR_EXAMPLES = BUILTIN_FAMILY_METADATA.map(family => ({
   label: family.editorLabel,
   category: 'Supported diagrams',
   diagramType: family.editorDiagramType,
+  glyph: family.editorGlyph,
   description: family.editorDescription,
   source: family.editorExample,
   options: family.id === 'xychart' ? { interactive: true } : undefined,

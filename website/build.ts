@@ -931,11 +931,12 @@ ${examples.map((example) => {
 const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js')).arrayBuffer())
 const mermaidRuntimeRel = `vendor/mermaid-${sha256(mermaidRuntimeBytes).slice(0, 12)}.min.js`
 
-type ComparisonCase = { id: string; family: string; source: string }
+type ComparisonCase = { id: string; family: string; source: string; reviewFocus: string }
 const COMPARISON_CASES: ComparisonCase[] = BUILTIN_FAMILY_METADATA.map(family => ({
   id: family.id,
   family: family.editorDiagramType,
   source: family.editorExample,
+  reviewFocus: family.editorDescription,
 }))
 
 function comparisonSvg(svg: string, id: string, engine: string, family: string) {
@@ -962,23 +963,6 @@ function comparisonPanel(engine: string, label: string, body: string) {
 }
 function comparisonEditorHref(request: ReturnType<typeof comparisonAgenticRenderState>) {
   return editorStateHref(request.editorState)
-}
-const COMPARISON_TAKEAWAYS: Record<string, string> = {
-  flowchart: 'Compare edge routing, label stability, and whether dense fan-out still reads without browser-dependent drift.',
-  state: 'Check nested-state containment and transition labels that remain readable as the lifecycle grows.',
-  sequence: 'Check participant alignment, block labels, and warning paths: this is the common agent-edit audit loop.',
-  class: 'Compare relationship routing and member-box spacing on a compact class model.',
-  er: 'Inspect cardinality labels and orthogonal routes across a wide schema.',
-  xychart: 'Confirm chart scales, bars, and lines are deterministic rather than screenshot-only proof.',
-  timeline: 'Agentic Mermaid renders this supported family locally; Beautiful Mermaid has no panel for it.',
-  journey: 'The score grid and actor pills demonstrate a family that agents can parse, mutate, and verify locally.',
-  architecture: 'Service groups and routed connections show agent-readable architecture output without a hosted renderer.',
-  pie: 'The slice labels and values come from the same local source model as SVG/PNG/text output.',
-  quadrant: 'Points and axes remain inspectable source, not a static image pasted into docs.',
-  gantt: 'Schedule resolution is verified locally so bad dependencies can fail before an agent returns source.',
-  mindmap: 'Compare the bilateral hierarchy, shaped root, and curved parent-child branches on the same source.',
-  gitgraph: 'Compare ordered lanes, typed commits, merge ancestry, and tag placement without flattening history into a flowchart.',
-  radar: 'Agentic Mermaid renders this supported family locally; Beautiful Mermaid has no panel for it. Compare the multivariate silhouette per curve on the same source.',
 }
 const COMPARISON_STYLE_DEMO_SOURCE = `flowchart LR
   Draft[Draft source] --> Verify{Verify}
@@ -1055,7 +1039,7 @@ function comparisonsHtml() {
   const sections = COMPARISON_CASES.map((c) => {
     const beautiful = comparisonBeautifulRender(c)
     const agenticRequest = comparisonAgenticRenderState(c)
-    const takeaway = COMPARISON_TAKEAWAYS[c.id] ?? 'Compare deterministic local rendering against the browser/runtime render.'
+    const takeaway = `${c.reviewFocus} Compare deterministic local rendering against the browser/runtime render.`
     const panels = [
       comparisonPanel('mermaid', 'Mermaid', `<pre class="mermaid comparison-mermaid" id="comparison-mermaid-${escapeAttr(c.id)}">${escapeHtml(c.source)}</pre>`),
       beautiful.supported ? comparisonPanel('beautiful', 'Beautiful Mermaid', beautiful.html) : '',

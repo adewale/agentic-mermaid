@@ -33,6 +33,7 @@ import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, BUILTIN_FAMILY_MET
 
 const REPO = join(import.meta.dir, '..')
 const DIST = join(REPO, 'dist', 'agent.js')
+const DIST_CORE = join(REPO, 'dist', 'agent-core.js')
 const BUILD_TIMEOUT_MS = 180_000
 const RUN_TIMEOUT_MS = 180_000
 const PNG_SMOKE_N = 8
@@ -123,7 +124,7 @@ beforeAll(() => {
   const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
   // A broken build must fail loudly, not skip — that is exactly what shipping
   // would break.
-  if (build.status !== 0 || !existsSync(DIST)) {
+  if (build.status !== 0 || !existsSync(DIST) || !existsSync(DIST_CORE)) {
     throw new Error(`\`bun run build\` failed (status ${build.status}); dist artifact fuzz cannot run.\n${build.stderr ?? ''}`)
   }
   haveDist = true
@@ -149,11 +150,25 @@ describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
     for (const [source, declaration] of [
       ['src/index.ts', 'dist/index.d.ts'],
       ['src/agent/index.ts', 'dist/agent.d.ts'],
+      ['src/agent/core.ts', 'dist/agent-core.d.ts'],
     ] as const) {
       expect(readFileSync(join(REPO, source), 'utf8'), source).not.toContain('TUFTE_STYLE_ALIAS')
       expect(readFileSync(join(REPO, declaration), 'utf8'), declaration).not.toContain('TUFTE_STYLE_ALIAS')
     }
   })
+
+  test('runtime-neutral agent entry bundles for a browser target', () => {
+    expect(haveDist).toBe(true)
+    const work = mkdtempSync(join(tmpdir(), 'am-agent-core-browser-'))
+    const outfile = join(work, 'agent-core.js')
+    const bundled = spawnSync('bun', ['build', DIST_CORE, '--target=browser', '--outfile', outfile], {
+      cwd: REPO,
+      encoding: 'utf8',
+      timeout: BUILD_TIMEOUT_MS,
+    })
+    expect({ status: bundled.status, stderr: bundled.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(existsSync(outfile)).toBe(true)
+  }, BUILD_TIMEOUT_MS)
 
   test('dist-under-Node matches src-under-Bun: crash parity (all families) + byte-equality (flowcharts)', () => {
     expect(haveDist).toBe(true)

@@ -74,6 +74,25 @@ describe('quadrant structured parse', () => {
     expect(d2.body).toEqual(d.body)
     expect(serializeMermaid(d2)).toBe(out)
   })
+
+  test('serializes parser-normalized line breaks as one Mermaid statement', () => {
+    const d = quadrant(`quadrantChart
+  title Reach<br/>map
+  x-axis Low<br/>reach --> High<br/>reach
+  quadrant-1 Do<br/>first
+  Quick<br/>win: [0.2, 0.8]`)
+    expect(d.body).toMatchObject({
+      title: 'Reach\nmap',
+      xAxis: { near: 'Low\nreach', far: 'High\nreach' },
+      quadrants: ['Do\nfirst', undefined, undefined, undefined],
+      points: [{ label: 'Quick\nwin', x: 0.2, y: 0.8 }],
+    })
+    const out = serializeMermaid(d)
+    expect(out).toContain('title Reach<br/>map')
+    expect(out).toContain('x-axis Low<br/>reach --> High<br/>reach')
+    expect(out).toContain('Quick<br/>win: [0.2, 0.8]')
+    expect(quadrant(out).body).toEqual(d.body)
+  })
 })
 
 describe('quadrant differential vs legacy parseQuadrantChart', () => {

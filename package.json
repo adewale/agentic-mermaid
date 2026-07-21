@@ -18,6 +18,11 @@
       "import": "./dist/agent.js",
       "default": "./dist/agent.js"
     },
+    "./agent/core": {
+      "types": "./dist/agent-core.d.ts",
+      "import": "./dist/agent-core.js",
+      "default": "./dist/agent-core.js"
+    },
     "./style-spec.schema.json": "./docs/schemas/style-spec.schema.json",
     "./package.json": "./package.json"
   },
@@ -169,8 +174,6 @@
     "acorn": "8.16.0",
     "elkjs": "^0.11.0",
     "entities": "^7.0.1",
-    "perfect-freehand": "1.2.3",
-    "roughjs": "4.6.6",
     "yaml": "^2.8.3"
   },
   "overrides": {
@@ -189,6 +192,8 @@
     "mermaid": "11.16.0",
     "mermaid-ast": "0.8.2",
     "playwright": "^1.58.2",
+    "perfect-freehand": "1.2.3",
+    "roughjs": "4.6.6",
     "shiki": "^3.19.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",

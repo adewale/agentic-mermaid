@@ -73,8 +73,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The golden-drift gate only needs a PR merge commit's two parents,
-          # not the repository's complete history.
+          # The golden-drift gate compares a PR merge commit's two parents
+          # directly, so it needs no merge base or deep history.
           fetch-depth: 2
 
       - name: Setup Bun

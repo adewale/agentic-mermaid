@@ -7,12 +7,17 @@ Agentic Mermaid exposes these library surfaces:
 - `agentic-mermaid/agent` — agent-native API with
   parse/narrow/mutate/verify/serialize plus SVG, native Node/Bun PNG, and ASCII
   output helpers.
+- `agentic-mermaid/agent/core` — the same structured-edit, SVG, and ASCII
+  surface without the native PNG dependency; use this entry in browser and
+  workerd bundles.
 
 Capability reports, the pinned upstream manifest, and trusted Node-host
 resource resolution remain repository audit/host tooling rather than published
 runtime entry points.
 
 Use `agentic-mermaid/agent` when you want one import path for agents.
+Use `agentic-mermaid/agent/core` when the target runtime cannot load Node native
+addons.
 
 ### Canonical requests and comparable receipts
 

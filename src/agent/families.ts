@@ -373,13 +373,14 @@ export interface BuiltinFamilyMetadata {
   /** User-facing editor example label and summary. */
   editorLabel: string
   editorDescription: string
-  /** Basic editor example that must exist for this family. */
+  /** Stable id for the representative editor/comparison example. */
   editorExampleId: string
   /** Short glyph used by the editor example picker. */
   editorGlyph: string
   /** Representative source shared by the editor and website comparisons. */
   editorExample: string
-  /** Minimal canonical source: correct header plus core syntax. Exposed via
+  /** Minimal conformance/discovery witness: correct header plus core syntax.
+   *  This is intentionally smaller than `editorExample`. Exposed via
    *  `am capabilities` so agents learn each family's dialect from the
    *  discovery envelope instead of error-message trial-and-error (the
    *  onboarding probes burned most of their iterations on exactly this —

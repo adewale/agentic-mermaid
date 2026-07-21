@@ -1,8 +1,8 @@
 // ============================================================================
 // agentic-mermaid — public agent surface (v4)
 // Re-exports the runtime-neutral core plus the Node-native PNG renderer.
-// Browser/workerd bundlers can tree-shake the native PNG helpers when they
-// only use the portable renderer and structured-edit surface.
+// Browser/workerd consumers should import `agentic-mermaid/agent/core` so
+// their bundle never resolves the native PNG dependency tree.
 // ============================================================================
 
 export * from './core.ts'

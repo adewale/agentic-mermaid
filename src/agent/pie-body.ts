@@ -52,7 +52,12 @@ function isPositiveFinite(n: unknown): n is number {
 
 /** Re-encode a label for emission inside `"..."`. */
 function encodeLabel(label: string): string {
-  return label.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return encodeMultilineText(label).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+/** Mermaid represents semantic line breaks inside one statement as `<br/>`. */
+function encodeMultilineText(text: string): string {
+  return text.replace(/\r?\n/g, '<br/>')
 }
 
 /**
@@ -89,7 +94,7 @@ export function renderPie(body: PieBody): string {
   const header = body.showData ? 'pie showData' : 'pie'
   const lines: string[] = [header]
   appendAccessibilityLines(lines, body)
-  if (body.title !== undefined) lines.push(`  title ${body.title}`)
+  if (body.title !== undefined) lines.push(`  title ${encodeMultilineText(body.title)}`)
   for (const s of body.slices) {
     lines.push(`  "${encodeLabel(s.label)}" : ${formatNumber(s.value)}`)
   }

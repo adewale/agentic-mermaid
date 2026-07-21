@@ -35,10 +35,19 @@ describe('package exports', () => {
     expect(pkg.exports['./agent'].types).toBe('./dist/agent.d.ts')
   })
 
+  it('publishes a runtime-neutral agent entry for browser and workerd bundles', () => {
+    expect(packageJson.exports['./agent/core']).toEqual({
+      types: './dist/agent-core.d.ts',
+      import: './dist/agent-core.js',
+      default: './dist/agent-core.js',
+    })
+  })
+
   it('publishes only supported runtime entry points', () => {
     expect(Object.keys(packageJson.exports)).toEqual([
       '.',
       './agent',
+      './agent/core',
       './style-spec.schema.json',
       './package.json',
     ])

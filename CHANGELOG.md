@@ -4,6 +4,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+- Simplified the published package to compiled ESM entries and removed the internal `./capabilities` and `./resources` subpaths. The supported library entries are `agentic-mermaid`, `agentic-mermaid/agent`, and the browser/workerd-safe `agentic-mermaid/agent/core`.
+- Consolidated mutation testing behind `bun run mutation-test -- <profile>`, projected editor and comparison examples from the family descriptor registry, and made website/Worker generated assets clean-build outputs instead of tracked source. Older entries below retain the command spellings that shipped at the time; use `bun run mutation-test -- routes` or `bun run mutation-test -- gantt` now.
+
 ### Added
 - Implemented Section A of the rendering-contract
   program: one immutable request and appearance waist, descriptor-owned

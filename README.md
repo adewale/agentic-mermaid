@@ -38,7 +38,7 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 - **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` stacks a look over a palette; discoverable full looks cover sketch, watercolor, blueprint, accessibility, print, operational, physical-media, architecture, and editorial/report use cases. Custom styles are plain JSON records any agent can author (`docs/style-authoring.md`). `seed` re-rolls the ink, never the layout.
 - **Discoverable palettes + Shiki compatibility** — a theme is a palette-only style: discover the canonical catalog at runtime, theme from two colors, or adapt a VS Code theme.
 - **Agent-native editing** — typed mutation for every registered renderable family; source-level round-trip only for opaque fallbacks containing unmodeled syntax.
-- **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, and `agentic-mermaid/agent`. Audit reports and trusted host-resource helpers remain repository tooling instead of published runtime entry points.
+- **CLI + MCP + library** — `am`, `agentic-mermaid-mcp`, `agentic-mermaid`, `agentic-mermaid/agent`, and the browser/workerd-safe `agentic-mermaid/agent/core`. Audit reports and trusted host-resource helpers remain repository tooling instead of published runtime entry points.
 
 ## Installation
 
