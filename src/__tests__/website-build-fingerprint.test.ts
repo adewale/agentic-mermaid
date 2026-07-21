@@ -5,6 +5,7 @@ import { dirname, join, normalize, relative, resolve } from 'node:path'
 import {
   WEBSITE_BUILD_ENVIRONMENT_KEYS,
   WEBSITE_BUILD_FINGERPRINT_PATHS,
+  acquireWebsiteBuildLock,
   computeWebsiteBuildFingerprint,
   isWebsiteBuildFingerprintInput,
   runStableFingerprintBuild,
@@ -61,6 +62,28 @@ describe('website build fingerprint authority', () => {
     for (const key of WEBSITE_BUILD_ENVIRONMENT_KEYS) {
       expect(computeWebsiteBuildFingerprint(root, { ...options, environment: { [key]: 'changed' } }), key).not.toBe(initial)
     }
+  })
+
+  test('lock waiters compare completed output with a fresh fingerprint', () => {
+    let lockAttempts = 0
+    let fingerprintReads = 0
+    const acquired = acquireWebsiteBuildLock({
+      fingerprint: () => { fingerprintReads++; return 'B' },
+      readSentinel: () => 'A',
+      tryAcquire: () => ++lockAttempts === 2,
+      sleep: () => {},
+      maxAttempts: 3,
+    })
+    expect({ acquired, lockAttempts, fingerprintReads }).toEqual({ acquired: true, lockAttempts: 2, fingerprintReads: 2 })
+
+    lockAttempts = 0
+    expect(acquireWebsiteBuildLock({
+      fingerprint: () => 'A',
+      readSentinel: () => 'A',
+      tryAcquire: () => { lockAttempts++; return true },
+      sleep: () => {},
+    })).toBe(false)
+    expect(lockAttempts).toBe(0)
   })
 
   test('retries a mixed build and commits only a stable fingerprint', () => {

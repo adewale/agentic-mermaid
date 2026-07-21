@@ -48,6 +48,14 @@ export interface WebsiteBuildFingerprintOptions {
   environment?: Readonly<Record<string, string | undefined>>
 }
 
+export interface WebsiteBuildLockOptions {
+  fingerprint(): string
+  readSentinel(): string | null
+  tryAcquire(): boolean
+  sleep(): void
+  maxAttempts?: number
+}
+
 export interface StableFingerprintBuildOptions {
   fingerprint(): string
   build(): void
@@ -78,6 +86,19 @@ export function computeWebsiteBuildFingerprint(root: string, options: WebsiteBui
   }
   for (const rel of options.paths ?? WEBSITE_BUILD_FINGERPRINT_PATHS) addPathToHash(hash, root, rel)
   return hash.digest('hex')
+}
+
+/** Waits for the build lock while comparing any completed sentinel with a
+ * freshly computed fingerprint on every pass; no pre-wait snapshot is reused. */
+export function acquireWebsiteBuildLock(options: WebsiteBuildLockOptions): boolean {
+  const maxAttempts = options.maxAttempts ?? 600
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const current = options.fingerprint()
+    if (options.readSentinel() === current) return false
+    if (options.tryAcquire()) return true
+    options.sleep()
+  }
+  throw new Error('Timed out waiting for website/public build preload lock')
 }
 
 /** Runs a synchronous generator only across a stable input snapshot. An input
