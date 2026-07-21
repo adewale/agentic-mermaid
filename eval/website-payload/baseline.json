@@ -112,68 +112,28 @@
       },
       "requests": [
         {
+          "path": "/examples-2793c42e35c7.js",
+          "count": 1,
+          "sha256": "2793c42e35c799716be2884620c4c91fd231345f0bf211e9963c764bba4b44c9",
+          "rawBytes": 8407,
+          "gzipBytes": 2512,
+          "brotliBytes": 2103
+        },
+        {
+          "path": "/examples-da30e4213dd8.css",
+          "count": 1,
+          "sha256": "da30e4213dd84e24de0839a7bd49568780fd8f689431e4accc5e856b1fc3ecd3",
+          "rawBytes": 1230,
+          "gzipBytes": 434,
+          "brotliBytes": 341
+        },
+        {
           "path": "/examples/",
           "count": 1,
-          "sha256": "33438ada809cb13e1232eea916d68a1351a53f78068f39471af0161e1dd545b5",
-          "rawBytes": 1966916,
-          "gzipBytes": 262408,
-          "brotliBytes": 181482
-        },
-        {
-          "path": "/fonts/Caveat.subset.woff2",
-          "count": 1,
-          "sha256": "52ff5722f4cfa1b299d3bf3edb0f1200f1f3c1fb2135a7f345f98b719c5c2564",
-          "rawBytes": 80948,
-          "gzipBytes": 80991,
-          "brotliBytes": 80953
-        },
-        {
-          "path": "/fonts/EBGaramond.subset.woff2",
-          "count": 1,
-          "sha256": "9ed03a83fc344713af09e68fb7b8c4b91e17771df86e64d53d7e1542215afa2e",
-          "rawBytes": 146268,
-          "gzipBytes": 146239,
-          "brotliBytes": 146273
-        },
-        {
-          "path": "/fonts/Inter-Bold.subset-df43dec2ebc2.woff2",
-          "count": 1,
-          "sha256": "df43dec2ebc2902e5f16b05e8b93a94509bac498d2f251418aa3c7bd5faab94c",
-          "rawBytes": 40116,
-          "gzipBytes": 40082,
-          "brotliBytes": 40120
-        },
-        {
-          "path": "/fonts/Inter-Medium.subset-dddaf2661e0a.woff2",
-          "count": 1,
-          "sha256": "dddaf2661e0ac6d76e45da4bd45c70a81013d7833c58d3e6132a1b38223cc5fc",
-          "rawBytes": 39904,
-          "gzipBytes": 39863,
-          "brotliBytes": 39908
-        },
-        {
-          "path": "/fonts/Inter-SemiBold.subset-eacb6765e994.woff2",
-          "count": 1,
-          "sha256": "eacb6765e994068f2f7a46e815f143e5745cd59d8901206ba7f34ab8c2d8c28a",
-          "rawBytes": 40116,
-          "gzipBytes": 40095,
-          "brotliBytes": 40120
-        },
-        {
-          "path": "/fonts/ShareTechMono.subset.woff2",
-          "count": 1,
-          "sha256": "8b2bd465f06d75ba64e4cda07cf4664d60c3b6bd02d886ed27550b15efa92d54",
-          "rawBytes": 13680,
-          "gzipBytes": 13703,
-          "brotliBytes": 13674
-        },
-        {
-          "path": "/generated/inline-6bc5dcfdda2c.js",
-          "count": 1,
-          "sha256": "6bc5dcfdda2c2308bc22b0b9a19ec2a4cc481ea7c3df6ec22a25b251c138a492",
-          "rawBytes": 581,
-          "gzipBytes": 347,
-          "brotliBytes": 263
+          "sha256": "2826214969767a90e74ed4fcc6ff8675bb6cd5e513d65ef82afc16d9c37efbc7",
+          "rawBytes": 272439,
+          "gzipBytes": 39061,
+          "brotliBytes": 29484
         },
         {
           "path": "/shader-mark.js",
@@ -201,10 +161,10 @@
         }
       ],
       "totals": {
-        "requests": 11,
-        "rawBytes": 2426844,
-        "gzipBytes": 648659,
-        "brotliBytes": 564048
+        "requests": 6,
+        "rawBytes": 380391,
+        "gzipBytes": 66938,
+        "brotliBytes": 53183
       }
     },
     {

@@ -30,6 +30,7 @@ import {
   WEBSITE_EXAMPLE_THEME,
 } from '../scripts/site/example-render-state.ts'
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
+import { LEGACY_RICH_EXAMPLE_ALIASES } from '../scripts/site/website-example-legacy-aliases.ts'
 import interSubsetManifestJson from './source/assets/fonts/inter/manifest.json'
 import {
   WEBSITE_INTER_SUBSET_DIRECTORY,
@@ -452,6 +453,11 @@ function sha256(text: string | Buffer) {
   return createHash('sha256').update(text).digest('hex')
 }
 
+const EXAMPLES_LOADER_SOURCE = await Bun.file(join(SOURCE_ASSETS, 'examples.js')).text()
+const EXAMPLES_LOADER_REL = `examples-${sha256(EXAMPLES_LOADER_SOURCE).slice(0, 12)}.js`
+const EXAMPLES_STYLE_SOURCE = await Bun.file(join(SOURCE_ASSETS, 'examples.css')).text()
+const EXAMPLES_STYLE_REL = `examples-${sha256(EXAMPLES_STYLE_SOURCE).slice(0, 12)}.css`
+
 async function generateEditorHtml() {
   const result = Bun.spawnSync(['bun', 'run', 'scripts/site/editor.ts'], {
     cwd: ROOT,
@@ -561,7 +567,10 @@ async function externalizeExecutableInlineScripts(html: string) {
 }
 
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
-  const html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
+  let html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
+  if (rel === 'examples/index.html' || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
+    html = html.replace('</head>', `<link rel="stylesheet" href="/${EXAMPLES_STYLE_REL}">\n</head>`)
+  }
   await emit(rel, await externalizeExecutableInlineScripts(html))
 }
 
@@ -663,27 +672,6 @@ function exampleSlug(s: string) {
 
 function richExampleId(sample: { title: string; anchor?: string }) {
   return `rich-${sample.anchor ?? exampleSlug(sample.title)}`
-}
-
-// Rich-example anchors used to include the sample's array index. Resolve every
-// historical numeric form by its unchanged title slug so adding or reordering
-// corpus entries cannot break a published deep link again.
-function legacyRichExampleAnchorScript() {
-  return `<script>
-function resolveLegacyRichExampleAnchor() {
-  const match = /^#rich-\\d+-(.+)$/.exec(location.hash)
-  if (!match) return
-  const legacyId = match[0].slice(1)
-  const exact = Array.from(document.querySelectorAll('[data-legacy-rich-id]'))
-    .find(element => element.getAttribute('data-legacy-rich-id') === legacyId)
-  const target = exact || document.getElementById('rich-' + match[1])
-  if (!target) return
-  history.replaceState(null, '', '#' + target.id)
-  target.scrollIntoView()
-}
-addEventListener('hashchange', resolveLegacyRichExampleAnchor)
-resolveLegacyRichExampleAnchor()
-</script>`
 }
 
 function richExampleRenderState(sample: any) {
@@ -836,13 +824,13 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
     const cards = examples.map((example) => exampleJumpCard(example, example.description ?? example.label)).join('')
     sections.push(`<section class="example-jump-section" aria-labelledby="${escapeAttr(exampleCategoryId(category))}-jump"><p class="example-jump-title" id="${escapeAttr(exampleCategoryId(category))}-jump">${escapeHtml(exampleCategoryLabel(category))}</p><div class="example-jump-grid">${cards}</div></section>`)
   }
-  const styleThemeCards = styleThemeCombos.map((combo) => `<a class="example-jump-card" href="#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`).join('')
+  const styleThemeCards = styleThemeCombos.map((combo) => `<a class="example-jump-card" data-example-deferred="style-palette" href="/examples/style-palette/#${escapeAttr(combo.id)}"><strong>${escapeHtml(combo.family.editorDiagramType)}</strong><span>${escapeHtml(`${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`)}</span></a>`).join('')
   sections.push(`<section class="example-jump-section" aria-labelledby="examples-style-palette-combinations-jump"><p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p><div class="example-jump-grid">${styleThemeCards}</div></section>`)
   const richCategories = Array.from(new Set(richExamples.map((sample) => sample.category ?? 'Examples')))
-  const richCards = richCategories.map((category) => `<a class="example-jump-card" href="#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter((sample) => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`).join('')
+  const richCards = richCategories.map((category) => `<a class="example-jump-card" data-example-deferred="corpus" href="/examples/corpus/#rich-${escapeAttr(exampleSlug(category))}"><strong>${escapeHtml(category)}</strong><span>${escapeHtml(String(richExamples.filter((sample) => (sample.category ?? 'Examples') === category).length))} shared examples</span></a>`).join('')
   sections.push(`<section class="example-jump-section" aria-labelledby="examples-rich-gallery-jump"><p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p><div class="example-jump-grid">${richCards}</div></section>`)
   const paletteProofCards = richExamples.flatMap((sample) => sample.palettePeers
-    ? [`<a class="example-jump-card" href="#${escapeAttr(richExampleId(sample))}"><strong>${escapeHtml(sample.category ?? 'Example')}</strong><span>${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind} · ${sample.title}`)}</span></a>`]
+    ? [`<a class="example-jump-card" data-example-deferred="corpus" href="/examples/corpus/#${escapeAttr(richExampleId(sample))}"><strong>${escapeHtml(sample.category ?? 'Example')}</strong><span>${escapeHtml(`${sample.palettePeers.count} ${sample.palettePeers.kind} · ${sample.title}`)}</span></a>`]
     : []).join('')
   if (paletteProofCards) {
     sections.push(`<section class="example-jump-section" aria-labelledby="examples-high-cardinality-palettes-jump"><p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p><div class="example-jump-grid">${paletteProofCards}</div></section>`)
@@ -851,22 +839,22 @@ function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnTy
 }
 
 function richExamplesHtml(richExamples = RICH_EXAMPLES) {
-  const groups = new Map<string, Array<{ sample: any; id: string; legacyId: string }>>()
-  richExamples.forEach((sample, index) => {
+  const groups = new Map<string, Array<{ sample: any; id: string }>>()
+  richExamples.forEach((sample) => {
     const category = sample.category ?? 'Examples'
     if (!groups.has(category)) groups.set(category, [])
-    groups.get(category)!.push({ sample, id: richExampleId(sample), legacyId: `rich-${index + 1}-${exampleSlug(sample.title)}` })
+    groups.get(category)!.push({ sample, id: richExampleId(sample) })
   })
-  return `<section class="example-group" aria-labelledby="examples-rich-gallery">
+  return `<section class="example-group" data-example-fragment-root="corpus" aria-labelledby="examples-rich-gallery">
 <h2 id="examples-rich-gallery">Rich shared example gallery</h2>
 <p class="muted">These examples are reused by benchmark and layout-evaluation tooling, then rendered here at build time. They cover feature syntax, larger real-world shapes, and Style + Palette combinations beyond the small editor starters.</p>
 ${Array.from(groups, ([category, entries]) => `
 <section class="example-rich-group" aria-labelledby="rich-${escapeAttr(exampleSlug(category))}">
 <h3 id="rich-${escapeAttr(exampleSlug(category))}">${escapeHtml(category)}</h3>
-${entries.map(({ sample, id, legacyId }) => {
+${entries.map(({ sample, id }) => {
   const request = richExampleRenderState(sample)
   return `
-<article class="example-sample${sample.palettePeers ? ' example-sample-palette' : ''}" id="${escapeAttr(id)}" data-legacy-rich-id="${escapeAttr(legacyId)}"${sample.palettePeers ? ` data-palette-peers="${sample.palettePeers.count}"` : ''}>
+<article class="example-sample${sample.palettePeers ? ' example-sample-palette' : ''}" id="${escapeAttr(id)}"${sample.palettePeers ? ` data-palette-peers="${sample.palettePeers.count}"` : ''}>
   <header class="example-sample-head">
     <div>
       <p class="example-meta">${escapeHtml(category)}</p>
@@ -883,11 +871,11 @@ ${entries.map(({ sample, id, legacyId }) => {
 </article>`
 }).join('')}
 </section>`).join('')}
-</section>${legacyRichExampleAnchorScript()}`
+</section>`
 }
 
 function styleThemeExamplesHtml(combos: ReturnType<typeof styleThemeExamples>) {
-  return `<section class="example-group" aria-labelledby="examples-style-palette-combinations">
+  return `<section class="example-group" data-example-fragment-root="style-palette" aria-labelledby="examples-style-palette-combinations">
 <h2 id="examples-style-palette-combinations">Style × palette combinations</h2>
 <p class="muted">Each card uses one supported family, one named style, and one palette. Agents pass this as render options; they do not edit Mermaid source just to change appearance.</p>
 ${combos.map((combo) => {
@@ -915,7 +903,23 @@ ${combos.map((combo) => {
 </section>`
 }
 
-function examplesShowcaseHtml(editorExamples: any[]) {
+type ExampleFragmentKind = 'style-palette' | 'corpus'
+interface ExamplesDeliveryProjection {
+  main: string
+  styleStandalone: string
+  corpusStandalone: string
+  styleFragment: { rel: string, html: string }
+  corpusFragment: { rel: string, html: string }
+}
+let examplesDeliveryProjectionCache: ExamplesDeliveryProjection | undefined
+
+function exampleAliasTarget(id: string, kind: ExampleFragmentKind, canonical: string, standalone: string) {
+  return `<div class="example-legacy-target" id="${escapeAttr(id)}" data-example-alias data-example-kind="${kind}" data-example-canonical="${escapeAttr(canonical)}"><p>This example moved to <a href="${standalone}#${escapeAttr(canonical)}">the complete ${kind === 'corpus' ? 'corpus' : 'Style × Palette'} page</a>.</p></div>`
+}
+
+function examplesDeliveryProjection(): ExamplesDeliveryProjection {
+  if (examplesDeliveryProjectionCache) return examplesDeliveryProjectionCache
+  const editorExamples = EDITOR_EXAMPLES
   const groups = new Map<string, any[]>()
   for (const example of editorExamples) {
     const category = example.category ?? 'Examples'
@@ -923,7 +927,7 @@ function examplesShowcaseHtml(editorExamples: any[]) {
     groups.get(category)!.push(example)
   }
   const combos = styleThemeExamples(editorExamples)
-  return '<div class="example-showcase">' + examplesJumpHtml(groups, combos, RICH_EXAMPLES) + Array.from(groups, ([category, examples]) => `
+  const familySections = Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="${escapeAttr(exampleCategoryId(category))}">
 <h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(exampleCategoryLabel(category))}</h2>
 <p class="muted">One proof per diagram family: the exact editor source, an agent task, the trace before return, and a build-time render from that same source.</p>
@@ -950,7 +954,48 @@ ${examples.map((example) => {
   </div>
 </article>`
 }).join('')}
-</section>`).join('\n') + '\n' + styleThemeExamplesHtml(combos) + '\n' + richExamplesHtml(RICH_EXAMPLES) + '\n</div>'
+</section>`).join('\n')
+
+  const styleHtml = makePreFocusable(styleThemeExamplesHtml(combos))
+  const corpusHtml = makePreFocusable(richExamplesHtml(RICH_EXAMPLES))
+  const styleFragment = { rel: `examples/fragments/style-palette-${sha256(styleHtml).slice(0, 12)}.html`, html: styleHtml }
+  const corpusFragment = { rel: `examples/fragments/corpus-${sha256(corpusHtml).slice(0, 12)}.html`, html: corpusHtml }
+  const styleAliases = [
+    ['examples-style-palette-combinations', 'examples-style-palette-combinations'],
+    ...combos.map(combo => [combo.id, combo.id]),
+  ].map(([id, canonical]) => exampleAliasTarget(id!, 'style-palette', canonical!, '/examples/style-palette/')).join('\n')
+  const richCategories = Array.from(new Set(RICH_EXAMPLES.map(sample => sample.category ?? 'Examples')))
+  const corpusCurrentAliases = [
+    ['examples-rich-gallery', 'examples-rich-gallery'],
+    ...richCategories.map(category => [`rich-${exampleSlug(category)}`, `rich-${exampleSlug(category)}`]),
+    ...RICH_EXAMPLES.map(sample => [richExampleId(sample), richExampleId(sample)]),
+  ].map(([id, canonical]) => exampleAliasTarget(id!, 'corpus', canonical!, '/examples/corpus/')).join('\n')
+  const corpusLegacyAliases = Object.entries(LEGACY_RICH_EXAMPLE_ALIASES)
+    .map(([id, canonical]) => exampleAliasTarget(id, 'corpus', canonical, '/examples/corpus/')).join('\n')
+  const script = `<script src="/${EXAMPLES_LOADER_REL}" defer></script>`
+  const deferred = `${styleAliases}\n${corpusCurrentAliases}\n${corpusLegacyAliases}
+<section class="example-deferred" data-example-kind="style-palette" data-example-fragment="/${styleFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-style-palette-deferred-title">
+  <h2 id="examples-style-palette-deferred-title">Style × Palette combinations</h2>
+  <p>The complete rendered matrix is available on its standalone page and can also load here on request.</p>
+  <p data-example-status role="status" aria-live="polite">Examples are not loaded yet.</p>
+  <div class="example-deferred-actions"><button type="button" data-example-load hidden>Load examples</button><a href="/examples/style-palette/">Open complete Style × Palette page</a></div>
+  <div data-example-content></div>
+</section>
+<section class="example-deferred" data-example-kind="corpus" data-example-fragment="/${corpusFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-corpus-deferred-title">
+  <h2 id="examples-corpus-deferred-title">Rich shared example gallery</h2>
+  <p>The full project corpus remains searchable and linkable on a stable standalone page.</p>
+  <p data-example-status role="status" aria-live="polite">Examples are not loaded yet.</p>
+  <div class="example-deferred-actions"><button type="button" data-example-load hidden>Load examples</button><a href="/examples/corpus/">Open complete corpus page</a></div>
+  <div data-example-content></div>
+</section>`
+  examplesDeliveryProjectionCache = {
+    main: `<div class="example-showcase">${examplesJumpHtml(groups, combos, RICH_EXAMPLES)}${familySections}\n${deferred}\n${script}</div>`,
+    styleStandalone: `<div class="example-showcase">${styleHtml}\n${script}</div>`,
+    corpusStandalone: `<div class="example-showcase">${corpusLegacyAliases}\n${corpusHtml}\n${script}</div>`,
+    styleFragment,
+    corpusFragment,
+  }
+  return examplesDeliveryProjectionCache
 }
 
 const mermaidRuntimeBytes = Buffer.from(await Bun.file(join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js')).arrayBuffer())
@@ -1926,7 +1971,7 @@ const examples = {
     source: String(sample.source ?? '').trim(),
     options: sample.options ?? {},
     ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
-    renderUrl: `/examples/#${richExampleId(sample)}`,
+    renderUrl: `/examples/corpus/#${richExampleId(sample)}`,
     editorUrl: editorStateHref(richExampleRenderState(sample).editorState),
   })),
 }
@@ -2517,6 +2562,12 @@ const forkAddedFamilyList = BUILTIN_FAMILY_METADATA
   .map(family => family.label)
   .join(', ')
 
+const EXAMPLES_DELIVERY = examplesDeliveryProjection()
+await emit(EXAMPLES_LOADER_REL, EXAMPLES_LOADER_SOURCE)
+await emit(EXAMPLES_STYLE_REL, EXAMPLES_STYLE_SOURCE)
+await emit(EXAMPLES_DELIVERY.styleFragment.rel, EXAMPLES_DELIVERY.styleFragment.html)
+await emit(EXAMPLES_DELIVERY.corpusFragment.rel, EXAMPLES_DELIVERY.corpusFragment.html)
+
 type DocPage = readonly [rel: string, title: string, lead: string, body: string, currentHref?: string]
 const docPages: DocPage[] = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
@@ -2530,7 +2581,9 @@ const docPages: DocPage[] = [
   ['docs/custom-styles/index.html', 'Custom styles', 'Author JSON style files, validate them with the schema, and compare cookbook screenshots.', customStylesBody + docsIndex],
   ['docs/quality/index.html', 'Quality', 'Determinism, verify warnings, and layout metrics make diagram edits reviewable.', '<p><code>verify.ok</code> is a gate, not a promise of visual perfection. Include SVG/PNG/ASCII artifacts for human review when the change is visual.</p>\n<p><strong>Warnings are tiered</strong> so an agent knows how to react: <em>structural</em> problems can block a safe return and should be fixed first; <em>geometric</em> warnings ask for visual review; <em>lint</em> warnings mean a smaller or cleaner edit. Every code has a page under <a href="/warnings/">warnings</a> with what triggers it and how to clear it.</p>\n<p><strong>Evidence is curated, not raw private prompts:</strong> rely on CI, deterministic layout metrics, and generated artifacts to review a change. Private eval prompts and holdbacks are not public site content.</p>' + docsIndex],
   ['docs/fork-differences/index.html', 'Fork differences', 'Agentic Mermaid adds styled rendering, typed editing, deterministic verification, CLI, MCP, and more families.', `<p>Agentic Mermaid (<code>agentic-mermaid</code>) forks <a href="https://github.com/lukilabs/beautiful-mermaid">beautiful-mermaid</a> for a job the render-only original did not have: agents creating polished, branded diagrams that stay editable as Mermaid source.</p>\n<ul>\n<li><strong>Typed agent surface.</strong> A render-only library forces an agent to regenerate a whole diagram to change one node. Here new diagrams are authored as source then parsed/verified/rendered, and existing diagrams go parse → narrow → mutate → verify → serialize via <code>agentic-mermaid/agent</code>. Every registered built-in family is structured when narrowed; unmodeled syntax still round-trips losslessly as opaque fallback.</li>\n<li><strong>Deterministic, verifiable layout.</strong> Layout is byte-identical across processes, and <code>verifyMermaid</code> returns structured warnings in three tiers (structural, geometric, lint) plus perceptual quality metrics.</li>\n<li><strong>More families.</strong> Adds ${forkAddedFamilyList} beyond the original Beautiful Mermaid family set; that list is generated from the same descriptor projection that drives examples and capabilities.</li>\n<li><strong>Tools.</strong> An <code>am</code> CLI, an <code>agentic-mermaid-mcp</code> Code Mode MCP server (stdio + opt-in HTTP/SSE), and a hosted MCP endpoint at <code>/mcp</code>. There is no REST render API.</li>\n<li><strong>Style + Palette rendering.</strong> Named looks and palette stacks keep appearance outside Mermaid source while preserving deterministic geometry.</li>\n</ul>\n<p>See <a href="/examples/">examples</a> for the generated family list and rendered source, and <a href="/about/">About</a> for the lineage.</p>` + docsIndex],
-  ['examples/index.html', 'Examples', examplesLead, examplesShowcaseHtml(EDITOR_EXAMPLES), '/examples/'],
+  ['examples/index.html', 'Examples', examplesLead, EXAMPLES_DELIVERY.main, '/examples/'],
+  ['examples/style-palette/index.html', 'Style × Palette examples', 'Every supported family rendered with a named style and palette.', EXAMPLES_DELIVERY.styleStandalone, '/examples/'],
+  ['examples/corpus/index.html', 'Rich example corpus', 'The complete shared project corpus with stable links and Editor handoffs.', EXAMPLES_DELIVERY.corpusStandalone, '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],
 ]
 // Prev/next pager for the manual pages under /docs/, in docPages order with no

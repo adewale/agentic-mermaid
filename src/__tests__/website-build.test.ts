@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
@@ -8,6 +9,7 @@ import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { decodeEditorStateHash, EDITOR_SHARE_STATE_KEYS } from '../../scripts/site/editor-state-url.ts'
 import { WEBSITE_BUILD_FINGERPRINT_PATHS } from '../../scripts/site/website-build-fingerprint.ts'
 import { createStyledExampleRenderState, WEBSITE_EXAMPLE_THEME } from '../../scripts/site/example-render-state.ts'
+import { LEGACY_RICH_EXAMPLE_ALIASES } from '../../scripts/site/website-example-legacy-aliases.ts'
 import { renderWebsiteSVG } from '../../website/src/rendering.ts'
 import { createWebsiteWorker } from '../../website/src/worker-core.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from '../../website/src/site-routes.ts'
@@ -46,6 +48,14 @@ function editorScriptRel(editorHtml = read('editor/index.html')) {
   const rel = editorHtml.match(/<script type="module" src="\/(editor\/editor-[a-f0-9]{12}\.js)"><\/script>/)?.[1]
   expect(Boolean(rel)).toBe(true)
   return rel!
+}
+
+function examplesCatalogHtml() {
+  return [read('examples/index.html'), read('examples/style-palette/index.html'), read('examples/corpus/index.html')].join('\n')
+}
+
+function exampleFragmentRels(index = read('examples/index.html')) {
+  return Array.from(index.matchAll(/data-example-fragment="\/([^"]+)"/g), match => `${match[1]!}.html`)
 }
 
 function editorExampleIds() {
@@ -319,20 +329,25 @@ describe('Workers Static Assets website contract', () => {
     const js = await worker.fetch(new Request('https://agentic-mermaid.dev/editor/editor-abcdef123456.js'), env(() => new Response('export {}', { headers: { 'content-type': 'text/javascript; charset=utf-8' } })))
     expect(js.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
 
-    const emittedHashedAssets = files().filter(rel => /(?:^|\/)[^/]+-[a-f0-9]{12}(?:\.min)?\.(?:js|html|woff2)$/i.test(rel)).sort()
+    const emittedHashedAssets = files().filter(rel => /(?:^|\/)[^/]+-[a-f0-9]{12}(?:\.min)?\.(?:css|js|html|woff2)$/i.test(rel)).sort()
     expect(emittedHashedAssets).toEqual(expect.arrayContaining([
       expect.stringMatching(/^editor\/editor-[a-f0-9]{12}\.js$/),
+      expect.stringMatching(/^examples-[a-f0-9]{12}\.css$/),
+      expect.stringMatching(/^examples-[a-f0-9]{12}\.js$/),
+      expect.stringMatching(/^examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}\.html$/),
       expect.stringMatching(/^generated\/inline-[a-f0-9]{12}\.js$/),
       expect.stringMatching(/^vendor\/mermaid-[a-f0-9]{12}\.min\.js$/),
     ]))
     for (const rel of emittedHashedAssets) {
-      const contentType = rel.endsWith('.html') ? 'text/html' : rel.endsWith('.woff2') ? 'font/woff2' : 'text/javascript'
-      const asset = await worker.fetch(new Request(`https://agentic-mermaid.dev/${rel}`), env(() => new Response('asset', { headers: { 'content-type': contentType } })))
+      const contentType = rel.endsWith('.html') ? 'text/html' : rel.endsWith('.woff2') ? 'font/woff2' : rel.endsWith('.css') ? 'text/css' : 'text/javascript'
+      const requestRel = rel.startsWith('examples/fragments/') ? rel.replace(/\.html$/, '') : rel
+      const asset = await worker.fetch(new Request(`https://agentic-mermaid.dev/${requestRel}`), env(() => new Response('asset', { headers: { 'content-type': contentType } })))
       expect({ rel, cache: asset.headers.get('cache-control') }).toEqual({ rel, cache: 'public, max-age=31536000, immutable' })
+      if (rel.startsWith('examples/fragments/')) expect(asset.headers.get('x-robots-tag'), rel).toBe('noindex, nofollow')
     }
 
     for (const [pathname, response] of [
-      ['/examples/fragments/corpus-deadbeefdead.html', new Response('missing', { status: 404, headers: { 'content-type': 'text/html' } })],
+      ['/examples/fragments/corpus-deadbeefdead', new Response('missing', { status: 404, headers: { 'content-type': 'text/html' } })],
       ['/editor/editor-abcdef123456.js', new Response('broken', { status: 500, headers: { 'content-type': 'text/javascript' } })],
       ['/editor/editor-abcdef123456.js', new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } })],
       ['/editor/editor-abcdef123456.js', new Response('export {}', { headers: { 'content-type': 'text/javascript', 'set-cookie': 'session=unexpected' } })],
@@ -583,7 +598,7 @@ describe('Workers Static Assets website contract', () => {
     expect(favicon).toContain('points="14,8.5 14,23.5 24,39.5"')
     expect(existsSync(join(SITE, 'favicon.ico'))).toBe(true)
     expect(existsSync(join(SITE, 'apple-touch-icon.png'))).toBe(true)
-    const offenders = files().filter((f) => f.endsWith('.html') && !read(f).includes('href="/favicon.svg"'))
+    const offenders = files().filter((f) => f.endsWith('.html') && !f.startsWith('examples/fragments/') && !read(f).includes('href="/favicon.svg"'))
     expect(offenders).toEqual([])
   })
 
@@ -810,7 +825,7 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('every Examples card Editor link reproduces its complete gallery SVG request', () => {
-    const html = read('examples/index.html')
+    const html = examplesCatalogHtml()
     const catalog = JSON.parse(read('examples/index.json'))
     const articles = matches(html, /<article class="example-sample[^"]*" id="([^"]+)"[^>]*>([\s\S]*?)<\/article>/g)
     expect(articles).toHaveLength(EDITOR_EXAMPLES.length + BUILTIN_FAMILY_METADATA.length + RICH_EXAMPLES.length)
@@ -844,6 +859,50 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
+  test('Examples keeps family proofs initial and projects exact retryable standalone fragments', () => {
+    const index = read('examples/index.html')
+    const stylePage = read('examples/style-palette/index.html')
+    const corpusPage = read('examples/corpus/index.html')
+    const fragments = exampleFragmentRels(index)
+    expect(fragments).toHaveLength(2)
+    expect(index).not.toMatch(/data-example-fragment="[^"]+\.html"/)
+    expect(fragments).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^examples\/fragments\/style-palette-[a-f0-9]{12}\.html$/),
+      expect.stringMatching(/^examples\/fragments\/corpus-[a-f0-9]{12}\.html$/),
+    ]))
+    const styleFragmentRel = fragments.find(rel => rel.includes('style-palette-'))!
+    const corpusFragmentRel = fragments.find(rel => rel.includes('corpus-'))!
+    const styleFragment = read(styleFragmentRel)
+    const corpusFragment = read(corpusFragmentRel)
+    for (const rel of [styleFragmentRel, corpusFragmentRel]) {
+      expect(rel).toContain(createHash('sha256').update(read(rel)).digest('hex').slice(0, 12))
+    }
+    expect(stylePage).toContain(styleFragment)
+    expect(corpusPage).toContain(corpusFragment)
+    expect(styleFragment.match(/data-example-fragment-root="style-palette"/g)).toHaveLength(1)
+    expect(corpusFragment.match(/data-example-fragment-root="corpus"/g)).toHaveLength(1)
+    expect(index.match(/<article class="example-sample"/g)).toHaveLength(EDITOR_EXAMPLES.length)
+    expect(styleFragment.match(/<article class="example-sample"/g)).toHaveLength(BUILTIN_FAMILY_METADATA.length)
+    expect(corpusFragment.match(/<article class="example-sample/g)).toHaveLength(RICH_EXAMPLES.length)
+    expect(index).not.toContain('<article class="example-sample" id="style-palette-flowchart">')
+    expect(index).not.toContain('<article class="example-sample" id="rich-agentic-mermaid"')
+    expect(gzipSync(index).byteLength).toBeLessThan(262_408 * 0.6)
+    const loader = index.match(/<script src="\/(examples-[a-f0-9]{12}\.js)" defer><\/script>/)?.[1]
+    expect(loader).toBeDefined()
+    const loaderSource = read(loader!)
+    expect(loader).toContain(createHash('sha256').update(loaderSource).digest('hex').slice(0, 12))
+    const examplesCss = index.match(/<link rel="stylesheet" href="\/(examples-[a-f0-9]{12}\.css)">/)?.[1]
+    expect(examplesCss).toBeDefined()
+    expect(examplesCss).toContain(createHash('sha256').update(read(examplesCss!)).digest('hex').slice(0, 12))
+    for (const contract of ['data-example-state', 'Retry loading examples', 'response.status !== 200', "essence !== 'text/html'", 'fragment must have exactly one root', 'inFlight.delete(section)', 'location.assign(link.href)']) {
+      expect(loaderSource, contract).toContain(contract)
+    }
+    expect(read('_redirects')).toContain('/examples/style-palette /examples/style-palette/ 308')
+    expect(read('_redirects')).toContain('/examples/corpus /examples/corpus/ 308')
+    expect(read('sitemap.xml')).toContain('<loc>https://agentic-mermaid.dev/examples/style-palette/</loc>')
+    expect(read('sitemap.xml')).toContain('<loc>https://agentic-mermaid.dev/examples/corpus/</loc>')
+  })
+
   test('styled example state keeps appearance in visible controls and strips hidden conflicts', () => {
     const request = createStyledExampleRenderState('flowchart TD\n  A --> B', {
       style: 'publication-figure',
@@ -875,7 +934,7 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('the formerly transparent rich card has a portable painted canvas', () => {
-    const article = read('examples/index.html').match(/<article class="example-sample" id="rich-agentic-mermaid"[\s\S]*?<\/article>/)?.[0] ?? ''
+    const article = read('examples/corpus/index.html').match(/<article class="example-sample" id="rich-agentic-mermaid"[\s\S]*?<\/article>/)?.[0] ?? ''
     const href = article.match(/href="(\/editor\/#deflate:[A-Za-z0-9_-]+)"/)?.[1]
     expect(href).toBeDefined()
     const state = decodeEditorStateHref(href!)
@@ -1186,7 +1245,7 @@ describe('Workers Static Assets website contract', () => {
     }
 
     const examplesIndex = JSON.parse(read('examples/index.json'))
-    const examplesHtml = read('examples/index.html')
+    const examplesHtml = read('examples/corpus/index.html')
     for (const [category, title, fixture] of promotions) {
       const expectedSource = readRepo(fixture).trimEnd()
       const sample = RICH_EXAMPLES.find((candidate) => candidate.title === title)
@@ -1196,8 +1255,9 @@ describe('Workers Static Assets website contract', () => {
       )
       expect(examplesHtml, `${title} rendered article`).toContain(`<h4>${title}</h4>`)
     }
-    expect(examplesHtml).toContain('<strong>Mindmap</strong><span>3 shared examples</span>')
-    expect(examplesHtml).toContain('<strong>GitGraph</strong><span>3 shared examples</span>')
+    const examplesMain = read('examples/index.html')
+    expect(examplesMain).toContain('<strong>Mindmap</strong><span>3 shared examples</span>')
+    expect(examplesMain).toContain('<strong>GitGraph</strong><span>3 shared examples</span>')
   })
 
   test('rich gallery exposes one source-verified high-cardinality palette example per controlled family', () => {
@@ -1210,9 +1270,10 @@ describe('Workers Static Assets website contract', () => {
       ['GitGraph', ['GitGraph: Monorepo Delivery Lanes', 12, 'delivery lanes']],
     ] as const)
     const examplesIndex = JSON.parse(read('examples/index.json'))
-    const examplesHtml = read('examples/index.html')
-    expect(examplesHtml).toContain('<p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p>')
-    const paletteJump = examplesHtml.match(/<section class="example-jump-section" aria-labelledby="examples-high-cardinality-palettes-jump">([\s\S]*?)<\/section>/)?.[1] ?? ''
+    const examplesHtml = examplesCatalogHtml()
+    const examplesMain = read('examples/index.html')
+    expect(examplesMain).toContain('<p class="example-jump-title" id="examples-high-cardinality-palettes-jump">High-cardinality peer palettes</p>')
+    const paletteJump = examplesMain.match(/<section class="example-jump-section" aria-labelledby="examples-high-cardinality-palettes-jump">([\s\S]*?)<\/section>/)?.[1] ?? ''
     expect(paletteJump.match(/class="example-jump-card"/g)).toHaveLength(expected.size)
     for (const [category, [title, count, kind]] of expected) {
       const candidates = RICH_EXAMPLES.filter(sample => sample.category === category && sample.palettePeers)
@@ -1232,10 +1293,10 @@ describe('Workers Static Assets website contract', () => {
           category,
           title,
           palettePeers: { count, kind },
-          renderUrl: `/examples/#${richExampleId(sample!)}`,
+          renderUrl: `/examples/corpus/#${richExampleId(sample!)}`,
         }),
       )
-      expect(paletteJump, `${title} jump href`).toContain(`href="#${richExampleId(sample!)}"`)
+      expect(paletteJump, `${title} jump href`).toContain(`href="/examples/corpus/#${richExampleId(sample!)}"`)
       expect(examplesHtml, `${title} palette proof`).toContain(`Palette proof: ${count} ${kind}`)
       const mapping = renderedPeerMapping(category, richExampleArticle(examplesHtml, sample!))
       const article = richExampleArticle(examplesHtml, sample!)
@@ -1249,17 +1310,24 @@ describe('Workers Static Assets website contract', () => {
     }
     expect(new Set(RICH_EXAMPLES.map(sample => richExampleId(sample))).size, 'stable rich example ids').toBe(RICH_EXAMPLES.length)
     expect(richExampleId({ title: 'Mindmap: Incident Response Command Map' })).toBe('rich-mindmap-incident-response-command-map')
-    const legacyAnchorScript = files(join(SITE, 'generated'), 'generated').find(file => read(file).includes('resolveLegacyRichExampleAnchor'))
-    expect(legacyAnchorScript, 'numeric rich-anchor compatibility resolver').toBeDefined()
-    expect(read(legacyAnchorScript!)).toContain("/^#rich-\\d+-(.+)$/")
+    expect(Object.keys(LEGACY_RICH_EXAMPLE_ALIASES)).toHaveLength(RICH_EXAMPLES.length)
+    for (const [legacy, canonical] of Object.entries(LEGACY_RICH_EXAMPLE_ALIASES)) {
+      expect(read('examples/index.html'), legacy).toContain(`id="${legacy}" data-example-alias data-example-kind="corpus" data-example-canonical="${canonical}"`)
+      expect(read('examples/corpus/index.html'), legacy).toContain(`id="${legacy}" data-example-alias data-example-kind="corpus" data-example-canonical="${canonical}"`)
+      expect(examplesHtml, canonical).toContain(`id="${canonical}"`)
+    }
+    const loader = files().find(file => /^examples-[a-f0-9]{12}\.js$/.test(file))
+    expect(loader).toBeDefined()
+    expect(read(loader!)).toContain('resolveStandaloneAlias')
     const styles = read('styles.css')
     expect(styles).toContain('.example-sample-palette .example-sample-grid { grid-template-columns: minmax(0, 1fr); }')
     expect(styles).toContain('.example-render-palette .example-svg svg { width: auto; max-width: none; margin-inline: auto; }')
     expect(styles).toContain('.example-render-palette .example-svg svg.xychart { width: 700px; }')
   })
 
-  test('examples page carries an agent task, trace, and render anchor for every family', () => {
+  test('examples pages carry an agent task, trace, and render anchor for every family', () => {
     const examples = read('examples/index.html')
+    const allExamples = examplesCatalogHtml()
     // Registry-exact: adding a family without a prompt/trace or supported render
     // must fail this generated-site citizenship gate.
     for (const family of BUILTIN_FAMILY_METADATA) {
@@ -1286,14 +1354,15 @@ describe('Workers Static Assets website contract', () => {
     expect(jump).toContain('<p class="example-jump-title" id="examples-style-palette-combinations-jump">Style × palette combinations</p>')
     expect(jump).toContain('<p class="example-jump-title" id="examples-rich-gallery-jump">Rich shared example gallery</p>')
     for (const { id } of BUILTIN_FAMILY_METADATA) {
-      expect(examples).toContain(`<article class="example-sample" id="style-palette-${id}">`)
-      expect(jump).toContain(`href="#style-palette-${id}"`)
+      expect(allExamples).toContain(`<article class="example-sample" id="style-palette-${id}">`)
+      expect(examples).not.toContain(`<article class="example-sample" id="style-palette-${id}">`)
+      expect(jump).toContain(`href="/examples/style-palette/#style-palette-${id}"`)
     }
-    expect(examples).toContain('Agents pass this as render options; they do not edit Mermaid source just to change appearance.')
-    expect(examples).toContain("<code>style: ['ops-schematic', 'nord-light'], seed: 8</code>")
-    expect(examples).toContain('Open styled</a>')
-    expect(examples).toContain('<h2 id="examples-rich-gallery">Rich shared example gallery</h2>')
-    expect(examples).toContain('Build-time proof from the shared examples corpus.')
+    expect(allExamples).toContain('Agents pass this as render options; they do not edit Mermaid source just to change appearance.')
+    expect(allExamples).toContain("<code>style: ['ops-schematic', 'nord-light'], seed: 8</code>")
+    expect(allExamples).toContain('Open styled</a>')
+    expect(allExamples).toContain('<h2 id="examples-rich-gallery">Rich shared example gallery</h2>')
+    expect(allExamples).toContain('Build-time proof from the shared examples corpus.')
     expect(jump).not.toContain('class="example-jump-more"')
     expect(examples).not.toContain('id="example-filter"')
     expect(examples).not.toContain('data-example-filter')
@@ -1407,11 +1476,11 @@ describe('Workers Static Assets website contract', () => {
       source: String(sample.source ?? '').trim(),
       options: sample.options ?? {},
       ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
-      renderUrl: `/examples/#${richExampleId(sample)}`,
+      renderUrl: `/examples/corpus/#${richExampleId(sample)}`,
       editorUrl: expect.stringContaining('/editor/#'),
     })))
     expect(examplesIndex.richExamples.some((example: any) => example.category === 'Style + Palette')).toBe(true)
-    const examplesHtml = read('examples/index.html')
+    const examplesHtml = examplesCatalogHtml()
     expect(examplesHtml).toContain('Build-time proof: rendered from the same source and options the editor loads.')
     expect(examplesHtml).toContain('Build-time proof from the shared examples corpus.')
     expect(examplesHtml).toContain('--accent:#1A7351')
