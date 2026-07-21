@@ -83,55 +83,11 @@ jobs:
           bun-version: 1.3.13
           no-cache: true
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Reject new high or critical dependency advisories
-        run: bun run audit:dependencies
-
-      - name: Regenerate and byte-verify canonical Inter subsets
-        run: bun run scripts/site/subset-website-inter-fonts.ts --check
-
-      - name: Verify website and Worker artifacts regenerate cleanly
-        run: bun run website:check
-
-      - name: Check controlled palette rollout evidence is current and passes its improvement gate
-        run: bun run gallery:palette-rollout:check
-
-      - name: Check optional palette harmony experiment evidence is current
-        run: bun run gallery:palette-harmony:check
-
-      - name: Check Issue #87 link-rank visual evidence is current
-        run: bun run gallery:linkrank-feedback-packing:check
-
-      - name: Check palette performance provenance and deterministic complexity
-        run: bun run benchmark:palette:check
-
-      - name: Run sketch prototype style checks
-        run: bun run sketch:check
-
-      - name: Audit rendered corpora and family structural evidence
-        run: bun run audit:ugly
-
-      - name: Lint TypeScript and repository contracts
-        run: bun run lint
-
-      - name: Type check
-        run: bun run typecheck
-
-      - name: Check README hero image is current with the renderer
-        # Compares a deterministic fingerprint of the renderer output behind
-        # assets/hero.png (diagram SVG + ASCII) — no fonts/rasterization needed.
-        run: bun run hero:check
-
-      - name: Golden snapshot drift is a hard gate (reviewed-token required)
-        # The decision logic lives in scripts/ci/golden-drift.ts and is
-        # unit-tested (src/__tests__/golden-drift.test.ts) — a bare ::warning::
-        # was ignorable (testing-tools learning #2), and inline bash was
-        # untestable (learning: fold gate logic into tested code). The script
-        # fails the build unless golden movement is committed AND approved with
-        # a commit-message line starting with [approve-goldens].
-        run: bun run scripts/ci/golden-drift.ts
+      # This is the same aggregate developers run locally. It installs the
+      # frozen dependency graph, reports every stale evidence receipt in one
+      # pass, and continues through all remaining quality gates before failing.
+      - name: Run the complete local and CI quality suite
+        run: bun run quality:check
 
   route-sabotage:
     name: Route regression sabotage

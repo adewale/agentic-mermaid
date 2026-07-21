@@ -8,6 +8,7 @@ import {
   verifiedBaselineCases,
   type BaselineFile,
 } from '../../scripts/pr-assets/palette-rollout-evidence.ts'
+import { EVIDENCE_CHECKS, QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const BASELINE_DIR = join(ROOT, 'eval', 'palette-rollout', 'baseline')
@@ -77,11 +78,10 @@ describe('palette rollout evidence integrity', () => {
     }
   })
 
-  test('both palette evidence checks are hard CI quality gates', async () => {
-    const { parse } = await import('yaml')
-    const workflow = parse(readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8'))
-    const commands = workflow.jobs.quality.steps.map((step: { run?: string }) => step.run).filter(Boolean)
-    expect(commands).toContain('bun run gallery:palette-rollout:check')
-    expect(commands).toContain('bun run gallery:palette-harmony:check')
+  test('both palette evidence checks are hard aggregate quality gates', () => {
+    const evidenceCommands = EVIDENCE_CHECKS.map(check => check.command.join(' '))
+    expect(evidenceCommands).toContain('bun run gallery:palette-rollout:check')
+    expect(evidenceCommands).toContain('bun run gallery:palette-harmony:check')
+    expect(QUALITY_CHECKS.map(check => check.command.join(' '))).toContain('bun run evidence:check')
   })
 })

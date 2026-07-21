@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
-import { filesUnder, hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
+import { filesUnder, hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const EVAL_DIR = join(ROOT, 'eval', 'linkrank-feedback-packing')
@@ -138,25 +138,26 @@ const measurements = cases.map(spec => {
 
 const repoPath = (path: string): string => repositoryPath(ROOT, path)
 const baselineInputs = [BASELINE_LAYOUT, ...cases.map(svgPath)]
+const receiptEntrypoints = [
+  import.meta.filename,
+  join(ROOT, 'src', 'parser.ts'),
+  join(ROOT, 'src', 'layout-engine.ts'),
+  join(ROOT, 'src', 'index.ts'),
+]
 const inputPaths = sortRepositoryPaths(ROOT, [
-  ...transitiveLocalInputs(ROOT, [
-    import.meta.filename,
-    join(ROOT, 'src', 'parser.ts'),
-    join(ROOT, 'src', 'layout-engine.ts'),
-    join(ROOT, 'src', 'index.ts'),
-  ]),
-  join(ROOT, 'package.json'),
-  join(ROOT, 'bun.lock'),
+  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
   ...filesUnder(FIXTURE_DIR, path => path.endsWith('.mmd')),
   ...baselineInputs,
 ])
+const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
 const currentReceipt = () => ({
   schemaVersion: 1,
   generator: repoPath(import.meta.filename),
   baseline: { commit: BASELINE_COMMIT, artifacts: baselineInputs.map(path => ({ path: repoPath(path), sha256: sha256File(path) })) },
   measurements,
   inputCount: inputPaths.length,
-  inputTreeSha256: hashFileTree(ROOT, inputPaths),
+  inputTreeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies),
+  runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
   outputs: [MATRIX_OUTPUT, AFTER_OUTPUT].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
 })
 

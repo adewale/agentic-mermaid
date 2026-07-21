@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
+import { QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -103,12 +104,12 @@ describe('agent-readiness standards syntax', () => {
     expect(packageJson.scripts.format).toBe('biome format --write .')
     expect(packageJson.scripts['format:changed']).toBe('biome format --write --changed')
     expect(packageJson.scripts['lint:biome']).toBe('biome lint .')
-    expect(qualitySteps.find((step: any) => step.name === 'Audit rendered corpora and family structural evidence')?.run)
-      .toBe('bun run audit:ugly')
-    expect(qualitySteps.find((step: any) => step.name === 'Lint TypeScript and repository contracts')?.run)
-      .toBe('bun run lint')
-    expect(qualitySteps.find((step: any) => step.name === 'Reject new high or critical dependency advisories')?.run)
-      .toBe('bun run audit:dependencies')
+    expect(qualitySteps.map((step: any) => step.run).filter(Boolean)).toEqual(['bun run quality:check'])
+    expect(QUALITY_CHECKS.map(check => check.command.join(' '))).toEqual(expect.arrayContaining([
+      'bun run audit:ugly',
+      'bun run lint',
+      'bun run audit:dependencies',
+    ]))
     expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
     expect(publish.jobs.publish.needs).toBe('platform-smoke')
     expect(publish.jobs['platform-smoke'].strategy.matrix.os).toEqual(['macos-latest', 'windows-latest'])

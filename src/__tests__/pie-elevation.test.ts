@@ -45,7 +45,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
-import { hashFileTree, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { hashArtifactInputs, runtimeDependencyClosure, runtimeDependencySummary, sortRepositoryPaths, transitiveLocalInputs, type RuntimeDependencySummary } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const LEGEND_FONT = { size: 13, weight: 500 }
@@ -530,17 +530,17 @@ pie showData
       generator: string
       inputCount: number
       inputTreeSha256: string
+      runtimeDependencies: RuntimeDependencySummary
       outputs: Array<{ path: string; sha256: string }>
     }
     expect(receipt.schemaVersion).toBe(1)
     expect(receipt.generator).toBe('scripts/pr-assets/pie-highlightslice-evidence.ts')
-    const inputs = sortRepositoryPaths(ROOT, [
-      join(ROOT, 'package.json'),
-      join(ROOT, 'bun.lock'),
-      ...transitiveLocalInputs(ROOT, [join(ROOT, receipt.generator)]),
-    ])
+    const entrypoints = [join(ROOT, receipt.generator)]
+    const inputs = sortRepositoryPaths(ROOT, transitiveLocalInputs(ROOT, entrypoints))
+    const runtimeDependencies = runtimeDependencyClosure(ROOT, entrypoints)
     expect(receipt.inputCount).toBe(inputs.length)
-    expect(receipt.inputTreeSha256).toBe(hashFileTree(ROOT, inputs))
+    expect(receipt.inputTreeSha256).toBe(hashArtifactInputs(ROOT, inputs, runtimeDependencies))
+    expect(receipt.runtimeDependencies).toEqual(runtimeDependencySummary(runtimeDependencies))
     expect(receipt.outputs.map(output => output.path)).toEqual([
       'docs/design/families/pie-highlightslice-regression-matrix.png',
       'docs/design/families/pie-highlightslice-after.png',

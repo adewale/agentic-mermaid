@@ -7,7 +7,7 @@ import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
-import { hashFileTree, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { hashArtifactInputs, runtimeDependencyClosure, runtimeDependencySummary, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const manifest = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'), 'utf8')) as {
@@ -74,19 +74,21 @@ describe('official Mermaid documentation showcase', () => {
       generator: string
       inputCount: number
       inputTreeSha256: string
+      runtimeDependencies: ReturnType<typeof runtimeDependencySummary>
       output: string
       outputSha256: string
     }
     expect(receipt.schemaVersion).toBe(1)
     expect(receipt.generator).toBe('scripts/pr-assets/mermaid-doc-showcase-gallery.ts')
+    const entrypoints = [join(ROOT, receipt.generator)]
     const inputs = sortRepositoryPaths(ROOT, [
       join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'),
-      join(ROOT, 'package.json'),
-      join(ROOT, 'bun.lock'),
-      ...transitiveLocalInputs(ROOT, [join(ROOT, receipt.generator)]),
+      ...transitiveLocalInputs(ROOT, entrypoints),
     ])
+    const runtimeDependencies = runtimeDependencyClosure(ROOT, entrypoints)
     expect(receipt.inputCount).toBe(inputs.length)
-    expect(receipt.inputTreeSha256).toBe(hashFileTree(ROOT, inputs))
+    expect(receipt.inputTreeSha256).toBe(hashArtifactInputs(ROOT, inputs, runtimeDependencies))
+    expect(receipt.runtimeDependencies).toEqual(runtimeDependencySummary(runtimeDependencies))
     const output = readFileSync(join(ROOT, receipt.output))
     expect(createHash('sha256').update(output).digest('hex')).toBe(receipt.outputSha256)
   })

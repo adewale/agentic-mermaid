@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
-import { fileReceiptEntries, hashFileTree, sha256File, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { fileReceiptEntries, hashArtifactInputs, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs, type RuntimeDependencySummary } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(import.meta.dir, 'report.json')
@@ -15,10 +15,9 @@ const LARGE_COUNTS = [25, 64, 256, 1000] as const
 const WARMUP_CALLS = 200
 const SAMPLES_PER_FIXTURE = 20
 const ORDER_SEED = 179
-const INPUTS = sortRepositoryPaths(ROOT, [
-  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
-  join(ROOT, 'bun.lock'),
-])
+const RECEIPT_ENTRYPOINTS = [import.meta.filename]
+const INPUTS = sortRepositoryPaths(ROOT, transitiveLocalInputs(ROOT, RECEIPT_ENTRYPOINTS))
+const RUNTIME_DEPENDENCIES = runtimeDependencyClosure(ROOT, RECEIPT_ENTRYPOINTS)
 
 const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
 export const PALETTE_PROVENANCE_AUTHORITY = 'content-addressed-inputs-v1' as const
@@ -27,6 +26,7 @@ export function verifyPaletteSourceProvenance(
   provenance: any,
   expectedSourceTreeSha256: string,
   expectedInputs: unknown,
+  expectedRuntimeDependencies: RuntimeDependencySummary,
 ): void {
   if (provenance?.authority !== PALETTE_PROVENANCE_AUTHORITY) {
     throw new Error(`Palette performance provenance authority must be ${PALETTE_PROVENANCE_AUTHORITY}`)
@@ -40,6 +40,9 @@ export function verifyPaletteSourceProvenance(
   }
   if (JSON.stringify(provenance.inputs) !== JSON.stringify(expectedInputs)) {
     throw new Error('Palette performance report input manifest is stale')
+  }
+  if (JSON.stringify(provenance.runtimeDependencies) !== JSON.stringify(expectedRuntimeDependencies)) {
+    throw new Error('Palette performance runtime dependency closure is stale')
   }
 }
 const round = (value: number): number => Math.round(value * 1_000_000) / 1_000_000
@@ -164,9 +167,10 @@ function record(): void {
     provenance: {
       authority: PALETTE_PROVENANCE_AUTHORITY,
       sourceCommit,
-      sourceTreeSha256: hashFileTree(ROOT, INPUTS),
+      sourceTreeSha256: hashArtifactInputs(ROOT, INPUTS, RUNTIME_DEPENDENCIES),
       dirty: false,
       inputs: fileReceiptEntries(ROOT, INPUTS),
+      runtimeDependencies: runtimeDependencySummary(RUNTIME_DEPENDENCIES),
     },
     environment: {
       runtime: `Bun ${Bun.version}`,
@@ -241,8 +245,9 @@ function check(): void {
   if (report.schemaVersion !== 1) throw new Error('Unsupported palette performance report schema')
   verifyPaletteSourceProvenance(
     report.provenance,
-    hashFileTree(ROOT, INPUTS),
+    hashArtifactInputs(ROOT, INPUTS, RUNTIME_DEPENDENCIES),
     fileReceiptEntries(ROOT, INPUTS),
+    runtimeDependencySummary(RUNTIME_DEPENDENCIES),
   )
   if (JSON.stringify(report.complexity?.deterministicLargeCountEvidence) !== JSON.stringify(complexityEvidence())) {
     throw new Error('Palette deterministic complexity evidence is stale')

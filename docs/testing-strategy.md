@@ -16,6 +16,22 @@ portfolio is specified in
 its immutable before and content-addressed candidate reports live under
 `eval/test-portfolio/`.
 
+## Local CI parity
+
+Run `bun run quality:check` to execute the complete GitHub **Quality gates**
+job locally. The command installs the frozen dependency graph and then runs
+the dependency audit, font and website regeneration checks, evidence
+freshness, sketch and whole-corpus audits, lint, repository-wide typechecking,
+hero freshness, and the golden-drift guard. The workflow calls this same
+entry point, so the local list and CI list cannot diverge.
+
+Run `bun run evidence:check` for the narrower generated-evidence audit. It
+executes every receipt-backed gallery plus palette-performance provenance,
+continues after failures, and reports all stale artifacts together. Evidence
+receipts hash their exact local source/fixture graph and the transitive Bun
+lockfile closure of packages imported by that graph. Unrelated tools that are
+present elsewhere in `bun.lock` do not invalidate visual evidence.
+
 ## The central problem: this is a partly non-testable program
 
 Most of what this project does has a computable correct answer: did we drop

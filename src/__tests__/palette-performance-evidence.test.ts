@@ -14,18 +14,27 @@ const SAMPLES = join(ROOT, 'eval', 'palette-performance', 'samples.json')
 describe('palette performance evidence integrity', () => {
   test('uses exact input content as durable authority across squash merges', () => {
     const inputs = [{ path: 'src/example.ts', sha256: 'a'.repeat(64) }]
+    const runtimeDependencies = {
+      algorithm: 'bun-lock-transitive-v1' as const,
+      roots: ['example'],
+      packageCount: 1,
+      sha256: 'd'.repeat(64),
+    }
     const provenance = {
       authority: PALETTE_PROVENANCE_AUTHORITY,
       sourceCommit: 'b'.repeat(40),
       sourceTreeSha256: 'c'.repeat(64),
       dirty: false,
       inputs,
+      runtimeDependencies,
     }
-    expect(() => verifyPaletteSourceProvenance(provenance, 'c'.repeat(64), inputs)).not.toThrow()
-    expect(() => verifyPaletteSourceProvenance({ ...provenance, authority: 'commit-ancestry' }, 'c'.repeat(64), inputs))
+    expect(() => verifyPaletteSourceProvenance(provenance, 'c'.repeat(64), inputs, runtimeDependencies)).not.toThrow()
+    expect(() => verifyPaletteSourceProvenance({ ...provenance, authority: 'commit-ancestry' }, 'c'.repeat(64), inputs, runtimeDependencies))
       .toThrow('provenance authority')
-    expect(() => verifyPaletteSourceProvenance(provenance, 'd'.repeat(64), inputs))
+    expect(() => verifyPaletteSourceProvenance(provenance, 'e'.repeat(64), inputs, runtimeDependencies))
       .toThrow('inputs are stale')
+    expect(() => verifyPaletteSourceProvenance(provenance, 'c'.repeat(64), inputs, { ...runtimeDependencies, sha256: 'f'.repeat(64) }))
+      .toThrow('runtime dependency closure is stale')
   })
 
   test('recomputes aggregates from the committed raw samples', () => {

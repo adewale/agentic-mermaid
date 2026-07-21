@@ -5,7 +5,7 @@ import { chromium } from 'playwright'
 import { renderMermaidASCII, renderMermaidSVG } from '../../src/index.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import { visualWidth } from '../../src/ascii/width.ts'
-import { fileReceiptEntries, repositoryPath, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
+import { fileReceiptEntries, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS = join(ROOT, 'eval', 'mindmap-gitgraph-content-corpus')
@@ -15,20 +15,21 @@ const RECEIPT = join(CORPUS, 'gallery-receipt.json')
 const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
 
 const repoPath = (absolute: string): string => repositoryPath(ROOT, absolute)
+const receiptEntrypoints = [import.meta.filename]
 const inputPaths = (): string[] => sortRepositoryPaths(ROOT, [
   join(CORPUS, 'manifest.json'),
   join(CORPUS, 'fork-snapshot.json'),
-  join(ROOT, 'package.json'),
-  join(ROOT, 'bun.lock'),
   ...(['mindmap', 'gitgraph'] as const).flatMap(family =>
     readdirSync(join(CORPUS, family)).filter(name => name.endsWith('.mmd')).sort().map(name => join(CORPUS, family, name))),
-  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
+  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
 ])
+const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
 const outputPaths = (): string[] => (['mindmap', 'gitgraph'] as const).map(family => join(OUT, `${family}-content-gallery.png`))
 const receiptForCurrentFiles = () => ({
   schemaVersion: 1,
   generator: repoPath(import.meta.filename),
   inputs: fileReceiptEntries(ROOT, inputPaths()),
+  runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
   outputs: fileReceiptEntries(ROOT, outputPaths()),
 })
 

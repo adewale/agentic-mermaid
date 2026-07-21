@@ -11,7 +11,7 @@
     "sourceState": "content-addressed-candidate",
     "capturedAt": "2026-07-19T02:10:00Z",
     "generator": "manual-command-capture/v1",
-    "inputTreeSha256": "4626397522d5b2619d1ac9b53a1d501539fd9b679e92f800606feb5059004155",
+    "inputTreeSha256": "77c80476168d2eaafa2091b806150d931debe3049456e29387e7b125ce8a19c3",
     "inputs": [
       {
         "path": "eval/test-portfolio/contact-sheets/citizenship-review.json",
@@ -31,7 +31,7 @@
       },
       {
         "path": "scripts/pr-assets/artifact-receipt.ts",
-        "sha256": "1b865e56a736b105a0807245e40376da36cad7ec11a2951a35c519a097f37d8f"
+        "sha256": "8a8bae5bb700d2677d7fadaac8c205eb3ae3968eca600cb3322e673e98285037"
       },
       {
         "path": "scripts/pr-assets/test-portfolio-contact-sheet.ts",
@@ -55,7 +55,7 @@
       },
       {
         "path": "src/__tests__/mermaid-doc-showcase.test.ts",
-        "sha256": "cd0203daa0e187c1d69a15e2ae3c07898e140b007eeb625dfb841d3a7d8f513f"
+        "sha256": "a5d7b3d4109f19bafd93094263814f2e0b5b2923461f0577f644504675046be5"
       },
       {
         "path": "src/__tests__/render-conformance-plan.test.ts",
@@ -211,38 +211,38 @@
   "receiptDependencyReduction": {
     "mermaidDocs": {
       "beforeInputs": 715,
-      "afterInputs": 254,
-      "percentReduction": 64.5
+      "afterInputs": 252,
+      "percentReduction": 64.8
     },
     "mindmapGitgraph": {
       "beforeInputs": 729,
-      "afterInputs": 292,
-      "percentReduction": 59.9
+      "afterInputs": 290,
+      "percentReduction": 60.2
     },
     "pieHighlight": {
       "beforeInputs": 714,
-      "afterInputs": 259,
-      "percentReduction": 63.7
+      "afterInputs": 257,
+      "percentReduction": 64
     },
     "sectionB": {
       "beforeInputs": 721,
-      "afterInputs": 266,
-      "percentReduction": 63.1
+      "afterInputs": 264,
+      "percentReduction": 63.4
     },
     "paletteRollout": {
       "beforeInputs": 723,
-      "afterInputs": 262,
-      "percentReduction": 63.8
+      "afterInputs": 260,
+      "percentReduction": 64
     },
     "paletteHarmony": {
       "beforeInputs": 715,
-      "afterInputs": 11,
-      "percentReduction": 98.5
+      "afterInputs": 9,
+      "percentReduction": 98.7
     },
     "linkrankFeedbackPacking": {
       "beforeInputs": 727,
-      "afterInputs": 266,
-      "percentReduction": 63.4
+      "afterInputs": 264,
+      "percentReduction": 63.7
     },
     "visualOutputBytesChanged": 0
   },

@@ -1,8 +1,17 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-harmony-experiment.ts",
-  "inputCount": 11,
-  "inputTreeSha256": "08fe581777b59bbc9f15622c3a4a0758c9fb7ad34f6ae1ebbdbffc06ef664c13",
+  "inputCount": 9,
+  "inputTreeSha256": "5844883bc4ee38f022747f5ac41812eeeb327198c3a7672940e2a3cd954f8dd4",
+  "runtimeDependencies": {
+    "algorithm": "bun-lock-transitive-v1",
+    "roots": [
+      "playwright",
+      "typescript"
+    ],
+    "packageCount": 4,
+    "sha256": "2b7c16aa452340055609da1a9ca59e41d137278484149a4aaeafd9ceee6b6aff"
+  },
   "outputs": [
     {
       "path": "eval/palette-harmony/report.json",

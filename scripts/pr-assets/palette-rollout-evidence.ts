@@ -7,7 +7,7 @@ import { chromium } from 'playwright'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { wcagContrastRatio } from '../../src/shared/color-math.ts'
 import { apcaContrast, minPairwiseDeltaEOK } from '../../src/shared/perceptual-color.ts'
-import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
+import { hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 type Family = 'xychart' | 'journey' | 'mindmap' | 'gitgraph'
 interface EvidenceCase { id: string; family: Family; theme: 'github-light' | 'dracula'; source: string }
@@ -383,18 +383,19 @@ async function main(): Promise<void> {
   // every color and recompute every metric before building/checking evidence.
   const baselineCases = verifiedBaselineCases(baseline)
 
+  const receiptEntrypoints = [import.meta.filename]
   const inputPaths = sortRepositoryPaths(ROOT, [
-    ...transitiveLocalInputs(ROOT, [import.meta.filename]),
-    join(ROOT, 'package.json'),
-    join(ROOT, 'bun.lock'),
+    ...transitiveLocalInputs(ROOT, receiptEntrypoints),
     BASELINE_JSON,
     ...cases.map(item => baselineSvgPath(item.id)),
   ])
+  const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
   const currentReceipt = () => ({
     schemaVersion: 1,
     generator: repoPath(import.meta.filename),
     inputCount: inputPaths.length,
-    inputTreeSha256: hashFileTree(ROOT, inputPaths),
+    inputTreeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies),
+    runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
     outputs: [REPORT, CONTACT_SHEET].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
   })
 

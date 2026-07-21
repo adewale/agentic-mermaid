@@ -7,7 +7,7 @@ import { categoricalPalette } from '../../src/shared/categorical-palette.ts'
 import { wcagContrastRatio } from '../../src/shared/color-math.ts'
 import { apcaContrast, deltaEOK, minPairwiseDeltaEOK } from '../../src/shared/perceptual-color.ts'
 import { bestHarmonyFit, harmonizePalette, harmonyLoss } from '../../eval/palette-harmony/harmony.ts'
-import { hashFileTree, repositoryPath, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
+import { hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(ROOT, 'eval', 'palette-harmony', 'report.json')
@@ -102,16 +102,17 @@ function buildReport() {
 
 const report = buildReport()
 const repoPath = (path: string): string => repositoryPath(ROOT, path)
+const receiptEntrypoints = [import.meta.filename]
 const inputPaths = sortRepositoryPaths(ROOT, [
-  ...transitiveLocalInputs(ROOT, [import.meta.filename]),
-  join(ROOT, 'package.json'),
-  join(ROOT, 'bun.lock'),
+  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
 ])
+const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
 const currentReceipt = () => ({
   schemaVersion: 1,
   generator: repoPath(import.meta.filename),
   inputCount: inputPaths.length,
-  inputTreeSha256: hashFileTree(ROOT, inputPaths),
+  inputTreeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies),
+  runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
   outputs: [REPORT, CONTACT_SHEET].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
 })
 
