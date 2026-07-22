@@ -52,7 +52,7 @@ Two bounded checks run automatically on each PR:
 
 - `mutation-test -- incremental` mutates one small, pure module in about one minute
   and enforces its measured score.
-- `sabotage:routes` injects five named one-line regressions and requires the
+- `sabotage:routes` injects named one-line regressions and requires the
   focused behavioral tests to fail.
 
 This distinction is deliberate. Mutation testing is useful when it challenges

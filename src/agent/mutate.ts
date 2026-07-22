@@ -95,6 +95,23 @@ function applyOneMutation(
         message: `Mutation produced source that could not be reparsed: ${reparsed.error.map(error => error.message).join('; ')}`,
       })
     }
+    const sameFamily = reparsed.value.kind === d.kind
+    const sameRepresentation = reparsed.value.body.kind === r.value.kind
+    // Blank-slate builders deliberately admit a narrow intermediate state:
+    // the typed body may remain structured while it is still below the
+    // family's source grammar floor (for example, an XY title before its first
+    // series). Keep that exception family-owned and structural. A descriptor
+    // must identify the candidate as EMPTY_DIAGRAM; every non-empty mutation
+    // must close back through the shared parser to the same representation.
+    const verifiedEmptyScaffold = !sameRepresentation
+      && reparsed.value.body.kind === 'opaque'
+      && plugin.verify?.(r.value, {}).some(warning => warning.code === 'EMPTY_DIAGRAM') === true
+    if (!sameFamily || (!sameRepresentation && !verifiedEmptyScaffold)) {
+      return err({
+        code: 'INVALID_OP',
+        message: `Mutation changed semantic family while reparsing: expected ${d.kind}/${r.value.kind}, got ${reparsed.value.kind}/${reparsed.value.body.kind}`,
+      })
+    }
     return ok({ ...d, body: r.value, meta, canonicalSource, source: reparsed.value.source } as ParsedDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })

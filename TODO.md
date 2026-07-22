@@ -1,6 +1,11 @@
 # Project Backlog
 
-`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Explicitly status-marked landing/completion evidence lives under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
+`TODO.md` is the canonical owner-facing inventory of unfinished work, owner
+decisions, blocked observations, and evidence-triggered watch items. Explicitly
+status-marked landing/completion evidence lives under `docs/project/archive/`;
+current capabilities live in `docs/features.md` and generated registry
+surfaces. IDs are stable names, not ordering. Standing contribution policies
+are recorded without checkboxes below because they are not finishable backlog.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
@@ -10,13 +15,19 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
 - [ ] **DEC-2 — Add the WAF rate-limit rule on `POST /mcp` before broadly
-  promoting the hosted endpoint** (`owner-decision`). The hosted MCP (`#94`,
+  promoting the hosted endpoint** (`owner-decision`). The hosted MCP (PR #94,
   `https://agentic-mermaid.dev/mcp`) is public, unauthenticated compute. Body /
   input / output caps, the batch fan-out cap, edge caching, isolate CPU
   budgets, and CORS Origin validation bound each request in code, but the abuse
   backstop is a **dashboard** WAF rate-limit rule (e.g. 60 req/min per IP) that
   cannot live in the repo. Don't market or broadly promote the endpoint until it
   is live. See the promotion checklist in `website/README.md`.
+- [ ] **DEC-3 — Decide the hosted Code Mode boundary** (`owner-decision`,
+  [#204](https://github.com/adewale/agentic-mermaid/issues/204)). Measure hosted
+  `execute` demand, task success, calls/tokens/latency, isolate cost, generated
+  payload, compatibility commitments, and abuse-control burden. Then explicitly
+  remove hosted `execute`, gate it, or retain it. Local stdio Code Mode and the
+  direct hosted render/verify/describe/mutate/build tools are out of scope.
 - [ ] **DEC-4 — Establish Google and Bing search visibility**
   (`owner-decision`). In ownership-verified Google Search Console and Bing
   Webmaster Tools, submit `https://agentic-mermaid.dev/sitemap.xml`, request
@@ -34,6 +45,14 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `Sitemap: https://agentic-mermaid.dev/sitemap.xml`. Then verify the live body
   and status with `curl` and both search consoles. The repo deliberately ships
   no competing `robots.txt`, so the dashboard remains the single source.
+- [ ] **REL-1 — Release the current product as 0.2.0** (`todo`,
+  [#198](https://github.com/adewale/agentic-mermaid/issues/198)). The latest
+  published package and repository manifests now agree on `0.1.2`; the stale
+  `0.1.1` premise is resolved, but the breaking Unreleased changes still need a
+  minor release. Align package/registry/site compatibility metadata, roll the
+  changelog, require a green release commit and independent contact-sheet
+  approval, publish npm with provenance plus MCP Registry metadata, verify a
+  clean 15-family consumer, and deploy the exact release commit.
 - [ ] **WEB-2 — Ratchet public-site payloads after measured reductions** (`todo`).
   Follow [`docs/project/website-payload-plan.md`](docs/project/website-payload-plan.md):
   reproducible Inter delivery and retryable standalone/deferred Examples are
@@ -61,7 +80,9 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   wiring, resource CSP/domain metadata, and tests that the resources are
   reachable without leaking secrets. Start with a portable, read-only
   preview/verify view before adding an editable surface; keep tool results useful
-  in MCP hosts that ignore the UI extension.
+  in MCP hosts that ignore the UI extension. Negotiate the MCP Apps capability
+  and use the standard `ui/*` bridge first; reserve host-specific APIs for
+  optional enhancement.
 - [ ] **BUILD-28 — Experimental page-local WebMCP support** (`todo`). The
   current Web Machine Learning Community Group report is not a W3C Standard or
   Standards Track document. In the browser editor, feature-detect
@@ -78,11 +99,14 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   BUILD-27; WebMCP is not a dependency). Validate the public MCP + MCP Apps
   experience in ChatGPT Developer Mode on web and mobile, define an exact CSP,
   and audit tool schemas, `_meta`, instructions, and annotations before scanning
-  the endpoint. Complete organization verification and `api.apps.write`
+  the endpoint. Complete organization verification and `api.apps.write` plus
+  `api.apps.read`
   access, then prepare the plugin submission's name, logo, description, company
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
-  and review notes. Submit through the plugin portal only when the live endpoint
-  and UI are stable enough to preserve the reviewed metadata contract.
+  and review notes. Confirm the organization is eligible for the required data
+  residency, submit through the plugin portal only when the live endpoint and UI
+  are stable enough to preserve the reviewed metadata contract, and explicitly
+  publish after approval.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,
@@ -104,28 +128,22 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   contract for `validate` and `canonicalize`; test whether it reduces agent
   routing errors in docs/evals; then either implement as a thin, schema-tested
   wrapper or explicitly park/decline it. Independent of other items.
-- [ ] **BUILD-26 — Promote ecosystem issues into migration fixtures** (`todo`).
-  Upstream issue searches are research input, not a second queue. Promote an
-  issue only when a minimal, version-pinned reproduction exposes an Agentic
-  Mermaid gap in supported syntax, semantic preservation, determinism,
-  security, or workflow ergonomics. Each promotion must cite the source issue,
-  add a failing fixture or capability-evidence case, name its owning TODO ID,
-  and define the parity outcome. Unpromoted issue lists are deliberately not
-  retained in this backlog.
-- [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`). Select
-  work from the version-pinned upstream manifest and generated capability
-  report using current demand, maturity, syntax stability and semantic
-  leverage; do not copy their roster or pre-rank a shadow queue here. Each
-  promoted family passes the citizenship ratchet and the current source,
-  primitive, backend, output, transport and extension contracts. Section A
-  already owns the recognition floor: official and unknown headers are
-  preserved or diagnosed and never fall through to Flowchart. Maturity comes
-  from manifest data rather than a `-beta` spelling heuristic.
-- [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
-  <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
-  metadata syntax) and stay syntax-compatible. Large, but a real readability
-  win for agent-generated architecture diagrams; pairs naturally with typed
-  `collapse`/`expand` mutation ops.
+- [ ] **BUILD-1 — Adopt merged collapsible subgraphs (#7785)** (`todo`). Mermaid PR
+  <https://github.com/mermaid-js/mermaid/pull/7785>, merged 2026-07-01. Pin the
+  first adopted Mermaid version, add a compatibility fixture for
+  `@{ view: collapsed }`, preserve the metadata before typed support exists,
+  then add typed `collapse`/`expand` mutation ops only if the upstream syntax
+  and real agent demand justify them.
+
+## Standing promotion policies (not backlog)
+
+- **Ecosystem issue promotion.** Upstream searches are research input, not a
+  second queue. Promote only a minimal, version-pinned reproduction that exposes
+  an Agentic Mermaid gap; cite it from a failing fixture and one owning TODO ID.
+- **Native family adoption.** Select from the version-pinned upstream manifest
+  using demand, maturity, syntax stability, and semantic leverage. Every promoted
+  family passes the citizenship and source/primitive/backend/output/transport
+  contracts; official or unknown headers remain preserved or diagnosed.
 
 ## Agent-usage verification backlog
 
@@ -145,7 +163,9 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 ## Parked / evidence-required ideas
 
 - [ ] **PARK-2 — Agent Skills discovery and skills.sh visibility** (`parked`,
-  experimental draft). Reassess Cloudflare's Agent Skills Discovery draft when
+  experimental draft). Current Cloudflare documentation describes an
+  experimental runtime skill registry, not a stable well-known discovery
+  contract. Reassess discovery when
   its `agent-skills` well-known suffix is registered or the ecosystem contract
   stabilizes. If adopted earlier, generate a v0.2.0
   `/.well-known/agent-skills/index.json`, package the workflow skill plus its
@@ -159,11 +179,19 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   browser/package export tweaks, ArchiMate (upstream PR #34), and
   animation remain fork-audit ideas. Promote one only with a focused issue
   and owner.
+- [ ] **PARK-4 — Adopt MCP revision 2026-07-28 backwards-compatibly**
+  (`parked` until 2026-07-28,
+  [#186](https://github.com/adewale/agentic-mermaid/issues/186)). Re-verify the
+  final specification on or after its publication date, then promote the issue
+  to `todo`: accept the new protocol header without dropping older versions,
+  keep post-2025-06-18 batching disabled, pin no-initialize tools/list and
+  tools/call tests, tolerate request `_meta` and new routing headers, audit error
+  codes, and update discovery/docs. Do not implement RC assumptions as final.
 
 
 ## Testing architecture backlog
 
-- [ ] **TEST-3 — Complexity-aware, registry-derived test portfolio** (`todo`).
+- [ ] **TEST-3 — Complexity-aware, registry-derived test portfolio** (`blocked`).
   The executable migration in
   [`docs/project/complexity-aware-test-portfolio-plan.md`](docs/project/complexity-aware-test-portfolio-plan.md)
   is implemented: immutable before/candidate reports, exhaustive finite
@@ -179,26 +207,36 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   churn, and escaped defects.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
+- [ ] **TEST-4 — Correct and strengthen the Python MCP interop probe** (`todo`,
+  [#191](https://github.com/adewale/agentic-mermaid/issues/191)). Replace the
+  deprecated `streamablehttp_client` alias, record the Python client's actual
+  request path, and correct the verification plan: all three SDKs prove
+  sessionless initialize/version negotiation/tool calls, while only TypeScript
+  and Go currently prove `GET -> 405`. Keep pinned `mcp==1.28.1` and latest
+  canary coverage green.
+- [ ] **TEST-5 — Make route-verification policy executable and retire the stale
+  score target** (`todo`, supersedes the historical framing in
+  [#35](https://github.com/adewale/agentic-mermaid/issues/35)). Treat 50.69% as
+  a historical diagnostic, not a quality gate. Resolve whether
+  `offOutlineEndpoints` is hard or cosmetic, enroll final rendered-endpoint
+  diagnostics in `audit:ugly` if that public command should own them (the
+  independent diagnostic is now enforced by `auditRouteContracts` and the
+  layout rubric), extract an independent certificate consistency audit, and
+  make production pipeline invariant checks explicit.
+  Use the canonical 2,800-case corpus, focused mutation lanes, and bounded route
+  sabotage to prove named behaviors; do not restore a broad percentage chase.
 
 ## Consolidation / dedup backlog
 
-- [ ] **CONS-11 — One shape-outline module** (`todo`). Every non-rectangular
-  flowchart silhouette is authored twice: the emitter in `src/renderer.ts` and
-  the edge clipper in `src/shape-clipping.ts` (hexagon `h/4`, cylinder `ry=7`,
-  trapezoid `w*0.15`, asymmetric `12`, diamond, stadium). Extract one
-  `shapeOutline(shape, x, y, w, h)` returning canonical vertices/cap radii;
-  renderer maps to SVG, clipper ray-intersects the same vertices.
-- [ ] **CONS-16 — Modeling `accTitle`/`accDescr` parser** (`todo`). The
-  directive regex has drifted (`xychart`/`agent` accept optional colon;
-  `architecture`/`timeline`/`gantt` require it) and the `accDescr { … }` block
-  scan is copy-pasted. Extend `src/shared/accessibility-directives.ts` with a
-  modeling `parseAccessibilityDirective(lines, i)` used by all parsers; pick one
-  colon rule consciously.
-- [ ] **CONS-26 — Unify agent vs legacy per-family parsers** (`owner-decision`,
-  architectural). The agent `*-body.ts` parsers re-encode grammars that
-  `src/<family>/parser.ts` already owns, kept in sync only by differential
-  tests. Build agent bodies as a projection of the legacy parser's AST so the
-  legacy parser is the single grammar authority. Schedule separately.
+- [ ] **CONS-26 — Finish agent/render grammar-authority convergence** (`todo`).
+  Flowchart, Pie, Quadrant, Mindmap, and GitGraph already project renderer-owned
+  ASTs; State, Timeline, and Journey share parse cores; XYChart now projects the
+  strict renderer AST and no longer owns a second grammar. The remaining
+  duplicated families are Class, ER, Sequence, Architecture, Gantt, and Radar.
+  Migrate one family at a time behind differential and unknown-line tests. For
+  Class/ER/Sequence/Gantt, do not project from a lossy final AST that discards
+  statement order or opaque segments; expose a shared statement parser/event
+  stream consumed by both surfaces instead.
 - [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanically
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize

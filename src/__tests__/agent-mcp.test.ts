@@ -715,7 +715,7 @@ describe('CLI — sad paths via runCli', () => {
     expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
   })
 
-  test('mutate on structured xychart succeeds (BUILD-16); opaque xychart stays unsupported', () => {
+  test('mutate on structured xychart preserves delimiter-bearing quoted text', () => {
     const tmp = `/tmp/cli-xychart-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'xychart-beta\n  x-axis [Jan, Feb]\n  bar [1, 2]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_series","kind2":"line","name":"Mobile","values":[3,4]}', '--json']))
@@ -730,12 +730,11 @@ describe('CLI — sad paths via runCli', () => {
     expect(accessible.code).toBe(0)
     expect(JSON.parse(accessible.out).source).toContain('accTitle: Sales chart')
 
-    const opaqueTmp = `/tmp/cli-xychart-opaque-${Date.now()}.mmd`
-    // Embedded list delimiters remain outside the structured title grammar.
-    require('node:fs').writeFileSync(opaqueTmp, 'xychart-beta\n  title "Quoted [legacy-only]"\n  bar [1, 2]\n')
-    const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"set_title","title":"X"}', '--json']))
-    expect(opaque.code).toBe(2)
-    expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
+    const quotedTmp = `/tmp/cli-xychart-quoted-${Date.now()}.mmd`
+    require('node:fs').writeFileSync(quotedTmp, 'xychart-beta\n  title "Quoted [supported]"\n  bar [1, 2]\n')
+    const quoted = capture(() => runCli(['mutate', quotedTmp, '--op', '{"kind":"set_y_axis","axis":{"range":{"min":0,"max":5}}}', '--json']))
+    expect(quoted.code).toBe(0)
+    expect(JSON.parse(quoted.out).source).toContain('title "Quoted [supported]"')
   })
 
   test('mutate on sequence-with-notes (BUILD-18: structured-with-segments) succeeds and keeps the note', () => {

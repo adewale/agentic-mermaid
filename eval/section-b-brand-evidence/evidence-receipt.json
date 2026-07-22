@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 265,
-    "treeSha256": "43de8076e1b909fb28f106165184eb6e5ec2c375c0e80c6f7b3423875b0bfdbd"
+    "count": 267,
+    "treeSha256": "64b456c8833809cb4d9211c7f76742d67d0f9db963bde75608fd2f1735d5516b"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -60,18 +60,18 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 15,
-      "svgSha256": "cf79a730de4b35ee3d8c020a48a9b690d9c8784ca355e138178d14ff19407ca5",
-      "pngSha256": "19374ce911cecf7e065304942d6628dfe32f2b73e96ec2343b2028341e8f408d"
+      "svgSha256": "ccfde1cee133a1acbb66bef993111302ca4fd8fee4ba6c6c852a297dcb84a212",
+      "pngSha256": "188bd1c5fc8d49334390cb283bd2556cf820dd385b2b0c0ea28f99388ae6f365"
     },
     "rough": {
       "familyCount": 15,
-      "svgSha256": "af8e27213fc79626efc9f2431c9d6d4ffccb9abb669e987b37c1fdd031053bab",
-      "pngSha256": "9092d91b7d53e5c4e1b23fa724f074eefb01ecf5631d55dde9ffa79e91647ae4"
+      "svgSha256": "e540793654125f544b4cc979c0b93148c298c733e208f1bc44e8b63a67896de2",
+      "pngSha256": "7c7460969daac3d55de609f9f0aa8acd0fa9b0da1c50870d864c28b3c821789e"
     },
     "hybrid": {
       "familyCount": 15,
-      "svgSha256": "2ff439f024573611e2a16882e8eddb8767801a0e8f2da505586378a1cdc97094",
-      "pngSha256": "fc10e0c3888697e225c8c96ab8bd280df82f0aa94562b6a2c1c0eed43ec2c85c"
+      "svgSha256": "3a8c15d66b56d8b63ec74fc135773f63861f2e996da5635b72c77dc5c11b1a4a",
+      "pngSha256": "a1bb6045d797140304a6fccebf7a793b045aa4ec3e85d062557a8c4c69a3d735"
     }
   },
   "terminalSha256": "b4ce32cb71246e74c52052f6fe6db25d4dd0788299935bc446e3b462355e22ab",
@@ -85,15 +85,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12",
-    "reviewedAt": "2026-07-16",
+    "artifactSha256": "de1688248e86733454f403d6eaa10588a7f4f6ab08a6ad003ca819b1bf0afdb6",
+    "reviewedAt": "2026-07-22",
     "reviewer": "OpenAI coding agent, at the user's explicit request",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12"
+      "sha256": "de1688248e86733454f403d6eaa10588a7f4f6ab08a6ad003ca819b1bf0afdb6"
     }
   ]
 }

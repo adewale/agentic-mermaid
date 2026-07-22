@@ -39,6 +39,44 @@ describe('parseXYChart – syntax', () => {
     expect(chart.series[0]!.data).toEqual([10, 20])
   })
 
+  it('treats axis titles, ranges, and categories as independent component updates', () => {
+    const after = parse(`xychart-beta
+      x-axis [Jan, Feb]
+      x-axis Months
+      y-axis 0 --> 100
+      y-axis Revenue
+      bar [10, 20]`)
+    expect(after.xAxis).toMatchObject({ title: 'Months', categories: ['Jan', 'Feb'] })
+    expect(after.yAxis).toMatchObject({ title: 'Revenue', range: { min: 0, max: 100 } })
+
+    const before = parse(`xychart-beta
+      x-axis Months
+      x-axis [Jan, Feb]
+      y-axis Revenue
+      y-axis 0 --> 100
+      bar [10, 20]`)
+    expect(before.xAxis).toMatchObject({ title: 'Months', categories: ['Jan', 'Feb'] })
+    expect(before.yAxis).toMatchObject({ title: 'Revenue', range: { min: 0, max: 100 } })
+  })
+
+  it('recognizes body directive keywords case-insensitively like Mermaid 11.16', () => {
+    const chart = parse(`xychart-beta
+      TITLE Revenue
+      X-AXIS [Q1, Q2]
+      Y-AXIS 0 --> 100
+      BAR [10, 20]`)
+    expect(chart.title).toBe('Revenue')
+    expect(chart.xAxis.categories).toEqual(['Q1', 'Q2'])
+    expect(chart.yAxis.range).toEqual({ min: 0, max: 100 })
+    expect(chart.series[0]?.data).toEqual([10, 20])
+  })
+
+  it('rejects empty and sparse data lists instead of silently deleting tokens', () => {
+    for (const points of ['', ',', '1,,2', '1,']) {
+      expect(() => parse(`xychart-beta\n  bar [${points}]`), points).toThrow()
+    }
+  })
+
   it('keeps accessibility directives in semicolon-separated statements', () => {
     const inline = parse('xychart; accTitle: Revenue chart; accDescr: Quarterly sales; bar [10, 20]')
     expect(inline.accessibility).toEqual({

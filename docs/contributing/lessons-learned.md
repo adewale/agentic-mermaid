@@ -8,6 +8,28 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — post-merge route-verification audit (#88, #190)
+
+**A generated counterexample is evidence about an invariant, not automatically a product requirement.** The issue #88 investigation expanded from route-contract closure into a general endpoint and arrowhead repair largely in response to degenerate generated diagrams. That repair added routing, label, marker, and certificate machinery before the input domain, prevalence, and visual value were clear; most of it was later removed. Rule: before production code responds to a generated failure, establish that the input is supported, the defect is user-reachable and materially harmful, and the proposed invariant has representative before/after witnesses. Keep other pathological cases as discovery evidence or telemetry, not silent product policy.
+
+**Rollback the mechanism, retain the discriminating evidence.** Removing the rejected endpoint router did not require forgetting why it had been attempted. The useful residue was the bounded problem statement, representative regression witnesses, one canonical 2,800-case runner, receipts, and sabotage probes. Rule: when an approach is too broad or costly, subtract the production mechanism while preserving the smallest tests, measurements, and reproducers that can distinguish a future better solution.
+
+**Share an expensive artifact, not its proof.** The old hitch and edge-through-node paths performed 4,800 layouts in 30.44 seconds locally. One runner now lays out 2,800 cases once in 17.33 seconds and fans the positioned graphs into hitch, rubric, route-audit, and certificate observations: 41.7% fewer layouts, 43.1% less local time, and 40% more edge-through-node coverage. Rule: consolidate traversal and expensive production, but keep obligation enumeration and correctness oracles independently implemented so one shared mistake cannot certify itself.
+
+**Severity vocabulary must have one executable meaning.** `offOutlineEndpoints` was documented as a hard metric, classified as cosmetic elsewhere, and recorded under `hardViolations` while treated as non-blocking telemetry by the canonical runner. Rule: a named severity has one authority and one gate policy. Either prove and enforce the invariant across an enrolled domain, or rename and scope the observation; do not silently downgrade it in a consumer.
+
+**A detector is not part of an audit until the public command reaches it.** `auditRenderedRoutes` existed and tests exercised it, while `audit:ugly` described shared-label checks without calling that detector. Rule: test command-to-detector reachability with a known failing fixture, expose detector enrollment in the receipt, and distinguish “implemented” from “integrated.”
+
+**Derived defaults need provenance before projection.** XYChart derives a y-axis range when the author omits one. Projecting that convenient render-time value into the agent AST made serialization invent syntax the user never wrote. Rule: when one model feeds both rendering and source editing, distinguish authored, normalized, and derived values at the authority boundary; serialize only authored state unless the operation explicitly materializes a default.
+
+**A shared boundary is incomplete if a later repair owns its own attachment math.** Sharing shape paint and initial clipping still allowed route shortening to put semantic polygons and small circles back on their layout boxes. Rule: enumerate every producer that can write the final endpoint, then make all of them consume one boundary-plus-side profile. Keep the final checker independent and exercise every shape through a forced late-repair path, not only a happy-path layout.
+
+**Serializer closure is part of an admitted mutation domain.** XYChart mutation accepted every finite JavaScript number while its serializer emitted exponent notation that the pinned Mermaid grammar rejects. Rule: if an operation admits a value, construct syntax guaranteed to reparse into the same family; test language boundaries such as subnormals and exponent thresholds, and reject a mutation if reparsing changes either diagram or body kind.
+
+**Relationship removal can erase implicit entities.** State transitions may introduce their endpoints without standalone declarations. Removing the last transition used to leave the state in the typed body while serialization silently omitted it. Rule: when a relationship mutation strands an implicit entity, either remove that entity by contract or promote it to an explicit declaration before returning. Enforce family-and-body closure at the mutation boundary so this loss is found immediately.
+
+**Run the repository's test command, not the runner's broad default.** Bare `bun test` also discovers checked-in upstream Mermaid `*.spec.ts` source fixtures whose upstream-only imports are deliberately unavailable. The canonical `bun run test` scopes execution to `src/__tests__/` and tests harvested cases through repository adapters. Diagnose discovery errors before calling them product regressions, but still run the declared full suite after focused passes.
+
 ## 2026-07 — subtraction and release readiness (#205)
 
 **A live dependency audit is a release input, not background noise.** The PR's behavioral lanes were green, but a newly disclosed advisory in Stryker's `minimatch` chain stopped the quality job before the repository-specific checks ran. Rule: preserve the audit gate, resolve the smallest compatible transitive version explicitly, prove the dependent tool still runs, and distinguish inherited aggregate failures from product regressions.
