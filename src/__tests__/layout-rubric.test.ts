@@ -66,6 +66,44 @@ describe('rubric ratchets — endpoint outline regressions', () => {
     const result = assessLayout(graph, positioned)
     expect(result.violations.filter(v => v.metric === 'offOutlineEndpoints')).toEqual([])
   })
+
+  it('independently recognizes the painted small-circle outline and rejects its layout box', () => {
+    const node = {
+      id: 'small', label: '', shape: 'circle', semanticShape: 'sm-circ',
+      x: 0, y: 0, width: 40, height: 40,
+    } as const
+    expect(onShapeOutline(node, { x: 28.8, y: 20 })).toBe(true)
+    expect(onShapeOutline(node, { x: 40, y: 20 })).toBe(false)
+
+    const graph = parseMermaid('flowchart LR\n  A[Source] --> B@{ shape: sm-circ, label: "" }')
+    expect(assessLayout(graph, layoutGraphSync(graph)).metrics.offOutlineEndpoints).toBe(0)
+  })
+
+  it('distinguishes circular paint, crossed ellipses, and State choice/history outlines', () => {
+    const circle = { id: 'c', label: '', shape: 'circle', x: 0, y: 0, width: 80, height: 40 } as const
+    expect(onShapeOutline(circle, { x: 40, y: 0 })).toBe(true)
+    expect(onShapeOutline(circle, { x: 80, y: 20 })).toBe(false)
+    expect(onShapeOutline({ ...circle, semanticShape: 'cross-circ' }, { x: 80, y: 20 })).toBe(true)
+
+    const choice = { id: 'q', label: '', shape: 'state-choice', x: 0, y: 0, width: 40, height: 20 } as const
+    expect(onShapeOutline(choice, { x: 30, y: 5 })).toBe(true)
+    expect(onShapeOutline(choice, { x: 40, y: 5 })).toBe(false)
+    const history = { id: 'h', label: '', shape: 'state-history', x: 0, y: 0, width: 40, height: 20 } as const
+    expect(onShapeOutline(history, { x: 20, y: 0 })).toBe(true)
+    expect(onShapeOutline(history, { x: 40, y: 10 })).toBe(false)
+  })
+
+  it('independently recognizes painted State pseudostate rings and rejects their layout boxes', () => {
+    const node = {
+      id: 'start', label: '', shape: 'state-start',
+      x: 0, y: 0, width: 20, height: 20,
+    } as const
+    expect(onShapeOutline(node, { x: 18, y: 10 })).toBe(true)
+    expect(onShapeOutline(node, { x: 20, y: 10 })).toBe(false)
+
+    const graph = parseMermaid('stateDiagram-v2\n  direction LR\n  [*] --> Ready\n  Ready --> [*]')
+    expect(assessLayout(graph, layoutGraphSync(graph)).metrics.offOutlineEndpoints).toBe(0)
+  })
 })
 
 describe('visual rubric — peer barycenter ratchets', () => {

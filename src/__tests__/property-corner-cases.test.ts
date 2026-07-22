@@ -30,7 +30,7 @@
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { assessLayout, hardViolations, HARD_METRICS } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, HARD_METRICS, labelMidpointOffset } from '../layout-rubric.ts'
 
 const DIRS = ['LR', 'RL', 'TD', 'BT']
 const W = ['warnings', 'ok', 'same word ok', 'a longer label goes here', 'x', 'errors', 'q', 'done']
@@ -167,6 +167,7 @@ describe('corner-case fuzz gate: structurally HARD-clean + deterministic across 
       const structural: string[] = []
       let labelOffRoute = 0
       let worstLabel = 0
+      let worstLabelContext = ''
       for (let i = 0; i < n; i++) {
         const src = gen(i)
         let g, p
@@ -176,11 +177,19 @@ describe('corner-case fuzz gate: structurally HARD-clean + deterministic across 
           if (v.metric === 'labelOffRoute') labelOffRoute++
           else structural.push(`#${i} ${v.metric}\n${src}`)
         }
-        worstLabel = Math.max(worstLabel, (r.metrics as { worstLabelOffset?: number }).worstLabelOffset ?? 0)
+        for (const edge of p.edges) {
+          const offset = labelMidpointOffset(edge)
+          if (offset > worstLabel) {
+            worstLabel = offset
+            worstLabelContext = `case #${i}, edge ${edge.source}->${edge.target} ${edge.label ?? ''}\npoints=${JSON.stringify(edge.points)}\nlabel=${JSON.stringify(edge.labelPosition)}\n${src}`
+          }
+        }
       }
       if (structural.length) throw new Error(`${structural.length} structural-hard/crash case(s):\n${structural.slice(0, 3).join('\n---\n')}`)
       expect(labelOffRoute).toBeLessThanOrEqual(knownLabelOffRoute) // pinned pre-existing floor; growth = regression
-      expect(worstLabel).toBeLessThan(LABEL_OFFSET_CEIL) // soft centring sanity ceiling
+      if (worstLabel >= LABEL_OFFSET_CEIL) {
+        throw new Error(`worst label midpoint offset ${worstLabel.toFixed(3)}; ${worstLabelContext}`)
+      }
     }, 60_000)
   }
 

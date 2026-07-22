@@ -128,7 +128,7 @@
     },
     {
       "path": "src/agent/families-builtin.ts",
-      "sha256": "8a2dc28d88a65cfb18b49270c8ba7b0a1addb3e944de829ccaa86464d4d54d15"
+      "sha256": "0b91c4d866bda69fe6cac9c64de703f810a896964eeb2ed3eea6f2f268550961"
     },
     {
       "path": "src/agent/families.ts",
@@ -192,7 +192,7 @@
     },
     {
       "path": "src/agent/mutate.ts",
-      "sha256": "7907092e7e30fa081a22372432d8629b223a7c9708b7863dd4f94a6a62e9382d"
+      "sha256": "c0cfecfedcf931ea5a3359ccc348806bafaa105036e7e44d5355b98d7e82cca1"
     },
     {
       "path": "src/agent/mutation-ops.ts",
@@ -248,7 +248,7 @@
     },
     {
       "path": "src/agent/state-body.ts",
-      "sha256": "459fc4d36c0f2c3886fafdf6f87cbd0f9b63da7600e9ed42defeb1f37deb90e7"
+      "sha256": "9aa5e00efc083eaae741c54fb35c3dd7a3cd42eba44cf718e77d984f2255911a"
     },
     {
       "path": "src/agent/structural-count.ts",
@@ -272,7 +272,7 @@
     },
     {
       "path": "src/agent/xychart-body.ts",
-      "sha256": "74e09e950a79c803abaf3f9e595c3406af3878e0db43fb7f55463577d5b63a1f"
+      "sha256": "57d398febfab1bc0fef5b79b286e5042a5eabe3823651fa55d55929c6dbfa91b"
     },
     {
       "path": "src/architecture/align.ts",
@@ -616,7 +616,7 @@
     },
     {
       "path": "src/layout-rubric.ts",
-      "sha256": "da335a7bb78e478de53ecb3cca4cd952a92444992a874e11235e7057b92d5f7b"
+      "sha256": "e12a6c56fd01c1890c12683552432cd96cbda70758d9bf0859bbf4dfb38ade31"
     },
     {
       "path": "src/layout/geometry.ts",
@@ -791,8 +791,12 @@
       "sha256": "a350e0819c8ef1824cf17f755ab505dced65e93085f977d58188a93d52abd936"
     },
     {
+      "path": "src/rendered-endpoint-diagnostics.ts",
+      "sha256": "1046fb4713d6d810d385181f5f711a20e57c04376220fd9d79b6e4a79ee573dd"
+    },
+    {
       "path": "src/renderer.ts",
-      "sha256": "ecbe8f37eb12240cb5ca07700529360e3582c3825cbe61dd68fc5fa447ccdc55"
+      "sha256": "5db72e38e448b7e6c0414948c9a209262bb46d06dfb1fe5ac46084505cb9f8ec"
     },
     {
       "path": "src/resource-manifest.ts",
@@ -800,7 +804,7 @@
     },
     {
       "path": "src/route-contracts.ts",
-      "sha256": "47947d90bb0596bb083812915e85a2d8b95764cf39b12ed1d7b55eed60138de6"
+      "sha256": "3139b263c636116bd7f916d0e69347fb0562551afc4ea3cfb37bde6a8a670446"
     },
     {
       "path": "src/scene/accessibility.ts",
@@ -952,7 +956,11 @@
     },
     {
       "path": "src/shape-clipping.ts",
-      "sha256": "ed5a05e239fa8c3ce8a748ebf6b15b4f51802a6a6a559fe1525d28575660e7cb"
+      "sha256": "de60a24b7c333e9dd6b703895ae69271c0c34e93e4fb2ce6e1db1d867fa2f0db"
+    },
+    {
+      "path": "src/shape-outline.ts",
+      "sha256": "0329a2016d6e38eb735f06bb33762c826e3fbddfddaaccb2d919ebbea72b0e85"
     },
     {
       "path": "src/shared/accessibility-directives.ts",
@@ -1156,7 +1164,7 @@
     },
     {
       "path": "src/xychart/parser.ts",
-      "sha256": "dd745a243f52ed3f55a048eff31a9ae506ebfa5b7ab24a17e93eb27aa0065932"
+      "sha256": "3c135f1aa8921825251e1cb66a063b2dda3612c17fa26baf84fff5c61fb1a456"
     },
     {
       "path": "src/xychart/renderer.ts",
@@ -1164,7 +1172,7 @@
     },
     {
       "path": "src/xychart/types.ts",
-      "sha256": "a03ae3528f0db2d83131858e15ff6a3f244b1861fe421e43c09332c1ccf489cf"
+      "sha256": "3a140db5aa8856c34606840dfd091e1f0c46735efffd590412e5ab387c74dcf8"
     }
   ],
   "runtimeDependencies": {

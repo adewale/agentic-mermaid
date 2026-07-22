@@ -108,7 +108,6 @@ describe('xychart differential vs legacy parseXYChart', () => {
 
 describe('xychart structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
-    ['multi-statement semicolon', 'xychart-beta\n  title T; bar [1, 2]'],
     ['unmodeled token (curve)', 'xychart-beta\n  bar [1, 2]\n  curve basis'],
     ['non-numeric series value', 'xychart-beta\n  bar [1, two, 3]'],
     ['no series', 'xychart-beta\n  title Only a title'],
@@ -122,6 +121,59 @@ describe('xychart structured-or-opaque fallback', () => {
       expect(r.value.body.kind).toBe('opaque')
       expect(asXyChart(r.value)).toBeNull()
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
+    })
+  }
+
+  test('semicolon statements use the shared grammar and remain structured', () => {
+    const d = xychart('xychart-beta\n  title T; bar [1, 2]')
+    expect(d.body.title).toBe('T')
+    expect(d.body.series[0]?.values).toEqual([1, 2])
+  })
+
+  test('header-line semicolons use the shared grammar and remain structured', () => {
+    const d = xychart('xychart-beta horizontal; accTitle: Accessible; bar [1, 2]')
+    expect(d.body.horizontal).toBe(true)
+    expect(d.body.accessibilityTitle).toBe('Accessible')
+    expect(d.body.series[0]?.values).toEqual([1, 2])
+  })
+
+  test('repeated axis directives preserve independently authored components in either order', () => {
+    for (const source of [
+      'xychart-beta\nx-axis [Jan, Feb]; x-axis Months\ny-axis 0 --> 100; y-axis Revenue\nbar [1, 2]',
+      'xychart-beta\nx-axis Months; x-axis [Jan, Feb]\ny-axis Revenue; y-axis 0 --> 100\nbar [1, 2]',
+    ]) {
+      const d = xychart(source)
+      expect(d.body.xAxis).toEqual({ name: 'Months', categories: ['Jan', 'Feb'] })
+      expect(d.body.yAxis).toEqual({ name: 'Revenue', range: { min: 0, max: 100 } })
+    }
+  })
+
+  // Characterized against the Mermaid 11.16 xychart Jison grammar pinned in
+  // node_modules/mermaid. These cases keep the compatibility claim independent
+  // of our parse→serialize self-closure properties.
+  const mermaid1116Characterization: Array<{
+    name: string
+    source: string
+    structured: boolean
+  }> = [
+    { name: 'same-line header separator', source: 'xychart-beta horizontal; bar [1]', structured: true },
+    { name: 'case-insensitive series keyword', source: 'xychart-beta\n  BAR [1, 2]', structured: true },
+    { name: 'quoted point label', source: 'xychart-beta\n  bar [1 "peak", 2 "close"]', structured: true },
+    { name: 'empty list', source: 'xychart-beta\n  bar []', structured: false },
+    { name: 'only separator', source: 'xychart-beta\n  bar [,]', structured: false },
+    { name: 'missing middle point', source: 'xychart-beta\n  bar [1,,2]', structured: false },
+    { name: 'trailing separator', source: 'xychart-beta\n  bar [1,]', structured: false },
+    { name: 'unquoted point label', source: 'xychart-beta\n  bar [1 peak]', structured: false },
+    { name: 'single-quoted point label', source: "xychart-beta\n  bar [1 'peak']", structured: false },
+    { name: 'exponent notation', source: 'xychart-beta\n  bar [1e3]', structured: false },
+  ]
+  for (const { name, source, structured } of mermaid1116Characterization) {
+    test(`Mermaid 11.16 characterization: ${name}`, () => {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      expect(parsed.value.body.kind === 'xychart').toBe(structured)
+      if (!structured) expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
     })
   }
 
@@ -424,5 +476,16 @@ describe('xychart round-trip property', () => {
     const out = serializeMermaid(d)
     expect(out).toContain('[0.1, 42, -5, 0, 3.14]')
     expect(xychart(out).body.series[0]!.values).toEqual([0.1, 42, -5, 0, 3.14])
+  })
+
+  test('canonical number format closes every finite exponent-form boundary over the decimal grammar', () => {
+    const values = [1e21, 1e-7, -1e21, -1e-7, Number.MIN_VALUE, Number.MAX_VALUE, -0]
+    let d = xychart('xychart-beta\n  bar [1]')
+    d = apply(d, { kind: 'set_series_values', index: 0, values })
+    const out = serializeMermaid(d)
+    expect(out).not.toMatch(/[0-9]e[+-]?\d/i)
+    const reparsed = xychart(out)
+    values.forEach((value, index) => expect(Object.is(reparsed.body.series[0]!.values[index], value), String(value)).toBe(true))
+    expect(serializeMermaid(reparsed)).toBe(out)
   })
 })

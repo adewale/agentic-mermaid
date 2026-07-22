@@ -32,6 +32,8 @@ import type {
 import { measureMultilineText } from './text-metrics.ts'
 import { applyTextTransform, resolveRenderStyle } from './styles.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
+import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
+import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 
 type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'> & {
   invariant: RouteInvariant
@@ -41,8 +43,6 @@ type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'
 
 /** Two coordinates within this distance are the same point. */
 const EPS = 0.01
-/** Straightened endpoints keep this inset from rectangle side ends. */
-const SPAN_MARGIN = 4
 /** Obstacle bounding boxes are inflated by this much when proving a lane clear. */
 const CLEARANCE = 4
 /** Required free space around a label hosted on a straightened lane. */
@@ -73,12 +73,6 @@ export const PORT_EXACT = new Set([
   'trapezoid', 'trapezoid-alt', 'asymmetric', 'lean-r', 'lean-l',
 ])
 
-/** Shapes whose E/W sides are slants sheared in by width * SLANT_INSET_RATIO
- *  (renderer geometry): the E/W port main coordinate moves onto the slant
- *  midpoint, all other port coordinates stay at the bbox side midpoints. */
-const SLANTED = new Set(['trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l'])
-const SLANT_INSET_RATIO = 0.15
-
 /** Tolerance for recognizing an endpoint as sitting on a port. */
 const PORT_TOLERANCE = 0.5
 
@@ -89,36 +83,11 @@ const PAIR_SEPARATION = 12
  *  into the target's facing port) — shorter reads as a hitch, not an entry. */
 const HOOK_STUB_MIN = 8
 
-/** The four canonical connection points. Every port keeps its CROSS
- *  coordinate at the bbox center (cy for E/W, cx for N/S) — the whole engine
- *  assumes port lanes run through node centers. Only the MAIN coordinate
- *  moves onto the rendered outline:
- *   - symmetric shapes (rect-likes, diamond, circle, stadium, hexagon,
- *     cylinder, pseudostates): bbox side midpoints — diamond vertices,
- *     circle extremes, hexagon E/W vertices and cylinder cap centers
- *     coincide with them.
- *   - the slanted family (trapezoid, trapezoid-alt, lean-r, lean-l): E/W
- *     move inward to the slant midpoints at mid-height (x + i/2 and
- *     x + w - i/2 with i = w * 0.15 — identical for all four by symmetry);
- *     N/S stay at (cx, y)/(cx, y+h), which lie on the flats since i < w/2.
- *   - asymmetric: W is the flag point (x, cy); E/N/S are bbox midpoints
- *     (cx lies on both flats whenever w > 24 — nodes are always wider). */
+/** The four canonical connection points. Their cross coordinate stays on the
+ * node centerline, while their main coordinate comes from the same production
+ * outline authority used by paint and clipping. */
 export function shapePorts(node: PositionedNode): Record<PortSide, Point> {
-  const cx = node.x + node.width / 2
-  const cy = node.y + node.height / 2
-  let east = node.x + node.width
-  let west = node.x
-  if (SLANTED.has(node.shape)) {
-    const inset = node.width * SLANT_INSET_RATIO
-    east = node.x + node.width - inset / 2
-    west = node.x + inset / 2
-  }
-  return {
-    N: { x: cx, y: node.y },
-    E: { x: east, y: cy },
-    S: { x: cx, y: node.y + node.height },
-    W: { x: west, y: cy },
-  }
+  return shapeCardinalPorts(node)
 }
 
 /**
@@ -150,11 +119,13 @@ export function diamondFacetPorts(node: PositionedNode): Record<DiamondFacet, Po
  * is additionally tested against the facet-midpoints, returning NE/SE/SW/NW.
  */
 function portAt(node: PositionedNode, pt: Point): AnyPort | undefined {
+  const profile = shapeRoutingProfile(node)
+  if (profile.boundary.kind === 'envelope' || profile.boundary.kind === 'none') return undefined
   const ports = shapePorts(node)
   for (const side of ['N', 'E', 'S', 'W'] as const) {
     if (Math.abs(ports[side].x - pt.x) <= PORT_TOLERANCE && Math.abs(ports[side].y - pt.y) <= PORT_TOLERANCE) return side
   }
-  if (node.shape === 'diamond') {
+  if (hasFacetAttachments(node)) {
     const facets = diamondFacetPorts(node)
     for (const f of ['NE', 'SE', 'SW', 'NW'] as const) {
       if (Math.abs(facets[f].x - pt.x) <= PORT_TOLERANCE && Math.abs(facets[f].y - pt.y) <= PORT_TOLERANCE) return f
@@ -165,8 +136,15 @@ function portAt(node: PositionedNode, pt: Point): AnyPort | undefined {
 
 /** Straightenable: rect-likes and diamonds anywhere on a side/facet; other
  *  PORT_EXACT shapes only through their exact ports. */
-function isStraightenable(shape: PositionedNode['shape']): boolean {
-  return PORT_EXACT.has(shape)
+function isStraightenable(node: PositionedNode): boolean {
+  const boundary = shapeRoutingProfile(node).boundary
+  return boundary.kind !== 'envelope' && boundary.kind !== 'none'
+}
+
+function hasFacetAttachments(node: PositionedNode): boolean {
+  const profile = shapeRoutingProfile(node)
+  return profile.boundary.kind === 'polygon' &&
+    (['N', 'E', 'S', 'W'] as const).every(side => profile.sides[side].kind === 'dynamic')
 }
 
 export interface LabelMetricsStyle {
@@ -342,73 +320,15 @@ function isMonotoneStaircase(points: Point[], axis: Axis): boolean {
 
 interface CrossSpan { lo: number; hi: number }
 
-/** A straightened lane keeps this cross-axis distance from a diamond vertex. */
-const VERTEX_MARGIN = 10
-
 /** Cross-axis range where a straightened lane may attach to this node. */
-function attachSpan(node: PositionedNode, axis: Axis): CrossSpan | null {
-  const lo = node[axis.cross]
-  const size = axis.cross === 'y' ? node.height : node.width
-  if (node.shape === 'diamond') {
-    // Anywhere on the facet except a small absolute margin around the
-    // vertices — flowchart convention attaches along the whole slanted edge
-    // (a proportional restriction needlessly forbade straight lanes whose
-    // partner node sits off the diamond's centerline).
-    if (size <= VERTEX_MARGIN * 4) {
-      const center = lo + size / 2
-      return { lo: center - size / 4, hi: center + size / 4 }
-    }
-    return { lo: lo + VERTEX_MARGIN, hi: lo + size - VERTEX_MARGIN }
-  }
-  if (RECT_LIKE.has(node.shape)) {
-    if (size <= SPAN_MARGIN * 2) return null
-    return { lo: lo + SPAN_MARGIN, hi: lo + size - SPAN_MARGIN }
-  }
-  // Shapes with one FLAT pair of sides accept attachment anywhere on the
-  // flat region (it lies exactly on the bbox edge); their curved/pointed
-  // pair stays port-only. This is the geometric form of yFiles' overflow
-  // port candidates: the side midpoint is the preferred anchor, the rest of
-  // the flat side takes the overflow.
-  if (node.shape === 'hexagon' && axis.cross === 'x') {
-    const inset = node.height / 4
-    if (size - 2 * inset <= SPAN_MARGIN) return null
-    return { lo: lo + inset + 2, hi: lo + size - inset - 2 } // flat N/S region
-  }
-  if (node.shape === 'stadium' && axis.cross === 'x') {
-    const r = node.height / 2
-    if (size - 2 * r <= SPAN_MARGIN) return null
-    return { lo: lo + r + 2, hi: lo + size - r - 2 } // flat N/S region
-  }
-  if (node.shape === 'cylinder' && axis.cross === 'y') {
-    const RY = 7
-    if (size - 2 * RY <= SPAN_MARGIN) return null
-    return { lo: lo + RY + 2, hi: lo + size - RY - 2 } // straight E/W walls
-  }
-  // The slanted family in vertical flow: attachment anywhere on the
-  // INTERSECTION of the two flat sides, so one span works for both N and S
-  // (trapezoid: top flat [x+i, x+w-i] ∩ bottom flat [x, x+w]; lean-r/lean-l:
-  // [x+i, x+w] ∩ [x, x+w-i] — the same [x+i, x+w-i] for all four). Their
-  // slanted E/W sides stay port-only via the PORT_EXACT fallback below.
-  if (SLANTED.has(node.shape) && axis.cross === 'x') {
-    const inset = node.width * SLANT_INSET_RATIO
-    if (size - 2 * inset <= SPAN_MARGIN * 2) return null
-    return { lo: lo + inset + SPAN_MARGIN, hi: lo + size - inset - SPAN_MARGIN }
-  }
-  // Asymmetric in vertical flow: both flats span [x+12, x+w] (the flag point
-  // only indents the W side). Its pointed/straight E-W pair is port-only.
-  if (node.shape === 'asymmetric' && axis.cross === 'x') {
-    const POINT_INDENT = 12
-    if (size - POINT_INDENT <= SPAN_MARGIN * 2) return null
-    return { lo: lo + POINT_INDENT + SPAN_MARGIN, hi: lo + size - SPAN_MARGIN }
-  }
-  if (PORT_EXACT.has(node.shape)) {
-    // Fully curved or pointed on this axis (circle; stadium ends; hexagon
-    // tips; cylinder caps): only the exact side-midpoint port is on the
-    // outline at the bbox edge.
-    const center = lo + size / 2
+function attachSpan(node: PositionedNode, axis: Axis, facing: 1 | -1): CrossSpan | null {
+  const attachment = shapeRoutingProfile(node).sides[facingSide(axis, facing)]
+  if (attachment.kind === 'dynamic') return { lo: attachment.lo, hi: attachment.hi }
+  if (attachment.kind === 'port') {
+    const center = attachment.point[axis.cross]
     return { lo: center - PORT_TOLERANCE, hi: center + PORT_TOLERANCE }
   }
-  return null // shape's outline may not contain a bbox-side anchor; skip
+  return null
 }
 
 /**
@@ -416,28 +336,9 @@ function attachSpan(node: PositionedNode, axis: Axis): CrossSpan | null {
  * node's rendered boundary. `facing` is +1 for the side facing forward flow
  * (source side), -1 for the side facing backward (target side).
  */
-function anchorMain(node: PositionedNode, c: number, axis: Axis, facing: 1 | -1): number {
-  const mainLo = node[axis.main]
-  const mainSize = axis.main === 'x' ? node.width : node.height
-  if (node.shape === 'diamond') {
-    const crossLo = node[axis.cross]
-    const crossSize = axis.cross === 'y' ? node.height : node.width
-    const centerMain = mainLo + mainSize / 2
-    const centerCross = crossLo + crossSize / 2
-    const slope = 1 - Math.abs(c - centerCross) / (crossSize / 2)
-    return centerMain + facing * axis.sign * (mainSize / 2) * slope
-  }
-  // The slanted family in horizontal flow is port-only (c ≈ cy), so the
-  // boundary main coordinate is the slant midpoint — the shapePorts E/W main
-  // (x + w - i/2 forward, x + i/2 backward; identical for all four shapes by
-  // symmetry). In vertical flow their flats sit at the bbox edge (y / y+h),
-  // so the rect default below applies. Asymmetric needs no case at all: its
-  // W point (x, cy) and E side (x+w) ARE the bbox extremes.
-  if (SLANTED.has(node.shape) && axis.main === 'x') {
-    const inset = node.width * SLANT_INSET_RATIO
-    return facing * axis.sign > 0 ? mainLo + mainSize - inset / 2 : mainLo + inset / 2
-  }
-  return facing * axis.sign > 0 ? mainLo + mainSize : mainLo
+function anchorMain(node: PositionedNode, c: number, axis: Axis, facing: 1 | -1): number | null {
+  const point = pointOnShapeSide(shapeRoutingProfile(node), facingSide(axis, facing), c)
+  return point?.[axis.main] ?? null
 }
 
 // ============================================================================
@@ -658,25 +559,26 @@ function buildRouteLaneContext(
 }
 
 /** Port-ranking sharpness: a diamond's vertex is the strongest anchor. */
-function portSharpness(shape: PositionedNode['shape']): number {
-  return shape === 'diamond' ? 2 : 1
+function portSharpness(node: PositionedNode): number {
+  return hasFacetAttachments(node) ? 2 : 1
 }
 
 function portPoint(node: PositionedNode, side: PortSide | DiamondFacet): Point {
-  if (node.shape === 'diamond' && (side === 'NE' || side === 'SE' || side === 'SW' || side === 'NW')) {
+  if (hasFacetAttachments(node) && (side === 'NE' || side === 'SE' || side === 'SW' || side === 'NW')) {
     return diamondFacetPorts(node)[side]
   }
   return shapePorts(node)[side as PortSide]
 }
 
 function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNode, isStart: boolean): void {
-  if (!RECT_LIKE.has(node.shape) || edge.points.length < 2) return
+  const boundary = shapeRoutingProfile(node).boundary
+  if (boundary.kind !== 'rect' || edge.points.length < 2) return
   const idx = isStart ? 0 : edge.points.length - 1
   const p = edge.points[idx]!
-  const x0 = node.x
-  const x1 = node.x + node.width
-  const y0 = node.y
-  const y1 = node.y + node.height
+  const x0 = boundary.x
+  const x1 = boundary.x + boundary.width
+  const y0 = boundary.y
+  const y1 = boundary.y + boundary.height
   const near = (a: number, b: number) => Math.abs(a - b) <= PORT_TOLERANCE
   const pushStub = (outline: Point, stub: Point) => {
     edge.points[idx] = outline
@@ -733,7 +635,7 @@ function diamondSpreadAssignment(
   ctx: LaneContext,
   axis: Axis,
 ): DiamondSpreadAssignment | null {
-  if (source.shape !== 'diamond' || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
+  if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
     return null
   }
   const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
@@ -772,7 +674,7 @@ function diamondSpreadTargetsShareRank(
   ctx: LaneContext,
   axis: Axis,
 ): boolean {
-  if (source.shape !== 'diamond' || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
+  if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
     return false
   }
   const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
@@ -1103,8 +1005,8 @@ function laneSearch(
   axis: Axis,
   restrictToLane?: number,
 ): LaneSearch | null {
-  const srcSpan = attachSpan(source, axis)
-  const tgtSpan = attachSpan(target, axis)
+  const srcSpan = attachSpan(source, axis, 1)
+  const tgtSpan = attachSpan(target, axis, -1)
   if (!srcSpan || !tgtSpan) return null
 
   const overlapLo = Math.max(srcSpan.lo, tgtSpan.lo)
@@ -1113,7 +1015,7 @@ function laneSearch(
   // closer to a diamond vertex than the aesthetic margin normally allows:
   // exact connection points outrank the margin (yFiles port-candidate costs).
   const relax = (node: PositionedNode, span: CrossSpan): CrossSpan => {
-    if (node.shape !== 'diamond') return span
+    if (!hasFacetAttachments(node)) return span
     return { lo: node[axis.cross] + 2, hi: node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) - 2 }
   }
   const relaxedLo = Math.max(relax(source, srcSpan).lo, relax(target, tgtSpan).lo)
@@ -1139,8 +1041,8 @@ function laneSearch(
   const tgtPortLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
   const srcPortLane = source[axis.cross] + (axis.cross === 'y' ? source.height : source.width) / 2
   const srcSideUse = ctx.sideUse?.get(`${source.id}:${facingSide(axis, 1)}`) ?? 1
-  const emitFromVertex = source.shape === 'diamond' && srcSideUse === 1 &&
-    portSharpness(source.shape) >= portSharpness(target.shape)
+  const emitFromVertex = hasFacetAttachments(source) && srcSideUse === 1 &&
+    portSharpness(source) >= portSharpness(target)
   // A reciprocal pair (A->B with an unlabeled B->A partner) renders as TWO
   // EQUAL parallel lines straddling the centerline at center ± SEP/2 —
   // equal deviation gives equal lengths (a diamond's facet width depends on
@@ -1158,7 +1060,7 @@ function laneSearch(
   // the cross offset is the source diamond's own facet-mid offset (size/4), so
   // its endpoint lands exactly on a facet-mid. The target end anchors on its
   // facing facet at the same lane (on-outline, the partner's nearest mid).
-  const recipDiamond = reciprocal && source.shape === 'diamond' && target.shape === 'diamond'
+  const recipDiamond = reciprocal && hasFacetAttachments(source) && hasFacetAttachments(target)
   if (restrictToLane !== undefined) {
     candidates.push(restrictToLane)
   } else if (recipDiamond) {
@@ -1221,6 +1123,7 @@ function proveLane(
   if (c < lo - EPS || c > hi + EPS) return { blockers: [{ kind: 'span', id: edgeId(edge) }] }
   const srcMain = anchorMain(source, c, axis, 1)
   const tgtMain = anchorMain(target, c, axis, -1)
+  if (srcMain === null || tgtMain === null) return { blockers: [{ kind: 'span', id: edgeId(edge) }] }
   if ((tgtMain - srcMain) * axis.sign <= EPS) return { blockers: [{ kind: 'span', id: edgeId(edge) }] }
   const mainLo = Math.min(srcMain, tgtMain)
   const mainHi = Math.max(srcMain, tgtMain)
@@ -1285,7 +1188,7 @@ export function straightLaneFor(
 ): number | null {
   const search = laneSearch(edge, source, target, ctx, axis)
   if (!search || search.emptyRelaxed) return null
-  if (!isStraightenable(source.shape) || !isStraightenable(target.shape)) return null
+  if (!isStraightenable(source) || !isStraightenable(target)) return null
   if (!isMonotoneStaircase(edge.points, axis)) return null
   for (const c of search.candidates) {
     const proven = proveLane(edge, source, target, c, ctx, axis, search)
@@ -1356,8 +1259,8 @@ export function applyRouteContracts(
     // lane proof alone gates whether they may collapse onto a parallel
     // back-lane. Primary edges keep the monotone gate.
     const eligible = source && target &&
-      isStraightenable(source.shape) &&
-      isStraightenable(target.shape) &&
+      isStraightenable(source) &&
+      isStraightenable(target) &&
       (cert.routeClass === 'feedback' || isMonotoneStaircase(edge.points, edgeAxis))
     if (!eligible) {
       cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'unverified-shape'
@@ -1370,8 +1273,8 @@ export function applyRouteContracts(
     // straight lane that floats off the vertex.
     const srcSideUse = ctx.sideUse?.get(`${source!.id}:${facingSide(edgeAxis, 1)}`) ?? 1
     const emitFromVertex = cert.routeClass === 'primary-forward' &&
-      source!.shape === 'diamond' && srcSideUse === 1 &&
-      portSharpness(source!.shape) >= portSharpness(target!.shape)
+      hasFacetAttachments(source!) && srcSideUse === 1 &&
+      portSharpness(source!) >= portSharpness(target!)
     const beforeGeometry = JSON.stringify(edge.points)
     if (emitFromVertex) {
       const vertexLane = source![edgeAxis.cross] + (edgeAxis.cross === 'y' ? source!.height : source!.width) / 2
@@ -1485,8 +1388,8 @@ export function applyRouteContracts(
     forcedLanes?: { sourceLane?: number; targetLane?: number; preferSourceJog?: boolean },
   ): boolean {
     if (edge.points.length < 2) return false
-    const srcSpan = attachSpan(source, axis)
-    const tgtSpan = attachSpan(target, axis)
+    const srcSpan = attachSpan(source, axis, 1)
+    const tgtSpan = attachSpan(target, axis, -1)
     if (!srcSpan || !tgtSpan) return false
     const crossVals = edge.points.map(pt => pt[axis.cross])
 
@@ -1548,7 +1451,7 @@ export function applyRouteContracts(
     addEscapeLanes(c2s, forcedLanes?.targetLane === undefined ? tgtSpan : null)
 
     const relaxDiamond = (node: PositionedNode, span: CrossSpan): CrossSpan =>
-      node.shape === 'diamond'
+      hasFacetAttachments(node)
         ? { lo: node[axis.cross] + 2, hi: node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) - 2 }
         : span
     const s1 = relaxDiamond(source, srcSpan)
@@ -1569,10 +1472,12 @@ export function applyRouteContracts(
     for (const c2 of c2s) {
       if (c2 < s2.lo - EPS || c2 > s2.hi + EPS) continue
       const tgtMain = anchorMain(target, c2, axis, -1)
+      if (tgtMain === null) continue
       for (const c1 of c1s) {
         if (c1 < s1.lo - EPS || c1 > s1.hi + EPS) continue
         if (Math.abs(c1 - c2) < CLEARANCE) continue // that would be a hitch, not a Z
         const srcMain = anchorMain(source, c1, axis, 1)
+        if (srcMain === null) continue
         if ((tgtMain - srcMain) * axis.sign <= EPS) continue
         const jogs = forcedLanes?.preferSourceJog
           ? [srcMain + axis.sign * 12, (srcMain + tgtMain) / 2, tgtMain - axis.sign * 12]
@@ -1668,8 +1573,8 @@ export function applyRouteContracts(
     axis: Axis,
   ): boolean {
     if (!routeThroughNodeBBox(edge, ctx)) return false
-    const srcSpan = attachSpan(source, axis)
-    const tgtSpan = attachSpan(target, axis)
+    const srcSpan = attachSpan(source, axis, 1)
+    const tgtSpan = attachSpan(target, axis, -1)
     if (!srcSpan || !tgtSpan) return false
     const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
     const crossSize = (n: PositionedNode) => axis.cross === 'y' ? n.height : n.width
@@ -1677,10 +1582,11 @@ export function applyRouteContracts(
 
     // Source flow-port lane (cross-centre) and its forward main edge.
     const spCross = source[axis.cross] + crossSize(source) / 2
-    const srcMain = source[axis.main] + (axis.sign > 0 ? mainSizeOf(source) : 0)
+    const srcMain = anchorMain(source, spCross, axis, 1)
     // Target flow-port lane and its backward main edge.
     const tpCross = target[axis.cross] + crossSize(target) / 2
-    const tgtMain = target[axis.main] + (axis.sign > 0 ? 0 : mainSizeOf(target))
+    const tgtMain = anchorMain(target, tpCross, axis, -1)
+    if (srcMain === null || tgtMain === null) return false
     if (Math.abs(spCross - srcSpan.lo) > EPS && Math.abs(spCross - srcSpan.hi) > EPS &&
       (spCross < srcSpan.lo - EPS || spCross > srcSpan.hi + EPS)) return false
 
@@ -1813,8 +1719,9 @@ export function applyRouteContracts(
       Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE &&
       Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE)
     if (mergeAvailable) return false
-    const portMain = target[axis.main] + (axis.main === 'x' ? target.width : target.height) / 2
+    const portMain = shapePorts(target)[entrySide][axis.main]
     const srcMain = anchorMain(source, lane, axis, 1)
+    if (srcMain === null) return false
     if ((portMain - srcMain) * axis.sign <= EPS) return false
     // The label rides the lane; the entry stub is proved label-stripped
     // (own-label capacity applies exactly once, where the pill lives).
@@ -1899,7 +1806,7 @@ export function applyRouteContracts(
     // diamond's exact South/North vertex (a rectangle's side midpoint). One
     // short hop from the port to the channel is proven; the run truncation
     // reuses existing, already-proven channel geometry.
-    if (source && PORT_EXACT.has(source.shape)) {
+    if (source && isStraightenable(source)) {
       const srcCrossLo = source[graphAxis.cross]
       // The exact channel-facing port from shapePorts: the bbox side midpoint
       // for the symmetric shapes, the slant midpoint / flag point for the
@@ -1916,13 +1823,13 @@ export function applyRouteContracts(
     }
     // Variant 1b — the shape spans the channel itself: exit straight off the
     // channel-facing facet AT the channel height (no hop at all).
-    if (!tightened && source && (RECT_LIKE.has(source.shape) || source.shape === 'diamond')) {
-      const srcCrossLo = source[graphAxis.cross]
-      const srcCrossHi = srcCrossLo + (graphAxis.cross === 'y' ? source.height : source.width)
-      if (extreme > srcCrossLo + EPS && extreme < srcCrossHi - EPS) {
-        const facingRun: 1 | -1 = runDir === graphAxis.sign ? 1 : -1
+    if (!tightened && source) {
+      const facingRun: 1 | -1 = runDir === graphAxis.sign ? 1 : -1
+      const span = attachSpan(source, graphAxis, facingRun)
+      const attachment = shapeRoutingProfile(source).sides[facingSide(graphAxis, facingRun)]
+      if (attachment.kind === 'dynamic' && span && extreme >= span.lo - EPS && extreme <= span.hi + EPS) {
         const anchorM = anchorMain(source, extreme, graphAxis, facingRun)
-        if (inRunRange(anchorM) && hopClear(anchorM, extreme)) {
+        if (anchorM !== null && inRunRange(anchorM) && hopClear(anchorM, extreme)) {
           const boundary: Point = graphAxis.main === 'x' ? { x: anchorM, y: extreme } : { x: extreme, y: anchorM }
           tightened = buildRoute(anchorM, extreme, boundary)
         }
@@ -1946,7 +1853,7 @@ export function applyRouteContracts(
         }
       }
       const target = ctx.nodes.find(n => n.id === edge.target)
-      if (rs >= 0 && rs + 1 < base.length - 1 && target && PORT_EXACT.has(target.shape)) {
+      if (rs >= 0 && rs + 1 < base.length - 1 && target && isStraightenable(target)) {
         const tCrossLo = target[graphAxis.cross]
         // Exact channel-facing port via shapePorts (see the head variant).
         const side: PortSide = graphAxis.cross === 'y'
@@ -2474,8 +2381,8 @@ function scanRouteHitches(
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
     if (!source || !target) continue
-    if (!isStraightenable(source.shape)) continue
-    if (!isStraightenable(target.shape)) continue
+    if (!isStraightenable(source)) continue
+    if (!isStraightenable(target)) continue
     if (cert.routeClass !== 'feedback' && !isMonotoneStaircase(points, edgeAxis)) continue
     const portConstraint = diamondSpreadTargetPortConstraint(edge, source, target, ctx, edgeAxis)
     if (portConstraint && satisfiesDiamondSpreadTargetPortConstraint(edge, source, target, portConstraint)) continue
@@ -2483,8 +2390,8 @@ function scanRouteHitches(
     // straight vertex lane exists; their probe is restricted to that lane.
     const srcSideUse = sideUse.get(`${edge.source}:${facingSide(edgeAxis, 1)}`) ?? 1
     const emitFromVertex = cert.routeClass === 'primary-forward' &&
-      source.shape === 'diamond' && srcSideUse === 1 &&
-      portSharpness(source.shape) >= portSharpness(target.shape)
+      hasFacetAttachments(source) && srcSideUse === 1 &&
+      portSharpness(source) >= portSharpness(target)
     const vertexLane = emitFromVertex
       ? source[edgeAxis.cross] + (edgeAxis.cross === 'y' ? source.height : source.width) / 2
       : undefined
@@ -2545,7 +2452,7 @@ function tryRepairContainerEdge(
     const group = groupMap.get(id)
     if (group) return { id, label: '', shape: 'rectangle', x: group.x, y: group.y, width: group.width, height: group.height }
     const node = nodeMap.get(id)
-    if (node && (RECT_LIKE.has(node.shape) || node.shape === 'diamond')) return node
+    if (node && isStraightenable(node)) return node
     return null
   }
   const src = rectFor(edge.source)
@@ -3002,16 +2909,9 @@ export function auditRouteContracts(
           findings.push({ code: 'ROUTE_STALE_AFTER_NODE_MOVE', edge: id, node: nodeId })
           continue
         }
-        if (node.shape === 'diamond') {
-          const dx = Math.abs(point.x - (node.x + node.width / 2)) / (node.width / 2)
-          const dy = Math.abs(point.y - (node.y + node.height / 2)) / (node.height / 2)
-          if (Math.abs(dx + dy - 1) > 0.03) {
-            findings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: id, node: nodeId })
-          }
-        } else if (RECT_LIKE.has(node.shape)) {
-          if (!onRectPerimeter(point, node.x, node.y, node.width, node.height, TOL)) {
-            findings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: id, node: nodeId })
-          }
+        const contact = renderedEndpointContact(node, point, TOL)
+        if (contact.policy !== 'none' && !contact.onBoundary) {
+          findings.push({ code: 'ROUTE_SHAPE_MISANCHOR', edge: id, node: nodeId })
         }
       }
     }

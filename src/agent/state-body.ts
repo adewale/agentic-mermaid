@@ -972,8 +972,51 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     }
   }
 
+  preserveOrphanedImplicitStates(next)
   canonicalizeStateOrder(next.states)
   return ok(next)
+}
+
+/**
+ * Transition endpoints are allowed to introduce states implicitly, but an
+ * implicit state has no standalone serializer form. If a mutation removes its
+ * last transition, promote the surviving state to a bare declaration before
+ * serialization so the typed body cannot silently lose it on reparse.
+ */
+function preserveOrphanedImplicitStates(body: StateBody): void {
+  const referenced = new Set<string>()
+  const collectReferences = (states: StateNode[], transitions: StateTransition[]): void => {
+    for (const transition of transitions) {
+      referenced.add(transition.from)
+      referenced.add(transition.to)
+    }
+    for (const state of states) {
+      if (state.regions) {
+        for (const region of state.regions) collectReferences(region.states, region.transitions)
+      } else if (state.states) {
+        collectReferences(state.states, state.transitions ?? [])
+      }
+    }
+  }
+  collectReferences(body.states, body.transitions)
+
+  const promote = (states: StateNode[]): void => {
+    for (const state of states) {
+      if (
+        state.label === undefined
+        && !state.declaredBare
+        && state.stereotype === undefined
+        && !isComposite(state)
+        && !referenced.has(state.id)
+      ) state.declaredBare = true
+      if (state.regions) {
+        for (const region of state.regions) promote(region.states)
+      } else if (state.states) {
+        promote(state.states)
+      }
+    }
+  }
+  promote(body.states)
 }
 
 /** Match the serializer's definitions-before-transitions order so structured

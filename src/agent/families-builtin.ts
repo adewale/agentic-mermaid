@@ -906,14 +906,11 @@ const XYCHART_AGENT_HOOKS = {
   // trailing token (e.g. `EXTRA`) stays opaque so it round-trips verbatim.
   verify: (body, opts) => body.kind === 'xychart' ? verifyXyChart(body, opts) : [],
   buildSourceMap: buildChartSourceMap,
-  // xychart needs the header to model the `horizontal` orientation suffix, so it
-  // uses a tailored parse hook (not the shared structuredFamilyHooks) — but
-  // serialize/mutate stay identical to every other structured family.
+  // Pass the complete family source to the shared XY grammar. Header spelling,
+  // orientation, and same-line semicolon statements therefore have one parser
+  // authority instead of a second regex in the agent projection.
   parse: ({ lines, opaqueSource }) => {
-    const header = lines[0]?.trim() ?? ''
-    const hm = header.match(/^xychart(?:-beta)?(?:\s+(horizontal|vertical))?\s*$/i)
-    const body = hm ? parseXyChartBody(lines.slice(1)) : null
-    if (body && hm?.[1]) body.horizontal = hm[1].toLowerCase() === 'horizontal'
+    const body = parseXyChartBody(lines)
     return ok(body ?? { kind: 'opaque', family: 'xychart', source: opaqueSource })
   },
   serialize: body => {

@@ -6,7 +6,7 @@ import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor } from './color-resolver.ts'
-import type { ConnectorLabelDescriptor, Geometry, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
@@ -19,6 +19,7 @@ import {
   type ConnectorPathProjectionSegment,
 } from './scene/connector-geometry.ts'
 import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
+import { shapeOutline } from './shape-outline.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -43,12 +44,6 @@ import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from 
 // - Dashed edges: stroke-dasharray="4 4"
 // - Font: Inter with weight per element type
 // ============================================================================
-
-/** A shape emission: semantic geometry plus default-backend serialization. */
-interface ShapePiece {
-  geometry: Geometry
-  crisp: string
-}
 
 /**
  * Render a positioned graph as an SVG string.
@@ -821,61 +816,6 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   })
 }
 
-function renderFlowchartSemanticShape(node: PositionedNode, fill: string, stroke: string, sw: string): ShapePiece | null {
-  const { x, y, width: w, height: h } = node
-  const right = x + w, bottom = y + h, cx = x + w / 2, cy = y + h / 2
-  const path = (d: string, extra = ''): ShapePiece => ({
-    geometry: { kind: 'path', d },
-    crisp: `<path d="${d}" fill="${extra.includes('fill="none"') ? 'none' : fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  })
-  const polygon = (points: Array<{ x: number; y: number }>): ShapePiece => ({
-    geometry: { kind: 'polygon', points },
-    crisp: `<polygon points="${points.map(point => `${point.x},${point.y}`).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  })
-  switch (node.semanticShape) {
-    case 'bang': {
-      const points = Array.from({ length: 16 }, (_, index) => {
-        const angle = -Math.PI / 2 + index * Math.PI / 8
-        const radius = index % 2 === 0 ? 1 : 0.62
-        return { x: cx + Math.cos(angle) * w / 2 * radius, y: cy + Math.sin(angle) * h / 2 * radius }
-      })
-      return polygon(points)
-    }
-    case 'notch-rect': return polygon([{ x: x + 10, y }, { x: right, y }, { x: right, y: bottom }, { x, y: bottom }, { x, y: y + 10 }])
-    case 'cloud': return path(`M${x + w * .18} ${bottom}C${x - 4} ${bottom} ${x - 4} ${cy} ${x + w * .12} ${cy}C${x + w * .08} ${y + h * .15} ${x + w * .38} ${y - 4} ${x + w * .48} ${y + h * .18}C${x + w * .65} ${y - 5} ${right} ${y + h * .16} ${x + w * .88} ${cy}C${right + 5} ${cy} ${right + 5} ${bottom} ${x + w * .72} ${bottom}Z`)
-    case 'hourglass': return polygon([{ x, y }, { x: right, y }, { x: x + w * .62, y: cy }, { x: right, y: bottom }, { x, y: bottom }, { x: x + w * .38, y: cy }])
-    case 'bolt': return polygon([{ x: x + w * .55, y }, { x: x + w * .25, y: cy }, { x: x + w * .48, y: cy }, { x: x + w * .35, y: bottom }, { x: x + w * .78, y: y + h * .4 }, { x: x + w * .55, y: y + h * .4 }])
-    case 'brace': return path(`M${right} ${y}C${x + w * .4} ${y} ${x + w * .7} ${cy} ${x} ${cy}C${x + w * .7} ${cy} ${x + w * .4} ${bottom} ${right} ${bottom}`, ' fill="none"')
-    case 'brace-r': return path(`M${x} ${y}C${x + w * .6} ${y} ${x + w * .3} ${cy} ${right} ${cy}C${x + w * .3} ${cy} ${x + w * .6} ${bottom} ${x} ${bottom}`, ' fill="none"')
-    case 'braces': return path(`M${x + w * .25} ${y}C${x} ${y} ${x + w * .15} ${cy} ${x} ${cy}C${x + w * .15} ${cy} ${x} ${bottom} ${x + w * .25} ${bottom}M${x + w * .75} ${y}C${right} ${y} ${x + w * .85} ${cy} ${right} ${cy}C${x + w * .85} ${cy} ${right} ${bottom} ${x + w * .75} ${bottom}`, ' fill="none"')
-    case 'datastore': return path(`M${x + 8} ${y}H${right}V${bottom}H${x + 8}M${x + 8} ${y}C${x - 2} ${y + h * .2} ${x - 2} ${bottom - h * .2} ${x + 8} ${bottom}`, ' fill="none"')
-    case 'delay': return path(`M${x} ${y}H${right - h / 2}A${h / 2} ${h / 2} 0 0 1 ${right - h / 2} ${bottom}H${x}Z`)
-    case 'h-cyl': return path(`M${x + 10} ${y}H${right - 10}A10 ${h / 2} 0 0 1 ${right - 10} ${bottom}H${x + 10}A10 ${h / 2} 0 0 1 ${x + 10} ${y}Z M${right - 10} ${y}A10 ${h / 2} 0 0 0 ${right - 10} ${bottom}`)
-    case 'lin-cyl': return path(`M${x} ${y + 8}A${w / 2} 8 0 0 1 ${right} ${y + 8}V${bottom - 8}A${w / 2} 8 0 0 1 ${x} ${bottom - 8}Z M${x} ${y + 8}A${w / 2} 8 0 0 0 ${right} ${y + 8}M${x} ${bottom - 16}A${w / 2} 8 0 0 0 ${right} ${bottom - 16}`)
-    case 'curv-trap': return path(`M${x + 12} ${y}Q${cx} ${y + 8} ${right - 12} ${y}L${right} ${bottom}Q${cx} ${bottom - 8} ${x} ${bottom}Z`)
-    case 'div-rect': return path(`M${x} ${y}H${right}V${bottom}H${x}ZM${x} ${cy}H${right}`)
-    case 'doc': return path(`M${x} ${y}H${right}V${bottom - 8}Q${x + w * .75} ${bottom + 2} ${cx} ${bottom - 8}Q${x + w * .25} ${bottom - 18} ${x} ${bottom - 8}Z`)
-    case 'tri': return polygon([{ x: cx, y }, { x: right, y: bottom }, { x, y: bottom }])
-    case 'fork': return { geometry: { kind: 'rect', x, y: cy - 4, width: w, height: 8 }, crisp: `<rect x="${x}" y="${cy - 4}" width="${w}" height="8" fill="${stroke}" stroke="${stroke}" stroke-width="${sw}" />` }
-    case 'win-pane': return path(`M${x} ${y}H${right}V${bottom}H${x}ZM${x + w * .28} ${y}V${bottom}M${x} ${y + h * .32}H${right}`)
-    case 'f-circ': return { geometry: { kind: 'circle', cx, cy, r: Math.min(w, h) / 2 }, crisp: `<circle cx="${cx}" cy="${cy}" r="${Math.min(w, h) / 2}" fill="${stroke}" stroke="${stroke}" stroke-width="${sw}" />` }
-    case 'lin-doc': return path(`M${x} ${y}H${right}V${bottom - 8}Q${x + w * .75} ${bottom + 2} ${cx} ${bottom - 8}Q${x + w * .25} ${bottom - 18} ${x} ${bottom - 8}ZM${x + 8} ${y + 8}H${right - 8}`)
-    case 'lin-rect': return path(`M${x} ${y}H${right}V${bottom}H${x}ZM${x + 6} ${y}V${bottom}M${right - 6} ${y}V${bottom}`)
-    case 'notch-pent': return polygon([{ x, y }, { x: right - 10, y }, { x: right, y: cy }, { x: right - 10, y: bottom }, { x, y: bottom }, { x: x + 8, y: cy }])
-    case 'flip-tri': return polygon([{ x, y }, { x: right, y }, { x: cx, y: bottom }])
-    case 'docs': return path(`M${x + 8} ${y}H${right}V${bottom - 8}Q${x + w * .7} ${bottom} ${x + w * .45} ${bottom - 8}Q${x + w * .22} ${bottom - 16} ${x + 8} ${bottom - 8}ZM${x} ${y + 8}H${x + 8}M${x} ${y + 8}V${bottom}`)
-    case 'st-rect': return path(`M${x + 8} ${y}H${right}V${bottom - 8}H${x + 8}ZM${x} ${y + 8}H${right - 8}V${bottom}H${x}Z`)
-    case 'flag': return path(`M${x} ${y + 6}Q${x + w * .25} ${y - 4} ${cx} ${y + 6}Q${x + w * .75} ${y + 16} ${right} ${y + 6}V${bottom - 6}Q${x + w * .75} ${bottom + 4} ${cx} ${bottom - 6}Q${x + w * .25} ${bottom - 16} ${x} ${bottom - 6}Z`)
-    case 'sm-circ': return { geometry: { kind: 'circle', cx, cy, r: Math.min(w, h) * .22 }, crisp: `<circle cx="${cx}" cy="${cy}" r="${Math.min(w, h) * .22}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />` }
-    case 'cross-circ': return path(`M${cx} ${y}A${w / 2} ${h / 2} 0 1 1 ${cx - .01} ${y}M${x + w * .28} ${y + h * .28}L${x + w * .72} ${y + h * .72}M${x + w * .72} ${y + h * .28}L${x + w * .28} ${y + h * .72}`)
-    case 'bow-rect': return path(`M${x} ${y}Q${x + 12} ${cy} ${x} ${bottom}H${right}Q${right - 12} ${cy} ${right} ${y}Z`)
-    case 'tag-doc': return path(`M${x + 10} ${y}H${right}V${bottom - 8}Q${x + w * .7} ${bottom} ${cx} ${bottom - 8}Q${x + w * .25} ${bottom - 16} ${x} ${bottom - 8}V${y + 10}ZM${x} ${y + 10}L${x + 10} ${y}`)
-    case 'tag-rect': return polygon([{ x: x + 10, y }, { x: right, y }, { x: right, y: bottom }, { x, y: bottom }, { x, y: y + 10 }])
-    case 'text': return { geometry: { kind: 'path', d: `M${x} ${y}` }, crisp: `<path d="M${x} ${y}" fill="none" stroke="none" />` }
-    default: return null
-  }
-}
-
 function renderFlowchartMedia(node: PositionedNode, style: ResolvedRenderStyle): SceneNode | null {
   const color = escapeAttr(style.nodeTextColor ?? 'var(--_text)')
   const size = Math.min(28, node.height * 0.4)
@@ -911,54 +851,7 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
   const stroke = escapeAttr(rawStroke)
   const sw = escapeAttr(rawSw)
 
-  const piece = ((): ShapePiece => {
-    const semantic = renderFlowchartSemanticShape(node, fill, stroke, sw)
-    if (semantic) return semantic
-    switch (shape) {
-      case 'service':
-        return renderRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)
-      case 'diamond':
-        return renderDiamond(x, y, width, height, fill, stroke, sw)
-      case 'rounded':
-        return renderRoundedRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 6)
-      case 'stadium':
-        return renderStadium(x, y, width, height, fill, stroke, sw)
-      case 'circle':
-        return renderCircle(x, y, width, height, fill, stroke, sw)
-      case 'subroutine':
-        return renderSubroutine(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)
-      case 'doublecircle':
-        return renderDoubleCircle(x, y, width, height, fill, stroke, sw)
-      case 'hexagon':
-        return renderHexagon(x, y, width, height, fill, stroke, sw)
-      case 'cylinder':
-        return renderCylinder(x, y, width, height, fill, stroke, sw)
-      case 'asymmetric':
-        return renderAsymmetric(x, y, width, height, fill, stroke, sw)
-      case 'trapezoid':
-        return renderTrapezoid(x, y, width, height, fill, stroke, sw)
-      case 'trapezoid-alt':
-        return renderTrapezoidAlt(x, y, width, height, fill, stroke, sw)
-      case 'lean-r':
-        return renderLeanR(x, y, width, height, fill, stroke, sw)
-      case 'lean-l':
-        return renderLeanL(x, y, width, height, fill, stroke, sw)
-      case 'state-start':
-        return renderStateStart(x, y, width, height)
-      case 'state-end':
-        return renderStateEnd(x, y, width, height)
-      case 'state-fork':
-      case 'state-join':
-        return renderStateBar(x, y, width, height)
-      case 'state-choice':
-        return renderDiamond(x, y, width, height, fill, stroke, sw)
-      case 'state-history':
-        return renderCircle(x, y, width, height, fill, stroke, sw)
-      case 'rectangle':
-      default:
-        return renderRect(x, y, width, height, fill, stroke, sw, style.cornerRadius ?? 0)
-    }
-  })()
+  const piece = shapeOutline(node, { fill, stroke, strokeWidth: sw }, style.cornerRadius)
 
   const paint = shape === 'state-start' || shape === 'state-fork' || shape === 'state-join'
     ? { fill: 'var(--_text)', stroke: 'none' }
@@ -972,299 +865,6 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
     geometry: piece.geometry,
     paint,
   }, piece.crisp)
-}
-
-// --- Basic shapes ---
-
-function renderRect(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string, radius: number = 0): ShapePiece {
-  return {
-    geometry: { kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius },
-    crisp:
-      `<rect x="${x}" y="${y}" width="${w}" height="${h}" ` +
-      `rx="${radius}" ry="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-function renderRoundedRect(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string, radius: number = 6): ShapePiece {
-  return {
-    geometry: { kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius },
-    crisp:
-      `<rect x="${x}" y="${y}" width="${w}" height="${h}" ` +
-      `rx="${radius}" ry="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-function renderStadium(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const r = h / 2
-  return {
-    geometry: { kind: 'rect', x, y, width: w, height: h, rx: r, ry: r },
-    crisp:
-      `<rect x="${x}" y="${y}" width="${w}" height="${h}" ` +
-      `rx="${r}" ry="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-function renderCircle(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const cx = x + w / 2
-  const cy = y + h / 2
-  const r = Math.min(w, h) / 2
-  return {
-    geometry: { kind: 'circle', cx, cy, r },
-    crisp:
-      `<circle cx="${cx}" cy="${cy}" r="${r}" ` +
-      `fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-function renderDiamond(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const cx = x + w / 2
-  const cy = y + h / 2
-  const hw = w / 2
-  const hh = h / 2
-  const pts = [
-    { x: cx, y: cy - hh },   // top
-    { x: cx + hw, y: cy },   // right
-    { x: cx, y: cy + hh },   // bottom
-    { x: cx - hw, y: cy },   // left
-  ]
-  const points = pts.map(p => `${p.x},${p.y}`).join(' ')
-
-  return {
-    geometry: { kind: 'polygon', points: pts },
-    crisp: `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-// --- Batch 1 shapes ---
-
-/** Subroutine: rectangle with double vertical borders on left and right */
-function renderSubroutine(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string, radius: number = 0): ShapePiece {
-  const inset = 8 // distance from edge to inner vertical line
-  return {
-    geometry: {
-      kind: 'compound',
-      children: [
-        { kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius },
-        { kind: 'line', x1: x + inset, y1: y, x2: x + inset, y2: y + h },
-        { kind: 'line', x1: x + w - inset, y1: y, x2: x + w - inset, y2: y + h },
-      ],
-    },
-    crisp:
-      `<rect x="${x}" y="${y}" width="${w}" height="${h}" ` +
-      `rx="${radius}" ry="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />` +
-      `\n<line x1="${x + inset}" y1="${y}" x2="${x + inset}" y2="${y + h}" ` +
-      `stroke="${stroke}" stroke-width="${sw}" />` +
-      `\n<line x1="${x + w - inset}" y1="${y}" x2="${x + w - inset}" y2="${y + h}" ` +
-      `stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-/** Double circle: two concentric circles with a gap between them */
-function renderDoubleCircle(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const cx = x + w / 2
-  const cy = y + h / 2
-  const outerR = Math.min(w, h) / 2
-  const innerR = outerR - 5 // 5px gap between rings
-  return {
-    geometry: {
-      kind: 'compound',
-      children: [
-        { kind: 'circle', cx, cy, r: outerR },
-        { kind: 'circle', cx, cy, r: innerR },
-      ],
-    },
-    crisp:
-      `<circle cx="${cx}" cy="${cy}" r="${outerR}" ` +
-      `fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />` +
-      `\n<circle cx="${cx}" cy="${cy}" r="${innerR}" ` +
-      `fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-/** Hexagon: 6-point polygon with flat top/bottom and angled sides */
-function renderHexagon(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const inset = h / 4 // horizontal inset for the angled sides
-  const pts = [
-    { x: x + inset, y },               // top-left
-    { x: x + w - inset, y },           // top-right
-    { x: x + w, y: y + h / 2 },        // mid-right
-    { x: x + w - inset, y: y + h },    // bottom-right
-    { x: x + inset, y: y + h },        // bottom-left
-    { x, y: y + h / 2 },               // mid-left
-  ]
-  const points = pts.map(p => `${p.x},${p.y}`).join(' ')
-
-  return {
-    geometry: { kind: 'polygon', points: pts },
-    crisp: `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-// --- Batch 2 shapes ---
-
-/** Cylinder / database: top ellipse cap + body rect + bottom ellipse */
-function renderCylinder(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const ry = 7 // ellipse vertical radius for the cap
-  const cx = x + w / 2
-  const bodyTop = y + ry
-  const bodyH = h - 2 * ry
-
-  return {
-    geometry: {
-      kind: 'compound',
-      children: [
-        { kind: 'rect', x, y: bodyTop, width: w, height: bodyH },
-        { kind: 'line', x1: x, y1: bodyTop, x2: x, y2: bodyTop + bodyH },
-        { kind: 'line', x1: x + w, y1: bodyTop, x2: x + w, y2: bodyTop + bodyH },
-        { kind: 'ellipse', cx, cy: y + h - ry, rx: w / 2, ry },
-        { kind: 'ellipse', cx, cy: bodyTop, rx: w / 2, ry },
-      ],
-    },
-    crisp: (
-      // Body rectangle (no top border — covered by top ellipse)
-      `<rect x="${x}" y="${bodyTop}" width="${w}" height="${bodyH}" ` +
-      `fill="${fill}" stroke="none" />` +
-      // Left and right body borders
-      `\n<line x1="${x}" y1="${bodyTop}" x2="${x}" y2="${bodyTop + bodyH}" stroke="${stroke}" stroke-width="${sw}" />` +
-      `\n<line x1="${x + w}" y1="${bodyTop}" x2="${x + w}" y2="${bodyTop + bodyH}" stroke="${stroke}" stroke-width="${sw}" />` +
-      // Bottom ellipse (half visible)
-      `\n<ellipse cx="${cx}" cy="${y + h - ry}" rx="${w / 2}" ry="${ry}" ` +
-      `fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />` +
-      // Top ellipse (full, on top)
-      `\n<ellipse cx="${cx}" cy="${bodyTop}" rx="${w / 2}" ry="${ry}" ` +
-      `fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`
-    ),
-  }
-}
-
-/** Asymmetric / flag: rectangle with a pointed left edge */
-function renderAsymmetric(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const indent = 12 // how far the point indents
-  const pts = [
-    { x: x + indent, y },           // top-left (indented)
-    { x: x + w, y },                // top-right
-    { x: x + w, y: y + h },         // bottom-right
-    { x: x + indent, y: y + h },    // bottom-left (indented)
-    { x, y: y + h / 2 },            // left point
-  ]
-  const points = pts.map(p => `${p.x},${p.y}`).join(' ')
-
-  return {
-    geometry: { kind: 'polygon', points: pts },
-    crisp: `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-/** Trapezoid [/text\]: wider bottom, narrower top */
-function renderTrapezoid(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const inset = w * 0.15 // top edge is narrower by this amount on each side
-  const pts = [
-    { x: x + inset, y },           // top-left (indented)
-    { x: x + w - inset, y },       // top-right (indented)
-    { x: x + w, y: y + h },        // bottom-right (full width)
-    { x, y: y + h },               // bottom-left (full width)
-  ]
-  const points = pts.map(p => `${p.x},${p.y}`).join(' ')
-
-  return {
-    geometry: { kind: 'polygon', points: pts },
-    crisp: `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-/** Trapezoid-alt [\text/]: wider top, narrower bottom */
-function renderTrapezoidAlt(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const inset = w * 0.15 // bottom edge is narrower
-  const pts = [
-    { x, y },                          // top-left (full width)
-    { x: x + w, y },                   // top-right (full width)
-    { x: x + w - inset, y: y + h },    // bottom-right (indented)
-    { x: x + inset, y: y + h },        // bottom-left (indented)
-  ]
-  const points = pts.map(p => `${p.x},${p.y}`).join(' ')
-
-  return {
-    geometry: { kind: 'polygon', points: pts },
-    crisp: `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-/** Parallelogram [/text/]: leans right (top edge shifted right) */
-function renderLeanR(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const inset = w * 0.15 // horizontal shear of the slanted sides
-  const pts = [
-    { x: x + inset, y },               // top-left (shifted right)
-    { x: x + w, y },                   // top-right (full width)
-    { x: x + w - inset, y: y + h },    // bottom-right (shifted left)
-    { x, y: y + h },                   // bottom-left (full width)
-  ]
-  const points = pts.map(p => `${p.x},${p.y}`).join(' ')
-
-  return {
-    geometry: { kind: 'polygon', points: pts },
-    crisp: `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-/** Parallelogram [\text\]: leans left (top edge shifted left) */
-function renderLeanL(x: number, y: number, w: number, h: number, fill: string, stroke: string, sw: string): ShapePiece {
-  const inset = w * 0.15 // horizontal shear of the slanted sides
-  const pts = [
-    { x, y },                          // top-left (full width)
-    { x: x + w - inset, y },           // top-right (shifted left)
-    { x: x + w, y: y + h },            // bottom-right (full width)
-    { x: x + inset, y: y + h },        // bottom-left (shifted right)
-  ]
-  const points = pts.map(p => `${p.x},${p.y}`).join(' ')
-
-  return {
-    geometry: { kind: 'polygon', points: pts },
-    crisp: `<polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`,
-  }
-}
-
-// --- Batch 3: State diagram pseudostates ---
-
-/** State start: small filled circle using primary text color */
-function renderStateStart(x: number, y: number, w: number, h: number): ShapePiece {
-  const cx = x + w / 2
-  const cy = y + h / 2
-  const r = Math.min(w, h) / 2 - 2
-  return {
-    geometry: { kind: 'circle', cx, cy, r },
-    crisp: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--_text)" stroke="none" />`,
-  }
-}
-
-/** State end: bullseye — outer ring + inner filled circle using primary text color */
-function renderStateEnd(x: number, y: number, w: number, h: number): ShapePiece {
-  const cx = x + w / 2
-  const cy = y + h / 2
-  const outerR = Math.min(w, h) / 2 - 2
-  const innerR = outerR - 4
-  return {
-    geometry: {
-      kind: 'compound',
-      children: [
-        { kind: 'circle', cx, cy, r: outerR },
-        { kind: 'circle', cx, cy, r: innerR },
-      ],
-    },
-    crisp:
-      `<circle cx="${cx}" cy="${cy}" r="${outerR}" ` +
-      `fill="none" stroke="var(--_text)" stroke-width="${STROKE_WIDTHS.innerBox * 2}" />` +
-      `\n<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="var(--_text)" stroke="none" />`,
-  }
-}
-
-/** Fork/join bar: filled rounded bar using primary text color (upstream #2514
- *  renders these as plain boxes — the bar is the standard UML notation). */
-function renderStateBar(x: number, y: number, w: number, h: number): ShapePiece {
-  const r = Math.min(w, h) / 2
-  return {
-    geometry: { kind: 'rect', x, y, width: w, height: h, rx: r, ry: r },
-    crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="var(--_text)" stroke="none" />`,
-  }
 }
 
 // ============================================================================

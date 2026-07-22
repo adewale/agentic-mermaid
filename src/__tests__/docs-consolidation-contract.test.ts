@@ -55,9 +55,11 @@ describe('maintained documentation is derived from current contracts', () => {
     expect(createHash('sha256').update(acceptance).digest('hex')).toBe('31b4233a2dc2f673ef734960dc3c5af7827910816bd94792ff4b349ae5f3c8ec')
   })
 
-  test('the canonical backlog contains only actionable items', () => {
+  test('the canonical backlog contains only unfinished inventory items', () => {
     const todo = readFileSync(join(ROOT, 'TODO.md'), 'utf8')
     expect(todo).not.toMatch(/^- \[x\]/m)
+    expect(todo).toContain('unfinished work, owner\ndecisions, blocked observations, and evidence-triggered watch items')
+    expect(todo).not.toContain('contains only actionable items')
     expect(existsSync(join(ROOT, 'docs/project/archive/completed-backlog-pre-consolidation.md'))).toBe(false)
   })
 

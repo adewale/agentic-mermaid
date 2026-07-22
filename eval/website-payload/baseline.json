@@ -26,10 +26,10 @@
         {
           "path": "/",
           "count": 1,
-          "sha256": "e2393799bd5ba5171b87f51c249f9985e923809c5b74d8f5d25eb00170e5769d",
-          "rawBytes": 264916,
-          "gzipBytes": 62293,
-          "brotliBytes": 47244
+          "sha256": "200891edb95e8fcef98605cf9e341b627cacaa14307814ea28a92613d001fe72",
+          "rawBytes": 264942,
+          "gzipBytes": 62295,
+          "brotliBytes": 47322
         },
         {
           "path": "/fonts/Caveat.subset.woff2",
@@ -98,9 +98,9 @@
       ],
       "totals": {
         "requests": 9,
-        "rawBytes": 682619,
-        "gzipBytes": 406567,
-        "brotliBytes": 387899
+        "rawBytes": 682645,
+        "gzipBytes": 406569,
+        "brotliBytes": 387977
       }
     },
     {
@@ -130,10 +130,10 @@
         {
           "path": "/examples/",
           "count": 1,
-          "sha256": "2826214969767a90e74ed4fcc6ff8675bb6cd5e513d65ef82afc16d9c37efbc7",
-          "rawBytes": 272439,
-          "gzipBytes": 39061,
-          "brotliBytes": 29484
+          "sha256": "a80333c216d5caf54c9f5f81954a5073ca6d6f3af9cdba520d680f2d69f6ee01",
+          "rawBytes": 272452,
+          "gzipBytes": 39058,
+          "brotliBytes": 29416
         },
         {
           "path": "/shader-mark.js",
@@ -162,9 +162,9 @@
       ],
       "totals": {
         "requests": 6,
-        "rawBytes": 380391,
-        "gzipBytes": 66938,
-        "brotliBytes": 53183
+        "rawBytes": 380404,
+        "gzipBytes": 66935,
+        "brotliBytes": 53115
       }
     },
     {
@@ -178,25 +178,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "d9e70a13e30b42243db3488ffd70e89b0144b09c51f8ec7446c1c3bd92a81c97",
+          "sha256": "d256aadc63d1ae233aaee00bda6f384230e0e19718af3d4601d21d545192068c",
           "rawBytes": 102590,
-          "gzipBytes": 18090,
-          "brotliBytes": 15352
+          "gzipBytes": 18089,
+          "brotliBytes": 15334
         },
         {
-          "path": "/editor/editor-6157b438a465.js",
+          "path": "/editor/editor-00356346a899.js",
           "count": 1,
-          "sha256": "6673ef1f0d7a4354ed81217b68921bf391e49de64b69c34079e19ba0d02bc0d8",
-          "rawBytes": 3186018,
-          "gzipBytes": 947499,
-          "brotliBytes": 744390
+          "sha256": "88252dfd265c084a299d5921615f4e48f900db5fc4544ec1216050d0227fdf68",
+          "rawBytes": 3191766,
+          "gzipBytes": 949373,
+          "brotliBytes": 746174
         }
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3288608,
-        "gzipBytes": 965589,
-        "brotliBytes": 759742
+        "rawBytes": 3294356,
+        "gzipBytes": 967462,
+        "brotliBytes": 761508
       }
     }
   ]

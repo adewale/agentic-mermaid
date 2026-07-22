@@ -16,6 +16,7 @@
 
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
 import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
+import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { resolveRenderStyle } from './styles.ts'
 
@@ -120,72 +121,8 @@ function onDesignatedPort(node: PositionedNode, p: Point): boolean {
 }
 
 export function onShapeOutline(node: PositionedNode, p: Point, tol = 1.5): boolean {
-  const cx = node.x + node.width / 2
-  const cy = node.y + node.height / 2
-  const hw = node.width / 2
-  const hh = node.height / 2
-  const dx = p.x - cx
-  const dy = p.y - cy
-
-  const onBboxPerimeter = (): boolean => {
-    const onV = Math.abs(Math.abs(dx) - hw) < tol && Math.abs(dy) <= hh + tol
-    const onH = Math.abs(Math.abs(dy) - hh) < tol && Math.abs(dx) <= hw + tol
-    return onV || onH
-  }
-
-  switch (node.shape) {
-    case 'diamond':
-      return Math.abs(Math.abs(dx) / hw + Math.abs(dy) / hh - 1) * Math.min(hw, hh) < tol
-    case 'circle':
-    case 'doublecircle':
-    case 'state-start':
-    case 'state-end':
-      return Math.abs(Math.hypot(dx / hw, dy / hh) - 1) * Math.min(hw, hh) < tol
-    case 'stadium': {
-      const r = hh
-      if (Math.abs(dx) <= hw - r) return Math.abs(Math.abs(dy) - hh) < tol
-      const ax = Math.abs(dx) - (hw - r)
-      return Math.abs(Math.hypot(ax, dy) - r) < tol
-    }
-    case 'hexagon': {
-      // Flat top/bottom between the corner insets, slanted tips (renderer:
-      // inset = h/4, E/W vertices at mid-height).
-      const inset = node.height / 4
-      if (Math.abs(dx) <= hw - inset) return Math.abs(Math.abs(dy) - hh) < tol
-      // Slanted edge from (hw - inset, ±hh) to (hw, 0):
-      const t = (Math.abs(dx) - (hw - inset)) / inset // 0 at corner, 1 at tip
-      if (t < -tol || t > 1 + tol) return false
-      return Math.abs(Math.abs(dy) - hh * (1 - t)) < tol * 2
-    }
-    case 'cylinder': {
-      const ry = 7 // renderer's cap radius
-      // Vertical walls between the caps:
-      if (p.y >= node.y + ry - tol && p.y <= node.y + node.height - ry + tol &&
-        Math.abs(Math.abs(dx) - hw) < tol) return true
-      // Top/bottom elliptical caps:
-      const capY = p.y < cy ? node.y + ry : node.y + node.height - ry
-      const ey = (p.y - capY) / ry
-      const ex = dx / hw
-      return Math.abs(Math.hypot(ex, ey) - 1) * Math.min(hw, ry) < tol * 2
-    }
-    case 'trapezoid':
-    case 'trapezoid-alt':
-    case 'lean-r':
-    case 'lean-l':
-    case 'asymmetric': {
-      // Exact polygon oracle: min point-to-segment distance over the
-      // rendered polygon's edges (renderer geometry, reimplemented here so a
-      // clipping regression cannot certify itself healthy).
-      const verts = slantedPolygonVertices(node)
-      let best = Infinity
-      for (let i = 0; i < verts.length; i++) {
-        best = Math.min(best, pointToSegmentDistance(p, verts[i]!, verts[(i + 1) % verts.length]!))
-      }
-      return best <= tol
-    }
-    default:
-      return onBboxPerimeter()
-  }
+  const contact = renderedEndpointContact(node, p, tol)
+  return contact.policy === 'none' || contact.onBoundary
 }
 
 /**

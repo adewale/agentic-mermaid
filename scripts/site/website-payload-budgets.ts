@@ -5,9 +5,9 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 682_619,
-    maxGzipBytes: 406_567,
-    maxBrotliBytes: 387_899,
+    maxRawBytes: 682_645,
+    maxGzipBytes: 406_569,
+    maxBrotliBytes: 387_977,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -17,9 +17,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    maxRawBytes: 380_391,
-    maxGzipBytes: 66_938,
-    maxBrotliBytes: 53_183,
+    maxRawBytes: 380_404,
+    maxGzipBytes: 66_935,
+    maxBrotliBytes: 53_115,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -27,9 +27,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    maxRawBytes: 3_288_608,
-    maxGzipBytes: 965_589,
-    maxBrotliBytes: 759_742,
+    maxRawBytes: 3_294_356,
+    maxGzipBytes: 967_462,
+    maxBrotliBytes: 761_508,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
