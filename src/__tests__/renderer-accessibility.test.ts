@@ -31,6 +31,18 @@ describe('#7254/#7255 SVG accessibility', () => {
     expect(svg).toContain('data-id="B"')
   })
 
+  test('class, ER, and timeline reject unclosed accDescr blocks', () => {
+    const cases = [
+      ['class', 'classDiagram\n accDescr {\n never closed\n class A'],
+      ['ER', 'erDiagram\n accDescr {\n never closed\n A ||--o{ B : rel'],
+      ['timeline', 'timeline\n accDescr {\n never closed\n 2026 : Ship'],
+    ] as const
+
+    for (const [family, source] of cases) {
+      expect(() => renderMermaidSVG(source), family).toThrow(/accDescr block/)
+    }
+  })
+
   test('diagram without acc directives emits no <title>/<desc>', () => {
     const svg = renderMermaidSVG('flowchart TD\n A --> B')
     expect(svg).not.toContain('<title')

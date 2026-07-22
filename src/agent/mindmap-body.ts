@@ -1,10 +1,10 @@
 import type {
   LayoutWarning, MindmapBody, MindmapMutationOp, MutationError, Result, VerifyOptions,
 } from './types.ts'
-import { DEFAULT_LABEL_CHAR_CAP, err, ok } from './types.ts'
+import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
 import { parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
 export function parseMindmapBody(source: string): MindmapBody {
@@ -205,10 +205,9 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
 
 export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
+  const overflow = labelOverflowCollector(warnings, opts)
   const visit = (node: MindmapNode): void => {
-    const overflow = labelOverflowWarning(node.id, node.label, cap)
-    if (overflow) warnings.push(overflow)
+    overflow(node.id, node.label)
     node.children.forEach(visit)
   }
   visit(body.root)

@@ -26,8 +26,8 @@ import type {
   RadarBody, RadarMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { MAX_RADAR_TICKS, parseRadarChart } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
@@ -363,12 +363,8 @@ function reorder(len: number, from: unknown, to: unknown, what: string): Result<
 // ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
 
 export function verifyRadar(body: RadarBody, opts: VerifyOptions): LayoutWarning[] {
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   if (body.axes.length === 0 && body.curves.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   for (const a of body.axes) overflow(a.id, a.label)

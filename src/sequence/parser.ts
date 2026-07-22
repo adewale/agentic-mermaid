@@ -1,5 +1,6 @@
 import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup, SequenceActorType, SequenceMessageHead } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { isCssColorToken } from './colors.ts'
 
 const SEQUENCE_MESSAGE_RE = /^(\S+?)(\(\))?\s*(<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->|--[|\\/]|-[|\\/]|[|\\/]--|[|\\/]-)\s*(\(\))?([+-]?)(\S+?)\s*:\s*(.+)$/
@@ -62,6 +63,8 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
  * directive in the body still takes precedence from its own line on.
  */
 export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean } = {}): SequenceDiagram {
+  const accessibility = scanAccessibilityDirectives(lines)
+  lines = accessibility.familyLines
   const diagram: SequenceDiagram = {
     actors: [],
     messages: [],
@@ -69,6 +72,12 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     notes: [],
     activationEvents: [],
     boxes: [],
+    ...(accessibility.accessibility.title !== undefined
+      ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) }
+      : {}),
+    ...(accessibility.accessibility.descr !== undefined
+      ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) }
+      : {}),
   }
 
   // Track actor IDs to auto-create actors referenced in messages
@@ -125,32 +134,6 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
-
-    const accTitle = parseAccessibilityLine(line, 'accTitle')
-    if (accTitle !== undefined) {
-      diagram.accessibilityTitle = accTitle
-      continue
-    }
-
-    const accDescrStart = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
-    if (accDescrStart) {
-      const parsed = collectAccessibilityBlock(accDescrStart[1] ?? '', lines, i)
-      if (parsed) {
-        diagram.accessibilityDescription = normalizeBrTags(parsed.text)
-        i = parsed.nextIndex
-      }
-      // If the block is malformed, ignore only the opener and keep parsing the
-      // rest of the diagram. The agent parser preserves the bad line as opaque
-      // source; the renderer should not turn that preservation into a hard
-      // render throw for otherwise valid messages.
-      continue
-    }
-
-    const accDescr = parseAccessibilityLine(line, 'accDescr')
-    if (accDescr !== undefined) {
-      diagram.accessibilityDescription = accDescr
-      continue
-    }
 
     // --- Participant / Actor declaration, including Mermaid 11 metadata. ---
     const actorDeclaration = parseActorDeclaration(line)
@@ -398,28 +381,6 @@ function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; star
     return { lineStyle, startHead: 'none', endHead: arrow.endsWith('/') ? 'half-bottom' : 'half-top' }
   }
   return { lineStyle, startHead: 'none', endHead: 'open' }
-}
-
-function parseAccessibilityLine(line: string, directive: 'accTitle' | 'accDescr'): string | undefined {
-  const match = line.match(new RegExp(`^${directive}\\s*:?[ \\t]+(.+)$`, 'i'))
-  return match ? normalizeBrTags(match[1]!.trim()) : undefined
-}
-
-function collectAccessibilityBlock(initial: string, lines: string[], startIndex: number): { text: string; nextIndex: number } | null {
-  const initialEnd = initial.indexOf('}')
-  if (initialEnd !== -1) return { text: initial.slice(0, initialEnd).trim(), nextIndex: startIndex }
-  const parts = [initial.trim()].filter(Boolean)
-  for (let i = startIndex + 1; i < lines.length; i++) {
-    const line = lines[i]!
-    const end = line.indexOf('}')
-    if (end !== -1) {
-      const beforeBrace = line.slice(0, end).trim()
-      if (beforeBrace) parts.push(beforeBrace)
-      return { text: parts.join('\n'), nextIndex: i }
-    }
-    parts.push(line)
-  }
-  return null
 }
 
 /** Ensure an actor exists, creating a default participant if not */

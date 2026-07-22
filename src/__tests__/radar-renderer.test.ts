@@ -60,6 +60,20 @@ describe('radar SVG renderer', () => {
     expect(described).toMatch(/aria-describedby="[^"]+-desc"/)
   })
 
+  test('preserves Radar inline-comment and break normalization for accessibility text', () => {
+    const svg = renderMermaidSVG(`radar-beta
+  accTitle: Alpha<br>Beta %% hidden
+  accDescr: First<br/>Second
+  axis a, b
+  curve x{1,2}
+  max 3`)
+
+    expect(svg).toContain('Alpha\nBeta')
+    expect(svg).toContain('First\nSecond')
+    expect(svg).not.toContain('%% hidden')
+    expect(svg).not.toContain('&lt;br')
+  })
+
   test('disambiguates semantic identities for duplicate upstream curve and axis ids', () => {
     const svg = renderMermaidSVG('radar-beta\n  axis a, a\n  curve x{1,2}\n  curve x{2,1}\n  max 3')
     const ids = [...svg.matchAll(/data-id="([^"]+)"/g)].map(match => match[1]!)

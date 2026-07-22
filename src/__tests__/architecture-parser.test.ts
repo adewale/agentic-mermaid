@@ -111,7 +111,7 @@ config:
     expect(() => parseArchitectureDiagram(prep(`architecture-beta
       accDescr {
         Never closed
-      service api(server)[API]`))).toThrow('Unterminated accDescr block')
+      service api(server)[API]`))).toThrow('Unclosed accDescr block')
   })
 
   // Upstream v11.16.0 (PR #7708): `align row|column <id> <id> ...` declares

@@ -1,5 +1,6 @@
 import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 
@@ -90,11 +91,20 @@ export function parseErGroupHeader(line: string): { id: string; label: string } 
 }
 
 export function parseErDiagram(lines: string[]): ErDiagram {
+  const accessibility = scanAccessibilityDirectives(lines)
+  requireClosedAccessibility(accessibility)
+  lines = accessibility.familyLines
   const diagram: ErDiagram = {
     entities: [],
     classDefs: new Map(),
     relationships: [],
     groups: [],
+    ...(accessibility.accessibility.title !== undefined
+      ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) }
+      : {}),
+    ...(accessibility.accessibility.descr !== undefined
+      ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) }
+      : {}),
   }
 
   // Track entities by ID for deduplication
@@ -107,26 +117,6 @@ export function parseErDiagram(lines: string[]): ErDiagram {
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
-
-    const accTitle = parseAccessibilityLine(line, 'accTitle')
-    if (accTitle !== undefined) {
-      diagram.accessibilityTitle = accTitle
-      continue
-    }
-
-    const accDescrStart = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
-    if (accDescrStart) {
-      const parsed = collectAccessibilityBlock(accDescrStart[1] ?? '', lines, i)
-      diagram.accessibilityDescription = normalizeBrTags(parsed.text)
-      i = parsed.nextIndex
-      continue
-    }
-
-    const accDescr = parseAccessibilityLine(line, 'accDescr')
-    if (accDescr !== undefined) {
-      diagram.accessibilityDescription = accDescr
-      continue
-    }
 
     // --- Inside entity body ---
     if (currentEntity) {
@@ -223,28 +213,6 @@ export function parseErDiagram(lines: string[]): ErDiagram {
 
   diagram.entities = [...entityMap.values()]
   return diagram
-}
-
-function parseAccessibilityLine(line: string, directive: 'accTitle' | 'accDescr'): string | undefined {
-  const match = line.match(new RegExp(`^${directive}\\s*:?[ \\t]+(.+)$`, 'i'))
-  return match ? normalizeBrTags(match[1]!.trim()) : undefined
-}
-
-function collectAccessibilityBlock(initial: string, lines: string[], startIndex: number): { text: string; nextIndex: number } {
-  const initialEnd = initial.indexOf('}')
-  if (initialEnd !== -1) return { text: initial.slice(0, initialEnd).trim(), nextIndex: startIndex }
-  const parts = [initial.trim()].filter(Boolean)
-  for (let i = startIndex + 1; i < lines.length; i++) {
-    const line = lines[i]!
-    const end = line.indexOf('}')
-    if (end !== -1) {
-      const beforeBrace = line.slice(0, end).trim()
-      if (beforeBrace) parts.push(beforeBrace)
-      return { text: parts.join('\n'), nextIndex: i }
-    }
-    parts.push(line)
-  }
-  throw new Error('ER accDescr block is missing a closing "}"')
 }
 
 /** Ensure an entity exists in the map */

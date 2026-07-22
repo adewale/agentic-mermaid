@@ -98,7 +98,7 @@ export function acquireWebsiteBuildLock(options: WebsiteBuildLockOptions): boole
     if (options.tryAcquire()) return true
     options.sleep()
   }
-  throw new Error('Timed out waiting for website/public build preload lock')
+  throw new Error('Timed out waiting for website build fixture lock')
 }
 
 /** Runs a synchronous generator only across a stable input snapshot. An input

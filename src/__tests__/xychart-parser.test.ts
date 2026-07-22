@@ -39,6 +39,19 @@ describe('parseXYChart – syntax', () => {
     expect(chart.series[0]!.data).toEqual([10, 20])
   })
 
+  it('keeps accessibility directives in semicolon-separated statements', () => {
+    const inline = parse('xychart; accTitle: Revenue chart; accDescr: Quarterly sales; bar [10, 20]')
+    expect(inline.accessibility).toEqual({
+      title: 'Revenue chart',
+      description: 'Quarterly sales',
+    })
+
+    const block = parse(`xychart; accDescr { First; still description
+      } ; bar [10, 20]`)
+    expect(block.accessibility).toEqual({ description: 'First; still description' })
+    expect(block.series[0]!.data).toEqual([10, 20])
+  })
+
   it('parses numeric axes and quoted axis titles', () => {
     const chart = parse(`xychart-beta
       x-axis "Month Index" 0 --> 12
@@ -65,6 +78,28 @@ describe('parseXYChart – syntax', () => {
       title: 'Revenue chart',
       description: 'Quarterly sales\nacross two regions.',
     })
+  })
+
+  it('keeps the historical tolerant policy for an unclosed accDescr block', () => {
+    const chart = parse(`xychart
+      accDescr {
+        Never closed
+      bar [10, 20]`)
+
+    expect(chart.accessibility).toEqual({ description: 'Never closed\nbar [10, 20]' })
+    expect(chart.series).toEqual([])
+  })
+
+  it('retains filtered family statements before a later unclosed accDescr block', () => {
+    const chart = parse(`xychart
+      accDescr { Earlier description
+      }
+      bar [10]
+      accDescr { Final description
+      bar [20]`)
+
+    expect(chart.accessibility).toEqual({ description: 'Final description\nbar [20]' })
+    expect(chart.series.map(item => item.data)).toEqual([[10]])
   })
 
   it('applies Mermaid frontmatter config and theme overrides', () => {

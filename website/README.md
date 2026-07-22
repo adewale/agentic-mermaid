@@ -35,7 +35,7 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 
 ```bash
 bun run website          # rebuild website/public + src/generated from website/source + product truth
-bun run website:check    # verify generated files are current
+bun run website:check    # verify clean in-memory website + Worker artifact contracts
 bun run website:dev      # Wrangler dev server on port 9095
 bash website/e2e-mcp.sh  # end-to-end probe of /mcp against a running server
 ```

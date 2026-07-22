@@ -1,6 +1,7 @@
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import type { ArchitectureAlignment } from './align.ts'
 import type {
@@ -38,6 +39,9 @@ const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
 const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
 
 export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
+  const accessibility = scanAccessibilityDirectives(lines)
+  requireClosedAccessibility(accessibility)
+  lines = accessibility.familyLines
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
   }
@@ -53,8 +57,12 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
   const edges: ArchitectureEdge[] = []
   const alignments: ArchitectureAlignment[] = []
   let title: string | undefined
-  let accessibilityTitle: string | undefined
-  let accessibilityDescription: string | undefined
+  const accessibilityTitle = accessibility.accessibility.title === undefined
+    ? undefined
+    : normalizeBrTags(accessibility.accessibility.title)
+  const accessibilityDescription = accessibility.accessibility.descr === undefined
+    ? undefined
+    : normalizeBrTags(accessibility.accessibility.descr)
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -62,38 +70,6 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
       title = normalizeBrTags(titleMatch[1]!.trim())
-      continue
-    }
-
-    const accTitleMatch = line.match(/^accTitle\s*:\s*(.+)$/i)
-    if (accTitleMatch) {
-      accessibilityTitle = normalizeBrTags(accTitleMatch[1]!.trim())
-      continue
-    }
-
-    const accDescrBlockMatch = line.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
-    if (accDescrBlockMatch) {
-      const blockLines: string[] = []
-      if (accDescrBlockMatch[1]!.trim()) blockLines.push(accDescrBlockMatch[1]!.trim())
-      let closed = false
-      for (i++; i < lines.length; i++) {
-        const blockLine = lines[i]!
-        if (blockLine.includes('}')) {
-          const before = blockLine.slice(0, blockLine.indexOf('}')).trim()
-          if (before) blockLines.push(before)
-          closed = true
-          break
-        }
-        blockLines.push(blockLine)
-      }
-      if (!closed) throw new Error('Unterminated accDescr block — missing closing "}"')
-      accessibilityDescription = normalizeBrTags(blockLines.join('\n').trim())
-      continue
-    }
-
-    const accDescrMatch = line.match(/^accDescr\s*:\s*(.+)$/i)
-    if (accDescrMatch) {
-      accessibilityDescription = normalizeBrTags(accDescrMatch[1]!.trim())
       continue
     }
 

@@ -1,10 +1,10 @@
 import type {
   GitGraphBody, GitGraphMutationOp, LayoutWarning, MutationError, Result, VerifyOptions,
 } from './types.ts'
-import { DEFAULT_LABEL_CHAR_CAP, err, ok } from './types.ts'
+import { err, ok } from './types.ts'
 import type { GitGraphCommit } from '../gitgraph/types.ts'
 import { GitGraphParseError, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
 export function parseGitGraphBody(source: string, options: import('../gitgraph/parser.ts').GitGraphParseOptions = {}): GitGraphBody {
@@ -132,10 +132,9 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
 export function verifyGitGraph(body: GitGraphBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const ids = new Set(body.commits.map(commit => commit.id))
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
+  const overflow = labelOverflowCollector(warnings, opts)
   for (const commit of body.commits) {
-    const overflow = labelOverflowWarning(commit.id, commit.message || commit.id, cap)
-    if (overflow) warnings.push(overflow)
+    overflow(commit.id, commit.message || commit.id)
     for (const parent of commit.parents) if (!ids.has(parent)) warnings.push({ code: 'EDGE_MISANCHORED', edge: `${parent}->${commit.id}`, to: commit.id })
   }
   return warnings

@@ -15,15 +15,16 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 - `bun run test` — run the full covered unit suite with the canonical timeout (the CI gate). fast-check
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
-- `bunx tsc --noEmit` — typecheck.
+- `bun run typecheck` — canonical typecheck across core and repository surfaces.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
 - `bun run bin/am.ts render <file> --format png --output out.png` — render a diagram.
 - `bun run website` — build the Cloudflare Workers site into `website/public/`, a
   **gitignored build artifact** (rebuilt at deploy by `deploy-cloudflare.yml`, and
-  on-demand by the test preload `src/__tests__/website-public.preload.ts`). You do
-  not commit it. `website:check` pins only the committed `website/src/generated`
-  worker inputs (wasm/harness/fonts/compat-date + the deploy-version stamp) against
-  source — run `bun run website` after changing those so the stamp stays in sync.
+  on-demand by explicit imports of `src/__tests__/website-public-fixture.ts`). You do
+  not commit it. `website/src/generated/` is also ephemeral. `website:check`
+  performs an in-memory clean regeneration and contract comparison for both trees;
+  run `bun run website` only when local serving, deployment, or an explicit fixture
+  consumer needs materialized outputs.
 
 Layout is **deterministic**: identical input must produce identical geometry.
 

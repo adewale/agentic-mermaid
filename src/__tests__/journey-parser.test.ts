@@ -164,13 +164,13 @@ describe('parseJourneyDiagram', () => {
       Do work: 3: Me`)).toThrow('Invalid user journey line')
   })
 
-  it('requires Mermaid-compatible section labels and accessibility directives', () => {
+  it('requires Mermaid-compatible section labels and accepts universal colonless accessibility', () => {
     expect(() => parse(`journey
       section A:B
       Do work: 3: Me`)).toThrow('Invalid user journey section')
-    expect(() => parse(`journey
+    expect(parse(`journey
       accTitle Missing colon
-      Do work: 3: Me`)).toThrow('Invalid user journey line')
+      Do work: 3: Me`).accessibilityTitle).toBe('Missing colon')
   })
 
   it('throws when an accDescr block is not closed', () => {

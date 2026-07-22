@@ -1,23 +1,31 @@
 # Releasing `agentic-mermaid` to npm
 
 The package is published by [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml),
-which triggers on a **published GitHub Release**. The workflow reproduces CI's
-deterministic gate (tests, dependency/palette/sketch/whole-corpus quality,
-`tsc`, browser contracts, route sabotage, `hero:check`, `website:check`,
-golden-drift, and incremental mutation), requires a successful canonical CI run
-for the exact release commit, runs the registry-derived render portfolio on
-macOS and Windows, fuzzes shipped artifacts under Node 24 and the packed
-tarball under the minimum supported Node 22, builds with `tsup`, and runs
-`npm publish --access public`. There is no manual
-`npm publish` step. After npm succeeds, a separate dependent job publishes
-[`server.json`](../../server.json) to the official MCP Registry. Keeping that
-step separate lets a failed registry publication be retried without attempting
-to republish an immutable npm version.
+which triggers on a **published GitHub Release**. The workflow requires a
+successful canonical `ci.yml` run for the exact release commit. CI owns tests,
+dependency/palette/sketch/whole-corpus quality, TypeScript and Biome checks,
+browser contracts, route sabotage, `hero:check`, `website:check`, golden drift,
+mutation, and packed-consumer fuzzing under Node 24 and the minimum supported
+Node 22. The release workflow retains the registry-derived macOS/Windows smoke,
+then owns only the publish boundary: an unprivileged job builds once, creates a
+real tarball with the pinned publishing npm, compares its contents with the
+reviewed fail-closed manifest, records its integrity and SHA-256 digest, and
+uploads that immutable artifact under a fixed filename. A minimal OIDC job
+requires the closed three-file artifact set, binds the manifest to the checksum
+and tarball bytes, then publishes that exact `.tgz` with lifecycle scripts disabled.
+There is no manual `npm publish` step. After npm succeeds, a separate minimal
+OIDC job extracts [`server.json`](../../server.json) from the same verified
+tarball and publishes it to the official MCP Registry. Keeping that step
+separate, with the verified artifact retained for 30 days, lets a failed
+registry publication be retried without attempting to republish an immutable
+npm version.
 
 Publishing uses **npm OIDC trusted publishing** — no `NPM_TOKEN` secret. The
-workflow mints a short-lived OIDC id-token (`permissions: id-token: write`), npm
-verifies it against the trusted-publisher config, and **provenance is generated
-automatically** (no `--provenance` flag).
+workflow grants `permissions: id-token: write` only to the two final registry
+jobs. Validation, checked-out release code, platform smoke, dependency
+installation, build, and package inspection cannot mint a token. npm verifies
+the final job token against the trusted-publisher config, and **provenance is
+generated automatically** (no `--provenance` flag).
 
 ## Preconditions (one-time, before the first release)
 
@@ -38,17 +46,20 @@ automatically** (no `--provenance` flag).
 - `npm view agentic-mermaid version` — confirm the version isn't already
   published (first release: expect a 404).
 
-The workflow pins Node 24 and npm 11.18.0 (trusted publishing needs npm ≥
-11.5.1 / Node ≥ 22.14). The publish job also rejects a release whose tag,
-checked-out commit, `origin/main` ancestry, package version, or MCP server
-versions disagree, and fails before building if that immutable npm version
-already exists.
+The workflow pins Node 24, npm 11.18.0, and every action that executes in an
+OIDC-capable job to immutable commits (trusted publishing needs npm ≥ 11.5.1 /
+Node ≥ 22.14). npm 11.18.0 already bundles its Sigstore dependency tree; the
+workflow installs no mutable provenance helper. The unprivileged release gate
+also rejects a release whose tag, checked-out commit, `origin/main` ancestry,
+package version, or MCP server versions disagree, and fails before building if
+that immutable npm version already exists.
 
 ## Cutting a release
 
-1. **Land everything on `main` green.** Releases are cut from `main`, whose CI
-   has already run; `publish.yml` re-runs the deterministic gate + artifact fuzz
-   as a backstop.
+1. **Land everything on `main` green.** Releases are cut from `main`.
+   `publish.yml` refuses to publish unless canonical CI succeeded for that exact
+   immutable SHA; it does not duplicate the same source gates under a second
+   event with different setup and drift risk.
 2. **Bump the package and MCP server versions together.** Update `version` in
    `package.json`, `PACKAGE_VERSION` in `src/version.ts`, the top-level `version` in `server.json`, and
    `packages[0].version` in `server.json`. The readiness tests require an exact
@@ -62,6 +73,9 @@ already exists.
    publication fires `publish.yml`, which gates, builds, publishes to npm, and
    then publishes the matching server metadata to the MCP Registry.
 6. **Verify:** `npm view agentic-mermaid version` shows the new version;
+   if npm committed the immutable version before the workflow recorded success,
+   rerun it—the publish job recovers only after the registry's SHA-512 integrity
+   matches the retained verified tarball exactly. Then
    `npm install agentic-mermaid` into a scratch project resolves and its bins
    run; and
    `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale/agentic-mermaid"`

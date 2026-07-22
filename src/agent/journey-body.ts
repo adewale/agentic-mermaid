@@ -22,7 +22,7 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
 import {
   walkJourneyLines, normalizeJourneyText, normalizeJourneyActor,
   isValidJourneyScore, hasJourneyStatementDelimiter, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
@@ -137,15 +137,10 @@ function cloneJourney(b: JourneyBody): JourneyBody {
 }
 
 function makeIdAllocator(body: JourneyBody): (prefix: 'section' | 'task') => string {
-  const seen = new Set<string>()
-  for (const s of body.sections) { seen.add(s.id); for (const t of s.tasks) seen.add(t.id) }
-  return prefix => {
-    let n = 0
-    while (seen.has(`${prefix}-${n}`)) n++
-    const id = `${prefix}-${n}`
-    seen.add(id)
-    return id
-  }
+  const ids = body.sections.flatMap(section => [section.id, ...section.tasks.map(task => task.id)])
+  const section = indexedIdAllocator(ids, 'section')
+  const task = indexedIdAllocator(ids, 'task')
+  return prefix => prefix === 'section' ? section() : task()
 }
 
 function normalizeOpText(value: string, field: string, opts: { allowColon?: boolean } = {}): Result<string, MutationError> {
@@ -381,10 +376,7 @@ function journeySemantics(body: JourneyBody): unknown {
 export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts, cap)
   const hasTask = body.sections.some(s => s.tasks.length > 0)
   const hasHeaderFurniture = body.title !== undefined
     || body.accessibilityTitle !== undefined
@@ -392,8 +384,7 @@ export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWar
     || body.sections.length > 0
   if (!hasTask && !hasHeaderFurniture) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) {
-    const w = labelOverflowWarning('title', body.title, Math.max(cap, 80))
-    if (w) warnings.push(w)
+    labelOverflowCollector(warnings, opts, Math.max(cap, 80))('title', body.title)
   }
   const actors = new Set(body.sections.flatMap(section => section.tasks.flatMap(task => task.actors)))
   if (actors.size > JOURNEY_ACTOR_COLOR_LIMIT) {

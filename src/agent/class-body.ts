@@ -35,8 +35,8 @@ import type {
   ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote, ClassNamespaceDecl,
   ClassMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
@@ -547,17 +547,13 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
 
 export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
   if (body.classes.length === 0 && body.title === undefined) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })
     return warnings
   }
 
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   if (body.title) overflow('title', body.title)
 
   const ids = new Set(body.classes.map(c => c.id))

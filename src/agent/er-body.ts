@@ -20,8 +20,8 @@ import type {
   ErBody, ErEntity, ErRelation, ErCardinality, ErAttribute, ErStatement, ErGroup,
   ErMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import {
   parseErAttribute,
   parseErEntityId,
@@ -494,16 +494,12 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
 
 export function verifyErBody(body: ErBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   if (body.entities.length === 0 && body.relations.length === 0 && (body.groups?.length ?? 0) === 0) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })
     return warnings
   }
   const ids = new Set([...body.entities.map(e => e.id), ...(body.groups ?? []).map(group => group.id)])
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   for (const group of body.groups ?? []) overflow(group.id, group.label)
   for (const e of body.entities) {
     if (e.label) overflow(e.id, e.label)

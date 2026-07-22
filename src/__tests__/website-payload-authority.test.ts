@@ -14,6 +14,9 @@ import {
   type WebsitePayloadReport,
 } from '../../scripts/site/website-payload-authority.ts'
 import { WEBSITE_PAYLOAD_BUDGETS } from '../../scripts/site/website-payload-budgets.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const REPO = join(import.meta.dir, '..', '..')
 const PUBLIC = join(REPO, 'website', 'public')

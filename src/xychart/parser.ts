@@ -12,6 +12,7 @@ import type {
   XYChartSeries,
   XYChartTheme,
 } from './types.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ============================================================================
 // XY Chart parser
@@ -35,13 +36,32 @@ import type {
  * Lines should already be trimmed and comment-stripped.
  */
 export function parseXYChart(lines: string[]): XYChart {
+  // XYChart permits semicolon-separated statements. Expand that family syntax
+  // before the universal scan so `xychart; accTitle: …; bar […]` keeps the
+  // same accessibility semantics as one-statement-per-line source. The second
+  // expansion handles a family statement authored after a block's closing
+  // brace, while the first pass keeps semicolons inside block text intact.
+  const expandedStatements = expandXYChartStatements(lines)
+  const accessibility = scanAccessibilityDirectives(expandedStatements)
+  const accessibilityMetadata = accessibility.accessibility
+  // Preserve XYChart's historical tolerant policy: an unterminated block
+  // consumes the remainder as description prose instead of chart statements.
+  const unclosed = accessibility.unclosedIndex
+  const familyLines = unclosed === undefined
+    ? accessibility.familyLines
+    : accessibility.familyLines.slice(0, unclosed - expandedStatements.length)
+  if (unclosed !== undefined) {
+    accessibilityMetadata.descr = expandedStatements
+      .slice(unclosed)
+      .join('\n')
+      .replace(/^[^{]*\{/, '')
+      .trim() || undefined
+  }
   const xAxis: XYAxis = {}
   const yAxis: XYAxis = {}
   const series: XYChartSeries[] = []
-  const statements = expandXYChartStatements(lines)
+  const statements = expandXYChartStatements(familyLines)
   let title: string | undefined
-  let accTitle: string | undefined
-  let accDescription: string | undefined
   let horizontal = false
   let headerOrientation: 'vertical' | 'horizontal' | undefined
 
@@ -57,30 +77,6 @@ export function parseXYChart(lines: string[]): XYChart {
         horizontal = false
         headerOrientation = 'vertical'
       }
-      continue
-    }
-
-    const accTitleMatch = line.match(/^accTitle\s*:?\s*(.+)$/i)
-    if (accTitleMatch) {
-      accTitle = parseDirectiveText(accTitleMatch[1]!)
-      continue
-    }
-
-    const accDescrBlockMatch = line.match(/^accDescr\s*:?\s*\{\s*$/i)
-    if (accDescrBlockMatch) {
-      const block: string[] = []
-      for (index += 1; index < statements.length; index++) {
-        const blockLine = statements[index]!
-        if (blockLine === '}') break
-        block.push(blockLine)
-      }
-      accDescription = block.join('\n').trim() || undefined
-      continue
-    }
-
-    const accDescrMatch = line.match(/^accDescr\s*:?\s*(.+)$/i)
-    if (accDescrMatch) {
-      accDescription = parseDirectiveText(accDescrMatch[1]!)
       continue
     }
 
@@ -151,7 +147,10 @@ export function parseXYChart(lines: string[]): XYChart {
 
   return {
     title,
-    accessibility: accTitle || accDescription ? { title: accTitle, description: accDescription } : undefined,
+    accessibility: accessibilityMetadata.title || accessibilityMetadata.descr ? {
+      title: accessibilityMetadata.title,
+      description: accessibilityMetadata.descr,
+    } : undefined,
     horizontal,
     headerOrientation,
     xAxis,
@@ -468,14 +467,15 @@ function expandXYChartStatements(lines: string[]): string[] {
 
     if (inAccDescrBlock) {
       statements.push(line)
-      if (line === '}') inAccDescrBlock = false
+      if (line.includes('}')) inAccDescrBlock = false
       continue
     }
 
     const parts = splitSemicolonStatements(line)
     for (const part of parts) {
       statements.push(part)
-      if (/^accDescr\s*:?\s*\{\s*$/i.test(part)) inAccDescrBlock = true
+      const block = part.match(/^accDescr\s*:?\s*\{(.*)$/i)
+      if (block && !block[1]!.includes('}')) inAccDescrBlock = true
     }
   }
 

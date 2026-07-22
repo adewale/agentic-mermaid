@@ -32,8 +32,8 @@ import type {
   XyChartBody, XyChartAxis, XyChartSeries, XyChartMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 
 // ---- Number format ----------------------------------------------------------
@@ -324,17 +324,6 @@ function cloneXyChart(b: XyChartBody): XyChartBody {
   }
 }
 
-function makeSeriesIdAllocator(body: XyChartBody): () => string {
-  const seen = new Set(body.series.map(s => s.id))
-  return () => {
-    let n = 0
-    while (seen.has(`series-${n}`)) n++
-    const id = `series-${n}`
-    seen.add(id)
-    return id
-  }
-}
-
 function validBareText(value: unknown, field: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `XY chart ${field} must be a string` })
   const normalized = normalizeText(value)
@@ -399,7 +388,7 @@ function buildAxis(
 
 export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<XyChartBody, MutationError> {
   const next = cloneXyChart(body)
-  const nextId = makeSeriesIdAllocator(next)
+  const nextId = indexedIdAllocator(next.series.map(series => series.id), 'series')
 
   switch (op.kind) {
     case 'set_title': {
@@ -517,12 +506,8 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWarning[] {
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   if (body.series.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   if (body.xAxis?.name !== undefined) overflow('x-axis', body.xAxis.name)

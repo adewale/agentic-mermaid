@@ -5,6 +5,9 @@ import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
 import { QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -43,7 +46,7 @@ function expectAbsoluteHttps(url: unknown) {
 }
 
 describe('agent-readiness standards syntax', () => {
-  test('local, CI, and release gates share one bounded covered-suite command', () => {
+  test('local and CI own source gates while release owns exact-SHA attestation and packing', () => {
     const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     const ciWorkflow = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
     const publishWorkflow = readFileSync(join(REPO, '.github/workflows/publish.yml'), 'utf8')
@@ -56,7 +59,10 @@ describe('agent-readiness standards syntax', () => {
     const aggregateSteps = ci.jobs.test.steps
     const qualitySteps = ci.jobs.quality.steps
     const e2eSteps = ci.jobs.e2e.steps
+    const gateSteps = publish.jobs['release-gate'].steps
+    const packageSteps = publish.jobs.package.steps
     const publishSteps = publish.jobs.publish.steps
+    const mcpPublishSteps = publish.jobs['publish-mcp'].steps
 
     expect(packageJson.scripts.test).toBe('bun test --coverage --timeout 30000 src/__tests__/')
     expect(ciWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
@@ -110,33 +116,51 @@ describe('agent-readiness standards syntax', () => {
       'bun run lint',
       'bun run audit:dependencies',
     ]))
-    expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
-    expect(publish.jobs.publish.needs).toBe('platform-smoke')
+    expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm) ?? []).toHaveLength(0)
+    expect(publish.jobs['platform-smoke'].needs).toBe('release-gate')
+    expect(publish.jobs.package.needs).toEqual(['release-gate', 'platform-smoke'])
+    expect(publish.jobs.publish.needs).toBe('package')
     expect(publish.jobs['platform-smoke'].strategy.matrix.os).toEqual(['macos-latest', 'windows-latest'])
     expect(publish.jobs['platform-smoke'].steps.find((step: any) => step.name === 'Run registry-derived cross-platform rendering contracts')?.run)
       .toContain('render-conformance-plan.test.ts')
-    expect(publishSteps.find((step: any) => step.name === 'Verify release tag, package versions, and checked-out commit agree')?.run)
+    expect(gateSteps.find((step: any) => step.name === 'Verify release tag, package versions, and checked-out commit agree')?.run)
       .toBe('bun run scripts/ci/release-identity.ts')
-    expect(publish.permissions.actions).toBe('read')
-    expect(publishSteps.find((step: any) => step.name === 'Require successful canonical CI for the exact release commit')?.run)
+    expect(publish.permissions['id-token']).toBeUndefined()
+    expect(publish.jobs['release-gate'].permissions.actions).toBe('read')
+    expect(gateSteps.find((step: any) => step.name === 'Require successful canonical CI for the exact release commit')?.run)
       .toContain('actions/workflows/ci.yml/runs')
-    expect(publishSteps.find((step: any) => step.name === 'Pack, install, and fuzz the tarball under Node 22')?.run)
-      .toContain('tarball-consumer-fuzz.e2e.test.ts')
-    expect(publishSteps.find((step: any) => step.name === 'Setup minimum supported Node.js consumer runtime')?.with?.['node-version'])
-      .toBe('22')
-    expect(publishSteps.find((step: any) => step.name === 'Refuse an already-published immutable npm version')?.run)
-      .toContain('npm view "agentic-mermaid@$version" version')
-    expect(publishSteps.find((step: any) => step.name === 'Reject new high or critical dependency advisories')?.run)
-      .toBe('bun run audit:dependencies')
-    expect(publishSteps.find((step: any) => step.name === 'Run sketch and whole-corpus layout quality gates')?.run)
-      .toContain('bun run audit:ugly')
-    expect(publishSteps.find((step: any) => step.name === 'Run canonical browser contracts')?.run)
-      .toBe('bun run test:browser')
-    expect(publishSteps.find((step: any) => step.name === 'Lint TypeScript and repository contracts')?.run)
-      .toBe('bun run lint')
+    expect(packageSteps.find((step: any) => step.name === 'Pack and verify the exact publication artifact')?.run)
+      .toBe('bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact')
+    expect(gateSteps.some((step: any) => /already-published immutable npm version/i.test(step.name ?? ''))).toBe(false)
+    for (const duplicate of [
+      'Reject new high or critical dependency advisories',
+      'Run sketch and whole-corpus layout quality gates',
+      'Run canonical browser contracts',
+      'Lint TypeScript and repository contracts',
+      'Prove focused route regressions fail',
+    ]) expect(publishSteps.find((step: any) => step.name === duplicate)).toBeUndefined()
     expect(publishSteps.find((step: any) => /human review/i.test(step.name ?? ''))).toBeUndefined()
-    expect(publishSteps.find((step: any) => step.name === 'Prove focused route regressions fail')?.run)
-      .toBe('bun run sabotage:routes')
+    expect(publish.jobs.publish.permissions['id-token']).toBe('write')
+    expect(publish.jobs['publish-mcp'].permissions['id-token']).toBe('write')
+    expect(publish.jobs['release-gate'].permissions['id-token']).toBeUndefined()
+    expect(publish.jobs['platform-smoke'].permissions['id-token']).toBeUndefined()
+    expect(publish.jobs.package.permissions['id-token']).toBeUndefined()
+    expect(publishSteps.some((step: any) => step.uses?.startsWith('actions/checkout@'))).toBe(false)
+    expect(mcpPublishSteps.some((step: any) => step.uses?.startsWith('actions/checkout@'))).toBe(false)
+    const uploadStep = packageSteps.find((step: any) => step.name === 'Upload the verified publication artifact')
+    expect(uploadStep?.with?.['retention-days']).toBe(30)
+    expect(uploadStep?.with?.overwrite).toBe(true)
+    const verifyStep = publishSteps.find((step: any) => step.name === 'Verify the transferred tarball digest')
+    expect(verifyStep?.run).toContain(".filename' release-artifact/package-manifest.json)\" = package.tgz")
+    expect(verifyStep?.run).toContain("printf '%s  package.tgz\\n' \"$manifest_sha\" | cmp --silent")
+    const npmPublishStep = publishSteps.find((step: any) => step.name === 'Publish or recover the exact npm tarball (OIDC trusted publishing)')
+    expect(npmPublishStep?.env?.TARBALL).toBe('release-artifact/package.tgz')
+    expect(npmPublishStep?.run).toContain('npm publish "$TARBALL" --ignore-scripts --access public')
+    expect(npmPublishStep?.run).toContain('npm view "$package_name@$package_version" dist.integrity --json')
+    expect(npmPublishStep?.run).toContain('registry_integrity" = "$local_integrity')
+    expect(npmPublishStep?.run).toContain('after an ambiguous publish; recovering publication')
+    expect(npmPublishStep?.run).not.toContain('${{')
+    expect(publishWorkflow).not.toContain('sigstore@latest')
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')
     expect(agentGuide).toContain('`bun run test`')
@@ -154,15 +178,15 @@ describe('agent-readiness standards syntax', () => {
 
     const actionRefs = actionSteps.map((step: any) => step.uses)
     const expectedRefs = new Map([
-      ['actions/checkout@', 'actions/checkout@v7'],
-      ['actions/upload-artifact@', 'actions/upload-artifact@v7'],
-      ['actions/download-artifact@', 'actions/download-artifact@v8'],
-      ['actions/setup-node@', 'actions/setup-node@v7'],
+      ['actions/checkout@', ['actions/checkout@v7', 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1']],
+      ['actions/upload-artifact@', ['actions/upload-artifact@v7', 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a']],
+      ['actions/download-artifact@', ['actions/download-artifact@v8', 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c']],
+      ['actions/setup-node@', ['actions/setup-node@v7', 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020']],
     ])
     for (const [prefix, expected] of expectedRefs) {
       const matching = actionRefs.filter((ref: string) => ref.startsWith(prefix))
       expect(matching.length).toBeGreaterThan(0)
-      expect([...new Set(matching)]).toEqual([expected])
+      expect([...new Set(matching)].every(ref => expected.includes(ref))).toBe(true)
     }
 
     const setupBunSteps = actionSteps.filter((step: any) => step.uses.startsWith('oven-sh/setup-bun@'))

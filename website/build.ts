@@ -476,6 +476,11 @@ async function generateEditorHtml() {
   const scriptRel = `editor/editor-${sha256(script).slice(0, 12)}.js`
   await emit(scriptRel, script.trimEnd() + '\n')
   transformed = transformed.replace(scriptMatch[0], `\n<script type="module" src="/${scriptRel}"></script>\n</body>`)
+  // Authoring comments are useful in the source fragments but have no runtime
+  // semantics; do not ship them in the production editor document.
+  transformed = transformed.replace(/<!--[\s\S]*?-->/g, '')
+  transformed = transformed.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, block =>
+    block.replace(/\/\*[\s\S]*?\*\//g, ''))
   // The bundle is the editor's whole app; let the preload scanner fetch it
   // before the parser reaches the end-of-body script tag.
   transformed = transformed.replace('</head>', `<link rel="modulepreload" href="/${scriptRel}">\n</head>`)
@@ -2972,7 +2977,9 @@ await emit('sitemap.xml', sitemapXml)
 // The /mcp Worker needs the Code Mode harness bundled for the dynamic-worker
 // isolate, the resvg wasm module, and the bundled PNG fonts. They live under
 // src/generated (not public/): they are Worker modules, not servable assets.
-// The directory is gitignored and rebuilt before typecheck, tests, and deploy.
+// The directory is gitignored and rebuilt by website checks, tests that need
+// Worker artifacts, and deploy. worker-env.d.ts owns the stable import types so
+// repository typecheck remains read-only and works from a fresh checkout.
 const SRC_GENERATED = join(import.meta.dir, 'src', 'generated')
 const workerGenerated = new Map<string, Buffer>()
 

@@ -29,8 +29,8 @@ import type {
   PieBody, PieMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { parsePieChart } from '../pie/parser.ts'
 
@@ -114,17 +114,6 @@ function clonePie(b: PieBody): PieBody {
   }
 }
 
-function makeSliceIdAllocator(body: PieBody): () => string {
-  const seen = new Set(body.slices.map(s => s.id))
-  return () => {
-    let n = 0
-    while (seen.has(`slice-${n}`)) n++
-    const id = `slice-${n}`
-    seen.add(id)
-    return id
-  }
-}
-
 function validLabel(value: unknown, field: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Pie ${field} must be a string` })
   const trimmed = value.trim()
@@ -147,7 +136,7 @@ function findSlice(body: PieBody, label: string): number {
 
 export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, MutationError> {
   const next = clonePie(body)
-  const nextId = makeSliceIdAllocator(next)
+  const nextId = indexedIdAllocator(next.slices.map(slice => slice.id), 'slice')
 
   switch (op.kind) {
     case 'set_title': {
@@ -233,12 +222,8 @@ export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, Mut
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
 export function verifyPie(body: PieBody, opts: VerifyOptions): LayoutWarning[] {
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   if (body.slices.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   for (const s of body.slices) overflow(s.id, s.label)

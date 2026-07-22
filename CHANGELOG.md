@@ -4,6 +4,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Changed
+- Consolidated Mermaid-universal `accTitle`/`accDescr` parsing at source normalization. Every registered family, including future extensions, now receives directive-free grammar lines and the same accessibility metadata automatically; extension serializers also regain that envelope on output without family-specific code. Existing renderer, structured-agent, and source-action analysis paths use the shared grammar and source-line provenance rather than family-local scanners. Class, ER, and Timeline retain their explicit failure on unclosed description blocks.
+- Made build ownership explicit: `typecheck` now runs only TypeScript, website-consuming tests opt into their fixture build, and the global website preload plus the `site`/`site:check` aliases were removed. The production editor build also drops author-only HTML and inline CSS comments and ratchets its measured raw, gzip, and Brotli ceilings downward.
+- Consolidated repeated agent-body indexed-ID allocation and label-overflow collection behind shared utilities.
+- Reduced the release workflow to exact-SHA CI attestation, cross-platform smoke, and the unique publish boundary. Unprivileged jobs now attest CI, build once, compare a real npm tarball against a reviewed fail-closed manifest, and transfer it under a fixed filename with bound SHA-256 and SHA-512 digests; minimal job-scoped OIDC jobs require the closed regular-file set before publishing that exact artifact to npm or extracting its matching MCP metadata, without checking out or executing repository code. Npm publication is retry-safe after ambiguous remote success: an existing immutable version advances the workflow only when its registry integrity is byte-identical to the verified tarball. The verified artifact is retained for the 30-day MCP retry window, release actions and npm are immutable, and npm's bundled Sigstore tree replaces the mutable `sigstore@latest` workaround.
+- Updated the `fast-uri` transitive override to 3.1.4, the first release outside the host-confusion advisory range used by MCP schema validation and mutation tooling.
+
 ## 0.1.2 — 2026-07-21
 
 ### Fixed

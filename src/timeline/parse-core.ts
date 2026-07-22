@@ -4,9 +4,6 @@ import { syntaxError } from '../shared/syntax-error.ts'
 export const TIMELINE_HEADER_DIRECTION_RE = /^timeline\s+(LR|TD)\s*$/i
 export const TIMELINE_TITLE_RE = /^title\s+(.+)$/i
 export const TIMELINE_SECTION_RE = /^section\s+([^:]+)$/i
-export const TIMELINE_ACCESSIBILITY_TITLE_RE = /^accTitle\s*:\s*(.+)$/i
-export const TIMELINE_ACCESSIBILITY_DESCRIPTION_RE = /^accDescr\s*:\s*(.+)$/i
-export const TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE = /^accDescr\s*\{\s*$/i
 export const TIMELINE_CONTINUATION_RE = /^:\s+(.+)$/
 
 /**

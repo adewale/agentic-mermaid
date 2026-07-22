@@ -32,7 +32,7 @@ Run the target that owns the changed surface:
 ```bash
 bun run editor          # standalone editor.html
 bun run website         # production website/public, including /editor/
-bun run website:check   # committed generated inputs are current
+bun run website:check   # clean in-memory website + Worker artifact contracts
 bun run typecheck
 ```
 

@@ -18,6 +18,9 @@ import {
   validateWebsiteInterSubsetManifest,
   type WebsiteInterSubsetManifest,
 } from '../../scripts/site/website-font-subsets.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PUBLIC = join(ROOT, 'website', 'public')
@@ -76,11 +79,11 @@ describe('canonical website Inter subsets', () => {
       .toEqual(manifest.outputs.map(output => output.file).sort())
   })
 
-  test('clears both compressed-route stop gates without changing the blank editor', () => {
+  test('clears both compressed-route stop gates while retaining the full-font blank editor', () => {
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },
-      'editor-empty': { rawBytes: 3_306_380, gzipBytes: 972_469, brotliBytes: 765_506 },
+      'editor-empty': { rawBytes: 3_288_608, gzipBytes: 965_589, brotliBytes: 759_742 },
     }
     for (const id of ['home', 'examples'] as const) {
       const route = payload.routes.find(candidate => candidate.id === id)!
@@ -90,7 +93,7 @@ describe('canonical website Inter subsets', () => {
     }
     const editor = payload.routes.find(candidate => candidate.id === 'editor-empty')!
     expect(editor.totals).toMatchObject(starting['editor-empty'])
-    expect(editor.requests.map(request => request.path)).toEqual(['/editor/', '/editor/editor-ad48dd941007.js'])
+    expect(editor.requests.map(request => request.path)).toEqual(['/editor/', '/editor/editor-6157b438a465.js'])
   })
 
   test('rejects source, content-address, coverage, and byte-ceiling sabotage', () => {

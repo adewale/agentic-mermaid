@@ -12,15 +12,14 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import {
-  TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE,
-  TIMELINE_ACCESSIBILITY_DESCRIPTION_RE,
-  TIMELINE_ACCESSIBILITY_TITLE_RE,
   TIMELINE_CONTINUATION_RE,
   TIMELINE_PERIOD_RE,
   TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
   splitTimelineEvents,
 } from '../timeline/parse-core.ts'
+import { indexedIdAllocator } from './body-utils.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -52,11 +51,16 @@ function parseTimelineEventSegments(raw: string): string[] | null {
 }
 
 export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
+  const scanned = scanAccessibilityDirectives(lines)
+  if (scanned.unclosedIndex !== undefined) return null
+  lines = scanned.familyLines
+  const accessibilityTitle = scanned.accessibility.title ?? accessibility.title
+  const accessibilityDescription = scanned.accessibility.descr ?? accessibility.descr
   const body: TimelineBody = {
     kind: 'timeline',
     sections: [],
-    ...(accessibility.title !== undefined ? { accessibilityTitle: accessibility.title } : {}),
-    ...(accessibility.descr !== undefined ? { accessibilityDescription: accessibility.descr } : {}),
+    ...(accessibilityTitle !== undefined ? { accessibilityTitle } : {}),
+    ...(accessibilityDescription !== undefined ? { accessibilityDescription } : {}),
   }
   let currentSection: TimelineSection | undefined
   let currentPeriod: TimelinePeriod | undefined
@@ -80,33 +84,6 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
       const title = normalizeTimelineText(tm[1]!)
       if (!validTimelineText(title, { allowColon: true })) return null
       body.title = title
-      continue
-    }
-
-    const at = line.match(TIMELINE_ACCESSIBILITY_TITLE_RE)
-    if (at) {
-      body.accessibilityTitle = normalizeTimelineText(at[1]!)
-      continue
-    }
-
-    const ad = line.match(TIMELINE_ACCESSIBILITY_DESCRIPTION_RE)
-    if (ad) {
-      body.accessibilityDescription = normalizeTimelineText(ad[1]!)
-      continue
-    }
-
-    // `accDescr { … }` block form — collected exactly like the renderer parser
-    // (lines until a bare `}`); an unclosed block is unmodeled → opaque.
-    if (TIMELINE_ACCESSIBILITY_DESCRIPTION_BLOCK_RE.test(line)) {
-      const descriptionLines: string[] = []
-      let closed = false
-      while (++i < lines.length) {
-        const blockLine = lines[i]!.trim()
-        if (blockLine === '}') { closed = true; break }
-        descriptionLines.push(blockLine)
-      }
-      if (!closed) return null
-      body.accessibilityDescription = descriptionLines.join('\n').trim()
       continue
     }
 
@@ -216,18 +193,16 @@ function cloneTimeline(b: TimelineBody): TimelineBody {
 }
 
 function makeTimelineIdAllocator(body: TimelineBody): (prefix: 'section' | 'period' | 'event') => string {
-  const seen = new Set<string>()
-  for (const s of body.sections) {
-    seen.add(s.id)
-    for (const p of s.periods) { seen.add(p.id); for (const e of p.events) seen.add(e.id) }
+  const ids = body.sections.flatMap(section => [
+    section.id,
+    ...section.periods.flatMap(period => [period.id, ...period.events.map(event => event.id)]),
+  ])
+  const allocators = {
+    section: indexedIdAllocator(ids, 'section'),
+    period: indexedIdAllocator(ids, 'period'),
+    event: indexedIdAllocator(ids, 'event'),
   }
-  return prefix => {
-    let n = 0
-    while (seen.has(`${prefix}-${n}`)) n++
-    const id = `${prefix}-${n}`
-    seen.add(id)
-    return id
-  }
+  return prefix => allocators[prefix]()
 }
 
 function normalizeTimelineOpText(value: string, opts: { field: string; allowColon?: boolean }): Result<string, MutationError> {

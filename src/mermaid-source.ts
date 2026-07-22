@@ -16,6 +16,11 @@ import {
   assertJsonConfigSourceTextAdmission,
   JsonConfigAdmissionError,
 } from './shared/json-config-admission.ts'
+import {
+  parseAccessibilityDirective,
+  scanAccessibilityDirectives,
+  type MermaidAccessibility,
+} from './shared/accessibility-directives.ts'
 
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
@@ -360,10 +365,7 @@ export interface MermaidSourceComment {
   line: number
 }
 
-export interface MermaidSourceAccessibility {
-  title?: string
-  descr?: string
-}
+export interface MermaidSourceAccessibility extends MermaidAccessibility {}
 
 export interface NormalizedMermaidSource {
   /** Original bytes supplied at the public boundary. */
@@ -391,55 +393,15 @@ export interface NormalizedMermaidSource {
 const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
 const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
 const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
-const ACC_TITLE_REGEX = /^\s*accTitle(?:\s*:\s*|\s+)(.+)$/i
-const ACC_DESCR_INLINE_REGEX = /^\s*accDescr(?:\s*:\s*|\s+)(.+)$/i
-const ACC_DESCR_BLOCK_START = /^\s*accDescr\s*:?\s*\{(.*)$/i
-
-interface AccessibilityDescriptionBlock {
-  description: string
-  endIndex: number
-  /** Family statement following the closing brace, with its indentation. */
-  suffixLine?: string
-}
-
-/** Parse one universal accDescr block without consuming a statement that
- * follows its closing brace. `undefined` means this is not a block opener;
- * `null` means the opener is malformed/unclosed and must remain family-visible. */
-function accessibilityDescriptionBlockAt(
-  lines: readonly string[],
-  startIndex: number,
-): AccessibilityDescriptionBlock | null | undefined {
-  const opening = lines[startIndex]!.match(ACC_DESCR_BLOCK_START)
-  if (!opening) return undefined
-
-  const parts: string[] = []
-  for (let index = startIndex; index < lines.length; index++) {
-    const content = index === startIndex ? opening[1]! : lines[index]!
-    const closing = content.indexOf('}')
-    if (closing < 0) {
-      if (content.trim()) parts.push(content.trim())
-      continue
-    }
-    const beforeClosing = content.slice(0, closing).trim()
-    if (beforeClosing) parts.push(beforeClosing)
-    const suffix = content.slice(closing + 1)
-    const indent = lines[index]!.match(/^\s*/)?.[0] ?? ''
-    return {
-      description: parts.join('\n').trim(),
-      endIndex: index,
-      ...(suffix.trim() ? { suffixLine: indent + suffix.trimStart() } : {}),
-    }
-  }
-  return null
-}
 
 export function normalizeMermaidSource(
   text: string,
   baseConfig: MermaidRuntimeConfig = {},
 ): NormalizedMermaidSource {
   const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
-  const envelope = sourceEnvelopeMetadata(text)
-  const familyBody = withoutUniversalAccessibilityBody(processed.body)
+  const accessibilityScan = scanAccessibilityDirectives(processed.body.split(/\r?\n/))
+  const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
+  const familyBody = accessibilityScan.familyLines.join('\n')
   const familyLines = toMermaidLines(familyBody)
 
   return {
@@ -460,30 +422,6 @@ export function normalizeMermaidSource(
   }
 }
 
-function withoutUniversalAccessibilityBody(body: string): string {
-  const kept: string[] = []
-  const lines = body.split(/\r?\n/)
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index]!
-    const block = accessibilityDescriptionBlockAt(lines, index)
-    if (block !== undefined) {
-      // A malformed universal block must remain visible to the family parser
-      // so it can fail or preserve the source. Hiding an unclosed block made a
-      // broken Gantt/Journey silently become a valid structured diagram.
-      if (block === null) {
-        kept.push(...lines.slice(index))
-        break
-      }
-      if (block.suffixLine) kept.push(block.suffixLine)
-      index = block.endIndex
-      continue
-    }
-    if (ACC_TITLE_REGEX.test(line) || ACC_DESCR_INLINE_REGEX.test(line)) continue
-    kept.push(line)
-  }
-  return kept.join('\n')
-}
-
 /** Normalize authored source once, then apply caller-owned runtime overrides.
  * Source frontmatter/init directives merge with their historical precedence;
  * explicit RenderOptions win at the public render boundary. */
@@ -501,7 +439,7 @@ export function normalizeMermaidSourceWithOverrides(
   }
 }
 
-function sourceEnvelopeMetadata(text: string): {
+function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccessibility): {
   wrapperSource?: string
   initDirectives: MermaidSourceInitDirective[]
   comments: MermaidSourceComment[]
@@ -524,21 +462,15 @@ function sourceEnvelopeMetadata(text: string): {
     .replace(FRONTMATTER_REGEX, '')
     .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
   const comments: MermaidSourceComment[] = []
-  const accessibility: MermaidSourceAccessibility = {}
   const lines = withoutUniversalConfig.split(/\r?\n/)
   for (let index = 0; index < lines.length; index++) {
-    const line = lines[index]!
-    const block = accessibilityDescriptionBlockAt(lines, index)
-    if (block !== undefined) {
-      if (block === null) break
-      accessibility.descr = block.description
-      index = block.endIndex
+    const accessibility = parseAccessibilityDirective(lines, index)
+    if (accessibility === undefined) break
+    if (accessibility !== null) {
+      index = accessibility.endIndex
       continue
     }
-    const title = line.match(ACC_TITLE_REGEX)
-    if (title) { accessibility.title = title[1]!.trim(); continue }
-    const description = line.match(ACC_DESCR_INLINE_REGEX)
-    if (description) { accessibility.descr = description[1]!.trim(); continue }
+    const line = lines[index]!
     const comment = line.match(COMMENT_LINE_REGEX)
     if (comment) comments.push({ text: comment[1]!, line: index + 1 })
   }

@@ -20,6 +20,9 @@ import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, k
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const REPO = join(import.meta.dir, '..', '..')
 

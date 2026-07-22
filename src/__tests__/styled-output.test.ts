@@ -15,6 +15,9 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
 import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+
+ensureWebsiteBuilt()
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')

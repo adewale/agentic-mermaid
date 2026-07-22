@@ -2,6 +2,7 @@ import type {
   GitGraphBranch, GitGraphCommit, GitGraphCommitType, GitGraphDiagram,
   GitGraphDirection, GitGraphStatement,
 } from './types.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 export class GitGraphParseError extends Error {
   constructor(message: string, readonly line?: number) { super(message); this.name = 'GitGraphParseError' }
@@ -15,7 +16,11 @@ export class GitGraphDuplicateCommitError extends GitGraphParseError {
 export interface GitGraphParseOptions { mainBranchName?: string; mainBranchOrder?: number; title?: string }
 
 export function parseGitGraph(source: string, options: GitGraphParseOptions = {}): GitGraphDiagram {
-  const lines = source.replace(/^\uFEFF/, '').split(/\r?\n/)
+  const scanned = scanAccessibilityDirectives(source.replace(/^\uFEFF/, '').split(/\r?\n/))
+  if (scanned.unclosedIndex !== undefined) {
+    throw new GitGraphParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
+  }
+  const lines = scanned.familyLines
   const headerIndex = lines.findIndex(line => /^\s*gitgraph\b/i.test(line))
   if (headerIndex < 0) throw new GitGraphParseError('gitGraph source must start with a gitGraph header')
   const header = lines[headerIndex]!.trim().match(/^gitGraph(?:\s+(LR|TB|BT))?\s*:?[ \t]*$/i)
@@ -30,8 +35,8 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   const commitById = new Map<string, GitGraphCommit>()
   let currentBranch = mainBranchName
   let sequence = 0
-  let accessibilityTitle: string | undefined
-  let accessibilityDescription: string | undefined
+  const accessibilityTitle = scanned.accessibility.title
+  const accessibilityDescription = scanned.accessibility.descr
 
   const addCommit = (
     attrs: ParsedAttrs,
@@ -66,28 +71,6 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   for (let index = headerIndex + 1; index < lines.length; index++) {
     const text = lines[index]!.trim()
     if (!text || text.startsWith('%%')) continue
-    const accTitle = text.match(/^accTitle\s*:\s*(.+)$/i)
-    if (accTitle) { accessibilityTitle = accTitle[1]!.trim(); continue }
-    const accDescr = text.match(/^accDescr\s*:\s*(.+)$/i)
-    if (accDescr) { accessibilityDescription = accDescr[1]!.trim(); continue }
-    const accDescrBlock = text.match(/^accDescr\s*\{\s*(.*)$/i)
-    if (accDescrBlock) {
-      const parts: string[] = []
-      let rest = accDescrBlock[1]!
-      let closed = false
-      while (true) {
-        const close = rest.indexOf('}')
-        if (close >= 0) { if (rest.slice(0, close).trim()) parts.push(rest.slice(0, close).trim()); closed = true; break }
-        if (rest.trim()) parts.push(rest.trim())
-        index++
-        if (index >= lines.length) break
-        rest = lines[index]!.trim()
-      }
-      if (!closed) throw new GitGraphParseError('Unclosed accDescr block', index + 1)
-      accessibilityDescription = parts.join('\n').trim()
-      continue
-    }
-
     const commitLine = text.match(/^commit(?:\s+(.*))?$/i)
     if (commitLine) {
       const payload = commitLine[1] ?? ''

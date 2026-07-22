@@ -1,6 +1,10 @@
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
 import type { MindmapDiagram, MindmapNode, MindmapShape } from './types.ts'
+import {
+  parseAccessibilityDirective,
+  scanAccessibilityDirectives,
+} from '../shared/accessibility-directives.ts'
 
 export class MindmapParseError extends Error {
   constructor(message: string, readonly line?: number) { super(message); this.name = 'MindmapParseError' }
@@ -15,15 +19,29 @@ interface ParsedNode { id: string; label: string; shape: MindmapShape; markdown?
 
 /** Parse the indentation-sensitive source from the untrimmed normalized body. */
 export function parseMindmap(source: string): MindmapDiagram {
-  const rawLines = source.replace(/^\uFEFF/, '').split(/\r?\n/)
+  const sourceLines = source.replace(/^\uFEFF/, '').split(/\r?\n/)
+  // Mindmap's lexer treats inline %% as a comment. Preserve that family rule
+  // before the universal parser reads an inline directive value; block
+  // interiors retain their historical free-text behavior.
+  const accessibilityLines = sourceLines.map(line =>
+    parseAccessibilityDirective([line], 0)?.form === 'inline' ? stripInlineComment(line) : line)
+  const scanned = scanAccessibilityDirectives(accessibilityLines)
+  if (scanned.unclosedIndex !== undefined) {
+    throw new MindmapParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
+  }
+  const rawLines = scanned.familyLines
   const headerIndex = rawLines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
   if (headerIndex < 0) throw new MindmapParseError('Mindmap source must start with the mindmap header')
   const stack: Array<{ indent: number; node: MindmapNode }> = []
   const ids = new Set<string>()
   let root: MindmapNode | undefined
   let lastNode: MindmapNode | undefined
-  let accessibilityTitle: string | undefined
-  let accessibilityDescription: string | undefined
+  const accessibilityTitle = scanned.accessibility.title !== undefined
+    ? normalizeBrTags(scanned.accessibility.title)
+    : undefined
+  const accessibilityDescription = scanned.accessibility.descr !== undefined
+    ? normalizeBrTags(scanned.accessibility.descr)
+    : undefined
 
   for (let index = headerIndex + 1; index < rawLines.length; index++) {
     let raw = rawLines[index]!
@@ -40,28 +58,9 @@ export function parseMindmap(source: string): MindmapDiagram {
     raw = stripInlineComment(raw)
     const trimmed = raw.trim()
     if (!trimmed || trimmed.startsWith('%%')) continue
-    const accTitle = trimmed.match(/^accTitle\s*:\s*(.+)$/i)
-    if (accTitle) { accessibilityTitle = normalizeBrTags(accTitle[1]!.trim()); continue }
-    if (/^accTitle\s*:/i.test(trimmed)) throw new MindmapParseError('Mindmap accTitle must contain a non-empty value', index + 1)
-    const accDescr = trimmed.match(/^accDescr\s*:\s*(.+)$/i)
-    if (accDescr) { accessibilityDescription = normalizeBrTags(accDescr[1]!.trim()); continue }
-    if (/^accDescr\s*:/i.test(trimmed)) throw new MindmapParseError('Mindmap accDescr must contain a non-empty value', index + 1)
-    const accDescrBlock = trimmed.match(/^accDescr\s*\{\s*(.*)$/i)
-    if (accDescrBlock) {
-      const parts: string[] = []
-      let rest = accDescrBlock[1]!
-      let closed = false
-      while (true) {
-        const close = rest.indexOf('}')
-        if (close >= 0) { if (rest.slice(0, close).trim()) parts.push(rest.slice(0, close).trim()); closed = true; break }
-        if (rest.trim()) parts.push(rest.trim())
-        index++
-        if (index >= rawLines.length) break
-        rest = rawLines[index]!.trim()
-      }
-      if (!closed) throw new MindmapParseError('Unclosed accDescr block', index + 1)
-      accessibilityDescription = normalizeBrTags(parts.join('\n').trim())
-      continue
+    if (/^acc(?:Title|Descr)\b/i.test(trimmed)) {
+      const kind = /^accTitle\b/i.test(trimmed) ? 'accTitle' : 'accDescr'
+      throw new MindmapParseError(`Mindmap ${kind} must contain a non-empty value`, index + 1)
     }
     if (/^::icon\b/i.test(trimmed)) {
       const icon = trimmed.match(/^::icon\(([^)]*)\)$/i)
