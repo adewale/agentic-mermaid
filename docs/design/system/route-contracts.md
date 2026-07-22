@@ -35,7 +35,7 @@ matter because they change where the fix belongs.
 |---|---|---|
 | "edge-point orthogonalization after ELK" exists | TRUE | `orthogonalizeEdgePoints()` `src/layout-engine.ts` — but it only fires for cross-hierarchy SEPARATE-mode edges |
 | "layer-node snapping after ELK has already routed" | TRUE | `alignLayerNodes()` `src/layout-engine.ts` — adjusts only first/last edge points after moving nodes |
-| "shape clipping after routing" | TRUE | `src/shape-clipping.ts`, diamonds only; runs after bundling |
+| "shape clipping after routing" | TRUE | `src/shape-clipping.ts`; non-rectangular flowchart outlines come from the same `src/shape-outline.ts` authority as rendering and clipping runs after bundling |
 | "branch bundling after route extraction" | TRUE | `bundleEdgePaths()` (SVG) and `src/ascii/edge-bundling.ts` (ASCII); bundled paths are fully rebuilt, so they are never stale |
 | "ASCII path re-selection and label-line guessing" | TRUE | `src/ascii/edge-routing.ts`; FIFO tie-breaking already deterministic (`pathfinder.ts` `seq` field) |
 | Hitches are caused by the aggregate of these passes | **FALSE for the common case** | Raw ELK output (before any post-pass) already contains every dogleg and the duplicated point listed above. The cause is ELK's FREE port placement spreading edge endpoints along node sides (B exits at y=120.5, C enters at y=97.8, both centers at y=126.7). |
@@ -672,7 +672,12 @@ Randomized property tests over all shapes × directions × patterns
 defect class found by a counterexample, now pinned:
 
 - **Shape-aware clipping for the whole catalog** (`src/shape-clipping.ts`):
-  circle/ellipse, stadium, hexagon, and cylinder outlines (clipping
+  `src/shape-outline.ts` supplies the production polygon/circle/stadium/cylinder
+  boundary and side-attachment profile to SVG lowering, clipping, cardinal-port
+  projection, and every late route-shortening path. The independent
+  `src/rendered-endpoint-diagnostics.ts` reconstruction feeds both the final
+  route audit and rubric so production cannot self-certify. Circle, stadium,
+  hexagon, and cylinder clipping
   previously existed only for diamonds, so off-port endpoints floated off
   curved outlines). Cylinder cap clipping keeps the ray's own coordinate so
   segments stay orthogonal.
@@ -721,13 +726,14 @@ ROUTE_UNEXPLAINED_BEND     { edge }               diagonal segment under orthogo
 ROUTE_LABEL_ON_SHARED_TRUNK{ edge, sharedWith }   label pill on a line segment another edge shares collinearly
 ROUTE_SELF_LOOP_OCCUPANCY{ edge, conflictWith?, kind }   self-loop allocation/side/boundary or pairwise route/label occupancy proof failed
 ROUTE_CONTAINER_MISANCHOR  { edge, container }    container edge not terminating on the container border (§11.5)
-ROUTE_SHAPE_MISANCHOR      { edge, node }         endpoint off the rendered shape boundary (§11.6; rect-like + diamond)
+ROUTE_SHAPE_MISANCHOR      { edge, node }         endpoint off the independently reconstructed exact boundary or declared routing envelope (§11.6)
 ROUTE_STALE_AFTER_NODE_MOVE{ edge, node }         endpoint detached, or a non-incident node moved onto a route
 ```
 
-Shapes without an anchor contract yet (circle, stadium, …) are exempt from
-`ROUTE_SHAPE_MISANCHOR` rather than flagged — their endpoints sit on the
-bbox today and warning on every one would be noise, not signal.
+Analytic polygons, circles, stadia, cylinders, and State pseudostates are checked
+against exact independently reconstructed geometry. Complex/open Bézier symbols
+declare and audit a conservative routing envelope. Unenclosed text explicitly
+declares no boundary, so it is not misreported as exact painted contact.
 
 Still deliberately out of scope:
 
@@ -821,7 +827,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
   changes are reviewed via the corpus comparison harness
   (`eval/layout-compare`) — regressions-first verdicts, not eyeball-only.
 - **Fault sensitivity**: `bun run mutation-test -- routes` remains an opt-in
-  survivor harvest; the bounded `sabotage:routes` PR gate proves five named
+  survivor harvest; the bounded `sabotage:routes` PR gate proves named
   route/link regressions still make their focused tests fail.
 
 ## 10. Rollout status vs issue #25

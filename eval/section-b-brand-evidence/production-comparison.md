@@ -1,10 +1,23 @@
 # Visual review and production comparison
 
-Reviewed 2026-07-15 at native resolution. The Section B sheet is
+Originally reviewed 2026-07-15 and re-reviewed for the current branch on
+2026-07-22 at native resolution. The Section B sheet is
 `docs/design/families/section-b-brand-evidence.png` (1560×7944, 60 cells). The
 website comparison captured every visible diagram SVG on the branch homepage
 at `http://127.0.0.1:9095/` and its deployed equivalent at
 `https://agentic-mermaid.dev/` in the same Chromium build and viewport.
+
+## Current-branch re-review
+
+The 2026-07-22 re-review covers the two geometry changes introduced after the
+original production comparison. In all four style variants, State initial and
+final transition shafts now end on the painted pseudostate rings (a 2px gap in
+the previous shared-box approximation is now 0px). XYChart now retains the
+authored `Renders` y-axis title and `0 --> 100` range through the agent
+parse/serialize projection. The remaining 52 cells provide current-state
+regression context; this sheet is not presented as a causal before/after image
+for those families. The dedicated shape-outline contact sheet supplies the
+revision-pinned before/after comparison.
 
 ## Deployed website comparison
 
@@ -53,14 +66,14 @@ in all four treatments:
 | Family | Audited difference from the production capability floor |
 |---|---|
 | Flowchart | Node typography, padding, radius, border weight, and connector treatment change together; branch topology and labels are unchanged. |
-| State | State boxes and transitions inherit the same role face without moving or reclassifying start/end markers. |
+| State | State boxes and transitions inherit the same role face. Start/end markers keep their semantics and positions; transition shafts now meet the painted rings instead of the larger layout boxes. |
 | Sequence | Actor boxes and message/lifeline strokes project the brand face; request/response direction and message semantics remain unchanged. Separate fragment fixtures confirm resolved padding, divider clearance, and header-over-lifeline compositing. |
 | Timeline | Period/event cards inherit node/group/label fallbacks; chronological order and rail anchors remain intact. |
 | Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. Endpoint overlays keep markers visible above class surfaces; the #178 marker-resource fix anchors composition/aggregation diamonds and lollipops wholly outside the owning class in both endpoint spellings and every direction. |
 | ER | Entity surfaces use fallbacks and the exact relationship projection changes connector typography/stroke without changing cardinality. |
 | Journey | Section headers use resolved tracking/weight in both measurement and rendering; task scores, actor attribution, and rail geometry remain meaningful and collision-free. |
 | Architecture | The shared palette/Look contract changes paint while the census honestly marks exact role projection not-applicable; service/junction topology stays unchanged. |
-| XY chart | Exact bar/series projections change paint and line weight; Q1–Q3 values, axes, and bar heights remain unchanged. The lower inset contains the full resolved-font baseline and descent in every treatment. |
+| XY chart | Exact bar/series projections change paint and line weight; authored values and bar heights remain unchanged. The agent round trip now retains the authored y-axis title and range, so those axes intentionally differ from the earlier sheet. The lower inset contains the full resolved-font baseline and descent in every treatment. |
 | Pie | `Pro` remains the family-authored highlighted slice and every wedge path is unchanged. The sentinel category binding changes applicable paint/cue only. All legend rows now fit the canvas under rendered role typography. |
 | Quadrant | Archetype styling changes the frame, labels, and points without moving authored coordinates or quadrant meaning. |
 | Gantt | Task/milestone paint and cues change while dates, durations, critical status, and timeline geometry remain authoritative. |
@@ -92,10 +105,12 @@ in all four treatments:
    lifeline-over-header paint. Resolved group padding, message width, and a
    single post-lifeline header projection repair those production defects.
 
-After those corrections, all 60 cells were inspected as four native-width
-variant crops: headings are distinct, text is readable, endpoint silhouettes
-remain complete, cards remain inside their panels, and no quantitative or
-family-authored emphasis geometry changed. The receipt additionally executes
+After those corrections and the 2026-07-22 re-review, all 60 cells were
+inspected as four native-width variant crops: headings are distinct, text is
+readable, endpoint silhouettes remain complete, and cards remain inside their
+panels. State shaft endpoints and XY axis projection changed as described
+above; other quantitative and family-authored emphasis geometry remains
+unchanged. The receipt additionally executes
 the sentinel across all registered families through default, rough, and hybrid
 public SVG+PNG paths. Corrected Class marker attachment is included in the
 native-size review.

@@ -15,8 +15,8 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 
 | Family | SVG snapshot | SVG SHA | PNG SHA | PNG bytes | SVG size | Layout bounds | Nodes/edges | Crossings | Bends | Route px | Area fill | Label fit | Label overlaps | Edge-label clearance | Min spacing | Density | Contrast | Aspect |
 |--------|--------------|---------|---------|----------:|----------|---------------|-------------|----------:|------:|---------:|----------:|----------:|---------------:|---------------------:|------------:|--------:|---------:|-------:|
-| Flowchart | [flowchart.svg](./visual-snapshots/flowchart.svg) | `a4011ae81433` | `4f55402c210d` | 9019 | 279.6835x434.582 | 280x435 | 4/4 | 0 | 0 | 533 | 15.5% | 100.0% | 0 | 7 | 30 | 0.66 | 7.21:1 | 0.64 |
-| State diagram | [state.svg](./visual-snapshots/state.svg) | `d92c7173a089` | `9cfbb31c9019` | 7409 | 241.14266666666668x375.15000000000003 | 241x375 | 5/5 | 0 | 6 | 628 | 11.3% | 100.0% | 0 | n/a | 28 | 1.11 | 14.15:1 | 0.64 |
+| Flowchart | [flowchart.svg](./visual-snapshots/flowchart.svg) | `b6dc5ce2948e` | `4f55402c210d` | 9019 | 279.6835x434.582 | 280x435 | 4/4 | 0 | 0 | 533 | 15.5% | 100.0% | 0 | 7 | 30 | 0.66 | 7.21:1 | 0.64 |
+| State diagram | [state.svg](./visual-snapshots/state.svg) | `6f64d2d0f567` | `d40fd21d8258` | 7399 | 241.14266666666668x375.15000000000003 | 241x375 | 5/5 | 0 | 6 | 632 | 11.3% | 100.0% | 0 | n/a | 28 | 1.11 | 14.15:1 | 0.64 |
 | Sequence diagram | [sequence.svg](./visual-snapshots/sequence.svg) | `cc41346b1910` | `682ab163bc18` | 7347 | 420x286 | 420x286 | 3/4 | 0 | 0 | 560 | 8.0% | 100.0% | 0 | 10 | 60 | 0.58 | 4.94:1 | 1.47 |
 | Class diagram | [class.svg](./visual-snapshots/class.svg) | `55beaa8521b5` | `da15de026074` | 4243 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 40 | 0.58 | 13.54:1 | 1.51 |
 | ER diagram | [er.svg](./visual-snapshots/er.svg) | `3181f3a3882d` | `22a6dd41d17d` | 9655 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 226 | 222 | 0.39 | 3.27:1 | 7.00 |
