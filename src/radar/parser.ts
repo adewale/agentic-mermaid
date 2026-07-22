@@ -1,7 +1,11 @@
 import type { RadarChart, RadarAxis, RadarCurve } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import {
+  parseAccessibilityDirective,
+  requireClosedAccessibility,
+  scanAccessibilityDirectives,
+} from '../shared/accessibility-directives.ts'
 
 // ============================================================================
 // Radar chart parser
@@ -304,7 +308,7 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   // Radar has an unusually broad inline-comment token. Apply that family
   // rule first, then let the universal scanner own accessibility grammar.
   const scanned = scanAccessibilityDirectives(stripComments(lines.join('\n')).split(/\r?\n/))
-  if (scanned.unclosedIndex !== undefined) throw new Error('Radar accDescr block is missing a closing "}"')
+  requireClosedAccessibility(scanned)
   const source = scanned.familyLines.join('\n').trimStart()
   if (!source) throw new Error('Radar chart is empty')
   const header = source.match(HEADER_RE)

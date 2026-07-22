@@ -85,6 +85,35 @@ describe('analyzeMermaidSource', () => {
     ])
   })
 
+  test('reports actions after a closing accDescr brace without reporting block prose', () => {
+    const analyzed = analyzeMermaidSource(`flowchart LR
+  A
+  accDescr {
+    click A href https://example.com/not-an-action
+  } click A href "javascript:alert(1)"`)
+
+    expect(analyzed.ok).toBe(true)
+    if (!analyzed.ok) return
+    expect(analyzed.value.actions).toEqual([
+      expect.objectContaining({
+        target: 'A',
+        href: 'javascript:alert(1)',
+        security: 'unsafe',
+        line: 5,
+      }),
+    ])
+  })
+
+  test('does not report apparent actions after an unclosed accDescr opener', () => {
+    const analyzed = analyzeMermaidSource(`flowchart LR
+  A
+  accDescr {
+    click A href "javascript:alert(1)"`)
+
+    expect(analyzed.ok).toBe(true)
+    if (analyzed.ok) expect(analyzed.value.actions).toEqual([])
+  })
+
   test('classifies entity- and control-obfuscated active schemes as unsafe', () => {
     for (const href of [
       'javascript&#58;alert(1)',

@@ -21,9 +21,10 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 - `bun run website` — build the Cloudflare Workers site into `website/public/`, a
   **gitignored build artifact** (rebuilt at deploy by `deploy-cloudflare.yml`, and
   on-demand by explicit imports of `src/__tests__/website-public-fixture.ts`). You do
-  not commit it. `website:check` pins only the committed `website/src/generated`
-  worker inputs (wasm/harness/fonts/compat-date + the deploy-version stamp) against
-  source — run `bun run website` after changing those so the stamp stays in sync.
+  not commit it. `website/src/generated/` is also ephemeral. `website:check`
+  performs an in-memory clean regeneration and contract comparison for both trees;
+  run `bun run website` only when local serving, deployment, or an explicit fixture
+  consumer needs materialized outputs.
 
 Layout is **deterministic**: identical input must produce identical geometry.
 

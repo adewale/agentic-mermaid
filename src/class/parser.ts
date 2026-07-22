@@ -1,6 +1,6 @@
 import type { ClassDiagram, ClassNode, ClassRelationship, ClassMember, RelationshipType, ClassNamespace } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 
@@ -106,6 +106,7 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
  */
 export function parseClassDiagram(lines: string[]): ClassDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
+  requireClosedAccessibility(accessibility)
   lines = accessibility.familyLines.flatMap(expandInlineNamespaceStatement)
   const diagram: ClassDiagram = {
     classes: [],

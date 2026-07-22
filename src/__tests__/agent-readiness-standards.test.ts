@@ -59,7 +59,10 @@ describe('agent-readiness standards syntax', () => {
     const aggregateSteps = ci.jobs.test.steps
     const qualitySteps = ci.jobs.quality.steps
     const e2eSteps = ci.jobs.e2e.steps
+    const gateSteps = publish.jobs['release-gate'].steps
+    const packageSteps = publish.jobs.package.steps
     const publishSteps = publish.jobs.publish.steps
+    const mcpPublishSteps = publish.jobs['publish-mcp'].steps
 
     expect(packageJson.scripts.test).toBe('bun test --coverage --timeout 30000 src/__tests__/')
     expect(ciWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
@@ -114,18 +117,21 @@ describe('agent-readiness standards syntax', () => {
       'bun run audit:dependencies',
     ]))
     expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm) ?? []).toHaveLength(0)
-    expect(publish.jobs.publish.needs).toBe('platform-smoke')
+    expect(publish.jobs['platform-smoke'].needs).toBe('release-gate')
+    expect(publish.jobs.package.needs).toEqual(['release-gate', 'platform-smoke'])
+    expect(publish.jobs.publish.needs).toBe('package')
     expect(publish.jobs['platform-smoke'].strategy.matrix.os).toEqual(['macos-latest', 'windows-latest'])
     expect(publish.jobs['platform-smoke'].steps.find((step: any) => step.name === 'Run registry-derived cross-platform rendering contracts')?.run)
       .toContain('render-conformance-plan.test.ts')
-    expect(publishSteps.find((step: any) => step.name === 'Verify release tag, package versions, and checked-out commit agree')?.run)
+    expect(gateSteps.find((step: any) => step.name === 'Verify release tag, package versions, and checked-out commit agree')?.run)
       .toBe('bun run scripts/ci/release-identity.ts')
-    expect(publish.permissions.actions).toBe('read')
-    expect(publishSteps.find((step: any) => step.name === 'Require successful canonical CI for the exact release commit')?.run)
+    expect(publish.permissions['id-token']).toBeUndefined()
+    expect(publish.jobs['release-gate'].permissions.actions).toBe('read')
+    expect(gateSteps.find((step: any) => step.name === 'Require successful canonical CI for the exact release commit')?.run)
       .toContain('actions/workflows/ci.yml/runs')
-    expect(publishSteps.find((step: any) => step.name === 'Verify exports, bins, and package contents with publishing npm')?.run)
-      .toBe('bun run scripts/ci/verify-publish-package.ts')
-    expect(publishSteps.find((step: any) => step.name === 'Refuse an already-published immutable npm version')?.run)
+    expect(packageSteps.find((step: any) => step.name === 'Pack and verify the exact publication artifact')?.run)
+      .toBe('bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact')
+    expect(gateSteps.find((step: any) => step.name === 'Refuse an already-published immutable npm version')?.run)
       .toContain('npm view "agentic-mermaid@$version" version')
     for (const duplicate of [
       'Reject new high or critical dependency advisories',
@@ -135,8 +141,16 @@ describe('agent-readiness standards syntax', () => {
       'Prove focused route regressions fail',
     ]) expect(publishSteps.find((step: any) => step.name === duplicate)).toBeUndefined()
     expect(publishSteps.find((step: any) => /human review/i.test(step.name ?? ''))).toBeUndefined()
+    expect(publish.jobs.publish.permissions['id-token']).toBe('write')
+    expect(publish.jobs['publish-mcp'].permissions['id-token']).toBe('write')
+    expect(publish.jobs['release-gate'].permissions['id-token']).toBeUndefined()
+    expect(publish.jobs['platform-smoke'].permissions['id-token']).toBeUndefined()
+    expect(publish.jobs.package.permissions['id-token']).toBeUndefined()
+    expect(publishSteps.some((step: any) => step.uses?.startsWith('actions/checkout@'))).toBe(false)
+    expect(mcpPublishSteps.some((step: any) => step.uses?.startsWith('actions/checkout@'))).toBe(false)
     expect(publishSteps.find((step: any) => step.name === 'Publish to npm (OIDC trusted publishing)')?.run)
-      .toBe('npm publish --ignore-scripts --access public')
+      .toBe('npm publish "${{ steps.package.outputs.tarball }}" --ignore-scripts --access public')
+    expect(publishWorkflow).not.toContain('sigstore@latest')
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')
     expect(agentGuide).toContain('`bun run test`')
@@ -154,15 +168,15 @@ describe('agent-readiness standards syntax', () => {
 
     const actionRefs = actionSteps.map((step: any) => step.uses)
     const expectedRefs = new Map([
-      ['actions/checkout@', 'actions/checkout@v7'],
-      ['actions/upload-artifact@', 'actions/upload-artifact@v7'],
-      ['actions/download-artifact@', 'actions/download-artifact@v8'],
-      ['actions/setup-node@', 'actions/setup-node@v7'],
+      ['actions/checkout@', ['actions/checkout@v7', 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1']],
+      ['actions/upload-artifact@', ['actions/upload-artifact@v7', 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a']],
+      ['actions/download-artifact@', ['actions/download-artifact@v8', 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c']],
+      ['actions/setup-node@', ['actions/setup-node@v7', 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020']],
     ])
     for (const [prefix, expected] of expectedRefs) {
       const matching = actionRefs.filter((ref: string) => ref.startsWith(prefix))
       expect(matching.length).toBeGreaterThan(0)
-      expect([...new Set(matching)]).toEqual([expected])
+      expect([...new Set(matching)].every(ref => expected.includes(ref))).toBe(true)
     }
 
     const setupBunSteps = actionSteps.filter((step: any) => step.uses.startsWith('oven-sh/setup-bun@'))

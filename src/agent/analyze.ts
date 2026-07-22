@@ -25,6 +25,7 @@ import {
 import type { MermaidGraph } from '../types.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { parseActorLinks } from '../sequence/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 export function analyzeMermaid(d: ParsedDiagram): DiagramAnalysis {
   return {
@@ -169,29 +170,26 @@ function collectFlowchartActions(source: string): DiagramActionRecord[] {
 /** Top-level authored lines with accessibility prose removed. Block contents
  * may legally resemble Mermaid statements but must never become actions. */
 function actionSourceLines(source: string, maskMarkdownStrings = false): Array<{ text: string; line: number }> {
-  const out: Array<{ text: string; line: number }> = []
   const lines = source.split(/\r?\n/)
-  let inAccessibilityBlock = false
   let inMarkdownString = false
-  for (let index = 0; index < lines.length; index++) {
+  const maskedLines = lines.map((line, index) => {
     const preserveActionText = maskMarkdownStrings && !inMarkdownString
-      && splitFlowchartStatements(lines[index]!).some(statement => /^(?:click|href)\s+/i.test(statement.trim()))
+      && splitFlowchartStatements(line).some(statement => /^(?:click|href)\s+/i.test(statement.trim()))
     const masked: { text: string; open: boolean } = maskMarkdownStrings && !preserveActionText
-      ? maskMarkdownStringContent(lines[index]!, inMarkdownString)
-      : { text: lines[index]!, open: false }
+      ? maskMarkdownStringContent(line, inMarkdownString)
+      : { text: line, open: false }
     inMarkdownString = masked.open
-    const text = masked.text.trim()
-    if (inAccessibilityBlock) {
-      if (text.includes('}')) inAccessibilityBlock = false
-      continue
+    return masked.text
+  })
+  const out: Array<{ text: string; line: number }> = []
+  for (let index = 0; index < maskedLines.length; index++) {
+    const directive = parseAccessibilityDirective(maskedLines, index)
+    if (directive === undefined) break
+    if (directive === null) out.push({ text: maskedLines[index]!.trim(), line: index + 1 })
+    else {
+      if (directive.suffixLine) out.push({ text: directive.suffixLine.trim(), line: directive.endIndex + 1 })
+      index = directive.endIndex
     }
-    const block = text.match(/^accDescr\s*:?\s*\{\s*(.*)$/i)
-    if (block) {
-      if (!block[1]!.includes('}')) inAccessibilityBlock = true
-      continue
-    }
-    if (/^acc(?:Title|Descr)(?:\s*:|\s+)/i.test(text)) continue
-    out.push({ text, line: index + 1 })
   }
   return out
 }

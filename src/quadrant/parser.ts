@@ -2,7 +2,7 @@ import type { QuadrantChart, QuadrantAxis, QuadrantPoint } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix } from './point-style.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ============================================================================
 // Quadrant chart parser
@@ -48,9 +48,7 @@ const CLASSDEF_RE = /^classDef\s+(.+)$/i
  */
 export function parseQuadrantChart(lines: string[]): QuadrantChart {
   const scanned = scanAccessibilityDirectives(lines)
-  if (scanned.unclosedIndex !== undefined) {
-    throw new Error('Quadrant accDescr block is missing a closing "}"')
-  }
+  requireClosedAccessibility(scanned)
   lines = scanned.familyLines
   if (lines.length === 0) {
     throw new Error('Quadrant chart is empty')

@@ -41,11 +41,26 @@ export function parseXYChart(lines: string[]): XYChart {
   // same accessibility semantics as one-statement-per-line source. The second
   // expansion handles a family statement authored after a block's closing
   // brace, while the first pass keeps semicolons inside block text intact.
-  const accessibility = scanAccessibilityDirectives(expandXYChartStatements(lines))
+  const expandedStatements = expandXYChartStatements(lines)
+  const accessibility = scanAccessibilityDirectives(expandedStatements)
+  const accessibilityMetadata = accessibility.accessibility
+  // Preserve XYChart's historical tolerant policy: an unterminated block
+  // consumes the remainder as description prose instead of chart statements.
+  const unclosed = accessibility.unclosedIndex
+  const familyLines = unclosed === undefined
+    ? accessibility.familyLines
+    : accessibility.familyLines.slice(0, unclosed - expandedStatements.length)
+  if (unclosed !== undefined) {
+    accessibilityMetadata.descr = expandedStatements
+      .slice(unclosed)
+      .join('\n')
+      .replace(/^[^{]*\{/, '')
+      .trim() || undefined
+  }
   const xAxis: XYAxis = {}
   const yAxis: XYAxis = {}
   const series: XYChartSeries[] = []
-  const statements = expandXYChartStatements(accessibility.familyLines)
+  const statements = expandXYChartStatements(familyLines)
   let title: string | undefined
   let horizontal = false
   let headerOrientation: 'vertical' | 'horizontal' | undefined
@@ -132,9 +147,9 @@ export function parseXYChart(lines: string[]): XYChart {
 
   return {
     title,
-    accessibility: accessibility.accessibility.title || accessibility.accessibility.descr ? {
-      title: accessibility.accessibility.title,
-      description: accessibility.accessibility.descr,
+    accessibility: accessibilityMetadata.title || accessibilityMetadata.descr ? {
+      title: accessibilityMetadata.title,
+      description: accessibilityMetadata.descr,
     } : undefined,
     horizontal,
     headerOrientation,

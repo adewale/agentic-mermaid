@@ -119,6 +119,11 @@ export function scanAccessibilityDirectives(lines: readonly string[]): Accessibi
   }
 }
 
+/** Apply the common strict-family policy without duplicating parser guards. */
+export function requireClosedAccessibility(scan: AccessibilityScan): void {
+  if (scan.unclosedIndex !== undefined) throw new Error('Unclosed accDescr block')
+}
+
 export interface AccessibilityFieldProjection {
   accessibilityTitle?: string
   accessibilityDescription?: string

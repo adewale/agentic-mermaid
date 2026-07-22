@@ -4,63 +4,19 @@ on:
   release:
     types: [published]
 
+# OIDC is intentionally absent at workflow scope. Only the two final registry
+# jobs may mint tokens; validation and artifact construction stay unprivileged.
 permissions:
-  actions: read # verify canonical CI succeeded for the exact release commit
   contents: read
-  id-token: write # required for OIDC trusted publishing + provenance
 
 jobs:
-  platform-smoke:
-    name: Release platform smoke (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v7
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.3.13
-          no-cache: true
-      - name: Setup supported Node consumer runtime
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-      - name: Install frozen dependencies
-        run: bun install --frozen-lockfile
-      - name: Build the distributable
-        run: bun run build
-      - name: Run registry-derived cross-platform rendering contracts
-        run: bun test src/__tests__/render-conformance-plan.test.ts --timeout 120000
-
-  publish:
-    needs: platform-smoke
+  release-gate:
+    name: Attest release identity and canonical CI
     runs-on: ubuntu-latest
-
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-        with:
-          # Full history so the golden-drift gate can diff the release commit
-          # (it degrades to HEAD-diff logic outside of `push` events).
-          fetch-depth: 0
-
-      - name: Setup Bun
-        # Pinned to a commit SHA (not the mutable `v2` tag): this workflow mints
-        # the OIDC publish token, so a retagged/compromised action must not be
-        # able to ride along. SHA is oven-sh/setup-bun v2.2.0.
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # Pin to the runtime ci.yml validates on (see ci.yml note re: `latest`).
-          bun-version: 1.3.13
-          no-cache: true
-
-      - name: Verify release tag, package versions, and checked-out commit agree
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: bun run scripts/ci/release-identity.ts
-
       - name: Require successful canonical CI for the exact release commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,29 +34,28 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Node.js (for npm publish)
-        uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # Use the current LTS for release gates and publication; the minimum
-          # supported Node line is tested separately below.
+          # Release identity proves tag ancestry against origin/main.
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.13
+          no-cache: true
+
+      - name: Verify release tag, package versions, and checked-out commit agree
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: bun run scripts/ci/release-identity.ts
+
+      - name: Setup Node.js for immutable-version lookup
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Upgrade npm for trusted publishing
-        # Trusted publishing needs npm >= 11.5.1. Pin npm instead of using the
-        # moving `latest` tag: npm 12.0.0 shipped
-        # without the `sigstore` module needed by libnpmpublish's provenance
-        # path on GitHub-hosted runners. Install `sigstore` in a temp prefix,
-        # then copy that node_modules tree into npm's own module tree so
-        # libnpmpublish can resolve it from inside npm without asking npm to
-        # install dependencies for npm itself.
-        run: |
-          npm install -g npm@11.18.0
-          tmp_sigstore="$(mktemp -d)"
-          npm install --prefix "$tmp_sigstore" sigstore@latest
-          cp -R "$tmp_sigstore/node_modules/." "$(npm root -g)/npm/node_modules/"
-          npm --version
-          NPM_GLOBAL_ROOT="$(npm root -g)" node -e "const { createRequire } = require('module'); console.log(createRequire(process.env.NPM_GLOBAL_ROOT + '/npm/package.json').resolve('sigstore'))"
+          package-manager-cache: false
 
       - name: Refuse an already-published immutable npm version
         run: |
@@ -118,41 +73,144 @@ jobs:
             exit "$status"
           fi
 
+  platform-smoke:
+    name: Release platform smoke (${{ matrix.os }})
+    needs: release-gate
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.13
+          no-cache: true
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+      - name: Build the distributable
+        run: bun run build
+      - name: Run registry-derived cross-platform rendering contracts
+        run: bun test src/__tests__/render-conformance-plan.test.ts --timeout 120000
+
+  package:
+    name: Build and verify the exact npm tarball
+    needs: [release-gate, platform-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.13
+          no-cache: true
+
+      - name: Setup Node.js for package construction
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Install the pinned publishing npm
+        # npm 11.18.0 bundles its complete Sigstore/provenance dependency tree;
+        # no mutable release-time dependency installation is required.
+        run: |
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = "11.18.0"
+          NPM_GLOBAL_ROOT="$(npm root -g)" node -e "const { createRequire } = require('module'); console.log(createRequire(process.env.NPM_GLOBAL_ROOT + '/npm/package.json').resolve('sigstore'))"
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Canonical CI already proved this exact immutable SHA across unit,
-      # browser, mutation, sabotage, Biome, and Node 22/24 packed-consumer lanes.
-      # Release owns only the boundary CI cannot prove: the exact tree packed
-      # by the pinned publishing npm plus the OIDC registry transaction.
       - name: Build the exact publish tree
         run: bun run build
 
-      - name: Verify exports, bins, and package contents with publishing npm
-        run: bun run scripts/ci/verify-publish-package.ts
+      - name: Pack and verify the exact publication artifact
+        run: bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact
+
+      - name: Upload the verified publication artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: npm-package-${{ github.sha }}
+          path: release-artifact/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish:
+    name: Publish verified tarball to npm
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Setup Node.js for npm trusted publishing
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Install the pinned publishing npm
+        run: |
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = "11.18.0"
+
+      - name: Download the verified publication artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: npm-package-${{ github.sha }}
+          path: release-artifact
+
+      - name: Verify the transferred tarball digest
+        id: package
+        run: |
+          (cd release-artifact && sha256sum --check package.sha256)
+          filename="$(jq -r '.filename' release-artifact/package-manifest.json)"
+          test -n "$filename"
+          test -f "release-artifact/$filename"
+          echo "tarball=release-artifact/$filename" >> "$GITHUB_OUTPUT"
 
       - name: Publish to npm (OIDC trusted publishing)
-        # No NODE_AUTH_TOKEN: auth is via the OIDC id-token minted above, so the
-        # trusted publisher must be configured on npmjs.com first (see
-        # docs/contributing/releasing.md). Provenance is generated automatically
-        # under trusted publishing — no `--provenance` flag needed.
-        # Build and pack verification already ran explicitly. Disable lifecycle
-        # scripts so npm publishes that same inspected tree rather than running
-        # prepublishOnly and rebuilding it a second time.
-        run: npm publish --ignore-scripts --access public
+        # Publish the exact tarball inspected in the unprivileged package job.
+        # No checkout, repository script, lifecycle hook, or mutable directory
+        # runs after OIDC becomes available.
+        run: npm publish "${{ steps.package.outputs.tarball }}" --ignore-scripts --access public
 
   publish-mcp:
-    # Keep registry publication in a retryable job. If it fails after npm has
-    # accepted an immutable version, rerunning this job must not publish npm again.
+    name: Publish verified metadata to the MCP Registry
+    # Keep registry publication retryable without reattempting immutable npm.
     needs: publish
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - name: Download the verified publication artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: npm-package-${{ github.sha }}
+          path: release-artifact
+
+      - name: Verify the tarball and extract registry metadata
+        run: |
+          (cd release-artifact && sha256sum --check package.sha256)
+          filename="$(jq -r '.filename' release-artifact/package-manifest.json)"
+          test -f "release-artifact/$filename"
+          tar --extract --gzip --file "release-artifact/$filename" --to-stdout package/server.json > server.json
 
       - name: Install MCP Registry publisher
-        # This binary shares the job's OIDC permission, so pin both the release
-        # and checksum instead of executing the mutable latest download.
+        # The binary shares this job's OIDC permission, so pin both its release
+        # and checksum instead of executing a mutable download.
         env:
           MCP_PUBLISHER_SHA256: ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac
         run: |

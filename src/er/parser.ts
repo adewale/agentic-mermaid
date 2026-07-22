@@ -1,6 +1,6 @@
 import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 
@@ -92,6 +92,7 @@ export function parseErGroupHeader(line: string): { id: string; label: string } 
 
 export function parseErDiagram(lines: string[]): ErDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
+  requireClosedAccessibility(accessibility)
   lines = accessibility.familyLines
   const diagram: ErDiagram = {
     entities: [],

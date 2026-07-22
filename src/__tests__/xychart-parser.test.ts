@@ -80,6 +80,28 @@ describe('parseXYChart – syntax', () => {
     })
   })
 
+  it('keeps the historical tolerant policy for an unclosed accDescr block', () => {
+    const chart = parse(`xychart
+      accDescr {
+        Never closed
+      bar [10, 20]`)
+
+    expect(chart.accessibility).toEqual({ description: 'Never closed\nbar [10, 20]' })
+    expect(chart.series).toEqual([])
+  })
+
+  it('retains filtered family statements before a later unclosed accDescr block', () => {
+    const chart = parse(`xychart
+      accDescr { Earlier description
+      }
+      bar [10]
+      accDescr { Final description
+      bar [20]`)
+
+    expect(chart.accessibility).toEqual({ description: 'Final description\nbar [20]' })
+    expect(chart.series.map(item => item.data)).toEqual([[10]])
+  })
+
   it('applies Mermaid frontmatter config and theme overrides', () => {
     const chart = parse(`---
 config:

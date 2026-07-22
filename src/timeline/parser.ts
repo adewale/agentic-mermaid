@@ -2,7 +2,11 @@ import type { TimelineDiagram, TimelineSection, TimelinePeriod, TimelineEvent } 
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
-import { accessibilityFields, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import {
+  accessibilityFields,
+  requireClosedAccessibility,
+  scanAccessibilityDirectives,
+} from '../shared/accessibility-directives.ts'
 import {
   TIMELINE_CONTINUATION_RE,
   TIMELINE_HEADER_DIRECTION_RE,
@@ -40,6 +44,7 @@ export function parseTimelineDiagram(
   accessibility: MermaidSourceAccessibility = {},
 ): TimelineDiagram {
   const scanned = scanAccessibilityDirectives(lines)
+  requireClosedAccessibility(scanned)
   lines = scanned.familyLines
   const diagram: TimelineDiagram = {
     sections: [],

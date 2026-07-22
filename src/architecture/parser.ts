@@ -1,7 +1,7 @@
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import type { ArchitectureAlignment } from './align.ts'
 import type {
@@ -40,7 +40,7 @@ const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
 
 export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
-  if (accessibility.unclosedIndex !== undefined) throw new Error('Unterminated accDescr block')
+  requireClosedAccessibility(accessibility)
   lines = accessibility.familyLines
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')

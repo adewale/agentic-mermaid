@@ -5,10 +5,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Changed
-- Consolidated Mermaid-universal `accTitle`/`accDescr` parsing at source normalization. Every registered family, including future extensions, now receives directive-free grammar lines and the same accessibility metadata automatically; existing renderer and structured-agent parsers use that shared grammar rather than family-local scanners.
+- Consolidated Mermaid-universal `accTitle`/`accDescr` parsing at source normalization. Every registered family, including future extensions, now receives directive-free grammar lines and the same accessibility metadata automatically; existing renderer, structured-agent, and source-action analysis paths use that shared grammar and source-line provenance rather than family-local scanners. Class, ER, and Timeline retain their explicit failure on unclosed description blocks.
 - Made build ownership explicit: `typecheck` now runs only TypeScript, website-consuming tests opt into their fixture build, and the global website preload plus the `site`/`site:check` aliases were removed.
 - Consolidated repeated agent-body indexed-ID allocation and label-overflow collection behind shared utilities.
-- Reduced the release workflow to exact-SHA CI attestation, cross-platform smoke, and the unique publish boundary. The publishing npm now verifies the exact dry-run package manifest before an `--ignore-scripts` publish, eliminating a second copy of CI and a redundant lifecycle rebuild.
+- Reduced the release workflow to exact-SHA CI attestation, cross-platform smoke, and the unique publish boundary. Unprivileged jobs now attest CI, build once, compare a real npm tarball against a reviewed fail-closed manifest, and transfer it with a digest; minimal job-scoped OIDC jobs publish that exact artifact to npm and extract the matching MCP metadata without checking out or executing repository code. Release actions and npm are immutable, and npm's bundled Sigstore tree replaces the mutable `sigstore@latest` workaround.
+- Updated the `fast-uri` transitive override to 3.1.4, the first release outside the host-confusion advisory range used by MCP schema validation and mutation tooling.
 
 ## 0.1.2 — 2026-07-21
 
