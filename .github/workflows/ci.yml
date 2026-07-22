@@ -92,6 +92,7 @@ jobs:
   route-sabotage:
     name: Route regression sabotage
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -105,9 +106,15 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Audit the canonical 2,800-case degenerate-route corpus
+        # This runs outside coverage and in parallel with the slower unit
+        # shards. The runner asserts corpus size and fails on route hitches,
+        # edge-through-node findings, certificate inconsistency, or errors.
+        run: bun run eval:degenerate-routes
+
       - name: Prove focused route regressions fail
-        # Five one-line fault injections run in detached worktrees. This stays
-        # bounded (~1 min) and proves the named regression tests actually bite.
+        # One-line fault injections run in detached worktrees and prove both
+        # focused regressions and the canonical corpus gate actually bite.
         run: bun run sabotage:routes
 
   # Preserve the existing required check name while the work behind it runs in

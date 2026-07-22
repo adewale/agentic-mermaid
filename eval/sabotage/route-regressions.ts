@@ -20,6 +20,7 @@ interface SabotageCase {
   newText: string
   command: string[]
   expectedFailure: RegExp
+  timeout?: number
 }
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -73,6 +74,40 @@ const cases: SabotageCase[] = [
     newText: '  if (true) return { applied: false, blockers: [] }\n',
     command: ['bun', 'test', 'src/__tests__/route-contracts.test.ts', '--timeout', '120000'],
     expectedFailure: /MFA\/login regression.*straight horizontal lane|isStraightHorizontal/,
+  },
+  {
+    name: 'canonical corpus rejects reintroduced route hitches',
+    file: 'src/route-contracts.ts',
+    oldText: '  for (let round = 0; round < positioned.edges.length; round++) {\n',
+    newText: '  for (let round = 0; round < 0; round++) {\n',
+    command: ['bun', 'run', 'eval:degenerate-routes'],
+    expectedFailure: /"hitches": [1-9]/,
+    timeout: 300_000,
+  },
+  {
+    name: 'canonical corpus rejects edge-through-node packing regressions',
+    file: 'src/layout/passes/index.ts',
+    oldText: '    moveSet(separationUnit(ahead.id, behind.id), f.sign === 1 ? delta : -delta)\n',
+    newText: '    // sabotage: omit push-ahead closure\n',
+    command: ['bun', 'run', 'eval:degenerate-routes'],
+    expectedFailure: /"edgeThroughNode": [1-9]/,
+    timeout: 300_000,
+  },
+  {
+    name: 'canonical corpus rejects inconsistent route certificates',
+    file: 'src/route-contracts.ts',
+    oldText: '      bendCount: bendCountFinal,\n',
+    newText: '      bendCount: bendCountFinal + 1,\n',
+    command: ['bun', 'run', 'eval:degenerate-routes', '--limit', '1'],
+    expectedFailure: /bend-count-mismatch/,
+  },
+  {
+    name: 'canonical corpus rejects generator-definition drift',
+    file: 'eval/degenerate-etn/generators.ts',
+    oldText: 'export const DENSE_DAG_CASES = 2_000\n',
+    newText: 'export const DENSE_DAG_CASES = 1_999\n',
+    command: ['bun', 'run', 'eval:degenerate-routes'],
+    expectedFailure: /corpus definition drift: expected 2800 cases, generators define 2799/,
   },
 ]
 
@@ -129,7 +164,10 @@ try {
   for (const item of cases) {
     git(['reset', '--hard', head], worktree)
     replaceOnce(join(worktree, item.file), item.oldText, item.newText)
-    const result = run(item.command, worktree, { expectFailure: true })
+    const result = run(item.command, worktree, {
+      expectFailure: true,
+      ...(item.timeout === undefined ? {} : { timeout: item.timeout }),
+    })
     const output = result.stdout + result.stderr
     if (!item.expectedFailure.test(output)) {
       throw new Error(`${item.name}: command failed, but not with the expected regression signal`)
