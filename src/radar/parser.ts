@@ -335,7 +335,7 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
     const accessibilityDirective = parseAccessibilityDirective([line], 0)
     if (accessibilityDirective === undefined) throw new Error('Radar accDescr block is missing a closing "}"')
     if (accessibilityDirective !== null) {
-      if (accessibilityDirective.kind === 'title') accessibility.title = normalizeBrTags(accessibilityDirective.value)
+      if (accessibilityDirective.title) accessibility.title = normalizeBrTags(accessibilityDirective.value)
       else accessibility.description = normalizeBrTags(accessibilityDirective.value)
       continue
     }

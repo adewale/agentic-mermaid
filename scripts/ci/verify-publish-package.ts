@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 
 interface PackFile { path: string }
 interface PackResult { filename?: string; files?: PackFile[]; integrity?: string }
@@ -97,16 +97,28 @@ if (import.meta.main) {
     process.exit(1)
   }
   if (!packResult?.filename || !packResult.integrity) throw new Error('npm pack did not report a filename and integrity')
-  const tarball = join(destination, packResult.filename)
-  if (!existsSync(tarball)) throw new Error(`npm pack did not create ${tarball}`)
+  if (basename(packResult.filename) !== packResult.filename || !/^[a-z0-9][a-z0-9._-]*\.tgz$/i.test(packResult.filename)) {
+    throw new Error(`npm pack reported an unsafe filename: ${packResult.filename}`)
+  }
+  const packedTarball = join(destination, packResult.filename)
+  if (!existsSync(packedTarball) || !lstatSync(packedTarball).isFile()) {
+    throw new Error(`npm pack did not create a regular file at ${packedTarball}`)
+  }
+  if (readdirSync(destination).length !== 1) throw new Error('npm pack created unexpected destination entries')
+
+  // Credentialed consumers never interpret an artifact-controlled path. The
+  // package name and version remain inside package/package.json in this tarball.
+  const filename = 'package.tgz'
+  const tarball = join(destination, filename)
+  renameSync(packedTarball, tarball)
   const sha256 = createHash('sha256').update(readFileSync(tarball)).digest('hex')
-  writeFileSync(join(destination, 'package.sha256'), `${sha256}  ${packResult.filename}\n`)
+  writeFileSync(join(destination, 'package.sha256'), `${sha256}  ${filename}\n`)
   writeFileSync(join(destination, 'package-manifest.json'), JSON.stringify({
     schemaVersion: 1,
-    filename: packResult.filename,
+    filename,
     integrity: packResult.integrity,
     sha256,
     files,
   }, null, 2) + '\n')
-  process.stdout.write(`publish package verified: ${files.length} exact files; ${packResult.filename}; sha256 ${sha256}\n`)
+  process.stdout.write(`publish package verified: ${files.length} exact files; ${filename}; sha256 ${sha256}\n`)
 }

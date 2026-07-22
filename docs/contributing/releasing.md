@@ -10,13 +10,15 @@ Node 22. The release workflow retains the registry-derived macOS/Windows smoke,
 then owns only the publish boundary: an unprivileged job builds once, creates a
 real tarball with the pinned publishing npm, compares its contents with the
 reviewed fail-closed manifest, records its integrity and SHA-256 digest, and
-uploads that immutable artifact. A minimal OIDC job downloads and verifies the
-artifact, then publishes that exact `.tgz` with lifecycle scripts disabled.
+uploads that immutable artifact under a fixed filename. A minimal OIDC job
+requires the closed three-file artifact set, binds the manifest to the checksum
+and tarball bytes, then publishes that exact `.tgz` with lifecycle scripts disabled.
 There is no manual `npm publish` step. After npm succeeds, a separate minimal
 OIDC job extracts [`server.json`](../../server.json) from the same verified
 tarball and publishes it to the official MCP Registry. Keeping that step
-separate lets a failed registry publication be retried without attempting to
-republish an immutable npm version.
+separate, with the verified artifact retained for 30 days, lets a failed
+registry publication be retried without attempting to republish an immutable
+npm version.
 
 Publishing uses **npm OIDC trusted publishing** — no `NPM_TOKEN` secret. The
 workflow grants `permissions: id-token: write` only to the two final registry

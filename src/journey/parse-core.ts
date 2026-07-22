@@ -138,7 +138,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
   const accessibility = parseAccessibilityDirective([statement], 0)
   if (accessibility) {
     const text = normalizeJourneyText(accessibility.value)
-    if (accessibility.kind === 'title') events.accTitle?.(text, lineIndex)
+    if (accessibility.title) events.accTitle?.(text, lineIndex)
     else events.accDescr?.(text, lineIndex)
     return
   }

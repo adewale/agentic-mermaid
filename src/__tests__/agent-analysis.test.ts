@@ -104,6 +104,25 @@ describe('analyzeMermaidSource', () => {
     ])
   })
 
+  test('accessibility prose cannot extend markdown masking past its closing brace', () => {
+    const analyzed = analyzeMermaidSource(`flowchart LR
+  A
+  accDescr {
+    prose with unmatched \`
+  } click A href "javascript:alert(1)"`)
+
+    expect(analyzed.ok).toBe(true)
+    if (!analyzed.ok) return
+    expect(analyzed.value.actions).toEqual([
+      expect.objectContaining({
+        target: 'A',
+        href: 'javascript:alert(1)',
+        security: 'unsafe',
+        line: 5,
+      }),
+    ])
+  })
+
   test('does not report apparent actions after an unclosed accDescr opener', () => {
     const analyzed = analyzeMermaidSource(`flowchart LR
   A

@@ -476,6 +476,9 @@ async function generateEditorHtml() {
   const scriptRel = `editor/editor-${sha256(script).slice(0, 12)}.js`
   await emit(scriptRel, script.trimEnd() + '\n')
   transformed = transformed.replace(scriptMatch[0], `\n<script type="module" src="/${scriptRel}"></script>\n</body>`)
+  // Authoring comments are useful in the source fragments but have no runtime
+  // semantics; do not ship them in the production editor document.
+  transformed = transformed.replace(/<!--[\s\S]*?-->/g, '')
   // The bundle is the editor's whole app; let the preload scanner fetch it
   // before the parser reaches the end-of-body script tag.
   transformed = transformed.replace('</head>', `<link rel="modulepreload" href="/${scriptRel}">\n</head>`)

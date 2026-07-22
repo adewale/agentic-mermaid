@@ -2,7 +2,6 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
 import type { MindmapDiagram, MindmapNode, MindmapShape } from './types.ts'
 import {
-  isAccessibilityDirectivePrefix,
   parseAccessibilityDirective,
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
@@ -59,7 +58,7 @@ export function parseMindmap(source: string): MindmapDiagram {
     raw = stripInlineComment(raw)
     const trimmed = raw.trim()
     if (!trimmed || trimmed.startsWith('%%')) continue
-    if (isAccessibilityDirectivePrefix(trimmed)) {
+    if (/^acc(?:Title|Descr)\b/i.test(trimmed)) {
       const kind = /^accTitle\b/i.test(trimmed) ? 'accTitle' : 'accDescr'
       throw new MindmapParseError(`Mindmap ${kind} must contain a non-empty value`, index + 1)
     }

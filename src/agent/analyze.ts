@@ -171,25 +171,29 @@ function collectFlowchartActions(source: string): DiagramActionRecord[] {
  * may legally resemble Mermaid statements but must never become actions. */
 function actionSourceLines(source: string, maskMarkdownStrings = false): Array<{ text: string; line: number }> {
   const lines = source.split(/\r?\n/)
-  let inMarkdownString = false
-  const maskedLines = lines.map((line, index) => {
-    const preserveActionText = maskMarkdownStrings && !inMarkdownString
-      && splitFlowchartStatements(line).some(statement => /^(?:click|href)\s+/i.test(statement.trim()))
-    const masked: { text: string; open: boolean } = maskMarkdownStrings && !preserveActionText
-      ? maskMarkdownStringContent(line, inMarkdownString)
-      : { text: line, open: false }
-    inMarkdownString = masked.open
-    return masked.text
-  })
   const out: Array<{ text: string; line: number }> = []
-  for (let index = 0; index < maskedLines.length; index++) {
-    const directive = parseAccessibilityDirective(maskedLines, index)
+  for (let index = 0; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
-    if (directive === null) out.push({ text: maskedLines[index]!.trim(), line: index + 1 })
+    if (directive === null) out.push({ text: lines[index]!.trim(), line: index + 1 })
     else {
       if (directive.suffixLine) out.push({ text: directive.suffixLine.trim(), line: directive.endIndex + 1 })
       index = directive.endIndex
     }
+  }
+  if (!maskMarkdownStrings) return out
+
+  // Accessibility prose has already been removed with its physical-line
+  // boundaries intact, so markdown delimiters inside it cannot hide a real
+  // family statement authored after the block's closing brace.
+  let inMarkdownString = false
+  for (const sourceLine of out) {
+    const preserveActionText = !inMarkdownString
+      && splitFlowchartStatements(sourceLine.text).some(statement => /^(?:click|href)\s+/i.test(statement.trim()))
+    if (preserveActionText) continue
+    const masked = maskMarkdownStringContent(sourceLine.text, inMarkdownString)
+    inMarkdownString = masked.open
+    sourceLine.text = masked.text.trim()
   }
   return out
 }

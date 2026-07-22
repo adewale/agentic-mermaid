@@ -10,7 +10,7 @@ export interface MermaidAccessibility {
 }
 
 export interface ParsedAccessibilityDirective {
-  kind: 'title' | 'description'
+  title: boolean
   form: 'inline' | 'block'
   value: string
   /** Index of the last physical line consumed by this directive. */
@@ -30,14 +30,6 @@ export interface AccessibilityScan {
 const ACC_TITLE_RE = /^\s*accTitle(?:\s*:\s*|\s+)(.+)$/i
 const ACC_DESCR_INLINE_RE = /^\s*accDescr(?:\s*:\s*|\s+)(.+)$/i
 const ACC_DESCR_BLOCK_RE = /^\s*accDescr\s*:?\s*\{(.*)$/i
-const ACC_PREFIX_RE = /^\s*acc(?:Title|Descr)\b/i
-
-/** True for reserved universal accessibility prefixes, including malformed
- * directives that the scanner deliberately leaves to family error handling. */
-export function isAccessibilityDirectivePrefix(line: string): boolean {
-  return ACC_PREFIX_RE.test(line)
-}
-
 /**
  * Parse one universal accessibility directive. `null` means the line is not
  * a directive; `undefined` means it opens an unclosed description block and
@@ -66,7 +58,7 @@ export function parseAccessibilityDirective(
       const suffix = content.slice(closing + 1)
       const indent = lines[index]!.match(/^\s*/)?.[0] ?? ''
       return {
-        kind: 'description',
+        title: false,
         form: 'block',
         value: parts.join('\n').trim(),
         endIndex: index,
@@ -77,9 +69,9 @@ export function parseAccessibilityDirective(
   }
 
   const title = line.match(ACC_TITLE_RE)
-  if (title) return { kind: 'title', form: 'inline', value: title[1]!.trim(), endIndex: startIndex }
+  if (title) return { title: true, form: 'inline', value: title[1]!.trim(), endIndex: startIndex }
   const description = line.match(ACC_DESCR_INLINE_RE)
-  if (description) return { kind: 'description', form: 'inline', value: description[1]!.trim(), endIndex: startIndex }
+  if (description) return { title: false, form: 'inline', value: description[1]!.trim(), endIndex: startIndex }
   return null
 }
 
@@ -106,7 +98,7 @@ export function scanAccessibilityDirectives(lines: readonly string[]): Accessibi
       familyLines.push(lines[index]!)
       continue
     }
-    if (directive.kind === 'title') accessibility.title = directive.value
+    if (directive.title) accessibility.title = directive.value
     else accessibility.descr = directive.value
     if (directive.suffixLine) familyLines.push(directive.suffixLine)
     index = directive.endIndex

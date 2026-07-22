@@ -142,8 +142,11 @@ jobs:
           name: npm-package-${{ github.sha }}
           path: release-artifact/
           if-no-files-found: error
-          retention-days: 1
+          # Preserve the exact verified input long enough to retry MCP Registry
+          # publication without attempting the immutable npm version again.
+          retention-days: 30
           compression-level: 0
+          overwrite: true
 
   publish:
     name: Publish verified tarball to npm
@@ -172,19 +175,28 @@ jobs:
           path: release-artifact
 
       - name: Verify the transferred tarball digest
-        id: package
         run: |
-          (cd release-artifact && sha256sum --check package.sha256)
-          filename="$(jq -r '.filename' release-artifact/package-manifest.json)"
-          test -n "$filename"
-          test -f "release-artifact/$filename"
-          echo "tarball=release-artifact/$filename" >> "$GITHUB_OUTPUT"
+          test "$(find release-artifact -mindepth 1 -maxdepth 1 -exec printf x \; | wc -c)" -eq 3
+          for artifact_file in package.tgz package.sha256 package-manifest.json; do
+            test -f "release-artifact/$artifact_file"
+            test ! -L "release-artifact/$artifact_file"
+          done
+          test "$(jq -r '.schemaVersion' release-artifact/package-manifest.json)" = 1
+          test "$(jq -r '.filename' release-artifact/package-manifest.json)" = package.tgz
+          manifest_sha="$(jq -er '.sha256 | select(type == "string")' release-artifact/package-manifest.json)"
+          test "${#manifest_sha}" -eq 64
+          case "$manifest_sha" in *[!0-9a-f]*) exit 1;; esac
+          printf '%s  package.tgz\n' "$manifest_sha" | cmp --silent - release-artifact/package.sha256
+          actual_sha="$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)"
+          test "$actual_sha" = "$manifest_sha"
 
       - name: Publish to npm (OIDC trusted publishing)
         # Publish the exact tarball inspected in the unprivileged package job.
         # No checkout, repository script, lifecycle hook, or mutable directory
         # runs after OIDC becomes available.
-        run: npm publish "${{ steps.package.outputs.tarball }}" --ignore-scripts --access public
+        env:
+          TARBALL: release-artifact/package.tgz
+        run: npm publish "$TARBALL" --ignore-scripts --access public
 
   publish-mcp:
     name: Publish verified metadata to the MCP Registry
@@ -203,10 +215,20 @@ jobs:
 
       - name: Verify the tarball and extract registry metadata
         run: |
-          (cd release-artifact && sha256sum --check package.sha256)
-          filename="$(jq -r '.filename' release-artifact/package-manifest.json)"
-          test -f "release-artifact/$filename"
-          tar --extract --gzip --file "release-artifact/$filename" --to-stdout package/server.json > server.json
+          test "$(find release-artifact -mindepth 1 -maxdepth 1 -exec printf x \; | wc -c)" -eq 3
+          for artifact_file in package.tgz package.sha256 package-manifest.json; do
+            test -f "release-artifact/$artifact_file"
+            test ! -L "release-artifact/$artifact_file"
+          done
+          test "$(jq -r '.schemaVersion' release-artifact/package-manifest.json)" = 1
+          test "$(jq -r '.filename' release-artifact/package-manifest.json)" = package.tgz
+          manifest_sha="$(jq -er '.sha256 | select(type == "string")' release-artifact/package-manifest.json)"
+          test "${#manifest_sha}" -eq 64
+          case "$manifest_sha" in *[!0-9a-f]*) exit 1;; esac
+          printf '%s  package.tgz\n' "$manifest_sha" | cmp --silent - release-artifact/package.sha256
+          actual_sha="$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)"
+          test "$actual_sha" = "$manifest_sha"
+          tar --extract --gzip --file release-artifact/package.tgz --to-stdout package/server.json > server.json
 
       - name: Install MCP Registry publisher
         # The binary shares this job's OIDC permission, so pin both its release

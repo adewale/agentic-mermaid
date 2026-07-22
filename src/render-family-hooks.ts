@@ -445,9 +445,9 @@ const RADAR_RENDER_HOOKS = {
     familyConfig: { visual: resolveRadarVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutRadarChart(
-    withAccessibilityObject(parseRadarChart(ctx.source.familyLines, {
+    parseRadarChart(ctx.source.lines, {
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
-    }), ctx.source.accessibility),
+    }),
     ctx.renderOptions,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolveRadarVisualConfig> } | undefined)?.visual
       ?? resolveRadarVisualConfig(ctx.source.frontmatter),
