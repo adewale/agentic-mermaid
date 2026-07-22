@@ -113,7 +113,7 @@ function renderBody(
     || sameExtensionIdentity(parsedDescriptorIdentity, plugin?.identity)
   if (plugin?.serialize && descriptorMatches) {
     const rendered = plugin.serialize(body)
-    return body.kind === 'extension' ? rendered : ensureAccessibilityLines(rendered, meta.accessibility)
+    return ensureAccessibilityLines(rendered, meta.accessibility)
   }
   if (body.kind === 'extension') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   throw new Error(`No serializer registered for diagram kind "${kind}"`)

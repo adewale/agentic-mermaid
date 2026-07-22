@@ -25,8 +25,8 @@ import type {
   ArchitectureEdge, ArchitectureAlignment, ArchitectureSide, ArchitectureMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
@@ -736,12 +736,8 @@ export function verifyOpaqueArchitectureIcons(source: string): LayoutWarning[] {
 }
 
 export function verifyArchitecture(body: ArchitectureBody, opts: VerifyOptions): LayoutWarning[] {
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   if (body.groups.length === 0 && body.services.length === 0 && body.junctions.length === 0
     && body.title === undefined && body.accessibilityTitle === undefined && body.accessibilityDescription === undefined) {
     warnings.push({ code: 'EMPTY_DIAGRAM' })

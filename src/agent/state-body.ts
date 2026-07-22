@@ -49,8 +49,8 @@ import type {
   StateBody, StateNode, StateNote, StateRegion, StateTransition, StateMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
-import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { ok, err } from './types.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
@@ -1090,15 +1090,11 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
 // state), and LABEL_OVERFLOW.
 
 export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning[] {
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
   if (body.states.length === 0 && body.transitions.length === 0 && (body.notes ?? []).length === 0) {
     return [{ code: 'EMPTY_DIAGRAM' }]
   }
-  const overflow = (target: string, text: string) => {
-    const w = labelOverflowWarning(target, text, cap)
-    if (w) warnings.push(w)
-  }
+  const overflow = labelOverflowCollector(warnings, opts)
   // A transition endpoint may reference ANY state in the tree (cross-boundary
   // transitions to/from composite children are legal mermaid), plus the
   // reserved pseudostate. Collect the full id set once for the misanchor check.

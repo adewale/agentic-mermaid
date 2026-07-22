@@ -88,7 +88,7 @@
     },
     {
       "path": "src/agent/architecture-body.ts",
-      "sha256": "9fa10a843d996482ef589db5858bc19c32b27212d89f07ad2f59155fb08bd99f"
+      "sha256": "cc6075830499e1a17136b926c45a4f09994d2615ade95c6f8b6dc3edbb58b471"
     },
     {
       "path": "src/agent/body-utils.ts",
@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "8c28e9c5d1e590dbfa35b3e2784aa0053c9dae6eb931dc6637ba1771dd5e09a0"
+      "sha256": "c3bc25483ee5faefa4468fba35631effb4c9ccba12ea409101d9f4b4b39f939b"
     },
     {
       "path": "src/agent/core.ts",
@@ -120,7 +120,7 @@
     },
     {
       "path": "src/agent/er-body.ts",
-      "sha256": "67f11b30b91d586e59cbe5534a8e6efc0ef18a5e5dd4cf76028fed3c3ced2922"
+      "sha256": "6dfda63fe3cb6c6dcf3f5587d4abeddcd42ec06058206df680977043d1bf9d6d"
     },
     {
       "path": "src/agent/facts.ts",
@@ -240,7 +240,7 @@
     },
     {
       "path": "src/agent/serialize.ts",
-      "sha256": "799a5a6dbe6469b1b48219257e046d23e93a215d77f0bd109c1c1d2614ab5863"
+      "sha256": "59ecfe91de2d5e4f577e4803767f0c43ed77fa557572971284d73386741eae32"
     },
     {
       "path": "src/agent/source-map-spans.ts",
@@ -248,7 +248,7 @@
     },
     {
       "path": "src/agent/state-body.ts",
-      "sha256": "818f3210b4ac33b34b49fbc857518b242dbb05b7c1dabcbb27cc6124eb82c59f"
+      "sha256": "459fc4d36c0f2c3886fafdf6f87cbd0f9b63da7600e9ed42defeb1f37deb90e7"
     },
     {
       "path": "src/agent/structural-count.ts",

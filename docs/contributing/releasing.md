@@ -73,6 +73,9 @@ that immutable npm version already exists.
    publication fires `publish.yml`, which gates, builds, publishes to npm, and
    then publishes the matching server metadata to the MCP Registry.
 6. **Verify:** `npm view agentic-mermaid version` shows the new version;
+   if npm committed the immutable version before the workflow recorded success,
+   rerun it—the publish job recovers only after the registry's SHA-512 integrity
+   matches the retained verified tarball exactly. Then
    `npm install agentic-mermaid` into a scratch project resolves and its bins
    run; and
    `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale/agentic-mermaid"`

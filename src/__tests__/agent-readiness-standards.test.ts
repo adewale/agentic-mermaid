@@ -131,8 +131,7 @@ describe('agent-readiness standards syntax', () => {
       .toContain('actions/workflows/ci.yml/runs')
     expect(packageSteps.find((step: any) => step.name === 'Pack and verify the exact publication artifact')?.run)
       .toBe('bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact')
-    expect(gateSteps.find((step: any) => step.name === 'Refuse an already-published immutable npm version')?.run)
-      .toContain('npm view "agentic-mermaid@$version" version')
+    expect(gateSteps.some((step: any) => /already-published immutable npm version/i.test(step.name ?? ''))).toBe(false)
     for (const duplicate of [
       'Reject new high or critical dependency advisories',
       'Run sketch and whole-corpus layout quality gates',
@@ -154,9 +153,12 @@ describe('agent-readiness standards syntax', () => {
     const verifyStep = publishSteps.find((step: any) => step.name === 'Verify the transferred tarball digest')
     expect(verifyStep?.run).toContain(".filename' release-artifact/package-manifest.json)\" = package.tgz")
     expect(verifyStep?.run).toContain("printf '%s  package.tgz\\n' \"$manifest_sha\" | cmp --silent")
-    const npmPublishStep = publishSteps.find((step: any) => step.name === 'Publish to npm (OIDC trusted publishing)')
+    const npmPublishStep = publishSteps.find((step: any) => step.name === 'Publish or recover the exact npm tarball (OIDC trusted publishing)')
     expect(npmPublishStep?.env?.TARBALL).toBe('release-artifact/package.tgz')
-    expect(npmPublishStep?.run).toBe('npm publish "$TARBALL" --ignore-scripts --access public')
+    expect(npmPublishStep?.run).toContain('npm publish "$TARBALL" --ignore-scripts --access public')
+    expect(npmPublishStep?.run).toContain('npm view "$package_name@$package_version" dist.integrity --json')
+    expect(npmPublishStep?.run).toContain('registry_integrity" = "$local_integrity')
+    expect(npmPublishStep?.run).toContain('after an ambiguous publish; recovering publication')
     expect(npmPublishStep?.run).not.toContain('${{')
     expect(publishWorkflow).not.toContain('sigstore@latest')
     expect(strategy).toContain('`bun run test`')

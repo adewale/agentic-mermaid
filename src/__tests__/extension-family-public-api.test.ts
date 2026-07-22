@@ -195,13 +195,19 @@ describe('registered family public layout and verify APIs', () => {
     const descriptor: FamilyDescriptor = {
       ...base,
       capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
+        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
           ? { ...claim, state: 'native' }
           : claim),
       parse: context => {
         observed = { lines: [...context.lines], accessibility: context.meta.accessibility }
-        return ok({ kind: 'extension', family: base.id as ExternalFamilyId, source: context.opaqueSource })
+        return ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { lines: [...context.lines] },
+        })
       },
+      serialize: body => `${(body.kind === 'extension' ? (body.data as { lines: string[] }).lines : []).join('\n')}\n`,
     }
     const unregister = registerFamily(descriptor)
     try {
@@ -217,6 +223,16 @@ describe('registered family public layout and verify APIs', () => {
         lines: ['sharedAccessibilityDiagram', 'family payload'],
         accessibility: { title: 'Shared title', descr: 'Shared description' },
       })
+      if (!parsed.ok) return
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized).toBe(`sharedAccessibilityDiagram
+  accTitle: Shared title
+  accDescr: Shared description
+family payload
+`)
+      const reparsed = parseRegisteredMermaid(serialized)
+      expect(reparsed.ok).toBe(true)
+      if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(serialized)
     } finally {
       unregister()
     }

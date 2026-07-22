@@ -50,29 +50,6 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: bun run scripts/ci/release-identity.ts
 
-      - name: Setup Node.js for immutable-version lookup
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
-          package-manager-cache: false
-
-      - name: Refuse an already-published immutable npm version
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          set +e
-          output="$(npm view "agentic-mermaid@$version" version 2>&1)"
-          status=$?
-          set -e
-          if [ "$status" -eq 0 ]; then
-            echo "agentic-mermaid@$version is already published" >&2
-            exit 1
-          fi
-          if ! printf '%s' "$output" | grep -q 'E404'; then
-            printf '%s\n' "$output" >&2
-            exit "$status"
-          fi
-
   platform-smoke:
     name: Release platform smoke (${{ matrix.os }})
     needs: release-gate
@@ -189,14 +166,67 @@ jobs:
           printf '%s  package.tgz\n' "$manifest_sha" | cmp --silent - release-artifact/package.sha256
           actual_sha="$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)"
           test "$actual_sha" = "$manifest_sha"
+          manifest_integrity="$(jq -er '.integrity | select(type == "string")' release-artifact/package-manifest.json)"
+          actual_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")"
+          test "$actual_integrity" = "$manifest_integrity"
 
-      - name: Publish to npm (OIDC trusted publishing)
+      - name: Publish or recover the exact npm tarball (OIDC trusted publishing)
         # Publish the exact tarball inspected in the unprivileged package job.
         # No checkout, repository script, lifecycle hook, or mutable directory
-        # runs after OIDC becomes available.
+        # runs after OIDC becomes available. A retry after an ambiguous remote
+        # success accepts only the byte-identical immutable registry version.
         env:
           TARBALL: release-artifact/package.tgz
-        run: npm publish "$TARBALL" --ignore-scripts --access public
+        run: |
+          package_json="$(tar --extract --gzip --file "$TARBALL" --to-stdout package/package.json)"
+          package_name="$(printf '%s' "$package_json" | jq -er '.name | select(. == "agentic-mermaid")')"
+          package_version="$(printf '%s' "$package_json" | jq -er '.version | select(type == "string" and length > 0)')"
+          local_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync(process.env.TARBALL)).digest('base64'))")"
+
+          set +e
+          registry_output="$(npm view "$package_name@$package_version" dist.integrity --json 2>&1)"
+          registry_status=$?
+          set -e
+          if [ "$registry_status" -eq 0 ]; then
+            registry_integrity="$(printf '%s' "$registry_output" | jq -er 'select(type == "string")')"
+            if [ "$registry_integrity" != "$local_integrity" ]; then
+              echo "$package_name@$package_version already exists with different bytes" >&2
+              exit 1
+            fi
+            echo "$package_name@$package_version already contains the verified tarball; recovering publication"
+            exit 0
+          fi
+          if ! printf '%s' "$registry_output" | grep -q 'E404'; then
+            printf '%s\n' "$registry_output" >&2
+            exit "$registry_status"
+          fi
+
+          set +e
+          npm publish "$TARBALL" --ignore-scripts --access public
+          publish_status=$?
+          set -e
+          if [ "$publish_status" -eq 0 ]; then
+            exit 0
+          fi
+
+          # A concurrent or response-lost publish can fail locally after npm
+          # has committed the version. Re-read the immutable registry record
+          # and recover only when its integrity is byte-identical.
+          set +e
+          registry_output="$(npm view "$package_name@$package_version" dist.integrity --json 2>&1)"
+          registry_status=$?
+          set -e
+          if [ "$registry_status" -eq 0 ]; then
+            registry_integrity="$(printf '%s' "$registry_output" | jq -er 'select(type == "string")')"
+            if [ "$registry_integrity" = "$local_integrity" ]; then
+              echo "$package_name@$package_version contains the verified tarball after an ambiguous publish; recovering publication"
+              exit 0
+            fi
+            echo "$package_name@$package_version appeared with different bytes" >&2
+          else
+            printf '%s\n' "$registry_output" >&2
+          fi
+          exit "$publish_status"
 
   publish-mcp:
     name: Publish verified metadata to the MCP Registry
