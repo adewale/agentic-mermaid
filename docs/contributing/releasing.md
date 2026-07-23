@@ -51,8 +51,9 @@ OIDC-capable job to immutable commits (trusted publishing needs npm ≥ 11.5.1 /
 Node ≥ 22.14). npm 11.18.0 already bundles its Sigstore dependency tree; the
 workflow installs no mutable provenance helper. The unprivileged release gate
 also rejects a release whose tag, checked-out commit, `origin/main` ancestry,
-package version, or MCP server versions disagree, and fails before building if
-that immutable npm version already exists.
+package version, or MCP server versions disagree. After artifact construction,
+the minimal npm job accepts an existing immutable version only when its registry
+integrity is byte-identical to the verified tarball; a mismatch fails closed.
 
 ## Cutting a release
 

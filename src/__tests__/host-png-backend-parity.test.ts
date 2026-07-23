@@ -27,7 +27,7 @@ function registerProbeBackend(id: string, rendered: () => void): () => void {
         .replace('<svg ', `<svg data-host-backend="${id}" `)
     },
   }, {
-    compatibility: { core: '^0.1.1', scene: '^2.0.0' },
+    compatibility: { core: '^0.2.0', scene: '^2.0.0' },
     provenance: { owner: 'host-png-parity-test', source: 'test' },
   })
 }

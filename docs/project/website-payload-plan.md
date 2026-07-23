@@ -20,9 +20,9 @@ The Examples page already uses `content-visibility: auto`; that reduces off-scre
 
 | Route | requests | raw | gzip | Brotli |
 |---|---:|---:|---:|---:|
-| `/` | 9 | 682,619 B | 406,567 B | 387,899 B |
-| `/examples/` | 6 | 380,391 B | 66,938 B | 53,183 B |
-| `/editor/?empty=1` | 2 | 3,314,199 B | 974,886 B | 767,057 B |
+| `/` | 9 | 682,619 B | 406,567 B | 387,889 B |
+| `/examples/` | 6 | 380,391 B | 66,938 B | 53,180 B |
+| `/editor/?empty=1` | 2 | 3,288,608 B | 965,577 B | 759,629 B |
 
 The matching ceilings live separately in `scripts/site/website-payload-budgets.ts`. Review policy requires an optimization to ratchet its own route downward without rewriting measurement logic or unrelated route budgets in the same PR. Lighthouse timings remain diagnostic review evidence.
 

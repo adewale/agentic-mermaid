@@ -25,7 +25,7 @@ import * as publicAgentApi from '../agent/index.ts'
 import { DefaultBackend, knownBackendDescriptors, registerBackend } from '../scene/backend.ts'
 
 const EVIDENCE = 'src/__tests__/capability-negotiation.test.ts'
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^2.0.0' })
+const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.2.0', scene: '^2.0.0' })
 
 function extensionDescriptor(
   localId: string,
@@ -40,7 +40,7 @@ function extensionDescriptor(
       id,
       kind: 'family',
       version: options.version ?? '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: 'capability-negotiation-test', source: 'test' },
     }),
     id,

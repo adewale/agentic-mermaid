@@ -82,7 +82,7 @@ describe('deterministic website payload authority', () => {
       ['requests', 'home: requests 10 exceeds 9'],
       ['rawBytes', 'home: rawBytes 682620 exceeds 682619'],
       ['gzipBytes', 'home: gzipBytes 406568 exceeds 406567'],
-      ['brotliBytes', 'home: brotliBytes 387900 exceeds 387899'],
+      ['brotliBytes', 'home: brotliBytes 387890 exceeds 387889'],
     ] as const) {
       const grown = structuredClone(report)
       grown.routes[0]!.totals[field]++

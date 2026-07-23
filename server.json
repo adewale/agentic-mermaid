@@ -7,13 +7,13 @@
     "url": "https://github.com/adewale/agentic-mermaid",
     "source": "github"
   },
-  "version": "0.1.2",
+  "version": "0.2.0",
   "websiteUrl": "https://agentic-mermaid.dev/",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "agentic-mermaid",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "runtimeHint": "npx",
       "runtimeArguments": [
         {

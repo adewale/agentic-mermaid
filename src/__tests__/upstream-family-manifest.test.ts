@@ -39,7 +39,7 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: localId.split('/')[0] ?? localId, source: 'test' },
     }),
     id,

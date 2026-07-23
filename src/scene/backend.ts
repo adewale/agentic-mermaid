@@ -147,7 +147,7 @@ export const DefaultBackend: StyleBackend = {
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
-const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.1.1', scene: '^2.0.0' })
+const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.2.0', scene: '^2.0.0' })
 const CORE_BACKEND_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',

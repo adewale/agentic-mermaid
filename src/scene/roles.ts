@@ -183,7 +183,7 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
       id: `role:${role}`,
       kind: 'role',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1', scene: '^2.0.0' },
+      compatibility: { core: '^0.2.0', scene: '^2.0.0' },
       provenance: { owner: 'agentic-mermaid', source: 'built-in', reference: 'src/scene/roles.ts' },
     }),
     role: role as BuiltinSceneRole,

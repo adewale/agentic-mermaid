@@ -83,7 +83,7 @@ describe('canonical website Inter subsets', () => {
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },
-      'editor-empty': { rawBytes: 3_288_608, gzipBytes: 965_589, brotliBytes: 759_742 },
+      'editor-empty': { rawBytes: 3_288_608, gzipBytes: 965_577, brotliBytes: 759_629 },
     }
     for (const id of ['home', 'examples'] as const) {
       const route = payload.routes.find(candidate => candidate.id === id)!
@@ -93,7 +93,7 @@ describe('canonical website Inter subsets', () => {
     }
     const editor = payload.routes.find(candidate => candidate.id === 'editor-empty')!
     expect(editor.totals).toMatchObject(starting['editor-empty'])
-    expect(editor.requests.map(request => request.path)).toEqual(['/editor/', '/editor/editor-6157b438a465.js'])
+    expect(editor.requests.map(request => request.path)).toEqual(['/editor/', '/editor/editor-5eb7ca9280f7.js'])
   })
 
   test('rejects source, content-address, coverage, and byte-ceiling sabotage', () => {

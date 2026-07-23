@@ -157,7 +157,7 @@ describe('Section A capability report', () => {
     ]
     const unregister = registerBackend(
       { ...DefaultBackend, id, capabilities },
-      { compatibility: { core: '^0.1.1', scene: '^2.0.0' } },
+      { compatibility: { core: '^0.2.0', scene: '^2.0.0' } },
     )
     try {
       const report = createSectionACapabilityReport()
@@ -319,7 +319,7 @@ describe('Section A capability report', () => {
         id: 'family:report-probe',
         kind: 'family',
         version: '1.0.0',
-        compatibility: { core: '^0.1.1' },
+        compatibility: { core: '^0.2.0' },
         provenance: { owner: 'section-a-test', source: 'test' },
       }),
       id: 'family:report-probe',
@@ -362,7 +362,7 @@ describe('Section A capability report', () => {
         id: 'family:report-probe-split',
         kind: 'family',
         version: '1.0.0',
-        compatibility: { core: '^0.1.1' },
+        compatibility: { core: '^0.2.0' },
         provenance: { owner: 'section-a-test', source: 'test' },
       }),
       id: 'family:report-probe-split',

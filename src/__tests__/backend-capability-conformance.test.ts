@@ -15,7 +15,7 @@ import { primitiveCapabilityClaimKey } from '../scene/capabilities.ts'
 import { pngFixture } from './helpers/png-fixture.ts'
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10]
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({
-  compatibility: Object.freeze({ core: '^0.1.1', scene: '^2.0.0' }),
+  compatibility: Object.freeze({ core: '^0.2.0', scene: '^2.0.0' }),
 })
 
 function firstPartyBackends() {

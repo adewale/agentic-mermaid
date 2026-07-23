@@ -20,7 +20,7 @@ function nonGraphicalDescriptor(
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: 'code-mode-structured-errors-test', source: 'test' },
     }),
     id,

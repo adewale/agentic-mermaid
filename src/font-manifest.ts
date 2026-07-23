@@ -59,7 +59,7 @@ export const HOSTED_FONT_RESOURCES: readonly HostedFontResource[] = Object.freez
       id: `resource:${fontResourceLocalId(face)}`,
       kind: 'resource',
       version: '1.0.0',
-      compatibility: { core: '^0.1.1' },
+      compatibility: { core: '^0.2.0' },
       provenance: { owner: 'agentic-mermaid', source: 'bundled', reference: `assets/fonts/${face.file}` },
     }),
   })),

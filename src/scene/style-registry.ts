@@ -129,7 +129,7 @@ export interface StyleReferenceResolution {
 }
 
 const CORE_STYLE_VERSION = '1.0.0'
-const CORE_STYLE_COMPATIBILITY = Object.freeze({ core: '^0.1.1' })
+const CORE_STYLE_COMPATIBILITY = Object.freeze({ core: '^0.2.0' })
 const CORE_STYLE_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',
