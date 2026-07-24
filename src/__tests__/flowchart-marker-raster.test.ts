@@ -15,12 +15,31 @@ function edgeEndpoints(svg: string): { startX: number; endX: number; y: number }
 }
 
 describe('raster-safe Flowchart endpoint markers', () => {
+  test('anchors the arrow tip itself at an exact circle outline', () => {
+    const svg = styled('A --> B@{ shape: sm-circ, label: "" }')
+    const edge = svg.match(/<polyline class="edge"[^>]*points="([^"]+)"[^>]*marker-end="url\(#arrowhead-23ff0000\)"/)
+    const circle = svg.match(/<g class="node" data-id="B"[\s\S]*?<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/)
+    const marker = svg.match(/<marker id="arrowhead-23ff0000"[^>]*refX="([\d.]+)"[^>]*>[\s\S]*?<polygon points="([^"]+)"/)
+    expect(edge).not.toBeNull()
+    expect(circle).not.toBeNull()
+    expect(marker).not.toBeNull()
+
+    const points = edge![1]!.trim().split(/\s+/).map(value => value.split(',').map(Number))
+    const endpointX = points.at(-1)![0]!
+    const outlineX = Number(circle![1]) - Number(circle![3])
+    const tipX = Math.max(...marker![2]!.split(/,\s*/).map(pair => Number(pair.trim().split(/\s+/)[0])))
+    const refX = Number(marker![1])
+
+    expect(endpointX).toBeCloseTo(outlineX, 8)
+    expect(tipX - refX).toBe(0)
+  })
+
   test('pre-rotates start arrows instead of relying on auto-start-reverse', () => {
     const svg = styled('A <--> B')
     expect(svg).not.toContain('auto-start-reverse')
-    expect(svg).toMatch(/id="arrowhead-start"[^>]*refX="1"[^>]*orient="auto"/)
+    expect(svg).toMatch(/id="arrowhead-start"[^>]*refX="0"[^>]*orient="auto"/)
     expect(svg).toContain('<polygon points="8 0, 0 2.5, 8 5"')
-    expect(svg).toMatch(/id="arrowhead-start-23ff0000"[^>]*refX="1"[^>]*orient="auto"/)
+    expect(svg).toMatch(/id="arrowhead-start-23ff0000"[^>]*refX="0"[^>]*orient="auto"/)
 
     const { startX, endX, y } = edgeEndpoints(svg)
     const start = colorPixelBox(svg, redPixel, { left: Math.floor(startX - 1), right: Math.ceil(startX + 15), top: Math.floor(y - 14), bottom: Math.ceil(y + 14) })

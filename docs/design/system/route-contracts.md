@@ -827,7 +827,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
   changes are reviewed via the corpus comparison harness
   (`eval/layout-compare`) — regressions-first verdicts, not eyeball-only.
 - **Fault sensitivity**: `bun run mutation-test -- routes` remains an opt-in
-  survivor harvest; the bounded `sabotage:routes` PR gate proves named
+  survivor harvest; the bounded `sabotage:routes` PR gate proves five named
   route/link regressions still make their focused tests fail.
 
 ## 10. Rollout status vs issue #25

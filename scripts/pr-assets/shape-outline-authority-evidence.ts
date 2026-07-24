@@ -15,7 +15,7 @@ import { renderMermaidSVG } from '../../src/index.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUTPUT = join(ROOT, 'docs', 'pr-assets', 'shape-outline-authority-before-after.png')
-const BEFORE_SHA = 'a96b7120fb119f03e7c6e6bdb3c4d582f8b25401'
+const BEFORE_SHA = '078c0cfc930911de5a90d468164e694b4f6ac977'
 
 const CASES = [
   {
@@ -35,7 +35,11 @@ const CASES = [
 ] as const
 
 interface CircleGeometry { cx: number; cy: number; r: number }
-interface EvidenceMetrics { targetGap: number; sourceGap?: number }
+interface EvidenceMetrics {
+  targetShaftGap: number
+  targetArrowTipGap: number
+  sourceShaftGap?: number
+}
 
 function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -74,23 +78,49 @@ function circleFor(svg: string, nodeId: string): CircleGeometry {
   return { cx: Number(circle[1]), cy: Number(circle[2]), r: Number(circle[3]) }
 }
 
-function edgePoint(svg: string, nodeId: string, endpoint: 'source' | 'target'): { x: number; y: number } {
+function edgeTag(svg: string, nodeId: string, endpoint: 'source' | 'target'): string {
   const attr = endpoint === 'target' ? 'data-to' : 'data-from'
-  const edge = svg.match(new RegExp(`<polyline class="edge"[^>]*${attr}="${nodeId}"[^>]*points="([^"]+)"`))
+  const edge = svg.match(new RegExp(`<polyline class="edge"[^>]*${attr}="${nodeId}"[^>]*>`))
   if (!edge) throw new Error(`${endpoint} edge for ${nodeId} not found in rendered SVG`)
-  const points = edge[1]!.trim().split(/\s+/).map(value => value.split(',').map(Number))
+  return edge[0]
+}
+
+function edgePoint(svg: string, nodeId: string, endpoint: 'source' | 'target'): { x: number; y: number } {
+  const pointsAttr = edgeTag(svg, nodeId, endpoint).match(/points="([^"]+)"/)
+  if (!pointsAttr) throw new Error(`points for ${endpoint} edge ${nodeId} not found`)
+  const points = pointsAttr[1]!.trim().split(/\s+/).map(value => value.split(',').map(Number))
   const point = endpoint === 'target' ? points.at(-1)! : points[0]!
   return { x: point[0]!, y: point[1]! }
+}
+
+function targetArrowTip(svg: string, nodeId: string): { x: number; y: number } {
+  const edge = edgeTag(svg, nodeId, 'target')
+  const endpoint = edgePoint(svg, nodeId, 'target')
+  const markerId = edge.match(/marker-end="url\(#([^)]+)\)"/)?.[1]
+  const strokeWidth = Number(edge.match(/stroke-width="([\d.]+)"/)?.[1] ?? 1)
+  if (!markerId) throw new Error(`marker-end for target edge ${nodeId} not found`)
+  const marker = svg.match(new RegExp(`<marker id="${markerId}"[^>]*refX="([\\d.-]+)"[^>]*>[\\s\\S]*?<polygon points="([^"]+)"[\\s\\S]*?</marker>`))
+  if (!marker) throw new Error(`marker ${markerId} not found`)
+  const refX = Number(marker[1])
+  const tipX = Math.max(...marker[2]!.split(/,\s*/).map(pair => Number(pair.trim().split(/\s+/)[0])))
+  return { x: endpoint.x + (tipX - refX) * strokeWidth, y: endpoint.y }
 }
 
 function metrics(svg: string, caseId: string, targetId: string): EvidenceMetrics {
   const target = circleFor(svg, targetId)
   const targetPoint = edgePoint(svg, targetId, 'target')
-  const targetGap = target.cx - target.r - targetPoint.x
-  if (caseId !== 'state-pseudostates') return { targetGap }
+  const targetTip = targetArrowTip(svg, targetId)
+  const targetOutline = target.cx - target.r
+  const targetShaftGap = targetOutline - targetPoint.x
+  const targetArrowTipGap = targetOutline - targetTip.x
+  if (caseId !== 'state-pseudostates') return { targetShaftGap, targetArrowTipGap }
   const source = circleFor(svg, '_start')
   const sourcePoint = edgePoint(svg, '_start', 'source')
-  return { targetGap, sourceGap: sourcePoint.x - (source.cx + source.r) }
+  return {
+    targetShaftGap,
+    targetArrowTipGap,
+    sourceShaftGap: sourcePoint.x - (source.cx + source.r),
+  }
 }
 
 function zoom(svg: string, circle: CircleGeometry): string {
@@ -114,8 +144,8 @@ function cell(svg: string, kind: 'BEFORE' | 'AFTER', index: number, x: number, y
   const detail = raster(zoom(svg, focus), 480)
   const measured = metrics(svg, item.id, item.focusNode)
   const metric = item.id === 'state-pseudostates'
-    ? `start gap ${measured.sourceGap!.toFixed(2)}px · end gap ${measured.targetGap.toFixed(2)}px`
-    : `paint-to-endpoint gap ${measured.targetGap.toFixed(2)}px`
+    ? `start shaft ${measured.sourceShaftGap!.toFixed(2)}px · end shaft ${measured.targetShaftGap.toFixed(2)}px · arrow tip ${measured.targetArrowTipGap.toFixed(2)}px`
+    : `shaft gap ${measured.targetShaftGap.toFixed(2)}px · arrow-tip gap ${measured.targetArrowTipGap.toFixed(2)}px`
   const accent = kind === 'BEFORE' ? '#b42318' : '#16794c'
   return `<g transform="translate(${x} ${y})">
     <rect width="550" height="430" rx="14" fill="#fff" stroke="#d0d5dd"/>
@@ -130,6 +160,17 @@ function cell(svg: string, kind: 'BEFORE' | 'AFTER', index: number, x: number, y
 
 const before = renderBefore()
 const after = CASES.map(item => renderMermaidSVG(item.source, { embedFontImport: false }))
+const beforeMetrics = CASES.map((item, index) => metrics(before[index]!, item.id, item.focusNode))
+const afterMetrics = CASES.map((item, index) => metrics(after[index]!, item.id, item.focusNode))
+if (beforeMetrics[0]!.targetArrowTipGap < 10 || beforeMetrics[1]!.targetArrowTipGap < .5) {
+  throw new Error('Baseline no longer reproduces the circle arrow-tip gaps')
+}
+for (const [index, measured] of afterMetrics.entries()) {
+  if (Math.abs(measured.targetShaftGap) > .01 || Math.abs(measured.targetArrowTipGap) > .01 ||
+    (measured.sourceShaftGap !== undefined && Math.abs(measured.sourceShaftGap) > .01)) {
+    throw new Error(`Current ${CASES[index]!.id} circle contact is not closed: ${JSON.stringify(measured)}`)
+  }
+}
 const width = 1180
 const height = 1100
 const rows = CASES.map((item, index) => {
@@ -140,9 +181,9 @@ const rows = CASES.map((item, index) => {
 }).join('\n')
 const sheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Inter, Arial, sans-serif">
   <rect width="${width}" height="${height}" fill="#f2f4f7"/>
-  <text x="34" y="42" font-size="24" font-weight="800" fill="#101828">Canonical shape outline — final rendered endpoints</text>
+  <text x="34" y="42" font-size="24" font-weight="800" fill="#101828">Circle contact — shaft and arrow-tip geometry</text>
   <text x="34" y="70" font-size="13" fill="#475467">Same Mermaid source through the public renderer at main ${BEFORE_SHA.slice(0, 8)} and this branch.</text>
-  <text x="34" y="92" font-size="13" fill="#475467">Gap is measured from SVG paint geometry and the settled route endpoint; zero means the shaft meets the outline.</text>
+  <text x="34" y="92" font-size="13" fill="#475467">Distances use emitted circle paths, settled routes, and SVG marker refX; zero means the arrow tip itself aligns with the outline.</text>
   ${rows}
 </svg>`
 const output = new Resvg(sheet, { fitTo: { mode: 'width', value: width * 2 } }).render().asPng()
@@ -157,6 +198,6 @@ if (process.argv.includes('--check')) {
   writeFileSync(OUTPUT, output)
   console.log('wrote docs/pr-assets/shape-outline-authority-before-after.png')
   for (const [index, item] of CASES.entries()) {
-    console.log(`${item.id}: before=${JSON.stringify(metrics(before[index]!, item.id, item.focusNode))} after=${JSON.stringify(metrics(after[index]!, item.id, item.focusNode))}`)
+    console.log(`${item.id}: before=${JSON.stringify(beforeMetrics[index])} after=${JSON.stringify(afterMetrics[index])}`)
   }
 }

@@ -183,6 +183,12 @@ family docs, and `TODO.md`.
     either remove the endpoint by contract or promote it to an explicit
     declaration. Enforce serialize/reparse family-and-body closure at the
     mutation boundary so the loss cannot hide in an in-memory AST.
+25. **Marked-route correctness has two contact coordinates.** The path vertex
+    can lie exactly on a target outline while an SVG marker extends past it
+    because `refX` names a different point in the marker geometry. Verify shaft
+    and visible marker contact separately, then make the intended marker tip the
+    reference point so orientation and stroke scaling cannot reintroduce the
+    overrun.
 
 ## Lessons from the consolidation audits
 

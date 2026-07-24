@@ -7,11 +7,6 @@ general-purpose endpoint router removed after PR #190:
 2. Flowchart and State shapes were painted by the renderer but independently
    approximated by clipping, port selection, and late route repair.
 
-PR #218 landed while this branch was in final validation and already made the
-source envelope the universal `accTitle` / `accDescr` authority. The rebase
-keeps that implementation and adds only a registry-derived all-family proof;
-it does not introduce a second accessibility abstraction.
-
 The common failure mode was authority drift. A new syntax form or shape could
 be correct in one consumer and silently wrong in another. The replacement
 makes inconsistent production states unrepresentable: parse once and project;
@@ -26,10 +21,10 @@ define paint and route geometry together.
 | Make admitted XYChart numbers serializable | XYChart mutation | Every finite JavaScript number is emitted as parser-compatible plain decimal, including exponent thresholds, subnormal values, `Number.MAX_VALUE`, and negative zero; malformed or upstream-incompatible authored lists stay opaque. |
 | Close mutation output through the registered parser | All structured families | A mutation must reparse to the same family and representation. Only a descriptor-verified `EMPTY_DIAGRAM` build scaffold may remain structured below the source grammar floor. The new gate exposed and fixed State transition removal silently dropping surviving implicit states. |
 | Preserve authored-vs-derived XY state | XYChart | Derived numeric ranges carry no authorship into agent serialization. |
-| Prove the rebased accessibility authority across the registry | All 15 registered families | Registry-derived parse/serialize/render matrix, block and closing-line suffix cases, and malformed-block preservation. Production ownership remains in PR #218's source envelope. |
 | Make one production shape profile authoritative | Flowchart v11 shapes and State pseudostates | A 48-shape catalog census requires every shape to declare an exact, conservative, or absent boundary plus side-attachment policy; paint, clipping, ports, straightening, and late route repair consume that profile. |
 | Keep verification independent | Route audit and rubric | `rendered-endpoint-diagnostics.ts` separately reconstructs exact silhouettes and declared envelope/none policies. Both the final route audit and visual rubric call it; production route construction does not. |
 | Prove late repair cannot undo correct clipping | 48 semantic shapes × LR/RL/TD/BT | Forced detours exercise route shortening after layout. Exact endpoints must satisfy both the production profile and independent diagnostic; the route audit must remain clean. |
+| Align visible arrow tips, not an interior marker point | Flowchart and State arrow markers | The arrow polygon tip is the SVG marker reference point. A production-SVG test fails under the old one-unit overrun and proves that the emitted tip and exact circle outline share one coordinate. |
 | Preserve historical evidence as history | Test-portfolio report | The July 19 candidate remains immutable and internally checked; each current gallery owns its live freshness receipt rather than rewriting the historical measurement when inputs grow. |
 | Show the material visual changes | Small circle and State start/end | A before/after contact sheet is generated from the pre-change and candidate revisions. |
 | Reconcile maintained documentation | Backlog, route contract, lessons | CONS-11 and CONS-16 leave the backlog; CONS-26 names only the remaining family grammar pairs. |
@@ -39,29 +34,24 @@ define paint and route geometry together.
 
 ![Before and after contact sheet for final shape endpoints](../../pr-assets/shape-outline-authority-before-after.png)
 
-The same public renderer and Mermaid source measure a 17.92px small-circle gap
-before the change and 0px after it. State start and end gaps move from 2px each
-to 0px. The generator reads both the painted circle and settled route endpoint
-from the emitted SVG; it does not place the measurements by hand. Regenerate
-with `bun run scripts/pr-assets/shape-outline-authority-evidence.ts`.
+The same public renderer and Mermaid source measure a 17.92px small-circle
+shaft gap and 16.92px arrow-tip gap before the change; both are 0px after it.
+The State start/end shaft gaps move from 2px to 0px and the final arrow-tip gap
+moves from 1px to 0px. The generator reads the circle path, settled route,
+marker reference, and polygon tip from emitted SVG; it fails if the baseline
+stops reproducing or the current contact is not closed. Regenerate with
+`bun run scripts/pr-assets/shape-outline-authority-evidence.ts`.
 
 ## Diagram-family implications
 
 | Family set | Change | Deliberately unchanged |
 |---|---|---|
 | XYChart | Renderer parsing is the grammar authority; the agent projects its AST and uses its text serializer. Parsed-diagram rendering now preserves quoted multiword axis titles and authored ranges instead of silently inferring a replacement scale. | Direct raw-source rendering, marks, and mutation policy. |
-| All 15 registered families | A new registry-derived test proves PR #218's source-envelope authority through parse, serialize, and render. | No new production accessibility behavior; each family still owns its body grammar and model projection. |
-| Flowchart and State | Rendering, clipping, cardinal ports, and every existing route-shortening/repair path consume the same boundary and side-attachment declaration. This fixes State start/end and `sm-circ` clipping that previously used layout-box radii and prevents later repairs from restoring a bounding-box endpoint on semantic polygons or small circles. State mutation also preserves an implicit endpoint as an explicit bare state when its last transition is removed. | ELK layout, side choice, bundling, label placement, marker sizing, and the removed general-purpose endpoint router. |
-| Other 12 families | No production change. The registry matrix makes their inherited accessibility contract explicit. | Their family-specific layout and graphical geometry do not use flowchart shape clipping. |
+| Flowchart and State | Rendering, clipping, cardinal ports, and every existing route-shortening/repair path consume the same boundary and side-attachment declaration. This fixes State start/end and `sm-circ` clipping that previously used layout-box radii and prevents later repairs from restoring a bounding-box endpoint on semantic polygons or small circles. Arrow markers now reference their actual tips rather than extending one marker unit through the outline. State mutation also preserves an implicit endpoint as an explicit bare state when its last transition is removed. | ELK layout, side choice, bundling, label placement, marker dimensions, and the removed general-purpose endpoint router. |
+| Other 12 families | No production change. | Their family-specific layout and graphical geometry do not use this Flowchart/State shape profile or Flowchart arrow-marker resource. |
 
-This separation matters: a universal source concern should be universal, while
-a flowchart silhouette model must not be smuggled into Sequence, Gantt, Radar,
-or other unrelated layout systems.
-
-The shared accessibility module is the sole semantic extractor. Narrow lexical
-scanners remain where the product needs exact source spans or must ignore
-metadata before family detection; they locate text but do not construct a
-second accessibility model.
+This separation matters: a flowchart silhouette model must not be smuggled into
+Sequence, Gantt, Radar, or other unrelated layout systems.
 
 ## Resolved tensions
 
@@ -86,17 +76,6 @@ declared state left it in memory but omitted it from serialization. The State
 mutator now promotes such survivors to bare declarations before the generic
 closure check, so the exception does not grow to cover a real data loss.
 
-### Pinned Mermaid syntax versus established compatibility
-
-Mermaid 11.16 documents a colon for inline accessibility values and no colon
-for a multiline block ([Mermaid accessibility options](https://mermaid.js.org/config/accessibility.html)).
-Agentic Mermaid already promises both compact colon and whitespace-separated
-inline forms at its universal source boundary. Removing the latter would be a
-breaking change unrelated to consolidation, so the shared recognizer preserves
-that documented project compatibility and serializers emit the canonical colon
-form. This is an intentional input-language superset, not a claim that the
-extra spelling is upstream Mermaid syntax.
-
 ### One production geometry versus independent proof
 
 The renderer, clipper, port projector, and late route repair must not carry
@@ -108,6 +87,17 @@ defines basic shapes through equivalent geometric paths, which supports sharing
 the geometric definition between paint and clipping
 ([SVG 2 basic shapes](https://www.w3.org/TR/SVG2/shapes.html),
 [SVG geometry elements](https://www.w3.org/TR/SVG2/types.html#InterfaceSVGGeometryElement)).
+
+### Shaft anchors versus marker contact
+
+An endpoint on the outline is insufficient when an SVG marker is attached to
+that endpoint. SVG places the marker's `refX`/`refY` reference point at the path
+vertex ([SVG Markers](https://www.w3.org/TR/svg-markers/)). The arrow polygon
+previously used `refX = width - 1`, so its tip extended one marker unit beyond a
+correct route endpoint and pierced small circles and the State final ring. The
+arrow tip now is the reference point (`refX = width` for end markers and `0`
+for the pre-rotated start marker). Marker dimensions, edge widths, and
+non-arrow marker families are unchanged.
 
 ### Exact silhouettes versus bounded complexity
 
@@ -141,7 +131,8 @@ step is a shared statement parser or event stream, one family at a time, with
 differential and unknown-line tests. Projecting from a lossy final AST merely
 moves the drift to a different boundary.
 
-Issue #88 also remains open: this work prevents authority drift and makes final
-endpoint contact auditable, but it does not establish a new normal-incidence
-port policy for tangential rectangle arrivals. TEST-5 retains the separate
-severity, certificate-consistency, and public-audit-enrollment decisions.
+PR #195 closed issue #88's residual-hitch and 4px-canyon decision. A future
+normal-incidence policy for tangential rectangle arrivals would be separate
+product work and currently has no backlog owner; it must not be implied by this
+endpoint-authority change. TEST-5 retains the separate severity,
+certificate-consistency, and public-audit-enrollment decisions.

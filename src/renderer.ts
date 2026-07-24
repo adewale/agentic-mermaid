@@ -161,13 +161,16 @@ export function lowerGraphScene(
 function arrowMarkerResources(color?: string): readonly MarkerDescriptor[] {
   const w = ARROW_HEAD.width
   const h = ARROW_HEAD.height
-  const refX = w - 1
+  // SVG places this reference point at the route vertex. Anchor the polygon
+  // tip itself so a correctly clipped route cannot push the visible arrow
+  // through the target outline.
+  const refX = w
   const stroke = color ?? 'var(--_arrow)'
   const suffix = color ? `-${markerSuffix(color)}` : ''
   const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
   return [
     { id: `arrowhead${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: refX, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint },
-    { id: `arrowhead-start${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: 1, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: w, y: 0 }, { x: 0, y: h / 2 }, { x: w, y: h }] }, paint },
+    { id: `arrowhead-start${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: 0, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: w, y: 0 }, { x: 0, y: h / 2 }, { x: w, y: h }] }, paint },
   ]
 }
 

@@ -9,10 +9,11 @@ at `http://127.0.0.1:9095/` and its deployed equivalent at
 
 ## Current-branch re-review
 
-The 2026-07-22 re-review covers the two geometry changes introduced after the
+The current re-review covers the two geometry changes introduced after the
 original production comparison. In all four style variants, State initial and
 final transition shafts now end on the painted pseudostate rings (a 2px gap in
-the previous shared-box approximation is now 0px). XYChart now retains the
+the previous shared-box approximation is now 0px), and the final arrow tip no
+longer extends through the outer ring. XYChart now retains the
 authored `Renders` y-axis title and `0 --> 100` range through the agent
 parse/serialize projection. The remaining 52 cells provide current-state
 regression context; this sheet is not presented as a causal before/after image
@@ -66,7 +67,7 @@ in all four treatments:
 | Family | Audited difference from the production capability floor |
 |---|---|
 | Flowchart | Node typography, padding, radius, border weight, and connector treatment change together; branch topology and labels are unchanged. |
-| State | State boxes and transitions inherit the same role face. Start/end markers keep their semantics and positions; transition shafts now meet the painted rings instead of the larger layout boxes. |
+| State | State boxes and transitions inherit the same role face. Transition shafts now meet the painted rings instead of the larger layout boxes, and the arrow tip uses that exact contact coordinate rather than extending one marker unit through the final ring. |
 | Sequence | Actor boxes and message/lifeline strokes project the brand face; request/response direction and message semantics remain unchanged. Separate fragment fixtures confirm resolved padding, divider clearance, and header-over-lifeline compositing. |
 | Timeline | Period/event cards inherit node/group/label fallbacks; chronological order and rail anchors remain intact. |
 | Class | Class surfaces, members, and relationships remain structurally identical while archetype paint and typography change. Endpoint overlays keep markers visible above class surfaces; the #178 marker-resource fix anchors composition/aggregation diamonds and lollipops wholly outside the owning class in both endpoint spellings and every direction. |
@@ -108,7 +109,7 @@ in all four treatments:
 After those corrections and the 2026-07-22 re-review, all 60 cells were
 inspected as four native-width variant crops: headings are distinct, text is
 readable, endpoint silhouettes remain complete, and cards remain inside their
-panels. State shaft endpoints and XY axis projection changed as described
+panels. State shaft/arrow-tip contact and XY axis projection changed as described
 above; other quantitative and family-authored emphasis geometry remains
 unchanged. The receipt additionally executes
 the sentinel across all registered families through default, rough, and hybrid
