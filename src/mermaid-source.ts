@@ -392,7 +392,7 @@ export interface NormalizedMermaidSource {
 
 const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
 const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
-const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
+const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
 
 export function normalizeMermaidSource(
   text: string,
@@ -484,6 +484,7 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     if (directive?.index === 0 && directive[0].length > 0) { wrapperEnd += directive[0].length; continue }
     const lineEnd = rest.indexOf('\n')
     const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
+    // COMMENT_LINE_REGEX accepts a CR terminator while this span retains it.
     if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
       wrapperEnd += lineEnd === -1 ? rest.length : lineEnd + 1
       continue

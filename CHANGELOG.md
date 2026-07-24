@@ -4,6 +4,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Fixed
+- Made parsed wrapper and family-body ownership disjoint and byte-exact, including empty and CRLF wrappers, so replacing an extension descriptor cannot duplicate leading comments, frontmatter, init directives, or blank lines.
+- Made MCP Registry publication retry-safe after an ambiguous publish result. The release workflow now checks the immutable exact-version endpoint, accepts an existing version only when its publisher-owned server metadata is structurally identical to the verified artifact, and fails closed on mismatches or malformed and unavailable responses.
+
 ## 0.3.0 — 2026-07-25
 
 ### Added

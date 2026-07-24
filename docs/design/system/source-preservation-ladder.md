@@ -20,7 +20,7 @@ modeled subset. Silent loss is never an acceptable level.
 
 | Construct class | Required behavior |
 |---|---|
-| Frontmatter / init directives / leading comments | Preserved in `meta.wrapperSource` and re-emitted verbatim by default; canonical wrapper synthesis is opt-in. |
+| Frontmatter / init directives / leading comments | Parsed source preserves the exact prefix before the family header in `meta.wrapperSource`, including `''`, while the body owns the disjoint exact suffix; re-emitted verbatim by default. Canonical wrapper synthesis is opt-in for synthesized payloads that omit `wrapperSource`. |
 | In-body comments | Preserved by opaque bodies; structured bodies must either preserve them or report `COMMENT_DROPPED`. |
 | Unknown family syntax | Use L1 opaque preservation when rendering remains safe; otherwise L0 named failure. |
 | Mermaid v11 `@{ ... }` metadata | Must not create phantom nodes or silently drop targets. Current safety floor preserves opaque/unsupported forms and consumes supported label metadata conservatively. Full typed-shape vocabulary remains separate (#44). |

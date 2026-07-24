@@ -165,6 +165,10 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
           ? { wrapperSource: authoredEnvelope.wrapperSource }
           : { wrapperSource: undefined }),
       }
+  // A parsed diagram always has an authored wrapper boundary, even when that
+  // exact prefix is empty. Keeping the empty string distinguishes “parsed
+  // source with no wrapper” from synthesized payloads, which omit
+  // wrapperSource and therefore request canonical wrapper synthesis.
   const meta = extractMeta(authoredEnvelope)
   const canonicalSource = authoredEnvelope.text
   const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource)
@@ -175,11 +179,14 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   )
   const tracedSourceMap = (map: SourceMap): SourceMap =>
     attachSourceMapSpans(map, canonicalSource, source, documentSpans)
-  // For opaque bodies, preserve original indentation/blank lines so the
-  // serializer can re-emit the untouched body. canonicalSource at the
-  // ValidDiagram level remains the normalized (line-trimmed) form used by
-  // the built-in renderer paths.
-  const opaqueSource = authoredEnvelope.body
+  // Opaque and extension bodies own the exact authored bytes AFTER the leading
+  // wrapper. The wrapper is retained separately in meta.wrapperSource, so
+  // deriving this value from the preprocessed body would leave leading
+  // comments/blank lines in both fields and duplicate them on serialization.
+  // Slicing the original source at the one core-owned boundary also preserves
+  // non-leading init directives and original line endings for every future
+  // registered family without descriptor-specific cleanup.
+  const opaqueSource = source.slice(familyLineBoundary)
 
   if (normalized.lines.length === 0) {
     errors.push({ code: 'EMPTY', message: 'Empty diagram' })
@@ -372,13 +379,12 @@ function longestCommonSubsequenceIndices(a: string[], b: string[]): number[] {
 
 function extractMeta(
   normalized: ReturnType<typeof normalizeMermaidSource>,
-  authoredWrapperSource = normalized.wrapperSource,
 ): ValidDiagramMeta {
   return {
     initDirectives: normalized.initDirectives as ValidDiagramMeta['initDirectives'],
     comments: normalized.comments,
     accessibility: normalized.accessibility,
-    ...(authoredWrapperSource !== undefined ? { wrapperSource: authoredWrapperSource } : {}),
+    wrapperSource: normalized.wrapperSource ?? '',
     ...(Object.keys(normalized.frontmatter).length > 0
       ? { frontmatter: normalized.frontmatter as ValidDiagramMeta['frontmatter'] }
       : {}),

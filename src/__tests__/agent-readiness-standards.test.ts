@@ -161,6 +161,17 @@ describe('agent-readiness standards syntax', () => {
     expect(npmPublishStep?.run).toContain('registry_integrity" = "$local_integrity')
     expect(npmPublishStep?.run).toContain('after an ambiguous publish; recovering publication')
     expect(npmPublishStep?.run).not.toContain('${{')
+    const mcpRecoveryStep = mcpPublishSteps.find(
+      (step: any) => step.name === 'Publish or recover the exact MCP Registry metadata',
+    )
+    expect(mcpRecoveryStep?.env?.MCP_REGISTRY_API_BASE)
+      .toBe('https://registry.modelcontextprotocol.io/v0.1')
+    expect(mcpRecoveryStep?.run).toContain('/servers/$encoded_server_name/versions/$encoded_server_version')
+    expect(mcpRecoveryStep?.run).toContain('.server == $expected[0]')
+    expect(mcpRecoveryStep?.run).toContain('./mcp-publisher login github-oidc')
+    expect(mcpRecoveryStep?.run).toContain('./mcp-publisher publish')
+    expect(mcpRecoveryStep?.run).toContain('after an ambiguous publish; recovering publication')
+    expect(mcpRecoveryStep?.run).not.toContain('${{')
     expect(publishWorkflow).not.toContain('sigstore@latest')
     expect(strategy).toContain('`bun run test`')
     expect(pullRequestTemplate).toContain('`bun run test`')
