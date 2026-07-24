@@ -27,9 +27,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    maxRawBytes: 3_288_608,
-    maxGzipBytes: 965_577,
-    maxBrotliBytes: 759_629,
+    maxRawBytes: 3_288_596,
+    maxGzipBytes: 965_575,
+    maxBrotliBytes: 759_657,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

@@ -189,6 +189,67 @@ describe('registered family public layout and verify APIs', () => {
     }
   })
 
+  test.each([
+    {
+      name: 'leading comments and blank lines',
+      wrapper: '%% retained wrapper comment\n\n',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
+      name: 'BOM and frontmatter',
+      wrapper: '\uFEFF---\ntitle: Wrapped\nconfig:\n  theme: dark\n---\n',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
+      name: 'leading init directives',
+      wrapper: '%%{init: {"theme":"dark"}}%%\n',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
+      name: 'CRLF wrappers and bodies',
+      wrapper: '%% retained wrapper comment\r\n\r\n',
+      body: 'lossyParseDiagram\r\n  must survive',
+    },
+    {
+      name: 'universal accessibility and non-leading init directives',
+      wrapper: '',
+      body: `lossyParseDiagram
+  accTitle: Shared title
+  %%{init: {"theme":"dark"}}%%
+  must survive`,
+    },
+  ])('keeps exact post-wrapper extension bytes for $name', ({ wrapper, body }) => {
+    const base = extensionDescriptor('lossy-parse', 'lossyParseDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: () => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: 'descriptor-owned lossy value',
+        data: { parsed: true },
+      }),
+    }
+    const source = wrapper + body
+    const unregister = registerFamily(descriptor)
+    try {
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok || parsed.value.body.kind !== 'extension') return
+      expect(parsed.value.meta.wrapperSource).toBe(wrapper)
+      expect(parsed.value.body.source).toBe(body)
+      expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+      const reparsed = parseRegisteredMermaid(serializeMermaid(parsed.value))
+      expect(reparsed.ok).toBe(true)
+      if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(`${source}\n`)
+    } finally {
+      unregister()
+    }
+  })
+
   test('gives newly registered families directive-free grammar and shared accessibility metadata', () => {
     const base = extensionDescriptor('shared-accessibility', 'sharedAccessibilityDiagram')
     let observed: { lines: readonly string[]; accessibility: unknown } | undefined
@@ -326,7 +387,7 @@ family payload
   })
 
   test('does not pass parsed extension data into a replacement descriptor version', () => {
-    const source = 'descriptorUpgradeDiagram\n  payload'
+    const source = '%% retained wrapper comment\ndescriptorUpgradeDiagram\n  payload'
     const v1Base = extensionDescriptor('descriptor-upgrade', 'descriptorUpgradeDiagram')
     const v1: FamilyDescriptor = {
       ...v1Base,

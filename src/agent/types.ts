@@ -679,11 +679,11 @@ export interface ValidDiagramMeta {
   accessibility: Accessibility
   /**
    * The leading source wrapper (frontmatter block, `%%{init}%%` directives,
-   * `%%` comments, and blank lines before the diagram header), preserved
-   * byte-verbatim. serializeMermaid re-emits it untouched by default;
-   * canonical wrapper synthesis is opt-in via `{ wrapper: 'canonical' }`.
-   * Absent on diagrams synthesized from JSON payloads, which fall back to
-   * canonical synthesis.
+   * `%%` comments, and blank lines before the diagram header): the exact bytes
+   * before the family header. Parsed diagrams retain it even when empty.
+   * serializeMermaid re-emits it untouched by default; canonical wrapper
+   * synthesis is opt-in via `{ wrapper: 'canonical' }`. Diagrams synthesized
+   * from JSON payloads omit it to request canonical synthesis.
    */
   wrapperSource?: string
   /**

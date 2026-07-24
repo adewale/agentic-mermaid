@@ -272,8 +272,128 @@ jobs:
           echo "$MCP_PUBLISHER_SHA256  mcp-publisher.tar.gz" | sha256sum --check --strict
           tar --extract --gzip --file mcp-publisher.tar.gz mcp-publisher
 
-      - name: Authenticate to MCP Registry
-        run: ./mcp-publisher login github-oidc
+      - name: Publish or recover the exact MCP Registry metadata
+        # The Registry makes each name/version immutable. Query that exact
+        # identity before publishing, and after any ambiguous publisher
+        # failure, so retries succeed only for semantically identical metadata.
+        # This job still executes no checked-out repository code.
+        env:
+          MCP_REGISTRY_API_BASE: https://registry.modelcontextprotocol.io/v0.1
+          MCP_REGISTRY_RETRY_DELAYS: 0 1 2 4 8
+        run: |
+          jq -e '
+            type == "object"
+            and .name == "io.github.adewale/agentic-mermaid"
+            and (.version | type == "string" and length > 0)
+          ' server.json >/dev/null
+          server_name="$(jq -er '.name' server.json)"
+          server_version="$(jq -er '.version' server.json)"
+          encoded_server_name="$(jq -rn --arg value "$server_name" '$value | @uri')"
+          encoded_server_version="$(jq -rn --arg value "$server_version" '$value | @uri')"
+          server_url="$MCP_REGISTRY_API_BASE/servers/$encoded_server_name/versions/$encoded_server_version"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
 
-      - name: Publish to MCP Registry
-        run: ./mcp-publisher publish
+          # Return: 0=exact match, 1=absent, 2=mismatch,
+          # 3=unavailable/unexpected HTTP, 4=malformed response.
+          registry_state() {
+            if http_status="$(curl \
+              --silent \
+              --show-error \
+              --location \
+              --connect-timeout 5 \
+              --max-time 10 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              "$server_url")"; then
+              curl_status=0
+            else
+              curl_status=$?
+            fi
+            if [ "$curl_status" -ne 0 ]; then
+              echo "Could not read immutable MCP Registry identity $server_name@$server_version" >&2
+              return 3
+            fi
+
+            case "$http_status" in
+              200)
+                if ! jq -e \
+                  --arg name "$server_name" \
+                  --arg version "$server_version" '
+                    type == "object"
+                    and (.server | type == "object")
+                    and .server.name == $name
+                    and .server.version == $version
+                    and (._meta | type == "object")
+                  ' "$response_file" >/dev/null; then
+                  echo "MCP Registry returned malformed metadata for $server_name@$server_version" >&2
+                  return 4
+                fi
+                if jq -e --slurpfile expected server.json \
+                  '.server == $expected[0]' "$response_file" >/dev/null; then
+                  return 0
+                fi
+                echo "MCP Registry already contains different metadata for $server_name@$server_version" >&2
+                return 2
+                ;;
+              404)
+                if ! jq -e '
+                  type == "object"
+                  and .title == "Not Found"
+                  and .status == 404
+                  and (.detail | type == "string")
+                  and (has("server") | not)
+                ' "$response_file" >/dev/null; then
+                  echo "MCP Registry returned a malformed not-found response for $server_name@$server_version" >&2
+                  return 4
+                fi
+                return 1
+                ;;
+              *)
+                echo "MCP Registry returned unexpected HTTP $http_status for $server_name@$server_version" >&2
+                return 3
+                ;;
+            esac
+          }
+
+          set +e
+          registry_state
+          registry_status=$?
+          set -e
+          case "$registry_status" in
+            0)
+              echo "$server_name@$server_version already contains the verified metadata; recovering publication"
+              exit 0
+              ;;
+            1) ;;
+            *) exit 1 ;;
+          esac
+
+          ./mcp-publisher login github-oidc
+          set +e
+          ./mcp-publisher publish
+          publish_status=$?
+          set -e
+          if [ "$publish_status" -eq 0 ]; then
+            exit 0
+          fi
+
+          # A concurrent or response-lost publish can fail locally after the
+          # Registry has committed the immutable version. Allow a short
+          # consistency window, but recover only from an exact JSON match.
+          for retry_delay in $MCP_REGISTRY_RETRY_DELAYS; do
+            sleep "$retry_delay"
+            set +e
+            registry_state
+            registry_status=$?
+            set -e
+            case "$registry_status" in
+              0)
+                echo "$server_name@$server_version contains the verified metadata after an ambiguous publish; recovering publication"
+                exit 0
+                ;;
+              1|3) ;;
+              *) exit 1 ;;
+            esac
+          done
+          exit "$publish_status"
