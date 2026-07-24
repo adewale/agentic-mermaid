@@ -16,24 +16,21 @@
 // CANNOT ship without a fuzz generator. The seed is pinned for cross-run
 // reproducibility (a gap in the rest of the property suite).
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import {
-  parseRegisteredMermaid as parseMermaid, layoutMermaid, renderMermaidSVG, serializeMermaid,
-  describeMermaidFacts,
-} from '../agent/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
+import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
+import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
+import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
+import { stateBodyToGraph } from '../agent/state-body.ts'
+import type { ParsedDiagram, RenderedLayout } from '../agent/types.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid as parseRendererGraph } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
-import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
-import { stateBodyToGraph } from '../agent/state-body.ts'
-import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
-import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import type { ParsedDiagram, RenderedLayout } from '../agent/types.ts'
-import type { MermaidGraph } from '../types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import type { MermaidGraph } from '../types.ts'
+import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 const SEED = 0x5eed1234
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
@@ -64,7 +61,11 @@ function assertWellFormedSvg(svg: string): void {
   expect(svg.includes('NaN') || svg.includes('Infinity') || svg.includes('undefined')).toBe(false)
 }
 
-interface SemanticInventory { nodes: string[]; edges: string[]; groups: string[] }
+interface SemanticInventory {
+  nodes: string[]
+  edges: string[]
+  groups: string[]
+}
 const sorted = (values: string[]): string[] => values.sort(compareCodePointStrings)
 const item = (id: string, label?: string): string => `${id}|${label ?? ''}`
 const edge = (from: string, to: string, label?: string): string => `${from}->${to}|${label ?? ''}`
@@ -90,51 +91,83 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
     }
   }
   switch (body.kind) {
-    case 'sequence': return {
-      nodes: sorted(body.participants.map(p => item(p.id, p.label))),
-      edges: sorted(body.messages.map(m => edge(m.from, m.to, m.text))), groups: [],
-    }
-    case 'class': return {
-      nodes: sorted(body.classes.map(c => item(c.id, c.label ?? c.id))),
-      edges: sorted(body.relations.map(r => edge(r.from, r.to, r.label))),
-      groups: sorted((body.namespaces ?? []).map(ns => group(ns.name, ns.label ?? ns.name, body.classes.filter(c => c.namespace === ns.name).map(c => c.id)))),
-    }
-    case 'er': return {
-      nodes: sorted(body.entities.map(e => item(e.id, e.label ?? e.id))),
-      edges: sorted(body.relations.map(r => edge(r.from, r.to, r.label))), groups: [],
-    }
-    case 'architecture': return {
-      nodes: sorted([
-        ...body.services.map(s => item(s.id, s.label)),
-        ...body.junctions.map(j => item(j.id)),
-      ]),
-      edges: sorted(body.edges.map(e => edge(e.source.id, e.target.id, e.label))),
-      groups: sorted(body.groups.map(g => group(g.id, g.label, [
-        ...body.services.filter(s => s.parentId === g.id).map(s => s.id),
-        ...body.junctions.filter(j => j.parentId === g.id).map(j => j.id),
-      ]))),
-    }
+    case 'sequence':
+      return {
+        nodes: sorted(body.participants.map(p => item(p.id, p.label))),
+        edges: sorted(body.messages.map(m => edge(m.from, m.to, m.text))),
+        groups: [],
+      }
+    case 'class':
+      return {
+        nodes: sorted(body.classes.map(c => item(c.id, c.label ?? c.id))),
+        edges: sorted(body.relations.map(r => edge(r.from, r.to, r.label))),
+        groups: sorted(
+          (body.namespaces ?? []).map(ns =>
+            group(
+              ns.name,
+              ns.label ?? ns.name,
+              body.classes.filter(c => c.namespace === ns.name).map(c => c.id),
+            ),
+          ),
+        ),
+      }
+    case 'er':
+      return {
+        nodes: sorted(body.entities.map(e => item(e.id, e.label ?? e.id))),
+        edges: sorted(body.relations.map(r => edge(r.from, r.to, r.label))),
+        groups: [],
+      }
+    case 'architecture':
+      return {
+        nodes: sorted([...body.services.map(s => item(s.id, s.label)), ...body.junctions.map(j => item(j.id))]),
+        edges: sorted(body.edges.map(e => edge(e.source.id, e.target.id, e.label))),
+        groups: sorted(body.groups.map(g => group(g.id, g.label, [...body.services.filter(s => s.parentId === g.id).map(s => s.id), ...body.junctions.filter(j => j.parentId === g.id).map(j => j.id)]))),
+      }
     case 'xychart': {
       const categories = body.xAxis?.categories ?? []
       return { nodes: sorted(body.series.flatMap(series => series.values.map((_v, i) => categories[i] ?? String(i)))), edges: [], groups: [] }
     }
-    case 'pie': return { nodes: sorted(body.slices.map(slice => slice.label)), edges: [], groups: [] }
-    case 'quadrant': return { nodes: sorted(body.points.map(point => point.label)), edges: [], groups: [] }
-    case 'journey': return {
-      nodes: sorted(body.sections.flatMap(section => section.tasks.map(task => item(task.id, task.text)))), edges: [],
-      groups: sorted(body.sections.map(section => group(section.id, section.label, section.tasks.map(task => task.id)))),
-    }
-    case 'timeline': return {
-      nodes: sorted(body.sections.flatMap(section => section.periods.flatMap(period => [
-        item(`${period.id}:period`, period.label), ...period.events.map(event => item(event.id, event.text)),
-      ]))), edges: [], groups: [],
-    }
-    case 'gantt': return {
-      nodes: sorted(body.sections.flatMap(section => section.tasks.map(task => item(task.taskId ?? task.id, task.label)))), edges: [],
-      groups: sorted(body.sections.map((section, index) => group(`section#${index}`, section.label, section.tasks.map(task => task.taskId ?? task.id)))),
-    }
+    case 'pie':
+      return { nodes: sorted(body.slices.map(slice => slice.label)), edges: [], groups: [] }
+    case 'quadrant':
+      return { nodes: sorted(body.points.map(point => point.label)), edges: [], groups: [] }
+    case 'journey':
+      return {
+        nodes: sorted(body.sections.flatMap(section => section.tasks.map(task => item(task.id, task.text)))),
+        edges: [],
+        groups: sorted(
+          body.sections.map(section =>
+            group(
+              section.id,
+              section.label,
+              section.tasks.map(task => task.id),
+            ),
+          ),
+        ),
+      }
+    case 'timeline':
+      return {
+        nodes: sorted(body.sections.flatMap(section => section.periods.flatMap(period => [item(`${period.id}:period`, period.label), ...period.events.map(event => item(event.id, event.text))]))),
+        edges: [],
+        groups: [],
+      }
+    case 'gantt':
+      return {
+        nodes: sorted(body.sections.flatMap(section => section.tasks.map(task => item(task.taskId ?? task.id, task.label)))),
+        edges: [],
+        groups: sorted(
+          body.sections.map((section, index) =>
+            group(
+              `section#${index}`,
+              section.label,
+              section.tasks.map(task => task.taskId ?? task.id),
+            ),
+          ),
+        ),
+      }
     case 'mindmap': {
-      const nodes: string[] = [], edges: string[] = []
+      const nodes: string[] = [],
+        edges: string[] = []
       const visit = (node: import('../mindmap/types.ts').MindmapNode, parent?: string): void => {
         nodes.push(item(node.id, node.label))
         if (parent) edges.push(edge(parent, node.id))
@@ -143,30 +176,54 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
       visit(body.root)
       return { nodes: sorted(nodes), edges: sorted(edges), groups: [] }
     }
-    case 'gitgraph': return {
-      nodes: sorted(body.commits.map(commit => item(commit.id, commit.message ?? commit.id))),
-      edges: sorted(body.commits.flatMap(commit => commit.parents.map(parent => edge(parent, commit.id)))),
-      groups: sorted(body.branches.map(branch => group(`branch:${branch.name}`, branch.name, body.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id)))),
-    }
+    case 'gitgraph':
+      return {
+        nodes: sorted(body.commits.map(commit => item(commit.id, commit.message ?? commit.id))),
+        edges: sorted(body.commits.flatMap(commit => commit.parents.map(parent => edge(parent, commit.id)))),
+        groups: sorted(
+          body.branches.map(branch =>
+            group(
+              `branch:${branch.name}`,
+              branch.name,
+              body.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id),
+            ),
+          ),
+        ),
+      }
     case 'radar': {
       // Complete public projection: labels, marks, furniture, and ring bounds.
       const n = body.axes.length
       return {
         nodes: sorted([
           ...body.axes.map((axis, i) => item(`axis#${i}:${axis.id}`, axis.label)),
-          ...body.curves.flatMap(curve => curve.values.length === n
-            ? curve.values.map((_v, vertexIndex) => item(`dot:${curve.id}:${vertexIndex}`))
-            : []),
-          ...(body.showLegend ? body.curves.flatMap((curve, index) => [
-            item(`legend-swatch#${index}`), item(`legend-label#${index}`, curve.label),
-          ]) : []),
+          ...body.curves.flatMap(curve => (curve.values.length === n ? curve.values.map((_v, vertexIndex) => item(`dot:${curve.id}:${vertexIndex}`)) : [])),
+          ...(body.showLegend ? body.curves.flatMap((curve, index) => [item(`legend-swatch#${index}`), item(`legend-label#${index}`, curve.label)]) : []),
           ...(body.title === undefined ? [] : [item('title', body.title)]),
         ]),
         edges: [],
         groups: sorted(Array.from({ length: body.ticks }, (_, index) => group(`ring:${index}`, undefined, []))),
       }
     }
-    default: throw new Error(`structured inventory unavailable for ${body.kind}`)
+    case 'sankey': {
+      // Distinct labels are the node boxes; each CSV row is one ribbon edge.
+      const labels: string[] = []
+      const seen = new Set<string>()
+      for (const link of body.links) {
+        for (const label of [link.source, link.target]) {
+          if (!seen.has(label)) {
+            seen.add(label)
+            labels.push(label)
+          }
+        }
+      }
+      return {
+        nodes: sorted(labels.map(label => item(label, label))),
+        edges: sorted(body.links.map(link => edge(link.source, link.target))),
+        groups: [],
+      }
+    }
+    default:
+      throw new Error(`structured inventory unavailable for ${body.kind}`)
   }
 }
 
@@ -179,17 +236,11 @@ function rendererInventory(d: ParsedDiagram, canonical: string): SemanticInvento
   } else {
     layout = layoutFamilyToRendered({ ...d, canonicalSource: canonical })!
   }
-  const plainLabels = layout.kind === 'pie'
-    ? layout.nodes.map(node => (node.label ?? '').replace(/ \([^)]*%\)$/, ''))
-    : layout.kind === 'xychart' || layout.kind === 'quadrant'
-      ? layout.nodes.map(node => node.label ?? '')
-      : null
+  const plainLabels = layout.kind === 'pie' ? layout.nodes.map(node => (node.label ?? '').replace(/ \([^)]*%\)$/, '')) : layout.kind === 'xychart' || layout.kind === 'quadrant' ? layout.nodes.map(node => node.label ?? '') : null
   return {
     nodes: sorted(plainLabels ?? layout.nodes.map(node => item(node.id, node.label))),
     edges: sorted(layout.edges.map(e => edge(e.from, e.to, e.label?.text))),
-    groups: layout.kind === 'xychart' || layout.kind === 'quadrant'
-      ? []
-      : sorted(layout.groups.map(g => group(g.id, g.label, g.members))),
+    groups: layout.kind === 'xychart' || layout.kind === 'quadrant' ? [] : sorted(layout.groups.map(g => group(g.id, g.label, g.members))),
   }
 }
 
@@ -216,16 +267,18 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
     const [kmin, kmax] = fam.kRange
     // Structural variation: vary the entity count across the whole valid range,
     // relabel via tag, and randomly append an add-primary / add-relation snippet.
-    const srcArb = fc.record({
-      k: fc.integer({ min: kmin, max: kmax }),
-      tag: tagArb,
-      extra: fc.constantFrom('none', 'primary', 'relation'),
-    }).map(({ k, tag, extra }) => {
-      let s = fam.build(k, tag)
-      if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
-      if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
-      return s
-    })
+    const srcArb = fc
+      .record({
+        k: fc.integer({ min: kmin, max: kmax }),
+        tag: tagArb,
+        extra: fc.constantFrom('none', 'primary', 'relation'),
+      })
+      .map(({ k, tag, extra }) => {
+        let s = fam.build(k, tag)
+        if (extra === 'primary' && fam.addPrimary) s += fam.addPrimary.snippet(k, tag)
+        if (extra === 'relation' && fam.addRelation) s += fam.addRelation(k, tag)
+        return s
+      })
 
     test(`${fam.family}: serializer output reparses through the agent and renderer without semantic drift`, () => {
       fc.assert(
@@ -253,9 +306,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           // than coordinates: canonical declaration order may intentionally
           // change deterministic geometry (notably architecture), but may not
           // add/drop/retarget renderer nodes, edges, groups, labels, or roles.
-          expect(rendererSemanticProjection(layoutMermaid(reparsed.value))).toEqual(
-            rendererSemanticProjection(layoutMermaid(original.value)),
-          )
+          expect(rendererSemanticProjection(layoutMermaid(reparsed.value))).toEqual(rendererSemanticProjection(layoutMermaid(original.value)))
           assertWellFormedSvg(renderMermaidSVG(canonical))
         }),
         { numRuns: 30, seed: SEED ^ 0x51a1 },

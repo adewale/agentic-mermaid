@@ -2,12 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import {
-  asArchitecture, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asSequence, asState, asTimeline, asXyChart, asMindmap, asGitGraph, asRadar,
-  layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
-} from '../agent/index.ts'
-import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
+import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
+import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
 import { stripFormattingTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
@@ -59,13 +56,16 @@ interface Manifest {
 
 interface CompanionOracle {
   upstream: { commit: string }
-  accounting: Record<'mindmap' | 'gitgraph', {
-    consideredBlocks: number
-    importedCases: number
-    importedBlocks: number
-    excludedBlocks: number
-    deferredBlocks: number
-  }>
+  accounting: Record<
+    'mindmap' | 'gitgraph',
+    {
+      consideredBlocks: number
+      importedCases: number
+      importedBlocks: number
+      excludedBlocks: number
+      deferredBlocks: number
+    }
+  >
 }
 
 interface LocalGapBudget {
@@ -97,18 +97,7 @@ const exclusions = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-sui
 const ratchet = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/ratchet.json'), 'utf8')) as Ratchet
 const companionOracle = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'), 'utf8')) as CompanionOracle
 const companionFamilies = new Set(Object.keys(companionOracle.accounting))
-const documentedReasons = new Set([
-  'api-internal',
-  'upstream-negative',
-  'local-parse-gap',
-  'local-verify-gap',
-  'local-layout-gap',
-  'local-roundtrip-gap',
-  'unsupported-header',
-  'unsupported-syntax',
-  'unsupported-structured-syntax',
-  'unextracted-dynamic-source',
-])
+const documentedReasons = new Set(['api-internal', 'upstream-negative', 'local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax', 'unextracted-dynamic-source'])
 const localGapReasons = new Set(['local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax'])
 const narrowerByFamily: Record<DiagramKind, (d: ParsedDiagram) => ValidDiagram | null> = {
   flowchart: asFlowchart,
@@ -126,6 +115,7 @@ const narrowerByFamily: Record<DiagramKind, (d: ParsedDiagram) => ValidDiagram |
   mindmap: asMindmap,
   gitgraph: asGitGraph,
   radar: asRadar,
+  sankey: asSankey,
 }
 
 function layoutLabels(layout: ReturnType<typeof layoutMermaid>): string[] {
@@ -161,12 +151,20 @@ function localGapBudget(): LocalGapBudget {
     totalBlocks: budget.totalBlocks,
     byReason: sortRecord(budget.byReason),
     byFamily: sortRecord(budget.byFamily),
-    byFamilyReason: Object.fromEntries(Object.entries(budget.byFamilyReason).sort(([a], [b]) => compareCodePointStrings(a, b)).map(([family, values]) => [family, sortRecord(values)])),
+    byFamilyReason: Object.fromEntries(
+      Object.entries(budget.byFamilyReason)
+        .sort(([a], [b]) => compareCodePointStrings(a, b))
+        .map(([family, values]) => [family, sortRecord(values)]),
+    ),
   }
 }
 
 function sortRecord(values: Record<string, number>): Record<string, number> {
-  return Object.fromEntries(Object.entries(values).filter(([, n]) => n > 0).sort(([a], [b]) => compareCodePointStrings(a, b)))
+  return Object.fromEntries(
+    Object.entries(values)
+      .filter(([, n]) => n > 0)
+      .sort(([a], [b]) => compareCodePointStrings(a, b)),
+  )
 }
 
 function expectBudgetAtOrBelow(observed: LocalGapBudget, budget: LocalGapBudget): void {
@@ -190,11 +188,13 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
     const manifested = new Set(manifest.families.map(f => f.family))
     const renderable = BUILTIN_FAMILY_METADATA.map(f => f.id)
     expect(renderable.length).toBeGreaterThan(0)
-    expect(manifest.upstream).toEqual(expect.objectContaining({
-      repo: 'mermaid-js/mermaid',
-      revision: 'a2d9686451df7c4644a3eeca20535bbd4c5776b0',
-      license: 'MIT',
-    }))
+    expect(manifest.upstream).toEqual(
+      expect.objectContaining({
+        repo: 'mermaid-js/mermaid',
+        revision: 'a2d9686451df7c4644a3eeca20535bbd4c5776b0',
+        license: 'MIT',
+      }),
+    )
     for (const family of renderable) {
       expect(manifested.has(family)).toBe(true)
       const row = manifest.families.find(f => f.family === family)
@@ -274,11 +274,13 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
       }
       if (localGapReasons.has(e.reason)) {
         expect(e.disposition).toBeUndefined()
-        expect(e.tracking).toEqual(expect.objectContaining({
-          issue: expect.stringMatching(/^#[0-9]+$/),
-          owner: 'BUILD-20',
-          target: 'convert-to-case',
-        }))
+        expect(e.tracking).toEqual(
+          expect.objectContaining({
+            issue: expect.stringMatching(/^#[0-9]+$/),
+            owner: 'BUILD-20',
+            target: 'convert-to-case',
+          }),
+        )
         expect(e.tracking!.lane).toMatch(/^[a-z0-9-]+-parity$/)
         expect(['P0', 'P1', 'P2', 'P3']).toContain(e.tracking!.priority)
       } else {
@@ -286,11 +288,13 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
         expect(e.tracking).toBeUndefined()
         expect(e.source).toBeUndefined()
         expect(e.ours).toBeUndefined()
-        expect(e.upstream).toEqual(expect.objectContaining({
-          repo: 'mermaid-js/mermaid',
-          files: expect.any(Array),
-          blocks: expect.any(Array),
-        }))
+        expect(e.upstream).toEqual(
+          expect.objectContaining({
+            repo: 'mermaid-js/mermaid',
+            files: expect.any(Array),
+            blocks: expect.any(Array),
+          }),
+        )
         expect(e.upstream!.files.length).toBeGreaterThan(0)
         expect(e.upstream!.blocks.length).toBeGreaterThan(0)
       }
@@ -350,7 +354,11 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
         if (e.ours!.verifyOk !== undefined) expect(safeVerifyOk(parsed.value)).toBe(e.ours!.verifyOk)
         if (e.ours!.layoutOk !== undefined) {
           let layoutOk = true
-          try { layoutMermaid(parsed.value) } catch { layoutOk = false }
+          try {
+            layoutMermaid(parsed.value)
+          } catch {
+            layoutOk = false
+          }
           expect(layoutOk).toBe(e.ours!.layoutOk)
         }
         if (e.ours!.roundtripOk !== undefined) {

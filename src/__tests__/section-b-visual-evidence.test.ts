@@ -2,13 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { buildSectionBBrandEvidence, buildSectionBBrandEvidenceReceipt, SECTION_B_BASELINE_COMMIT, sectionBVariantHeadingMarkup } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 import { knownBuiltinFamilies } from '../agent/families.ts'
-import {
-  SECTION_B_BASELINE_COMMIT,
-  buildSectionBBrandEvidence,
-  buildSectionBBrandEvidenceReceipt,
-  sectionBVariantHeadingMarkup,
-} from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PNG = join(ROOT, 'docs/design/families/section-b-brand-evidence.png')
@@ -36,7 +31,7 @@ describe('Section B generated visual evidence', () => {
   test('byte-matches the registry-driven renderer output and is reviewable at native size', () => {
     const checked = readFileSync(PNG)
     expect(buildSectionBBrandEvidence()).toEqual(checked)
-    expect(pngDimensions(checked)).toEqual({ width: 1560, height: 7944 })
+    expect(pngDimensions(checked)).toEqual({ width: 1560, height: 9464 })
     expect(checked.byteLength).toBeGreaterThan(500_000)
   }, 120_000)
 
@@ -44,22 +39,24 @@ describe('Section B generated visual evidence', () => {
     const receipt = JSON.parse(readFileSync(RECEIPT, 'utf8'))
     expect(receipt).toEqual(buildSectionBBrandEvidenceReceipt())
     expect(receipt.families).toEqual(knownBuiltinFamilies())
-    expect(receipt.variants).toEqual([
-      'Sentinel · every channel deliberately distinctive',
-      'Holdout · warm editorial',
-      'Holdout · light technical',
-      'Holdout · dark operations',
-    ])
+    expect(receipt.variants).toEqual(['Sentinel · every channel deliberately distinctive', 'Holdout · warm editorial', 'Holdout · light technical', 'Holdout · dark operations'])
     expect(receipt.outputPaths).toEqual({
       graphicalCells: 'public native renderMermaidPNG',
       graphicalBackends: 'public renderMermaidSVG + renderMermaidPNG sentinel probes',
       terminal: 'public renderMermaidASCII (Unicode, no color)',
     })
-    expect(receipt.graphicalBackends).toEqual(Object.fromEntries(['default', 'rough', 'hybrid'].map(backend => [backend, {
-      familyCount: knownBuiltinFamilies().length,
-      svgSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-      pngSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-    }])))
+    expect(receipt.graphicalBackends).toEqual(
+      Object.fromEntries(
+        ['default', 'rough', 'hybrid'].map(backend => [
+          backend,
+          {
+            familyCount: knownBuiltinFamilies().length,
+            svgSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+            pngSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+          },
+        ]),
+      ),
+    )
     expect(receipt.terminalSha256).toMatch(/^[a-f0-9]{64}$/)
     expect(receipt.fontInputs).toEqual([
       { path: 'assets/fonts/DejaVuSans-Bold.ttf', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
@@ -76,9 +73,7 @@ describe('Section B generated visual evidence', () => {
     expect(receipt.baseline.command).toContain('eval/section-b-brand-evidence/role-style.json')
     expect(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/baseline.mmd'), 'utf8')).toContain('flowchart LR')
     expect(JSON.parse(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/role-style.json'), 'utf8'))).toHaveProperty('roles.node')
-    expect(receipt.outputs).toEqual([
-      expect.objectContaining({ path: 'docs/design/families/section-b-brand-evidence.png', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) }),
-    ])
+    expect(receipt.outputs).toEqual([expect.objectContaining({ path: 'docs/design/families/section-b-brand-evidence.png', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) })])
     expect(receipt.outputs[0].sha256).toBe(createHash('sha256').update(readFileSync(PNG)).digest('hex'))
     const approval = JSON.parse(readFileSync(APPROVAL, 'utf8'))
     expect(receipt.visualApproval).toEqual({
@@ -89,8 +84,7 @@ describe('Section B generated visual evidence', () => {
       reviewer: approval.reviewer,
       audit: approval.audit,
     })
-    expect(approval.scope).toContain('60 family-by-variant cells')
+    expect(approval.scope).toContain('64 family-by-variant cells')
     expect(readFileSync(join(ROOT, 'docs/style-authoring.md'), 'utf8')).toContain('plus three holdout styles')
   }, 120_000)
-
 })

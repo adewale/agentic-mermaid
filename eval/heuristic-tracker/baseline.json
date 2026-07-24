@@ -880,5 +880,16 @@
     "groupOverlaps": 0,
     "labelled": 1,
     "journeyScore": null
+  },
+  "family/sankey": {
+    "kind": "family",
+    "hard": 0,
+    "score": 100,
+    "offCanvas": 0,
+    "nodeOverlaps": 0,
+    "groupBreaches": 0,
+    "groupOverlaps": 0,
+    "labelled": 1,
+    "journeyScore": null
   }
 }

@@ -1,14 +1,14 @@
 // Core agent surface: parse, serialize, mutate (flowchart + sequence),
 // verify, round-trip, sequence fidelity fallback, synthesizeFromGraph, Finite.
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
-import { mutate } from '../agent/mutate.ts'
-import { verifyMermaid } from '../agent/verify.ts'
-import { asFlowchart, asState, asSequence, toFinite, WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
+import { asFlowchart, asSequence, asState, toFinite, WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 
 function parse(src: string) {
   const r = parseMermaid(src)
@@ -16,13 +16,19 @@ function parse(src: string) {
   return r.value
 }
 function flowchart(src: string): FlowchartValidDiagram {
-  const f = asFlowchart(parse(src)); if (!f) throw new Error('not flowchart'); return f
+  const f = asFlowchart(parse(src))
+  if (!f) throw new Error('not flowchart')
+  return f
 }
 function sequence(src: string): SequenceValidDiagram {
-  const s = asSequence(parse(src)); if (!s) throw new Error('not sequence'); return s
+  const s = asSequence(parse(src))
+  if (!s) throw new Error('not sequence')
+  return s
 }
 describe('parseRegisteredMermaid', () => {
-  test('flowchart', () => { expect(parse('flowchart TD\n  A --> B').body.kind).toBe('flowchart') })
+  test('flowchart', () => {
+    expect(parse('flowchart TD\n  A --> B').body.kind).toBe('flowchart')
+  })
   test('frontmatter into meta', () => {
     expect(parse('---\ntitle: T\n---\nflowchart TD\n  A --> B').meta.frontmatter?.title).toBe('T')
   })
@@ -31,9 +37,12 @@ describe('parseRegisteredMermaid', () => {
   })
   test('accTitle/accDescr', () => {
     const d = parse('flowchart TD\n  accTitle: T\n  accDescr: D\n  A --> B')
-    expect(d.meta.accessibility.title).toBe('T'); expect(d.meta.accessibility.descr).toBe('D')
+    expect(d.meta.accessibility.title).toBe('T')
+    expect(d.meta.accessibility.descr).toBe('D')
   })
-  test('empty source errors', () => { expect(parseMermaid('').ok).toBe(false) })
+  test('empty source errors', () => {
+    expect(parseMermaid('').ok).toBe(false)
+  })
   test('unknown headers use the open preserved-family envelope', () => {
     const r = parseMermaid('notADiagram\n X')
     expect(r).toMatchObject({
@@ -53,7 +62,9 @@ describe('parseRegisteredMermaid', () => {
       ['architecture-beta\n  service g(server)[g]', 'architecture'],
       ['xychart-beta\n  bar [1,2,3]', 'xychart'],
     ] as const) {
-      const d = parse(s); expect(d.kind).toBe(k); expect(d.body.kind).toBe(k)
+      const d = parse(s)
+      expect(d.kind).toBe(k)
+      expect(d.body.kind).toBe(k)
     }
   })
 })
@@ -86,16 +97,7 @@ describe('sequence parsing — structured', () => {
 // (segment-preserving), add_message works, and the alt block survives verbatim
 // in its original position after serialize.
 describe('BUILD-18 segment-preserving sequence body (headline)', () => {
-  const SRC = [
-    'sequenceDiagram',
-    '  A->>B: ping',
-    '  alt success',
-    '    B-->>A: ok',
-    '  else failure',
-    '    B-->>A: nope',
-    '  end',
-    '  A->>B: bye',
-  ].join('\n')
+  const SRC = ['sequenceDiagram', '  A->>B: ping', '  alt success', '    B-->>A: ok', '  else failure', '    B-->>A: nope', '  end', '  A->>B: bye'].join('\n')
 
   test('alt block → typed fragment while top-level message addressing remains stable', () => {
     const d = parse(SRC)
@@ -140,14 +142,11 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
   const textArb = fc.stringMatching(/^[a-z][a-z ]{0,12}[a-z]$/)
   const structuredMsg = fc.tuple(idArb, idArb, textArb).map(([f, t, x]) => `  ${f}->>${t}: ${x}`)
   const noteLine = fc.tuple(idArb, textArb).map(([a, x]) => `  Note over ${a}: ${x}`)
-  const altBlock = fc.tuple(textArb, structuredMsg, textArb, structuredMsg).map(
-    ([a, m1, b, m2]) => `  alt ${a}\n  ${m1}\n  else ${b}\n  ${m2}\n  end`,
-  )
+  const altBlock = fc.tuple(textArb, structuredMsg, textArb, structuredMsg).map(([a, m1, b, m2]) => `  alt ${a}\n  ${m1}\n  else ${b}\n  ${m2}\n  end`)
   const loopBlock = fc.tuple(textArb, structuredMsg).map(([a, m]) => `  loop ${a}\n  ${m}\n  end`)
   const opaqueSeg = fc.oneof(noteLine, altBlock, loopBlock)
   const segmentArb = fc.oneof(structuredMsg, opaqueSeg)
-  const bodyArb = fc.array(segmentArb, { minLength: 1, maxLength: 8 })
-    .map(segs => 'sequenceDiagram\n' + segs.join('\n'))
+  const bodyArb = fc.array(segmentArb, { minLength: 1, maxLength: 8 }).map(segs => 'sequenceDiagram\n' + segs.join('\n'))
 
   // Property 1: parse → serialize reproduces ALL original non-blank lines in
   // order. Whitespace is canonicalized only on structured lines; opaque lines
@@ -155,44 +154,52 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
   // two-space indent, opaque lines keep their original text) to assert order
   // and content survive.
   test('property: interleaved structured + opaque lines round-trip in order', () => {
-    fc.assert(fc.property(bodyArb, src => {
-      const d = parse(src)
-      if (d.body.kind !== 'sequence') return // un-segmentable falls back; covered elsewhere
-      const out = serializeMermaid(d).trimEnd()
-      const origNonBlank = src.split('\n').map(l => l.trim()).filter(Boolean)
-      const outNonBlank = out.split('\n').map(l => l.trim()).filter(Boolean)
-      expect(outNonBlank).toEqual(origNonBlank)
-      // And the body is genuinely structured, not the opaque fallback.
-      expect(asSequence(d)).not.toBeNull()
-      // Idempotent: re-parse → same serialize.
-      expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
-    }), { numRuns: 200 })
+    fc.assert(
+      fc.property(bodyArb, src => {
+        const d = parse(src)
+        if (d.body.kind !== 'sequence') return // un-segmentable falls back; covered elsewhere
+        const out = serializeMermaid(d).trimEnd()
+        const origNonBlank = src
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean)
+        const outNonBlank = out
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean)
+        expect(outNonBlank).toEqual(origNonBlank)
+        // And the body is genuinely structured, not the opaque fallback.
+        expect(asSequence(d)).not.toBeNull()
+        // Idempotent: re-parse → same serialize.
+        expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
+      }),
+      { numRuns: 200 },
+    )
   })
 
   // Property 2: remove_message(i) never touches opaque-block bytes. We capture
   // each opaque-block's serialized text before, then after removal, and assert
   // every opaque block survives byte-for-byte.
   test('property: remove_message leaves every opaque-block byte-range unchanged', () => {
-    fc.assert(fc.property(bodyArb, src => {
-      const d = parse(src)
-      const s = asSequence(d)
-      if (!s) return
-      if (s.body.messages.length === 0) return
-      const opaqueBefore = (s.body.statements ?? [])
-        .filter(st => st.kind === 'opaque-block')
-        .map(st => (st as { lines: string[] }).lines.join('\n'))
-      const idx = s.body.messages.length - 1
-      const r = mutate(s, { kind: 'remove_message', index: idx })
-      expect(r.ok).toBe(true)
-      if (!r.ok) return
-      const opaqueAfter = (r.value.body.statements ?? [])
-        .filter(st => st.kind === 'opaque-block')
-        .map(st => (st as { lines: string[] }).lines.join('\n'))
-      // Opaque blocks are untouched: same count, same bytes, same order.
-      expect(opaqueAfter).toEqual(opaqueBefore)
-      // And exactly one message was removed.
-      expect(r.value.body.messages.length).toBe(s.body.messages.length - 1)
-    }), { numRuns: 200 })
+    fc.assert(
+      fc.property(bodyArb, src => {
+        const d = parse(src)
+        const s = asSequence(d)
+        if (!s) return
+        if (s.body.messages.length === 0) return
+        const opaqueBefore = (s.body.statements ?? []).filter(st => st.kind === 'opaque-block').map(st => (st as { lines: string[] }).lines.join('\n'))
+        const idx = s.body.messages.length - 1
+        const r = mutate(s, { kind: 'remove_message', index: idx })
+        expect(r.ok).toBe(true)
+        if (!r.ok) return
+        const opaqueAfter = (r.value.body.statements ?? []).filter(st => st.kind === 'opaque-block').map(st => (st as { lines: string[] }).lines.join('\n'))
+        // Opaque blocks are untouched: same count, same bytes, same order.
+        expect(opaqueAfter).toEqual(opaqueBefore)
+        // And exactly one message was removed.
+        expect(r.value.body.messages.length).toBe(s.body.messages.length - 1)
+      }),
+      { numRuns: 200 },
+    )
   })
 
   // Property 3 (the old AGENT_NATIVE whole-opaque property, restated):
@@ -201,19 +208,27 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
   // round-trip is stable and every original non-blank line survives.
   test('property: segments-or-opaque, always lossless', () => {
     const anyLine = fc.oneof(structuredMsg, opaqueSeg, fc.constant('  end'), fc.constant('  activate A'))
-    const anyBody = fc.array(anyLine, { minLength: 1, maxLength: 8 })
-      .map(segs => 'sequenceDiagram\n' + segs.join('\n'))
-    fc.assert(fc.property(anyBody, src => {
-      const d = parse(src)
-      // Either structured-with-segments OR opaque fallback — never an error.
-      expect(d.body.kind === 'sequence' || d.body.kind === 'opaque').toBe(true)
-      const out = serializeMermaid(d).trimEnd()
-      const origNonBlank = src.split('\n').map(l => l.trim()).filter(Boolean)
-      const outNonBlank = out.split('\n').map(l => l.trim()).filter(Boolean)
-      expect(outNonBlank).toEqual(origNonBlank)
-      // Round-trip stable.
-      expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
-    }), { numRuns: 300 })
+    const anyBody = fc.array(anyLine, { minLength: 1, maxLength: 8 }).map(segs => 'sequenceDiagram\n' + segs.join('\n'))
+    fc.assert(
+      fc.property(anyBody, src => {
+        const d = parse(src)
+        // Either structured-with-segments OR opaque fallback — never an error.
+        expect(d.body.kind === 'sequence' || d.body.kind === 'opaque').toBe(true)
+        const out = serializeMermaid(d).trimEnd()
+        const origNonBlank = src
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean)
+        const outNonBlank = out
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean)
+        expect(outNonBlank).toEqual(origNonBlank)
+        // Round-trip stable.
+        expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
+      }),
+      { numRuns: 300 },
+    )
   })
 })
 
@@ -235,18 +250,7 @@ describe('BUILD-18 sequence segmentation — sad paths', () => {
   })
 
   test('nested alt-in-loop is one opaque block; top-level messages stay structured', () => {
-    const src = [
-      'sequenceDiagram',
-      '  A->>B: start',
-      '  loop retry',
-      '    alt ok',
-      '      B-->>A: yes',
-      '    else no',
-      '      B-->>A: no',
-      '    end',
-      '  end',
-      '  A->>B: done',
-    ].join('\n')
+    const src = ['sequenceDiagram', '  A->>B: start', '  loop retry', '    alt ok', '      B-->>A: yes', '    else no', '      B-->>A: no', '    end', '  end', '  A->>B: done'].join('\n')
     const s = sequence(src)
     expect(s.body.messages.map(m => m.text)).toEqual(['start', 'done'])
     const opaque = (s.body.statements ?? []).filter(st => st.kind === 'opaque-block')
@@ -258,8 +262,10 @@ describe('BUILD-18 sequence segmentation — sad paths', () => {
     const src = 'sequenceDiagram\n  A->>B: hi\n  alt ok\n    Z->>Q: secret\n  end'
     const s = sequence(src)
     const ids = s.body.participants.map(p => p.id)
-    expect(ids).toContain('A'); expect(ids).toContain('B')
-    expect(ids).toContain('Z'); expect(ids).toContain('Q')
+    expect(ids).toContain('A')
+    expect(ids).toContain('B')
+    expect(ids).toContain('Z')
+    expect(ids).toContain('Q')
   })
 
   test('autonumber interleaving stays verbatim and messages remain addressable', () => {
@@ -289,8 +295,8 @@ describe('sequence segment-preserving fidelity (BUILD-18 — was the v4 opaque c
     test(`now structured-with-segments, still lossless: ${src.split('\n')[1]!.trim()}`, () => {
       const d = parse(src)
       expect(d.kind).toBe('sequence')
-      expect(d.body.kind).toBe('sequence')           // structured, not opaque
-      expect(asSequence(d)).not.toBeNull()           // mutation now offered
+      expect(d.body.kind).toBe('sequence') // structured, not opaque
+      expect(asSequence(d)).not.toBeNull() // mutation now offered
       // Verbatim-lossless: every original non-blank line survives, in order.
       const out = serializeMermaid(d).trimEnd()
       expect(out.split('\n')).toEqual(src.split('\n').map(l => l.replace(/\s+$/, '')))
@@ -402,9 +408,7 @@ describe('sequence mutate — five ops', () => {
 describe('opaque-fallback round-trip (journey/xychart/architecture promoted by BUILD-15/16/17)', () => {
   // Universal accessibility is modeled centrally; a genuinely unmodeled
   // family token still stays on the source-level/opaque path.
-  const cases = [
-    ['xychart', 'xychart-beta\n  curve basis\n  x-axis [Jan, Feb]\n  bar [1, 2]'],
-  ] as const
+  const cases = [['xychart', 'xychart-beta\n  curve basis\n  x-axis [Jan, Feb]\n  bar [1, 2]']] as const
 
   for (const [family, src] of cases) {
     test(`${family}: unmodeled syntax parses as opaque/source-level and round-trips`, () => {
@@ -462,8 +466,10 @@ describe('round-trip stability', () => {
   ]
   for (const src of corpus) {
     test(`stable: ${src.split('\n')[0]} ${src.includes('subgraph') ? '(subgraph)' : ''}...`, () => {
-      const d = parse(src); const s1 = serializeMermaid(d)
-      const d2 = parse(s1); expect(serializeMermaid(d2)).toBe(s1)
+      const d = parse(src)
+      const s1 = serializeMermaid(d)
+      const d2 = parse(s1)
+      expect(serializeMermaid(d2)).toBe(s1)
     })
   }
   test('subgraph membership survives round-trip', () => {
@@ -475,31 +481,38 @@ describe('round-trip stability', () => {
   test('edge styles + markers preserved', () => {
     for (const e of ['-->', '---', '--o', '--x', '<-->', '-.->', '-.-', '==>', '===']) {
       const src = `flowchart TD\n  A ${e} B`
-      const d = parse(src); const out = serializeMermaid(d)
+      const d = parse(src)
+      const out = serializeMermaid(d)
       expect(serializeMermaid(parse(out))).toBe(out)
     }
   })
   test('property: random flowchart mutation chains stay parseable', () => {
-    fc.assert(fc.property(
-      fc.array(fc.record({
-        kind: fc.constantFrom('add_node', 'add_edge'),
-        id: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
-        label: fc.string({ minLength: 0, maxLength: 10 }).filter(s => !/[\[\]{}()<>|"]/.test(s)),
-        from: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
-        to: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
-      }), { maxLength: 6 }),
-      ops => {
-        const f = asFlowchart(parse('flowchart TD\n  A --> B')); if (!f) return true
-        let d = f
-        for (const o of ops) {
-          const op: FlowchartMutationOp = o.kind === 'add_node'
-            ? { kind: 'add_node', id: o.id, label: o.label || o.id }
-            : { kind: 'add_edge', from: o.from, to: o.to }
-          const next = mutate(d, op); if (next.ok) d = next.value
-        }
-        return parseMermaid(serializeMermaid(d)).ok
-      },
-    ), { numRuns: 100 })
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            kind: fc.constantFrom('add_node', 'add_edge'),
+            id: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
+            label: fc.string({ minLength: 0, maxLength: 10 }).filter(s => !/[\[\]{}()<>|"]/.test(s)),
+            from: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
+            to: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
+          }),
+          { maxLength: 6 },
+        ),
+        ops => {
+          const f = asFlowchart(parse('flowchart TD\n  A --> B'))
+          if (!f) return true
+          let d = f
+          for (const o of ops) {
+            const op: FlowchartMutationOp = o.kind === 'add_node' ? { kind: 'add_node', id: o.id, label: o.label || o.id } : { kind: 'add_edge', from: o.from, to: o.to }
+            const next = mutate(d, op)
+            if (next.ok) d = next.value
+          }
+          return parseMermaid(serializeMermaid(d)).ok
+        },
+      ),
+      { numRuns: 100 },
+    )
   })
 })
 
@@ -508,12 +521,17 @@ describe('synthesizeFromGraph', () => {
     const d = parse('flowchart TD\n  A[Alpha] --> B[Beta]')
     if (d.body.kind !== 'flowchart') throw new Error('x')
     const r = synthesizeFromGraph({
-      kind: 'flowchart', meta: d.meta,
-      body: { kind: 'flowchart', graph: {
-        direction: d.body.graph.direction,
-        nodes: Object.fromEntries(d.body.graph.nodes),
-        edges: d.body.graph.edges, subgraphs: d.body.graph.subgraphs,
-      } },
+      kind: 'flowchart',
+      meta: d.meta,
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: d.body.graph.direction,
+          nodes: Object.fromEntries(d.body.graph.nodes),
+          edges: d.body.graph.edges,
+          subgraphs: d.body.graph.subgraphs,
+        },
+      },
     })
     expect(r.ok && r.value.canonicalSource.includes('A[Alpha] --> B[Beta]')).toBe(true)
   })
@@ -522,9 +540,16 @@ describe('synthesizeFromGraph', () => {
       kind: 'sequence',
       body: {
         kind: 'sequence',
-        participants: [{ id: 'A', label: 'A', kind: 'participant' }, { id: 'B', label: 'B', kind: 'participant' }],
+        participants: [
+          { id: 'A', label: 'A', kind: 'participant' },
+          { id: 'B', label: 'B', kind: 'participant' },
+        ],
         messages: [{ from: 'A', to: 'B', text: 'Hi', style: 'sync' }],
-        statements: [{ kind: 'participant', ref: 0 }, { kind: 'participant', ref: 1 }, { kind: 'message', ref: 0 }],
+        statements: [
+          { kind: 'participant', ref: 0 },
+          { kind: 'participant', ref: 1 },
+          { kind: 'message', ref: 0 },
+        ],
       },
     })
     expect(r.ok && r.value.canonicalSource.includes('A->>B: Hi')).toBe(true)
@@ -533,11 +558,17 @@ describe('synthesizeFromGraph', () => {
   test('synthesizeFromGraph: nodes can be array-of-tuples too', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: [['A', { id: 'A', label: 'A', shape: 'rectangle' }], ['B', { id: 'B', label: 'B', shape: 'rectangle' }]],
-        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: [
+            ['A', { id: 'A', label: 'A', shape: 'rectangle' }],
+            ['B', { id: 'B', label: 'B', shape: 'rectangle' }],
+          ],
+          edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+        },
+      },
     })
     expect(r.ok && r.value.canonicalSource.includes('A --> B')).toBe(true)
   })
@@ -545,10 +576,13 @@ describe('synthesizeFromGraph', () => {
   test('synthesizeFromGraph: missing edges defaults to []', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
-      } as never },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+        } as never,
+      },
     })
     expect(r.ok).toBe(true)
   })
@@ -563,12 +597,15 @@ describe('synthesizeFromGraph', () => {
     a.children.push(a)
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
-        edges: [],
-        subgraphs: [a] as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
+          edges: [],
+          subgraphs: [a] as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
   })
@@ -576,12 +613,15 @@ describe('synthesizeFromGraph', () => {
   test('synthesizeFromGraph: null subgraph elements are skipped (no TypeError)', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
-        edges: [],
-        subgraphs: [null, undefined, { id: 'G', label: 'G', nodeIds: ['N'] }] as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
+          edges: [],
+          subgraphs: [null, undefined, { id: 'G', label: 'G', nodeIds: ['N'] }] as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -593,13 +633,16 @@ describe('synthesizeFromGraph', () => {
   test('synthesizeFromGraph: non-tuple Array entries are ignored (no "not an entry object")', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
-        edges: [],
-        classDefs: ['foo', 'bar'] as never, // not [k,v] tuples
-        nodeStyles: [['ok', { fill: '#000' }], 'bad', null] as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
+          edges: [],
+          classDefs: ['foo', 'bar'] as never, // not [k,v] tuples
+          nodeStyles: [['ok', { fill: '#000' }], 'bad', null] as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -611,12 +654,15 @@ describe('synthesizeFromGraph', () => {
   test('synthesizeFromGraph: non-numeric / fractional linkStyle keys are silently dropped (not NaN)', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
-        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
-        linkStyles: { abc: { stroke: 'red' }, '1.5': { stroke: 'blue' }, '0': { stroke: 'green' }, 'default': { stroke: 'gray' } } as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
+          edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+          linkStyles: { abc: { stroke: 'red' }, '1.5': { stroke: 'blue' }, '0': { stroke: 'green' }, default: { stroke: 'gray' } } as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -630,12 +676,15 @@ describe('synthesizeFromGraph', () => {
     const m = new Map([[0, { fill: '#0f0' }] as [number, Record<string, string>]])
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
-        edges: [],
-        nodeStyles: m as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          edges: [],
+          nodeStyles: m as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -649,15 +698,18 @@ describe('synthesizeFromGraph', () => {
     // if mutated to `||`, Object.entries(null) would throw.
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
-        edges: [],
-        classDefs: null as never,
-        classAssignments: undefined as never,
-        nodeStyles: 'not-an-object' as never,
-        linkStyles: 42 as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          edges: [],
+          classDefs: null as never,
+          classAssignments: undefined as never,
+          nodeStyles: 'not-an-object' as never,
+          linkStyles: 42 as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -671,12 +723,15 @@ describe('synthesizeFromGraph', () => {
   test('synthesizeFromGraph: subgraphs as non-array becomes empty', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
-        edges: [],
-        subgraphs: null as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          edges: [],
+          subgraphs: null as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -687,12 +742,15 @@ describe('synthesizeFromGraph', () => {
   test('synthesizeFromGraph: subgraph with explicit label/nodeIds undefined → defaults', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
-        edges: [],
-        subgraphs: [{ id: 'G' } as never],
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          edges: [],
+          subgraphs: [{ id: 'G' } as never],
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -705,35 +763,44 @@ describe('synthesizeFromGraph', () => {
     // Plain object with numeric + 'default' keys
     const r1 = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
-        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
-        linkStyles: { '0': { stroke: '#f00' }, 'default': { stroke: '#888' } },
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
+          edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+          linkStyles: { '0': { stroke: '#f00' }, default: { stroke: '#888' } },
+        },
+      },
     })
     expect(r1.ok && r1.value.canonicalSource.includes('linkStyle 0 stroke:#f00')).toBe(true)
     expect(r1.ok && r1.value.canonicalSource.includes('linkStyle default stroke:#888')).toBe(true)
     // Array-of-tuples
     const r2 = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
-        edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
-        nodeStyles: [['A', { fill: '#0f0' }]] as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' }, B: { id: 'B', label: 'B', shape: 'rectangle' } },
+          edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true }],
+          nodeStyles: [['A', { fill: '#0f0' }]] as never,
+        },
+      },
     })
     expect(r2.ok && r2.value.canonicalSource.includes('style A fill:#0f0')).toBe(true)
     // Pre-built Map
     const r3 = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
-        edges: [],
-        classDefs: new Map([['hot', { fill: '#f00' }]]) as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          edges: [],
+          classDefs: new Map([['hot', { fill: '#f00' }]]) as never,
+        },
+      },
     })
     expect(r3.ok && r3.value.canonicalSource.includes('classDef hot fill:#f00')).toBe(true)
   })
@@ -741,13 +808,16 @@ describe('synthesizeFromGraph', () => {
   test('REGRESSION: subgraph payload missing children (SDK shape) does not crash mutate/verify', () => {
     const r = synthesizeFromGraph({
       kind: 'flowchart',
-      body: { kind: 'flowchart', graph: {
-        direction: 'TD',
-        nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
-        edges: [],
-        // SDK-declared subgraph shape omits `children` — must be normalized.
-        subgraphs: [{ id: 'G', label: 'G', nodeIds: ['A'] }] as never,
-      } },
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: 'TD',
+          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          edges: [],
+          // SDK-declared subgraph shape omits `children` — must be normalized.
+          subgraphs: [{ id: 'G', label: 'G', nodeIds: ['A'] }] as never,
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -761,17 +831,21 @@ describe('synthesizeFromGraph', () => {
     if (d.body.kind !== 'flowchart') throw new Error('x')
     const g = d.body.graph
     const r = synthesizeFromGraph({
-      kind: 'flowchart', meta: d.meta,
-      body: { kind: 'flowchart', graph: {
-        direction: g.direction,
-        nodes: Object.fromEntries(g.nodes),
-        edges: g.edges,
-        subgraphs: g.subgraphs,
-        classDefs: Object.fromEntries(g.classDefs),
-        classAssignments: Object.fromEntries(g.classAssignments),
-        nodeStyles: Object.fromEntries(g.nodeStyles),
-        linkStyles: Object.fromEntries([...g.linkStyles].map(([k, v]) => [String(k), v])),
-      } },
+      kind: 'flowchart',
+      meta: d.meta,
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: g.direction,
+          nodes: Object.fromEntries(g.nodes),
+          edges: g.edges,
+          subgraphs: g.subgraphs,
+          classDefs: Object.fromEntries(g.classDefs),
+          classAssignments: Object.fromEntries(g.classAssignments),
+          nodeStyles: Object.fromEntries(g.nodeStyles),
+          linkStyles: Object.fromEntries([...g.linkStyles].map(([k, v]) => [String(k), v])),
+        },
+      },
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -798,9 +872,12 @@ describe('OFF_CANVAS reports both axes independently', () => {
 })
 
 describe('verify', () => {
-  test('clean flowchart ok', () => { expect(verifyMermaid('flowchart TD\n  A --> B').ok).toBe(true) })
+  test('clean flowchart ok', () => {
+    expect(verifyMermaid('flowchart TD\n  A --> B').ok).toBe(true)
+  })
   test('EMPTY_DIAGRAM', () => {
-    const r = verifyMermaid(''); expect(r.ok).toBe(false)
+    const r = verifyMermaid('')
+    expect(r.ok).toBe(false)
     expect(r.warnings.some(w => w.code === 'EMPTY_DIAGRAM')).toBe(true)
   })
   test('LABEL_OVERFLOW rendered-line count, reliable', () => {
@@ -838,7 +915,8 @@ describe('verify', () => {
   })
   test('finite coordinates only', () => {
     const flat = JSON.stringify(verifyMermaid('flowchart TD\n  A --> B\n  B --> C').layout)
-    expect(flat).not.toContain('NaN'); expect(flat).not.toContain('Infinity')
+    expect(flat).not.toContain('NaN')
+    expect(flat).not.toContain('Infinity')
   })
   test('no seed field on layout', () => {
     expect('seed' in verifyMermaid('flowchart TD\n  A --> B').layout).toBe(false)
@@ -852,20 +930,27 @@ describe('verify', () => {
   test('Tier 3 lint: nodes unreachable from entry roots are advisory warnings', () => {
     const r = verifyMermaid('flowchart TD\n  A --> B\n  C --> D\n  D --> C')
     expect(r.ok).toBe(true)
-    expect(r.warnings.filter(w => w.code === 'UNREACHABLE_NODE').map(w => w.node).sort()).toEqual(['C', 'D'])
+    expect(
+      r.warnings
+        .filter(w => w.code === 'UNREACHABLE_NODE')
+        .map(w => w.node)
+        .sort(),
+    ).toEqual(['C', 'D'])
   })
 })
 
 describe('warning vocabulary', () => {
-  test('27 codes, all tiered + severity', () => {
+  test('28 codes, all tiered + severity', () => {
     const codes = Object.keys(WARNING_SEVERITY)
-    expect(codes.length).toBe(27)
+    expect(codes.length).toBe(28)
     for (const c of codes) {
       expect(WARNING_SEVERITY[c as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)
       expect(WARNING_TIER[c as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
     }
   })
-  test('LABEL_OVERFLOW is Tier 1', () => { expect(WARNING_TIER.LABEL_OVERFLOW).toBe('structural') })
+  test('LABEL_OVERFLOW is Tier 1', () => {
+    expect(WARNING_TIER.LABEL_OVERFLOW).toBe('structural')
+  })
   test('DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX, and LOW_CONTRAST are Tier 3 lint', () => {
     expect(WARNING_TIER.DUPLICATE_EDGE).toBe('lint')
     expect(WARNING_TIER.UNREACHABLE_NODE).toBe('lint')
@@ -877,7 +962,9 @@ describe('warning vocabulary', () => {
 })
 
 describe('toFinite', () => {
-  test('accepts finite', () => { expect(toFinite(3.14)).toBe(3.14 as never) })
+  test('accepts finite', () => {
+    expect(toFinite(3.14)).toBe(3.14 as never)
+  })
   test('throws on NaN with informative message', () => {
     expect(() => toFinite(NaN)).toThrow(/expected a finite number, got NaN/)
   })

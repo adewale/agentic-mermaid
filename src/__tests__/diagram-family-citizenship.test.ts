@@ -1,13 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-
+import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { parseRegisteredMermaid as parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG, renderMermaidASCII, layoutMermaid } from '../agent/index.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const MATRIX_PATH = join(REPO, 'docs/contributing/diagram-family-citizenship.matrix.json')
@@ -44,7 +43,7 @@ const EXPECTED_SURFACES = [
 // both "every exception is tracked" and "core surfaces cannot be deferred". (#41)
 const TRACKED_EXCEPTION_SURFACES = new Set<SurfaceId>()
 
-type SurfaceId = typeof EXPECTED_SURFACES[number]
+type SurfaceId = (typeof EXPECTED_SURFACES)[number]
 
 const REQUIRED_FAMILY_EVIDENCE = {
   flowchart: {
@@ -180,6 +179,16 @@ const REQUIRED_FAMILY_EVIDENCE = {
     divergenceLedger: ['eval/mermaid-radar-bench/harvest.json'],
     goldensEvidence: ['src/__tests__/radar-renderer.test.ts', 'docs/design/families/radar-demo.png'],
   },
+  sankey: {
+    semanticModel: ['src/sankey/types.ts', 'src/agent/sankey-body.ts'],
+    serializeRoundTrip: ['src/__tests__/agent-sankey.test.ts'],
+    domainProperties: ['src/__tests__/sankey-integration.test.ts', 'src/__tests__/sankey-rubric-properties.test.ts'],
+    evalFixture: ['eval/mermaid-sankey-bench/harvest.json'],
+    stableRegions: ['src/__tests__/sankey-integration.test.ts'],
+    upstreamHarvest: ['eval/mermaid-sankey-bench/harvest.json'],
+    divergenceLedger: ['eval/mermaid-sankey-bench/harvest.json'],
+    goldensEvidence: ['src/__tests__/sankey-renderer.test.ts', 'docs/design/families/sankey-demo.png'],
+  },
 } satisfies Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>
 
 type Cell = { status: 'satisfied' | 'exception'; evidence: string[]; tracked?: string[]; note?: string }
@@ -264,7 +273,9 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
   test('citizenship backfill has no remaining matrix exceptions', () => {
     const matrix = loadMatrix()
     const exceptions = Object.entries(matrix.families).flatMap(([family, row]) =>
-      Object.entries(row.cells).filter(([, cell]) => cell.status === 'exception').map(([surface]) => `${family}:${surface}`),
+      Object.entries(row.cells)
+        .filter(([, cell]) => cell.status === 'exception')
+        .map(([surface]) => `${family}:${surface}`),
     )
     expect(exceptions).toEqual([])
   })
@@ -302,19 +313,15 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       const reparsed = parseMermaid(serialized)
       expect({ family: fx.family, reparseOk: reparsed.ok }).toEqual({ family: fx.family, reparseOk: true })
       if (reparsed.ok) {
-        expect({ family: fx.family, stable: serializeMermaid(reparsed.value) === serialized })
-          .toEqual({ family: fx.family, stable: true })
+        expect({ family: fx.family, stable: serializeMermaid(reparsed.value) === serialized }).toEqual({ family: fx.family, stable: true })
       }
       // svgRender: emits a real SVG document.
       const svg = renderMermaidSVG(fx.source)
-      expect({ family: fx.family, svg: svg.includes('<svg') && svg.length > 100 })
-        .toEqual({ family: fx.family, svg: true })
+      expect({ family: fx.family, svg: svg.includes('<svg') && svg.length > 100 }).toEqual({ family: fx.family, svg: true })
       // asciiUnicodeRender: emits non-empty text.
-      expect({ family: fx.family, ascii: renderMermaidASCII(fx.source).trim().length > 0 })
-        .toEqual({ family: fx.family, ascii: true })
+      expect({ family: fx.family, ascii: renderMermaidASCII(fx.source).trim().length > 0 }).toEqual({ family: fx.family, ascii: true })
       // determinism: identical SVG across repeated renders.
-      expect({ family: fx.family, deterministic: renderMermaidSVG(fx.source) === svg })
-        .toEqual({ family: fx.family, deterministic: true })
+      expect({ family: fx.family, deterministic: renderMermaidSVG(fx.source) === svg }).toEqual({ family: fx.family, deterministic: true })
     }
     // No registered family is silently skipped: each must have a behavioral fixture.
     expect([...registryIds].filter(id => !covered.has(id)).sort()).toEqual([])
@@ -329,8 +336,7 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
         const cell = row.cells[surface]
         expect({ family: family.id, surface, status: cell.status }).toEqual({ family: family.id, surface, status: 'satisfied' })
         for (const evidence of evidencePaths) {
-          expect({ family: family.id, surface, evidence, listed: cell.evidence.includes(evidence) })
-            .toEqual({ family: family.id, surface, evidence, listed: true })
+          expect({ family: family.id, surface, evidence, listed: cell.evidence.includes(evidence) }).toEqual({ family: family.id, surface, evidence, listed: true })
         }
       }
     }
@@ -357,7 +363,10 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       expect(fidelity.syntaxEvidence.length, `${family.id}: syntax evidence`).toBeGreaterThanOrEqual(3)
       expect(fidelity.syntaxEvidence).toContain('docs/design/mermaid-family-fidelity-audit.md')
       expect(fidelity.syntaxEvidence).toContain('src/__tests__/closing-the-gap.test.ts')
-      expect(fidelity.syntaxEvidence.some(path => path.startsWith('eval/')), `${family.id}: upstream evidence`).toBe(true)
+      expect(
+        fidelity.syntaxEvidence.some(path => path.startsWith('eval/')),
+        `${family.id}: upstream evidence`,
+      ).toBe(true)
       expect(fidelity.visualEvidence.length, `${family.id}: visual evidence`).toBeGreaterThanOrEqual(2)
       expect(fidelity.visualArtifact).toMatch(/\.(?:png|svg)$/)
       for (const evidence of [...fidelity.syntaxEvidence, fidelity.visualArtifact, ...fidelity.visualEvidence]) {
@@ -366,9 +375,7 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       expect(row.cells.mermaidSyntaxParity.status).toBe('satisfied')
       expect(row.cells.mermaidSyntaxParity.evidence).toEqual(fidelity.syntaxEvidence)
       expect(row.cells.familyVisualMetaphor.status).toBe('satisfied')
-      expect(row.cells.familyVisualMetaphor.evidence).toEqual(expect.arrayContaining([
-        'docs/design/mermaid-family-fidelity-audit.md', fidelity.visualArtifact,
-      ]))
+      expect(row.cells.familyVisualMetaphor.evidence).toEqual(expect.arrayContaining(['docs/design/mermaid-family-fidelity-audit.md', fidelity.visualArtifact]))
       expect(audit).toContain(`| ${family.label} |`)
       expect(audit).toContain(fidelity.officialDocs)
       expect(audit).toContain(fidelity.wikipedia)
@@ -386,7 +393,9 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
 
   test('Gantt is the worked example and at least one non-Gantt family is audited', () => {
     const matrix = loadMatrix()
-    const worked = Object.entries(matrix.families).filter(([, row]) => row.workedExample).map(([id]) => id)
+    const worked = Object.entries(matrix.families)
+      .filter(([, row]) => row.workedExample)
+      .map(([id]) => id)
     expect(worked).toEqual(['gantt'])
     for (const [surface, cell] of Object.entries(matrix.families.gantt!.cells) as Array<[SurfaceId, Cell]>) {
       expect({ family: 'gantt', surface, status: cell.status }).toEqual({ family: 'gantt', surface, status: 'satisfied' })
@@ -418,15 +427,14 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       // (b) Heuristic-tracker enrollment: at least one baselined example (the
       // catalog's family group auto-enrolls from the registry example, so this
       // fails only if that wiring is removed).
-      const hasTracked = tracked.some(ex => family.id === 'flowchart' ? !ex.family : ex.family === family.id)
+      const hasTracked = tracked.some(ex => (family.id === 'flowchart' ? !ex.family : ex.family === family.id))
       expect({ family: family.id, trackedExample: hasTracked }).toEqual({ family: family.id, trackedExample: true })
 
       // (c) RenderedLayout projection: the family rubric can see it (nodes > 0
       // on the canonical registry example).
       if (base.ok) {
         const layout = layoutMermaid(base.value)
-        expect({ family: family.id, projectedNodes: layout.nodes.length > 0 })
-          .toEqual({ family: family.id, projectedNodes: true })
+        expect({ family: family.id, projectedNodes: layout.nodes.length > 0 }).toEqual({ family: family.id, projectedNodes: true })
       }
     }
   })

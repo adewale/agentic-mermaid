@@ -3,26 +3,13 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  getFamily,
-  detectRegisteredFamilyFromFirstLine,
-  layoutMermaid,
-  layoutMermaidWithReceipt,
-  parseRegisteredMermaid,
-  registerFamily,
-  renderMermaidSVG,
-  serializeMermaid,
-  SCENE_VALIDATION_LIMITS,
-  verifyMermaid,
-  type ExternalFamilyId,
-  type FamilyDescriptor,
-} from '../agent/index.ts'
+import { detectRegisteredFamilyFromFirstLine, type ExternalFamilyId, type FamilyDescriptor, getFamily, layoutMermaid, layoutMermaidWithReceipt, parseRegisteredMermaid, registerFamily, renderMermaidSVG, SCENE_VALIDATION_LIMITS, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { ok, toFinite } from '../agent/types.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { buildCapabilities, runBatchLine, runCli } from '../cli/index.ts'
 import { createTracingMermaid } from '../mcp/facade.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
+import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { createExtensionIdentity } from '../shared/extension-identity.ts'
 
 const EVIDENCE = 'src/__tests__/extension-family-public-api.test.ts'
 
@@ -64,15 +51,17 @@ function extensionDescriptor(localId: string, header: string): FamilyDescriptor 
     layout: () => ({ width: 120, height: 40 }),
     projectPositioned: () => ({
       version: 1,
-      nodes: [{
-        id: 'extension-node',
-        x: toFinite(8),
-        y: toFinite(8),
-        w: toFinite(104),
-        h: toFinite(24),
-        shape: 'rectangle',
-        label: 'Extension',
-      }],
+      nodes: [
+        {
+          id: 'extension-node',
+          x: toFinite(8),
+          y: toFinite(8),
+          w: toFinite(104),
+          h: toFinite(24),
+          shape: 'rectangle',
+          label: 'Extension',
+        },
+      ],
       edges: [],
       groups: [],
       bounds: { w: toFinite(120), h: toFinite(40) },
@@ -100,24 +89,26 @@ describe('registered family public layout and verify APIs', () => {
     for (const [id, header] of [
       ['family:flowchart', 'reservedFlowchart'],
       ['family:unknown', 'reservedUnknown'],
-      ['family:upstream/sankey', 'reservedUpstream'],
+      ['family:upstream/kanban', 'reservedUpstream'],
     ] as const) {
       expect(() => registerFamily(descriptorWithId(id, header))).toThrow(/reserved by the core family\/preservation envelope/)
     }
 
     const alias = extensionDescriptor('upstream-alias', 'upstreamAliasDiagram')
-    expect(() => registerFamily({
-      ...alias,
-      aliases: ['sankey'],
-      detect: line => line === 'upstreamaliasdiagram' || line === 'sankey',
-    })).toThrow(/alias "sankey" is an upstream public header/)
+    expect(() =>
+      registerFamily({
+        ...alias,
+        aliases: ['kanban'],
+        detect: line => line === 'upstreamaliasdiagram' || line === 'kanban',
+      }),
+    ).toThrow(/alias "kanban" is an upstream public header/)
 
     const hiddenStrict = extensionDescriptor('hidden-strict', 'hiddenStrictDiagram')
     const unregisterStrict = registerFamily({
       ...hiddenStrict,
-      detect: line => line === 'hiddenstrictdiagram' || line === 'sankey',
+      detect: line => line === 'hiddenstrictdiagram' || line === 'kanban',
     })
-    expect(detectRegisteredFamilyFromFirstLine('sankey')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('kanban')).toBeNull()
     unregisterStrict()
 
     const hiddenLoose = extensionDescriptor('hidden-loose', 'hiddenLooseDiagram')
@@ -128,12 +119,14 @@ describe('registered family public layout and verify APIs', () => {
     expect(detectRegisteredFamilyFromFirstLine('requirementDiagram', 'loose')).toBeNull()
     unregisterLoose()
 
-    const multiFamily = extensionDescriptor('multi-upstream', 'sankey')
-    expect(() => registerFamily({
-      ...multiFamily,
-      headers: ['sankey', 'requirementDiagram'],
-      detect: line => line === 'sankey' || line === 'requirementdiagram',
-    })).toThrow(/cannot claim upstream headers from multiple Mermaid families/)
+    const multiFamily = extensionDescriptor('multi-upstream', 'kanban')
+    expect(() =>
+      registerFamily({
+        ...multiFamily,
+        headers: ['kanban', 'requirementDiagram'],
+        detect: line => line === 'kanban' || line === 'requirementdiagram',
+      }),
+    ).toThrow(/cannot claim upstream headers from multiple Mermaid families/)
   })
 
   test('uses declared headers as the routing prefilter for broad or adversarial detectors', () => {
@@ -153,8 +146,7 @@ describe('registered family public layout and verify APIs', () => {
       expect(detectRegisteredFamilyFromFirstLine('auditDiagramFuture')).toBeNull()
       expect(detectRegisteredFamilyFromFirstLine('flowchart LR')).toBe('flowchart')
       expect(calls).toBe(ownCalls)
-      expect(parseRegisteredMermaid('auditDiagramFuture\n  payload'))
-        .toMatchObject({ ok: true, value: { body: { kind: 'preserved' } } })
+      expect(parseRegisteredMermaid('auditDiagramFuture\n  payload')).toMatchObject({ ok: true, value: { body: { kind: 'preserved' } } })
     } finally {
       unregister()
     }
@@ -164,16 +156,14 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('lossy-parse', 'lossyParseDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: () => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: '',
-        data: { parsed: true },
-      }),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
+      parse: () =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: '',
+          data: { parsed: true },
+        }),
     }
     const source = 'lossyParseDiagram\n  must survive'
     const unregister = registerFamily(descriptor)
@@ -246,16 +236,14 @@ family payload
     }
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: owned,
-      }),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: owned,
+        }),
     }
     const unregister = registerFamily(descriptor)
     try {
@@ -272,7 +260,9 @@ family payload
       owned.nested.value = 99
       owned.entries[0]!.label = 'mutated'
       expect(data).toEqual({ nested: { value: 1 }, entries: [{ label: 'first' }] })
-      expect(() => { data.nested.value = 2 }).toThrow()
+      expect(() => {
+        data.nested.value = 2
+      }).toThrow()
       expect(JSON.parse(JSON.stringify(parsed.value.body))).toEqual({
         kind: 'extension',
         family: base.id,
@@ -288,10 +278,7 @@ family payload
     const base = extensionDescriptor('parse-data-admission', 'parseDataAdmissionDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
-          ? { ...claim, state: 'native' }
-          : claim),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
       parse: context => {
         let data: unknown = { safe: true }
         if (context.opaqueSource.includes('cycle')) {
@@ -311,14 +298,19 @@ family payload
     }
     const unregister = registerFamily(descriptor)
     try {
-      for (const [payload, problem] of [['cycle', /acyclic/i], ['non-plain', /plain JSON object/i]] as const) {
+      for (const [payload, problem] of [
+        ['cycle', /acyclic/i],
+        ['non-plain', /plain JSON object/i],
+      ] as const) {
         const parsed = parseRegisteredMermaid(`parseDataAdmissionDiagram\n  ${payload}`)
         expect(parsed.ok).toBe(false)
         if (parsed.ok) continue
-        expect(parsed.error).toContainEqual(expect.objectContaining({
-          code: 'FAMILY_DESCRIPTOR_CONTRACT',
-          message: expect.stringMatching(problem),
-        }))
+        expect(parsed.error).toContainEqual(
+          expect.objectContaining({
+            code: 'FAMILY_DESCRIPTOR_CONTRACT',
+            message: expect.stringMatching(problem),
+          }),
+        )
       }
     } finally {
       unregister()
@@ -330,17 +322,15 @@ family payload
     const v1Base = extensionDescriptor('descriptor-upgrade', 'descriptorUpgradeDiagram')
     const v1: FamilyDescriptor = {
       ...v1Base,
-      capabilityEvidence: v1Base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: v1Base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { version: 1 },
-      }),
-      serialize: body => body.kind === 'extension' ? body.source : '',
+      capabilityEvidence: v1Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: v1Base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { version: 1 },
+        }),
+      serialize: body => (body.kind === 'extension' ? body.source : ''),
     }
     const unregisterV1 = registerFamily(v1)
     const parsed = parseRegisteredMermaid(source)
@@ -359,16 +349,14 @@ family payload
         compatibility: { core: '^0.2.0' },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
-      capabilityEvidence: v2Base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: v2Base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { version: 2 },
-      }),
+      capabilityEvidence: v2Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: v2Base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { version: 2 },
+        }),
       serialize: body => {
         v2SerializerCalls++
         if (body.kind !== 'extension' || (body.data as { version?: number } | undefined)?.version !== 2) {
@@ -396,16 +384,14 @@ family payload
     const v1Base = extensionDescriptor('verify-upgrade', 'verifyUpgradeDiagram')
     const v1: FamilyDescriptor = {
       ...v1Base,
-      capabilityEvidence: v1Base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: v1Base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { version: 1 },
-      }),
+      capabilityEvidence: v1Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: v1Base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { version: 1 },
+        }),
     }
     const unregisterV1 = registerFamily(v1)
     const parsed = parseRegisteredMermaid(source)
@@ -424,16 +410,14 @@ family payload
         compatibility: { core: '^0.2.0' },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
-      capabilityEvidence: v2Base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: v2Base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { version: 2 },
-      }),
+      capabilityEvidence: v2Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: v2Base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { version: 2 },
+        }),
       verify: body => {
         verifyCalls++
         if (body.kind !== 'extension' || (body.data as { version?: number } | undefined)?.version !== 2) {
@@ -446,10 +430,12 @@ family payload
     verifyCalls = 0
     try {
       const verified = verifyMermaid(parsed.value)
-      expect(verified.warnings).not.toContainEqual(expect.objectContaining({
-        code: 'RENDER_FAILED',
-        reason: expect.stringContaining('pre-upgrade body'),
-      }))
+      expect(verified.warnings).not.toContainEqual(
+        expect.objectContaining({
+          code: 'RENDER_FAILED',
+          reason: expect.stringContaining('pre-upgrade body'),
+        }),
+      )
       expect(verified.ok).toBe(true)
       expect(verifyCalls).toBeGreaterThan(0)
     } finally {
@@ -528,7 +514,10 @@ family payload
 
       const chunks: string[] = []
       const originalWrite = process.stdout.write
-      process.stdout.write = ((chunk: unknown) => { chunks.push(String(chunk)); return true }) as typeof process.stdout.write
+      process.stdout.write = ((chunk: unknown) => {
+        chunks.push(String(chunk))
+        return true
+      }) as typeof process.stdout.write
       try {
         expect(runCli(['parse', path])).toBe(0)
       } finally {
@@ -564,7 +553,10 @@ family payload
     let verifyCalls = 0
     const descriptor: FamilyDescriptor = {
       ...extensionDescriptor('reachable', 'reachableDiagram'),
-      verify: () => { verifyCalls++; return [] },
+      verify: () => {
+        verifyCalls++
+        return []
+      },
     }
     const unregister = registerFamily(descriptor)
     verifyCalls = 0
@@ -611,31 +603,26 @@ family payload
     const partial: FamilyDescriptor = {
       ...base,
       projectPositioned: undefined,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'verify' || claim.capability === 'layout'
-          ? { ...claim, state: 'diagnosed' }
-          : claim),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'verify' || claim.capability === 'layout' ? { ...claim, state: 'diagnosed' } : claim)),
     }
 
-    expect(() => registerFamily({
-      ...partial,
-      capabilityEvidence: partial.capabilityEvidence.map(claim =>
-        claim.capability === 'verify' ? { ...claim, state: 'native' } : claim),
-    })).toThrow(/capability "verify" claims "native" but its hooks require "diagnosed"/)
-    expect(() => registerFamily({
-      ...partial,
-      capabilityEvidence: partial.capabilityEvidence.map(claim =>
-        claim.capability === 'layout' ? { ...claim, state: 'native' } : claim),
-    })).toThrow(/capability "layout" claims "native" but its hooks require "diagnosed"/)
+    expect(() =>
+      registerFamily({
+        ...partial,
+        capabilityEvidence: partial.capabilityEvidence.map(claim => (claim.capability === 'verify' ? { ...claim, state: 'native' } : claim)),
+      }),
+    ).toThrow(/capability "verify" claims "native" but its hooks require "diagnosed"/)
+    expect(() =>
+      registerFamily({
+        ...partial,
+        capabilityEvidence: partial.capabilityEvidence.map(claim => (claim.capability === 'layout' ? { ...claim, state: 'native' } : claim)),
+      }),
+    ).toThrow(/capability "layout" claims "native" but its hooks require "diagnosed"/)
 
     const unregister = registerFamily(partial)
     try {
       const source = 'partialProjectionDiagram\n  payload'
-      expect(getFamily(partial.id)?.capabilityEvidence).toEqual(expect.arrayContaining([
-        expect.objectContaining({ capability: 'verify', state: 'diagnosed' }),
-        expect.objectContaining({ capability: 'layout', state: 'diagnosed' }),
-        expect.objectContaining({ capability: 'svg', state: 'native' }),
-      ]))
+      expect(getFamily(partial.id)?.capabilityEvidence).toEqual(expect.arrayContaining([expect.objectContaining({ capability: 'verify', state: 'diagnosed' }), expect.objectContaining({ capability: 'layout', state: 'diagnosed' }), expect.objectContaining({ capability: 'svg', state: 'native' })]))
       expect(renderMermaidSVG(source)).toContain('>Extension</text>')
 
       const parsed = parseRegisteredMermaid(source)
@@ -644,10 +631,12 @@ family payload
       expect(() => layoutMermaid(parsed.value)).toThrow(/no public layout projection registered/i)
       expect(verifyMermaid(parsed.value)).toMatchObject({
         ok: false,
-        warnings: expect.arrayContaining([expect.objectContaining({
-          code: 'RENDER_FAILED',
-          reason: expect.stringMatching(/no public layout projection registered/i),
-        })]),
+        warnings: expect.arrayContaining([
+          expect.objectContaining({
+            code: 'RENDER_FAILED',
+            reason: expect.stringMatching(/no public layout projection registered/i),
+          }),
+        ]),
       })
     } finally {
       unregister()
@@ -657,11 +646,15 @@ family payload
   test('rejects throwing verify and layout hooks before they can advertise native support', () => {
     const verifyFailure: FamilyDescriptor = {
       ...extensionDescriptor('verify-failure', 'verifyFailureDiagram'),
-      verify: () => { throw new Error('verify exploded') },
+      verify: () => {
+        throw new Error('verify exploded')
+      },
     }
     const layoutFailure: FamilyDescriptor = {
       ...extensionDescriptor('layout-failure', 'layoutFailureDiagram'),
-      layout: () => { throw new Error('layout exploded') },
+      layout: () => {
+        throw new Error('layout exploded')
+      },
     }
     expect(() => registerFamily(verifyFailure)).toThrow(/verify exploded/)
     expect(() => registerFamily(layoutFailure)).toThrow(/layout exploded/)
@@ -697,18 +690,13 @@ family payload
       expect(() => layoutMermaid(parsed.value)).toThrow(/no public layout projection registered/i)
       const result = verifyMermaid(parsed.value)
       expect(result.ok).toBe(false)
-      expect(result.warnings).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: 'RENDER_FAILED', reason: expect.stringMatching(/no verify hook registered/) }),
-        expect.objectContaining({ code: 'RENDER_FAILED', reason: expect.stringMatching(/no public layout projection registered/) }),
-      ]))
-      expect(getFamily(mutationDiagnosed.id)?.capabilityEvidence.find(claim => claim.capability === 'mutation')?.state)
-        .toBe('diagnosed')
+      expect(result.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED', reason: expect.stringMatching(/no verify hook registered/) }), expect.objectContaining({ code: 'RENDER_FAILED', reason: expect.stringMatching(/no public layout projection registered/) })]))
+      expect(getFamily(mutationDiagnosed.id)?.capabilityEvidence.find(claim => claim.capability === 'mutation')?.state).toBe('diagnosed')
 
       const nativeMutation: FamilyDescriptor = {
         ...extensionDescriptor('mutation-native-claim', 'mutationNativeClaimDiagram'),
         mutate: body => ok(body),
-        capabilityEvidence: extensionDescriptor('mutation-native-claim', 'mutationNativeClaimDiagram').capabilityEvidence
-          .map(claim => claim.capability === 'mutation' ? { ...claim, state: 'native' } : claim),
+        capabilityEvidence: extensionDescriptor('mutation-native-claim', 'mutationNativeClaimDiagram').capabilityEvidence.map(claim => (claim.capability === 'mutation' ? { ...claim, state: 'native' } : claim)),
       }
       expect(() => registerFamily(nativeMutation)).toThrow(/mutation.*claims "native".*require "diagnosed"/)
     } finally {

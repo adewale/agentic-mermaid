@@ -14,22 +14,30 @@
  * dots). A committed baseline lets any heuristic change be judged improvement
  * vs. regression at a glance, for EVERY family, not just flowchart.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { parseMermaid } from '../../src/parser.ts'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { layoutMermaid, parseRegisteredMermaid as parseAgentMermaid } from '../../src/agent/index.ts'
+import type { DiagramKind } from '../../src/agent/types.ts'
+import { assessJourneyLayout, assessRenderedLayout, assessSankeyLayout, familyHardViolations } from '../../src/family-rubric.ts'
+import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../../src/journey/layout.ts'
+import { parseJourneyDiagram } from '../../src/journey/parser.ts'
 import { layoutGraphSync } from '../../src/layout-engine.ts'
 import { assessLayout } from '../../src/layout-rubric.ts'
-import { shapePorts, diamondFacetPorts } from '../../src/route-contracts.ts'
-import { parseRegisteredMermaid as parseAgentMermaid, layoutMermaid } from '../../src/agent/index.ts'
-import { assessRenderedLayout, assessJourneyLayout, familyHardViolations } from '../../src/family-rubric.ts'
-import { parseJourneyDiagram } from '../../src/journey/parser.ts'
-import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../../src/journey/layout.ts'
 import { toMermaidLines } from '../../src/mermaid-source.ts'
-import type { DiagramKind } from '../../src/agent/types.ts'
+import { parseMermaid } from '../../src/parser.ts'
+import { diamondFacetPorts, shapePorts } from '../../src/route-contracts.ts'
+import { resolveSankeyVisualConfig } from '../../src/sankey/config.ts'
+import { layoutSankeyDiagram } from '../../src/sankey/layout.ts'
+import { parseSankeyDiagram } from '../../src/sankey/parser.ts'
 import { trackedExamples } from './catalog.ts'
 
 interface Row {
-  hard: number; offCardinal: number; bends: number; straight: number; crossings: number; symErr: number | null
+  hard: number
+  offCardinal: number
+  bends: number
+  straight: number
+  crossings: number
+  symErr: number | null
   /** SOFT label-CENTRING: worst |projFrac(label) - 0.5| over labelled edges
    *  (layout-rubric worstLabelOffset). Records how well-centred each example's
    *  labels are so a regression of the symmetric-dogleg hugging class trips the
@@ -45,11 +53,16 @@ interface FamilyRow {
   hard: number
   /** Family-rubric score (0–100, higher better, stable weights). */
   score: number
-  offCanvas: number; nodeOverlaps: number; groupBreaches: number; groupOverlaps: number
+  offCanvas: number
+  nodeOverlaps: number
+  groupBreaches: number
+  groupOverlaps: number
   /** Labelled-box rate, 3dp (higher better). */
   labelled: number
   /** Journey assessor score (0–100, higher better); null for other families. */
   journeyScore: number | null
+  /** Sankey assessor ribbon crossings (lower better); null for other families. */
+  sankeyCrossings: number | null
 }
 
 // A "designated" attachment point: the four cardinal side-midpoints for every
@@ -68,7 +81,8 @@ function fanInSymmetryError(pos: any): number | null {
   // hubs with >=2 incoming: check the merge point sits at the source barycenter
   const incoming = new Map<string, any[]>()
   for (const e of pos.edges) (incoming.get(e.target) ?? incoming.set(e.target, []).get(e.target))!.push(e)
-  let worst = 0, any = false
+  let worst = 0,
+    any = false
   const nm = new Map(pos.nodes.map((n: any) => [n.id, n]))
   for (const [tid, edges] of incoming) {
     if (edges.length < 2) continue
@@ -99,49 +113,79 @@ export function scoreFamily(source: string, family: DiagramKind): ScoreResult {
     const layout = layoutMermaid(p.value)
     if (layout.nodes.length === 0) return { error: 'empty layout' }
     result = assessRenderedLayout(layout)
-  } catch (e) { return { error: String(e).slice(0, 60) } }
+  } catch (e) {
+    return { error: String(e).slice(0, 60) }
+  }
   let hard = familyHardViolations(result).length
   let journeyScore: number | null = null
+  let sankeyCrossings: number | null = null
   if (family === 'journey') {
     try {
-      const j = assessJourneyLayout(layoutJourneyDiagram(
-        parseJourneyDiagram(toMermaidLines(source)),
-        resolveJourneyRequestAppearance(),
-      ))
+      const j = assessJourneyLayout(layoutJourneyDiagram(parseJourneyDiagram(toMermaidLines(source)), resolveJourneyRequestAppearance()))
       journeyScore = j.score
       hard += j.violations.length // every journey metric is HARD
-    } catch (e) { return { error: String(e).slice(0, 60) } }
+    } catch (e) {
+      return { error: String(e).slice(0, 60) }
+    }
+  }
+  if (family === 'sankey') {
+    try {
+      const s = assessSankeyLayout(layoutSankeyDiagram(parseSankeyDiagram(toMermaidLines(source)), {}, resolveSankeyVisualConfig()))
+      sankeyCrossings = s.metrics.linkCrossings
+      hard += s.violations.length // every sankey assessor violation is HARD
+    } catch (e) {
+      return { error: String(e).slice(0, 60) }
+    }
   }
   const m = result.metrics
   return {
-    kind: 'family', hard, score: result.score,
-    offCanvas: m.offCanvas, nodeOverlaps: m.nodeOverlaps,
-    groupBreaches: m.groupBreaches, groupOverlaps: m.groupOverlaps,
+    kind: 'family',
+    hard,
+    score: result.score,
+    offCanvas: m.offCanvas,
+    nodeOverlaps: m.nodeOverlaps,
+    groupBreaches: m.groupBreaches,
+    groupOverlaps: m.groupOverlaps,
     labelled: Number(m.labelledBoxRate.toFixed(3)),
     journeyScore,
+    sankeyCrossings,
   }
 }
 
 export function score(source: string): ScoreResult {
   let pos: any
-  try { pos = layoutGraphSync(parseMermaid(source)) } catch (e) { return { error: String(e).slice(0, 60) } }
+  try {
+    pos = layoutGraphSync(parseMermaid(source))
+  } catch (e) {
+    return { error: String(e).slice(0, 60) }
+  }
   if (!pos || pos.nodes.length === 0) return { error: 'empty layout' }
   let graph: any
-  try { graph = parseMermaid(source) } catch { return { error: 'reparse' } }
+  try {
+    graph = parseMermaid(source)
+  } catch {
+    return { error: 'reparse' }
+  }
   const r = assessLayout(graph, pos)
   const nm = new Map(pos.nodes.map((n: any) => [n.id, n]))
-  let offCardinal = 0, straight = 0
+  let offCardinal = 0,
+    straight = 0
   for (const e of pos.edges) {
     if (e.points.length < 2) continue
     if (e.points.length === 2) straight++
-    const s = nm.get(e.source), t = nm.get(e.target)
+    const s = nm.get(e.source),
+      t = nm.get(e.target)
     if (s && !onCardinal(s, e.points[0])) offCardinal++
     if (t && !onCardinal(t, e.points[e.points.length - 1])) offCardinal++
   }
   const hasLabel = pos.edges.some((e: any) => e.label && e.labelPosition && e.points.length >= 2)
   return {
-    hard: r.violations.length, offCardinal, bends: r.metrics.totalBends, straight,
-    crossings: r.metrics.edgeCrossings, symErr: fanInSymmetryError(pos),
+    hard: r.violations.length,
+    offCardinal,
+    bends: r.metrics.totalBends,
+    straight,
+    crossings: r.metrics.edgeCrossings,
+    symErr: fanInSymmetryError(pos),
     labelOff: hasLabel ? Number(r.metrics.worstLabelOffset.toFixed(3)) : null,
   }
 }
@@ -177,16 +221,18 @@ export interface RegressionReport {
  * more bends/crossings/off-cardinal endpoints, fewer straight edges, or a worse
  * fan-in symmetry error — the same directions the CLI prints with ✗.
  */
-export function compareToBaseline(
-  current: Record<string, ScoreResult>,
-  baseline: Record<string, any>,
-): RegressionReport {
-  let totalHard = 0, improvements = 0, regressions = 0
+export function compareToBaseline(current: Record<string, ScoreResult>, baseline: Record<string, any>): RegressionReport {
+  let totalHard = 0,
+    improvements = 0,
+    regressions = 0
   const regressionDetails: string[] = []
   const errors: string[] = []
   for (const [key, cAny] of Object.entries(current)) {
     const c = cAny as any
-    if (c.error) { errors.push(`${key}: ${c.error}`); continue }
+    if (c.error) {
+      errors.push(`${key}: ${c.error}`)
+      continue
+    }
     totalHard += c.hard
     const b = baseline[key]
     if (!b || b.error) continue
@@ -197,14 +243,29 @@ export function compareToBaseline(
         const d = c[m] - (b[m] ?? 0)
         if (d === 0) continue
         if (d < 0) improvements++
-        else { regressions++; regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`) }
+        else {
+          regressions++
+          regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`)
+        }
       }
       for (const m of ['score', 'labelled', 'journeyScore'] as const) {
         if (c[m] === null || b[m] == null) continue
         const d = c[m] - b[m]
         if (Math.abs(d) < 1e-9) continue
         if (d > 0) improvements++
-        else { regressions++; regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`) }
+        else {
+          regressions++
+          regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`)
+        }
+      }
+      // Sankey ribbon crossings: lower is better, null for other families.
+      if (c.sankeyCrossings !== null && b.sankeyCrossings != null && c.sankeyCrossings !== b.sankeyCrossings) {
+        const d = c.sankeyCrossings - b.sankeyCrossings
+        if (d < 0) improvements++
+        else {
+          regressions++
+          regressionDetails.push(`${key}: sankeyCrossings ${b.sankeyCrossings}→${c.sankeyCrossings}`)
+        }
       }
       continue
     }
@@ -213,19 +274,28 @@ export function compareToBaseline(
       if (d === 0) continue
       const better = m === 'straight' ? d > 0 : d < 0
       if (better) improvements++
-      else { regressions++; regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`) }
+      else {
+        regressions++
+        regressionDetails.push(`${key}: ${m} ${b[m]}→${c[m]}`)
+      }
     }
     if (c.symErr !== null && b.symErr !== null && Math.abs(c.symErr - b.symErr) > 0.5) {
       const d = c.symErr - b.symErr
       if (d < 0) improvements++
-      else { regressions++; regressionDetails.push(`${key}: symErr ${b.symErr}→${c.symErr}`) }
+      else {
+        regressions++
+        regressionDetails.push(`${key}: symErr ${b.symErr}→${c.symErr}`)
+      }
     }
     // Label-centring: lower is better (a label drifting toward an endpoint is a
     // regression). Fractional metric, so a tighter tolerance than symErr's px.
     if (c.labelOff !== null && b.labelOff != null && Math.abs(c.labelOff - b.labelOff) > 0.005) {
       const d = c.labelOff - b.labelOff
       if (d < 0) improvements++
-      else { regressions++; regressionDetails.push(`${key}: labelOff ${b.labelOff}→${c.labelOff}`) }
+      else {
+        regressions++
+        regressionDetails.push(`${key}: labelOff ${b.labelOff}→${c.labelOff}`)
+      }
     }
   }
   return { totalHard, improvements, regressions, regressionDetails, errors }
@@ -243,13 +313,16 @@ if (import.meta.main) {
   }
 
   const baseline = loadBaseline()
-  const fmt = (v: any) => v === null ? '·' : String(v)
+  const fmt = (v: any) => (v === null ? '·' : String(v))
   console.log('group/name'.padEnd(34), 'hard off bend strt xing  sym  lblOff  Δ(vs baseline)')
   for (const ex of examples) {
     const key = `${ex.group}/${ex.name}`
     const c = current[key] as any
     const b = baseline[key]
-    if (c.error) { console.log(key.padEnd(34), `ERROR: ${c.error}`); continue }
+    if (c.error) {
+      console.log(key.padEnd(34), `ERROR: ${c.error}`)
+      continue
+    }
     if (c.kind === 'family') {
       const deltas: string[] = []
       if (b && !b.error && b.kind === 'family') {
@@ -262,12 +335,16 @@ if (import.meta.main) {
           const d = c[m] - b[m]
           if (Math.abs(d) > 1e-9) deltas.push(`${m}${d > 0 ? '+' : ''}${Number(d.toFixed(3))}${d > 0 ? '✓' : '✗'}`)
         }
+        if (c.sankeyCrossings !== null && b.sankeyCrossings != null && c.sankeyCrossings !== b.sankeyCrossings) {
+          const d = c.sankeyCrossings - b.sankeyCrossings
+          deltas.push(`sankeyCrossings${d > 0 ? '+' : ''}${d}${d < 0 ? '✓' : '✗'}`)
+        }
       }
       console.log(
         key.padEnd(34),
         String(c.hard).padStart(4),
         `score ${String(c.score).padStart(5)}`,
-        c.journeyScore !== null ? `journey ${String(c.journeyScore).padStart(5)}` : ''.padEnd(13),
+        c.journeyScore !== null ? `journey ${String(c.journeyScore).padStart(5)}` : c.sankeyCrossings !== null ? `xing ${String(c.sankeyCrossings).padStart(8)}` : ''.padEnd(13),
         `lbl ${c.labelled.toFixed(3)}`,
         '  ' + (deltas.join(' ') || (b ? '=' : 'new')),
       )
@@ -291,16 +368,13 @@ if (import.meta.main) {
         deltas.push(`lblOff${d > 0 ? '+' : ''}${d.toFixed(3)}${d < 0 ? '✓' : '✗'}`)
       }
     }
-    console.log(
-      key.padEnd(34),
-      String(c.hard).padStart(4), String(c.offCardinal).padStart(3), String(c.bends).padStart(4),
-      String(c.straight).padStart(4), String(c.crossings).padStart(4), fmt(c.symErr).padStart(5),
-      fmt(c.labelOff).padStart(6),
-      '  ' + (deltas.join(' ') || (b ? '=' : 'new')),
-    )
+    console.log(key.padEnd(34), String(c.hard).padStart(4), String(c.offCardinal).padStart(3), String(c.bends).padStart(4), String(c.straight).padStart(4), String(c.crossings).padStart(4), fmt(c.symErr).padStart(5), fmt(c.labelOff).padStart(6), '  ' + (deltas.join(' ') || (b ? '=' : 'new')))
   }
   const report = compareToBaseline(current, baseline)
   console.log('—'.repeat(70))
   console.log(`examples: ${examples.length}   total HARD violations: ${report.totalHard}   vs baseline: ${report.improvements} improvements, ${report.regressions} regressions`)
-  if (report.totalHard > 0) { console.error('FAIL: hard-metric violations present'); process.exit(1) }
+  if (report.totalHard > 0) {
+    console.error('FAIL: hard-metric violations present')
+    process.exit(1)
+  }
 }

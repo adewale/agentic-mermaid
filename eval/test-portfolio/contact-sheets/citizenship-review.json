@@ -3,7 +3,7 @@
   "status": "pending-independent-human-review",
   "kind": "citizenship",
   "manifest": "eval/test-portfolio/contact-sheets/citizenship.manifest.json",
-  "manifestSha256": "9df46a1240e4c08efb8ed96e79c4330692d12d7853245c83ce05dc5b7c523355",
+  "manifestSha256": "2dcb88a590dbfbfc5f3042b0d7add132090cda18f3dcd681008012f35427366d",
   "reviewedAt": null,
   "reviewer": null,
   "minutes": null,

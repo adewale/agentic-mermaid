@@ -34,66 +34,52 @@
 // Determinism: each view is a deterministic function of one positioned input.
 // ============================================================================
 
-import type {
-  ParsedDiagram,
-  ValidDiagram,
-  RenderedLayout,
-  RenderedLayoutNode,
-  RenderedLayoutEdge,
-  RenderedLayoutGroup,
-  LayoutWarning,
-  Finite,
-  FamilyId,
-} from './types.ts'
-import type {
-  FamilyEdgeRouteCertificate, Point, PositionedDiagram, PositionedGraph, RegionContainmentCertificate, RenderOptions,
-} from '../types.ts'
-import { toFinite } from './types.ts'
-import { emptyRenderedLayout, positionedGraphToRenderedView } from './layout-to-rendered.ts'
-import { serializeMermaid } from './serialize.ts'
-import { renderSourceForParsedDiagram } from './render-input.ts'
-import { getFamily } from './families.ts'
-import type {
-  FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
-  FamilyPositionedView, FamilyLayoutResult,
-} from './families.ts'
-import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
-import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
-import { positionResolvedFamily } from '../positioning.ts'
-
-import { normalizeMermaidSource } from '../mermaid-source.ts'
+import type { PositionedArchitectureDiagram, PositionedArchitectureEdge, PositionedArchitectureGroup, PositionedArchitectureJunction, PositionedArchitectureService } from '../architecture/types.ts'
 import type { PositionedClassDiagram } from '../class/types.ts'
-import type { PositionedErDiagram } from '../er/types.ts'
 import { ER_STYLE_DEFAULTS } from '../er/layout.ts'
 import { separateRelationshipLabels } from '../er/renderer.ts'
-import { resolveRenderStyle } from '../styles.ts'
-import type { PositionedSequenceDiagram } from '../sequence/types.ts'
-import type { PositionedTimelineDiagram } from '../timeline/types.ts'
-import type { PositionedJourneyDiagram } from '../journey/types.ts'
-import type {
-  PositionedArchitectureDiagram, PositionedArchitectureEdge, PositionedArchitectureGroup,
-  PositionedArchitectureJunction, PositionedArchitectureService,
-} from '../architecture/types.ts'
-import type { PositionedXYChart } from '../xychart/types.ts'
-import type { PositionedPieChart } from '../pie/types.ts'
-import { formatPiePercent } from '../pie/layout.ts'
-import type { PositionedQuadrantChart } from '../quadrant/types.ts'
-import type { PositionedRadarChart } from '../radar/types.ts'
-import { measureTextWidth } from '../text-metrics.ts'
-import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
+import type { PositionedErDiagram } from '../er/types.ts'
+import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import type { GanttLayoutResult } from '../gantt/types.ts'
-import type { PositionedMindmapDiagram } from '../mindmap/types.ts'
 import type { PositionedGitGraphDiagram } from '../gitgraph/types.ts'
+import type { PositionedJourneyDiagram } from '../journey/types.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import type { PositionedMindmapDiagram } from '../mindmap/types.ts'
+import { formatPiePercent } from '../pie/layout.ts'
+import type { PositionedPieChart } from '../pie/types.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import type { PositionedQuadrantChart } from '../quadrant/types.ts'
+import type { PositionedRadarChart } from '../radar/types.ts'
+import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
+import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
+import type { PositionedSankeyChart } from '../sankey/types.ts'
+import type { PositionedSequenceDiagram } from '../sequence/types.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import { measureTextWidth } from '../text-metrics.ts'
+import type { PositionedTimelineDiagram } from '../timeline/types.ts'
+import type { FamilyEdgeRouteCertificate, Point, PositionedDiagram, PositionedGraph, RegionContainmentCertificate, RenderOptions } from '../types.ts'
+import type { PositionedXYChart } from '../xychart/types.ts'
+import type { FamilyLayoutResult, FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions, FamilyPositionedView } from './families.ts'
+import { getFamily } from './families.ts'
+import { emptyRenderedLayout, positionedGraphToRenderedView } from './layout-to-rendered.ts'
+import { renderSourceForParsedDiagram } from './render-input.ts'
+import { serializeMermaid } from './serialize.ts'
+import type { FamilyId, Finite, LayoutWarning, ParsedDiagram, RenderedLayout, RenderedLayoutEdge, RenderedLayoutGroup, RenderedLayoutNode, ValidDiagram } from './types.ts'
+import { toFinite } from './types.ts'
 
-function f(n: number): Finite { return toFinite(Math.round(n)) }
+function f(n: number): Finite {
+  return toFinite(Math.round(n))
+}
 
 /** Round a span against its rounded start. Rounding x and width
  *  independently can shift the far edge ±1px away from rounded edge
  *  endpoints, which fires the class/ER anchor tripwires (TOL 0.5) on
  *  geometry that sits exactly on-boundary pre-rounding — observed live on
  *  an onboarding-probe ER diagram. Used where edgeAnchors checks run. */
-function fSpan(start: number, length: number): Finite { return toFinite(Math.round(start + length) - Math.round(start)) }
+function fSpan(start: number, length: number): Finite {
+  return toFinite(Math.round(start + length) - Math.round(start))
+}
 
 export interface ProjectedFamilyArtifact {
   /** Resolved request whose executable family/backend references stay private. */
@@ -129,11 +115,7 @@ export class FamilyLayoutError extends Error {
 }
 
 /** Project one already-resolved request without re-reading raw public options. */
-export function positionResolvedFamilyArtifact(
-  d: ParsedDiagram,
-  request: ResolvedRenderRequest,
-  options: FamilyPositionedProjectionOptions = {},
-): ProjectedFamilyArtifact | null {
+export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: ResolvedRenderRequest, options: FamilyPositionedProjectionOptions = {}): ProjectedFamilyArtifact | null {
   const descriptor = resolvedRenderExecutionPlanOf(request).family
   if (descriptor.id !== d.kind) {
     throw new Error(`Resolved request planned family ${descriptor.id}, not ${d.kind}`)
@@ -161,10 +143,14 @@ export function positionResolvedFamilyArtifact(
 
 function structuredBodyExpectsNodes(d: ParsedDiagram): boolean {
   switch (d.body.kind) {
-    case 'xychart': return d.body.series.length > 0
-    case 'pie': return d.body.slices.length > 0
-    case 'gantt': return d.body.sections.some(section => section.tasks.length > 0)
-    default: return false
+    case 'xychart':
+      return d.body.series.length > 0
+    case 'pie':
+      return d.body.slices.length > 0
+    case 'gantt':
+      return d.body.sections.some(section => section.tasks.length > 0)
+    default:
+      return false
   }
 }
 
@@ -192,11 +178,7 @@ function stampFamilyKind(kind: FamilyId, view: FamilyPositionedView): RenderedLa
  * This open-id form is useful to extension conformance tests even though the
  * current public `RenderedLayout` envelope remains a closed built-in union.
  */
-export function projectPositionedView(
-  familyId: FamilyId,
-  positioned: PositionedDiagram,
-  options: FamilyPositionedProjectionOptions = {},
-): FamilyPositionedView | null {
+export function projectPositionedView(familyId: FamilyId, positioned: PositionedDiagram, options: FamilyPositionedProjectionOptions = {}): FamilyPositionedView | null {
   const descriptor = getFamily(familyId)
   if (!descriptor?.projectPositioned) return null
   return descriptor.projectPositioned({ positioned, options })
@@ -216,10 +198,7 @@ export function familyArtifactSource(d: ParsedDiagram): string {
   return renderSourceForParsedDiagram(d)
 }
 
-export function positionFamilyArtifact(
-  d: ParsedDiagram,
-  options: PositionFamilyArtifactOptions = {},
-): ProjectedFamilyArtifact | null {
+export function positionFamilyArtifact(d: ParsedDiagram, options: PositionFamilyArtifactOptions = {}): ProjectedFamilyArtifact | null {
   const descriptor = getFamily(d.kind)
   if (!descriptor?.layout || !descriptor.projectPositioned) return null
   const projectionOptions: FamilyPositionedProjectionOptions = { debug: options.debug }
@@ -229,12 +208,7 @@ export function positionFamilyArtifact(
 
   const projectSource = (text: string): ProjectedFamilyArtifact => {
     const output = options.output ?? 'layout'
-    const request = resolveRenderRequest(
-      text,
-      options.renderOptions ?? {},
-      output,
-      output === 'layout' ? projectionOptions : undefined,
-    )
+    const request = resolveRenderRequest(text, options.renderOptions ?? {}, output, output === 'layout' ? projectionOptions : undefined)
     return positionResolvedFamilyArtifact(d, request, projectionOptions)!
   }
 
@@ -259,88 +233,100 @@ export function positionFamilyArtifact(
 }
 
 /** Layout-JSON facade. Descriptor failures propagate with family/operation context. */
-export function layoutFamilyToRendered(
-  d: ParsedDiagram,
-  options: PositionFamilyArtifactOptions = {},
-): RenderedLayout | null {
+export function layoutFamilyToRendered(d: ParsedDiagram, options: PositionFamilyArtifactOptions = {}): RenderedLayout | null {
   const descriptor = getFamily(d.kind)
   if (!descriptor?.layout || !descriptor.projectPositioned) return null
   return positionFamilyArtifact(d, options)?.rendered ?? null
 }
 
 /** Facade for adapters that already own a canonical request receipt. */
-export function layoutResolvedFamilyToRendered(
-  d: ParsedDiagram,
-  request: ResolvedRenderRequest,
-  options: FamilyPositionedProjectionOptions = {},
-): RenderedLayout | null {
+export function layoutResolvedFamilyToRendered(d: ParsedDiagram, request: ResolvedRenderRequest, options: FamilyPositionedProjectionOptions = {}): RenderedLayout | null {
   return positionResolvedFamilyArtifact(d, request, options)?.rendered ?? null
 }
 
 /** Flowchart and state share the canonical ELK positioned-graph view. */
-export function projectGraphPositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedGraph>,
-): FamilyPositionedView {
+export function projectGraphPositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedGraph>): FamilyPositionedView {
   return positionedGraphToRenderedView(positioned, options)
 }
 
 // ---- mindmap / gitgraph ---------------------------------------------------
 
-export function projectMindmapPositioned(
-  { positioned }: FamilyPositionedProjectionContext<PositionedMindmapDiagram>,
-): FamilyPositionedView {
+export function projectMindmapPositioned({ positioned }: FamilyPositionedProjectionContext<PositionedMindmapDiagram>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
-    id: node.id, x: f(node.x), y: f(node.y),
-    w: f(node.width), h: f(node.height), shape: node.shape === 'circle' ? 'ellipse' : 'rectangle', label: node.label,
+    id: node.id,
+    x: f(node.x),
+    y: f(node.y),
+    w: f(node.width),
+    h: f(node.height),
+    shape: node.shape === 'circle' ? 'ellipse' : 'rectangle',
+    label: node.label,
   }))
   const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
-    id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+    id: `edge#${index}:${edge.from}->${edge.to}`,
+    from: edge.from,
+    to: edge.to,
     path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
   }))
   return { version: 1, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
-export function projectGitGraphPositioned(
-  { positioned }: FamilyPositionedProjectionContext<PositionedGitGraphDiagram>,
-): FamilyPositionedView {
+export function projectGitGraphPositioned({ positioned }: FamilyPositionedProjectionContext<PositionedGitGraphDiagram>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = positioned.commits.map(commit => {
     const type = commit.customType ?? commit.type
     return {
-      id: commit.id, x: f(commit.x - 10), y: f(commit.y - 10), w: f(20), h: f(20),
+      id: commit.id,
+      x: f(commit.x - 10),
+      y: f(commit.y - 10),
+      w: f(20),
+      h: f(20),
       shape: type === 'CHERRY_PICK' ? 'diamond' : type === 'HIGHLIGHT' ? 'rectangle' : 'ellipse',
       label: commit.message || commit.id,
     }
   })
   const edges: RenderedLayoutEdge[] = positioned.edges.map((edge, index) => ({
-    id: `edge#${index}:${edge.from}->${edge.to}`, from: edge.from, to: edge.to,
+    id: `edge#${index}:${edge.from}->${edge.to}`,
+    from: edge.from,
+    to: edge.to,
     path: edge.points.map(point => [f(point.x), f(point.y)] as [Finite, Finite]),
   }))
-  const groups: RenderedLayoutGroup[] = positioned.showBranches ? positioned.branches.map(branch => {
-    const commits = positioned.commits.filter(commit => commit.branch === branch.name)
-    const minX = Math.min(branch.x1, branch.x2, ...commits.map(commit => commit.x - 10))
-    const minY = Math.min(branch.y1, branch.y2, ...commits.map(commit => commit.y - 10))
-    const maxX = Math.max(branch.x1, branch.x2, ...commits.map(commit => commit.x + 10))
-    const maxY = Math.max(branch.y1, branch.y2, ...commits.map(commit => commit.y + 10))
-    return {
-      id: `branch:${branch.name}`,
-      x: f(minX), y: f(minY), w: f(Math.max(1, maxX - minX)), h: f(Math.max(1, maxY - minY)),
-      members: commits.map(commit => commit.id), label: branch.name,
-    }
-  }) : []
+  const groups: RenderedLayoutGroup[] = positioned.showBranches
+    ? positioned.branches.map(branch => {
+        const commits = positioned.commits.filter(commit => commit.branch === branch.name)
+        const minX = Math.min(branch.x1, branch.x2, ...commits.map(commit => commit.x - 10))
+        const minY = Math.min(branch.y1, branch.y2, ...commits.map(commit => commit.y - 10))
+        const maxX = Math.max(branch.x1, branch.x2, ...commits.map(commit => commit.x + 10))
+        const maxY = Math.max(branch.y1, branch.y2, ...commits.map(commit => commit.y + 10))
+        return {
+          id: `branch:${branch.name}`,
+          x: f(minX),
+          y: f(minY),
+          w: f(Math.max(1, maxX - minX)),
+          h: f(Math.max(1, maxY - minY)),
+          members: commits.map(commit => commit.id),
+          label: branch.name,
+        }
+      })
+    : []
   return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
 // ---- class ----------------------------------------------------------------
 
-export function projectClassPositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedClassDiagram>,
-): FamilyPositionedView {
+export function projectClassPositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedClassDiagram>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = positioned.classes.map(c => ({
-    id: c.id, x: f(c.x), y: f(c.y), w: fSpan(c.x, c.width), h: fSpan(c.y, c.height), shape: 'rectangle', label: c.label,
+    id: c.id,
+    x: f(c.x),
+    y: f(c.y),
+    w: fSpan(c.x, c.width),
+    h: fSpan(c.y, c.height),
+    shape: 'rectangle',
+    label: c.label,
   }))
   const boxById = new Map(positioned.classes.map(c => [c.id, { x: c.x, y: c.y, width: c.width, height: c.height }]))
   const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => ({
-    id: `rel#${i}:${r.from}->${r.to}`, from: r.from, to: r.to,
+    id: `rel#${i}:${r.from}->${r.to}`,
+    from: r.from,
+    to: r.to,
     path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
     label: r.label && r.labelPosition ? { x: f(r.labelPosition.x), y: f(r.labelPosition.y), text: r.label } : undefined,
     route: options.debug ? boxRouteCertificate('class', i, r.points, boxById.get(r.from), boxById.get(r.to)) : undefined,
@@ -348,49 +334,57 @@ export function projectClassPositioned(
   // Namespaces are groups whose members are their directly-declared classes
   // (the family rubric's group-containment axis judges them).
   const groups: RenderedLayoutGroup[] = positioned.namespaces.map(ns => ({
-    id: ns.id, x: f(ns.x), y: f(ns.y), w: fSpan(ns.x, ns.width), h: fSpan(ns.y, ns.height),
-    members: [...ns.classIds], label: ns.label, parentId: ns.parentId,
+    id: ns.id,
+    x: f(ns.x),
+    y: f(ns.y),
+    w: fSpan(ns.x, ns.width),
+    h: fSpan(ns.y, ns.height),
+    members: [...ns.classIds],
+    label: ns.label,
+    parentId: ns.parentId,
   }))
   return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
 // ---- er -------------------------------------------------------------------
 
-export function projectErPositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedErDiagram>,
-): FamilyPositionedView {
+export function projectErPositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedErDiagram>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = positioned.entities.map(e => ({
-    id: e.id, x: f(e.x), y: f(e.y), w: fSpan(e.x, e.width), h: fSpan(e.y, e.height), shape: 'rectangle', label: e.label,
+    id: e.id,
+    x: f(e.x),
+    y: f(e.y),
+    w: fSpan(e.x, e.width),
+    h: fSpan(e.y, e.height),
+    shape: 'rectangle',
+    label: e.label,
   }))
   const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
   const labelPositions = separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
   const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => {
     const at = labelPositions.get(r)
     return {
-      id: `rel#${i}:${r.entity1}->${r.entity2}`, from: r.entity1, to: r.entity2,
+      id: `rel#${i}:${r.entity1}->${r.entity2}`,
+      from: r.entity1,
+      to: r.entity2,
       path: r.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
       label: r.label && at ? { x: f(at.x), y: f(at.y), text: r.label } : undefined,
       route: options.debug ? boxRouteCertificate('er', i, r.points, boxById.get(r.entity1), boxById.get(r.entity2)) : undefined,
     }
   })
   const groups: RenderedLayoutGroup[] = positioned.groups.map(group => ({
-    id: group.id, x: f(group.x), y: f(group.y), w: fSpan(group.x, group.width), h: fSpan(group.y, group.height),
-    members: [
-      ...positioned.entities.filter(entity => entity.groupId === group.id).map(entity => entity.id),
-      ...positioned.groups.filter(child => child.parentId === group.id).map(child => child.id),
-    ],
-    label: group.label, parentId: group.parentId,
+    id: group.id,
+    x: f(group.x),
+    y: f(group.y),
+    w: fSpan(group.x, group.width),
+    h: fSpan(group.y, group.height),
+    members: [...positioned.entities.filter(entity => entity.groupId === group.id).map(entity => entity.id), ...positioned.groups.filter(child => child.parentId === group.id).map(child => child.id)],
+    label: group.label,
+    parentId: group.parentId,
   }))
   return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
-function boxRouteCertificate(
-  family: 'class' | 'er',
-  edgeIndex: number,
-  points: Point[],
-  source: { x: number; y: number; width: number; height: number } | undefined,
-  target: { x: number; y: number; width: number; height: number } | undefined,
-): FamilyEdgeRouteCertificate {
+function boxRouteCertificate(family: 'class' | 'er', edgeIndex: number, points: Point[], source: { x: number; y: number; width: number; height: number } | undefined, target: { x: number; y: number; width: number; height: number } | undefined): FamilyEdgeRouteCertificate {
   const sourceBoundary = !!(source && points[0] && pointOnRawRectBoundary(points[0].x, points[0].y, source, 1))
   const targetBoundary = !!(target && points[points.length - 1] && pointOnRawRectBoundary(points[points.length - 1]!.x, points[points.length - 1]!.y, target, 1))
   const orthogonal = routeOrthogonal(points)
@@ -408,7 +402,8 @@ function boxRouteCertificate(
 
 function routeOrthogonal(points: Point[]): boolean {
   for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1]!, b = points[i]!
+    const a = points[i - 1]!,
+      b = points[i]!
     if (Math.abs(a.x - b.x) > 0.5 && Math.abs(a.y - b.y) > 0.5) return false
   }
   return true
@@ -418,7 +413,9 @@ function bendCount(points: Point[]): number {
   if (points.length < 3) return 0
   let bends = 0
   for (let i = 1; i < points.length - 1; i++) {
-    const a = points[i - 1]!, b = points[i]!, c = points[i + 1]!
+    const a = points[i - 1]!,
+      b = points[i]!,
+      c = points[i + 1]!
     const sameX = Math.abs(a.x - b.x) <= 0.5 && Math.abs(b.x - c.x) <= 0.5
     const sameY = Math.abs(a.y - b.y) <= 0.5 && Math.abs(b.y - c.y) <= 0.5
     if (!sameX && !sameY) bends++
@@ -441,13 +438,7 @@ function labelMidpoint(points: Array<{ x: number; y: number }>, text: string): {
 type ElementCertificateFamily = 'timeline' | 'xychart' | 'pie' | 'quadrant' | 'gantt'
 type ElementCertificateInvariant = RegionContainmentCertificate['invariant']
 
-function elementCertificates(
-  family: ElementCertificateFamily,
-  layout: FamilyPositionedView,
-  invariant: ElementCertificateInvariant,
-  referenceGroup?: RenderedLayoutGroup,
-  containment: 'bounds' | 'center' = 'bounds',
-): RegionContainmentCertificate[] {
+function elementCertificates(family: ElementCertificateFamily, layout: FamilyPositionedView, invariant: ElementCertificateInvariant, referenceGroup?: RenderedLayoutGroup, containment: 'bounds' | 'center' = 'bounds'): RegionContainmentCertificate[] {
   const groupsByMember = new Map<string, RenderedLayoutGroup>()
   for (const group of layout.groups) {
     for (const member of group.members) groupsByMember.set(member, group)
@@ -486,18 +477,28 @@ function nodeCenterWithinGroup(n: RenderedLayoutNode, g: RenderedLayoutGroup, to
 
 // ---- sequence -------------------------------------------------------------
 
-export function projectSequencePositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedSequenceDiagram>,
-): FamilyPositionedView {
+export function projectSequencePositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedSequenceDiagram>): FamilyPositionedView {
   const lifelineByActor = new Map(positioned.lifelines.map(l => [l.actorId, l.x]))
   const nodes: RenderedLayoutNode[] = [
     ...positioned.actors.map(a => ({
-      id: a.id, x: f(a.x - a.width / 2), y: f(a.y), w: f(a.width), h: f(a.height),
-      shape: 'rectangle', label: a.label, role: 'box' as const,
+      id: a.id,
+      x: f(a.x - a.width / 2),
+      y: f(a.y),
+      w: f(a.width),
+      h: f(a.height),
+      shape: 'rectangle',
+      label: a.label,
+      role: 'box' as const,
     })),
     ...positioned.notes.map((n, i) => ({
-      id: `note#${i}`, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height),
-      shape: 'note', label: n.text, role: 'box' as const,
+      id: `note#${i}`,
+      x: f(n.x),
+      y: f(n.y),
+      w: f(n.width),
+      h: f(n.height),
+      shape: 'note',
+      label: n.text,
+      role: 'box' as const,
     })),
   ]
   return {
@@ -506,21 +507,33 @@ export function projectSequencePositioned(
     edges: positioned.messages.map((m, i) => {
       const path = sequenceMessagePath(m)
       return {
-        id: `msg#${i}:${m.from}->${m.to}`, from: m.from, to: m.to,
+        id: `msg#${i}:${m.from}->${m.to}`,
+        from: m.from,
+        to: m.to,
         path: path.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
         label: m.label ? sequenceMessageLabel(m) : undefined,
         route: options.debug ? sequenceRouteCertificate(i, m, path, lifelineByActor) : undefined,
       }
     }),
     groups: positioned.blocks.map((b, i) => ({
-      id: `block#${i}:${b.type}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), members: [], label: b.label,
+      id: `block#${i}:${b.type}`,
+      x: f(b.x),
+      y: f(b.y),
+      w: f(b.width),
+      h: f(b.height),
+      members: [],
+      label: b.label,
     })),
     bounds: { w: f(positioned.width), h: f(positioned.height) },
   }
 }
 
 function sequenceMessagePath(message: { x1: number; x2: number; y: number; isSelf: boolean }): Point[] {
-  if (!message.isSelf) return [{ x: message.x1, y: message.y }, { x: message.x2, y: message.y }]
+  if (!message.isSelf)
+    return [
+      { x: message.x1, y: message.y },
+      { x: message.x2, y: message.y },
+    ]
   const loopW = 30
   const loopH = 20
   return [
@@ -536,12 +549,7 @@ function sequenceMessageLabel(message: { x1: number; x2: number; y: number; isSe
   return { x: f((message.x1 + message.x2) / 2), y: f(message.y - 10), text: message.label }
 }
 
-function sequenceRouteCertificate(
-  edgeIndex: number,
-  message: { from: string; to: string; x1: number; x2: number; y: number; isSelf: boolean },
-  points: Point[],
-  lifelineByActor: Map<string, number>,
-): FamilyEdgeRouteCertificate {
+function sequenceRouteCertificate(edgeIndex: number, message: { from: string; to: string; x1: number; x2: number; y: number; isSelf: boolean }, points: Point[], lifelineByActor: Map<string, number>): FamilyEdgeRouteCertificate {
   const sourceX = lifelineByActor.get(message.from)
   const targetX = lifelineByActor.get(message.to)
   const first = points[0]
@@ -565,9 +573,7 @@ function sequenceRouteCertificate(
 
 // ---- timeline -------------------------------------------------------------
 
-export function projectTimelinePositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedTimelineDiagram>,
-): FamilyPositionedView {
+export function projectTimelinePositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedTimelineDiagram>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = []
   const groups: RenderedLayoutGroup[] = []
   for (const section of positioned.sections) {
@@ -575,14 +581,24 @@ export function projectTimelinePositioned(
     for (const period of section.periods) {
       const periodId = `${period.id}:period`
       nodes.push({
-        id: periodId, x: f(period.pillX), y: f(period.pillY), w: f(period.pillWidth), h: f(period.pillHeight),
-        shape: 'rounded', label: period.label,
+        id: periodId,
+        x: f(period.pillX),
+        y: f(period.pillY),
+        w: f(period.pillWidth),
+        h: f(period.pillHeight),
+        shape: 'rounded',
+        label: period.label,
       })
       members.push(periodId)
       for (const event of period.events) {
         nodes.push({
-          id: event.id, x: f(event.x), y: f(event.y), w: f(event.width), h: f(event.height),
-          shape: 'rectangle', label: event.text,
+          id: event.id,
+          x: f(event.x),
+          y: f(event.y),
+          w: f(event.width),
+          h: f(event.height),
+          shape: 'rectangle',
+          label: event.text,
         })
         members.push(event.id)
       }
@@ -598,9 +614,7 @@ export function projectTimelinePositioned(
 
 // ---- journey --------------------------------------------------------------
 
-export function projectJourneyPositioned(
-  { positioned }: FamilyPositionedProjectionContext<PositionedJourneyDiagram>,
-): FamilyPositionedView {
+export function projectJourneyPositioned({ positioned }: FamilyPositionedProjectionContext<PositionedJourneyDiagram>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = []
   const groups: RenderedLayoutGroup[] = []
   for (const s of positioned.sections) {
@@ -612,9 +626,7 @@ export function projectJourneyPositioned(
     // The group is the section COLUMN (header band down through its task
     // boxes), not just the header rect — so groupContainment verifies the
     // real invariant: every task sits inside its own section span.
-    const bottom = s.tasks.length > 0
-      ? Math.max(s.y + s.height, ...s.tasks.map(t => t.y + t.height))
-      : s.y + s.height
+    const bottom = s.tasks.length > 0 ? Math.max(s.y + s.height, ...s.tasks.map(t => t.y + t.height)) : s.y + s.height
     groups.push({ id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(bottom - s.y), members: memberIds, label: s.label })
   }
   return { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
@@ -622,15 +634,27 @@ export function projectJourneyPositioned(
 
 // ---- architecture ---------------------------------------------------------
 
-export function projectArchitecturePositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedArchitectureDiagram>,
-): FamilyPositionedView {
+export function projectArchitecturePositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedArchitectureDiagram>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = [
     ...positioned.services.map(s => ({
-      id: s.id, x: f(s.x), y: f(s.y), w: f(s.width), h: f(s.height), shape: 'service', label: s.label, role: 'box' as const,
+      id: s.id,
+      x: f(s.x),
+      y: f(s.y),
+      w: f(s.width),
+      h: f(s.height),
+      shape: 'service',
+      label: s.label,
+      role: 'box' as const,
     })),
     ...positioned.junctions.map(j => ({
-      id: j.id, x: f(j.x), y: f(j.y), w: f(j.width), h: f(j.height), shape: 'circle' as const, label: undefined, role: 'mark' as const,
+      id: j.id,
+      x: f(j.x),
+      y: f(j.y),
+      w: f(j.width),
+      h: f(j.height),
+      shape: 'circle' as const,
+      label: undefined,
+      role: 'mark' as const,
     })),
   ]
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
@@ -638,12 +662,14 @@ export function projectArchitecturePositioned(
   const flatten = (g: PositionedArchitectureGroup): void => {
     flatGroups.set(g.id, g)
     groups.push({
-      id: g.id, x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height),
-      members: [
-        ...positioned.services.filter(service => service.parentId === g.id).map(service => service.id),
-        ...positioned.junctions.filter(junction => junction.parentId === g.id).map(junction => junction.id),
-      ],
-      label: g.label, parentId: g.parentId,
+      id: g.id,
+      x: f(g.x),
+      y: f(g.y),
+      w: f(g.width),
+      h: f(g.height),
+      members: [...positioned.services.filter(service => service.parentId === g.id).map(service => service.id), ...positioned.junctions.filter(junction => junction.parentId === g.id).map(junction => junction.id)],
+      label: g.label,
+      parentId: g.parentId,
     })
     for (const c of g.children) flatten(c)
   }
@@ -651,7 +677,9 @@ export function projectArchitecturePositioned(
   const serviceById = new Map(positioned.services.map(s => [s.id, s]))
   const junctionById = new Map(positioned.junctions.map(j => [j.id, j]))
   const edges: RenderedLayoutEdge[] = positioned.edges.map((e, i) => ({
-    id: `edge#${i}:${e.source.id}->${e.target.id}`, from: e.source.id, to: e.target.id,
+    id: `edge#${i}:${e.source.id}->${e.target.id}`,
+    from: e.source.id,
+    to: e.target.id,
     path: e.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
     label: e.label && e.labelPosition ? { x: f(e.labelPosition.x), y: f(e.labelPosition.y), text: e.label } : undefined,
     route: options.debug ? architectureRouteCertificate(i, e, serviceById, junctionById, flatGroups) : undefined,
@@ -659,13 +687,7 @@ export function projectArchitecturePositioned(
   return { version: 1, nodes, edges, groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }
 
-function architectureRouteCertificate(
-  edgeIndex: number,
-  edge: PositionedArchitectureEdge,
-  services: Map<string, PositionedArchitectureService>,
-  junctions: Map<string, PositionedArchitectureJunction>,
-  groups: Map<string, PositionedArchitectureGroup>,
-): FamilyEdgeRouteCertificate {
+function architectureRouteCertificate(edgeIndex: number, edge: PositionedArchitectureEdge, services: Map<string, PositionedArchitectureService>, junctions: Map<string, PositionedArchitectureJunction>, groups: Map<string, PositionedArchitectureGroup>): FamilyEdgeRouteCertificate {
   const boundsFor = (endpoint: PositionedArchitectureEdge['source']) => {
     if (endpoint.boundary === 'group') {
       const service = services.get(endpoint.id)
@@ -700,25 +722,22 @@ function architectureRouteCertificate(
   }
 }
 
-function pointOnSide(
-  point: Point,
-  bounds: { x: number; y: number; width: number; height: number },
-  side: 'L' | 'R' | 'T' | 'B',
-  tol: number,
-): boolean {
+function pointOnSide(point: Point, bounds: { x: number; y: number; width: number; height: number }, side: 'L' | 'R' | 'T' | 'B', tol: number): boolean {
   switch (side) {
-    case 'L': return Math.abs(point.x - bounds.x) <= tol && point.y >= bounds.y - tol && point.y <= bounds.y + bounds.height + tol
-    case 'R': return Math.abs(point.x - (bounds.x + bounds.width)) <= tol && point.y >= bounds.y - tol && point.y <= bounds.y + bounds.height + tol
-    case 'T': return Math.abs(point.y - bounds.y) <= tol && point.x >= bounds.x - tol && point.x <= bounds.x + bounds.width + tol
-    case 'B': return Math.abs(point.y - (bounds.y + bounds.height)) <= tol && point.x >= bounds.x - tol && point.x <= bounds.x + bounds.width + tol
+    case 'L':
+      return Math.abs(point.x - bounds.x) <= tol && point.y >= bounds.y - tol && point.y <= bounds.y + bounds.height + tol
+    case 'R':
+      return Math.abs(point.x - (bounds.x + bounds.width)) <= tol && point.y >= bounds.y - tol && point.y <= bounds.y + bounds.height + tol
+    case 'T':
+      return Math.abs(point.y - bounds.y) <= tol && point.x >= bounds.x - tol && point.x <= bounds.x + bounds.width + tol
+    case 'B':
+      return Math.abs(point.y - (bounds.y + bounds.height)) <= tol && point.x >= bounds.x - tol && point.x <= bounds.x + bounds.width + tol
   }
 }
 
 // ---- xychart --------------------------------------------------------------
 
-export function projectXyChartPositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedXYChart>,
-): FamilyPositionedView {
+export function projectXyChartPositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedXYChart>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = []
   // Bars are the primary boxes.
   const barPointIndices = new Map<number, number>()
@@ -735,13 +754,16 @@ export function projectXyChartPositioned(
     })
   })
   // Plot area is the single group (the chart's content frame).
-  const groups: RenderedLayoutGroup[] = [{
-    id: 'plot', x: f(positioned.plotArea.x), y: f(positioned.plotArea.y),
-    w: f(positioned.plotArea.width), h: f(positioned.plotArea.height), members: nodes
-      .filter(node => node.x + node.w / 2 >= positioned.plotArea.x && node.x + node.w / 2 <= positioned.plotArea.x + positioned.plotArea.width &&
-        node.y + node.h / 2 >= positioned.plotArea.y && node.y + node.h / 2 <= positioned.plotArea.y + positioned.plotArea.height)
-      .map(node => node.id),
-  }]
+  const groups: RenderedLayoutGroup[] = [
+    {
+      id: 'plot',
+      x: f(positioned.plotArea.x),
+      y: f(positioned.plotArea.y),
+      w: f(positioned.plotArea.width),
+      h: f(positioned.plotArea.height),
+      members: nodes.filter(node => node.x + node.w / 2 >= positioned.plotArea.x && node.x + node.w / 2 <= positioned.plotArea.x + positioned.plotArea.width && node.y + node.h / 2 >= positioned.plotArea.y && node.y + node.h / 2 <= positioned.plotArea.y + positioned.plotArea.height).map(node => node.id),
+    },
+  ]
   const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
   if (options.debug) layout.certificates = elementCertificates('xychart', layout, 'plot-contained', groups[0], 'center')
   return layout
@@ -749,9 +771,7 @@ export function projectXyChartPositioned(
 
 // ---- pie ------------------------------------------------------------------
 
-export function projectPiePositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedPieChart>,
-): FamilyPositionedView {
+export function projectPiePositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedPieChart>): FamilyPositionedView {
   // Pie has no structural nodes/edges — the slices are angular wedges. Use
   // each slice's legend row as a label-anchored box (legend swatch top-left,
   // approximate width from label length at the legend font baseline). This
@@ -769,9 +789,7 @@ export function projectPiePositioned(
 
 // ---- gantt ------------------------------------------------------------------
 
-export function projectGanttPositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<GanttLayoutResult>,
-): FamilyPositionedView {
+export function projectGanttPositioned({ positioned, options }: FamilyPositionedProjectionContext<GanttLayoutResult>): FamilyPositionedView {
   // Bars and milestones are the nodes; section bands are the groups. Verts
   // and ticks are markers, not boxes — they carry no node area. Milestones
   // report the diamond's true bounding box; the zero-width floor on bars is
@@ -788,7 +806,11 @@ export function projectGanttPositioned(
     return { id, x: f(x), y: f(b.y), w: f(w), h: f(b.h), shape: 'rectangle', label: b.label }
   })
   const groups: RenderedLayoutGroup[] = positioned.sections.map((s, i) => ({
-    id: `section#${i}`, x: f(positioned.plot.x), y: f(s.y), w: f(positioned.plot.w), h: f(s.h),
+    id: `section#${i}`,
+    x: f(positioned.plot.x),
+    y: f(s.y),
+    w: f(positioned.plot.w),
+    h: f(s.h),
     members: positioned.bars.filter(b => b.sectionIndex === i).map(b => b.id ?? `task#${b.taskIndex}`),
     label: s.label,
   }))
@@ -825,10 +847,7 @@ export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
  * tested), so these fire only if a later pass mutates geometry — the same
  * zero-noise contract as the route-contract tripwires.
  */
-export function layoutGeometryWarnings(
-  layout: RenderedLayout,
-  opts: { edgeAnchors?: boolean; nodeOverlaps?: boolean; groupContainment?: boolean | 'center' } = {},
-): LayoutWarning[] {
+export function layoutGeometryWarnings(layout: RenderedLayout, opts: { edgeAnchors?: boolean; nodeOverlaps?: boolean; groupContainment?: boolean | 'center' } = {}): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const TOL = 0.5
   for (const n of layout.nodes) {
@@ -837,16 +856,23 @@ export function layoutGeometryWarnings(
   }
   for (const e of layout.edges) {
     for (const [x, y] of e.path) {
-      if (x < -TOL || x > layout.bounds.w + TOL) { warnings.push({ code: 'OFF_CANVAS', target: e.id, axis: 'x' }); break }
+      if (x < -TOL || x > layout.bounds.w + TOL) {
+        warnings.push({ code: 'OFF_CANVAS', target: e.id, axis: 'x' })
+        break
+      }
     }
     for (const [x, y] of e.path) {
-      if (y < -TOL || y > layout.bounds.h + TOL) { warnings.push({ code: 'OFF_CANVAS', target: e.id, axis: 'y' }); break }
+      if (y < -TOL || y > layout.bounds.h + TOL) {
+        warnings.push({ code: 'OFF_CANVAS', target: e.id, axis: 'y' })
+        break
+      }
     }
   }
   if (opts.nodeOverlaps) {
     for (let i = 0; i < layout.nodes.length; i++) {
       for (let j = i + 1; j < layout.nodes.length; j++) {
-        const a = layout.nodes[i]!, b = layout.nodes[j]!
+        const a = layout.nodes[i]!,
+          b = layout.nodes[j]!
         const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
         const oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))
         const area = ox * oy
@@ -860,11 +886,7 @@ export function layoutGeometryWarnings(
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n) continue
-        const inside = opts.groupContainment === 'center'
-          ? n.x + n.w / 2 >= g.x - TOL && n.y + n.h / 2 >= g.y - TOL &&
-            n.x + n.w / 2 <= g.x + g.w + TOL && n.y + n.h / 2 <= g.y + g.h + TOL
-          : n.x >= g.x - TOL && n.y >= g.y - TOL &&
-            n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
+        const inside = opts.groupContainment === 'center' ? n.x + n.w / 2 >= g.x - TOL && n.y + n.h / 2 >= g.y - TOL && n.x + n.w / 2 <= g.x + g.w + TOL && n.y + n.h / 2 <= g.y + g.h + TOL : n.x >= g.x - TOL && n.y >= g.y - TOL && n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
         if (!inside) warnings.push({ code: 'GROUP_BREACH', group: g.id, member: memberId })
       }
     }
@@ -901,8 +923,7 @@ export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
     for (const memberId of g.members) {
       const n = nodeById.get(memberId)
       if (!n) continue
-      const inside = n.x >= g.x - TOL && n.y >= g.y - TOL &&
-        n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
+      const inside = n.x >= g.x - TOL && n.y >= g.y - TOL && n.x + n.w <= g.x + g.w + TOL && n.y + n.h <= g.y + g.h + TOL
       if (!inside) warnings.push({ code: 'GROUP_BREACH', group: g.id, member: memberId })
     }
   }
@@ -911,17 +932,26 @@ export function ganttGeometryWarnings(layout: RenderedLayout): LayoutWarning[] {
 
 // ---- quadrant -------------------------------------------------------------
 
-export function projectQuadrantPositioned(
-  { positioned, options }: FamilyPositionedProjectionContext<PositionedQuadrantChart>,
-): FamilyPositionedView {
+export function projectQuadrantPositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedQuadrantChart>): FamilyPositionedView {
   const nodes: RenderedLayoutNode[] = positioned.points.map((p, i) => ({
-    id: `point#${i}:${p.label}`, x: f(p.cx - p.radius), y: f(p.cy - p.radius),
-    w: f(p.radius * 2), h: f(p.radius * 2), shape: 'circle', label: p.label, role: 'labelled-mark' as const,
+    id: `point#${i}:${p.label}`,
+    x: f(p.cx - p.radius),
+    y: f(p.cy - p.radius),
+    w: f(p.radius * 2),
+    h: f(p.radius * 2),
+    shape: 'circle',
+    label: p.label,
+    role: 'labelled-mark' as const,
   }))
   const groups: RenderedLayoutGroup[] = positioned.regions.map(r => ({
-    id: `quadrant#${r.number}`, x: f(r.x), y: f(r.y), w: f(r.width), h: f(r.height),
-    members: positioned.points.map((point, index) => ({ point, index })).filter(({ point }) =>
-      r.number === (point.nx >= 0.5 ? (point.ny >= 0.5 ? 1 : 4) : (point.ny >= 0.5 ? 2 : 3)))
+    id: `quadrant#${r.number}`,
+    x: f(r.x),
+    y: f(r.y),
+    w: f(r.width),
+    h: f(r.height),
+    members: positioned.points
+      .map((point, index) => ({ point, index }))
+      .filter(({ point }) => r.number === (point.nx >= 0.5 ? (point.ny >= 0.5 ? 1 : 4) : point.ny >= 0.5 ? 2 : 3))
       .map(({ point, index }) => `point#${index}:${point.label}`),
     label: r.label,
   }))
@@ -932,9 +962,7 @@ export function projectQuadrantPositioned(
 
 // ---- radar -----------------------------------------------------------------
 
-export function projectRadarPositioned(
-  { positioned }: FamilyPositionedProjectionContext<PositionedRadarChart>,
-): FamilyPositionedView {
+export function projectRadarPositioned({ positioned }: FamilyPositionedProjectionContext<PositionedRadarChart>): FamilyPositionedView {
   // The positioned chart carries the exact resolved typography it was laid
   // out with, including named Style-face metrics.
   const typography = positioned.typography
@@ -942,8 +970,11 @@ export function projectRadarPositioned(
   // Concentric graticule rings are the (member-less) grouping frames.
   const groups: RenderedLayoutGroup[] = positioned.rings.map((ring, index) => ({
     id: `ring:${index}`,
-    x: f(positioned.cx - ring.r), y: f(positioned.cy - ring.r),
-    w: f(ring.r * 2), h: f(ring.r * 2), members: [],
+    x: f(positioned.cx - ring.r),
+    y: f(positioned.cy - ring.r),
+    w: f(ring.r * 2),
+    h: f(ring.r * 2),
+    members: [],
   }))
 
   positioned.axes.forEach((axis, index) => {
@@ -953,8 +984,13 @@ export function projectRadarPositioned(
     const x = axis.anchor === 'start' ? axis.labelX : axis.anchor === 'end' ? axis.labelX - width : axis.labelX - width / 2
     nodes.push({
       id: `axis#${index}:${axis.id}`,
-      x: f(x), y: f(axis.labelY - height / 2), w: f(width), h: f(height),
-      shape: 'rectangle', label: axis.label, role: 'labelled-mark',
+      x: f(x),
+      y: f(axis.labelY - height / 2),
+      w: f(width),
+      h: f(height),
+      shape: 'rectangle',
+      label: axis.label,
+      role: 'labelled-mark',
     })
   })
 
@@ -963,8 +999,13 @@ export function projectRadarPositioned(
     const height = typography.tickFontSize * 1.2
     nodes.push({
       id: `tick:${index}`,
-      x: f(tick.x - width / 2), y: f(tick.y - height / 2), w: f(width), h: f(height),
-      shape: 'rectangle', label: tick.text, role: 'labelled-mark',
+      x: f(tick.x - width / 2),
+      y: f(tick.y - height / 2),
+      w: f(width),
+      h: f(height),
+      shape: 'rectangle',
+      label: tick.text,
+      role: 'labelled-mark',
     })
   })
 
@@ -983,8 +1024,12 @@ export function projectRadarPositioned(
   for (const [index, item] of positioned.legend.entries()) {
     nodes.push({
       id: `legend-swatch#${index}`,
-      x: f(item.x), y: f(item.y), w: f(item.swatchSize), h: f(item.swatchSize),
-      shape: 'rectangle', role: 'mark',
+      x: f(item.x),
+      y: f(item.y),
+      w: f(item.swatchSize),
+      h: f(item.swatchSize),
+      shape: 'rectangle',
+      role: 'mark',
     })
     // Legend labels wrap to a budget, so project the wrapped extent (widest
     // line × line count), not the full single-line label — the public view must
@@ -994,8 +1039,13 @@ export function projectRadarPositioned(
     const height = Math.max(typography.legendFontSize, item.lines.length * typography.legendFontSize * 1.2)
     nodes.push({
       id: `legend-label#${index}`,
-      x: f(item.textX), y: f(item.textY - height / 2), w: f(width), h: f(height),
-      shape: 'rectangle', label: item.lines.join(' '), role: 'labelled-mark',
+      x: f(item.textX),
+      y: f(item.textY - height / 2),
+      w: f(width),
+      h: f(height),
+      shape: 'rectangle',
+      label: item.lines.join(' '),
+      role: 'labelled-mark',
     })
   }
 
@@ -1004,10 +1054,53 @@ export function projectRadarPositioned(
     const height = positioned.title.fontSize * 1.2
     nodes.push({
       id: 'title',
-      x: f(positioned.title.x - width / 2), y: f(positioned.title.y - height / 2), w: f(width), h: f(height),
-      shape: 'rectangle', label: positioned.title.text, role: 'labelled-mark',
+      x: f(positioned.title.x - width / 2),
+      y: f(positioned.title.y - height / 2),
+      w: f(width),
+      h: f(height),
+      shape: 'rectangle',
+      label: positioned.title.text,
+      role: 'labelled-mark',
     })
   }
 
   return { version: 1, nodes, edges: [], groups, bounds: { w: f(positioned.width), h: f(positioned.height) } }
+}
+
+// ---- sankey ----------------------------------------------------------------
+
+export function projectSankeyPositioned({ positioned }: FamilyPositionedProjectionContext<PositionedSankeyChart>): FamilyPositionedView {
+  // Node rectangles are the boxes; the value-proportional link ribbons project
+  // as edges along their centerline endpoints. The label IS the node identity
+  // (the flowchart convention: bare authored ids, no synthetic prefix).
+  const nodes: RenderedLayoutNode[] = positioned.nodes.map(node => ({
+    id: node.label,
+    x: f(node.x0),
+    y: f(node.y0),
+    w: fSpan(node.x0, node.x1 - node.x0),
+    h: fSpan(node.y0, node.y1 - node.y0),
+    shape: 'rectangle',
+    label: node.label,
+    role: 'labelled-mark' as const,
+  }))
+  const edges: RenderedLayoutEdge[] = positioned.links.map(link => ({
+    id: link.id,
+    from: link.source,
+    to: link.target,
+    path: link.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+  }))
+  if (positioned.title) {
+    const width = measureTextWidth(positioned.title.text, 18, 600)
+    nodes.push({
+      id: 'title',
+      x: f(positioned.title.x - width / 2),
+      y: f(positioned.title.y - (18 * 1.2) / 2),
+      w: f(width),
+      h: f(18 * 1.2),
+      shape: 'rectangle',
+      label: positioned.title.text,
+      role: 'labelled-mark',
+    })
+  }
+  return { version: 1, nodes, edges, groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
 }

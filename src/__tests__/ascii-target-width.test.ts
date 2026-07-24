@@ -1,15 +1,20 @@
 import { describe, expect, test } from 'bun:test'
+import type { DiagramKind } from '../agent/types.ts'
 import { AsciiWidthError, renderMermaidASCII } from '../ascii/index.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { createTracingMermaid } from '../mcp/facade.ts'
 import { TerminalOutputPolicyError } from '../terminal-contract.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
-import { createTracingMermaid } from '../mcp/facade.ts'
-import type { DiagramKind } from '../agent/types.ts'
 
 const outputWidth = (output: string): number => Math.max(0, ...output.split('\n').map(line => visualWidth(line)))
-const htmlDisplayWidth = (output: string): number => outputWidth(output
-  .replace(/<\/?span(?:\s[^>]*)?>/g, '')
-  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'))
+const htmlDisplayWidth = (output: string): number =>
+  outputWidth(
+    output
+      .replace(/<\/?span(?:\s[^>]*)?>/g, '')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&'),
+  )
 
 const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
   flowchart: 'flowchart TD\n  A["A very descriptive flowchart node label with several words"]',
@@ -27,6 +32,7 @@ const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
   mindmap: 'mindmap\n  root[A very descriptive mindmap root label with several words]',
   gitgraph: 'gitGraph\n  commit id:"base" msg:"A very descriptive commit message with several words"',
   radar: 'radar-beta\n  title A descriptive radar comparison\n  axis quality["A descriptive quality axis"], speed["Speed"], cost["Cost"]\n  curve now["A descriptive current curve"]{4, 3, 2}\n  max 5',
+  sankey: 'sankey-beta\n  A very descriptive sankey source label with several words,A very descriptive sankey target label with several words,42',
 }
 
 describe('targetWidth hard terminal contract', () => {
@@ -45,16 +51,16 @@ describe('targetWidth hard terminal contract', () => {
     for (const entry of Object.values(METAMORPHIC_FAMILIES)) {
       const source = LONG_FEASIBLE_SOURCE[entry.family]
       const naturalWidth = outputWidth(renderMermaidASCII(source, { colorMode: 'none' }))
-      const candidates = [...new Set([
-        naturalWidth - 1,
-        ...[0.9, 0.8, 0.7, 0.6, 0.5].map(ratio => Math.max(2, Math.floor(naturalWidth * ratio))),
-      ])].filter(bound => bound > 1 && bound < naturalWidth)
+      const candidates = [...new Set([naturalWidth - 1, ...[0.9, 0.8, 0.7, 0.6, 0.5].map(ratio => Math.max(2, Math.floor(naturalWidth * ratio)))])].filter(bound => bound > 1 && bound < naturalWidth)
       let fitted: { bound: number; width: number; output: string } | undefined
       for (const bound of candidates) {
         try {
           const output = renderMermaidASCII(source, { targetWidth: bound, colorMode: 'none' })
           const width = outputWidth(output)
-          if (width < naturalWidth && width <= bound) { fitted = { bound, width, output }; break }
+          if (width < naturalWidth && width <= bound) {
+            fitted = { bound, width, output }
+            break
+          }
         } catch (error) {
           expect(error, entry.family).toBeInstanceOf(AsciiWidthError)
         }
@@ -72,7 +78,9 @@ describe('targetWidth hard terminal contract', () => {
       } catch (error) {
         expect(error, entry.family).toBeInstanceOf(AsciiWidthError)
         expect(error, entry.family).toMatchObject({
-          code: 'ASCII_TARGET_WIDTH_IMPOSSIBLE', requestedWidth: 1, family: entry.family,
+          code: 'ASCII_TARGET_WIDTH_IMPOSSIBLE',
+          requestedWidth: 1,
+          family: entry.family,
         })
       }
     }
@@ -80,24 +88,49 @@ describe('targetWidth hard terminal contract', () => {
 
   test('auto-fits long labels in sequence, Class, ER, Pie, and Quadrant', () => {
     const cases = [
-      ['sequence', `sequenceDiagram
+      [
+        'sequence',
+        `sequenceDiagram
   participant A as Extremely descriptive participant label
   participant B as Another descriptive participant label
-  A->>B: an extremely descriptive message label`, 60, 'descriptive'],
-      ['class', `classDiagram
+  A->>B: an extremely descriptive message label`,
+        60,
+        'descriptive',
+      ],
+      [
+        'class',
+        `classDiagram
   class A {
     +anExtremelyDescriptiveMethodNameWithUnicode日本語()
-  }`, 40, '日本語'],
-      ['er', `erDiagram
+  }`,
+        40,
+        '日本語',
+      ],
+      [
+        'er',
+        `erDiagram
   A {
     string descriptiveAttributeName PK "an extremely descriptive comment 日本語"
-  }`, 44, '日本語'],
-      ['pie', `pie
+  }`,
+        44,
+        '日本語',
+      ],
+      [
+        'pie',
+        `pie
   "An extremely descriptive pie slice label 日本語" : 2
-  "Short" : 1`, 52, '日本語'],
-      ['quadrant', `quadrantChart
+  "Short" : 1`,
+        52,
+        '日本語',
+      ],
+      [
+        'quadrant',
+        `quadrantChart
   title An extremely descriptive quadrant title 日本語
-  A very descriptive point label 日本語: [0.2, 0.3]`, 50, '日本語'],
+  A very descriptive point label 日本語: [0.2, 0.3]`,
+        50,
+        '日本語',
+      ],
     ] as const
     for (const [family, source, targetWidth, token] of cases) {
       const output = renderMermaidASCII(source, { targetWidth, colorMode: 'none' })
@@ -107,7 +140,10 @@ describe('targetWidth hard terminal contract', () => {
   })
 
   test('measures HTML color output after renderer-owned escaping', () => {
-    for (const [label, targetWidth] of [['Tom & Jerry', 9], ['A < B > C', 7]] as const) {
+    for (const [label, targetWidth] of [
+      ['Tom & Jerry', 9],
+      ['A < B > C', 7],
+    ] as const) {
       const source = `flowchart TD\n  A["${label}"]`
       const plain = renderMermaidASCII(source, { targetWidth, colorMode: 'none' })
       const html = renderMermaidASCII(source, { targetWidth, colorMode: 'html' })
@@ -151,7 +187,6 @@ describe('targetWidth hard terminal contract', () => {
   })
 
   test('rejects ambiguous maxWidth plus targetWidth with the canonical policy error', () => {
-    expect(() => renderMermaidASCII('flowchart TD\n  A', { maxWidth: 40, targetWidth: 40 }))
-      .toThrow(TerminalOutputPolicyError)
+    expect(() => renderMermaidASCII('flowchart TD\n  A', { maxWidth: 40, targetWidth: 40 })).toThrow(TerminalOutputPolicyError)
   })
 })

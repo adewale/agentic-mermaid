@@ -11,19 +11,19 @@
     "sourceState": "content-addressed-candidate",
     "capturedAt": "2026-07-19T02:10:00Z",
     "generator": "manual-command-capture/v1",
-    "inputTreeSha256": "4b1a67da4c37cc8cab611425f8f59bc79bea128a9912e3bc86b76f070bbb444b",
+    "inputTreeSha256": "f9602e84ae6370efc47327f60c8465cf87a667a2f6a127977c1c268e7a45fcf4",
     "inputs": [
       {
         "path": "eval/test-portfolio/contact-sheets/citizenship-review.json",
-        "sha256": "f56cc097c141e2a83736f770f2e3c48d2f5e55e343bca2f8a7613841caf5f63a"
+        "sha256": "2e447840b0a9bd6bd3ffbcd74c927b45ed56e4fc92af3dd4b5f44c0849e5faac"
       },
       {
         "path": "eval/test-portfolio/contact-sheets/citizenship.html",
-        "sha256": "9cea262a03a97ab0ee98a4bd8bd30d13139a1fd158ca452be502d91be798b3ce"
+        "sha256": "3146105c4363c78708aa20ec5f73ae7a6a6f86c650cb04eddf282b980125381d"
       },
       {
         "path": "eval/test-portfolio/contact-sheets/citizenship.manifest.json",
-        "sha256": "9df46a1240e4c08efb8ed96e79c4330692d12d7853245c83ce05dc5b7c523355"
+        "sha256": "2dcb88a590dbfbfc5f3042b0d7add132090cda18f3dcd681008012f35427366d"
       },
       {
         "path": "scripts/ci/test-portfolio-visual-review.ts",
@@ -43,7 +43,7 @@
       },
       {
         "path": "src/__tests__/helpers/family-conformance-profiles.ts",
-        "sha256": "c00531dbd970f1938234bf4d795e3c328e83688cddc4570a38677a91aeccd93a"
+        "sha256": "77f756e27184bb4f3381e0ff8bc3909247596939567ae4dd6b98de10bc9ef465"
       },
       {
         "path": "src/__tests__/helpers/render-conformance-plan.ts",
@@ -55,7 +55,7 @@
       },
       {
         "path": "src/__tests__/mermaid-doc-showcase.test.ts",
-        "sha256": "a5d7b3d4109f19bafd93094263814f2e0b5b2923461f0577f644504675046be5"
+        "sha256": "85bd192fb8632b838f349d2777c4fbeb478514e8282e9fea3c08d834885f9e43"
       },
       {
         "path": "src/__tests__/render-conformance-plan.test.ts",
@@ -175,21 +175,21 @@
     }
   },
   "portfolio": {
-    "coreRows": 1047,
-    "mixedFormatRows": 135,
-    "coreRequiredObligations": 2739,
-    "coreCoveredObligations": 2739,
-    "mixedRequiredObligations": 309,
-    "mixedCoveredObligations": 309,
+    "coreRows": 1055,
+    "mixedFormatRows": 144,
+    "coreRequiredObligations": 2813,
+    "coreCoveredObligations": 2813,
+    "mixedRequiredObligations": 326,
+    "mixedCoveredObligations": 326,
     "missingObligations": [],
     "pureLookPaletteRows": 300,
     "focusedGoldenRows": 360,
     "docsCanonicalRows": 15,
     "externalReferenceRows": 8,
     "mandatoryFamilyStrata": 90,
-    "citizenshipContactSheetRows": 60,
+    "citizenshipContactSheetRows": 64,
     "interactionContactSheetRows": 120,
-    "outlierContactSheetRows": 66
+    "outlierContactSheetRows": 74
   },
   "beforeAfter": {
     "visibleStylePaletteWallSecondsBefore": 109.07,
@@ -202,7 +202,7 @@
     "duplicateStyledRendersAfter": 0,
     "styledOutputWallSecondsBefore": 13.9,
     "styledOutputWallSecondsAfter": 8.22,
-    "notes": "The candidate is slower than the provisional 20\u201336s estimate because the declared Look \u00d7 Palette \u00d7 background three-way obligation alone has a mathematical lower bound of 900 real SVG rows. Reliability obligations were retained instead of forcing the estimate.",
+    "notes": "The candidate is slower than the provisional 20–36s estimate because the declared Look × Palette × background three-way obligation alone has a mathematical lower bound of 900 real SVG rows. Reliability obligations were retained instead of forcing the estimate.",
     "fullCoveredSuiteWallSecondsBefore": 410.73,
     "fullCoveredSuiteWallSecondsAfter": 311.65,
     "fullCoveredSuiteWallSecondsSaved": 99.08,
@@ -211,27 +211,27 @@
   "receiptDependencyReduction": {
     "mermaidDocs": {
       "beforeInputs": 715,
-      "afterInputs": 253,
+      "afterInputs": 260,
       "percentReduction": 64.6
     },
     "mindmapGitgraph": {
       "beforeInputs": 729,
-      "afterInputs": 291,
+      "afterInputs": 298,
       "percentReduction": 60.1
     },
     "pieHighlight": {
       "beforeInputs": 714,
-      "afterInputs": 258,
+      "afterInputs": 265,
       "percentReduction": 63.9
     },
     "sectionB": {
       "beforeInputs": 721,
-      "afterInputs": 265,
+      "afterInputs": 272,
       "percentReduction": 63.2
     },
     "paletteRollout": {
       "beforeInputs": 723,
-      "afterInputs": 261,
+      "afterInputs": 268,
       "percentReduction": 63.9
     },
     "paletteHarmony": {
@@ -241,7 +241,7 @@
     },
     "linkrankFeedbackPacking": {
       "beforeInputs": 727,
-      "afterInputs": 265,
+      "afterInputs": 272,
       "percentReduction": 63.5
     },
     "visualOutputBytesChanged": 0

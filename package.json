@@ -72,6 +72,7 @@
     "mindmap",
     "git-graph",
     "radar-chart",
+    "sankey-diagram",
     "visualization",
     "theming",
     "styles",

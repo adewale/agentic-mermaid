@@ -33,12 +33,9 @@
 // after this derived palette, so explicit author intent remains authoritative.
 // ============================================================================
 
-import { getSeriesColor, CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
-import { toHex, tryParseCssColor, wcagContrastRatio } from './color-math.ts'
-import {
-  hexToOklab, hexToOklch, oklchToHex, apcaContrast, deltaEOK,
-  minPairwiseDeltaEOK, type Oklab, type Oklch,
-} from './perceptual-color.ts'
+import { CHART_ACCENT_FALLBACK, getSeriesColor } from '../xychart/colors.ts'
+import { mixHex, toHex, tryParseCssColor, wcagContrastRatio } from './color-math.ts'
+import { apcaContrast, deltaEOK, hexToOklab, hexToOklch, minPairwiseDeltaEOK, type Oklab, type Oklch, oklchToHex } from './perceptual-color.ts'
 
 export interface CategoricalPaletteInputs {
   /** Theme accent. Parser-resolvable CSS colors are normalized above six peers. */
@@ -75,7 +72,7 @@ const BG_APCA_FLOOR = 15
 /** Minimum perceptual separation (ΔE_OK) between any two slice fills. 0.10 sits
  *  comfortably above the just-noticeable ~0.02 and above the 0.053 the old HSL
  *  ladder degenerated to, so no two wedges read as the same color. */
-const MIN_SLICE_DELTA_E = 0.10
+const MIN_SLICE_DELTA_E = 0.1
 
 /** The documented range in which the categorical-separation floor is a hard
  * contract. Above it, searching every color pair is both quadratic and
@@ -100,10 +97,7 @@ export function categoricalPalette(count: number, inputs: CategoricalPaletteInpu
  * the reproducible performance report. It is intentionally not re-exported by
  * the package entrypoint: callers consume colors, while repository tooling can
  * observe which bounded algorithmic path actually ran. */
-export function categoricalPaletteWithDiagnostics(
-  count: number,
-  inputs: CategoricalPaletteInputs = {},
-): CategoricalPaletteResult {
+export function categoricalPaletteWithDiagnostics(count: number, inputs: CategoricalPaletteInputs = {}): CategoricalPaletteResult {
   const diagnostics: CategoricalPaletteDiagnostics = {
     path: count <= MONO_LADDER_MAX ? 'legacy-ladder' : count <= GUARANTEED_DELTA_E_MAX ? 'bounded-repair' : 'linear-tail',
     requestedCount: count,
@@ -117,20 +111,13 @@ export function categoricalPaletteWithDiagnostics(
   return { colors, diagnostics }
 }
 
-function categoricalPaletteInternal(
-  count: number,
-  inputs: CategoricalPaletteInputs,
-  diagnostics?: CategoricalPaletteDiagnostics,
-): string[] {
+function categoricalPaletteInternal(count: number, inputs: CategoricalPaletteInputs, diagnostics?: CategoricalPaletteDiagnostics): string[] {
   if (count <= MONO_LADDER_MAX) {
     // Preserve the exact legacy getSeriesColor contract, including authored
     // CSS spelling in slot zero and its historical fallback behaviour for the
     // remaining ladder. Normalizing here would change #rgb/named/rgb() bytes.
     const legacyAccent = inputs.accent ?? CHART_ACCENT_FALLBACK
-    return Array.from(
-      { length: Math.max(0, count) },
-      (_unused, index) => getSeriesColor(index, legacyAccent, inputs.bg),
-    )
+    return Array.from({ length: Math.max(0, count) }, (_unused, index) => getSeriesColor(index, legacyAccent, inputs.bg))
   }
 
   const safeBg = concreteCssHex(inputs.bg)
@@ -150,19 +137,10 @@ function concreteCssHex(value: string | undefined, opaqueBackground?: string): s
   if (opaqueBackground === undefined) return undefined
   const bg = tryParseCssColor(opaqueBackground)
   if (!bg || bg[3] !== 1) return undefined
-  return toHex(
-    parsed[0] * parsed[3] + bg[0] * (1 - parsed[3]),
-    parsed[1] * parsed[3] + bg[1] * (1 - parsed[3]),
-    parsed[2] * parsed[3] + bg[2] * (1 - parsed[3]),
-  )
+  return toHex(parsed[0] * parsed[3] + bg[0] * (1 - parsed[3]), parsed[1] * parsed[3] + bg[1] * (1 - parsed[3]), parsed[2] * parsed[3] + bg[2] * (1 - parsed[3]))
 }
 
-function hueSpreadColors(
-  count: number,
-  accent: string,
-  bg: string | undefined,
-  diagnostics?: CategoricalPaletteDiagnostics,
-): string[] {
+function hueSpreadColors(count: number, accent: string, bg: string | undefined, diagnostics?: CategoricalPaletteDiagnostics): string[] {
   const accentLch = hexToOklch(accent) ?? { L: 0.6, C: SLICE_CHROMA_MAX, h: NEUTRAL_BASE_HUE }
   // Neutral accents (the default grey theme) have no meaningful hue; anchor the
   // wheel on the indigo family the derived palettes lean on.
@@ -177,21 +155,19 @@ function hueSpreadColors(
   // perceived lightness by a fixed amount at every hue (HSL's flaw was that its
   // fixed L is unequal perceived L across hues). On dark backgrounds both tiers
   // sit lighter than the page; on light backgrounds both sit darker.
-  const tiers: [number, number] = dark ? [0.74, 0.60] : [0.56, 0.70]
+  const tiers: [number, number] = dark ? [0.74, 0.6] : [0.56, 0.7]
   const step = 360 / count
   const colors = Array.from({ length: count }, (_unused, index) => {
     // Preserve the exact accent when it is visible; otherwise apply the same
     // background-visibility construction used for every other derived slice.
     if (index === 0 && isVisible(accent, bg)) return accent
-    const hue = index === 0 ? baseHue : ((baseHue + index * step) % 360 + 360) % 360
+    const hue = index === 0 ? baseHue : (((baseHue + index * step) % 360) + 360) % 360
     const startL = index === 0 ? accentLch.L : tiers[index % 2]!
     return ensureBgContrast({ L: startL, C: chroma, h: hue }, bg, dark, diagnostics)
   })
   // Pairwise repair is deliberately bounded to the range whose separation
   // contract we can satisfy. Large palettes stay linear in slice count.
-  return count <= GUARANTEED_DELTA_E_MAX
-    ? enforceMinDeltaE(colors, bg, dark, diagnostics)
-    : dedupeBestEffort(colors, bg, dark, diagnostics)
+  return count <= GUARANTEED_DELTA_E_MAX ? enforceMinDeltaE(colors, bg, dark, diagnostics) : dedupeBestEffort(colors, bg, dark, diagnostics)
 }
 
 /** A fill is "visible" when it clears BOTH the WCAG and APCA wedge floors (or
@@ -208,12 +184,7 @@ function isVisible(hex: string, bg: string | undefined): boolean {
  * actual OKLab lightness chooses which direction is tried first; the opposite
  * direction remains available because chroma gamut-clamping is non-monotonic.
  */
-function ensureBgContrast(
-  lch: Oklch,
-  bg: string | undefined,
-  darkBg: boolean,
-  diagnostics?: CategoricalPaletteDiagnostics,
-): string {
+function ensureBgContrast(lch: Oklch, bg: string | undefined, darkBg: boolean, diagnostics?: CategoricalPaletteDiagnostics): string {
   if (diagnostics) diagnostics.candidateEvaluations++
   const initial = oklchToHex(lch)
   if (bg === undefined || isVisible(initial, bg)) return initial
@@ -241,41 +212,65 @@ function ensureBgContrast(
 }
 
 /**
+ * Effective-paint visibility for TRANSLUCENT marks. The wedge floors above
+ * were derived for OPAQUE fills; a mark drawn at partial opacity closes most
+ * of its distance to the page, so a raw-visible paint can composite to
+ * invisible (measured: palette colors that clear WCAG 1.25 / APCA 15 raw drop
+ * to WCAG ≈1.0 / APCA 0 at 50% over several built-in backgrounds — the sankey
+ * ribbon class). This is `ensureBgContrast` with the floors judged on the
+ * alpha-composited candidate instead of the raw one: same bounded OKLCH
+ * lightness search, same achromatic-extreme totality fallback. A paint whose
+ * composite already clears both floors is returned byte-identical, and an
+ * unmeasurable (non-opaque or unparsable) background returns the paint
+ * unchanged — the LOW_CONTRAST rule: an unknown backdrop is not measured.
+ * Authored paints stay authoritative and must not route through here.
+ */
+export function ensureCompositedBgContrast(paint: string, bg: string | undefined, opacityPct: number): string {
+  const bgRgba = bg === undefined ? null : tryParseCssColor(bg)
+  if (!bgRgba || bgRgba[3] !== 1) return paint
+  const bgHex = toHex(bgRgba[0], bgRgba[1], bgRgba[2])
+  const paintRgba = tryParseCssColor(paint)
+  if (!paintRgba || paintRgba[3] !== 1) return paint
+  const paintHex = toHex(paintRgba[0], paintRgba[1], paintRgba[2])
+  const composite = (hex: string): string => mixHex(hex, bgHex, opacityPct)
+  if (isVisible(composite(paintHex), bgHex)) return paint
+  const lch = hexToOklch(paintHex)
+  if (!lch) return paint
+  const bgL = hexToOklab(bgHex)?.L ?? 1
+  const preferred = lch.L >= bgL ? 1 : -1
+  for (let i = 1; i <= 24; i++) {
+    const amount = i * 0.04
+    for (const direction of [preferred, -preferred]) {
+      const hex = oklchToHex({ ...lch, L: clampL(lch.L + direction * amount) })
+      if (isVisible(composite(hex), bgHex)) return hex
+    }
+  }
+  return ['#000000', '#ffffff'].sort((a, b) => (apcaContrast(composite(b), bgHex) ?? 0) - (apcaContrast(composite(a), bgHex) ?? 0))[0]!
+}
+
+/**
  * Guarantee every pair of fills is at least MIN_SLICE_DELTA_E apart in OKLCH.
  * Colors are visited in source order; a fill too close to an already-accepted
  * one is separated by a bounded, deterministic local search. Slice 0 (the exact
  * accent, when visible) is never moved.
  */
-function enforceMinDeltaE(
-  colors: string[],
-  bg: string | undefined,
-  darkBg: boolean,
-  diagnostics?: CategoricalPaletteDiagnostics,
-): string[] {
+function enforceMinDeltaE(colors: string[], bg: string | undefined, darkBg: boolean, diagnostics?: CategoricalPaletteDiagnostics): string[] {
   const out: string[] = []
   for (let index = 0; index < colors.length; index++) {
     const hex = colors[index]!
     const anchored = index === 0 && isVisible(hex, bg)
-    out.push(anchored || minDeltaTo(hex, out, diagnostics) >= MIN_SLICE_DELTA_E
-      ? hex
-      : separate(hex, out, bg, darkBg, diagnostics))
+    out.push(anchored || minDeltaTo(hex, out, diagnostics) >= MIN_SLICE_DELTA_E ? hex : separate(hex, out, bg, darkBg, diagnostics))
   }
   // The local repair preserves established palettes when it succeeds. If it
   // cannot meet the documented floor, use a bounded global packing pass over
   // concrete, background-visible sRGB candidates instead of returning a known
   // contract violation.
-  if (diagnostics) diagnostics.pairDistanceChecks += out.length * (out.length - 1) / 2
-  return minPairwiseDeltaEOK(out) >= MIN_SLICE_DELTA_E
-    ? out
-    : packVisibleColors(out, bg, diagnostics)
+  if (diagnostics) diagnostics.pairDistanceChecks += (out.length * (out.length - 1)) / 2
+  return minPairwiseDeltaEOK(out) >= MIN_SLICE_DELTA_E ? out : packVisibleColors(out, bg, diagnostics)
 }
 
 /** Smallest ΔE_OK from `hex` to any already-accepted color (Infinity if none). */
-function minDeltaTo(
-  hex: string,
-  accepted: string[],
-  diagnostics?: CategoricalPaletteDiagnostics,
-): number {
+function minDeltaTo(hex: string, accepted: string[], diagnostics?: CategoricalPaletteDiagnostics): number {
   let min = Infinity
   for (const other of accepted) {
     if (diagnostics) diagnostics.pairDistanceChecks++
@@ -295,13 +290,7 @@ const clampL = (L: number): number => Math.max(0.08, Math.min(0.97, L))
  * pathological count with no gamut headroom), the most-separated visible
  * candidate is kept so the output is always defined and never regresses.
  */
-function separate(
-  hex: string,
-  accepted: string[],
-  bg: string | undefined,
-  darkBg: boolean,
-  diagnostics?: CategoricalPaletteDiagnostics,
-): string {
+function separate(hex: string, accepted: string[], bg: string | undefined, darkBg: boolean, diagnostics?: CategoricalPaletteDiagnostics): string {
   const base = hexToOklch(hex)
   if (!base) return hex
   let best = hex
@@ -322,13 +311,19 @@ function separate(
       if (bg !== undefined && !isVisible(candHex, bg)) continue
       const m = minDeltaTo(candHex, accepted, diagnostics)
       if (m >= MIN_SLICE_DELTA_E) return candHex
-      if (m > bestMin) { bestMin = m; best = candHex }
+      if (m > bestMin) {
+        bestMin = m
+        best = candHex
+      }
     }
   }
   return best
 }
 
-interface LabCandidate { hex: string; lab: Oklab }
+interface LabCandidate {
+  hex: string
+  lab: Oklab
+}
 
 /** A deterministic finite candidate corpus in concrete sRGB. It is generated
  * only when local repair fails. Gamut-clamped duplicates are removed before
@@ -347,24 +342,19 @@ function visibleCandidateCorpus(bg: string | undefined, diagnostics?: Categorica
   for (let li = 0; li <= 22; li++) {
     const L = 0.08 + li * 0.04
     add(oklchToHex({ L, C: 0, h: 0 }))
-    for (const C of [0.04, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28]) {
+    for (const C of [0.04, 0.08, 0.12, 0.16, 0.2, 0.24, 0.28]) {
       for (let h = 0; h < 360; h += 10) add(oklchToHex({ L, C, h }))
     }
   }
   return [...byHex.values()]
 }
 
-const labDistance = (a: Oklab, b: Oklab): number =>
-  Math.hypot(a.L - b.L, a.a - b.a, a.b - b.b)
+const labDistance = (a: Oklab, b: Oklab): number => Math.hypot(a.L - b.L, a.a - b.a, a.b - b.b)
 
 /** Farthest-point packing over a bounded visible candidate corpus. Slice zero
  * remains anchored when valid; each subsequent choice maximizes its minimum
  * distance to the whole accepted set. */
-function packVisibleColors(
-  targets: string[],
-  bg: string | undefined,
-  diagnostics?: CategoricalPaletteDiagnostics,
-): string[] {
+function packVisibleColors(targets: string[], bg: string | undefined, diagnostics?: CategoricalPaletteDiagnostics): string[] {
   if (targets.length < 2) return targets
   const corpus = visibleCandidateCorpus(bg, diagnostics)
   const target0 = hexToOklab(targets[0]!)
@@ -401,12 +391,7 @@ function packVisibleColors(
 
 /** Keep large-count generation linear while avoiding obvious repeated fills.
  * This is best-effort only; no perceptual floor is claimed above 24 slices. */
-function dedupeBestEffort(
-  colors: string[],
-  bg: string | undefined,
-  darkBg: boolean,
-  diagnostics?: CategoricalPaletteDiagnostics,
-): string[] {
+function dedupeBestEffort(colors: string[], bg: string | undefined, darkBg: boolean, diagnostics?: CategoricalPaletteDiagnostics): string[] {
   const used = new Set<string>()
   return colors.map((hex, index) => {
     if (diagnostics) diagnostics.tailItems++
@@ -418,11 +403,16 @@ function dedupeBestEffort(
     if (base) {
       for (let attempt = 1; attempt <= 24; attempt++) {
         if (diagnostics) diagnostics.candidateEvaluations++
-        const candidate = ensureBgContrast({
-          ...base,
-          L: clampL(base.L + (attempt % 2 === 0 ? 1 : -1) * Math.ceil(attempt / 2) * 0.008),
-          h: (base.h + attempt * 137.508 + index * 0.01) % 360,
-        }, bg, darkBg, diagnostics)
+        const candidate = ensureBgContrast(
+          {
+            ...base,
+            L: clampL(base.L + (attempt % 2 === 0 ? 1 : -1) * Math.ceil(attempt / 2) * 0.008),
+            h: (base.h + attempt * 137.508 + index * 0.01) % 360,
+          },
+          bg,
+          darkBg,
+          diagnostics,
+        )
         if (!used.has(candidate.toLowerCase())) {
           used.add(candidate.toLowerCase())
           return candidate

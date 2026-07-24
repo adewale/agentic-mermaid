@@ -7,15 +7,11 @@
 // renderable while these facts prove it still says the requested thing.
 // ============================================================================
 
+import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { err, ok, type ParseError, type Result, type ParsedDiagram } from './types.ts'
-import { getFamily, extractLabelsGeneric } from './families.ts'
-import type {
-  ArchitectureBody, ClassBody, ErBody, GanttBody, JourneyBody, PieBody,
-  QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody,
-  MindmapBody, GitGraphBody,
-} from './types.ts'
 import { sequenceMessageContexts } from './sequence-body.ts'
+import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
+import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
 export type MermaidFact = string
 
@@ -80,24 +76,54 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       })
       break
     }
-    case 'state': factsState(out, d.body); break
-    case 'sequence': factsSequence(out, d.body); break
-    case 'timeline': factsTimeline(out, d.body); break
-    case 'class': factsClass(out, d.body); break
-    case 'er': factsEr(out, d.body); break
-    case 'journey': factsJourney(out, d.body); break
-    case 'architecture': factsArchitecture(out, d.body); break
-    case 'xychart': factsXyChart(out, d.body); break
-    case 'pie': factsPie(out, d.body); break
-    case 'quadrant': factsQuadrant(out, d.body); break
-    case 'gantt': factsGantt(out, d.body); break
-    case 'mindmap': factsMindmap(out, d.body); break
-    case 'gitgraph': factsGitGraph(out, d.body); break
+    case 'state':
+      factsState(out, d.body)
+      break
+    case 'sequence':
+      factsSequence(out, d.body)
+      break
+    case 'timeline':
+      factsTimeline(out, d.body)
+      break
+    case 'class':
+      factsClass(out, d.body)
+      break
+    case 'er':
+      factsEr(out, d.body)
+      break
+    case 'journey':
+      factsJourney(out, d.body)
+      break
+    case 'architecture':
+      factsArchitecture(out, d.body)
+      break
+    case 'xychart':
+      factsXyChart(out, d.body)
+      break
+    case 'pie':
+      factsPie(out, d.body)
+      break
+    case 'quadrant':
+      factsQuadrant(out, d.body)
+      break
+    case 'gantt':
+      factsGantt(out, d.body)
+      break
+    case 'mindmap':
+      factsMindmap(out, d.body)
+      break
+    case 'gitgraph':
+      factsGitGraph(out, d.body)
+      break
     case 'radar': {
       if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
       d.body.axes.forEach((a, i) => add(out, `axis#${i} ${clean(a.id)} : ${clean(a.label)}`))
       d.body.curves.forEach((c, i) => add(out, `curve#${i} ${clean(c.id)} : ${clean(c.label)} {${c.values.join(',')}}`))
       add(out, `scale ${d.body.min}..${d.body.max ?? 'auto'} ticks ${d.body.ticks} graticule ${d.body.graticule}`)
+      break
+    }
+    case 'sankey': {
+      d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
     case 'opaque': {
@@ -162,10 +188,11 @@ function factsState(out: string[], body: StateBody): void {
       if (s.states !== undefined || s.regions !== undefined) {
         add(out, `composite ${clean(s.id)}`)
         if (s.direction) add(out, `state ${clean(s.id)} direction ${s.direction}`)
-        if (s.regions) s.regions.forEach((region, index) => {
-          add(out, `state ${clean(s.id)} region ${index}`)
-          visit(region.states, region.transitions, s.id)
-        })
+        if (s.regions)
+          s.regions.forEach((region, index) => {
+            add(out, `state ${clean(s.id)} region ${index}`)
+            visit(region.states, region.transitions, s.id)
+          })
         else visit(s.states ?? [], s.transitions ?? [], s.id)
       }
       if (s.className) add(out, `state ${clean(s.id)} class ${clean(s.className)}`)
@@ -342,7 +369,9 @@ function factsQuadrant(out: string[], body: QuadrantBody): void {
   if (body.title) add(out, `title ${clean(dequote(body.title))}`)
   if (body.xAxis) add(out, `x-axis ${clean(body.xAxis.near)}${body.xAxis.far ? ` -> ${clean(body.xAxis.far)}` : ''}`)
   if (body.yAxis) add(out, `y-axis ${clean(body.yAxis.near)}${body.yAxis.far ? ` -> ${clean(body.yAxis.far)}` : ''}`)
-  body.quadrants.forEach((q, i) => { if (q) add(out, `quadrant ${i + 1} : ${clean(q)}`) })
+  body.quadrants.forEach((q, i) => {
+    if (q) add(out, `quadrant ${i + 1} : ${clean(q)}`)
+  })
   body.points.forEach((p, i) => {
     add(out, `point ${clean(dequote(p.label))} @ ${num(p.x)},${num(p.y)}`)
     add(out, `point#${i} ${clean(dequote(p.label))} @ ${num(p.x)},${num(p.y)}`)

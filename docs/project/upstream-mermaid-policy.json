@@ -345,11 +345,11 @@
       "headers": [
         {
           "value": "sankey",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "sankey-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },

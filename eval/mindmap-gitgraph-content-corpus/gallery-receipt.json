@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "docs/project/upstream-mermaid-manifest.json",
-      "sha256": "2e30b96dee9eeaa84286d6910874c9f501ce454b6e6e7c9b03c7d2312377a299"
+      "sha256": "f97146a8a2b5099cb24cdc3858ac9b882b726bc2e7b318a73cdb993be574c246"
     },
     {
       "path": "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
@@ -104,15 +104,15 @@
     },
     {
       "path": "src/agent/core.ts",
-      "sha256": "97b19ad1e1dce6d14f131be8729be5e649622b04440146045f8576706034095d"
+      "sha256": "ba91544c93b647de27bec7250c609f5774251e72c21a00ff0dd2f023ec1495cc"
     },
     {
       "path": "src/agent/create.ts",
-      "sha256": "78dea390deaafb698e8029f80fd92545e67d8f516e1e214320e6b5531c86ad8b"
+      "sha256": "8794cc9fb6886201d853ef5bc8e15b39ec4a2b01da8f9f5e1d18b1d782a69cfa"
     },
     {
       "path": "src/agent/describe.ts",
-      "sha256": "c5b0b3b73eaaa6ca02af7c5b60ab7d21b2d08654b67b29c1b631672204096bc2"
+      "sha256": "3712ce7fa25b0fc31d590c361b3f671c98753d51370f777d16efb714dfafcd39"
     },
     {
       "path": "src/agent/embedded-font-resources.ts",
@@ -124,15 +124,15 @@
     },
     {
       "path": "src/agent/facts.ts",
-      "sha256": "a9f9298f93d4c4e9e3659bafe985f8c4cf9bbcad76bc09b91223223337c36f69"
+      "sha256": "a81897e8f7d82c1203ed8721794bce764c44770279adca30c9fc4dcaa497af4e"
     },
     {
       "path": "src/agent/families-builtin.ts",
-      "sha256": "8a2dc28d88a65cfb18b49270c8ba7b0a1addb3e944de829ccaa86464d4d54d15"
+      "sha256": "6d90adbb3a2e4d799daa56c786a36fbef8c3b8fc1a1b6e5a74eb222bc1b29ce1"
     },
     {
       "path": "src/agent/families.ts",
-      "sha256": "8d8c35bd0462d6e24848047c95462bbe0421fa67add2334031887b2c986d930b"
+      "sha256": "ce3286e43252f4334cde09afb5cbc2686dd7c09f1d15c6bcdc0e596390a9c12d"
     },
     {
       "path": "src/agent/family-labels.ts",
@@ -140,7 +140,7 @@
     },
     {
       "path": "src/agent/family-layouts.ts",
-      "sha256": "53419a15b3e69589a4981e3a61d7f8cfe3ccfc05607fed717c9cda38c04f0d99"
+      "sha256": "575041649a1db01a2bfa16731daf72e0ab1f416f13d4e2a78cc000adf648708f"
     },
     {
       "path": "src/agent/family-registration.ts",
@@ -192,15 +192,15 @@
     },
     {
       "path": "src/agent/mutate.ts",
-      "sha256": "7907092e7e30fa081a22372432d8629b223a7c9708b7863dd4f94a6a62e9382d"
+      "sha256": "a6cd54bb2f391387a0b55d41a9623b35b88c207a7912e00922b02db6c5f22b47"
     },
     {
       "path": "src/agent/mutation-ops.ts",
-      "sha256": "f74dd76d947f8cc33326ababed71dcfbda6b174a6b89b7c8fbfcc1da4cbc48d6"
+      "sha256": "d92ee42041e8874dc7f5ea7f6ef65068496d5bc2f9117b655d7d9dfef9e03113"
     },
     {
       "path": "src/agent/op-schema.ts",
-      "sha256": "278663aeb0da4b540f5ffb1cfa27f6dc29e35285be442847091f0533235ae446"
+      "sha256": "41bb8002718572fe69102d5087f611e6f1182c6a3e548997a1cf1cc17ccef44d"
     },
     {
       "path": "src/agent/opaque-segments.ts",
@@ -232,7 +232,11 @@
     },
     {
       "path": "src/agent/render-input.ts",
-      "sha256": "3471ce6358d335097f92634b4b8bd90419b63d0e495ad39dd7d434cb7e90ba75"
+      "sha256": "fb566e577a9a6f45c75a44fba63563742996d2c84435e6246f30ff586d93d8ee"
+    },
+    {
+      "path": "src/agent/sankey-body.ts",
+      "sha256": "26c5218c02fc53c21e3e294116daa4c2fe438ca628296d8956409b3045f9a533"
     },
     {
       "path": "src/agent/sequence-body.ts",
@@ -244,7 +248,7 @@
     },
     {
       "path": "src/agent/source-map-spans.ts",
-      "sha256": "28be9285af36426c304aaa8bed619cfb61807cf46e204c8c4affbf98b6e36628"
+      "sha256": "78fd1d2d519cab1f5064a68d5298118210bb55087b63e3dc8c0984887b209a84"
     },
     {
       "path": "src/agent/state-body.ts",
@@ -252,7 +256,7 @@
     },
     {
       "path": "src/agent/structural-count.ts",
-      "sha256": "708ab2aa0b286a5221738f07ce2d96351736cb3c7e9e91b3203d13ac785a2a34"
+      "sha256": "67364976b3e0b823cfdb188970e22e202b7c87d76b242e83701c30abd9e56f07"
     },
     {
       "path": "src/agent/timeline-body.ts",
@@ -264,11 +268,11 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "6166c1749649b0ff7906a5661e82cb778cd6e8cd89bc5f9dd2e41e883fe44e4f"
+      "sha256": "fa053e96f3822082af4f036627ada34dc5fb6e4fc47964c5617f9b0f4930ca49"
     },
     {
       "path": "src/agent/verify.ts",
-      "sha256": "cbcc0008e186a00c88e3e2f7dd37af27da9729ce1180cddeb14318ec8bf1fb39"
+      "sha256": "91d16d8a7245f07ab6aebe3210a7135920be2eacb8fa0bdb0a41e64ae94ae97b"
     },
     {
       "path": "src/agent/xychart-body.ts",
@@ -389,6 +393,10 @@
     {
       "path": "src/ascii/reverse.ts",
       "sha256": "5434887e706c8df63a8c79e8c023abf1530cb4df23e362dc6edd4ba3f6467e8a"
+    },
+    {
+      "path": "src/ascii/sankey.ts",
+      "sha256": "5469330e309e49ad85ac0098e1c91cf3ee9443a041768525c70594b27dd8761b"
     },
     {
       "path": "src/ascii/sequence.ts",
@@ -588,7 +596,7 @@
     },
     {
       "path": "src/index.ts",
-      "sha256": "6718077ae381bc476f346a29fd60cf2476bbc49d0b8ef3199809fe0ec572d5de"
+      "sha256": "1a1cff14a617886a6e546bc9810b75f42887d764065dd2fc09617e4d158a27b7"
     },
     {
       "path": "src/journey/layout.ts",
@@ -636,7 +644,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "7af781a4865e2bffeb3092d56ac08121ee89a2fe9b62ea3dd1987bb15e4a6c20"
+      "sha256": "5a029475bd4445673febfadf38031420327ff7487690e5331ad48b309b6222cf"
     },
     {
       "path": "src/mindmap/geometry.ts",
@@ -780,11 +788,11 @@
     },
     {
       "path": "src/render-contract.ts",
-      "sha256": "9ea22aba2c5394a242398befbea2d48d9bf3b699150205db0598bdb7155225d1"
+      "sha256": "d18c281f52af5cb0c2e19a3e9d35719e892f26b03a1b6299c503c7b692ebe814"
     },
     {
       "path": "src/render-family-hooks.ts",
-      "sha256": "fb98fedce611f95e78a5a27b8605581bd4bc08ff6f775cb31c5952e128895b74"
+      "sha256": "916b36732136792afe06b17a90a568be6bf48f7a82404c883518ff27345483cf"
     },
     {
       "path": "src/render-outputs.ts",
@@ -801,6 +809,26 @@
     {
       "path": "src/route-contracts.ts",
       "sha256": "47947d90bb0596bb083812915e85a2d8b95764cf39b12ed1d7b55eed60138de6"
+    },
+    {
+      "path": "src/sankey/config.ts",
+      "sha256": "75552cba0ea9bac1a830ed4e5eeadad13386fb1d733ac38aadcfe07c67bfcb35"
+    },
+    {
+      "path": "src/sankey/layout.ts",
+      "sha256": "bf0498a308edce35dea3bd52c98e78055290a6ad89becc58b8c300f8cf1359a1"
+    },
+    {
+      "path": "src/sankey/parser.ts",
+      "sha256": "6d627fcb014ec3f20b0319b5f85c2a0ff9346578bccd8e7b4ea620a0cae782a8"
+    },
+    {
+      "path": "src/sankey/renderer.ts",
+      "sha256": "823e23584756cef070eee52a1b488ed3791bc91f315b784fa65d145a1aa0487c"
+    },
+    {
+      "path": "src/sankey/types.ts",
+      "sha256": "2e3036a2ee4ee82feafb7c105f2108986af7c19d86bd9f9853a5dd595a8b962e"
     },
     {
       "path": "src/scene/accessibility.ts",
@@ -888,7 +916,7 @@
     },
     {
       "path": "src/scene/role-style-contract.ts",
-      "sha256": "0db2f42ebc3a23f8baeb15251a73c43103c7212b5ce5f95c75246985ebe6ab79"
+      "sha256": "9770225813258f01612059101f2ee613a953bc79487cad9d2006e7c8ad9ebf9c"
     },
     {
       "path": "src/scene/roles.ts",
@@ -960,7 +988,7 @@
     },
     {
       "path": "src/shared/categorical-palette.ts",
-      "sha256": "32fe41d7f8adc67fd9034ae6c35a01e7bbbe9b788859b39f26828c465a38e176"
+      "sha256": "0916ef44e935bf2be7ed1f4f1eff4f5cc150cf8c473ce017d12345c9051bd654"
     },
     {
       "path": "src/shared/color-math.ts",
@@ -996,7 +1024,7 @@
     },
     {
       "path": "src/shared/family-config-diagnostics.ts",
-      "sha256": "b03eea6a3edf8df6e096201f55368c1f4181c3c6af7e32fd11205246b9216770"
+      "sha256": "539733d5b5291fa770f3bb2e69f91e86f90fd296f830a38a7bc1701bd44805ac"
     },
     {
       "path": "src/shared/graphemes.ts",
@@ -1124,7 +1152,7 @@
     },
     {
       "path": "src/upstream-mermaid-family-index.json",
-      "sha256": "f622007b80a9df360c319555ee71a5c2acfa449fb5dfdfa5bc8d7b6057b8f0eb"
+      "sha256": "a29ae67445a9e1f9e0d434d85a28ef5088796e404ae3c6f6594501eb32727d8f"
     },
     {
       "path": "src/upstream-mermaid-manifest.ts",
@@ -1185,11 +1213,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "101ec42ecd973b114f8c7ec5a95b773936cb3cb022c66e21f1384c5df45f8ba8"
+      "sha256": "4d5d2e4c13c60f4e62408d70ef38e1e254f58310fd7293afd751207a69034f54"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "bb0064d50473f88dafac1098de591719c5d2f0a8ca8eeb9ed2250730b2d0e762"
+      "sha256": "f94b5b9d3afb5f116df26ad405115b8eb3d01d8dd0cb387de28de20d94c88df5"
     }
   ]
 }

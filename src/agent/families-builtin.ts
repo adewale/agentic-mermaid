@@ -17,31 +17,32 @@
 // checks (verify.ts adds the geometric Tier 2 pass via the graph projection).
 // ============================================================================
 
-import type { ExtractedLabel, FamilyOperations } from './families.ts'
-import { extractLabelsGeneric } from './family-labels.ts'
-import type { DiagramBody, DiagramKind, AnyMutationOp, MutationError, Result, LayoutWarning, SourceMap, ClassBody, ErBody, XyChartBody, PieBody, QuadrantBody, GanttBody, RadarBody } from './types.ts'
-import { ok, err } from './types.ts'
-import { verifyClass, parseClassBody, renderClass, mutateClass, parseClassRelationSyntax } from './class-body.ts'
-import { verifyErBody, parseErBody, renderEr, mutateEr } from './er-body.ts'
-import { parseSequenceBody, renderSequence, mutateSequence } from './sequence-body.ts'
-import { parseTimelineBody, renderTimeline, mutateTimeline } from './timeline-body.ts'
-import { parseJourneyBody, renderJourney, mutateJourney, verifyJourney } from './journey-body.ts'
-import { walkJourneyLines, type JourneyParseIssue } from '../journey/parse-core.ts'
-import { parseArchitectureBody, renderArchitecture, mutateArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
-import { parseXyChartBody, renderXyChart, mutateXyChart, verifyXyChart } from './xychart-body.ts'
-import { parsePieBody, renderPie, mutatePie, verifyPie } from './pie-body.ts'
-import { parseQuadrantBody, renderQuadrant, mutateQuadrant, verifyQuadrant } from './quadrant-body.ts'
-import { parseStateBody, renderState, mutateState, verifyState } from './state-body.ts'
-import { parseGanttBody, renderGantt, mutateGantt, verifyGantt } from './gantt-body.ts'
-import { parseFlowchartBody, renderFlowchart, mutateFlowchart, buildFlowchartSourceMap, type FlowchartBody } from './flowchart-body.ts'
-import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
-import { parseMindmapBody, renderMindmapBody, mutateMindmap, verifyMindmap } from './mindmap-body.ts'
-import { parseGitGraphBody, renderGitGraphBody, mutateGitGraph, verifyGitGraph } from './gitgraph-body.ts'
-import { parseRadarBody, renderRadar, mutateRadar, verifyRadar } from './radar-body.ts'
 import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassReference } from '../class/parser.ts'
 import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax } from '../er/parser.ts'
+import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
+import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
+import { mutateClass, parseClassBody, parseClassRelationSyntax, renderClass, verifyClass } from './class-body.ts'
+import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
+import type { ExtractedLabel, FamilyOperations } from './families.ts'
+import { extractLabelsGeneric } from './family-labels.ts'
+import { buildFlowchartSourceMap, type FlowchartBody, mutateFlowchart, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
+import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
+import { mutateGantt, parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
+import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
+import { mutateJourney, parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
+import { mutateMindmap, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
+import { mutatePie, parsePieBody, renderPie, verifyPie } from './pie-body.ts'
+import { mutateQuadrant, parseQuadrantBody, renderQuadrant, verifyQuadrant } from './quadrant-body.ts'
+import { mutateRadar, parseRadarBody, renderRadar, verifyRadar } from './radar-body.ts'
+import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './sankey-body.ts'
+import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
+import { mutateState, parseStateBody, renderState, verifyState } from './state-body.ts'
+import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
+import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
+import { err, ok } from './types.ts'
+import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart } from './xychart-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -51,16 +52,13 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
   kind: K,
   opts: {
     headerOk?: (header: string) => boolean
-    parseBody: (
-      lines: string[],
-      accessibility: import('./types.ts').Accessibility,
-    ) => Extract<DiagramBody, { kind: K }> | null
+    parseBody: (lines: string[], accessibility: import('./types.ts').Accessibility) => Extract<DiagramBody, { kind: K }> | null
     serialize: (body: Extract<DiagramBody, { kind: K }>) => string
     mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>
   },
 ): Pick<FamilyOperations, 'parse' | 'serialize' | 'mutate'> {
   return {
-    parse: (ctx) => {
+    parse: ctx => {
       const lines = ctx.lines
       const { opaqueSource } = ctx
       const headerOk = opts.headerOk?.(lines[0]?.trim() ?? '') ?? true
@@ -108,8 +106,7 @@ function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMa
       if (containsFlowchartOpaqueSyntax(source.familyText)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
       return parseFlowchartBody(source.familyText)
     },
-    buildSourceMap: (body, canonicalSource) =>
-      body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
+    buildSourceMap: (body, canonicalSource) => (body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
     serialize: body => {
       if (body.kind !== 'flowchart') throw new Error(`flowchart serializer received body kind ${body.kind}`)
       return renderFlowchart(body.graph, 'flowchart')
@@ -156,10 +153,12 @@ const STATE_AGENT_HOOKS = {
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
-  verify: (body, opts) => body.kind === 'state' ? verifyState(body, opts) : [],
+  verify: (body, opts) => (body.kind === 'state' ? verifyState(body, opts) : []),
   ...structuredFamilyHooks('state', {
     headerOk: h => /^statediagram(?:-v2)?\s*$/i.test(h),
-    parseBody: parseStateBody, serialize: renderState, mutate: mutateState,
+    parseBody: parseStateBody,
+    serialize: renderState,
+    mutate: mutateState,
   }),
 } satisfies FamilyOperations
 
@@ -215,7 +214,13 @@ const SEQUENCE_AGENT_HOOKS = {
 function expandInlineSequenceStatements(lines: readonly string[]): string[] {
   const header = lines[0]?.trim() ?? ''
   if (!/^sequenceDiagram\s*;/i.test(header)) return [...lines]
-  return [...header.split(';').map(part => part.trim()).filter(Boolean), ...lines.slice(1)]
+  return [
+    ...header
+      .split(';')
+      .map(part => part.trim())
+      .filter(Boolean),
+    ...lines.slice(1),
+  ]
 }
 
 function sequenceRawBodyLines(opaqueSource: string, expandedLines: string[]): string[] {
@@ -239,7 +244,10 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
       out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
     } else if (raw.includes(':')) {
       // `<period> : <event> [: <event>...]` or continuation `: <event>`
-      const parts = raw.split(':').map(p => p.trim()).filter(Boolean)
+      const parts = raw
+        .split(':')
+        .map(p => p.trim())
+        .filter(Boolean)
       for (const p of parts) out.push({ text: p, target: `line${i + 1}` })
     }
   }
@@ -273,9 +281,16 @@ const TIMELINE_AGENT_HOOKS = {
 
 // ---- Class ---------------------------------------------------------------
 // class Name { +member ... }, Class : +member, class A as "Display Label"
-function emptySourceMap(): SourceMap { return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() } }
-function loc(line: number, col: number): { line: number; col: number } { return { line, col: Math.max(1, col) } }
-function firstIndex(line: string, text: string): number { const i = line.indexOf(text); return i >= 0 ? i + 1 : 1 }
+function emptySourceMap(): SourceMap {
+  return { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+}
+function loc(line: number, col: number): { line: number; col: number } {
+  return { line, col: Math.max(1, col) }
+}
+function firstIndex(line: string, text: string): number {
+  const i = line.indexOf(text)
+  return i >= 0 ? i + 1 : 1
+}
 
 function nextOccurrence(counts: Map<string, number>, key: string): number {
   const occurrence = counts.get(key) ?? 0
@@ -302,7 +317,10 @@ function xyValueTokenOffsets(valueSlice: string): number[] {
       else if (char === quote) quote = undefined
       continue
     }
-    if (char === '"' || char === "'") { quote = char; continue }
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
     if (char === ',') visit(index)
   }
   visit(valueSlice.length)
@@ -362,10 +380,12 @@ function pieSliceSourceLocations(lines: readonly string[]): Array<{ label: strin
     const match = line.match(/^\s*"((?:[^"\\]|\\.)*)"\s*:/)
     if (match?.[1] === undefined || match.index === undefined) return []
     const quote = line.indexOf('"', match.index)
-    return [{
-      label: match[1].replace(/\\(["\\])/g, '$1'),
-      location: loc(lineIndex + 1, quote + 2),
-    }]
+    return [
+      {
+        label: match[1].replace(/\\(["\\])/g, '$1'),
+        location: loc(lineIndex + 1, quote + 2),
+      },
+    ]
   })
 }
 
@@ -374,9 +394,7 @@ function classArrowIndex(line: string): number {
 }
 
 function quotedContentLocations(line: string): Array<{ text: string; start: number; end: number }> {
-  return [...line.matchAll(/"((?:\\.|[^"\\])*)"/g)].flatMap(match => match.index === undefined
-    ? []
-    : [{ text: match[1]!.replace(/\\(["\\])/g, '$1'), start: match.index + 1, end: match.index + match[0].length - 1 }])
+  return [...line.matchAll(/"((?:\\.|[^"\\])*)"/g)].flatMap(match => (match.index === undefined ? [] : [{ text: match[1]!.replace(/\\(["\\])/g, '$1'), start: match.index + 1, end: match.index + match[0].length - 1 }]))
 }
 
 function buildClassSourceMap(body: DiagramBody, canonicalSource: string): SourceMap {
@@ -400,7 +418,10 @@ function buildClassSourceMap(body: DiagramBody, canonicalSource: string): Source
   for (const source of located) {
     if (!source.trimmed || source.trimmed.startsWith('%%')) continue
     if (openClass) {
-      if (source.trimmed === '}') { openClass = undefined; continue }
+      if (source.trimmed === '}') {
+        openClass = undefined
+        continue
+      }
       addMember(openClass, source.trimmed, source.lineIndex + 1, source.start + 1)
       continue
     }
@@ -480,7 +501,10 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
   for (const source of located) {
     if (!source.trimmed || source.trimmed.startsWith('%%')) continue
     if (openEntity) {
-      if (source.trimmed === '}') { openEntity = undefined; continue }
+      if (source.trimmed === '}') {
+        openEntity = undefined
+        continue
+      }
       const key = `${openEntity}\u0000${source.trimmed}`
       const entries = attributeSources.get(key) ?? []
       entries.push(loc(source.lineIndex + 1, source.start + 1))
@@ -492,8 +516,14 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
     // relationship is mapped to that relationship, not to the family header
     // or a surrounding subgraph delimiter.
     if (source.lineIndex === 0 && /^erDiagram\s*$/i.test(source.trimmed)) continue
-    if (parseErGroupHeader(source.trimmed)) { openGroups++; continue }
-    if (source.trimmed === 'end' && openGroups > 0) { openGroups--; continue }
+    if (parseErGroupHeader(source.trimmed)) {
+      openGroups++
+      continue
+    }
+    if (source.trimmed === 'end' && openGroups > 0) {
+      openGroups--
+      continue
+    }
     if (parseDirectionStatement(source.trimmed)) continue
     const relation = parseErRelationshipSyntax(source.trimmed)
     if (relation) {
@@ -553,9 +583,7 @@ function buildChartSourceMap(body: DiagramBody, canonicalSource: string): Source
   const lines = canonicalSource.split(/\r?\n/)
   if (body.kind === 'xychart') {
     const b = body as XyChartBody
-    const seriesLines = lines
-      .map((line, index) => ({ line, index }))
-      .filter(({ line }) => /^\s*(?:bar|line)\b/i.test(line))
+    const seriesLines = lines.map((line, index) => ({ line, index })).filter(({ line }) => /^\s*(?:bar|line)\b/i.test(line))
     b.series.forEach((series, si) => {
       const candidate = seriesLines[si]
       if (!candidate || !new RegExp(`^\\s*${series.kind}\\b`, 'i').test(candidate.line)) return
@@ -591,6 +619,20 @@ function buildChartSourceMap(body: DiagramBody, canonicalSource: string): Source
     ;(body as QuadrantBody).points.forEach((point, index) => {
       const found = pointLines[index]
       if (found?.label === point.label) map.labels.set(`quadrant:point#${index}`, found.location)
+    })
+  } else if (body.kind === 'sankey') {
+    // Canonical form: header line, then one CSV row per link in order.
+    const rowLines = lines
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => {
+        const trimmed = line.trim()
+        return trimmed.length > 0 && !trimmed.startsWith('%%') && !/^sankey(?:-beta)?\s*:?\s*$/i.test(trimmed)
+      })
+    ;(body as SankeyBody).links.forEach((link, index) => {
+      const candidate = rowLines[index]
+      if (!candidate) return
+      const start = candidate.line.length - candidate.line.trimStart().length
+      map.labels.set(`sankey:link#${index}`, loc(candidate.index + 1, start + 1))
     })
   } else if (body.kind === 'radar') {
     const b = body as RadarBody
@@ -658,7 +700,9 @@ function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): Source
   return map
 }
 
-function escapeSourceMapRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
+function escapeSourceMapRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 function extractClassLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
@@ -685,7 +729,7 @@ const CLASS_AGENT_HOOKS = {
   // Loop 8 A1: the structured class verifier IS the verify path — verifyMermaid
   // routes class diagrams through this descriptor hook (Loop 9 M2 removed the
   // duplicate per-body branch). Single source of truth.
-  verify: (body, opts) => body.kind === 'class' ? verifyClass(body, opts) : [],
+  verify: (body, opts) => (body.kind === 'class' ? verifyClass(body, opts) : []),
   buildSourceMap: buildClassSourceMap,
   ...structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, mutate: mutateClass }),
 } satisfies FamilyOperations
@@ -714,14 +758,16 @@ const ER_AGENT_HOOKS = {
   extractLabels: extractErLabels,
   // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
   // removed the duplicate per-body branch in verify.ts).
-  verify: (body, opts) => body.kind === 'er' ? verifyErBody(body, opts) : [],
+  verify: (body, opts) => (body.kind === 'er' ? verifyErBody(body, opts) : []),
   buildSourceMap: buildErSourceMap,
   ...structuredFamilyHooks('er', {
     // A header-riding subgraph clause (`erDiagram subgraph X`, repo #103) is
     // tolerated by the renderer but unmodeled here: keep the body opaque so
     // the clause round-trips verbatim instead of being dropped on serialize.
     headerOk: h => /^erdiagram\s*$/i.test(h),
-    parseBody: parseErBody, serialize: renderEr, mutate: mutateEr,
+    parseBody: parseErBody,
+    serialize: renderEr,
+    mutate: mutateEr,
   }),
 } satisfies FamilyOperations
 
@@ -792,16 +838,15 @@ const JOURNEY_AGENT_HOOKS = {
   extractLabels: extractJourneyLabels,
   // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => body.kind === 'journey'
-    ? verifyJourney(body, opts)
-    : body.kind === 'opaque' ? verifyOpaqueJourney(body) : [],
+  verify: (body, opts) => (body.kind === 'journey' ? verifyJourney(body, opts) : body.kind === 'opaque' ? verifyOpaqueJourney(body) : []),
   ...structuredFamilyHooks('journey', {
     headerOk: h => /^journey\s*$/i.test(h),
     parseBody: (lines, accessibility) => {
       const outcome = parseJourneyBody(lines, accessibility)
       return outcome.ok ? outcome.body : null
     },
-    serialize: renderJourney, mutate: mutateJourney,
+    serialize: renderJourney,
+    mutate: mutateJourney,
   }),
 } satisfies FamilyOperations
 
@@ -878,11 +923,18 @@ function splitXyLabelStatements(line: string): string[] {
     const char = line[i]!
     if (quote) {
       current += char
-      if (char === '\\') { current += line[++i] ?? ''; continue }
+      if (char === '\\') {
+        current += line[++i] ?? ''
+        continue
+      }
       if (char === quote) quote = null
       continue
     }
-    if (char === '"' || char === "'") { quote = char; current += char; continue }
+    if (char === '"' || char === "'") {
+      quote = char
+      current += char
+      continue
+    }
     if (char === ';') {
       const trimmed = current.trim()
       if (trimmed) statements.push(trimmed)
@@ -904,7 +956,7 @@ const XYCHART_AGENT_HOOKS = {
   // universal label-extraction path. headerOk requires `xychart`/`xychart-beta`
   // with at most a `horizontal`/`vertical` orientation suffix — any other
   // trailing token (e.g. `EXTRA`) stays opaque so it round-trips verbatim.
-  verify: (body, opts) => body.kind === 'xychart' ? verifyXyChart(body, opts) : [],
+  verify: (body, opts) => (body.kind === 'xychart' ? verifyXyChart(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
   // xychart needs the header to model the `horizontal` orientation suffix, so it
   // uses a tailored parse hook (not the shared structuredFamilyHooks) — but
@@ -966,7 +1018,10 @@ function parsePieHeader(header: string): { showData: boolean; title?: string } |
   let tail = m[1]!.trim()
   let showData = false
   const sd = tail.match(/^showData\b\s*(.*)$/i)
-  if (sd) { showData = true; tail = sd[1]!.trim() }
+  if (sd) {
+    showData = true
+    tail = sd[1]!.trim()
+  }
   const inlineTitle = tail.match(/^title\s+(.+)$/i)
   if (inlineTitle) return { showData, title: inlineTitle[1]!.trim() }
   if (tail.length > 0) return null // unexpected text after the header → opaque
@@ -979,7 +1034,7 @@ const PIE_AGENT_HOOKS = {
   // body; opaque fallbacks keep the universal label-extraction path. The header
   // carries showData / inline title, so pie uses a tailored parse hook (like
   // xychart) — serialize/mutate stay identical to every other structured family.
-  verify: (body, opts) => body.kind === 'pie' ? verifyPie(body, opts) : [],
+  verify: (body, opts) => (body.kind === 'pie' ? verifyPie(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
   parse: ({ lines, opaqueSource }) => {
     const header = parsePieHeader(lines[0]?.trim() ?? '')
@@ -1086,13 +1141,13 @@ const QUADRANT_AGENT_HOOKS = {
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path and warn
   // when style-looking metadata is preserved on an opaque body.
-  verify: (body, opts) => body.kind === 'quadrant'
-    ? verifyQuadrant(body, opts)
-    : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : [],
+  verify: (body, opts) => (body.kind === 'quadrant' ? verifyQuadrant(body, opts) : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : []),
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('quadrant', {
     headerOk: h => /^quadrant(?:chart)?\s*$/i.test(h),
-    parseBody: parseQuadrantBody, serialize: renderQuadrant, mutate: mutateQuadrant,
+    parseBody: parseQuadrantBody,
+    serialize: renderQuadrant,
+    mutate: mutateQuadrant,
   }),
 } satisfies FamilyOperations
 
@@ -1143,7 +1198,7 @@ const GANTT_AGENT_HOOKS = {
   extractLabels: extractGanttLabels,
   // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
   // after/until refs); see docs/design/families/gantt.md §Verification.
-  verify: (body, opts) => body.kind === 'gantt' ? verifyGantt(body, opts) : [],
+  verify: (body, opts) => (body.kind === 'gantt' ? verifyGantt(body, opts) : []),
   buildSourceMap: buildGanttSourceMap,
   parse: ({ source, lines, opaqueSource }) => {
     const headerOk = /^gantt\s*$/i.test(lines[0]?.trim() ?? '')
@@ -1182,12 +1237,12 @@ const ARCHITECTURE_AGENT_HOOKS = {
   // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
   // the structured body; opaque fallbacks (accTitle/accDescr, {group} boundary
   // edges, unmodeled syntax) keep the universal label-extraction path.
-  verify: (body, opts) => body.kind === 'architecture'
-    ? verifyArchitecture(body, opts)
-    : body.kind === 'opaque' ? verifyOpaqueArchitectureIcons(body.source) : [],
+  verify: (body, opts) => (body.kind === 'architecture' ? verifyArchitecture(body, opts) : body.kind === 'opaque' ? verifyOpaqueArchitectureIcons(body.source) : []),
   ...structuredFamilyHooks('architecture', {
     headerOk: h => /^architecture(?:-beta)?\s*$/i.test(h),
-    parseBody: parseArchitectureBody, serialize: renderArchitecture, mutate: mutateArchitecture,
+    parseBody: parseArchitectureBody,
+    serialize: renderArchitecture,
+    mutate: mutateArchitecture,
   }),
 } satisfies FamilyOperations
 
@@ -1195,17 +1250,18 @@ const ARCHITECTURE_AGENT_HOOKS = {
 const MINDMAP_AGENT_HOOKS = {
   extractLabels: extractLabelsGeneric,
   parse: ({ source }) => {
-    try { return ok(parseMindmapBody(source.familyBody)) }
-    catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
+    try {
+      return ok(parseMindmapBody(source.familyBody))
+    } catch (error) {
+      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
+    }
   },
   serialize: body => {
     if (body.kind !== 'mindmap') throw new Error(`mindmap serializer received body kind ${body.kind}`)
     return renderMindmapBody(body)
   },
-  mutate: (body, op) => body.kind === 'mindmap'
-    ? mutateMindmap(body, op as never)
-    : err({ code: 'INVALID_OP', message: `mindmap mutator received body kind ${body.kind}` }),
-  verify: (body, opts) => body.kind === 'mindmap' ? verifyMindmap(body, opts) : [],
+  mutate: (body, op) => (body.kind === 'mindmap' ? mutateMindmap(body, op as never) : err({ code: 'INVALID_OP', message: `mindmap mutator received body kind ${body.kind}` })),
+  verify: (body, opts) => (body.kind === 'mindmap' ? verifyMindmap(body, opts) : []),
 } satisfies FamilyOperations
 
 // ---- GitGraph --------------------------------------------------------------
@@ -1214,27 +1270,29 @@ const GITGRAPH_AGENT_HOOKS = {
   parse: ({ source, meta }) => {
     try {
       const merged: Record<string, unknown> = {
-        ...((meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object') ? meta.frontmatter.gitGraph : {}),
+        ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
       }
       for (const directive of meta.initDirectives) {
         const section = directive.parsed?.gitGraph
         if (section && typeof section === 'object') Object.assign(merged, section)
       }
-      return ok(parseGitGraphBody(source.familyBody, {
-        mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
-        mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
-        title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
-      }))
-    } catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
+      return ok(
+        parseGitGraphBody(source.familyBody, {
+          mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
+          mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
+          title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
+        }),
+      )
+    } catch (error) {
+      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
+    }
   },
   serialize: body => {
     if (body.kind !== 'gitgraph') throw new Error(`gitgraph serializer received body kind ${body.kind}`)
     return renderGitGraphBody(body)
   },
-  mutate: (body, op) => body.kind === 'gitgraph'
-    ? mutateGitGraph(body, op as never)
-    : err({ code: 'INVALID_OP', message: `gitgraph mutator received body kind ${body.kind}` }),
-  verify: (body, opts) => body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : [],
+  mutate: (body, op) => (body.kind === 'gitgraph' ? mutateGitGraph(body, op as never) : err({ code: 'INVALID_OP', message: `gitgraph mutator received body kind ${body.kind}` })),
+  verify: (body, opts) => (body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : []),
 } satisfies FamilyOperations
 
 // ---- Radar -----------------------------------------------------------------
@@ -1251,7 +1309,10 @@ function extractRadarLabels(source: string): ExtractedLabel[] {
     if (!raw || raw.startsWith('%%')) continue
     const target = `line${i + 1}`
     let m
-    if ((m = raw.match(/^title\s+(.+)$/i))) { out.push({ text: m[1]!.trim(), target }); continue }
+    if ((m = raw.match(/^title\s+(.+)$/i))) {
+      out.push({ text: m[1]!.trim(), target })
+      continue
+    }
     if (/^radar-beta\b/i.test(raw)) continue
     // axis / curve quoted labels: id["Label"] …
     for (const q of raw.matchAll(/\[\s*["']([^"'\]]+)["']\s*\]/g)) out.push({ text: q[1]!, target })
@@ -1263,11 +1324,50 @@ const RADAR_AGENT_HOOKS = {
   extractLabels: extractRadarLabels,
   // Radar is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path.
-  verify: (body, opts) => body.kind === 'radar' ? verifyRadar(body, opts) : [],
+  verify: (body, opts) => (body.kind === 'radar' ? verifyRadar(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('radar', {
     headerOk: h => /^radar-beta\s*:?\s*$/i.test(h),
-    parseBody: parseRadarBody, serialize: renderRadar, mutate: mutateRadar,
+    parseBody: parseRadarBody,
+    serialize: renderRadar,
+    mutate: mutateRadar,
+  }),
+} satisfies FamilyOperations
+
+// ---- Sankey ----------------------------------------------------------------
+// sankey / sankey-beta header; CSV rows of `source,target,value` (RFC 4180
+// subset). Sankey is structured-when-narrowed: the body parses to a
+// SankeyBody or falls back to opaque (accTitle/accDescr, malformed rows,
+// zero links). Labels are the node labels from the first two CSV columns.
+const SANKEY_CSV_FIELD_RE = /"((?:[^"]|"")*)"|([^,]+)/g
+
+function extractSankeyLabels(source: string): ExtractedLabel[] {
+  const out: ExtractedLabel[] = []
+  const lines = source.split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!.trim()
+    if (!raw || raw.startsWith('%%') || /^sankey(?:-beta)?\b/i.test(raw)) continue
+    const target = `line${i + 1}`
+    const fields: string[] = []
+    for (const m of raw.matchAll(SANKEY_CSV_FIELD_RE)) {
+      fields.push(m[1] !== undefined ? m[1].replace(/""/g, '"') : (m[2] ?? '').trim())
+    }
+    for (const text of fields.slice(0, 2)) if (text) out.push({ text, target })
+  }
+  return out
+}
+
+const SANKEY_AGENT_HOOKS = {
+  extractLabels: extractSankeyLabels,
+  // Sankey is structured-when-narrowed. The verify hook covers the structured
+  // body; opaque fallbacks keep the universal label-extraction path.
+  verify: (body, opts) => (body.kind === 'sankey' ? verifySankey(body, opts) : []),
+  buildSourceMap: buildChartSourceMap,
+  ...structuredFamilyHooks('sankey', {
+    headerOk: h => /^sankey(?:-beta)?\s*:?\s*$/i.test(h),
+    parseBody: parseSankeyBody,
+    serialize: renderSankey,
+    mutate: mutateSankey,
   }),
 } satisfies FamilyOperations
 
@@ -1287,4 +1387,5 @@ export const BUILTIN_AGENT_HOOKS = Object.freeze({
   mindmap: MINDMAP_AGENT_HOOKS,
   gitgraph: GITGRAPH_AGENT_HOOKS,
   radar: RADAR_AGENT_HOOKS,
+  sankey: SANKEY_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>

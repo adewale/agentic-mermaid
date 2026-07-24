@@ -1,30 +1,22 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-
-import {
-  FAMILY_CAPABILITY_COLUMNS,
-  getFamily,
-  knownBuiltinFamilies,
-  replaceFamilyForTest,
-  type BuiltinFamilyId,
-  type FamilyDescriptor,
-} from '../agent/families.ts'
+import { layoutMermaid } from '../agent/core.ts'
+import { type BuiltinFamilyId, FAMILY_CAPABILITY_COLUMNS, type FamilyDescriptor, getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
+import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
-import { mutate } from '../agent/mutate.ts'
-import { verifyMermaid } from '../agent/verify.ts'
-import { layoutMermaid } from '../agent/core.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
-import { BUILTIN_SCENE_ROLE_TRAITS } from '../scene/roles.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
 import { CORE_SCENE_PRIMITIVES, sceneNodePrimitives } from '../scene/capabilities.ts'
-import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { assertRenderableMarker, serializeMarkerResource } from '../scene/marker-resources.ts'
+import { BUILTIN_SCENE_ROLE_TRAITS } from '../scene/roles.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
-import { resolveRenderRequest } from '../render-contract.ts'
-import { positionResolvedFamily } from '../positioning.ts'
+import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -151,6 +143,14 @@ gitGraph
   commit id:"work"
   checkout main
   merge feature id:"merge"`,
+  sankey: `---
+title: Energy flows
+---
+sankey-beta
+  Coal,Electricity generation,127.93
+  Gas,Electricity generation,151.89
+  Electricity generation,Industry,342.16
+  Electricity generation,Losses,56.69`,
 }
 
 const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
@@ -163,6 +163,7 @@ const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
   journey: { kind: 'set_title', title: 'Capability witness' },
   architecture: { kind: 'set_title', title: 'Capability witness' },
   xychart: { kind: 'set_title', title: 'Capability witness' },
+  sankey: { kind: 'add_link', source: 'Capability witness', target: 'Capability sink', value: 1 },
   pie: { kind: 'set_title', title: 'Capability witness' },
   quadrant: { kind: 'set_title', title: 'Capability witness' },
   gantt: { kind: 'set_title', title: 'Capability witness' },
@@ -197,7 +198,11 @@ function lowerFixture(id: BuiltinFamilyId, sourceText: string): SceneDoc {
 function visitScene(nodes: readonly SceneNode[], visit: (node: SceneNode) => void): void {
   for (const node of nodes) {
     visit(node)
-    if (node.kind === 'group') visitScene(node.children.map(child => child.node), visit)
+    if (node.kind === 'group')
+      visitScene(
+        node.children.map(child => child.node),
+        visit,
+      )
   }
 }
 
@@ -206,12 +211,12 @@ describe('family descriptor capability authority', () => {
     for (const id of knownBuiltinFamilies()) {
       const descriptor = getFamily(id)!
       expect(descriptor.renderSvg, `${id} duplicate graphical waist`).toBeUndefined()
-      expect(descriptor.capabilityEvidence.map(claim => claim.capability), `${id} capability columns`)
-        .toEqual([...FAMILY_CAPABILITY_COLUMNS])
-      expect(new Set(descriptor.semanticRoles).size, `${id} duplicate role declarations`)
-        .toBe(descriptor.semanticRoles.length)
-      expect(descriptor.scenePrimitiveEvidence.length, `${id} complete role/primitive matrix`)
-        .toBe(descriptor.semanticRoles.length * CORE_SCENE_PRIMITIVES.length)
+      expect(
+        descriptor.capabilityEvidence.map(claim => claim.capability),
+        `${id} capability columns`,
+      ).toEqual([...FAMILY_CAPABILITY_COLUMNS])
+      expect(new Set(descriptor.semanticRoles).size, `${id} duplicate role declarations`).toBe(descriptor.semanticRoles.length)
+      expect(descriptor.scenePrimitiveEvidence.length, `${id} complete role/primitive matrix`).toBe(descriptor.semanticRoles.length * CORE_SCENE_PRIMITIVES.length)
       for (const role of descriptor.semanticRoles) {
         for (const primitive of CORE_SCENE_PRIMITIVES) {
           const cells = descriptor.scenePrimitiveEvidence.filter(cell => cell.role === role && cell.primitive === primitive)
@@ -239,28 +244,68 @@ describe('family descriptor capability authority', () => {
     for (const id of knownBuiltinFamilies()) {
       const descriptor = getFamily(id)!
       const calls = new Map<string, number>()
-      const hit = (name: string): void => { calls.set(name, (calls.get(name) ?? 0) + 1) }
+      const hit = (name: string): void => {
+        calls.set(name, (calls.get(name) ?? 0) + 1)
+      }
       const wrapped: FamilyDescriptor = {
         ...descriptor,
-        detect: line => { hit('detection'); return descriptor.detect(line) },
+        detect: line => {
+          hit('detection')
+          return descriptor.detect(line)
+        },
         ...(descriptor.detectLoose
-          ? { detectLoose: (line: string) => { hit('detection'); return descriptor.detectLoose!(line) } }
+          ? {
+              detectLoose: (line: string) => {
+                hit('detection')
+                return descriptor.detectLoose!(line)
+              },
+            }
           : {}),
-        normalizeRequest: ctx => { hit('normalization'); return descriptor.normalizeRequest!(ctx) },
-        extractLabels: source => { hit('label-extraction'); return descriptor.extractLabels!(source) },
-        parse: ctx => { hit('parse'); return descriptor.parse!(ctx) },
-        ...(descriptor.buildSourceMap
-          ? { buildSourceMap: (body, source) => descriptor.buildSourceMap!(body, source) }
-          : {}),
-        serialize: body => { hit('serialize'); return descriptor.serialize!(body) },
-        mutate: (body, op) => { hit('mutation'); return descriptor.mutate!(body, op) },
+        normalizeRequest: ctx => {
+          hit('normalization')
+          return descriptor.normalizeRequest!(ctx)
+        },
+        extractLabels: source => {
+          hit('label-extraction')
+          return descriptor.extractLabels!(source)
+        },
+        parse: ctx => {
+          hit('parse')
+          return descriptor.parse!(ctx)
+        },
+        ...(descriptor.buildSourceMap ? { buildSourceMap: (body, source) => descriptor.buildSourceMap!(body, source) } : {}),
+        serialize: body => {
+          hit('serialize')
+          return descriptor.serialize!(body)
+        },
+        mutate: (body, op) => {
+          hit('mutation')
+          return descriptor.mutate!(body, op)
+        },
         ...(descriptor.verify
-          ? { verify: (body, options) => { hit('verify-hook'); return descriptor.verify!(body, options) } }
+          ? {
+              verify: (body, options) => {
+                hit('verify-hook')
+                return descriptor.verify!(body, options)
+              },
+            }
           : {}),
-        layout: ctx => { hit('layout'); return descriptor.layout!(ctx) },
-        projectPositioned: ctx => { hit('positioned-projection'); return descriptor.projectPositioned!(ctx) },
-        lowerScene: ctx => { hit('scene'); return descriptor.lowerScene!(ctx) },
-        renderAscii: ctx => { hit('terminal'); return descriptor.renderAscii!(ctx) },
+        layout: ctx => {
+          hit('layout')
+          return descriptor.layout!(ctx)
+        },
+        projectPositioned: ctx => {
+          hit('positioned-projection')
+          return descriptor.projectPositioned!(ctx)
+        },
+        lowerScene: ctx => {
+          hit('scene')
+          return descriptor.lowerScene!(ctx)
+        },
+        renderAscii: ctx => {
+          hit('terminal')
+          return descriptor.renderAscii!(ctx)
+        },
       }
       const restore = replaceFamilyForTest(id, wrapped)
       calls.clear() // registration validation executes detection; it is not the witness.
@@ -325,9 +370,7 @@ describe('family descriptor capability authority', () => {
           for (const primitive of sceneNodePrimitives(node)) {
             const key = `${node.role}:${primitive}`
             observedCells.add(key)
-            expect(descriptor.scenePrimitiveEvidence, `${id} emitted undeclared primitive cell ${key}`).toContainEqual(
-              expect.objectContaining({ role: node.role, primitive, applicability: 'applicable' }),
-            )
+            expect(descriptor.scenePrimitiveEvidence, `${id} emitted undeclared primitive cell ${key}`).toContainEqual(expect.objectContaining({ role: node.role, primitive, applicability: 'applicable' }))
           }
           expect(descriptor.semanticRoles, `${id} emitted undeclared role ${node.role}`).toContain(node.role)
           const traits = (BUILTIN_SCENE_ROLE_TRAITS as Partial<Record<string, (typeof BUILTIN_SCENE_ROLE_TRAITS)[keyof typeof BUILTIN_SCENE_ROLE_TRAITS]>>)[node.role]
@@ -346,8 +389,7 @@ describe('family descriptor capability authority', () => {
         .filter(cell => cell.applicability === 'applicable')
         .map(cell => `${cell.role}:${cell.primitive}`)
         .sort()
-      expect([...observedCells].sort(), `${id} must exercise every declared positive cell`)
-        .toEqual(declaredPositiveCells)
+      expect([...observedCells].sort(), `${id} must exercise every declared positive cell`).toEqual(declaredPositiveCells)
     }
   })
 })

@@ -46,6 +46,7 @@ modeled subset. Silent loss is never an acceptable level.
 | mindmap | L3 indentation-sensitive structured tree; duplicate identities fail loud at L0 | Partial L4: node/edge projection and deterministic regions |
 | gitgraph | L3 replayed structured history; invalid replay and duplicate ids fail loud at L0 | Partial L4: commit/parent projection and deterministic regions |
 | radar | L3 structured body with opaque fallback | Partial L4: axes/curves source map + containment certs |
+| sankey | L3 structured body with opaque fallback | Partial L4: per-row link source map |
 
 ## Reviewer rule
 

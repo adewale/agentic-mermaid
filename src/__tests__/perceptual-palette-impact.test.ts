@@ -6,13 +6,13 @@
 // same shared `pieSliceColors`, a >6-curve radar inherits the perceptually-even,
 // collision-free palette end to end (the audit surfaced this reach).
 
-import { describe, it, expect } from 'bun:test'
-import { pieSliceColors } from '../pie/palette.ts'
+import { describe, expect, it } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
-import { minPairwiseDeltaEOK, apcaContrast } from '../shared/perceptual-color.ts'
-import { wcagContrastRatio } from '../shared/color-math.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
-import { categoricalPaletteWithDiagnostics } from '../shared/categorical-palette.ts'
+import { pieSliceColors } from '../pie/palette.ts'
+import { categoricalPaletteWithDiagnostics, ensureCompositedBgContrast } from '../shared/categorical-palette.ts'
+import { mixHex, wcagContrastRatio } from '../shared/color-math.ts'
+import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
 
 describe('perceptual palette — systematic impact', () => {
   it('the ΔE_OK collision floor holds across the whole realistic count range (7…24)', () => {
@@ -22,7 +22,7 @@ describe('perceptual palette — systematic impact', () => {
       for (const bg of ['#ffffff', '#1a1b26']) {
         const cols = pieSliceColors(count, { accent: '#3b82f6', bg })
         expect(new Set(cols).size).toBe(count)
-        expect(minPairwiseDeltaEOK(cols)).toBeGreaterThanOrEqual(0.10)
+        expect(minPairwiseDeltaEOK(cols)).toBeGreaterThanOrEqual(0.1)
       }
     }
   })
@@ -43,7 +43,7 @@ describe('perceptual palette — systematic impact', () => {
       for (let count = 7; count <= 24; count++) {
         const cols = pieSliceColors(count, { accent: 'accent' in theme ? theme.accent : theme.fg, bg: theme.bg })
         expect(new Set(cols).size, `${name} at ${count} slices`).toBe(count)
-        expect(minPairwiseDeltaEOK(cols), `${name} at ${count} slices`).toBeGreaterThanOrEqual(0.10)
+        expect(minPairwiseDeltaEOK(cols), `${name} at ${count} slices`).toBeGreaterThanOrEqual(0.1)
         for (const color of cols) {
           expect(wcagContrastRatio(color, theme.bg)!, `${name}: ${color}`).toBeGreaterThanOrEqual(1.25)
           expect(apcaContrast(color, theme.bg)!, `${name}: ${color}`).toBeGreaterThanOrEqual(15)
@@ -64,7 +64,7 @@ describe('perceptual palette — systematic impact', () => {
         expect(wcagContrastRatio(color, bg)!).toBeGreaterThanOrEqual(1.25)
         expect(apcaContrast(color, bg)!).toBeGreaterThanOrEqual(15)
       }
-      expect(minPairwiseDeltaEOK(cols)).toBeGreaterThanOrEqual(0.10)
+      expect(minPairwiseDeltaEOK(cols)).toBeGreaterThanOrEqual(0.1)
     }
   })
 
@@ -95,29 +95,98 @@ describe('perceptual palette — systematic impact', () => {
   })
 })
 
+describe('perceptual palette — translucent-mark compensation (ensureCompositedBgContrast)', () => {
+  // The raw-paint floors above were derived for OPAQUE fills. A mark drawn at
+  // partial opacity closes most of its distance to the page — measured before
+  // compensation: palette colors that clear WCAG 1.25 / APCA 15 raw drop to
+  // WCAG ≈1.0 / APCA 0 at 50% over several built-in backgrounds. This is the
+  // effective-color contract for every translucent derived-paint consumer.
+  it('the composited color clears both wedge floors across every built-in palette', () => {
+    for (const { colors: theme } of BUILTIN_PALETTE_DEFINITIONS) {
+      const accent = 'accent' in theme ? theme.accent : theme.fg
+      for (const count of [2, 4, 6, 8, 12, 24]) {
+        for (const raw of pieSliceColors(count, { accent, bg: theme.bg })) {
+          const paint = ensureCompositedBgContrast(raw, theme.bg, 50)
+          const effective = mixHex(paint, theme.bg, 50)
+          expect(wcagContrastRatio(effective, theme.bg)!).toBeGreaterThanOrEqual(1.25)
+          expect(apcaContrast(effective, theme.bg)!).toBeGreaterThanOrEqual(15)
+        }
+      }
+    }
+  })
+
+  it('an already-visible composite returns the paint byte-identical; unknown backdrops are not repainted', () => {
+    expect(ensureCompositedBgContrast('#1d4ed8', '#ffffff', 50)).toBe('#1d4ed8')
+    expect(ensureCompositedBgContrast('#1d4ed8', undefined, 50)).toBe('#1d4ed8')
+    expect(ensureCompositedBgContrast('#1d4ed8', 'rgba(255,255,255,0.5)', 50)).toBe('#1d4ed8')
+  })
+})
+
+describe('perceptual palette — cross-family reach (sankey)', () => {
+  // Sankey node fills route through the shared `pieSliceColors` path (L3), and
+  // its ribbons are the repo's first translucent SOLE-ENCODING marks — the
+  // ribbon at 0.5 opacity is the only visual a flow gets. Node fills are held
+  // to the raw floors; ribbon strokes to the COMPOSITED floors.
+  const sankeySource = (sources: number): string => {
+    const rows = Array.from({ length: sources }, (_u, i) => `  S${i},Hub,${i + 1}`)
+    const total = (sources * (sources + 1)) / 2
+    return `sankey-beta\n${rows.join('\n')}\n  Hub,Out,${total}`
+  }
+  const attrColors = (svg: string, pattern: RegExp): string[] => [...svg.matchAll(pattern)].map(m => m[1]!).filter((c): c is string => Boolean(c))
+
+  it('a 10-node sankey renders distinct, floor-clearing node fills and visible composited ribbons', () => {
+    for (const [bg, options] of [
+      ['#ffffff', { style: 'github-light' }],
+      ['#1a1b26', { bg: '#1a1b26', fg: '#c0caf5', accent: '#7aa2f7' }],
+    ] as const) {
+      const svg = renderMermaidSVG(sankeySource(8), options as never)
+      const fills = attrColors(svg, /class="sankey-node"[^/]*?fill="(#[0-9a-fA-F]{6})"/g)
+      expect(fills.length).toBe(10)
+      expect(new Set(fills).size).toBe(10)
+      expect(minPairwiseDeltaEOK(fills)).toBeGreaterThanOrEqual(0.1)
+      for (const fill of fills) expect(apcaContrast(fill, bg)!).toBeGreaterThanOrEqual(15)
+      const strokes = attrColors(svg, /class="sankey-link"[^/]*?stroke="(#[0-9a-fA-F]{6})"/g)
+      expect(strokes.length).toBe(9)
+      for (const stroke of strokes) {
+        const effective = mixHex(stroke, bg, 50)
+        expect(wcagContrastRatio(effective, bg)!).toBeGreaterThanOrEqual(1.25)
+        expect(apcaContrast(effective, bg)!).toBeGreaterThanOrEqual(15)
+      }
+    }
+  })
+
+  it('every linkColor mode stays composited-visible and deterministic', () => {
+    for (const mode of ['source', 'target', 'gradient'] as const) {
+      const source = `---\nconfig:\n  sankey:\n    linkColor: ${mode}\n---\n${sankeySource(8)}`
+      const first = renderMermaidSVG(source, { style: 'github-light' })
+      expect(renderMermaidSVG(source, { style: 'github-light' })).toBe(first)
+      for (const stroke of attrColors(first, /class="sankey-link"[^/]*?stroke="(#[0-9a-fA-F]{6})"/g)) {
+        expect(apcaContrast(mixHex(stroke, '#ffffff', 50), '#ffffff')!).toBeGreaterThanOrEqual(15)
+      }
+    }
+  })
+})
+
 describe('perceptual palette — cross-family reach (radar)', () => {
   // Radar lowers its per-curve fills onto the shared `pieSliceColors` path
   // (docs/design/system/cross-family-aesthetics.md L3), so >6 curves get the
   // OKLCH palette for free. Extract the rendered curve fills and check them.
   const radarSource = (curves: number): string => {
     const axes = ['speed', 'safety', 'ergonomics', 'ecosystem', 'tooling', 'docs']
-    const rows = Array.from({ length: curves }, (_u, i) =>
-      `  curve c${i}{${axes.map((_a, j) => ((i + j) % 5) + 1).join(', ')}}`)
+    const rows = Array.from({ length: curves }, (_u, i) => `  curve c${i}{${axes.map((_a, j) => ((i + j) % 5) + 1).join(', ')}}`)
     return `radar-beta\n  axis ${axes.join(', ')}\n${rows.join('\n')}`
   }
   const curveFills = (svg: string): string[] => {
     // radar-area is the filled polygon per curve; read its fill regardless of
     // attribute order. Grid/axis/text use CSS vars, so only curves are hex.
-    return [...svg.matchAll(/<[^>]*\bradar-area\b[^>]*>/g)]
-      .map(el => el[0].match(/fill="(#[0-9a-fA-F]{6})"/)?.[1])
-      .filter((c): c is string => Boolean(c))
+    return [...svg.matchAll(/<[^>]*\bradar-area\b[^>]*>/g)].map(el => el[0].match(/fill="(#[0-9a-fA-F]{6})"/)?.[1]).filter((c): c is string => Boolean(c))
   }
 
   it('an 8-curve radar renders 8 perceptually-distinct, visible curve colors', () => {
     const fills = curveFills(renderMermaidSVG(radarSource(8), { style: 'github-light' }))
     expect(fills.length).toBe(8)
     expect(new Set(fills).size).toBe(8)
-    expect(minPairwiseDeltaEOK(fills)).toBeGreaterThanOrEqual(0.10)
+    expect(minPairwiseDeltaEOK(fills)).toBeGreaterThanOrEqual(0.1)
     for (const c of fills) expect(apcaContrast(c, '#ffffff')!).toBeGreaterThanOrEqual(15)
   })
 

@@ -30,6 +30,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | GitGraph | [gitgraph.svg](./visual-snapshots/gitgraph.svg) | `4ba43b8c163a` | `7e16aff3d026` | 15365 | 634.3x348.266 | 634x348 | 4/4 | 0 | 4 | 776 | 0.7% | n/a | 0 | n/a | 97 | 0.36 | 4.54:1 | 1.82 |
 | Architecture diagram | [architecture.svg](./visual-snapshots/architecture.svg) | `e52c4df70db2` | `de31b0303d43` | 4296 | 414x188 | 414x188 | 2/1 | 0 | 0 | 78 | 14.8% | 100.0% | 0 | n/a | 78 | 0.39 | 6.67:1 | 2.20 |
 | Radar chart | [radar.svg](./visual-snapshots/radar.svg) | `6c0cc7a91198` | `9283df8d85db` | 30425 | 460.98x344.25 | 461x344 | 14/0 | 0 | 0 | 0 | 3.1% | 92.9% | 0 | n/a | 7 | 0.88 | 14.89:1 | 1.34 |
+| Sankey diagram | [sankey.svg](./visual-snapshots/sankey.svg) | `f4a6ef8b9371` | `0a683b4ee140` | 12918 | 648x448 | 648x448 | 5/4 | 0 | 2 | 1140 | 4.0% | 0.0% | 0 | n/a | 12 | 0.31 | 14.89:1 | 1.45 |
 
 ## Sources
 
@@ -197,4 +198,14 @@ radar-beta
   curve now["Current"]{4, 3, 5}
   curve goal["Target"]{5, 5, 4}
   max 5
+```
+
+### Sankey diagram
+
+```mermaid
+sankey-beta
+  Coal,Electricity,127.93
+  Gas,Electricity,151.89
+  Electricity,Industry,207.93
+  Electricity,Homes,71.89
 ```

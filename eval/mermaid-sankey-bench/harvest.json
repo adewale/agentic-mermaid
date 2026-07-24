@@ -1,0 +1,180 @@
+{
+  "family": "sankey",
+  "header": "sankey | sankey-beta",
+  "upstream": {
+    "repo": "mermaid-js/mermaid",
+    "version": "11.16.0",
+    "syntaxDoc": "https://mermaid.js.org/syntax/sankey.html",
+    "grammar": "packages/mermaid/src/diagrams/sankey/parser/sankey.jison",
+    "db": "packages/mermaid/src/diagrams/sankey/sankeyDB.ts",
+    "renderer": "packages/mermaid/src/diagrams/sankey/sankeyRenderer.ts",
+    "layout": "d3-sankey (layered flow layout, justify default alignment)",
+    "introduced": "v10.3.0 (experimental; syntax page warns it is to be extended)"
+  },
+  "constructs": [
+    {
+      "id": "header",
+      "form": "sankey[-beta][:]",
+      "modeled": true,
+      "note": "both spellings route to the family; canonical serialization emits sankey-beta (the spelling the wider rendering ecosystem accepts)"
+    },
+    {
+      "id": "csv-row",
+      "form": "source,target,value",
+      "modeled": true,
+      "note": "exactly three columns per RFC 4180 subset; row order is authored order and is preserved"
+    },
+    {
+      "id": "quoted-field",
+      "form": "\"label, with comma\"",
+      "modeled": true,
+      "note": "double-quoted fields may contain commas; content preserved exactly"
+    },
+    {
+      "id": "escaped-quote",
+      "form": "\"a \"\"quoted\"\" word\"",
+      "modeled": true,
+      "note": "a doubled quote inside a quoted field is a literal quote"
+    },
+    {
+      "id": "empty-lines",
+      "form": "blank separator lines",
+      "modeled": true,
+      "note": "explicitly allowed by the syntax page for visual grouping"
+    },
+    {
+      "id": "comments",
+      "form": "%% comment",
+      "modeled": true,
+      "note": "mermaid-universal comment lines are skipped"
+    },
+    {
+      "id": "implied-nodes",
+      "form": "node identity = label",
+      "modeled": true,
+      "note": "nodes appear in first-appearance order (drives palette + layout seeding)"
+    },
+    {
+      "id": "duplicate-links",
+      "form": "repeated source,target rows",
+      "modeled": true,
+      "note": "parallel duplicates are kept separate, addressed by occurrence in typed ops"
+    },
+    {
+      "id": "config-size",
+      "form": "sankey.width / sankey.height",
+      "modeled": true,
+      "note": "flow-area extent; canvas additionally grows so labels never clip"
+    },
+    {
+      "id": "config-link-color",
+      "form": "sankey.linkColor: source|target|gradient|<css>",
+      "modeled": true,
+      "note": "gradient renders as the source→target color-mix midpoint blend (see divergences)"
+    },
+    {
+      "id": "config-alignment",
+      "form": "sankey.nodeAlignment: justify|center|left|right",
+      "modeled": true,
+      "note": "d3-sankey alignment family; justify flushes pure sinks to the last layer"
+    },
+    {
+      "id": "config-values",
+      "form": "sankey.showValues / prefix / suffix",
+      "modeled": true,
+      "note": "value line under node labels, full authored precision"
+    },
+    {
+      "id": "config-node-geometry",
+      "form": "sankey.nodeWidth / nodePadding (v11.15.0+)",
+      "modeled": true,
+      "note": "defaults 10 / 12 per the syntax page"
+    },
+    {
+      "id": "config-label-style",
+      "form": "sankey.labelStyle: legacy|outlined (v11.15.0+)",
+      "modeled": true,
+      "note": "outlined adds a background paint-order halo"
+    },
+    {
+      "id": "config-node-colors",
+      "form": "sankey.nodeColors map (v11.15.0+)",
+      "modeled": true,
+      "note": "authored per-label fills override the categorical palette"
+    },
+    {
+      "id": "config-use-max-width",
+      "form": "sankey.useMaxWidth",
+      "modeled": false,
+      "note": "accepted and declared no-op (Tier-3 INEFFECTIVE_CONFIG), like pie/xychart"
+    }
+  ],
+  "examples": [
+    {
+      "id": "basic",
+      "source": "sankey-beta\n  Coal,Electricity generation,127.93\n  Gas,Electricity generation,151.89\n  Electricity generation,Industry,342.16\n  Electricity generation,Losses,56.69"
+    },
+    {
+      "id": "quoted",
+      "source": "sankey-beta\n  Pumped heat,\"Heating and cooling, homes\",193.026\n  Pumped heat,\"Heating and cooling, \"\"commercial\"\"\",70.672"
+    },
+    {
+      "id": "configured",
+      "source": "---\nconfig:\n  sankey:\n    showValues: false\n    nodeAlignment: left\n    linkColor: source\n---\nsankey-beta\n  Budget,Engineering,62\n  Budget,Design,18\n  Engineering,Platform,30"
+    },
+    {
+      "id": "empty-lines",
+      "source": "sankey-beta\n\n  Bio-conversion,Losses,26.862\n\n  Bio-conversion,Solid,280.322"
+    }
+  ],
+  "divergences": [
+    {
+      "id": "gradient-link-paint",
+      "upstream": "linkColor: gradient paints each ribbon with an SVG <linearGradient> from the source node color to the target node color",
+      "agentic": "the scene-security contract forbids URL-referencing paints (url(#…) is a fetching form), so gradient renders as the deterministic source→target midpoint blend via color-mix(); each direction pair still gets a distinct hue",
+      "rationale": "no existing family emits gradient paints; markers are the only sanctioned def references, via typed MarkerDescriptors"
+    },
+    {
+      "id": "cycle-rejection",
+      "upstream": "cycles reach d3-sankey, which throws an opaque 'circular link' error at layout time",
+      "agentic": "self-loops and cycles are rejected at parse time with the offending path named (A -> B -> A)",
+      "rationale": "the faithfulness contract prefers loud, actionable diagnostics over downstream library throws"
+    },
+    {
+      "id": "zero-value-visibility",
+      "upstream": "a zero/tiny-value node can render as a zero-height rectangle (invisible data)",
+      "agentic": "node heights clamp to a 1px visibility floor; zero-value links render at width 0 but their nodes stay visible",
+      "rationale": "the faithfulness contract forbids silently dropping authored data from the drawing"
+    },
+    {
+      "id": "label-canvas-growth",
+      "upstream": "labels can overflow the fixed width×height canvas and clip",
+      "agentic": "the canvas grows (and content shifts) so measured labels never clip; sankey.width/height size the flow area, not the final SVG",
+      "rationale": "deterministic text metrics make non-clipping label layout a solvable constraint"
+    },
+    {
+      "id": "value-precision",
+      "upstream": "showValues renders values through upstream number formatting",
+      "agentic": "values render at full authored precision (String(value)) with prefix/suffix applied verbatim",
+      "rationale": "authored data is displayed faithfully; no rounding policy is invented"
+    },
+    {
+      "id": "ribbon-composited-visibility",
+      "upstream": "ribbons paint the raw node color at 0.5 opacity; on low-contrast themes the composited ribbon can drop to WCAG ~1.0 / APCA 0 against the page",
+      "agentic": "palette-derived ribbon strokes route through ensureCompositedBgContrast: the stroke is deepened (bounded OKLCH lightness search) until the alpha-composited color clears the WCAG 1.25 / APCA 15 wedge floors; authored nodeColors and static linkColor stay authoritative and are never repainted",
+      "rationale": "the shared palette guarantees its floors for opaque marks only; a translucent sole-encoding mark must hold the floors on the color the viewer actually sees (gate: scene-effective-paint-contract.test.ts)"
+    },
+    {
+      "id": "conservation-lint",
+      "upstream": "no conservation check: an intermediate node silently renders at max(inflow, outflow)",
+      "agentic": "verify emits the advisory FLOW_IMBALANCE lint naming the node, inflow, outflow, and the unaccounted amount; never flips verify.ok",
+      "rationale": "conservation across stages is the domain's defining property (Wikipedia: Sankey diagram); surfacing the imbalance beats absorbing it into geometry"
+    },
+    {
+      "id": "recirculation-flows",
+      "upstream": "matches upstream: cycles are rejected (d3-sankey circular links); the broader Sankey tradition does draw return/recirculation loops",
+      "agentic": "cycles reject loudly at parse with the offending path spelled out; return flows are out of scope for both implementations",
+      "rationale": "domain-level divergence recorded for honesty; fidelity audit carries the same note"
+    }
+  ]
+}

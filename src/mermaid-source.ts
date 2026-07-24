@@ -11,16 +11,8 @@
 
 import YAML from 'yaml'
 import { detectRegisteredFamilyFromFirstLine, type FamilyId } from './agent/families.ts'
-import {
-  assertJsonConfigAdmission,
-  assertJsonConfigSourceTextAdmission,
-  JsonConfigAdmissionError,
-} from './shared/json-config-admission.ts'
-import {
-  parseAccessibilityDirective,
-  scanAccessibilityDirectives,
-  type MermaidAccessibility,
-} from './shared/accessibility-directives.ts'
+import { type MermaidAccessibility, parseAccessibilityDirective, scanAccessibilityDirectives } from './shared/accessibility-directives.ts'
+import { assertJsonConfigAdmission, assertJsonConfigSourceTextAdmission, JsonConfigAdmissionError } from './shared/json-config-admission.ts'
 
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
@@ -94,6 +86,21 @@ export interface PieRuntimeConfig extends MermaidConfigMap {
   highlightSlice?: string
   useMaxWidth?: boolean
   useWidth?: number
+}
+
+export interface SankeyRuntimeConfig extends MermaidConfigMap {
+  width?: number
+  height?: number
+  linkColor?: 'source' | 'target' | 'gradient' | string
+  nodeAlignment?: 'justify' | 'center' | 'left' | 'right'
+  showValues?: boolean
+  prefix?: string
+  suffix?: string
+  labelStyle?: 'legacy' | 'outlined'
+  nodeWidth?: number
+  nodePadding?: number
+  nodeColors?: Record<string, string>
+  useMaxWidth?: boolean
 }
 
 export interface RadarRuntimeConfig extends MermaidConfigMap {
@@ -337,6 +344,7 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   pie?: PieRuntimeConfig
   quadrantChart?: QuadrantRuntimeConfig
   radar?: RadarRuntimeConfig
+  sankey?: SankeyRuntimeConfig
   gantt?: GanttRuntimeConfig
   sequence?: SequenceRuntimeConfig
   class?: ClassRuntimeConfig
@@ -394,10 +402,7 @@ const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\
 const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
 const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
 
-export function normalizeMermaidSource(
-  text: string,
-  baseConfig: MermaidRuntimeConfig = {},
-): NormalizedMermaidSource {
+export function normalizeMermaidSource(text: string, baseConfig: MermaidRuntimeConfig = {}): NormalizedMermaidSource {
   const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
   const accessibilityScan = scanAccessibilityDirectives(processed.body.split(/\r?\n/))
   const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
@@ -425,10 +430,7 @@ export function normalizeMermaidSource(
 /** Normalize authored source once, then apply caller-owned runtime overrides.
  * Source frontmatter/init directives merge with their historical precedence;
  * explicit RenderOptions win at the public render boundary. */
-export function normalizeMermaidSourceWithOverrides(
-  text: string,
-  overrides: MermaidRuntimeConfig = {},
-): NormalizedMermaidSource {
+export function normalizeMermaidSourceWithOverrides(text: string, overrides: MermaidRuntimeConfig = {}): NormalizedMermaidSource {
   const source = normalizeMermaidSource(text)
   if (Object.keys(overrides).length === 0) return source
   const frontmatter = mergeFrontmatterMaps(source.frontmatter, runtimeConfigToFrontmatterMap(overrides))
@@ -439,7 +441,10 @@ export function normalizeMermaidSourceWithOverrides(
   }
 }
 
-function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccessibility): {
+function sourceEnvelopeMetadata(
+  text: string,
+  accessibility: MermaidSourceAccessibility,
+): {
   wrapperSource?: string
   initDirectives: MermaidSourceInitDirective[]
   comments: MermaidSourceComment[]
@@ -458,9 +463,7 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     })
   }
 
-  const withoutUniversalConfig = text
-    .replace(FRONTMATTER_REGEX, '')
-    .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+  const withoutUniversalConfig = text.replace(FRONTMATTER_REGEX, '').replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
   const comments: MermaidSourceComment[] = []
   const lines = withoutUniversalConfig.split(/\r?\n/)
   for (let index = 0; index < lines.length; index++) {
@@ -481,7 +484,10 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     const rest = text.slice(wrapperEnd)
     if (rest.length === 0) break
     const directive = rest.match(directiveAtStart)
-    if (directive?.index === 0 && directive[0].length > 0) { wrapperEnd += directive[0].length; continue }
+    if (directive?.index === 0 && directive[0].length > 0) {
+      wrapperEnd += directive[0].length
+      continue
+    }
     const lineEnd = rest.indexOf('\n')
     const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
     if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
@@ -499,18 +505,12 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   }
 }
 
-export function preprocessMermaidSource(
-  text: string,
-  baseFrontmatter: MermaidFrontmatterMap = {},
-): ProcessedMermaidSource {
+export function preprocessMermaidSource(text: string, baseFrontmatter: MermaidFrontmatterMap = {}): ProcessedMermaidSource {
   const frontmatterMatch = text.match(FRONTMATTER_REGEX)
   const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch[1]!)) : {}
   const rawBody = frontmatterMatch ? text.slice(frontmatterMatch[0].length) : text
   const { body, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
-  const frontmatter = mergeFrontmatterMaps(
-    mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter),
-    canonicalizeFrontmatterMap(directiveFrontmatter),
-  )
+  const frontmatter = mergeFrontmatterMaps(mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter), canonicalizeFrontmatterMap(directiveFrontmatter))
 
   return {
     body,
@@ -537,17 +537,11 @@ export function mergeMermaidConfigs(...configs: MermaidRuntimeConfig[]): Mermaid
   return normalizeMermaidRuntimeConfig(merged)
 }
 
-export function mergeFrontmatterMaps(
-  base: MermaidFrontmatterMap,
-  override: MermaidFrontmatterMap,
-): MermaidFrontmatterMap {
+export function mergeFrontmatterMaps(base: MermaidFrontmatterMap, override: MermaidFrontmatterMap): MermaidFrontmatterMap {
   return mergeFrontmatterMapsUnchecked(base, override)
 }
 
-function mergeFrontmatterMapsUnchecked(
-  base: MermaidFrontmatterMap,
-  override: MermaidFrontmatterMap,
-): MermaidFrontmatterMap {
+function mergeFrontmatterMapsUnchecked(base: MermaidFrontmatterMap, override: MermaidFrontmatterMap): MermaidFrontmatterMap {
   const merged = cloneFrontmatterMap(base)
 
   for (const [key, value] of Object.entries(override)) {
@@ -565,10 +559,7 @@ function mergeFrontmatterMapsUnchecked(
   return merged
 }
 
-export function getFrontmatterMap(
-  root: MermaidFrontmatterMap,
-  path: readonly string[],
-): MermaidFrontmatterMap | undefined {
+export function getFrontmatterMap(root: MermaidFrontmatterMap, path: readonly string[]): MermaidFrontmatterMap | undefined {
   let current: MermaidFrontmatterValue | undefined = root
   for (const segment of path) {
     if (!isFrontmatterMap(current)) return undefined
@@ -577,30 +568,22 @@ export function getFrontmatterMap(
   return isFrontmatterMap(current) ? current : undefined
 }
 
-export function getFrontmatterScalar<T extends MermaidFrontmatterScalar>(
-  root: MermaidFrontmatterMap,
-  path: readonly string[],
-): T | undefined {
+export function getFrontmatterScalar<T extends MermaidFrontmatterScalar>(root: MermaidFrontmatterMap, path: readonly string[]): T | undefined {
   let current: MermaidFrontmatterValue | undefined = root
   for (const segment of path) {
     if (!isFrontmatterMap(current)) return undefined
     current = current[segment]
   }
-  return current !== undefined && !Array.isArray(current) && (typeof current !== 'object' || current === null)
-    ? current as T
-    : undefined
+  return current !== undefined && !Array.isArray(current) && (typeof current !== 'object' || current === null) ? (current as T) : undefined
 }
 
-export function getFrontmatterList<T extends MermaidFrontmatterValue = MermaidFrontmatterValue>(
-  root: MermaidFrontmatterMap,
-  path: readonly string[],
-): T[] | undefined {
+export function getFrontmatterList<T extends MermaidFrontmatterValue = MermaidFrontmatterValue>(root: MermaidFrontmatterMap, path: readonly string[]): T[] | undefined {
   let current: MermaidFrontmatterValue | undefined = root
   for (const segment of path) {
     if (!isFrontmatterMap(current)) return undefined
     current = current[segment]
   }
-  return Array.isArray(current) ? current as T[] : undefined
+  return Array.isArray(current) ? (current as T[]) : undefined
 }
 
 function runtimeConfigToFrontmatterMap(config: MermaidRuntimeConfig): MermaidFrontmatterMap {
@@ -657,11 +640,7 @@ function normalizeTimelineRuntimeConfig(raw: MermaidFrontmatterMap): TimelineRun
 function normalizeJourneyRuntimeConfig(raw: MermaidFrontmatterMap): JourneyRuntimeConfig {
   const config = cloneFrontmatterMap(raw) as JourneyRuntimeConfig
 
-  for (const key of [
-    'diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth',
-    'width', 'height', 'boxMargin', 'boxTextMargin', 'noteMargin',
-    'messageMargin', 'bottomMarginAdj', 'taskMargin', 'activationWidth',
-  ] as const) {
+  for (const key of ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'bottomMarginAdj', 'taskMargin', 'activationWidth'] as const) {
     const value = config[key]
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
       delete config[key]
@@ -718,7 +697,7 @@ function mergeInto(target: MermaidFrontmatterMap, source: MermaidFrontmatterMap 
     }
 
     if (isFrontmatterMap(value)) {
-      const existing = isFrontmatterMap(target[key]) ? target[key] as MermaidFrontmatterMap : {}
+      const existing = isFrontmatterMap(target[key]) ? (target[key] as MermaidFrontmatterMap) : {}
       target[key] = existing
       mergeInto(existing, value)
       continue
@@ -988,10 +967,7 @@ function findSeparatorIndex(text: string, separator: ':' | ','): number {
 function unescapeQuotedString(valueText: string): string {
   try {
     if (valueText.startsWith("'")) {
-      return valueText
-        .slice(1, -1)
-        .replace(/\\\\/g, '\\')
-        .replace(/\\'/g, "'")
+      return valueText.slice(1, -1).replace(/\\\\/g, '\\').replace(/\\'/g, "'")
     }
     return JSON.parse(valueText)
   } catch {

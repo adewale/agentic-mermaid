@@ -6,13 +6,13 @@
 // (mutateChecked), so a given bad op is rejected identically no matter which
 // path reaches it. These tests fail if validateOp is removed from that core.
 
-import { describe, test, expect } from 'bun:test'
-import { applyOps, mutateChecked, validateOp, opMenu, hasOpSchema } from '../agent/core.ts'
-import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
+import { describe, expect, test } from 'bun:test'
+import { applyOps, hasOpSchema, mutateChecked, opMenu, validateOp } from '../agent/core.ts'
 import { createMermaid } from '../agent/create.ts'
-import { mutateSource } from '../cli/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
+import { mutateSource } from '../cli/index.ts'
 
 const errMsg = (e: unknown): string => (e as { message?: string })?.message ?? ''
 
@@ -31,10 +31,14 @@ describe('op-schema shape validation (§1–3, §5)', () => {
   })
 
   test('missing required field is reported prescriptively', () => {
-    const r = applyOps({ family: 'architecture', ops: [
-      { kind: 'add_service', id: 'api' }, { kind: 'add_service', id: 'db' },
-      { kind: 'add_edge', from: 'api', to: 'db' }, // missing fromSide/toSide
-    ] })
+    const r = applyOps({
+      family: 'architecture',
+      ops: [
+        { kind: 'add_service', id: 'api' },
+        { kind: 'add_service', id: 'db' },
+        { kind: 'add_edge', from: 'api', to: 'db' }, // missing fromSide/toSide
+      ],
+    })
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect((r.error as { reason?: string }).reason).toBe('missing_field')
@@ -50,10 +54,14 @@ describe('op-schema shape validation (§1–3, §5)', () => {
   })
 
   test('wrong primitive type is rejected with the expected type', () => {
-    const r = applyOps({ family: 'class', ops: [
-      { kind: 'add_class', id: 'A' }, { kind: 'add_member', class: 'A', text: '+f()' },
-      { kind: 'remove_member', class: 'A', index: '0' }, // index must be number
-    ] })
+    const r = applyOps({
+      family: 'class',
+      ops: [
+        { kind: 'add_class', id: 'A' },
+        { kind: 'add_member', class: 'A', text: '+f()' },
+        { kind: 'remove_member', class: 'A', index: '0' }, // index must be number
+      ],
+    })
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect((r.error as { reason?: string }).reason).toBe('wrong_type')
@@ -66,10 +74,14 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     // validSide, xychart kind2). On an untyped path validateOp must fire first,
     // so the caller always sees ONE consistent enum error, never the mutator's
     // differently-worded one. Guards the choke point against a bypass reappearing.
-    const side = applyOps({ family: 'architecture', ops: [
-      { kind: 'add_service', id: 'api' }, { kind: 'add_service', id: 'db' },
-      { kind: 'add_edge', from: 'api', to: 'db', fromSide: 'X', toSide: 'R' },
-    ] })
+    const side = applyOps({
+      family: 'architecture',
+      ops: [
+        { kind: 'add_service', id: 'api' },
+        { kind: 'add_service', id: 'db' },
+        { kind: 'add_edge', from: 'api', to: 'db', fromSide: 'X', toSide: 'R' },
+      ],
+    })
     expect(side.ok).toBe(false)
     if (!side.ok) {
       expect((side.error as { reason?: string }).reason).toBe('wrong_type')
@@ -141,10 +153,13 @@ describe('canonical output envelope (§7)', () => {
   })
 
   test('the envelope is pure JSON — a full round-trip is lossless (no Map/proxy leak)', () => {
-    const env = applyOps({ family: 'class', ops: [
-      { kind: 'add_class', id: 'Duck' },
-      { kind: 'add_member', class: 'Duck', text: '+quack()' },
-    ] })
+    const env = applyOps({
+      family: 'class',
+      ops: [
+        { kind: 'add_class', id: 'Duck' },
+        { kind: 'add_member', class: 'Duck', text: '+quack()' },
+      ],
+    })
     expect(env.ok).toBe(true)
     expect(JSON.parse(JSON.stringify(env))).toEqual(env)
     if (!env.ok) return
@@ -166,11 +181,13 @@ describe('canonical output envelope (§7)', () => {
       ok: false,
       error: { code: 'INVALID_OP' },
     })
-    expect(applyOps({
-      source: 'classDiagram\n  class Animal',
-      family: 'class',
-      ops: [{ kind: 'add_class', id: 'Dog' }],
-    })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(
+      applyOps({
+        source: 'classDiagram\n  class Animal',
+        family: 'class',
+        ops: [{ kind: 'add_class', id: 'Dog' }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
   })
 })
 
@@ -195,6 +212,7 @@ describe('schema covers every mutable family (§11)', () => {
     mindmap: { kind: 'add_node', id: 'child', label: 'child', parent: 'root' },
     gitgraph: { kind: 'append_commit', id: 'first' },
     radar: { kind: 'add_axis', id: 'a' },
+    sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

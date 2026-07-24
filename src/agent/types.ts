@@ -6,29 +6,27 @@
 // nothing). The only verify knob is labelCharCap. See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-import type { MermaidGraph, NodeShape, EdgeStyle, Direction, EdgeRouteCertificate, RegionContainmentCertificate, RouteCertificate, RouteClass, RenderOptions } from '../types.ts'
-import type { MermaidFrontmatterMap, MermaidConfigMap } from '../mermaid-source.ts'
+import type { GitGraphCommitType, GitGraphDiagram } from '../gitgraph/types.ts'
+import type { MermaidConfigMap, MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import type { GitGraphDiagram, GitGraphCommitType } from '../gitgraph/types.ts'
-import {
-  BRAND_CONSTRAINT_WARNING_POLICY,
-  type BrandConstraintKind,
-  type BrandConstraintWarningCode,
-} from '../scene/brand-constraint-contract.ts'
+import { BRAND_CONSTRAINT_WARNING_POLICY, type BrandConstraintKind, type BrandConstraintWarningCode } from '../scene/brand-constraint-contract.ts'
+import type { Direction, EdgeRouteCertificate, EdgeStyle, MermaidGraph, NodeShape, RegionContainmentCertificate, RenderOptions, RouteCertificate, RouteClass } from '../types.ts'
+
 export type { BrandConstraintWarningCode } from '../scene/brand-constraint-contract.ts'
 
 // ---- Result ---------------------------------------------------------------
 
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }
-export function ok<T, E = never>(value: T): Result<T, E> { return { ok: true, value } }
-export function err<E, T = never>(error: E): Result<T, E> { return { ok: false, error } }
+export function ok<T, E = never>(value: T): Result<T, E> {
+  return { ok: true, value }
+}
+export function err<E, T = never>(error: E): Result<T, E> {
+  return { ok: false, error }
+}
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind =
-  | 'flowchart' | 'state' | 'sequence' | 'class' | 'er'
-  | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt'
-  | 'mindmap' | 'gitgraph' | 'radar'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -49,16 +47,14 @@ export interface SequenceParticipant {
 }
 
 export type SequenceMessageStyle =
-  | 'sync'          // ->>
-  | 'reply'         // -->>
-  | 'async'         // ->
-  | 'async-dashed'  // -->
-  | 'lost'          // -x
-  | 'lost-dashed'   // --x
+  | 'sync' // ->>
+  | 'reply' // -->>
+  | 'async' // ->
+  | 'async-dashed' // -->
+  | 'lost' // -x
+  | 'lost-dashed' // --x
 
-export type SequenceMessageArrow =
-  | '<<->>' | '<<-->>' | '->>' | '-->>' | '->' | '-->' | '-x' | '--x'
-  | '-)' | '--)' | '-|' | '--|' | '-/' | '--/' | '|-' | '|--' | '/-' | '/--'
+export type SequenceMessageArrow = '<<->>' | '<<-->>' | '->>' | '-->>' | '->' | '-->' | '-x' | '--x' | '-)' | '--)' | '-|' | '--|' | '-/' | '--/' | '|-' | '|--' | '/-' | '/--'
 
 export interface SequenceMessage {
   from: string
@@ -93,8 +89,8 @@ export interface SequenceFragment {
 // outside that closed model (notes, critical/break/rect/box, activations…)
 // remain lossless opaque segments.
 export type SequenceStatement =
-  | { kind: 'participant'; ref: number }   // index into participants
-  | { kind: 'message'; ref: number }       // index into messages
+  | { kind: 'participant'; ref: number } // index into participants
+  | { kind: 'message'; ref: number } // index into messages
   | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
   | { kind: 'fragment'; fragment: SequenceFragment }
   | { kind: 'opaque-block'; lines: string[] }
@@ -172,15 +168,15 @@ export interface JourneyBody {
 // ---- Class diagram body ---------------------------------------------------
 
 export type ClassRelationKind =
-  | 'inheritance'    // <|--
-  | 'composition'    // *--
-  | 'aggregation'    // o--
-  | 'association'    // -->  (or --)
-  | 'dependency'     // ..>
-  | 'realization'    // ..|>
-  | 'link-solid'     // --
-  | 'link-dashed'    // ..
-  | 'lollipop'       // ()-- / --()
+  | 'inheritance' // <|--
+  | 'composition' // *--
+  | 'aggregation' // o--
+  | 'association' // -->  (or --)
+  | 'dependency' // ..>
+  | 'realization' // ..|>
+  | 'link-solid' // --
+  | 'link-dashed' // ..
+  | 'lollipop' // ()-- / --()
 
 export interface ClassNode {
   /** Stable bare class identity (e.g., `Box` for authored `Box~T~`). */
@@ -253,10 +249,10 @@ export interface ClassBody {
 // ---- ER body --------------------------------------------------------------
 
 export type ErCardinality =
-  | 'one-only'         // ||
-  | 'zero-or-one'      // |o or o|
-  | 'zero-or-many'     // }o or o{
-  | 'one-or-many'      // }| or |{
+  | 'one-only' // ||
+  | 'zero-or-one' // |o or o|
+  | 'zero-or-many' // }o or o{
+  | 'one-or-many' // }| or |{
 
 export interface ErAttribute {
   /** The full source line (e.g., 'string name PK "comment"'). */
@@ -292,13 +288,7 @@ export interface ErRelation {
   label?: string
 }
 
-export type ErStatement =
-  | { kind: 'entity'; id: string }
-  | { kind: 'relation'; ref: number }
-  | { kind: 'direction'; groupId?: string }
-  | { kind: 'group-open'; id: string }
-  | { kind: 'group-close'; id: string }
-  | { kind: 'opaque'; lines: string[] }
+export type ErStatement = { kind: 'entity'; id: string } | { kind: 'relation'; ref: number } | { kind: 'direction'; groupId?: string } | { kind: 'group-open'; id: string } | { kind: 'group-close'; id: string } | { kind: 'opaque'; lines: string[] }
 
 export interface ErBody {
   kind: 'er'
@@ -528,6 +518,22 @@ export interface RadarBody {
   showLegend: boolean
 }
 
+// ---- Sankey body -------------------------------------------------------------
+
+/** One flow row (`source,target,value`). Nodes are implied by the labels. */
+export interface SankeyBodyLink {
+  source: string
+  target: string
+  /** Flow amount — non-negative and finite. */
+  value: number
+}
+
+export interface SankeyBody {
+  kind: 'sankey'
+  /** Flows in authored row order. Parallel duplicates are legal and kept. */
+  links: SankeyBodyLink[]
+}
+
 // ---- Gantt body --------------------------------------------------------------
 
 export type GanttBodyTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
@@ -562,8 +568,8 @@ export interface GanttBodySection {
  */
 export type GanttStatement =
   | { kind: 'title' }
-  | { kind: 'section'; ref: number }                    // index into sections
-  | { kind: 'task'; section: number; ref: number }      // section + task index
+  | { kind: 'section'; ref: number } // index into sections
+  | { kind: 'task'; section: number; ref: number } // section + task index
   | { kind: 'opaque-block'; lines: string[] }
 
 export interface GanttBody {
@@ -668,9 +674,18 @@ export interface GitGraphBody extends GitGraphDiagram {
 
 // ---- Meta + IR ------------------------------------------------------------
 
-export interface SourceComment { text: string; line: number }
-export interface InitDirective { raw: string; parsed: MermaidConfigMap }
-export interface Accessibility { title?: string; descr?: string }
+export interface SourceComment {
+  text: string
+  line: number
+}
+export interface InitDirective {
+  raw: string
+  parsed: MermaidConfigMap
+}
+export interface Accessibility {
+  title?: string
+  descr?: string
+}
 
 export interface ValidDiagramMeta {
   frontmatter?: MermaidFrontmatterMap
@@ -695,7 +710,10 @@ export interface ValidDiagramMeta {
   droppedComments?: SourceComment[]
 }
 
-export interface SourceLocation { line: number; col: number }
+export interface SourceLocation {
+  line: number
+  col: number
+}
 
 export interface SourceMapSpans {
   /** Exact authored document spans, including wrapper/config directives. */
@@ -781,6 +799,7 @@ export type DiagramBody =
   | MindmapBody
   | GitGraphBody
   | RadarBody
+  | SankeyBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -911,7 +930,24 @@ export type GanttValidDiagram = ValidDiagram & { body: GanttBody }
 export type MindmapValidDiagram = ValidDiagram & { body: MindmapBody }
 export type GitGraphValidDiagram = ValidDiagram & { body: GitGraphBody }
 export type RadarValidDiagram = ValidDiagram & { body: RadarBody }
-export type MutableValidDiagram = FlowchartValidDiagram | StateValidDiagram | SequenceValidDiagram | TimelineValidDiagram | ClassValidDiagram | ErValidDiagram | JourneyValidDiagram | ArchitectureValidDiagram | XyChartValidDiagram | PieValidDiagram | QuadrantValidDiagram | GanttValidDiagram | MindmapValidDiagram | GitGraphValidDiagram | RadarValidDiagram
+export type SankeyValidDiagram = ValidDiagram & { body: SankeyBody }
+export type MutableValidDiagram =
+  | FlowchartValidDiagram
+  | StateValidDiagram
+  | SequenceValidDiagram
+  | TimelineValidDiagram
+  | ClassValidDiagram
+  | ErValidDiagram
+  | JourneyValidDiagram
+  | ArchitectureValidDiagram
+  | XyChartValidDiagram
+  | PieValidDiagram
+  | QuadrantValidDiagram
+  | GanttValidDiagram
+  | MindmapValidDiagram
+  | GitGraphValidDiagram
+  | RadarValidDiagram
+  | SankeyValidDiagram
 
 export function asFlowchart(d: ParsedDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -959,6 +995,10 @@ export function asRadar(d: ParsedDiagram): RadarValidDiagram | null {
   return d.body.kind === 'radar' ? (d as RadarValidDiagram) : null
 }
 
+export function asSankey(d: ParsedDiagram): SankeyValidDiagram | null {
+  return d.body.kind === 'sankey' ? (d as SankeyValidDiagram) : null
+}
+
 export function asGantt(d: ParsedDiagram): GanttValidDiagram | null {
   return d.body.kind === 'gantt' ? (d as GanttValidDiagram) : null
 }
@@ -997,19 +1037,40 @@ export interface ParseError {
 
 export interface MutationError {
   code:
-    | 'NODE_NOT_FOUND' | 'EDGE_NOT_FOUND'
-    | 'PARTICIPANT_NOT_FOUND' | 'MESSAGE_NOT_FOUND'
-    | 'SECTION_NOT_FOUND' | 'PERIOD_NOT_FOUND' | 'EVENT_NOT_FOUND'
-    | 'TASK_NOT_FOUND' | 'ACTOR_NOT_FOUND'
-    | 'CLASS_NOT_FOUND' | 'MEMBER_NOT_FOUND' | 'RELATION_NOT_FOUND' | 'NOTE_NOT_FOUND'
-    | 'ENTITY_NOT_FOUND' | 'ATTRIBUTE_NOT_FOUND'
-    | 'SERVICE_NOT_FOUND' | 'GROUP_NOT_FOUND'
+    | 'NODE_NOT_FOUND'
+    | 'EDGE_NOT_FOUND'
+    | 'PARTICIPANT_NOT_FOUND'
+    | 'MESSAGE_NOT_FOUND'
+    | 'SECTION_NOT_FOUND'
+    | 'PERIOD_NOT_FOUND'
+    | 'EVENT_NOT_FOUND'
+    | 'TASK_NOT_FOUND'
+    | 'ACTOR_NOT_FOUND'
+    | 'CLASS_NOT_FOUND'
+    | 'MEMBER_NOT_FOUND'
+    | 'RELATION_NOT_FOUND'
+    | 'NOTE_NOT_FOUND'
+    | 'ENTITY_NOT_FOUND'
+    | 'ATTRIBUTE_NOT_FOUND'
+    | 'SERVICE_NOT_FOUND'
+    | 'GROUP_NOT_FOUND'
     | 'SERIES_NOT_FOUND'
-    | 'AXIS_NOT_FOUND' | 'CURVE_NOT_FOUND'
-    | 'SLICE_NOT_FOUND' | 'POINT_NOT_FOUND'
-    | 'STATE_NOT_FOUND' | 'TRANSITION_NOT_FOUND'
-    | 'DUPLICATE_NODE' | 'DUPLICATE_PARTICIPANT' | 'DUPLICATE_CLASS' | 'DUPLICATE_ENTITY' | 'DUPLICATE_STATE' | 'DUPLICATE_TASK'
-    | 'INVALID_OP' | 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER'
+    | 'AXIS_NOT_FOUND'
+    | 'CURVE_NOT_FOUND'
+    | 'SLICE_NOT_FOUND'
+    | 'POINT_NOT_FOUND'
+    | 'LINK_NOT_FOUND'
+    | 'STATE_NOT_FOUND'
+    | 'TRANSITION_NOT_FOUND'
+    | 'DUPLICATE_NODE'
+    | 'DUPLICATE_PARTICIPANT'
+    | 'DUPLICATE_CLASS'
+    | 'DUPLICATE_ENTITY'
+    | 'DUPLICATE_STATE'
+    | 'DUPLICATE_TASK'
+    | 'INVALID_OP'
+    | 'UNSUPPORTED_FAMILY'
+    | 'UNKNOWN_HEADER'
   message: string
 }
 
@@ -1274,6 +1335,16 @@ export type RadarMutationOp =
   // scale + display config
   | { kind: 'set_config'; max?: number | null; min?: number | null; ticks?: number | null; graticule?: 'circle' | 'polygon' | null; showLegend?: boolean | null }
 
+export type SankeyMutationOp =
+  // Links are addressed by (source, target); `occurrence` (default 0)
+  // disambiguates parallel duplicate rows in authored order.
+  | { kind: 'add_link'; source: string; target: string; value: number; index?: number }
+  | { kind: 'remove_link'; source: string; target: string; occurrence?: number }
+  | { kind: 'set_link_value'; source: string; target: string; value: number; occurrence?: number }
+  // Renames every source/target occurrence; rejects when `to` already exists
+  // (labels are node identity, so a collision would silently merge flows).
+  | { kind: 'rename_node'; from: string; to: string }
+
 export type GanttMutationOp =
   | { kind: 'set_title'; title: string | null }
   | { kind: 'add_section'; label: string }
@@ -1296,7 +1367,23 @@ export type GanttMutationOp =
   | { kind: 'move_task'; fromSection: number; fromIndex: number; toSection: number; toIndex: number }
   | { kind: 'move_section'; from: number; to: number }
 
-export type AnyMutationOp = FlowchartMutationOp | StateMutationOp | SequenceMutationOp | TimelineMutationOp | ClassMutationOp | ErMutationOp | JourneyMutationOp | ArchitectureMutationOp | XyChartMutationOp | PieMutationOp | QuadrantMutationOp | GanttMutationOp | MindmapMutationOp | GitGraphMutationOp | RadarMutationOp
+export type AnyMutationOp =
+  | FlowchartMutationOp
+  | StateMutationOp
+  | SequenceMutationOp
+  | TimelineMutationOp
+  | ClassMutationOp
+  | ErMutationOp
+  | JourneyMutationOp
+  | ArchitectureMutationOp
+  | XyChartMutationOp
+  | PieMutationOp
+  | QuadrantMutationOp
+  | GanttMutationOp
+  | MindmapMutationOp
+  | GitGraphMutationOp
+  | RadarMutationOp
+  | SankeyMutationOp
 
 // ---- Branded Finite -------------------------------------------------------
 
@@ -1313,19 +1400,13 @@ export function toFinite(n: number): Finite {
 export type WarningSeverity = 'error' | 'warning'
 export type WarningTier = 'structural' | 'geometric' | 'lint'
 
-export type Tier1WarningCode =
-  | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS'
-  | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE'
-  | 'RENDER_FAILED'
-export type Tier2WarningCode =
-  | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
-  | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY'
-  | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
+export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
+export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
@@ -1365,6 +1446,15 @@ export type LayoutWarning =
   | { code: 'DUPLICATE_EDGE'; edge: EdgeId; duplicateOf: EdgeId; from: NodeId; to: NodeId; label?: string }
   | { code: 'UNREACHABLE_NODE'; node: NodeId }
   | { code: 'DECISION_BRANCH_UNLABELED'; node: NodeId; edge: EdgeId }
+  /**
+   * A sankey intermediate node (one with both inflow and outflow) receives a
+   * different total than it emits. Conservation across stages is the domain's
+   * defining property — the ribbon widths are an account — and an imbalance
+   * renders silently as node height `max(in, out)`, hiding the unaccounted
+   * quantity. Advisory lint (real datasets carry rounding drift); never flips
+   * verify.ok.
+   */
+  | { code: 'FLOW_IMBALANCE'; node: NodeId; inflow: number; outflow: number; message: string }
   | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
   | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; node?: NodeId; message: string }
   /**
@@ -1422,6 +1512,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   DUPLICATE_EDGE: 'warning',
   UNREACHABLE_NODE: 'warning',
   DECISION_BRANCH_UNLABELED: 'warning',
+  FLOW_IMBALANCE: 'warning',
   COMMENT_DROPPED: 'warning',
   UNSUPPORTED_SYNTAX: 'warning',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'warning',
@@ -1452,6 +1543,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   DUPLICATE_EDGE: 'lint',
   UNREACHABLE_NODE: 'lint',
   DECISION_BRANCH_UNLABELED: 'lint',
+  FLOW_IMBALANCE: 'lint',
   COMMENT_DROPPED: 'lint',
   UNSUPPORTED_SYNTAX: 'lint',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
@@ -1474,9 +1566,7 @@ export interface VerifyOptions {
  * compatibility fallback; built-in families use the more precise container
  * kinds wherever their layout model can prove one.
  */
-export type RenderedRegionKind =
-  | 'node' | 'edge' | 'label' | 'canvas' | 'group'
-  | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'
+export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'
 
 export interface RenderedRegion {
   id: string
@@ -1488,19 +1578,34 @@ export interface RenderedRegion {
 }
 
 export interface RenderedLayoutNode {
-  id: NodeId; x: Finite; y: Finite; w: Finite; h: Finite; shape: string; label?: string
+  id: NodeId
+  x: Finite
+  y: Finite
+  w: Finite
+  h: Finite
+  shape: string
+  label?: string
   /** Explicit semantic role for family-generic quality scoring. Shape is paint,
    *  not semantics: a rectangular bar is a mark, not a node box. */
   role?: 'box' | 'mark' | 'labelled-mark'
 }
 export interface RenderedLayoutEdge {
-  id: EdgeId; from: NodeId; to: NodeId; path: [Finite, Finite][]
+  id: EdgeId
+  from: NodeId
+  to: NodeId
+  path: [Finite, Finite][]
   label?: { x: Finite; y: Finite; text: string }
   /** Edge route certificate; present only under layoutMermaid(d, { debug: true }) for families with an edge certificate model. */
   route?: EdgeRouteCertificate
 }
 export interface RenderedLayoutGroup {
-  id: GroupId; x: Finite; y: Finite; w: Finite; h: Finite; members: NodeId[]; label?: string
+  id: GroupId
+  x: Finite
+  y: Finite
+  w: Finite
+  h: Finite
+  members: NodeId[]
+  label?: string
   /** Parent group id for flattened region-tree consumers; undefined means root-level group. */
   parentId?: GroupId
   /** Semantic region kind used by the renderer/action sidecar. */
@@ -1565,6 +1670,7 @@ export interface ValidDiagramPayload {
     | MindmapBody
     | GitGraphBody
     | RadarBody
+    | SankeyBody
     | ExtensionDiagramBody
     | { kind: 'opaque'; family: DiagramKind; source: string }
 }

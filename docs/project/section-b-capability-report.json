@@ -3941,6 +3941,226 @@
           "terminalWitnessId": "section-b/radar/binding/point/category/terminal"
         }
       ]
+    },
+    {
+      "id": "sankey",
+      "semanticRoles": [
+        "prelude",
+        "chrome",
+        "edge",
+        "bar",
+        "label",
+        "title"
+      ],
+      "semanticChannels": [
+        "value",
+        "category"
+      ],
+      "bindingRoles": [
+        "bar"
+      ],
+      "bindingChannels": [
+        "category"
+      ],
+      "graphicalBackends": [
+        {
+          "id": "backend:default",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:default"
+        },
+        {
+          "id": "backend:rough",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:rough"
+        },
+        {
+          "id": "backend:hybrid",
+          "state": "conformant-scene-consumer",
+          "witnessId": "backend-claim-matrix@3/backend:hybrid"
+        }
+      ],
+      "terminalProjection": {
+        "state": "native-lossy",
+        "witnessId": "section-b/sankey/terminal/no-color",
+        "outputDigest": "sha256:50e01d470ee7084af6c3f605c21cf3db9994760532671d87b1580c370aad2896"
+      },
+      "roleWitnesses": [
+        {
+          "role": "prelude",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sankey/scene-role/prelude",
+          "styleWitnessId": "section-b/sankey/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sankey/terminal/no-color"
+        },
+        {
+          "role": "chrome",
+          "observedKinds": [
+            "document"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sankey/scene-role/chrome",
+          "styleWitnessId": "section-b/sankey/style/chrome/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sankey/terminal/no-color"
+        },
+        {
+          "role": "edge",
+          "observedKinds": [
+            "connector"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "127.93",
+              "151.89",
+              "342.16",
+              "56.69",
+              "71.24"
+            ],
+            "category": [
+              "Coal",
+              "Electricity generation",
+              "Electricity grid",
+              "Gas"
+            ]
+          },
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
+          "graphicalWitnessId": "section-b/sankey/scene-role/edge",
+          "styleWitnessId": "section-b/sankey/style/edge/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sankey/terminal/no-color"
+        },
+        {
+          "role": "bar",
+          "observedKinds": [
+            "shape"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "127.93",
+              "151.89",
+              "342.16",
+              "398.85",
+              "56.69",
+              "71.24"
+            ],
+            "category": [
+              "Coal",
+              "Electricity generation",
+              "Electricity grid",
+              "Gas",
+              "Industry",
+              "Losses"
+            ]
+          },
+          "publicMigrationTarget": "bar",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/sankey/scene-role/bar",
+          "styleWitnessId": "section-b/sankey/style/bar/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sankey/terminal/no-color"
+        },
+        {
+          "role": "label",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {
+            "value": [
+              "127.93",
+              "151.89",
+              "342.16",
+              "398.85",
+              "56.69",
+              "71.24"
+            ],
+            "category": [
+              "Coal",
+              "Electricity generation",
+              "Electricity grid",
+              "Gas",
+              "Industry",
+              "Losses"
+            ]
+          },
+          "publicMigrationTarget": "label",
+          "styleProjection": "exact",
+          "graphicalWitnessId": "section-b/sankey/scene-role/label",
+          "styleWitnessId": "section-b/sankey/style/label/exact",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sankey/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/sankey/scene-role/title",
+          "styleWitnessId": "section-b/sankey/style/title/fallback-only",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sankey/terminal/no-color"
+        }
+      ],
+      "channelWitnesses": [
+        {
+          "channel": "value",
+          "representativeValues": [
+            "127.93",
+            "151.89",
+            "342.16",
+            "398.85",
+            "56.69",
+            "71.24"
+          ],
+          "emittingRoles": [
+            "bar",
+            "edge",
+            "label"
+          ],
+          "publicBinding": "not-publicly-bindable",
+          "witnessId": "section-b/sankey/semantic-channel/value"
+        },
+        {
+          "channel": "category",
+          "representativeValues": [
+            "Coal",
+            "Electricity generation",
+            "Electricity grid",
+            "Gas",
+            "Industry",
+            "Losses"
+          ],
+          "emittingRoles": [
+            "bar",
+            "edge",
+            "label"
+          ],
+          "publicBinding": "category",
+          "witnessId": "section-b/sankey/semantic-channel/category"
+        }
+      ],
+      "bindingWitnesses": [
+        {
+          "role": "bar",
+          "channel": "category",
+          "representativeValue": "Coal",
+          "graphicalProjection": "changed",
+          "graphicalWitnessId": "section-b/sankey/binding/bar/category/graphical",
+          "terminalProjection": "not-applicable",
+          "terminalWitnessId": "section-b/sankey/binding/bar/category/terminal"
+        }
+      ]
     }
   ],
   "builtInLooks": [
@@ -4267,5 +4487,5 @@
       ]
     }
   ],
-  "digest": "sha256:508053e32b212a887e5d695844cd495256962b84b7e3cdeafc4bd143de560f22"
+  "digest": "sha256:e7077f9ff21331b197613ba1d1b40101f6fc1a5d13ea78e6f01b5b4b58ad5f08"
 }
