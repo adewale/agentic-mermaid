@@ -201,6 +201,11 @@ describe('registered family public layout and verify APIs', () => {
       body: 'lossyParseDiagram\n  must survive',
     },
     {
+      name: 'standalone BOM',
+      wrapper: '\uFEFF',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
       name: 'leading init directives',
       wrapper: '%%{init: {"theme":"dark"}}%%\n',
       body: 'lossyParseDiagram\n  must survive',
@@ -245,6 +250,43 @@ describe('registered family public layout and verify APIs', () => {
       const reparsed = parseRegisteredMermaid(serializeMermaid(parsed.value))
       expect(reparsed.ok).toBe(true)
       if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(`${source}\n`)
+    } finally {
+      unregister()
+    }
+  })
+
+  test('matching extension serializers retain shared init config authored after the header', () => {
+    const base = extensionDescriptor('shared-post-wrapper-init', 'sharedPostWrapperInitDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: context => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: context.opaqueSource,
+        data: { lines: [...context.lines] },
+      }),
+      serialize: body => `${(body.kind === 'extension' ? (body.data as { lines: string[] }).lines : []).join('\n')}\n`,
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      const parsed = parseRegisteredMermaid(`sharedPostWrapperInitDiagram
+  payload
+  %%{initialize: {"theme":"dark"}}%%`)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      expect(parsed.value.meta.wrapperSource).toBe('')
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized.match(/%%\{initialize:/g)).toHaveLength(1)
+      expect(serialized).toStartWith('  %%{initialize: {"theme":"dark"}}%%\nsharedPostWrapperInitDiagram\n')
+      const reparsed = parseRegisteredMermaid(serialized)
+      expect(reparsed.ok).toBe(true)
+      if (!reparsed.ok) return
+      expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+      expect(serializeMermaid(reparsed.value)).toBe(serialized)
     } finally {
       unregister()
     }

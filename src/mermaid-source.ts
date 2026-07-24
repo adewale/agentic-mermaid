@@ -446,7 +446,10 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   accessibility: MermaidSourceAccessibility
 } {
   const frontmatter = text.match(FRONTMATTER_REGEX)
-  const frontmatterEnd = frontmatter?.[0].length ?? 0
+  // A standalone UTF-8 BOM is universal envelope syntax too. Treat it as an
+  // exact one-byte wrapper even without frontmatter so family-owned source
+  // starts at the header and source-map ownership agrees with serialization.
+  const frontmatterEnd = frontmatter?.[0].length ?? (text.startsWith('\uFEFF') ? 1 : 0)
   const initDirectives: MermaidSourceInitDirective[] = []
   const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
   let match: RegExpExecArray | null
@@ -475,7 +478,7 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     if (comment) comments.push({ text: comment[1]!, line: index + 1 })
   }
 
-  let wrapperEnd = frontmatter?.[0].length ?? 0
+  let wrapperEnd = frontmatterEnd
   const directiveAtStart = new RegExp(INIT_DIRECTIVE_REGEX.source)
   for (;;) {
     const rest = text.slice(wrapperEnd)

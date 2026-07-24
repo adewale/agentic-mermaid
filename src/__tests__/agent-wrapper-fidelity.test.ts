@@ -85,6 +85,45 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
   test('diagrams with no wrapper are unchanged', () => {
     expect(roundTrip('flowchart TD\n  A --> B')).toBe('flowchart TD\n  A --> B\n')
   })
+
+  test('a standalone BOM is retained as an exact wrapper', () => {
+    const source = '\uFEFFflowchart TD\n  A --> B'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.meta.wrapperSource).toBe('\uFEFF')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+  })
+
+  test('structured serialization retains init directives authored after the header', () => {
+    const source = 'flowchart LR\n  A\n  %%{initialize: {"theme": "dark"}}%%\n  B'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized.match(/%%\{initialize:/g)).toHaveLength(1)
+    expect(serialized).toStartWith('  %%{initialize: {"theme": "dark"}}%%\nflowchart LR\n')
+    const reparsed = parseMermaid(serialized)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  })
+
+  test('mutation retains init directives authored after the header', () => {
+    const source = 'flowchart LR\n  A\n  %%{init: {"theme": "dark"}}%%\n  B'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const flow = asFlowchart(parsed.value)
+    expect(flow).not.toBeNull()
+    const next = mutate(flow!, { kind: 'add_node', id: 'C', label: 'Cache' })
+    expect(next.ok).toBe(true)
+    if (!next.ok) return
+    expect(next.value.canonicalSource.match(/%%\{init:/g)).toHaveLength(1)
+    expect(next.value.canonicalSource).toStartWith('  %%{init: {"theme": "dark"}}%%\nflowchart LR\n')
+    expect(next.value.meta.frontmatter?.theme).toBe('dark')
+  })
 })
 
 describe('wrapper fidelity (1C): canonical synthesis on demand', () => {

@@ -35,7 +35,8 @@ export interface SerializeOptions {
 
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
-  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim') + renderBody(
+  const bodyOwnsPostWrapperSource = bodyPreservesPostWrapperSource(d)
+  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim', bodyOwnsPostWrapperSource) + renderBody(
     d.body,
     d.kind,
     d.meta,
@@ -44,9 +45,44 @@ export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}):
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
-export function wrapperPrefix(meta: ValidDiagramMeta, mode: 'verbatim' | 'canonical' = 'verbatim'): string {
-  if (mode === 'verbatim' && meta.wrapperSource !== undefined) return meta.wrapperSource
+export function wrapperPrefix(
+  meta: ValidDiagramMeta,
+  mode: 'verbatim' | 'canonical' = 'verbatim',
+  bodyOwnsPostWrapperSource = false,
+): string {
+  if (mode === 'verbatim' && meta.wrapperSource !== undefined) {
+    return meta.wrapperSource + (bodyOwnsPostWrapperSource ? '' : postWrapperInitDirectives(meta))
+  }
   return renderMeta(meta)
+}
+
+/**
+ * Structured serializers receive directive-free grammar, so universal config
+ * authored after the family header must be re-emitted alongside the exact
+ * leading wrapper. Opaque and fallback extension bodies retain that authored
+ * suffix themselves and opt out to avoid duplication.
+ */
+function postWrapperInitDirectives(meta: ValidDiagramMeta): string {
+  const wrapper = meta.wrapperSource ?? ''
+  let wrapperCursor = 0
+  const parts: string[] = []
+  for (const directive of meta.initDirectives) {
+    const wrapperIndex = wrapper.indexOf(directive.raw, wrapperCursor)
+    if (wrapperIndex >= wrapperCursor) {
+      wrapperCursor = wrapperIndex + directive.raw.length
+      continue
+    }
+    parts.push(directive.raw.trimEnd() + '\n')
+  }
+  return parts.join('')
+}
+
+function bodyPreservesPostWrapperSource(d: ParsedDiagram): boolean {
+  if (d.body.kind === 'opaque') return true
+  if (d.body.kind !== 'extension') return false
+  const plugin = getFamily(d.kind)
+  const descriptorIdentity = 'descriptorIdentity' in d ? d.descriptorIdentity : undefined
+  return !plugin?.serialize || !sameExtensionIdentity(descriptorIdentity, plugin.identity)
 }
 
 /**
