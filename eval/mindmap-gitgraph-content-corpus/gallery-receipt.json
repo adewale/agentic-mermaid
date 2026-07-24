@@ -240,7 +240,7 @@
     },
     {
       "path": "src/agent/serialize.ts",
-      "sha256": "59ecfe91de2d5e4f577e4803767f0c43ed77fa557572971284d73386741eae32"
+      "sha256": "97f0ed732b2e8acadf97845e3493156f2d1ec57286e587f1cbefce7b3448391a"
     },
     {
       "path": "src/agent/source-map-spans.ts",
@@ -636,7 +636,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "27495ed07e726faf3ea091ec9325246e3254acc7371d74c8af489ef2ea58e58d"
+      "sha256": "306ebfdaf7e04bac3813fd4f5c33f27717cb9bd21264003ff54f8be8b599ddb7"
     },
     {
       "path": "src/mindmap/geometry.ts",

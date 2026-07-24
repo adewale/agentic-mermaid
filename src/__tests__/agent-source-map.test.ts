@@ -133,6 +133,18 @@ flowchart LR
       .toBe('  %%{initialize: {"theme": "dark"}}%%\n')
   })
 
+  test('traces a standalone BOM as wrapper syntax outside the family header', () => {
+    const source = '\uFEFFflowchart LR\n  A --> B'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+
+    const spans = parsed.value.source.spans?.preserved
+    expect(parsed.value.meta.wrapperSource).toBe('\uFEFF')
+    expect(textAt(source, spans?.wrapper)).toBe('\uFEFF')
+    expect(textAt(source, spans?.header)).toBe('flowchart LR')
+  })
+
   test('does not confuse accessibility prose with semantic statements', () => {
     const source = 'flowchart LR\naccDescr: A links to B\nA[Actual] --> B'
     const parsed = parseMermaid(source)
