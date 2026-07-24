@@ -154,7 +154,7 @@ describe('agent-readiness standards syntax', () => {
     expect(verifyStep?.run).toContain(".filename' release-artifact/package-manifest.json)\" = package.tgz")
     expect(verifyStep?.run).toContain("printf '%s  package.tgz\\n' \"$manifest_sha\" | cmp --silent")
     const npmPublishStep = publishSteps.find((step: any) => step.name === 'Publish or recover the exact npm tarball (OIDC trusted publishing)')
-    expect(npmPublishStep?.env?.TARBALL).toBe('release-artifact/package.tgz')
+    expect(npmPublishStep?.env?.TARBALL).toBe('./release-artifact/package.tgz')
     expect(npmPublishStep?.run).toContain('npm publish "$TARBALL" --ignore-scripts --access public')
     expect(npmPublishStep?.run).toContain('npm view "$package_name@$package_version" dist.integrity --json')
     expect(npmPublishStep?.run).toContain('registry_integrity" = "$local_integrity')
