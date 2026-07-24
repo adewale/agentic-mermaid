@@ -6,10 +6,10 @@
 // (`<family>_opaque`) for any non-empty opaque body that isn't already flagged
 // by a more specific warning.
 
-import { describe, test, expect } from 'bun:test'
-import { parseRegisteredMermaid as parseMermaid, verifyMermaid, serializeMermaid, renderMermaidSVG } from '../agent/index.ts'
-import { WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
+import { describe, expect, test } from 'bun:test'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 
 // Each source is valid-enough to parse but uses a construct the structured
 // parser does not model, so it lands on the opaque path.
@@ -23,6 +23,7 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
   architecture: 'architecture-beta\n  title First\n  title Second\n  service api(server)[API]',
   gantt: 'gantt LR\n  Task :t1, 2026-01-01, 1d', // unmodeled header suffix
   radar: 'radar-beta\n  axis a, b, c\n  curve x{1,2,3}\n  frobnicate every axis', // unmodeled statement
+  sankey: 'sankey-beta\n  A,B,10\n  B,A,2', // cycle: rejected by the layered layout, preserved losslessly
 }
 
 // These fixtures are valid Mermaid syntax that the public renderer supports;
@@ -67,10 +68,7 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
   }
 
   test('promoted State/ER constructs remain structured instead of satisfying a stale opaque expectation', () => {
-    for (const source of [
-      'stateDiagram-v2\n  state P {\n    a --> b\n    --\n    c --> d\n  }',
-      'erDiagram\n  CUSTOMER:::highlight ||--o{ ORDER : places',
-    ]) {
+    for (const source of ['stateDiagram-v2\n  state P {\n    a --> b\n    --\n    c --> d\n  }', 'erDiagram\n  CUSTOMER:::highlight ||--o{ ORDER : places']) {
       const parsed = parseMermaid(source)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) continue
@@ -91,9 +89,7 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
     expect(p.ok).toBe(true)
     if (!p.ok) return
     expect(p.value.body.kind).toBe('class')
-    const opaqueFlags = verifyMermaid(p.value).warnings.filter(
-      w => w.code === 'UNSUPPORTED_SYNTAX' && 'syntax' in w && w.syntax.endsWith('_opaque'),
-    )
+    const opaqueFlags = verifyMermaid(p.value).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX' && 'syntax' in w && w.syntax.endsWith('_opaque'))
     expect(opaqueFlags).toEqual([])
   })
 

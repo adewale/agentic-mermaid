@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-rollout-evidence.ts",
-  "inputCount": 261,
-  "inputTreeSha256": "68467d08183052cc436b2676006bdb4a316bcd6a1b4b6bc1be54a8cfbdd25f67",
+  "inputCount": 268,
+  "inputTreeSha256": "0d47bd7664b9dd59b7d26c438be9d1b23c35d416fb4c63cadcdcb2c9727fff6f",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
@@ -24,7 +24,7 @@
     },
     {
       "path": "docs/pr-assets/pr-179/palette-rollout-before-after.png",
-      "sha256": "0f55589e0f56f057f50993c83ad16c05e13635ecb5616bb807bd12d6193a55f0"
+      "sha256": "9dcb23a96b34da935cbac7241d09fd6c7c2eb4e5204128f485d3c45b018536cb"
     }
   ]
 }

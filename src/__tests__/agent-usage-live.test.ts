@@ -1,11 +1,11 @@
-import { describe, test, expect } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { describe, expect, test } from 'bun:test'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScript, resolveLiveModelConfig, runLiveAgentUsageEval, type LiveTranscript } from '../../eval/agent-usage/live.ts'
 import { buildSubagentPromptEvalRequest, finalizeSubagentPromptEval, prepareSubagentPromptEval } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
-import { DEFAULT_CASES, checkAgentUsageTaskSource, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScript, type LiveTranscript, resolveLiveModelConfig, runLiveAgentUsageEval } from '../../eval/agent-usage/live.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES } from '../../eval/agent-usage/render-quality.ts'
+import { checkAgentUsageTaskSource, DEFAULT_CASES, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 
 const TRANSCRIPT_ROOT = join(import.meta.dir, '..', '..', 'eval', 'agent-usage', 'transcripts')
@@ -21,13 +21,13 @@ function committedTranscriptDirs(): string[] {
 
 describe('live agent-usage eval harness', () => {
   test('extracts fenced Code Mode JavaScript without markdown', () => {
-    const script = extractCodeModeScript('Here you go:\n```js\nconst r = mermaid.parseRegisteredMermaid(\'flowchart TD\\n A --> B\')\nreturn r\n```')
+    const script = extractCodeModeScript("Here you go:\n```js\nconst r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B')\nreturn r\n```")
     expect(script).toContain('mermaid.parseRegisteredMermaid')
     expect(script).not.toContain('```')
   })
 
   test('unwraps common Cloudflare-style arrow-function responses into our execute body', () => {
-    const script = extractCodeModeScript('async () => {\n  const r = mermaid.parseRegisteredMermaid(\'flowchart TD\\n A --> B\')\n  return r\n};')
+    const script = extractCodeModeScript("async () => {\n  const r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B')\n  return r\n};")
     expect(script.startsWith('const r = mermaid.parseRegisteredMermaid')).toBe(true)
     expect(script).toContain('return r')
     expect(script).not.toContain('async () =>')
@@ -84,7 +84,10 @@ describe('live agent-usage eval harness', () => {
     expect(request).toContain('Mode: raw chat prompt')
     expect(request).toContain('Return the human-facing response requested by the prompt')
     expect(request).not.toContain('SDK declaration available in Code Mode')
-    writeFileSync(manifest.requests[0]!.responsePath, `## Updated Mermaid\n\n\`\`\`mermaid\nsequenceDiagram\n    actor User\n    participant App\n    participant API\n    User->>App: Export request\n    App->>API: Render SVG\n    API-->>App: SVG string\n    App-->>User: Download\n\`\`\`\n\n## Verification\nRan parseMermaid and verifyMermaid successfully; ok: true, warnings: [].\n\n## Trace\nAuthored a new sequence diagram from context, then ran parseMermaid and verifyMermaid. No mutate was used because this is a new diagram.\n`)
+    writeFileSync(
+      manifest.requests[0]!.responsePath,
+      `## Updated Mermaid\n\n\`\`\`mermaid\nsequenceDiagram\n    actor User\n    participant App\n    participant API\n    User->>App: Export request\n    App->>API: Render SVG\n    API-->>App: SVG string\n    App-->>User: Download\n\`\`\`\n\n## Verification\nRan parseMermaid and verifyMermaid successfully; ok: true, warnings: [].\n\n## Trace\nAuthored a new sequence diagram from context, then ran parseMermaid and verifyMermaid. No mutate was used because this is a new diagram.\n`,
+    )
     const summary = await finalizeSubagentPromptEval({ runDir: dir })
     expect(summary.ok).toBe(true)
     expect(summary.mode).toBe('chat')
@@ -102,8 +105,7 @@ describe('live agent-usage eval harness', () => {
     // rejecting hand-written Mermaid produced without engaging the tool.
     const id = 'author_state_source'
     const source = 'stateDiagram-v2\n  [*] --> Red\n  Red --> Green\n  Green --> Yellow\n  Yellow --> Red'
-    const body = (verification: string, trace: string) =>
-      `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\n${verification}\n\n## Trace\n${trace}\n`
+    const body = (verification: string, trace: string) => `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\n${verification}\n\n## Trace\n${trace}\n`
     const run = async (response: string) => {
       const dir = mkdtempSync(join(tmpdir(), 'am-trace-eval-'))
       const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 't', surface: 'homepage', mode: 'chat', caseIds: [id], capturedAt: '2026-06-30T00:00:00.000Z' })
@@ -134,8 +136,7 @@ describe('live agent-usage eval harness', () => {
     // credit it for a structured-mutation case, not just literal am verify.
     const id = 'class_add_duck'
     const source = 'classDiagram\n  class Animal\n  class Duck {\n    +quack()\n  }'
-    const body = (trace: string) =>
-      `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\nok: true, warnings: [].\n\n## Trace\n${trace}\n`
+    const body = (trace: string) => `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\nok: true, warnings: [].\n\n## Trace\n${trace}\n`
     const run = async (response: string) => {
       const dir = mkdtempSync(join(tmpdir(), 'am-decl-eval-'))
       const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 't', surface: 'homepage', mode: 'chat', caseIds: [id], capturedAt: '2026-06-30T00:00:00.000Z' })
@@ -172,7 +173,7 @@ describe('live agent-usage eval harness', () => {
       expect(existsSync(join(dir, 'summary.json'))).toBe(true)
       const summary = JSON.parse(readFileSync(join(dir, 'summary.json'), 'utf8')) as { mode?: 'code' | 'chat'; total?: number; transcripts: string[] }
       expect(summary.transcripts.length).toBeGreaterThanOrEqual(6)
-      const transcripts = summary.transcripts.map((p) => JSON.parse(readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')) as LiveTranscript & { mode?: 'code' | 'chat'; extractedSource?: string })
+      const transcripts = summary.transcripts.map(p => JSON.parse(readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')) as LiveTranscript & { mode?: 'code' | 'chat'; extractedSource?: string })
       expect(transcripts.every(t => t.provider === 'pi-subagent' && t.result.ok)).toBe(true)
       const mode = summary.mode ?? transcripts[0]?.mode ?? 'code'
       if (basename(dir) === REQUIRED_ALL_FAMILY_CHAT_TRANSCRIPT_DIR) {
@@ -180,11 +181,9 @@ describe('live agent-usage eval harness', () => {
         // honest rather than fabricating live-model responses when the current
         // registry grows; deterministic DEFAULT_CASES cover the new families.
         expect(summary.total).toBe(transcripts.length)
-        expect(new Set(transcripts.map(t => t.caseId))).toEqual(new Set(DEFAULT_CASES
-          .filter(c => c.family !== 'mindmap' && c.family !== 'gitgraph' && c.family !== 'radar')
-          .map(c => c.id)))
+        expect(new Set(transcripts.map(t => t.caseId))).toEqual(new Set(DEFAULT_CASES.filter(c => c.family !== 'mindmap' && c.family !== 'gitgraph' && c.family !== 'radar' && c.family !== 'sankey').map(c => c.id)))
         const families = new Set(transcripts.map(t => byId.get(t.caseId)?.family).filter(Boolean))
-        expect(AGENT_USAGE_SUPPORTED_FAMILIES.filter(family => !families.has(family)).sort()).toEqual(['gitgraph', 'mindmap', 'radar'])
+        expect(AGENT_USAGE_SUPPORTED_FAMILIES.filter(family => !families.has(family)).sort()).toEqual(['gitgraph', 'mindmap', 'radar', 'sankey'])
       }
       if (mode === 'chat') {
         for (const t of transcripts) {

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import manifestJson from '../../website/source/assets/fonts/inter/manifest.json'
-import type { WebsitePayloadReport } from '../../scripts/site/website-payload-authority.ts'
 import {
+  expectedWebsiteInterSources,
+  validateWebsiteInterSubsetManifest,
   WEBSITE_INTER_GLYPH_PROBES,
   WEBSITE_INTER_SUBSET_DIRECTORY,
   WEBSITE_INTER_SUBSET_FACES,
@@ -14,10 +14,10 @@ import {
   WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256,
   WEBSITE_INTER_SUBSET_TOOLCHAIN,
   WEBSITE_INTER_UNICODE_RANGES,
-  expectedWebsiteInterSources,
-  validateWebsiteInterSubsetManifest,
   type WebsiteInterSubsetManifest,
 } from '../../scripts/site/website-font-subsets.ts'
+import type { WebsitePayloadReport } from '../../scripts/site/website-payload-authority.ts'
+import manifestJson from '../../website/source/assets/fonts/inter/manifest.json'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 ensureWebsiteBuilt()
@@ -40,14 +40,13 @@ describe('canonical website Inter subsets', () => {
     expect(digest(readFileSync(join(ROOT, WEBSITE_INTER_SUBSET_TOOLCHAIN.requirements)))).toBe(WEBSITE_INTER_SUBSET_REQUIREMENTS_SHA256)
 
     const directory = join(ROOT, WEBSITE_INTER_SUBSET_DIRECTORY)
-    expect(readdirSync(directory).sort()).toEqual([
-      ...manifest.outputs.map(output => output.file),
-      basename(WEBSITE_INTER_SUBSET_MANIFEST),
-    ].sort())
+    expect(readdirSync(directory).sort()).toEqual([...manifest.outputs.map(output => output.file), basename(WEBSITE_INTER_SUBSET_MANIFEST)].sort())
     for (const source of manifest.sources) {
       const bytes = readFileSync(join(ROOT, 'assets', 'fonts', source.file))
       expect({ file: source.file, bytes: bytes.byteLength, sha256: digest(bytes) }).toEqual({
-        file: source.file, bytes: source.bytes, sha256: source.sha256,
+        file: source.file,
+        bytes: source.bytes,
+        sha256: source.sha256,
       })
     }
     for (const output of manifest.outputs) {
@@ -75,25 +74,31 @@ describe('canonical website Inter subsets', () => {
       expect(statSync(join(PUBLIC, 'fonts', output.file)).size).toBe(output.bytes)
       expect(statSync(join(PUBLIC, 'fonts', face.file)).size).toBe(expectedWebsiteInterSources().find(source => source.file === face.file)!.bytes)
     }
-    expect(readdirSync(join(PUBLIC, 'fonts')).filter(file => /^Inter-.*\.subset.*\.woff2$/.test(file)).sort())
-      .toEqual(manifest.outputs.map(output => output.file).sort())
+    expect(
+      readdirSync(join(PUBLIC, 'fonts'))
+        .filter(file => /^Inter-.*\.subset.*\.woff2$/.test(file))
+        .sort(),
+    ).toEqual(manifest.outputs.map(output => output.file).sort())
   })
 
   test('clears both compressed-route stop gates while retaining the full-font blank editor', () => {
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },
-      'editor-empty': { rawBytes: 3_288_608, gzipBytes: 965_577, brotliBytes: 759_629 },
+      'editor-empty': { rawBytes: 3_314_070, gzipBytes: 983_405, brotliBytes: 766_724 },
     }
     for (const id of ['home', 'examples'] as const) {
       const route = payload.routes.find(candidate => candidate.id === id)!
       expect(route.totals.gzipBytes / starting[id].gzipBytes, `${id} gzip`).toBeLessThanOrEqual(0.7)
       expect(route.totals.brotliBytes / starting[id].brotliBytes, `${id} Brotli`).toBeLessThanOrEqual(0.7)
-      expect(route.requests.some(request => /^\/fonts\/Inter-.*\.ttf$/.test(request.path)), `${id} full TTF`).toBe(false)
+      expect(
+        route.requests.some(request => /^\/fonts\/Inter-.*\.ttf$/.test(request.path)),
+        `${id} full TTF`,
+      ).toBe(false)
     }
     const editor = payload.routes.find(candidate => candidate.id === 'editor-empty')!
     expect(editor.totals).toMatchObject(starting['editor-empty'])
-    expect(editor.requests.map(request => request.path)).toEqual(['/editor/', '/editor/editor-5eb7ca9280f7.js'])
+    expect(editor.requests.map(request => request.path)).toEqual(['/editor/', '/editor/editor-11e641562be9.js'])
   })
 
   test('rejects source, content-address, coverage, and byte-ceiling sabotage', () => {

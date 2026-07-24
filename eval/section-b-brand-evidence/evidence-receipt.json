@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 265,
-    "treeSha256": "1d711be3f83f39cf82bcc9064a9f9e0e30f80939f5f771ec7d973dd1321049d1"
+    "count": 272,
+    "treeSha256": "b5408d4d93d466e178f7ccc6144cdf401e3171c8835c7a48be3f105db2f50206"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -44,7 +44,8 @@
     "gantt",
     "mindmap",
     "gitgraph",
-    "radar"
+    "radar",
+    "sankey"
   ],
   "variants": [
     "Sentinel · every channel deliberately distinctive",
@@ -59,22 +60,22 @@
   },
   "graphicalBackends": {
     "default": {
-      "familyCount": 15,
-      "svgSha256": "cf79a730de4b35ee3d8c020a48a9b690d9c8784ca355e138178d14ff19407ca5",
-      "pngSha256": "19374ce911cecf7e065304942d6628dfe32f2b73e96ec2343b2028341e8f408d"
+      "familyCount": 16,
+      "svgSha256": "16d24f2e6d94ad23958920c9e7ca130f987818f703d9f373786c570071cf15a4",
+      "pngSha256": "0c8b33cae62005a601353430b7f67ebb2e1f4bf28b0bf5ab8ad706e440d72764"
     },
     "rough": {
-      "familyCount": 15,
-      "svgSha256": "af8e27213fc79626efc9f2431c9d6d4ffccb9abb669e987b37c1fdd031053bab",
-      "pngSha256": "9092d91b7d53e5c4e1b23fa724f074eefb01ecf5631d55dde9ffa79e91647ae4"
+      "familyCount": 16,
+      "svgSha256": "045a6117bf5a3fcdc0138aec6f57fc80e0dad99514482bef5a9bdddaa77c650b",
+      "pngSha256": "a227c5714fe9698dc52abd3d0b56ff8c8d971096cec47bba408ce86e4811d5b5"
     },
     "hybrid": {
-      "familyCount": 15,
-      "svgSha256": "2ff439f024573611e2a16882e8eddb8767801a0e8f2da505586378a1cdc97094",
-      "pngSha256": "fc10e0c3888697e225c8c96ab8bd280df82f0aa94562b6a2c1c0eed43ec2c85c"
+      "familyCount": 16,
+      "svgSha256": "e5b1a7aeae5f0c7eca8f3cfdf54de1494861a202ba9bb12fb5803cda3ded21e3",
+      "pngSha256": "da8c6df7618414fcac10587924e182cba20b50f22d104891ae85e82aa01eb92b"
     }
   },
-  "terminalSha256": "b4ce32cb71246e74c52052f6fe6db25d4dd0788299935bc446e3b462355e22ab",
+  "terminalSha256": "d6104342e97387783f387193c03259e6de39eecd6d2af36ff925da3341acb186",
   "baseline": {
     "state": "unsupported-style-fields",
     "commit": "e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8",
@@ -85,15 +86,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12",
-    "reviewedAt": "2026-07-16",
-    "reviewer": "OpenAI coding agent, at the user's explicit request",
+    "artifactSha256": "0e57191860150febfa660c6de57f438f01851332cfefc21eeffd2f5b44c12586",
+    "reviewedAt": "2026-07-21",
+    "reviewer": "Claude coding agent, during the sankey gap-closure pass",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12"
+      "sha256": "0e57191860150febfa660c6de57f438f01851332cfefc21eeffd2f5b44c12586"
     }
   ]
 }

@@ -1319,6 +1319,45 @@
           ]
         }
       ]
+    },
+    {
+      "id": "pos-family-sankey-budget-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "prompt": "Use the attached Mermaid sankey fixture. With the library channel, rename the Electricity node to Grid, add a Grid,Losses,56.69 flow, then verify and serialize. Write outputs/sankey-budget/final.mmd and outputs/sankey-budget/verify.json, include both contents, and show the typed Sankey mutation path.",
+      "files": [
+        "fixtures/sankey-budget/input.mmd"
+      ],
+      "tags": [
+        "family:sankey",
+        "channel:library"
+      ],
+      "expected_behavior": [
+        "Uses asSankey before mutation.",
+        "Uses rename_node (which rewrites every source/target occurrence and rejects label collisions) and add_link.",
+        "Verifies before serializing."
+      ],
+      "assertions": [
+        {
+          "name": "artifact-final",
+          "type": "file_exists",
+          "path": "outputs/sankey-budget/final.mmd"
+        },
+        {
+          "name": "artifact-verify",
+          "type": "file_exists",
+          "path": "outputs/sankey-budget/verify.json"
+        },
+        {
+          "name": "sankey-loop",
+          "type": "contains_all",
+          "values": [
+            "asSankey",
+            "rename_node",
+            "add_link"
+          ]
+        }
+      ]
     }
   ],
   "ablations": [

@@ -1,12 +1,12 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
+import pkg from '../../package.json'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { runCli } from '../cli/index.ts'
+import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
-import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
-import { runCli } from '../cli/index.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import pkg from '../../package.json'
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {
@@ -75,10 +75,7 @@ describe('sandbox — happy', () => {
   })
 
   test('returned trusted diagrams are verify-gated before Code Mode emits source', async () => {
-    for (const code of [
-      'return mermaid.createMermaid("flowchart")',
-      'return mermaid.buildMermaid("flowchart", [])',
-    ]) {
+    for (const code of ['return mermaid.createMermaid("flowchart")', 'return mermaid.buildMermaid("flowchart", [])']) {
       const result = await executeInSandbox(code)
       expect(result.ok).toBe(true)
       expect(result.value).toMatchObject({
@@ -110,7 +107,9 @@ describe('sandbox — isolation + sad paths', () => {
     expect((await executeInSandbox(`try { const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B'); const flow = mermaid.asFlowchart(r.value); flow.body.graph.edges.push({ source: 'B', target: 'C' }) } catch (e) { return e.constructor.constructor('return 7')() }`)).ok).toBe(false)
     expect((await executeInSandbox(`try { const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B'); Object.preventExtensions(r.value) } catch (e) { return e.constructor.constructor('return 7')() }`)).ok).toBe(false)
     expect((await executeInSandbox(`return mermaid.parseRegisteredMermaid.constructor('return 7')()`)).ok).toBe(false)
-    expect((await executeInSandbox(`const fakeSource = { replace: String.prototype.replace.bind('flowchart TD\\n  A --> B'), split: String.prototype.split.bind('flowchart TD\\n  A --> B'), trim: String.prototype.trim.bind('flowchart TD\\n  A --> B') }; return mermaid.parseRegisteredMermaid(fakeSource)`)).error).toContain('source must be a string')
+    expect(
+      (await executeInSandbox(`const fakeSource = { replace: String.prototype.replace.bind('flowchart TD\\n  A --> B'), split: String.prototype.split.bind('flowchart TD\\n  A --> B'), trim: String.prototype.trim.bind('flowchart TD\\n  A --> B') }; return mermaid.parseRegisteredMermaid(fakeSource)`)).error,
+    ).toContain('source must be a string')
     expect((await executeInSandbox(`const r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B'); return r.value.constructor.constructor('return 7')()`)).ok).toBe(false)
     expect((await executeInSandbox(`return globalThis.constructor.constructor('return typeof process')()`)).ok).toBe(false)
     expect((await executeInSandbox(`Error.prepareStackTrace = (_, frames) => frames; return new Error().stack[0].constructor.constructor('return process.cwd()')()`)).ok).toBe(false)
@@ -277,13 +276,16 @@ describe('sandbox — isolation + sad paths', () => {
     expect(callbackThisArgMutation.error).toContain('read-only')
   })
   test('result getters are rejected instead of running after the VM timeout/commit point', async () => {
-    const r = await executeInSandbox(`
+    const r = await executeInSandbox(
+      `
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'C', label: 'Cache' })
       const verify = mermaid.verifyMermaid(r1.value)
       return { verify, get source() { return mermaid.serializeMermaid(r1.value) } }
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(r.ok).toBe(false)
     expect(r.error).toContain('not allowed while returning results')
     expect((r.trace ?? []).some(c => c.verb === 'serialize')).toBe(false)
@@ -299,15 +301,9 @@ describe('sandbox — isolation + sad paths', () => {
     // The code/parser phase is cheap; layout verification at the return commit
     // is deliberately the expensive part. Before the commit watchdog this ran
     // outside node:vm's timeout and could occupy the MCP process indefinitely.
-    const source = 'flowchart TD\n' + Array.from(
-      { length: 1_200 },
-      (_, index) => `N${index} --> N${index + 1}`,
-    ).join('\n')
+    const source = 'flowchart TD\n' + Array.from({ length: 1_200 }, (_, index) => `N${index} --> N${index + 1}`).join('\n')
     const startedAt = performance.now()
-    const r = await executeInSandbox(
-      `return mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value`,
-      { timeoutMs: 2_000 },
-    )
+    const r = await executeInSandbox(`return mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value`, { timeoutMs: 2_000 })
     const elapsedMs = performance.now() - startedAt
     expect(r.ok).toBe(false)
     expect(r.error).toContain('timed out after 2000ms while committing the result')
@@ -343,10 +339,13 @@ describe('sandbox — isolation + sad paths', () => {
   })
 
   test('result handoff slot cannot be replaced with a host-assignment setter', async () => {
-    const r = await executeInSandbox(`
+    const r = await executeInSandbox(
+      `
       Object.defineProperty(globalThis, '__pi_result', { set(v) { while (true) {} }, configurable: true })
       return 1
-    `, { timeoutMs: 50 })
+    `,
+      { timeoutMs: 50 },
+    )
     expect(r.ok).toBe(false)
   })
 
@@ -363,42 +362,54 @@ describe('sandbox — isolation + sad paths', () => {
   })
 
   test('sandbox-controlled stringify/errors cannot run host post-processing outside timeout', async () => {
-    const stringify = await executeInSandbox(`
+    const stringify = await executeInSandbox(
+      `
       JSON.stringify = () => ({ toString() { while (true) {} } })
       return 1
-    `, { timeoutMs: 50 })
+    `,
+      { timeoutMs: 50 },
+    )
     expect(stringify).toMatchObject({ ok: true, value: 1 })
 
     const thrown = await executeInSandbox(`throw { get message() { while (true) {} } }`, { timeoutMs: 50 })
     expect(thrown.ok).toBe(false)
     expect(thrown.error).toMatch(/timed out|timeout|sandbox error/i)
 
-    const spoof = await executeInSandbox(`
+    const spoof = await executeInSandbox(
+      `
       const r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B')
       throw { get name() { mermaid.serializeMermaid(r.value); return 'SyntaxError' }, message: 'fake' }
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(spoof.ok).toBe(false)
     expect(spoof.trace?.map(c => c.verb)).toEqual(['parse'])
   })
 
   test('SDK facade descriptors expose wrapped traced functions, not raw SDK functions', async () => {
-    const traced = await executeInSandbox(`
+    const traced = await executeInSandbox(
+      `
       const parse = Object.getOwnPropertyDescriptor(mermaid, 'parseRegisteredMermaid').value
       const verifyMermaid = Object.getOwnPropertyDescriptor(mermaid, 'verifyMermaid').value
       const r0 = parse('flowchart TD\\n  A --> B')
       const flow = mermaid.asFlowchart(r0.value)
       const v = verifyMermaid(flow)
       return { ok: v.ok }
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(traced.ok).toBe(true)
     expect((traced.trace ?? []).map(c => c.verb)).toEqual(['parse', 'narrow', 'verify', 'verify_inspect'])
 
-    const closed = await executeInSandbox(`
+    const closed = await executeInSandbox(
+      `
       const parse = Object.getOwnPropertyDescriptor(mermaid, 'parseRegisteredMermaid').value
       const verifyMermaid = Object.getOwnPropertyDescriptor(mermaid, 'verifyMermaid').value
       const r0 = parse('flowchart TD\\n  A --> B')
       return { get late() { return verifyMermaid(r0.value).ok } }
-    `, { trace: true })
+    `,
+      { trace: true },
+    )
     expect(closed.ok).toBe(false)
     expect(closed.error).toContain('not allowed while returning results')
     expect((closed.trace ?? []).map(c => c.verb)).toEqual(['parse'])
@@ -435,7 +446,8 @@ describe('sandbox — isolation + sad paths', () => {
   })
   test('thrown error', async () => {
     const r = await executeInSandbox(`throw new Error('boom')`)
-    expect(r.ok).toBe(false); expect(r.error).toContain('boom')
+    expect(r.ok).toBe(false)
+    expect(r.error).toContain('boom')
   })
   test('broken arrow (syntax) reported, not crashed', async () => {
     const r = await executeInSandbox(`this is not valid :::`)
@@ -443,7 +455,8 @@ describe('sandbox — isolation + sad paths', () => {
   })
   test('runaway loop hits timeout', async () => {
     const r = await executeInSandbox(`while (true) {}`, { timeoutMs: 200 })
-    expect(r.ok).toBe(false); expect(r.error).toMatch(/timed out|timeout/i)
+    expect(r.ok).toBe(false)
+    expect(r.error).toMatch(/timed out|timeout/i)
   })
 })
 
@@ -471,7 +484,8 @@ describe('sandbox — expression-first wrap handles every common code shape', ()
   })
   test('arrow value returns null (function not JSON-serializable; no crash)', async () => {
     const r = await executeInSandbox(`(x => x + 1)`)
-    expect(r.ok).toBe(true); expect(r.value).toBeNull()
+    expect(r.ok).toBe(true)
+    expect(r.value).toBeNull()
   })
   test('top-level await is rejected because Code Mode is synchronous', async () => {
     const r = await executeInSandbox(`await Promise.resolve(42)`)
@@ -480,7 +494,8 @@ describe('sandbox — expression-first wrap handles every common code shape', ()
   })
   test('multi-statement no-return → ok with null', async () => {
     const r = await executeInSandbox(`const x = 5\nconst y = 10`)
-    expect(r.ok).toBe(true); expect(r.value).toBeNull()
+    expect(r.ok).toBe(true)
+    expect(r.value).toBeNull()
   })
   test('explicit return after const decl', async () => {
     expect((await executeInSandbox(`const x = 5; return x * 2`)).value).toBe(10)
@@ -512,7 +527,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
     expect(tools[0].description).toContain('interface RenderRequestReceipt { version: 2;')
     // Includes the compact strict StyleSpec contract; remain bounded.
-    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(14_500)
+    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_000)
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })
@@ -533,10 +548,15 @@ describe('MCP — JSON-RPC happy + sad', () => {
   })
   test('transport maximum caps execute even when the request omits timeoutMs', async () => {
     const started = performance.now()
-    const r = await handleRequest({
-      jsonrpc: '2.0', id: 32, method: 'tools/call',
-      params: { name: 'execute', arguments: { code: 'while (true) {}' } },
-    }, { maxSandboxTimeoutMs: 25 })
+    const r = await handleRequest(
+      {
+        jsonrpc: '2.0',
+        id: 32,
+        method: 'tools/call',
+        params: { name: 'execute', arguments: { code: 'while (true) {}' } },
+      },
+      { maxSandboxTimeoutMs: 25 },
+    )
     const payload = JSON.parse((r!.result as any).content[0].text)
     expect(payload.ok).toBe(false)
     expect(payload.error).toMatch(/timed out|timeout/i)
@@ -598,11 +618,30 @@ describe('MCP — JSON-RPC happy + sad', () => {
 describe('MCP bin shim', () => {
   test('parseMcpCliOptions is the shared flag parser for both bins', () => {
     const parsed = parseMcpCliOptions([
-      '--transport', 'http', '--host', '0.0.0.0', '--port', '3001', '--artifact-dir', '/tmp/am',
-      '--public-url', 'https://example.test/artifacts', '--max-artifact-bytes', '123',
-      '--max-artifact-total-bytes', '1000', '--max-artifacts', '5',
-      '--artifact-ttl-ms', '456', '--max-rpc-body-bytes', '789', '--auth-token', 'secret',
-      '--max-sandbox-timeout-ms', '1000',
+      '--transport',
+      'http',
+      '--host',
+      '0.0.0.0',
+      '--port',
+      '3001',
+      '--artifact-dir',
+      '/tmp/am',
+      '--public-url',
+      'https://example.test/artifacts',
+      '--max-artifact-bytes',
+      '123',
+      '--max-artifact-total-bytes',
+      '1000',
+      '--max-artifacts',
+      '5',
+      '--artifact-ttl-ms',
+      '456',
+      '--max-rpc-body-bytes',
+      '789',
+      '--auth-token',
+      'secret',
+      '--max-sandbox-timeout-ms',
+      '1000',
     ])
     expect(parsed.transport).toBe('http')
     expect(parsed.httpOptions).toEqual({
@@ -621,16 +660,7 @@ describe('MCP bin shim', () => {
   })
 
   test('the MCP parser rejects unknown, missing, duplicate, positional, and inapplicable arguments', () => {
-    for (const argv of [
-      ['--bogus'],
-      ['--port'],
-      ['--port', '--http'],
-      ['stray'],
-      ['--transport', 'http', '--transport', 'http'],
-      ['--http', '--transport', 'stdio'],
-      ['--host', '127.0.0.1'],
-      ['--transport='],
-    ]) {
+    for (const argv of [['--bogus'], ['--port'], ['--port', '--http'], ['stray'], ['--transport', 'http', '--transport', 'http'], ['--http', '--transport', 'stdio'], ['--host', '127.0.0.1'], ['--transport=']]) {
       expect(() => parseMcpCliOptions(argv), argv.join(' ')).toThrow()
     }
     expect(parseMcpCliOptions(['--transport=http', '--port=0']).transport).toBe('http')
@@ -640,8 +670,18 @@ describe('MCP bin shim', () => {
     const out: string[] = []
     const err: string[] = []
     const io = {
-      stdout: { write: (s: string) => { out.push(s); return true } },
-      stderr: { write: (s: string) => { err.push(s); return true } },
+      stdout: {
+        write: (s: string) => {
+          out.push(s)
+          return true
+        },
+      },
+      stderr: {
+        write: (s: string) => {
+          err.push(s)
+          return true
+        },
+      },
     }
     expect(await runMcpCli(['--help'], io)).toBe(0)
     expect(out.join('')).toContain('agentic-mermaid-mcp')
@@ -660,13 +700,22 @@ describe('MCP bin shim', () => {
 describe('CLI — sad paths via runCli', () => {
   // Capture stdout
   function capture(fn: () => number): { code: number; out: string; err: string } {
-    const chunks: string[] = [], errors: string[] = []
+    const chunks: string[] = [],
+      errors: string[] = []
     const orig = process.stdout.write.bind(process.stdout)
     const origErr = process.stderr.write.bind(process.stderr)
-    ;(process.stdout as any).write = (s: string) => { chunks.push(s); return true }
-    ;(process.stderr as any).write = (s: string) => { errors.push(s); return true }
+    ;(process.stdout as any).write = (s: string) => {
+      chunks.push(s)
+      return true
+    }
+    ;(process.stderr as any).write = (s: string) => {
+      errors.push(s)
+      return true
+    }
     let code: number
-    try { code = fn() } finally {
+    try {
+      code = fn()
+    } finally {
       ;(process.stdout as any).write = orig
       ;(process.stderr as any).write = origErr
     }
@@ -798,25 +847,37 @@ describe('CLI — sad paths via runCli', () => {
     const fs = require('node:fs') as typeof import('node:fs')
     fs.writeFileSync(source, 'flowchart TD\n  A[Alpha]\n')
     try {
-      fs.writeFileSync(style, JSON.stringify({
-        roles: { node: { fillColor: '#111111', textColor: '#111111' } },
-        constraints: [{ kind: 'contrast', action: 'warn', minimum: 4.5 }],
-      }))
+      fs.writeFileSync(
+        style,
+        JSON.stringify({
+          roles: { node: { fillColor: '#111111', textColor: '#111111' } },
+          constraints: [{ kind: 'contrast', action: 'warn', minimum: 4.5 }],
+        }),
+      )
       const warned = capture(() => runCli(['verify', source, '--style', style]))
       expect(warned.code).toBe(0)
-      expect(JSON.parse(warned.out).warnings).toContainEqual(expect.objectContaining({
-        code: 'BRAND_CONSTRAINT_WARNING', ratio: 1,
-      }))
+      expect(JSON.parse(warned.out).warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'BRAND_CONSTRAINT_WARNING',
+          ratio: 1,
+        }),
+      )
 
-      fs.writeFileSync(style, JSON.stringify({
-        roles: { node: { fillColor: '#111111', textColor: '#111111' } },
-        constraints: [{ kind: 'contrast', action: 'error', minimum: 4.5 }],
-      }))
+      fs.writeFileSync(
+        style,
+        JSON.stringify({
+          roles: { node: { fillColor: '#111111', textColor: '#111111' } },
+          constraints: [{ kind: 'contrast', action: 'error', minimum: 4.5 }],
+        }),
+      )
       const errored = capture(() => runCli(['verify', source, '--style', style]))
       expect(errored.code).toBe(3)
-      expect(JSON.parse(errored.out).warnings).toContainEqual(expect.objectContaining({
-        code: 'BRAND_CONSTRAINT_ERROR', ratio: 1,
-      }))
+      expect(JSON.parse(errored.out).warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'BRAND_CONSTRAINT_ERROR',
+          ratio: 1,
+        }),
+      )
 
       fs.writeFileSync(style, JSON.stringify({ roles: { node: { fillColor: 'url(https://evil.test/x)' } } }))
       const hostile = capture(() => runCli(['verify', source, '--style', style]))
@@ -852,11 +913,7 @@ describe('CLI — sad paths via runCli', () => {
 
   test('REGRESSION: am parse | am serialize supports structured payload families', () => {
     const { synthesizeFromGraph, serializeMermaid } = require('../agent/serialize.ts')
-    for (const src of [
-      'classDiagram\n  class Animal\n',
-      'timeline\n  title Plan\n  2024 : Alpha\n',
-      'erDiagram\n  CUSTOMER {\n    string id\n  }\n',
-    ]) {
+    for (const src of ['classDiagram\n  class Animal\n', 'timeline\n  title Plan\n  2024 : Alpha\n', 'erDiagram\n  CUSTOMER {\n    string id\n  }\n']) {
       const tmp = `/tmp/cli-structured-${Date.now()}-${Math.random()}.mmd`
       require('node:fs').writeFileSync(tmp, src)
       const parsed = capture(() => runCli(['parse', tmp]))

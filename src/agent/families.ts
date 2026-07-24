@@ -11,42 +11,24 @@
 // namespaced extensions register through the same atomic validation boundary.
 // ============================================================================
 
-import type {
-  DiagramKind, DiagramBody, FamilyParsedBody, ValidDiagramMeta, ParseError, SourceMap, FamilyId, ExternalFamilyId,
-  AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result, RenderedLayout,
-} from './types.ts'
-import type {
-  PositionedDiagram,
-  RenderContext,
-  RenderOptions,
-  ResolvedFamilyRenderContext,
-} from '../types.ts'
-import type { DiagramColors } from '../theme.ts'
-import type { InternalStyleFace, StyleSpec } from '../scene/style-registry.ts'
-import { SEMANTIC_CHANNEL_NAMES, type SceneDoc, type SemanticChannelName } from '../scene/ir.ts'
-import { BUILTIN_SCENE_ROLE_TRAITS, type SceneRole } from '../scene/roles.ts'
-import {
-  CORE_SCENE_PRIMITIVES,
-  PRIMITIVE_REALIZATIONS,
-  type CoreScenePrimitive,
-  type PrimitiveRealization,
-} from '../scene/capabilities.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from '../ascii/types.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
 import type { FamilyScopedRenderOptionField } from '../render-contract.ts'
-import type { AsciiConfig, AsciiTheme, ColorMode } from '../ascii/types.ts'
-import type { TerminalConnectorProjection } from '../terminal-style.ts'
-import {
-  ExtensionCollisionError,
-  createExtensionIdentity,
-  parseExtensionId,
-  requireExtensionContractCompatibility,
-  type ExtensionIdentity,
-} from '../shared/extension-identity.ts'
-import { BUILTIN_AGENT_HOOKS } from './families-builtin.ts'
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
-import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
-import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { CORE_SCENE_PRIMITIVES, type CoreScenePrimitive, PRIMITIVE_REALIZATIONS, type PrimitiveRealization } from '../scene/capabilities.ts'
+import { type SceneDoc, SEMANTIC_CHANNEL_NAMES, type SemanticChannelName } from '../scene/ir.ts'
+import { BUILTIN_SCENE_ROLE_TRAITS, type SceneRole } from '../scene/roles.ts'
+import type { InternalStyleFace, StyleSpec } from '../scene/style-registry.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { createExtensionIdentity, ExtensionCollisionError, type ExtensionIdentity, parseExtensionId, requireExtensionContractCompatibility } from '../shared/extension-identity.ts'
+import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import type { TerminalConnectorProjection } from '../terminal-style.ts'
+import type { DiagramColors } from '../theme.ts'
+import type { PositionedDiagram, RenderContext, RenderOptions, ResolvedFamilyRenderContext } from '../types.ts'
+import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
+import { BUILTIN_AGENT_HOOKS } from './families-builtin.ts'
+import type { AnyMutationOp, DiagramBody, DiagramKind, ExternalFamilyId, FamilyId, FamilyParsedBody, LayoutWarning, MutationError, ParseError, RenderedLayout, Result, SourceMap, ValidDiagramMeta, VerifyOptions } from './types.ts'
+
 export { extractLabelsGeneric } from './family-labels.ts'
 
 export interface ExtractedLabel {
@@ -103,19 +85,14 @@ export interface FamilyRequestNormalizationResult {
  * every projector, so namespaced extensions can implement this hook while the
  * public layout envelope records their registered family id.
  */
-export type FamilyPositionedView = Pick<
-  RenderedLayout,
-  'version' | 'nodes' | 'edges' | 'groups' | 'certificates' | 'bounds'
->
+export type FamilyPositionedView = Pick<RenderedLayout, 'version' | 'nodes' | 'edges' | 'groups' | 'certificates' | 'bounds'>
 
 export interface FamilyPositionedProjectionOptions {
   /** Include route/containment proof sidecars when the family supports them. */
   debug?: boolean
 }
 
-export interface FamilyPositionedProjectionContext<
-  TPositioned extends PositionedDiagram = PositionedDiagram,
-> {
+export interface FamilyPositionedProjectionContext<TPositioned extends PositionedDiagram = PositionedDiagram> {
   /** The exact artifact produced by this descriptor's `layout` hook. */
   positioned: TPositioned
   options: Readonly<FamilyPositionedProjectionOptions>
@@ -155,18 +132,7 @@ export type FamilyMaturity = 'stable' | 'beta' | 'experimental'
 /** Capability columns are owned by the descriptor contract. Reports and
  * discovery surfaces project this vocabulary instead of maintaining a second
  * hook-inference table. */
-export const FAMILY_CAPABILITY_COLUMNS = [
-  'detection',
-  'source-preservation',
-  'parse',
-  'serialize',
-  'mutation',
-  'verify',
-  'layout',
-  'scene',
-  'svg',
-  'terminal',
-] as const
+export const FAMILY_CAPABILITY_COLUMNS = ['detection', 'source-preservation', 'parse', 'serialize', 'mutation', 'verify', 'layout', 'scene', 'svg', 'terminal'] as const
 
 /** Registration witnesses stay small enough to execute twice synchronously. */
 export const FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES = 64 * 1024
@@ -239,11 +205,13 @@ export interface FamilyScenePrimitiveEvidence {
   diagnostic?: string
 }
 
-export type FamilyScenePositivePrimitive = CoreScenePrimitive | Readonly<{
-  primitive: CoreScenePrimitive
-  realization: Exclude<PrimitiveRealization, 'unsupported'>
-  diagnostic?: string
-}>
+export type FamilyScenePositivePrimitive =
+  | CoreScenePrimitive
+  | Readonly<{
+      primitive: CoreScenePrimitive
+      realization: Exclude<PrimitiveRealization, 'unsupported'>
+      diagnostic?: string
+    }>
 
 /** Compact positive authority; `declareFamilyScenePrimitiveEvidence` derives
  * the complete matrix, including every explicit negative cell. */
@@ -252,38 +220,36 @@ export interface FamilySceneRolePrimitiveDeclaration {
   primitives: readonly FamilyScenePositivePrimitive[]
 }
 
-export function declareFamilyScenePrimitiveEvidence(
-  familyId: string,
-  declarations: readonly FamilySceneRolePrimitiveDeclaration[],
-  evidence: readonly string[],
-): readonly FamilyScenePrimitiveEvidence[] {
+export function declareFamilyScenePrimitiveEvidence(familyId: string, declarations: readonly FamilySceneRolePrimitiveDeclaration[], evidence: readonly string[]): readonly FamilyScenePrimitiveEvidence[] {
   const rows: FamilyScenePrimitiveEvidence[] = []
   for (const declaration of declarations) {
-    const positive = new Map(declaration.primitives.map(item => {
-      const entry = typeof item === 'string'
-        ? { primitive: item, realization: 'native' as const }
-        : item
-      return [entry.primitive, entry] as const
-    }))
+    const positive = new Map(
+      declaration.primitives.map(item => {
+        const entry = typeof item === 'string' ? { primitive: item, realization: 'native' as const } : item
+        return [entry.primitive, entry] as const
+      }),
+    )
     for (const primitive of CORE_SCENE_PRIMITIVES) {
       const entry = positive.get(primitive)
-      rows.push(entry
-        ? {
-            role: declaration.role,
-            primitive,
-            applicability: 'applicable',
-            realization: entry.realization,
-            evidence,
-            ...(entry.diagnostic ? { diagnostic: entry.diagnostic } : {}),
-          }
-        : {
-            role: declaration.role,
-            primitive,
-            applicability: 'not-applicable',
-            realization: 'unsupported',
-            evidence,
-            diagnostic: `${familyId}/${declaration.role} does not lower to the ${primitive} primitive.`,
-          })
+      rows.push(
+        entry
+          ? {
+              role: declaration.role,
+              primitive,
+              applicability: 'applicable',
+              realization: entry.realization,
+              evidence,
+              ...(entry.diagnostic ? { diagnostic: entry.diagnostic } : {}),
+            }
+          : {
+              role: declaration.role,
+              primitive,
+              applicability: 'not-applicable',
+              realization: 'unsupported',
+              evidence,
+              diagnostic: `${familyId}/${declaration.role} does not lower to the ${primitive} primitive.`,
+            },
+      )
     }
   }
   return rows
@@ -302,9 +268,7 @@ export interface FamilyOperations {
    * render hooks receive only the frozen result and must not re-read raw Style,
    * theme, or family option authorities.
    */
-  normalizeRequest?: (
-    ctx: FamilyRequestNormalizationContext,
-  ) => FamilyRequestNormalizationResult | void
+  normalizeRequest?: (ctx: FamilyRequestNormalizationContext) => FamilyRequestNormalizationResult | void
   /**
    * Source-based label extractor for universal Tier 1 LABEL_OVERFLOW on opaque
    * bodies. Each descriptor should extract everything an agent would consider a
@@ -434,9 +398,7 @@ interface BuiltinFamilyDescriptorSeed extends BuiltinFamilyMetadata {
 
 function builtinFamilyCapabilityEvidence(familyId: BuiltinFamilyId): readonly FamilyCapabilityEvidence[] {
   const executableWitness = ['src/__tests__/section-a-family-descriptor-conformance.test.ts'] as const
-  const terminalWitness = familyId === 'flowchart' || familyId === 'state'
-    ? [...executableWitness, 'src/__tests__/characterization-layout.test.ts']
-    : executableWitness
+  const terminalWitness = familyId === 'flowchart' || familyId === 'state' ? [...executableWitness, 'src/__tests__/characterization-layout.test.ts'] : executableWitness
   return [
     { capability: 'detection', state: 'native', evidence: executableWitness },
     { capability: 'source-preservation', state: 'native', evidence: executableWitness },
@@ -451,33 +413,103 @@ function builtinFamilyCapabilityEvidence(familyId: BuiltinFamilyId): readonly Fa
   ]
 }
 
-function nativeSceneRole(
-  role: SceneRole,
-  ...primitives: readonly CoreScenePrimitive[]
-): FamilySceneRolePrimitiveDeclaration {
+function nativeSceneRole(role: SceneRole, ...primitives: readonly CoreScenePrimitive[]): FamilySceneRolePrimitiveDeclaration {
   return { role, primitives }
 }
 
 const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
-  { id: 'flowchart', upstreamId: 'flowchart-v2', maturity: 'stable', label: 'Flowchart', headers: ['flowchart', 'graph'], narrower: 'asFlowchart', editorDiagramType: 'Flowchart', editorLabel: 'Flowchart', editorDescription: 'Decision flow with labeled branches.', editorExampleId: 'flowchart-basic', editorGlyph: 'F',
-    config: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'], noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'padding', 'subGraphTitleMargin', 'titleTopMargin'] },
+  {
+    id: 'flowchart',
+    upstreamId: 'flowchart-v2',
+    maturity: 'stable',
+    label: 'Flowchart',
+    headers: ['flowchart', 'graph'],
+    narrower: 'asFlowchart',
+    editorDiagramType: 'Flowchart',
+    editorLabel: 'Flowchart',
+    editorDescription: 'Decision flow with labeled branches.',
+    editorExampleId: 'flowchart-basic',
+    editorGlyph: 'F',
+    config: {
+      section: 'flowchart',
+      keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'],
+      noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'padding', 'subGraphTitleMargin', 'titleTopMargin'],
+    },
     aliases: ['swimlane'],
     semanticChannels: [],
     detect: (line: string) => /^(?:flowchart|graph|swimlane)(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'),
+      nativeSceneRole('group-header', 'text', 'shape'),
+      nativeSceneRole('edge', 'connector'),
+      nativeSceneRole('edge-label', 'container'),
+      nativeSceneRole('node', 'container', 'shape'),
+      nativeSceneRole('label', 'text'),
+      nativeSceneRole('icon', 'document', 'text'),
+    ],
     example: 'flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]',
     editorExample: `flowchart TD
   A[Start] --> B{Decision?}
   B -->|Yes| C[Do the thing]
   B -->|No| D[Skip it]
   C --> E[End]
-  D --> E` },
-  { id: 'state', upstreamId: 'stateDiagram', maturity: 'stable', label: 'State', headers: ['stateDiagram', 'stateDiagram-v2'], narrower: 'asState', editorDiagramType: 'State', editorLabel: 'State diagram', editorDescription: 'Lifecycle using Mermaid stateDiagram-v2 syntax.', editorExampleId: 'state-basic', editorGlyph: 'S',
-    config: { section: 'state', keys: ['arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin', 'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth', 'labelHeight', 'miniPadding', 'nodeSpacing', 'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin'] },
+  D --> E`,
+  },
+  {
+    id: 'state',
+    upstreamId: 'stateDiagram',
+    maturity: 'stable',
+    label: 'State',
+    headers: ['stateDiagram', 'stateDiagram-v2'],
+    narrower: 'asState',
+    editorDiagramType: 'State',
+    editorLabel: 'State diagram',
+    editorDescription: 'Lifecycle using Mermaid stateDiagram-v2 syntax.',
+    editorExampleId: 'state-basic',
+    editorGlyph: 'S',
+    config: {
+      section: 'state',
+      keys: [
+        'arrowMarkerAbsolute',
+        'compositTitleSize',
+        'defaultRenderer',
+        'dividerMargin',
+        'edgeLengthFactor',
+        'fontSize',
+        'fontSizeFactor',
+        'forkHeight',
+        'forkWidth',
+        'labelHeight',
+        'miniPadding',
+        'nodeSpacing',
+        'noteMargin',
+        'padding',
+        'radius',
+        'rankSpacing',
+        'sizeUnit',
+        'textHeight',
+        'titleShift',
+        'titleTopMargin',
+      ],
+    },
     semanticChannels: ['status'],
     detect: (line: string) => /^statediagram(?:-v2)?\s*$/.test(line),
     detectLoose: (line: string) => /^statediagram(?:-v2)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'),
+      nativeSceneRole('group-header', 'text', 'shape'),
+      nativeSceneRole('edge', 'connector'),
+      nativeSceneRole('edge-label', 'container'),
+      nativeSceneRole('node', 'container', 'shape'),
+      nativeSceneRole('note', 'container', 'shape'),
+      nativeSceneRole('label', 'text'),
+    ],
     example: 'stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve',
     editorExample: `stateDiagram-v2
   [*] --> Idle
@@ -485,13 +517,103 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   Processing --> Complete: done
   Processing --> Failed: error
   Failed --> Idle: retry
-  Complete --> [*]` },
-  { id: 'sequence', upstreamId: 'sequence', maturity: 'stable', label: 'Sequence', headers: ['sequenceDiagram'], narrower: 'asSequence', editorDiagramType: 'Sequence', editorLabel: 'Sequence', editorDescription: 'Request/response messages between participants.', editorExampleId: 'sequence-basic', editorGlyph: 'Q',
-    config: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight', 'useMaxWidth', 'useWidth'], noopKeys: ['actorFontFamily', 'actorFontSize', 'actorFontWeight', 'arrowMarkerAbsolute', 'bottomMarginAdj', 'boxMargin', 'boxTextMargin', 'forceMenus', 'hideUnusedParticipants', 'labelBoxHeight', 'labelBoxWidth', 'messageAlign', 'messageFontFamily', 'messageFontSize', 'messageFontWeight', 'mirrorActors', 'noteAlign', 'noteFontFamily', 'noteFontSize', 'noteFontWeight', 'rightAngles', 'useMaxWidth', 'useWidth', 'wrap', 'wrapPadding'] },
+  Complete --> [*]`,
+  },
+  {
+    id: 'sequence',
+    upstreamId: 'sequence',
+    maturity: 'stable',
+    label: 'Sequence',
+    headers: ['sequenceDiagram'],
+    narrower: 'asSequence',
+    editorDiagramType: 'Sequence',
+    editorLabel: 'Sequence',
+    editorDescription: 'Request/response messages between participants.',
+    editorExampleId: 'sequence-basic',
+    editorGlyph: 'Q',
+    config: {
+      section: 'sequence',
+      keys: [
+        'actorMargin',
+        'width',
+        'height',
+        'diagramMarginX',
+        'diagramMarginY',
+        'messageMargin',
+        'noteMargin',
+        'activationWidth',
+        'showSequenceNumbers',
+        'boxMargin',
+        'boxTextMargin',
+        'messageAlign',
+        'mirrorActors',
+        'bottomMarginAdj',
+        'rightAngles',
+        'wrap',
+        'wrapPadding',
+        'labelBoxWidth',
+        'labelBoxHeight',
+        'hideUnusedParticipants',
+        'forceMenus',
+        'arrowMarkerAbsolute',
+        'noteAlign',
+        'actorFontSize',
+        'actorFontFamily',
+        'actorFontWeight',
+        'noteFontSize',
+        'noteFontFamily',
+        'noteFontWeight',
+        'messageFontSize',
+        'messageFontFamily',
+        'messageFontWeight',
+        'useMaxWidth',
+        'useWidth',
+      ],
+      noopKeys: [
+        'actorFontFamily',
+        'actorFontSize',
+        'actorFontWeight',
+        'arrowMarkerAbsolute',
+        'bottomMarginAdj',
+        'boxMargin',
+        'boxTextMargin',
+        'forceMenus',
+        'hideUnusedParticipants',
+        'labelBoxHeight',
+        'labelBoxWidth',
+        'messageAlign',
+        'messageFontFamily',
+        'messageFontSize',
+        'messageFontWeight',
+        'mirrorActors',
+        'noteAlign',
+        'noteFontFamily',
+        'noteFontSize',
+        'noteFontWeight',
+        'rightAngles',
+        'useMaxWidth',
+        'useWidth',
+        'wrap',
+        'wrapPadding',
+      ],
+    },
     semanticChannels: ['category'],
     detect: (line: string) => /^sequencediagram\s*$/.test(line),
     detectLoose: (line: string) => /^sequencediagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'connector'), nativeSceneRole('activation', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text', 'shape')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('actor', 'container', 'shape'),
+      nativeSceneRole('lifeline', 'connector'),
+      nativeSceneRole('activation', 'shape'),
+      nativeSceneRole('message', 'container', 'connector'),
+      nativeSceneRole('block', 'container', 'connector', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'),
+      nativeSceneRole('note', 'container', 'shape'),
+      nativeSceneRole('label', 'text'),
+      nativeSceneRole('icon', 'document', 'text', 'shape'),
+    ],
     example: 'sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response',
     editorExample: `sequenceDiagram
   participant User
@@ -500,13 +622,86 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   User->>App: Click export
   App->>API: Render SVG
   API-->>App: SVG string
-  App-->>User: Download` },
-  { id: 'timeline', upstreamId: 'timeline', maturity: 'experimental', label: 'Timeline', headers: ['timeline'], narrower: 'asTimeline', editorDiagramType: 'Timeline', editorLabel: 'Timeline', editorDescription: 'Chronological milestones with sections.', editorExampleId: 'timeline-basic', editorGlyph: 'T',
-    config: { section: 'timeline', keys: ['disableMulticolor', 'sectionFills', 'sectionColours', 'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'], noopKeys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'] },
+  App-->>User: Download`,
+  },
+  {
+    id: 'timeline',
+    upstreamId: 'timeline',
+    maturity: 'experimental',
+    label: 'Timeline',
+    headers: ['timeline'],
+    narrower: 'asTimeline',
+    editorDiagramType: 'Timeline',
+    editorLabel: 'Timeline',
+    editorDescription: 'Chronological milestones with sections.',
+    editorExampleId: 'timeline-basic',
+    editorGlyph: 'T',
+    config: {
+      section: 'timeline',
+      keys: [
+        'disableMulticolor',
+        'sectionFills',
+        'sectionColours',
+        'diagramMarginX',
+        'diagramMarginY',
+        'leftMargin',
+        'width',
+        'height',
+        'padding',
+        'boxMargin',
+        'boxTextMargin',
+        'noteMargin',
+        'messageMargin',
+        'messageAlign',
+        'bottomMarginAdj',
+        'rightAngles',
+        'taskFontSize',
+        'taskFontFamily',
+        'taskMargin',
+        'activationWidth',
+        'textPlacement',
+        'actorColours',
+        'useMaxWidth',
+        'useWidth',
+      ],
+      noopKeys: [
+        'diagramMarginX',
+        'diagramMarginY',
+        'leftMargin',
+        'width',
+        'height',
+        'padding',
+        'boxMargin',
+        'boxTextMargin',
+        'noteMargin',
+        'messageMargin',
+        'messageAlign',
+        'bottomMarginAdj',
+        'rightAngles',
+        'taskFontSize',
+        'taskFontFamily',
+        'taskMargin',
+        'activationWidth',
+        'textPlacement',
+        'actorColours',
+        'useMaxWidth',
+        'useWidth',
+      ],
+    },
     semanticChannels: ['category'],
     detect: (line: string) => /^timeline(?:\s+(?:td|tb|lr|bt|rl))?\s*$/.test(line),
     detectLoose: (line: string) => /^timeline(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('rail', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('section', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('period', 'container', 'shape'), nativeSceneRole('event', 'container', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('chrome', 'document'),
+      nativeSceneRole('rail', 'shape'),
+      nativeSceneRole('title', 'text'),
+      nativeSceneRole('section', 'container', 'shape'),
+      nativeSceneRole('group-header', 'text', 'shape'),
+      nativeSceneRole('period', 'container', 'shape'),
+      nativeSceneRole('event', 'container', 'shape'),
+      nativeSceneRole('label', 'text'),
+    ],
     example: 'timeline\n  title Roadmap\n  2025 : Alpha : Beta\n  2026 : GA',
     editorExample: `timeline
   title Product roadmap
@@ -515,13 +710,41 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
           : Parser coverage
   section Launch
   2024 Q2 : Public editor
-          : SVG export` },
-  { id: 'class', upstreamId: 'classDiagram', maturity: 'stable', label: 'Class', headers: ['classDiagram'], narrower: 'asClass', editorDiagramType: 'Class', editorLabel: 'Class', editorDescription: 'Classes with members, inheritance, and composition.', editorExampleId: 'class-basic', editorGlyph: 'C',
-    config: { section: 'class', keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces'], noopKeys: ['arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin', 'hideEmptyMembersBox', 'htmlLabels', 'padding', 'textHeight', 'titleTopMargin'] },
+          : SVG export`,
+  },
+  {
+    id: 'class',
+    upstreamId: 'classDiagram',
+    maturity: 'stable',
+    label: 'Class',
+    headers: ['classDiagram'],
+    narrower: 'asClass',
+    editorDiagramType: 'Class',
+    editorLabel: 'Class',
+    editorDescription: 'Classes with members, inheritance, and composition.',
+    editorExampleId: 'class-basic',
+    editorGlyph: 'C',
+    config: {
+      section: 'class',
+      keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces'],
+      noopKeys: ['arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin', 'hideEmptyMembersBox', 'htmlLabels', 'padding', 'textHeight', 'titleTopMargin'],
+    },
     semanticChannels: [],
     detect: (line: string) => /^classdiagram\s*$/.test(line),
     detectLoose: (line: string) => /^classdiagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('class-box', 'container', 'shape'), nativeSceneRole('member', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'text'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'),
+      nativeSceneRole('group-header', 'text', 'shape'),
+      nativeSceneRole('class-box', 'container', 'shape'),
+      nativeSceneRole('member', 'text'),
+      nativeSceneRole('relationship', 'connector'),
+      nativeSceneRole('cardinality', 'text'),
+      nativeSceneRole('note', 'container', 'shape'),
+      nativeSceneRole('label', 'text'),
+    ],
     example: 'classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account "1" o-- "*" Transaction : logs',
     editorExample: `classDiagram
   class Renderer {
@@ -535,13 +758,40 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     +run(source) string
   }
   Renderer <|-- SVGRenderer
-  RenderPipeline *-- SVGRenderer : owns` },
-  { id: 'er', upstreamId: 'er', maturity: 'stable', label: 'ER', headers: ['erDiagram'], narrower: 'asEr', editorDiagramType: 'ER', editorLabel: 'ER diagram', editorDescription: 'Entities, attributes, keys, and cardinality markers.', editorExampleId: 'er-basic', editorGlyph: 'ER',
-    config: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'], noopKeys: ['diagramPadding', 'entityPadding', 'fill', 'fontSize', 'minEntityHeight', 'minEntityWidth', 'stroke', 'titleTopMargin'] },
+  RenderPipeline *-- SVGRenderer : owns`,
+  },
+  {
+    id: 'er',
+    upstreamId: 'er',
+    maturity: 'stable',
+    label: 'ER',
+    headers: ['erDiagram'],
+    narrower: 'asEr',
+    editorDiagramType: 'ER',
+    editorLabel: 'ER diagram',
+    editorDescription: 'Entities, attributes, keys, and cardinality markers.',
+    editorExampleId: 'er-basic',
+    editorGlyph: 'ER',
+    config: {
+      section: 'er',
+      keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'],
+      noopKeys: ['diagramPadding', 'entityPadding', 'fill', 'fontSize', 'minEntityHeight', 'minEntityWidth', 'stroke', 'titleTopMargin'],
+    },
     semanticChannels: ['category'],
     detect: (line: string) => /^erdiagram(?:\s+subgraph\b.*)?\s*$/.test(line),
     detectLoose: (line: string) => /^erdiagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('entity', 'container', 'shape'), nativeSceneRole('attribute', 'container', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'),
+      nativeSceneRole('group-header', 'shape'),
+      nativeSceneRole('entity', 'container', 'shape'),
+      nativeSceneRole('attribute', 'container', 'text'),
+      nativeSceneRole('relationship', 'connector'),
+      nativeSceneRole('cardinality', 'shape'),
+      nativeSceneRole('label', 'text'),
+    ],
     example: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }',
     editorExample: `erDiagram
   CUSTOMER {
@@ -557,13 +807,72 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     int quantity
   }
   CUSTOMER ||--o{ ORDER : places
-  ORDER ||--|{ LINE_ITEM : contains` },
-  { id: 'journey', upstreamId: 'journey', maturity: 'stable', label: 'Journey', headers: ['journey'], narrower: 'asJourney', editorDiagramType: 'Journey', editorLabel: 'User journey', editorDescription: 'Scored user tasks grouped by section.', editorExampleId: 'journey-basic', editorGlyph: 'J',
-    config: { section: 'journey', keys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'actorColours', 'sectionFills', 'sectionColours', 'titleColor', 'titleFontFamily', 'titleFontSize', 'useMaxWidth', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'], noopKeys: ['boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'] },
+  ORDER ||--|{ LINE_ITEM : contains`,
+  },
+  {
+    id: 'journey',
+    upstreamId: 'journey',
+    maturity: 'stable',
+    label: 'Journey',
+    headers: ['journey'],
+    narrower: 'asJourney',
+    editorDiagramType: 'Journey',
+    editorLabel: 'User journey',
+    editorDescription: 'Scored user tasks grouped by section.',
+    editorExampleId: 'journey-basic',
+    editorGlyph: 'J',
+    config: {
+      section: 'journey',
+      keys: [
+        'diagramMarginX',
+        'diagramMarginY',
+        'leftMargin',
+        'maxLabelWidth',
+        'width',
+        'height',
+        'taskFontSize',
+        'taskFontFamily',
+        'taskMargin',
+        'actorColours',
+        'sectionFills',
+        'sectionColours',
+        'titleColor',
+        'titleFontFamily',
+        'titleFontSize',
+        'useMaxWidth',
+        'boxMargin',
+        'boxTextMargin',
+        'noteMargin',
+        'messageMargin',
+        'messageAlign',
+        'bottomMarginAdj',
+        'rightAngles',
+        'activationWidth',
+        'textPlacement',
+      ],
+      noopKeys: ['boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'],
+    },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^journey\s*$/.test(line),
     detectLoose: (line: string) => /^journey(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('series', 'connector'), nativeSceneRole('grid', 'container', 'connector'), nativeSceneRole('axis', 'text'), nativeSceneRole('rail', 'connector'), nativeSceneRole('legend', 'container', 'text'), nativeSceneRole('actor', 'shape'), nativeSceneRole('section', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('task', 'container', 'shape', 'data-mark'), nativeSceneRole('marker-line', 'connector'), nativeSceneRole('label', 'text'), nativeSceneRole('score', 'container', 'shape', 'data-mark')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document'),
+      nativeSceneRole('title', 'text'),
+      nativeSceneRole('series', 'connector'),
+      nativeSceneRole('grid', 'container', 'connector'),
+      nativeSceneRole('axis', 'text'),
+      nativeSceneRole('rail', 'connector'),
+      nativeSceneRole('legend', 'container', 'text'),
+      nativeSceneRole('actor', 'shape'),
+      nativeSceneRole('section', 'container', 'shape'),
+      nativeSceneRole('group-header', 'text', 'shape'),
+      nativeSceneRole('task', 'container', 'shape', 'data-mark'),
+      nativeSceneRole('marker-line', 'connector'),
+      nativeSceneRole('label', 'text'),
+      nativeSceneRole('score', 'container', 'shape', 'data-mark'),
+    ],
     example: 'journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper',
     editorExample: `journey
   title Editor adoption
@@ -572,13 +881,37 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     Load example: 4: User, Developer
   section Share
     Copy URL: 5: User
-    Export SVG: 4: Developer` },
-  { id: 'architecture', upstreamId: 'architecture', maturity: 'stable', label: 'Architecture', headers: ['architecture', 'architecture-beta'], narrower: 'asArchitecture', editorDiagramType: 'Architecture', editorLabel: 'Architecture', editorDescription: 'Services, groups, icons, and routed connections.', editorExampleId: 'architecture-basic', editorGlyph: 'A',
+    Export SVG: 4: Developer`,
+  },
+  {
+    id: 'architecture',
+    upstreamId: 'architecture',
+    maturity: 'stable',
+    label: 'Architecture',
+    headers: ['architecture', 'architecture-beta'],
+    narrower: 'asArchitecture',
+    editorDiagramType: 'Architecture',
+    editorLabel: 'Architecture',
+    editorDescription: 'Services, groups, icons, and routed connections.',
+    editorExampleId: 'architecture-basic',
+    editorGlyph: 'A',
     config: { section: 'architecture', keys: ['padding', 'iconSize', 'fontSize', 'nodeSeparation', 'idealEdgeLengthMultiplier', 'edgeElasticity', 'numIter', 'seed', 'randomize'], noopKeys: ['edgeElasticity', 'numIter', 'randomize', 'seed'] },
     semanticChannels: [],
     detect: (line: string) => /^architecture(?:-beta)?\s*$/.test(line),
     detectLoose: (line: string) => /^architecture(?:-beta)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('icon', 'document'), nativeSceneRole('label', 'text'), nativeSceneRole('service', 'container', 'shape'), nativeSceneRole('junction', 'container', 'shape'), nativeSceneRole('edge', 'connector')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('title', 'text'),
+      nativeSceneRole('group', 'container', 'shape'),
+      nativeSceneRole('group-header', 'shape'),
+      nativeSceneRole('icon', 'document'),
+      nativeSceneRole('label', 'text'),
+      nativeSceneRole('service', 'container', 'shape'),
+      nativeSceneRole('junction', 'container', 'shape'),
+      nativeSceneRole('edge', 'connector'),
+    ],
     example: 'architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache',
     editorExample: `architecture-beta
   group app(cloud)[Application]
@@ -587,20 +920,56 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   service api(server)[API] in app
   service db(database)[Postgres] in data
   web:R --> L:api
-  api:R --> L:db` },
-  { id: 'xychart', upstreamId: 'xychart', maturity: 'stable', label: 'XY chart', headers: ['xychart', 'xychart-beta'], narrower: 'asXyChart', editorDiagramType: 'XY Chart', editorLabel: 'XY chart', editorDescription: 'Bar and line series using xychart syntax.', editorExampleId: 'xychart-basic', editorGlyph: 'XY',
+  api:R --> L:db`,
+  },
+  {
+    id: 'xychart',
+    upstreamId: 'xychart',
+    maturity: 'stable',
+    label: 'XY chart',
+    headers: ['xychart', 'xychart-beta'],
+    narrower: 'asXyChart',
+    editorDiagramType: 'XY Chart',
+    editorLabel: 'XY chart',
+    editorDescription: 'Bar and line series using xychart syntax.',
+    editorExampleId: 'xychart-basic',
+    editorGlyph: 'XY',
     config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^xychart(?:-beta)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document'),
+      nativeSceneRole('chrome', 'container', 'document'),
+      nativeSceneRole('grid', 'shape'),
+      nativeSceneRole('bar', 'shape', 'data-mark'),
+      nativeSceneRole('series', 'connector'),
+      nativeSceneRole('point', 'shape', 'data-mark'),
+      nativeSceneRole('axis', 'text', 'shape'),
+      nativeSceneRole('legend', 'container', 'text', 'shape'),
+      nativeSceneRole('title', 'text'),
+      nativeSceneRole('label', 'text'),
+    ],
     example: 'xychart-beta\n  title "Revenue"\n  x-axis [Q1, Q2, Q3]\n  y-axis "USD" 0 --> 100\n  bar [45, 62, 80]',
     editorExample: `xychart
   title "Weekly renders"
   x-axis [Mon, Tue, Wed, Thu, Fri]
   y-axis "Renders" 0 --> 100
   bar [25, 42, 58, 74, 88]
-  line [18, 35, 52, 70, 95]` },
-  { id: 'pie', upstreamId: 'pie', maturity: 'stable', label: 'Pie', headers: ['pie'], narrower: 'asPie', editorDiagramType: 'Pie', editorLabel: 'Pie chart', editorDescription: 'Proportional slices with values shown in the legend.', editorExampleId: 'pie-basic', editorGlyph: 'P',
+  line [18, 35, 52, 70, 95]`,
+  },
+  {
+    id: 'pie',
+    upstreamId: 'pie',
+    maturity: 'stable',
+    label: 'Pie',
+    headers: ['pie'],
+    narrower: 'asPie',
+    editorDiagramType: 'Pie',
+    editorLabel: 'Pie chart',
+    editorDescription: 'Proportional slices with values shown in the legend.',
+    editorExampleId: 'pie-basic',
+    editorGlyph: 'P',
     config: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: ['useMaxWidth', 'useWidth'] },
     semanticChannels: ['value', 'category', 'emphasis'],
     detect: (line: string) => /^pie(?:\s|$)/.test(line),
@@ -611,9 +980,46 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   "SVG" : 42
   "PNG" : 28
   "ASCII" : 18
-  "Unicode" : 12` },
-  { id: 'quadrant', upstreamId: 'quadrantChart', maturity: 'stable', label: 'Quadrant', headers: ['quadrantChart'], narrower: 'asQuadrant', editorDiagramType: 'Quadrant', editorLabel: 'Quadrant chart', editorDescription: 'Two-axis priority map with labeled regions and points.', editorExampleId: 'quadrant-basic', editorGlyph: '4Q',
-    config: { section: 'quadrantChart', keys: ['chartWidth', 'chartHeight', 'titleFontSize', 'titlePadding', 'quadrantPadding', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointLabelFontSize', 'pointRadius', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth', 'useMaxWidth', 'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'], noopKeys: ['quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'] },
+  "Unicode" : 12`,
+  },
+  {
+    id: 'quadrant',
+    upstreamId: 'quadrantChart',
+    maturity: 'stable',
+    label: 'Quadrant',
+    headers: ['quadrantChart'],
+    narrower: 'asQuadrant',
+    editorDiagramType: 'Quadrant',
+    editorLabel: 'Quadrant chart',
+    editorDescription: 'Two-axis priority map with labeled regions and points.',
+    editorExampleId: 'quadrant-basic',
+    editorGlyph: '4Q',
+    config: {
+      section: 'quadrantChart',
+      keys: [
+        'chartWidth',
+        'chartHeight',
+        'titleFontSize',
+        'titlePadding',
+        'quadrantPadding',
+        'quadrantLabelFontSize',
+        'xAxisLabelFontSize',
+        'yAxisLabelFontSize',
+        'xAxisLabelPadding',
+        'yAxisLabelPadding',
+        'pointLabelFontSize',
+        'pointRadius',
+        'pointTextPadding',
+        'quadrantInternalBorderStrokeWidth',
+        'quadrantExternalBorderStrokeWidth',
+        'useMaxWidth',
+        'quadrantTextTopPadding',
+        'xAxisPosition',
+        'yAxisPosition',
+        'useWidth',
+      ],
+      noopKeys: ['quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth'],
+    },
     aliases: ['quadrant'],
     semanticChannels: ['category'],
     detect: (line: string) => /^quadrant(?:chart)?\s*$/.test(line),
@@ -630,13 +1036,42 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   quadrant-4 Quick wins
   SVG export: [0.78, 0.28]
   MCP setup: [0.62, 0.72]
-  Palette polish: [0.35, 0.24]` },
-  { id: 'gantt', upstreamId: 'gantt', maturity: 'stable', label: 'Gantt', headers: ['gantt'], narrower: 'asGantt', editorDiagramType: 'Gantt', editorLabel: 'Gantt chart', editorDescription: 'Sections, dependencies, status tags, and a milestone.', editorExampleId: 'gantt-basic', editorGlyph: 'G',
-    config: { section: 'gantt', keys: ['displayMode', 'barHeight', 'topAxis', 'tickInterval', 'axisFormat', 'barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'], noopKeys: ['barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'] },
+  Palette polish: [0.35, 0.24]`,
+  },
+  {
+    id: 'gantt',
+    upstreamId: 'gantt',
+    maturity: 'stable',
+    label: 'Gantt',
+    headers: ['gantt'],
+    narrower: 'asGantt',
+    editorDiagramType: 'Gantt',
+    editorLabel: 'Gantt chart',
+    editorDescription: 'Sections, dependencies, status tags, and a milestone.',
+    editorExampleId: 'gantt-basic',
+    editorGlyph: 'G',
+    config: {
+      section: 'gantt',
+      keys: ['displayMode', 'barHeight', 'topAxis', 'tickInterval', 'axisFormat', 'barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'],
+      noopKeys: ['barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'],
+    },
     semanticChannels: ['status', 'progress', 'emphasis', 'category'],
     detect: (line: string) => /^gantt\s*$/.test(line),
     detectLoose: (line: string) => /^gantt(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document'), nativeSceneRole('section', 'text', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('label', 'text'), nativeSceneRole('task', 'shape'), nativeSceneRole('milestone', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('marker-line', 'shape'), nativeSceneRole('title', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document'),
+      nativeSceneRole('section', 'text', 'shape'),
+      nativeSceneRole('grid', 'shape'),
+      nativeSceneRole('axis', 'text'),
+      nativeSceneRole('label', 'text'),
+      nativeSceneRole('task', 'shape'),
+      nativeSceneRole('milestone', 'shape'),
+      nativeSceneRole('edge', 'connector'),
+      nativeSceneRole('marker-line', 'shape'),
+      nativeSceneRole('title', 'text'),
+    ],
     example: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d',
     editorExample: `gantt
   title Release train
@@ -648,8 +1083,20 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     Future task    :des3, after des2, 5d
   section Ship
     Crit review    :crit, rev1, after des3, 2d
-    Release        :milestone, m1, after rev1, 0d` },
-  { id: 'mindmap', upstreamId: 'mindmap', maturity: 'stable', label: 'Mindmap', headers: ['mindmap'], narrower: 'asMindmap', editorDiagramType: 'Mindmap', editorLabel: 'Mindmap', editorDescription: 'A centered, bilateral hierarchy with shapes, Markdown, Unicode, accessibility, and deep quality branches.', editorExampleId: 'mindmap-basic', editorGlyph: 'M',
+    Release        :milestone, m1, after rev1, 0d`,
+  },
+  {
+    id: 'mindmap',
+    upstreamId: 'mindmap',
+    maturity: 'stable',
+    label: 'Mindmap',
+    headers: ['mindmap'],
+    narrower: 'asMindmap',
+    editorDiagramType: 'Mindmap',
+    editorLabel: 'Mindmap',
+    editorDescription: 'A centered, bilateral hierarchy with shapes, Markdown, Unicode, accessibility, and deep quality branches.',
+    editorExampleId: 'mindmap-basic',
+    editorGlyph: 'M',
     config: { section: 'mindmap', keys: ['padding', 'maxNodeWidth'] },
     semanticChannels: ['importance', 'category'],
     detect: (line: string) => /^mindmap\s*$/.test(line),
@@ -675,13 +1122,34 @@ interviews, benchmarks, and Unicode naïve café\`"]
         Terminal width
     Ecosystem
       Mermaid parity
-      Terminal tools` },
-  { id: 'gitgraph', upstreamId: 'gitGraph', maturity: 'stable', label: 'GitGraph', headers: ['gitGraph'], narrower: 'asGitGraph', editorDiagramType: 'GitGraph', editorLabel: 'GitGraph', editorDescription: 'Ordered branches, commit types, tags, a semantic merge, and a merge-parent backport.', editorExampleId: 'gitgraph-basic', editorGlyph: 'Git',
+      Terminal tools`,
+  },
+  {
+    id: 'gitgraph',
+    upstreamId: 'gitGraph',
+    maturity: 'stable',
+    label: 'GitGraph',
+    headers: ['gitGraph'],
+    narrower: 'asGitGraph',
+    editorDiagramType: 'GitGraph',
+    editorLabel: 'GitGraph',
+    editorDescription: 'Ordered branches, commit types, tags, a semantic merge, and a merge-parent backport.',
+    editorExampleId: 'gitgraph-basic',
+    editorGlyph: 'Git',
     config: { section: 'gitGraph', keys: ['showBranches', 'showCommitLabel', 'mainBranchName', 'mainBranchOrder', 'parallelCommits', 'rotateCommitLabel'] },
     semanticChannels: ['status', 'category'],
     detect: (line: string) => /^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line),
     detectLoose: (line: string) => /^gitgraph(?:\s|:|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container'), nativeSceneRole('rail', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('label', 'text')],
+    sceneRoles: [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('title', 'text'),
+      nativeSceneRole('group', 'container'),
+      nativeSceneRole('rail', 'shape'),
+      nativeSceneRole('edge', 'connector'),
+      nativeSceneRole('node', 'container'),
+      nativeSceneRole('label', 'text'),
+    ],
     example: 'gitGraph\n  commit id:"base"\n  branch feature\n  commit id:"work"\n  checkout main\n  commit id:"release"\n  merge feature id:"merge"',
     editorExample: `---
 title: Release train with backport
@@ -708,8 +1176,20 @@ gitGraph LR:
   merge develop id:"MERGE" tag:"v2.0.0" type:HIGHLIGHT
   checkout release
   cherry-pick id:"MERGE" parent:"UI" tag:"backport"
-  commit id:"PATCH" msg:"Verify release"` },
-  { id: 'radar', upstreamId: 'radar', maturity: 'experimental', label: 'Radar', headers: ['radar-beta'], narrower: 'asRadar', editorDiagramType: 'Radar', editorLabel: 'Radar chart', editorDescription: 'Multivariate profiles compared across shared axes — the silhouette is the message.', editorExampleId: 'radar-basic', editorGlyph: 'R',
+  commit id:"PATCH" msg:"Verify release"`,
+  },
+  {
+    id: 'radar',
+    upstreamId: 'radar',
+    maturity: 'experimental',
+    label: 'Radar',
+    headers: ['radar-beta'],
+    narrower: 'asRadar',
+    editorDiagramType: 'Radar',
+    editorLabel: 'Radar chart',
+    editorDescription: 'Multivariate profiles compared across shared axes — the silhouette is the message.',
+    editorExampleId: 'radar-basic',
+    editorGlyph: 'R',
     config: { section: 'radar', keys: ['width', 'height', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'axisScaleFactor', 'axisLabelFactor', 'curveTension', 'useMaxWidth', 'tickLabels', 'useWidth'], noopKeys: ['useWidth'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^radar-beta(?:\s|:|$)/.test(line),
@@ -722,23 +1202,44 @@ gitGraph LR:
   curve a["Model A"]{4, 5, 3, 4, 4, 5}
   curve b["Model B"]{5, 3, 4, 3, 5, 3}
   graticule polygon
-  max 5` },
+  max 5`,
+  },
+  {
+    id: 'sankey',
+    upstreamId: 'sankey',
+    maturity: 'experimental',
+    label: 'Sankey',
+    headers: ['sankey', 'sankey-beta'],
+    narrower: 'asSankey',
+    editorDiagramType: 'Sankey',
+    editorLabel: 'Sankey diagram',
+    editorDescription: 'Conserved flows between layered stages — ribbon width is the quantity.',
+    editorExampleId: 'sankey-basic',
+    editorGlyph: 'SK',
+    config: { section: 'sankey', keys: ['width', 'height', 'linkColor', 'nodeAlignment', 'showValues', 'prefix', 'suffix', 'labelStyle', 'nodeWidth', 'nodePadding', 'nodeColors', 'useMaxWidth'], noopKeys: ['useMaxWidth'] },
+    semanticChannels: ['value', 'category'],
+    detect: (line: string) => /^sankey(?:-beta)?\s*$/.test(line),
+    detectLoose: (line: string) => /^sankey(?:-beta)?(?:\s|$)/.test(line),
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('edge', 'connector'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('label', 'text'), nativeSceneRole('title', 'text')],
+    // Balanced by construction (Electricity grid: in 127.93 = out 71.24 + 56.69):
+    // the example agents copy must clear the FLOW_IMBALANCE conservation lint,
+    // and stays 4 nodes / 3 edges to match the pinned structural-count fixture.
+    example: 'sankey-beta\n  Coal,Electricity grid,127.93\n  Electricity grid,Industry,71.24\n  Electricity grid,Losses,56.69',
+    // Balanced (Electricity in 180 = out 180), multi-source so the editor shows
+    // ribbon stacking and the categorical palette across several nodes.
+    editorExample: `sankey-beta
+  Coal,Electricity,60
+  Gas,Electricity,80
+  Solar,Electricity,40
+  Electricity,Homes,120
+  Electricity,Industry,60`,
+  },
 ] as const satisfies readonly BuiltinFamilyDescriptorSeed[]
 
-export type BuiltinFamilyId = typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS[number]['id']
+export type BuiltinFamilyId = (typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS)[number]['id']
 
 function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDescriptor {
-  const {
-    sceneRoles,
-    narrower: _narrower,
-    editorDiagramType: _editorDiagramType,
-    editorLabel: _editorLabel,
-    editorDescription: _editorDescription,
-    editorExampleId: _editorExampleId,
-    editorGlyph: _editorGlyph,
-    editorExample: _editorExample,
-    ...descriptor
-  } = seed
+  const { sceneRoles, narrower: _narrower, editorDiagramType: _editorDiagramType, editorLabel: _editorLabel, editorDescription: _editorDescription, editorExampleId: _editorExampleId, editorGlyph: _editorGlyph, editorExample: _editorExample, ...descriptor } = seed
   const semanticRoles = sceneRoles.map(row => row.role)
   return freezeDescriptor({
     ...descriptor,
@@ -755,24 +1256,18 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDes
     collisionPriority: 100,
     aliases: seed.aliases ?? [],
     semanticRoles,
-    scenePrimitiveEvidence: declareFamilyScenePrimitiveEvidence(
-      seed.id,
-      sceneRoles,
-      ['src/__tests__/section-a-family-descriptor-conformance.test.ts'],
-    ),
+    scenePrimitiveEvidence: declareFamilyScenePrimitiveEvidence(seed.id, sceneRoles, ['src/__tests__/section-a-family-descriptor-conformance.test.ts']),
     capabilityEvidence: builtinFamilyCapabilityEvidence(seed.id),
   })
 }
 
 export const BUILTIN_FAMILY_METADATA: readonly BuiltinFamilyMetadata[] = Object.freeze(
   BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(({ id, label, headers, narrower, editorDiagramType, editorLabel, editorDescription, editorExampleId, editorGlyph, editorExample, example }) =>
-    Object.freeze({ id, label, headers, narrower, editorDiagramType, editorLabel, editorDescription, editorExampleId, editorGlyph, editorExample, example })),
+    Object.freeze({ id, label, headers, narrower, editorDiagramType, editorLabel, editorDescription, editorExampleId, editorGlyph, editorExample, example }),
+  ),
 )
 
-type BuiltinFamilyMetadataCoversDiagramKind =
-  [Exclude<DiagramKind, BuiltinFamilyId>, Exclude<BuiltinFamilyId, DiagramKind>] extends [never, never]
-    ? true
-    : never
+type BuiltinFamilyMetadataCoversDiagramKind = [Exclude<DiagramKind, BuiltinFamilyId>, Exclude<BuiltinFamilyId, DiagramKind>] extends [never, never] ? true : never
 
 export const BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND: BuiltinFamilyMetadataCoversDiagramKind = true
 
@@ -795,16 +1290,10 @@ function normalizedHeader(header: string): string {
 }
 
 function validDeclaredHeader(header: unknown): header is string {
-  return typeof header === 'string'
-    && header !== ''
-    && header === header.trim()
-    && !/[;\u0000-\u001f\u007f]/.test(header)
+  return typeof header === 'string' && header !== '' && header === header.trim() && !/[;\u0000-\u001f\u007f]/.test(header)
 }
 
-const UPSTREAM_HEADER_OWNERS = new Map<string, string>(
-  UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family =>
-    family.headers.map(header => [normalizedHeader(header.value), family.id] as const)),
-)
+const UPSTREAM_HEADER_OWNERS = new Map<string, string>(UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family => family.headers.map(header => [normalizedHeader(header.value), family.id] as const)))
 
 const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'contractVersion',
@@ -839,10 +1328,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'renderAscii',
 ] as const satisfies readonly (keyof FamilyDescriptor)[])
 
-type UncapturedFamilyDescriptorField = Exclude<
-  keyof FamilyDescriptor,
-  (typeof FAMILY_DESCRIPTOR_FIELDS)[number]
->
+type UncapturedFamilyDescriptorField = Exclude<keyof FamilyDescriptor, (typeof FAMILY_DESCRIPTOR_FIELDS)[number]>
 /** Compile-time tripwire: a future descriptor field must make an explicit
  * snapshot decision before it can participate in registration. */
 const ALL_FAMILY_DESCRIPTOR_FIELDS_CAPTURED: UncapturedFamilyDescriptorField extends never ? true : never = true
@@ -852,10 +1338,7 @@ const MAX_FAMILY_DESCRIPTOR_ARRAY_ITEMS = 100_000
 /** Read a fixed record surface once. The returned plain object is the only
  * value that later snapshot/validation code may inspect, so an accessor-backed
  * candidate cannot present one value during validation and another at commit. */
-function captureFields(
-  value: unknown,
-  fields: readonly string[],
-): Record<string, unknown> | undefined {
+function captureFields(value: unknown, fields: readonly string[]): Record<string, unknown> | undefined {
   if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return undefined
   const source = value as object
   return Object.fromEntries(fields.map(field => [field, Reflect.get(source, field)]))
@@ -864,11 +1347,7 @@ function captureFields(
 /** Descriptor arrays are declarative dense tuples/lists. Snapshot indices
  * without consulting a caller-provided iterator and reject pathological or
  * sparse containers before validation performs any further walks. */
-function snapshotDescriptorArray<T, U>(
-  value: unknown,
-  label: string,
-  project: (item: T, index: number) => U,
-): readonly U[] | unknown {
+function snapshotDescriptorArray<T, U>(value: unknown, label: string, project: (item: T, index: number) => U): readonly U[] | unknown {
   if (!Array.isArray(value)) return value
   const length = Reflect.get(value, 'length') as unknown
   if (!Number.isSafeInteger(length) || (length as number) < 0) {
@@ -913,9 +1392,7 @@ function snapshotFamilyConfig(value: unknown): FamilyConfigContract | unknown {
   const captured = captureFields(value, ['section', 'keys', 'noopKeys'])
   if (!captured) return value
   const keys = snapshotDescriptorArray<string, string>(captured.keys, 'config.keys', item => item)
-  const noopKeys = captured.noopKeys === undefined
-    ? undefined
-    : snapshotDescriptorArray<string, string>(captured.noopKeys, 'config.noopKeys', item => item)
+  const noopKeys = captured.noopKeys === undefined ? undefined : snapshotDescriptorArray<string, string>(captured.noopKeys, 'config.noopKeys', item => item)
   return Object.freeze({
     section: captured.section,
     keys,
@@ -924,20 +1401,14 @@ function snapshotFamilyConfig(value: unknown): FamilyConfigContract | unknown {
 }
 
 function snapshotScenePrimitiveCell(value: unknown, index: number): FamilyScenePrimitiveEvidence {
-  const captured = captureFields(value, [
-    'role', 'primitive', 'applicability', 'realization', 'evidence', 'diagnostic',
-  ])
+  const captured = captureFields(value, ['role', 'primitive', 'applicability', 'realization', 'evidence', 'diagnostic'])
   if (!captured) return value as FamilyScenePrimitiveEvidence
   return Object.freeze({
     role: captured.role,
     primitive: captured.primitive,
     applicability: captured.applicability,
     realization: captured.realization,
-    evidence: snapshotDescriptorArray<string, string>(
-      captured.evidence,
-      `scenePrimitiveEvidence[${index}].evidence`,
-      item => item,
-    ),
+    evidence: snapshotDescriptorArray<string, string>(captured.evidence, `scenePrimitiveEvidence[${index}].evidence`, item => item),
     ...(captured.diagnostic === undefined ? {} : { diagnostic: captured.diagnostic }),
   }) as unknown as FamilyScenePrimitiveEvidence
 }
@@ -948,11 +1419,7 @@ function snapshotCapabilityCell(value: unknown, index: number): FamilyCapability
   return Object.freeze({
     capability: captured.capability,
     state: captured.state,
-    evidence: snapshotDescriptorArray<string, string>(
-      captured.evidence,
-      `capabilityEvidence[${index}].evidence`,
-      item => item,
-    ),
+    evidence: snapshotDescriptorArray<string, string>(captured.evidence, `capabilityEvidence[${index}].evidence`, item => item),
   }) as unknown as FamilyCapabilityEvidence
 }
 
@@ -975,28 +1442,14 @@ function freezeDescriptor(untrusted: FamilyDescriptor): FamilyDescriptor {
     semanticRoles: snapshotDescriptorArray<string, string>(captured.semanticRoles, 'semanticRoles', item => item),
     // Additive compatibility: descriptors registered before the channel census
     // omitted this field and mean "no declared semantic channels".
-    semanticChannels: captured.semanticChannels === undefined
-      ? Object.freeze([])
-      : snapshotDescriptorArray<string, SemanticChannelName>(captured.semanticChannels, 'semanticChannels', item => item as SemanticChannelName),
-    scenePrimitiveEvidence: snapshotDescriptorArray<unknown, FamilyScenePrimitiveEvidence>(
-      captured.scenePrimitiveEvidence,
-      'scenePrimitiveEvidence',
-      snapshotScenePrimitiveCell,
-    ),
-    capabilityEvidence: snapshotDescriptorArray<unknown, FamilyCapabilityEvidence>(
-      captured.capabilityEvidence,
-      'capabilityEvidence',
-      snapshotCapabilityCell,
-    ),
+    semanticChannels: captured.semanticChannels === undefined ? Object.freeze([]) : snapshotDescriptorArray<string, SemanticChannelName>(captured.semanticChannels, 'semanticChannels', item => item as SemanticChannelName),
+    scenePrimitiveEvidence: snapshotDescriptorArray<unknown, FamilyScenePrimitiveEvidence>(captured.scenePrimitiveEvidence, 'scenePrimitiveEvidence', snapshotScenePrimitiveCell),
+    capabilityEvidence: snapshotDescriptorArray<unknown, FamilyCapabilityEvidence>(captured.capabilityEvidence, 'capabilityEvidence', snapshotCapabilityCell),
     ...(captured.config === undefined ? {} : { config: snapshotFamilyConfig(captured.config) }),
     ...(captured.applicableRenderOptions === undefined
       ? {}
       : {
-          applicableRenderOptions: snapshotDescriptorArray<string, string>(
-            captured.applicableRenderOptions,
-            'applicableRenderOptions',
-            item => item,
-          ),
+          applicableRenderOptions: snapshotDescriptorArray<string, string>(captured.applicableRenderOptions, 'applicableRenderOptions', item => item),
         }),
   }) as FamilyDescriptor
 }
@@ -1007,9 +1460,7 @@ function detectorClaims(descriptor: FamilyDescriptor, header: string): boolean {
   return descriptor.detect(normalized) || Boolean(descriptor.detectLoose?.(normalized))
 }
 
-const FAMILY_CAPABILITY_STATES = new Set<FamilyCapabilityState>([
-  'native', 'source-preserved', 'diagnosed', 'not-applicable', 'absent',
-])
+const FAMILY_CAPABILITY_STATES = new Set<FamilyCapabilityState>(['native', 'source-preserved', 'diagnosed', 'not-applicable', 'absent'])
 
 function validSceneRoleDeclaration(role: string): boolean {
   if (Object.prototype.hasOwnProperty.call(BUILTIN_SCENE_ROLE_TRAITS, role)) return true
@@ -1025,59 +1476,51 @@ function hasPublicSceneExecution(descriptor: FamilyDescriptor): boolean {
 }
 
 function hasPublicSvgExecution(descriptor: FamilyDescriptor): boolean {
-  return descriptor.layout !== undefined
-    && (descriptor.lowerScene !== undefined || descriptor.renderSvg !== undefined)
+  return descriptor.layout !== undefined && (descriptor.lowerScene !== undefined || descriptor.renderSvg !== undefined)
 }
 
 function hasPublicVerificationProjection(descriptor: FamilyDescriptor): boolean {
   return hasPublicLayoutProjection(descriptor) && hasPublicSvgExecution(descriptor)
 }
 
-function expectedCapabilityState(
-  descriptor: FamilyDescriptor,
-  capability: FamilyCapability,
-): FamilyCapabilityState {
+function expectedCapabilityState(descriptor: FamilyDescriptor, capability: FamilyCapability): FamilyCapabilityState {
   switch (capability) {
-    case 'detection': return 'native'
-    case 'source-preservation': return descriptor.parse ? 'native' : 'source-preserved'
-    case 'parse': return descriptor.parse ? 'native' : 'source-preserved'
-    case 'serialize': return descriptor.serialize ? 'native' : 'source-preserved'
+    case 'detection':
+      return 'native'
+    case 'source-preservation':
+      return descriptor.parse ? 'native' : 'source-preserved'
+    case 'parse':
+      return descriptor.parse ? 'native' : 'source-preserved'
+    case 'serialize':
+      return descriptor.serialize ? 'native' : 'source-preserved'
     // Extension mutation verbs remain a closed built-in union. Built-ins, on
     // the other hand, must carry the hook that their native claim advertises.
-    case 'mutation': return isBuiltinFamilyId(descriptor.id) && descriptor.mutate ? 'native' : 'diagnosed'
+    case 'mutation':
+      return isBuiltinFamilyId(descriptor.id) && descriptor.mutate ? 'native' : 'diagnosed'
     // Built-ins pass through the family-neutral verifier; extensions also need
     // their family hook. Both paths require the same executable SVG + public
     // positioned-layout tuple that verifyMermaid consumes at runtime.
-    case 'verify': return hasPublicVerificationProjection(descriptor)
-      && (isBuiltinFamilyId(descriptor.id) || descriptor.verify !== undefined)
-      ? 'native'
-      : 'diagnosed'
+    case 'verify':
+      return hasPublicVerificationProjection(descriptor) && (isBuiltinFamilyId(descriptor.id) || descriptor.verify !== undefined) ? 'native' : 'diagnosed'
     // A layout hook can legitimately serve SVG/Scene without exposing layout
     // JSON. That partial tuple is diagnosed rather than advertised as native.
-    case 'layout': return hasPublicLayoutProjection(descriptor)
-      ? 'native'
-      : descriptor.layout || descriptor.projectPositioned ? 'diagnosed' : 'absent'
-    case 'scene': return hasPublicSceneExecution(descriptor)
-      ? 'native'
-      : descriptor.lowerScene ? 'diagnosed' : 'absent'
-    case 'svg': return hasPublicSvgExecution(descriptor) ? 'native' : 'absent'
-    case 'terminal': return descriptor.renderAscii ? 'native' : 'absent'
+    case 'layout':
+      return hasPublicLayoutProjection(descriptor) ? 'native' : descriptor.layout || descriptor.projectPositioned ? 'diagnosed' : 'absent'
+    case 'scene':
+      return hasPublicSceneExecution(descriptor) ? 'native' : descriptor.lowerScene ? 'diagnosed' : 'absent'
+    case 'svg':
+      return hasPublicSvgExecution(descriptor) ? 'native' : 'absent'
+    case 'terminal':
+      return descriptor.renderAscii ? 'native' : 'absent'
   }
 }
 
-function validateDescriptor(
-  descriptor: FamilyDescriptor,
-  replacingId?: FamilyId,
-  registry: ReadonlyMap<FamilyId, FamilyDescriptor> = REGISTRY,
-): void {
+function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId, registry: ReadonlyMap<FamilyId, FamilyDescriptor> = REGISTRY): void {
   if (!descriptor || typeof descriptor !== 'object') throw new TypeError('Family descriptor must be an object')
   if (!isBuiltinFamilyId(descriptor.id) && !isExternalFamilyId(descriptor.id)) {
     throw new Error(`External family id "${descriptor.id}" must use the "family:" namespace`)
   }
-  if (!isBuiltinFamilyId(descriptor.id)
-    && (descriptor.id === 'family:unknown'
-      || descriptor.id.startsWith('family:upstream/')
-      || BUILTIN_IDS.has(descriptor.id.slice('family:'.length)))) {
+  if (!isBuiltinFamilyId(descriptor.id) && (descriptor.id === 'family:unknown' || descriptor.id.startsWith('family:upstream/') || BUILTIN_IDS.has(descriptor.id.slice('family:'.length)))) {
     throw new Error(`External family id "${descriptor.id}" is reserved by the core family/preservation envelope`)
   }
   const expectedIdentityId = isBuiltinFamilyId(descriptor.id) ? `family:${descriptor.id}` : descriptor.id
@@ -1111,27 +1554,20 @@ function validateDescriptor(
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)
   if (!Number.isSafeInteger(descriptor.collisionPriority)) throw new Error(`Family "${descriptor.id}" must declare an integer collisionPriority`)
 
-  if (!Array.isArray(descriptor.aliases)
-    || descriptor.aliases.some(alias => !validDeclaredHeader(alias))) {
+  if (!Array.isArray(descriptor.aliases) || descriptor.aliases.some(alias => !validDeclaredHeader(alias))) {
     throw new Error(`Family "${descriptor.id}" must declare canonical aliases without surrounding whitespace, controls, or semicolons`)
   }
   const claimedHeaders = new Set([...descriptor.headers, ...descriptor.aliases].map(normalizedHeader))
   for (const [id, existing] of registry) {
     if (id === replacingId) continue
-    const collision = [...existing.headers, ...existing.aliases]
-      .map(normalizedHeader)
-      .find(header => claimedHeaders.has(header))
+    const collision = [...existing.headers, ...existing.aliases].map(normalizedHeader).find(header => claimedHeaders.has(header))
     if (collision) throw new Error(`Family header "${collision}" is already owned by "${id}"`)
   }
   const upstreamAlias = descriptor.aliases.find(alias => UPSTREAM_HEADER_OWNERS.has(normalizedHeader(alias)))
   if (upstreamAlias) {
-    throw new Error(
-      `Family "${descriptor.id}" alias "${upstreamAlias}" is an upstream public header and must be declared in headers`,
-    )
+    throw new Error(`Family "${descriptor.id}" alias "${upstreamAlias}" is an upstream public header and must be declared in headers`)
   }
-  const declaredUpstreamFamilies = new Set(descriptor.headers
-    .map(header => UPSTREAM_HEADER_OWNERS.get(normalizedHeader(header)))
-    .filter((id): id is string => id !== undefined))
+  const declaredUpstreamFamilies = new Set(descriptor.headers.map(header => UPSTREAM_HEADER_OWNERS.get(normalizedHeader(header))).filter((id): id is string => id !== undefined))
   if (declaredUpstreamFamilies.size > 1) {
     throw new Error(`Family "${descriptor.id}" cannot claim upstream headers from multiple Mermaid families`)
   }
@@ -1250,8 +1686,7 @@ function validateDescriptor(
       throw new Error(`Family "${descriptor.id}" capability "${capability}" claims "${declared}" but its hooks require "${expected}"`)
     }
   }
-  if (!isBuiltinFamilyId(descriptor.id)
-    && descriptor.capabilityEvidence.some(claim => claim.state === 'native')) {
+  if (!isBuiltinFamilyId(descriptor.id) && descriptor.capabilityEvidence.some(claim => claim.state === 'native')) {
     if (typeof descriptor.example !== 'string' || descriptor.example.trim() === '') {
       throw new Error(`External family "${descriptor.id}" must declare a canonical example for executable native conformance`)
     }
@@ -1263,9 +1698,7 @@ function validateDescriptor(
   if (new Set(ownHeaders).size !== ownHeaders.length) throw new Error(`Family "${descriptor.id}" declares duplicate headers`)
   const unrecognized = ownHeaders.find(header => !descriptor.detect(header))
   if (unrecognized) throw new Error(`Family detector for "${descriptor.id}" does not recognize its declared header "${unrecognized}"`)
-  const looselyUnrecognized = descriptor.detectLoose
-    ? ownHeaders.find(header => !descriptor.detectLoose!(header))
-    : undefined
+  const looselyUnrecognized = descriptor.detectLoose ? ownHeaders.find(header => !descriptor.detectLoose!(header)) : undefined
   if (looselyUnrecognized) {
     throw new Error(`Family loose detector for "${descriptor.id}" does not recognize its declared header "${looselyUnrecognized}"`)
   }
@@ -1329,9 +1762,7 @@ function builtinFamilyConformanceReport(descriptor: FamilyDescriptor): FamilyCon
 }
 
 /** Executable proof authority paired with each immutable registry entry. */
-const CONFORMANCE = new Map<FamilyId, FamilyConformanceReport>(
-  Array.from(REGISTRY.values(), descriptor => [descriptor.id, builtinFamilyConformanceReport(descriptor)] as const),
-)
+const CONFORMANCE = new Map<FamilyId, FamilyConformanceReport>(Array.from(REGISTRY.values(), descriptor => [descriptor.id, builtinFamilyConformanceReport(descriptor)] as const))
 
 /** While a candidate's callbacks execute, no callback may change the registry
  * it is being judged against. This also protects existing unregister tokens
@@ -1353,10 +1784,7 @@ export interface StagedFamilyCandidate {
 /** @internal Higher-level registration owns executable conformance. This seam
  * only validates, freezes, stages and atomically commits/rolls back a value;
  * importing a renderer here would invert the registry dependency. */
-export function stageFamilyCandidateForConformance(
-  descriptor: FamilyDescriptor,
-  validateSnapshot?: (descriptor: FamilyDescriptor) => void,
-): StagedFamilyCandidate {
+export function stageFamilyCandidateForConformance(descriptor: FamilyDescriptor, validateSnapshot?: (descriptor: FamilyDescriptor) => void): StagedFamilyCandidate {
   assertRegistryMutationAllowed()
   const token = Symbol('family-candidate')
   // Descriptor accessors are caller-owned code too. Enter the mutation guard
@@ -1388,8 +1816,7 @@ export function stageFamilyCandidateForConformance(
       commit(report: FamilyConformanceReport): () => void {
         if (settled) throw new Error(`Family candidate "${id}" is already settled`)
         if (report.familyId !== id) throw new Error(`Family conformance report for "${report.familyId}" cannot commit "${id}"`)
-        if (report.capabilities.length !== FAMILY_CAPABILITY_COLUMNS.length
-          || FAMILY_CAPABILITY_COLUMNS.some(capability => !report.capabilities.some(result => result.capability === capability))) {
+        if (report.capabilities.length !== FAMILY_CAPABILITY_COLUMNS.length || FAMILY_CAPABILITY_COLUMNS.some(capability => !report.capabilities.some(result => result.capability === capability))) {
           throw new Error(`Family conformance report for "${id}" is incomplete`)
         }
         const frozenReport = freezeFamilyConformanceReport(report)
@@ -1457,10 +1884,7 @@ export function getFamilyConformanceReport(kind: FamilyId | string): FamilyConfo
 
 /** Report-facing state projection. A declaration alone can never manufacture
  * a native capability; native appears only beside a passed executable cell. */
-export function effectiveFamilyCapabilityState(
-  descriptor: FamilyDescriptor,
-  capability: FamilyCapability,
-): FamilyCapabilityState {
+export function effectiveFamilyCapabilityState(descriptor: FamilyDescriptor, capability: FamilyCapability): FamilyCapabilityState {
   const declared = descriptor.capabilityEvidence.find(claim => claim.capability === capability)?.state ?? 'absent'
   if (declared !== 'native') return declared
   const result = CONFORMANCE.get(descriptor.id)?.capabilities.find(cell => cell.capability === capability)
@@ -1498,16 +1922,12 @@ function descriptorOwnsDetectionLine(descriptor: FamilyDescriptor, line: string)
 }
 
 /** Descriptor-driven routing for built-ins and installed extensions. */
-export function detectRegisteredFamilyDescriptorFromFirstLine(
-  firstLine: string,
-  mode: 'strict' | 'loose' = 'strict',
-): FamilyDescriptor | null {
+export function detectRegisteredFamilyDescriptorFromFirstLine(firstLine: string, mode: 'strict' | 'loose' = 'strict'): FamilyDescriptor | null {
   const line = normalizeDetectionLine(firstLine)
-  const descriptors = Array.from(REGISTRY.values()).sort((a, b) =>
-    b.collisionPriority - a.collisionPriority || compareCodePointStrings(a.id, b.id))
+  const descriptors = Array.from(REGISTRY.values()).sort((a, b) => b.collisionPriority - a.collisionPriority || compareCodePointStrings(a.id, b.id))
   for (const descriptor of descriptors) {
     if (!descriptorOwnsDetectionLine(descriptor, line)) continue
-    const detector = mode === 'loose' ? descriptor.detectLoose ?? descriptor.detect : descriptor.detect
+    const detector = mode === 'loose' ? (descriptor.detectLoose ?? descriptor.detect) : descriptor.detect
     // Return the immutable descriptor from this exact registry snapshot. A
     // detector is executable extension code and may mutate registry state; a
     // later id lookup would otherwise switch or lose the request's owner.
@@ -1520,5 +1940,5 @@ export function detectRegisteredFamilyFromFirstLine(firstLine: string, mode: 'st
   return detectRegisteredFamilyDescriptorFromFirstLine(firstLine, mode)?.id ?? null
 }
 
-export type { FamilyId, ExternalFamilyId } from './types.ts'
 export type { ExtensionIdentity } from '../shared/extension-identity.ts'
+export type { ExternalFamilyId, FamilyId } from './types.ts'

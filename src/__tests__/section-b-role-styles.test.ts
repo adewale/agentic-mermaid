@@ -1,18 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import {
-  getStyle,
-  knownStyleDescriptors,
-  renderMermaidASCII,
-  renderMermaidSVG,
-  resolveStyleStack,
-  styleSpecJsonSchema,
-  validateStyleSpec,
-} from '../index.ts'
-import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
-import { BINDABLE_SCENE_ROLES, EXACT_ROLE_STYLE_CONTRACT } from '../scene/role-style-contract.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
+import { getStyle, knownStyleDescriptors, renderMermaidASCII, renderMermaidSVG, resolveStyleStack, styleSpecJsonSchema, validateStyleSpec } from '../index.ts'
+import { BINDABLE_SCENE_ROLES, EXACT_ROLE_STYLE_CONTRACT } from '../scene/role-style-contract.ts'
+import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
 
 describe('Section B public semantic role Styles', () => {
   test('role records are strict boundary-parsed data projected into JSON Schema', () => {
@@ -21,18 +13,17 @@ describe('Section B public semantic role Styles', () => {
     expect(schema.properties.roles.properties.node).toEqual({ $ref: '#/$defs/roleStyle-node' })
     expect(schema.properties.bindings.items.properties.slot.not.enum).toEqual(['__proto__', 'constructor', 'prototype'])
     expect(schema.$defs['roleStyle-node'].properties.fontWeight).toMatchObject({
-      type: 'number', minimum: 1, maximum: 1000,
+      type: 'number',
+      minimum: 1,
+      maximum: 1000,
     })
     expect(validateStyleSpec({ roles: { node: { fontWeight: 700, fillColor: '#123456' } } })).toEqual([])
     expect(validateStyleSpec({ roles: { madeUp: { fontWeight: 700 } } })).toContain('unknown scene role "madeUp"')
     expect(validateStyleSpec({ roles: { node: { madeUp: true } } })).toContain('unknown role style field "node.madeUp"')
     expect(validateStyleSpec({ roles: { label: { paddingX: 4 } } })).toContain('role style field "label.paddingX" is not applicable to label roles')
-    expect(validateStyleSpec({ roles: { node: { fontFamily: 'Georgia', lineHeight: 2, elevation: 'high', cue: 'pattern' } } })).toEqual(expect.arrayContaining([
-      'role style field "node.fontFamily" is not applicable to node roles',
-      'unknown role style field "node.lineHeight"',
-      'unknown role style field "node.elevation"',
-      'role style field "node.cue" is not applicable to node roles',
-    ]))
+    expect(validateStyleSpec({ roles: { node: { fontFamily: 'Georgia', lineHeight: 2, elevation: 'high', cue: 'pattern' } } })).toEqual(
+      expect.arrayContaining(['role style field "node.fontFamily" is not applicable to node roles', 'unknown role style field "node.lineHeight"', 'unknown role style field "node.elevation"', 'role style field "node.cue" is not applicable to node roles']),
+    )
     expect(schema.$defs['roleStyle-label'].properties.paddingX).toBeUndefined()
     for (const descriptor of SCENE_ROLE_DESCRIPTORS) {
       const definition = schema.$defs[`roleStyle-${descriptor.role}`]
@@ -40,8 +31,7 @@ describe('Section B public semantic role Styles', () => {
         expect(definition, descriptor.role).toBeUndefined()
         expect(schema.properties.roles.properties[descriptor.role], descriptor.role).toBeUndefined()
       } else {
-        expect(Object.keys(definition.properties).sort(), descriptor.role)
-          .toEqual([...descriptor.style.applicableProperties].sort())
+        expect(Object.keys(definition.properties).sort(), descriptor.role).toEqual([...descriptor.style.applicableProperties].sort())
       }
     }
     expect(validateStyleSpec({ roles: { title: {} } })).toContain('scene role "title" is fallback-only; set roles.label instead')
@@ -51,10 +41,8 @@ describe('Section B public semantic role Styles', () => {
   })
 
   test('every role descriptor owns closed applicability and deterministic fallback', () => {
-    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleConsumption === 'exact').map(role => String(role.role)))
-      .toEqual(Object.keys(EXACT_ROLE_STYLE_CONTRACT))
-    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleBindingFamilies.length > 0).map(role => String(role.role)))
-      .toEqual([...BINDABLE_SCENE_ROLES])
+    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleConsumption === 'exact').map(role => String(role.role))).toEqual(Object.keys(EXACT_ROLE_STYLE_CONTRACT))
+    expect(SCENE_ROLE_DESCRIPTORS.filter(role => role.traits.styleBindingFamilies.length > 0).map(role => String(role.role))).toEqual([...BINDABLE_SCENE_ROLES])
     for (const descriptor of SCENE_ROLE_DESCRIPTORS) {
       const exact = EXACT_ROLE_STYLE_CONTRACT[descriptor.role as keyof typeof EXACT_ROLE_STYLE_CONTRACT]
       if (exact) {
@@ -94,16 +82,26 @@ describe('Section B public semantic role Styles', () => {
       task: { source: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n  Work :a, 2026-01-01, 2d', style: { fillColor: '#ff00ff' } },
       milestone: { source: 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n  Ship :milestone, 2026-01-01, 0d', style: { fillColor: '#ff00ff' } },
     }
-    const exactRoles = SCENE_ROLE_DESCRIPTORS
-      .filter(descriptor => descriptor.traits.styleConsumption === 'exact')
+    const exactRoles = SCENE_ROLE_DESCRIPTORS.filter(descriptor => descriptor.traits.styleConsumption === 'exact')
       .map(descriptor => descriptor.role)
       .sort()
     expect(Object.keys(witnesses).sort()).toEqual(exactRoles)
     const leafValues: Record<string, unknown> = {
-      fontFamily: 'Georgia', fontSize: 23, fontWeight: 900, letterSpacing: 4,
-      textTransform: 'uppercase', textColor: '#ff00ff', paddingX: 42, paddingY: 31,
-      cornerRadius: 19, lineWidth: 8, bendRadius: 24, fillColor: '#ff00ff',
-      borderColor: '#00aa00', strokeColor: '#ff00ff', headerFillColor: '#00ffff',
+      fontFamily: 'Georgia',
+      fontSize: 23,
+      fontWeight: 900,
+      letterSpacing: 4,
+      textTransform: 'uppercase',
+      textColor: '#ff00ff',
+      paddingX: 42,
+      paddingY: 31,
+      cornerRadius: 19,
+      lineWidth: 8,
+      bendRadius: 24,
+      fillColor: '#ff00ff',
+      borderColor: '#00aa00',
+      strokeColor: '#ff00ff',
+      headerFillColor: '#00ffff',
       cue: 'pattern',
     }
     for (const role of exactRoles) {
@@ -129,11 +127,8 @@ describe('Section B public semantic role Styles', () => {
   })
 
   test('nested role merge obeys identity, associativity, right bias, locality, and idempotence', () => {
-    fc.assert(fc.property(
-      fc.integer({ min: 8, max: 40 }),
-      fc.integer({ min: 100, max: 900 }),
-      fc.integer({ min: 0, max: 40 }),
-      (fontSize, fontWeight, paddingX) => {
+    fc.assert(
+      fc.property(fc.integer({ min: 8, max: 40 }), fc.integer({ min: 100, max: 900 }), fc.integer({ min: 0, max: 40 }), (fontSize, fontWeight, paddingX) => {
         const a = { roles: { node: { fontSize } } } as const
         const b = { roles: { node: { fontWeight }, group: { paddingX } } } as const
         const c = { roles: { node: { paddingX } } } as const
@@ -144,8 +139,9 @@ describe('Section B public semantic role Styles', () => {
         expect(resolveStyleStack([a, b])?.roles?.group?.paddingX).toBe(paddingX)
         expect(resolveStyleStack([a, a])).toEqual(resolveStyleStack(a))
         expect(empty?.roles).toBeUndefined()
-      },
-    ), { numRuns: 50 })
+      }),
+      { numRuns: 50 },
+    )
   })
 
   test('every built-in Look exports an ordinary record equivalent to selecting its name', () => {
@@ -155,24 +151,26 @@ describe('Section B public semantic role Styles', () => {
       const exported = getStyle(name)!
       for (const family of knownBuiltinFamilies()) {
         const source = getFamily(family)!.example
-        expect(renderMermaidSVG(source, { style: name, seed: 7 }), `${name}/${family}/svg`)
-          .toBe(renderMermaidSVG(source, { style: exported, seed: 7 }))
-        expect(renderMermaidASCII(source, { style: name }), `${name}/${family}/terminal`)
-          .toBe(renderMermaidASCII(source, { style: exported }))
+        expect(renderMermaidSVG(source, { style: name, seed: 7 }), `${name}/${family}/svg`).toBe(renderMermaidSVG(source, { style: exported, seed: 7 }))
+        expect(renderMermaidASCII(source, { style: name }), `${name}/${family}/terminal`).toBe(renderMermaidASCII(source, { style: exported }))
       }
     }
-  }, 30_000)
+    // 16 families × every Look on the SVG + terminal paths; scaled past the old
+    // 30s allowance once sankey became the 16th family.
+  }, 60_000)
 
   test('every built-in Look export is equivalent across every family on the public PNG path', async () => {
     for (const { inputName: name } of knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')) {
       const exported = getStyle(name)!
       for (const family of knownBuiltinFamilies()) {
         const source = getFamily(family)!.example
-        expect(await renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/${family}`)
-          .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
+        expect(await renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/${family}`).toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
       }
     }
-  }, 30_000)
+    // 16 families × every Look on the PNG path — the heaviest render matrix in
+    // the suite; the sankey addition pushed the wall-clock past the old 45s
+    // allowance, so the cap carries generous headroom for loaded CI runners.
+  }, 90_000)
 
   test('conflicting Pie role defaults never select emphasis or change quantitative geometry', () => {
     const source = `---\nconfig:\n  pie:\n    highlightSlice: Beta\n---\npie\n  "Alpha" : 3\n  "Beta" : 2`

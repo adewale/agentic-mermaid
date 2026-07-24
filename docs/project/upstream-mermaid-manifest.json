@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "743517bef84810c6e8afc8b470b801b8cc4a1687445037bd42cc6079f57a3b59",
+    "inventorySha256": "d9ac79ab6e208196b30cd0d4f0168cad48837ede06a686383f2d463960f3ba91",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -528,11 +528,11 @@
       "headers": [
         {
           "value": "sankey",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "sankey-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ],
       "officialSyntaxPage": {
@@ -1216,7 +1216,7 @@
         "kind": "examples",
         "scope": "repository",
         "path": "eval/mermaid-doc-showcase/manifest.json",
-        "sha256": "d1b6144b816dba4b7d8063d7f35512e6f79ca7cc095d01dc0b0f81f8917d7d24",
+        "sha256": "6b482ec2edfe6619966955581b3560ac9b64c5a6f1fc872d74acf42b485b17eb",
         "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"
       },
       {
@@ -1494,7 +1494,7 @@
         "kind": "accounting",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/manifest.json",
-        "sha256": "116971a81b1aac2579832b7a441bc187c9a0f420d140fb59a02b05c9e606aa7b",
+        "sha256": "2e72253935fb8ccceadce70a272531b55237bdd479fbf9dd4b8a72239805f1d2",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "c3a9218f19f896d0ebb5ab390f1214d532389f60c13d22b1e6e380cdb66a6ab8",
+        "sha256": "981ef4a8078656671412706b081b704a42049f9213374f02f1e24afa8fa9ee5c",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -13280,6 +13280,86 @@
         "status": "executable",
         "fingerprint": "2cbdd91b526e9d08d7b863f3f38f8275df39c0fa0ae41df601cb9d685dfcde67",
         "sourceSha256": "4aa400af0eb573eb52af78d9dbaab5def854a8be9ac2878eee292ab02a6604da"
+      },
+      {
+        "id": "suite-cases:sankey-docs-basic",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "be3f4cd5e6d9a8d246f7f31243f9060f955b4d0ffee8144e6d9ca0ed01eb14b8",
+        "sourceSha256": "b088b06b854e48044606b7b85362addc2de3fe2d0e4096e010ec0a2070adc41e"
+      },
+      {
+        "id": "suite-cases:sankey-docs-commas",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "53175c91e3844c76c2b39a3058cff499331c473e81a8ebf2fad0f9b8df4fa7be",
+        "sourceSha256": "7a78d87a89bd7acd3b5418bf749562245cfcef5526bc5c10b7ae7dad6921251f"
+      },
+      {
+        "id": "suite-cases:sankey-docs-double-quotes",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "aaab49e284a3e60796ecb00037c0e5fab1913f6743918375696f1409ebdb7dc6",
+        "sourceSha256": "e1f75ecc99fffd3351e46d525a8aa64b62a9bc7f75e58ba2302b4a7f5f7c8783"
+      },
+      {
+        "id": "suite-cases:sankey-docs-empty-lines",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "90a1721d90979b0c5b9144fccffe967eda9b30553e76c2da98c06ebab7717a0c",
+        "sourceSha256": "c49672c90d0239604a462a24cffe6b5b6addfcb3de204a8d551488754aae39fb"
+      },
+      {
+        "id": "suite-cases:sankey-docs-energy-full",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "f0d32d74fca736ddc2a3162b53b5a7a0c806247d4c7ebaa0484d45dc9b8f2a98",
+        "sourceSha256": "15e3f2670c8752b7c332959858c2e2d18f07c975036be98b4a723b835a94438f"
+      },
+      {
+        "id": "suite-cases:sankey-docs-label-style-outlined",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "769b86cf209d291a084006f78601ae17a4f17c0c2d55b903122997af7bda960a",
+        "sourceSha256": "dd27b757e9035088632b84b51469358d3fceeece6e7b7debc7b39a4cd3de2d5b"
+      },
+      {
+        "id": "suite-cases:sankey-docs-node-colors",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "6ac732e6710b75bb11d5b620bf87b6c3cb0fb6a76369bf78299b08a47166e7d4",
+        "sourceSha256": "2a7579bc573f4bf15f352e72d26e826cb7a625dd239e4088b0c61f8aa853c711"
+      },
+      {
+        "id": "suite-cases:sankey-docs-node-width-padding",
+        "artifact": "suite-cases",
+        "families": [
+          "sankey"
+        ],
+        "status": "executable",
+        "fingerprint": "473a9e18d20bd277e41bd7b2593bb3f1f919715ccd2ba8eea4fb8b0e943234c1",
+        "sourceSha256": "f08519eab9533461f35a286c7c1e0ca9daba973c52eff1dd296fca2cd3755ab2"
       },
       {
         "id": "suite-cases:sequence-upstream-1-should-parse",
@@ -25471,6 +25551,17 @@
           "official-doc:sankey"
         ],
         "officialDocs": "https://mermaid.ai/open-source/syntax/sankey.html"
+      },
+      {
+        "id": "sankey:syntax/sankey.md#0",
+        "family": "sankey",
+        "origin": "syntax/sankey.md",
+        "index": 0,
+        "sourceSha256": "b088b06b854e48044606b7b85362addc2de3fe2d0e4096e010ec0a2070adc41e",
+        "artifacts": [
+          "docs-showcase"
+        ],
+        "officialDocs": "https://mermaid.js.org/syntax/sankey.html"
       },
       {
         "id": "sequence:official-syntax/sequenceDiagram.md#0",

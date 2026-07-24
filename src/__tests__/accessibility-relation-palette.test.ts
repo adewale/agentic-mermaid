@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
-import { resolveColors } from '../theme.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
-import { contrastRatio } from '../shared/color-math.ts'
 import { relationAccessibilityForSvg } from '../scene/accessibility.ts'
+import { contrastRatio } from '../shared/color-math.ts'
+import { resolveColors } from '../theme.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 function attr(element: string, name: string): string {
@@ -19,7 +19,9 @@ describe('typed relation accessibility', () => {
       const parsed = parseMermaid(source)
       expect(parsed.ok, entry.family).toBe(true)
       if (!parsed.ok) continue
-      const expected = layoutMermaid(parsed.value).edges.map(edge => `${edge.from}->${edge.to}`).sort()
+      const expected = layoutMermaid(parsed.value)
+        .edges.map(edge => `${edge.from}->${edge.to}`)
+        .sort()
       if (expected.length === 0) continue
       enrolled.push(entry.family)
 
@@ -31,14 +33,11 @@ describe('typed relation accessibility', () => {
         expect(relation, entry.family).toMatch(/aria-label="[^"]+ to [^"]+/)
       }
     }
-    expect(enrolled.sort()).toEqual(['architecture', 'class', 'er', 'flowchart', 'gitgraph', 'mindmap', 'sequence', 'state'])
+    expect(enrolled.sort()).toEqual(['architecture', 'class', 'er', 'flowchart', 'gitgraph', 'mindmap', 'sankey', 'sequence', 'state'])
   })
 
   test('keeps the typed relation model aligned with escaped SVG attributes', () => {
-    const semantics = relationAccessibilityForSvg(
-      '<path data-from="API&amp;UI" data-to="DB" data-label="reads &amp; writes" />',
-      { id: 'edge', role: 'edge', from: 'API&UI', to: 'DB' },
-    )
+    const semantics = relationAccessibilityForSvg('<path data-from="API&amp;UI" data-to="DB" data-label="reads &amp; writes" />', { id: 'edge', role: 'edge', from: 'API&UI', to: 'DB' })
     expect(semantics).toEqual({
       label: 'API&UI to DB: reads & writes',
       role: 'graphics-symbol',

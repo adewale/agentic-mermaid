@@ -1,25 +1,21 @@
 // Doc-sync + no-tautology guards.
 
-import { describe, test, expect } from 'bun:test'
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
-import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
-import { COMMAND_HELP, MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
-import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
-import { LOCAL_TOOLS } from '../mcp/server.ts'
-import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import {
-  asFlowchart, asState, asSequence, asTimeline, asClass, asEr,
-  asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar,
-} from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, knownBuiltinFamilies, getFamily } from '../agent/families.ts'
-import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
-import { executeInSandbox } from '../mcp/sandbox.ts'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
+import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, getFamily, knownBuiltinFamilies } from '../agent/families.ts'
+import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
+import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
+import { buildCapabilities, COMMAND_HELP, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
+import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { executeInSandbox } from '../mcp/sandbox.ts'
+import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 ensureWebsiteBuilt()
@@ -52,8 +48,7 @@ describe('Instructions_for_agents.md', () => {
   })
   test('names every hosted MCP tool (so a new tool cannot silently drift the guide)', () => {
     for (const tool of HOSTED_TOOLS) {
-      expect({ tool: tool.name, named: AGENT_INSTRUCTIONS.includes(`\`${tool.name}\``) })
-        .toEqual({ tool: tool.name, named: true })
+      expect({ tool: tool.name, named: AGENT_INSTRUCTIONS.includes(`\`${tool.name}\``) }).toEqual({ tool: tool.name, named: true })
     }
   })
   test('quick-start examples verify before every serialize', () => {
@@ -91,7 +86,9 @@ async function readWithTimeout(promise: Promise<string>, timeoutMs: number): Pro
   try {
     return await Promise.race([
       promise,
-      new Promise<string>(resolve => { timer = setTimeout(() => resolve(''), timeoutMs) }),
+      new Promise<string>(resolve => {
+        timer = setTimeout(() => resolve(''), timeoutMs)
+      }),
     ])
   } finally {
     if (timer) clearTimeout(timer)
@@ -110,9 +107,7 @@ async function runBunExample(script: string, args: string[] = [], timeoutMs = 60
     // SIGABRT), sometimes with empty stderr because the crash preempts the
     // panic banner, or as a null status without our timeout firing. Genuine
     // example failures exit 1-4 and are never retried.
-    const bunCrashed = r.stderr.includes('Bun has crashed') ||
-      (typeof r.status === 'number' && r.status >= 128) ||
-      (r.status === null && !r.timedOut)
+    const bunCrashed = r.stderr.includes('Bun has crashed') || (typeof r.status === 'number' && r.status >= 128) || (r.status === null && !r.timedOut)
     if (!bunCrashed) return r
   }
   return runBunExampleOnce(script, args, timeoutMs)
@@ -134,9 +129,7 @@ async function runBunExampleOnce(script: string, args: string[] = [], timeoutMs 
   })
   const exited = await Promise.race([proc.exited, timeoutPromise])
   if (timer) clearTimeout(timer)
-  const [stdout, stderr] = await Promise.all(timedOut
-    ? [readWithTimeout(stdoutPromise, 2_000), readWithTimeout(stderrPromise, 2_000)]
-    : [stdoutPromise, stderrPromise])
+  const [stdout, stderr] = await Promise.all(timedOut ? [readWithTimeout(stdoutPromise, 2_000), readWithTimeout(stderrPromise, 2_000)] : [stdoutPromise, stderrPromise])
   return { status: typeof exited === 'number' ? exited : null, timedOut, stdout, stderr }
 }
 
@@ -220,11 +213,7 @@ describe('vocabulary doc-sync', () => {
   })
 
   test('summary capability docs delegate the live family roster', () => {
-    const docs = [
-      'README.md',
-      'docs/features.md',
-      'docs/ascii.md',
-    ]
+    const docs = ['README.md', 'docs/features.md', 'docs/ascii.md']
     for (const file of docs) {
       const text = readFileSync(join(REPO, file), 'utf8')
       expect({
@@ -248,8 +237,7 @@ describe('vocabulary doc-sync', () => {
     const ladder = readFileSync(join(REPO, 'docs/design/system/source-preservation-ladder.md'), 'utf8')
     for (const level of ['L0', 'L1', 'L2', 'L3', 'L4']) expect(ladder).toContain(level)
     for (const family of BUILTIN_FAMILY_METADATA) {
-      expect({ family: family.id, listed: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(ladder) })
-        .toEqual({ family: family.id, listed: true })
+      expect({ family: family.id, listed: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(ladder) }).toEqual({ family: family.id, listed: true })
     }
   })
 
@@ -264,11 +252,7 @@ describe('vocabulary doc-sync', () => {
     const todo = readFileSync(join(REPO, 'TODO.md'), 'utf8')
     const defined = new Set([...todo.matchAll(/^- \[ \] \*\*([A-Z]+-\d+)\b/gm)].map(match => match[1]!))
     const prefixes = new Set([...defined].map(id => id.split('-')[0]!))
-    const referenced = new Set(
-      [...todo.matchAll(/\b([A-Z]+-\d+)\b/g)]
-        .map(match => match[1]!)
-        .filter(id => prefixes.has(id.split('-')[0]!)),
-    )
+    const referenced = new Set([...todo.matchAll(/\b([A-Z]+-\d+)\b/g)].map(match => match[1]!).filter(id => prefixes.has(id.split('-')[0]!)))
     expect([...referenced].filter(id => !defined.has(id)).sort()).toEqual([])
   })
 
@@ -302,12 +286,7 @@ describe('vocabulary doc-sync', () => {
     const docs = readFileSync(join(REPO, 'docs/mutation-testing.md'), 'utf8')
     const ci = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
     const packageJson = readFileSync(join(REPO, 'package.json'), 'utf8')
-    for (const command of [
-      'mutation-test -- incremental',
-      'mutation-test -- routes',
-      'mutation-test -- routes:certs',
-      'mutation-test -- routes:subgraph',
-    ]) {
+    for (const command of ['mutation-test -- incremental', 'mutation-test -- routes', 'mutation-test -- routes:certs', 'mutation-test -- routes:subgraph']) {
       expect(docs).toContain(command)
     }
     expect(packageJson).toContain('"mutation-test"')
@@ -326,11 +305,7 @@ describe('vocabulary doc-sync', () => {
     }
   })
   test('public verify docs list every warning code', () => {
-    const surfaces = [
-      COMMAND_HELP.verify,
-      readFileSync(join(REPO, 'docs/features.md'), 'utf8'),
-      readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8'),
-    ]
+    const surfaces = [COMMAND_HELP.verify, readFileSync(join(REPO, 'docs/features.md'), 'utf8'), readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8')]
     for (const code of Object.keys(WARNING_SEVERITY)) {
       for (const surface of surfaces) expect(surface).toContain(code)
     }
@@ -374,8 +349,7 @@ describe('vocabulary doc-sync', () => {
     }
     const convention = SDK_DECLARATION.split('// 3. mutate works on')[1]?.split('//    State owns')[0] ?? ''
     for (const family of BUILTIN_FAMILY_METADATA) {
-      expect({ family: family.id, described: convention.toLowerCase().includes(family.id) })
-        .toEqual({ family: family.id, described: true })
+      expect({ family: family.id, described: convention.toLowerCase().includes(family.id) }).toEqual({ family: family.id, described: true })
     }
   })
 
@@ -404,8 +378,7 @@ describe('vocabulary doc-sync', () => {
         ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
         ['init-agent skill bundle', INIT_SKILL_MD],
       ] as const) {
-        expect({ family, file, narrowerListed: text.includes(metadata.narrower) })
-          .toEqual({ family, file, narrowerListed: true })
+        expect({ family, file, narrowerListed: text.includes(metadata.narrower) }).toEqual({ family, file, narrowerListed: true })
       }
     }
 
@@ -452,14 +425,14 @@ describe('vocabulary doc-sync', () => {
       asMindmap: 'mindmap\\n  root\\n    child',
       asGitGraph: 'gitGraph\\n  commit',
       asRadar: 'radar-beta\\n  axis a, b, c\\n  curve x{1, 2, 3}',
+      asSankey: 'sankey-beta\\n  Coal,Electricity,127.93',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
       expect({ narrower, known: Boolean(source) }).toEqual({ narrower, known: true })
       const code = `const r = mermaid.parseRegisteredMermaid('${source}')\nif (!r.ok) return { narrower: '${narrower}', phase: 'parse' }\nconst n = mermaid.${narrower}(r.value)\nreturn { narrower: '${narrower}', narrowed: n !== null }`
       const result = await executeInSandbox(code, {})
-      expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error })
-        .toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
+      expect({ narrower, ok: result.ok, value: result.ok ? result.value : result.error }).toEqual({ narrower, ok: true, value: { narrower, narrowed: true } })
     }
   })
 
@@ -471,22 +444,30 @@ describe('vocabulary doc-sync', () => {
     // closes the loophole where a family could ship without a structured editing
     // surface (as pie/quadrant once did).
     const NARROWERS: Record<DiagramKind, (d: ValidDiagram) => unknown> = {
-      flowchart: asFlowchart, state: asState, sequence: asSequence, timeline: asTimeline,
-      class: asClass, er: asEr, journey: asJourney, architecture: asArchitecture,
-      xychart: asXyChart, pie: asPie, quadrant: asQuadrant, gantt: asGantt,
-      mindmap: asMindmap, gitgraph: asGitGraph, radar: asRadar,
+      flowchart: asFlowchart,
+      state: asState,
+      sequence: asSequence,
+      timeline: asTimeline,
+      class: asClass,
+      er: asEr,
+      journey: asJourney,
+      architecture: asArchitecture,
+      xychart: asXyChart,
+      pie: asPie,
+      quadrant: asQuadrant,
+      gantt: asGantt,
+      mindmap: asMindmap,
+      gitgraph: asGitGraph,
+      radar: asRadar,
+      sankey: asSankey,
     }
     const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
     for (const kind of knownBuiltinFamilies()) {
       const plugin = getFamily(kind)!
-      expect({ kind, hasMutate: typeof plugin.mutate === 'function', msg: FAIL })
-        .toEqual({ kind, hasMutate: true, msg: FAIL })
-      expect({ kind, hasSerialize: typeof plugin.serialize === 'function', msg: FAIL })
-        .toEqual({ kind, hasSerialize: true, msg: FAIL })
-      expect({ kind, declaresOps: kind in MUTATION_OPS_BY_FAMILY, msg: FAIL })
-        .toEqual({ kind, declaresOps: true, msg: FAIL })
-      expect({ kind, hasNarrower: typeof NARROWERS[kind] === 'function', msg: FAIL })
-        .toEqual({ kind, hasNarrower: true, msg: FAIL })
+      expect({ kind, hasMutate: typeof plugin.mutate === 'function', msg: FAIL }).toEqual({ kind, hasMutate: true, msg: FAIL })
+      expect({ kind, hasSerialize: typeof plugin.serialize === 'function', msg: FAIL }).toEqual({ kind, hasSerialize: true, msg: FAIL })
+      expect({ kind, declaresOps: kind in MUTATION_OPS_BY_FAMILY, msg: FAIL }).toEqual({ kind, declaresOps: true, msg: FAIL })
+      expect({ kind, hasNarrower: typeof NARROWERS[kind] === 'function', msg: FAIL }).toEqual({ kind, hasNarrower: true, msg: FAIL })
     }
     // Sanity: the narrower table covers every registered family kind exactly.
     expect(new Set(Object.keys(NARROWERS))).toEqual(new Set(knownBuiltinFamilies()))
@@ -573,8 +554,7 @@ describe('hosted-tool enumeration does not rot', () => {
   }
 
   test('every doc that names a hosted-only tool also names mutate + build', () => {
-    const docs = [...shippedDocs('docs'), ...shippedDocs('skills'), ...shippedDocs('website/source'),
-      'website/README.md', 'eval/agent-usage/RUNBOOK.md', 'Instructions_for_agents.md', 'README.md']
+    const docs = [...shippedDocs('docs'), ...shippedDocs('skills'), ...shippedDocs('website/source'), 'website/README.md', 'eval/agent-usage/RUNBOOK.md', 'Instructions_for_agents.md', 'README.md']
     let checked = 0
     for (const rel of docs) {
       const path = join(REPO, rel)
@@ -611,15 +591,9 @@ describe('exact MCP inventories match the runtime registries', () => {
     const hosted = HOSTED_TOOLS.map(tool => tool.name)
 
     const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
-    const llmsInventory = matchOrThrow(
-      llms,
-      /Local MCP exposes (\d+) tools:([\s\S]*?)\. Hosted MCP exposes (\d+) tools:([\s\S]*?)\.\n/,
-      'llms.txt',
-    )
-    expect({ count: Number(llmsInventory[1]), tools: names(llmsInventory[2]!) })
-      .toEqual({ count: local.length, tools: local })
-    expect({ count: Number(llmsInventory[3]), tools: names(llmsInventory[4]!) })
-      .toEqual({ count: hosted.length, tools: hosted })
+    const llmsInventory = matchOrThrow(llms, /Local MCP exposes (\d+) tools:([\s\S]*?)\. Hosted MCP exposes (\d+) tools:([\s\S]*?)\.\n/, 'llms.txt')
+    expect({ count: Number(llmsInventory[1]), tools: names(llmsInventory[2]!) }).toEqual({ count: local.length, tools: local })
+    expect({ count: Number(llmsInventory[3]), tools: names(llmsInventory[4]!) }).toEqual({ count: hosted.length, tools: hosted })
 
     const exactHostedInventories = [
       ['website/README.md', /Hosted tools:([\s\S]*?)\. Tool inputs/],
@@ -640,12 +614,7 @@ describe('exact MCP inventories match the runtime registries', () => {
   })
 
   test('every maintained hosted-cache contract says private compute + no-store + observable status', () => {
-    const surfaces = [
-      'llms.txt',
-      'docs/mcp-http-transport.md',
-      'website/public/llms.txt',
-      'website/public/.well-known/llms.txt',
-    ]
+    const surfaces = ['llms.txt', 'docs/mcp-http-transport.md', 'website/public/llms.txt', 'website/public/.well-known/llms.txt']
     for (const file of surfaces) {
       const text = readFileSync(join(REPO, file), 'utf8')
       expect({ file, privateCompute: /private[^\n.]*cache/i.test(text) }).toEqual({ file, privateCompute: true })
@@ -713,7 +682,11 @@ describe('root docs consistency', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
     const skillCli = readFileSync(join(REPO, 'skills/agentic-mermaid-diagram-workflow/references/cli.md'), 'utf8')
-    for (const [file, text] of [['Instructions_for_agents.md', guide], ['llms.txt', llms], ['skills/agentic-mermaid-diagram-workflow/references/cli.md', skillCli]] as const) {
+    for (const [file, text] of [
+      ['Instructions_for_agents.md', guide],
+      ['llms.txt', llms],
+      ['skills/agentic-mermaid-diagram-workflow/references/cli.md', skillCli],
+    ] as const) {
       expect({ file, preview: text.includes('preview') }).toEqual({ file, preview: true })
       expect({ file, ops: text.includes('--ops') }).toEqual({ file, ops: true })
       expect({ file, editPolicy: text.includes('editPolicy') }).toEqual({ file, editPolicy: true })
@@ -733,18 +706,11 @@ describe('root docs consistency', () => {
       expect(existsSync(join(REPO, 'docs', doc))).toBe(true)
       expect(readme).toContain(`./docs/${doc}`)
     }
-    expect(readdirSync(REPO).filter(f => f.endsWith('.md')).sort()).toEqual([
-      'AGENT_NATIVE.md',
-      'CHANGELOG.md',
-      'CLAUDE.md',
-      'DESIGN.md',
-      'Instructions_for_agents.md',
-      'PRODUCT.md',
-      'README.md',
-      'SECURITY.md',
-      'THIRD_PARTY_NOTICES.md',
-      'TODO.md',
-    ])
+    expect(
+      readdirSync(REPO)
+        .filter(f => f.endsWith('.md'))
+        .sort(),
+    ).toEqual(['AGENT_NATIVE.md', 'CHANGELOG.md', 'CLAUDE.md', 'DESIGN.md', 'Instructions_for_agents.md', 'PRODUCT.md', 'README.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'TODO.md'])
   })
 
   test('theme and RenderOptions inventory is delegated to live discovery and focused docs', () => {
@@ -759,15 +725,7 @@ describe('root docs consistency', () => {
     for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security', 'ganttToday']) {
       expect(api).toContain(`\`${option}\``)
     }
-    for (const seam of [
-      'Live host retheming',
-      'AsciiRenderOptions',
-      'onProjectionDiagnostic',
-      'BrowserPngRasterizer',
-      'parseExtensionId',
-      'registerExtension',
-      'ExtensionCollisionError',
-    ]) {
+    for (const seam of ['Live host retheming', 'AsciiRenderOptions', 'onProjectionDiagnostic', 'BrowserPngRasterizer', 'parseExtensionId', 'registerExtension', 'ExtensionCollisionError']) {
       expect({ seam, inventoried: api.includes(seam) }).toEqual({ seam, inventoried: true })
     }
     expect(config).toContain('gantt.displayMode')
@@ -788,7 +746,7 @@ describe('root docs consistency', () => {
       expect({ file, cli: text.includes('--format png') && text.includes('--output') }).toEqual({ file, cli: true })
     }
     const cookbook = readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8')
-    expect(cookbook).toContain('writeFileSync(\'diagram.png\'')
+    expect(cookbook).toContain("writeFileSync('diagram.png'")
     expect(cookbook).toContain('render_png')
   })
 })
@@ -831,7 +789,10 @@ describe('spec honesty', () => {
   test('local and hosted Code Mode boundaries are named honestly', () => {
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
     const rationale = readFileSync(join(REPO, 'docs/mcp-code-mode-rationale.md'), 'utf8')
-    for (const [file, text] of [['AGENT_NATIVE.md', spec], ['docs/mcp-code-mode-rationale.md', rationale]] as const) {
+    for (const [file, text] of [
+      ['AGENT_NATIVE.md', spec],
+      ['docs/mcp-code-mode-rationale.md', rationale],
+    ] as const) {
       expect({ file, localVm: text.includes('node:vm') }).toEqual({ file, localVm: true })
       expect({ file, hostedIsolate: text.includes('Dynamic Worker') }).toEqual({ file, hostedIsolate: true })
       expect({ file, codemodePackage: text.includes('@cloudflare/codemode') }).toEqual({ file, codemodePackage: true })
@@ -845,13 +806,17 @@ describe('no-tautology guard for our own test suite', () => {
   // Guard against that class of assertion sneaking back into agent tests.
   test('no typeof-tautology assertions in agent tests', () => {
     const dir = join(REPO, 'src', '__tests__')
-    const names = require('node:fs').readdirSync(dir)
+    const names = require('node:fs')
+      .readdirSync(dir)
       .filter((f: string) => f.startsWith('agent') && f.endsWith('.test.ts'))
       .filter((f: string) => f !== 'agent-doc-sync.test.ts') // this guard mentions the pattern in prose
     const TAUT = /expect\(\s*typeof[^)]*\)\s*\.\s*toBe\(\s*['"]boolean['"]\s*\)/
     for (const name of names) {
       // Strip line comments so prose can't trip the guard.
-      const code = readFileSync(join(dir, name), 'utf8').split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n')
+      const code = readFileSync(join(dir, name), 'utf8')
+        .split('\n')
+        .map(l => l.replace(/\/\/.*$/, ''))
+        .join('\n')
       expect({ file: name, tautology: TAUT.test(code) }).toEqual({ file: name, tautology: false })
     }
   })
@@ -879,6 +844,7 @@ describe('detector drift guard (agent vs shared router)', () => {
       ['mindmap\n  root\n    child', 'mindmap'],
       ['gitGraph\n  commit', 'gitgraph'],
       ['radar-beta\n  axis a, b\n  curve x{1,2}', 'radar'],
+      ['sankey-beta\n  Coal,Electricity,127.93', 'sankey'],
     ]
     // `detectDiagramType` is the shared renderer router: state diagrams still
     // route through the flowchart renderer path, then agent parsing splits

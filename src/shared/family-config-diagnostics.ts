@@ -1,10 +1,11 @@
+import { type FamilyConfigContract, getFamily } from '../agent/families.ts'
 import type { DiagramKind, FamilyId } from '../agent/types.ts'
-import type { ConfigDiagnostic } from '../types.ts'
-import { getFamily, type FamilyConfigContract } from '../agent/families.ts'
 import { RADAR_CONFIG_LIMITS, RADAR_THEME_FIELDS } from '../radar/config.ts'
+import { SANKEY_CONFIG_LIMITS } from '../sankey/config.ts'
 import { stateConfigDiagnostics } from '../state/config.ts'
-import { compareCodePointStrings } from './deterministic-order.ts'
+import type { ConfigDiagnostic } from '../types.ts'
 import { safeCssColor } from './css-color.ts'
+import { compareCodePointStrings } from './deterministic-order.ts'
 
 export type FamilyConfigSpec = FamilyConfigContract
 
@@ -15,30 +16,39 @@ function familyConfigSpec(kind: FamilyId | string): FamilyConfigContract | undef
 function section(root: unknown, key: string): Record<string, unknown> | undefined {
   if (!root || typeof root !== 'object' || Array.isArray(root)) return undefined
   const value = (root as Record<string, unknown>)[key]
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : undefined
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined
 }
 
 export function familyUnknownConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
   const spec = familyConfigSpec(kind)
   if (!spec) return []
-  const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
+  const record = root && typeof root === 'object' && !Array.isArray(root) ? (root as Record<string, unknown>) : undefined
   const config = section(root, spec.section)
-  if (!config) return record && spec.section in record ? [{
-    code: 'INEFFECTIVE_CONFIG',
-    field: spec.section,
-    message: `${kind} config section "${spec.section}" must be an object; the invalid value has no effect.`,
-  }] : []
+  if (!config)
+    return record && spec.section in record
+      ? [
+          {
+            code: 'INEFFECTIVE_CONFIG',
+            field: spec.section,
+            message: `${kind} config section "${spec.section}" must be an object; the invalid value has no effect.`,
+          },
+        ]
+      : []
   const known = new Set(spec.keys)
-  return Object.keys(config).filter(key => !known.has(key)).sort().map(key => ({
-    code: 'INEFFECTIVE_CONFIG',
-    field: `${spec.section}.${key}`,
-    message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.`,
-  }))
+  return Object.keys(config)
+    .filter(key => !known.has(key))
+    .sort()
+    .map(key => ({
+      code: 'INEFFECTIVE_CONFIG',
+      field: `${spec.section}.${key}`,
+      message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.`,
+    }))
 }
 
-interface ValueRule { expected: string; valid: (value: unknown) => boolean }
+interface ValueRule {
+  expected: string
+  valid: (value: unknown) => boolean
+}
 const rule = (expected: string, valid: ValueRule['valid']): ValueRule => ({ expected, valid })
 const positive = rule('a finite positive number', value => typeof value === 'number' && Number.isFinite(value) && value > 0)
 const nonNegative = rule('a finite non-negative number', value => typeof value === 'number' && Number.isFinite(value) && value >= 0)
@@ -47,38 +57,20 @@ const boolean = rule('a boolean', value => typeof value === 'boolean')
 const nonEmptyString = rule('a non-empty string', value => typeof value === 'string' && value.trim().length > 0)
 const stringArray = rule('a non-empty array of strings', value => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'))
 const oneOf = (...values: string[]): ValueRule => rule(`one of: ${values.join(', ')}`, value => typeof value === 'string' && values.includes(value))
-const oneOfInsensitive = (...values: string[]): ValueRule => rule(`one of: ${values.join(', ')} (case-insensitive)`, value =>
-  typeof value === 'string' && values.some(candidate => candidate.toLowerCase() === value.toLowerCase()),
-)
-const range = (min: number, max: number, leftClosed = true): ValueRule => rule(
-  `a finite number ${leftClosed ? 'from' : 'greater than'} ${min} through ${max}`,
-  value => typeof value === 'number' && Number.isFinite(value) && (leftClosed ? value >= min : value > min) && value <= max,
-)
-const boundedPositive = (max: number): ValueRule => rule(
-  `a finite positive number no greater than ${max}`,
-  value => typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max,
-)
-const boundedNonNegative = (max: number): ValueRule => rule(
-  `a finite non-negative number no greater than ${max}`,
-  value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max,
-)
-const positiveCssSize = rule('a finite positive number or non-empty CSS size string', value =>
-  (typeof value === 'number' && Number.isFinite(value) && value > 0) || (typeof value === 'string' && value.trim().length > 0),
-)
-const numericLike = (minimum: number, exclusive = false): ValueRule => rule(
-  `a numeric value${exclusive ? ` greater than ${minimum}` : ` of at least ${minimum}`}`,
-  value => {
+const oneOfInsensitive = (...values: string[]): ValueRule => rule(`one of: ${values.join(', ')} (case-insensitive)`, value => typeof value === 'string' && values.some(candidate => candidate.toLowerCase() === value.toLowerCase()))
+const range = (min: number, max: number, leftClosed = true): ValueRule => rule(`a finite number ${leftClosed ? 'from' : 'greater than'} ${min} through ${max}`, value => typeof value === 'number' && Number.isFinite(value) && (leftClosed ? value >= min : value > min) && value <= max)
+const boundedPositive = (max: number): ValueRule => rule(`a finite positive number no greater than ${max}`, value => typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max)
+const boundedNonNegative = (max: number): ValueRule => rule(`a finite non-negative number no greater than ${max}`, value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max)
+const positiveCssSize = rule('a finite positive number or non-empty CSS size string', value => (typeof value === 'number' && Number.isFinite(value) && value > 0) || (typeof value === 'string' && value.trim().length > 0))
+const numericLike = (minimum: number, exclusive = false): ValueRule =>
+  rule(`a numeric value${exclusive ? ` greater than ${minimum}` : ` of at least ${minimum}`}`, value => {
     const parsed = typeof value === 'number' ? value : typeof value === 'string' && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:px)?$/i.test(value.trim()) ? Number.parseFloat(value) : Number.NaN
     return Number.isFinite(parsed) && (exclusive ? parsed > minimum : parsed >= minimum)
-  },
-)
+  })
 
 const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>> = {
   flowchart: { nodeSpacing: positive, rankSpacing: positive, wrappingWidth: positive },
-  sequence: Object.fromEntries([
-    ...['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth'].map(key => [key, nonNegative]),
-    ['showSequenceNumbers', boolean],
-  ]),
+  sequence: Object.fromEntries([...['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth'].map(key => [key, nonNegative]), ['showSequenceNumbers', boolean]]),
   timeline: { disableMulticolor: boolean, sectionFills: stringArray, sectionColours: stringArray },
   journey: Object.fromEntries([
     ...['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskMargin'].map(key => [key, positive]),
@@ -88,24 +80,41 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     ['useMaxWidth', boolean],
   ]),
   radar: {
-    width: boundedPositive(RADAR_CONFIG_LIMITS.dimension), height: boundedPositive(RADAR_CONFIG_LIMITS.dimension),
-    marginTop: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginRight: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
-    marginBottom: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginLeft: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
-    axisScaleFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), axisLabelFactor: range(RADAR_CONFIG_LIMITS.axisLabelFactorMin, RADAR_CONFIG_LIMITS.factor), curveTension: range(0, 1),
-    useMaxWidth: boolean, tickLabels: boolean,
+    width: boundedPositive(RADAR_CONFIG_LIMITS.dimension),
+    height: boundedPositive(RADAR_CONFIG_LIMITS.dimension),
+    marginTop: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
+    marginRight: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
+    marginBottom: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
+    marginLeft: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
+    axisScaleFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor),
+    axisLabelFactor: range(RADAR_CONFIG_LIMITS.axisLabelFactorMin, RADAR_CONFIG_LIMITS.factor),
+    curveTension: range(0, 1),
+    useMaxWidth: boolean,
+    tickLabels: boolean,
   },
   class: { nodeSpacing: nonNegative, rankSpacing: nonNegative, hierarchicalNamespaces: boolean },
   er: { layoutDirection: oneOfInsensitive('TB', 'TD', 'BT', 'LR', 'RL'), nodeSpacing: nonNegative, rankSpacing: nonNegative },
   architecture: {
-    padding: numericLike(0), iconSize: numericLike(0, true), fontSize: numericLike(0, true),
-    nodeSeparation: numericLike(0), idealEdgeLengthMultiplier: numericLike(0, true),
+    padding: numericLike(0),
+    iconSize: numericLike(0, true),
+    fontSize: numericLike(0, true),
+    nodeSeparation: numericLike(0),
+    idealEdgeLengthMultiplier: numericLike(0, true),
   },
   xychart: {
-    width: positive, height: positive, useMaxWidth: boolean, useWidth: positive,
-    titleFontSize: positive, titlePadding: nonNegative,
-    chartOrientation: oneOf('vertical', 'horizontal'), plotReservedSpacePercent: range(0, 100, false),
-    showDataLabel: boolean, showTitle: boolean, showLegend: boolean,
-    legendFontSize: positive, legendPadding: nonNegative,
+    width: positive,
+    height: positive,
+    useMaxWidth: boolean,
+    useWidth: positive,
+    titleFontSize: positive,
+    titlePadding: nonNegative,
+    chartOrientation: oneOf('vertical', 'horizontal'),
+    plotReservedSpacePercent: range(0, 100, false),
+    showDataLabel: boolean,
+    showTitle: boolean,
+    showLegend: boolean,
+    legendFontSize: positive,
+    legendPadding: nonNegative,
     xAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
     yAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
   },
@@ -116,33 +125,63 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     ['useMaxWidth', boolean],
   ]),
   gantt: {
-    displayMode: oneOfInsensitive('compact'), barHeight: positive, topAxis: boolean,
+    displayMode: oneOfInsensitive('compact'),
+    barHeight: positive,
+    topAxis: boolean,
     axisFormat: nonEmptyString,
     tickInterval: rule('a positive Mermaid interval such as "1day" or "2week"', value => typeof value === 'string' && /^[1-9]\d*(?:millisecond|second|minute|hour|day|week|month)$/i.test(value.trim())),
   },
   mindmap: { padding: nonNegative, maxNodeWidth: positive },
   gitgraph: {
-    showBranches: boolean, showCommitLabel: boolean, parallelCommits: boolean, rotateCommitLabel: boolean,
-    mainBranchName: nonEmptyString, mainBranchOrder: finite,
+    showBranches: boolean,
+    showCommitLabel: boolean,
+    parallelCommits: boolean,
+    rotateCommitLabel: boolean,
+    mainBranchName: nonEmptyString,
+    mainBranchOrder: finite,
+  },
+  sankey: {
+    width: boundedPositive(SANKEY_CONFIG_LIMITS.width.max),
+    height: boundedPositive(SANKEY_CONFIG_LIMITS.height.max),
+    nodeWidth: boundedPositive(SANKEY_CONFIG_LIMITS.nodeWidth.max),
+    nodePadding: boundedNonNegative(SANKEY_CONFIG_LIMITS.nodePadding.max),
+    nodeAlignment: oneOf('justify', 'center', 'left', 'right'),
+    labelStyle: oneOf('legacy', 'outlined'),
+    linkColor: nonEmptyString,
+    showValues: boolean,
+    useMaxWidth: boolean,
+    prefix: rule('a string', value => typeof value === 'string'),
+    suffix: rule('a string', value => typeof value === 'string'),
+    nodeColors: rule('a label → CSS color map', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
   },
 }
 
 const XY_AXIS_VALUE_RULES: Record<string, ValueRule> = {
-  showLabel: boolean, labelFontSize: positive, labelPadding: nonNegative,
-  showTitle: boolean, titleFontSize: positive, titlePadding: nonNegative,
-  showTick: boolean, tickLength: nonNegative, tickWidth: positive,
-  showAxisLine: boolean, axisLineWidth: positive,
+  showLabel: boolean,
+  labelFontSize: positive,
+  labelPadding: nonNegative,
+  showTitle: boolean,
+  titleFontSize: positive,
+  titlePadding: nonNegative,
+  showTick: boolean,
+  tickLength: nonNegative,
+  tickWidth: positive,
+  showAxisLine: boolean,
+  axisLineWidth: positive,
 }
 
 function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
   const themeVariables = section(root, 'themeVariables')
   if (!themeVariables || !('radar' in themeVariables)) return []
   const radar = section(themeVariables, 'radar')
-  if (!radar) return [{
-    code: 'INEFFECTIVE_CONFIG',
-    field: 'themeVariables.radar',
-    message: 'themeVariables.radar must be an object; the invalid value has no effect.',
-  }]
+  if (!radar)
+    return [
+      {
+        code: 'INEFFECTIVE_CONFIG',
+        field: 'themeVariables.radar',
+        message: 'themeVariables.radar must be an object; the invalid value has no effect.',
+      },
+    ]
   const known = new Set<string>(RADAR_THEME_FIELDS)
   const diagnostics: ConfigDiagnostic[] = []
   const lineWidthFields = new Set(['axisStrokeWidth', 'curveStrokeWidth', 'graticuleStrokeWidth'])
@@ -158,11 +197,12 @@ function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
     else if (key === 'legendBoxSize' && !boundedPositive(RADAR_CONFIG_LIMITS.legendBoxSize).valid(value)) expected = boundedPositive(RADAR_CONFIG_LIMITS.legendBoxSize).expected
     else if (opacityFields.has(key) && !range(0, 1).valid(value)) expected = 'a finite number from 0 through 1'
     else if (colorFields.has(key) && !safeCssColor(value)) expected = 'a safe CSS color without url(), variables, or context-breaking characters'
-    if (expected) diagnostics.push({
-      code: 'INEFFECTIVE_CONFIG',
-      field: `themeVariables.radar.${key}`,
-      message: `themeVariables.radar.${key} must be ${expected}; the invalid value has no effect.`,
-    })
+    if (expected)
+      diagnostics.push({
+        code: 'INEFFECTIVE_CONFIG',
+        field: `themeVariables.radar.${key}`,
+        message: `themeVariables.radar.${key} must be ${expected}; the invalid value has no effect.`,
+      })
   }
   return diagnostics
 }
@@ -178,7 +218,7 @@ export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): 
     diagnostics.push({ code: 'INEFFECTIVE_CONFIG', field, message: `${field} must be ${expected}; the invalid value has no effect.` })
   }
   if (kind === 'mindmap') {
-    const rootRecord = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
+    const rootRecord = root && typeof root === 'object' && !Array.isArray(root) ? (root as Record<string, unknown>) : undefined
     if (rootRecord && 'layout' in rootRecord && !['tidy-tree', 'cose-bilkent', 'radial'].includes(String(rootRecord.layout))) warn('layout', '"cose-bilkent", "radial", or "tidy-tree" for mindmap diagrams')
   }
   if (!config) return diagnostics
@@ -206,11 +246,14 @@ export function familyNoopConfigDiagnostics(kind: DiagramKind, root: unknown): C
   const config = section(root, spec.section)
   if (!config) return []
   const noop = new Set(spec.noopKeys ?? [])
-  return Object.keys(config).filter(key => noop.has(key)).sort().map(key => ({
-    code: 'INEFFECTIVE_CONFIG' as const,
-    field: `${spec.section}.${key}`,
-    message: `${kind} config field "${key}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
-  }))
+  return Object.keys(config)
+    .filter(key => noop.has(key))
+    .sort()
+    .map(key => ({
+      code: 'INEFFECTIVE_CONFIG' as const,
+      field: `${spec.section}.${key}`,
+      message: `${kind} config field "${key}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
+    }))
 }
 
 function stableDiagnostics(diagnostics: ConfigDiagnostic[]): ConfigDiagnostic[] {
@@ -233,11 +276,7 @@ export function familyConfigDiagnostics(kind: DiagramKind, roots: readonly unkno
     const unknown = familyUnknownConfigDiagnostics(kind, root)
     const config = section(root, spec.section)
     if (kind === 'state') return config ? stateConfigDiagnostics([config], true) : unknown
-    return [
-      ...unknown,
-      ...familyConfigValueDiagnostics(kind, root),
-      ...familyNoopConfigDiagnostics(kind, root),
-    ]
+    return [...unknown, ...familyConfigValueDiagnostics(kind, root), ...familyNoopConfigDiagnostics(kind, root)]
   })
   return stableDiagnostics(diagnostics)
 }
@@ -248,19 +287,27 @@ export function explicitFamilyConfigDiagnostics(kind: string, root: unknown): Co
   const spec = descriptor?.config
   if (!descriptor || !spec) return []
   if (kind.includes(':')) {
-    const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
+    const record = root && typeof root === 'object' && !Array.isArray(root) ? (root as Record<string, unknown>) : undefined
     const config = section(root, spec.section)
-    if (!config) return record && spec.section in record ? [{
-      code: 'INEFFECTIVE_CONFIG', field: spec.section,
-      message: `${kind} config section "${spec.section}" must be an object; the invalid value has no effect.`,
-    }] : []
+    if (!config)
+      return record && spec.section in record
+        ? [
+            {
+              code: 'INEFFECTIVE_CONFIG',
+              field: spec.section,
+              message: `${kind} config section "${spec.section}" must be an object; the invalid value has no effect.`,
+            },
+          ]
+        : []
     const known = new Set(spec.keys)
     const noop = new Set(spec.noopKeys ?? [])
-    return stableDiagnostics(Object.keys(config).flatMap(key => {
-      if (!known.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.` }]
-      if (noop.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is accepted for compatibility but has no effect on this renderer.` }]
-      return []
-    }))
+    return stableDiagnostics(
+      Object.keys(config).flatMap(key => {
+        if (!known.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.` }]
+        if (noop.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is accepted for compatibility but has no effect on this renderer.` }]
+        return []
+      }),
+    )
   }
   return familyConfigDiagnostics(kind as DiagramKind, [root])
 }

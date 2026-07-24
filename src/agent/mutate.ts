@@ -2,21 +2,48 @@
 // mutate: typed structural edits. Overloaded by family.
 // ============================================================================
 
-import type {
-  FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, RadarValidDiagram, MutableValidDiagram,
-  ParsedDiagram,
-  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, RadarMutationOp, AnyMutationOp,
-  MutationError, Result,
-} from './types.ts'
-import { ok, err } from './types.ts'
+import { accessibilityFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { getFamily } from './families.ts'
+import { admitOpRecord, hasOpSchema, validateOp } from './op-schema.ts'
+import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 import { wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
-import { getFamily } from './families.ts'
-import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
-import { accessibilityFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
-import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
+import type {
+  AnyMutationOp,
+  ArchitectureMutationOp,
+  ArchitectureValidDiagram,
+  ClassMutationOp,
+  ClassValidDiagram,
+  ErMutationOp,
+  ErValidDiagram,
+  FlowchartMutationOp,
+  FlowchartValidDiagram,
+  GanttMutationOp,
+  GanttValidDiagram,
+  JourneyMutationOp,
+  JourneyValidDiagram,
+  MutableValidDiagram,
+  MutationError,
+  ParsedDiagram,
+  PieMutationOp,
+  PieValidDiagram,
+  QuadrantMutationOp,
+  QuadrantValidDiagram,
+  RadarMutationOp,
+  RadarValidDiagram,
+  Result,
+  SankeyMutationOp,
+  SankeyValidDiagram,
+  SequenceMutationOp,
+  SequenceValidDiagram,
+  StateMutationOp,
+  StateValidDiagram,
+  TimelineMutationOp,
+  TimelineValidDiagram,
+  XyChartMutationOp,
+  XyChartValidDiagram,
+} from './types.ts'
+import { err, ok } from './types.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
@@ -31,15 +58,13 @@ export function mutate(d: PieValidDiagram, op: PieMutationOp): Result<PieValidDi
 export function mutate(d: QuadrantValidDiagram, op: QuadrantMutationOp): Result<QuadrantValidDiagram, MutationError>
 export function mutate(d: GanttValidDiagram, op: GanttMutationOp): Result<GanttValidDiagram, MutationError>
 export function mutate(d: RadarValidDiagram, op: RadarMutationOp): Result<RadarValidDiagram, MutationError>
+export function mutate(d: SankeyValidDiagram, op: SankeyMutationOp): Result<SankeyValidDiagram, MutationError>
 // General form for callers holding the union (e.g. the CLI): dispatch is by
 // registry at runtime either way, so kind-agnostic call sites don't need a
 // per-family narrowing cascade.
 export function mutate(d: MutableValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, MutationError>
 export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError>
-export function mutate(
-  d: ParsedDiagram,
-  op: AnyMutationOp,
-): Result<ParsedDiagram, MutationError> {
+export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {
   // Log the OUTCOME (not just the call): an `{ok:false}` trace line records a
   // failed op attempt — the observable signal the agent-usage eval reads to
   // measure a run's op-error rate directly, rather than inferring retries from
@@ -49,10 +74,7 @@ export function mutate(
   return r
 }
 
-function applyOneMutation(
-  d: ParsedDiagram,
-  op: AnyMutationOp,
-): Result<ParsedDiagram, MutationError> {
+function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {
   // Every structured family mutates through its FamilyDescriptor hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
   // carries stale source. Lookup is by DIAGRAM kind, not body kind. State
@@ -77,13 +99,8 @@ function applyOneMutation(
     // 1C wrapper policy: a mutated diagram keeps its leading wrapper
     // (frontmatter/directives/comments) byte-verbatim; only the body changes.
     const bodyAccessibility = accessibilityFromBody(r.value)
-    const meta = bodyAccessibility === undefined
-      ? d.meta
-      : { ...d.meta, accessibility: bodyAccessibility }
-    const canonicalSource = wrapperPrefix(meta) + ensureAccessibilityLines(
-      plugin.serialize(r.value),
-      meta.accessibility,
-    )
+    const meta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
+    const canonicalSource = wrapperPrefix(meta) + ensureAccessibilityLines(plugin.serialize(r.value), meta.accessibility)
     // Source locations and exact authored spans describe a particular source
     // artifact. Rebuild them from the mutated serialization; retaining the
     // pre-mutation map leaves removed objects addressable and is worse than no
@@ -125,7 +142,10 @@ export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagr
     // A shape rejection short-circuits before `mutate`, so record the failed
     // attempt here — otherwise checked-path errors (e.g. the op-array slip)
     // would go uncounted in the op-error rate.
-    if (invalid) { logToolInvocation('mutate', false); return err(invalid) }
+    if (invalid) {
+      logToolInvocation('mutate', false)
+      return err(invalid)
+    }
     return mutate(d, checkedOp as AnyMutationOp)
   }
   return mutate(d, op as AnyMutationOp)

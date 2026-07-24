@@ -1,7 +1,4 @@
-import {
-  familyDetectionDiagnosticFromPreservedBody,
-  MermaidFamilyDetectionError,
-} from '../family-detection.ts'
+import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import { serializeMermaid } from './serialize.ts'
 import type { FamilyId, ParsedDiagram } from './types.ts'
 
@@ -19,9 +16,7 @@ export interface PreparedRenderInput {
   readonly expectedFamilyId?: FamilyId
 }
 
-const BODY_OWNED_RENDER_FAMILIES: ReadonlySet<FamilyId> = new Set([
-  'state', 'sequence', 'quadrant', 'xychart', 'pie', 'gantt', 'mindmap', 'gitgraph', 'radar',
-])
+const BODY_OWNED_RENDER_FAMILIES: ReadonlySet<FamilyId> = new Set(['state', 'sequence', 'quadrant', 'xychart', 'pie', 'gantt', 'mindmap', 'gitgraph', 'radar', 'sankey'])
 
 /** One source authority for every ParsedDiagram render transport. Flowcharts
  * and source-order-sensitive families retain canonical authored order; typed
