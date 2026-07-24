@@ -1,12 +1,5 @@
-import type {
-  PreservedSourceSpans,
-  SourceLocation,
-  SourceMap,
-  SourceMapSpans,
-  SourceSpan,
-  SourceSpanPoint,
-} from './types.ts'
-import { flowchartTextArrowLabelRanges, type FlowchartTextRange } from '../flowchart-statement-labels.ts'
+import { type FlowchartTextRange, flowchartTextArrowLabelRanges } from '../flowchart-statement-labels.ts'
+import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
 
 interface PhysicalLine {
   text: string
@@ -53,11 +46,7 @@ function span(lineStarts: readonly number[], start: number, end: number): Source
  * Match canonical, trimmed grammar lines back to the exact authored physical
  * lines. Sequential matching keeps repeated statements stable.
  */
-function authoredLineMap(
-  canonicalSource: string,
-  authoredSource: string,
-  preserved: PreservedSourceSpans,
-): Map<number, PhysicalLine> {
+function authoredLineMap(canonicalSource: string, authoredSource: string, preserved: PreservedSourceSpans): Map<number, PhysicalLine> {
   const canonical = physicalLines(canonicalSource)
   const authored = physicalLines(authoredSource)
   const result = new Map<number, PhysicalLine>()
@@ -125,7 +114,10 @@ function indexEnclosingDelimiters(line: string): EnclosingDelimiterIndex {
       else if (char === quote) quote = undefined
       continue
     }
-    if (char === '"' || char === "'" || char === '`') { quote = char; continue }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char
+      continue
+    }
     if (char === '[' || char === '(' || char === '{') {
       matchStack.push({ opener: char, index })
       continue
@@ -160,7 +152,10 @@ function indexEnclosingDelimiters(line: string): EnclosingDelimiterIndex {
       else if (char === quote) quote = undefined
       continue
     }
-    if (char === '"' || char === "'" || char === '`') { quote = char; continue }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char
+      continue
+    }
     if (char === '[' || char === '(' || char === '{') {
       const closer = matchingCloser[index]!
       const frame = { opener: char, index, closer, previousMatched: nearestMatched }
@@ -177,10 +172,7 @@ function indexEnclosingDelimiters(line: string): EnclosingDelimiterIndex {
   return { openerAt, closerAt }
 }
 
-function indexStatementBounds(
-  line: string,
-  textArrowLabelRanges: readonly FlowchartTextRange[],
-): StatementBoundsIndex {
+function indexStatementBounds(line: string, textArrowLabelRanges: readonly FlowchartTextRange[]): StatementBoundsIndex {
   let prefixEnd = -1
   let inlineNamespace = false
   const inlineAccessibility = line.match(/^\s*accDescr\s*:?\s*\{/i)
@@ -208,9 +200,18 @@ function indexStatementBounds(
       else if (char === quote) quote = undefined
       continue
     }
-    if (char === '"' || char === "'" || char === '`') { quote = char; continue }
-    if (char === '|' && stack.length === 0) { pipeLabel = !pipeLabel; continue }
-    if (char === '[' || char === '(' || char === '{') { stack.push(char); continue }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char
+      continue
+    }
+    if (char === '|' && stack.length === 0) {
+      pipeLabel = !pipeLabel
+      continue
+    }
+    if (char === '[' || char === '(' || char === '{') {
+      stack.push(char)
+      continue
+    }
     if (char === ']' || char === ')' || char === '}') {
       if (inlineNamespace && char === '}' && stack.length === 1 && stack[0] === '{' && index > prefixEnd) {
         separators.push(index)
@@ -220,8 +221,7 @@ function indexStatementBounds(
     }
     const statementDepth = inlineNamespace && stack.length === 1 && stack[0] === '{'
     if (char === ';' && (stack.length === 0 || statementDepth) && !pipeLabel && index > prefixEnd) {
-      while (textArrowLabelRanges[textArrowRangeIndex]
-        && textArrowLabelRanges[textArrowRangeIndex]!.end <= index) textArrowRangeIndex++
+      while (textArrowLabelRanges[textArrowRangeIndex] && textArrowLabelRanges[textArrowRangeIndex]!.end <= index) textArrowRangeIndex++
       const range = textArrowLabelRanges[textArrowRangeIndex]
       if (!range || index < range.start || index >= range.end) separators.push(index)
     }
@@ -255,13 +255,7 @@ function statementBounds(index: StatementBoundsIndex, at: number): readonly [num
   return index.segments[low]?.bounds ?? index.fallback
 }
 
-function statementSpan(
-  lineStarts: readonly number[],
-  authoredLine: PhysicalLine | undefined,
-  canonicalLine: PhysicalLine | undefined,
-  location: SourceLocation,
-  analysis: AuthoredLineAnalysis | undefined,
-): SourceSpan | undefined {
+function statementSpan(lineStarts: readonly number[], authoredLine: PhysicalLine | undefined, canonicalLine: PhysicalLine | undefined, location: SourceLocation, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
   if (!authoredLine || !canonicalLine || !analysis) return undefined
   const relative = Math.max(0, location.col - 1 - indentationWidth(canonicalLine.text))
   const authoredAt = Math.min(authoredLine.text.length, indentationWidth(authoredLine.text) + relative)
@@ -289,24 +283,14 @@ function closingQuote(line: string, start: number, quote: string, limit: number)
   return limit
 }
 
-function enclosingCloser(
-  index: EnclosingDelimiterIndex,
-  segmentStart: number,
-  start: number,
-  limit: number,
-): number | undefined {
+function enclosingCloser(index: EnclosingDelimiterIndex, segmentStart: number, start: number, limit: number): number | undefined {
   const offset = Math.min(start, index.closerAt.length - 1)
   const opener = index.openerAt[offset]!
   const closer = index.closerAt[offset]!
   return opener >= segmentStart && closer >= start && closer <= limit ? closer : undefined
 }
 
-function labelEnd(
-  line: string,
-  start: number,
-  key: string,
-  analysis: AuthoredLineAnalysis,
-): number {
+function labelEnd(line: string, start: number, key: string, analysis: AuthoredLineAnalysis): number {
   const [segmentStart, segmentEnd] = statementBounds(analysis.statementBounds, start)
   const lineEnd = Math.min(line.trimEnd().length, segmentEnd)
   if (/Cardinality$/i.test(key)) {
@@ -328,14 +312,16 @@ function labelEnd(
     const pointEnd = line.slice(start, lineEnd).search(/\s*:\s*\[/)
     if (pointEnd >= 0) {
       const classSuffix = line.indexOf(':::', start)
-      return classSuffix >= start && classSuffix < start + pointEnd
-        ? line.slice(0, classSuffix).trimEnd().length
-        : start + pointEnd
+      return classSuffix >= start && classSuffix < start + pointEnd ? line.slice(0, classSuffix).trimEnd().length : start + pointEnd
     }
   }
   if (/^radar:(?:axis|curve)#\d+$/i.test(key)) {
     const token = line.slice(start).match(/^[\w](?:[\w-]*[\w])?/)?.[0]
     if (token) return start + token.length
+  }
+  if (/^sankey:link#\d+$/i.test(key)) {
+    // The span is the whole CSV row (the row IS the link).
+    return lineEnd
   }
 
   // Most quoted Mermaid labels are mapped to the first character inside the
@@ -366,14 +352,7 @@ function labelEnd(
   return Math.max(start, Math.min(lineEnd, line.slice(0, end).trimEnd().length))
 }
 
-function labelSpan(
-  lineStarts: readonly number[],
-  lines: Map<number, PhysicalLine>,
-  canonicalLines: readonly PhysicalLine[],
-  location: SourceLocation,
-  key: string,
-  analysis: AuthoredLineAnalysis | undefined,
-): SourceSpan | undefined {
+function labelSpan(lineStarts: readonly number[], lines: Map<number, PhysicalLine>, canonicalLines: readonly PhysicalLine[], location: SourceLocation, key: string, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
   const authoredLine = lines.get(location.line)
   const canonicalLine = canonicalLines[location.line - 1]
   if (!authoredLine || !canonicalLine || !analysis) return undefined
@@ -385,35 +364,18 @@ function labelSpan(
   return span(lineStarts, authoredLine.start + startInLine, authoredLine.start + endInLine)
 }
 
-function mapStatementSpans(
-  locations: Map<string, SourceLocation>,
-  lineStarts: readonly number[],
-  lines: Map<number, PhysicalLine>,
-  canonicalLines: readonly PhysicalLine[],
-  analysisFor: (line: PhysicalLine) => AuthoredLineAnalysis,
-): Map<string, SourceSpan> {
+function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: readonly number[], lines: Map<number, PhysicalLine>, canonicalLines: readonly PhysicalLine[], analysisFor: (line: PhysicalLine) => AuthoredLineAnalysis): Map<string, SourceSpan> {
   const result = new Map<string, SourceSpan>()
   for (const [key, location] of locations) {
     const authoredLine = lines.get(location.line)
-    const located = statementSpan(
-      lineStarts,
-      authoredLine,
-      canonicalLines[location.line - 1],
-      location,
-      authoredLine ? analysisFor(authoredLine) : undefined,
-    )
+    const located = statementSpan(lineStarts, authoredLine, canonicalLines[location.line - 1], location, authoredLine ? analysisFor(authoredLine) : undefined)
     if (located) result.set(key, located)
   }
   return result
 }
 
 /** Add exact authored spans without changing the legacy canonical locations. */
-export function attachSourceMapSpans(
-  sourceMap: SourceMap,
-  canonicalSource: string,
-  authoredSource: string,
-  preserved: PreservedSourceSpans,
-): SourceMap {
+export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: string, authoredSource: string, preserved: PreservedSourceSpans): SourceMap {
   const lineStarts = sourceLineStarts(authoredSource)
   const lines = authoredLineMap(canonicalSource, authoredSource, preserved)
   const canonicalLines = physicalLines(canonicalSource)
@@ -433,14 +395,7 @@ export function attachSourceMapSpans(
   const labels = new Map<string, SourceSpan>()
   for (const [key, location] of sourceMap.labels) {
     const authoredLine = lines.get(location.line)
-    const located = labelSpan(
-      lineStarts,
-      lines,
-      canonicalLines,
-      location,
-      key,
-      authoredLine ? analysisFor(authoredLine) : undefined,
-    )
+    const located = labelSpan(lineStarts, lines, canonicalLines, location, key, authoredLine ? analysisFor(authoredLine) : undefined)
     if (located) labels.set(key, located)
   }
   const spans: SourceMapSpans = {

@@ -19,9 +19,9 @@
 // which the round-trip-stability gate already covers).
 // ============================================================================
 
-import type { ParsedDiagram, StateNode, LayoutWarning } from './types.ts'
 import type { MermaidSubgraph } from '../types.ts'
 import { sequenceMessages } from './sequence-body.ts'
+import type { LayoutWarning, ParsedDiagram, StateNode } from './types.ts'
 
 export interface StructuralCount {
   /** Primary entities: nodes, participants, states, classes, entities, slices… */
@@ -33,7 +33,8 @@ export interface StructuralCount {
 }
 
 function countStates(states: StateNode[]): { nodes: number; edges: number } {
-  let nodes = 0, edges = 0
+  let nodes = 0,
+    edges = 0
   for (const s of states) {
     nodes++
     if (s.regions) {
@@ -114,7 +115,8 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
       return { nodes, edges: 0, groups: body.sections.length }
     }
     case 'mindmap': {
-      let nodes = 0, edges = 0
+      let nodes = 0,
+        edges = 0
       const visit = (node: import('../mindmap/types.ts').MindmapNode): void => {
         nodes++
         edges += node.children.length
@@ -132,6 +134,15 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
     case 'radar':
       // Vertices (curves × axes) are the marks; axes are the reference groups.
       return { nodes: body.curves.reduce((sum, c) => sum + c.values.length, 0), edges: 0, groups: body.axes.length }
+    case 'sankey': {
+      // Distinct labels are the nodes; each CSV row is one edge.
+      const labels = new Set<string>()
+      for (const link of body.links) {
+        labels.add(link.source)
+        labels.add(link.target)
+      }
+      return { nodes: labels.size, edges: body.links.length, groups: 0 }
+    }
     case 'opaque':
     case 'extension':
     case 'preserved':
@@ -160,10 +171,7 @@ export function countsEqual(a: StructuralCount, b: StructuralCount): boolean {
  *   counts differ  → a node/edge/group was dropped or duplicated.
  *   counts equal    → faithful (no warning).
  */
-export function faithfulnessWarning(
-  before: StructuralCount | null,
-  after: StructuralCount | null,
-): LayoutWarning[] {
+export function faithfulnessWarning(before: StructuralCount | null, after: StructuralCount | null): LayoutWarning[] {
   if (!before) return []
   if (!after) return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after: { nodes: 0, edges: 0, groups: 0 } }]
   if (!countsEqual(before, after)) return [{ code: 'CONTENT_DROPPED_ON_ROUNDTRIP', before, after }]

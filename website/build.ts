@@ -731,6 +731,7 @@ const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string
   mindmap:      { prompt: 'Add an Evidence child under Research and verify the hierarchy before returning source.', trace: 'asMindmap · mutate(add_node) · verify' },
   gitgraph:     { prompt: 'Add a release branch and merge it back with a tagged commit.', trace: 'asGitGraph · mutate(create_branch/merge_branch) · verify' },
   radar:        { prompt: 'Add a Reliability axis (filling existing curves) and a target curve, then verify.', trace: 'asRadar · mutate(add_axis/add_curve) · verify' },
+  sankey:       { prompt: 'Add a Losses flow out of Electricity generation and keep every existing row.', trace: 'asSankey · mutate(add_link) · verify' },
 }
 // One-per-family supported examples are the canonical render for their family, so
 // anchor them by family id — old /gallery/#<family> deep links resolve here after
@@ -765,6 +766,7 @@ const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme:
   mindmap: { look: 'hand-drawn', theme: 'paper', seed: 10 },
   gitgraph: { look: 'ops-schematic', theme: 'github-light', seed: 11 },
   radar: { look: 'watercolor', theme: 'catppuccin-latte', seed: 12 },
+  sankey: { look: 'hand-drawn', theme: 'solarized-light', seed: 13 },
 }
 
 function displayStyleName(name: string) {
@@ -2847,6 +2849,12 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     triggers: 'Adding a second exit to a diamond without a condition label. ISO 5807 / ANSI X3.5 require each exit of a multi-exit decision to be labeled with its condition value.',
     fix: 'Label every exit — <code>set_label</code> on the unlabeled edge (e.g. <code>yes</code>/<code>no</code>) or add <code>|condition|</code> to the source line.',
     example: 'flowchart TD\n  A{Ready?} -->|yes| B[Ship]\n  A --> C[Wait]',
+  },
+  FLOW_IMBALANCE: {
+    what: 'a Sankey intermediate node receives a different total flow than it emits, leaving part of its height without a matching ribbon.',
+    triggers: 'A node appears as both a link target and source, but the sum of incoming values differs from the sum of outgoing values beyond floating-point tolerance.',
+    fix: 'Balance the incoming and outgoing values, or add an explicit remainder link so every unit of flow has a named destination.',
+    example: 'sankey-beta\n  Supply,Hub,10\n  Hub,Used,7',
   },
   COMMENT_DROPPED: {
     what: 'in-body %% comments will not survive structured serialization; the loss is announced, not silent.',

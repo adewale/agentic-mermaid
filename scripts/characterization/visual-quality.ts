@@ -12,16 +12,9 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
-
-import {
-  layoutMermaid,
-  measureQuality,
-  parseRegisteredMermaid as parseMermaid,
-  renderMermaidPNG,
-  renderMermaidSVG,
-} from '../../src/agent/index.ts'
 import type { QualityMetrics, RenderedLayout } from '../../src/agent/index.ts'
-import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } from '../../src/svg-structure.ts'
+import { layoutMermaid, measureQuality, parseRegisteredMermaid as parseMermaid, renderMermaidPNG, renderMermaidSVG } from '../../src/agent/index.ts'
+import { decodedSvgAttributeValue, type SvgStartTagToken, scanSvgStartTags } from '../../src/svg-structure.ts'
 
 interface VisualCase {
   family: string
@@ -85,7 +78,8 @@ const CASES: VisualCase[] = [
   {
     family: 'gantt',
     title: 'Gantt chart',
-    source: 'gantt\n  title Launch plan\n  dateFormat YYYY-MM-DD\n  axisFormat %b %d\n  excludes weekends\n  section Build\n    Spec :done, spec, 2024-01-01, 2d\n    Implement :active, impl, after spec, 3d\n  section Ship\n    QA :crit, qa, after impl, 2d\n    Launch :milestone, launch, after qa, 0d\n    Release line :vert, release, 2024-01-10, 0d',
+    source:
+      'gantt\n  title Launch plan\n  dateFormat YYYY-MM-DD\n  axisFormat %b %d\n  excludes weekends\n  section Build\n    Spec :done, spec, 2024-01-01, 2d\n    Implement :active, impl, after spec, 3d\n  section Ship\n    QA :crit, qa, after impl, 2d\n    Launch :milestone, launch, after qa, 0d\n    Release line :vert, release, 2024-01-10, 0d',
   },
   {
     family: 'journey',
@@ -130,6 +124,11 @@ const CASES: VisualCase[] = [
     title: 'Radar chart',
     source: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5',
   },
+  {
+    family: 'sankey',
+    title: 'Sankey diagram',
+    source: 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,151.89\n  Electricity,Industry,207.93\n  Electricity,Homes,71.89',
+  },
 ]
 
 function sha256(data: string | Uint8Array): string {
@@ -141,12 +140,14 @@ function shortHash(hash: string): string {
 }
 
 function normalizeSvg(svg: string): string {
-  return svg
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map(line => line.trimEnd())
-    .join('\n')
-    .trim() + '\n'
+  return (
+    svg
+      .replaceAll('\r\n', '\n')
+      .split('\n')
+      .map(line => line.trimEnd())
+      .join('\n')
+      .trim() + '\n'
+  )
 }
 
 function parseSvgSize(svg: string): { width: number; height: number } {
@@ -268,7 +269,10 @@ function renderedTextPairs(svg: string): Array<{ foreground: string; background:
   const canvas = resolve(variables.get('--_bg') ?? variables.get('--background'), '#FFFFFF')
   const defaultText = resolve(variables.get('--_text') ?? variables.get('--foreground'), '#27272A')
   const starts = new Map(scanSvgStartTags(svg).map(tag => [tag.start, tag]))
-  interface PaintedShape { fill: string; contains: (x: number, y: number) => boolean }
+  interface PaintedShape {
+    fill: string
+    contains: (x: number, y: number) => boolean
+  }
   const groups: Array<{ shapes: PaintedShape[] }> = []
   const pieSurfaces: string[] = []
   let pieLabelIndex = 0
@@ -280,8 +284,9 @@ function renderedTextPairs(svg: string): Array<{ foreground: string; background:
   const polygonContains = (polygon: readonly [number, number][], px: number, py: number): boolean => {
     let inside = false
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const [xi, yi] = polygon[i]!, [xj, yj] = polygon[j]!
-      if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside
+      const [xi, yi] = polygon[i]!,
+        [xj, yj] = polygon[j]!
+      if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside
     }
     return inside
   }
@@ -332,25 +337,36 @@ function renderedTextPairs(svg: string): Array<{ foreground: string; background:
   }
   const paintedShape = (tag: SvgStartTagToken, name: string, fill: string): PaintedShape | undefined => {
     if (name === 'rect') {
-      const x = numberAttr(tag, 'x'), y = numberAttr(tag, 'y'), w = numberAttr(tag, 'width'), h = numberAttr(tag, 'height')
+      const x = numberAttr(tag, 'x'),
+        y = numberAttr(tag, 'y'),
+        w = numberAttr(tag, 'width'),
+        h = numberAttr(tag, 'height')
       if (x !== undefined && y !== undefined && w !== undefined && h !== undefined) {
         return { fill, contains: (px, py) => px >= x && px <= x + w && py >= y && py <= y + h }
       }
     }
     if (name === 'circle') {
-      const cx = numberAttr(tag, 'cx'), cy = numberAttr(tag, 'cy'), r = numberAttr(tag, 'r')
+      const cx = numberAttr(tag, 'cx'),
+        cy = numberAttr(tag, 'cy'),
+        r = numberAttr(tag, 'r')
       if (cx !== undefined && cy !== undefined && r !== undefined) {
         return { fill, contains: (px, py) => (px - cx) ** 2 + (py - cy) ** 2 <= r ** 2 }
       }
     }
     if (name === 'ellipse') {
-      const cx = numberAttr(tag, 'cx'), cy = numberAttr(tag, 'cy'), rx = numberAttr(tag, 'rx'), ry = numberAttr(tag, 'ry')
+      const cx = numberAttr(tag, 'cx'),
+        cy = numberAttr(tag, 'cy'),
+        rx = numberAttr(tag, 'rx'),
+        ry = numberAttr(tag, 'ry')
       if (cx !== undefined && cy !== undefined && rx && ry) {
         return { fill, contains: (px, py) => ((px - cx) / rx) ** 2 + ((py - cy) / ry) ** 2 <= 1 }
       }
     }
     if (name === 'polygon') {
-      const points = (decodedSvgAttributeValue(tag, 'points') ?? '').trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+      const points = (decodedSvgAttributeValue(tag, 'points') ?? '')
+        .trim()
+        .split(/\s+/)
+        .map(pair => pair.split(',').map(Number))
       if (points.length >= 3 && points.every(point => point.length === 2 && point.every(Number.isFinite))) {
         const polygon = points as [number, number][]
         return { fill, contains: (px, py) => polygonContains(polygon, px, py) }
@@ -373,7 +389,10 @@ function renderedTextPairs(svg: string): Array<{ foreground: string; background:
     }
     const tag = starts.get(match.index)
     if (!tag) continue
-    if (name === 'g') { groups.push({ shapes: [] }); continue }
+    if (name === 'g') {
+      groups.push({ shapes: [] })
+      continue
+    }
     const classes = (decodedSvgAttributeValue(tag, 'class') ?? '').split(/\s+/)
     if (['rect', 'circle', 'ellipse', 'polygon', 'path'].includes(name)) {
       const fill = paintOf(tag, 'fill', 'none')
@@ -386,19 +405,21 @@ function renderedTextPairs(svg: string): Array<{ foreground: string; background:
     const foreground = paintOf(tag, 'fill', defaultText)
     const textX = numberAttr(tag, 'x')
     const textY = numberAttr(tag, 'y')
-    const containingSurface = textX === undefined || textY === undefined ? undefined : [...groups].reverse()
-      .flatMap(group => [...group.shapes].reverse())
-      .find(shape => shape.contains(textX, textY))?.fill
-    const background = classes.includes('pie-slice-label')
-      ? pieSurfaces[pieLabelIndex++] ?? canvas
-      : containingSurface ?? canvas
+    const containingSurface =
+      textX === undefined || textY === undefined
+        ? undefined
+        : [...groups]
+            .reverse()
+            .flatMap(group => [...group.shapes].reverse())
+            .find(shape => shape.contains(textX, textY))?.fill
+    const background = classes.includes('pie-slice-label') ? (pieSurfaces[pieLabelIndex++] ?? canvas) : (containingSurface ?? canvas)
     pairs.push({ foreground, background })
   }
   return pairs.length > 0 ? pairs : [{ foreground: defaultText, background: canvas }]
 }
 
 export function collectVisualQualityRows(): VisualQualityRow[] {
-  return CASES.map((c) => {
+  return CASES.map(c => {
     const svg = normalizeSvg(renderMermaidSVG(c.source, { embedFontImport: false, idPrefix: `char-${c.family}-` }))
     const png = renderMermaidPNG(c.source, { scale: 1 })
     const parsed = parseMermaid(c.source)
@@ -433,7 +454,7 @@ function buildReport(rows: VisualQualityRow[]): string {
   out.push('`Label fit` is `n/a` for GitGraph because commit labels are external/rotated')
   out.push('annotations rather than text intended to fit inside the 20px commit glyph;')
   out.push('GitGraph label/canvas containment is gated separately by its layout tests.')
-  out.push('For graph-projected route correctness, pair this report with PR 30\'s hard')
+  out.push("For graph-projected route correctness, pair this report with PR 30's hard")
   out.push('gates: `src/__tests__/contact-sheet.test.ts`,')
   out.push('`src/__tests__/layout-rubric.test.ts`, and `bun run track`.')
   out.push('')
@@ -442,7 +463,9 @@ function buildReport(rows: VisualQualityRow[]): string {
   for (const row of rows) {
     const snapshot = `./visual-snapshots/${row.family}.svg`
     const contrast = row.metrics.minimumTextContrast === null ? 'n/a' : `${row.metrics.minimumTextContrast.toFixed(2)}:1`
-    out.push(`| ${row.title} | [${row.family}.svg](${snapshot}) | \`${shortHash(row.svgHash)}\` | \`${shortHash(row.pngHash)}\` | ${row.pngBytes} | ${row.svgSize.width}x${row.svgSize.height} | ${row.bounds.width}x${row.bounds.height} | ${row.metrics.nodeCount}/${row.metrics.edgeCount} | ${row.metrics.edgeCrossings} | ${row.bends} | ${row.routeLength} | ${fmtPct(row.metrics.whitespaceBalance)} | ${row.labelFitApplicable === false ? 'n/a' : fmtPct(row.metrics.labelLegibility)} | ${row.labelOverlaps} | ${fmtNumber(row.metrics.labelEdgeProximity)} | ${fmtNumber(row.metrics.minimumNodeSpacing)} | ${row.metrics.elementDensity.toFixed(2)} | ${contrast} | ${row.metrics.aspectRatio.toFixed(2)} |`)
+    out.push(
+      `| ${row.title} | [${row.family}.svg](${snapshot}) | \`${shortHash(row.svgHash)}\` | \`${shortHash(row.pngHash)}\` | ${row.pngBytes} | ${row.svgSize.width}x${row.svgSize.height} | ${row.bounds.width}x${row.bounds.height} | ${row.metrics.nodeCount}/${row.metrics.edgeCount} | ${row.metrics.edgeCrossings} | ${row.bends} | ${row.routeLength} | ${fmtPct(row.metrics.whitespaceBalance)} | ${row.labelFitApplicable === false ? 'n/a' : fmtPct(row.metrics.labelLegibility)} | ${row.labelOverlaps} | ${fmtNumber(row.metrics.labelEdgeProximity)} | ${fmtNumber(row.metrics.minimumNodeSpacing)} | ${row.metrics.elementDensity.toFixed(2)} | ${contrast} | ${row.metrics.aspectRatio.toFixed(2)} |`,
+    )
   }
   out.push('')
   out.push('## Sources')

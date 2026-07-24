@@ -97,6 +97,21 @@ export interface PieRuntimeConfig extends MermaidConfigMap {
   useWidth?: number
 }
 
+export interface SankeyRuntimeConfig extends MermaidConfigMap {
+  width?: number
+  height?: number
+  linkColor?: 'source' | 'target' | 'gradient' | string
+  nodeAlignment?: 'justify' | 'center' | 'left' | 'right'
+  showValues?: boolean
+  prefix?: string
+  suffix?: string
+  labelStyle?: 'legacy' | 'outlined'
+  nodeWidth?: number
+  nodePadding?: number
+  nodeColors?: Record<string, string>
+  useMaxWidth?: boolean
+}
+
 export interface RadarRuntimeConfig extends MermaidConfigMap {
   width?: number
   height?: number
@@ -338,6 +353,7 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   pie?: PieRuntimeConfig
   quadrantChart?: QuadrantRuntimeConfig
   radar?: RadarRuntimeConfig
+  sankey?: SankeyRuntimeConfig
   gantt?: GanttRuntimeConfig
   sequence?: SequenceRuntimeConfig
   class?: ClassRuntimeConfig

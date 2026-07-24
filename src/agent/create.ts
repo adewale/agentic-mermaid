@@ -7,23 +7,52 @@
 // list over that empty diagram so a whole new diagram is one typed call.
 // ============================================================================
 
-import type {
-  ValidDiagram, MutableValidDiagram, DiagramKind, DiagramBody,
-  FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram,
-  XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram,
-  MindmapValidDiagram, GitGraphValidDiagram, RadarValidDiagram,
-  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp,
-  XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp,
-  MindmapMutationOp, GitGraphMutationOp, RadarMutationOp, AnyMutationOp,
-  MutationError, Result,
-} from './types.ts'
-import { ok, err } from './types.ts'
+import type { Direction } from '../types.ts'
+import { mutate } from './mutate.ts'
 import { serializeMermaid } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
-import { mutate } from './mutate.ts'
-import type { Direction } from '../types.ts'
+import type {
+  AnyMutationOp,
+  ArchitectureMutationOp,
+  ArchitectureValidDiagram,
+  ClassMutationOp,
+  ClassValidDiagram,
+  DiagramBody,
+  DiagramKind,
+  ErMutationOp,
+  ErValidDiagram,
+  FlowchartMutationOp,
+  FlowchartValidDiagram,
+  GanttMutationOp,
+  GanttValidDiagram,
+  GitGraphMutationOp,
+  GitGraphValidDiagram,
+  JourneyMutationOp,
+  JourneyValidDiagram,
+  MindmapMutationOp,
+  MindmapValidDiagram,
+  MutableValidDiagram,
+  MutationError,
+  PieMutationOp,
+  PieValidDiagram,
+  QuadrantMutationOp,
+  QuadrantValidDiagram,
+  RadarMutationOp,
+  RadarValidDiagram,
+  Result,
+  SankeyMutationOp,
+  SankeyValidDiagram,
+  SequenceMutationOp,
+  SequenceValidDiagram,
+  StateMutationOp,
+  StateValidDiagram,
+  TimelineMutationOp,
+  TimelineValidDiagram,
+  ValidDiagram,
+  XyChartMutationOp,
+  XyChartValidDiagram,
+} from './types.ts'
+import { err, ok } from './types.ts'
 
 export interface CreateMermaidOptions {
   /** Layout direction for flowchart/state diagrams (default TD). Ignored elsewhere. */
@@ -35,30 +64,57 @@ export type BuildError = MutationError & { opIndex: number }
 
 function emptyBody(kind: DiagramKind, opts: CreateMermaidOptions): Exclude<DiagramBody, { kind: 'opaque' }> {
   switch (kind) {
-    case 'flowchart': return {
-      kind: 'flowchart',
-      graph: {
-        direction: opts.direction ?? 'TD', nodes: new Map(), edges: [], subgraphs: [],
-        classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map(),
-      },
-    }
-    case 'state': return { kind: 'state', states: [], transitions: [], direction: opts.direction }
-    case 'sequence': return { kind: 'sequence', participants: [], messages: [], statements: [] }
-    case 'timeline': return { kind: 'timeline', sections: [] }
-    case 'class': return { kind: 'class', classes: [], relations: [], notes: [] }
-    case 'er': return { kind: 'er', entities: [], relations: [] }
-    case 'journey': return { kind: 'journey', sections: [] }
-    case 'architecture': return { kind: 'architecture', groups: [], services: [], junctions: [], edges: [] }
-    case 'xychart': return { kind: 'xychart', series: [] }
-    case 'pie': return { kind: 'pie', showData: false, slices: [] }
-    case 'quadrant': return { kind: 'quadrant', quadrants: [undefined, undefined, undefined, undefined], points: [] }
-    case 'gantt': return { kind: 'gantt', sections: [], statements: [] }
-    case 'mindmap': return { kind: 'mindmap', root: { id: 'root', label: 'root', shape: 'default', children: [] } }
-    case 'gitgraph': return {
-      kind: 'gitgraph', direction: 'LR', mainBranchName: 'main', commits: [],
-      branches: [{ name: 'main', order: 0, sequence: 0 }], statements: [],
-    }
-    case 'radar': return { kind: 'radar', axes: [], curves: [], min: 0, ticks: 5, graticule: 'circle', showLegend: true }
+    case 'flowchart':
+      return {
+        kind: 'flowchart',
+        graph: {
+          direction: opts.direction ?? 'TD',
+          nodes: new Map(),
+          edges: [],
+          subgraphs: [],
+          classDefs: new Map(),
+          classAssignments: new Map(),
+          nodeStyles: new Map(),
+          linkStyles: new Map(),
+        },
+      }
+    case 'state':
+      return { kind: 'state', states: [], transitions: [], direction: opts.direction }
+    case 'sequence':
+      return { kind: 'sequence', participants: [], messages: [], statements: [] }
+    case 'timeline':
+      return { kind: 'timeline', sections: [] }
+    case 'class':
+      return { kind: 'class', classes: [], relations: [], notes: [] }
+    case 'er':
+      return { kind: 'er', entities: [], relations: [] }
+    case 'journey':
+      return { kind: 'journey', sections: [] }
+    case 'architecture':
+      return { kind: 'architecture', groups: [], services: [], junctions: [], edges: [] }
+    case 'xychart':
+      return { kind: 'xychart', series: [] }
+    case 'pie':
+      return { kind: 'pie', showData: false, slices: [] }
+    case 'quadrant':
+      return { kind: 'quadrant', quadrants: [undefined, undefined, undefined, undefined], points: [] }
+    case 'gantt':
+      return { kind: 'gantt', sections: [], statements: [] }
+    case 'mindmap':
+      return { kind: 'mindmap', root: { id: 'root', label: 'root', shape: 'default', children: [] } }
+    case 'gitgraph':
+      return {
+        kind: 'gitgraph',
+        direction: 'LR',
+        mainBranchName: 'main',
+        commits: [],
+        branches: [{ name: 'main', order: 0, sequence: 0 }],
+        statements: [],
+      }
+    case 'radar':
+      return { kind: 'radar', axes: [], curves: [], min: 0, ticks: 5, graticule: 'circle', showLegend: true }
+    case 'sankey':
+      return { kind: 'sankey', links: [] }
   }
 }
 
@@ -77,6 +133,7 @@ export function createMermaid(kind: 'gantt', opts?: CreateMermaidOptions): Gantt
 export function createMermaid(kind: 'mindmap', opts?: CreateMermaidOptions): MindmapValidDiagram
 export function createMermaid(kind: 'gitgraph', opts?: CreateMermaidOptions): GitGraphValidDiagram
 export function createMermaid(kind: 'radar', opts?: CreateMermaidOptions): RadarValidDiagram
+export function createMermaid(kind: 'sankey', opts?: CreateMermaidOptions): SankeyValidDiagram
 export function createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): MutableValidDiagram
 export function createMermaid(kind: DiagramKind, opts: CreateMermaidOptions = {}): MutableValidDiagram {
   logToolInvocation('build') // also covers buildMermaid/buildChecked, which route through here
@@ -85,7 +142,8 @@ export function createMermaid(kind: DiagramKind, opts: CreateMermaidOptions = {}
   // (Code Mode, CLI), so fail loudly on an unknown kind.
   if (!body) throw new Error(`createMermaid: unknown diagram kind "${String(kind)}"`)
   const draft: ValidDiagram = {
-    kind, body,
+    kind,
+    body,
     meta: { initDirectives: [], comments: [], accessibility: {} },
     source: { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
     canonicalSource: '',
@@ -108,6 +166,7 @@ export function buildMermaid(kind: 'gantt', ops: GanttMutationOp[], opts?: Creat
 export function buildMermaid(kind: 'mindmap', ops: MindmapMutationOp[], opts?: CreateMermaidOptions): Result<MindmapValidDiagram, BuildError>
 export function buildMermaid(kind: 'gitgraph', ops: GitGraphMutationOp[], opts?: CreateMermaidOptions): Result<GitGraphValidDiagram, BuildError>
 export function buildMermaid(kind: 'radar', ops: RadarMutationOp[], opts?: CreateMermaidOptions): Result<RadarValidDiagram, BuildError>
+export function buildMermaid(kind: 'sankey', ops: SankeyMutationOp[], opts?: CreateMermaidOptions): Result<SankeyValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<MutableValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts: CreateMermaidOptions = {}): Result<MutableValidDiagram, BuildError> {
   let d = createMermaid(kind, opts)

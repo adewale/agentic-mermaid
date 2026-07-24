@@ -101,6 +101,10 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
     family: 'radar', riskFixture: 'radar-demo.mmd', riskOptions: {},
     textStressSource: 'radar-beta\n  title 東京 café 👩‍💻\n  axis a["שלום é"], b["مرحبا"], c["長い"]\n  curve now["現在 👩‍💻"]{3,4,5}\n  max 5',
   },
+  sankey: {
+    family: 'sankey', riskFixture: 'sankey-flows-demo.mmd', riskOptions: {},
+    textStressSource: 'sankey-beta\n  東京 café 👩‍💻,שלום é,10\n  שלום é,مرحبا بالعالم,10',
+  },
 }
 
 export interface ConformanceSource {

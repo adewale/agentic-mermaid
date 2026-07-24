@@ -26,7 +26,7 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
 2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseRegisteredMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, and radar, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
+3. **Round-trippable** — `parseRegisteredMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, radar, and sankey, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
@@ -129,6 +129,7 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 | `DUPLICATE_EDGE` | warning | Flowchart/state contains an exact repeated edge with the same endpoints, label, style, and markers. Usually accidental regeneration or duplicate mutation. |
 | `UNREACHABLE_NODE` | warning | Flowchart/state contains a node not reachable from any entry root when the graph has roots. Usually a stranded branch after an edit. |
 | `DECISION_BRANCH_UNLABELED` | warning | A decision diamond has two or more exits and this branch carries no condition label. ISO 5807 (10.3.1.2) and ANSI X3.5 (4.10.2) require every exit of a multi-exit decision to be labeled with its condition value. |
+| `FLOW_IMBALANCE` | warning | A sankey intermediate node (one with both inflow and outflow) receives a different total than it emits. Conservation across stages is the domain's defining property — the ribbon widths are an account — and the layout silently renders `max(in, out)`, hiding the unaccounted quantity. Payload carries `node`, `inflow`, `outflow`, and a `message` naming the unaccounted amount. Balance the flows or add an explicit remainder link (e.g. a `Losses` sink). |
 | `COMMENT_DROPPED` | warning | The source contains in-body `%%` comments that this diagram's structured serialization does not preserve (reported with `count` and `lines`). The leading wrapper — frontmatter, `%%{init}%%` directives, comments before the header — always round-trips byte-verbatim; in-body comments survive only in opaque bodies or preserved opaque segments. Re-home load-bearing comments into the wrapper, or accept the loss as canonicalization. |
 | `UNSUPPORTED_SYNTAX` | warning | The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings). Payload includes `syntax`, optional `line`, and `message`. |
 | `CONTENT_DROPPED_ON_ROUNDTRIP` | warning | The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt. |
@@ -172,7 +173,7 @@ type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
   | StateBody | SequenceBody | TimelineBody | ClassBody | ErBody
   | JourneyBody | ArchitectureBody | XyChartBody | PieBody | QuadrantBody | GanttBody
-  | MindmapBody | GitGraphBody | RadarBody
+  | MindmapBody | GitGraphBody | RadarBody | SankeyBody
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 type MutableValidDiagram = import('agentic-mermaid/agent').MutableValidDiagram
@@ -437,6 +438,15 @@ Two contracts:
 | `reorder_curve`     | `from`, `to`                                           | `reorder_curve(to, from)` |
 | `set_config`        | optional `max`, `min`, `ticks` (`1..64`), `graticule`, `showLegend`; `null` resets each field | `set_config(prev_fields)` |
 
+**Sankey MutationOp kinds** (4 — the `sankey`/`sankey-beta` CSV family). Links are addressed by `(source, target)` label pair plus an `occurrence` index for parallel duplicate rows; the label IS the node identity, so `rename_node` rewrites every occurrence and rejects a collision that would silently merge two nodes' flows. Self-loops and cycles are rejected by the single invariant owner (the layered layout requires a DAG):
+
+| Kind | Required | Inverse |
+|---|---|---|
+| `add_link`       | `source`, `target`, `value` (+ optional insert `index`)             | `remove_link(source, target, occurrence)` |
+| `remove_link`    | `source`, `target` (+ optional `occurrence`, default 0)             | `add_link(...)` |
+| `set_link_value` | `source`, `target`, `value` (+ optional `occurrence`)               | `set_link_value(source, target, prev_value, occurrence)` |
+| `rename_node`    | `from`, `to` (rewrites every source/target occurrence)              | `rename_node(to, from)` |
+
 **Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, out-of-range scores in journey, duplicate Architecture title declarations, a `;`-joined multi-statement line in xychart, a malformed entry in pie, or out-of-range coordinates in quadrant, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
 
 **Segment-preserving bodies (BUILD-18) — sequence ends the all-or-nothing cliff.** Sequence carries an ordered `statements: SequenceStatement[]` list. `alt|opt|loop|par` are typed fragments: their branches/messages participate in describe/facts/verify and have dedicated mutation ops. Other block constructs (`critical|break|rect|box … end`) and `Note`/`activate`/`deactivate`/`create`/`destroy`/`autonumber`/`title` remain VERBATIM opaque segments. Top-level message indices stay backward-compatible and distinct from fragment indices. Only an un-segmentable body (a stray `end`, an unclosed block) falls back to whole-body opaque. Gantt adopts the same pattern for calendar directives/click/comments. ER also uses ordered typed and opaque-block segments; Class and Timeline are the remaining follow-up work.
@@ -476,6 +486,7 @@ mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiag
 mutate(d: MindmapValidDiagram,   op: MindmapMutationOp):   Result<MindmapValidDiagram, MutationError>
 mutate(d: GitGraphValidDiagram,  op: GitGraphMutationOp):  Result<GitGraphValidDiagram, MutationError>
 mutate(d: RadarValidDiagram,     op: RadarMutationOp):     Result<RadarValidDiagram, MutationError>
+mutate(d: SankeyValidDiagram,    op: SankeyMutationOp):    Result<SankeyValidDiagram, MutationError>
 
 // Narrowing helpers; null when the diagram isn't of that family or is opaque/source-level.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
@@ -493,6 +504,7 @@ asGantt(d: ValidDiagram):     GanttValidDiagram | null
 asMindmap(d: ValidDiagram):   MindmapValidDiagram | null
 asGitGraph(d: ValidDiagram):  GitGraphValidDiagram | null
 asRadar(d: ValidDiagram):     RadarValidDiagram | null
+asSankey(d: ValidDiagram):    SankeyValidDiagram | null
 
 // Build a ValidDiagram from a JSON-safe graph payload without re-parsing
 // source. Used by `am parse | am serialize` shell pipelines.

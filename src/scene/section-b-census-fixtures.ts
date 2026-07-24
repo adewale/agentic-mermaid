@@ -131,4 +131,12 @@ gitGraph
   commit id:"work"
   checkout main
   merge feature id:"merge"`,
+  sankey: `---
+title: Energy flows
+---
+sankey-beta
+  Coal,Electricity generation,127.93
+  Gas,Electricity generation,151.89
+  Electricity generation,Industry,342.16
+  Electricity generation,Losses,56.69`,
 })

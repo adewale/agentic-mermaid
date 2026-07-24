@@ -2,8 +2,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
-import { renderMermaidSVG, verifyNoExternalRefs } from '../../src/index.ts'
 import { knownBuiltinFamilies } from '../../src/agent/families.ts'
+import { renderMermaidSVG, verifyNoExternalRefs } from '../../src/index.ts'
 import { inferBackend, knownStyleDescriptors } from '../../src/scene/style-registry.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -27,6 +27,7 @@ const FEATURE_TAGS: Readonly<Record<string, readonly string[]>> = Object.freeze(
   gitgraph: ['branches', 'typed commits', 'tags', 'merge', 'cherry-pick'],
   gantt: ['sections', 'dependencies', 'statuses', 'milestone'],
   radar: ['axes', 'multiple curves', 'polygon graticule', 'legend'],
+  sankey: ['layered nodes', 'proportional ribbons', 'flow values', 'CSV rows'],
 })
 
 const examples = EDITOR_EXAMPLES.map(example => {
@@ -45,11 +46,7 @@ const examples = EDITOR_EXAMPLES.map(example => {
 
 const registeredFamilies = knownBuiltinFamilies()
 const exampleFamilies = examples.map(example => example.id)
-if (
-  new Set(exampleFamilies).size !== exampleFamilies.length ||
-  registeredFamilies.some(family => !exampleFamilies.includes(family)) ||
-  exampleFamilies.some(family => !registeredFamilies.includes(family as typeof registeredFamilies[number]))
-) {
+if (new Set(exampleFamilies).size !== exampleFamilies.length || registeredFamilies.some(family => !exampleFamilies.includes(family)) || exampleFamilies.some(family => !registeredFamilies.includes(family as (typeof registeredFamilies)[number]))) {
   throw new Error(`Editor/contact-sheet families must equal the built-in registry: ${registeredFamilies.join(', ')}`)
 }
 

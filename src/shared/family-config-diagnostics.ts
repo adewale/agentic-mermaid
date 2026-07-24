@@ -44,6 +44,7 @@ const positive = rule('a finite positive number', value => typeof value === 'num
 const nonNegative = rule('a finite non-negative number', value => typeof value === 'number' && Number.isFinite(value) && value >= 0)
 const finite = rule('a finite number', value => typeof value === 'number' && Number.isFinite(value))
 const boolean = rule('a boolean', value => typeof value === 'boolean')
+const stringValue = rule('a string', value => typeof value === 'string')
 const nonEmptyString = rule('a non-empty string', value => typeof value === 'string' && value.trim().length > 0)
 const stringArray = rule('a non-empty array of strings', value => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'))
 const oneOf = (...values: string[]): ValueRule => rule(`one of: ${values.join(', ')}`, value => typeof value === 'string' && values.includes(value))
@@ -73,6 +74,17 @@ const numericLike = (minimum: number, exclusive = false): ValueRule => rule(
   },
 )
 
+// Mirrored from sankey/config.ts instead of importing the family runtime here:
+// this generic module is part of every lazy-browser family, and a runtime
+// import would add a Sankey-only chunk request to all of them. Boundary tests
+// cover both the resolver and these diagnostics.
+const SANKEY_DIAGNOSTIC_LIMITS = {
+  width: 10000,
+  height: 10000,
+  nodeWidth: 200,
+  nodePadding: 200,
+} as const
+
 const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>> = {
   flowchart: { nodeSpacing: positive, rankSpacing: positive, wrappingWidth: positive },
   sequence: Object.fromEntries([
@@ -93,6 +105,27 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     marginBottom: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginLeft: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
     axisScaleFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), axisLabelFactor: range(RADAR_CONFIG_LIMITS.axisLabelFactorMin, RADAR_CONFIG_LIMITS.factor), curveTension: range(0, 1),
     useMaxWidth: boolean, tickLabels: boolean,
+  },
+  sankey: {
+    width: boundedPositive(SANKEY_DIAGNOSTIC_LIMITS.width),
+    height: boundedPositive(SANKEY_DIAGNOSTIC_LIMITS.height),
+    nodeWidth: boundedPositive(SANKEY_DIAGNOSTIC_LIMITS.nodeWidth),
+    nodePadding: boundedNonNegative(SANKEY_DIAGNOSTIC_LIMITS.nodePadding),
+    linkColor: rule('source, target, gradient, or a safe CSS color', value =>
+      typeof value === 'string'
+      && (['source', 'target', 'gradient'].includes(value) || safeCssColor(value) !== undefined),
+    ),
+    nodeAlignment: oneOf('justify', 'center', 'left', 'right'),
+    showValues: boolean,
+    prefix: stringValue,
+    suffix: stringValue,
+    labelStyle: oneOf('legacy', 'outlined'),
+    nodeColors: rule('an object mapping node labels to safe CSS colors', value =>
+      Boolean(value)
+      && typeof value === 'object'
+      && !Array.isArray(value)
+      && Object.values(value as Record<string, unknown>).every(color => safeCssColor(color) !== undefined),
+    ),
   },
   class: { nodeSpacing: nonNegative, rankSpacing: nonNegative, hierarchicalNamespaces: boolean },
   er: { layoutDirection: oneOfInsensitive('TB', 'TD', 'BT', 'LR', 'RL'), nodeSpacing: nonNegative, rankSpacing: nonNegative },

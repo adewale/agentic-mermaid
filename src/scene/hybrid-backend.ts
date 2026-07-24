@@ -163,6 +163,7 @@ const hybridSketcher: GeometrySketcher = (geom, opts) => {
         ? [
             ...(opts.strokeProjection.opacity !== undefined ? [`opacity="${escapeAttr(String(opts.strokeProjection.opacity))}"`] : []),
             ...(opts.strokeProjection.paintOrder !== undefined ? [`paint-order="${escapeAttr(opts.strokeProjection.paintOrder)}"`] : []),
+            ...(opts.strokeProjection.mixBlendMode !== undefined ? [`style="mix-blend-mode:${opts.strokeProjection.mixBlendMode}"`] : []),
           ].join(' ')
         : ''
       const fillOpacity = semanticOpacity === undefined ? '' : ` fill-opacity="${escapeAttr(String(semanticOpacity))}"`

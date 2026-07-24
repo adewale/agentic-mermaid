@@ -21,6 +21,7 @@ const LAZY_DESCRIPTOR_LOADERS = {
   mindmap: () => import('../browser-lazy/families/mindmap.ts'),
   gitgraph: () => import('../browser-lazy/families/gitgraph.ts'),
   radar: () => import('../browser-lazy/families/radar.ts'),
+  sankey: () => import('../browser-lazy/families/sankey.ts'),
 } as const
 
 function implementationSource(value: ((...args: never[]) => unknown) | undefined): string | undefined {

@@ -6,11 +6,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
     maxRawBytes: 682_619,
-    maxGzipBytes: 406_567,
-    // Re-recorded exactly for 0.4.2. The raw total is unchanged; the same-length
-    // projected version string slightly changes compression. These ceilings
-    // intentionally match the checked-in payload capture for this toolchain.
-    maxBrotliBytes: 388_085,
+    // Re-recorded with the current generated payload; raw bytes and requests
+    // are unchanged while cross-file compression improves slightly.
+    maxGzipBytes: 406_565,
+    maxBrotliBytes: 387_993,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -20,11 +19,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    maxRawBytes: 380_391,
-    maxGzipBytes: 66_939,
-    // The 0.4.2 release identity changes only compressed back-references on
-    // this route; the raw total remains byte-for-byte at its ratchet.
-    maxBrotliBytes: 53_155,
+    // Sixteenth-family enrollment adds the Sankey example and metadata to the
+    // registry-driven gallery; no new request is introduced.
+    maxRawBytes: 391_117,
+    maxGzipBytes: 68_588,
+    maxBrotliBytes: 54_398,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -36,11 +35,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 30,
-    maxRawBytes: 718_098,
-    maxGzipBytes: 269_729,
-    // The 0.4.2 release identity changes compressed back-references without
-    // changing the route's raw payload total.
-    maxBrotliBytes: 246_278,
+    // The shared lazy catalog now advertises Sankey; Timeline remains the only
+    // family chunk fetched by this route and the request ceiling is unchanged.
+    maxRawBytes: 723_601,
+    maxGzipBytes: 271_065,
+    // The same Bun build differs by three compressed bytes across Linux and
+    // macOS; exact hashes remain enforced on the recorded Linux toolchain.
+    maxBrotliBytes: 247_560,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -51,14 +52,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    // The editor still exercises the complete API; BUILD-31's registry seam
-    // accounts for this bounded compatibility-path delta. These exact totals
-    // include the shared code-point comparator used by family routing.
-    maxRawBytes: 3_289_905,
-    maxGzipBytes: 967_140,
-    // Re-recorded for the same-length 0.4.2 identity; raw API bytes are
-    // unchanged, while Brotli back-references shift slightly.
-    maxBrotliBytes: 759_951,
+    // The editor exercises the complete API, so its bounded delta includes the
+    // Sankey parser/renderer, d3-sankey, and typed gradient-resource support.
+    maxRawBytes: 3_325_508,
+    maxGzipBytes: 979_029,
+    maxBrotliBytes: 768_262,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

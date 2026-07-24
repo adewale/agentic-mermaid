@@ -17,6 +17,7 @@ import { sceneFidelityProblems } from './fidelity.ts'
 import type {
   Geometry,
   ConnectorMark,
+  LinearGradientDescriptor,
   MarkPaint,
   MarkerDescriptor,
   SceneDoc,
@@ -32,6 +33,7 @@ import {
   sameConnectorPoint,
 } from './connector-geometry.ts'
 import { assertRenderableMarker, serializeMarkerResources } from './marker-resources.ts'
+import { assertRenderableLinearGradient, serializeLinearGradientResources } from './gradient-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
@@ -304,7 +306,8 @@ function validatePaint(
   if (external) rejectUnknownKeys(value, PAINT_FIELDS, path, diagnostics)
   for (const key of ['fill', 'stroke'] as const) {
     const paint = value[key]
-    if (paint !== undefined && safeCssPaint(paint) === undefined) {
+    const localResource = localPaintResourceId(paint)
+    if (paint !== undefined && safeCssPaint(paint) === undefined && (external || !localResource)) {
       add(diagnostics, 'SCENE_PAINT', `${path}.${key}`, 'must be a safe non-fetching CSS paint')
     }
   }
@@ -335,6 +338,13 @@ function validatePaint(
         && tokens.every(token => ['fill', 'stroke', 'markers'].includes(token)))
     if (!valid) add(diagnostics, 'SCENE_PAINT', `${path}.paintOrder`, 'must be normal or one to three unique fill, stroke, and markers keywords')
   }
+}
+
+function localPaintResourceId(value: unknown): string | undefined {
+  const match = typeof value === 'string'
+    ? /^url\(#([A-Za-z_][A-Za-z0-9_.:-]*)\)$/.exec(value.trim())
+    : null
+  return match?.[1]
 }
 
 interface ValidationBudget {
@@ -620,6 +630,7 @@ interface ValidationState {
   readonly ids: Map<string, { path: string; kind: string }>
   readonly domIds: Map<string, string>
   readonly markerIds: Map<string, MarkerDescriptor>
+  readonly gradientIds: Map<string, LinearGradientDescriptor>
   readonly markerReferences: Array<{ id: string; path: string; marker: MarkerDescriptor }>
   readonly endpointReferences: Array<{ id: string; path: string }>
   readonly companionLabelReferences: Array<{ id: string; path: string }>
@@ -686,8 +697,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (value.domId !== undefined && boundedString(value.domId, `${path}.domId`, state.diagnostics, { externalId: state.external })) {
     const prior = state.domIds.get(value.domId)
     const marker = state.markerIds.get(value.domId)
+    const gradient = state.gradientIds.get(value.domId)
     if (state.external && prior) add(state.diagnostics, 'SCENE_ID', `${path}.domId`, `duplicates DOM id owned by ${prior}`)
     else if (state.external && marker) add(state.diagnostics, 'SCENE_ID', `${path}.domId`, `collides with marker resource "${value.domId}"`)
+    else if (gradient) add(state.diagnostics, 'SCENE_ID', `${path}.domId`, `collides with gradient resource "${value.domId}"`)
     else state.domIds.set(value.domId, `${path}.domId`)
   }
   validateRole(kind, value.role, `${path}.role`, state)
@@ -777,6 +790,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
             const domPrior = state.domIds.get(marker.id)
             if (prior) add(state.diagnostics, 'SCENE_MARKER', `${markerPath}.id`, `duplicates marker resource "${marker.id}"`)
             else if (state.external && domPrior) add(state.diagnostics, 'SCENE_ID', `${markerPath}.id`, `collides with DOM id owned by ${domPrior}`)
+            else if (state.gradientIds.has(marker.id)) add(state.diagnostics, 'SCENE_ID', `${markerPath}.id`, `collides with gradient resource "${marker.id}"`)
             else state.markerIds.set(marker.id, marker)
           }
         }
@@ -788,6 +802,44 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
             if (serialized !== expected) add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from the typed marker resources')
           } catch {
             // The marker diagnostic above is more precise.
+          }
+        }
+      }
+    }
+    if (value.gradientResources !== undefined) {
+      if (value.element !== 'definitions') add(state.diagnostics, 'SCENE_PAINT', `${path}.gradientResources`, 'are only valid on a definitions document mark')
+      if (!Array.isArray(value.gradientResources)) add(state.diagnostics, 'SCENE_PAINT', `${path}.gradientResources`, 'must be an array')
+      else {
+        if (value.gradientResources.length > MAX_SCENE_NODES) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.gradientResources`, 'contains too many gradient resources')
+        for (let index = 0; index < Math.min(value.gradientResources.length, MAX_SCENE_NODES); index++) {
+          const gradient = value.gradientResources[index]
+          const gradientPath = `${path}.gradientResources[${index}]`
+          try {
+            assertRenderableLinearGradient(gradient as LinearGradientDescriptor)
+            const typed = gradient as LinearGradientDescriptor
+            if (state.gradientIds.has(typed.id) || state.markerIds.has(typed.id) || state.domIds.has(typed.id)) {
+              add(state.diagnostics, 'SCENE_ID', `${gradientPath}.id`, `duplicates SVG resource id "${typed.id}"`)
+            } else {
+              state.gradientIds.set(typed.id, typed)
+            }
+          } catch (error) {
+            add(state.diagnostics, 'SCENE_PAINT', gradientPath, error instanceof Error ? error.message : String(error))
+          }
+        }
+        if (value.element === 'definitions') {
+          try {
+            const resources = [
+              ...(Array.isArray(value.markerResources) && value.markerResources.length > 0
+                ? [serializeMarkerResources(value.markerResources as MarkerDescriptor[])]
+                : []),
+              ...(value.gradientResources.length > 0
+                ? [serializeLinearGradientResources(value.gradientResources as LinearGradientDescriptor[])]
+                : []),
+            ].join('\n')
+            const expected = canonicalizeSceneNodeSerialization(`<defs>\n${resources}\n</defs>`)
+            if (serialized !== expected) add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from typed resources')
+          } catch {
+            // Resource-specific diagnostics above are more precise.
           }
         }
       }
@@ -877,13 +929,16 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     } else add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.route.contours`, 'must be an array')
   } else add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.route`, 'must be a typed connector route')
   if (record(value.stroke)) {
-    if (safeCssPaint(value.stroke.color) === undefined) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.color`, 'must be a safe non-fetching CSS paint')
+    if (safeCssPaint(value.stroke.color) === undefined && (state.external || !localPaintResourceId(value.stroke.color))) {
+      add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.color`, 'must be a safe non-fetching CSS paint')
+    }
     numericCss(value.stroke.width, `${path}.stroke.width`, state.diagnostics, { nonNegative: true, length: true })
     numericCss(value.stroke.opacity, `${path}.stroke.opacity`, state.diagnostics, { unitInterval: true })
     numericCss(value.stroke.miterLimit, `${path}.stroke.miterLimit`, state.diagnostics, { nonNegative: true })
     numericCss(value.stroke.pathLength, `${path}.stroke.pathLength`, state.diagnostics, { nonNegative: true })
     if (!['butt', 'round', 'square'].includes(String(value.stroke.lineCap))) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.lineCap`, 'has an unknown line cap')
     if (!['arcs', 'bevel', 'miter', 'miter-clip', 'round'].includes(String(value.stroke.lineJoin))) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.lineJoin`, 'has an unknown line join')
+    if (value.stroke.mixBlendMode !== undefined && !['normal', 'multiply'].includes(String(value.stroke.mixBlendMode))) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.mixBlendMode`, 'must be normal or multiply')
     if (typeof value.stroke.nonScaling !== 'boolean') add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.nonScaling`, 'must be boolean')
     if (value.stroke.dash !== undefined) {
       if (!record(value.stroke.dash)) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.dash`, 'must be a dash descriptor')
@@ -1206,6 +1261,39 @@ function boundedExternalSvg(
   return chunks.join('\n')
 }
 
+function localPaintResourceReferences(node: unknown, path: string): Array<{ id: string; path: string }> {
+  if (!record(node)) return []
+  const references: Array<{ id: string; path: string }> = []
+  const inspectPaint = (paint: unknown, paintPath: string): void => {
+    if (!record(paint)) return
+    for (const key of ['fill', 'stroke'] as const) {
+      const id = localPaintResourceId(paint[key])
+      if (id) references.push({ id, path: `${paintPath}.${key}` })
+    }
+  }
+  if (node.kind === 'connector') {
+    if (record(node.stroke)) {
+      const id = localPaintResourceId(node.stroke.color)
+      if (id) references.push({ id, path: `${path}.stroke.color` })
+    }
+    if (Array.isArray(node.labels)) {
+      for (let index = 0; index < node.labels.length; index++) {
+        const label = node.labels[index]
+        if (record(label)) inspectPaint(label.paint, `${path}.labels[${index}].paint`)
+      }
+    }
+  } else {
+    inspectPaint(node.paint, `${path}.paint`)
+  }
+  if (node.kind === 'group' && Array.isArray(node.children)) {
+    for (let index = 0; index < node.children.length; index++) {
+      const child = node.children[index]
+      if (record(child)) references.push(...localPaintResourceReferences(child.node, `${path}.children[${index}].node`))
+    }
+  }
+  return references
+}
+
 /** Validate an unknown value against the current Scene behavioral contract. */
 export function validateSceneDoc(value: unknown, options: SceneValidationOptions = {}): SceneValidationResult {
   const diagnostics: MutableDiagnostic[] = []
@@ -1254,6 +1342,7 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
       ids: new Map(),
       domIds: new Map(),
       markerIds: new Map(),
+      gradientIds: new Map(),
       markerReferences: [],
       endpointReferences: [],
       companionLabelReferences: [],
@@ -1271,6 +1360,13 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
     if (value.parts.length > MAX_SCENE_NODES) add(diagnostics, 'SCENE_BOUNDS', 'scene.parts', 'contains too many top-level Scene nodes')
     for (let index = 0; index < Math.min(value.parts.length, MAX_SCENE_NODES); index++) {
       validateNode(value.parts[index], `scene.parts[${index}]`, state, 0)
+    }
+    for (let index = 0; index < Math.min(value.parts.length, MAX_SCENE_NODES); index++) {
+      for (const reference of localPaintResourceReferences(value.parts[index], `scene.parts[${index}]`)) {
+        if (!state.gradientIds.has(reference.id)) {
+          add(diagnostics, 'SCENE_REFERENCE', reference.path, `references undeclared gradient "${reference.id}"`)
+        }
+      }
     }
     const externalSvg = external && value.parts.length <= MAX_SCENE_NODES
       ? boundedExternalSvg(value.parts, diagnostics)

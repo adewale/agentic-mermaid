@@ -4,7 +4,7 @@
     "familyQuota": 4,
     "selection": "registry-exact, provenance-diverse, deterministic first candidates by source class"
   },
-  "entries": 60,
+  "entries": 64,
   "familyCounts": {
     "architecture": 4,
     "class": 4,
@@ -17,6 +17,7 @@
     "pie": 4,
     "quadrant": 4,
     "radar": 4,
+    "sankey": 4,
     "sequence": 4,
     "state": 4,
     "timeline": 4,
@@ -24,9 +25,9 @@
   },
   "sourceClassCounts": {
     "family-corpus": 6,
-    "layout-fixture": 15,
-    "registry-example": 1,
-    "skill-fixture": 15,
+    "layout-fixture": 16,
+    "registry-example": 3,
+    "skill-fixture": 16,
     "upstream-docs": 23
   },
   "inputs": [

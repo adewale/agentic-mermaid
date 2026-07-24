@@ -8,196 +8,424 @@
 // nothing (ELK is deterministic on its own). See AGENT_NATIVE.md § (1).
 // ============================================================================
 
-export type {
-  Result, ValidDiagram, ParsedDiagram, ExtensionValidDiagram, ExtensionDiagramBody, PreservedValidDiagram, PreservedDiagramBody, PreservedSourceSpans, SourceSpan, SourceSpanPoint, FamilyParsedBody, FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, MindmapValidDiagram, GitGraphValidDiagram, RadarValidDiagram, MutableValidDiagram,
-  ValidDiagramMeta, ValidDiagramPayload, SerializedFlowchartGraph, DiagramBody, DiagramKind, FamilyId, ExternalFamilyId,
-  StateBody, StateNode, StateTransition,
-  SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
-  TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
-  ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote,
-  ErBody, ErEntity, ErRelation, ErAttribute, ErCardinality,
-  JourneyBody, JourneySection, JourneyTask,
-  ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction, ArchitectureEdge, ArchitectureEndpoint, ArchitectureSide, ArchitectureEndpointBoundary,
-  XyChartBody, XyChartAxis, XyChartSeries, XyChartAxisSpec,
-  PieBody, PieSlice, QuadrantBody, QuadrantAxis, QuadrantPoint,
-  GanttBody, GanttBodySection, GanttBodyTask, GanttBodyTaskTag, GanttStatement,
-  MindmapBody, GitGraphBody, RadarBody, RadarBodyAxis, RadarBodyCurve,
-  SourceMap, SourceMapSpans, SourceComment, InitDirective, Accessibility,
-  ParseError, SourcePreservationReceipt, MutationError, FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, MindmapMutationOp, GitGraphMutationOp, RadarMutationOp, AnyMutationOp,
-  NodeId, EdgeId, GroupId, ParticipantId,
-  LayoutWarning, WarningCode, Tier1WarningCode, Tier2WarningCode, WarningSeverity, WarningTier,
-  VerifyOptions, VerifyResult, RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge, RenderedLayoutGroup, RenderedRegion, RenderedRegionKind,
-  DiagramAnalysis, DiagramActionRecord, DiagramActionKind, DiagramActionSecurity, FeedbackEdgeAnalysis, GanttScheduleAnalysisSummary,
-  Finite,
-} from './types.ts'
-export type { MermaidFact, CheckMermaidSpec, CheckMermaidObjectSpec, CheckMermaidResult } from './facts.ts'
-
-export { WARNING_SEVERITY, WARNING_TIER, DEFAULT_LABEL_CHAR_CAP, ok, err, toFinite, asFlowchart, asState, asSequence, asTimeline, asClass, asEr, asJourney, asArchitecture, asXyChart, asPie, asQuadrant, asGantt, asMindmap, asGitGraph, asRadar } from './types.ts'
-export { parseRegisteredMermaid } from './parse.ts'
-export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
-export { createMermaid, buildMermaid } from './create.ts'
-export type { CreateMermaidOptions, BuildError } from './create.ts'
-export { mutate, mutateChecked, edgeIdOf } from './mutate.ts'
+export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from '../ascii/index.ts'
+export { AsciiWidthError } from '../ascii/index.ts'
+export type { AsciiRegion, AsciiWarning, AsciiWarningCode, AsciiWithMeta, RegionKind } from '../ascii/meta.ts'
+export { ASCII_ROUTE_PARITY_CONTRACT, renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+export { asciiToMermaid } from '../ascii/reverse.ts'
+export type { FamilyDetectionDiagnostic, MermaidFamilyClassification } from '../family-detection.ts'
+export { classifyMermaidFamilyFromFirstLine, MermaidFamilyDetectionError } from '../family-detection.ts'
+export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from '../text-metrics.ts'
+export { measureText, measureTextWidth, TEXT_MEASUREMENT_CONTRACT } from '../text-metrics.ts'
+export type { AnyPort, DiamondFacet, EdgeRouteCertificate, FamilyEdgeRouteCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, PortSemanticRole, PortSide, RegionContainmentCertificate, RouteBlocker, RouteCertificate, RouteClass, RoutePortAssignment } from '../types.ts'
+export type { UpstreamHeaderMatch, UpstreamMermaidFamilyIndex } from '../upstream-family-index.ts'
+export { findUpstreamFamilyByHeader, UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
+export type { UpstreamFamilyDescriptor, UpstreamHeaderDescriptor, UpstreamManifestDiff, UpstreamMermaidManifest } from '../upstream-mermaid-manifest.ts'
+export { analyzeMermaid, analyzeMermaidSource, collectActionRecords } from './analyze.ts'
+export type { ApplyOpsInput, CheckedBuildError, OpEnvelope, VerifySummary } from './apply.ts'
 export { applyOps, buildChecked, verifySummary } from './apply.ts'
-export type { OpEnvelope, VerifySummary, CheckedBuildError, ApplyOpsInput } from './apply.ts'
-export { validateOp, hasOpSchema, opMenu, describeOps, opSignatures } from './op-schema.ts'
-export type { OpFamily, OpValidationError, OpFieldDoc } from './op-schema.ts'
-export { verifyMermaid } from './verify.ts'
-export { measureQuality, checkQuality, DEFAULT_BOUNDS, BOUND_PROVENANCE } from './quality.ts'
-export type { QualityMetrics, QualityBounds, QualityMeasurementOptions, QualityVerdict, RankedViolation, BoundProvenance, BoundBasis, ViolationSeverity } from './quality.ts'
-export { layoutCertificateProof } from './certificates.ts'
 export type { LayoutCertificateProof } from './certificates.ts'
-export type { RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from '../types.ts'
-export { registerFamily, FamilyConformanceError } from './family-registration.ts'
-export { getFamily, getFamilyConformanceReport, effectiveFamilyCapabilityState, knownFamilies, knownBuiltinFamilies, detectRegisteredFamilyFromFirstLine, isBuiltinFamilyId, isExternalFamilyId, BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, builtinFamilyMetadata, FAMILY_CAPABILITY_COLUMNS, FAMILY_DESCRIPTOR_CONTRACT_VERSION, FAMILY_CONFORMANCE_VERSION, FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES, UNREGISTERED_FAMILY_CAPABILITY_STATES, declareFamilyScenePrimitiveEvidence } from './families.ts'
+export { layoutCertificateProof } from './certificates.ts'
+export type { BuildError, CreateMermaidOptions } from './create.ts'
+export { buildMermaid, createMermaid } from './create.ts'
+export type { DescribeOptions, DescribeTree } from './describe.ts'
+export { describeMermaid, describeMermaidSource, describeMermaidTree } from './describe.ts'
+export type { CheckMermaidObjectSpec, CheckMermaidResult, CheckMermaidSpec, MermaidFact } from './facts.ts'
+export { checkMermaid, checkMermaidSource, describeMermaidFacts, describeMermaidFactsSource } from './facts.ts'
 export type {
-  FamilyDescriptor, FamilyOperations, ExtensionIdentity,
-  FamilyCapability, FamilyCapabilityState, FamilyCapabilityEvidence, ExtractedLabel, BuiltinFamilyMetadata, BuiltinFamilyId,
-  FamilyConformanceStatus, FamilyCapabilityConformanceResult, FamilyConformanceReport,
-  FamilyPositionedView, FamilyPositionedProjectionContext, FamilyPositionedProjectionOptions,
-  FamilyScenePrimitiveApplicability, FamilyScenePrimitiveEvidence,
-  FamilyScenePositivePrimitive, FamilySceneRolePrimitiveDeclaration,
+  BuiltinFamilyId,
+  BuiltinFamilyMetadata,
+  ExtensionIdentity,
+  ExtractedLabel,
+  FamilyCapability,
+  FamilyCapabilityConformanceResult,
+  FamilyCapabilityEvidence,
+  FamilyCapabilityState,
+  FamilyConformanceReport,
+  FamilyConformanceStatus,
+  FamilyDescriptor,
+  FamilyOperations,
+  FamilyPositionedProjectionContext,
+  FamilyPositionedProjectionOptions,
+  FamilyPositionedView,
+  FamilyScenePositivePrimitive,
+  FamilyScenePrimitiveApplicability,
+  FamilyScenePrimitiveEvidence,
+  FamilySceneRolePrimitiveDeclaration,
+} from './families.ts'
+export {
+  BUILTIN_FAMILY_METADATA,
+  BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND,
+  builtinFamilyMetadata,
+  declareFamilyScenePrimitiveEvidence,
+  detectRegisteredFamilyFromFirstLine,
+  effectiveFamilyCapabilityState,
+  FAMILY_CAPABILITY_COLUMNS,
+  FAMILY_CONFORMANCE_MAX_EXAMPLE_BYTES,
+  FAMILY_CONFORMANCE_VERSION,
+  FAMILY_DESCRIPTOR_CONTRACT_VERSION,
+  getFamily,
+  getFamilyConformanceReport,
+  isBuiltinFamilyId,
+  isExternalFamilyId,
+  knownBuiltinFamilies,
+  knownFamilies,
+  UNREGISTERED_FAMILY_CAPABILITY_STATES,
 } from './families.ts'
 export { projectPositionedView } from './family-layouts.ts'
-export { UPSTREAM_MERMAID_FAMILY_INDEX, findUpstreamFamilyByHeader } from '../upstream-family-index.ts'
-export type { UpstreamMermaidFamilyIndex, UpstreamHeaderMatch } from '../upstream-family-index.ts'
-export type { UpstreamMermaidManifest, UpstreamFamilyDescriptor, UpstreamHeaderDescriptor, UpstreamManifestDiff } from '../upstream-mermaid-manifest.ts'
-export { MermaidFamilyDetectionError, classifyMermaidFamilyFromFirstLine } from '../family-detection.ts'
-export type { MermaidFamilyClassification, FamilyDetectionDiagnostic } from '../family-detection.ts'
-export { renderMermaidASCIIWithMeta, ASCII_ROUTE_PARITY_CONTRACT } from '../ascii/meta.ts'
-export type { AsciiRegion, AsciiWithMeta, RegionKind, AsciiWarning, AsciiWarningCode } from '../ascii/meta.ts'
-export { describeMermaid, describeMermaidSource, describeMermaidTree } from './describe.ts'
-export { describeMermaidFacts, describeMermaidFactsSource, checkMermaid, checkMermaidSource } from './facts.ts'
-export { analyzeMermaid, analyzeMermaidSource, collectActionRecords } from './analyze.ts'
-export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from '../text-metrics.ts'
-export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from '../text-metrics.ts'
-export type { DescribeTree } from './describe.ts'
-export type { DescribeOptions } from './describe.ts'
-export { asciiToMermaid } from '../ascii/reverse.ts'
-export { AsciiWidthError } from '../ascii/index.ts'
-export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from '../ascii/index.ts'
+export { FamilyConformanceError, registerFamily } from './family-registration.ts'
+export { edgeIdOf, mutate, mutateChecked } from './mutate.ts'
+export type { OpFamily, OpFieldDoc, OpValidationError } from './op-schema.ts'
+export { describeOps, hasOpSchema, opMenu, opSignatures, validateOp } from './op-schema.ts'
+export { parseRegisteredMermaid } from './parse.ts'
+export type { BoundBasis, BoundProvenance, QualityBounds, QualityMeasurementOptions, QualityMetrics, QualityVerdict, RankedViolation, ViolationSeverity } from './quality.ts'
+export { BOUND_PROVENANCE, checkQuality, DEFAULT_BOUNDS, measureQuality } from './quality.ts'
+export { serializeMermaid, synthesizeFromGraph } from './serialize.ts'
+export type {
+  Accessibility,
+  AnyMutationOp,
+  ArchitectureBody,
+  ArchitectureEdge,
+  ArchitectureEndpoint,
+  ArchitectureEndpointBoundary,
+  ArchitectureGroup,
+  ArchitectureJunction,
+  ArchitectureMutationOp,
+  ArchitectureService,
+  ArchitectureSide,
+  ArchitectureValidDiagram,
+  ClassBody,
+  ClassMutationOp,
+  ClassNode,
+  ClassNote,
+  ClassRelation,
+  ClassRelationKind,
+  ClassValidDiagram,
+  DiagramActionKind,
+  DiagramActionRecord,
+  DiagramActionSecurity,
+  DiagramAnalysis,
+  DiagramBody,
+  DiagramKind,
+  EdgeId,
+  ErAttribute,
+  ErBody,
+  ErCardinality,
+  ErEntity,
+  ErMutationOp,
+  ErRelation,
+  ErValidDiagram,
+  ExtensionDiagramBody,
+  ExtensionValidDiagram,
+  ExternalFamilyId,
+  FamilyId,
+  FamilyParsedBody,
+  FeedbackEdgeAnalysis,
+  Finite,
+  FlowchartMutationOp,
+  FlowchartValidDiagram,
+  GanttBody,
+  GanttBodySection,
+  GanttBodyTask,
+  GanttBodyTaskTag,
+  GanttMutationOp,
+  GanttScheduleAnalysisSummary,
+  GanttStatement,
+  GanttValidDiagram,
+  GitGraphBody,
+  GitGraphMutationOp,
+  GitGraphValidDiagram,
+  GroupId,
+  InitDirective,
+  JourneyBody,
+  JourneyMutationOp,
+  JourneySection,
+  JourneyTask,
+  JourneyValidDiagram,
+  LayoutWarning,
+  MindmapBody,
+  MindmapMutationOp,
+  MindmapValidDiagram,
+  MutableValidDiagram,
+  MutationError,
+  NodeId,
+  ParsedDiagram,
+  ParseError,
+  ParticipantId,
+  PieBody,
+  PieMutationOp,
+  PieSlice,
+  PieValidDiagram,
+  PreservedDiagramBody,
+  PreservedSourceSpans,
+  PreservedValidDiagram,
+  QuadrantAxis,
+  QuadrantBody,
+  QuadrantMutationOp,
+  QuadrantPoint,
+  QuadrantValidDiagram,
+  RadarBody,
+  RadarBodyAxis,
+  RadarBodyCurve,
+  RadarMutationOp,
+  RadarValidDiagram,
+  RenderedLayout,
+  RenderedLayoutEdge,
+  RenderedLayoutGroup,
+  RenderedLayoutNode,
+  RenderedRegion,
+  RenderedRegionKind,
+  Result,
+  SankeyBody,
+  SankeyBodyLink,
+  SankeyMutationOp,
+  SankeyValidDiagram,
+  SequenceBody,
+  SequenceMessage,
+  SequenceMessageStyle,
+  SequenceMutationOp,
+  SequenceParticipant,
+  SequenceValidDiagram,
+  SerializedFlowchartGraph,
+  SourceComment,
+  SourceMap,
+  SourceMapSpans,
+  SourcePreservationReceipt,
+  SourceSpan,
+  SourceSpanPoint,
+  StateBody,
+  StateMutationOp,
+  StateNode,
+  StateTransition,
+  StateValidDiagram,
+  Tier1WarningCode,
+  Tier2WarningCode,
+  TimelineBody,
+  TimelineEvent,
+  TimelineMutationOp,
+  TimelinePeriod,
+  TimelineSection,
+  TimelineValidDiagram,
+  ValidDiagram,
+  ValidDiagramMeta,
+  ValidDiagramPayload,
+  VerifyOptions,
+  VerifyResult,
+  WarningCode,
+  WarningSeverity,
+  WarningTier,
+  XyChartAxis,
+  XyChartAxisSpec,
+  XyChartBody,
+  XyChartMutationOp,
+  XyChartSeries,
+  XyChartValidDiagram,
+} from './types.ts'
+export { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, DEFAULT_LABEL_CHAR_CAP, err, ok, toFinite, WARNING_SEVERITY, WARNING_TIER } from './types.ts'
+export { verifyMermaid } from './verify.ts'
 
 import { renderMermaidSVG as _svg, renderMermaidSVGWithReceipt as _svgWithReceipt } from '../index.ts'
+
+export type { ArchitectureVisualOverrides } from '../architecture/config.ts'
+export type { CapabilityDecision, CapabilityId, CapabilityOffer, CapabilityRequirement, CapabilityRequirementLevel, CapabilityResolution } from '../capability-negotiation.ts'
+export {
+  CAPABILITY_NEGOTIATION_VERSION,
+  CORE_CAPABILITY_OFFERS,
+  negotiateCapabilities,
+  negotiateRenderCapabilities,
+  parseSemVer,
+  semVerSatisfies,
+} from '../capability-negotiation.ts'
+export {
+  HOSTED_FONT_RESOURCES,
+  hostedFontResource,
+  RESOURCE_MANIFEST,
+  validateResourceManifest,
+} from '../font-manifest.ts'
 export { verifyNoExternalRefs } from '../index.ts'
+export type {
+  NativePngHostOnlyOptionField,
+  NativePngOutputPolicyField,
+  PngFitTo,
+  PngFontSource,
+  PngOutputOptionField,
+  PngOutputOptionFieldDescriptor,
+  PngOutputOptionInputKind,
+  PngOutputOptionPolicyState,
+  PngOutputOptionReceiptState,
+  PngOutputOptionScope,
+  PngOutputPolicyInput,
+  PngRasterDimensions,
+  PngRuntimeProvenance,
+  PortablePngOutputOptionField,
+  PortablePngOutputOptions,
+  ResolvedPngOutputPolicy,
+} from '../png-contract.ts'
+export {
+  assertHostedPngRasterBudget,
+  assertPngRasterBudget,
+  MAX_HOSTED_PNG_BYTES,
+  MAX_HOSTED_PNG_PIXELS,
+  MAX_PNG_FONT_DIRECTORIES,
+  MAX_PNG_FONT_DIRECTORY_LENGTH,
+  MAX_PNG_PIXELS,
+  MAX_PNG_RASTER_DIMENSION,
+  NATIVE_PNG_HOST_ONLY_OPTION_FIELDS,
+  NATIVE_PNG_OUTPUT_POLICY_FIELDS,
+  normalizePortablePngBackground,
+  omitPngOutputOptions,
+  PNG_DEFAULT_FONT_FAMILY,
+  PNG_DEFAULT_SCALE,
+  PNG_FONT_SOURCES,
+  PNG_NAPI_RUNTIME,
+  PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS,
+  PNG_OUTPUT_OPTION_FIELDS,
+  PNG_OUTPUT_POLICY_VERSION,
+  PNG_WASM_RUNTIME,
+  PORTABLE_PNG_OUTPUT_OPTION_FIELDS,
+  pngNapiRuntimeProvenance,
+  pngOutputOptionsJsonSchema,
+  pngRasterDimensions,
+  prepareSvgForPngRasterization,
+  projectNativePngOutputPolicyInput,
+  projectPortablePngOutputOptions,
+  resolvePngOutputPolicy,
+  resolvePortablePngOutputPolicy,
+  svgIntrinsicDimensions,
+} from '../png-contract.ts'
+export type {
+  CliRenderTransport,
+  CodeModeRenderTransport,
+  LibraryRenderTransport,
+  RenderOutputDescriptor,
+  RenderOutputTransports,
+  RenderRequestReceipt,
+} from '../render-contract.ts'
+export {
+  RENDER_CONTRACT_VERSION,
+  RENDER_OUTPUT_DESCRIPTORS,
+  RENDER_OUTPUTS,
+  RenderCapabilityError,
+  SHARED_RENDER_OPTION_FIELDS,
+  sharedRenderOptionsJsonSchema,
+  styleInputJsonSchema,
+  validateSerializableRenderOptions,
+} from '../render-contract.ts'
+export { RESOURCE_MANIFEST_VERSION, verifyResourceBytes } from '../resource-manifest.ts'
+export type { BackendDescriptor, BackendRegistrationOptions, HostBackendPolicy, StyleBackend, StyleBackendContext } from '../scene/backend.ts'
+export { DefaultBackend, getBackend, knownBackendDescriptors, registerBackend } from '../scene/backend.ts'
+export type { BackendCapabilityConformanceResult, BackendCapabilityConformanceStatus, BackendConformanceCheck, BackendConformanceCheckId, BackendConformanceReport } from '../scene/backend-conformance.ts'
+export {
+  BACKEND_CONFORMANCE_CHECK_IDS,
+  BACKEND_CONFORMANCE_FIXTURE_ID,
+  BACKEND_CONFORMANCE_VERSION,
+  runBackendConformance,
+} from '../scene/backend-conformance.ts'
+export { CORE_SCENE_FEATURES, CORE_SCENE_OPERATIONS, CORE_SCENE_PRIMITIVES, PRIMITIVE_REALIZATIONS, terminalConnectorCapabilityClaims, validatePrimitiveCapabilities } from '../scene/capabilities.ts'
+export type {
+  ExternalSceneConnector,
+  ExternalSceneConnectorGeometry,
+  ExternalSceneConnectorLabel,
+  ExternalSceneContainer,
+  ExternalSceneDataMark,
+  ExternalSceneDocument,
+  ExternalSceneGeometry,
+  ExternalSceneInput,
+  ExternalSceneMarker,
+  ExternalSceneNode,
+  ExternalSceneNodeBase,
+  ExternalSceneShape,
+  ExternalSceneText,
+} from '../scene/external-scene.ts'
+export { buildExternalScene, EXTERNAL_SCENE_API_VERSION } from '../scene/external-scene.ts'
+export type {
+  ConnectorContourSemantics,
+  ConnectorEndpoints,
+  ConnectorGeometry,
+  ConnectorHitGeometry,
+  ConnectorLabelDescriptor,
+  ConnectorMark,
+  ConnectorRelationship,
+  ConnectorRoute,
+  ConnectorStroke,
+  ConnectorSubpath,
+  ConnectorTerminalLabelProjection,
+  ConnectorTerminalMarkerPlacement,
+  ConnectorTerminalMarkerProjection,
+  ConnectorTerminalProjection,
+  ConnectorTerminalStrokeLoss,
+  MarkerDescriptor,
+  SceneDoc,
+  SceneNode,
+  SceneRole,
+  SemanticChannels,
+} from '../scene/ir.ts'
+export { SCENE_CONTRACT_VERSION } from '../scene/ir.ts'
+export { BUILTIN_SCENE_ROLE_TRAITS, resolveSceneRoleTraits, SCENE_ROLE_DESCRIPTORS, sceneRoleTraits } from '../scene/roles.ts'
+export type { SceneValidationDiagnostic, SceneValidationDiagnosticCode, SceneValidationOptions, SceneValidationResult } from '../scene/scene-validation.ts'
+export { assertValidSceneDoc, SCENE_VALIDATION_LIMITS, SCENE_VALIDATION_VERSION, SceneValidationError, validateSceneDoc } from '../scene/scene-validation.ts'
+export type {
+  BindableSceneRole,
+  BrandConstraint,
+  BrandConstraintAction,
+  BrandConstraintKind,
+  ExactStyleSceneRole,
+  RoleStyleFor,
+  RoleStyleSpec,
+  RoleStyles,
+  SemanticBinding,
+  SemanticBindingChannel,
+  SemanticSlots,
+  StyleColors,
+  StyleDescriptor,
+  StyleInput,
+  StyleReferenceResolution,
+  StyleRegistrationOptions,
+  StyleSpec,
+} from '../scene/style-registry.ts'
 // Style system — agents reach the library through this entry, so the style
 // registry must be importable here too, not only from the main entry.
 export {
-  registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
-  validateStyleSpec, resolveStyleStack, inferBackend,
-  STYLE_SPEC_FORMAT_VERSION, STYLE_SPEC_FIELD_DESCRIPTORS, STYLE_COLOR_TOKEN_DESCRIPTORS,
-  ROLE_STYLE_PROPERTY_DESCRIPTORS, EXACT_ROLE_STYLE_CONTRACT, EXACT_STYLE_SCENE_ROLES, BINDABLE_SCENE_ROLES, BINDABLE_ROLE_STYLE_PROPERTIES,
-  BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_KINDS, SEMANTIC_BINDING_CHANNELS, styleSpecJsonSchema,
+  BINDABLE_ROLE_STYLE_PROPERTIES,
+  BINDABLE_SCENE_ROLES,
+  BRAND_CONSTRAINT_DESCRIPTORS,
+  BRAND_CONSTRAINT_KINDS,
+  EXACT_ROLE_STYLE_CONTRACT,
+  EXACT_STYLE_SCENE_ROLES,
+  getStyle,
+  inferBackend,
+  knownStyleDescriptors,
+  knownStyles,
+  ROLE_STYLE_PROPERTY_DESCRIPTORS,
+  registerStyle,
+  resolveStyleReference,
+  resolveStyleStack,
+  SEMANTIC_BINDING_CHANNELS,
+  STYLE_COLOR_TOKEN_DESCRIPTORS,
+  STYLE_SPEC_FIELD_DESCRIPTORS,
+  STYLE_SPEC_FORMAT_VERSION,
+  styleSpecJsonSchema,
+  validateStyleSpec,
 } from '../scene/style-registry.ts'
-export type {
-  StyleSpec, StyleColors, BindableSceneRole, ExactStyleSceneRole, RoleStyleFor, RoleStyleSpec, RoleStyles, SemanticSlots, SemanticBinding,
-  SemanticBindingChannel, BrandConstraint, BrandConstraintAction, BrandConstraintKind, StyleInput,
-  StyleDescriptor, StyleReferenceResolution, StyleRegistrationOptions,
-} from '../scene/style-registry.ts'
-export type { ArchitectureVisualOverrides } from '../architecture/config.ts'
-export { registerBackend, getBackend, knownBackendDescriptors, DefaultBackend } from '../scene/backend.ts'
-export type { StyleBackend, StyleBackendContext, BackendDescriptor, BackendRegistrationOptions, HostBackendPolicy } from '../scene/backend.ts'
-export {
-  BACKEND_CONFORMANCE_VERSION, BACKEND_CONFORMANCE_FIXTURE_ID,
-  BACKEND_CONFORMANCE_CHECK_IDS, runBackendConformance,
-} from '../scene/backend-conformance.ts'
-export type {
-  BackendConformanceCheckId, BackendConformanceCheck, BackendConformanceReport,
-  BackendCapabilityConformanceStatus, BackendCapabilityConformanceResult,
-} from '../scene/backend-conformance.ts'
-export { SCENE_CONTRACT_VERSION } from '../scene/ir.ts'
-export type {
-  SceneDoc, SceneNode, SceneRole, SemanticChannels, ConnectorMark, ConnectorGeometry, ConnectorSubpath,
-  ConnectorRoute, ConnectorContourSemantics, ConnectorStroke, ConnectorEndpoints, ConnectorRelationship,
-  ConnectorLabelDescriptor, ConnectorHitGeometry, ConnectorTerminalProjection,
-  ConnectorTerminalStrokeLoss, ConnectorTerminalMarkerProjection, ConnectorTerminalMarkerPlacement, ConnectorTerminalLabelProjection, MarkerDescriptor,
-} from '../scene/ir.ts'
-export {
-  EXTERNAL_SCENE_API_VERSION, buildExternalScene,
-} from '../scene/external-scene.ts'
-export type {
-  ExternalSceneGeometry, ExternalSceneConnectorGeometry, ExternalSceneNodeBase, ExternalSceneShape, ExternalSceneDataMark,
-  ExternalSceneText, ExternalSceneContainer, ExternalSceneConnector, ExternalSceneConnectorLabel, ExternalSceneNode,
-  ExternalSceneMarker, ExternalSceneDocument, ExternalSceneInput,
-} from '../scene/external-scene.ts'
-export {
-  SCENE_VALIDATION_VERSION, SCENE_VALIDATION_LIMITS, validateSceneDoc, assertValidSceneDoc, SceneValidationError,
-} from '../scene/scene-validation.ts'
-export type {
-  SceneValidationDiagnosticCode, SceneValidationDiagnostic, SceneValidationResult,
-  SceneValidationOptions,
-} from '../scene/scene-validation.ts'
-export { BUILTIN_SCENE_ROLE_TRAITS, SCENE_ROLE_DESCRIPTORS, resolveSceneRoleTraits, sceneRoleTraits } from '../scene/roles.ts'
-export {
-  HOSTED_FONT_RESOURCES,
-  RESOURCE_MANIFEST, hostedFontResource, validateResourceManifest,
-} from '../font-manifest.ts'
-export { RESOURCE_MANIFEST_VERSION, verifyResourceBytes } from '../resource-manifest.ts'
-export { CORE_SCENE_PRIMITIVES, CORE_SCENE_OPERATIONS, CORE_SCENE_FEATURES, PRIMITIVE_REALIZATIONS, terminalConnectorCapabilityClaims, validatePrimitiveCapabilities } from '../scene/capabilities.ts'
 export { createExtensionIdentity } from '../shared/extension-identity.ts'
-export {
-  RENDER_CONTRACT_VERSION, RENDER_OUTPUTS, RENDER_OUTPUT_DESCRIPTORS,
-  SHARED_RENDER_OPTION_FIELDS, validateSerializableRenderOptions, RenderCapabilityError,
-  sharedRenderOptionsJsonSchema, styleInputJsonSchema,
-} from '../render-contract.ts'
-export {
-  CAPABILITY_NEGOTIATION_VERSION, CORE_CAPABILITY_OFFERS,
-  negotiateCapabilities, negotiateRenderCapabilities, parseSemVer, semVerSatisfies,
-} from '../capability-negotiation.ts'
 export type {
-  CapabilityId, CapabilityOffer, CapabilityRequirement, CapabilityRequirementLevel,
-  CapabilityResolution, CapabilityDecision,
-} from '../capability-negotiation.ts'
-export {
-  PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE, PNG_DEFAULT_FONT_FAMILY,
-  PNG_FONT_SOURCES, PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME,
-  MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, MAX_HOSTED_PNG_PIXELS, MAX_HOSTED_PNG_BYTES,
-  MAX_PNG_FONT_DIRECTORIES, MAX_PNG_FONT_DIRECTORY_LENGTH,
-  pngRasterDimensions, assertPngRasterBudget, assertHostedPngRasterBudget,
-  svgIntrinsicDimensions, prepareSvgForPngRasterization,
-  PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS, PNG_OUTPUT_OPTION_FIELDS,
-  PORTABLE_PNG_OUTPUT_OPTION_FIELDS, NATIVE_PNG_OUTPUT_POLICY_FIELDS,
-  NATIVE_PNG_HOST_ONLY_OPTION_FIELDS, pngOutputOptionsJsonSchema,
-  normalizePortablePngBackground, projectPortablePngOutputOptions,
-  projectNativePngOutputPolicyInput, omitPngOutputOptions,
-  pngNapiRuntimeProvenance, resolvePngOutputPolicy, resolvePortablePngOutputPolicy,
-} from '../png-contract.ts'
-export type {
-  PngFitTo, PngOutputPolicyInput, PortablePngOutputOptions,
-  PngOutputOptionFieldDescriptor, PngOutputOptionField, PortablePngOutputOptionField,
-  NativePngOutputPolicyField, NativePngHostOnlyOptionField,
-  PngOutputOptionScope, PngOutputOptionInputKind, PngOutputOptionPolicyState,
-  PngOutputOptionReceiptState, PngFontSource, ResolvedPngOutputPolicy, PngRuntimeProvenance,
-  PngRasterDimensions,
-} from '../png-contract.ts'
-export {
-  TERMINAL_OUTPUT_POLICY_VERSION, TERMINAL_DEFAULT_PADDING_X, TERMINAL_BOUNDED_PADDING_X,
-  TERMINAL_DEFAULT_PADDING_Y, TERMINAL_DEFAULT_BOX_BORDER_PADDING,
-  TerminalOutputPolicyError, resolveTerminalOutputPolicy,
+  AsciiRenderColorMode,
+  ResolvedTerminalOutputPolicy,
+  TerminalOutputPolicyInput,
 } from '../terminal-contract.ts'
-export type {
-  AsciiRenderColorMode, TerminalOutputPolicyInput, ResolvedTerminalOutputPolicy,
-} from '../terminal-contract.ts'
-export type {
-  RenderRequestReceipt,
-  RenderOutputDescriptor, RenderOutputTransports, LibraryRenderTransport,
-  CliRenderTransport, CodeModeRenderTransport,
-} from '../render-contract.ts'
+export { resolveTerminalOutputPolicy, TERMINAL_BOUNDED_PADDING_X, TERMINAL_DEFAULT_BOX_BORDER_PADDING, TERMINAL_DEFAULT_PADDING_X, TERMINAL_DEFAULT_PADDING_Y, TERMINAL_OUTPUT_POLICY_VERSION, TerminalOutputPolicyError } from '../terminal-contract.ts'
+
 import { renderMermaidASCII as _ascii, renderMermaidASCIIWithReceipt as _asciiWithReceipt } from '../ascii/index.ts'
+import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
+import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
+import { receiptOf as _receiptOf, resolveRenderRequestForExecution as _resolveRenderRequest } from '../render-contract.ts'
+import type { RenderOptions } from '../types.ts'
+import { collectActionRecords as collectRenderedActionRecords } from './analyze.ts'
+import { layoutResolvedFamilyToRendered } from './family-layouts.ts'
 import { parseRegisteredMermaid as _parse } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
-import type { ParsedDiagram, ValidDiagram, RenderedLayout, RenderedRegion, RenderedRegionKind } from './types.ts'
-import type { RenderOptions } from '../types.ts'
-import { receiptOf as _receiptOf, resolveRenderRequestForExecution as _resolveRenderRequest } from '../render-contract.ts'
-import { layoutResolvedFamilyToRendered } from './family-layouts.ts'
-import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
-import { collectActionRecords as collectRenderedActionRecords } from './analyze.ts'
+import type { ParsedDiagram, RenderedLayout, RenderedRegion, RenderedRegionKind, ValidDiagram } from './types.ts'
 import { toFinite } from './types.ts'
-import {
-  familyDetectionDiagnosticFromPreservedBody,
-  MermaidFamilyDetectionError,
-} from '../family-detection.ts'
 
 export function renderMermaidSVG(input: ParsedDiagram | string, opts: Parameters<typeof _svg>[1] = {}): string {
   return _svg(input, opts)
@@ -226,10 +454,7 @@ export interface RenderedLayoutArtifact {
 }
 
 /** Canonical layout transport for Code Mode and other receipt-aware adapters. */
-export function layoutMermaidWithReceipt(
-  input: ParsedDiagram | string,
-  opts: LayoutRenderOptions = {},
-): RenderedLayoutArtifact {
+export function layoutMermaidWithReceipt(input: ParsedDiagram | string, opts: LayoutRenderOptions = {}): RenderedLayoutArtifact {
   const { debug, regions, actions, ...renderOptions } = opts
   const layoutOptions = { debug, regions, actions }
   const preparedInput = prepareRenderInput(input)
@@ -271,21 +496,19 @@ function enrichRenderedLayout(d: ParsedDiagram, layout: RenderedLayout, opts: La
   if (wantRegions) next.regions = buildRenderedRegions(d, layout)
   if (wantActions) {
     const nodeIds = new Set<string>(layout.nodes.map(n => n.id))
-    next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved'
-      ? []
-      : collectRenderedActionRecords(d as ValidDiagram))
-      .filter(a => nodeIds.has(a.target))
-      .map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
+    next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved' ? [] : collectRenderedActionRecords(d as ValidDiagram)).filter(a => nodeIds.has(a.target)).map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
   }
   return next
 }
 
 function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): RenderedRegion[] {
-  const regions: RenderedRegion[] = [{
-    id: 'canvas',
-    kind: 'canvas',
-    bounds: { x: toFinite(0), y: toFinite(0), w: layout.bounds.w, h: layout.bounds.h },
-  }]
+  const regions: RenderedRegion[] = [
+    {
+      id: 'canvas',
+      kind: 'canvas',
+      bounds: { x: toFinite(0), y: toFinite(0), w: layout.bounds.w, h: layout.bounds.h },
+    },
+  ]
   const groupByMember = new Map<string, string>()
   for (const group of layout.groups) for (const member of group.members) groupByMember.set(member, group.id)
   const sourceLines = sourceLineHints(d)
@@ -313,7 +536,10 @@ function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): Rendere
     const xs = edge.path.map(p => p[0])
     const ys = edge.path.map(p => p[1])
     if (xs.length > 0 && ys.length > 0) {
-      const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys)
+      const minX = Math.min(...xs),
+        maxX = Math.max(...xs),
+        minY = Math.min(...ys),
+        maxY = Math.max(...ys)
       regions.push({
         id: `edge:${edge.id}`,
         kind: 'edge',
@@ -325,9 +551,10 @@ function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): Rendere
     if (edge.label) {
       const w = Math.max(1, edge.label.text.length * 7)
       const h = 14
-      const labelX = d.kind === 'sequence' && edge.from === edge.to
-        ? edge.label.x // sequence self-message labels render with text-anchor="start"
-        : edge.label.x - w / 2
+      const labelX =
+        d.kind === 'sequence' && edge.from === edge.to
+          ? edge.label.x // sequence self-message labels render with text-anchor="start"
+          : edge.label.x - w / 2
       regions.push({
         id: `label:${edge.id}`,
         kind: 'label',
@@ -346,16 +573,23 @@ function renderedGroupRegionKind(kind: ParsedDiagram['kind']): RenderedRegionKin
     case 'state':
     case 'class':
     case 'er':
-    case 'architecture': return 'cluster'
-    case 'gitgraph': return 'lane'
+    case 'architecture':
+      return 'cluster'
+    case 'gitgraph':
+      return 'lane'
     case 'timeline':
     case 'journey':
-    case 'gantt': return 'band'
+    case 'gantt':
+      return 'band'
     case 'sequence':
-    case 'quadrant': return 'compartment'
-    case 'xychart': return 'plot'
-    case 'radar': return 'ring'
-    default: return 'group'
+    case 'quadrant':
+      return 'compartment'
+    case 'xychart':
+      return 'plot'
+    case 'radar':
+      return 'ring'
+    default:
+      return 'group'
   }
 }
 

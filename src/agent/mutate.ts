@@ -4,10 +4,10 @@
 
 import type {
   FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, RadarValidDiagram, MutableValidDiagram,
+  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, RadarValidDiagram, SankeyValidDiagram, MutableValidDiagram,
   ParsedDiagram,
   FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, RadarMutationOp, AnyMutationOp,
+  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, RadarMutationOp, SankeyMutationOp, AnyMutationOp,
   MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -31,6 +31,7 @@ export function mutate(d: PieValidDiagram, op: PieMutationOp): Result<PieValidDi
 export function mutate(d: QuadrantValidDiagram, op: QuadrantMutationOp): Result<QuadrantValidDiagram, MutationError>
 export function mutate(d: GanttValidDiagram, op: GanttMutationOp): Result<GanttValidDiagram, MutationError>
 export function mutate(d: RadarValidDiagram, op: RadarMutationOp): Result<RadarValidDiagram, MutationError>
+export function mutate(d: SankeyValidDiagram, op: SankeyMutationOp): Result<SankeyValidDiagram, MutationError>
 // General form for callers holding the union (e.g. the CLI): dispatch is by
 // registry at runtime either way, so kind-agnostic call sites don't need a
 // per-family narrowing cascade.

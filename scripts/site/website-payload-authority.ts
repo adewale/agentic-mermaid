@@ -42,7 +42,13 @@ export interface WebsitePayloadReport {
   authority: string
   compression: typeof WEBSITE_PAYLOAD_COMPRESSION
   capture: { observationAfterReadyMs: number }
-  toolchain: { bun: string, playwright: string, chromium: string }
+  toolchain: {
+    bun: string
+    playwright: string
+    chromium: string
+    platform: NodeJS.Platform
+    arch: NodeJS.Architecture
+  }
   routes: WebsitePayloadRouteReport[]
 }
 
@@ -75,6 +81,15 @@ export function assertWebsitePayloadReportCurrent(recorded: string, current: Web
   if (recorded !== stablePayloadJson(current)) {
     throw new Error('Website payload report is stale; run bun run website:payload:write and review every route delta')
   }
+}
+
+export function websitePayloadRecordingToolchainMatches(
+  recorded: Pick<WebsitePayloadReport['toolchain'], 'bun' | 'platform' | 'arch'>,
+  current: Pick<WebsitePayloadReport['toolchain'], 'bun' | 'platform' | 'arch'>,
+): boolean {
+  return recorded.bun === current.bun
+    && recorded.platform === current.platform
+    && recorded.arch === current.arch
 }
 
 export function measurePayloadBytes(bytes: Uint8Array) {

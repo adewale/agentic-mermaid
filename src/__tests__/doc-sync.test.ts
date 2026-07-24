@@ -7,22 +7,12 @@
  *   3. All public exports from src/index.ts are real (not undefined)
  *   4. Package.json keywords include all supported diagram types
  */
-import { describe, it, expect } from 'bun:test'
-import {
-  DEFAULTS,
-  fromShikiTheme,
-  resolveColors,
-  inlineResolvedColors,
-  parseRegisteredMermaid,
-  renderMermaidASCII,
-  parseArchitectureDiagram,
-  architectureToMermaidGraph,
-} from '../index.ts'
-import { renderMermaidSVG, renderMermaidSVGAsync } from '../index.ts'
-import type { DiagramColors } from '../theme.ts'
-import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { describe, expect, it } from 'bun:test'
 import type { BuiltinFamilyId } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { architectureToMermaidGraph, DEFAULTS, fromShikiTheme, inlineResolvedColors, parseArchitectureDiagram, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, renderMermaidSVGAsync, resolveColors } from '../index.ts'
+import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
+import type { DiagramColors } from '../theme.ts'
 
 // ============================================================================
 // 1. All named themes have required color properties
@@ -92,6 +82,7 @@ describe('diagram type coverage — all documented types render to SVG', () => {
     mindmap: { source: 'mindmap\n  root((Product))\n    Research\n    Delivery', marker: 'Product' },
     gitgraph: { source: 'gitGraph\n  commit id:"base" msg:"Base"', marker: 'Base' },
     radar: { source: 'radar-beta\n  title Skills\n  axis a["Alpha"], b["Beta"], c["Gamma"]\n  curve x["Series"]{3, 5, 4}\n  max 5', marker: 'Alpha' },
+    sankey: { source: 'sankey-beta\n  Coal,Electricity,42\n  Electricity,Homes,30', marker: 'Electricity' },
   } satisfies Record<BuiltinFamilyId, { source: string; marker: string }>
 
   it('has a render case for every built-in family', () => {
@@ -193,6 +184,7 @@ describe('package.json keywords — cover all supported diagram types', () => {
     mindmap: 'mindmap',
     gitgraph: 'git-graph',
     radar: 'radar-chart',
+    sankey: 'sankey-diagram',
   } satisfies Record<BuiltinFamilyId, string>
 
   it('keywords array exists and is non-empty', () => {
@@ -213,5 +205,39 @@ describe('package.json keywords — cover all supported diagram types', () => {
     expect(keywords).toContain('mermaid')
     expect(keywords).toContain('svg')
     expect(keywords).toContain('diagram')
+  })
+})
+
+describe('cross-family aesthetics — registry-driven enrollment', () => {
+  // Root cause (sankey addition): the union review table and the per-family
+  // aesthetic thesis were prose conventions with no forcing function, so a new
+  // family could enroll everywhere the typechecker looks and still skip the
+  // aesthetics ledger entirely. These gates enumerate the registry: the next
+  // family fails CI until it has a review row and (unless grandfathered) a
+  // stated thesis.
+  const { readFileSync } = require('node:fs') as typeof import('node:fs')
+  const { join } = require('node:path') as typeof import('node:path')
+  const ROOT = join(import.meta.dir, '..', '..')
+
+  it('every registered family has a row in the union review table', () => {
+    const doc = readFileSync(join(ROOT, 'docs/design/system/cross-family-aesthetics.md'), 'utf8')
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const row = new RegExp(String.raw`^\| \*\*[^|]*\b${family.id}\b[^|]*\*\*`, 'm')
+      expect({ id: family.id, reviewed: row.test(doc) }).toEqual({ id: family.id, reviewed: true })
+    }
+  })
+
+  // Families registered before the thesis gate existed. Do NOT add to this
+  // list: a new family states its aesthetic thesis (L9) in
+  // docs/design/families/<id>.md; retrofitting the legacy docs is tracked in
+  // the union review's "Top opportunity" column instead.
+  const AESTHETIC_THESIS_GRANDFATHERED = new Set<BuiltinFamilyId>(['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'architecture', 'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'radar'])
+
+  it('every post-gate family states its aesthetic thesis in its design doc', () => {
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      if (AESTHETIC_THESIS_GRANDFATHERED.has(family.id)) continue
+      const doc = readFileSync(join(ROOT, `docs/design/families/${family.id}.md`), 'utf8')
+      expect({ id: family.id, hasThesis: doc.includes('## Aesthetic thesis') }).toEqual({ id: family.id, hasThesis: true })
+    }
   })
 })

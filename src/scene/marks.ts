@@ -13,7 +13,7 @@ import type {
   ConnectorContourSemantics, ConnectorDash, ConnectorEndpointAnchor, ConnectorEndpoints, ConnectorGeometry,
   ConnectorHitGeometry, ConnectorLabelDescriptor, ConnectorMark, ConnectorRelationship,
   ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, DocumentMark, GroupMark,
-  Geometry, MarkPaint, MarkerDescriptor,
+  Geometry, LinearGradientDescriptor, MarkPaint, MarkerDescriptor,
   SceneNode, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -309,6 +309,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     } : undefined)
   const opacity = fields.stroke?.opacity ?? fields.paint.opacity
   const paintOrder = fields.stroke?.paintOrder ?? fields.paint.paintOrder
+  const mixBlendMode = fields.stroke?.mixBlendMode
   const stroke: ConnectorStroke = {
     color: fields.stroke?.color ?? fields.paint.stroke ?? 'var(--_line)',
     width,
@@ -319,6 +320,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     miterLimit: fields.stroke?.miterLimit ?? Number(fields.paint.strokeMiterlimit ?? 4),
     ...(fields.stroke?.pathLength !== undefined ? { pathLength: fields.stroke.pathLength } : {}),
     ...(paintOrder !== undefined ? { paintOrder } : {}),
+    ...(mixBlendMode !== undefined ? { mixBlendMode } : {}),
     nonScaling: fields.stroke?.nonScaling ?? fields.paint.vectorEffect === 'non-scaling-stroke',
   }
   const derivedContours = connectorContourSemantics(fields.geometry, routeClosed)
@@ -486,7 +488,11 @@ export function documentText(fields: {
 }
 
 export function definitions(
-  fields: { id: string; markerResources?: readonly MarkerDescriptor[] },
+  fields: {
+    id: string
+    markerResources?: readonly MarkerDescriptor[]
+    gradientResources?: readonly LinearGradientDescriptor[]
+  },
   crisp: string,
 ): DocumentMark {
   return attachSceneNodeSerialization({ kind: 'document', role: 'defs', element: 'definitions', ...fields }, crisp)

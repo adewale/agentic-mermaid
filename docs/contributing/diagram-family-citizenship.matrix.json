@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updated": "2026-07-14",
+  "updated": "2026-07-18",
   "statusValues": [
     "satisfied",
     "exception"
@@ -2955,6 +2955,179 @@
         "visualEvidence": [
           "docs/design/families/radar-demo.png",
           "docs/design/families/radar-polygon-demo.png"
+        ]
+      }
+    },
+    "sankey": {
+      "label": "Sankey",
+      "auditLevel": "audited",
+      "role": "conserved flow decomposition between layered stages",
+      "workedExample": false,
+      "cells": {
+        "registryDiscovery": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/families.ts"
+          ]
+        },
+        "detectionParse": {
+          "status": "satisfied",
+          "evidence": [
+            "src/sankey/parser.ts",
+            "src/__tests__/sankey-parser.test.ts"
+          ]
+        },
+        "semanticModel": {
+          "status": "satisfied",
+          "evidence": [
+            "src/sankey/types.ts",
+            "src/agent/sankey-body.ts"
+          ]
+        },
+        "serializeRoundTrip": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/sankey-body.ts",
+            "src/__tests__/agent-sankey.test.ts"
+          ]
+        },
+        "typedMutation": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/sankey-body.ts",
+            "src/__tests__/agent-sankey.test.ts"
+          ]
+        },
+        "verifyRenderSeam": {
+          "status": "satisfied",
+          "evidence": [
+            "src/agent/verify.ts",
+            "src/__tests__/sankey-integration.test.ts",
+            "src/agent/sankey-body.ts"
+          ]
+        },
+        "determinism": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/sankey-integration.test.ts",
+            "src/__tests__/sankey-renderer.test.ts"
+          ]
+        },
+        "svgRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/sankey/renderer.ts",
+            "src/__tests__/sankey-renderer.test.ts"
+          ]
+        },
+        "asciiUnicodeRender": {
+          "status": "satisfied",
+          "evidence": [
+            "src/ascii/sankey.ts",
+            "src/__tests__/sankey-ascii.test.ts"
+          ]
+        },
+        "layoutProjection": {
+          "status": "satisfied",
+          "evidence": [
+            "src/sankey/layout.ts",
+            "src/agent/family-layouts.ts"
+          ]
+        },
+        "stableRegions": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/sankey-integration.test.ts"
+          ]
+        },
+        "editorExample": {
+          "status": "satisfied",
+          "evidence": [
+            "editor/examples.ts"
+          ]
+        },
+        "docsAgentSurfaces": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/families/sankey.md",
+            "docs/agent-api-cookbook.md"
+          ]
+        },
+        "evalFixture": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-sankey-bench/harvest.json"
+          ]
+        },
+        "upstreamHarvest": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-sankey-bench/harvest.json"
+          ]
+        },
+        "divergenceLedger": {
+          "status": "satisfied",
+          "evidence": [
+            "eval/mermaid-sankey-bench/harvest.json"
+          ]
+        },
+        "mermaidSyntaxParity": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "src/__tests__/closing-the-gap.test.ts",
+            "eval/mermaid-sankey-bench/harvest.json"
+          ]
+        },
+        "domainProperties": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/sankey-integration.test.ts",
+            "src/__tests__/sankey-rubric-properties.test.ts"
+          ]
+        },
+        "familyVisualMetaphor": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/mermaid-family-fidelity-audit.md",
+            "docs/design/families/sankey-demo.png"
+          ]
+        },
+        "goldensEvidence": {
+          "status": "satisfied",
+          "evidence": [
+            "src/__tests__/sankey-renderer.test.ts",
+            "docs/design/families/sankey-demo.png"
+          ]
+        },
+        "generatedSite": {
+          "status": "satisfied",
+          "evidence": [
+            "website/build.ts"
+          ]
+        },
+        "distributionPackage": {
+          "status": "satisfied",
+          "evidence": [
+            "package.json",
+            "src/index.ts"
+          ]
+        }
+      },
+      "fidelity": {
+        "target": "Mermaid 11.16.0",
+        "officialDocs": "https://mermaid.js.org/syntax/sankey.html",
+        "wikipedia": "https://en.wikipedia.org/wiki/Sankey_diagram",
+        "signature": "layered node columns joined by value-proportional ribbon links whose widths conserve flow between stages, with node labels flipping sides at the canvas midline",
+        "syntaxEvidence": [
+          "docs/design/mermaid-family-fidelity-audit.md",
+          "src/__tests__/closing-the-gap.test.ts",
+          "eval/mermaid-sankey-bench/harvest.json"
+        ],
+        "visualArtifact": "docs/design/families/sankey-demo.png",
+        "visualEvidence": [
+          "docs/design/families/sankey-demo.png",
+          "docs/design/families/sankey-alignment-demo.png"
         ]
       }
     }

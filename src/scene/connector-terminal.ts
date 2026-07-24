@@ -70,6 +70,7 @@ export function connectorTerminalStrokeLosses(
   if (stroke.dash?.offset !== undefined) losses.push('dash-offset')
   if (stroke.pathLength !== undefined) losses.push('path-length')
   if (stroke.paintOrder !== undefined) losses.push('paint-order')
+  if (stroke.mixBlendMode !== undefined && stroke.mixBlendMode !== 'normal') losses.push('mix-blend-mode')
   if (stroke.nonScaling) losses.push('non-scaling-stroke')
   return losses
 }

@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/pie-highlightslice-evidence.ts",
-  "inputCount": 260,
-  "inputTreeSha256": "1bc9f37901f4ceec9a733e128c245d6bb8cc30e77f1dd0673b2762c12b5dc969",
+  "inputCount": 268,
+  "inputTreeSha256": "396ad677e9d1100ea8cb80fa18d8ab159d1a13c517e3ab7be36bb39ebbd6e8cd",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
       "@resvg/resvg-js",
+      "d3-sankey",
       "elkjs",
       "entities",
       "perfect-freehand",
@@ -15,13 +16,13 @@
       "typescript",
       "yaml"
     ],
-    "packageCount": 26,
-    "sha256": "f26ddc250b58c5eea9ad944162b7cc70218899207227b6e9b36461c37c60807c"
+    "packageCount": 31,
+    "sha256": "0b730096041b87bb5345d8c25ef020ac2d21640bcb7829d326c25ad54a42b130"
   },
   "outputs": [
     {
       "path": "docs/design/families/pie-highlightslice-regression-matrix.png",
-      "sha256": "af699a1599c82d62e329202f0cd705f198021e50959e9272074fe744554c5b13"
+      "sha256": "8e8e9f89c9f28a5ce5c4a4e644fcf21414c6d23dbc9e3b1405af0efe1c8ebeaa"
     },
     {
       "path": "docs/design/families/pie-highlightslice-after.png",
