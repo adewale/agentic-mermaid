@@ -176,7 +176,7 @@ jobs:
         # runs after OIDC becomes available. A retry after an ambiguous remote
         # success accepts only the byte-identical immutable registry version.
         env:
-          TARBALL: release-artifact/package.tgz
+          TARBALL: ./release-artifact/package.tgz
         run: |
           package_json="$(tar --extract --gzip --file "$TARBALL" --to-stdout package/package.json)"
           package_name="$(printf '%s' "$package_json" | jq -er '.name | select(. == "agentic-mermaid")')"
