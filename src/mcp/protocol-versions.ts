@@ -35,10 +35,16 @@ export const META_CLIENT_CAPABILITIES = 'io.modelcontextprotocol/clientCapabilit
 // JSON-RPC standard codes and must not be confused with -32602 (Invalid params).
 /** The HTTP headers disagree with the request body, or a required one is absent. */
 export const HEADER_MISMATCH = -32020
-/** Processing needs a client capability the request did not declare. */
-export const MISSING_REQUIRED_CLIENT_CAPABILITY = -32021
 /** The requested protocol version is not implemented; `data.supported` lists ours. */
 export const UNSUPPORTED_PROTOCOL_VERSION = -32022
+
+// -32021 (MissingRequiredClientCapability) is deliberately absent. The spec makes
+// it conditional — "If processing a request requires a capability the client did
+// not include in io.modelcontextprotocol/clientCapabilities" — and every tool we
+// expose is a pure function of its arguments, needing no sampling, elicitation,
+// or roots. There is therefore no path that can require it, and the spec forbids
+// emitting a reserved code outside its specified meaning. `mcp-reserved-error-
+// codes.test.ts` holds us to that, and to the codes this revision retires.
 
 /** Revisions that require a tool-execution envelope for input-validation
  *  failures rather than a JSON-RPC protocol error (SEP-1303, landed in
@@ -90,9 +96,16 @@ export function effectiveProtocolVersion(req: { params?: unknown }, transportVer
 }
 
 /**
- * Modern requests MUST carry protocolVersion, clientInfo, and clientCapabilities
- * in `_meta`: "A request missing any required field is malformed; the server
- * MUST reject it with INVALID_PARAMS". Returns the problems, empty when valid.
+ * Modern requests MUST carry protocolVersion and clientCapabilities in `_meta`:
+ * "A request missing any required field is malformed; the server MUST reject it
+ * with INVALID_PARAMS". Returns the problems, empty when valid.
+ *
+ * `clientInfo` is NOT one of them. The spec's per-request field table marks it
+ * Required: No — "Clients SHOULD include io.modelcontextprotocol/clientInfo on
+ * every request unless specifically configured not to do so" — so a client
+ * configured to withhold it is conforming, and rejecting it would lock out a
+ * legal client. It is still shape-checked WHEN PRESENT, because a supplied
+ * `clientInfo` is an `Implementation` and a malformed one is malformed.
  *
  * Deliberately NOT applied to legacy requests, and deliberately NOT folded into
  * tool-argument validation: `_meta` lives on the params envelope, while the
@@ -101,15 +114,17 @@ export function effectiveProtocolVersion(req: { params?: unknown }, transportVer
  */
 export function modernRequestMetaProblems(req: { params?: unknown }): string[] {
   const meta = paramsMeta(req)
-  if (!meta) return [`params._meta is required and must carry ${META_PROTOCOL_VERSION}, ${META_CLIENT_INFO}, and ${META_CLIENT_CAPABILITIES}`]
+  if (!meta) return [`params._meta is required and must carry ${META_PROTOCOL_VERSION} and ${META_CLIENT_CAPABILITIES}`]
   const problems: string[] = []
   const clientInfo = meta[META_CLIENT_INFO]
-  if (!clientInfo || typeof clientInfo !== 'object' || Array.isArray(clientInfo)) {
-    problems.push(`params._meta.${META_CLIENT_INFO} is required and must be an object with name and version`)
-  } else {
-    const info = clientInfo as Record<string, unknown>
-    if (typeof info.name !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.name is required and must be a string`)
-    if (typeof info.version !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.version is required and must be a string`)
+  if (clientInfo !== undefined) {
+    if (typeof clientInfo !== 'object' || clientInfo === null || Array.isArray(clientInfo)) {
+      problems.push(`params._meta.${META_CLIENT_INFO} is optional, but when present must be an object with name and version`)
+    } else {
+      const info = clientInfo as Record<string, unknown>
+      if (typeof info.name !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.name is required and must be a string`)
+      if (typeof info.version !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.version is required and must be a string`)
+    }
   }
   const capabilities = meta[META_CLIENT_CAPABILITIES]
   if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) {

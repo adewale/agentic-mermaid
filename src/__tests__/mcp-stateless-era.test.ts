@@ -152,9 +152,11 @@ describe('server/discover', () => {
 describe('modern _meta is required and validated', () => {
   test.each([
     ['no _meta at all', {}],
-    ['missing clientInfo', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: {} }],
     ['missing clientCapabilities', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: { name: 'x', version: '1' } }],
+    // clientInfo is optional, but a SUPPLIED one is an `Implementation` and must
+    // be well-formed — absent and malformed are different cases.
     ['clientInfo without version', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: { name: 'x' }, [META_CLIENT_CAPABILITIES]: {} }],
+    ['clientInfo that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: 'acme/1.0', [META_CLIENT_CAPABILITIES]: {} }],
   ])('%s is rejected with INVALID_PARAMS', async (_label, meta) => {
     const request: JsonRpcRequest = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: { [META_PROTOCOL_VERSION]: MODERN, ...meta } } }
     // Only the cases that still declare a modern version reach the check; the
@@ -162,6 +164,23 @@ describe('modern _meta is required and validated', () => {
     const response = await handleHostedRequest(request, context())
     if (Object.keys(meta).length === 0) return
     expect(response?.error?.code).toBe(-32602)
+  })
+
+  // The spec's per-request field table marks clientInfo Required: No — "Clients
+  // SHOULD include io.modelcontextprotocol/clientInfo on every request unless
+  // specifically configured not to do so". A client configured to withhold it is
+  // conforming, so rejecting it locked out a legal client. Bug-discriminating:
+  // this fails against the previous validator, which required clientInfo.
+  test('a modern request omitting the optional clientInfo is accepted', async () => {
+    const request: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/list',
+      params: { _meta: { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: {} } },
+    }
+    const response = await handleHostedRequest(request, context())
+    expect(response?.error).toBeUndefined()
+    expect(response?.result).toBeDefined()
   })
 
   test('an empty clientCapabilities object is valid — it declares no optional capabilities', async () => {
