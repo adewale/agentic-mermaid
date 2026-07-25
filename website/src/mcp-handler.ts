@@ -15,6 +15,13 @@
 
 import { handleHostedRequest, cacheKeyFor, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
+import {
+  HEADER_MISMATCH,
+  META_PROTOCOL_VERSION,
+  UNSUPPORTED_PROTOCOL_VERSION,
+  isModernProtocolVersion,
+  requestMetaProtocolVersion,
+} from '../../src/mcp/protocol-versions.ts'
 import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
@@ -105,9 +112,82 @@ export interface McpHandlerOptions {
 
 const CORS_BASE = {
   'access-control-allow-methods': 'POST, OPTIONS',
-  'access-control-allow-headers': 'content-type, mcp-protocol-version, mcp-session-id',
+  // mcp-method / mcp-name are REQUIRED on every modern (2026-07-28) request, so
+  // a browser client's preflight fails outright without them here. mcp-session-id
+  // is retained only for legacy clients that still send it; we never read it.
+  'access-control-allow-headers': 'content-type, mcp-protocol-version, mcp-session-id, mcp-method, mcp-name',
   'access-control-max-age': '86400',
   'access-control-expose-headers': 'x-agentic-mermaid-compute-cache',
+}
+
+const BASE64_SENTINEL_PREFIX = '=?base64?'
+const BASE64_SENTINEL_SUFFIX = '?='
+
+/** Decode a standard header value that may carry the spec's Base64 sentinel.
+ *  Returns null when the sentinel is present but undecodable — which is a
+ *  validation failure, not a value. */
+function decodeHeaderValue(value: string): string | null {
+  if (!value.startsWith(BASE64_SENTINEL_PREFIX) || !value.endsWith(BASE64_SENTINEL_SUFFIX)) return value
+  const encoded = value.slice(BASE64_SENTINEL_PREFIX.length, value.length - BASE64_SENTINEL_SUFFIX.length)
+  try {
+    const binary = atob(encoded)
+    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0))
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return null
+  }
+}
+
+/** The value Mcp-Name mirrors, per method. Only tools/call applies to us; the
+ *  other two are listed so the rule reads the same as the spec's table. */
+function mcpNameSourceValue(message: unknown): string | undefined {
+  const m = message as { method?: unknown; params?: { name?: unknown; uri?: unknown } } | null
+  if (!m || !m.params || typeof m.params !== 'object') return undefined
+  if (m.method === 'tools/call' || m.method === 'prompts/get') {
+    return typeof m.params.name === 'string' ? m.params.name : undefined
+  }
+  if (m.method === 'resources/read') {
+    return typeof m.params.uri === 'string' ? m.params.uri : undefined
+  }
+  return undefined
+}
+
+/**
+ * Modern-era header/body validation. The headers mirror body fields so that
+ * intermediaries can route without parsing; the server must therefore prove the
+ * two agree, "to prevent potential security vulnerabilities when different
+ * components in the network rely on different sources of truth". A disagreement
+ * — or a missing required header — is -32020 with HTTP 400.
+ */
+function modernHeaderProblem(request: Request, message: unknown, headerVersion: string | null): string | null {
+  const metaVersion = requestMetaProtocolVersion(message as { params?: unknown })
+  if (headerVersion === null) {
+    return `MCP-Protocol-Version header is required for protocol version ${metaVersion}`
+  }
+  if (metaVersion === undefined) {
+    return `params._meta.${META_PROTOCOL_VERSION} is required and must match the MCP-Protocol-Version header (${headerVersion})`
+  }
+  if (metaVersion !== headerVersion) {
+    return `MCP-Protocol-Version header value '${headerVersion}' does not match body value '${metaVersion}'`
+  }
+
+  const method = (message as { method?: unknown } | null)?.method
+  const methodHeader = request.headers.get('mcp-method')
+  if (methodHeader === null) return 'Mcp-Method header is required'
+  if (methodHeader !== method) {
+    return `Mcp-Method header value '${methodHeader}' does not match body value '${String(method)}'`
+  }
+
+  const nameSource = mcpNameSourceValue(message)
+  if (nameSource === undefined) return null // Mcp-Name is not required for this method
+  const nameHeader = request.headers.get('mcp-name')
+  if (nameHeader === null) return `Mcp-Name header is required for ${String(method)}`
+  const decoded = decodeHeaderValue(nameHeader)
+  if (decoded === null) return 'Mcp-Name header uses the Base64 sentinel but is not decodable UTF-8'
+  if (decoded !== nameSource) {
+    return `Mcp-Name header value '${decoded}' does not match body value '${nameSource}'`
+  }
+  return null
 }
 
 // Browser Origins allowed to read this endpoint cross-origin. Non-browser
@@ -241,7 +321,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
   const { context, cache, cacheVersion, waitUntil } = options
   const onEvent = options.onEvent ?? ((event: McpRequestEvent) => console.log(JSON.stringify(event)))
 
-  async function handleOne(req: unknown, item: McpItemEvent): Promise<JsonRpcResponse | null> {
+  async function handleOne(req: unknown, item: McpItemEvent, protocolVersion: string | null = null): Promise<JsonRpcResponse | null> {
     const started = Date.now()
     const r = req as JsonRpcRequest | null
     let response: JsonRpcResponse | null
@@ -254,22 +334,22 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       }
       const itemContext = contextForItem(context, item)
       response = r.method === 'tools/call' && cache
-        ? await handleCachedToolCall(r, item, itemContext)
-        : await handleHostedRequest(r, itemContext)
+        ? await handleCachedToolCall(r, item, itemContext, protocolVersion)
+        : await handleHostedRequest(r, itemContext, { protocolVersion })
     }
     item.duration_ms = Date.now() - started
     recordItemOutcome(item, response)
     return response
   }
 
-  async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent, itemContext: HostedMcpContext): Promise<JsonRpcResponse | null> {
+  async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent, itemContext: HostedMcpContext, protocolVersion: string | null = null): Promise<JsonRpcResponse | null> {
     // Key eligible pure tools on their complete raw argument object. Lookup is
     // pre-dispatch, so dropping even an apparently ignored argument could let a
     // later invalid request collide with a warm valid result and skip its
     // validation. A null form means "not cacheable" (including execute).
     const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
-    if (canonical === null) return handleHostedRequest(req, itemContext)
+    if (canonical === null) return handleHostedRequest(req, itemContext, { protocolVersion })
     item.cache_eligible = true
     const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
     try {
@@ -279,7 +359,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
         return reply(req.id ?? null, await hit.json())
       }
     } catch { /* cache failures must never fail the call */ }
-    const response = await handleHostedRequest(req, itemContext)
+    const response = await handleHostedRequest(req, itemContext, { protocolVersion })
     const result = response?.result as { isError?: boolean } | undefined
     if (result && result.isError === false) {
       const write = cache!.put(key, new Response(JSON.stringify(result), {
@@ -310,9 +390,22 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     // MCP-Protocol-Version validation: an explicit unsupported version is 400
     // (a missing header stays permitted for pre-2025-06-18 clients that never
     // send one). Used below to enforce that revision's single-message rule.
+    //
+    // The error is UnsupportedProtocolVersionError (-32022) carrying the
+    // supported list, not a bare message: that `data.supported` array is what
+    // lets a client pick a mutually supported version and retry instead of
+    // failing. The negotiation flow depends on it.
     const protocolVersion = request.headers.get('mcp-protocol-version')
     if (protocolVersion !== null && !SUPPORTED_PROTOCOL_VERSIONS.includes(protocolVersion)) {
-      return json(400, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `unsupported MCP-Protocol-Version: ${protocolVersion}` } }, cors)
+      return json(400, {
+        jsonrpc: '2.0',
+        id: null,
+        error: {
+          code: UNSUPPORTED_PROTOCOL_VERSION,
+          message: `Unsupported protocol version: ${protocolVersion}`,
+          data: { supported: [...SUPPORTED_PROTOCOL_VERSIONS], requested: protocolVersion },
+        },
+      }, cors)
     }
     if (!isJsonContentType(request.headers.get('content-type'))) {
       return json(415, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'content-type must be application/json' } }, cors)
@@ -346,13 +439,22 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (Array.isArray(parsed)) {
       event.method = 'batch'
       event.batch_size = parsed.length
-      // 2025-06-18 removed JSON-RPC batching: a client that pins that version via
-      // the header must send a single message. Older negotiated versions
-      // (2024-11-05 / 2025-03-26, or no header) may still batch.
-      if (protocolVersion === '2025-06-18') {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching was removed in MCP 2025-06-18; send a single message' } }, cors, exact.ids)
+      // 2025-06-18 removed JSON-RPC batching, and every later revision keeps it
+      // removed — 2026-07-28 requires the POST body to be a SINGLE request or
+      // notification. Compared lexically, which is chronological for ISO dates,
+      // so a new revision inherits the rule instead of needing a new branch.
+      // Older negotiated versions (2024-11-05 / 2025-03-26, or no header) may
+      // still batch.
+      if (protocolVersion !== null && protocolVersion >= '2025-06-18') {
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `JSON-RPC batching was removed in MCP 2025-06-18; send a single message (negotiated ${protocolVersion})` } }, cors, exact.ids)
       }
       if (parsed.length === 0) return json(400, rpcError(null, -32600, 'empty batch'), cors, exact.ids)
+      // A batch whose items declare a modern version in `_meta` is refused even
+      // without a pinning header: the body is the authority for the era, and
+      // the modern revision has no batch form at all.
+      if (parsed.some(item => isModernProtocolVersion(requestMetaProtocolVersion(item as { params?: unknown })))) {
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching does not exist in this MCP revision; send a single message' } }, cors, exact.ids)
+      }
       // Bound fan-out before running any item: a single request must not spin an
       // unbounded number of billable isolates/renders (see MAX_BATCH_ITEMS).
       if (parsed.length > MAX_BATCH_ITEMS) {
@@ -376,9 +478,30 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     }
     event.method = typeof (parsed as { method?: unknown } | null)?.method === 'string' ? (parsed as { method: string }).method : null
     event.batch_size = 1
+
+    // Era is decided by the body, with the header able to pin it: a request
+    // that pins a modern version but omits `_meta` is malformed rather than
+    // silently legacy, which would otherwise answer `initialize` to a client
+    // that no longer speaks it.
+    const modern = isModernProtocolVersion(protocolVersion)
+      || isModernProtocolVersion(requestMetaProtocolVersion(parsed as { params?: unknown }))
+    if (modern) {
+      const problem = modernHeaderProblem(request, parsed, protocolVersion)
+      if (problem !== null) {
+        return json(400, { jsonrpc: '2.0', id: null, error: { code: HEADER_MISMATCH, message: `Header mismatch: ${problem}` } }, cors, exact.ids)
+      }
+    }
+
     event.items = [newItemEvent()]
-    const response = await handleOne(parsed, event.items[0]!)
-    return response === null ? new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } }) : json(200, response, cors, exact.ids)
+    const response = await handleOne(parsed, event.items[0]!, protocolVersion)
+    if (response === null) {
+      return new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+    }
+    // Modern servers MUST answer an unimplemented method with 404, so a client
+    // can tell "this server does not have that RPC" from "this server is not
+    // there". Legacy requests keep 200 + the JSON-RPC error they expect today.
+    const status = modern && response.error?.code === -32601 ? 404 : 200
+    return json(status, response, cors, exact.ids)
   }
 
   return async (request: Request): Promise<Response> => {

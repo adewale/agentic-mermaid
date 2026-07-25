@@ -21,7 +21,7 @@ import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 ensureWebsiteBuilt()
-import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../mcp/hosted-server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
@@ -1444,6 +1444,11 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.serverUrl).toBe('https://agentic-mermaid.dev/mcp')
     expect(mcpCard.wellKnownUrl).toBe('https://agentic-mermaid.dev/.well-known/mcp')
     expect(mcpCard.transport).toBe('streamable-http')
+    // The published discovery document must advertise exactly what /mcp admits.
+    // These were separately maintained literals until the version list became
+    // single-source; a bump to one without the other tells clients we do not
+    // support a version we in fact serve, or vice versa.
+    expect(mcpCard.protocolVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
     expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)

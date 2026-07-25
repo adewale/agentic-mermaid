@@ -1,4 +1,10 @@
-import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import {
+  effectiveProtocolVersion,
+  eraForRequest,
+  modernRequestMetaProblems,
+  usesToolErrorForInvalidArguments,
+} from './protocol-versions.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import {
   sharedRenderOptionsJsonSchema,
@@ -38,9 +44,20 @@ export interface McpServerSurface<Context> {
   protocolVersion: string | ((params: unknown) => string)
   /** initialize serverInfo.name; defaults to the local MCP_SERVER_NAME. */
   serverName?: string
+  /** Every revision this surface implements, newest-relevant order preserved.
+   *  Reported by server/discover and by UnsupportedProtocolVersionError.
+   *  Defaults to the single pinned `protocolVersion` when it is a constant. */
+  supportedVersions?: readonly string[]
   tools: McpToolDefinition[]
   instructions: string
   handleToolCall(id: number | string | null, params: unknown, context: Context): JsonRpcResponse | Promise<JsonRpcResponse>
+}
+
+export interface McpDispatchOptions {
+  /** The negotiated version the transport knows (the MCP-Protocol-Version
+   *  header on HTTP). Supplies the version for legacy requests, whose bodies
+   *  carry none; never overrides a modern request's `_meta`. */
+  protocolVersion?: string | null
 }
 
 // The LOCAL stdio/HTTP server identity. The hosted transport reports its own
@@ -329,7 +346,27 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
   return limitJsonConfigDiagnostics(problems, 'arguments')
 }
 
-export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
+/** The versions a surface implements: its explicit list, else its pinned constant. */
+export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Context>): readonly string[] {
+  if (surface.supportedVersions) return surface.supportedVersions
+  return typeof surface.protocolVersion === 'string' ? [surface.protocolVersion] : []
+}
+
+/** server/discover: the modern replacement for the initialize handshake's
+ *  discovery role. Every field is one the surface already produces for
+ *  initialize, so the two can never describe different servers. Answered in
+ *  BOTH eras — a dual-era client probes with it, and a legacy client that
+ *  never calls it is unaffected. */
+function discoverResult<Context>(surface: McpServerSurface<Context>) {
+  return {
+    supportedVersions: [...surfaceSupportedVersions(surface)],
+    capabilities: { tools: {} },
+    serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
+    instructions: surface.instructions,
+  }
+}
+
+export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
   const raw = req as unknown as Record<string, unknown> | null
   const hasId = Boolean(raw && Object.prototype.hasOwnProperty.call(raw, 'id'))
   const rawId = raw?.id
@@ -341,9 +378,26 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
   if (!valid) return rpcError(null, -32600, 'invalid JSON-RPC request')
   const notification = !hasId
 
+  // Dual-era selection (SEP-2575): a request declaring a modern version in
+  // `_meta` gets the stateless revision; anything else — including every
+  // request with no `_meta` at all — keeps the legacy behaviour it has today.
+  const era = eraForRequest(req)
+  const version = effectiveProtocolVersion(req, options.protocolVersion)
+
+  if (era === 'modern') {
+    const metaProblems = modernRequestMetaProblems(req)
+    if (metaProblems.length > 0) {
+      return notification ? null : rpcError(id, -32602, `Invalid params: ${metaProblems.join('; ')}`)
+    }
+  }
+
   let response: JsonRpcResponse | null
   switch (req.method) {
+    // initialize / notifications/initialized / ping are REMOVED in the modern
+    // era. Under a modern request they are simply unknown methods; a legacy
+    // request keeps the handshake it depends on.
     case 'initialize': {
+      if (era === 'modern') { response = unknownMethod(id, req.method); break }
       const protocolVersion = typeof surface.protocolVersion === 'function'
         ? surface.protocolVersion(req.params)
         : surface.protocolVersion
@@ -355,8 +409,9 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
       })
       break
     }
-    case 'notifications/initialized': response = null; break
-    case 'ping': response = reply(id, {}); break
+    case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
+    case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
+    case 'server/discover': response = reply(id, discoverResult(surface)); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!plainJsonObject(req.params)) {
@@ -376,7 +431,14 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
       const args = req.params.arguments ?? {}
       const problems = validateMcpToolArguments(tool, args)
       if (problems.length > 0) {
-        response = rpcError(id, -32602, `Invalid arguments for ${name}: ${problems.join('; ')}`)
+        const message = `Invalid arguments for ${name}: ${problems.join('; ')}`
+        // SEP-1303 (2025-11-25): an input-validation failure is a TOOL
+        // execution error, not a protocol error, so the model can read it and
+        // self-correct instead of seeing a transport fault. The diagnostic text
+        // is identical either way — only the envelope changes.
+        response = usesToolErrorForInvalidArguments(version)
+          ? toolResult(id, { ok: false, error: { code: 'INVALID_ARGUMENTS', message } }, true)
+          : rpcError(id, -32602, message)
         break
       }
       response = await surface.handleToolCall(id, { ...req.params, arguments: args }, context)
@@ -384,9 +446,14 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     }
     case 'prompts/list': response = reply(id, { prompts: [] }); break
     case 'resources/list': response = reply(id, { resources: [] }); break
-    default: response = rpcError(id, -32601, `Method not found: ${req.method}`)
+    default: response = unknownMethod(id, req.method)
   }
   return notification ? null : response
+}
+
+/** -32601, which the HTTP transport maps to 404 for modern requests. */
+function unknownMethod(id: number | string | null, method: string): JsonRpcResponse {
+  return rpcError(id, -32601, `Method not found: ${method}`)
 }
 
 export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {

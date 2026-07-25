@@ -124,6 +124,55 @@ check 'a disallowed browser Origin is 403' '403' \
 check 'an unsupported MCP-Protocol-Version is 400' '400' \
   "$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 1999-01-01' -d '{"jsonrpc":"2.0","id":1,"method":"ping"}')"
 
+# ---- Dual-era: the 2026-07-28 stateless revision ---------------------------
+# Every probe below pins the version EXPLICITLY. An unpinned client negotiates a
+# legacy revision and would exercise none of this.
+
+MODERN_META='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"e2e","version":"0"},"io.modelcontextprotocol/clientCapabilities":{}}'
+jm() { # modern POST: $1 body, $2.. extra headers
+  local body="$1"; shift
+  curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' \
+    -H 'mcp-protocol-version: 2026-07-28' "$@" -d "$body"
+}
+
+check 'the current revision 2025-11-25 is accepted' '"tools"' \
+  "$(curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 2025-11-25' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')"
+
+check 'server/discover advertises the supported versions' '"2026-07-28"' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server/discover\",\"params\":{$MODERN_META}}" -H 'mcp-method: server/discover')"
+
+check 'a modern tools/list works with no prior initialize' '"render_svg"' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{$MODERN_META}}" -H 'mcp-method: tools/list')"
+
+check 'a modern tools/call works with no prior initialize' '\"ok\":true' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"verify\",\"arguments\":{\"source\":\"flowchart TD\\n  A --> B\"},$MODERN_META}}" -H 'mcp-method: tools/call' -H 'mcp-name: verify')"
+
+# The supported list is what lets a client retry with a version we accept; a
+# bare error message would leave it stuck.
+check 'an unsupported version returns -32022 with a supported list' '"supported"' \
+  "$(curl -sS --max-time 10 -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 1999-01-01' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')"
+
+check 'a header/body version mismatch is -32020' '-32020' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2025-11-25\",\"io.modelcontextprotocol/clientInfo\":{\"name\":\"e2e\",\"version\":\"0\"},\"io.modelcontextprotocol/clientCapabilities\":{}}}}" -H 'mcp-method: tools/list')"
+
+check 'a missing Mcp-Method header is -32020' '-32020' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/list\",\"params\":{$MODERN_META}}")"
+
+check 'an Mcp-Name that disagrees with the body is -32020' '-32020' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"verify\",\"arguments\":{\"source\":\"flowchart TD\\n  A --> B\"},$MODERN_META}}" -H 'mcp-method: tools/call' -H 'mcp-name: describe')"
+
+check 'an unknown method is 404 for a modern request' '404' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"no/such/method\",\"params\":{$MODERN_META}}" -H 'mcp-method: no/such/method' -o /dev/null -w '%{http_code}')"
+
+check 'initialize is 404 under a modern pin' '404' \
+  "$(jm "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"initialize\",\"params\":{$MODERN_META}}" -H 'mcp-method: initialize' -o /dev/null -w '%{http_code}')"
+
+check 'a modern batch is refused' '400' \
+  "$(jm "[{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/list\",\"params\":{$MODERN_META}}]" -H 'mcp-method: tools/list' -o /dev/null -w '%{http_code}')"
+
+check 'preflight admits the modern routing headers' 'mcp-method' \
+  "$(curl -sS --max-time 10 -D - -o /dev/null -X OPTIONS "$MCP" -H 'origin: https://agentic-mermaid.dev' -H 'access-control-request-method: POST')"
+
 # A batch beyond the fan-out cap is refused before any tool runs.
 check 'an over-cap batch is 400' '400' \
   "$(python3 -c 'import json; print(json.dumps([{"jsonrpc":"2.0","id":i,"method":"ping"} for i in range(25)]))' | curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$MCP" -H 'content-type: application/json' --data @-)"

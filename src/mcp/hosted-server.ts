@@ -31,6 +31,7 @@ import {
   projectMcpRenderOptions,
   validateMcpToolArguments,
   withClosedMcpInputSchema,
+  type McpDispatchOptions,
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
@@ -70,7 +71,16 @@ export interface HostedMcpContext {
 
 // Streamable HTTP clients negotiate 2025-03-26+; the node transports pin
 // 2024-11-05. Echo whichever supported version the client offers.
-export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18']
+//
+// Dual-era: 2026-07-28 is the stateless revision (no initialize, no ping,
+// server/discover mandatory); everything before it is handshake-based. We serve
+// both, which the spec explicitly permits. Older entries are retained because
+// per-request, header-driven versioning makes multi-version support free —
+// there is no session whose version could go stale.
+//
+// This constant is the SINGLE authority for the accepted set. The published
+// discovery document (website/build.ts) derives from it; nothing restates it.
+export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28']
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26'
 
 // Hosted server identity, distinct from the local stdio server's
@@ -210,13 +220,14 @@ function hostedProtocolVersion(params: unknown): string {
 const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   protocolVersion: hostedProtocolVersion,
   serverName: HOSTED_MCP_SERVER_NAME,
+  supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
   tools: HOSTED_TOOLS,
   instructions: INSTRUCTIONS,
   handleToolCall,
 }
 
-export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
-  return dispatchMcpRequest(req, context, HOSTED_SURFACE)
+export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
+  return dispatchMcpRequest(req, context, HOSTED_SURFACE, options)
 }
 
 

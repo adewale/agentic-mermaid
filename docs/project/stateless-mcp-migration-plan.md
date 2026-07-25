@@ -1,9 +1,15 @@
 # Stateless MCP migration: hosted `/mcp` and the local server
 
-> **Status: plan, not implemented.** Supersedes the analysis in
-> [issue #186](https://github.com/adewale/agentic-mermaid/issues/186), which this
-> document tracks item-by-item in §9 and corrects in §3. `TODO.md` remains the
-> authoritative backlog; this is the design and evidence record.
+> **Status: phases 0–3 implemented; phase 4 deferred by design.** Supersedes the
+> analysis in [issue #186](https://github.com/adewale/agentic-mermaid/issues/186),
+> which this document tracks item-by-item in §9 and corrects in §3. `TODO.md`
+> remains the authoritative backlog; this is the design and evidence record.
+>
+> **Phase 2 carries a standing re-verification gate.** It was built against the
+> two Final SEPs and the `/specification/draft/` pages, because the assembled
+> `2026-07-28` revision had not published when it was written. §11 states what
+> must be re-checked against the final text; nothing about the implementation
+> assumes the draft was correct beyond what those pages say.
 >
 > **Evidence basis.** Every normative claim below was read from the primary
 > source on 2026-07-25 and is cited inline. SEP-2575 and SEP-2567 are marked
@@ -43,7 +49,10 @@ existing model — it deletes the model. `initialize` and `ping` are removed,
 unknown methods move to HTTP 404, and two new request headers become required
 and must be validated against the body. §4 enumerates this.
 
-## 2. Current state (as-built)
+## 2. Baseline (as-built before this migration)
+
+This section is the pre-migration record — the state the analysis was done
+against, kept intact so the gap analysis stays legible. For what changed, see §6.
 
 | Property | Hosted `/mcp` | Local `agentic-mermaid-mcp` |
 | --- | --- | --- |
@@ -64,7 +73,8 @@ answered as a single `application/json` object with no SSE, notifications return
 happened first. SEP-2575's migration checklist (rip out session routing,
 handshake state, sticky load balancing) is work we never have to do.
 
-Three properties I verified directly against production rather than inferring:
+Four properties verified directly against the code and production rather than
+inferred:
 
 - **The supported-version list is duplicated, with nothing keeping the copies in
   sync.** `SUPPORTED_PROTOCOL_VERSIONS` (`hosted-server.ts:73`) is the runtime
@@ -209,16 +219,26 @@ nothing to migrate, and the peer team's "use your existing app ID as the state
 handle" lesson (§8) is inapplicable to us — we have no app ID because we have no
 app state.
 
-**One genuine audit item.** The local server's `render_png` with
-`output: "file" | "url"` mints managed artifacts with TTL and quota — the one
-place we hand a caller a durable reference. That is precisely SEP-2567's handle
-pattern, and its guidance applies: handles should be opaque, bounded in
+**One genuine audit item — audited, passes.** The local server's `render_png`
+with `output: "file" | "url"` mints managed artifacts with TTL and quota — the
+one place we hand a caller a durable reference. That is precisely SEP-2567's
+handle pattern, and its guidance applies: handles should be opaque, bounded in
 lifetime, and for an unauthenticated server "generated from a cryptographically
 secure random source with at least 128 bits of entropy… never derived from
-predictable inputs". The artifact store already has TTL, quota, and safe-name
-generation; §6 phase 3 verifies the entropy and opacity of the generated names
-against that bar. Note this is local-server-only — hosted `render_png` is
-base64-only and mints nothing.
+predictable inputs".
+
+Result: `src/mcp/artifacts.ts:135` builds the name as
+`${createdAt.toString(36)}-${randomUUID()}${ext}`. The entropy comes from
+`node:crypto`'s `randomUUID()` — a CSPRNG-backed UUIDv4, which is the SEP's own
+worked example of an acceptable handle ("e.g. UUIDv4, or 22+ characters of
+URL-safe base64"). Lifetime is bounded by the existing TTL (1h default) and the
+quota/manifest machinery. The base36 timestamp prefix *is* derived from a
+predictable input, but it is a prefix beside the random component, not a
+substitute for it, so it does not narrow the search space; it exists for
+lexical ordering during cleanup. No change required.
+
+This is local-server-only — hosted `render_png` is base64-only and mints
+nothing, so the hosted endpoint hands out no handles at all.
 
 ### 4.5 Deliberately not adopted
 
@@ -262,14 +282,14 @@ conformance oracle is worth far more to us than an SDK-shaped server.
 
 Phases are independently shippable and ordered by user impact.
 
-### Phase 0 — make the version list single-source
+### Phase 0 — make the version list single-source ✅ implemented
 
 Derive `website/build.ts`'s server-card `protocolVersions` from
 `SUPPORTED_PROTOCOL_VERSIONS` and pin the equality (§10 item 5). Small, but it
 must precede phase 1: every later phase edits that array, and today nothing
 propagates the change to the published discovery document.
 
-### Phase 1 — close the live gap (`2025-11-25`)
+### Phase 1 — close the live gap (`2025-11-25`) ✅ implemented
 
 - Add `'2025-11-25'` to `SUPPORTED_PROTOCOL_VERSIONS`.
 - Gate the SEP-1303 envelope change (§3.2) on negotiated version ≥ `2025-11-25`:
@@ -280,7 +300,7 @@ propagates the change to the published discovery document.
 Ships without waiting for the final `2026-07-28` text. This is the phase that
 fixes a real, current lockout.
 
-### Phase 2 — dual-era `2026-07-28`
+### Phase 2 — dual-era `2026-07-28` ✅ implemented (re-verification gate open, §11)
 
 - `SUPPORTED_PROTOCOL_VERSIONS` gains `'2026-07-28'`.
 - Implement `server/discover`, projecting the existing `initialize` payload.
@@ -293,7 +313,7 @@ fixes a real, current lockout.
 - `CORS_BASE` gains `mcp-method, mcp-name`.
 - Era selection per §4.3; `initialize` keeps working for legacy clients.
 
-### Phase 3 — surfaces, discovery, and the artifact-handle audit
+### Phase 3 — surfaces, discovery, and the artifact-handle audit ✅ implemented
 
 - `.well-known/mcp/server-card.json` `protocolVersions` (currently the three
   stale entries), `website/source/mcp-registry/server.json`, `server.json`,
@@ -305,7 +325,7 @@ fixes a real, current lockout.
   *transport* gets 405 from `/mcp` and cannot connect. One sentence in
   `/docs/mcp/`.
 
-### Phase 4 — local server (follow-up, non-blocking)
+### Phase 4 — local server (follow-up, non-blocking) — deferred
 
 `server.ts:61` pins `2024-11-05`, matching its stateful SSE transport
 (`MAX_SSE_SESSIONS = 32`, artifact store). stdio is unaffected by the transport
