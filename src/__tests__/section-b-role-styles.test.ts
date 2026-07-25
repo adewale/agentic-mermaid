@@ -148,23 +148,54 @@ describe('Section B public semantic role Styles', () => {
     ), { numRuns: 50 })
   })
 
-  // The two exhaustive Look × family cross-products below are CPU-bound and
-  // sequential, so their wall-clock cost tracks machine speed AND whatever else
-  // the suite is running beside them. A budget sized to the measured solo cost
-  // leaves no room for that second term: this SVG/ASCII test measured ~20s
-  // alone and tipped 30.27s past a 30s cap inside a full-suite run, having
-  // passed the three runs before it — flaky by construction rather than by
-  // defect, since it passes in isolation every time.
+  // "A Look's exported record is equivalent to selecting it by name" is decided
+  // by the RESOLVER, not by any renderer: `style` reaches the renderer only as
+  // resolveStyleStack's output, so equal resolutions render equally by
+  // construction. Establishing it by rendering the full 16 Look x 15 family
+  // cross-product cost 960 render calls (~20s) to learn a fact about 16 pairs
+  // of values, and rendering is ~90% ELK layout (measured: parse 2.4ms, layout
+  // ~28ms, full SVG ~26ms), so the call count — not the renderer — was the cost.
   //
-  // Both budgets are therefore hang detectors with room for contention, not
-  // restatements of the solo measurement. The exhaustive cross-product is the
-  // point of both tests (see the PNG note below), so the cost itself stands.
-  test('every built-in Look exports an ordinary record equivalent to selecting its name', () => {
-    const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')
+  // Checking the resolver directly is both ~1000x cheaper and STRICTLY
+  // STRONGER: it catches a divergence at the point it occurs, where rendering
+  // can only catch divergences that survive all the way to output bytes.
+  //
+  // Verified against the old exhaustive form over all 240 cells: the cheap
+  // check never says "equal" where rendering says "differ" — zero missed
+  // regressions. The 15 disagreements are all `crisp` (below), where the cheap
+  // check is conservative rather than wrong.
+  const BUILT_IN_LOOKS = () => knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')
+  // Two families, because the string-vs-record entry path is family-independent
+  // (resolution happens before family dispatch) and one witness would already
+  // prove it; the second is cheap insurance against that assumption changing.
+  const WITNESS_FAMILIES = ['flowchart', 'pie'] as const
+
+  test('every built-in Look exports a record that resolves identically to its name', () => {
+    const looks = BUILT_IN_LOOKS()
     expect(looks.length).toBeGreaterThanOrEqual(16)
     for (const { inputName: name } of looks) {
+      const exported = getStyle(name)
+      expect(exported, `${name}: exported record`).toBeDefined()
+      // `crisp` is the default Look: selecting it BY NAME resolves to undefined
+      // (no override) while its record resolves to itself. That is a semantic
+      // equivalence the resolver cannot express, so it is not asserted here —
+      // it is discharged by the render sweep below, which is derived from this
+      // same comparison rather than hardcoding the exception.
+      if (resolveStyleStack(name) === undefined) continue
+      expect(resolveStyleStack(exported!), `${name}: record resolves like the name`)
+        .toEqual(resolveStyleStack(name))
+    }
+  })
+
+  // The renderer accepts `style` as a string OR a record. Resolver identity does
+  // not by itself prove the two ENTRY paths agree — a branch on `typeof style`
+  // would slip past it — so every Look is still rendered both ways, on a witness
+  // family rather than all fifteen. 16 Looks x 2 families x 2 formats x 2
+  // variants = 128 calls, against 960 before.
+  test('both public style entry paths agree for every Look on the render witness', () => {
+    for (const { inputName: name } of BUILT_IN_LOOKS()) {
       const exported = getStyle(name)!
-      for (const family of knownBuiltinFamilies()) {
+      for (const family of WITNESS_FAMILIES) {
         const source = getFamily(family)!.example
         expect(renderMermaidSVG(source, { style: name, seed: 7 }), `${name}/${family}/svg`)
           .toBe(renderMermaidSVG(source, { style: exported, seed: 7 }))
@@ -172,24 +203,43 @@ describe('Section B public semantic role Styles', () => {
           .toBe(renderMermaidASCII(source, { style: exported }))
       }
     }
-  }, 120_000)
+  }, 60_000)
 
-  // 480 sequential PNG renders (16 Looks x 15 families x 2). renderMermaidPNG is
-  // synchronous, so this cannot be parallelized without worker threads; the
-  // exhaustive cross-product is the point, so the budget carries the cost.
-  // Measured at ~33-35s on a 4-core machine. 60s was under 2x that measurement
-  // and so had the same contention exposure as its sibling above, just not yet
-  // realised; raised for the same reason rather than waiting for it to flake.
-  test('every built-in Look export is equivalent across every family on the public PNG path', async () => {
-    for (const { inputName: name } of knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')) {
+  // The residue: Looks the resolver cannot prove equivalent (today only the
+  // default `crisp`, whose name resolves to undefined) keep the full family
+  // sweep, because rendering is the only thing that can decide them. Derived
+  // from the resolver, so a future Look with the same shape is swept
+  // automatically instead of silently losing coverage.
+  test('Looks the resolver cannot equate are swept across every family', async () => {
+    const unresolvable = BUILT_IN_LOOKS().filter(({ inputName }) => resolveStyleStack(inputName) === undefined)
+    expect(unresolvable.map(look => look.inputName)).toEqual(['crisp'])
+    for (const { inputName: name } of unresolvable) {
       const exported = getStyle(name)!
       for (const family of knownBuiltinFamilies()) {
         const source = getFamily(family)!.example
-        expect(await renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/${family}`)
+        expect(renderMermaidSVG(source, { style: name, seed: 7 }), `${name}/${family}/svg`)
+          .toBe(renderMermaidSVG(source, { style: exported, seed: 7 }))
+        expect(renderMermaidASCII(source, { style: name }), `${name}/${family}/terminal`)
+          .toBe(renderMermaidASCII(source, { style: exported }))
+        expect(await renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/${family}/png`)
           .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
       }
     }
-  }, 180_000)
+  }, 120_000)
+
+  // The PNG path is a separate rasteriser (resvg), so it gets its own entry-path
+  // witness for the same reason as the SVG/ASCII one above. The property is
+  // still resolver-decided, so this is a witness rather than a sweep: 16 Looks x
+  // 1 family x 2 variants = 32 PNG renders, against 480 before. `crisp` is
+  // covered across every family by the sweep above.
+  test('both public style entry paths agree for every Look on the PNG witness', async () => {
+    const source = getFamily(WITNESS_FAMILIES[0])!.example
+    for (const { inputName: name } of BUILT_IN_LOOKS()) {
+      const exported = getStyle(name)!
+      expect(await renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/png`)
+        .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
+    }
+  }, 120_000)
 
   test('conflicting Pie role defaults never select emphasis or change quantitative geometry', () => {
     const source = `---\nconfig:\n  pie:\n    highlightSlice: Beta\n---\npie\n  "Alpha" : 3\n  "Beta" : 2`
