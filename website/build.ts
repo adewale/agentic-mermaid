@@ -1952,20 +1952,21 @@ async function emitBrowserBundleDemo() {
   2005 : YouTube
   2006 : Twitter`
 
-  const body = `<p>This page renders the diagram below <strong>in your browser, right now</strong>, from one
-<code>&lt;script src&gt;</code> tag. No bundler, no import map, no build step. Everything runs locally —
-the source never leaves this page.</p>
+  const body = `<p>Your browser rendered the diagram below from one <code>&lt;script src&gt;</code> tag. The ESM
+entry would need a bundler or an import map; this file needs neither, and the diagram source never
+leaves the page.</p>
 <pre><code>&lt;script src="https://unpkg.com/agentic-mermaid@${packageJson.version}/dist/browser.global.js"&gt;&lt;/script&gt;
 &lt;script&gt;
   const svg = agenticMermaid.renderMermaidSVG(source, { style: 'zinc-dark' })
   document.querySelector('#diagram').innerHTML = svg
 &lt;/script&gt;</code></pre>
-<p>The version is pinned deliberately. <code>dist/browser.global.js</code> ships from <strong>v0.3.0</strong>;
-earlier releases are ESM-only, so an unversioned CDN URL resolves to a release that does not contain
-the file. This page serves that same artifact from its own origin rather than from unpkg, so the demo
-keeps working offline and adds no third-party request — the bytes are identical either way.</p>
-<p>Supported browsers: roughly <strong>Chrome 97, Firefox 104, Safari 15.4, Edge 97</strong> and newer. See
-<a href="/docs/api/">the docs</a> for why that floor cannot be lowered by changing the build target.</p>
+<p>The version in that URL is pinned because <code>dist/browser.global.js</code> ships from v0.3.0. Earlier
+releases are ESM-only, so the same URL without a version answers <strong>404</strong>. This page serves the
+identical artifact from its own origin instead of unpkg, so the demo keeps working offline and makes
+no third-party request.</p>
+<p>Runs on <strong>Chrome 97, Firefox 104, Safari 15.4, Edge 97</strong> and newer. That floor comes from
+<code>Array.prototype.findLast</code>, which the renderer calls. Lowering the build target will not move it,
+because esbuild rewrites syntax and leaves runtime methods alone.</p>
 <h2>Live render</h2>
 <p><label for="demo-style">Style</label>
 <select id="demo-style">
@@ -1982,12 +1983,12 @@ keeps working offline and adds no third-party request — the bytes are identica
 <h2>The source</h2>
 <pre><code id="demo-source">${escapeHtml(TIMELINE)}</code></pre>
 <h2>Should you use this?</h2>
-<p>Usually not. If your diagram source is fixed when the page is published — a blog post, a docs
-page, a README — pre-render it at build time instead and ship zero JavaScript. The renderer is
-synchronous and needs no DOM, so a static site never has to send the bundle to a reader. This
-page ships it because its whole job is to prove the dynamic path works.</p>
-<p>See <a href="/docs/api/">Library API</a> for the bundler-friendly ESM entry, which tree-shakes
-where this file cannot.</p>
+<p>Usually not. When the diagram source is already fixed at publish time, as it is in a blog post or
+a docs page, render it during the build and send no JavaScript at all. <code>renderMermaidSVG</code> is
+synchronous and never touches the DOM, so a static site has no reason to put 873&nbsp;KB of gzipped
+renderer in front of a reader. This page sends it because proving the dynamic path is its only job.</p>
+<p>If you already run a bundler, import the ESM entry described in the
+<a href="/docs/api/">Library API</a> instead: it tree-shakes, and this file cannot.</p>
 <script>
 (function () {
   var SOURCE = document.getElementById('demo-source').textContent
