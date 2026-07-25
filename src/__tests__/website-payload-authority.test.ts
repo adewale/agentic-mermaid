@@ -82,7 +82,7 @@ describe('deterministic website payload authority', () => {
       ['requests', 'home: requests 10 exceeds 9'],
       ['rawBytes', 'home: rawBytes 682620 exceeds 682619'],
       ['gzipBytes', 'home: gzipBytes 406568 exceeds 406567'],
-      ['brotliBytes', 'home: brotliBytes 387890 exceeds 387889'],
+      ['brotliBytes', 'home: brotliBytes 388565 exceeds 388564'],
     ] as const) {
       const grown = structuredClone(report)
       grown.routes[0]!.totals[field]++
@@ -100,6 +100,14 @@ describe('deterministic website payload authority', () => {
     expect(verifyWebsitePayloadBudgets(missing, WEBSITE_PAYLOAD_BUDGETS)).toEqual(expect.arrayContaining([
       'editor-empty: missing required ^/editor/$',
       'editor-empty: missing required ^/editor/editor-[a-f0-9]{12}\\.js$',
+    ]))
+
+    const missingDemo = structuredClone(report)
+    missingDemo.routes.find(route => route.id === 'demo')!.requests = []
+    expect(verifyWebsitePayloadBudgets(missingDemo, WEBSITE_PAYLOAD_BUDGETS)).toEqual(expect.arrayContaining([
+      'demo: missing required ^/demo/$',
+      'demo: missing required ^/demo/browser-[a-f0-9]{12}\\.js$',
+      'demo: missing required ^/generated/inline-[a-f0-9]{12}\\.js$',
     ]))
   })
 
@@ -122,6 +130,7 @@ describe('deterministic website payload authority', () => {
   test('independently maps route documents and fails closed on encoded traversal', () => {
     expect(independentPublicFile('/')).toBe(join(PUBLIC, 'index.html'))
     expect(independentPublicFile('/examples/')).toBe(join(PUBLIC, 'examples', 'index.html'))
+    expect(independentPublicFile('/demo/')).toBe(join(PUBLIC, 'demo', 'index.html'))
     expect(independentPublicFile('/editor/')).toBe(join(PUBLIC, 'editor', 'index.html'))
     expect(independentPublicFile('/styles.css')).toBe(join(PUBLIC, 'styles.css'))
     expect(() => independentPublicFile('/..%2f..%2fpackage.json')).toThrow('independent path escape')

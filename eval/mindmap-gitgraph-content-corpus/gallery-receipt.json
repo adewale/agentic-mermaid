@@ -132,7 +132,7 @@
     },
     {
       "path": "src/agent/families.ts",
-      "sha256": "8d8c35bd0462d6e24848047c95462bbe0421fa67add2334031887b2c986d930b"
+      "sha256": "d7714f5a0f73529c88ca1c46c67abdae392b98f7efa720ba562c3c1ced49ed05"
     },
     {
       "path": "src/agent/family-labels.ts",
@@ -532,7 +532,7 @@
     },
     {
       "path": "src/font-manifest.ts",
-      "sha256": "882b196a0a0d69281ff4fc35f108d2b4eb8c74b4adcbf31f921d4891c1f27e36"
+      "sha256": "90dc540aa47a6b95f000c2a167fce7efd1e0f578ea63ab9a590b8e40a8f8f14b"
     },
     {
       "path": "src/gantt/layout.ts",
@@ -816,7 +816,7 @@
     },
     {
       "path": "src/scene/backend.ts",
-      "sha256": "41ea1bfb41c82981b545962b0c102e25864fd066de03ecd79b876a4903477780"
+      "sha256": "70197d7b6cfefc107a5866dc8e8cbf26f1db82760c4ca24c37062c0cad795c27"
     },
     {
       "path": "src/scene/bounds.ts",
@@ -892,7 +892,7 @@
     },
     {
       "path": "src/scene/roles.ts",
-      "sha256": "678cf355ddd4056fae4f76b8bc9456d1b46ee9cea8e07a78acc4a485a67d4b5e"
+      "sha256": "88b9a8971d906e0ae72aad4c31d3af968b2e21669280f6b9e5a5094294df2b69"
     },
     {
       "path": "src/scene/rough-backend.ts",
@@ -912,7 +912,7 @@
     },
     {
       "path": "src/scene/style-registry.ts",
-      "sha256": "e8129b28cd366c4466da535dcbeb3dc7b6a300ef0040d47c49420772495f5c09"
+      "sha256": "5d4fd8458095d9a955fcd37d8259238bdb5af7362c0eef71a336c268ca0b0297"
     },
     {
       "path": "src/scene/style-spec.ts",
@@ -1132,7 +1132,7 @@
     },
     {
       "path": "src/version.ts",
-      "sha256": "51290e0c3c8afbbbff713a4ed70e0f20dca46ddf0b0f5035a6197603fd16ca17"
+      "sha256": "b93394b6c1af8f82fe63b7e69a1d384f3c3d17399dbd2cc50d902eedb3bd49c0"
     },
     {
       "path": "src/xychart/axis-utils.ts",

@@ -49,11 +49,24 @@ describe('package exports', () => {
       '.',
       './agent',
       './agent/core',
+      './browser',
       './style-spec.schema.json',
       './package.json',
     ])
     expect(packageJson.files).not.toContain('src/')
     expect(packageJson.files).not.toContain('docs/')
+  })
+
+  // BUILD-30: a `<script src>` consumer has no resolver, so the browser IIFE is
+  // the one artifact that must be reachable without a bundler. Pin the export
+  // and both CDN fields to the same file — unpkg/jsdelivr serve `unpkg`/
+  // `jsdelivr` rather than the exports map, so a drifting pair silently sends
+  // CDN users to the ESM build that cannot run in a script tag.
+  it('publishes the browser IIFE under ./browser and both CDN fields', () => {
+    const browserArtifact = './dist/browser.global.js'
+    expect(packageJson.exports['./browser']).toBe(browserArtifact)
+    expect(packageJson.unpkg).toBe(browserArtifact)
+    expect(packageJson.jsdelivr).toBe(browserArtifact)
   })
 
   it('TypeScript path aliases match the published import paths', () => {
@@ -73,6 +86,7 @@ describe('package exports', () => {
       'examples/**/*.ts',
       'website/**/*.ts',
       'tsup.config.ts',
+      'tsup.browser.config.ts',
     ])
     expect(repoTsconfig.exclude).toContain('eval/mermaid-upstream-suite-bench/upstream-*/**')
   })

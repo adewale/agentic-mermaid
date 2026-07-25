@@ -16,6 +16,7 @@ export const WEBSITE_PAYLOAD_COMPRESSION = Object.freeze({
 export const WEBSITE_PAYLOAD_ROUTES = Object.freeze([
   Object.freeze({ id: 'home', url: '/', viewport: Object.freeze({ width: 390, height: 844 }) }),
   Object.freeze({ id: 'examples', url: '/examples/', viewport: Object.freeze({ width: 390, height: 844 }) }),
+  Object.freeze({ id: 'demo', url: '/demo/', viewport: Object.freeze({ width: 390, height: 844 }) }),
   Object.freeze({ id: 'editor-empty', url: '/editor/?empty=1', viewport: Object.freeze({ width: 390, height: 844 }) }),
 ] as const)
 

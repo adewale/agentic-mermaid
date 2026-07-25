@@ -56,6 +56,39 @@ renderMermaidSVG(source, {
 
 A style chooses the renderer treatment — for example `hand-drawn`, `watercolor`, `publication-figure`, or `ops-schematic`. A palette-only style chooses colors — for example `github-light`, `dracula`, or a custom JSON record with `colors`. Stacks merge left to right, so agents can keep visual requests out of Mermaid source while preserving deterministic geometry.
 
+## Migrating from upstream: every export this fork does not have
+
+Upstream Beautiful Mermaid's entry point exports 16 names. Ten are still
+exported here with the same meaning: `renderMermaidSVG`, `renderMermaidASCII`,
+`renderMermaidSVGAsync`, `fromShikiTheme`, `DEFAULTS`, and the `RenderOptions`,
+`AsciiRenderOptions`, `DiagramColors`, `MermaidGraph`, and `PositionedGraph`
+types.
+
+These six are not, and each fails differently. `THEMES` is the one that bites
+hardest, because destructuring it yields `undefined` rather than an import
+error, so the failure lands later and elsewhere.
+
+| Upstream | Replacement | Notes |
+|---|---|---|
+| `THEMES` | `{ style: 'name' }` | Theme **names** survive as style names; the map does not. `THEMES['zinc-dark']` → `{ style: 'zinc-dark' }`. |
+| `ThemeName` | `string`, validated by `knownStyles()` | Style names are open — custom styles register at runtime — so there is no closed union to import. |
+| `parseMermaid` | `parseRegisteredMermaid` | **Different shape.** Upstream returns a `MermaidGraph` directly; this returns a result: `{ ok: true, value }` or `{ ok: false, error }`. Check `ok` instead of catching. |
+| `renderMermaid` | `renderMermaidSVGAsync` | Upstream alias for the async SVG renderer. |
+| `renderMermaidSync` | `renderMermaidSVG` | Upstream alias; `renderMermaidSVG` is already synchronous here. |
+| `renderMermaidAscii` | `renderMermaidASCII` | Casing-only alias upstream. This fork exports the capitalised spelling only. |
+
+So a `THEMES` port fails at runtime with `TypeError: Cannot read properties of
+undefined (reading 'zinc-dark')`, while `parseMermaid` fails at import — and the
+three aliases fail at import too, which is the easy case.
+
+`zinc-light`, `zinc-dark`, `dracula`, `nord`, `tokyo-night`, and the rest of the
+upstream theme names are all valid style names; `knownStyles()` lists every
+registered one.
+
+`src/__tests__/upstream-export-migration.test.ts` keeps this table honest: it
+reads upstream's own type declarations and fails if an upstream export is
+neither exported here nor documented above.
+
 ## Mermaid config and source wrappers
 
 This fork supports Mermaid-style source wrappers before diagram headers, including:
