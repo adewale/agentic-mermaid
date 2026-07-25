@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/mermaid-doc-showcase-gallery.ts",
   "inputCount": 253,
-  "inputTreeSha256": "0aa6e4cb8bf119d505d1114ac1de91578f966ce92726b8edb64261a1bdeda85a",
+  "inputTreeSha256": "a0b792fe6f1a5d67f0d9b2162881a81981747bbc56b56a8d5c1a2d98f8774f8f",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [

@@ -33,9 +33,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   demo: Object.freeze({
     maxRequests: 8,
-    maxRawBytes: 3_173_332,
-    maxGzipBytes: 1_002_972,
-    maxBrotliBytes: 808_415,
+    maxRawBytes: 3_173_900,
+    maxGzipBytes: 1_003_262,
+    maxBrotliBytes: 808_983,
     required: Object.freeze([
       '^/demo/$', '^/demo/browser-[a-f0-9]{12}\\.js$', '^/generated/inline-[a-f0-9]{12}\\.js$',
     ]),
@@ -43,9 +43,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    maxRawBytes: 3_289_015,
-    maxGzipBytes: 965_667,
-    maxBrotliBytes: 760_217,
+    maxRawBytes: 3_289_609,
+    maxGzipBytes: 965_914,
+    maxBrotliBytes: 760_078,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

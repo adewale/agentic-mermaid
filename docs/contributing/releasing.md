@@ -20,8 +20,12 @@ after any ambiguous publish failure, that job queries the registry's exact
 name-and-version endpoint. It accepts an existing immutable version only when
 the publisher-owned `.server` object is structurally identical to the extracted
 `server.json`; registry-owned `_meta` does not participate in that comparison.
-Absence means publish, while a mismatch, malformed response, or unavailable
-preflight fails closed before credentials are requested. Keeping that step
+Absence means publish, while a mismatch or malformed response fails closed
+immediately — those are answers about the record, so retrying them only delays
+the same verdict. An unreachable or unexpectedly-responding Registry carries no
+verdict, so preflight retries it over the same bounded backoff before failing
+closed, and a transient outage no longer blocks an otherwise-publishable
+release. All of this happens before credentials are requested. Keeping that step
 separate, with the verified artifact retained for 30 days, lets a failed
 registry publication be retried without attempting to republish an immutable
 npm version.

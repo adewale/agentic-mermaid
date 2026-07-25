@@ -408,6 +408,38 @@ export function stripMermaidInitDirectives(text: string): string {
   return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
 }
 
+/**
+ * Every universal init directive in `text`, in authored order. Callers that
+ * need to know whether some other text already owns a directive must ask this
+ * grammar rather than search for the authored bytes: a source-preserving
+ * serializer may legitimately re-emit a directive with different indentation
+ * or inner spacing, and a byte comparison would then emit it a second time.
+ */
+export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[] {
+  const directives: MermaidSourceInitDirective[] = []
+  const regex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    directives.push({
+      raw: match[0],
+      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
+    })
+  }
+  return directives
+}
+
+/**
+ * Whitespace- and formatting-insensitive identity for one init directive.
+ * A parseable payload is identified by its canonical config so re-indented or
+ * re-spaced re-emissions still match; an unparseable payload has no semantic
+ * projection, so it falls back to its collapsed raw text.
+ */
+export function mermaidInitDirectiveIdentity(directive: MermaidSourceInitDirective): string {
+  return Object.keys(directive.parsed).length > 0
+    ? `config:${JSON.stringify(directive.parsed)}`
+    : `raw:${directive.raw.trim().replace(/\s+/g, ' ')}`
+}
+
 export function normalizeMermaidSource(
   text: string,
   baseConfig: MermaidRuntimeConfig = {},
@@ -464,16 +496,7 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   // exact one-byte wrapper even without frontmatter so family-owned source
   // starts at the header and source-map ownership agrees with serialization.
   const frontmatterEnd = frontmatter?.[0].length ?? (text.startsWith('\uFEFF') ? 1 : 0)
-  const initDirectives: MermaidSourceInitDirective[] = []
-  const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
-  let match: RegExpExecArray | null
-  const directiveSource = text.slice(frontmatterEnd)
-  while ((match = directiveRegex.exec(directiveSource)) !== null) {
-    initDirectives.push({
-      raw: match[0],
-      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
-    })
-  }
+  const initDirectives = mermaidInitDirectives(text.slice(frontmatterEnd))
 
   const withoutUniversalConfig = text
     .replace(FRONTMATTER_REGEX, '')

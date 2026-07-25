@@ -15,7 +15,13 @@ import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
-import { stripMermaidInitDirectives } from '../mermaid-source.ts'
+import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
+import {
+  mergeFrontmatterMaps,
+  mermaidInitDirectiveIdentity,
+  mermaidInitDirectives,
+  stripMermaidInitDirectives,
+} from '../mermaid-source.ts'
 
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
@@ -24,7 +30,12 @@ export interface SerializeOptions {
   /**
    * Wrapper emission policy. 'verbatim' (default) re-emits the leading source
    * wrapper (frontmatter, init directives, comments) byte-identically from
-   * `meta.wrapperSource`. 'canonical' synthesizes Mermaid's documented shape
+   * `meta.wrapperSource`, then re-emits any init directive authored *after*
+   * the family header that the serialized body does not already own — a
+   * structured serializer receives directive-free grammar, so without this the
+   * config would be lost. Such a directive therefore moves ahead of the
+   * header; source-preserving bodies keep theirs in place and are unaffected.
+   * 'canonical' synthesizes Mermaid's documented shape
    * instead: one frontmatter block with `title`/`displayMode` at the top
    * level and everything else nested under `config:`, init directives folded
    * in (re-emitted raw only when their payload could not be folded), and
@@ -73,19 +84,24 @@ export function wrapperPrefix(
  * identity—decides whether each directive still needs the shared envelope.
  */
 function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): string {
-  const wrapper = meta.wrapperSource ?? ''
-  let wrapperCursor = 0
-  let bodyCursor = 0
+  // Count what the emitted text already owns through the shared grammar, not
+  // by searching for the authored bytes: a serializer that re-indents or
+  // re-spaces preserved source still owns that directive, and a byte search
+  // would duplicate it. Counts (not a set) keep a directive authored twice
+  // emitted twice.
+  const owned = new Map<string, number>()
+  for (const text of [meta.wrapperSource ?? '', bodySource]) {
+    for (const directive of mermaidInitDirectives(text)) {
+      const key = mermaidInitDirectiveIdentity(directive)
+      owned.set(key, (owned.get(key) ?? 0) + 1)
+    }
+  }
   const parts: string[] = []
   for (const directive of meta.initDirectives) {
-    const wrapperIndex = wrapper.indexOf(directive.raw, wrapperCursor)
-    if (wrapperIndex >= wrapperCursor) {
-      wrapperCursor = wrapperIndex + directive.raw.length
-      continue
-    }
-    const bodyIndex = bodySource.indexOf(directive.raw, bodyCursor)
-    if (bodyIndex >= bodyCursor) {
-      bodyCursor = bodyIndex + directive.raw.length
+    const key = mermaidInitDirectiveIdentity(directive)
+    const remaining = owned.get(key) ?? 0
+    if (remaining > 0) {
+      owned.set(key, remaining - 1)
       continue
     }
     parts.push(directive.raw.trimEnd() + '\n')
@@ -97,8 +113,12 @@ function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): 
  * Canonical wrapper synthesis (Mermaid's documented frontmatter shape):
  * `title`/`displayMode` stay top-level, all other keys nest under `config:`.
  * Init directives whose parsed payload is already represented in the
- * frontmatter map are folded (not re-emitted); unparseable directives are
- * preserved raw so canonicalization never silently loses them.
+ * frontmatter map are folded (not re-emitted). A directive whose every key a
+ * *later* directive also sets is folded too: the source already discarded its
+ * values, so re-emitting it would reinstate them, because Mermaid lets init
+ * directives override frontmatter. Anything else — an unparseable payload, or
+ * config no later directive shadows and the frontmatter does not represent —
+ * is preserved raw, so canonicalization still never silently loses config.
  */
 export function renderMeta(meta: ValidDiagramMeta): string {
   const parts: string[] = []
@@ -113,11 +133,45 @@ export function renderMeta(meta: ValidDiagramMeta): string {
     if (Object.keys(config).length > 0) doc.config = config
     parts.push(`---\n${YAML.stringify(doc).trimEnd()}\n---\n`)
   }
-  for (const d of meta.initDirectives) {
+  for (const [index, d] of meta.initDirectives.entries()) {
     if (frontmatterRepresents(meta.frontmatter, d.parsed)) continue
+    if (shadowedByLaterDirective(meta.initDirectives, index)) continue
     parts.push(d.raw.trimEnd() + '\n')
   }
   return parts.join('')
+}
+
+/**
+ * True when every key the directive at `index` sets is also set by some later
+ * directive. Scoped to the directive list rather than the merged frontmatter
+ * on purpose: for parsed source the two agree, but a synthesized payload may
+ * carry a frontmatter map that was never derived from its directives, and
+ * folding against that map could drop config the caller still wants.
+ */
+function shadowedByLaterDirective(
+  directives: ValidDiagramMeta['initDirectives'],
+  index: number,
+): boolean {
+  const parsed = directives[index]!.parsed
+  if (Object.keys(parsed).length === 0) return false  // unparseable payload — never foldable
+  let later: MermaidFrontmatterMap = {}
+  for (let next = index + 1; next < directives.length; next++) {
+    later = mergeFrontmatterMaps(later, directives[next]!.parsed)
+  }
+  return coversKeys(later, parsed)
+}
+
+/** True when every leaf key path of `sub` exists in `map`, whatever its value. */
+function coversKeys(map: Record<string, unknown>, sub: Record<string, unknown>): boolean {
+  for (const key of Object.keys(sub)) {
+    if (!(key in map)) return false
+    const a = map[key], b = sub[key]
+    if (b && typeof b === 'object' && !Array.isArray(b)) {
+      if (!a || typeof a !== 'object' || Array.isArray(a)) return false
+      if (!coversKeys(a as Record<string, unknown>, b as Record<string, unknown>)) return false
+    }
+  }
+  return true
 }
 
 /** True when every leaf of `sub` is present with an equal value in `map`. */

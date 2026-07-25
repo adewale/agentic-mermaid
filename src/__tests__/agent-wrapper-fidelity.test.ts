@@ -189,6 +189,36 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
   })
 
+  test('canonical mode does not reinstate config a later init directive overrode', () => {
+    // Mermaid lets an init directive override frontmatter, so re-emitting the
+    // superseded directive alongside the folded frontmatter would flip the
+    // effective value back and make canonical output non-idempotent.
+    const parsed = parseMermaid(
+      '%%{init: {"theme":"forest"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
+    )
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(canonical).toContain('theme: dark')
+    expect(canonical).not.toContain('forest')
+    const reparsed = parseMermaid(canonical)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+    expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
+  })
+
+  test('canonical mode keeps a directive no later directive shadows', () => {
+    const parsed = parseMermaid(
+      '%%{init: {"logLevel":"debug"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
+    )
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(canonical).toContain('logLevel: debug')
+    expect(canonical).toContain('theme: dark')
+  })
+
   test('am format defaults to verbatim; --canonical-wrapper opts into synthesis', () => {
     const run = (args: string[]) => spawnSync('bun', [join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'format', '-', ...args], {
       input: COMBO, encoding: 'utf8',

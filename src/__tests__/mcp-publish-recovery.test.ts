@@ -56,14 +56,18 @@ function executeRecovery(
   const curlMock = `#!/usr/bin/env bash
 set -euo pipefail
 output_file=
+requested_url=
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --output) output_file="$2"; shift 2 ;;
     --write-out) shift 2 ;;
-    *) shift ;;
+    --silent|--show-error|--location) shift ;;
+    --connect-timeout|--max-time) shift 2 ;;
+    *) requested_url="$1"; shift ;;
   esac
 done
 test -n "$output_file"
+printf '%s\\n' "$requested_url" >> "$MOCK_ROOT/requested-urls"
 count=0
 if [ -f "$MOCK_ROOT/curl-count" ]; then count="$(cat "$MOCK_ROOT/curl-count")"; fi
 count=$((count + 1))
@@ -121,7 +125,8 @@ esac
     }
   })()
   const curlCalls = Number.parseInt(readFileSync(join(dir, 'curl-count'), 'utf8'), 10)
-  return { ...result, publisherCalls, curlCalls }
+  const requestedUrls = readFileSync(join(dir, 'requested-urls'), 'utf8').trim().split('\n').filter(Boolean)
+  return { ...result, publisherCalls, curlCalls, requestedUrls }
 }
 
 describe('MCP Registry immutable publication recovery', () => {
@@ -133,6 +138,21 @@ describe('MCP Registry immutable publication recovery', () => {
     expect(run).toContain('--connect-timeout 5')
     expect(run).toContain('--max-time 10')
     expect(run).not.toContain('${{')
+  })
+
+  test('every request targets the percent-encoded exact-version identity endpoint', () => {
+    // The string assertions above cannot show that the interpolated URL is
+    // actually well formed, so read back what the step really asked curl for.
+    // `/` in the server name must arrive encoded or the path would address a
+    // different resource.
+    const result = executeRecovery(['absent'], { publishStatus: 42 })
+    expect(result.requestedUrls.length).toBe(3)
+    for (const url of result.requestedUrls) {
+      expect(url).toBe(
+        'https://registry.modelcontextprotocol.io/v0.1'
+        + '/servers/io.github.adewale%2Fagentic-mermaid/versions/0.3.0',
+      )
+    }
   })
 
   test('an existing exact version recovers without requesting OIDC or publishing', () => {
@@ -161,17 +181,56 @@ describe('MCP Registry immutable publication recovery', () => {
     expect(result.stdout).toContain('after an ambiguous publish; recovering publication')
   })
 
+  test('the recovery loop survives a transient outage and still recovers', () => {
+    const result = executeRecovery(['absent', 'unavailable', 'match'], { publishStatus: 42 })
+    expect({ status: result.status, calls: result.publisherCalls, curlCalls: result.curlCalls }).toEqual({
+      status: 0,
+      calls: ['login github-oidc', 'publish'],
+      curlCalls: 3,
+    })
+    expect(result.stdout).toContain('after an ambiguous publish; recovering publication')
+  })
+
+  test('a transient preflight outage retries instead of blocking the release', () => {
+    const result = executeRecovery(['unavailable', 'match'])
+    expect({ status: result.status, calls: result.publisherCalls, curlCalls: result.curlCalls }).toEqual({
+      status: 0,
+      calls: [],
+      curlCalls: 2,
+    })
+    expect(result.stdout).toContain('already contains the verified metadata; recovering publication')
+  })
+
+  test('a transient preflight outage still reaches publication when the version is absent', () => {
+    const result = executeRecovery(['network', 'absent'])
+    expect({ status: result.status, calls: result.publisherCalls, curlCalls: result.curlCalls }).toEqual({
+      status: 0,
+      calls: ['login github-oidc', 'publish'],
+      curlCalls: 2,
+    })
+  })
+
   test.each([
     ['different immutable metadata', ['mismatch'] as RegistryState[]],
     ['a malformed success response', ['malformed'] as RegistryState[]],
     ['a malformed not-found response', ['malformed404'] as RegistryState[]],
-    ['an unavailable Registry', ['unavailable'] as RegistryState[]],
-    ['a network failure', ['network'] as RegistryState[]],
-  ])('fails closed before authentication for %s', (_name, states) => {
+  ])('fails closed before authentication, without retrying, for %s', (_name, states) => {
+    // A conflict or a malformed body is an answer about the record, so
+    // retrying it would only delay the same verdict.
     const result = executeRecovery(states)
     expect(result.status).not.toBe(0)
     expect(result.publisherCalls).toEqual([])
     expect(result.curlCalls).toBe(1)
+  })
+
+  test.each([
+    ['an unavailable Registry', ['unavailable'] as RegistryState[]],
+    ['a network failure', ['network'] as RegistryState[]],
+  ])('fails closed before authentication after exhausting retries for %s', (_name, states) => {
+    const result = executeRecovery(states)
+    expect(result.status).not.toBe(0)
+    expect(result.publisherCalls).toEqual([])
+    expect(result.curlCalls).toBe(3)
   })
 
   test('a conflicting version appearing after publish remains a hard failure', () => {
