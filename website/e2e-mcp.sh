@@ -4,6 +4,10 @@
 #   cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1
 #   bash website/e2e-mcp.sh http://127.0.0.1:9095/mcp
 #
+# Also run against the live endpoint by deploy-cloudflare.yml, ordered after the
+# retrying smoke test so deploy propagation has settled — this script asserts
+# exact error shapes and deliberately does not retry.
+#
 # Exercises the full surface, including Code Mode `execute` through a real
 # dynamic-worker isolate. Known local-dev limitation (kept out of this script):
 # wrangler dev does not enforce dynamic-worker cpuMs limits, so an unbounded

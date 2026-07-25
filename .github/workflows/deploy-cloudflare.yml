@@ -125,8 +125,8 @@ jobs:
         #      pure-tool probe alone would pass while hosted Code Mode is dead.
         # Deploy propagation can lag, so each probe retries with backoff.
         # Assertions are on success values only — execute's error shape is not
-        # part of this contract. The full-surface probe stays in
-        # website/e2e-mcp.sh (no retries; asserts error shapes), run manually.
+        # part of this contract. The full-surface probe runs in the next step,
+        # which depends on this one having absorbed the propagation lag.
         run: |
           MCP='https://agentic-mermaid.dev/mcp'
           probe() { # label payload expected-substring
@@ -150,3 +150,16 @@ jobs:
           probe 'execute runs in a dynamic-worker isolate (LOADER provisioned)' \
             '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' \
             '\"value\":42'
+
+      - name: Probe the full live /mcp surface
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        # The complete surface contract: every tool, both transports' error
+        # shapes, the isolate hardening, and every transport guard (405/204/413/
+        # 403/400). This probe deliberately has NO retries — it asserts exact
+        # error shapes, and a retry loop would mask a genuinely flaky response.
+        # That is why it could only ever run manually before: a fresh deploy can
+        # lag, and a no-retry probe against an unpropagated Worker is a false
+        # red. The retrying smoke test above is the propagation gate — by the
+        # time it passes, the new version is serving, so this step can run
+        # deterministically. Keep it ordered after that step for that reason.
+        run: bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp
