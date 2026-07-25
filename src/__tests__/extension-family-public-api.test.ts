@@ -327,6 +327,51 @@ describe('registered family public layout and verify APIs', () => {
     }
   })
 
+  test.each([
+    {
+      name: 'reindents',
+      serialize: (source: string) => source.split('\n').map(line => line.trim()).join('\n'),
+    },
+    {
+      name: 'respaces the directive payload',
+      serialize: (source: string) => source.replace(/%%\{init:\s*/, '%%{init:   '),
+    },
+  ])('a source-preserving serializer that $name still owns its post-header init config', ({ serialize }) => {
+    // Ownership is a question about the directive, not about its bytes. A
+    // serializer may legitimately normalise whitespace while still preserving
+    // the source; matching on authored bytes would emit the directive twice.
+    const base = extensionDescriptor('normalizing-init', 'normalizingInitDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: context => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: context.opaqueSource,
+        data: { parsed: true },
+      }),
+      serialize: body => body.kind === 'extension' ? serialize(body.source) : '',
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      const parsed = parseRegisteredMermaid('normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload')
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized.match(/%%\{init/g)).toHaveLength(1)
+      const reparsed = parseRegisteredMermaid(serialized)
+      expect(reparsed.ok).toBe(true)
+      if (!reparsed.ok) return
+      expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+      expect(serializeMermaid(reparsed.value)).toBe(serialized)
+    } finally {
+      unregister()
+    }
+  })
+
   test('gives newly registered families directive-free grammar and shared accessibility metadata', () => {
     const base = extensionDescriptor('shared-accessibility', 'sharedAccessibilityDiagram')
     let observed: { lines: readonly string[]; accessibility: unknown } | undefined

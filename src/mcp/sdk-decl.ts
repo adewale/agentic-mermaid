@@ -346,8 +346,8 @@ interface ValidDiagram {
     frontmatter?: Record<string, unknown>
     initDirectives: { raw: string; parsed: Record<string, unknown> }[]
     comments: { text: string; line: number }[]
-    wrapperSource?: string
-    droppedComments?: { text: string; line: number }[]
+    wrapperSource?: string   // exact bytes before the family header; parsed diagrams always set it, even as ''
+    droppedComments?: { text: string; line: number }[]   // line indexes the artifact the loss happened in, not canonicalSource
     accessibility: { title?: string; descr?: string }
   }
   readonly body:

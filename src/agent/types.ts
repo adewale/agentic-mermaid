@@ -691,6 +691,14 @@ export interface ValidDiagramMeta {
    * computed at parse time by diffing against the canonical serialization.
    * Surfaced by verify as the Tier 3 `COMMENT_DROPPED` lint. Opaque bodies
    * preserve comments verbatim and never set this.
+   *
+   * `line` locates the comment in the artifact where the loss happened, which
+   * is not always the artifact carrying this receipt: mutation rebuilds every
+   * other meta field and the source map from its output, but reparsing
+   * already-canonical source cannot rediscover a comment that serialization
+   * dropped, so the original receipt — and its original line — rides along.
+   * Treat it as a record of what was lost, not as an index into
+   * `canonicalSource`.
    */
   droppedComments?: SourceComment[]
 }

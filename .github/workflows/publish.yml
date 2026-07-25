@@ -360,6 +360,19 @@ jobs:
           registry_state
           registry_status=$?
           set -e
+          # Retry preflight only for the state that carries no verdict about
+          # the record: an unreachable or unexpectedly-responding Registry. A
+          # conflict or a malformed body is an answer and fails closed at once.
+          # Exhausting the window without a readable answer fails closed too —
+          # publishing blind is exactly what this preflight exists to prevent.
+          for retry_delay in $MCP_REGISTRY_RETRY_DELAYS; do
+            [ "$registry_status" -eq 3 ] || break
+            sleep "$retry_delay"
+            set +e
+            registry_state
+            registry_status=$?
+            set -e
+          done
           case "$registry_status" in
             0)
               echo "$server_name@$server_version already contains the verified metadata; recovering publication"
