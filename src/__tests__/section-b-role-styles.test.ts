@@ -148,6 +148,17 @@ describe('Section B public semantic role Styles', () => {
     ), { numRuns: 50 })
   })
 
+  // The two exhaustive Look × family cross-products below are CPU-bound and
+  // sequential, so their wall-clock cost tracks machine speed AND whatever else
+  // the suite is running beside them. A budget sized to the measured solo cost
+  // leaves no room for that second term: this SVG/ASCII test measured ~20s
+  // alone and tipped 30.27s past a 30s cap inside a full-suite run, having
+  // passed the three runs before it — flaky by construction rather than by
+  // defect, since it passes in isolation every time.
+  //
+  // Both budgets are therefore hang detectors with room for contention, not
+  // restatements of the solo measurement. The exhaustive cross-product is the
+  // point of both tests (see the PNG note below), so the cost itself stands.
   test('every built-in Look exports an ordinary record equivalent to selecting its name', () => {
     const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')
     expect(looks.length).toBeGreaterThanOrEqual(16)
@@ -161,12 +172,14 @@ describe('Section B public semantic role Styles', () => {
           .toBe(renderMermaidASCII(source, { style: exported }))
       }
     }
-  }, 30_000)
+  }, 120_000)
 
   // 480 sequential PNG renders (16 Looks x 15 families x 2). renderMermaidPNG is
   // synchronous, so this cannot be parallelized without worker threads; the
   // exhaustive cross-product is the point, so the budget carries the cost.
-  // Measured at ~33-35s on a 4-core machine, hence 60s rather than 30s.
+  // Measured at ~33-35s on a 4-core machine. 60s was under 2x that measurement
+  // and so had the same contention exposure as its sibling above, just not yet
+  // realised; raised for the same reason rather than waiting for it to flake.
   test('every built-in Look export is equivalent across every family on the public PNG path', async () => {
     for (const { inputName: name } of knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')) {
       const exported = getStyle(name)!
@@ -176,7 +189,7 @@ describe('Section B public semantic role Styles', () => {
           .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
       }
     }
-  }, 60_000)
+  }, 180_000)
 
   test('conflicting Pie role defaults never select emphasis or change quantitative geometry', () => {
     const source = `---\nconfig:\n  pie:\n    highlightSlice: Beta\n---\npie\n  "Alpha" : 3\n  "Beta" : 2`
