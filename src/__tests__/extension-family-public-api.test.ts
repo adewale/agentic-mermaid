@@ -319,6 +319,9 @@ describe('registered family public layout and verify APIs', () => {
       const serialized = serializeMermaid(parsed.value)
       expect(serialized).toBe(source)
       expect(serialized.match(/%%\{init:/g)).toHaveLength(1)
+      const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+      expect(canonical).toContain('config:\n  theme: dark\n')
+      expect(canonical).toEndWith('sourceReturningInitDiagram\n  payload')
     } finally {
       unregister()
     }

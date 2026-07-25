@@ -192,7 +192,7 @@
     },
     {
       "path": "src/agent/mutate.ts",
-      "sha256": "9f83b1473f58e1dbd1da15f9648475d840951a2a9236d1c1cb083504577f6bf5"
+      "sha256": "697d42455693fc7e5ea29adf836188a7119b8eb58b8a25c06ae71bca7a94e2d0"
     },
     {
       "path": "src/agent/mutation-ops.ts",
@@ -636,7 +636,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "3380649892e87981f42c20cc9d46ae4bb88e5edfd4f753eeb1d39f75fec579da"
+      "sha256": "fe86982edc5260f879b061eff3d110c0f0f429a498b5bb604dd2b0e222d00ba0"
     },
     {
       "path": "src/mindmap/geometry.ts",

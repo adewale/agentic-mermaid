@@ -99,7 +99,15 @@ function applyOneMutation(
     return ok({
       ...d,
       body: r.value,
-      meta: reparsed.value.meta,
+      meta: {
+        ...reparsed.value.meta,
+        // This receipt describes loss from the originally parsed artifact.
+        // Reparsing the already-canonical mutation output cannot rediscover a
+        // comment that structured serialization intentionally omitted.
+        ...(d.meta.droppedComments
+          ? { droppedComments: d.meta.droppedComments }
+          : {}),
+      },
       canonicalSource,
       source: reparsed.value.source,
     } as ParsedDiagram)
