@@ -74,8 +74,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           # The golden-drift gate compares a PR merge commit's two parents
-          # directly, so it needs no merge base or deep history.
-          fetch-depth: 2
+          # directly, so it needs no merge base — but it reads approval across
+          # the PR's whole commit range, and that range has to be present. At
+          # depth 2 the walk returns nothing and every commit pushed after an
+          # approved golden change is reported as unreviewed.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

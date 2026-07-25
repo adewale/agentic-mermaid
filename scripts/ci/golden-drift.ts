@@ -11,6 +11,14 @@ export interface GoldenDriftFacts {
   headGoldenFiles: string[]
   /** The HEAD commit message. */
   commitMessage: string
+  /**
+   * True when approval spans a RANGE of commits but the checkout is shallow, so
+   * the range cannot be walked. Without this the gate reads an empty message
+   * list, finds no token, and reports `unreviewed-goldens` — blaming the author
+   * for the checkout's depth. Silently under-reading is the worst failure a gate
+   * like this can have, so it is refused rather than approximated.
+   */
+  truncatedHistory?: boolean
 }
 
 export type GoldenDriftCode =
@@ -19,6 +27,7 @@ export type GoldenDriftCode =
   | 'uncommitted-drift'   // running the suite left goldens dirty
   | 'unreviewed-goldens'  // HEAD changes goldens without the token
   | 'stray-token'         // token present but HEAD changes no goldens
+  | 'shallow-history'     // approval spans a range the checkout cannot walk
 
 export interface GoldenDriftVerdict {
   ok: boolean
@@ -53,26 +62,31 @@ export function goldenDriftCommands(o: {
   parents: string[]
   pushBefore: string | null
   goldenDir: string
-}): { filesCmd: string; messageCmd: string } {
+}): { filesCmd: string; messageCmd: string; needsRangeHistory: boolean } {
   // A `pull_request` checkout is the MERGE ref: HEAD is synthetic, parents are
   // [base, prHead]. Compare the parents directly to scope the gate to the PR's
-  // own net change — this needs no merge base, so it works in a depth-2 clone.
+  // own net change — that needs no merge base. Walking the message range DOES
+  // need the commits in between, which is why `needsRangeHistory` is reported
+  // and the workflow checks out unshallowed.
   if (o.parents.length >= 2) {
     const [base, prHead] = o.parents
     return {
       filesCmd: `git diff --name-only ${base} ${prHead} -- ${o.goldenDir}`,
       messageCmd: `git log --format=%B ${base}..${prHead}`,
+      needsRangeHistory: true,
     }
   }
   if (o.pushBefore) {
     return {
       filesCmd: `git diff --name-only ${o.pushBefore}..HEAD -- ${o.goldenDir}`,
       messageCmd: `git log --format=%B ${o.pushBefore}..HEAD`,
+      needsRangeHistory: true,
     }
   }
   return {
     filesCmd: `git show --name-only --format= HEAD -- ${o.goldenDir}`,
     messageCmd: 'git log -1 --format=%B',
+    needsRangeHistory: false,
   }
 }
 
@@ -111,6 +125,13 @@ export function githubPushBeforeSha(eventName: string | undefined, eventJson: st
  * (regenerate + commit first); then the token vs. golden-change cross-check.
  */
 export function evaluateGoldenDrift(f: GoldenDriftFacts): GoldenDriftVerdict {
+  if (f.truncatedHistory) {
+    return {
+      ok: false,
+      code: 'shallow-history',
+      message: `Approval spans a commit range, but the checkout is shallow so the range cannot be read — the gate would find no ${APPROVE_TOKEN} even where one exists. Check out with fetch-depth: 0.`,
+    }
+  }
   if (f.uncommittedGoldenFiles.length > 0) {
     return {
       ok: false,
@@ -151,18 +172,23 @@ if (import.meta.main) {
   // `pull_request` build HEAD is synthetic, and reading it directly would
   // surface whatever the BASE branch changed since the fork point (e.g. main
   // regenerating goldens) rather than what this PR changed — a false positive.
+  // Reading approval across the range needs the range to BE there, so the
+  // workflow checks out with fetch-depth: 0; `truncatedHistory` below is what
+  // makes a shallow checkout an explicit failure instead of a silent misread.
   const parents = run('git rev-list --parents -n 1 HEAD').trim().split(/\s+/).slice(1)
   let pushBefore: string | null = null
   if (parents.length < 2 && process.env.GITHUB_EVENT_PATH) {
     const { readFileSync } = await import('node:fs')
     pushBefore = githubPushBeforeSha(process.env.GITHUB_EVENT_NAME, readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'))
   }
-  const { filesCmd, messageCmd } = goldenDriftCommands({ parents, pushBefore, goldenDir: GOLDEN_DIR })
+  const { filesCmd, messageCmd, needsRangeHistory } = goldenDriftCommands({ parents, pushBefore, goldenDir: GOLDEN_DIR })
+  const shallow = run('git rev-parse --is-shallow-repository').trim() === 'true'
 
   const facts: GoldenDriftFacts = {
     uncommittedGoldenFiles: parseGitStatusPorcelainZ(run(`git status --porcelain=v1 -z --untracked-files=all -- ${GOLDEN_DIR}`)),
     headGoldenFiles: lines(filesCmd),
     commitMessage: run(messageCmd),
+    truncatedHistory: needsRangeHistory && shallow,
   }
   const v = evaluateGoldenDrift(facts)
   if (v.ok) {

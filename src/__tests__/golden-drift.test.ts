@@ -39,6 +39,30 @@ describe('evaluateGoldenDrift', () => {
       .toMatchObject({ ok: false, code: 'unreviewed-goldens' })
   })
 
+  // A shallow checkout cannot walk the approval range, so the token lookup
+  // returns nothing and the gate would report `unreviewed-goldens` — blaming the
+  // author for the checkout's depth, with an instruction that does not help
+  // because the approval is already there. Refuse instead of approximating.
+  test('shallow-history outranks the token check and names the real cause', () => {
+    const v = evaluateGoldenDrift(F({
+      headGoldenFiles: ['src/__tests__/testdata/x.txt'],
+      commitMessage: '',
+      truncatedHistory: true,
+    }))
+    expect(v).toMatchObject({ ok: false, code: 'shallow-history' })
+    expect(v.message).toContain('fetch-depth: 0')
+    // The misleading verdict it replaces must NOT be what a shallow run reports.
+    expect(v.code).not.toBe('unreviewed-goldens')
+  })
+
+  test('a complete checkout is unaffected by the shallow guard', () => {
+    expect(evaluateGoldenDrift(F({
+      headGoldenFiles: ['src/__tests__/testdata/x.txt'],
+      commitMessage: `fix\n${APPROVE_TOKEN} reviewed`,
+      truncatedHistory: false,
+    }))).toMatchObject({ ok: true, code: 'approved' })
+  })
+
   test('uncommitted-drift outranks everything (even with the token)', () => {
     const v = evaluateGoldenDrift(F({
       uncommittedGoldenFiles: ['src/__tests__/testdata/y.txt'],
@@ -125,6 +149,16 @@ describe('goldenDriftCommands', () => {
     const { filesCmd, messageCmd } = goldenDriftCommands({ parents: ['tip'], pushBefore: null, goldenDir: DIR })
     expect(filesCmd).toContain('git show --name-only')
     expect(messageCmd).toBe('git log -1 --format=%B')
+  })
+
+  // Reading a range of messages requires the range to be in the checkout. This
+  // is reported so the CLI can refuse a shallow clone rather than walk an empty
+  // range and blame the author — the exact way the first version of this fix
+  // failed in CI while passing on a full local clone.
+  test('range modes declare that they need history; the single-commit mode does not', () => {
+    expect(goldenDriftCommands({ parents: ['base', 'prhead'], pushBefore: null, goldenDir: DIR }).needsRangeHistory).toBe(true)
+    expect(goldenDriftCommands({ parents: ['tip'], pushBefore: 'before', goldenDir: DIR }).needsRangeHistory).toBe(true)
+    expect(goldenDriftCommands({ parents: ['tip'], pushBefore: null, goldenDir: DIR }).needsRangeHistory).toBe(false)
   })
 
   test('the file scope is always confined to the golden directory', () => {
