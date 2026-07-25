@@ -1,22 +1,26 @@
 # Stateless MCP migration: hosted `/mcp` and the local server
 
-> **Status: phases 0–3 implemented; phase 4 deferred by design.** Supersedes the
-> analysis in [issue #186](https://github.com/adewale/agentic-mermaid/issues/186),
-> which this document tracks item-by-item in §9 and corrects in §3. `TODO.md`
-> remains the authoritative backlog; this is the design and evidence record.
+> **Status: phases 0–4 resolved.** Supersedes the analysis in
+> [issue #186](https://github.com/adewale/agentic-mermaid/issues/186), which this
+> document tracks item-by-item in §9 and corrects in §3. `TODO.md` remains the
+> authoritative backlog; this is the design and evidence record.
 >
-> **Phase 2 carries a standing re-verification gate.** It was built against the
-> two Final SEPs and the `/specification/draft/` pages, because the assembled
-> `2026-07-28` revision had not published when it was written. §11 states what
-> must be re-checked against the final text; nothing about the implementation
-> assumes the draft was correct beyond what those pages say.
+> **The §11 re-verification gate was run early and waived, deliberately.** It
+> required re-checking §4 against the published `2026-07-28` pages before merging
+> phase 2. Those pages do not exist yet — `/specification/versioning` still names
+> `2025-11-25` as current — and the maintainer chose on 2026-07-25 not to hold the
+> work for the publication date. The re-verification was therefore run against the
+> best available source instead of skipped: every §4 claim was re-read against the
+> `/specification/draft/` pages, which is a strictly better evidence basis than the
+> RC announcement §4 was originally assembled from. **It found four defects, all
+> now fixed** (§4.2.1). §11 records what remains to be re-checked on publication.
 >
 > **Evidence basis.** Every normative claim below was read from the primary
 > source on 2026-07-25 and is cited inline. SEP-2575 and SEP-2567 are marked
 > **Final**. The assembled `2026-07-28` revision pages were read in their
 > `/specification/draft/` form — the final revision publishes 2026-07-28, three
-> days after this was written, so §11 makes re-verification against the final
-> text a gate on merging any of this.
+> days after this was written. §11 records what a reader should re-check once
+> those pages exist; it is no longer a merge gate (see the waiver above).
 
 ## 1. Why this document exists
 
@@ -192,6 +196,28 @@ Sources: [SEP-2575](https://modelcontextprotocol.io/seps/2575-stateless-mcp) (Fi
    request, a browser client's preflight fails without them. Add both; drop
    `mcp-session-id` once legacy support ends.
 
+### 4.2.1 What the re-verification corrected (2026-07-25)
+
+Re-reading §4 against the spec pages rather than the RC announcement found four
+defects. Three were in this document; three were live in the implementation.
+
+| # | Claim as written | What the spec says | Effect |
+| --- | --- | --- | --- |
+| C1 | §4.2 item 6: `protocolVersion`, `clientInfo`, and `clientCapabilities` "are all required" | The per-request field table marks `clientInfo` **Required: No** — "Clients **SHOULD** include … unless specifically configured not to do so" | We answered 400 to conforming clients that withhold it. Fixed; `clientInfo` is now validated only when present. |
+| C2 | §4 never mentions `resultType` | "The `result` **MUST** include a `resultType` field to indicate the type of the result" | We emitted none. Fixed on the modern path only — absence stays meaningful for legacy clients, which "**MUST** treat an absent `resultType` as `complete`". |
+| C3 | §9 O1 files `ttlMs`/`cacheScope` as **Optional**, deferred because the SEP page 404'd | "Servers **MUST** include caching hints on results with `resultType: 'complete'` returned by … `server/discover`, `tools/list`" | Required for both list operations we implement, not a nicety. Implemented. |
+| C4 | §6 phase 2 lists `-32021` among the error codes implemented | The code is real, but conditional: it applies only when "processing a request requires a capability the client did not include" | Nothing emitted it and nothing tested it. Our tools are pure functions needing no client capability, so it is unreachable; the constant is removed and a range test replaces it. |
+
+A fifth finding is recorded but **not** changed: `mcp-handler.ts` answers five
+transport rejections (origin, method, content-type, two body-size paths) with
+`-32000`, from the legacy half of the range that new implementations "**SHOULD
+NOT** use … at all". §4.2 item 2 treated the last `-32000` as removed by the
+`-32022` work; these five survived it. They are a SHOULD NOT rather than a MUST
+NOT, the HTTP status carries the real signal in each case, and the response
+bodies are pinned by the golden corpus — so `mcp-reserved-error-codes.test.ts`
+freezes the count at five and a sixth fails, forcing the decision rather than
+letting it drift. Migrating them to `-32600` remains open.
+
 ### 4.3 Dual-era operation is explicitly blessed
 
 Issue #186's instinct to keep answering `initialize` is correct and now has
@@ -300,7 +326,7 @@ propagates the change to the published discovery document.
 Ships without waiting for the final `2026-07-28` text. This is the phase that
 fixes a real, current lockout.
 
-### Phase 2 — dual-era `2026-07-28` ✅ implemented (re-verification gate open, §11)
+### Phase 2 — dual-era `2026-07-28` ✅ implemented (gate run and waived, §11)
 
 - `SUPPORTED_PROTOCOL_VERSIONS` gains `'2026-07-28'`.
 - Implement `server/discover`, projecting the existing `initialize` payload.
@@ -325,12 +351,27 @@ fixes a real, current lockout.
   *transport* gets 405 from `/mcp` and cannot connect. One sentence in
   `/docs/mcp/`.
 
-### Phase 4 — local server (follow-up, non-blocking) — deferred
+### Phase 4 — local server ✅ decided: the pin stays at `2024-11-05`
 
-`server.ts:61` pins `2024-11-05`, matching its stateful SSE transport
-(`MAX_SSE_SESSIONS = 32`, artifact store). stdio is unaffected by the transport
-changes. Decide separately whether the local server advertises newer versions;
-nothing in phases 1–3 depends on it.
+Decided on evidence rather than deferred again. `server.ts:61` pins
+`2024-11-05`, and its HTTP transport is *literally* the 2024-11-05 one: it
+writes `event: endpoint`, hands back a `?sessionId=` URL, and holds a session
+map (`MAX_SSE_SESSIONS = 32`). That is the HTTP+SSE transport Streamable HTTP
+replaced in `2025-03-26`, so advertising any newer revision would be a false
+claim to every HTTP client. The pin is correct, not stale.
+
+One asymmetry falls out of it and is now pinned rather than left to be
+discovered: era selection is **request-driven**, so the local server serves the
+modern envelope — `resultType`, caching hints — to a request carrying modern
+`_meta`, while the very same `server/discover` response advertises only
+`2024-11-05`. Both surfaces' modern entries are recorded in the response corpus,
+so the asymmetry is visible in a golden rather than implicit. It is harmless
+(dual-era is blessed, and a client asking for modern explicitly gets it), and
+narrowing it would regress stdio clients that legitimately want the modern era.
+
+What remains genuinely open is a question about that transport, not about this
+migration: whether the local server should grow a Streamable HTTP transport at
+all. Nothing in phases 0–3 depends on the answer.
 
 ## 7. Testing and verification
 
@@ -477,8 +518,8 @@ Every item from the issue. Line references re-verified against current `main`
 
 | # | Item | Status |
 | --- | --- | --- |
-| O1 | `ttlMs`/`cacheScope` on `tools/list` | Deferred. Confirmed to exist (SEP-2549, via the RC announcement); the SEP page 404s at the URL tried, so the schema is **not yet read**. Genuinely attractive — our tool list is static per deploy and the compute cache already keys on deploy version. Re-verify against final text, then decide. |
-| O2 | JSON Schema 2020-12 in tool schemas | Deferred. `2025-11-25` already establishes 2020-12 as the default dialect (minor change 10). Our closed simple schemas remain valid; no concrete need. |
+| O1 | `ttlMs`/`cacheScope` on `tools/list` | **Misfiled — not optional. Implemented.** The caching page is normative: "Servers **MUST** include caching hints on results with `resultType: 'complete'` returned by … `server/discover`, `tools/list`". Both list operations now return `ttlMs: 300000` and `cacheScope: 'public'`. The earlier "not yet read" note was accurate — reading it is what reclassified the item (§4.2.1 C3). |
+| O2 | JSON Schema 2020-12 in tool schemas | Deferred, re-confirmed against the draft: "When a schema does not include a `$schema` field, it defaults to JSON Schema 2020-12". Our closed simple schemas are valid 2020-12 as written, so there is nothing to change until a schema needs composition keywords. |
 | O3 | MCP Apps | Out of scope. |
 
 ### Explicit non-actions — all four re-confirmed
@@ -494,7 +535,9 @@ Every item from the issue. Line references re-verified against current `main`
 
 | # | Item | Status |
 | --- | --- | --- |
-| F1 | Local server protocol version (`server.ts:61` pins `2024-11-05`) | Phase 4, non-blocking. |
+| F1 | Local server protocol version (`server.ts:61` pins `2024-11-05`) | **Closed.** The pin is correct, not stale: that server's HTTP transport *is* the 2024-11-05 one (`event: endpoint`, `?sessionId=`, session map), so advertising newer would be a false claim. See phase 4. |
+| F3 | Five `-32000` transport rejections in `mcp-handler.ts` | **Open**, frozen at five by test. Legacy-range code that new implementations "SHOULD NOT use … at all"; migrating them to `-32600` is a wire change the corpus would show (§4.2.1). |
+| F4 | Local server serves the modern era while advertising only `2024-11-05` | **Open by decision**, pinned in the corpus on both surfaces. Harmless under dual-era; narrowing it would regress stdio clients that want the modern era. |
 | F2 | Honesty note: `2024-11-05` is protocol-version support, not HTTP+SSE transport support | Phase 3. Confirmed accurate — a 2024-11-05-era transport client GETs `/mcp` and receives 405. |
 
 ### Issue claims now stale or wrong
@@ -529,10 +572,18 @@ Regression guards, not bug-discriminating tests — state them as such:
 
 ## 11. Risks and gates
 
-- **The final text is not published.** Everything in §4 was read from
-  `/specification/draft/` and the two Final SEPs. **Gate: re-verify every §4
-  claim against the published `2026-07-28` pages before merging phase 2.**
-  Phase 1 does not depend on it and should not wait.
+- **The final text is not published — gate run early and waived (2026-07-25).**
+  Everything in §4 was read from `/specification/draft/` and the two Final SEPs.
+  The gate required re-verification against the published `2026-07-28` pages
+  before merging phase 2; those pages 404 and `/specification/versioning` still
+  names `2025-11-25` as current, so the maintainer chose not to hold the work for
+  the publication date. The re-verification was run against the draft pages
+  anyway and found four defects, all fixed (§4.2.1) — which is the argument for
+  having run it rather than skipped it. **What is still owed on publication:**
+  re-read §4 and §4.2.1 against the final pages, confirm `resultType`, the
+  caching-hint operation list, and the `clientInfo` optionality survived
+  assembly unchanged, and diff the response corpus. Nothing in the
+  implementation assumes the draft was correct beyond what those pages say.
 - **Vacuous conformance tests** (§7.2) — the highest-probability way this
   migration ships broken while appearing tested. Mitigation: assert the
   negotiated version inside every conformance test.
