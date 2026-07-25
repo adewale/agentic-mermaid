@@ -8,6 +8,16 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — browser distribution and the 0.3.0 bump
+
+**Verify against the toolchain CI pins, not the one on `PATH`.** `bun run test` re-invokes bare `bun`, which resolves from `PATH` — so running a pinned 1.3.13 binary as `<pinned>/bun run test` still executes the suite under the system 1.3.11. Compression output differs between those versions, which produced two phantom "pre-existing failures" that passed when the same files were invoked directly. Worse, before spotting it, four checked-in editor deep links were "repaired" against the wrong Bun, turning a contract that passed on CI into one that failed there. Rule: when a recorded artifact embeds a toolchain (`eval/website-payload/baseline.json` names bun/playwright/chromium), match it before concluding anything from a red test, and check which binary a script actually ran rather than which one you invoked.
+
+**Confirm the sabotage landed before trusting what a green run means.** A red→green check used an anchored `sed` that silently matched nothing, because the minified artifact opens with `"use strict";`. The suite stayed green and that was nearly recorded as evidence the test discriminated. Rule: assert the sabotage is present — grep for it — before running the test that is supposed to fail.
+
+**A `0.x` caret pin is minor-bounded, so a minor bump is a breaking change to it.** Five built-in registrations declared `core: '^0.2.0'`, which means `<0.3.0`. Bumping `PACKAGE_VERSION` made every built-in registration incompatible; the registries never finished initializing and it surfaced as `ReferenceError: Cannot access 'REGISTRY' before initialization` across 4,722 unrelated tests, nowhere near the cause. Rule: pins that track the package version need a guard test that fails first and names the fix, not a comment.
+
+**Regenerating an artifact is not the same as correcting it.** Evidence generators re-rasterize their PNGs, and rasterization varies by environment — clean `main` reproduced the same PNG drift in the same sandbox, so committing regenerated images would have baked local font rendering into approved visual evidence. Only the input hashes had actually changed. Rule: when a receipt fails, find out which field moved; update that field the way its own test computes it (one receipt prepends `manifest.json` to the transitive closure, and missing that wrote a hash over the wrong input set), and leave approved bytes alone.
+
 ## 2026-07 — subtraction and release readiness (#205)
 
 **A live dependency audit is a release input, not background noise.** The PR's behavioral lanes were green, but a newly disclosed advisory in Stryker's `minimatch` chain stopped the quality job before the repository-specific checks ran. Rule: preserve the audit gate, resolve the smallest compatible transitive version explicitly, prove the dependent tool still runs, and distinguish inherited aggregate failures from product regressions.

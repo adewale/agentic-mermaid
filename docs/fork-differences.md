@@ -56,6 +56,22 @@ renderMermaidSVG(source, {
 
 A style chooses the renderer treatment — for example `hand-drawn`, `watercolor`, `publication-figure`, or `ops-schematic`. A palette-only style chooses colors — for example `github-light`, `dracula`, or a custom JSON record with `colors`. Stacks merge left to right, so agents can keep visual requests out of Mermaid source while preserving deterministic geometry.
 
+### Migrating from upstream: `THEMES` is gone
+
+Upstream Beautiful Mermaid exports a `THEMES` map and takes a theme **object**.
+This fork does not export `THEMES`; the same names survive as **style names**:
+
+```ts
+renderMermaidSVG(src, { theme: THEMES['zinc-dark'] })   // upstream
+renderMermaidSVG(src, { style: 'zinc-dark' })           // Agentic Mermaid
+```
+
+Ported snippets otherwise fail at runtime with `TypeError: Cannot read
+properties of undefined (reading 'zinc-dark')`, because the destructured
+`THEMES` is `undefined` rather than missing loudly. `zinc-light`, `zinc-dark`,
+`dracula`, `nord`, `tokyo-night`, and the rest of the upstream theme names are
+all valid style names — `knownStyles()` lists every registered one.
+
 ## Mermaid config and source wrappers
 
 This fork supports Mermaid-style source wrappers before diagram headers, including:

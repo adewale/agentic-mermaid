@@ -83,10 +83,6 @@ describe('canonical website Inter subsets', () => {
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },
-      // home/examples are the pre-subsetting reference the 0.7 ratios are measured
-      // against and must not move. editor-empty is an exact 'unchanged by subsetting'
-      // assertion, so it tracks the real bundle: +399 Brotli from the 0.3.0 bump
-      // rewriting `core: '^0.2.0'` to '^0.3.0' in five modules the editor includes.
       'editor-empty': { rawBytes: 3_288_608, gzipBytes: 965_577, brotliBytes: 760_028 },
     }
     for (const id of ['home', 'examples'] as const) {

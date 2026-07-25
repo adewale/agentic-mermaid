@@ -26,10 +26,10 @@
         {
           "path": "/",
           "count": 1,
-          "sha256": "520f37c2947453f8527070e67eb923600ee6e688570c186d835f798d9186e5d3",
-          "rawBytes": 264905,
-          "gzipBytes": 62273,
-          "brotliBytes": 47324
+          "sha256": "e31914baf356d66f81bcb275c73c8fb48389fef57f2bf74fd191ebd4c27cd0d0",
+          "rawBytes": 264916,
+          "gzipBytes": 62293,
+          "brotliBytes": 47909
         },
         {
           "path": "/fonts/Caveat.subset.woff2",
@@ -98,9 +98,9 @@
       ],
       "totals": {
         "requests": 9,
-        "rawBytes": 682608,
-        "gzipBytes": 406547,
-        "brotliBytes": 387979
+        "rawBytes": 682619,
+        "gzipBytes": 406567,
+        "brotliBytes": 388564
       }
     },
     {
@@ -130,10 +130,10 @@
         {
           "path": "/examples/",
           "count": 1,
-          "sha256": "1140e931d795d97e08617a8128e081bd4560ab499e5c96518dc4f5cb63663773",
-          "rawBytes": 272432,
-          "gzipBytes": 39051,
-          "brotliBytes": 29406
+          "sha256": "ae2ec139cb3ee157c901509c5a35818bd03810d5a8b7e8446bc86ed74e3da931",
+          "rawBytes": 272439,
+          "gzipBytes": 39060,
+          "brotliBytes": 29444
         },
         {
           "path": "/shader-mark.js",
@@ -162,9 +162,9 @@
       ],
       "totals": {
         "requests": 6,
-        "rawBytes": 380384,
-        "gzipBytes": 66928,
-        "brotliBytes": 53105
+        "rawBytes": 380391,
+        "gzipBytes": 66937,
+        "brotliBytes": 53143
       }
     },
     {
