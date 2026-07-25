@@ -65,7 +65,7 @@ flowchart BT
 
 - HARD violations: edgeThroughNode (N8->N1 segment 3 through N2)
 - [Open in Mermaid Live](https://mermaid.live/edit#pako:eNo9j02rwjAQRf_KMOsG_OCBZOFC3NqNriSbec00LaQZmSbIw_rfH0Z0ebjnXrgP7MQzWuyj3LuBNMPh4hJAuwVjjNkvd9I0pjAv0P7UYA3G7KHdVdhAlQiipMAKkX45QhCeYWDlBdpV9Xav0sKqoq-lNTY4sU40erT4cJgHntihdei5pxKzwyc2SCXL-S91aLMWblClhAFtT3HmBsvNU-bjSEFp-ig3SleRL7Ifs-jpfbJ-ff4D3ZxPpw)
-- [Open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:HYwxCsMwEAS_sqg_iBMCxoWKPECVyzSKOcsBoYOTjYtc_m6kctjZ-bkqhy7sJrdmOZct6o7X_C5AeICIyNsZtXxLqobw7MMAIo8wdrg3y1tElpJYkeOHM5JwxcbKhnDr3thOxqqirTS4_wU)
+- [Open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:HYwxCsMwEAS_sqg_iBMCxoWLPECVyzSyOMsBoYOTjQorfzdSOezsXCbLqZ7NZLYoxe9OD3yWbwLsC0REcy1O0y-FXGHffRhANMOOHZ7okkOUFFgR3coRQThjZ-UK--je2E6VVUVbaTD_Gw)
 
 ### Case 2 — `LR comp=3 diamond=false long=true`
 
@@ -93,7 +93,7 @@ flowchart TD
 
 - HARD violations: edgeThroughNode (N2->N7 segment 1 through N6); nodeOverlaps (N6 overlaps N7)
 - [Open in Mermaid Live](https://mermaid.live/edit#pako:eNo9jz0LgzAYhP9KuEkhQulQaUAn17q0U8nyYl4_QI2kCbWo_72gtNs9xzPcLaisYSjUvX1XLTkvHoUehSjPUTTH8R6vIsuyfJ1XUV72IhVJkiS5KE-HKg5KITGwG6gzUFg0fMsDaygNwzWF3mtskKDg7f0zVlDeBZZwNjQtVE39iyXCZMhz0VHjaPgpE41Pa__IpvPW3Y7p-4PtC-myP5c)
-- [Open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:q1Yqzi8tSk5VslJKy8kvT85ILCpRCHGJyVNQ8DPS0KjQ1AQzLRVsbW3taipqFPzMwALmCrq6urp2Cn4GEKUgrp2Cn7lSLQA)
+- [Open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:q1Yqzi8tSk5VslJKy8kvT85ILCpRCHGJyVNQ8DPS0KjQ1AQzLRVsbW3taipqFPzMwALmCrq6urp2Cn4GEKUKEJ65Ui0A)
 
 ### Case 4 — `RL comp=1 diamond=false long=true`
 
@@ -373,4 +373,4 @@ flowchart RL
 
 - HARD violations: edgeThroughNode (N6->N8 segment 3 through N9); edgeThroughNode (N6->N8 segment 3 through N9); edgeThroughNode (N6->N8 segment 3 through N9); nodeOverlaps (N9 overlaps N8)
 - [Open in Mermaid Live](https://mermaid.live/edit#pako:eNp1kbtuwzAMRX-F4JQCNpBHXzEQTx1bD-1Wq4Ma0Q_UlhJabhrI_vfClpMmQzdekufyAnS4NYowwqwyh20h2cLrs9AAydxJqIzOiaGSn1RBbqiBgpj6cb5w7qf35TIVSMyGG4EfY2eVzvY3vrx1ThlN0-pdKpDJ8vG0eZ_OvmVVKmkJSr1r7YSt01kja4KDYQXma-ou5u7_WP7CA4RhGEOy9vaDGuSj5yEM485n7SBZTcRms4m7fQfJ8g-6Yka5OvvH3XXmC3K0OkjWpc6HExceZ4v5yXGJAdbEtSwVRugE2oJqEhgJVJTJtrICewxQtta8HfUWI8stBcimzQuMMlk1FGC7G5I8lTJnWZ9WdlK_G3OWpEpr-MX_enx5_wtWJJ-A)
-- [Open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:dY7BboMwEER_ZeUTPVgC0jZNJPiCikOvpgcXtoDi2s0CIZXh3ytjSMmht53dmbdjWWt6KpAd2acyQ1FL6uDtNdcAWWglKKMrJFDyAxVUBluokXCa75G118mPscgZEhlqc_Y-b3YiOD_48dHa0mhcrE8iZ4Qd_azOZxFcpGpK2SE0-rvvlthBBK38QhgMlWBOyzYK7f-1_Ic9cM5TyA4e75STLz4PnKej7zpCtlsSSZKk43mELP4L3WVmubod4r7zJjmjBkm60ZV7sWHcEOFKjNn0Cw)
+- [Open in the fork editor](https://agentic-mermaid.dev/editor/#deflate:dY7PkoIwDIdfJdMTHjqDoLvqDDyBw8Fr2UNXIjLWVgOKOy3vvgPFfwdv-SX5vsSy2lxoi2zFdsq0272kBjbrXANkoZWgjC6RQMlfVFAarGGPhN0wn1p763wZiZwhkaE6Zz9DJxbBeeLLmbWF0TiuzkXOCBv6u29-ieAqVVXIBqHSp0szYksR1PKI0BoqwBzG7jS0n9_yF76Bc55CtvT6PvVx4XngPHX-VwdZPBJJkqTu7CCLntAbM8T44U_d-88v5KBqJelKl_2JF8dDEd6NEev-AQ)

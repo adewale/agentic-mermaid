@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
 import { renderMermaidSVG as renderBeautifulMermaidSVG } from 'beautiful-mermaid'
@@ -1912,6 +1913,107 @@ for (const [source, target] of pageOutputs) {
   await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())
+
+// Standalone browser-bundle demo (BUILD-30). Proves the script-tag path end to
+// end on the public site: one <script src>, no bundler, no import map, no build
+// step — the case an external consumer could not get working before the IIFE
+// artifact existed.
+//
+// The page serves the REAL published artifact — dist/browser.global.js, the same
+// bytes npm and unpkg hand out — not a re-bundle. A demo of a lookalike would
+// not prove the thing it claims. Re-bundling in-process was tried and rejected:
+// Bun's iife output leaks an undefined `__require` shim, so the page loaded and
+// the global never bound. That is precisely the failure this work exists to
+// stop shipping.
+//
+// tsup owns the artifact, so build it on demand when it is missing rather than
+// failing a website build for a reason that reads as unrelated.
+async function emitBrowserBundleDemo() {
+  const artifact = join(ROOT, 'dist', 'browser.global.js')
+  if (!existsSync(artifact)) {
+    const built = Bun.spawnSync(['bun', 'run', 'build'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
+    if (!built.success || !existsSync(artifact)) {
+      throw new Error(`browser demo needs dist/browser.global.js; \`bun run build\` failed:\n${built.stderr}`)
+    }
+  }
+  const script = await Bun.file(artifact).text()
+  // Fail loudly here rather than shipping a page whose only symptom is an empty
+  // diagram: the global name is the demo's entire contract with the reader.
+  if (!script.includes('var agenticMermaid=')) {
+    throw new Error('dist/browser.global.js does not bind the agenticMermaid global')
+  }
+  const scriptRel = `demo/browser-${sha256(script).slice(0, 12)}.js`
+  await emit(scriptRel, script)
+
+  const TIMELINE = `timeline
+  title History of Social Media
+  2002 : LinkedIn
+  2004 : Facebook : Google
+  2005 : YouTube
+  2006 : Twitter`
+
+  const body = `<p>This page renders the diagram below <strong>in your browser, right now</strong>, from one
+<code>&lt;script src&gt;</code> tag. No bundler, no import map, no build step. Everything runs locally —
+the source never leaves this page.</p>
+<pre><code>&lt;script src="https://unpkg.com/agentic-mermaid/dist/browser.global.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  const svg = agenticMermaid.renderMermaidSVG(source, { style: 'zinc-dark' })
+  document.querySelector('#diagram').innerHTML = svg
+&lt;/script&gt;</code></pre>
+<h2>Live render</h2>
+<p><label for="demo-style">Style</label>
+<select id="demo-style">
+<option value="zinc-light">zinc-light</option>
+<option value="zinc-dark">zinc-dark</option>
+<option value="hand-drawn">hand-drawn</option>
+<option value="blueprint">blueprint</option>
+<option value="dracula">dracula</option>
+</select>
+<span id="demo-status" role="status"></span></p>
+<div id="demo-diagram">
+<noscript><pre><code>${escapeHtml(TIMELINE)}</code></pre></noscript>
+</div>
+<h2>The source</h2>
+<pre><code id="demo-source">${escapeHtml(TIMELINE)}</code></pre>
+<h2>Should you use this?</h2>
+<p>Usually not. If your diagram source is fixed when the page is published — a blog post, a docs
+page, a README — pre-render it at build time instead and ship zero JavaScript. The renderer is
+synchronous and needs no DOM, so a static site never has to send the bundle to a reader. This
+page ships it because its whole job is to prove the dynamic path works.</p>
+<p>See <a href="/docs/api/">Library API</a> for the bundler-friendly ESM entry, which tree-shakes
+where this file cannot.</p>
+<script>
+(function () {
+  var SOURCE = document.getElementById('demo-source').textContent
+  var target = document.getElementById('demo-diagram')
+  var status = document.getElementById('demo-status')
+  var select = document.getElementById('demo-style')
+  function draw() {
+    try {
+      target.innerHTML = agenticMermaid.renderMermaidSVG(SOURCE, { style: select.value })
+      status.textContent = 'rendered in-browser'
+    } catch (error) {
+      status.textContent = 'render failed: ' + error
+    }
+  }
+  select.addEventListener('change', draw)
+  draw()
+})()
+</script>`
+
+  await emitShell(
+    'demo/index.html',
+    'Browser demo',
+    'One script tag, no bundler: Agentic Mermaid rendering a diagram live in your browser.',
+    body,
+    '/demo/',
+    // Not deferred: the page's own script calls into the global immediately, the
+    // same way the documented snippet does. A deferred bundle runs AFTER the
+    // externalized body script and the first render loses the race.
+    `<script src="/${scriptRel}"></script>`,
+  )
+}
+await emitBrowserBundleDemo()
 
 // Static assets.
 await emitStylesheet()

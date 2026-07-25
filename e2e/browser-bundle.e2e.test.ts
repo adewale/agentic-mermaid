@@ -29,6 +29,7 @@ import { join } from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { renderMermaidSVG } from '../src/index.ts'
+import { serveWithAvailablePort } from './test-port.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUNDLE = join(REPO, 'dist', 'browser.global.js')
@@ -110,5 +111,62 @@ describe('browser bundle', () => {
   test('ships no node: builtin imports', () => {
     const source = readFileSync(BUNDLE, 'utf8')
     expect(source).not.toMatch(/(?:require\(|from\s*)["']node:/)
+  })
+})
+
+// B4. The published /demo/ page, loaded as a browser loads it. The bundle tests
+// above prove the artifact works in isolation; this proves the page wires it up
+// correctly, which is a separate failure mode — the first version of this page
+// rendered nothing because a `defer`ed bundle lost the race against the page's
+// own script, with no console error to show for it.
+describe('demo page', () => {
+  const PUBLIC = join(REPO, 'website', 'public')
+  let server: ReturnType<typeof serveWithAvailablePort>['server']
+  let base = ''
+  let demoPage: Page
+  const pageErrors: string[] = []
+
+  beforeAll(async () => {
+    if (!existsSync(join(PUBLIC, 'demo', 'index.html'))) {
+      throw new Error('website/public/demo/index.html missing — run `bun run website` first')
+    }
+    const served = serveWithAvailablePort({
+      preferredPort: 4671,
+      async fetch(request) {
+        const url = new URL(request.url)
+        const rel = url.pathname.endsWith('/') ? `${url.pathname}index.html` : url.pathname
+        const file = Bun.file(join(PUBLIC, rel))
+        return (await file.exists()) ? new Response(file) : new Response('not found', { status: 404 })
+      },
+    })
+    server = served.server
+    base = served.base
+    demoPage = await browser.newPage()
+    demoPage.on('pageerror', error => pageErrors.push(String(error)))
+    await demoPage.goto(`${base}/demo/`, { waitUntil: 'networkidle' })
+  })
+
+  afterAll(() => {
+    server?.stop(true)
+  })
+
+  test('renders the diagram from the script tag on first paint', async () => {
+    const state = await demoPage.evaluate(() => ({
+      status: document.getElementById('demo-status')?.textContent ?? '',
+      svg: Boolean(document.querySelector('#demo-diagram svg')),
+      content: document.getElementById('demo-diagram')?.innerHTML.includes('LinkedIn') ?? false,
+    }))
+    expect(state).toEqual({ status: 'rendered in-browser', svg: true, content: true })
+    expect(pageErrors).toEqual([])
+  })
+
+  test('re-renders when the style changes', async () => {
+    await demoPage.selectOption('#demo-style', 'hand-drawn')
+    const state = await demoPage.evaluate(() => ({
+      status: document.getElementById('demo-status')?.textContent ?? '',
+      svg: Boolean(document.querySelector('#demo-diagram svg')),
+    }))
+    expect(state).toEqual({ status: 'rendered in-browser', svg: true })
+    expect(pageErrors).toEqual([])
   })
 })

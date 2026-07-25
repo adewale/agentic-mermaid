@@ -12,6 +12,7 @@ export const CLEAN_PAGE_ROUTES: readonly string[] = [
   'about',
   'about/design',
   'comparisons',
+  'demo',
   'docs',
   'docs/api',
   'docs/ascii',

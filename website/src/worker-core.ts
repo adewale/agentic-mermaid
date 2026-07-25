@@ -100,6 +100,9 @@ const IMMUTABLE_ASSET_RULES: readonly ImmutableAssetRule[] = Object.freeze([
   Object.freeze({ path: /^\/(?:editor\/editor-(?:(?:app|renderer)-)?[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
   Object.freeze({ path: /^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}$/i, contentTypes: ['text/html'] }),
   Object.freeze({ path: /^\/(?:examples|generated\/inline)-[a-f0-9]{12}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
+  // The /demo/ browser bundle: content-hashed and multi-megabyte, so immutable
+  // caching is what keeps a repeat visit from re-downloading it.
+  Object.freeze({ path: /^\/demo\/browser-[a-f0-9]{12}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
   Object.freeze({ path: /^\/examples-[a-f0-9]{12}\.css$/i, contentTypes: ['text/css'] }),
   Object.freeze({ path: /^\/fonts\/Inter-(?:Regular|Medium|SemiBold|Bold)\.subset-[a-f0-9]{12}\.woff2$/i, contentTypes: ['font/woff2'] }),
 ])
