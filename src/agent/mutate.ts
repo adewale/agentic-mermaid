@@ -80,14 +80,15 @@ function applyOneMutation(
     const meta = bodyAccessibility === undefined
       ? d.meta
       : { ...d.meta, accessibility: bodyAccessibility }
-    const canonicalSource = wrapperPrefix(meta) + ensureAccessibilityLines(
+    const bodySource = ensureAccessibilityLines(
       plugin.serialize(r.value),
       meta.accessibility,
     )
-    // Source locations and exact authored spans describe a particular source
-    // artifact. Rebuild them from the mutated serialization; retaining the
-    // pre-mutation map leaves removed objects addressable and is worse than no
-    // provenance at all.
+    const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource) + bodySource
+    // Source locations, exact authored spans, and wrapper ownership describe a
+    // particular source artifact. Rebuild all three from the mutated
+    // serialization; retaining pre-mutation metadata can make wrapperSource
+    // disagree with the source map after a body-authored directive is moved.
     const reparsed = parseMermaid(canonicalSource)
     if (!reparsed.ok) {
       return err({
@@ -95,7 +96,13 @@ function applyOneMutation(
         message: `Mutation produced source that could not be reparsed: ${reparsed.error.map(error => error.message).join('; ')}`,
       })
     }
-    return ok({ ...d, body: r.value, meta, canonicalSource, source: reparsed.value.source } as ParsedDiagram)
+    return ok({
+      ...d,
+      body: r.value,
+      meta: reparsed.value.meta,
+      canonicalSource,
+      source: reparsed.value.source,
+    } as ParsedDiagram)
   }
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })
 }

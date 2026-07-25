@@ -394,6 +394,17 @@ const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\
 const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
 const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
 
+/**
+ * Remove universal init directives while retaining every family-owned byte.
+ * Canonical serializers use this to fold body-authored config into the shared
+ * wrapper without leaving a second semantic owner in opaque or extension
+ * source. Keep the grammar here beside normalization so new families inherit
+ * the same directive boundary automatically.
+ */
+export function stripMermaidInitDirectives(text: string): string {
+  return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+}
+
 export function normalizeMermaidSource(
   text: string,
   baseConfig: MermaidRuntimeConfig = {},
@@ -756,7 +767,7 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
 function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
   let merged: MermaidFrontmatterMap = {}
 
-  const body = text.replace(INIT_DIRECTIVE_REGEX, (_match, payload: string) => {
+  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, payload: string) => {
     const parsed = parseDirectiveMap(payload)
     if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
     return ''

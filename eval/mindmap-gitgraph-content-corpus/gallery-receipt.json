@@ -192,7 +192,7 @@
     },
     {
       "path": "src/agent/mutate.ts",
-      "sha256": "7907092e7e30fa081a22372432d8629b223a7c9708b7863dd4f94a6a62e9382d"
+      "sha256": "9f83b1473f58e1dbd1da15f9648475d840951a2a9236d1c1cb083504577f6bf5"
     },
     {
       "path": "src/agent/mutation-ops.ts",
@@ -240,7 +240,7 @@
     },
     {
       "path": "src/agent/serialize.ts",
-      "sha256": "97f0ed732b2e8acadf97845e3493156f2d1ec57286e587f1cbefce7b3448391a"
+      "sha256": "26741d84860c48d1fa1bc25556e890b54f4280f94d0390a7b5cd89af3bea1b62"
     },
     {
       "path": "src/agent/source-map-spans.ts",
@@ -636,7 +636,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "306ebfdaf7e04bac3813fd4f5c33f27717cb9bd21264003ff54f8be8b599ddb7"
+      "sha256": "3380649892e87981f42c20cc9d46ae4bb88e5edfd4f753eeb1d39f75fec579da"
     },
     {
       "path": "src/mindmap/geometry.ts",
