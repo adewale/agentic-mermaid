@@ -123,6 +123,13 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
     expect(next.value.canonicalSource.match(/%%\{init:/g)).toHaveLength(1)
     expect(next.value.canonicalSource).toStartWith('  %%{init: {"theme": "dark"}}%%\nflowchart LR\n')
     expect(next.value.meta.frontmatter?.theme).toBe('dark')
+    expect(next.value.meta.wrapperSource).toBe('  %%{init: {"theme": "dark"}}%%\n')
+    const wrapperSpan = next.value.source.spans?.preserved.wrapper
+    expect(wrapperSpan).toBeDefined()
+    if (wrapperSpan) {
+      expect(next.value.canonicalSource.slice(wrapperSpan.start.offset, wrapperSpan.end.offset))
+        .toBe(next.value.meta.wrapperSource ?? '')
+    }
   })
 })
 
@@ -142,6 +149,25 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     if (!p.ok) throw new Error('parse failed')
     const out = serializeMermaid(p.value, { wrapper: 'canonical' })
     expect(out).toContain('%%{init: definitely-not-an-object}%%')
+  })
+
+  test('canonical mode folds post-header config out of an opaque body exactly once', () => {
+    const src = `sequenceDiagram
+  %%{init: {"theme": "dark"}}%%
+  Alice->>Bob: hi
+  end`
+    const parsed = parseMermaid(src)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('opaque')
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(canonical).toContain('config:\n  theme: dark\n')
+    expect(canonical).not.toContain('%%{init:')
+    const reparsed = parseMermaid(canonical)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
   })
 
   test('am format defaults to verbatim; --canonical-wrapper opts into synthesis', () => {

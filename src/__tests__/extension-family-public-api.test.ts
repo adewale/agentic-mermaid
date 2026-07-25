@@ -292,6 +292,38 @@ describe('registered family public layout and verify APIs', () => {
     }
   })
 
+  test('source-returning extension serializers do not duplicate post-header init config', () => {
+    const base = extensionDescriptor('source-returning-init', 'sourceReturningInitDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: context => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: context.opaqueSource,
+        data: { parsed: true },
+      }),
+      serialize: body => body.kind === 'extension' ? body.source : '',
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      const source = `sourceReturningInitDiagram
+  %%{init:{"theme":"dark"}}%%
+  payload`
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized).toBe(source)
+      expect(serialized.match(/%%\{init:/g)).toHaveLength(1)
+    } finally {
+      unregister()
+    }
+  })
+
   test('gives newly registered families directive-free grammar and shared accessibility metadata', () => {
     const base = extensionDescriptor('shared-accessibility', 'sharedAccessibilityDiagram')
     let observed: { lines: readonly string[]; accessibility: unknown } | undefined
@@ -429,7 +461,10 @@ family payload
   })
 
   test('does not pass parsed extension data into a replacement descriptor version', () => {
-    const source = '%% retained wrapper comment\ndescriptorUpgradeDiagram\n  payload'
+    const source = `%% retained wrapper comment
+descriptorUpgradeDiagram
+  %%{init:{"theme":"dark"}}%%
+  payload`
     const v1Base = extensionDescriptor('descriptor-upgrade', 'descriptorUpgradeDiagram')
     const v1: FamilyDescriptor = {
       ...v1Base,
@@ -484,6 +519,11 @@ family payload
     v2SerializerCalls = 0
     try {
       expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+      expect(v2SerializerCalls).toBe(0)
+      const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+      expect(canonical).toContain('config:\n  theme: dark\n')
+      expect(canonical).not.toContain('%%{init:')
+      expect(canonical.match(/theme: dark/g)).toHaveLength(1)
       expect(v2SerializerCalls).toBe(0)
       // Rendering explicitly reparses the core-owned source under v2 rather
       // than invoking v2's serializer on v1-owned data.

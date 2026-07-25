@@ -15,6 +15,7 @@ import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
+import { stripMermaidInitDirectives } from '../mermaid-source.ts'
 
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
@@ -35,23 +36,31 @@ export interface SerializeOptions {
 
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
-  const bodyOwnsPostWrapperSource = bodyPreservesPostWrapperSource(d)
-  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim', bodyOwnsPostWrapperSource) + renderBody(
+  const mode = opts.wrapper ?? 'verbatim'
+  const renderedBody = renderBody(
     d.body,
     d.kind,
     d.meta,
     d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined,
   )
+  // Canonical mode folds universal config into renderMeta. Opaque bodies and
+  // source-preserving extension serializers may still contain the authored
+  // directives, so remove them through the same grammar authority before
+  // joining the canonical wrapper and family source.
+  const bodySource = mode === 'canonical'
+    ? stripMermaidInitDirectives(renderedBody)
+    : renderedBody
+  return wrapperPrefix(d.meta, mode, bodySource) + bodySource
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
 export function wrapperPrefix(
   meta: ValidDiagramMeta,
   mode: 'verbatim' | 'canonical' = 'verbatim',
-  bodyOwnsPostWrapperSource = false,
+  bodySource = '',
 ): string {
   if (mode === 'verbatim' && meta.wrapperSource !== undefined) {
-    return meta.wrapperSource + (bodyOwnsPostWrapperSource ? '' : postWrapperInitDirectives(meta))
+    return meta.wrapperSource + postWrapperInitDirectives(meta, bodySource)
   }
   return renderMeta(meta)
 }
@@ -59,12 +68,14 @@ export function wrapperPrefix(
 /**
  * Structured serializers receive directive-free grammar, so universal config
  * authored after the family header must be re-emitted alongside the exact
- * leading wrapper. Opaque and fallback extension bodies retain that authored
- * suffix themselves and opt out to avoid duplication.
+ * leading wrapper. A source-preserving body or extension serializer may retain
+ * those authored bytes itself, so actual rendered output—not descriptor
+ * identity—decides whether each directive still needs the shared envelope.
  */
-function postWrapperInitDirectives(meta: ValidDiagramMeta): string {
+function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): string {
   const wrapper = meta.wrapperSource ?? ''
   let wrapperCursor = 0
+  let bodyCursor = 0
   const parts: string[] = []
   for (const directive of meta.initDirectives) {
     const wrapperIndex = wrapper.indexOf(directive.raw, wrapperCursor)
@@ -72,17 +83,14 @@ function postWrapperInitDirectives(meta: ValidDiagramMeta): string {
       wrapperCursor = wrapperIndex + directive.raw.length
       continue
     }
+    const bodyIndex = bodySource.indexOf(directive.raw, bodyCursor)
+    if (bodyIndex >= bodyCursor) {
+      bodyCursor = bodyIndex + directive.raw.length
+      continue
+    }
     parts.push(directive.raw.trimEnd() + '\n')
   }
   return parts.join('')
-}
-
-function bodyPreservesPostWrapperSource(d: ParsedDiagram): boolean {
-  if (d.body.kind === 'opaque') return true
-  if (d.body.kind !== 'extension') return false
-  const plugin = getFamily(d.kind)
-  const descriptorIdentity = 'descriptorIdentity' in d ? d.descriptorIdentity : undefined
-  return !plugin?.serialize || !sameExtensionIdentity(descriptorIdentity, plugin.identity)
 }
 
 /**
