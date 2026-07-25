@@ -30,6 +30,15 @@ import {
   verifyPairwiseAssignments,
 } from './helpers/render-conformance-verifier.ts'
 
+// A hang detector, not a speed assertion. The two tests that use it render the
+// whole conformance portfolio; the work is CPU-bound and its wall-clock cost
+// tracks machine speed, so a cap sized to the fastest machine turns "this box
+// is slower than CI" into a red test — at 60s it fired on a machine completing
+// the portfolio in ~62s with every oracle passing. The ceiling that actually
+// matters, portfolio SIZE, is asserted directly by the corePlan.length bound
+// below and enforced by test-quality-lint.
+const RENDER_PORTFOLIO_TIMEOUT_MS = 240_000
+
 const corePlan = buildRenderConformancePlan()
 const mixedPlan = buildMixedFormatConformancePlan()
 const families = BUILTIN_FAMILY_METADATA.map(entry => entry.id)
@@ -133,7 +142,7 @@ describe('registry-derived complexity-aware render conformance plan', () => {
       if (row.background === 'transparent') expect(svg, `${row.id}: transparency`).not.toContain('data-backdrop="page"')
       if (row.security === 'strict') expect(verifyNoExternalRefs(svg), row.id).toEqual({ ok: true, refs: [] })
     }
-  }, 60_000)
+  }, RENDER_PORTFOLIO_TIMEOUT_MS)
 
   test('selected family × backend rows remain byte-deterministic across rotating complexity strata', () => {
     const seen = new Set<string>()
@@ -172,7 +181,7 @@ describe('registry-derived complexity-aware render conformance plan', () => {
       }
     }
     expect(new Set(mixedPlan.map(row => row.format))).toEqual(new Set(OUTPUT_FORMATS))
-  }, 60_000)
+  }, RENDER_PORTFOLIO_TIMEOUT_MS)
 
   test('declares exact finite domains instead of accidental values', () => {
     expect(SECURITY_MODES).toEqual(['default', 'strict'])
