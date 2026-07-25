@@ -52,13 +52,13 @@ am render diagram.mmd --format svg --style zinc-light --output dist/diagram-ligh
 am render diagram.mmd --format svg --style zinc-dark  --output dist/diagram-dark.svg
 ```
 
-Either way the reader downloads two inline SVGs instead of a renderer, the
-diagram survives JS being disabled, and it appears in RSS and in feed readers.
+Either way the reader downloads two inline SVGs rather than a renderer, so the
+diagram still shows up with JavaScript disabled and inside an RSS reader.
 
 ## Browser bundle
 
-When the source genuinely is not known until the page runs, load the prebuilt
-IIFE. It is self-contained — no bundler, no import map, no build step:
+When the source is not known until the page runs, load the prebuilt IIFE. The
+ESM entry would need a bundler or an import map; this file needs neither:
 
 ```html
 <script src="https://unpkg.com/agentic-mermaid@0.3.0/dist/browser.global.js"></script>
@@ -80,15 +80,15 @@ future major from changing the file under a page you are not watching.
 
 ### Browser support
 
-The floor is roughly **Chrome 97, Firefox 104, Safari 15.4, Edge 97**.
+**Chrome 97, Firefox 104, Safari 15.4, Edge 97** and newer.
 
-That is set by runtime APIs, not syntax, so it cannot be lowered by changing the
-build target — esbuild downlevels syntax and leaves the methods missing. The
-bundle uses `Array.prototype.at`, `Object.hasOwn`, `String.prototype.replaceAll`,
-and `Array.prototype.findLast`; `findLast` is the binding constraint. If you need
-older browsers, load polyfills for those four before the bundle.
+`Array.prototype.findLast` sets that floor. It is a runtime method, so lowering
+the build target will not help: esbuild rewrites syntax and leaves method calls
+as they are. The bundle also calls `Array.prototype.at`, `Object.hasOwn`, and
+`String.prototype.replaceAll`, all of which ship earlier than `findLast`. To
+support older browsers, load polyfills for those four before the bundle.
 
-The bundle contains no WebAssembly and issues no network requests at load, so it
+The bundle contains no WebAssembly and makes no network request at load, so it
 works offline and needs no cross-origin isolation.
 
 **If you already run a bundler, do not use this file.** Import the package
@@ -100,15 +100,34 @@ import { renderMermaidSVG } from 'agentic-mermaid'
 
 ### Weight
 
-`dist/browser.global.js` is 2.85 MB raw, **873 KB gzip**. Most of that is the
-ELK layout engine. That is a real cost for a page whose diagrams never change —
-which is why the build-time path above is the default recommendation, not a
-footnote.
+`dist/browser.global.js` is 2.85 MB raw, **873 KB gzip**. Most of that is the ELK
+layout engine. Because a page whose diagrams never change pays that cost on every
+cold visit for nothing, the build-time path above is the recommendation.
+
+### Self-hosting it
+
+unpkg and jsDelivr already do the right thing. If you serve the file yourself,
+send `Content-Type: text/javascript; charset=utf-8`, and compress it — 2.85 MB
+uncompressed against 873 KB gzipped is the difference your readers pay.
+
+Declare the encoding in at least one of the two places. The bundle contains
+non-ASCII characters inside a Unicode character class, and a classic
+`<script src>` whose response omits `charset` is decoded using the host
+document's encoding. If neither the response nor the page says UTF-8, the
+browser picks a legacy encoding and the file throws
+
+```txt
+SyntaxError: Invalid regular expression: Range out of order in character class
+```
+
+before any of your code runs, with nothing in the stack trace pointing at the
+encoding. A page with `<meta charset="utf-8">` is already safe; a hand-written
+page with no `<head>` metadata is the one that breaks.
 
 ### Rolling your own bundle
 
-You do not need to, but if you must, two traps are worth naming because both
-fail quietly:
+You should not need to. If you do, two traps fail quietly enough to cost an
+afternoon:
 
 - **Do not combine `--global-name=X` with `window.X = …` in your entry file.**
   esbuild emits `var X = (() => { … })()`, and at top-level script scope that

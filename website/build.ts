@@ -1964,9 +1964,10 @@ leaves the page.</p>
 releases are ESM-only, so the same URL without a version answers <strong>404</strong>. This page serves the
 identical artifact from its own origin instead of unpkg, so the demo keeps working offline and makes
 no third-party request.</p>
-<p>Runs on <strong>Chrome 97, Firefox 104, Safari 15.4, Edge 97</strong> and newer. That floor comes from
-<code>Array.prototype.findLast</code>, which the renderer calls. Lowering the build target will not move it,
-because esbuild rewrites syntax and leaves runtime methods alone.</p>
+<p>Runs on <strong>Chrome 97, Firefox 104, Safari 15.4, Edge 97</strong> and newer.
+<a href="https://github.com/adewale/agentic-mermaid/blob/main/docs/browser.md">docs/browser.md</a> covers
+what sets that floor, how to pre-render at build time instead, and the two traps in rolling your own
+bundle.</p>
 <h2>Live render</h2>
 <p><label for="demo-style">Style</label>
 <select id="demo-style">
