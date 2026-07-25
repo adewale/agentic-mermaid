@@ -33,6 +33,49 @@ export const APPROVE_TOKEN = '[approve-goldens]'
 // with [approve-goldens]. Real approvers write `[approve-goldens] <reason>`.
 export const APPROVE_TOKEN_RE = /^[ \t]*\[approve-goldens\]/m
 
+/**
+ * Which commits the gate reads — for FILES and for APPROVAL. The two must always
+ * cover the same commits.
+ *
+ * Scoping the file diff to a range while reading only the tip commit's message
+ * is an asymmetry, and it fails in a specific way: every commit pushed AFTER an
+ * approved golden change re-fails the gate, with no golden movement between
+ * them. The range diff still reports the approved file; the tip message no
+ * longer carries the token. A branch that was green at the approving commit
+ * goes red on the next unrelated commit.
+ *
+ * The trade this deliberately keeps: an approval anywhere in the range blesses
+ * all golden movement in that range. That is already how the push path behaves,
+ * and it follows from net-diff semantics — which in exchange never flag a golden
+ * change that a later commit in the same range reverts.
+ */
+export function goldenDriftCommands(o: {
+  parents: string[]
+  pushBefore: string | null
+  goldenDir: string
+}): { filesCmd: string; messageCmd: string } {
+  // A `pull_request` checkout is the MERGE ref: HEAD is synthetic, parents are
+  // [base, prHead]. Compare the parents directly to scope the gate to the PR's
+  // own net change — this needs no merge base, so it works in a depth-2 clone.
+  if (o.parents.length >= 2) {
+    const [base, prHead] = o.parents
+    return {
+      filesCmd: `git diff --name-only ${base} ${prHead} -- ${o.goldenDir}`,
+      messageCmd: `git log --format=%B ${base}..${prHead}`,
+    }
+  }
+  if (o.pushBefore) {
+    return {
+      filesCmd: `git diff --name-only ${o.pushBefore}..HEAD -- ${o.goldenDir}`,
+      messageCmd: `git log --format=%B ${o.pushBefore}..HEAD`,
+    }
+  }
+  return {
+    filesCmd: `git show --name-only --format= HEAD -- ${o.goldenDir}`,
+    messageCmd: 'git log -1 --format=%B',
+  }
+}
+
 export function parseGitStatusPorcelainZ(output: string): string[] {
   const entries = output.split('\0').filter(Boolean)
   const paths: string[] = []
@@ -102,35 +145,24 @@ if (import.meta.main) {
   const lines = (cmd: string) =>
     run(cmd).split('\n').map(s => s.trim()).filter(Boolean)
 
-  // On a GitHub `pull_request` build the checkout is the MERGE ref: HEAD is a
-  // synthetic merge commit whose parents are [base, prHead]. `git show HEAD`
-  // there surfaces whatever the BASE branch changed since the fork point (e.g.
-  // main regenerating goldens), not what this PR changed — a false positive.
-  // When HEAD has 2+ parents, scope the gate to the PR's own net change by
-  // comparing the synthetic merge's base and PR-head parents directly. This
-  // works in a depth-2 checkout because it needs no merge base. Approval must
-  // live on the PR head commit rather than the auto-generated merge message.
+  // Which commits count is decision logic, so it lives in the pure layer above
+  // and is unit-tested; this wrapper only gathers the git facts and executes it.
+  // The merge ref must be unpacked into its parents before anything else: on a
+  // `pull_request` build HEAD is synthetic, and reading it directly would
+  // surface whatever the BASE branch changed since the fork point (e.g. main
+  // regenerating goldens) rather than what this PR changed — a false positive.
   const parents = run('git rev-list --parents -n 1 HEAD').trim().split(/\s+/).slice(1)
-  const isMerge = parents.length >= 2
-  const [base, prHead] = parents
   let pushBefore: string | null = null
-  if (!isMerge && process.env.GITHUB_EVENT_PATH) {
+  if (parents.length < 2 && process.env.GITHUB_EVENT_PATH) {
     const { readFileSync } = await import('node:fs')
     pushBefore = githubPushBeforeSha(process.env.GITHUB_EVENT_NAME, readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'))
   }
+  const { filesCmd, messageCmd } = goldenDriftCommands({ parents, pushBefore, goldenDir: GOLDEN_DIR })
 
   const facts: GoldenDriftFacts = {
     uncommittedGoldenFiles: parseGitStatusPorcelainZ(run(`git status --porcelain=v1 -z --untracked-files=all -- ${GOLDEN_DIR}`)),
-    headGoldenFiles: isMerge
-      ? lines(`git diff --name-only ${base} ${prHead} -- ${GOLDEN_DIR}`)
-      : pushBefore
-        ? lines(`git diff --name-only ${pushBefore}..HEAD -- ${GOLDEN_DIR}`)
-      : lines(`git show --name-only --format= HEAD -- ${GOLDEN_DIR}`),
-    commitMessage: isMerge
-      ? run(`git log -1 --format=%B ${prHead}`)
-      : pushBefore
-        ? run(`git log --format=%B ${pushBefore}..HEAD`)
-      : run('git log -1 --format=%B'),
+    headGoldenFiles: lines(filesCmd),
+    commitMessage: run(messageCmd),
   }
   const v = evaluateGoldenDrift(facts)
   if (v.ok) {

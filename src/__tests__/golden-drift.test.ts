@@ -4,7 +4,7 @@
 // meaningful.
 
 import { describe, test, expect } from 'bun:test'
-import { evaluateGoldenDrift, githubPushBeforeSha, parseGitStatusPorcelainZ, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
+import { evaluateGoldenDrift, githubPushBeforeSha, goldenDriftCommands, parseGitStatusPorcelainZ, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
 
 const base: GoldenDriftFacts = { uncommittedGoldenFiles: [], headGoldenFiles: [], commitMessage: 'chore: something' }
 const F = (over: Partial<GoldenDriftFacts>): GoldenDriftFacts => ({ ...base, ...over })
@@ -90,6 +90,51 @@ describe('parseGitStatusPorcelainZ', () => {
     const [untracked] = parseGitStatusPorcelainZ('?? src/__tests__/testdata/new.svg\0')
     const v = evaluateGoldenDrift(F({ uncommittedGoldenFiles: [untracked!] }))
     expect(v).toMatchObject({ ok: false, code: 'uncommitted-drift' })
+  })
+})
+
+describe('goldenDriftCommands', () => {
+  const DIR = 'src/__tests__/testdata/'
+
+  // The invariant the whole gate rests on: whichever commits decide "did the
+  // goldens move" must be the same commits that decide "was it approved".
+  test('every mode scopes files and approval to the same commits', () => {
+    const merge = goldenDriftCommands({ parents: ['base', 'prhead'], pushBefore: null, goldenDir: DIR })
+    expect(merge.filesCmd).toContain('base prhead')
+    expect(merge.messageCmd).toContain('base..prhead')
+
+    const push = goldenDriftCommands({ parents: ['tip'], pushBefore: 'before', goldenDir: DIR })
+    expect(push.filesCmd).toContain('before..HEAD')
+    expect(push.messageCmd).toContain('before..HEAD')
+  })
+
+  // Regression for the failure this gate hit on PR #228. A PR whose NET diff
+  // touches goldens but whose TIP commit does not: reading only the tip's
+  // message made every commit pushed after an approved golden change re-fail
+  // the gate. The range diff still reports the approved file, while the tip
+  // message no longer carries the token — so a branch green at the approving
+  // commit went red on the next unrelated commit, with no golden movement
+  // between them.
+  test('merge mode reads approval from the whole PR, not just the tip commit', () => {
+    const { messageCmd } = goldenDriftCommands({ parents: ['base', 'prhead'], pushBefore: null, goldenDir: DIR })
+    expect(messageCmd).toContain('base..prhead')
+    expect(messageCmd).not.toContain('-1')
+  })
+
+  test('a lone non-merge commit with no push payload reads that commit alone', () => {
+    const { filesCmd, messageCmd } = goldenDriftCommands({ parents: ['tip'], pushBefore: null, goldenDir: DIR })
+    expect(filesCmd).toContain('git show --name-only')
+    expect(messageCmd).toBe('git log -1 --format=%B')
+  })
+
+  test('the file scope is always confined to the golden directory', () => {
+    for (const o of [
+      { parents: ['base', 'prhead'], pushBefore: null },
+      { parents: ['tip'], pushBefore: 'before' },
+      { parents: ['tip'], pushBefore: null },
+    ]) {
+      expect(goldenDriftCommands({ ...o, goldenDir: DIR }).filesCmd).toContain(`-- ${DIR}`)
+    }
   })
 })
 
