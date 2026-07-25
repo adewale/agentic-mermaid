@@ -83,6 +83,38 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
+- [ ] **BUILD-30 — Supported browser consumption path** (`todo`). A real
+  external consumer (comment on
+  <https://github.com/lukilabs/beautiful-mermaid/pull/118>, 2026-07-25) tried to
+  render a timeline from a `<script>` tag on an Alpine/Tailwind page and could
+  not get a working file. The package is ESM-only (`tsup.config.ts`
+  `format: ['esm']`), publishes no IIFE/UMD artifact and no `./browser` export,
+  and no doc mentions a script tag, CDN, or bundling recipe — so every browser
+  consumer invents their own build step. Three failure modes were reproduced
+  against a clean checkout, all downstream of that gap: (a) a wrapper importing
+  `./<clone>/dist/index.js` fails to resolve, because `dist/` is gitignored and
+  built only by `prepublishOnly`, so a `git clone` has nothing to import;
+  (b) `esbuild --global-name=X` plus `window.X = ns` inside the wrapper emits a
+  2.8 MB bundle that builds clean and leaves the global `undefined` — the IIFE's
+  return value overwrites the manual assignment, and nothing warns; (c) ported
+  upstream snippets throw because `THEMES` is gone (BUILD-31). Only (a) and (c)
+  are ours; (b) is a consumer footgun that a published bundle would make
+  unreachable. Decide between shipping a browser artifact and documenting one
+  blessed recipe, then cover it with a browser contract test in `e2e/` so the
+  path cannot rot. Note the build-time alternative in the same doc: the renderer
+  is synchronous and browserless, so static sites should prefer pre-rendering
+  over shipping the bundle. Closing this is a candidate answer to `DEC-1`.
+- [ ] **BUILD-31 — Record the `THEMES` removal in fork differences** (`todo`).
+  Upstream `beautiful-mermaid` exports `THEMES`
+  (`node_modules/beautiful-mermaid/dist/index.d.ts:312`); this fork does not,
+  having replaced it with the Style/Palette system. The removal is noted in
+  `CHANGELOG.md:133` but not in `docs/fork-differences.md`, which is what a
+  migrating upstream user actually reads. Ported snippets therefore fail at
+  runtime with `TypeError: Cannot read properties of undefined`, as seen in the
+  PR-118 thread. Add the mapping to `docs/fork-differences.md` — `THEMES['x']`
+  becomes `{ style: 'x' }`, with the `zinc-light`/`zinc-dark` names preserved —
+  and audit the same doc for other upstream exports dropped without a migration
+  line.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,
