@@ -391,11 +391,14 @@ export interface NormalizedMermaidSource {
 }
 
 const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
-const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
+// Outer whitespace is horizontal-only. Using `\s*` at either line boundary
+// consumes preceding blank lines or the next family's indentation because
+// `\s` includes CR/LF. The directive payload itself remains multiline.
+const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%[^\S\r\n]*(?:\r?\n|$)?/gm
 const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
 
 /**
- * Remove universal init directives while retaining every family-owned byte.
+ * Remove universal init directives while retaining every other authored byte.
  * Canonical serializers use this to fold body-authored config into the shared
  * wrapper without leaving a second semantic owner in opaque or extension
  * source. Keep the grammar here beside normalization so new families inherit

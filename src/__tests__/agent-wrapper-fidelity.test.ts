@@ -110,6 +110,25 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
     expect(serializeMermaid(reparsed.value)).toBe(serialized)
   })
 
+  test('post-header init removal preserves indentation-sensitive family structure', () => {
+    const source = `mindmap
+  root
+    child
+    %%{init:{"theme":"dark"}}%%
+      grandchild`
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('mindmap')
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized.match(/%%\{init:/g)).toHaveLength(1)
+    const reparsed = parseMermaid(serialized)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.body.kind).toBe('mindmap')
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  })
+
   test('mutation retains init directives authored after the header', () => {
     const source = 'flowchart LR\n  A\n  %%{init: {"theme": "dark"}}%%\n  B'
     const parsed = parseMermaid(source)
@@ -194,6 +213,23 @@ describe('comment policy (2C): announced, never silent', () => {
     const w = v.warnings.find(x => x.code === 'COMMENT_DROPPED')
     expect(w).toMatchObject({ code: 'COMMENT_DROPPED', count: 2 })
     expect((w as { lines: number[] }).lines.length).toBe(2)
+  })
+
+  test('mutation retains the dropped-comment loss receipt from the original artifact', () => {
+    const parsed = parseMermaid('flowchart LR\n  %% keep context\n  A --> B')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const flow = asFlowchart(parsed.value)
+    expect(flow).not.toBeNull()
+    const next = mutate(flow!, { kind: 'add_node', id: 'C', label: 'Cache' })
+    expect(next.ok).toBe(true)
+    if (!next.ok) return
+    expect(next.value.meta.droppedComments).toEqual([{ text: 'keep context', line: 2 }])
+    expect(verifyMermaid(next.value).warnings).toContainEqual({
+      code: 'COMMENT_DROPPED',
+      count: 1,
+      lines: [2],
+    })
   })
 
   test('wrapper comments do not raise COMMENT_DROPPED (they are preserved verbatim)', () => {

@@ -5,6 +5,7 @@ import {
   getFrontmatterScalar,
   normalizeMermaidSource,
   preprocessMermaidSource,
+  stripMermaidInitDirectives,
 } from '../mermaid-source.ts'
 
 describe('preprocessMermaidSource', () => {
@@ -57,6 +58,19 @@ bar [1]`)
     expect(getFrontmatterScalar<number>(processed.frontmatter, ['xyChart', 'width'])).toBe(640)
     expect(getFrontmatterScalar<string>(processed.frontmatter, ['fontFamily'])).toBe('Fira Code')
     expect(getFrontmatterScalar<string>(processed.frontmatter, ['themeVariables', 'primaryTextColor'])).toBe('#111111')
+  })
+
+  it('strips only directive lines and preserves adjacent LF/CRLF indentation and blank bytes', () => {
+    expect(stripMermaidInitDirectives(`family
+
+  %%{init:{"theme":"dark"}}%%
+    child
+`)).toBe(`family
+
+    child
+`)
+    expect(stripMermaidInitDirectives('family\r\n\r\n  %%{initialize:{"theme":"dark"}}%%\r\n\t  child\r\n'))
+      .toBe('family\r\n\r\n\t  child\r\n')
   })
 })
 
