@@ -385,3 +385,56 @@ describe('transport: CORS admits the modern headers', () => {
     }
   })
 })
+
+// Two requirements the migration plan's §4 missed entirely, found by re-verifying
+// it against the spec text rather than the RC announcement. Both are MUSTs, and
+// both must stay off the legacy path: an older client is entitled to the response
+// shape its revision defines.
+describe('modern results carry the fields this revision requires', () => {
+  test('a modern result declares resultType: complete', async () => {
+    const response = await handleHostedRequest(modern('tools/list'), context())
+    expect((response?.result as { resultType?: string }).resultType).toBe('complete')
+  })
+
+  // "For backward compatibility with servers implementing earlier protocol
+  // versions, which do not include resultType, clients MUST treat an absent
+  // resultType as complete." Adding it to legacy results would be a silent
+  // wire change for every existing client.
+  test('a legacy result does NOT declare resultType', async () => {
+    const response = await handleHostedRequest(legacy('tools/list'), context())
+    expect(response?.result).toBeDefined()
+    expect((response?.result as { resultType?: string }).resultType).toBeUndefined()
+  })
+
+  test.each(['tools/list', 'server/discover'])('%s carries public caching hints in the modern era', async method => {
+    const response = await handleHostedRequest(modern(method), context())
+    const result = response?.result as { ttlMs?: number; cacheScope?: string }
+    // "Servers MUST provide a ttlMs value that is >= 0."
+    expect(result.ttlMs).toBeGreaterThanOrEqual(0)
+    expect(Number.isInteger(result.ttlMs)).toBe(true)
+    // The tool surface is fixed at build time and identical for every caller.
+    expect(result.cacheScope).toBe('public')
+  })
+
+  test.each(['tools/list', 'server/discover'])('%s carries no caching hints in the legacy era', async method => {
+    const result = (await handleHostedRequest(legacy(method), context()))?.result as Record<string, unknown>
+    expect(result.ttlMs).toBeUndefined()
+    expect(result.cacheScope).toBeUndefined()
+  })
+
+  // The spec lists exactly which operations get hints; tools/call is not one of
+  // them, and a cached tool CALL would be a correctness bug, not an optimisation.
+  test('a modern tools/call result is complete but not cacheable', async () => {
+    const response = await handleHostedRequest(modern('tools/call', { name: 'verify', arguments: { text: FLOW } }), context())
+    const result = response?.result as Record<string, unknown>
+    expect(result.resultType).toBe('complete')
+    expect(result.ttlMs).toBeUndefined()
+    expect(result.cacheScope).toBeUndefined()
+  })
+
+  test('an error response is not decorated', async () => {
+    const response = await handleHostedRequest(modern('no/such/method'), context())
+    expect(response?.error?.code).toBe(-32601)
+    expect(response?.result).toBeUndefined()
+  })
+})

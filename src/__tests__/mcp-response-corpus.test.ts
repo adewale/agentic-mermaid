@@ -167,6 +167,52 @@ const INITIALIZE: JsonRpcRequest = {
   params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'corpus', version: '0' } },
 }
 
+// The modern era was entirely uncorpused: every request above is legacy, so a
+// change to a modern response — resultType, caching hints, the era's own error
+// envelopes — moved no golden at all, which is the one thing this file exists to
+// prevent. The `_meta` keys are written as literals on purpose: if the constants
+// they mirror ever drift, these requests stop selecting the modern era, and the
+// non-vacuity test below is what notices.
+const MODERN_META = {
+  'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+  'io.modelcontextprotocol/clientInfo': { name: 'corpus', version: '0' },
+  'io.modelcontextprotocol/clientCapabilities': {},
+}
+const modernRequest = (id: number, method: string, params: Record<string, unknown> = {}): JsonRpcRequest =>
+  ({ jsonrpc: '2.0', id, method, params: { ...params, _meta: MODERN_META } })
+
+const MODERN_CALLS: Array<{ label: string; request: JsonRpcRequest }> = [
+  { label: 'modern/server-discover', request: modernRequest(20, 'server/discover') },
+  { label: 'modern/tools-list', request: modernRequest(21, 'tools/list') },
+  { label: 'modern/describe', request: modernRequest(22, 'tools/call', { name: 'describe', arguments: { source: FLOW } }) },
+  { label: 'modern/error-initialize-is-unknown', request: modernRequest(23, 'initialize') },
+  { label: 'modern/error-missing-capabilities', request: { jsonrpc: '2.0', id: 24, method: 'tools/list', params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } } } },
+  // clientInfo is optional; this must be a SUCCESS, and the corpus is where a
+  // regression back to rejecting it would show up as a diff.
+  { label: 'modern/no-client-info', request: { jsonrpc: '2.0', id: 25, method: 'tools/list', params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28', 'io.modelcontextprotocol/clientCapabilities': {} } } } },
+]
+
+/**
+ * The modern ENVELOPE is what this pins — resultType and the caching hints. The
+ * tool array is already recorded field-by-field by `toolEntry`, so it collapses
+ * to names here; recording it whole would commit the ~58KB shared RenderOptions
+ * schema again, the duplication the header explains for input schemas.
+ */
+function recordModernPayload(response: JsonRpcResponse | null): unknown {
+  if (response === null) return { notification: true }
+  if (response.error) return normalize({ error: response.error })
+  const result = { ...(response.result as Record<string, unknown>) }
+  const envelope = {
+    resultType: result.resultType ?? null,
+    ttlMs: result.ttlMs ?? null,
+    cacheScope: result.cacheScope ?? null,
+  }
+  if (Array.isArray(result.content)) return { ...envelope, ...(recordPayload(response) as object) }
+  for (const key of ['resultType', 'ttlMs', 'cacheScope']) delete result[key]
+  if (Array.isArray(result.tools)) result.tools = (result.tools as Array<{ name: string }>).map(tool => tool.name)
+  return normalize({ ...envelope, result })
+}
+
 async function buildCorpus() {
   const local: Record<string, unknown> = {
     initialize: normalize((await handleRequest(INITIALIZE))?.result),
@@ -175,6 +221,12 @@ async function buildCorpus() {
   }
   for (const { label, request } of SHARED_CALLS) {
     (local.calls as Record<string, unknown>)[label] = recordPayload(await handleRequest(request))
+  }
+  // Era selection is request-driven, so the local server serves the modern era
+  // too even though it advertises only 2024-11-05. Recording it makes that
+  // asymmetry visible rather than leaving it to be discovered.
+  for (const { label, request } of MODERN_CALLS) {
+    (local.calls as Record<string, unknown>)[label] = recordModernPayload(await handleRequest(request))
   }
 
   const context = hostedContext()
@@ -186,6 +238,9 @@ async function buildCorpus() {
   }
   for (const { label, request } of [...SHARED_CALLS, ...HOSTED_ONLY_CALLS]) {
     (hosted.calls as Record<string, unknown>)[label] = recordPayload(await handleHostedRequest(request, context))
+  }
+  for (const { label, request } of MODERN_CALLS) {
+    (hosted.calls as Record<string, unknown>)[label] = recordModernPayload(await handleHostedRequest(request, context))
   }
 
   return { local, hosted }
@@ -218,6 +273,26 @@ describe('MCP response corpus', () => {
         .toEqual({ surface, labels: Object.keys(expected.calls).sort() })
     }
     expect(corpus.hosted.supportedProtocolVersions).toEqual(baseline.hosted.supportedProtocolVersions)
+  })
+
+  // §7.2's trap, applied to the corpus: a modern entry that quietly took the
+  // LEGACY path would record a plausible payload and pin nothing about the era
+  // it claims to cover. Every successful modern entry must show the one field
+  // only the modern path adds.
+  test('the modern corpus entries actually took the modern path', async () => {
+    const corpus = await buildCorpus()
+    for (const surface of ['local', 'hosted'] as const) {
+      const calls = (corpus[surface] as Record<string, any>).calls
+      const modern = Object.entries(calls).filter(([label]) => label.startsWith('modern/'))
+      expect(modern.length).toBe(MODERN_CALLS.length)
+      for (const [label, payload] of modern as Array<[string, Record<string, unknown>]>) {
+        if (label.includes('error')) {
+          expect({ surface, label, error: Boolean(payload.error) }).toEqual({ surface, label, error: true })
+        } else {
+          expect({ surface, label, resultType: payload.resultType }).toEqual({ surface, label, resultType: 'complete' })
+        }
+      }
+    }
   })
 
   test('the recorded version placeholder still tracks package.json', () => {

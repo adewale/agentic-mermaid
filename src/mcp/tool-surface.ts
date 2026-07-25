@@ -4,6 +4,7 @@ import {
   eraForRequest,
   modernRequestMetaProblems,
   usesToolErrorForInvalidArguments,
+  type ProtocolEra,
 } from './protocol-versions.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import {
@@ -448,7 +449,49 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     case 'resources/list': response = reply(id, { resources: [] }); break
     default: response = unknownMethod(id, req.method)
   }
-  return notification ? null : response
+  return notification ? null : decorateModernResult(response, req.method, era)
+}
+
+/**
+ * How long a client may treat a list result as fresh. The tool surface is fixed
+ * at build time and changes only when a deploy changes it, so the only staleness
+ * this can cause is a client holding a previous deploy's list for up to this
+ * long. Five minutes bounds that while removing essentially all repeat listing
+ * traffic, and is the value the spec's own example uses.
+ */
+export const LIST_RESULT_TTL_MS = 300_000
+
+/** The operations the spec requires caching hints on, intersected with ours. */
+const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list'])
+
+/**
+ * Result fields this revision requires, applied on the MODERN path only.
+ *
+ * `resultType` is a MUST — "The `result` MUST include a `resultType` field to
+ * indicate the type of the result" — and legacy results must NOT grow it: "For
+ * backward compatibility with servers implementing earlier protocol versions,
+ * which do not include `resultType`, clients MUST treat an absent `resultType`
+ * as `complete`". Every result we return is terminal, since no tool of ours asks
+ * the client for more input, so `complete` is the only value we can produce.
+ *
+ * Caching hints are a MUST too, not the optional nicety the migration plan
+ * recorded them as: "Servers MUST include caching hints on results with
+ * `resultType: 'complete'` returned by the following operations: server/discover,
+ * tools/list, …". Ours are identical for every caller and carry no user data, so
+ * `public` is the honest scope — and the spec is explicit that a public result
+ * may be shared across authorization contexts, which is true of a static tool
+ * list by construction.
+ *
+ * Errors are left alone: caching hints and `resultType` live on results.
+ */
+function decorateModernResult(response: JsonRpcResponse | null, method: string, era: ProtocolEra): JsonRpcResponse | null {
+  if (era !== 'modern' || !response || !plainJsonObject(response.result)) return response
+  const result: Record<string, unknown> = { resultType: 'complete', ...response.result }
+  if (CACHEABLE_METHODS.has(method)) {
+    result.ttlMs = LIST_RESULT_TTL_MS
+    result.cacheScope = 'public'
+  }
+  return { ...response, result }
 }
 
 /** -32601, which the HTTP transport maps to 404 for modern requests. */
