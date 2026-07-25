@@ -23,9 +23,12 @@
       "import": "./dist/agent-core.js",
       "default": "./dist/agent-core.js"
     },
+    "./browser": "./dist/browser.global.js",
     "./style-spec.schema.json": "./docs/schemas/style-spec.schema.json",
     "./package.json": "./package.json"
   },
+  "unpkg": "./dist/browser.global.js",
+  "jsdelivr": "./dist/browser.global.js",
   "bin": {
     "am": "dist/am.js",
     "agentic-mermaid": "dist/am.js",

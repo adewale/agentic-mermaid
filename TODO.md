@@ -97,14 +97,14 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   (b) `esbuild --global-name=X` plus `window.X = ns` inside the wrapper emits a
   2.8 MB bundle that builds clean and leaves the global `undefined` — the IIFE's
   return value overwrites the manual assignment, and nothing warns; (c) ported
-  upstream snippets throw because `THEMES` is gone (BUILD-31). Only (a) and (c)
+  upstream snippets throw because `THEMES` is gone (BUILD-32). Only (a) and (c)
   are ours; (b) is a consumer footgun that a published bundle would make
   unreachable. Decide between shipping a browser artifact and documenting one
   blessed recipe, then cover it with a browser contract test in `e2e/` so the
   path cannot rot. Note the build-time alternative in the same doc: the renderer
   is synchronous and browserless, so static sites should prefer pre-rendering
   over shipping the bundle. Closing this is a candidate answer to `DEC-1`.
-- [ ] **BUILD-31 — Record the `THEMES` removal in fork differences** (`todo`).
+- [ ] **BUILD-32 — Record the `THEMES` removal in fork differences** (`todo`).
   Upstream `beautiful-mermaid` exports `THEMES`
   (`node_modules/beautiful-mermaid/dist/index.d.ts:312`); this fork does not,
   having replaced it with the Style/Palette system. The removal is noted in
