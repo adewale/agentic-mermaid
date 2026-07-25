@@ -91,6 +91,7 @@ describe('agent-readiness standards syntax', () => {
       { file: 'security-csp.e2e.test.ts' },
       { file: 'browser.test.ts' },
       { file: 'browser-bundle.e2e.test.ts' },
+      { file: 'mcp-browser-cors.e2e.test.ts' },
       { file: '../src/__tests__/editor-theme-switch.test.ts', browserOptIn: true },
       { file: '../src/__tests__/editor-style-switch.test.ts', browserOptIn: true },
       { file: '../src/__tests__/website-browser-a11y.test.ts', browserOptIn: true },
