@@ -3,6 +3,8 @@ import { describe, expect, it } from 'bun:test'
 import {
   getFrontmatterMap,
   getFrontmatterScalar,
+  mermaidInitDirectiveIdentity,
+  mermaidInitDirectives,
   normalizeMermaidSource,
   preprocessMermaidSource,
   stripMermaidInitDirectives,
@@ -71,6 +73,16 @@ bar [1]`)
 `)
     expect(stripMermaidInitDirectives('family\r\n\r\n  %%{initialize:{"theme":"dark"}}%%\r\n\t  child\r\n'))
       .toBe('family\r\n\r\n\t  child\r\n')
+  })
+
+  it('identifies equivalent init config independently of top-level and nested key order', () => {
+    const [authored] = mermaidInitDirectives(
+      '%%{init:{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}}%%',
+    )
+    const [reordered] = mermaidInitDirectives(
+      '%%{init:{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}}%%',
+    )
+    expect(mermaidInitDirectiveIdentity(authored!)).toBe(mermaidInitDirectiveIdentity(reordered!))
   })
 })
 

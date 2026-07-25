@@ -19,8 +19,9 @@ tarball and publishes it to the official MCP Registry. Before publishing, and
 after any ambiguous publish failure, that job queries the registry's exact
 name-and-version endpoint. It accepts an existing immutable version only when
 the publisher-owned `.server` object is structurally identical to the extracted
-`server.json`; registry-owned `_meta` does not participate in that comparison.
-Absence means publish, while a mismatch or malformed response fails closed
+`server.json` and the Registry's mutable official status is `active`; other
+registry-owned `_meta` fields do not participate in the server comparison.
+Absence means publish, while a mismatch, inactive record, or malformed response fails closed
 immediately — those are answers about the record, so retrying them only delays
 the same verdict. An unreachable or unexpectedly-responding Registry carries no
 verdict, so preflight retries it over the same bounded backoff before failing

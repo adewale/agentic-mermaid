@@ -436,8 +436,27 @@ export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[
  */
 export function mermaidInitDirectiveIdentity(directive: MermaidSourceInitDirective): string {
   return Object.keys(directive.parsed).length > 0
-    ? `config:${JSON.stringify(directive.parsed)}`
+    ? `config:${stableConfigIdentity(directive.parsed)}`
     : `raw:${directive.raw.trim().replace(/\s+/g, ' ')}`
+}
+
+/**
+ * Deterministic JSON identity for config semantics. Object member order is not
+ * meaningful in Mermaid config, so serializers that sort or otherwise reorder
+ * keys must still be recognized as owning the same directive. Arrays retain
+ * their authored order because that order is semantic.
+ */
+function stableConfigIdentity(value: MermaidConfigValue): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableConfigIdentity).join(',')}]`
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value)
+      .filter((entry): entry is [string, MermaidConfigValue] => entry[1] !== undefined)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableConfigIdentity(entry)}`).join(',')}}`
+  }
+  return JSON.stringify(value)
 }
 
 export function normalizeMermaidSource(

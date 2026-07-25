@@ -15,7 +15,6 @@ import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
-import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import {
   mergeFrontmatterMaps,
   mermaidInitDirectiveIdentity,
@@ -112,20 +111,25 @@ function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): 
 /**
  * Canonical wrapper synthesis (Mermaid's documented frontmatter shape):
  * `title`/`displayMode` stay top-level, all other keys nest under `config:`.
- * Init directives whose parsed payload is already represented in the
- * frontmatter map are folded (not re-emitted). A directive whose every key a
- * *later* directive also sets is folded too: the source already discarded its
- * values, so re-emitting it would reinstate them, because Mermaid lets init
- * directives override frontmatter. Anything else — an unparseable payload, or
- * config no later directive shadows and the frontmatter does not represent —
- * is preserved raw, so canonicalization still never silently loses config.
+ * Every parseable init directive is folded into the effective frontmatter in
+ * authored order. Re-emitting an earlier raw directive is never safe: even if
+ * one of its fields remains live, another may have been overridden later, and
+ * Mermaid would apply that stale raw value after the synthesized frontmatter.
+ * Unparseable directives are preserved raw so canonicalization does not
+ * silently lose syntax it cannot project.
  */
 export function renderMeta(meta: ValidDiagramMeta): string {
   const parts: string[] = []
-  if (meta.frontmatter && Object.keys(meta.frontmatter).length > 0) {
+  let effectiveFrontmatter = mergeFrontmatterMaps({}, meta.frontmatter ?? {})
+  for (const directive of meta.initDirectives) {
+    if (Object.keys(directive.parsed).length > 0) {
+      effectiveFrontmatter = mergeFrontmatterMaps(effectiveFrontmatter, directive.parsed)
+    }
+  }
+  if (Object.keys(effectiveFrontmatter).length > 0) {
     const top: Record<string, unknown> = {}
     const config: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(meta.frontmatter)) {
+    for (const [key, value] of Object.entries(effectiveFrontmatter)) {
       if (key === 'title' || key === 'displayMode') top[key] = value
       else config[key] = value
     }
@@ -133,62 +137,11 @@ export function renderMeta(meta: ValidDiagramMeta): string {
     if (Object.keys(config).length > 0) doc.config = config
     parts.push(`---\n${YAML.stringify(doc).trimEnd()}\n---\n`)
   }
-  for (const [index, d] of meta.initDirectives.entries()) {
-    if (frontmatterRepresents(meta.frontmatter, d.parsed)) continue
-    if (shadowedByLaterDirective(meta.initDirectives, index)) continue
+  for (const d of meta.initDirectives) {
+    if (Object.keys(d.parsed).length > 0) continue
     parts.push(d.raw.trimEnd() + '\n')
   }
   return parts.join('')
-}
-
-/**
- * True when every key the directive at `index` sets is also set by some later
- * directive. Scoped to the directive list rather than the merged frontmatter
- * on purpose: for parsed source the two agree, but a synthesized payload may
- * carry a frontmatter map that was never derived from its directives, and
- * folding against that map could drop config the caller still wants.
- */
-function shadowedByLaterDirective(
-  directives: ValidDiagramMeta['initDirectives'],
-  index: number,
-): boolean {
-  const parsed = directives[index]!.parsed
-  if (Object.keys(parsed).length === 0) return false  // unparseable payload — never foldable
-  let later: MermaidFrontmatterMap = {}
-  for (let next = index + 1; next < directives.length; next++) {
-    later = mergeFrontmatterMaps(later, directives[next]!.parsed)
-  }
-  return coversKeys(later, parsed)
-}
-
-/** True when every leaf key path of `sub` exists in `map`, whatever its value. */
-function coversKeys(map: Record<string, unknown>, sub: Record<string, unknown>): boolean {
-  for (const key of Object.keys(sub)) {
-    if (!(key in map)) return false
-    const a = map[key], b = sub[key]
-    if (b && typeof b === 'object' && !Array.isArray(b)) {
-      if (!a || typeof a !== 'object' || Array.isArray(a)) return false
-      if (!coversKeys(a as Record<string, unknown>, b as Record<string, unknown>)) return false
-    }
-  }
-  return true
-}
-
-/** True when every leaf of `sub` is present with an equal value in `map`. */
-function frontmatterRepresents(map: Record<string, unknown> | undefined, sub: Record<string, unknown>): boolean {
-  const keys = Object.keys(sub)
-  if (keys.length === 0) return false  // unparseable payload — never foldable
-  if (!map) return false
-  for (const key of keys) {
-    const a = map[key], b = sub[key]
-    if (b && typeof b === 'object' && !Array.isArray(b)) {
-      if (!a || typeof a !== 'object' || Array.isArray(a)) return false
-      if (!frontmatterRepresents(a as Record<string, unknown>, b as Record<string, unknown>)) return false
-      continue
-    }
-    if (JSON.stringify(a) !== JSON.stringify(b)) return false
-  }
-  return true
 }
 
 function renderBody(

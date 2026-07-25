@@ -294,7 +294,7 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
 
-          # Return: 0=exact match, 1=absent, 2=mismatch,
+          # Return: 0=active exact match, 1=absent, 2=mismatch/inactive,
           # 3=unavailable/unexpected HTTP, 4=malformed response.
           registry_state() {
             if http_status="$(curl \
@@ -325,9 +325,16 @@ jobs:
                     and .server.name == $name
                     and .server.version == $version
                     and (._meta | type == "object")
+                    and (._meta["io.modelcontextprotocol.registry/official"] | type == "object")
+                    and (._meta["io.modelcontextprotocol.registry/official"].status | type == "string" and length > 0)
                   ' "$response_file" >/dev/null; then
                   echo "MCP Registry returned malformed metadata for $server_name@$server_version" >&2
                   return 4
+                fi
+                registry_record_status="$(jq -r '._meta["io.modelcontextprotocol.registry/official"].status' "$response_file")"
+                if [ "$registry_record_status" != active ]; then
+                  echo "MCP Registry record for $server_name@$server_version is $registry_record_status, not active" >&2
+                  return 2
                 fi
                 if jq -e --slurpfile expected server.json \
                   '.server == $expected[0]' "$response_file" >/dev/null; then
@@ -362,7 +369,7 @@ jobs:
           set -e
           # Retry preflight only for the state that carries no verdict about
           # the record: an unreachable or unexpectedly-responding Registry. A
-          # conflict or a malformed body is an answer and fails closed at once.
+          # conflict, inactive record, or malformed body is an answer and fails closed at once.
           # Exhausting the window without a readable answer fails closed too —
           # publishing blind is exactly what this preflight exists to prevent.
           for retry_delay in $MCP_REGISTRY_RETRY_DELAYS; do

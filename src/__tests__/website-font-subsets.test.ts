@@ -87,7 +87,7 @@ describe('canonical website Inter subsets', () => {
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },
-      'editor-empty': { requests: 2, rawBytes: 3_289_609, gzipBytes: 965_914, brotliBytes: 760_078 },
+      'editor-empty': { requests: 2, rawBytes: 3_289_227, gzipBytes: 965_824, brotliBytes: 759_978 },
     }
     for (const id of ['home', 'examples'] as const) {
       const route = payload.routes.find(candidate => candidate.id === id)!

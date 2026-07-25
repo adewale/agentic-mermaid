@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { parse as parseYaml } from 'yaml'
 
 const REPO = join(import.meta.dir, '..', '..')
+const SERVER = JSON.parse(readFileSync(join(REPO, 'server.json'), 'utf8')) as { name: string; version: string }
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
 const publishStep = workflow.jobs['publish-mcp'].steps.find(
   (step: { name?: string }) => step.name === 'Publish or recover the exact MCP Registry metadata',
@@ -17,7 +18,10 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-type RegistryState = 'match' | 'absent' | 'mismatch' | 'malformed' | 'malformed404' | 'unavailable' | 'network'
+type RegistryState =
+  | 'match' | 'absent' | 'mismatch'
+  | 'deleted' | 'deprecated' | 'missingStatus'
+  | 'malformed' | 'malformed404' | 'unavailable' | 'network'
 
 function executeRecovery(
   states: RegistryState[],
@@ -29,7 +33,7 @@ function executeRecovery(
   const bin = join(dir, 'bin')
   mkdirSync(bin, { recursive: true })
 
-  const server = JSON.parse(readFileSync(join(REPO, 'server.json'), 'utf8'))
+  const server = SERVER
   writeFileSync(join(dir, 'server.json'), `${JSON.stringify(server)}\n`)
   writeFileSync(join(dir, 'states'), `${states.join('\n')}\n`)
   writeFileSync(join(dir, 'response-match.json'), JSON.stringify({
@@ -44,6 +48,16 @@ function executeRecovery(
   writeFileSync(join(dir, 'response-mismatch.json'), JSON.stringify({
     server: { ...server, description: 'different immutable metadata' },
     _meta: { 'io.modelcontextprotocol.registry/official': { status: 'active' } },
+  }))
+  for (const status of ['deleted', 'deprecated'] as const) {
+    writeFileSync(join(dir, `response-${status}.json`), JSON.stringify({
+      server,
+      _meta: { 'io.modelcontextprotocol.registry/official': { status } },
+    }))
+  }
+  writeFileSync(join(dir, 'response-missingStatus.json'), JSON.stringify({
+    server,
+    _meta: { 'io.modelcontextprotocol.registry/official': {} },
   }))
   writeFileSync(join(dir, 'response-malformed.json'), '{}')
   writeFileSync(join(dir, 'response-malformed404.json'), '{}')
@@ -134,7 +148,8 @@ describe('MCP Registry immutable publication recovery', () => {
     expect(run).toContain('/servers/$encoded_server_name/versions/$encoded_server_version')
     expect(run).toContain('$value | @uri')
     expect(run).toContain('.server == $expected[0]')
-    expect(run).toContain('and (._meta | type == "object")')
+    expect(run).toContain('._meta["io.modelcontextprotocol.registry/official"].status')
+    expect(run).toContain('registry_record_status" != active')
     expect(run).toContain('--connect-timeout 5')
     expect(run).toContain('--max-time 10')
     expect(run).not.toContain('${{')
@@ -147,11 +162,11 @@ describe('MCP Registry immutable publication recovery', () => {
     // different resource.
     const result = executeRecovery(['absent'], { publishStatus: 42 })
     expect(result.requestedUrls.length).toBe(3)
+    const expectedUrl = 'https://registry.modelcontextprotocol.io/v0.1'
+      + `/servers/${encodeURIComponent(SERVER.name)}/versions/${encodeURIComponent(SERVER.version)}`
     for (const url of result.requestedUrls) {
-      expect(url).toBe(
-        'https://registry.modelcontextprotocol.io/v0.1'
-        + '/servers/io.github.adewale%2Fagentic-mermaid/versions/0.3.0',
-      )
+      expect(url).toBe(expectedUrl)
+      expect(url).toContain('/servers/io.github.adewale%2Fagentic-mermaid/versions/')
     }
   })
 
@@ -212,6 +227,9 @@ describe('MCP Registry immutable publication recovery', () => {
 
   test.each([
     ['different immutable metadata', ['mismatch'] as RegistryState[]],
+    ['an exact record moderated as deleted', ['deleted'] as RegistryState[]],
+    ['an exact record marked deprecated', ['deprecated'] as RegistryState[]],
+    ['an exact record without an official status', ['missingStatus'] as RegistryState[]],
     ['a malformed success response', ['malformed'] as RegistryState[]],
     ['a malformed not-found response', ['malformed404'] as RegistryState[]],
   ])('fails closed before authentication, without retrying, for %s', (_name, states) => {
@@ -233,8 +251,12 @@ describe('MCP Registry immutable publication recovery', () => {
     expect(result.curlCalls).toBe(3)
   })
 
-  test('a conflicting version appearing after publish remains a hard failure', () => {
-    const result = executeRecovery(['absent', 'mismatch'], { publishStatus: 42 })
+  test.each([
+    ['different metadata', 'mismatch' as RegistryState],
+    ['deleted status', 'deleted' as RegistryState],
+    ['deprecated status', 'deprecated' as RegistryState],
+  ])('an unacceptable record appearing after publish remains a hard failure: %s', (_name, state) => {
+    const result = executeRecovery(['absent', state], { publishStatus: 42 })
     expect(result.status).not.toBe(0)
     expect(result.publisherCalls).toEqual(['login github-oidc', 'publish'])
     expect(result.curlCalls).toBe(2)

@@ -330,13 +330,23 @@ describe('registered family public layout and verify APIs', () => {
   test.each([
     {
       name: 'reindents',
+      source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload',
       serialize: (source: string) => source.split('\n').map(line => line.trim()).join('\n'),
     },
     {
       name: 'respaces the directive payload',
+      source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload',
       serialize: (source: string) => source.replace(/%%\{init:\s*/, '%%{init:   '),
     },
-  ])('a source-preserving serializer that $name still owns its post-header init config', ({ serialize }) => {
+    {
+      name: 'reorders top-level and nested config keys',
+      source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}}%%\n  payload',
+      serialize: (source: string) => source.replace(
+        '{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}',
+        '{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}',
+      ),
+    },
+  ])('a source-preserving serializer that $name still owns its post-header init config', ({ serialize, source }) => {
     // Ownership is a question about the directive, not about its bytes. A
     // serializer may legitimately normalise whitespace while still preserving
     // the source; matching on authored bytes would emit the directive twice.
@@ -357,7 +367,7 @@ describe('registered family public layout and verify APIs', () => {
     }
     const unregister = registerFamily(descriptor)
     try {
-      const parsed = parseRegisteredMermaid('normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload')
+      const parsed = parseRegisteredMermaid(source)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) return
       const serialized = serializeMermaid(parsed.value)
@@ -365,7 +375,7 @@ describe('registered family public layout and verify APIs', () => {
       const reparsed = parseRegisteredMermaid(serialized)
       expect(reparsed.ok).toBe(true)
       if (!reparsed.ok) return
-      expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+      expect(reparsed.value.meta.frontmatter).toEqual(parsed.value.meta.frontmatter)
       expect(serializeMermaid(reparsed.value)).toBe(serialized)
     } finally {
       unregister()

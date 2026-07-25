@@ -189,22 +189,44 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
   })
 
-  test('canonical mode does not reinstate config a later init directive overrode', () => {
-    // Mermaid lets an init directive override frontmatter, so re-emitting the
-    // superseded directive alongside the folded frontmatter would flip the
-    // effective value back and make canonical output non-idempotent.
-    const parsed = parseMermaid(
-      '%%{init: {"theme":"forest"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
-    )
+  test.each([
+    {
+      name: 'a fully shadowed scalar',
+      source: '%%{init: {"theme":"forest"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
+    },
+    {
+      name: 'a partially shadowed top-level map',
+      source: '%%{init: {"theme":"forest","logLevel":"debug"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
+    },
+    {
+      name: 'a partially shadowed nested map',
+      source: '%%{init: {"flowchart":{"curve":"linear","htmlLabels":true}}}%%\n%%{init: {"flowchart":{"curve":"basis"}}}%%\nflowchart TD\n  A --> B',
+    },
+    {
+      name: 'an object replaced by null',
+      source: '%%{init: {"flowchart":{"curve":"basis"}}}%%\n%%{init: {"flowchart":null}}%%\nflowchart TD\n  A --> B',
+    },
+    {
+      name: 'an object replaced by a scalar',
+      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":"reset"}}%%\nflowchart TD\n  A --> B',
+    },
+    {
+      name: 'an object replaced by an array',
+      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":[]}}%%\nflowchart TD\n  A --> B',
+    },
+  ])('canonical mode preserves effective config for $name', ({ source }) => {
+    // Parsed frontmatter already represents the final directive merge. Folding
+    // parseable directives again in authored order must retain that exact
+    // semantic result without re-emitting any stale raw values.
+    const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
-    expect(canonical).toContain('theme: dark')
-    expect(canonical).not.toContain('forest')
+    expect(canonical).not.toContain('%%{init')
     const reparsed = parseMermaid(canonical)
     expect(reparsed.ok).toBe(true)
     if (!reparsed.ok) return
-    expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+    expect(reparsed.value.meta.frontmatter).toEqual(parsed.value.meta.frontmatter)
     expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
   })
 
