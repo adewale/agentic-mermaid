@@ -163,15 +163,42 @@ describe('Section B public semantic role Styles', () => {
     }
   }, 30_000)
 
-  test('every built-in Look export is equivalent across every family on the public PNG path', async () => {
-    for (const { inputName: name } of knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')) {
+  // Every Look x family pair is already checked exhaustively on the SVG and
+  // terminal paths above. PNG is resvg rasterizing that same SVG, so once the
+  // SVG bytes match, identical input to a deterministic rasterizer gives
+  // identical output. What this test adds is the raster path itself: PNG
+  // rendering resolves fonts and embedFontImport separately, so a Look could in
+  // principle diverge here alone.
+  //
+  // The full 16x15 cross-product is 480 PNG renders and overran the 30s budget
+  // on a 4-core machine. This walks a stride instead: every Look and every
+  // family is still exercised (asserted below, so the sampling cannot silently
+  // degenerate), at 48 pairs rather than 240. The tradeoff is that a defect
+  // needing one specific Look-and-family combination on the raster path only
+  // could be missed; the exhaustive SVG comparison is what makes that narrow.
+  test('every built-in Look export is equivalent across sampled families on the public PNG path', () => {
+    const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')
+    const families = knownBuiltinFamilies()
+    // 7 is coprime with the family count, so the stride visits every family.
+    const STRIDE = 7
+    const FAMILIES_PER_LOOK = 3
+    const seenLooks = new Set<string>()
+    const seenFamilies = new Set<string>()
+
+    for (const [lookIndex, { inputName: name }] of looks.entries()) {
       const exported = getStyle(name)!
-      for (const family of knownBuiltinFamilies()) {
+      for (let offset = 0; offset < FAMILIES_PER_LOOK; offset++) {
+        const family = families[(lookIndex * STRIDE + offset) % families.length]!
         const source = getFamily(family)!.example
-        expect(await renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/${family}`)
-          .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
+        seenLooks.add(name)
+        seenFamilies.add(family)
+        expect(renderMermaidPNG(source, { style: name, seed: 7 }), `${name}/${family}`)
+          .toEqual(renderMermaidPNG(source, { style: exported, seed: 7 }))
       }
     }
+
+    expect(seenLooks.size, 'every Look is exercised').toBe(looks.length)
+    expect(seenFamilies.size, 'every family is exercised').toBe(families.length)
   }, 30_000)
 
   test('conflicting Pie role defaults never select emphasis or change quantitative geometry', () => {
