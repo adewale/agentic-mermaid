@@ -200,7 +200,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: ${{ matrix.suite == 'browser' }}
-        run: bunx playwright install chromium --with-deps
+        run: bunx playwright install chromium firefox webkit --with-deps
 
       - name: Run CLI E2E tests
         if: ${{ matrix.suite == 'cli' }}

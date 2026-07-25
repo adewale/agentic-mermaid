@@ -31,6 +31,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
     forbidden: Object.freeze(['/examples/fragments/', '^/fonts/Inter-.*\\.ttf$']),
   }),
+  demo: Object.freeze({
+    maxRequests: 8,
+    maxRawBytes: 3_172_915,
+    maxGzipBytes: 1_002_825,
+    maxBrotliBytes: 808_169,
+    required: Object.freeze([
+      '^/demo/$', '^/demo/browser-[a-f0-9]{12}\\.js$', '^/generated/inline-[a-f0-9]{12}\\.js$',
+    ]),
+    forbidden: Object.freeze(['/examples/fragments/', '/editor/editor-']),
+  }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
     maxRawBytes: 3_288_608,

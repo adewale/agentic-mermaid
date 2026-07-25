@@ -61,17 +61,43 @@ When the source is not known until the page runs, load the prebuilt IIFE. The
 ESM entry would need a bundler or an import map; this file needs neither:
 
 ```html
-<script src="https://unpkg.com/agentic-mermaid@0.3.0/dist/browser.global.js"></script>
+<script
+  src="https://unpkg.com/agentic-mermaid@0.3.0/dist/browser.global.js"
+  integrity="sha384-YcMQSsCGfs4ZfuWkYNET2L2z0f+YNPJftR5krUhTWrHDQ9cUcsRRp5ux5zbBYKd9"
+  crossorigin="anonymous"></script>
 <script>
   const svg = agenticMermaid.renderMermaidSVG('timeline\n  title Roadmap\n  2026 : Ship', {
     style: 'zinc-dark',
+    security: 'strict',
   })
-  document.querySelector('#diagram').innerHTML = svg
+  const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  if (parsed.querySelector('parsererror') || parsed.documentElement.localName !== 'svg') {
+    throw new Error('renderer returned invalid SVG')
+  }
+  document.querySelector('#diagram').replaceChildren(
+    document.importNode(parsed.documentElement, true),
+  )
 </script>
 ```
 
 The global is **`agenticMermaid`** and carries the same render surface as the
 package entry — `renderMermaidSVG`, `renderMermaidASCII`, style helpers.
+
+Keep `security: 'strict'` for authored or user-provided source, and insert the
+accepted result as parsed XML nodes as shown above. Do not assign renderer output
+to `innerHTML`: strict rendering and DOM insertion are separate trust boundaries.
+The integrity value pins the reviewed bytes as well as the version. When the
+package version changes, recompute it with:
+
+```bash
+openssl dgst -sha384 -binary dist/browser.global.js | openssl base64 -A
+```
+
+For a strict Content Security Policy, either self-host the bundle under
+`script-src 'self'` or allow the pinned CDN origin (for example
+`script-src 'self' https://unpkg.com`). Put the initializer in an external
+same-origin file, or authorize it with a nonce or hash; do not add
+`'unsafe-inline'` just for this example.
 
 **The bundle ships from v0.3.0.** Earlier releases are ESM-only and have no
 `dist/browser.global.js`, so an unversioned CDN URL 404s against them. Pin the
@@ -87,6 +113,10 @@ the build target will not help: esbuild rewrites syntax and leaves method calls
 as they are. The bundle also calls `Array.prototype.at`, `Object.hasOwn`, and
 `String.prototype.replaceAll`, all of which ship earlier than `findLast`. To
 support older browsers, load polyfills for those four before the bundle.
+
+CI runs the contract against the current Playwright Chromium, Firefox, and
+WebKit engines. The historical version floors above are derived from runtime API
+availability; this project does not execute those legacy browser releases in CI.
 
 The bundle contains no WebAssembly and makes no network request at load, so it
 works offline and needs no cross-origin isolation.
@@ -145,7 +175,7 @@ Upstream's `THEMES` export does not exist here; it was replaced by the composabl
 Style/Palette system. The theme names survive as style names:
 
 ```js
-renderMermaidSVG(src, { theme: THEMES['zinc-dark'] })   // upstream
+renderMermaidSVG(src, THEMES['zinc-dark'])              // upstream
 renderMermaidSVG(src, { style: 'zinc-dark' })           // Agentic Mermaid
 ```
 

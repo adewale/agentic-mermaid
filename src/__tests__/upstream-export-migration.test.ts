@@ -20,18 +20,28 @@ const UPSTREAM_DTS = join(ROOT, 'node_modules', 'beautiful-mermaid', 'dist', 'in
 const FORK_DTS = join(ROOT, 'dist', 'index.d.ts')
 const FORK_DIFFERENCES = join(ROOT, 'docs', 'fork-differences.md')
 
-/** Names from upstream's terminal `export { ... }` clause, minus `type` markers and aliases. */
-function upstreamExports(): string[] {
-  const source = readFileSync(UPSTREAM_DTS, 'utf8')
-  const clause = source.match(/export \{([^}]*)\};?\s*$/m)?.[1]
-  if (!clause) throw new Error(`could not read upstream export clause from ${UPSTREAM_DTS}`)
-  return [...new Set(
-    clause
-      .split(',')
-      .map(entry => entry.trim().replace(/^type\s+/, ''))
-      .map(entry => entry.split(/\s+as\s+/).pop()!.trim())
-      .filter(entry => /^[A-Za-z_$][\w$]*$/.test(entry)),
-  )].sort()
+/** Public names from every `export { ... }` clause, resolving minified aliases. */
+function exportedNames(source: string): string[] {
+  const names = new Set<string>()
+  for (const clause of source.matchAll(/export\s*\{([^}]*)\}/g)) {
+    for (const raw of clause[1]!.split(',')) {
+      const name = raw
+        .trim()
+        .replace(/^type\s+/, '')
+        .split(/\s+as\s+/)
+        .pop()!
+        .trim()
+      if (/^[A-Za-z_$][\w$]*$/.test(name)) names.add(name)
+    }
+  }
+  return [...names].sort()
+}
+
+/** First-column export names from the dedicated upstream migration table only. */
+function documentedRemovals(markdown: string): string[] {
+  const section = markdown.match(/## Migrating from upstream: every export this fork does not have([\s\S]*?)(?=\n## |\s*$)/)?.[1]
+  if (!section) throw new Error(`could not read upstream migration section from ${FORK_DIFFERENCES}`)
+  return [...section.matchAll(/^\|\s*`([A-Za-z_$][\w$]*)`\s*\|/gm)].map(match => match[1]!).sort()
 }
 
 describe('upstream export migration', () => {
@@ -39,33 +49,28 @@ describe('upstream export migration', () => {
     if (!existsSync(UPSTREAM_DTS)) return // devDependency absent; nothing to compare against
     if (!existsSync(FORK_DTS)) throw new Error('dist/index.d.ts missing — run `bun run build` first')
 
-    const forkSurface = readFileSync(FORK_DTS, 'utf8')
-    const migrationDoc = readFileSync(FORK_DIFFERENCES, 'utf8')
-    const names = upstreamExports()
+    const names = exportedNames(readFileSync(UPSTREAM_DTS, 'utf8'))
+    const forkExports = new Set(exportedNames(readFileSync(FORK_DTS, 'utf8')))
+    const documented = new Set(documentedRemovals(readFileSync(FORK_DIFFERENCES, 'utf8')))
     expect(names.length, 'upstream export clause parsed').toBeGreaterThan(5)
+    expect(documented.size, 'migration table parsed').toBeGreaterThan(0)
 
-    const undocumented: string[] = []
-    for (const name of names) {
-      // The fork entry re-exports through minified aliases, so match the public
-      // name as a word rather than parsing the whole rename table.
-      const exportedHere = new RegExp(`\\b(?:as )?${name}\\b`).test(forkSurface)
-      const documented = new RegExp(`\`${name}\``).test(migrationDoc)
-      if (!exportedHere && !documented) undocumented.push(name)
-    }
+    const undocumented = names.filter(name => !forkExports.has(name) && !documented.has(name))
 
-    expect(
-      undocumented,
-      'upstream exports dropped without a migration line in docs/fork-differences.md',
-    ).toEqual([])
+    expect(undocumented, 'upstream exports dropped without a migration line in docs/fork-differences.md').toEqual([])
   })
 
   test('the documented removals are genuinely absent from the fork entry', () => {
     if (!existsSync(UPSTREAM_DTS) || !existsSync(FORK_DTS)) return
-    const forkSurface = readFileSync(FORK_DTS, 'utf8')
-    // Guards the other direction: if one of these is ever re-added, the doc row
-    // telling people to migrate away from it becomes a lie.
-    for (const removed of ['THEMES', 'ThemeName', 'renderMermaidSync', 'renderMermaidAscii']) {
-      expect(new RegExp(`\\bas ${removed}\\b`).test(forkSurface), `${removed} is still absent`).toBe(false)
+    const upstream = new Set(exportedNames(readFileSync(UPSTREAM_DTS, 'utf8')))
+    const fork = new Set(exportedNames(readFileSync(FORK_DTS, 'utf8')))
+    const documented = documentedRemovals(readFileSync(FORK_DIFFERENCES, 'utf8'))
+
+    // Guards the other direction without a second hard-coded authority: every
+    // migration row must still name a real upstream export that is absent here.
+    for (const removed of documented) {
+      expect(upstream.has(removed), `${removed} is an upstream export`).toBe(true)
+      expect(fork.has(removed), `${removed} is still absent`).toBe(false)
     }
   })
 })

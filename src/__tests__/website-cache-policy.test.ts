@@ -25,6 +25,7 @@ describe('website static asset cache authority', () => {
       ['/examples-abcdef123456.js', 'text/javascript'],
       ['/examples-abcdef123456.css', 'text/css'],
       ['/generated/inline-abcdef123456.js', 'text/javascript'],
+      ['/demo/browser-abcdef123456.js', 'text/javascript'],
       ['/fonts/Inter-Regular.subset-abcdef123456.woff2', 'font/woff2'],
       ['/fonts/Inter-Medium.subset-abcdef123456.woff2', 'font/woff2'],
       ['/fonts/Inter-SemiBold.subset-abcdef123456.woff2', 'font/woff2'],

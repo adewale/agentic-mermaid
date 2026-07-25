@@ -12,11 +12,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Added a standalone `/demo/` page rendering a diagram live from one script tag, serving the same published artifact, with browser contracts asserting it renders on first paint.
 
 ### Changed
-- Documented the `THEMES` removal in [`docs/fork-differences.md`](docs/fork-differences.md). Upstream Beautiful Mermaid exports a `THEMES` map and takes a theme object; this fork replaced it with the Style/Palette system and had recorded the removal only in this changelog. Ported upstream snippets failed at runtime with `TypeError: Cannot read properties of undefined` and nothing searchable explained it. The upstream theme names survive as style names: `{ theme: THEMES['zinc-dark'] }` becomes `{ style: 'zinc-dark' }`.
+- Documented the `THEMES` removal in [`docs/fork-differences.md`](docs/fork-differences.md). Upstream Beautiful Mermaid exports a `THEMES` map and takes that theme object directly; this fork replaced it with the Style/Palette system and had recorded the removal only in this changelog. Ported upstream snippets failed at runtime with `TypeError: Cannot read properties of undefined` and nothing searchable explained it. The upstream theme names survive as style names: `THEMES['zinc-dark']` becomes `{ style: 'zinc-dark' }`.
 - Re-recorded the website payload authority on the pinned CI toolchain (Bun 1.3.13). The previous record was measured on a different toolchain, so local runs reported failures that were compression drift rather than payload growth.
 
 ### Fixed
 - Fixed built-in registrations pinning `core: '^0.2.0'`. For a `0.x` package a caret range is minor-bounded, so that pin meant `<0.3.0` and any minor release made every built-in family, style, backend, scene role, and font manifest entry incompatible — the registries never finished initializing and the failure surfaced as an unrelated `ReferenceError` across the suite. The pins now track the package version and a guard test fails first when they drift.
+
+### Breaking
+- Advanced the external extension compatibility line to `^0.3.0`. Third-party family, style, backend, scene-role, and font extensions that declare only `^0.2.0` must be reviewed against the 0.3 contracts before updating their range; a `0.x` caret range does not include the next minor.
+
+## 0.2.0 — 2026-07-23
 
 ### Added
 - Added deterministic website build-fingerprint, success-only cache, and initial request-graph authorities with exact raw, gzip, and Brotli budgets for the homepage, Examples, and blank Editor routes.

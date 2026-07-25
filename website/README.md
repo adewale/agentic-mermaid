@@ -65,6 +65,7 @@ Both files register `cloudflare`, `cloudflare-docs`, `cloudflare-bindings`, `clo
 Direct Wrangler (this project intentionally uses `wrangler@latest`). Build from the repository root before a manual deploy so public machine catalogs carry the checked-out commit rather than stale files:
 
 ```bash
+bun run build
 SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website
 cd website
 WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1

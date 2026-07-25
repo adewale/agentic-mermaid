@@ -86,6 +86,7 @@ describe('package exports', () => {
       'examples/**/*.ts',
       'website/**/*.ts',
       'tsup.config.ts',
+      'tsup.browser.config.ts',
     ])
     expect(repoTsconfig.exclude).toContain('eval/mermaid-upstream-suite-bench/upstream-*/**')
   })

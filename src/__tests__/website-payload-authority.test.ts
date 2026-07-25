@@ -101,6 +101,14 @@ describe('deterministic website payload authority', () => {
       'editor-empty: missing required ^/editor/$',
       'editor-empty: missing required ^/editor/editor-[a-f0-9]{12}\\.js$',
     ]))
+
+    const missingDemo = structuredClone(report)
+    missingDemo.routes.find(route => route.id === 'demo')!.requests = []
+    expect(verifyWebsitePayloadBudgets(missingDemo, WEBSITE_PAYLOAD_BUDGETS)).toEqual(expect.arrayContaining([
+      'demo: missing required ^/demo/$',
+      'demo: missing required ^/demo/browser-[a-f0-9]{12}\\.js$',
+      'demo: missing required ^/generated/inline-[a-f0-9]{12}\\.js$',
+    ]))
   })
 
   test('rejects stale reports and invalid browser captures', () => {
@@ -122,6 +130,7 @@ describe('deterministic website payload authority', () => {
   test('independently maps route documents and fails closed on encoded traversal', () => {
     expect(independentPublicFile('/')).toBe(join(PUBLIC, 'index.html'))
     expect(independentPublicFile('/examples/')).toBe(join(PUBLIC, 'examples', 'index.html'))
+    expect(independentPublicFile('/demo/')).toBe(join(PUBLIC, 'demo', 'index.html'))
     expect(independentPublicFile('/editor/')).toBe(join(PUBLIC, 'editor', 'index.html'))
     expect(independentPublicFile('/styles.css')).toBe(join(PUBLIC, 'styles.css'))
     expect(() => independentPublicFile('/..%2f..%2fpackage.json')).toThrow('independent path escape')

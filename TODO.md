@@ -83,16 +83,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [ ] **BUILD-33 — Audit fork-differences for other silently dropped upstream
-  exports** (`todo`). `THEMES` was removed in favour of the Style/Palette system
-  and recorded only in `CHANGELOG.md`, not in `docs/fork-differences.md` — the
-  document a migrating upstream user actually opens. A consumer on
-  <https://github.com/lukilabs/beautiful-mermaid/pull/118> hit it as a runtime
-  `TypeError` with nothing searchable to explain it. That specific mapping is now
-  documented; this item is the remaining sweep:
-  diff the upstream `beautiful-mermaid` public surface against this fork's,
-  and give every dropped or renamed export a migration line. Upstream's typed
-  surface (`node_modules/beautiful-mermaid/dist/index.d.ts`) is the input.
 - [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
   preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
   real edge because the auto-layout drew its feedback loop as a long,

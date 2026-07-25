@@ -5,7 +5,7 @@
  * can use: there is no resolver in a plain script tag, so nothing about the ESM
  * entries or the exports map protects this path. This file is that protection.
  *
- * It drives `dist/browser.global.js` in real Chromium and asserts:
+ * It drives `dist/browser.global.js` in real browser engines and asserts:
  *   B1  the global exists and carries the render surface — the exact failure the
  *       PR-118 consumer hit, where a hand-rolled bundle built clean and left the
  *       global `undefined`
@@ -18,7 +18,8 @@
  * count guard below is what makes that real: it fails if the registry is ever
  * read as empty, which would otherwise turn the whole suite into a silent no-op.
  *
- * Requires: Playwright browsers installed (`bunx playwright install chromium`).
+ * Requires: Playwright browsers installed
+ * (`bunx playwright install chromium firefox webkit`).
  * Run:  bun run test:browser
  */
 
@@ -26,7 +27,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { chromium, type Browser, type Page } from 'playwright'
+import { chromium, firefox, webkit, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { renderMermaidSVG } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
@@ -39,27 +40,30 @@ const GLOBAL = 'agenticMermaid'
 /** Every family carries a canonical `example`; a registry smaller than this means something is wrong. */
 const MIN_EXPECTED_FAMILIES = 10
 
-let browser: Browser
-let page: Page
-
-beforeAll(async () => {
-  if (!existsSync(BUNDLE)) {
-    const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
-    if (build.status !== 0 || !existsSync(BUNDLE)) {
-      throw new Error(`\`bun run build\` did not produce ${BUNDLE} (status ${build.status}).\n${build.stderr ?? ''}`)
-    }
+function ensureBrowserBundle() {
+  if (existsSync(BUNDLE)) return
+  const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+  if (build.status !== 0 || !existsSync(BUNDLE)) {
+    throw new Error(`\`bun run build\` did not produce ${BUNDLE} (status ${build.status}).\n${build.stderr ?? ''}`)
   }
-  browser = await chromium.launch()
-  page = await browser.newPage()
-  await page.setContent('<!doctype html><html><body></body></html>')
-  await page.addScriptTag({ path: BUNDLE })
-}, BUILD_TIMEOUT_MS)
-
-afterAll(async () => {
-  await browser?.close()
-})
+}
 
 describe('browser bundle', () => {
+  let browser: Browser
+  let page: Page
+
+  beforeAll(async () => {
+    ensureBrowserBundle()
+    browser = await chromium.launch()
+    page = await browser.newPage()
+    await page.setContent('<!doctype html><html><body></body></html>')
+    await page.addScriptTag({ path: BUNDLE })
+  }, BUILD_TIMEOUT_MS)
+
+  afterAll(async () => {
+    await browser?.close()
+  })
+
   // B1. The PR-118 failure mode: a bundle that builds and exports nothing.
   test('exposes the render surface on the global', async () => {
     const surface = await page.evaluate(name => {
@@ -114,6 +118,44 @@ describe('browser bundle', () => {
   })
 })
 
+// The exhaustive byte-parity matrix stays in Chromium so adding a family does
+// not triple an already broad suite. These smoke contracts exercise the other
+// two browser engines CI promises for the current Playwright release.
+describe('current cross-engine browser support', () => {
+  for (const [engineName, engine] of [
+    ['Firefox', firefox],
+    ['WebKit', webkit],
+  ] as const) {
+    test(
+      `${engineName} exposes the global and renders SVG`,
+      async () => {
+        ensureBrowserBundle()
+        const engineBrowser = await engine.launch()
+        try {
+          const enginePage = await engineBrowser.newPage()
+          await enginePage.addScriptTag({ path: BUNDLE })
+          const result = await enginePage.evaluate(
+            ([name, source]) => {
+              const api = (globalThis as Record<string, any>)[name]
+              return {
+                renderMermaidSVG: typeof api?.renderMermaidSVG,
+                svg: api?.renderMermaidSVG(source),
+              }
+            },
+            [GLOBAL, 'timeline\n  title Cross-engine\n  2026 : Ship'] as const,
+          )
+          expect(result.renderMermaidSVG).toBe('function')
+          expect(result.svg).toContain('<svg')
+          expect(result.svg).toContain('Cross-engine')
+        } finally {
+          await engineBrowser.close()
+        }
+      },
+      BUILD_TIMEOUT_MS,
+    )
+  }
+})
+
 // B4. The published /demo/ page, loaded as a browser loads it. The bundle tests
 // above prove the artifact works in isolation; this proves the page wires it up
 // correctly, which is a separate failure mode — the first version of this page
@@ -123,6 +165,7 @@ describe('demo page', () => {
   const PUBLIC = join(REPO, 'website', 'public')
   let server: ReturnType<typeof serveWithAvailablePort>['server']
   let base = ''
+  let demoBrowser: Browser
   let demoPage: Page
   const pageErrors: string[] = []
 
@@ -141,13 +184,15 @@ describe('demo page', () => {
     })
     server = served.server
     base = served.base
-    demoPage = await browser.newPage()
+    demoBrowser = await chromium.launch()
+    demoPage = await demoBrowser.newPage()
     demoPage.on('pageerror', error => pageErrors.push(String(error)))
     await demoPage.goto(`${base}/demo/`, { waitUntil: 'networkidle' })
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     server?.stop(true)
+    await demoBrowser?.close()
   })
 
   test('renders the diagram from the script tag on first paint', async () => {
@@ -158,6 +203,16 @@ describe('demo page', () => {
     }))
     expect(state).toEqual({ status: 'rendered in-browser', svg: true, content: true })
     expect(pageErrors).toEqual([])
+  })
+
+  test('keeps strict rendering and parsed-node insertion in the generated initializer', () => {
+    const html = readFileSync(join(PUBLIC, 'demo', 'index.html'), 'utf8')
+    const initializer = Array.from(html.matchAll(/<script src="\/(generated\/inline-[a-f0-9]{12}\.js)"><\/script>/g), match => readFileSync(join(PUBLIC, match[1]!), 'utf8')).find(source => source.includes("var SOURCE = document.getElementById('demo-source').textContent"))
+    expect(initializer, 'demo initializer emitted as a generated external script').toBeDefined()
+    expect(initializer).toContain("security: 'strict'")
+    expect(initializer).toContain("new DOMParser().parseFromString(svg, 'image/svg+xml')")
+    expect(initializer).toContain('target.replaceChildren(document.importNode(parsed.documentElement, true))')
+    expect(initializer).not.toMatch(/\.innerHTML\s*=/)
   })
 
   test('re-renders when the style changes', async () => {

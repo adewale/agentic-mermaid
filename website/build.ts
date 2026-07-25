@@ -1926,15 +1926,13 @@ await emit('editor/index.html', await generateEditorHtml())
 // the global never bound. That is precisely the failure this work exists to
 // stop shipping.
 //
-// tsup owns the artifact, so build it on demand when it is missing rather than
-// failing a website build for a reason that reads as unrelated.
+// Rebuild even when the ignored artifact already exists. Otherwise a local or
+// manual site build can silently copy browser bytes from an older checkout.
 async function emitBrowserBundleDemo() {
   const artifact = join(ROOT, 'dist', 'browser.global.js')
-  if (!existsSync(artifact)) {
-    const built = Bun.spawnSync(['bun', 'run', 'build'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
-    if (!built.success || !existsSync(artifact)) {
-      throw new Error(`browser demo needs dist/browser.global.js; \`bun run build\` failed:\n${built.stderr}`)
-    }
+  const built = Bun.spawnSync(['bun', 'run', 'build:browser'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
+  if (!built.success || !existsSync(artifact)) {
+    throw new Error(`browser demo needs dist/browser.global.js; \`bun run build:browser\` failed:\n${built.stderr}`)
   }
   const script = await Bun.file(artifact).text()
   // Fail loudly here rather than shipping a page whose only symptom is an empty
@@ -1943,6 +1941,7 @@ async function emitBrowserBundleDemo() {
     throw new Error('dist/browser.global.js does not bind the agenticMermaid global')
   }
   const scriptRel = `demo/browser-${sha256(script).slice(0, 12)}.js`
+  const browserIntegrity = `sha384-${createHash('sha384').update(script).digest('base64')}`
   await emit(scriptRel, script)
 
   const TIMELINE = `timeline
@@ -1955,15 +1954,31 @@ async function emitBrowserBundleDemo() {
   const body = `<p>Your browser rendered the diagram below from one <code>&lt;script src&gt;</code> tag. The ESM
 entry would need a bundler or an import map; this file needs neither, and the diagram source never
 leaves the page.</p>
-<pre><code>&lt;script src="https://unpkg.com/agentic-mermaid@${packageJson.version}/dist/browser.global.js"&gt;&lt;/script&gt;
+<pre><code>&lt;script
+  src="https://unpkg.com/agentic-mermaid@${packageJson.version}/dist/browser.global.js"
+  integrity="${browserIntegrity}"
+  crossorigin="anonymous"&gt;&lt;/script&gt;
 &lt;script&gt;
-  const svg = agenticMermaid.renderMermaidSVG(source, { style: 'zinc-dark' })
-  document.querySelector('#diagram').innerHTML = svg
+  const svg = agenticMermaid.renderMermaidSVG(source, {
+    style: 'zinc-dark',
+    security: 'strict',
+  })
+  const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  if (parsed.querySelector('parsererror') || parsed.documentElement.localName !== 'svg') {
+    throw new Error('renderer returned invalid SVG')
+  }
+  document.querySelector('#diagram').replaceChildren(
+    document.importNode(parsed.documentElement, true),
+  )
 &lt;/script&gt;</code></pre>
 <p>The version in that URL is pinned because <code>dist/browser.global.js</code> ships from v0.3.0. Earlier
 releases are ESM-only, so the same URL without a version answers <strong>404</strong>. This page serves the
 identical artifact from its own origin instead of unpkg, so the demo keeps working offline and makes
 no third-party request.</p>
+<p>Keep strict rendering and parsed-node insertion for authored or user-provided source. For a strict
+Content Security Policy, self-host the bundle under <code>script-src 'self'</code>, or allow the pinned
+CDN origin and authorize the initializer with an external file, nonce, or hash. This demo uses a
+same-origin bundle and a generated external initializer; it does not need <code>'unsafe-inline'</code>.</p>
 <p>Runs on <strong>Chrome 97, Firefox 104, Safari 15.4, Edge 97</strong> and newer.
 <a href="https://github.com/adewale/agentic-mermaid/blob/main/docs/browser.md">docs/browser.md</a> covers
 what sets that floor, how to pre-render at build time instead, and the two traps in rolling your own
@@ -1998,7 +2013,12 @@ renderer in front of a reader. This page sends it because proving the dynamic pa
   var select = document.getElementById('demo-style')
   function draw() {
     try {
-      target.innerHTML = agenticMermaid.renderMermaidSVG(SOURCE, { style: select.value })
+      var svg = agenticMermaid.renderMermaidSVG(SOURCE, { style: select.value, security: 'strict' })
+      var parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
+      if (parsed.querySelector('parsererror') || parsed.documentElement.localName !== 'svg') {
+        throw new Error('renderer returned invalid SVG')
+      }
+      target.replaceChildren(document.importNode(parsed.documentElement, true))
       status.textContent = 'rendered in-browser'
     } catch (error) {
       status.textContent = 'render failed: ' + error

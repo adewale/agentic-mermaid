@@ -11,7 +11,8 @@
     "eval/**/*.ts",
     "examples/**/*.ts",
     "website/**/*.ts",
-    "tsup.config.ts"
+    "tsup.config.ts",
+    "tsup.browser.config.ts"
   ],
   "exclude": [
     "node_modules",
