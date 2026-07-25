@@ -1955,11 +1955,17 @@ async function emitBrowserBundleDemo() {
   const body = `<p>This page renders the diagram below <strong>in your browser, right now</strong>, from one
 <code>&lt;script src&gt;</code> tag. No bundler, no import map, no build step. Everything runs locally —
 the source never leaves this page.</p>
-<pre><code>&lt;script src="https://unpkg.com/agentic-mermaid/dist/browser.global.js"&gt;&lt;/script&gt;
+<pre><code>&lt;script src="https://unpkg.com/agentic-mermaid@${packageJson.version}/dist/browser.global.js"&gt;&lt;/script&gt;
 &lt;script&gt;
   const svg = agenticMermaid.renderMermaidSVG(source, { style: 'zinc-dark' })
   document.querySelector('#diagram').innerHTML = svg
 &lt;/script&gt;</code></pre>
+<p>The version is pinned deliberately. <code>dist/browser.global.js</code> ships from <strong>v0.3.0</strong>;
+earlier releases are ESM-only, so an unversioned CDN URL resolves to a release that does not contain
+the file. This page serves that same artifact from its own origin rather than from unpkg, so the demo
+keeps working offline and adds no third-party request — the bytes are identical either way.</p>
+<p>Supported browsers: roughly <strong>Chrome 97, Firefox 104, Safari 15.4, Edge 97</strong> and newer. See
+<a href="/docs/api/">the docs</a> for why that floor cannot be lowered by changing the build target.</p>
 <h2>Live render</h2>
 <p><label for="demo-style">Style</label>
 <select id="demo-style">

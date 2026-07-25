@@ -4,7 +4,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
-## 0.2.0 — 2026-07-23
+## 0.3.0 — 2026-07-25
+
+### Added
+- Added a published browser bundle: `dist/browser.global.js`, a self-contained IIFE exposing the render surface on the `agenticMermaid` global, reachable as the `./browser` export and from unpkg/jsDelivr. A `<script src>` consumer no longer has to invent a bundling step. 2.85 MB raw, 873 KB gzip; the ESM entry remains the supported path for anyone who already runs a bundler, since it tree-shakes and this file cannot.
+- Added [`docs/browser.md`](docs/browser.md), covering build-time pre-rendering for static sites — the recommended path, which ships no JavaScript — alongside the script-tag path, and documenting the browser support floor (roughly Chrome 97, Firefox 104, Safari 15.4, Edge 97). That floor comes from runtime APIs, not syntax, so it cannot be lowered by changing the build target.
+- Added a standalone `/demo/` page rendering a diagram live from one script tag, serving the same published artifact, with browser contracts asserting it renders on first paint.
+
+### Changed
+- Re-recorded the website payload authority on the pinned CI toolchain (Bun 1.3.13). The previous record was measured on a different toolchain, so local runs reported failures that were compression drift rather than payload growth.
 
 ### Added
 - Added deterministic website build-fingerprint, success-only cache, and initial request-graph authorities with exact raw, gzip, and Brotli budgets for the homepage, Examples, and blank Editor routes.

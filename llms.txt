@@ -4,7 +4,7 @@
 > Mermaid diagrams with a typed IR. Deterministic render outputs. No
 > browser required. CLI + MCP + library.
 
-Version: 0.2.0
+Version: 0.3.0
 
 ## What it does
 

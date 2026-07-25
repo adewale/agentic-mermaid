@@ -61,7 +61,7 @@ When the source genuinely is not known until the page runs, load the prebuilt
 IIFE. It is self-contained — no bundler, no import map, no build step:
 
 ```html
-<script src="https://unpkg.com/agentic-mermaid/dist/browser.global.js"></script>
+<script src="https://unpkg.com/agentic-mermaid@0.3.0/dist/browser.global.js"></script>
 <script>
   const svg = agenticMermaid.renderMermaidSVG('timeline\n  title Roadmap\n  2026 : Ship', {
     style: 'zinc-dark',
@@ -72,6 +72,24 @@ IIFE. It is self-contained — no bundler, no import map, no build step:
 
 The global is **`agenticMermaid`** and carries the same render surface as the
 package entry — `renderMermaidSVG`, `renderMermaidASCII`, style helpers.
+
+**The bundle ships from v0.3.0.** Earlier releases are ESM-only and have no
+`dist/browser.global.js`, so an unversioned CDN URL 404s against them. Pin the
+version as above rather than tracking `latest`: it fixes that, and it stops a
+future major from changing the file under a page you are not watching.
+
+### Browser support
+
+The floor is roughly **Chrome 97, Firefox 104, Safari 15.4, Edge 97**.
+
+That is set by runtime APIs, not syntax, so it cannot be lowered by changing the
+build target — esbuild downlevels syntax and leaves the methods missing. The
+bundle uses `Array.prototype.at`, `Object.hasOwn`, `String.prototype.replaceAll`,
+and `Array.prototype.findLast`; `findLast` is the binding constraint. If you need
+older browsers, load polyfills for those four before the bundle.
+
+The bundle contains no WebAssembly and issues no network requests at load, so it
+works offline and needs no cross-origin isolation.
 
 **If you already run a bundler, do not use this file.** Import the package
 normally; your bundler will tree-shake, which the IIFE cannot:

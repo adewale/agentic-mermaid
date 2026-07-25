@@ -70,6 +70,12 @@ jobs:
       - name: Install dependencies
         if: steps.cloudflare-secrets.outputs.available == 'true'
         run: bun install --frozen-lockfile
+      - name: Build the published artifacts the site serves
+        if: steps.cloudflare-secrets.outputs.available == 'true'
+        # /demo/ serves the real dist/browser.global.js. The site build will run
+        # this itself when the file is missing; doing it explicitly keeps a tsup
+        # failure legible instead of surfacing as a website-build error.
+        run: bun run build
       - name: Build the site bundle
         if: steps.cloudflare-secrets.outputs.available == 'true'
         # Stamp public machine catalogs with both the exact CI-validated commit

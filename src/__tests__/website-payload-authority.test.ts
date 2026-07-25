@@ -80,9 +80,9 @@ describe('deterministic website payload authority', () => {
   test('rejects every budget dimension, eager forbidden resources, and missing required resources', () => {
     for (const [field, expected] of [
       ['requests', 'home: requests 10 exceeds 9'],
-      ['rawBytes', 'home: rawBytes 682620 exceeds 682619'],
-      ['gzipBytes', 'home: gzipBytes 406568 exceeds 406567'],
-      ['brotliBytes', 'home: brotliBytes 387890 exceeds 387889'],
+      ['rawBytes', 'home: rawBytes 682609 exceeds 682608'],
+      ['gzipBytes', 'home: gzipBytes 406548 exceeds 406547'],
+      ['brotliBytes', 'home: brotliBytes 387980 exceeds 387979'],
     ] as const) {
       const grown = structuredClone(report)
       grown.routes[0]!.totals[field]++

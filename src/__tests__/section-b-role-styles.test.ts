@@ -163,6 +163,10 @@ describe('Section B public semantic role Styles', () => {
     }
   }, 30_000)
 
+  // 480 sequential PNG renders (16 Looks x 15 families x 2). renderMermaidPNG is
+  // synchronous, so this cannot be parallelized without worker threads; the
+  // exhaustive cross-product is the point, so the budget carries the cost.
+  // Measured at ~33-35s on a 4-core machine, hence 60s rather than 30s.
   test('every built-in Look export is equivalent across every family on the public PNG path', async () => {
     for (const { inputName: name } of knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')) {
       const exported = getStyle(name)!
@@ -172,7 +176,7 @@ describe('Section B public semantic role Styles', () => {
           .toEqual(await renderMermaidPNG(source, { style: exported, seed: 7 }))
       }
     }
-  }, 30_000)
+  }, 60_000)
 
   test('conflicting Pie role defaults never select emphasis or change quantitative geometry', () => {
     const source = `---\nconfig:\n  pie:\n    highlightSlice: Beta\n---\npie\n  "Alpha" : 3\n  "Beta" : 2`
