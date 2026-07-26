@@ -1,0 +1,16 @@
+name: Ruff
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+      - run: uvx ruff@0.16.0 check scripts/interop/probe-python.py scripts/site/subset-website-inter-fonts.py
