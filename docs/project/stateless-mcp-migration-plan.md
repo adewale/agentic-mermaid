@@ -208,15 +208,27 @@ defects. Three were in this document; three were live in the implementation.
 | C3 | §9 O1 files `ttlMs`/`cacheScope` as **Optional**, deferred because the SEP page 404'd | "Servers **MUST** include caching hints on results with `resultType: 'complete'` returned by … `server/discover`, `tools/list`" | Required for both list operations we implement, not a nicety. Implemented. |
 | C4 | §6 phase 2 lists `-32021` among the error codes implemented | The code is real, but conditional: it applies only when "processing a request requires a capability the client did not include" | Nothing emitted it and nothing tested it. Our tools are pure functions needing no client capability, so it is unreachable; the constant is removed and a range test replaces it. |
 
-A fifth finding is recorded but **not** changed: `mcp-handler.ts` answers five
-transport rejections (origin, method, content-type, two body-size paths) with
-`-32000`, from the legacy half of the range that new implementations "**SHOULD
-NOT** use … at all". §4.2 item 2 treated the last `-32000` as removed by the
-`-32022` work; these five survived it. They are a SHOULD NOT rather than a MUST
-NOT, the HTTP status carries the real signal in each case, and the response
-bodies are pinned by the golden corpus — so `mcp-reserved-error-codes.test.ts`
-freezes the count at five and a sixth fails, forcing the decision rather than
-letting it drift. Migrating them to `-32600` remains open.
+A fifth finding, C5, was recorded and then **resolved** (F3). `mcp-handler.ts`
+answered five transport rejections — origin, method, content-type, and two
+body-size paths — with `-32000`, from the legacy half of the range that new
+implementations "**SHOULD NOT** use … at all" and whose meaning receivers
+"**MUST NOT** assume". §4.2 item 2 had treated the last `-32000` as removed by
+the `-32022` work; these five survived it.
+
+Reading them together showed why picking a better code was the wrong fix: **all
+five refuse before a JSON-RPC request is ever parsed.** A GET has no body, and
+the content-type and size checks refuse precisely because they will not read
+one. The envelope claimed to answer a request that did not exist, and having an
+envelope forced an error code into existence.
+
+So the envelope goes, and the rule that replaces it is: **a JSON-RPC envelope
+iff the spec defines a JSON-RPC error for the condition.** `-32020`, `-32022`,
+and `-32601` keep theirs; these five now answer `{"error": "<reason>"}` with the
+HTTP status — 403, 405, 413, 415 — as the machine signal. `website/e2e-mcp.sh`
+already asserted only the status on every one of these paths, which is
+independent evidence that the status was doing the work all along. The
+legacy-range test is now an absolute: no production source may use `-32000`
+through `-32019` at all.
 
 ### 4.3 Dual-era operation is explicitly blessed
 
@@ -351,25 +363,58 @@ fixes a real, current lockout.
   *transport* gets 405 from `/mcp` and cannot connect. One sentence in
   `/docs/mcp/`.
 
-### Phase 4 — local server ✅ decided: the pin stays at `2024-11-05`
+### Phase 4 — local server ✅ implemented: per-transport version reporting
 
-Decided on evidence rather than deferred again. `server.ts:61` pins
-`2024-11-05`, and its HTTP transport is *literally* the 2024-11-05 one: it
-writes `event: endpoint`, hands back a `?sessionId=` URL, and holds a session
-map (`MAX_SSE_SESSIONS = 32`). That is the HTTP+SSE transport Streamable HTTP
-replaced in `2025-03-26`, so advertising any newer revision would be a false
-claim to every HTTP client. The pin is correct, not stale.
+The pin was never the real question. `server.ts` reported ONE version list for a
+server that answers over two transports with different obligations, and that
+single number could not be right for both.
 
-One asymmetry falls out of it and is now pinned rather than left to be
-discovered: era selection is **request-driven**, so the local server serves the
-modern envelope — `resultType`, caching hints — to a request carrying modern
-`_meta`, while the very same `server/discover` response advertises only
-`2024-11-05`. Both surfaces' modern entries are recorded in the response corpus,
-so the asymmetry is visible in a golden rather than implicit. It is harmless
-(dual-era is blessed, and a client asking for modern explicitly gets it), and
-narrowing it would regress stdio clients that legitimately want the modern era.
+Its HTTP transport is literally the `2024-11-05` one: it writes `event:
+endpoint`, hands back a `?sessionId=` URL, and holds a session map
+(`MAX_SSE_SESSIONS = 32`). Streamable HTTP replaced that in `2025-03-26`, so no
+newer revision can honestly be advertised over it. Its **stdio** transport
+carries none of that baggage, and the dispatcher behind both implements
+everything through the `2026-07-28` stateless era.
 
-What remains genuinely open is a question about that transport, not about this
+Reporting one list forced a contradiction into a single response: era selection
+is a pure function of the request, so a modern `_meta` request was served the
+modern envelope — `resultType`, caching hints — while the very same
+`server/discover` payload advertised only `2024-11-05`.
+
+`McpDispatchOptions.supportedVersions` now lets a transport NARROW the surface's
+list (it intersects, so a transport can never introduce a revision the
+dispatcher lacks). stdio reports what the dispatcher implements; the HTTP+SSE
+call sites pass `['2024-11-05']`.
+
+Two consequences make the advertisement true rather than decorative:
+
+- **A declared version this transport does not serve is refused** with `-32022`
+  and the list to retry from, instead of being silently served a different era.
+  The HTTP transport already did this for the `MCP-Protocol-Version` header; a
+  stdio client sends no header, so its claim went unchecked entirely.
+- **`initialize` negotiates against the transport's list.** Advertising a
+  revision and then refusing to negotiate it would rebuild the same mismatch
+  inside one server.
+
+That second change fixed a live defect nobody had noticed: the reference MCP SDK
+client offers `2025-11-25`, the dispatcher has served it since phase 1, and the
+local server answered `2024-11-05` anyway. `mcp-client-interop.test.ts` asserted
+that downgrade as expected behaviour — with a note that an SDK dropping
+`2024-11-05` would be "the signal to modernize the local server (#186)". It now
+asserts the newest revision the two share.
+
+Both transports are pinned in the response corpus as a pair — the same request
+served on stdio and refused over HTTP+SSE — so the narrowing is reviewable
+rather than asserted in prose.
+
+One honest caveat, pre-existing and unchanged: this server has never implemented
+JSON-RPC batching (every transport parses a single object, so an array is
+refused with `-32600`). That is what `2025-06-18` and later require, and a
+deviation for the two older revisions that permit it. The previous
+`2024-11-05`-only pin was, on that axis, the least accurate claim it could have
+made.
+
+What remains genuinely open is a question about the transport, not this
 migration: whether the local server should grow a Streamable HTTP transport at
 all. Nothing in phases 0–3 depends on the answer.
 
@@ -536,8 +581,8 @@ Every item from the issue. Line references re-verified against current `main`
 | # | Item | Status |
 | --- | --- | --- |
 | F1 | Local server protocol version (`server.ts:61` pins `2024-11-05`) | **Closed.** The pin is correct, not stale: that server's HTTP transport *is* the 2024-11-05 one (`event: endpoint`, `?sessionId=`, session map), so advertising newer would be a false claim. See phase 4. |
-| F3 | Five `-32000` transport rejections in `mcp-handler.ts` | **Open**, frozen at five by test. Legacy-range code that new implementations "SHOULD NOT use … at all"; migrating them to `-32600` is a wire change the corpus would show (§4.2.1). |
-| F4 | Local server serves the modern era while advertising only `2024-11-05` | **Open by decision**, pinned in the corpus on both surfaces. Harmless under dual-era; narrowing it would regress stdio clients that want the modern era. |
+| F3 | Five `-32000` transport rejections in `mcp-handler.ts` | **Closed.** All five refuse pre-parse, so they now answer without a JSON-RPC envelope at all rather than with a legacy-range code (§4.2.1 C5). |
+| F4 | Local server served the modern era while advertising only `2024-11-05` | **Closed** by per-transport version reporting (§6, phase 4). |
 | F2 | Honesty note: `2024-11-05` is protocol-version support, not HTTP+SSE transport support | Phase 3. Confirmed accurate — a 2024-11-05-era transport client GETs `/mcp` and receives 405. |
 
 ### Issue claims now stale or wrong
