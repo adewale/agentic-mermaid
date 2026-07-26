@@ -14,10 +14,10 @@ import sys
 from importlib.metadata import version
 from pathlib import Path
 
-import mcp
-from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamablehttp_client
+
+from mcp import ClientSession, StdioServerParameters
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FLOW = "flowchart LR\n  A --> B"
