@@ -31,11 +31,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   demo: Object.freeze({
     // The lazy Timeline graph uses more cacheable requests than the monolith,
     // but avoids every other family and the shared ELK chunk. Exact byte totals
-    // are ratcheted from the browser capture below.
+    // are ratcheted from the browser capture below, including the canonical
+    // appearance path shared with the complete browser bundle.
     maxRequests: 30,
-    maxRawBytes: 718_063,
-    maxGzipBytes: 269_716,
-    maxBrotliBytes: 246_249,
+    maxRawBytes: 718_098,
+    maxGzipBytes: 269_734,
+    maxBrotliBytes: 246_214,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -49,9 +50,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The editor still exercises the complete API; BUILD-31's registry seam
     // accounts for this bounded compatibility-path delta. These exact totals
     // include the shared code-point comparator used by family routing.
-    maxRawBytes: 3_289_870,
-    maxGzipBytes: 967_089,
-    maxBrotliBytes: 759_971,
+    maxRawBytes: 3_289_905,
+    maxGzipBytes: 967_139,
+    maxBrotliBytes: 760_057,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

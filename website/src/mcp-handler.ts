@@ -13,15 +13,19 @@
 // (McpRequestEvent) through the injectable onEvent hook — console.log JSON by
 // default, which Cloudflare Workers Logs ingests as queryable fields.
 
-import { handleHostedRequest, cacheKeyFor, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
+import { handleHostedRequest, cacheKeyFor, HOSTED_MCP_SERVER_NAME, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import {
+  effectiveProtocolVersion,
+  eraForRequest,
   HEADER_MISMATCH,
   META_PROTOCOL_VERSION,
   UNSUPPORTED_PROTOCOL_VERSION,
   isModernProtocolVersion,
+  modernRequestMetaProblems,
   requestMetaProtocolVersion,
 } from '../../src/mcp/protocol-versions.ts'
+import { decorateMcpResult, protocolNeutralMcpResult } from '../../src/mcp/tool-surface.ts'
 import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
@@ -259,6 +263,20 @@ function transportError(status: number, message: string, cors: Record<string, st
   return json(status, { error: message }, cors, [], extraHeaders)
 }
 
+/** Correlate protocol-defined HTTP errors with the JSON-RPC request we already
+ * parsed. Exact numeric IDs are represented by temporary string sentinels here
+ * and restored by stringifyJsonRpc(), so returning the parsed value is safe. */
+function responseIdFor(message: unknown): number | string | null {
+  if (!message || typeof message !== 'object' || Array.isArray(message)) return null
+  const id = (message as { id?: unknown }).id
+  return id === null || typeof id === 'string' || (typeof id === 'number' && Number.isFinite(id)) ? id : null
+}
+
+function isNotification(message: unknown): boolean {
+  return Boolean(message && typeof message === 'object' && !Array.isArray(message)
+    && !Object.prototype.hasOwnProperty.call(message, 'id'))
+}
+
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys)
   if (value && typeof value === 'object') {
@@ -371,18 +389,28 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
     if (canonical === null) return handleHostedRequest(req, itemContext, { protocolVersion })
     item.cache_eligible = true
-    const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(canonical)))}`)
+    const cachePartition = {
+      era: eraForRequest(req),
+      protocolVersion: effectiveProtocolVersion(req, protocolVersion) ?? 'unversioned',
+      call: canonical,
+    }
+    const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(cachePartition)))}`)
     try {
       const hit = await cache!.match(key)
       if (hit) {
         item.cache_hit = true
-        return reply(req.id ?? null, await hit.json())
+        return decorateMcpResult(
+          reply(req.id ?? null, await hit.json()),
+          req.method,
+          eraForRequest(req),
+          HOSTED_MCP_SERVER_NAME,
+        )
       }
     } catch { /* cache failures must never fail the call */ }
     const response = await handleHostedRequest(req, itemContext, { protocolVersion })
     const result = response?.result as { isError?: boolean } | undefined
     if (result && result.isError === false) {
-      const write = cache!.put(key, new Response(JSON.stringify(result), {
+      const write = cache!.put(key, new Response(JSON.stringify(protocolNeutralMcpResult(result)), {
         headers: { 'content-type': 'application/json', 'cache-control': `public, max-age=${CACHE_TTL_SECONDS}` },
       })).catch(() => {})
       if (waitUntil) waitUntil(write)
@@ -395,7 +423,6 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
   // fields as the request moves through validation, parse, and dispatch.
   async function respond(request: Request, event: McpRequestEvent): Promise<Response> {
     const cors = corsHeadersFor(request)
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
     // MCP Origin validation: refuse a cross-origin browser request whose Origin
     // is not allowlisted before any tool runs. Non-browser clients (no Origin)
     // pass. Closes the "malicious site drives visitors' browsers against public
@@ -404,6 +431,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (origin !== null && !isOriginAllowed(origin, new URL(request.url).origin)) {
       return transportError(403, 'origin not allowed', cors)
     }
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
     if (request.method !== 'POST') {
       return transportError(405, 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream', cors, { Allow: 'POST, OPTIONS' })
     }
@@ -508,7 +536,16 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (modern) {
       const problem = modernHeaderProblem(request, parsed, protocolVersion)
       if (problem !== null) {
-        return json(400, { jsonrpc: '2.0', id: null, error: { code: HEADER_MISMATCH, message: `Header mismatch: ${problem}` } }, cors, exact.ids)
+        return json(400, { jsonrpc: '2.0', id: responseIdFor(parsed), error: { code: HEADER_MISMATCH, message: `Header mismatch: ${problem}` } }, cors, exact.ids)
+      }
+      const metaProblems = modernRequestMetaProblems(parsed as { params?: unknown })
+      if (metaProblems.length > 0) {
+        // Notifications still receive no JSON-RPC response, but malformed
+        // modern metadata is an HTTP 400 rather than an accepted 202.
+        if (isNotification(parsed)) {
+          return new Response(null, { status: 400, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+        }
+        return json(400, rpcError(responseIdFor(parsed), -32602, `Invalid params: ${metaProblems.join('; ')}`), cors, exact.ids)
       }
     }
 
@@ -520,7 +557,11 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     // Modern servers MUST answer an unimplemented method with 404, so a client
     // can tell "this server does not have that RPC" from "this server is not
     // there". Legacy requests keep 200 + the JSON-RPC error they expect today.
-    const status = modern && response.error?.code === -32601 ? 404 : 200
+    const status = modern && response.error?.code === -32601
+      ? 404
+      : modern && response.error?.code === -32602
+        ? 400
+        : 200
     return json(status, response, cors, exact.ids)
   }
 

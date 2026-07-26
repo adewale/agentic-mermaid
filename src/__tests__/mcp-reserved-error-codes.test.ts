@@ -26,6 +26,7 @@ import { describe, expect, test } from 'bun:test'
 import { Glob } from 'bun'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import ts from 'typescript'
 import {
   handleHostedRequest, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext,
 } from '../mcp/hosted-server.ts'
@@ -59,14 +60,24 @@ const LEGACY_RANGE = /-320[01]\d/g
 /**
  * Comments are documentation, not emission — this very file's rationale names
  * -32021 and -32002, and a guard that failed on its own explanation would push
- * the next person to delete the explanation. Only executable source is swept.
- * A `//` preceded by `:` is left alone so URLs inside strings survive.
+ * the next person to delete the explanation. Let the TypeScript compiler remove
+ * comments lexically; regex stripping cannot distinguish a comment from `//`
+ * inside a string or regular expression and can hide executable code after it.
  */
 function stripComments(text: string): string {
-  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+  return ts.transpileModule(text, {
+    compilerOptions: {
+      removeComments: true,
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+    },
+  }).outputText
 }
 
+let cachedProductionSources: { rel: string; code: string }[] | undefined
+
 function productionSources(): { rel: string; code: string }[] {
+  if (cachedProductionSources) return cachedProductionSources
   const files: { rel: string; code: string }[] = []
   for (const pattern of ['src/**/*.ts', 'website/src/**/*.ts', 'scripts/**/*.ts']) {
     for (const rel of new Glob(pattern).scanSync(ROOT)) {
@@ -74,6 +85,7 @@ function productionSources(): { rel: string; code: string }[] {
       files.push({ rel, code: stripComments(readFileSync(join(ROOT, rel), 'utf8')) })
     }
   }
+  cachedProductionSources = files
   return files
 }
 
@@ -129,6 +141,7 @@ describe('MCP reserved error-code range', () => {
     expect(stripComments('/** doc -32002 */\nconst a = 1')).not.toContain('-32002')
     expect(stripComments("const u = 'https://x.dev/mcp'")).toContain('https://x.dev/mcp')
     expect(stripComments('const code = -32020 // trailing note')).toContain('-32020')
+    expect(stripComments('const marker = "//"; const code = -32021')).toContain('-32021')
   })
 })
 

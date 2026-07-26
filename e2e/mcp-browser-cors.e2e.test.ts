@@ -64,25 +64,36 @@ function resolveChromium(): { executablePath?: string } | null {
   } catch { /* no managed build registered */ }
   const root = process.env.PLAYWRIGHT_BROWSERS_PATH
   if (!root || !existsSync(root)) return null
-  // Sorted so the full browser (`chromium-*`) is preferred over the headless
-  // shell (`chromium_headless_shell-*`); '-' sorts before '_'.
-  for (const entry of readdirSync(root).sort()) {
-    if (!entry.startsWith('chromium')) continue
-    for (const leaf of ['chrome', 'headless_shell']) {
-      const candidate = join(root, entry, 'chrome-linux', leaf)
-      if (existsSync(candidate)) return { executablePath: candidate }
+  // Walk the Playwright cache instead of assuming Linux's `chrome-linux`
+  // layout. Managed caches use different leaf directories on macOS, Windows,
+  // architectures, and for the headless shell. Prefer full Chromium by path
+  // ordering, but accept any executable Playwright provisioned.
+  const candidates: string[] = []
+  const visit = (dir: string, depth: number) => {
+    if (depth > 6) return
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) visit(path, depth + 1)
+      else if (['chrome', 'chrome.exe', 'Chromium', 'headless_shell', 'headless_shell.exe'].includes(entry.name)) candidates.push(path)
     }
   }
+  visit(root, 0)
+  const executable = candidates.sort((a, b) => {
+    const aShell = a.includes('headless_shell') ? 1 : 0
+    const bShell = b.includes('headless_shell') ? 1 : 0
+    return aShell - bShell || (a < b ? -1 : a > b ? 1 : 0)
+  })[0]
+  if (executable) return { executablePath: executable }
   return null
 }
 
 const LAUNCH = resolveChromium()
 
-/** 127.0.0.1 is allowlisted as localhost; 127.0.0.2 is equally loopback and is
- *  NOT, which is how one page server yields both an allowed and a blocked
- *  origin without inventing DNS. */
+/** 127.0.0.1 is allowlisted as localhost; the page server's directly bound
+ *  0.0.0.0 address is not. Using the bind address avoids DNS and avoids relying
+ *  on Linux/macOS assigning the same set of secondary 127/8 loopback aliases. */
 const ALLOWED_HOST = '127.0.0.1'
-const BLOCKED_HOST = '127.0.0.2'
+const BLOCKED_HOST = '0.0.0.0'
 
 const PAGE = `<!doctype html><meta charset="utf-8"><title>mcp cors probe</title>`
 
@@ -108,39 +119,6 @@ let browser: Browser
 let mcp: { server: ReturnType<typeof Bun.serve>; base: string }
 let page: { server: ReturnType<typeof Bun.serve>; base: string }
 let pagePort: number
-
-beforeAll(async () => {
-  browser = await chromium.launch(LAUNCH ?? {})
-  const handler = createMcpHandler({ context: hostedContext(), cacheVersion: 'cors-e2e' })
-  mcp = serveWithAvailablePort({
-    preferredPort: 8791,
-    hostname: ALLOWED_HOST,
-    fetch: async request => {
-      const response = await handler(request)
-      exchanges.push({
-        method: request.method,
-        status: response.status,
-        acao: response.headers.get('access-control-allow-origin'),
-        allowHeaders: response.headers.get('access-control-allow-headers'),
-      })
-      return response
-    },
-  })
-  // Bound to all interfaces so the same page is reachable as both a localhost
-  // origin and a non-localhost one.
-  page = serveWithAvailablePort({
-    preferredPort: 8891,
-    hostname: '0.0.0.0',
-    fetch: () => new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } }),
-  })
-  pagePort = new URL(page.base).port as unknown as number
-})
-
-afterAll(async () => {
-  await browser?.close()
-  mcp?.server.stop(true)
-  page?.server.stop(true)
-})
 
 /**
  * Load the probe page from `host`, fetch the MCP endpoint cross-origin, and
@@ -185,6 +163,39 @@ const modernList = {
 }
 
 describe.skipIf(!LAUNCH)('hosted /mcp in a real cross-origin browser', () => {
+  beforeAll(async () => {
+    browser = await chromium.launch(LAUNCH ?? {})
+    const handler = createMcpHandler({ context: hostedContext(), cacheVersion: 'cors-e2e' })
+    mcp = serveWithAvailablePort({
+      preferredPort: 8791,
+      hostname: ALLOWED_HOST,
+      fetch: async request => {
+        const response = await handler(request)
+        exchanges.push({
+          method: request.method,
+          status: response.status,
+          acao: response.headers.get('access-control-allow-origin'),
+          allowHeaders: response.headers.get('access-control-allow-headers'),
+        })
+        return response
+      },
+    })
+    // Bound to all interfaces so the same page is reachable as both a localhost
+    // origin and a non-localhost one.
+    page = serveWithAvailablePort({
+      preferredPort: 8891,
+      hostname: '0.0.0.0',
+      fetch: () => new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } }),
+    })
+    pagePort = new URL(page.base).port as unknown as number
+  })
+
+  afterAll(async () => {
+    await browser?.close()
+    mcp?.server.stop(true)
+    page?.server.stop(true)
+  })
+
   test('an allowlisted origin preflights and reads a modern response', async () => {
     const { outcome, preflight, post } = await crossOriginProbe(ALLOWED_HOST, modernList)
     const origin = `http://${ALLOWED_HOST}:${pagePort}`
@@ -212,15 +223,15 @@ describe.skipIf(!LAUNCH)('hosted /mcp in a real cross-origin browser', () => {
     // withheld Access-Control-Allow-Origin. A test that asserted only on the
     // thrown error could not tell this from a dead port.
     expect(preflight).toBeDefined()
-    expect(preflight!.status).toBe(204)
+    expect(preflight!.status).toBe(403)
     expect(preflight!.acao).toBeNull()
     // The allowlist itself is unconditional; only the origin echo is withheld.
     expect(preflight!.allowHeaders?.toLowerCase()).toContain('mcp-method')
 
     // The part no handler-level test can observe: the POST never happens. The
     // browser abandons the request after the preflight, so `mcp-handler.ts`'s
-    // 403 "origin not allowed" branch is unreachable from a browser — it exists
-    // for non-preflighted requests and for defence in depth, not for this path.
+    // 403 "origin not allowed" response stops the browser at the preflight;
+    // the application POST never reaches the handler's tool dispatch path.
     expect(post).toBeUndefined()
 
     // The consequence, not the diagnosis — the assertions above are that.

@@ -13,6 +13,7 @@ import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
 import { BINDABLE_SCENE_ROLES, EXACT_ROLE_STYLE_CONTRACT } from '../scene/role-style-contract.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
 
 describe('Section B public semantic role Styles', () => {
   test('role records are strict boundary-parsed data projected into JSON Schema', () => {
@@ -165,9 +166,10 @@ describe('Section B public semantic role Styles', () => {
   // regressions. The 15 disagreements are all `crisp` (below), where the cheap
   // check is conservative rather than wrong.
   const BUILT_IN_LOOKS = () => knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')
-  // Two families, because the string-vs-record entry path is family-independent
-  // (resolution happens before family dispatch) and one witness would already
-  // prove it; the second is cheap insurance against that assumption changing.
+  // Production canonicalizes the public style entry before family dispatch.
+  // The all-family request test below enforces that invariant without paying
+  // for layout in all 240 Look × family cells; these two render witnesses then
+  // cover the graphical and terminal projections of that canonical request.
   const WITNESS_FAMILIES = ['flowchart', 'pie'] as const
 
   test('every built-in Look exports a record that resolves identically to its name', () => {
@@ -186,6 +188,23 @@ describe('Section B public semantic role Styles', () => {
         .toEqual(resolveStyleStack(name))
     }
   })
+
+  test('every family receives the same canonical request for a Look name and record', () => {
+    for (const { inputName: name } of BUILT_IN_LOOKS()) {
+      const exported = getStyle(name)!
+      // `crisp` is intentionally the unresolved default and retains the full
+      // rendered all-family sweep below. Every resolvable Look is canonical at
+      // the request waist before normalizeRequest or layout can observe it.
+      if (resolveStyleStack(name) === undefined) continue
+      for (const family of knownBuiltinFamilies()) {
+        const source = getFamily(family)!.example
+        const byName = resolveRenderRequest(source, { style: name, seed: 7 }, 'svg')
+        const byRecord = resolveRenderRequest(source, { style: exported, seed: 7 }, 'svg')
+        expect(byName.renderOptions, `${name}/${family}: canonical render options`).toEqual(byRecord.renderOptions)
+        expect(byName.familyConfig, `${name}/${family}: canonical family config`).toEqual(byRecord.familyConfig)
+      }
+    }
+  }, 60_000)
 
   // The renderer accepts `style` as a string OR a record. Resolver identity does
   // not by itself prove the two ENTRY paths agree — a branch on `typeof style`

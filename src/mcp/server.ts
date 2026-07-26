@@ -243,20 +243,41 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
   })
   process.stdin.setEncoding('utf8')
   let buf = ''
-  process.stdin.on('data', async (chunk: string) => {
+  let negotiatedProtocolVersion: string | null = null
+  // Serialize line handling so an initialize response commits its negotiated
+  // version before any later request is dispatched, even when Node delivers
+  // those lines in separate data events while the first handler is awaiting.
+  let pending = Promise.resolve()
+  const enqueue = (line: string) => {
+    pending = pending.then(async () => {
+      try {
+        const exact = preserveExactJsonRpcIds(line)
+        const request = JSON.parse(exact.body) as JsonRpcRequest
+        const res = await handleRequest(
+          request,
+          { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs },
+          { protocolVersion: negotiatedProtocolVersion },
+        )
+        if (request.method === 'initialize' && res?.result && typeof res.result === 'object') {
+          const selected = (res.result as { protocolVersion?: unknown }).protocolVersion
+          if (typeof selected === 'string' && (STDIO_PROTOCOL_VERSIONS as readonly string[]).includes(selected)) {
+            negotiatedProtocolVersion = selected
+          }
+        }
+        if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
+      } catch (e) {
+        process.stdout.write(JSON.stringify(error(null, -32700, `parse error: ${(e as Error).message}`)) + '\n')
+      }
+    })
+  }
+  process.stdin.on('data', (chunk: string) => {
     buf += chunk
     let nl: number
     while ((nl = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, nl).trim()
       buf = buf.slice(nl + 1)
       if (!line) continue
-      try {
-        const exact = preserveExactJsonRpcIds(line)
-        const res = await handleRequest(JSON.parse(exact.body) as JsonRpcRequest, { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs })
-        if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
-      } catch (e) {
-        process.stdout.write(JSON.stringify(error(null, -32700, `parse error: ${(e as Error).message}`)) + '\n')
-      }
+      enqueue(line)
     }
   })
   try {
@@ -264,6 +285,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       process.stdin.on('end', () => resolve())
       process.stdin.on('close', () => resolve())
     })
+    await pending
   } finally {
     artifactStore.close()
   }

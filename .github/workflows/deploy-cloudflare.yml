@@ -115,7 +115,10 @@ jobs:
         run: cd website && npx --yes wrangler@latest deploy
       - name: Smoke-test the live /mcp endpoint
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
-        # Post-deploy verification against the live endpoint. Two probes:
+        # Post-deploy verification against the live endpoint. First poll the
+        # immutable build SHA in the deployed server card; generic behavior is
+        # not a propagation signal because the previous Worker also implements
+        # it. Only after the exact workflow head is live do the two probes run:
         #   1. `verify` on a 2-node flowchart — proves the Worker + MCP core
         #      answer at all.
         #   2. `execute` returning 42 — proves the LOADER (worker_loaders)
@@ -123,12 +126,31 @@ jobs:
         #      declared but unprovisioned, and `execute` is the only tool that
         #      touches it (see website/README.md promotion checklist), so the
         #      pure-tool probe alone would pass while hosted Code Mode is dead.
-        # Deploy propagation can lag, so each probe retries with backoff.
+        # Deploy propagation and binding readiness can lag, so each phase
+        # retries with backoff.
         # Assertions are on success values only — execute's error shape is not
         # part of this contract. The full-surface probe runs in the next step,
-        # which depends on this one having absorbed the propagation lag.
+        # which depends on the SHA gate here having absorbed propagation lag.
         run: |
           MCP='https://agentic-mermaid.dev/mcp'
+          CARD='https://agentic-mermaid.dev/.well-known/mcp/server-card.json'
+          EXPECTED_SHA='${{ github.event.workflow_run.head_sha || github.sha }}'
+          await_deployed_sha() {
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              local got served
+              got="$(curl -sS --max-time 30 -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&attempt=${attempt}" || true)"
+              served="$(jq -r '.generatedFrom.gitSha // empty' <<<"$got" 2>/dev/null || true)"
+              if [[ "$served" == "$EXPECTED_SHA" ]]; then
+                echo "ok   deployed build SHA is $EXPECTED_SHA"
+                return 0
+              fi
+              echo "retry $attempt/5 deployed build SHA (served: ${served:-unreadable}; expected: $EXPECTED_SHA)"
+              sleep $((attempt * 15))
+            done
+            echo "::error title=Deployment propagation failed::Live server card never reported expected gitSha $EXPECTED_SHA."
+            return 1
+          }
           probe() { # label payload expected-substring
             local attempt
             for attempt in 1 2 3 4 5; do
@@ -144,6 +166,7 @@ jobs:
             echo "::error title=Live /mcp smoke test failed::$1 never returned the expected substring $3 — see website/README.md promotion checklist."
             return 1
           }
+          await_deployed_sha
           probe 'verify accepts a 2-node flowchart' \
             '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}' \
             '\"ok\":true'
@@ -159,7 +182,7 @@ jobs:
         # error shapes, and a retry loop would mask a genuinely flaky response.
         # That is why it could only ever run manually before: a fresh deploy can
         # lag, and a no-retry probe against an unpropagated Worker is a false
-        # red. The retrying smoke test above is the propagation gate — by the
-        # time it passes, the new version is serving, so this step can run
+        # red. The exact gitSha poll above is the propagation gate — by the time
+        # it passes, this workflow's build is serving, so this step can run
         # deterministically. Keep it ordered after that step for that reason.
         run: bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp

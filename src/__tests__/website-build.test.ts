@@ -1431,6 +1431,9 @@ describe('Workers Static Assets website contract', () => {
     expect(deployWorkflow).toContain('SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"')
     expect(deployWorkflow).toContain('SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website')
     expect(deployWorkflow).not.toContain('SITE_GIT_SHA="$(git rev-parse HEAD)"')
+    expect(deployWorkflow).toContain("EXPECTED_SHA='${{ github.event.workflow_run.head_sha || github.sha }}'")
+    expect(deployWorkflow).toContain("jq -r '.generatedFrom.gitSha // empty'")
+    expect(deployWorkflow).toContain("\n          await_deployed_sha\n          probe 'verify accepts")
     for (const rel of ['agent-manifest.json', 'harnesses.json', 'recipes/index.json', 'skills/index.json', 'schemas/index.json']) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: false })
     }

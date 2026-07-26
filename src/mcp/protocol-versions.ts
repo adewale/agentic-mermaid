@@ -30,6 +30,8 @@ export type ProtocolEra = 'legacy' | 'modern'
 export const META_PROTOCOL_VERSION = 'io.modelcontextprotocol/protocolVersion'
 export const META_CLIENT_INFO = 'io.modelcontextprotocol/clientInfo'
 export const META_CLIENT_CAPABILITIES = 'io.modelcontextprotocol/clientCapabilities'
+/** Per-response server identity stamp used by the modern protocol era. */
+export const META_SERVER_INFO = 'io.modelcontextprotocol/serverInfo'
 
 // Protocol-defined error codes from the MCP reserved sub-range. These are not
 // JSON-RPC standard codes and must not be confused with -32602 (Invalid params).
@@ -131,6 +133,49 @@ export function modernRequestMetaProblems(req: { params?: unknown }): string[] {
     // An EMPTY object is valid and means "no optional capabilities" — absence is
     // not the same thing, and the server must never infer capabilities.
     problems.push(`params._meta.${META_CLIENT_CAPABILITIES} is required and must be an object (an empty object declares no optional capabilities)`)
+  } else {
+    const record = capabilities as Record<string, unknown>
+    const objectMember = (key: string): Record<string, unknown> | undefined => {
+      const value = record[key]
+      if (value === undefined) return undefined
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.${key} must be an object when present`)
+        return undefined
+      }
+      return value as Record<string, unknown>
+    }
+
+    // The capability set is intentionally open, but the members the protocol
+    // defines still have defined shapes. Accepting `roots: "yes"` advertises a
+    // capability no conforming peer could interpret and defeats validation at
+    // the stateless request boundary.
+    const roots = objectMember('roots')
+    if (roots?.listChanged !== undefined && typeof roots.listChanged !== 'boolean') {
+      problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.roots.listChanged must be a boolean when present`)
+    }
+    const sampling = objectMember('sampling')
+    for (const key of ['context', 'tools']) {
+      const value = sampling?.[key]
+      if (value !== undefined && (typeof value !== 'object' || value === null || Array.isArray(value))) {
+        problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.sampling.${key} must be an object when present`)
+      }
+    }
+    const elicitation = objectMember('elicitation')
+    for (const key of ['form', 'url']) {
+      const value = elicitation?.[key]
+      if (value !== undefined && (typeof value !== 'object' || value === null || Array.isArray(value))) {
+        problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.elicitation.${key} must be an object when present`)
+      }
+    }
+    for (const key of ['experimental', 'extensions']) {
+      const entries = objectMember(key)
+      if (!entries) continue
+      for (const [name, value] of Object.entries(entries)) {
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+          problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.${key}.${name} must be an object`)
+        }
+      }
+    }
   }
   return problems
 }

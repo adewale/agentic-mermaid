@@ -207,7 +207,9 @@ function recordModernPayload(response: JsonRpcResponse | null): unknown {
     ttlMs: result.ttlMs ?? null,
     cacheScope: result.cacheScope ?? null,
   }
-  if (Array.isArray(result.content)) return { ...envelope, ...(recordPayload(response) as object) }
+  if (Array.isArray(result.content)) {
+    return normalize({ ...envelope, ...(result._meta === undefined ? {} : { _meta: result._meta }), ...(recordPayload(response) as object) })
+  }
   for (const key of ['resultType', 'ttlMs', 'cacheScope']) delete result[key]
   if (Array.isArray(result.tools)) result.tools = (result.tools as Array<{ name: string }>).map(tool => tool.name)
   return normalize({ ...envelope, result })

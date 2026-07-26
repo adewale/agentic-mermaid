@@ -7,10 +7,14 @@
 export interface GoldenDriftFacts {
   /** Committed goldens with UNcommitted working-tree changes (suite regenerated them). */
   uncommittedGoldenFiles: string[]
-  /** Goldens changed by the HEAD commit. */
+  /** Net golden changes across the evaluated PR/push/single-commit range. */
   headGoldenFiles: string[]
-  /** The HEAD commit message. */
-  commitMessage: string
+  /** Every commit in the evaluated range, with its own golden diff and message. */
+  commits: Array<{
+    sha: string
+    goldenFiles: string[]
+    commitMessage: string
+  }>
   /**
    * True when approval spans a RANGE of commits but the checkout is shallow, so
    * the range cannot be walked. Without this the gate reads an empty message
@@ -39,30 +43,25 @@ export const APPROVE_TOKEN = '[approve-goldens]'
 // The token only counts at the START of a line. A bare substring match trips on
 // any commit that merely *mentions* the token in prose (e.g. a commit that
 // documents this very gate), so approval must be deliberate: a line that begins
-// with [approve-goldens]. Real approvers write `[approve-goldens] <reason>`.
-export const APPROVE_TOKEN_RE = /^[ \t]*\[approve-goldens\]/m
+// with [approve-goldens]. An approval is a complete line: either the bare token
+// or the token followed by whitespace and a review note. Requiring that
+// boundary keeps wrapped prose such as `[approve-goldens]") is ...` from
+// becoming an accidental approval merely because Markdown put it at column 1.
+export const APPROVE_TOKEN_RE = /^[ \t]*\[approve-goldens\](?:[ \t]+.*)?[ \t]*$/m
 
 /**
- * Which commits the gate reads — for FILES and for APPROVAL. The two must always
- * cover the same commits.
+ * Which commits the gate reads — for the net FILE diff and for per-commit
+ * APPROVAL. The two must always cover the same range.
  *
- * Scoping the file diff to a range while reading only the tip commit's message
- * is an asymmetry, and it fails in a specific way: every commit pushed AFTER an
- * approved golden change re-fails the gate, with no golden movement between
- * them. The range diff still reports the approved file; the tip message no
- * longer carries the token. A branch that was green at the approving commit
- * goes red on the next unrelated commit.
- *
- * The trade this deliberately keeps: an approval anywhere in the range blesses
- * all golden movement in that range. That is already how the push path behaves,
- * and it follows from net-diff semantics — which in exchange never flag a golden
- * change that a later commit in the same range reverts.
+ * A range-wide concatenated message is unsafe in the opposite direction: one
+ * old token can bless a later unrelated golden change. Return the commit list
+ * separately so the wrapper binds each token to that commit's own file diff.
  */
 export function goldenDriftCommands(o: {
   parents: string[]
   pushBefore: string | null
   goldenDir: string
-}): { filesCmd: string; messageCmd: string; needsRangeHistory: boolean } {
+}): { filesCmd: string; commitsCmd: string; needsRangeHistory: boolean } {
   // A `pull_request` checkout is the MERGE ref: HEAD is synthetic, parents are
   // [base, prHead]. Compare the parents directly to scope the gate to the PR's
   // own net change — that needs no merge base. Walking the message range DOES
@@ -72,20 +71,20 @@ export function goldenDriftCommands(o: {
     const [base, prHead] = o.parents
     return {
       filesCmd: `git diff --name-only ${base} ${prHead} -- ${o.goldenDir}`,
-      messageCmd: `git log --format=%B ${base}..${prHead}`,
+      commitsCmd: `git rev-list --reverse ${base}..${prHead}`,
       needsRangeHistory: true,
     }
   }
   if (o.pushBefore) {
     return {
       filesCmd: `git diff --name-only ${o.pushBefore}..HEAD -- ${o.goldenDir}`,
-      messageCmd: `git log --format=%B ${o.pushBefore}..HEAD`,
+      commitsCmd: `git rev-list --reverse ${o.pushBefore}..HEAD`,
       needsRangeHistory: true,
     }
   }
   return {
     filesCmd: `git show --name-only --format= HEAD -- ${o.goldenDir}`,
-    messageCmd: 'git log -1 --format=%B',
+    commitsCmd: 'git rev-parse HEAD',
     needsRangeHistory: false,
   }
 }
@@ -139,22 +138,25 @@ export function evaluateGoldenDrift(f: GoldenDriftFacts): GoldenDriftVerdict {
       message: `Running the suite left uncommitted golden changes: ${f.uncommittedGoldenFiles.join(', ')}. Regenerate, review, commit them, and start a commit-message line with ${APPROVE_TOKEN}.`,
     }
   }
-  const hasToken = APPROVE_TOKEN_RE.test(f.commitMessage)
-  const headChangesGoldens = f.headGoldenFiles.length > 0
-  if (hasToken && headChangesGoldens) {
-    return { ok: true, code: 'approved', message: `Golden changes approved via ${APPROVE_TOKEN}.` }
+  const stray = f.commits.find(commit => APPROVE_TOKEN_RE.test(commit.commitMessage) && commit.goldenFiles.length === 0)
+  if (stray) {
+    return { ok: false, code: 'stray-token', message: `Commit ${stray.sha} starts a line with ${APPROVE_TOKEN} but that commit changes no goldens under src/__tests__/testdata/. Remove the stray approval line.` }
   }
-  if (hasToken && !headChangesGoldens) {
-    return { ok: false, code: 'stray-token', message: `A line starts with ${APPROVE_TOKEN} but HEAD changes no goldens under src/__tests__/testdata/. Remove the stray approval line.` }
+  // A range whose golden edits cancel out has no reviewable final drift. It is
+  // clean once stray tokens are excluded, even if intermediate commits touched
+  // goldens while arriving at the net-zero result.
+  if (f.headGoldenFiles.length === 0) {
+    return { ok: true, code: 'clean', message: 'No golden drift.' }
   }
-  if (!hasToken && headChangesGoldens) {
+  const unapproved = f.commits.find(commit => commit.goldenFiles.length > 0 && !APPROVE_TOKEN_RE.test(commit.commitMessage))
+  if (unapproved) {
     return {
       ok: false,
       code: 'unreviewed-goldens',
-      message: `HEAD modifies committed goldens (${f.headGoldenFiles.join(', ')}) without approval. After reviewing the golden diff, start a commit-message line with ${APPROVE_TOKEN}.`,
+      message: `Commit ${unapproved.sha} modifies committed goldens (${unapproved.goldenFiles.join(', ')}) without approval. After reviewing that commit's golden diff, start a commit-message line with ${APPROVE_TOKEN}.`,
     }
   }
-  return { ok: true, code: 'clean', message: 'No golden drift.' }
+  return { ok: true, code: 'approved', message: `Every golden-changing commit is approved via ${APPROVE_TOKEN}.` }
 }
 
 // ---- CLI wrapper: gather git facts, annotate, exit ------------------------
@@ -181,13 +183,18 @@ if (import.meta.main) {
     const { readFileSync } = await import('node:fs')
     pushBefore = githubPushBeforeSha(process.env.GITHUB_EVENT_NAME, readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'))
   }
-  const { filesCmd, messageCmd, needsRangeHistory } = goldenDriftCommands({ parents, pushBefore, goldenDir: GOLDEN_DIR })
+  const { filesCmd, commitsCmd, needsRangeHistory } = goldenDriftCommands({ parents, pushBefore, goldenDir: GOLDEN_DIR })
   const shallow = run('git rev-parse --is-shallow-repository').trim() === 'true'
+  const commits = lines(commitsCmd).map(sha => ({
+    sha,
+    goldenFiles: lines(`git diff-tree --root --no-commit-id --name-only -r -m ${sha} -- ${GOLDEN_DIR}`),
+    commitMessage: run(`git log -1 --format=%B ${sha}`),
+  }))
 
   const facts: GoldenDriftFacts = {
     uncommittedGoldenFiles: parseGitStatusPorcelainZ(run(`git status --porcelain=v1 -z --untracked-files=all -- ${GOLDEN_DIR}`)),
     headGoldenFiles: lines(filesCmd),
-    commitMessage: run(messageCmd),
+    commits,
     truncatedHistory: needsRangeHistory && shallow,
   }
   const v = evaluateGoldenDrift(facts)

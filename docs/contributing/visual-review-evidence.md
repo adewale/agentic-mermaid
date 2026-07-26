@@ -30,8 +30,8 @@ ignorable warning. The `ci.yml` "Golden snapshot drift" step fails the build if:
 
 - running the suite leaves **uncommitted** changes under `testdata/` (regenerate
   and commit them), or
-- the PR's HEAD commit **modifies** committed goldens **without** an approval
-  line starting with `[approve-goldens]`.
+- any commit in the PR/push range **modifies** committed goldens **without its
+  own** approval line starting with `[approve-goldens]`.
 
 So when a renderer change legitimately moves goldens: regenerate them, **review
 the diff** (this is the human decision the gate enforces), commit the result,

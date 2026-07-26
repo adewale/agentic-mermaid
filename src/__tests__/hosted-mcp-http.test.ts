@@ -13,9 +13,11 @@
 import { describe, expect, test } from 'bun:test'
 import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache, type McpRequestEvent } from '../../website/src/mcp-handler.ts'
 import type { HostedMcpContext } from '../mcp/hosted-server.ts'
+import { META_CLIENT_CAPABILITIES, META_PROTOCOL_VERSION } from '../mcp/protocol-versions.ts'
 import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
+const MODERN = '2026-07-28'
 const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
 
 function makeCache(): McpCache & { store: Map<string, string> } {
@@ -57,6 +59,19 @@ function post(body: unknown, headers: Record<string, string> = {}): Request {
 
 const rpc = (method: string, params?: unknown, id: number | string = 1) => ({ jsonrpc: '2.0', id, method, params })
 const call = (name: string, args: Record<string, unknown>, id: number | string = 1) => rpc('tools/call', { name, arguments: args }, id)
+const modernCall = (name: string, args: Record<string, unknown>, id: number | string = 1) => ({
+  jsonrpc: '2.0', id, method: 'tools/call',
+  params: {
+    name,
+    arguments: args,
+    _meta: { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: {} },
+  },
+})
+const modernHeaders = (name: string) => ({
+  'mcp-protocol-version': MODERN,
+  'mcp-method': 'tools/call',
+  'mcp-name': name,
+})
 
 describe('method and header validation', () => {
   test('OPTIONS preflight answers CORS without touching the server', async () => {
@@ -311,7 +326,7 @@ describe('CORS Origin validation', () => {
   test('a disallowed Origin is refused on the OPTIONS preflight too (no ACAO granted)', async () => {
     const { handler } = makeHandler()
     const res = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }))
-    expect(res.status).toBe(204)
+    expect(res.status).toBe(403)
     expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
 
@@ -343,6 +358,42 @@ describe('deterministic-response caching', () => {
     await handler(post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'describe', arguments: { source: FLOW } } }))
     await handler(post({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { arguments: { source: FLOW }, name: 'describe' } }))
     expect(cache.store.size).toBe(1)
+  })
+
+  test('legacy and modern cache fills are redecorated for the requesting era in either order', async () => {
+    for (const firstEra of ['legacy', 'modern'] as const) {
+      const cache = makeCache()
+      const { handler } = makeHandler({ cache })
+      const legacyRequest = call('describe', { source: FLOW }, 'legacy')
+      const modernRequest = modernCall('describe', { source: FLOW }, 'modern')
+      const sendLegacy = async () => (await (await handler(post(legacyRequest))).json()) as any
+      const sendModern = async () => (await (await handler(post(modernRequest, modernHeaders('describe')))).json()) as any
+      const first = firstEra === 'legacy' ? await sendLegacy() : await sendModern()
+      const second = firstEra === 'legacy' ? await sendModern() : await sendLegacy()
+      const legacy = firstEra === 'legacy' ? first : second
+      const modern = firstEra === 'modern' ? first : second
+      expect(legacy.result.resultType).toBeUndefined()
+      expect(modern.result.resultType).toBe('complete')
+      // Partitioning prevents version-dependent payload reuse; cache entries
+      // themselves are still protocol-neutral and decorated on every hit.
+      expect(cache.store.size).toBe(2)
+      for (const stored of cache.store.values()) {
+        expect(JSON.parse(stored).resultType).toBeUndefined()
+      }
+    }
+  })
+
+  test('a warm valid modern call cannot bypass required per-request metadata', async () => {
+    const cache = makeCache()
+    const { handler } = makeHandler({ cache })
+    const valid = modernCall('describe', { source: FLOW }, 'valid')
+    expect((await handler(post(valid, modernHeaders('describe')))).status).toBe(200)
+
+    const malformed = modernCall('describe', { source: FLOW }, 'malformed') as any
+    delete malformed.params._meta[META_CLIENT_CAPABILITIES]
+    const response = await handler(post(malformed, modernHeaders('describe')))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ id: 'malformed', error: { code: -32602 } })
   })
 
   test('error results are never cached', async () => {

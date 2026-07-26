@@ -2,6 +2,7 @@ import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse 
 import {
   effectiveProtocolVersion,
   eraForRequest,
+  META_SERVER_INFO,
   modernRequestMetaProblems,
   requestMetaProtocolVersion,
   usesToolErrorForInvalidArguments,
@@ -376,11 +377,14 @@ export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Cont
  *  initialize, so the two can never describe different servers. Answered in
  *  BOTH eras — a dual-era client probes with it, and a legacy client that
  *  never calls it is unaffected. */
-function discoverResult<Context>(surface: McpServerSurface<Context>, options: McpDispatchOptions) {
+function discoverResult<Context>(surface: McpServerSurface<Context>, options: McpDispatchOptions, era: ProtocolEra) {
   return {
     supportedVersions: [...surfaceSupportedVersions(surface, options)],
     capabilities: { tools: {} },
-    serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
+    // Legacy probing shipped this top-level extension before the final modern
+    // wire shape settled. Preserve it for those callers, but modern discovery
+    // receives identity in the response `_meta` stamp below.
+    ...(era === 'legacy' ? { serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION } } : {}),
     instructions: surface.instructions,
   }
 }
@@ -455,7 +459,7 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     }
     case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
     case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
-    case 'server/discover': response = reply(id, discoverResult(surface, options)); break
+    case 'server/discover': response = reply(id, discoverResult(surface, options, era)); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!plainJsonObject(req.params)) {
@@ -492,7 +496,7 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     case 'resources/list': response = reply(id, { resources: [] }); break
     default: response = unknownMethod(id, req.method)
   }
-  return notification ? null : decorateModernResult(response, req.method, era)
+  return notification ? null : decorateMcpResult(response, req.method, era, surface.serverName ?? MCP_SERVER_NAME)
 }
 
 /**
@@ -527,14 +531,35 @@ const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list'])
  *
  * Errors are left alone: caching hints and `resultType` live on results.
  */
-function decorateModernResult(response: JsonRpcResponse | null, method: string, era: ProtocolEra): JsonRpcResponse | null {
+export function decorateMcpResult(response: JsonRpcResponse | null, method: string, era: ProtocolEra, serverName: string): JsonRpcResponse | null {
   if (era !== 'modern' || !response || !plainJsonObject(response.result)) return response
-  const result: Record<string, unknown> = { resultType: 'complete', ...response.result }
+  const existingMeta = plainJsonObject(response.result._meta) ? response.result._meta : {}
+  const result: Record<string, unknown> = {
+    resultType: 'complete',
+    ...response.result,
+    _meta: {
+      ...existingMeta,
+      [META_SERVER_INFO]: { name: serverName, version: MCP_SERVER_VERSION },
+    },
+  }
   if (CACHEABLE_METHODS.has(method)) {
     result.ttlMs = LIST_RESULT_TTL_MS
     result.cacheScope = 'public'
   }
   return { ...response, result }
+}
+
+/** Strip response-era fields before a deterministic tool result enters the
+ * shared compute cache. Cache hits are decorated again for the current request,
+ * so a legacy fill can never dictate a modern envelope (or vice versa). */
+export function protocolNeutralMcpResult(result: unknown): unknown {
+  if (!plainJsonObject(result)) return result
+  const { resultType: _resultType, ttlMs: _ttlMs, cacheScope: _cacheScope, _meta, ...neutral } = result
+  if (plainJsonObject(_meta)) {
+    const { [META_SERVER_INFO]: _serverInfo, ...retainedMeta } = _meta
+    if (Object.keys(retainedMeta).length > 0) neutral._meta = retainedMeta
+  }
+  return neutral
 }
 
 /** -32601, which the HTTP transport maps to 404 for modern requests. */

@@ -118,6 +118,13 @@ describe('hosted /mcp driven by the reference Streamable HTTP client', () => {
       expect(transport.sessionId).toBeUndefined()
       const described = await client.callTool({ name: 'describe', arguments: { source: FLOW } })
       expect(JSON.stringify(described.content)).toContain('flowchart')
+
+      // SEP-1303 is negotiated once during initialize. The stdio process must
+      // retain that revision so later invalid arguments arrive as a readable
+      // tool execution error instead of an out-of-band -32602 protocol error.
+      const invalid = await client.callTool({ name: 'describe', arguments: { source: FLOW, nope: true } })
+      expect(invalid.isError).toBe(true)
+      expect(JSON.stringify(invalid.content)).toContain('INVALID_ARGUMENTS')
     } finally {
       await client.close()
     }

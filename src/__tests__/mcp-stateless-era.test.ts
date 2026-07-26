@@ -21,6 +21,7 @@ import {
 } from '../mcp/hosted-server.ts'
 import {
   HEADER_MISMATCH, META_CLIENT_CAPABILITIES, META_CLIENT_INFO, META_PROTOCOL_VERSION,
+  META_SERVER_INFO,
   UNSUPPORTED_PROTOCOL_VERSION, eraForRequest, isModernProtocolVersion,
 } from '../mcp/protocol-versions.ts'
 import { MCP_SERVER_VERSION } from '../mcp/tool-surface.ts'
@@ -121,7 +122,8 @@ describe('server/discover', () => {
     const response = await handleHostedRequest(modern('server/discover'), context())
     const result = response?.result as any
     expect(result.supportedVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
-    expect(result.serverInfo).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
+    expect(result.serverInfo).toBeUndefined()
+    expect(result._meta[META_SERVER_INFO]).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
     expect(result.capabilities).toEqual({ tools: {} })
     expect(typeof result.instructions).toBe('string')
   })
@@ -157,6 +159,18 @@ describe('modern _meta is required and validated', () => {
     // be well-formed — absent and malformed are different cases.
     ['clientInfo without version', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: { name: 'x' }, [META_CLIENT_CAPABILITIES]: {} }],
     ['clientInfo that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: 'acme/1.0', [META_CLIENT_CAPABILITIES]: {} }],
+    ['roots capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { roots: 'yes' } }],
+    ['roots.listChanged that is not boolean', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { roots: { listChanged: 'yes' } } }],
+    ['sampling capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { sampling: true } }],
+    ['sampling.context that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { sampling: { context: 'yes' } } }],
+    ['sampling.tools that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { sampling: { tools: [] } } }],
+    ['elicitation capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { elicitation: true } }],
+    ['elicitation.form that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { elicitation: { form: false } } }],
+    ['elicitation.url that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { elicitation: { url: 'yes' } } }],
+    ['experimental capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { experimental: 'yes' } }],
+    ['experimental value that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { experimental: { 'acme/example': [] } } }],
+    ['extensions capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { extensions: 'yes' } }],
+    ['extension value that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { extensions: { 'acme/example': true } } }],
   ])('%s is rejected with INVALID_PARAMS', async (_label, meta) => {
     const request: JsonRpcRequest = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: { [META_PROTOCOL_VERSION]: MODERN, ...meta } } }
     // Only the cases that still declare a modern version reach the check; the
@@ -185,6 +199,14 @@ describe('modern _meta is required and validated', () => {
 
   test('an empty clientCapabilities object is valid — it declares no optional capabilities', async () => {
     const response = await handleHostedRequest(modern('tools/list'), context())
+    expect(response?.error).toBeUndefined()
+  })
+
+  test('unknown capability members retain the open extension surface', async () => {
+    const request = modern('tools/list')
+    const meta = (request.params as any)._meta
+    meta['acme/future-capability'] = { enabled: true }
+    const response = await handleHostedRequest(request, context())
     expect(response?.error).toBeUndefined()
   })
 
@@ -285,6 +307,23 @@ describe('transport: modern header/body validation', () => {
     const { status, body } = await payload(await handler()(post(call, mutate(modernHeaders(call)))))
     expect(status).toBe(400)
     expect(body.error.code).toBe(HEADER_MISMATCH)
+    expect(body.id).toBe(call.id)
+  })
+
+  test('a malformed modern request is HTTP 400 and preserves its request id', async () => {
+    const request = modern('tools/list', {}, 'meta-42')
+    delete ((request.params as any)._meta as Record<string, unknown>)[META_CLIENT_CAPABILITIES]
+    const { status, body } = await payload(await handler()(post(request, modernHeaders(request))))
+    expect(status).toBe(400)
+    expect(body).toMatchObject({ id: 'meta-42', error: { code: -32602 } })
+  })
+
+  test('a malformed modern notification is rejected as empty HTTP 400, not accepted as 202', async () => {
+    const request = modern('tools/list') as any
+    delete request.id
+    delete request.params._meta[META_CLIENT_CAPABILITIES]
+    const response = await handler()(post(request, modernHeaders(request)))
+    expect({ status: response.status, body: await response.text() }).toEqual({ status: 400, body: '' })
   })
 
   test('a Base64-sentinel Mcp-Name is decoded before comparison', async () => {
@@ -404,6 +443,16 @@ describe('modern results carry the fields this revision requires', () => {
     const response = await handleHostedRequest(legacy('tools/list'), context())
     expect(response?.result).toBeDefined()
     expect((response?.result as { resultType?: string }).resultType).toBeUndefined()
+    expect((response?.result as any)._meta?.[META_SERVER_INFO]).toBeUndefined()
+  })
+
+  test.each([
+    ['server/discover', {}],
+    ['tools/list', {}],
+    ['tools/call', { name: 'verify', arguments: { source: FLOW } }],
+  ])('%s stamps server identity in modern result metadata', async (method, params) => {
+    const result = (await handleHostedRequest(modern(method, params), context()))?.result as any
+    expect(result._meta[META_SERVER_INFO]).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
   })
 
   test.each(['tools/list', 'server/discover'])('%s carries public caching hints in the modern era', async method => {
