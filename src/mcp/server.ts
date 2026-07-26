@@ -18,6 +18,7 @@ import {
   isValidExecuteTimeout,
   projectMcpRenderOptions,
   withClosedMcpInputSchema,
+  type McpDispatchOptions,
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
@@ -58,7 +59,38 @@ export interface HttpMcpServer {
   close(): Promise<void>
 }
 
+/**
+ * The default `initialize` echo for a client offering something we do not serve.
+ * Unchanged: every existing client of this server negotiated 2024-11-05.
+ */
 const PROTOCOL_VERSION = '2024-11-05'
+
+/**
+ * What the DISPATCHER implements. Every revision here is honoured by
+ * `dispatchMcpRequest`: the legacy handshake, SEP-1303's tool-error envelope
+ * from 2025-11-25, and the 2026-07-28 stateless era (server/discover,
+ * per-request `_meta`, resultType, caching hints).
+ *
+ * One honest caveat, pre-existing and unchanged: this server has never
+ * implemented JSON-RPC batching — every transport parses a single object, so an
+ * array body is refused with -32600 on every revision. That is exactly what
+ * 2025-06-18 and later require, and a deviation for the two older revisions
+ * that permit it. The previous 2024-11-05-only pin was, on that axis, the least
+ * accurate claim this server could have made.
+ */
+export const STDIO_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28'] as const
+
+/**
+ * What the HTTP+SSE transport serves — and it is literally the 2024-11-05 one:
+ * it writes `event: endpoint`, hands back a `?sessionId=` URL, and holds a
+ * session map. Streamable HTTP replaced that in 2025-03-26, so advertising any
+ * newer revision over this transport would be a false claim to every HTTP
+ * client, however capable the dispatcher behind it is.
+ */
+export const HTTP_SSE_PROTOCOL_VERSIONS = ['2024-11-05'] as const
+
+/** Narrowing passed by the HTTP+SSE transport's two dispatch call sites. */
+const HTTP_SSE_DISPATCH: McpDispatchOptions = { supportedVersions: HTTP_SSE_PROTOCOL_VERSIONS }
 const MAX_RPC_BODY_BYTES = 1024 * 1024
 const MAX_SANDBOX_TIMEOUT_MS = 30_000
 export const MAX_SSE_SESSIONS = 32
@@ -82,13 +114,14 @@ const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execu
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
+  supportedVersions: STDIO_PROTOCOL_VERSIONS,
   tools: LOCAL_TOOLS,
   instructions: LOCAL_INSTRUCTIONS,
   handleToolCall,
 }
 
-export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}): Promise<JsonRpcResponse | null> {
-  return dispatchMcpRequest(req, context, LOCAL_SURFACE)
+export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
+  return dispatchMcpRequest(req, context, LOCAL_SURFACE, options)
 }
 
 
@@ -396,7 +429,7 @@ async function postSseMessage(req: IncomingMessage, res: ServerResponse, session
   const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
   try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
-  const response = await handleRequest(parsed, context)
+  const response = await handleRequest(parsed, context, HTTP_SSE_DISPATCH)
   if (response) {
     sse.write(`event: message\ndata: ${stringifyJsonRpc(response, exact.ids)}\n\n`)
     return sendJson(res, 202, { ok: true })
@@ -410,7 +443,7 @@ async function postRpc(req: IncomingMessage, res: ServerResponse, context: McpRe
   const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
   try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
-  const response = await handleRequest(parsed, context)
+  const response = await handleRequest(parsed, context, HTTP_SSE_DISPATCH)
   if (response === null) {
     res.writeHead(202)
     res.end()

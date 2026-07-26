@@ -3,7 +3,8 @@ import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createArtifactStore } from '../mcp/artifacts.ts'
-import { handleRequest, readRequestBody, startHttpServer, type HttpMcpServer } from '../mcp/server.ts'
+import { handleRequest, readRequestBody, startHttpServer, type HttpMcpServer, HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../mcp/server.ts'
+import type { JsonRpcRequest } from '../mcp/protocol.ts'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const textDecoder = new TextDecoder()
@@ -336,5 +337,73 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
       body: JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'ping' }),
     })
     expect(stale.status).toBe(404)
+  })
+})
+
+const HTTP_SSE = { supportedVersions: HTTP_SSE_PROTOCOL_VERSIONS }
+
+// F4: the local server answers over two transports whose obligations differ, so
+// what it ADVERTISES has to differ too. Its HTTP+SSE path is literally the
+// 2024-11-05 transport — `event: endpoint`, a `?sessionId=` URL, a session map
+// — while the shared dispatcher behind it implements everything up to the
+// 2026-07-28 stateless era. Before this, era selection was a pure function of
+// the request, so a modern `_meta` request was served the modern envelope over
+// BOTH transports while server/discover advertised only 2024-11-05: one
+// response that used modern-only fields and denied supporting modern.
+describe('local server: per-transport protocol versions', () => {
+  const modern = (method: string): JsonRpcRequest => ({
+    jsonrpc: '2.0', id: 1, method,
+    params: { _meta: {
+      'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+      'io.modelcontextprotocol/clientCapabilities': {},
+    } },
+  })
+
+  test('stdio advertises every revision the dispatcher implements', async () => {
+    const response = await handleRequest(modern('server/discover'))
+    expect((response?.result as { supportedVersions: string[] }).supportedVersions)
+      .toEqual([...STDIO_PROTOCOL_VERSIONS])
+  })
+
+  test('HTTP+SSE advertises only the revision its transport is', async () => {
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'server/discover' }, {}, HTTP_SSE)
+    expect((response?.result as { supportedVersions: string[] }).supportedVersions).toEqual(['2024-11-05'])
+  })
+
+  // The half that makes the advertisement true rather than decorative: a client
+  // declaring a revision this transport does not serve is refused with the list
+  // it can retry from, instead of being silently served a different era.
+  test('HTTP+SSE refuses a modern request with -32022 and a retry list', async () => {
+    const response = await handleRequest(modern('tools/list'), {}, HTTP_SSE)
+    expect(response?.error?.code).toBe(-32022)
+    expect(response?.error?.data).toEqual({ supported: ['2024-11-05'], requested: '2026-07-28' })
+  })
+
+  test('stdio serves the same modern request', async () => {
+    const response = await handleRequest(modern('tools/list'))
+    expect(response?.error).toBeUndefined()
+    expect((response?.result as { resultType?: string }).resultType).toBe('complete')
+  })
+
+  // A transport list narrows the surface; it can never introduce a revision the
+  // dispatcher does not implement.
+  test('a transport cannot advertise a revision the surface lacks', async () => {
+    const response = await handleRequest(
+      { jsonrpc: '2.0', id: 1, method: 'server/discover' }, {},
+      { supportedVersions: ['2024-11-05', '2099-01-01'] },
+    )
+    expect((response?.result as { supportedVersions: string[] }).supportedVersions).toEqual(['2024-11-05'])
+  })
+
+  test('initialize echoes a version this transport serves, and downgrades otherwise', async () => {
+    const offer = (version: string, options = {}) => handleRequest(
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: version, capabilities: {}, clientInfo: { name: 't', version: '0' } } },
+      {}, options,
+    )
+    // Served on stdio → echoed. This is the downgrade that was silently
+    // happening to the reference SDK client, which offers 2025-11-25.
+    expect(((await offer('2025-11-25'))?.result as { protocolVersion: string }).protocolVersion).toBe('2025-11-25')
+    // Not served over HTTP+SSE → falls back to the transport's own revision.
+    expect(((await offer('2025-11-25', HTTP_SSE))?.result as { protocolVersion: string }).protocolVersion).toBe('2024-11-05')
   })
 })

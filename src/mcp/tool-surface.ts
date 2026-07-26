@@ -3,7 +3,9 @@ import {
   effectiveProtocolVersion,
   eraForRequest,
   modernRequestMetaProblems,
+  requestMetaProtocolVersion,
   usesToolErrorForInvalidArguments,
+  UNSUPPORTED_PROTOCOL_VERSION,
   type ProtocolEra,
 } from './protocol-versions.ts'
 import { PACKAGE_VERSION } from '../version.ts'
@@ -59,6 +61,18 @@ export interface McpDispatchOptions {
    *  header on HTTP). Supplies the version for legacy requests, whose bodies
    *  carry none; never overrides a modern request's `_meta`. */
   protocolVersion?: string | null
+  /**
+   * Revisions THIS TRANSPORT serves, when they are narrower than the surface's.
+   *
+   * One dispatcher can sit behind several transports whose obligations differ:
+   * the local server answers over stdio and over a 2024-11-05-era HTTP+SSE
+   * transport, and a revision the dispatcher implements is not thereby served
+   * over a transport that cannot carry it. `server/discover` must answer for
+   * the transport the request actually arrived on, so this NARROWS the surface
+   * list — it never widens it, because a transport cannot add a capability the
+   * dispatcher lacks.
+   */
+  supportedVersions?: readonly string[]
 }
 
 // The LOCAL stdio/HTTP server identity. The hosted transport reports its own
@@ -348,9 +362,13 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
 }
 
 /** The versions a surface implements: its explicit list, else its pinned constant. */
-export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Context>): readonly string[] {
-  if (surface.supportedVersions) return surface.supportedVersions
-  return typeof surface.protocolVersion === 'string' ? [surface.protocolVersion] : []
+export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Context>, options: McpDispatchOptions = {}): readonly string[] {
+  const surfaceVersions = surface.supportedVersions
+    ?? (typeof surface.protocolVersion === 'string' ? [surface.protocolVersion] : [])
+  if (!options.supportedVersions) return surfaceVersions
+  // Intersect rather than replace: a transport narrows what the dispatcher can
+  // do, so a transport list may not introduce a revision the surface lacks.
+  return surfaceVersions.filter(version => options.supportedVersions!.includes(version))
 }
 
 /** server/discover: the modern replacement for the initialize handshake's
@@ -358,9 +376,9 @@ export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Cont
  *  initialize, so the two can never describe different servers. Answered in
  *  BOTH eras — a dual-era client probes with it, and a legacy client that
  *  never calls it is unaffected. */
-function discoverResult<Context>(surface: McpServerSurface<Context>) {
+function discoverResult<Context>(surface: McpServerSurface<Context>, options: McpDispatchOptions) {
   return {
-    supportedVersions: [...surfaceSupportedVersions(surface)],
+    supportedVersions: [...surfaceSupportedVersions(surface, options)],
     capabilities: { tools: {} },
     serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
     instructions: surface.instructions,
@@ -385,6 +403,24 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
   const era = eraForRequest(req)
   const version = effectiveProtocolVersion(req, options.protocolVersion)
 
+  // A version in `_meta` is the client's own claim about the revision it
+  // speaks. If this transport does not serve it, answer with the structured
+  // list it can retry from rather than silently serving a different era. The
+  // HTTP transport already does this for the MCP-Protocol-Version header; a
+  // stdio client sends no header, so without this its claim went unchecked —
+  // and advertising a per-transport version list while ignoring what the client
+  // declares would just move the mismatch rather than fix it.
+  const declaredVersion = requestMetaProtocolVersion(req)
+  const servedVersions = surfaceSupportedVersions(surface, options)
+  if (declaredVersion !== undefined && !servedVersions.includes(declaredVersion)) {
+    return notification ? null : rpcError(
+      id,
+      UNSUPPORTED_PROTOCOL_VERSION,
+      `Unsupported protocol version: ${declaredVersion}`,
+      { supported: [...servedVersions], requested: declaredVersion },
+    )
+  }
+
   if (era === 'modern') {
     const metaProblems = modernRequestMetaProblems(req)
     if (metaProblems.length > 0) {
@@ -399,9 +435,16 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     // request keeps the handshake it depends on.
     case 'initialize': {
       if (era === 'modern') { response = unknownMethod(id, req.method); break }
-      const protocolVersion = typeof surface.protocolVersion === 'function'
-        ? surface.protocolVersion(req.params)
-        : surface.protocolVersion
+      // Echo the client's version when this transport serves it. Advertising a
+      // revision in server/discover and then refusing to negotiate it would
+      // reproduce, inside one server, the exact mismatch per-transport
+      // reporting exists to remove.
+      const offered = (req.params as { protocolVersion?: unknown } | undefined)?.protocolVersion
+      const protocolVersion = typeof offered === 'string' && servedVersions.includes(offered)
+        ? offered
+        : typeof surface.protocolVersion === 'function'
+          ? surface.protocolVersion(req.params)
+          : surface.protocolVersion
       response = reply(id, {
         protocolVersion,
         serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
@@ -412,7 +455,7 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     }
     case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
     case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
-    case 'server/discover': response = reply(id, discoverResult(surface)); break
+    case 'server/discover': response = reply(id, discoverResult(surface, options)); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!plainJsonObject(req.params)) {

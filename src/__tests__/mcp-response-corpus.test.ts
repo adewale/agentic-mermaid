@@ -34,7 +34,7 @@ import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { handleRequest, HTTP_SSE_PROTOCOL_VERSIONS, LOCAL_TOOLS } from '../mcp/server.ts'
 import {
   handleHostedRequest, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS,
   type ExecuteResult, type HostedMcpContext,
@@ -228,6 +228,14 @@ async function buildCorpus() {
   for (const { label, request } of MODERN_CALLS) {
     (local.calls as Record<string, unknown>)[label] = recordModernPayload(await handleRequest(request))
   }
+  // The same two requests over the local server's OTHER transport. Its HTTP+SSE
+  // path is the 2024-11-05 one (`event: endpoint`, `?sessionId=`), so it serves
+  // none of the modern era — and the pair of entries is what makes the
+  // per-transport narrowing reviewable rather than asserted only in prose.
+  for (const { label, request } of MODERN_CALLS.slice(0, 2)) {
+    (local.calls as Record<string, unknown>)[`${label}-over-http-sse`] =
+      recordModernPayload(await handleRequest(request, {}, { supportedVersions: HTTP_SSE_PROTOCOL_VERSIONS }))
+  }
 
   const context = hostedContext()
   const hosted: Record<string, unknown> = {
@@ -284,9 +292,17 @@ describe('MCP response corpus', () => {
     for (const surface of ['local', 'hosted'] as const) {
       const calls = (corpus[surface] as Record<string, any>).calls
       const modern = Object.entries(calls).filter(([label]) => label.startsWith('modern/'))
-      expect(modern.length).toBe(MODERN_CALLS.length)
+      expect(modern.length).toBeGreaterThanOrEqual(MODERN_CALLS.length)
       for (const [label, payload] of modern as Array<[string, Record<string, unknown>]>) {
-        if (label.includes('error')) {
+        if (label.endsWith('-over-http-sse')) {
+          // The narrowed transport must REFUSE the modern revision, and hand
+          // back the list it can be retried with. This pair of entries is the
+          // whole point of per-transport reporting: the same request, served on
+          // stdio and refused on the 2024-11-05-era HTTP+SSE transport.
+          const error = payload.error as { code?: number; data?: { supported?: string[] } } | undefined
+          expect({ surface, label, code: error?.code }).toEqual({ surface, label, code: -32022 })
+          expect({ surface, label, supported: error?.data?.supported }).toEqual({ surface, label, supported: ['2024-11-05'] })
+        } else if (label.includes('error')) {
           expect({ surface, label, error: Boolean(payload.error) }).toEqual({ surface, label, error: true })
         } else {
           expect({ surface, label, resultType: payload.resultType }).toEqual({ surface, label, resultType: 'complete' })

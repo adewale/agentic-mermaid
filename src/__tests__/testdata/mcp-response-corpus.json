@@ -1,7 +1,7 @@
 {
   "local": {
     "initialize": {
-      "protocolVersion": "2024-11-05",
+      "protocolVersion": "2025-06-18",
       "serverInfo": {
         "name": "agentic-mermaid-mcp",
         "version": "<package-version>"
@@ -347,7 +347,11 @@
         "cacheScope": "public",
         "result": {
           "supportedVersions": [
-            "2024-11-05"
+            "2024-11-05",
+            "2025-03-26",
+            "2025-06-18",
+            "2025-11-25",
+            "2026-07-28"
           ],
           "capabilities": {
             "tools": {}
@@ -402,6 +406,30 @@
             "render_png",
             "describe"
           ]
+        }
+      },
+      "modern/server-discover-over-http-sse": {
+        "error": {
+          "code": -32022,
+          "message": "Unsupported protocol version: 2026-07-28",
+          "data": {
+            "supported": [
+              "2024-11-05"
+            ],
+            "requested": "2026-07-28"
+          }
+        }
+      },
+      "modern/tools-list-over-http-sse": {
+        "error": {
+          "code": -32022,
+          "message": "Unsupported protocol version: 2026-07-28",
+          "data": {
+            "supported": [
+              "2024-11-05"
+            ],
+            "requested": "2026-07-28"
+          }
         }
       }
     }

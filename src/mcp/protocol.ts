@@ -98,7 +98,9 @@ export function stringifyJsonRpc(payload: unknown, exactIds: ExactJsonRpcId[] = 
 }
 
 export function reply(id: number | string | null, result: unknown): JsonRpcResponse { return { jsonrpc: '2.0', id, result } }
-export function rpcError(id: number | string | null, code: number, message: string): JsonRpcResponse { return { jsonrpc: '2.0', id, error: { code, message } } }
+export function rpcError(id: number | string | null, code: number, message: string, data?: unknown): JsonRpcResponse {
+  return { jsonrpc: '2.0', id, error: data === undefined ? { code, message } : { code, message, data } }
+}
 
 /** Wrap a tool payload in the MCP tools/call content envelope. */
 export function toolResult(id: number | string | null, payload: unknown, isError: boolean): JsonRpcResponse {
