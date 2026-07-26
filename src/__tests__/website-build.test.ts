@@ -390,13 +390,14 @@ describe('Workers Static Assets website contract', () => {
     assetFetches = 0
     const mcp = await worker.fetch(new Request('https://agentic-mermaid.dev/mcp'), env(() => new Response('should not run')))
     expect(mcp.status).toBe(405)
-    expect(((await mcp.json()) as any).error.message).toContain('stateless')
+    // A pre-parse refusal carries no JSON-RPC envelope: `error` is the reason.
+    expect(((await mcp.json()) as any).error).toContain('stateless')
     expect(mcp.headers.get('strict-transport-security')).toBe('max-age=31536000')
     expect(assetFetches).toBe(0)
 
     const wellKnownMcp = await worker.fetch(new Request('https://agentic-mermaid.dev/.well-known/mcp'), env(() => new Response('should not run')))
     expect(wellKnownMcp.status).toBe(405)
-    expect(((await wellKnownMcp.json()) as any).error.message).toContain('stateless')
+    expect(((await wellKnownMcp.json()) as any).error).toContain('stateless')
     expect(assetFetches).toBe(0)
 
     const wellKnownInitialize = await worker.fetch(new Request('https://agentic-mermaid.dev/.well-known/mcp', {

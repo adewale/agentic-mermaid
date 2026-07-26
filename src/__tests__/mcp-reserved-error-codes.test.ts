@@ -93,20 +93,19 @@ describe('MCP reserved error-code range', () => {
     expect(hits).toEqual([])
   })
 
-  // The legacy half is a SHOULD NOT, not a MUST NOT, and we still sit on the
-  // wrong side of it: five transport-level rejections (origin, method,
-  // content-type, and two body-size paths) answer with -32000. They predate the
-  // partition, the HTTP status carries the real signal in each case, and the
-  // response bodies are pinned by the golden corpus — so this test freezes the
-  // deviation at its current extent rather than blessing it. Adding a sixth
-  // fails here, which forces the migration decision instead of drifting into it.
-  test('legacy-range usage is frozen at the known transport sites', () => {
+  // The legacy half is a SHOULD NOT rather than a MUST NOT, and we used to sit
+  // on the wrong side of it: five transport-level rejections (origin, method,
+  // content-type, two body-size paths) answered with -32000. They are gone —
+  // every one of those paths refuses BEFORE a JSON-RPC request is parsed, so it
+  // now answers without a JSON-RPC envelope at all and needs no code. Nothing
+  // in the legacy sub-range should ever reappear.
+  test('no production source uses the legacy sub-range', () => {
     const byFile = new Map<string, number>()
     for (const { rel, code } of productionSources()) {
       const hits = (code.match(LEGACY_RANGE) ?? []).length
       if (hits > 0) byFile.set(rel, hits)
     }
-    expect(Object.fromEntries(byFile)).toEqual({ 'website/src/mcp-handler.ts': 5 })
+    expect(Object.fromEntries(byFile)).toEqual({})
   })
 
   test('the sweeps are not vacuous, and do not overlap', () => {

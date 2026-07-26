@@ -71,7 +71,10 @@ describe('method and header validation', () => {
     const { handler } = makeHandler()
     const res = await handler(new Request('https://agentic-mermaid.dev/mcp'))
     expect(res.status).toBe(405)
-    expect(((await res.json()) as any).error.message).toContain('stateless')
+    // A pre-parse refusal answers no JSON-RPC request, so it carries no
+    // JSON-RPC envelope and no error code — the status is the machine signal
+    // and `error` is the readable reason.
+    expect(((await res.json()) as any).error).toContain('stateless')
   })
 
   test('non-JSON content types are 415', async () => {
@@ -80,13 +83,43 @@ describe('method and header validation', () => {
     expect(res.status).toBe(415)
   })
 
+  // Every one of these refuses BEFORE a JSON-RPC request is parsed — a GET has
+  // no body, and the content-type and size checks refuse precisely because they
+  // will not read one. Answering with {"jsonrpc":"2.0","id":null,error:{code}}
+  // claimed to answer a request that does not exist, and the code we invented
+  // for it came from the legacy sub-range whose meaning receivers "MUST NOT
+  // assume" — so it carried no information at all. The envelope is kept only
+  // where the spec defines a JSON-RPC error (-32020, -32022, -32601), which the
+  // tests below this one cover.
+  test('pre-parse transport refusals carry no JSON-RPC envelope', async () => {
+    const { handler } = makeHandler()
+    const oversized = JSON.stringify(call('describe', { source: 'x'.repeat(MAX_MCP_BODY_BYTES) }))
+    const cases: Array<[string, number, Request]> = [
+      ['GET', 405, new Request('https://agentic-mermaid.dev/mcp')],
+      ['content-type', 415, post('x', { 'content-type': 'text/plain' })],
+      ['body size', 413, post(oversized)],
+      ['origin', 403, post(JSON.stringify(call('describe', { source: 'flowchart TD\n  A --> B' })), { origin: 'https://evil.example' })],
+    ]
+    for (const [label, status, request] of cases) {
+      const response = await handler(request)
+      const body = await response.json() as Record<string, unknown>
+      expect({ label, status: response.status }).toEqual({ label, status })
+      expect({ label, jsonrpc: body.jsonrpc }).toEqual({ label, jsonrpc: undefined })
+      expect({ label, id: 'id' in body }).toEqual({ label, id: false })
+      // `error` is the readable reason, not an object with a numeric code.
+      expect({ label, kind: typeof body.error }).toEqual({ label, kind: 'string' })
+      // CORS still decorates every refusal (§10 invariant 2).
+      expect({ label, cors: response.headers.has('access-control-allow-methods') }).toEqual({ label, cors: true })
+    }
+  })
+
   test('bodies over the cap are 413 with the local-fallback hint, declared or not', async () => {
     const { handler } = makeHandler()
     const big = JSON.stringify(call('describe', { source: 'x'.repeat(MAX_MCP_BODY_BYTES) }))
     const declared = await handler(post(big))
     expect(declared.status).toBe(413)
     // Parity with the 64KB per-field cap: the refusal names the way out.
-    expect(((await declared.json()) as any).error.message).toContain('agentic-mermaid.dev/docs/mcp')
+    expect(((await declared.json()) as any).error).toContain('agentic-mermaid.dev/docs/mcp')
     const undeclared = await handler(new Request('https://agentic-mermaid.dev/mcp', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

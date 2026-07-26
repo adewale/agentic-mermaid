@@ -239,6 +239,26 @@ function json(status: number, payload: unknown, cors: Record<string, string>, ex
   })
 }
 
+/**
+ * A transport-level refusal, answered WITHOUT a JSON-RPC envelope.
+ *
+ * These five paths reject before a JSON-RPC request is ever parsed — a GET has
+ * no body, and the content-type and body-size checks refuse precisely because
+ * they will not read one. Wrapping that in `{"jsonrpc":"2.0","id":null,...}`
+ * claimed to answer a request that does not exist, and forced an error code:
+ * we used `-32000`, from the legacy sub-range new implementations "SHOULD NOT
+ * use … at all" and whose meaning receivers "MUST NOT assume". So the code
+ * conveyed nothing while the envelope implied a protocol exchange.
+ *
+ * The line this draws: a JSON-RPC envelope iff the spec defines a JSON-RPC
+ * error for the condition. `-32020`, `-32022`, and `-32601` keep theirs. These
+ * do not, and the HTTP status — 403, 405, 413, 415 — is the machine signal,
+ * with the message left readable for the agent that hits it.
+ */
+function transportError(status: number, message: string, cors: Record<string, string>, extraHeaders: Record<string, string> = {}): Response {
+  return json(status, { error: message }, cors, [], extraHeaders)
+}
+
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys)
   if (value && typeof value === 'object') {
@@ -382,10 +402,10 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     // compute" vector that wildcard CORS leaves open.
     const origin = request.headers.get('origin')
     if (origin !== null && !isOriginAllowed(origin, new URL(request.url).origin)) {
-      return json(403, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'origin not allowed' } }, cors)
+      return transportError(403, 'origin not allowed', cors)
     }
     if (request.method !== 'POST') {
-      return json(405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream' } }, cors, [], { Allow: 'POST, OPTIONS' })
+      return transportError(405, 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream', cors, { Allow: 'POST, OPTIONS' })
     }
     // MCP-Protocol-Version validation: an explicit unsupported version is 400
     // (a missing header stays permitted for pre-2025-06-18 clients that never
@@ -408,12 +428,12 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       }, cors)
     }
     if (!isJsonContentType(request.headers.get('content-type'))) {
-      return json(415, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'content-type must be application/json' } }, cors)
+      return transportError(415, 'content-type must be application/json', cors)
     }
     const declared = Number(request.headers.get('content-length') ?? 0)
     if (Number.isFinite(declared) && declared > MAX_MCP_BODY_BYTES) {
       event.body_bytes = declared
-      return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes; ${LOCAL_FALLBACK_HINT}` } }, cors)
+      return transportError(413, `request body exceeds ${MAX_MCP_BODY_BYTES} bytes; ${LOCAL_FALLBACK_HINT}`, cors)
     }
     // Stream-read with a hard cap so an oversized chunked body (no or false
     // Content-Length) is cancelled at the limit instead of buffered whole.
@@ -425,7 +445,7 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     }
     if (body === null) {
       event.body_bytes = MAX_MCP_BODY_BYTES // read cancelled at the cap; true size unknown
-      return json(413, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `request body exceeds ${MAX_MCP_BODY_BYTES} bytes; ${LOCAL_FALLBACK_HINT}` } }, cors)
+      return transportError(413, `request body exceeds ${MAX_MCP_BODY_BYTES} bytes; ${LOCAL_FALLBACK_HINT}`, cors)
     }
     event.body_bytes = new TextEncoder().encode(body).length
     let parsed: unknown
