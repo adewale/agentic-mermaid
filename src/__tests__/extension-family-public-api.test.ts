@@ -189,6 +189,199 @@ describe('registered family public layout and verify APIs', () => {
     }
   })
 
+  test.each([
+    {
+      name: 'leading comments and blank lines',
+      wrapper: '%% retained wrapper comment\n\n',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
+      name: 'BOM and frontmatter',
+      wrapper: '\uFEFF---\ntitle: Wrapped\nconfig:\n  theme: dark\n---\n',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
+      name: 'standalone BOM',
+      wrapper: '\uFEFF',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
+      name: 'leading init directives',
+      wrapper: '%%{init: {"theme":"dark"}}%%\n',
+      body: 'lossyParseDiagram\n  must survive',
+    },
+    {
+      name: 'CRLF wrappers and bodies',
+      wrapper: '%% retained wrapper comment\r\n\r\n',
+      body: 'lossyParseDiagram\r\n  must survive',
+    },
+    {
+      name: 'universal accessibility and non-leading init directives',
+      wrapper: '',
+      body: `lossyParseDiagram
+  accTitle: Shared title
+  %%{init: {"theme":"dark"}}%%
+  must survive`,
+    },
+  ])('keeps exact post-wrapper extension bytes for $name', ({ wrapper, body }) => {
+    const base = extensionDescriptor('lossy-parse', 'lossyParseDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: () => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: 'descriptor-owned lossy value',
+        data: { parsed: true },
+      }),
+    }
+    const source = wrapper + body
+    const unregister = registerFamily(descriptor)
+    try {
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok || parsed.value.body.kind !== 'extension') return
+      expect(parsed.value.meta.wrapperSource).toBe(wrapper)
+      expect(parsed.value.body.source).toBe(body)
+      expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+      const reparsed = parseRegisteredMermaid(serializeMermaid(parsed.value))
+      expect(reparsed.ok).toBe(true)
+      if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(`${source}\n`)
+    } finally {
+      unregister()
+    }
+  })
+
+  test('matching extension serializers retain shared init config authored after the header', () => {
+    const base = extensionDescriptor('shared-post-wrapper-init', 'sharedPostWrapperInitDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: context => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: context.opaqueSource,
+        data: { lines: [...context.lines] },
+      }),
+      serialize: body => `${(body.kind === 'extension' ? (body.data as { lines: string[] }).lines : []).join('\n')}\n`,
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      const parsed = parseRegisteredMermaid(`sharedPostWrapperInitDiagram
+  payload
+  %%{initialize: {"theme":"dark"}}%%`)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      expect(parsed.value.meta.wrapperSource).toBe('')
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized.match(/%%\{initialize:/g)).toHaveLength(1)
+      expect(serialized).toStartWith('  %%{initialize: {"theme":"dark"}}%%\nsharedPostWrapperInitDiagram\n')
+      const reparsed = parseRegisteredMermaid(serialized)
+      expect(reparsed.ok).toBe(true)
+      if (!reparsed.ok) return
+      expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+      expect(serializeMermaid(reparsed.value)).toBe(serialized)
+    } finally {
+      unregister()
+    }
+  })
+
+  test('source-returning extension serializers do not duplicate post-header init config', () => {
+    const base = extensionDescriptor('source-returning-init', 'sourceReturningInitDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: context => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: context.opaqueSource,
+        data: { parsed: true },
+      }),
+      serialize: body => body.kind === 'extension' ? body.source : '',
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      const source = `sourceReturningInitDiagram
+  %%{init:{"theme":"dark"}}%%
+  payload`
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized).toBe(source)
+      expect(serialized.match(/%%\{init:/g)).toHaveLength(1)
+      const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+      expect(canonical).toContain('config:\n  theme: dark\n')
+      expect(canonical).toEndWith('sourceReturningInitDiagram\n  payload')
+    } finally {
+      unregister()
+    }
+  })
+
+  test.each([
+    {
+      name: 'reindents',
+      source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload',
+      serialize: (source: string) => source.split('\n').map(line => line.trim()).join('\n'),
+    },
+    {
+      name: 'respaces the directive payload',
+      source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload',
+      serialize: (source: string) => source.replace(/%%\{init:\s*/, '%%{init:   '),
+    },
+    {
+      name: 'reorders top-level and nested config keys',
+      source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}}%%\n  payload',
+      serialize: (source: string) => source.replace(
+        '{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}',
+        '{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}',
+      ),
+    },
+  ])('a source-preserving serializer that $name still owns its post-header init config', ({ serialize, source }) => {
+    // Ownership is a question about the directive, not about its bytes. A
+    // serializer may legitimately normalise whitespace while still preserving
+    // the source; matching on authored bytes would emit the directive twice.
+    const base = extensionDescriptor('normalizing-init', 'normalizingInitDiagram')
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim =>
+        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
+          ? { ...claim, state: 'native' }
+          : claim),
+      parse: context => ok({
+        kind: 'extension',
+        family: base.id as ExternalFamilyId,
+        source: context.opaqueSource,
+        data: { parsed: true },
+      }),
+      serialize: body => body.kind === 'extension' ? serialize(body.source) : '',
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized.match(/%%\{init/g)).toHaveLength(1)
+      const reparsed = parseRegisteredMermaid(serialized)
+      expect(reparsed.ok).toBe(true)
+      if (!reparsed.ok) return
+      expect(reparsed.value.meta.frontmatter).toEqual(parsed.value.meta.frontmatter)
+      expect(serializeMermaid(reparsed.value)).toBe(serialized)
+    } finally {
+      unregister()
+    }
+  })
+
   test('gives newly registered families directive-free grammar and shared accessibility metadata', () => {
     const base = extensionDescriptor('shared-accessibility', 'sharedAccessibilityDiagram')
     let observed: { lines: readonly string[]; accessibility: unknown } | undefined
@@ -326,7 +519,10 @@ family payload
   })
 
   test('does not pass parsed extension data into a replacement descriptor version', () => {
-    const source = 'descriptorUpgradeDiagram\n  payload'
+    const source = `%% retained wrapper comment
+descriptorUpgradeDiagram
+  %%{init:{"theme":"dark"}}%%
+  payload`
     const v1Base = extensionDescriptor('descriptor-upgrade', 'descriptorUpgradeDiagram')
     const v1: FamilyDescriptor = {
       ...v1Base,
@@ -381,6 +577,11 @@ family payload
     v2SerializerCalls = 0
     try {
       expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+      expect(v2SerializerCalls).toBe(0)
+      const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+      expect(canonical).toContain('config:\n  theme: dark\n')
+      expect(canonical).not.toContain('%%{init:')
+      expect(canonical.match(/theme: dark/g)).toHaveLength(1)
       expect(v2SerializerCalls).toBe(0)
       // Rendering explicitly reparses the core-owned source under v2 rather
       // than invoking v2's serializer on v1-owned data.

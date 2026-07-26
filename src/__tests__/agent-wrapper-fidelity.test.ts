@@ -85,6 +85,71 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
   test('diagrams with no wrapper are unchanged', () => {
     expect(roundTrip('flowchart TD\n  A --> B')).toBe('flowchart TD\n  A --> B\n')
   })
+
+  test('a standalone BOM is retained as an exact wrapper', () => {
+    const source = '\uFEFFflowchart TD\n  A --> B'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.meta.wrapperSource).toBe('\uFEFF')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+  })
+
+  test('structured serialization retains init directives authored after the header', () => {
+    const source = 'flowchart LR\n  A\n  %%{initialize: {"theme": "dark"}}%%\n  B'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized.match(/%%\{initialize:/g)).toHaveLength(1)
+    expect(serialized).toStartWith('  %%{initialize: {"theme": "dark"}}%%\nflowchart LR\n')
+    const reparsed = parseMermaid(serialized)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  })
+
+  test('post-header init removal preserves indentation-sensitive family structure', () => {
+    const source = `mindmap
+  root
+    child
+    %%{init:{"theme":"dark"}}%%
+      grandchild`
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('mindmap')
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized.match(/%%\{init:/g)).toHaveLength(1)
+    const reparsed = parseMermaid(serialized)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.body.kind).toBe('mindmap')
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  })
+
+  test('mutation retains init directives authored after the header', () => {
+    const source = 'flowchart LR\n  A\n  %%{init: {"theme": "dark"}}%%\n  B'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const flow = asFlowchart(parsed.value)
+    expect(flow).not.toBeNull()
+    const next = mutate(flow!, { kind: 'add_node', id: 'C', label: 'Cache' })
+    expect(next.ok).toBe(true)
+    if (!next.ok) return
+    expect(next.value.canonicalSource.match(/%%\{init:/g)).toHaveLength(1)
+    expect(next.value.canonicalSource).toStartWith('  %%{init: {"theme": "dark"}}%%\nflowchart LR\n')
+    expect(next.value.meta.frontmatter?.theme).toBe('dark')
+    expect(next.value.meta.wrapperSource).toBe('  %%{init: {"theme": "dark"}}%%\n')
+    const wrapperSpan = next.value.source.spans?.preserved.wrapper
+    expect(wrapperSpan).toBeDefined()
+    if (wrapperSpan) {
+      expect(next.value.canonicalSource.slice(wrapperSpan.start.offset, wrapperSpan.end.offset))
+        .toBe(next.value.meta.wrapperSource ?? '')
+    }
+  })
 })
 
 describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
@@ -103,6 +168,77 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     if (!p.ok) throw new Error('parse failed')
     const out = serializeMermaid(p.value, { wrapper: 'canonical' })
     expect(out).toContain('%%{init: definitely-not-an-object}%%')
+  })
+
+  test('canonical mode folds post-header config out of an opaque body exactly once', () => {
+    const src = `sequenceDiagram
+  %%{init: {"theme": "dark"}}%%
+  Alice->>Bob: hi
+  end`
+    const parsed = parseMermaid(src)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('opaque')
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(canonical).toContain('config:\n  theme: dark\n')
+    expect(canonical).not.toContain('%%{init:')
+    const reparsed = parseMermaid(canonical)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
+  })
+
+  test.each([
+    {
+      name: 'a fully shadowed scalar',
+      source: '%%{init: {"theme":"forest"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
+    },
+    {
+      name: 'a partially shadowed top-level map',
+      source: '%%{init: {"theme":"forest","logLevel":"debug"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
+    },
+    {
+      name: 'a partially shadowed nested map',
+      source: '%%{init: {"flowchart":{"curve":"linear","htmlLabels":true}}}%%\n%%{init: {"flowchart":{"curve":"basis"}}}%%\nflowchart TD\n  A --> B',
+    },
+    {
+      name: 'an object replaced by null',
+      source: '%%{init: {"flowchart":{"curve":"basis"}}}%%\n%%{init: {"flowchart":null}}%%\nflowchart TD\n  A --> B',
+    },
+    {
+      name: 'an object replaced by a scalar',
+      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":"reset"}}%%\nflowchart TD\n  A --> B',
+    },
+    {
+      name: 'an object replaced by an array',
+      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":[]}}%%\nflowchart TD\n  A --> B',
+    },
+  ])('canonical mode preserves effective config for $name', ({ source }) => {
+    // Parsed frontmatter already represents the final directive merge. Folding
+    // parseable directives again in authored order must retain that exact
+    // semantic result without re-emitting any stale raw values.
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(canonical).not.toContain('%%{init')
+    const reparsed = parseMermaid(canonical)
+    expect(reparsed.ok).toBe(true)
+    if (!reparsed.ok) return
+    expect(reparsed.value.meta.frontmatter).toEqual(parsed.value.meta.frontmatter)
+    expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
+  })
+
+  test('canonical mode keeps a directive no later directive shadows', () => {
+    const parsed = parseMermaid(
+      '%%{init: {"logLevel":"debug"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
+    )
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(canonical).toContain('logLevel: debug')
+    expect(canonical).toContain('theme: dark')
   })
 
   test('am format defaults to verbatim; --canonical-wrapper opts into synthesis', () => {
@@ -129,6 +265,23 @@ describe('comment policy (2C): announced, never silent', () => {
     const w = v.warnings.find(x => x.code === 'COMMENT_DROPPED')
     expect(w).toMatchObject({ code: 'COMMENT_DROPPED', count: 2 })
     expect((w as { lines: number[] }).lines.length).toBe(2)
+  })
+
+  test('mutation retains the dropped-comment loss receipt from the original artifact', () => {
+    const parsed = parseMermaid('flowchart LR\n  %% keep context\n  A --> B')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const flow = asFlowchart(parsed.value)
+    expect(flow).not.toBeNull()
+    const next = mutate(flow!, { kind: 'add_node', id: 'C', label: 'Cache' })
+    expect(next.ok).toBe(true)
+    if (!next.ok) return
+    expect(next.value.meta.droppedComments).toEqual([{ text: 'keep context', line: 2 }])
+    expect(verifyMermaid(next.value).warnings).toContainEqual({
+      code: 'COMMENT_DROPPED',
+      count: 1,
+      lines: [2],
+    })
   })
 
   test('wrapper comments do not raise COMMENT_DROPPED (they are preserved verbatim)', () => {

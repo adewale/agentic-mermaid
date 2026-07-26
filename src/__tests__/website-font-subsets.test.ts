@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import manifestJson from '../../website/source/assets/fonts/inter/manifest.json'
 import type { WebsitePayloadReport } from '../../scripts/site/website-payload-authority.ts'
+import { WEBSITE_PAYLOAD_BUDGETS } from '../../scripts/site/website-payload-budgets.ts'
 import {
   WEBSITE_INTER_GLYPH_PROBES,
   WEBSITE_INTER_SUBSET_DIRECTORY,
@@ -80,10 +81,13 @@ describe('canonical website Inter subsets', () => {
   })
 
   test('clears both compressed-route stop gates while retaining the full-font blank editor', () => {
+    // Literals, not the budget module: this is the second, independent witness
+    // for the measured route. Deriving it from WEBSITE_PAYLOAD_BUDGETS would
+    // make it follow any future ceiling change instead of catching one.
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },
-      'editor-empty': { rawBytes: 3_288_608, gzipBytes: 965_577, brotliBytes: 760_028 },
+      'editor-empty': { requests: 2, rawBytes: 3_289_227, gzipBytes: 965_824, brotliBytes: 759_978 },
     }
     for (const id of ['home', 'examples'] as const) {
       const route = payload.routes.find(candidate => candidate.id === id)!
@@ -92,8 +96,20 @@ describe('canonical website Inter subsets', () => {
       expect(route.requests.some(request => /^\/fonts\/Inter-.*\.ttf$/.test(request.path)), `${id} full TTF`).toBe(false)
     }
     const editor = payload.routes.find(candidate => candidate.id === 'editor-empty')!
-    expect(editor.totals).toMatchObject(starting['editor-empty'])
-    expect(editor.requests.map(request => request.path)).toEqual(['/editor/', '/editor/editor-2904fb9ac6ce.js'])
+    expect(editor.totals).toEqual(starting['editor-empty'])
+    // The ratchet convention keeps the ceilings at the measured value, so the
+    // independent literals above must also agree with the budget module.
+    const editorBudget = WEBSITE_PAYLOAD_BUDGETS['editor-empty']!
+    expect({
+      requests: editorBudget.maxRequests,
+      rawBytes: editorBudget.maxRawBytes,
+      gzipBytes: editorBudget.maxGzipBytes,
+      brotliBytes: editorBudget.maxBrotliBytes,
+    }).toEqual(starting['editor-empty'])
+    expect(editor.requests.map(request => request.path)).toEqual([
+      '/editor/',
+      expect.stringMatching(/^\/editor\/editor-[a-f0-9]{12}\.js$/),
+    ])
   })
 
   test('rejects source, content-address, coverage, and byte-ceiling sabotage', () => {

@@ -178,18 +178,18 @@
         {
           "path": "/demo/",
           "count": 1,
-          "sha256": "85f67a3beeb8d4f9ebc931fa89ebbfdebd2232ac1ea8c786a9c9c43b1f52a26a",
+          "sha256": "1c7c1fd830a1b613f707a802f9d3a34bcf6d7e19a79722755a6f9185d92d44f9",
           "rawBytes": 10190,
-          "gzipBytes": 3654,
-          "brotliBytes": 2909
+          "gzipBytes": 3653,
+          "brotliBytes": 2906
         },
         {
-          "path": "/demo/browser-55b88fb8dcf8.js",
+          "path": "/demo/browser-eae01a036889.js",
           "count": 1,
-          "sha256": "55b88fb8dcf80b560681ef58f4a537b0909a0bbddb0d41883c35266e540d8a6c",
-          "rawBytes": 2984829,
-          "gzipBytes": 895155,
-          "brotliBytes": 704945
+          "sha256": "eae01a036889a9afce2f078ed4743a1c6d2f2db2d72fd1817200027bff0cf91c",
+          "rawBytes": 2985461,
+          "gzipBytes": 895407,
+          "brotliBytes": 705514
         },
         {
           "path": "/fonts/Inter-Regular.subset-f99ced08c3ad.woff2",
@@ -242,9 +242,9 @@
       ],
       "totals": {
         "requests": 8,
-        "rawBytes": 3172915,
-        "gzipBytes": 1002825,
-        "brotliBytes": 808169
+        "rawBytes": 3173547,
+        "gzipBytes": 1003076,
+        "brotliBytes": 808735
       }
     },
     {
@@ -258,25 +258,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "269feb460a8e2aa9b25697f6f51875ca1672ce1f7f76b16e0785e80eeb6a2141",
+          "sha256": "df143a7021e468e6846c48576f985e5e39352b97ef82828f2563f8b614e27e21",
           "rawBytes": 102590,
           "gzipBytes": 18089,
-          "brotliBytes": 15365
+          "brotliBytes": 15318
         },
         {
-          "path": "/editor/editor-2904fb9ac6ce.js",
+          "path": "/editor/editor-046383a9b33d.js",
           "count": 1,
-          "sha256": "27f56ab7f6da0af59d02d224d6cfc634e8def639ba2446cbedecb782fd43e7a8",
-          "rawBytes": 3186018,
-          "gzipBytes": 947488,
-          "brotliBytes": 744663
+          "sha256": "2247be91740647d827e9f339aac488837efcf3b5780ac6d6a73fcde24ccb62dc",
+          "rawBytes": 3186637,
+          "gzipBytes": 947735,
+          "brotliBytes": 744660
         }
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3288608,
-        "gzipBytes": 965577,
-        "brotliBytes": 760028
+        "rawBytes": 3289227,
+        "gzipBytes": 965824,
+        "brotliBytes": 759978
       }
     }
   ]

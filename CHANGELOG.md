@@ -4,6 +4,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Fixed
+- Made parsed wrapper and family-body ownership disjoint and byte-exact, including empty, CRLF, and standalone-BOM wrappers, so replacing an extension descriptor cannot duplicate leading comments, frontmatter, init directives, or blank lines. Structured built-in and extension serializers now also retain universal init config authored after the family header, while the shared envelope reads serializer output through the same directive grammar and avoids duplicating config it already owns — including when a source-preserving serializer re-indents, re-spaces, or reorders object keys in the directive it preserved. Canonical serialization folds every parseable directive into the final effective config in authored order, so partial nested overrides and whole-object replacements cannot reinstate stale values or make output non-idempotent. Mutation refreshes wrapper metadata and spans from the rebuilt artifact while retaining prior dropped-comment loss receipts, whose `line` continues to index the artifact the loss happened in.
+- Made MCP Registry publication retry-safe after an ambiguous publish result. The release workflow now checks the immutable exact-version endpoint, accepts an existing version only when its publisher-owned server metadata is structurally identical to the verified artifact and the Registry's mutable official status is `active`, and fails closed on mismatches, inactive records, and malformed responses. A Registry that is unreachable or answering unexpectedly is retried over a bounded backoff before failing closed, so a transient outage cannot block an otherwise-publishable release.
+
 ## 0.3.0 — 2026-07-25
 
 ### Added

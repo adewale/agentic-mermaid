@@ -15,6 +15,12 @@ import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
+import {
+  mergeFrontmatterMaps,
+  mermaidInitDirectiveIdentity,
+  mermaidInitDirectives,
+  stripMermaidInitDirectives,
+} from '../mermaid-source.ts'
 
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
@@ -23,7 +29,12 @@ export interface SerializeOptions {
   /**
    * Wrapper emission policy. 'verbatim' (default) re-emits the leading source
    * wrapper (frontmatter, init directives, comments) byte-identically from
-   * `meta.wrapperSource`. 'canonical' synthesizes Mermaid's documented shape
+   * `meta.wrapperSource`, then re-emits any init directive authored *after*
+   * the family header that the serialized body does not already own — a
+   * structured serializer receives directive-free grammar, so without this the
+   * config would be lost. Such a directive therefore moves ahead of the
+   * header; source-preserving bodies keep theirs in place and are unaffected.
+   * 'canonical' synthesizes Mermaid's documented shape
    * instead: one frontmatter block with `title`/`displayMode` at the top
    * level and everything else nested under `config:`, init directives folded
    * in (re-emitted raw only when their payload could not be folded), and
@@ -35,33 +46,90 @@ export interface SerializeOptions {
 
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
-  return wrapperPrefix(d.meta, opts.wrapper ?? 'verbatim') + renderBody(
+  const mode = opts.wrapper ?? 'verbatim'
+  const renderedBody = renderBody(
     d.body,
     d.kind,
     d.meta,
     d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined,
   )
+  // Canonical mode folds universal config into renderMeta. Opaque bodies and
+  // source-preserving extension serializers may still contain the authored
+  // directives, so remove them through the same grammar authority before
+  // joining the canonical wrapper and family source.
+  const bodySource = mode === 'canonical'
+    ? stripMermaidInitDirectives(renderedBody)
+    : renderedBody
+  return wrapperPrefix(d.meta, mode, bodySource) + bodySource
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
-export function wrapperPrefix(meta: ValidDiagramMeta, mode: 'verbatim' | 'canonical' = 'verbatim'): string {
-  if (mode === 'verbatim' && meta.wrapperSource !== undefined) return meta.wrapperSource
+export function wrapperPrefix(
+  meta: ValidDiagramMeta,
+  mode: 'verbatim' | 'canonical' = 'verbatim',
+  bodySource = '',
+): string {
+  if (mode === 'verbatim' && meta.wrapperSource !== undefined) {
+    return meta.wrapperSource + postWrapperInitDirectives(meta, bodySource)
+  }
   return renderMeta(meta)
+}
+
+/**
+ * Structured serializers receive directive-free grammar, so universal config
+ * authored after the family header must be re-emitted alongside the exact
+ * leading wrapper. A source-preserving body or extension serializer may retain
+ * those authored bytes itself, so actual rendered output—not descriptor
+ * identity—decides whether each directive still needs the shared envelope.
+ */
+function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): string {
+  // Count what the emitted text already owns through the shared grammar, not
+  // by searching for the authored bytes: a serializer that re-indents or
+  // re-spaces preserved source still owns that directive, and a byte search
+  // would duplicate it. Counts (not a set) keep a directive authored twice
+  // emitted twice.
+  const owned = new Map<string, number>()
+  for (const text of [meta.wrapperSource ?? '', bodySource]) {
+    for (const directive of mermaidInitDirectives(text)) {
+      const key = mermaidInitDirectiveIdentity(directive)
+      owned.set(key, (owned.get(key) ?? 0) + 1)
+    }
+  }
+  const parts: string[] = []
+  for (const directive of meta.initDirectives) {
+    const key = mermaidInitDirectiveIdentity(directive)
+    const remaining = owned.get(key) ?? 0
+    if (remaining > 0) {
+      owned.set(key, remaining - 1)
+      continue
+    }
+    parts.push(directive.raw.trimEnd() + '\n')
+  }
+  return parts.join('')
 }
 
 /**
  * Canonical wrapper synthesis (Mermaid's documented frontmatter shape):
  * `title`/`displayMode` stay top-level, all other keys nest under `config:`.
- * Init directives whose parsed payload is already represented in the
- * frontmatter map are folded (not re-emitted); unparseable directives are
- * preserved raw so canonicalization never silently loses them.
+ * Every parseable init directive is folded into the effective frontmatter in
+ * authored order. Re-emitting an earlier raw directive is never safe: even if
+ * one of its fields remains live, another may have been overridden later, and
+ * Mermaid would apply that stale raw value after the synthesized frontmatter.
+ * Unparseable directives are preserved raw so canonicalization does not
+ * silently lose syntax it cannot project.
  */
 export function renderMeta(meta: ValidDiagramMeta): string {
   const parts: string[] = []
-  if (meta.frontmatter && Object.keys(meta.frontmatter).length > 0) {
+  let effectiveFrontmatter = mergeFrontmatterMaps({}, meta.frontmatter ?? {})
+  for (const directive of meta.initDirectives) {
+    if (Object.keys(directive.parsed).length > 0) {
+      effectiveFrontmatter = mergeFrontmatterMaps(effectiveFrontmatter, directive.parsed)
+    }
+  }
+  if (Object.keys(effectiveFrontmatter).length > 0) {
     const top: Record<string, unknown> = {}
     const config: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(meta.frontmatter)) {
+    for (const [key, value] of Object.entries(effectiveFrontmatter)) {
       if (key === 'title' || key === 'displayMode') top[key] = value
       else config[key] = value
     }
@@ -70,27 +138,10 @@ export function renderMeta(meta: ValidDiagramMeta): string {
     parts.push(`---\n${YAML.stringify(doc).trimEnd()}\n---\n`)
   }
   for (const d of meta.initDirectives) {
-    if (frontmatterRepresents(meta.frontmatter, d.parsed)) continue
+    if (Object.keys(d.parsed).length > 0) continue
     parts.push(d.raw.trimEnd() + '\n')
   }
   return parts.join('')
-}
-
-/** True when every leaf of `sub` is present with an equal value in `map`. */
-function frontmatterRepresents(map: Record<string, unknown> | undefined, sub: Record<string, unknown>): boolean {
-  const keys = Object.keys(sub)
-  if (keys.length === 0) return false  // unparseable payload — never foldable
-  if (!map) return false
-  for (const key of keys) {
-    const a = map[key], b = sub[key]
-    if (b && typeof b === 'object' && !Array.isArray(b)) {
-      if (!a || typeof a !== 'object' || Array.isArray(a)) return false
-      if (!frontmatterRepresents(a as Record<string, unknown>, b as Record<string, unknown>)) return false
-      continue
-    }
-    if (JSON.stringify(a) !== JSON.stringify(b)) return false
-  }
-  return true
 }
 
 function renderBody(

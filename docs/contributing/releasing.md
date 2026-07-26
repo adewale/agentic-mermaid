@@ -15,7 +15,18 @@ requires the closed three-file artifact set, binds the manifest to the checksum
 and tarball bytes, then publishes that exact `.tgz` with lifecycle scripts disabled.
 There is no manual `npm publish` step. After npm succeeds, a separate minimal
 OIDC job extracts [`server.json`](../../server.json) from the same verified
-tarball and publishes it to the official MCP Registry. Keeping that step
+tarball and publishes it to the official MCP Registry. Before publishing, and
+after any ambiguous publish failure, that job queries the registry's exact
+name-and-version endpoint. It accepts an existing immutable version only when
+the publisher-owned `.server` object is structurally identical to the extracted
+`server.json` and the Registry's mutable official status is `active`; other
+registry-owned `_meta` fields do not participate in the server comparison.
+Absence means publish, while a mismatch, inactive record, or malformed response fails closed
+immediately — those are answers about the record, so retrying them only delays
+the same verdict. An unreachable or unexpectedly-responding Registry carries no
+verdict, so preflight retries it over the same bounded backoff before failing
+closed, and a transient outage no longer blocks an otherwise-publishable
+release. All of this happens before credentials are requested. Keeping that step
 separate, with the verified artifact retained for 30 days, lets a failed
 registry publication be retried without attempting to republish an immutable
 npm version.
@@ -54,6 +65,17 @@ also rejects a release whose tag, checked-out commit, `origin/main` ancestry,
 package version, or MCP server versions disagree. After artifact construction,
 the minimal npm job accepts an existing immutable version only when its registry
 integrity is byte-identical to the verified tarball; a mismatch fails closed.
+The MCP job applies the same immutable-publication rule to metadata through the
+exact `/v0.1/servers/{name}/versions/{version}` identity endpoint and exact
+structural equality with the verified `server.json`.
+
+The MCP publisher stays pinned to v1.7.9 and its reviewed checksum. During the
+recovery implementation, the digest-verified v1.7.9 binary and then-latest
+v1.8.0 binary were measured separately: both expose only
+`mcp-publisher publish [server.json]`, with no idempotency key, verify-if-present
+mode, or recovery flag. v1.8.0's release notes contain no publication-recovery
+change, so an unrelated binary upgrade would add risk without removing the
+client-side exact-identity check.
 
 ## Cutting a release
 
@@ -78,7 +100,9 @@ integrity is byte-identical to the verified tarball; a mismatch fails closed.
    rerun it—the publish job recovers only after the registry's SHA-512 integrity
    matches the retained verified tarball exactly. Then
    `npm install agentic-mermaid` into a scratch project resolves and its bins
-   run; and
+   run. The MCP job likewise recovers a response-lost publish only when the
+   exact-version record's `.server` object equals the extracted `server.json`.
+   Finally,
    `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.adewale/agentic-mermaid"`
    returns the matching server and version. The official registry is still in
    preview, so verify its record after every release.

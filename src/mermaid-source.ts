@@ -391,8 +391,73 @@ export interface NormalizedMermaidSource {
 }
 
 const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
-const INIT_DIRECTIVE_REGEX = /^\s*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%\s*(?:\r?\n|$)?/gm
-const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
+// Outer whitespace is horizontal-only. Using `\s*` at either line boundary
+// consumes preceding blank lines or the next family's indentation because
+// `\s` includes CR/LF. The directive payload itself remains multiline.
+const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%[^\S\r\n]*(?:\r?\n|$)?/gm
+const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
+
+/**
+ * Remove universal init directives while retaining every other authored byte.
+ * Canonical serializers use this to fold body-authored config into the shared
+ * wrapper without leaving a second semantic owner in opaque or extension
+ * source. Keep the grammar here beside normalization so new families inherit
+ * the same directive boundary automatically.
+ */
+export function stripMermaidInitDirectives(text: string): string {
+  return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+}
+
+/**
+ * Every universal init directive in `text`, in authored order. Callers that
+ * need to know whether some other text already owns a directive must ask this
+ * grammar rather than search for the authored bytes: a source-preserving
+ * serializer may legitimately re-emit a directive with different indentation
+ * or inner spacing, and a byte comparison would then emit it a second time.
+ */
+export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[] {
+  const directives: MermaidSourceInitDirective[] = []
+  const regex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    directives.push({
+      raw: match[0],
+      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
+    })
+  }
+  return directives
+}
+
+/**
+ * Whitespace- and formatting-insensitive identity for one init directive.
+ * A parseable payload is identified by its canonical config so re-indented or
+ * re-spaced re-emissions still match; an unparseable payload has no semantic
+ * projection, so it falls back to its collapsed raw text.
+ */
+export function mermaidInitDirectiveIdentity(directive: MermaidSourceInitDirective): string {
+  return Object.keys(directive.parsed).length > 0
+    ? `config:${stableConfigIdentity(directive.parsed)}`
+    : `raw:${directive.raw.trim().replace(/\s+/g, ' ')}`
+}
+
+/**
+ * Deterministic JSON identity for config semantics. Object member order is not
+ * meaningful in Mermaid config, so serializers that sort or otherwise reorder
+ * keys must still be recognized as owning the same directive. Arrays retain
+ * their authored order because that order is semantic.
+ */
+function stableConfigIdentity(value: MermaidConfigValue): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableConfigIdentity).join(',')}]`
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value)
+      .filter((entry): entry is [string, MermaidConfigValue] => entry[1] !== undefined)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableConfigIdentity(entry)}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
 
 export function normalizeMermaidSource(
   text: string,
@@ -446,17 +511,11 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   accessibility: MermaidSourceAccessibility
 } {
   const frontmatter = text.match(FRONTMATTER_REGEX)
-  const frontmatterEnd = frontmatter?.[0].length ?? 0
-  const initDirectives: MermaidSourceInitDirective[] = []
-  const directiveRegex = new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm')
-  let match: RegExpExecArray | null
-  const directiveSource = text.slice(frontmatterEnd)
-  while ((match = directiveRegex.exec(directiveSource)) !== null) {
-    initDirectives.push({
-      raw: match[0],
-      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
-    })
-  }
+  // A standalone UTF-8 BOM is universal envelope syntax too. Treat it as an
+  // exact one-byte wrapper even without frontmatter so family-owned source
+  // starts at the header and source-map ownership agrees with serialization.
+  const frontmatterEnd = frontmatter?.[0].length ?? (text.startsWith('\uFEFF') ? 1 : 0)
+  const initDirectives = mermaidInitDirectives(text.slice(frontmatterEnd))
 
   const withoutUniversalConfig = text
     .replace(FRONTMATTER_REGEX, '')
@@ -475,7 +534,7 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     if (comment) comments.push({ text: comment[1]!, line: index + 1 })
   }
 
-  let wrapperEnd = frontmatter?.[0].length ?? 0
+  let wrapperEnd = frontmatterEnd
   const directiveAtStart = new RegExp(INIT_DIRECTIVE_REGEX.source)
   for (;;) {
     const rest = text.slice(wrapperEnd)
@@ -484,6 +543,7 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     if (directive?.index === 0 && directive[0].length > 0) { wrapperEnd += directive[0].length; continue }
     const lineEnd = rest.indexOf('\n')
     const line = lineEnd === -1 ? rest : rest.slice(0, lineEnd)
+    // COMMENT_LINE_REGEX accepts a CR terminator while this span retains it.
     if (/^\s*$/.test(line) || COMMENT_LINE_REGEX.test(line)) {
       wrapperEnd += lineEnd === -1 ? rest.length : lineEnd + 1
       continue
@@ -752,7 +812,7 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
 function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
   let merged: MermaidFrontmatterMap = {}
 
-  const body = text.replace(INIT_DIRECTIVE_REGEX, (_match, payload: string) => {
+  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, payload: string) => {
     const parsed = parseDirectiveMap(payload)
     if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
     return ''

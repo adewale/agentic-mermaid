@@ -3,8 +3,11 @@ import { describe, expect, it } from 'bun:test'
 import {
   getFrontmatterMap,
   getFrontmatterScalar,
+  mermaidInitDirectiveIdentity,
+  mermaidInitDirectives,
   normalizeMermaidSource,
   preprocessMermaidSource,
+  stripMermaidInitDirectives,
 } from '../mermaid-source.ts'
 
 describe('preprocessMermaidSource', () => {
@@ -57,6 +60,29 @@ bar [1]`)
     expect(getFrontmatterScalar<number>(processed.frontmatter, ['xyChart', 'width'])).toBe(640)
     expect(getFrontmatterScalar<string>(processed.frontmatter, ['fontFamily'])).toBe('Fira Code')
     expect(getFrontmatterScalar<string>(processed.frontmatter, ['themeVariables', 'primaryTextColor'])).toBe('#111111')
+  })
+
+  it('strips only directive lines and preserves adjacent LF/CRLF indentation and blank bytes', () => {
+    expect(stripMermaidInitDirectives(`family
+
+  %%{init:{"theme":"dark"}}%%
+    child
+`)).toBe(`family
+
+    child
+`)
+    expect(stripMermaidInitDirectives('family\r\n\r\n  %%{initialize:{"theme":"dark"}}%%\r\n\t  child\r\n'))
+      .toBe('family\r\n\r\n\t  child\r\n')
+  })
+
+  it('identifies equivalent init config independently of top-level and nested key order', () => {
+    const [authored] = mermaidInitDirectives(
+      '%%{init:{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}}%%',
+    )
+    const [reordered] = mermaidInitDirectives(
+      '%%{init:{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}}%%',
+    )
+    expect(mermaidInitDirectiveIdentity(authored!)).toBe(mermaidInitDirectiveIdentity(reordered!))
   })
 })
 

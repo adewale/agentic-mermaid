@@ -192,7 +192,7 @@
     },
     {
       "path": "src/agent/mutate.ts",
-      "sha256": "7907092e7e30fa081a22372432d8629b223a7c9708b7863dd4f94a6a62e9382d"
+      "sha256": "697d42455693fc7e5ea29adf836188a7119b8eb58b8a25c06ae71bca7a94e2d0"
     },
     {
       "path": "src/agent/mutation-ops.ts",
@@ -208,7 +208,7 @@
     },
     {
       "path": "src/agent/parse.ts",
-      "sha256": "919b228c68e0529316ab46ce1a8624fee601fd961e40812f2b48f41594fb22bd"
+      "sha256": "750d69cde96c81d9e1221f122cfc3bceccb21a34dc29549f12300c871edf9b66"
     },
     {
       "path": "src/agent/pie-body.ts",
@@ -240,7 +240,7 @@
     },
     {
       "path": "src/agent/serialize.ts",
-      "sha256": "59ecfe91de2d5e4f577e4803767f0c43ed77fa557572971284d73386741eae32"
+      "sha256": "9ec3c31a939940ab996e74c510e42dc97a19cd4f206a7ff8be920efc93a05bd4"
     },
     {
       "path": "src/agent/source-map-spans.ts",
@@ -264,7 +264,7 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "6166c1749649b0ff7906a5661e82cb778cd6e8cd89bc5f9dd2e41e883fe44e4f"
+      "sha256": "eaeab7b04615ea25c2f045df6d35d86cc1426b391209e7249d2f4e335a02dd91"
     },
     {
       "path": "src/agent/verify.ts",
@@ -636,7 +636,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "7af781a4865e2bffeb3092d56ac08121ee89a2fe9b62ea3dd1987bb15e4a6c20"
+      "sha256": "f9028e5ff678542831e8638065293f3b67274ad80c161d5f65a10b1148c083af"
     },
     {
       "path": "src/mindmap/geometry.ts",
