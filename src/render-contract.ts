@@ -53,8 +53,7 @@ import {
   type EssentialScenePrimitiveCapability,
 } from './scene/capabilities.ts'
 import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
-import { PNG_OUTPUT_POLICY_VERSION } from './png-contract.ts'
-import { TERMINAL_OUTPUT_POLICY_VERSION } from './terminal-contract.ts'
+import { PNG_OUTPUT_POLICY_VERSION, TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
@@ -978,6 +977,8 @@ export interface RenderExecutionResolutionOptions {
   readonly backendPolicy?: HostBackendPolicy
   /** Internal identity assertion carried by ParsedDiagram adapters. */
   readonly expectedFamilyId?: FamilyId
+  /** Internal browser-lazy seam: one already-classified, already-loaded family. */
+  readonly familyDescriptor?: FamilyDescriptor
 }
 
 /** A ParsedDiagram serializer must reproduce source for that same family. */
@@ -1724,7 +1725,7 @@ function resolveExecutionPlan(
 
   const configDiagnostics = explicitMermaidConfig === undefined
     ? undefined
-    : Object.freeze(explicitFamilyConfigDiagnostics(family.id, explicitMermaidConfig)
+    : Object.freeze(explicitFamilyConfigDiagnostics(family.id, explicitMermaidConfig, family.config)
       .map(diagnostic => Object.freeze({ ...diagnostic })))
 
   return Object.freeze({
@@ -1881,7 +1882,7 @@ export function resolveRenderRequestForExecution(
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
-  const family = capturedRequestFamily(source, authoredEnvelope)
+  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(source, authoredEnvelope)
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
     throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)
   }

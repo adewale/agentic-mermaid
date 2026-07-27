@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "elkFamilies": ["flowchart", "state", "class", "er", "architecture"],
+  "initial": { "requests": 6, "raw": 135000, "gzip": 44000, "brotli": 39500 },
+  "families": {
+    "flowchart": { "requests": 25, "raw": 2275000, "gzip": 694000, "brotli": 556000 },
+    "state": { "requests": 24, "raw": 2272000, "gzip": 693000, "brotli": 555000 },
+    "sequence": { "requests": 22, "raw": 571000, "gzip": 174000, "brotli": 154000 },
+    "timeline": { "requests": 23, "raw": 556000, "gzip": 170000, "brotli": 150000 },
+    "class": { "requests": 26, "raw": 2276000, "gzip": 695000, "brotli": 557000 },
+    "er": { "requests": 26, "raw": 2279000, "gzip": 697000, "brotli": 559000 },
+    "journey": { "requests": 25, "raw": 576000, "gzip": 178000, "brotli": 157000 },
+    "architecture": { "requests": 24, "raw": 2289000, "gzip": 698000, "brotli": 559000 },
+    "xychart": { "requests": 23, "raw": 580000, "gzip": 179000, "brotli": 158000 },
+    "pie": { "requests": 25, "raw": 559000, "gzip": 174000, "brotli": 153000 },
+    "quadrant": { "requests": 25, "raw": 559000, "gzip": 173000, "brotli": 153000 },
+    "gantt": { "requests": 24, "raw": 609000, "gzip": 189000, "brotli": 167000 },
+    "mindmap": { "requests": 25, "raw": 557000, "gzip": 174000, "brotli": 154000 },
+    "gitgraph": { "requests": 24, "raw": 562000, "gzip": 175000, "brotli": 154000 },
+    "radar": { "requests": 26, "raw": 568000, "gzip": 177000, "brotli": 157000 }
+  }
+}

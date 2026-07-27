@@ -12,7 +12,8 @@
     "examples/**/*.ts",
     "website/**/*.ts",
     "tsup.config.ts",
-    "tsup.browser.config.ts"
+    "tsup.browser.config.ts",
+    "tsup.browser-lazy.config.ts"
   ],
   "exclude": [
     "node_modules",

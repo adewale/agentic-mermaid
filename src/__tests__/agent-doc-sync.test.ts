@@ -1016,9 +1016,10 @@ describe('shipped distribution artifacts present', () => {
     for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).not.toContain(example)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
     expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)
-    // Tarball slimming starts from a runtime-only allowlist; only sourcemaps
-    // need a negation because source, tests, and evidence are never included.
+    // Tarball slimming starts from a runtime-only allowlist; sourcemaps and the
+    // build-only lazy-graph metafile are explicitly excluded from dist.
     expect(pkg.files).toContain('!dist/**/*.map')
+    expect(pkg.files).toContain('!dist/metafile-esm.json')
     // Redundant Bun source bins are not published; the bin map points at dist/*.js.
     expect(pkg.files).not.toContain('bin/')
   })

@@ -1,16 +1,13 @@
 import type { DiagramKind, FamilyId } from '../agent/types.ts'
 import type { ConfigDiagnostic } from '../types.ts'
-import { getFamily, type FamilyConfigContract } from '../agent/families.ts'
+import type { FamilyConfigContract } from '../agent/families.ts'
+import { getInstalledFamilyDescriptor } from '../agent/family-router.ts'
 import { RADAR_CONFIG_LIMITS, RADAR_THEME_FIELDS } from '../radar/config.ts'
 import { stateConfigDiagnostics } from '../state/config.ts'
 import { compareCodePointStrings } from './deterministic-order.ts'
 import { safeCssColor } from './css-color.ts'
 
 export type FamilyConfigSpec = FamilyConfigContract
-
-function familyConfigSpec(kind: FamilyId | string): FamilyConfigContract | undefined {
-  return getFamily(kind)?.config
-}
 
 function section(root: unknown, key: string): Record<string, unknown> | undefined {
   if (!root || typeof root !== 'object' || Array.isArray(root)) return undefined
@@ -20,8 +17,11 @@ function section(root: unknown, key: string): Record<string, unknown> | undefine
     : undefined
 }
 
-export function familyUnknownConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
-  const spec = familyConfigSpec(kind)
+export function familyUnknownConfigDiagnostics(
+  kind: DiagramKind,
+  root: unknown,
+  spec?: FamilyConfigContract,
+): ConfigDiagnostic[] {
   if (!spec) return []
   const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
   const config = section(root, spec.section)
@@ -168,9 +168,12 @@ function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
 }
 
 /** Value-validity diagnostics for every wired family config key. */
-export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
+export function familyConfigValueDiagnostics(
+  kind: DiagramKind,
+  root: unknown,
+  spec?: FamilyConfigContract,
+): ConfigDiagnostic[] {
   if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics
-  const spec = familyConfigSpec(kind)
   if (!spec) return []
   const config = section(root, spec.section)
   const diagnostics: ConfigDiagnostic[] = kind === 'radar' ? radarThemeDiagnostics(root) : []
@@ -200,8 +203,11 @@ export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): 
   return diagnostics
 }
 
-export function familyNoopConfigDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
-  const spec = familyConfigSpec(kind)
+export function familyNoopConfigDiagnostics(
+  kind: DiagramKind,
+  root: unknown,
+  spec?: FamilyConfigContract,
+): ConfigDiagnostic[] {
   if (!spec) return []
   const config = section(root, spec.section)
   if (!config) return []
@@ -226,41 +232,47 @@ function stableDiagnostics(diagnostics: ConfigDiagnostic[]): ConfigDiagnostic[] 
 }
 
 /** Schema-owned diagnostics for source wrappers or explicit config roots. */
-export function familyConfigDiagnostics(kind: DiagramKind, roots: readonly unknown[]): ConfigDiagnostic[] {
-  const spec = familyConfigSpec(kind)
+export function familyConfigDiagnostics(
+  kind: DiagramKind,
+  roots: readonly unknown[],
+  spec?: FamilyConfigContract,
+): ConfigDiagnostic[] {
   if (!spec) return []
   const diagnostics = roots.flatMap(root => {
-    const unknown = familyUnknownConfigDiagnostics(kind, root)
+    const unknown = familyUnknownConfigDiagnostics(kind, root, spec)
     const config = section(root, spec.section)
     if (kind === 'state') return config ? stateConfigDiagnostics([config], true) : unknown
     return [
       ...unknown,
-      ...familyConfigValueDiagnostics(kind, root),
-      ...familyNoopConfigDiagnostics(kind, root),
+      ...familyConfigValueDiagnostics(kind, root, spec),
+      ...familyNoopConfigDiagnostics(kind, root, spec),
     ]
   })
   return stableDiagnostics(diagnostics)
 }
 
 /** Diagnostics for the explicit RenderOptions.mermaidConfig entry path. */
-export function explicitFamilyConfigDiagnostics(kind: string, root: unknown): ConfigDiagnostic[] {
-  const descriptor = getFamily(kind)
-  const spec = descriptor?.config
-  if (!descriptor || !spec) return []
+export function explicitFamilyConfigDiagnostics(
+  kind: string,
+  root: unknown,
+  spec?: FamilyConfigContract,
+): ConfigDiagnostic[] {
+  const resolvedSpec = spec ?? getInstalledFamilyDescriptor(kind)?.config
+  if (!resolvedSpec) return []
   if (kind.includes(':')) {
     const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
-    const config = section(root, spec.section)
-    if (!config) return record && spec.section in record ? [{
-      code: 'INEFFECTIVE_CONFIG', field: spec.section,
-      message: `${kind} config section "${spec.section}" must be an object; the invalid value has no effect.`,
+    const config = section(root, resolvedSpec.section)
+    if (!config) return record && resolvedSpec.section in record ? [{
+      code: 'INEFFECTIVE_CONFIG', field: resolvedSpec.section,
+      message: `${kind} config section "${resolvedSpec.section}" must be an object; the invalid value has no effect.`,
     }] : []
-    const known = new Set(spec.keys)
-    const noop = new Set(spec.noopKeys ?? [])
+    const known = new Set(resolvedSpec.keys)
+    const noop = new Set(resolvedSpec.noopKeys ?? [])
     return stableDiagnostics(Object.keys(config).flatMap(key => {
-      if (!known.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.` }]
-      if (noop.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${spec.section}.${key}`, message: `${kind} config field "${key}" is accepted for compatibility but has no effect on this renderer.` }]
+      if (!known.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${resolvedSpec.section}.${key}`, message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.` }]
+      if (noop.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${resolvedSpec.section}.${key}`, message: `${kind} config field "${key}" is accepted for compatibility but has no effect on this renderer.` }]
       return []
     }))
   }
-  return familyConfigDiagnostics(kind as DiagramKind, [root])
+  return familyConfigDiagnostics(kind as DiagramKind, [root], resolvedSpec)
 }

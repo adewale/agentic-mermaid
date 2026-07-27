@@ -1,8 +1,9 @@
 import { detectColorMode } from './ascii/ansi.ts'
 import type { AsciiTheme, ColorMode } from './ascii/types.ts'
+import { TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
+export { TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 
 /** Logical terminal projection policy shared by every ASCII/Unicode/HTML adapter. */
-export const TERMINAL_OUTPUT_POLICY_VERSION = 1 as const
 export const TERMINAL_DEFAULT_PADDING_X = 5 as const
 export const TERMINAL_BOUNDED_PADDING_X = 1 as const
 export const TERMINAL_DEFAULT_PADDING_Y = 5 as const

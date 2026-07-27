@@ -8,6 +8,31 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — BUILD-31 lazy browser split
+
+**A green aggregate suite can hide an import-order bug.** The family-loaded
+browser entry correctly stopped importing the complete registry, but the legacy
+Flowchart/State parser still depended on that registry installing a resolver as
+a module side effect. The full local suite passed because another test imported
+the registry first; the isolated 2,800-case CI process parsed every case as an
+unsupported family and performed zero layouts. Rule: a lazy boundary must leave
+direct core imports independently initialized. Share only the lightweight
+compatibility authority below that boundary, and add a fresh-process test that
+cannot inherit another test's module cache. A detector copied into generated
+source through `Function#toString()` must also be dependency-free: the first fix
+serialized a reference to an unimported normalizer, so the website payload
+capture—not the bundler—caught the broken demo. Typecheck generated source and
+exercise the built page before accepting a source-level unit test.
+
+**Drive browser artifacts through the path users actually take.** Two Linux CI
+runs hung for exactly 300 seconds while WebKit received the 2.9 MB compatibility
+bundle through Playwright's `addScriptTag({ path })` control channel, even though
+the WebKit lazy-ESM test passed immediately in the same run and all 89 browser
+contracts passed locally. A browser distribution contract should serve the
+artifact over loopback and load a real `<script src>`/ESM URL, then assert both
+the network request and the rendered result. This removes the automation
+transport from the product signal without weakening the browser guarantee.
+
 ## 2026-07 — browser distribution and the 0.3.0 bump
 
 **Verify against the toolchain CI pins, not the one on `PATH`.** `bun run test` re-invokes bare `bun`, which resolves from `PATH` — so running a pinned 1.3.13 binary as `<pinned>/bun run test` still executes the suite under the system 1.3.11. Compression output differs between those versions, which produced two phantom "pre-existing failures" that passed when the same files were invoked directly. Worse, before spotting it, four checked-in editor deep links were "repaired" against the wrong Bun, turning a contract that passed on CI into one that failed there. Rule: when a recorded artifact embeds a toolchain (`eval/website-payload/baseline.json` names bun/playwright/chromium), match it before concluding anything from a red test, and check which binary a script actually ran rather than which one you invoked.

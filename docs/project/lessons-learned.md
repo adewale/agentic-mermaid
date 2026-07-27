@@ -85,6 +85,22 @@ family docs, and `TODO.md`.
     and execute the dependent tool as a compatibility proof. Aggregate failures
     that inherit the security result should be reported as such, not mislabelled
     as independent test failures.
+19. **Lazy boundaries must not turn initialization order into a hidden input.**
+    A side-effect-installed registry can make a core import work only after some
+    unrelated module happens to run; an aggregate suite then shares enough module
+    cache to hide the defect. Keep the smallest compatibility authority below the
+    lazy boundary, pass loaded descriptors explicitly above it, and exercise
+    direct imports in a fresh process as well as through the complete product.
+    If build tooling serializes a function into another module, that function is
+    also a code-generation boundary: keep its body self-contained and typecheck
+    the generated source before treating a successful bundler run as proof.
+20. **Browser distribution tests should use the consumer transport.** Passing a
+    multi-megabyte artifact to an automation driver's script-injection API tests
+    the driver's control channel as well as the browser, and can hang one engine
+    even when normal network loading works. Serve the exact shipped bytes over a
+    loopback origin, load them from the documented `<script src>` or ESM URL,
+    assert that request occurred, and then verify the public API and rendered
+    result. The transport is part of the distribution contract.
 
 ## Lessons from the consolidation audits
 

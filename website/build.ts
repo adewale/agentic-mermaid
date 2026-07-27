@@ -562,12 +562,13 @@ ${siteFooterHtml()}
 // metadata can carry the exact path when SITE_ORIGIN is set.
 async function externalizeExecutableInlineScripts(html: string) {
   let output = html
-  const scripts = [...html.matchAll(/<script>\n?([\s\S]*?)<\/script>/g)]
+  const scripts = [...html.matchAll(/<script(?<attributes>\s+type="module")?>\n?([\s\S]*?)<\/script>/g)]
   for (const match of scripts) {
-    const source = match[1]!.trim() + '\n'
+    const attributes = match.groups?.attributes ?? ''
+    const source = match[2]!.trim() + '\n'
     const scriptRel = `generated/inline-${sha256(source).slice(0, 12)}.js`
     await emit(scriptRel, source)
-    output = output.replace(match[0], `<script src="/${scriptRel}"></script>`)
+    output = output.replace(match[0], `<script${attributes} src="/${scriptRel}"></script>`)
   }
   return output
 }
@@ -1914,35 +1915,27 @@ for (const [source, target] of pageOutputs) {
 }
 await emit('editor/index.html', await generateEditorHtml())
 
-// Standalone browser-bundle demo (BUILD-30). Proves the script-tag path end to
-// end on the public site: one <script src>, no bundler, no import map, no build
-// step — the case an external consumer could not get working before the IIFE
-// artifact existed.
-//
-// The page serves the REAL published artifact — dist/browser.global.js, the same
-// bytes npm and unpkg hand out — not a re-bundle. A demo of a lookalike would
-// not prove the thing it claims. Re-bundling in-process was tried and rejected:
-// Bun's iife output leaks an undefined `__require` shim, so the page loaded and
-// the global never bound. That is precisely the failure this work exists to
-// stop shipping.
+// Framework-neutral browser demo (BUILD-31). It serves the real published lazy
+// ESM graph byte-for-byte: a content-addressed copy of the entry plus tsup's
+// content-addressed chunks. The browser therefore fetches only the family used
+// by the page, without a bundler, import map, or framework adapter.
 //
 // Rebuild even when the ignored artifact already exists. Otherwise a local or
 // manual site build can silently copy browser bytes from an older checkout.
-async function emitBrowserBundleDemo() {
-  const artifact = join(ROOT, 'dist', 'browser.global.js')
-  const built = Bun.spawnSync(['bun', 'run', 'build:browser'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
+async function emitLazyBrowserDemo() {
+  const artifactDirectory = join(ROOT, 'dist', 'browser-lazy')
+  const artifact = join(artifactDirectory, 'index.js')
+  const built = Bun.spawnSync(['bun', 'run', 'build:browser:lazy'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
   if (!built.success || !existsSync(artifact)) {
-    throw new Error(`browser demo needs dist/browser.global.js; \`bun run build:browser\` failed:\n${built.stderr}`)
+    throw new Error(`browser demo needs dist/browser-lazy/index.js; \`bun run build:browser:lazy\` failed:\n${built.stderr}`)
   }
   const script = await Bun.file(artifact).text()
-  // Fail loudly here rather than shipping a page whose only symptom is an empty
-  // diagram: the global name is the demo's entire contract with the reader.
-  if (!script.includes('var agenticMermaid=')) {
-    throw new Error('dist/browser.global.js does not bind the agenticMermaid global')
+  if (!script.includes('renderMermaidSVGAsync')) {
+    throw new Error('dist/browser-lazy/index.js does not export renderMermaidSVGAsync')
   }
-  const scriptRel = `demo/browser-${sha256(script).slice(0, 12)}.js`
-  const browserIntegrity = `sha384-${createHash('sha384').update(script).digest('base64')}`
+  const scriptRel = `demo/browser-lazy/index-${sha256(script).slice(0, 12)}.js`
   await emit(scriptRel, script)
+  await copyDir(join(artifactDirectory, 'chunks'), 'demo/browser-lazy/chunks')
 
   const TIMELINE = `timeline
   title History of Social Media
@@ -1951,15 +1944,14 @@ async function emitBrowserBundleDemo() {
   2005 : YouTube
   2006 : Twitter`
 
-  const body = `<p>Your browser rendered the diagram below from one <code>&lt;script src&gt;</code> tag. The ESM
-entry would need a bundler or an import map; this file needs neither, and the diagram source never
-leaves the page.</p>
-<pre><code>&lt;script
-  src="https://unpkg.com/agentic-mermaid@${packageJson.version}/dist/browser.global.js"
-  integrity="${browserIntegrity}"
-  crossorigin="anonymous"&gt;&lt;/script&gt;
-&lt;script&gt;
-  const svg = agenticMermaid.renderMermaidSVG(source, {
+  const body = `<p>Your browser rendered the diagram below through the framework-neutral lazy ESM entry. Native
+<code>import</code> needs no bundler or import map, and only the selected diagram family is fetched. The
+diagram source never leaves the page.</p>
+<pre><code>&lt;script type="module"&gt;
+  import { renderMermaidSVGAsync } from
+    'https://unpkg.com/agentic-mermaid@${packageJson.version}/dist/browser-lazy/index.js'
+
+  const svg = await renderMermaidSVGAsync(source, {
     style: 'zinc-dark',
     security: 'strict',
   })
@@ -1971,14 +1963,13 @@ leaves the page.</p>
     document.importNode(parsed.documentElement, true),
   )
 &lt;/script&gt;</code></pre>
-<p>The version in that URL is pinned because <code>dist/browser.global.js</code> ships from v0.3.0. Earlier
-releases are ESM-only, so the same URL without a version answers <strong>404</strong>. This page serves the
-identical artifact from its own origin instead of unpkg, so the demo keeps working offline and makes
-no third-party request.</p>
+<p>The version in that URL is pinned because the lazy entry first ships in v${packageJson.version}. This
+page serves the identical entry and chunk graph from its own origin instead of unpkg, so the demo
+keeps working offline and makes no third-party request.</p>
 <p>Keep strict rendering and parsed-node insertion for authored or user-provided source. For a strict
-Content Security Policy, self-host the bundle under <code>script-src 'self'</code>, or allow the pinned
+Content Security Policy, self-host the module graph under <code>script-src 'self'</code>, or allow the pinned
 CDN origin and authorize the initializer with an external file, nonce, or hash. This demo uses a
-same-origin bundle and a generated external initializer; it does not need <code>'unsafe-inline'</code>.</p>
+same-origin module graph and a generated external initializer; it does not need <code>'unsafe-inline'</code>.</p>
 <p>Runs on <strong>Chrome 97, Firefox 104, Safari 15.4, Edge 97</strong> and newer.
 <a href="https://github.com/adewale/agentic-mermaid/blob/main/docs/browser.md">docs/browser.md</a> covers
 what sets that floor, how to pre-render at build time instead, and the two traps in rolling your own
@@ -2000,20 +1991,27 @@ bundle.</p>
 <pre><code id="demo-source">${escapeHtml(TIMELINE)}</code></pre>
 <h2>Should you use this?</h2>
 <p>Usually not. When the diagram source is already fixed at publish time, as it is in a blog post or
-a docs page, render it during the build and send no JavaScript at all. <code>renderMermaidSVG</code> is
-synchronous and never touches the DOM, so a static site has no reason to put 873&nbsp;KB of gzipped
-renderer in front of a reader. This page sends it because proving the dynamic path is its only job.</p>
-<p>If you already run a bundler, import the ESM entry described in the
-<a href="/docs/api/">Library API</a> instead: it tree-shakes, and this file cannot.</p>
-<script>
-(function () {
+a docs page, pre-render it during the build and send no renderer JavaScript at all. Use this lazy
+entry when the source or rendering options genuinely change in the browser. This Timeline path is
+about 162&nbsp;KB gzip instead of the roughly 896&nbsp;KB gzip all-family compatibility file.</p>
+<p>Alpine, React, Vue, and other frameworks can call the same async function from their own lifecycle;
+the renderer itself has no framework dependency. See the <a href="https://github.com/adewale/agentic-mermaid/blob/main/docs/browser.md">browser recipe</a>
+for pre-rendering, vanilla JavaScript, Alpine, and classic-script examples.</p>
+<script type="module">
+import { renderMermaidSVGAsync } from '/${scriptRel}'
+
+{
   var SOURCE = document.getElementById('demo-source').textContent
   var target = document.getElementById('demo-diagram')
   var status = document.getElementById('demo-status')
   var select = document.getElementById('demo-style')
-  function draw() {
+  var renderGeneration = 0
+  async function draw() {
+    var currentGeneration = ++renderGeneration
+    status.textContent = 'rendering in-browser'
     try {
-      var svg = agenticMermaid.renderMermaidSVG(SOURCE, { style: select.value, security: 'strict' })
+      var svg = await renderMermaidSVGAsync(SOURCE, { style: select.value, security: 'strict' })
+      if (currentGeneration !== renderGeneration) return
       var parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
       if (parsed.querySelector('parsererror') || parsed.documentElement.localName !== 'svg') {
         throw new Error('renderer returned invalid SVG')
@@ -2021,27 +2019,24 @@ renderer in front of a reader. This page sends it because proving the dynamic pa
       target.replaceChildren(document.importNode(parsed.documentElement, true))
       status.textContent = 'rendered in-browser'
     } catch (error) {
+      if (currentGeneration !== renderGeneration) return
       status.textContent = 'render failed: ' + error
     }
   }
   select.addEventListener('change', draw)
-  draw()
-})()
+  await draw()
+}
 </script>`
 
   await emitShell(
     'demo/index.html',
-    'Browser demo',
-    'One script tag, no bundler: Agentic Mermaid rendering a diagram live in your browser.',
+    'Lazy browser demo',
+    'One family at a time, no bundler: Agentic Mermaid rendering a diagram live in your browser.',
     body,
     '/demo/',
-    // Not deferred: the page's own script calls into the global immediately, the
-    // same way the documented snippet does. A deferred bundle runs AFTER the
-    // externalized body script and the first render loses the race.
-    `<script src="/${scriptRel}"></script>`,
   )
 }
-await emitBrowserBundleDemo()
+await emitLazyBrowserDemo()
 
 // Static assets.
 await emitStylesheet()

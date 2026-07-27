@@ -11,6 +11,8 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { spawnSync } from 'node:child_process'
+import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
 
 // ============================================================================
@@ -18,6 +20,20 @@ import { parseMermaid } from '../parser.ts'
 // ============================================================================
 
 describe('parseMermaid – graph header', () => {
+  it('parses graph families in a fresh process without registry side effects', () => {
+    const script = `
+      const { parseMermaid } = await import('./src/parser.ts')
+      const flowchart = parseMermaid('flowchart LR\\n  A --> B')
+      const state = parseMermaid('stateDiagram-v2\\n  [*] --> Ready')
+      if (flowchart.direction !== 'LR' || state.direction !== 'TD') process.exit(1)
+    `
+    const result = spawnSync('bun', ['-e', script], {
+      cwd: join(import.meta.dir, '..', '..'),
+      encoding: 'utf8',
+    })
+    expect(result.status, result.stderr || result.stdout).toBe(0)
+  })
+
   it('parses "graph TD" header', () => {
     const g = parseMermaid('graph TD\n  A --> B')
     expect(g.direction).toBe('TD')

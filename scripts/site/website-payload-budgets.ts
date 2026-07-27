@@ -6,14 +6,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
     maxRawBytes: 682_619,
-    maxGzipBytes: 406_567,
-    // 387_889 -> 388_564 (+675) from the 0.3.0 bump, with NO content added: the
-    // homepage is byte-identical in size (264_916 raw both before and after) and
-    // differs in exactly two characters, `0.2.0` -> `0.3.0` in the JSON-LD
-    // softwareVersion and the footer. Raw and gzip are unchanged; only Brotli
-    // moved, because those digits broke back-reference matches the old string
-    // shared. Attributed by diffing the built homepage against origin/main.
-    maxBrotliBytes: 388_564,
+    maxGzipBytes: 406_566,
+    // Re-recorded exactly for 0.3.1. The raw total is unchanged; the same-length
+    // projected version string slightly improves compression. These ceilings
+    // intentionally match the checked-in payload capture for this toolchain.
+    maxBrotliBytes: 387_928,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -25,27 +22,36 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     maxRawBytes: 380_391,
     maxGzipBytes: 66_937,
-    maxBrotliBytes: 53_143,
+    maxBrotliBytes: 53_151,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
     forbidden: Object.freeze(['/examples/fragments/', '^/fonts/Inter-.*\\.ttf$']),
   }),
   demo: Object.freeze({
-    maxRequests: 8,
-    maxRawBytes: 3_173_547,
-    maxGzipBytes: 1_003_076,
-    maxBrotliBytes: 808_735,
+    // The lazy Timeline graph uses more cacheable requests than the monolith,
+    // but avoids every other family and the shared ELK chunk. Exact byte totals
+    // are ratcheted from the browser capture below.
+    maxRequests: 30,
+    maxRawBytes: 718_063,
+    maxGzipBytes: 269_716,
+    maxBrotliBytes: 246_249,
     required: Object.freeze([
-      '^/demo/$', '^/demo/browser-[a-f0-9]{12}\\.js$', '^/generated/inline-[a-f0-9]{12}\\.js$',
+      '^/demo/$',
+      '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
+      '^/demo/browser-lazy/chunks/timeline-[A-Z0-9]{8}\\.js$',
+      '^/generated/inline-[a-f0-9]{12}\\.js$',
     ]),
-    forbidden: Object.freeze(['/examples/fragments/', '/editor/editor-']),
+    forbidden: Object.freeze(['/examples/fragments/', '/editor/editor-', '^/demo/browser-[a-f0-9]{12}\\.js$']),
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    maxRawBytes: 3_289_227,
-    maxGzipBytes: 965_824,
-    maxBrotliBytes: 759_978,
+    // The editor still exercises the complete API; BUILD-31's registry seam
+    // accounts for this bounded compatibility-path delta. These exact totals
+    // include the shared code-point comparator used by family routing.
+    maxRawBytes: 3_289_870,
+    maxGzipBytes: 967_089,
+    maxBrotliBytes: 759_971,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
