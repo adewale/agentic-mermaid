@@ -144,7 +144,7 @@ describe('MCP — render_png tool', () => {
       cwd: REPO, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
     })
     const requests = [
-      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'png-test', version: '0' } } },
       { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return 1' } } },
       { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', output: 'base64' } } },
     ]

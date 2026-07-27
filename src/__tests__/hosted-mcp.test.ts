@@ -52,27 +52,40 @@ function payloadOf(res: Awaited<ReturnType<typeof handleHostedRequest>>): any {
 
 describe('hosted MCP handshake', () => {
   const legacyVersions = SUPPORTED_PROTOCOL_VERSIONS.filter(isLegacyProtocolVersion)
+  const initializeParams = (protocolVersion: string) => ({
+    protocolVersion,
+    capabilities: {},
+    clientInfo: { name: 'hosted-test', version: '0' },
+  })
 
   test('initialize echoes a supported legacy protocol version', async () => {
     for (const version of legacyVersions) {
-      const res = await handleHostedRequest(rpc('initialize', { protocolVersion: version }), makeContext())
+      const res = await handleHostedRequest(rpc('initialize', initializeParams(version)), makeContext())
       expect((res?.result as any).protocolVersion).toBe(version)
     }
   })
 
   test('initialize falls back to the newest served legacy version', async () => {
-    for (const params of [{ protocolVersion: '1999-01-01' }, { protocolVersion: '2026-07-28' }, {}, undefined]) {
-      const res = await handleHostedRequest(rpc('initialize', params), makeContext())
+    for (const version of ['1999-01-01', '2026-07-28']) {
+      const res = await handleHostedRequest(rpc('initialize', initializeParams(version)), makeContext())
       expect((res?.result as any).protocolVersion).toBe(legacyVersions.at(-1))
     }
   })
 
+  test.each([undefined, {}, { protocolVersion: '2025-11-25' }, {
+    protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'missing-version' },
+  }])('initialize rejects malformed params %#', async params => {
+    const res = await handleHostedRequest(rpc('initialize', params), makeContext())
+    expect(res?.error?.code).toBe(-32602)
+  })
+
   test('initialize reports the package version and hosted instructions', async () => {
-    const res = await handleHostedRequest(rpc('initialize'), makeContext())
+    const res = await handleHostedRequest(rpc('initialize', initializeParams('2025-11-25')), makeContext())
     const result = res?.result as any
     expect(result.serverInfo).toEqual({ name: 'agentic-mermaid-hosted', version: pkg.version })
     expect(result.instructions).toContain('stateless')
     expect(result.instructions).toContain('render_svg')
+    expect(result.capabilities).toEqual({ tools: {}, prompts: {}, resources: {} })
   })
 
   test('the hosted identity is distinct from the local stdio server', () => {

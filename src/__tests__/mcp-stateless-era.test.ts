@@ -109,7 +109,10 @@ describe('era selection', () => {
   })
 
   test.each(['initialize', 'ping'])('%s still works for a legacy client', async method => {
-    const response = await handleHostedRequest(legacy(method, { protocolVersion: '2025-06-18' }), context())
+    const params = method === 'initialize'
+      ? { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'legacy-client', version: '1' } }
+      : { protocolVersion: '2025-06-18' }
+    const response = await handleHostedRequest(legacy(method, params), context())
     expect(response?.error).toBeUndefined()
     expect(response?.result).toBeDefined()
   })
@@ -132,16 +135,16 @@ describe('server/discover', () => {
   test('reports the supported versions, identity, capabilities, and instructions', async () => {
     const response = await handleHostedRequest(modern('server/discover'), context())
     const result = response?.result as any
-    expect(result.supportedVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
+    expect(result.supportedVersions).toEqual([MODERN])
     expect(result.serverInfo).toBeUndefined()
     expect(result._meta[META_SERVER_INFO]).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
-    expect(result.capabilities).toEqual({ tools: {} })
+    expect(result.capabilities).toEqual({ tools: {}, prompts: {}, resources: {} })
     expect(typeof result.instructions).toBe('string')
   })
 
-  test('is answered in the legacy era too, so a dual-era client can probe with it', async () => {
+  test('is not part of the legacy era', async () => {
     const response = await handleHostedRequest(legacy('server/discover'), context())
-    expect((response?.result as any).supportedVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
+    expect(response?.error?.code).toBe(-32601)
   })
 
   test('advertises exactly what the version gate accepts', async () => {
@@ -240,6 +243,15 @@ describe('modern _meta is required and validated', () => {
   test('a request with no _meta is legacy, not malformed', async () => {
     const response = await handleHostedRequest(legacy('tools/list'), context())
     expect(response?.error).toBeUndefined()
+  })
+
+  test.each([null, 42, true, {}, []])('a present non-string protocolVersion (%p) is malformed modern metadata', async value => {
+    const request: JsonRpcRequest = {
+      jsonrpc: '2.0', id: 'bad-version-type', method: 'tools/list',
+      params: { _meta: { [META_PROTOCOL_VERSION]: value, [META_CLIENT_CAPABILITIES]: {} } },
+    }
+    const response = await handleHostedRequest(request, context())
+    expect(response).toMatchObject({ id: 'bad-version-type', error: { code: -32602 } })
   })
 
   test('_meta on the params envelope never reaches closed tool-argument validation', async () => {
@@ -435,6 +447,17 @@ describe('transport: unknown methods and batching', () => {
     expect(body.error.code).toBe(-32600)
   })
 
+  test('a malformed protocol-version claim still makes a batch modern and therefore invalid', async () => {
+    const request = legacy('tools/list') as any
+    request.params = { _meta: {
+      [META_PROTOCOL_VERSION]: 42,
+      [META_CLIENT_CAPABILITIES]: {},
+    } }
+    const { status, body } = await payload(await handler()(post([request])))
+    expect(status).toBe(400)
+    expect(body.error.code).toBe(-32600)
+  })
+
   test('a legacy batch still works', async () => {
     const { status, body } = await payload(await handler()(post([legacy('ping'), legacy('tools/list', undefined, 2)], { 'mcp-protocol-version': '2025-03-26' })))
     expect(status).toBe(200)
@@ -518,7 +541,7 @@ describe('modern results carry the fields this revision requires', () => {
     expect(result.cacheScope).toBe('public')
   })
 
-  test.each(['tools/list', 'prompts/list', 'resources/list', 'server/discover'])('%s carries no caching hints in the legacy era', async method => {
+  test.each(['tools/list', 'prompts/list', 'resources/list'])('%s carries no caching hints in the legacy era', async method => {
     const result = (await handleHostedRequest(legacy(method), context()))?.result as Record<string, unknown>
     expect(result.ttlMs).toBeUndefined()
     expect(result.cacheScope).toBeUndefined()

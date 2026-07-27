@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createArtifactStore } from '../mcp/artifacts.ts'
@@ -149,6 +149,30 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(successor.read(record.name)?.bytes).toEqual(Buffer.alloc(6, 1))
     expect(() => successor.write(Buffer.alloc(5, 2), { extension: '.png', mimeType: 'image/png' })).toThrow(/maxTotalBytes/)
     successor.close()
+  })
+
+  test('implicit namespaces retain live artifacts and reap expired closed stores', () => {
+    const namespaceRoot = tempDir()
+    let now = 100_000
+    const first = createArtifactStore({ namespaceRoot, ttlMs: 100, now: () => now })
+    const record = first.write(Buffer.from(PNG_MAGIC), { extension: '.png', mimeType: 'image/png' })
+    first.close()
+    // Make the closed namespace older than the construction-race grace period.
+    utimesSync(first.dir, new Date(0), new Date(0))
+
+    now = 100_050
+    const second = createArtifactStore({ namespaceRoot, ttlMs: 100, now: () => now })
+    expect(existsSync(record.path)).toBe(true)
+    expect(existsSync(first.dir)).toBe(true)
+    second.close()
+    utimesSync(second.dir, new Date(0), new Date(0))
+
+    now = 100_101
+    const third = createArtifactStore({ namespaceRoot, ttlMs: 100, now: () => now })
+    expect(existsSync(record.path)).toBe(false)
+    expect(existsSync(first.dir)).toBe(false)
+    expect(existsSync(second.dir)).toBe(false)
+    third.close()
   })
 
   test('HTTP RPC requires JSON content-type and bounds request bodies', async () => {
@@ -359,15 +383,15 @@ describe('local server: per-transport protocol versions', () => {
     } },
   })
 
-  test('stdio advertises every revision the dispatcher implements', async () => {
+  test('stdio discovery advertises the modern revisions it implements', async () => {
     const response = await handleRequest(modern('server/discover'))
     expect((response?.result as { supportedVersions: string[] }).supportedVersions)
-      .toEqual([...STDIO_PROTOCOL_VERSIONS])
+      .toEqual(['2026-07-28'])
   })
 
-  test('HTTP+SSE advertises only the revision its transport is', async () => {
+  test('HTTP+SSE does not expose modern discovery on its legacy transport', async () => {
     const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'server/discover' }, {}, HTTP_SSE)
-    expect((response?.result as { supportedVersions: string[] }).supportedVersions).toEqual(['2024-11-05'])
+    expect(response?.error?.code).toBe(-32601)
   })
 
   // The half that makes the advertisement true rather than decorative: a client
@@ -416,10 +440,10 @@ describe('local server: per-transport protocol versions', () => {
   // dispatcher does not implement.
   test('a transport cannot advertise a revision the surface lacks', async () => {
     const response = await handleRequest(
-      { jsonrpc: '2.0', id: 1, method: 'server/discover' }, {},
-      { supportedVersions: ['2024-11-05', '2099-01-01'] },
+      modern('server/discover'), {},
+      { supportedVersions: ['2026-07-28', '2099-01-01'] },
     )
-    expect((response?.result as { supportedVersions: string[] }).supportedVersions).toEqual(['2024-11-05'])
+    expect((response?.result as { supportedVersions: string[] }).supportedVersions).toEqual(['2026-07-28'])
   })
 
   test('initialize echoes a version this transport serves, and downgrades otherwise', async () => {

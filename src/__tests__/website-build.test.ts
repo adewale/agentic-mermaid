@@ -409,7 +409,10 @@ describe('Workers Static Assets website contract', () => {
         'content-type': 'application/json',
         accept: 'application/json, text/event-stream',
       },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }),
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1, method: 'initialize',
+        params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'website-test', version: '0' } },
+      }),
     }), env(() => new Response('should not run')))
     expect(wellKnownInitialize.status).toBe(200)
     const wellKnownPayload = await wellKnownInitialize.json() as any

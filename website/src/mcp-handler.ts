@@ -464,7 +464,9 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       // without a pinning header: the body is the authority for the era, and
       // the modern revision has no batch form at all.
       const batchAdmissions = parsed.map(item => admitHostedRequest(item, { headerVersion: protocolVersion }))
-      if (batchAdmissions.some(admission => (admission.ok ? admission.message.protocol : admission.protocol)?.era === 'modern')) {
+      if (batchAdmissions.some(admission => admission.ok
+        ? admission.message.protocol.era === 'modern'
+        : admission.requestedEra === 'modern' || admission.protocol?.era === 'modern')) {
         return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching does not exist in this MCP revision; send a single message' } }, cors, exact.ids)
       }
       // Bound fan-out before running any item: a single request must not spin an

@@ -251,7 +251,10 @@ describe('hosted transport truthfulness', () => {
     }))
     expect(execute.headers.get('x-agentic-mermaid-compute-cache')).toBe('bypass')
 
-    const initialize = await handleHostedRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }, context)
+    const initialize = await handleHostedRequest({
+      jsonrpc: '2.0', id: 1, method: 'initialize',
+      params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'audit-test', version: '0' } },
+    }, context)
     const instructions = (initialize?.result as any).instructions as string
     expect(instructions).toContain('private server-side compute cache')
     expect(instructions).toContain('cache-control: no-store')

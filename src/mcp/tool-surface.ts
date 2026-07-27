@@ -2,6 +2,9 @@ import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse 
 import {
   META_SERVER_INFO,
   isLegacyProtocolVersion,
+  isModernProtocolVersion,
+  mcpClientCapabilitiesProblems,
+  mcpImplementationProblems,
   usesToolErrorForInvalidArguments,
   type ProtocolEra,
 } from './protocol-versions.ts'
@@ -86,6 +89,7 @@ export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
 export const MCP_SERVER_VERSION = PACKAGE_VERSION
+const SERVER_CAPABILITIES = { tools: {}, prompts: {}, resources: {} } as const
 export const PURE_COMPUTE_ANNOTATIONS = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -374,21 +378,26 @@ export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Cont
   return surfaceVersions.filter(version => options.supportedVersions!.includes(version))
 }
 
-/** server/discover: the modern replacement for the initialize handshake's
- *  discovery role. Every field is one the surface already produces for
- *  initialize, so the two can never describe different servers. Answered in
- *  BOTH eras — a dual-era client probes with it, and a legacy client that
- *  never calls it is unaffected. */
-function discoverResult<Context>(surface: McpServerSurface<Context>, supportedVersions: readonly string[], era: ProtocolEra) {
+/** server/discover is the modern replacement for initialize. Its version list
+ * is deliberately modern-only: legacy revisions are negotiated by initialize
+ * and do not belong in this method's stateless contract. */
+function discoverResult<Context>(surface: McpServerSurface<Context>, supportedVersions: readonly string[]) {
   return {
-    supportedVersions: [...supportedVersions],
-    capabilities: { tools: {} },
-    // Legacy probing shipped this top-level extension before the final modern
-    // wire shape settled. Preserve it for those callers, but modern discovery
-    // receives identity in the response `_meta` stamp below.
-    ...(era === 'legacy' ? { serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION } } : {}),
+    supportedVersions: supportedVersions.filter(isModernProtocolVersion),
+    capabilities: SERVER_CAPABILITIES,
     instructions: surface.instructions,
   }
+}
+
+function initializeParamsProblems(params: unknown): string[] {
+  if (!plainJsonObject(params)) return ['params is required and must be an object']
+  const problems: string[] = []
+  if (typeof params.protocolVersion !== 'string') {
+    problems.push('params.protocolVersion is required and must be a string')
+  }
+  problems.push(...mcpClientCapabilitiesProblems(params.capabilities, 'params.capabilities'))
+  problems.push(...mcpImplementationProblems(params.clientInfo, 'params.clientInfo'))
+  return problems
 }
 
 export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
@@ -415,6 +424,11 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
     // request keeps the handshake it depends on.
     case 'initialize': {
       if (era === 'modern') { response = unknownMethod(id, req.method); break }
+      const problems = initializeParamsProblems(req.params)
+      if (problems.length > 0) {
+        response = rpcError(id, -32602, `Invalid params: ${problems.join('; ')}`)
+        break
+      }
       // Echo the client's version when this transport serves it. Advertising a
       // revision in server/discover and then refusing to negotiate it would
       // reproduce, inside one server, the exact mismatch per-transport
@@ -429,14 +443,16 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       response = reply(id, {
         protocolVersion,
         serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
-        capabilities: { tools: {} },
+        capabilities: SERVER_CAPABILITIES,
         instructions: surface.instructions,
       })
       break
     }
     case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
     case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
-    case 'server/discover': response = reply(id, discoverResult(surface, servedVersions, era)); break
+    case 'server/discover': response = era === 'modern'
+      ? reply(id, discoverResult(surface, servedVersions))
+      : unknownMethod(id, req.method); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!plainJsonObject(req.params)) {

@@ -14,6 +14,7 @@ import {
   META_PROTOCOL_VERSION,
   modernRequestMetaProblems,
   requestMetaProtocolVersion,
+  requestMetaProtocolVersionClaim,
   UNSUPPORTED_PROTOCOL_VERSION,
   type ModernProtocolVersion,
   type ProtocolEra,
@@ -72,6 +73,9 @@ export interface RejectedMcpMessage {
    * rejects it. Malformed envelopes are never classified as notifications. */
   readonly response: JsonRpcResponse | null
   readonly protocol?: ProtocolContext
+  /** Era selected by the request shape even when malformed input prevents a
+   * branded ProtocolContext from being constructed. */
+  readonly requestedEra?: ProtocolEra
 }
 
 export interface AcceptedMcpMessage {
@@ -132,8 +136,15 @@ function rejection(
   notification: boolean,
   response: JsonRpcResponse,
   protocol?: ProtocolContext,
+  requestedEra?: ProtocolEra,
 ): RejectedMcpMessage {
-  return { ok: false, kind, response: notification ? null : response, ...(protocol ? { protocol } : {}) }
+  return {
+    ok: false,
+    kind,
+    response: notification ? null : response,
+    ...(protocol ? { protocol } : {}),
+    ...(requestedEra ? { requestedEra } : {}),
+  }
 }
 
 function acceptance(
@@ -153,8 +164,8 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
   const raw = rawMessage as Record<string, unknown> | null
   const hasId = Boolean(raw && Object.prototype.hasOwnProperty.call(raw, 'id'))
   const rawId = raw?.id
-  const validId = rawId === undefined || rawId === null || typeof rawId === 'string'
-    || (typeof rawId === 'number' && Number.isFinite(rawId))
+  const validId = rawId === undefined || typeof rawId === 'string'
+    || (typeof rawId === 'number' && Number.isSafeInteger(rawId))
   const validEnvelope = Boolean(raw && !Array.isArray(raw) && raw.jsonrpc === '2.0'
     && typeof raw.method === 'string' && validId)
   if (!validEnvelope) {
@@ -164,8 +175,9 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
   const request = rawMessage as JsonRpcRequest
   const id = responseId(raw!, validId)
   const notification = !hasId
+  const versionClaim = requestMetaProtocolVersionClaim(request)
   const declaredVersion = requestMetaProtocolVersion(request)
-  const requestedEra: ProtocolEra = isModernProtocolVersion(declaredVersion) ? 'modern' : 'legacy'
+  const requestedEra: ProtocolEra = versionClaim.present ? 'modern' : 'legacy'
   const supportedVersions = options.protocolEra === 'legacy'
     ? options.supportedVersions.filter(isLegacyProtocolVersion)
     : options.protocolEra === 'modern'
@@ -182,7 +194,17 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
   // though the decision now lives in this shared admission boundary.
   const headerAdmission = admitMcpHeaderVersion(options.headerVersion ?? null, supportedVersions)
   if (headerAdmission) {
-    return { ...headerAdmission, protocol: provisionalProtocol }
+    return { ...headerAdmission, protocol: provisionalProtocol, requestedEra }
+  }
+
+  if (versionClaim.present && typeof versionClaim.value !== 'string') {
+    return rejection(
+      'invalid-modern-metadata',
+      notification,
+      rpcError(id, -32602, `Invalid params: params._meta.${META_PROTOCOL_VERSION} is required and must be a string`),
+      undefined,
+      'modern',
+    )
   }
 
   if (options.negotiatedVersion != null && !supportedVersions.includes(options.negotiatedVersion)) {
@@ -196,6 +218,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         { supported: [...supportedVersions], requested: options.negotiatedVersion },
       ),
       provisionalProtocol,
+      requestedEra,
     )
   }
 
@@ -210,6 +233,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         `Header mismatch: MCP-Protocol-Version header value '${options.headerVersion}' does not match body value '${declaredVersion}'`,
       ),
       provisionalProtocol,
+      requestedEra,
     )
   }
 
@@ -225,6 +249,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         { supported: [...supportedVersions], requested },
       ),
       provisionalProtocol,
+      requestedEra,
     )
   }
 
@@ -239,6 +264,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         { supported: [...supportedVersions], requested: declaredVersion },
       ),
       provisionalProtocol,
+      requestedEra,
     )
   }
 
@@ -257,6 +283,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         notification,
         rpcError(id, HEADER_MISMATCH, `Header mismatch: ${problem}`),
         provisionalProtocol,
+        requestedEra,
       )
     }
     const protocol: ModernProtocolContext = { era: 'modern', version: declaredVersion, supportedVersions }
@@ -270,6 +297,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
           `Header mismatch: MCP-Protocol-Version header is required for protocol version ${declaredVersion}`,
         ),
         protocol,
+        requestedEra,
       )
     }
     const transportProblem = options.modernTransportProblem?.(request) ?? null
@@ -279,6 +307,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         notification,
         rpcError(id, HEADER_MISMATCH, `Header mismatch: ${transportProblem}`),
         protocol,
+        requestedEra,
       )
     }
     const metaProblems = modernRequestMetaProblems(request)
@@ -288,6 +317,7 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         notification,
         rpcError(id, -32602, `Invalid params: ${metaProblems.join('; ')}`),
         protocol,
+        requestedEra,
       )
     }
     return acceptance(request, id, notification, protocol)

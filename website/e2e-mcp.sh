@@ -182,6 +182,15 @@ check_http_jq 'an unsupported MCP-Protocol-Version is exact -32022' '400' \
   '.jsonrpc == "2.0" and .id == null and .error.code == -32022 and .error.data.requested == "1999-01-01" and .error.data.supported == ["2024-11-05","2025-03-26","2025-06-18","2025-11-25","2026-07-28"]' \
   -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 1999-01-01' -d '{"jsonrpc":"2.0","id":1,"method":"ping"}'
 
+# Body-only claims exercise the admission route that no transport header can
+# cover. This is the path that used to fall through to legacy semantics.
+check_http_jq 'an unsupported body-only protocol version is exact -32022' '400' \
+  '.jsonrpc == "2.0" and .id == "body-version" and .error.code == -32022 and .error.data.requested == "2099-01-01" and .error.data.supported == ["2024-11-05","2025-03-26","2025-06-18","2025-11-25","2026-07-28"] and (keys | sort == ["error","id","jsonrpc"]) and (.error.data | keys | sort == ["requested","supported"])' \
+  -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":"body-version","method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2099-01-01","io.modelcontextprotocol/clientCapabilities":{}}}}'
+
+check_http_exact 'an unsupported body-only notification is an empty 400' '400' '' \
+  -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2099-01-01","io.modelcontextprotocol/clientCapabilities":{}}}}'
+
 # ---- Dual-era: the 2026-07-28 stateless revision ---------------------------
 # Every probe below pins the version EXPLICITLY. An unpinned client negotiates a
 # legacy revision and would exercise none of this.
@@ -214,14 +223,17 @@ check 'a modern tools/list works with no prior initialize' '"render_svg"' \
 check 'a modern tools/call works with no prior initialize' '\"ok\":true' \
   "$(jm "$modern_verify" -H 'mcp-method: tools/call' -H 'mcp-name: verify')"
 
-check 'a header/body version mismatch is -32020' '-32020' \
-  "$(jm "$modern_version_mismatch" -H 'mcp-method: tools/list')"
+check_http_jq 'a header/body version mismatch is exact -32020' '400' \
+  '.jsonrpc == "2.0" and .id == 4 and .error.code == -32020 and (.error.message | startswith("Header mismatch:")) and (keys | sort == ["error","id","jsonrpc"]) and (.error | keys | sort == ["code","message"])' \
+  -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 2026-07-28' -H 'mcp-method: tools/list' -d "$modern_version_mismatch"
 
-check 'a missing Mcp-Method header is -32020' '-32020' \
-  "$(jm "$modern_missing_method")"
+check_http_jq 'a missing Mcp-Method header is exact -32020' '400' \
+  '.jsonrpc == "2.0" and .id == 5 and .error.code == -32020 and .error.message == "Header mismatch: Mcp-Method header is required" and (keys | sort == ["error","id","jsonrpc"]) and (.error | keys | sort == ["code","message"])' \
+  -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 2026-07-28' -d "$modern_missing_method"
 
-check 'an Mcp-Name that disagrees with the body is -32020' '-32020' \
-  "$(jm "$modern_name_mismatch" -H 'mcp-method: tools/call' -H 'mcp-name: describe')"
+check_http_jq 'an Mcp-Name mismatch is exact -32020' '400' \
+  '.jsonrpc == "2.0" and .id == 6 and .error.code == -32020 and (.error.message | startswith("Header mismatch: Mcp-Name header value")) and (keys | sort == ["error","id","jsonrpc"]) and (.error | keys | sort == ["code","message"])' \
+  -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 2026-07-28' -H 'mcp-method: tools/call' -H 'mcp-name: describe' -d "$modern_name_mismatch"
 
 check 'an unknown method is 404 for a modern request' '404' \
   "$(jm "$modern_unknown" -H 'mcp-method: no/such/method' -o /dev/null -w '%{http_code}')"

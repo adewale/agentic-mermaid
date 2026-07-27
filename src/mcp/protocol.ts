@@ -1,17 +1,16 @@
 // JSON-RPC 2.0 plumbing shared by every MCP transport (stdio, node HTTP/SSE,
 // and the hosted Cloudflare Worker). Runtime-neutral: no node:* imports.
 
-export interface JsonRpcRequest { jsonrpc: '2.0'; id?: number | string | null; method: string; params?: unknown }
+export interface JsonRpcRequest { jsonrpc: '2.0'; id?: number | string; method: string; params?: unknown }
 export interface JsonRpcResponse { jsonrpc: '2.0'; id: number | string | null; result?: unknown; error?: { code: number; message: string; data?: unknown } }
 
 export interface ExactJsonRpcId { sentinel: string; raw: string }
 
 /**
  * Protect top-level numeric JSON-RPC ids that JavaScript cannot round-trip
- * lexically through JSON.parse/JSON.stringify. The JSON-RPC specification
- * permits Number ids (while discouraging fractions), so every transport must
- * preserve the request token used for response correlation rather than
- * silently coercing it through IEEE-754.
+ * lexically through JSON.parse/JSON.stringify. MCP narrows JSON-RPC Number ids
+ * to integers, so integer-valued tokens are preserved for response correlation
+ * while fractional values remain numbers for admission to reject.
  *
  * Only an individual request object's `id` is protected: nested `params.id`
  * values remain ordinary application data. Direct batch-item ids are included.
@@ -43,7 +42,7 @@ export function preserveExactJsonRpcIds(body: string): { body: string; ids: Exac
         cursor++
         while (/\s/.test(body[cursor] ?? '')) cursor++
         const number = body.slice(cursor).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/)?.[0]
-        if (number && !isSafelyRoundTrippableInteger(number)) {
+        if (number && isIntegerNumberToken(number) && !isSafelyRoundTrippableInteger(number)) {
           let sentinel = `__agentic_mermaid_exact_id_${replacements.length}__`
           while (body.includes(sentinel)) sentinel += '_'
           replacements.push({ sentinel, raw: number, start: cursor, end: cursor + number.length })
@@ -61,6 +60,11 @@ export function preserveExactJsonRpcIds(body: string): { body: string; ids: Exac
     protectedBody = protectedBody.slice(0, replacement.start) + JSON.stringify(replacement.sentinel) + protectedBody.slice(replacement.end)
   }
   return { body: protectedBody, ids: replacements.map(({ sentinel, raw }) => ({ sentinel, raw })) }
+}
+
+function isIntegerNumberToken(token: string): boolean {
+  const value = Number(token)
+  return Number.isFinite(value) && Number.isInteger(value)
 }
 
 function isSafelyRoundTrippableInteger(token: string): boolean {

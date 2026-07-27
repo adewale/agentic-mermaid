@@ -3,8 +3,6 @@
 
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
@@ -223,7 +221,7 @@ function artifactPayload(artifact: ArtifactRecord, output: 'file' | 'url'): Reco
 }
 
 function getDefaultArtifactStore(): ArtifactStore {
-  defaultArtifactStore ??= createArtifactStore({ dir: join(tmpdir(), 'agentic-mermaid-mcp-artifacts') })
+  defaultArtifactStore ??= createArtifactStore()
   if (!defaultArtifactStoreExitHook) {
     defaultArtifactStoreExitHook = true
     process.once('exit', () => defaultArtifactStore?.close())

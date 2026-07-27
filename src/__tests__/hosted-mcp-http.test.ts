@@ -166,6 +166,15 @@ describe('method and header validation', () => {
     expect(noIdBody).toMatchObject({ jsonrpc: '2.0', id: null, error: { code: -32600 } })
   })
 
+  test.each([null, 1.5])('MCP rejects the non-integer request id %p', async id => {
+    const { handler } = makeHandler()
+    const res = await handler(post({ jsonrpc: '2.0', id, method: 'ping' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      jsonrpc: '2.0', id: null, error: { code: -32600, message: 'invalid JSON-RPC request' },
+    })
+  })
+
   test('HTTP-level error responses still carry CORS so a browser client can read them', async () => {
     // 405/415/413/400 all flow through the same json() helper; a browser fetch
     // needs the CORS header on the error too or it never sees the status.
@@ -185,7 +194,9 @@ describe('method and header validation', () => {
 describe('JSON-RPC round trips', () => {
   test('initialize round trip carries protocol version and CORS', async () => {
     const { handler } = makeHandler()
-    const res = await handler(post(rpc('initialize', { protocolVersion: '2025-03-26' })))
+    const res = await handler(post(rpc('initialize', {
+      protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'http-test', version: '0' },
+    })))
     expect(res.status).toBe(200)
     expect(res.headers.get('access-control-allow-origin')).toBe('*')
     expect(res.headers.get('cache-control')).toBe('no-store')
@@ -453,7 +464,9 @@ describe('deterministic-response caching', () => {
     const cache = makeCache()
     const { handler } = makeHandler({ cache })
     await handler(post(rpc('tools/list')))
-    await handler(post(rpc('initialize')))
+    await handler(post(rpc('initialize', {
+      protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'cache-test', version: '0' },
+    })))
     expect(cache.store.size).toBe(0)
   })
 })

@@ -82,8 +82,113 @@ function paramsMeta(req: { params?: unknown }): Record<string, unknown> | undefi
 /** The protocol version a request declares in `_meta`, if any. Absent for every
  *  legacy request — those negotiate once via `initialize` instead. */
 export function requestMetaProtocolVersion(req: { params?: unknown }): string | undefined {
-  const value = paramsMeta(req)?.[META_PROTOCOL_VERSION]
+  const claim = requestMetaProtocolVersionClaim(req)
+  const value = claim.present ? claim.value : undefined
   return typeof value === 'string' ? value : undefined
+}
+
+/** Presence is distinct from validity. A request that carries the modern
+ * protocol-version key with a non-string value is still a modern request; it
+ * must be rejected as malformed instead of silently falling through to the
+ * legacy handshake era. */
+export type RequestMetaProtocolVersionClaim =
+  | { readonly present: false }
+  | { readonly present: true; readonly value: unknown }
+
+export function requestMetaProtocolVersionClaim(req: { params?: unknown }): RequestMetaProtocolVersionClaim {
+  const meta = paramsMeta(req)
+  if (!meta || !Object.prototype.hasOwnProperty.call(meta, META_PROTOCOL_VERSION)) return { present: false }
+  return { present: true, value: meta[META_PROTOCOL_VERSION] }
+}
+
+/** Validate an MCP Implementation object at either initialize or per-request
+ * metadata boundaries. Unknown extension fields remain permitted. */
+export function mcpImplementationProblems(value: unknown, path: string): string[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return [`${path} is required and must be an object with name and version`]
+  }
+  const problems: string[] = []
+  const info = value as Record<string, unknown>
+  if (typeof info.name !== 'string') problems.push(`${path}.name is required and must be a string`)
+  if (typeof info.version !== 'string') problems.push(`${path}.version is required and must be a string`)
+  for (const key of ['title', 'description', 'websiteUrl']) {
+    if (info[key] !== undefined && typeof info[key] !== 'string') {
+      problems.push(`${path}.${key} must be a string when present`)
+    }
+  }
+  if (info.icons !== undefined) {
+    if (!Array.isArray(info.icons)) {
+      problems.push(`${path}.icons must be an array when present`)
+    } else {
+      for (const [index, icon] of info.icons.entries()) {
+        if (!icon || typeof icon !== 'object' || Array.isArray(icon)) {
+          problems.push(`${path}.icons[${index}] must be an object`)
+          continue
+        }
+        const record = icon as Record<string, unknown>
+        if (typeof record.src !== 'string') problems.push(`${path}.icons[${index}].src is required and must be a string`)
+        if (record.mimeType !== undefined && typeof record.mimeType !== 'string') problems.push(`${path}.icons[${index}].mimeType must be a string when present`)
+        if (record.sizes !== undefined && (!Array.isArray(record.sizes) || record.sizes.some(size => typeof size !== 'string'))) {
+          problems.push(`${path}.icons[${index}].sizes must be an array of strings when present`)
+        }
+        if (record.theme !== undefined && record.theme !== 'light' && record.theme !== 'dark') {
+          problems.push(`${path}.icons[${index}].theme must be light or dark when present`)
+        }
+      }
+    }
+  }
+  return problems
+}
+
+/** Validate the open MCP ClientCapabilities object while checking the shapes
+ * of protocol-defined members. */
+export function mcpClientCapabilitiesProblems(value: unknown, path: string): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return [`${path} is required and must be an object (an empty object declares no optional capabilities)`]
+  }
+  const problems: string[] = []
+  const record = value as Record<string, unknown>
+  const objectMember = (key: string): Record<string, unknown> | undefined => {
+    const member = record[key]
+    if (member === undefined) return undefined
+    if (typeof member !== 'object' || member === null || Array.isArray(member)) {
+      problems.push(`${path}.${key} must be an object when present`)
+      return undefined
+    }
+    return member as Record<string, unknown>
+  }
+
+  const roots = objectMember('roots')
+  if (roots?.listChanged !== undefined && typeof roots.listChanged !== 'boolean') {
+    problems.push(`${path}.roots.listChanged must be a boolean when present`)
+  }
+  const sampling = objectMember('sampling')
+  for (const key of ['context', 'tools']) {
+    const member = sampling?.[key]
+    if (member !== undefined && (typeof member !== 'object' || member === null || Array.isArray(member))) {
+      problems.push(`${path}.sampling.${key} must be an object when present`)
+    }
+  }
+  const elicitation = objectMember('elicitation')
+  for (const key of ['form', 'url']) {
+    const member = elicitation?.[key]
+    if (member !== undefined && (typeof member !== 'object' || member === null || Array.isArray(member))) {
+      problems.push(`${path}.elicitation.${key} must be an object when present`)
+    }
+  }
+  for (const key of ['experimental', 'extensions']) {
+    const entries = objectMember(key)
+    if (!entries) continue
+    for (const [name, member] of Object.entries(entries)) {
+      if (key === 'extensions' && !/^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\/.+/.test(name)) {
+        problems.push(`${path}.extensions.${name} must use a namespaced key with a prefix`)
+      }
+      if (typeof member !== 'object' || member === null || Array.isArray(member)) {
+        problems.push(`${path}.${key}.${name} must be an object`)
+      }
+    }
+  }
+  return problems
 }
 
 /**
@@ -109,39 +214,7 @@ export function modernRequestMetaProblems(req: { params?: unknown }): string[] {
   const problems: string[] = []
   const clientInfo = meta[META_CLIENT_INFO]
   if (clientInfo !== undefined) {
-    if (typeof clientInfo !== 'object' || clientInfo === null || Array.isArray(clientInfo)) {
-      problems.push(`params._meta.${META_CLIENT_INFO} is optional, but when present must be an object with name and version`)
-    } else {
-      const info = clientInfo as Record<string, unknown>
-      if (typeof info.name !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.name is required and must be a string`)
-      if (typeof info.version !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.version is required and must be a string`)
-      for (const key of ['title', 'description', 'websiteUrl']) {
-        if (info[key] !== undefined && typeof info[key] !== 'string') {
-          problems.push(`params._meta.${META_CLIENT_INFO}.${key} must be a string when present`)
-        }
-      }
-      if (info.icons !== undefined) {
-        if (!Array.isArray(info.icons)) {
-          problems.push(`params._meta.${META_CLIENT_INFO}.icons must be an array when present`)
-        } else {
-          for (const [index, icon] of info.icons.entries()) {
-            if (!icon || typeof icon !== 'object' || Array.isArray(icon)) {
-              problems.push(`params._meta.${META_CLIENT_INFO}.icons[${index}] must be an object`)
-              continue
-            }
-            const record = icon as Record<string, unknown>
-            if (typeof record.src !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.icons[${index}].src is required and must be a string`)
-            if (record.mimeType !== undefined && typeof record.mimeType !== 'string') problems.push(`params._meta.${META_CLIENT_INFO}.icons[${index}].mimeType must be a string when present`)
-            if (record.sizes !== undefined && (!Array.isArray(record.sizes) || record.sizes.some(size => typeof size !== 'string'))) {
-              problems.push(`params._meta.${META_CLIENT_INFO}.icons[${index}].sizes must be an array of strings when present`)
-            }
-            if (record.theme !== undefined && record.theme !== 'light' && record.theme !== 'dark') {
-              problems.push(`params._meta.${META_CLIENT_INFO}.icons[${index}].theme must be light or dark when present`)
-            }
-          }
-        }
-      }
-    }
+    problems.push(...mcpImplementationProblems(clientInfo, `params._meta.${META_CLIENT_INFO}`))
   }
   const logLevel = meta[META_LOG_LEVEL]
   if (logLevel !== undefined && (typeof logLevel !== 'string'
@@ -149,56 +222,8 @@ export function modernRequestMetaProblems(req: { params?: unknown }): string[] {
     problems.push(`params._meta.${META_LOG_LEVEL} must be a valid logging level when present`)
   }
   const capabilities = meta[META_CLIENT_CAPABILITIES]
-  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) {
-    // An EMPTY object is valid and means "no optional capabilities" — absence is
-    // not the same thing, and the server must never infer capabilities.
-    problems.push(`params._meta.${META_CLIENT_CAPABILITIES} is required and must be an object (an empty object declares no optional capabilities)`)
-  } else {
-    const record = capabilities as Record<string, unknown>
-    const objectMember = (key: string): Record<string, unknown> | undefined => {
-      const value = record[key]
-      if (value === undefined) return undefined
-      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.${key} must be an object when present`)
-        return undefined
-      }
-      return value as Record<string, unknown>
-    }
-
-    // The capability set is intentionally open, but the members the protocol
-    // defines still have defined shapes. Accepting `roots: "yes"` advertises a
-    // capability no conforming peer could interpret and defeats validation at
-    // the stateless request boundary.
-    const roots = objectMember('roots')
-    if (roots?.listChanged !== undefined && typeof roots.listChanged !== 'boolean') {
-      problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.roots.listChanged must be a boolean when present`)
-    }
-    const sampling = objectMember('sampling')
-    for (const key of ['context', 'tools']) {
-      const value = sampling?.[key]
-      if (value !== undefined && (typeof value !== 'object' || value === null || Array.isArray(value))) {
-        problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.sampling.${key} must be an object when present`)
-      }
-    }
-    const elicitation = objectMember('elicitation')
-    for (const key of ['form', 'url']) {
-      const value = elicitation?.[key]
-      if (value !== undefined && (typeof value !== 'object' || value === null || Array.isArray(value))) {
-        problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.elicitation.${key} must be an object when present`)
-      }
-    }
-    for (const key of ['experimental', 'extensions']) {
-      const entries = objectMember(key)
-      if (!entries) continue
-      for (const [name, value] of Object.entries(entries)) {
-        if (key === 'extensions' && !/^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\/.+/.test(name)) {
-          problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.extensions.${name} must use a namespaced key with a prefix`)
-        }
-        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-          problems.push(`params._meta.${META_CLIENT_CAPABILITIES}.${key}.${name} must be an object`)
-        }
-      }
-    }
-  }
+  // An EMPTY object is valid and means "no optional capabilities" — absence is
+  // not the same thing, and the server must never infer capabilities.
+  problems.push(...mcpClientCapabilitiesProblems(capabilities, `params._meta.${META_CLIENT_CAPABILITIES}`))
   return problems
 }
