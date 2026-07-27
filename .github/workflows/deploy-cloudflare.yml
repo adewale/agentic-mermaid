@@ -6,15 +6,16 @@ name: Deploy website to Cloudflare
 # with wrangler.
 #
 # Gated on a successful CI or npm-publish run for the same commit on main, and
-# on the checked-out package version already existing on npm. The version gate
-# prevents a site with a new CDN URL from going live before that URL resolves.
+# on the checked-out package version already existing on npm with a browser
+# bundle byte-identical to the one built from the validated commit. This keeps
+# the site's pinned CDN URL and its locally bundled artifact on one provenance.
 # Also runnable manually via workflow_dispatch.
 #
 # Requires two repository secrets to publish from GitHub: CLOUDFLARE_API_TOKEN
 # (a token with the Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
 # If either secret is absent, the workflow exits green with a warning instead of
-# making the repository's build status red; publish manually with Wrangler or add
-# the secrets to re-enable automatic deploys.
+# making the repository's build status red. Add the secrets and rerun this
+# workflow; production deploys retain the same staging and rollback guardrails.
 #
 # Note: /mcp is public, unauthenticated compute. Keep the DEC-2 WAF rate-limit
 # rule and DEC-3 worker_loaders binding (see TODO.md) provisioned before
@@ -28,7 +29,9 @@ on:
 
 concurrency:
   group: deploy-cloudflare
-  cancel-in-progress: true
+  # A deploy that has attached a candidate version must reach verification or
+  # rollback. Never cancel it between those states; newer runs queue behind it.
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -37,17 +40,25 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
        ((github.event.workflow_run.name == 'CI' &&
+         github.event.workflow_run.event == 'push' &&
          github.event.workflow_run.head_branch == 'main') ||
-        github.event.workflow_run.name == 'Publish to npm'))
+        (github.event.workflow_run.name == 'Publish to npm' &&
+         github.event.workflow_run.event == 'release')))
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER_SEND_METRICS: 'false'
+      EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Check Cloudflare deployment secrets
         id: cloudflare-secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "available=false" >> "$GITHUB_OUTPUT"
@@ -56,19 +67,36 @@ jobs:
               echo "### Cloudflare deploy skipped"
               echo ""
               echo 'GitHub Actions is missing `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID`.'
-              echo 'Add those repository secrets to publish automatically, or deploy manually from the repository root with `bun run build && SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy`.'
+              echo 'Add those repository secrets, then rerun this workflow or dispatch it manually so the staged probes, identity checks, and rollback guard all remain in force.'
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: steps.cloudflare-secrets.outputs.available == 'true'
         with:
-          # For a workflow_run trigger, build the exact commit CI validated.
-          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          # Never let workflow_run's default-branch GITHUB_SHA select the build.
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 0
+
+      - name: Require the exact current main commit
+        if: steps.cloudflare-secrets.outputs.available == 'true'
+        run: |
+          git fetch --no-tags --force origin refs/heads/main:refs/remotes/origin/main
+          checked_out="$(git rev-parse HEAD)"
+          main_tip="$(git rev-parse refs/remotes/origin/main)"
+          if [[ "$checked_out" != "$EXPECTED_SHA" ]]; then
+            echo "::error title=Checkout identity mismatch::Checked out $checked_out, expected $EXPECTED_SHA."
+            exit 1
+          fi
+          if [[ "$main_tip" != "$EXPECTED_SHA" ]]; then
+            echo "::error title=Stale deployment trigger::Refusing to deploy $EXPECTED_SHA because current main is $main_tip."
+            exit 1
+          fi
+
       - name: Setup Bun
         if: steps.cloudflare-secrets.outputs.available == 'true'
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.13
           no-cache: true
@@ -97,28 +125,123 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Install dependencies
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
-        run: bun install --frozen-lockfile
+        run: |
+          bun install --frozen-lockfile
+          test "$(node_modules/.bin/wrangler --version)" = '4.114.0'
       - name: Build the published artifacts the site serves
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
         # /demo/ serves the real dist/browser-lazy graph. Building explicitly
         # prevents an ignored artifact left by an older checkout from leaking
         # into the deployment.
         run: bun run build
+
+      - name: Verify the published browser artifact is byte-identical
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          artifact_dir="$RUNNER_TEMP/npm-artifact"
+          mkdir -p "$artifact_dir"
+          pack_json="$(npm pack "agentic-mermaid@$version" --ignore-scripts --json --pack-destination "$artifact_dir")"
+          filename="$(jq -er '.[0].filename' <<<"$pack_json")"
+          published_browser="$RUNNER_TEMP/published-browser.global.js"
+          tar -xOf "$artifact_dir/$filename" package/dist/browser.global.js >"$published_browser"
+
+          local_sri="sha384-$(openssl dgst -sha384 -binary dist/browser.global.js | openssl base64 -A)"
+          published_sri="sha384-$(openssl dgst -sha384 -binary "$published_browser" | openssl base64 -A)"
+          if ! cmp -s dist/browser.global.js "$published_browser"; then
+            echo "::error title=Published browser artifact mismatch::HEAD builds $local_sri, but agentic-mermaid@$version serves $published_sri. Bump and publish the package before deploying this site."
+            exit 1
+          fi
+          echo "ok   local browser artifact is byte-identical to agentic-mermaid@$version ($local_sri)"
+
       - name: Build the site bundle
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
         # Stamp public machine catalogs with both the exact CI-validated commit
         # and this deployment bundle's build time. The deploy build is not the
         # deterministic website:check build.
-        run: SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website
-      - name: Deploy to Cloudflare Workers
+        run: SITE_GIT_SHA="$EXPECTED_SHA" SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website
+
+      - name: Recheck current main before touching production state
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
-        run: cd website && npx --yes wrangler@latest deploy
-      - name: Smoke-test the live /mcp endpoint
+        run: |
+          git fetch --no-tags --force origin refs/heads/main:refs/remotes/origin/main
+          main_tip="$(git rev-parse refs/remotes/origin/main)"
+          if [[ "$main_tip" != "$EXPECTED_SHA" ]]; then
+            echo "::error title=Stale deployment build::Current main advanced to $main_tip while $EXPECTED_SHA was building."
+            exit 1
+          fi
+
+      - name: Resolve the immutable production version
+        id: production
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
-        # Post-deploy verification against the live endpoint. First poll the
-        # immutable build SHA in the deployed server card; generic behavior is
-        # not a propagation signal because the previous Worker also implements
-        # it. Only after the exact workflow head is live do the two probes run:
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: website
+        run: |
+          deployments="$(../node_modules/.bin/wrangler deployments list --json)"
+          previous_id="$(jq -er '
+            sort_by(.created_on) | last | .versions
+            | select(length == 1) | .[0]
+            | select(.percentage == 100) | .version_id
+          ' <<<"$deployments")"
+          echo "previous_id=$previous_id" >> "$GITHUB_OUTPUT"
+          echo "ok   current production version is $previous_id at 100%"
+
+      - name: Upload the candidate without serving it
+        id: candidate
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: website
+        run: |
+          output="$RUNNER_TEMP/wrangler-version-upload.ndjson"
+          : >"$output"
+          WRANGLER_OUTPUT_FILE_PATH="$output" ../node_modules/.bin/wrangler versions upload \
+            --strict \
+            --tag "$EXPECTED_SHA" \
+            --message "GitHub Actions run $GITHUB_RUN_ID for $EXPECTED_SHA"
+          candidate_id="$(jq -er --arg tag "$EXPECTED_SHA" \
+            'select(.type == "version-upload" and .worker_tag == $tag) | .version_id' "$output" | tail -n 1)"
+          versions="$(../node_modules/.bin/wrangler versions list --json)"
+          jq -e --arg id "$candidate_id" --arg tag "$EXPECTED_SHA" \
+            'any(.[]; .id == $id and .annotations["workers/tag"] == $tag)' <<<"$versions" >/dev/null
+          echo "candidate_id=$candidate_id" >> "$GITHUB_OUTPUT"
+          echo "ok   uploaded candidate $candidate_id tagged $EXPECTED_SHA"
+
+      - name: Arm rollback before changing production state
+        id: rollback-guard
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        run: echo "armed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Attach the candidate at zero traffic
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIOUS_ID: ${{ steps.production.outputs.previous_id }}
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+        working-directory: website
+        run: |
+          ../node_modules/.bin/wrangler versions deploy \
+            "${PREVIOUS_ID}@100%" "${CANDIDATE_ID}@0%" -y \
+            --message "Stage $EXPECTED_SHA at zero traffic for production-route probes"
+          deployments="$(../node_modules/.bin/wrangler deployments list --json)"
+          jq -e --arg previous "$PREVIOUS_ID" --arg candidate "$CANDIDATE_ID" '
+            (sort_by(.created_on) | last | .versions) as $versions
+            | ($versions | length) == 2
+              and any($versions[]; .version_id == $previous and .percentage == 100)
+              and any($versions[]; .version_id == $candidate and .percentage == 0)
+          ' <<<"$deployments" >/dev/null
+          echo "ok   previous version remains at 100%; candidate is attached at 0%"
+
+      - name: Smoke-test the zero-traffic candidate through production
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        env:
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+        # Version overrides exercise the real custom domain, bindings, and WAF
+        # while ordinary users remain pinned to the previous version.
         #   1. `verify` on a 2-node flowchart — proves the Worker + MCP core
         #      answer at all.
         #   2. `execute` returning 42 — proves the LOADER (worker_loaders)
@@ -126,20 +249,20 @@ jobs:
         #      declared but unprovisioned, and `execute` is the only tool that
         #      touches it (see website/README.md promotion checklist), so the
         #      pure-tool probe alone would pass while hosted Code Mode is dead.
-        # Deploy propagation and binding readiness can lag, so each phase
-        # retries with backoff.
+        # Version-attachment propagation and binding readiness can lag, so each
+        # phase retries with backoff.
         # Assertions are on success values only — execute's error shape is not
         # part of this contract. The full-surface probe runs in the next step,
         # which depends on the SHA gate here having absorbed propagation lag.
         run: |
           MCP='https://agentic-mermaid.dev/mcp'
           CARD='https://agentic-mermaid.dev/.well-known/mcp/server-card.json'
-          EXPECTED_SHA='${{ github.event.workflow_run.head_sha || github.sha }}'
+          OVERRIDE="Cloudflare-Workers-Version-Overrides: agentic-mermaid-website=\"${CANDIDATE_ID}\""
           await_deployed_sha() {
             local attempt
             for attempt in 1 2 3 4 5; do
               local got served
-              got="$(curl -sS --max-time 30 -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&attempt=${attempt}" || true)"
+              got="$(curl -sS --max-time 30 -H "$OVERRIDE" -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&attempt=${attempt}" || true)"
               served="$(jq -r '.generatedFrom.gitSha // empty' <<<"$got" 2>/dev/null || true)"
               if [[ "$served" == "$EXPECTED_SHA" ]]; then
                 echo "ok   deployed build SHA is $EXPECTED_SHA"
@@ -155,7 +278,7 @@ jobs:
             local attempt
             for attempt in 1 2 3 4 5; do
               local got
-              got="$(curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d "$2" || true)"
+              got="$(curl -sS --max-time 30 -X POST "$MCP" -H "$OVERRIDE" -H 'content-type: application/json' -d "$2" || true)"
               if [[ "$got" == *"$3"* ]]; then
                 echo "ok   $1"
                 return 0
@@ -174,15 +297,87 @@ jobs:
             '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' \
             '\"value\":42'
 
-      - name: Probe the full live /mcp surface
+      - name: Probe the full zero-traffic /mcp candidate
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
-        # The complete surface contract: every tool, both transports' error
-        # shapes, the isolate hardening, and every transport guard (405/204/413/
-        # 403/400). This probe deliberately has NO retries — it asserts exact
-        # error shapes, and a retry loop would mask a genuinely flaky response.
-        # That is why it could only ever run manually before: a fresh deploy can
-        # lag, and a no-retry probe against an unpropagated Worker is a false
-        # red. The exact gitSha poll above is the propagation gate — by the time
-        # it passes, this workflow's build is serving, so this step can run
-        # deterministically. Keep it ordered after that step for that reason.
+        env:
+          MCP_WORKER_NAME: agentic-mermaid-website
+          MCP_WORKER_VERSION_ID: ${{ steps.candidate.outputs.candidate_id }}
+        # The exact gitSha poll above gates propagation. This no-retry probe then
+        # asserts every tool, modern routing rule, and raw F3 transport body.
         run: bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp
+
+      - name: Require target still current before promotion
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        run: |
+          git fetch --no-tags --force origin refs/heads/main:refs/remotes/origin/main
+          main_tip="$(git rev-parse refs/remotes/origin/main)"
+          if [[ "$main_tip" != "$EXPECTED_SHA" ]]; then
+            echo "::error title=Stale deployment candidate::Current main advanced to $main_tip while $EXPECTED_SHA was under test."
+            exit 1
+          fi
+
+      - name: Promote the verified candidate to all traffic
+        id: promote
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+        working-directory: website
+        run: |
+          ../node_modules/.bin/wrangler versions deploy \
+            "${CANDIDATE_ID}@100%" -y \
+            --message "Promote verified commit $EXPECTED_SHA to production"
+          echo "promoted=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the promoted production version
+        id: production-verify
+        if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+        run: |
+          MCP='https://agentic-mermaid.dev/mcp'
+          CARD='https://agentic-mermaid.dev/.well-known/mcp/server-card.json'
+          for attempt in 1 2 3 4 5; do
+            card="$(curl -sS --max-time 30 -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&promotion=${attempt}" || true)"
+            served="$(jq -r '.generatedFrom.gitSha // empty' <<<"$card" 2>/dev/null || true)"
+            verify="$(curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}' || true)"
+            execute="$(curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' || true)"
+            if [[ "$served" == "$EXPECTED_SHA" && "$verify" == *'"ok":true'* && "$execute" == *'"value":42'* ]]; then
+              deployments="$(node_modules/.bin/wrangler --cwd website deployments list --json)"
+              jq -e --arg candidate "$CANDIDATE_ID" '
+                (sort_by(.created_on) | last | .versions) as $versions
+                | ($versions | length) == 1
+                  and $versions[0].version_id == $candidate
+                  and $versions[0].percentage == 100
+              ' <<<"$deployments" >/dev/null
+              echo "verified=true" >> "$GITHUB_OUTPUT"
+              echo "ok   $EXPECTED_SHA is verified at 100% production traffic"
+              exit 0
+            fi
+            echo "retry $attempt/5 promoted production verification (served: ${served:-unreadable})"
+            sleep $((attempt * 15))
+          done
+          echo "::error title=Promoted production verification failed::Rolling back from $EXPECTED_SHA."
+          exit 1
+
+      - name: Roll back any unverified deployment
+        if: ${{ always() && steps.rollback-guard.outputs.armed == 'true' && steps.production-verify.outputs.verified != 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIOUS_ID: ${{ steps.production.outputs.previous_id }}
+        working-directory: website
+        run: |
+          ../node_modules/.bin/wrangler rollback "$PREVIOUS_ID" -y \
+            -m "Automatic rollback: commit $EXPECTED_SHA did not complete production verification"
+          deployments="$(../node_modules/.bin/wrangler deployments list --json)"
+          jq -e --arg previous "$PREVIOUS_ID" '
+            (sort_by(.created_on) | last | .versions) as $versions
+            | ($versions | length) == 1
+              and $versions[0].version_id == $previous
+              and $versions[0].percentage == 100
+          ' <<<"$deployments" >/dev/null
+          echo "ok   rolled production back to $PREVIOUS_ID"

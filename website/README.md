@@ -63,14 +63,23 @@ Cloudflare's official agent setup prompt is <https://developers.cloudflare.com/a
 
 Both files register `cloudflare`, `cloudflare-docs`, `cloudflare-bindings`, `cloudflare-builds`, and `cloudflare-observability`. OAuth triggers on first authenticated Cloudflare tool use; `cloudflare-docs` is public.
 
-Direct Wrangler (this project intentionally uses `wrangler@latest`). Build from the repository root before a manual deploy so public machine catalogs carry the checked-out commit rather than stale files:
+Wrangler is pinned in the root development dependencies. Use it locally only
+for development; production promotion always goes through the guarded GitHub
+Actions workflow so the published package identity, candidate probes, and
+rollback path cannot be bypassed:
 
 ```bash
 bun run build
 SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website
-cd website
-WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1
-WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy
+bun run website:dev
 ```
+
+In another shell, run `bash website/e2e-mcp.sh`. To request a production
+deployment of the current `main`, run `bun run deploy`; that command dispatches
+the workflow rather than invoking Wrangler directly. The workflow rejects a
+stale main commit or a browser bundle that differs from the exact npm package,
+attaches the uploaded Worker version at 0%, probes that immutable candidate
+through the production domain, then either promotes it to 100% and verifies it
+or restores the previous version.
 
 The site still exposes no REST render API: `/mcp` speaks MCP JSON-RPC only. Code Mode `execute` runs agent JavaScript exclusively inside per-code dynamic-worker isolates with no bindings and no network.

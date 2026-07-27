@@ -22,6 +22,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     maxRawBytes: 380_391,
     maxGzipBytes: 66_937,
+    // The 0.3.1 release identity changes only compressed back-references on
+    // this route; raw and gzip totals remain byte-for-byte at their ratchets.
     maxBrotliBytes: 53_151,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',

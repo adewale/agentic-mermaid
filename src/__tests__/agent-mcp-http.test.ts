@@ -385,6 +385,33 @@ describe('local server: per-transport protocol versions', () => {
     expect((response?.result as { resultType?: string }).resultType).toBe('complete')
   })
 
+  test('a stdio process pinned by initialize cannot switch to modern result shapes', async () => {
+    const response = await handleRequest(modern('tools/list'), {}, {
+      protocolEra: 'legacy',
+      protocolVersion: '2025-11-25',
+      supportedVersions: ['2025-11-25'],
+    })
+    expect(response?.error?.code).toBe(-32022)
+    expect(response?.error?.data).toEqual({ supported: ['2025-11-25'], requested: '2026-07-28' })
+  })
+
+  test('a modern-pinned stdio process cannot fall back to an unversioned legacy request', async () => {
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, {}, {
+      protocolEra: 'modern',
+      supportedVersions: STDIO_PROTOCOL_VERSIONS,
+    })
+    expect(response?.error?.code).toBe(-32022)
+    expect(response?.error?.data).toEqual({ supported: ['2026-07-28'], requested: 'unversioned' })
+  })
+
+  test('negotiated state rejects an unsupported version without fabricating a header mismatch', async () => {
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, {}, {
+      protocolVersion: '2099-01-01',
+    })
+    expect(response?.error?.code).toBe(-32022)
+    expect(response?.error?.data).toEqual({ supported: [...STDIO_PROTOCOL_VERSIONS], requested: '2099-01-01' })
+  })
+
   // A transport list narrows the surface; it can never introduce a revision the
   // dispatcher does not implement.
   test('a transport cannot advertise a revision the surface lacks', async () => {
@@ -403,6 +430,10 @@ describe('local server: per-transport protocol versions', () => {
     // Served on stdio → echoed. This is the downgrade that was silently
     // happening to the reference SDK client, which offers 2025-11-25.
     expect(((await offer('2025-11-25'))?.result as { protocolVersion: string }).protocolVersion).toBe('2025-11-25')
+    // initialize is legacy-only. The full stdio surface also serves modern
+    // requests, but a modern revision can never be selected by this handshake.
+    expect(((await offer('2026-07-28'))?.result as { protocolVersion: string }).protocolVersion).toBe('2025-11-25')
+    expect(((await offer('2099-01-01'))?.result as { protocolVersion: string }).protocolVersion).toBe('2025-11-25')
     // Not served over HTTP+SSE → falls back to the transport's own revision.
     expect(((await offer('2025-11-25', HTTP_SSE))?.result as { protocolVersion: string }).protocolVersion).toBe('2024-11-05')
   })

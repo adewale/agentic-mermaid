@@ -16,13 +16,13 @@
 import { describe, expect, test } from 'bun:test'
 import { createMcpHandler, type McpRequestEvent } from '../../website/src/mcp-handler.ts'
 import {
-  handleHostedRequest, HOSTED_MCP_SERVER_NAME, SUPPORTED_PROTOCOL_VERSIONS,
+  admitHostedRequest, handleHostedRequest, HOSTED_MCP_SERVER_NAME, SUPPORTED_PROTOCOL_VERSIONS,
   type HostedMcpContext,
 } from '../mcp/hosted-server.ts'
 import {
-  HEADER_MISMATCH, META_CLIENT_CAPABILITIES, META_CLIENT_INFO, META_PROTOCOL_VERSION,
+  HEADER_MISMATCH, META_CLIENT_CAPABILITIES, META_CLIENT_INFO, META_LOG_LEVEL, META_PROTOCOL_VERSION,
   META_SERVER_INFO,
-  UNSUPPORTED_PROTOCOL_VERSION, eraForRequest, isModernProtocolVersion,
+  UNSUPPORTED_PROTOCOL_VERSION, isModernProtocolVersion,
 } from '../mcp/protocol-versions.ts'
 import { MCP_SERVER_VERSION } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
@@ -83,8 +83,10 @@ describe('era selection', () => {
   test('the modern fixture really is modern, and the legacy fixture really is legacy', () => {
     // Guards the guard: if `modern()` ever stopped producing a modern request,
     // every "modern" assertion below would silently test the legacy path.
-    expect(eraForRequest(modern('tools/list'))).toBe('modern')
-    expect(eraForRequest(legacy('tools/list'))).toBe('legacy')
+    const modernAdmission = admitHostedRequest(modern('tools/list'))
+    const legacyAdmission = admitHostedRequest(legacy('tools/list'))
+    expect(modernAdmission.ok && modernAdmission.message.protocol.era).toBe('modern')
+    expect(legacyAdmission.ok && legacyAdmission.message.protocol.era).toBe('legacy')
     expect(isModernProtocolVersion(MODERN)).toBe(true)
     expect(isModernProtocolVersion('2025-11-25')).toBe(false)
   })
@@ -110,6 +112,15 @@ describe('era selection', () => {
     const response = await handleHostedRequest(legacy(method, { protocolVersion: '2025-06-18' }), context())
     expect(response?.error).toBeUndefined()
     expect(response?.result).toBeDefined()
+  })
+
+  test('initialize never negotiates the modern no-handshake revision', async () => {
+    const response = await handleHostedRequest(legacy('initialize', {
+      protocolVersion: MODERN,
+      capabilities: {},
+      clientInfo: { name: 'legacy-client', version: '1' },
+    }), context())
+    expect((response?.result as { protocolVersion: string }).protocolVersion).toBe('2025-11-25')
   })
 
   test('a legacy notifications/initialized is still a silent notification', async () => {
@@ -159,6 +170,9 @@ describe('modern _meta is required and validated', () => {
     // be well-formed — absent and malformed are different cases.
     ['clientInfo without version', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: { name: 'x' }, [META_CLIENT_CAPABILITIES]: {} }],
     ['clientInfo that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: 'acme/1.0', [META_CLIENT_CAPABILITIES]: {} }],
+    ['clientInfo with malformed optional fields', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: { name: 'x', version: '1', icons: 'icon.png' }, [META_CLIENT_CAPABILITIES]: {} }],
+    ['clientInfo icon with invalid theme', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: { name: 'x', version: '1', icons: [{ src: 'icon.png', theme: 'sepia' }] }, [META_CLIENT_CAPABILITIES]: {} }],
+    ['invalid logLevel', { [META_PROTOCOL_VERSION]: MODERN, [META_LOG_LEVEL]: 'verbose', [META_CLIENT_CAPABILITIES]: {} }],
     ['roots capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { roots: 'yes' } }],
     ['roots.listChanged that is not boolean', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { roots: { listChanged: 'yes' } } }],
     ['sampling capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { sampling: true } }],
@@ -171,6 +185,7 @@ describe('modern _meta is required and validated', () => {
     ['experimental value that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { experimental: { 'acme/example': [] } } }],
     ['extensions capability that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { extensions: 'yes' } }],
     ['extension value that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { extensions: { 'acme/example': true } } }],
+    ['extension key without a namespace', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { extensions: { example: {} } } }],
   ])('%s is rejected with INVALID_PARAMS', async (_label, meta) => {
     const request: JsonRpcRequest = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: { [META_PROTOCOL_VERSION]: MODERN, ...meta } } }
     // Only the cases that still declare a modern version reach the check; the
@@ -202,10 +217,22 @@ describe('modern _meta is required and validated', () => {
     expect(response?.error).toBeUndefined()
   })
 
+  test('complete clientInfo icon metadata accepts both defined themes', async () => {
+    for (const theme of ['light', 'dark']) {
+      const request = modern('tools/list')
+      const meta = (request.params as any)._meta
+      meta[META_CLIENT_INFO] = {
+        name: 'x', version: '1', title: 'X', description: 'client', websiteUrl: 'https://example.test',
+        icons: [{ src: 'icon.png', mimeType: 'image/png', sizes: ['32x32'], theme }],
+      }
+      expect((await handleHostedRequest(request, context()))?.error).toBeUndefined()
+    }
+  })
+
   test('unknown capability members retain the open extension surface', async () => {
     const request = modern('tools/list')
-    const meta = (request.params as any)._meta
-    meta['acme/future-capability'] = { enabled: true }
+    const capabilities = (request.params as any)._meta[META_CLIENT_CAPABILITIES]
+    capabilities.futureCapability = { enabled: true }
     const response = await handleHostedRequest(request, context())
     expect(response?.error).toBeUndefined()
   })
@@ -264,6 +291,32 @@ describe('transport: protocol version', () => {
     // a version to retry with.
     expect(body.error.data.supported).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
     expect(body.error.data.requested).toBe('1999-01-01')
+  })
+
+  test('an unsupported body-declared version is 400 even without a header', async () => {
+    const request = legacy('tools/list') as any
+    request.params = { _meta: {
+      [META_PROTOCOL_VERSION]: '2099-01-01',
+      [META_CLIENT_CAPABILITIES]: {},
+    } }
+    const { status, body } = await payload(await handler()(post(request)))
+    expect(status).toBe(400)
+    expect(body).toMatchObject({ id: request.id, error: {
+      code: UNSUPPORTED_PROTOCOL_VERSION,
+      data: { requested: '2099-01-01', supported: [...SUPPORTED_PROTOCOL_VERSIONS] },
+    } })
+  })
+
+  test('an unsupported body-declared notification is an empty 400, not an accepted 202', async () => {
+    const request = {
+      jsonrpc: '2.0', method: 'tools/list',
+      params: { _meta: {
+        [META_PROTOCOL_VERSION]: '2099-01-01',
+        [META_CLIENT_CAPABILITIES]: {},
+      } },
+    }
+    const response = await handler()(post(request))
+    expect({ status: response.status, body: await response.text() }).toEqual({ status: 400, body: '' })
   })
 
   test('a missing header is still permitted for pre-2025-06-18 clients', async () => {
@@ -455,7 +508,7 @@ describe('modern results carry the fields this revision requires', () => {
     expect(result._meta[META_SERVER_INFO]).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
   })
 
-  test.each(['tools/list', 'server/discover'])('%s carries public caching hints in the modern era', async method => {
+  test.each(['tools/list', 'prompts/list', 'resources/list', 'server/discover'])('%s carries public caching hints in the modern era', async method => {
     const response = await handleHostedRequest(modern(method), context())
     const result = response?.result as { ttlMs?: number; cacheScope?: string }
     // "Servers MUST provide a ttlMs value that is >= 0."
@@ -465,7 +518,7 @@ describe('modern results carry the fields this revision requires', () => {
     expect(result.cacheScope).toBe('public')
   })
 
-  test.each(['tools/list', 'server/discover'])('%s carries no caching hints in the legacy era', async method => {
+  test.each(['tools/list', 'prompts/list', 'resources/list', 'server/discover'])('%s carries no caching hints in the legacy era', async method => {
     const result = (await handleHostedRequest(legacy(method), context()))?.result as Record<string, unknown>
     expect(result.ttlMs).toBeUndefined()
     expect(result.cacheScope).toBeUndefined()

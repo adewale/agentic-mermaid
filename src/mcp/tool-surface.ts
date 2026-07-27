@@ -1,14 +1,11 @@
 import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
-  effectiveProtocolVersion,
-  eraForRequest,
   META_SERVER_INFO,
-  modernRequestMetaProblems,
-  requestMetaProtocolVersion,
+  isLegacyProtocolVersion,
   usesToolErrorForInvalidArguments,
-  UNSUPPORTED_PROTOCOL_VERSION,
   type ProtocolEra,
 } from './protocol-versions.ts'
+import { admitMcpMessage, type AdmittedMcpMessage } from './admission.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import {
   sharedRenderOptionsJsonSchema,
@@ -58,10 +55,15 @@ export interface McpServerSurface<Context> {
 }
 
 export interface McpDispatchOptions {
-  /** The negotiated version the transport knows (the MCP-Protocol-Version
-   *  header on HTTP). Supplies the version for legacy requests, whose bodies
-   *  carry none; never overrides a modern request's `_meta`. */
+  /** The version negotiated by a stateful transport. Supplies the version for
+   *  legacy requests, whose bodies carry none; never overrides modern `_meta`.
+   *  HTTP passes its header through admission's distinct `headerVersion` field
+   *  so only a real mirror disagreement can become HeaderMismatch. */
   protocolVersion?: string | null
+  /** Connection-scoped era selected by a stateful transport. Hosted HTTP leaves
+   *  this unset because its dual-era endpoint classifies each independent POST;
+   *  stdio sets it after the client opens with initialize or modern metadata. */
+  protocolEra?: ProtocolEra
   /**
    * Revisions THIS TRANSPORT serves, when they are narrower than the surface's.
    *
@@ -377,9 +379,9 @@ export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Cont
  *  initialize, so the two can never describe different servers. Answered in
  *  BOTH eras — a dual-era client probes with it, and a legacy client that
  *  never calls it is unaffected. */
-function discoverResult<Context>(surface: McpServerSurface<Context>, options: McpDispatchOptions, era: ProtocolEra) {
+function discoverResult<Context>(surface: McpServerSurface<Context>, supportedVersions: readonly string[], era: ProtocolEra) {
   return {
-    supportedVersions: [...surfaceSupportedVersions(surface, options)],
+    supportedVersions: [...supportedVersions],
     capabilities: { tools: {} },
     // Legacy probing shipped this top-level extension before the final modern
     // wire shape settled. Preserve it for those callers, but modern discovery
@@ -390,47 +392,21 @@ function discoverResult<Context>(surface: McpServerSurface<Context>, options: Mc
 }
 
 export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
-  const raw = req as unknown as Record<string, unknown> | null
-  const hasId = Boolean(raw && Object.prototype.hasOwnProperty.call(raw, 'id'))
-  const rawId = raw?.id
-  const validId = rawId === undefined || rawId === null || typeof rawId === 'string' || (typeof rawId === 'number' && Number.isFinite(rawId))
-  const valid = Boolean(raw && raw.jsonrpc === '2.0' && typeof raw.method === 'string' && validId)
-  const id = validId && rawId !== undefined ? rawId as number | string | null : null
-  // Only a valid Request object without `id` is a notification. Malformed
-  // envelopes still receive the spec's -32600 response with id:null.
-  if (!valid) return rpcError(null, -32600, 'invalid JSON-RPC request')
-  const notification = !hasId
-
-  // Dual-era selection (SEP-2575): a request declaring a modern version in
-  // `_meta` gets the stateless revision; anything else — including every
-  // request with no `_meta` at all — keeps the legacy behaviour it has today.
-  const era = eraForRequest(req)
-  const version = effectiveProtocolVersion(req, options.protocolVersion)
-
-  // A version in `_meta` is the client's own claim about the revision it
-  // speaks. If this transport does not serve it, answer with the structured
-  // list it can retry from rather than silently serving a different era. The
-  // HTTP transport already does this for the MCP-Protocol-Version header; a
-  // stdio client sends no header, so without this its claim went unchecked —
-  // and advertising a per-transport version list while ignoring what the client
-  // declares would just move the mismatch rather than fix it.
-  const declaredVersion = requestMetaProtocolVersion(req)
   const servedVersions = surfaceSupportedVersions(surface, options)
-  if (declaredVersion !== undefined && !servedVersions.includes(declaredVersion)) {
-    return notification ? null : rpcError(
-      id,
-      UNSUPPORTED_PROTOCOL_VERSION,
-      `Unsupported protocol version: ${declaredVersion}`,
-      { supported: [...servedVersions], requested: declaredVersion },
-    )
-  }
+  const admission = admitMcpMessage(req, {
+    supportedVersions: servedVersions,
+    negotiatedVersion: options.protocolVersion,
+    protocolEra: options.protocolEra,
+  })
+  if (!admission.ok) return admission.response
+  return dispatchAdmittedMcpRequest(admission.message, context, surface)
+}
 
-  if (era === 'modern') {
-    const metaProblems = modernRequestMetaProblems(req)
-    if (metaProblems.length > 0) {
-      return notification ? null : rpcError(id, -32602, `Invalid params: ${metaProblems.join('; ')}`)
-    }
-  }
+/** Execute a message that has crossed the sole raw/protocol admission boundary.
+ * Cache and transport code call this form so dispatch cannot reclassify it. */
+export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMessage, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
+  const { request: req, id, notification, protocol } = message
+  const { era, version, supportedVersions: servedVersions } = protocol
 
   let response: JsonRpcResponse | null
   switch (req.method) {
@@ -444,11 +420,12 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
       // reproduce, inside one server, the exact mismatch per-transport
       // reporting exists to remove.
       const offered = (req.params as { protocolVersion?: unknown } | undefined)?.protocolVersion
-      const protocolVersion = typeof offered === 'string' && servedVersions.includes(offered)
+      const legacyServedVersions = servedVersions.filter(isLegacyProtocolVersion)
+      const fallbackLegacyVersion = legacyServedVersions.at(-1)
+        ?? (typeof surface.protocolVersion === 'function' ? surface.protocolVersion(req.params) : surface.protocolVersion)
+      const protocolVersion = isLegacyProtocolVersion(offered) && legacyServedVersions.includes(offered)
         ? offered
-        : typeof surface.protocolVersion === 'function'
-          ? surface.protocolVersion(req.params)
-          : surface.protocolVersion
+        : fallbackLegacyVersion
       response = reply(id, {
         protocolVersion,
         serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
@@ -459,7 +436,7 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     }
     case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
     case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
-    case 'server/discover': response = reply(id, discoverResult(surface, options, era)); break
+    case 'server/discover': response = reply(id, discoverResult(surface, servedVersions, era)); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!plainJsonObject(req.params)) {
@@ -509,7 +486,7 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
 export const LIST_RESULT_TTL_MS = 300_000
 
 /** The operations the spec requires caching hints on, intersected with ours. */
-const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list'])
+const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list', 'prompts/list', 'resources/list'])
 
 /**
  * Result fields this revision requires, applied on the MODERN path only.

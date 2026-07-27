@@ -352,6 +352,27 @@ describe('deterministic-response caching', () => {
     expect(second.result).toEqual(first.result)
   })
 
+  test('cache hits cannot answer notifications or echo malformed ids', async () => {
+    const cache = makeCache()
+    const { handler } = makeHandler({ cache })
+    const request = call('describe', { source: FLOW }, 'warm')
+    expect((await handler(post(request))).status).toBe(200)
+    expect(cache.store.size).toBe(1)
+
+    const notification = structuredClone(request) as any
+    delete notification.id
+    const notificationResponse = await handler(post(notification))
+    expect({ status: notificationResponse.status, body: await notificationResponse.text() })
+      .toEqual({ status: 202, body: '' })
+
+    const malformed = { ...request, id: { invalid: true } }
+    const malformedResponse = await handler(post(malformed))
+    expect(malformedResponse.status).toBe(200)
+    expect(await malformedResponse.json()).toEqual({
+      jsonrpc: '2.0', id: null, error: { code: -32600, message: 'invalid JSON-RPC request' },
+    })
+  })
+
   test('argument key order does not split the cache', async () => {
     const cache = makeCache()
     const { handler } = makeHandler({ cache })

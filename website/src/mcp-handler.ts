@@ -13,18 +13,15 @@
 // (McpRequestEvent) through the injectable onEvent hook — console.log JSON by
 // default, which Cloudflare Workers Logs ingests as queryable fields.
 
-import { handleHostedRequest, cacheKeyFor, HOSTED_MCP_SERVER_NAME, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
+import { admitHostedRequest, handleAdmittedHostedRequest, cacheKeyFor, HOSTED_MCP_SERVER_NAME, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import {
-  effectiveProtocolVersion,
-  eraForRequest,
-  HEADER_MISMATCH,
-  META_PROTOCOL_VERSION,
-  UNSUPPORTED_PROTOCOL_VERSION,
-  isModernProtocolVersion,
-  modernRequestMetaProblems,
-  requestMetaProtocolVersion,
-} from '../../src/mcp/protocol-versions.ts'
+  admitMcpHeaderVersion,
+  isAdmittedMcpRequest,
+  type AdmittedMcpMessage,
+  type AdmittedMcpRequest,
+  type McpAdmissionResult,
+} from '../../src/mcp/admission.ts'
 import { decorateMcpResult, protocolNeutralMcpResult } from '../../src/mcp/tool-surface.ts'
 import { readCapped } from './execute-loader.ts'
 
@@ -157,24 +154,15 @@ function mcpNameSourceValue(message: unknown): string | undefined {
 }
 
 /**
- * Modern-era header/body validation. The headers mirror body fields so that
+ * Modern-era routing-header validation. Admission has already proved the
+ * protocol-version header mirrors the body; the remaining headers mirror the
+ * method-specific fields so that
  * intermediaries can route without parsing; the server must therefore prove the
  * two agree, "to prevent potential security vulnerabilities when different
  * components in the network rely on different sources of truth". A disagreement
  * — or a missing required header — is -32020 with HTTP 400.
  */
-function modernHeaderProblem(request: Request, message: unknown, headerVersion: string | null): string | null {
-  const metaVersion = requestMetaProtocolVersion(message as { params?: unknown })
-  if (headerVersion === null) {
-    return `MCP-Protocol-Version header is required for protocol version ${metaVersion}`
-  }
-  if (metaVersion === undefined) {
-    return `params._meta.${META_PROTOCOL_VERSION} is required and must match the MCP-Protocol-Version header (${headerVersion})`
-  }
-  if (metaVersion !== headerVersion) {
-    return `MCP-Protocol-Version header value '${headerVersion}' does not match body value '${metaVersion}'`
-  }
-
+function modernRoutingHeaderProblem(request: Request, message: JsonRpcRequest): string | null {
   const method = (message as { method?: unknown } | null)?.method
   const methodHeader = request.headers.get('mcp-method')
   if (methodHeader === null) return 'Mcp-Method header is required'
@@ -263,20 +251,6 @@ function transportError(status: number, message: string, cors: Record<string, st
   return json(status, { error: message }, cors, [], extraHeaders)
 }
 
-/** Correlate protocol-defined HTTP errors with the JSON-RPC request we already
- * parsed. Exact numeric IDs are represented by temporary string sentinels here
- * and restored by stringifyJsonRpc(), so returning the parsed value is safe. */
-function responseIdFor(message: unknown): number | string | null {
-  if (!message || typeof message !== 'object' || Array.isArray(message)) return null
-  const id = (message as { id?: unknown }).id
-  return id === null || typeof id === 'string' || (typeof id === 'number' && Number.isFinite(id)) ? id : null
-}
-
-function isNotification(message: unknown): boolean {
-  return Boolean(message && typeof message === 'object' && !Array.isArray(message)
-    && !Object.prototype.hasOwnProperty.call(message, 'id'))
-}
-
 function sortKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeys)
   if (value && typeof value === 'object') {
@@ -359,39 +333,37 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
   const { context, cache, cacheVersion, waitUntil } = options
   const onEvent = options.onEvent ?? ((event: McpRequestEvent) => console.log(JSON.stringify(event)))
 
-  async function handleOne(req: unknown, item: McpItemEvent, protocolVersion: string | null = null): Promise<JsonRpcResponse | null> {
+  async function handleOne(message: AdmittedMcpMessage, item: McpItemEvent): Promise<JsonRpcResponse | null> {
     const started = Date.now()
-    const r = req as JsonRpcRequest | null
-    let response: JsonRpcResponse | null
-    if (!r || typeof r !== 'object' || r.jsonrpc !== '2.0' || typeof r.method !== 'string') {
-      response = rpcError(null, -32600, 'invalid JSON-RPC request')
-    } else {
-      if (r.method === 'tools/call') {
-        const name = (r.params as { name?: unknown } | undefined)?.name
-        item.tool = typeof name === 'string' ? name : null
-      }
-      const itemContext = contextForItem(context, item)
-      response = r.method === 'tools/call' && cache
-        ? await handleCachedToolCall(r, item, itemContext, protocolVersion)
-        : await handleHostedRequest(r, itemContext, { protocolVersion })
+    const { request } = message
+    if (request.method === 'tools/call') {
+      const name = (request.params as { name?: unknown } | undefined)?.name
+      item.tool = typeof name === 'string' ? name : null
     }
+    const itemContext = contextForItem(context, item)
+    // Refine to AdmittedMcpRequest before cache code, which constructs a JSON-RPC
+    // response directly on hits and therefore cannot accept a notification.
+    const response = request.method === 'tools/call' && cache && isAdmittedMcpRequest(message)
+      ? await handleCachedToolCall(message, item, itemContext)
+      : await handleAdmittedHostedRequest(message, itemContext)
     item.duration_ms = Date.now() - started
     recordItemOutcome(item, response)
     return response
   }
 
-  async function handleCachedToolCall(req: JsonRpcRequest, item: McpItemEvent, itemContext: HostedMcpContext, protocolVersion: string | null = null): Promise<JsonRpcResponse | null> {
+  async function handleCachedToolCall(message: AdmittedMcpRequest, item: McpItemEvent, itemContext: HostedMcpContext): Promise<JsonRpcResponse | null> {
+    const { request: req, protocol } = message
     // Key eligible pure tools on their complete raw argument object. Lookup is
     // pre-dispatch, so dropping even an apparently ignored argument could let a
     // later invalid request collide with a warm valid result and skip its
     // validation. A null form means "not cacheable" (including execute).
     const p = req.params as { name?: string; arguments?: Record<string, unknown> } | undefined
     const canonical = cacheKeyFor(p?.name, p?.arguments ?? {})
-    if (canonical === null) return handleHostedRequest(req, itemContext, { protocolVersion })
+    if (canonical === null) return handleAdmittedHostedRequest(message, itemContext)
     item.cache_eligible = true
     const cachePartition = {
-      era: eraForRequest(req),
-      protocolVersion: effectiveProtocolVersion(req, protocolVersion) ?? 'unversioned',
+      era: protocol.era,
+      protocolVersion: protocol.version ?? 'unversioned',
       call: canonical,
     }
     const key = new Request(`https://mcp-cache.agentic-mermaid.dev/${encodeURIComponent(cacheVersion)}/${await sha256Hex(JSON.stringify(sortKeys(cachePartition)))}`)
@@ -400,14 +372,14 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       if (hit) {
         item.cache_hit = true
         return decorateMcpResult(
-          reply(req.id ?? null, await hit.json()),
+          reply(message.id, await hit.json()),
           req.method,
-          eraForRequest(req),
+          protocol.era,
           HOSTED_MCP_SERVER_NAME,
         )
       }
     } catch { /* cache failures must never fail the call */ }
-    const response = await handleHostedRequest(req, itemContext, { protocolVersion })
+    const response = await handleAdmittedHostedRequest(message, itemContext)
     const result = response?.result as { isError?: boolean } | undefined
     if (result && result.isError === false) {
       const write = cache!.put(key, new Response(JSON.stringify(protocolNeutralMcpResult(result)), {
@@ -444,17 +416,8 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     // lets a client pick a mutually supported version and retry instead of
     // failing. The negotiation flow depends on it.
     const protocolVersion = request.headers.get('mcp-protocol-version')
-    if (protocolVersion !== null && !SUPPORTED_PROTOCOL_VERSIONS.includes(protocolVersion)) {
-      return json(400, {
-        jsonrpc: '2.0',
-        id: null,
-        error: {
-          code: UNSUPPORTED_PROTOCOL_VERSION,
-          message: `Unsupported protocol version: ${protocolVersion}`,
-          data: { supported: [...SUPPORTED_PROTOCOL_VERSIONS], requested: protocolVersion },
-        },
-      }, cors)
-    }
+    const headerAdmission = admitMcpHeaderVersion(protocolVersion, SUPPORTED_PROTOCOL_VERSIONS)
+    if (headerAdmission) return json(400, headerAdmission.response, cors)
     if (!isJsonContentType(request.headers.get('content-type'))) {
       return transportError(415, 'content-type must be application/json', cors)
     }
@@ -500,7 +463,8 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       // A batch whose items declare a modern version in `_meta` is refused even
       // without a pinning header: the body is the authority for the era, and
       // the modern revision has no batch form at all.
-      if (parsed.some(item => isModernProtocolVersion(requestMetaProtocolVersion(item as { params?: unknown })))) {
+      const batchAdmissions = parsed.map(item => admitHostedRequest(item, { headerVersion: protocolVersion }))
+      if (batchAdmissions.some(admission => (admission.ok ? admission.message.protocol : admission.protocol)?.era === 'modern')) {
         return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'JSON-RPC batching does not exist in this MCP revision; send a single message' } }, cors, exact.ids)
       }
       // Bound fan-out before running any item: a single request must not spin an
@@ -521,36 +485,32 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
       }
       // One event per request even for batches: each item gets an entry, not a line.
       event.items = parsed.map(() => newItemEvent())
-      const responses = (await Promise.all(parsed.map((p, i) => handleOne(p, event.items[i]!)))).filter((r): r is JsonRpcResponse => r !== null)
+      const responses = (await Promise.all(batchAdmissions.map(async (admission, i) => {
+        const item = event.items[i]!
+        if (admission.ok) return handleOne(admission.message, item)
+        recordItemOutcome(item, admission.response)
+        return admission.response
+      }))).filter((r): r is JsonRpcResponse => r !== null)
       return responses.length === 0 ? new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } }) : json(200, responses, cors, exact.ids)
     }
     event.method = typeof (parsed as { method?: unknown } | null)?.method === 'string' ? (parsed as { method: string }).method : null
     event.batch_size = 1
 
-    // Era is decided by the body, with the header able to pin it: a request
-    // that pins a modern version but omits `_meta` is malformed rather than
-    // silently legacy, which would otherwise answer `initialize` to a client
-    // that no longer speaks it.
-    const modern = isModernProtocolVersion(protocolVersion)
-      || isModernProtocolVersion(requestMetaProtocolVersion(parsed as { params?: unknown }))
-    if (modern) {
-      const problem = modernHeaderProblem(request, parsed, protocolVersion)
-      if (problem !== null) {
-        return json(400, { jsonrpc: '2.0', id: responseIdFor(parsed), error: { code: HEADER_MISMATCH, message: `Header mismatch: ${problem}` } }, cors, exact.ids)
-      }
-      const metaProblems = modernRequestMetaProblems(parsed as { params?: unknown })
-      if (metaProblems.length > 0) {
-        // Notifications still receive no JSON-RPC response, but malformed
-        // modern metadata is an HTTP 400 rather than an accepted 202.
-        if (isNotification(parsed)) {
-          return new Response(null, { status: 400, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
-        }
-        return json(400, rpcError(responseIdFor(parsed), -32602, `Invalid params: ${metaProblems.join('; ')}`), cors, exact.ids)
-      }
-    }
-
     event.items = [newItemEvent()]
-    const response = await handleOne(parsed, event.items[0]!, protocolVersion)
+    const admission: McpAdmissionResult = admitHostedRequest(parsed, {
+      headerVersion: protocolVersion,
+      requireModernVersionHeader: true,
+      modernTransportProblem: message => modernRoutingHeaderProblem(request, message),
+    })
+    if (!admission.ok) {
+      recordItemOutcome(event.items[0]!, admission.response)
+      if (admission.response === null) {
+        return new Response(null, { status: 400, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+      }
+      return json(admission.kind === 'invalid-request' ? 200 : 400, admission.response, cors, exact.ids)
+    }
+    const modern = admission.message.protocol.era === 'modern'
+    const response = await handleOne(admission.message, event.items[0]!)
     if (response === null) {
       return new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
     }

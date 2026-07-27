@@ -67,6 +67,11 @@ const MANIFEST_NAME = '.agentic-mermaid-artifacts-v1.json'
 const LOCK_NAME = '.agentic-mermaid-artifacts-v1.lock'
 const MAX_MANIFEST_BYTES = 1024 * 1024
 const MANAGED_NAME = /^[0-9a-z]+-[0-9a-f-]{36}\.[a-z0-9_-]+$/
+// An implicit store is process-local. A fixed temp directory lets one crashed
+// process leave an exclusive-owner marker that permanently bricks every later
+// stdio invocation. Explicit directories retain their persistent manifest and
+// single-owner semantics; the no-option path gets a fresh namespace instead.
+const DEFAULT_ARTIFACT_DIR = join(tmpdir(), `agentic-mermaid-mcp-artifacts-${process.pid}-${randomUUID()}`)
 
 function positiveSafeInteger(value: number, field: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`artifact ${field} must be a positive safe integer`)
@@ -89,7 +94,7 @@ export class ArtifactStore {
   private closed = false
 
   constructor(opts: ArtifactStoreOptions = {}) {
-    this.dir = resolve(opts.dir ?? join(tmpdir(), 'agentic-mermaid-mcp-artifacts'))
+    this.dir = resolve(opts.dir ?? DEFAULT_ARTIFACT_DIR)
     this.baseUrl = normalizeBaseUrl(opts.baseUrl)
     this.maxBytes = positiveSafeInteger(opts.maxBytes ?? DEFAULT_MAX_BYTES, 'maxBytes')
     this.maxTotalBytes = positiveSafeInteger(opts.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES, 'maxTotalBytes')

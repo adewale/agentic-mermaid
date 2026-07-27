@@ -138,8 +138,8 @@
     "website:check": "bun run website/build.ts --check",
     "website:payload:write": "bun run scripts/site/website-payload-report.ts --write",
     "website:payload:check": "bun run scripts/site/website-payload-report.ts --check",
-    "website:dev": "cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest dev --port 9095 --ip 127.0.0.1",
-    "deploy": "bun run build && bun run website && cd website && WRANGLER_SEND_METRICS=false npx --yes wrangler@latest deploy",
+    "website:dev": "cd website && WRANGLER_SEND_METRICS=false ../node_modules/.bin/wrangler dev --local --host 127.0.0.1 --port 9095 --ip 127.0.0.1",
+    "deploy": "gh workflow run deploy-cloudflare.yml --ref main",
     "prepublishOnly": "npm run build",
     "goldens:ascii": "bun run scripts/update-ascii-goldens.ts",
     "goldens:ascii:check": "bun run scripts/update-ascii-goldens.ts --check",
@@ -227,6 +227,7 @@
     "shiki": "^3.19.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "upng-js": "^2.1.0"
+    "upng-js": "^2.1.0",
+    "wrangler": "4.114.0"
   }
 }

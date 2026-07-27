@@ -76,12 +76,32 @@ function stripComments(text: string): string {
 
 let cachedProductionSources: { rel: string; code: string }[] | undefined
 
+const PRODUCTION_SOURCE_PATTERNS = [
+  'src/**/*.ts',
+  'bin/**/*.ts',
+  'editor/**/*.ts',
+  'website/**/*.ts',
+  'scripts/**/*.ts',
+]
+
+const NON_PRODUCTION_SOURCE_PREFIXES = [
+  'scripts/characterization/',
+  'scripts/pr-assets/',
+  'scripts/research/',
+  'scripts/sketch-prototype/',
+]
+
+function isProductionSource(rel: string): boolean {
+  if (rel.includes('/__tests__/') || rel.endsWith('.test.ts') || rel.endsWith('.spec.ts')) return false
+  return !NON_PRODUCTION_SOURCE_PREFIXES.some(prefix => rel.startsWith(prefix))
+}
+
 function productionSources(): { rel: string; code: string }[] {
   if (cachedProductionSources) return cachedProductionSources
   const files: { rel: string; code: string }[] = []
-  for (const pattern of ['src/**/*.ts', 'website/src/**/*.ts', 'scripts/**/*.ts']) {
+  for (const pattern of PRODUCTION_SOURCE_PATTERNS) {
     for (const rel of new Glob(pattern).scanSync(ROOT)) {
-      if (rel.includes('__tests__') || rel.endsWith('.test.ts')) continue
+      if (!isProductionSource(rel)) continue
       files.push({ rel, code: stripComments(readFileSync(join(ROOT, rel), 'utf8')) })
     }
   }
@@ -134,6 +154,15 @@ describe('MCP reserved error-code range', () => {
       expect(std.match(RESERVED_RANGE)).toBeNull()
       expect(std.match(LEGACY_RANGE)).toBeNull()
     }
+  })
+
+  test('the production sweep includes shipped entrypoints but excludes test and proof trees', () => {
+    const scanned = productionSources().map(source => source.rel)
+    expect(scanned).toContain('bin/agentic-mermaid-mcp.ts')
+    expect(scanned).toContain('website/build.ts')
+    expect(scanned).not.toContain('src/__tests__/mcp-reserved-error-codes.test.ts')
+    expect(scanned).not.toContain('scripts/pr-assets/artifact-receipt.ts')
+    expect(scanned.some(rel => rel.startsWith('eval/'))).toBeFalse()
   })
 
   test('stripComments removes documentation but keeps code and URLs intact', () => {

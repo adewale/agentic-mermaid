@@ -14,9 +14,10 @@ import {
   createDescribeTool,
   createExecuteTool,
   createRenderPngTool,
-  dispatchMcpRequest,
+  dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
   projectMcpRenderOptions,
+  surfaceSupportedVersions,
   withClosedMcpInputSchema,
   type McpDispatchOptions,
   type McpServerSurface,
@@ -29,6 +30,8 @@ import { configWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import type { ProtocolEra } from './protocol-versions.ts'
+import { admitMcpMessage, type McpAdmissionResult } from './admission.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
@@ -60,8 +63,9 @@ export interface HttpMcpServer {
 }
 
 /**
- * The default `initialize` echo for a client offering something we do not serve.
- * Unchanged: every existing client of this server negotiated 2024-11-05.
+ * Historical local fallback when a transport does not expose an explicit
+ * supported-version list. Normal stdio negotiation selects its newest legacy
+ * revision instead.
  */
 const PROTOCOL_VERSION = '2024-11-05'
 
@@ -120,8 +124,19 @@ const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   handleToolCall,
 }
 
+function admitLocalRequest(req: unknown, options: McpDispatchOptions = {}): McpAdmissionResult {
+  return admitMcpMessage(req, {
+    supportedVersions: surfaceSupportedVersions(LOCAL_SURFACE, options),
+    negotiatedVersion: options.protocolVersion,
+    protocolEra: options.protocolEra,
+  })
+}
+
 export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
-  return dispatchMcpRequest(req, context, LOCAL_SURFACE, options)
+  const admission = admitLocalRequest(req, options)
+  return admission.ok
+    ? dispatchAdmittedMcpRequest(admission.message, context, LOCAL_SURFACE)
+    : admission.response
 }
 
 
@@ -244,6 +259,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
   process.stdin.setEncoding('utf8')
   let buf = ''
   let negotiatedProtocolVersion: string | null = null
+  let negotiatedEra: ProtocolEra | null = null
   // Serialize line handling so an initialize response commits its negotiated
   // version before any later request is dispatched, even when Node delivers
   // those lines in separate data events while the first handler is awaiting.
@@ -253,16 +269,28 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       try {
         const exact = preserveExactJsonRpcIds(line)
         const request = JSON.parse(exact.body) as JsonRpcRequest
-        const res = await handleRequest(
-          request,
-          { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs },
-          { protocolVersion: negotiatedProtocolVersion },
-        )
-        if (request.method === 'initialize' && res?.result && typeof res.result === 'object') {
+        const dispatchOptions: McpDispatchOptions = negotiatedEra === 'legacy'
+          ? { protocolEra: 'legacy', protocolVersion: negotiatedProtocolVersion, supportedVersions: negotiatedProtocolVersion ? [negotiatedProtocolVersion] : undefined }
+          : negotiatedEra === 'modern'
+            ? { protocolEra: 'modern', supportedVersions: STDIO_PROTOCOL_VERSIONS }
+            : {}
+        const admission = admitLocalRequest(request, dispatchOptions)
+        const res = admission.ok
+          ? await dispatchAdmittedMcpRequest(
+            admission.message,
+            { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs },
+            LOCAL_SURFACE,
+          )
+          : admission.response
+        if (admission.ok && negotiatedEra === null && request.method === 'initialize' && res?.result && typeof res.result === 'object') {
           const selected = (res.result as { protocolVersion?: unknown }).protocolVersion
           if (typeof selected === 'string' && (STDIO_PROTOCOL_VERSIONS as readonly string[]).includes(selected)) {
             negotiatedProtocolVersion = selected
+            negotiatedEra = 'legacy'
           }
+        }
+        if (admission.ok && negotiatedEra === null && admission.message.protocol.era === 'modern') {
+          negotiatedEra = 'modern'
         }
         if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
       } catch (e) {

@@ -10,6 +10,7 @@ import {
 } from '../mcp/hosted-server.ts'
 import { MCP_SERVER_NAME, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
+import { isLegacyProtocolVersion } from '../mcp/protocol-versions.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
 import { verifyNoExternalRefs } from '../index.ts'
@@ -50,17 +51,19 @@ function payloadOf(res: Awaited<ReturnType<typeof handleHostedRequest>>): any {
 }
 
 describe('hosted MCP handshake', () => {
-  test('initialize echoes a supported offered protocol version', async () => {
-    for (const version of SUPPORTED_PROTOCOL_VERSIONS) {
+  const legacyVersions = SUPPORTED_PROTOCOL_VERSIONS.filter(isLegacyProtocolVersion)
+
+  test('initialize echoes a supported legacy protocol version', async () => {
+    for (const version of legacyVersions) {
       const res = await handleHostedRequest(rpc('initialize', { protocolVersion: version }), makeContext())
       expect((res?.result as any).protocolVersion).toBe(version)
     }
   })
 
-  test('initialize falls back to the default for unknown or missing versions', async () => {
-    for (const params of [{ protocolVersion: '1999-01-01' }, {}, undefined]) {
+  test('initialize falls back to the newest served legacy version', async () => {
+    for (const params of [{ protocolVersion: '1999-01-01' }, { protocolVersion: '2026-07-28' }, {}, undefined]) {
       const res = await handleHostedRequest(rpc('initialize', params), makeContext())
-      expect((res?.result as any).protocolVersion).toBe('2025-03-26')
+      expect((res?.result as any).protocolVersion).toBe(legacyVersions.at(-1))
     }
   })
 
