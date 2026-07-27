@@ -233,8 +233,10 @@ jobs:
             --strict \
             --tag "$EXPECTED_SHA" \
             --message "GitHub Actions run $GITHUB_RUN_ID for $EXPECTED_SHA"
-          candidate_id="$(jq -er --arg tag "$EXPECTED_SHA" \
-            'select(.type == "version-upload" and .worker_tag == $tag) | .version_id' "$output" | tail -n 1)"
+          # Wrangler's `worker_tag` output field is Cloudflare's opaque Worker
+          # identifier, not the annotation supplied by `--tag`.
+          candidate_id="$(bun run ../scripts/ci/resolve-wrangler-version-upload.ts \
+            "$output" agentic-mermaid-website)"
           versions="$(../node_modules/.bin/wrangler versions list --json)"
           jq -e --arg id "$candidate_id" --arg tag "$EXPECTED_SHA" \
             'any(.[]; .id == $id and .annotations["workers/tag"] == $tag)' <<<"$versions" >/dev/null
