@@ -6,11 +6,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
     maxRawBytes: 682_619,
-    maxGzipBytes: 406_566,
-    // Re-recorded exactly for 0.3.1. The raw total is unchanged; the same-length
-    // projected version string slightly improves compression. These ceilings
+    maxGzipBytes: 406_567,
+    // Re-recorded exactly for 0.3.2. The raw total is unchanged; the same-length
+    // projected version string slightly changes compression. These ceilings
     // intentionally match the checked-in payload capture for this toolchain.
-    maxBrotliBytes: 387_928,
+    maxBrotliBytes: 388_069,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -22,7 +22,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     maxRawBytes: 380_391,
     maxGzipBytes: 66_937,
-    maxBrotliBytes: 53_151,
+    // The 0.3.2 release identity changes only compressed back-references on
+    // this route; raw and gzip totals remain byte-for-byte at their ratchets.
+    maxBrotliBytes: 53_189,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -31,11 +33,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   demo: Object.freeze({
     // The lazy Timeline graph uses more cacheable requests than the monolith,
     // but avoids every other family and the shared ELK chunk. Exact byte totals
-    // are ratcheted from the browser capture below.
+    // are ratcheted from the browser capture below, including the canonical
+    // appearance path shared with the complete browser bundle.
     maxRequests: 30,
-    maxRawBytes: 718_063,
-    maxGzipBytes: 269_716,
-    maxBrotliBytes: 246_249,
+    maxRawBytes: 718_098,
+    maxGzipBytes: 269_733,
+    maxBrotliBytes: 246_198,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -49,9 +52,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The editor still exercises the complete API; BUILD-31's registry seam
     // accounts for this bounded compatibility-path delta. These exact totals
     // include the shared code-point comparator used by family routing.
-    maxRawBytes: 3_289_870,
-    maxGzipBytes: 967_089,
-    maxBrotliBytes: 759_971,
+    maxRawBytes: 3_289_905,
+    maxGzipBytes: 967_139,
+    maxBrotliBytes: 760_071,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

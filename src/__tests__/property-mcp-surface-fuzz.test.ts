@@ -44,6 +44,7 @@ const codeArb = fc.oneof(
 )
 
 const idArb = fc.oneof(fc.integer(), fc.string({ maxLength: 8 }), fc.constant(null), fc.constant(undefined))
+const validRequestIdArb = fc.oneof(fc.integer(), fc.string({ maxLength: 8 }), fc.constant(undefined))
 
 // A grab-bag of params: undefined, arbitrary objects, and well-formed tool
 // calls with hostile arguments.
@@ -103,7 +104,7 @@ describe('mcp-surface fuzz: handleRequest', () => {
 
   it('routes hostile execute payloads to a response, never a crash', async () => {
     await fc.assert(
-      fc.asyncProperty(idArb, codeArb, async (id, code) => {
+      fc.asyncProperty(validRequestIdArb, codeArb, async (id, code) => {
         const req = {
           jsonrpc: '2.0' as const,
           id,

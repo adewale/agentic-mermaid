@@ -48,6 +48,13 @@ describe('exact JSON-RPC numeric id codec', () => {
     expect(output).toContain(`"value":${JSON.stringify(sentinel)}`)
   })
 
+  test('fractional ids remain numeric so MCP admission can reject them', () => {
+    for (const token of ['1.5', '-0.25', '1.255e2', '1e-1']) {
+      const raw = `{"jsonrpc":"2.0","id":${token},"method":"ping"}`
+      expect(preserveExactJsonRpcIds(raw)).toEqual({ body: raw, ids: [] })
+    }
+  })
+
   test('property: malformed transport text never crashes the protector', () => {
     fc.assert(fc.property(fc.string(), raw => {
       expect(() => preserveExactJsonRpcIds(raw)).not.toThrow()

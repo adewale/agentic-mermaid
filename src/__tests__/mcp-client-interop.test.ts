@@ -12,11 +12,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { SUPPORTED_PROTOCOL_VERSIONS as SDK_SUPPORTED_VERSIONS } from '@modelcontextprotocol/sdk/types.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { createMcpHandler } from '../../website/src/mcp-handler.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../mcp/hosted-server.ts'
-import { LOCAL_TOOLS } from '../mcp/server.ts'
+import { LOCAL_TOOLS, STDIO_PROTOCOL_VERSIONS } from '../mcp/server.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url))
@@ -117,6 +118,13 @@ describe('hosted /mcp driven by the reference Streamable HTTP client', () => {
       expect(transport.sessionId).toBeUndefined()
       const described = await client.callTool({ name: 'describe', arguments: { source: FLOW } })
       expect(JSON.stringify(described.content)).toContain('flowchart')
+
+      // SEP-1303 is negotiated once during initialize. The stdio process must
+      // retain that revision so later invalid arguments arrive as a readable
+      // tool execution error instead of an out-of-band -32602 protocol error.
+      const invalid = await client.callTool({ name: 'describe', arguments: { source: FLOW, nope: true } })
+      expect(invalid.isError).toBe(true)
+      expect(JSON.stringify(invalid.content)).toContain('INVALID_ARGUMENTS')
     } finally {
       await client.close()
     }
@@ -140,10 +148,16 @@ describe('local stdio server driven by the reference stdio client', () => {
     try {
       await client.connect(transport)
 
-      // src/mcp/server.ts pins PROTOCOL_VERSION = '2024-11-05'. If a future
-      // SDK drops that version from its supported window, connect() itself
-      // fails here — which is the signal to modernize the local server (#186).
-      expect(negotiated).toBe('2024-11-05')
+      // This used to assert a flat pin of '2024-11-05', with a note that an SDK
+      // dropping that version would be the signal to modernize the local server
+      // (#186). That has now happened: stdio reports what the dispatcher
+      // actually implements, so a real SDK client negotiates the newest
+      // revision they BOTH support instead of being silently downgraded. The
+      // downgrade was the bug — the SDK offers 2025-11-25, the dispatcher has
+      // served it since this branch, and the server answered 2024-11-05 anyway.
+      const shared = (SDK_SUPPORTED_VERSIONS as readonly string[]).find(version => (STDIO_PROTOCOL_VERSIONS as readonly string[]).includes(version))
+      expect(negotiated).toBe(shared)
+      expect(STDIO_PROTOCOL_VERSIONS as readonly string[]).toContain(negotiated!)
 
       const { tools } = await client.listTools()
       expect(new Set(tools.map(tool => tool.name))).toEqual(new Set(LOCAL_TOOLS.map(tool => tool.name)))

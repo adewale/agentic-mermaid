@@ -3,8 +3,6 @@
 
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
@@ -14,10 +12,12 @@ import {
   createDescribeTool,
   createExecuteTool,
   createRenderPngTool,
-  dispatchMcpRequest,
+  dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
   projectMcpRenderOptions,
+  surfaceSupportedVersions,
   withClosedMcpInputSchema,
+  type McpDispatchOptions,
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
@@ -28,12 +28,18 @@ import { configWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import type { ProtocolEra } from './protocol-versions.ts'
+import { admitMcpMessage, type AdmittedMcpMessage, type McpAdmissionResult } from './admission.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
 export interface McpRequestContext {
   artifactStore?: ArtifactStore
   maxSandboxTimeoutMs?: number
+  /** Transport-owned cancellation. Tool handlers may cooperate with it; the
+   * stdio coordinator independently guarantees that an aborted call cannot
+   * emit a response. */
+  signal?: AbortSignal
 }
 
 export interface HttpMcpOptions {
@@ -58,7 +64,39 @@ export interface HttpMcpServer {
   close(): Promise<void>
 }
 
+/**
+ * Historical local fallback when a transport does not expose an explicit
+ * supported-version list. Normal stdio negotiation selects its newest legacy
+ * revision instead.
+ */
 const PROTOCOL_VERSION = '2024-11-05'
+
+/**
+ * What the DISPATCHER implements. Every revision here is honoured by
+ * `dispatchMcpRequest`: the legacy handshake, SEP-1303's tool-error envelope
+ * from 2025-11-25, and the 2026-07-28 stateless era (server/discover,
+ * per-request `_meta`, resultType, caching hints).
+ *
+ * One honest caveat, pre-existing and unchanged: this server has never
+ * implemented JSON-RPC batching — every transport parses a single object, so an
+ * array body is refused with -32600 on every revision. That is exactly what
+ * 2025-06-18 and later require, and a deviation for the two older revisions
+ * that permit it. The previous 2024-11-05-only pin was, on that axis, the least
+ * accurate claim this server could have made.
+ */
+export const STDIO_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28'] as const
+
+/**
+ * What the HTTP+SSE transport serves — and it is literally the 2024-11-05 one:
+ * it writes `event: endpoint`, hands back a `?sessionId=` URL, and holds a
+ * session map. Streamable HTTP replaced that in 2025-03-26, so advertising any
+ * newer revision over this transport would be a false claim to every HTTP
+ * client, however capable the dispatcher behind it is.
+ */
+export const HTTP_SSE_PROTOCOL_VERSIONS = ['2024-11-05'] as const
+
+/** Narrowing passed by the HTTP+SSE transport's two dispatch call sites. */
+const HTTP_SSE_DISPATCH: McpDispatchOptions = { supportedVersions: HTTP_SSE_PROTOCOL_VERSIONS }
 const MAX_RPC_BODY_BYTES = 1024 * 1024
 const MAX_SANDBOX_TIMEOUT_MS = 30_000
 export const MAX_SSE_SESSIONS = 32
@@ -82,13 +120,25 @@ const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execu
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
+  supportedVersions: STDIO_PROTOCOL_VERSIONS,
   tools: LOCAL_TOOLS,
   instructions: LOCAL_INSTRUCTIONS,
   handleToolCall,
 }
 
-export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}): Promise<JsonRpcResponse | null> {
-  return dispatchMcpRequest(req, context, LOCAL_SURFACE)
+function admitLocalRequest(req: unknown, options: McpDispatchOptions = {}): McpAdmissionResult {
+  return admitMcpMessage(req, {
+    supportedVersions: surfaceSupportedVersions(LOCAL_SURFACE, options),
+    negotiatedVersion: options.protocolVersion,
+    protocolEra: options.protocolEra,
+  })
+}
+
+export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
+  const admission = admitLocalRequest(req, options)
+  return admission.ok
+    ? dispatchAdmittedMcpRequest(admission.message, context, LOCAL_SURFACE)
+    : admission.response
 }
 
 
@@ -175,7 +225,7 @@ function artifactPayload(artifact: ArtifactRecord, output: 'file' | 'url'): Reco
 }
 
 function getDefaultArtifactStore(): ArtifactStore {
-  defaultArtifactStore ??= createArtifactStore({ dir: join(tmpdir(), 'agentic-mermaid-mcp-artifacts') })
+  defaultArtifactStore ??= createArtifactStore()
   if (!defaultArtifactStoreExitHook) {
     defaultArtifactStoreExitHook = true
     process.once('exit', () => defaultArtifactStore?.close())
@@ -199,6 +249,173 @@ function warmUpPngRenderer(): void {
   }
 }
 
+type StdioDispatch = (
+  message: AdmittedMcpMessage,
+  context: McpRequestContext,
+  surface: McpServerSurface<McpRequestContext>,
+) => Promise<JsonRpcResponse | null>
+
+export interface StdioMessageProcessor {
+  /** Accept one complete, non-empty newline-delimited JSON value. */
+  accept(line: string): void
+  /** Wait until admission and every dispatched request have settled. */
+  drain(): Promise<void>
+}
+
+function stdioCancellationTarget(value: unknown): number | string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const request = value as Record<string, unknown>
+  if (request.jsonrpc !== '2.0' || request.method !== 'notifications/cancelled'
+    || Object.prototype.hasOwnProperty.call(request, 'id')) return undefined
+  const params = request.params
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return undefined
+  const requestId = (params as Record<string, unknown>).requestId
+  return typeof requestId === 'string'
+    || (typeof requestId === 'number' && Number.isSafeInteger(requestId))
+    ? requestId
+    : undefined
+}
+
+function stdioRequestId(value: unknown): number | string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const request = value as Record<string, unknown>
+  if (request.jsonrpc !== '2.0' || typeof request.method !== 'string'
+    || !Object.prototype.hasOwnProperty.call(request, 'id')) return undefined
+  const requestId = request.id
+  return typeof requestId === 'string'
+    || (typeof requestId === 'number' && Number.isSafeInteger(requestId))
+    ? requestId
+    : undefined
+}
+
+function stdioRequestKey(id: number | string): string {
+  return `${typeof id}:${String(id)}`
+}
+
+/**
+ * Stateful stdio protocol coordinator.
+ *
+ * Admission is briefly serialized because initialize must commit its selected
+ * legacy revision before a following line is classified. Dispatch is not: once
+ * the era is known, independent requests run concurrently and cancellation
+ * notifications bypass admission/dispatch as connection-level control.
+ */
+export function createStdioMessageProcessor(
+  context: McpRequestContext,
+  write: (line: string) => void,
+  dispatch: StdioDispatch = dispatchAdmittedMcpRequest,
+): StdioMessageProcessor {
+  let negotiatedProtocolVersion: string | null = null
+  let negotiatedEra: ProtocolEra | null = null
+  let admissionGate = Promise.resolve()
+  const tasks = new Set<Promise<void>>()
+  const inFlight = new Map<string, Set<AbortController>>()
+
+  const register = (id: number | string | undefined, controller: AbortController): void => {
+    if (id === undefined) return
+    const key = stdioRequestKey(id)
+    const controllers = inFlight.get(key) ?? new Set<AbortController>()
+    controllers.add(controller)
+    inFlight.set(key, controllers)
+  }
+  const unregister = (id: number | string | undefined, controller: AbortController): void => {
+    if (id === undefined) return
+    const key = stdioRequestKey(id)
+    const controllers = inFlight.get(key)
+    controllers?.delete(controller)
+    if (controllers?.size === 0) inFlight.delete(key)
+  }
+  const emit = (response: JsonRpcResponse | null, exactIds: ExactJsonRpcId[], signal?: AbortSignal): void => {
+    if (response && !signal?.aborted) write(stringifyJsonRpc(response, exactIds) + '\n')
+  }
+
+  const accept = (line: string): void => {
+    let exact: { body: string; ids: ExactJsonRpcId[] }
+    let request: JsonRpcRequest
+    try {
+      exact = preserveExactJsonRpcIds(line)
+      request = JSON.parse(exact.body) as JsonRpcRequest
+    } catch (cause) {
+      write(JSON.stringify(error(null, -32700, `parse error: ${cause instanceof Error ? cause.message : String(cause)}`)) + '\n')
+      return
+    }
+
+    // Cancellation is a connection-level notification. It deliberately has no
+    // per-request modern metadata and must remain actionable after modern pinning.
+    const cancellationTarget = stdioCancellationTarget(request)
+    if (cancellationTarget !== undefined) {
+      for (const controller of inFlight.get(stdioRequestKey(cancellationTarget)) ?? []) controller.abort()
+      return
+    }
+
+    const requestId = stdioRequestId(request)
+    const controller = new AbortController()
+    register(requestId, controller)
+
+    // Keep only classification/era commitment behind the gate. A modern first
+    // request commits its era immediately; initialize stays in the gate until
+    // its response selects the legacy version, so later lines cannot race it.
+    const preparation = admissionGate.then(async () => {
+      const dispatchOptions: McpDispatchOptions = negotiatedEra === 'legacy'
+        ? { protocolEra: 'legacy', protocolVersion: negotiatedProtocolVersion, supportedVersions: negotiatedProtocolVersion ? [negotiatedProtocolVersion] : undefined }
+        : negotiatedEra === 'modern'
+          ? { protocolEra: 'modern', supportedVersions: STDIO_PROTOCOL_VERSIONS }
+          : {}
+      const admission = admitLocalRequest(request, dispatchOptions)
+
+      if (admission.ok && negotiatedEra === null && request.method === 'initialize') {
+        const response = controller.signal.aborted
+          ? null
+          : await dispatch(admission.message, { ...context, signal: controller.signal }, LOCAL_SURFACE)
+        if (!controller.signal.aborted && response?.result && typeof response.result === 'object') {
+          const selected = (response.result as { protocolVersion?: unknown }).protocolVersion
+          if (typeof selected === 'string' && (STDIO_PROTOCOL_VERSIONS as readonly string[]).includes(selected)) {
+            negotiatedProtocolVersion = selected
+            negotiatedEra = 'legacy'
+          }
+        }
+        emit(response, exact.ids, controller.signal)
+        return { handled: true as const, admission }
+      }
+
+      if (admission.ok && negotiatedEra === null && admission.message.protocol.era === 'modern') {
+        negotiatedEra = 'modern'
+      }
+      return { handled: false as const, admission }
+    })
+    admissionGate = preparation.then(() => undefined, () => undefined)
+
+    let task: Promise<void>
+    task = preparation.then(async prepared => {
+      if (prepared.handled) return
+      const response = prepared.admission.ok
+        ? controller.signal.aborted
+          ? null
+          : await dispatch(prepared.admission.message, { ...context, signal: controller.signal }, LOCAL_SURFACE)
+        : prepared.admission.response
+      emit(response, exact.ids, controller.signal)
+    }).catch(cause => {
+      emit(
+        error(requestId ?? null, -32603, `internal error: ${cause instanceof Error ? cause.message : String(cause)}`),
+        exact.ids,
+        controller.signal,
+      )
+    }).finally(() => {
+      unregister(requestId, controller)
+      tasks.delete(task)
+    })
+    tasks.add(task)
+  }
+
+  return {
+    accept,
+    async drain() {
+      await admissionGate
+      while (tasks.size > 0) await Promise.allSettled([...tasks])
+    },
+  }
+}
+
 export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; maxArtifactTotalBytes?: number; maxArtifacts?: number; artifactTtlMs?: number; maxSandboxTimeoutMs?: number } = {}): Promise<void> {
   warmUpPngRenderer()
   const artifactStore = createArtifactStore({
@@ -208,22 +425,20 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
     maxArtifacts: options.maxArtifacts,
     ttlMs: options.artifactTtlMs,
   })
+  const processor = createStdioMessageProcessor(
+    { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs },
+    line => process.stdout.write(line),
+  )
   process.stdin.setEncoding('utf8')
   let buf = ''
-  process.stdin.on('data', async (chunk: string) => {
+  process.stdin.on('data', (chunk: string) => {
     buf += chunk
     let nl: number
     while ((nl = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, nl).trim()
       buf = buf.slice(nl + 1)
       if (!line) continue
-      try {
-        const exact = preserveExactJsonRpcIds(line)
-        const res = await handleRequest(JSON.parse(exact.body) as JsonRpcRequest, { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs })
-        if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
-      } catch (e) {
-        process.stdout.write(JSON.stringify(error(null, -32700, `parse error: ${(e as Error).message}`)) + '\n')
-      }
+      processor.accept(line)
     }
   })
   try {
@@ -231,6 +446,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       process.stdin.on('end', () => resolve())
       process.stdin.on('close', () => resolve())
     })
+    await processor.drain()
   } finally {
     artifactStore.close()
   }
@@ -396,7 +612,7 @@ async function postSseMessage(req: IncomingMessage, res: ServerResponse, session
   const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
   try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
-  const response = await handleRequest(parsed, context)
+  const response = await handleRequest(parsed, context, HTTP_SSE_DISPATCH)
   if (response) {
     sse.write(`event: message\ndata: ${stringifyJsonRpc(response, exact.ids)}\n\n`)
     return sendJson(res, 202, { ok: true })
@@ -410,7 +626,7 @@ async function postRpc(req: IncomingMessage, res: ServerResponse, context: McpRe
   const exact = preserveExactJsonRpcIds(body)
   let parsed: JsonRpcRequest
   try { parsed = JSON.parse(exact.body) as JsonRpcRequest } catch { throw new HttpStatusError(400, 'invalid JSON-RPC body') }
-  const response = await handleRequest(parsed, context)
+  const response = await handleRequest(parsed, context, HTTP_SSE_DISPATCH)
   if (response === null) {
     res.writeHead(202)
     res.end()

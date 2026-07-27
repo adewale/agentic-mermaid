@@ -1786,8 +1786,14 @@ export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppear
     ?? readThemeValue(source.config.themeVariables, 'fontFamily')
     ?? effective.font
     ?? 'Inter'
+  // `style` is a public entry format (name, record, or stack), not family input.
+  // Replace it with the already-resolved canonical record before any family
+  // hook runs so a family can never branch on string-vs-record syntax. Keep the
+  // canonical record in the resolved request for receipts and downstream code.
+  const { style: _unresolvedStyle, ...canonicalEffective } = effective
   const baseRenderOptions: RenderOptions = {
-    ...effective,
+    ...canonicalEffective,
+    ...(style ? { style } : {}),
     font,
     mermaidConfig: source.config,
   }

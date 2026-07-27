@@ -10,6 +10,7 @@ export const BROWSER_CONTRACT_FILES: readonly BrowserContractFile[] = Object.fre
   Object.freeze({ file: 'security-csp.e2e.test.ts' }),
   Object.freeze({ file: 'browser.test.ts' }),
   Object.freeze({ file: 'browser-bundle.e2e.test.ts' }),
+  Object.freeze({ file: 'mcp-browser-cors.e2e.test.ts' }),
   Object.freeze({ file: '../src/__tests__/editor-theme-switch.test.ts', browserOptIn: true }),
   Object.freeze({ file: '../src/__tests__/editor-style-switch.test.ts', browserOptIn: true }),
   Object.freeze({ file: '../src/__tests__/website-browser-a11y.test.ts', browserOptIn: true }),

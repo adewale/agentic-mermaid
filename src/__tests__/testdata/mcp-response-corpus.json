@@ -1,0 +1,1278 @@
+{
+  "local": {
+    "initialize": {
+      "protocolVersion": "2025-06-18",
+      "serverInfo": {
+        "name": "agentic-mermaid-mcp",
+        "version": "<package-version>"
+      },
+      "capabilities": {
+        "tools": {},
+        "prompts": {},
+        "resources": {}
+      },
+      "instructions": "agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph/asRadar. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry)."
+    },
+    "tools": [
+      {
+        "name": "execute",
+        "description": "Run JavaScript in a sandboxed node:vm context; return a value.\nOne call composes edits. Submit JavaScript; declaration types are guidance.\nNo promises, async/await, dynamic import, or type annotations.\nSDK declaration:\ntype DiagramKind = 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar'\ntype MutationOp = { kind: string; [field: string]: unknown }\ntype Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }\ninterface SourceLocation { readonly line: number; readonly col: number }\ninterface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan> }\ninterface SourceMap { readonly nodes: ReadonlyMap<string, SourceLocation>; readonly edges: ReadonlyMap<string, SourceLocation>; readonly groups: ReadonlyMap<string, SourceLocation>; readonly labels: ReadonlyMap<string, SourceLocation>; readonly spans?: SourceMapSpans }\ninterface ValidDiagram { readonly kind: DiagramKind; readonly source: SourceMap }\ntype ExternalFamilyId = `family:${string}`\ninterface ExtensionCompatibility {\n  readonly [contract: string]: string | undefined\n  readonly core?: string\n  readonly scene?: string\n}\ninterface ExtensionProvenance { readonly owner: string; readonly source: string; readonly reference?: string }\ninterface ExtensionIdentity<Kind extends string = string> {\n  readonly id: `${Kind}:${string}`\n  readonly kind: Kind\n  readonly version: string\n  readonly compatibility: ExtensionCompatibility\n  readonly provenance: ExtensionProvenance\n}\ninterface SourceSpanPoint { readonly offset: number; readonly line: number; readonly col: number }\ninterface SourceSpan { readonly start: SourceSpanPoint; readonly end: SourceSpanPoint }\ninterface PreservedSourceSpans {\n  readonly source: SourceSpan\n  readonly wrapper?: SourceSpan\n  readonly frontmatter?: SourceSpan\n  readonly initDirectives?: readonly SourceSpan[]\n  readonly accessibilityDirectives?: readonly SourceSpan[]\n  readonly header: SourceSpan\n  readonly body: SourceSpan\n}\ninterface SourcePreservationReceipt {\n  readonly version: 1\n  readonly classification: 'unsupported' | 'inventory-only' | 'unknown'\n  readonly source: string\n  readonly header: string\n  readonly upstreamFamilyId?: string\n  readonly mermaidVersion: string\n  readonly spans?: PreservedSourceSpans\n}\ninterface ParseError {\n  readonly code: string\n  readonly message: string\n  readonly line?: number\n  readonly col?: number\n  readonly preservation?: SourcePreservationReceipt\n  readonly help?: string\n}\ninterface ExtensionValidDiagram {\n  readonly kind: ExternalFamilyId\n  readonly descriptorIdentity: ExtensionIdentity<'family'>\n  readonly source: SourceMap\n}\ninterface PreservedValidDiagram {\n  readonly kind: ExternalFamilyId\n  readonly source: SourceMap\n  readonly body: {\n    readonly kind: 'preserved'\n    readonly representation: 'opaque' | 'unknown'\n    readonly source: string\n    readonly preservation: SourcePreservationReceipt\n    readonly spans: PreservedSourceSpans\n    readonly diagnostic: {\n      readonly code: 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER' | 'FAMILY_DESCRIPTOR_MISMATCH'\n      readonly message: string\n      readonly help: string\n    }\n  }\n}\ntype ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram\ntype RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'\ntype DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'\ninterface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};sourceLine?:number }\ninterface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;security:DiagramActionSecurity;executable:false;message?:string }\ninterface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; bounds: { w: number; h: number }; nodes: unknown[]; edges: unknown[]; groups: unknown[]; regions?: RenderedRegion[]; actions?: DiagramActionRecord[] }\ninterface VerifyResult { ok: boolean; warnings: unknown[]; layout: RenderedLayout }\ntype CheckMermaidSpec = string[] | { include?: string[]; exclude?: string[]; exact?: boolean }\ninterface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }\ntype MermaidConfigScalar = string | number | boolean | null\ntype MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }\ntype MermaidRuntimeConfig = { [key: string]: MermaidConfigValue | undefined }\n\ninterface StyleColors {bg?:string;fg?:string;line?:string;accent?:string;muted?:string;surface?:string;border?:string}\ntype SceneStyleRole=\"node\"|\"edge\"|\"edge-label\"|\"group\"|\"group-header\"|\"label\"|\"actor\"|\"lifeline\"|\"activation\"|\"message\"|\"block\"|\"note\"|\"class-box\"|\"member\"|\"entity\"|\"attribute\"|\"relationship\"|\"cardinality\"|\"pie-slice\"|\"legend\"|\"bar\"|\"series\"|\"point\"|\"axis\"|\"grid\"|\"plate\"|\"section\"|\"task\"|\"milestone\"|\"marker-line\"|\"rail\"|\"period\"|\"event\"|\"score\"|\"actor-pill\"|\"service\"|\"junction\"|\"icon\"|\"title\"|\"defs\"|\"prelude\"|\"chrome\"\ntype ExactSceneStyleRole=\"node\"|\"edge\"|\"group\"|\"group-header\"|\"label\"|\"actor\"|\"relationship\"|\"pie-slice\"|\"legend\"|\"bar\"|\"series\"|\"point\"|\"task\"|\"milestone\"\ntype BindableSceneStyleRole=\"group-header\"|\"actor\"|\"relationship\"|\"pie-slice\"|\"legend\"|\"bar\"|\"series\"|\"point\"|\"task\"|\"milestone\"\ntype RoleStyleSpec={\"fontFamily\"?:string;\"fontSize\"?:number;\"fontWeight\"?:number;\"letterSpacing\"?:number;\"textTransform\"?:\"uppercase\"|\"lowercase\"|\"capitalize\";\"textColor\"?:string;\"paddingX\"?:number;\"paddingY\"?:number;\"cornerRadius\"?:number;\"lineWidth\"?:number;\"bendRadius\"?:number;\"fillColor\"?:string;\"borderColor\"?:string;\"strokeColor\"?:string;\"headerFillColor\"?:string;\"cue\"?:\"none\"|\"outline\"|\"double-line\"|\"pattern\"}\ntype RoleStyleFor<R extends ExactSceneStyleRole>=R extends \"node\"|\"actor\"?Pick<RoleStyleSpec,\"borderColor\"|\"cornerRadius\"|\"fillColor\"|\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"lineWidth\"|\"paddingX\"|\"paddingY\"|\"textColor\"|\"textTransform\">:R extends \"edge\"|\"relationship\"?Pick<RoleStyleSpec,\"bendRadius\"|\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"lineWidth\"|\"strokeColor\"|\"textColor\"|\"textTransform\">:R extends \"group\"?Pick<RoleStyleSpec,\"borderColor\"|\"cornerRadius\"|\"fillColor\"|\"fontFamily\"|\"fontSize\"|\"fontWeight\"|\"headerFillColor\"|\"letterSpacing\"|\"lineWidth\"|\"paddingX\"|\"paddingY\"|\"textColor\"|\"textTransform\">:R extends \"group-header\"?Pick<RoleStyleSpec,\"borderColor\"|\"cue\"|\"fillColor\"|\"fontFamily\"|\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"lineWidth\"|\"strokeColor\"|\"textColor\"|\"textTransform\">:R extends \"label\"?Pick<RoleStyleSpec,\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"textColor\"|\"textTransform\">:R extends \"pie-slice\"|\"task\"|\"milestone\"?Pick<RoleStyleSpec,\"borderColor\"|\"cue\"|\"fillColor\"|\"lineWidth\"|\"strokeColor\">:R extends \"legend\"?Pick<RoleStyleSpec,\"borderColor\"|\"fillColor\"|\"lineWidth\"|\"strokeColor\"|\"textColor\">:R extends \"bar\"|\"point\"?Pick<RoleStyleSpec,\"borderColor\"|\"fillColor\"|\"lineWidth\"|\"strokeColor\">:R extends \"series\"?Pick<RoleStyleSpec,\"borderColor\"|\"lineWidth\"|\"strokeColor\">:never\ntype RoleStyles={[R in ExactSceneStyleRole]?:Readonly<RoleStyleFor<R>>}\ntype SemanticBindingChannel=\"category\"\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:BindableSceneStyleRole}\ntype BrandConstraint={kind:\"contrast\";action:'warn'|'error';role?:SceneStyleRole;minimum?:number}|{kind:\"accent-area\";action:'warn'|'error';maxFraction:number}|{kind:\"mono-role\";action:'warn'|'error';role:SceneStyleRole}\ninterface StyleSpec {\"formatVersion\"?:1;\"$schema\"?:string;\"name\"?:string;\"blurb\"?:string;\"colors\"?:StyleColors;\"font\"?:string;\"roles\"?:RoleStyles;\"semanticSlots\"?:Readonly<Record<string,Readonly<RoleStyleSpec>>>;\"bindings\"?:readonly SemanticBinding[];\"constraints\"?:readonly BrandConstraint[];\"stroke\"?:\"crisp\"|\"jittered\"|\"freehand\";\"roughness\"?:number;\"bowing\"?:number;\"passes\"?:number;\"strokeWidth\"?:number;\"fill\"?:\"none\"|\"hachure\"|\"solid\"|\"wash\";\"hachureAngle\"?:number;\"hachureGap\"?:number;\"fillWeight\"?:number;\"washOpacity\"?:number;\"washEdge\"?:number;\"backdrop\"?:\"plain\"|\"paper-ruled\"|\"grid\";\"intent\"?:\"premium\"|\"draft\"|\"lofi\";\"mono\"?:boolean}\ntype StyleInput=string|StyleSpec\ntype ArchitectureVisualOverrides = Readonly<Record<string, unknown>>\n\ninterface SharedRenderOptions { bg?:string;fg?:string;line?:string;accent?:string;muted?:string;surface?:string;border?:string;font?:string;style?:StyleInput | StyleInput[];padding?:number;nodeSpacing?:number;layerSpacing?:number;wrappingWidth?:number;componentSpacing?:number;transparent?:boolean;interactive?:boolean;shadow?:boolean;class?:{ hierarchicalNamespaces?:boolean };architecture?:{ visual?:ArchitectureVisualOverrides };timeline?:{ maxWidth?:number };journey?:{ experienceCurve?:boolean };gantt?:{ dependencyArrows?:boolean; criticalPath?:boolean };mermaidConfig?:MermaidRuntimeConfig;embedFontImport?:boolean;compact?:boolean;idPrefix?:string;security?:'default' | 'strict';ganttToday?:string;seed?:number;}\n\ninterface ConfigDiagnostic { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }\ninterface TerminalProjectionDiagnostic { code: string; feature: string; message: string }\ninterface SvgRenderOptions extends SharedRenderOptions { onConfigDiagnostic?:(diagnostic: ConfigDiagnostic) => void;}\ninterface AsciiRenderOptions extends SharedRenderOptions { useAscii?:boolean;paddingX?:number;paddingY?:number;boxBorderPadding?:number;colorMode?:'auto' | 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html';theme?:{ fg?:string; border?:string; line?:string; arrow?:string; accent?:string; bg?:string; corner?:string; junction?:string };maxWidth?:number;targetWidth?:number;onConfigDiagnostic?:(diagnostic: ConfigDiagnostic) => void;onProjectionDiagnostic?:(diagnostic: TerminalProjectionDiagnostic) => void;}\ninterface LayoutRenderOptions extends SharedRenderOptions { debug?:boolean;regions?:boolean;actions?:boolean;onConfigDiagnostic?:(diagnostic: ConfigDiagnostic) => void;}\n\ninterface RenderArtifactDiagnostic { code: string; message?: string; reference?: string; feature?: string; input?: string; canonicalId?: string; removal?: { release: string; date: string } }\ninterface CapabilityResolution { readonly id: `${string}:${string}`; readonly range: string; readonly level: 'required' | 'preferred' | 'optional'; readonly status: 'selected' | 'unsupported' | 'incompatible'; readonly version?: string }\ninterface CapabilityDecision { readonly version: 1; readonly accepted: boolean; readonly resolutions: readonly CapabilityResolution[] }\ninterface RenderExecutionDecision { readonly family: { readonly id: string; readonly version: string };readonly backend: { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean } | { readonly mode: 'family-svg' };readonly digest: string;}\ninterface RenderRequestReceipt { version: 2; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision }\n\ninterface RenderedSvg { svg: string; receipt: RenderRequestReceipt }\ninterface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }\ninterface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }\n\ndeclare const mermaid: {\n  parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>\n  createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram\n  buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>\n  asFlowchart(diagram: ValidDiagram): ValidDiagram | null\n  asState(diagram: ValidDiagram): ValidDiagram | null\n  asSequence(diagram: ValidDiagram): ValidDiagram | null\n  asTimeline(diagram: ValidDiagram): ValidDiagram | null\n  asClass(diagram: ValidDiagram): ValidDiagram | null\n  asEr(diagram: ValidDiagram): ValidDiagram | null\n  asJourney(diagram: ValidDiagram): ValidDiagram | null\n  asArchitecture(diagram: ValidDiagram): ValidDiagram | null\n  asXyChart(diagram: ValidDiagram): ValidDiagram | null\n  asPie(diagram: ValidDiagram): ValidDiagram | null\n  asQuadrant(diagram: ValidDiagram): ValidDiagram | null\n  asGantt(diagram: ValidDiagram): ValidDiagram | null\n  asMindmap(diagram: ValidDiagram): ValidDiagram | null\n  asGitGraph(diagram: ValidDiagram): ValidDiagram | null\n  asRadar(diagram: ValidDiagram): ValidDiagram | null\n  mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>\n  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult\n  analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>\n  analyzeMermaidSource(source: string): Result<Record<string, unknown>>\n  describeMermaidFacts(diagram: ValidDiagram): string[]\n  describeMermaidFactsSource(source: string): Result<string[]>\n  checkMermaid(diagram: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult\n  checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult>\n  serializeMermaid(diagram: ParsedDiagram): string\n  renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string\n  renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts?: SvgRenderOptions): RenderedSvg\n  renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string\n  renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts?: AsciiRenderOptions): RenderedAscii\n  layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact\n  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>\n  opSignatures(family: DiagramKind): string[]\n}",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "dec4749329f05ab5e42dd4046963c4ffe6e1f275bed54d15171cdcbb172645ef",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "timeoutMs": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      {
+        "name": "describe_sdk",
+        "description": "Return version-matched mutation operations for one diagram family.\nUse detail=signatures for the compact op menu or detail=fields (default) for exact\nfield types, required flags, enum values, defaults, and constraints. Call this\nbefore build, mutate, or execute when the family schema is not already known.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "e716f5f7a72a6cbfb1dbbf2f43ebb76fd498d3ca4041001c50970bd3efb369f1",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "family"
+          ],
+          "properties": {
+            "detail": {
+              "type": "string",
+              "enum": [
+                "signatures",
+                "fields"
+              ]
+            },
+            "family": {
+              "type": "string",
+              "enum": [
+                "flowchart",
+                "state",
+                "sequence",
+                "timeline",
+                "class",
+                "er",
+                "journey",
+                "architecture",
+                "xychart",
+                "pie",
+                "quadrant",
+                "gantt",
+                "mindmap",
+                "gitgraph",
+                "radar"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "render_png",
+        "description": "Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.\nSet output to \"file\" or \"url\" to write a managed artifact instead; artifact responses include\n{path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's\nartifact directory with safe names, size limits, and TTL cleanup.\nUses bundled resvg + Inter (DejaVu Sans fallback) for same-machine cross-runtime determinism where verified.\nAgentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "a386420a2ddda31308f3ab34035e20a9d34f90fb843cd76b177e977da2c5a6d1",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "background": {
+              "type": "string"
+            },
+            "fitTo": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "type": "integer"
+                },
+                "width": {
+                  "type": "integer"
+                }
+              }
+            },
+            "fontDirs": {
+              "type": "array"
+            },
+            "loadSystemFonts": {
+              "type": "boolean"
+            },
+            "options": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "accent": {
+                  "type": "string"
+                },
+                "architecture": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "visual"
+                  ]
+                },
+                "bg": {
+                  "type": "string"
+                },
+                "border": {
+                  "type": "string"
+                },
+                "class": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "hierarchicalNamespaces"
+                  ]
+                },
+                "compact": {
+                  "type": "boolean"
+                },
+                "componentSpacing": {
+                  "type": "number"
+                },
+                "embedFontImport": {
+                  "type": "boolean"
+                },
+                "fg": {
+                  "type": "string"
+                },
+                "font": {
+                  "type": "string"
+                },
+                "gantt": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "criticalPath",
+                    "dependencyArrows"
+                  ]
+                },
+                "ganttToday": {
+                  "type": "string"
+                },
+                "idPrefix": {
+                  "type": "string"
+                },
+                "interactive": {
+                  "type": "boolean"
+                },
+                "journey": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "experienceCurve"
+                  ]
+                },
+                "layerSpacing": {
+                  "type": "number"
+                },
+                "line": {
+                  "type": "string"
+                },
+                "mermaidConfig": {
+                  "type": "object"
+                },
+                "muted": {
+                  "type": "string"
+                },
+                "nodeSpacing": {
+                  "type": "number"
+                },
+                "padding": {
+                  "type": "number"
+                },
+                "security": {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "strict"
+                  ]
+                },
+                "seed": {
+                  "type": "number"
+                },
+                "shadow": {
+                  "type": "boolean"
+                },
+                "style": {},
+                "surface": {
+                  "type": "string"
+                },
+                "timeline": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "maxWidth"
+                  ]
+                },
+                "transparent": {
+                  "type": "boolean"
+                },
+                "wrappingWidth": {
+                  "type": "number"
+                }
+              }
+            },
+            "output": {
+              "type": "string",
+              "enum": [
+                "base64",
+                "file",
+                "url"
+              ]
+            },
+            "scale": {
+              "type": "number"
+            },
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "describe",
+        "description": "Describe a Mermaid diagram. format=text returns { ok, text } with\none or two summary sentences; format=json returns { ok, tree } with the AX tree;\nformat=facts returns { ok, facts } with deterministic semantic fact lines for\nmachine checking (for example edge A -> B : label, member Duck +quack()).",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "0c40404b076c601fb8b220ddc268827445fb093cea5ebc31c3f034a17a586ee6",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "text",
+                "json",
+                "facts"
+              ]
+            },
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ],
+    "calls": {
+      "describe/text": {
+        "isError": false,
+        "text": "{\"ok\":true,\"text\":\"A 2-node flowchart with 1 edges. Nodes: Start, OK?. Edges: A -> B. Entry points: A. Sinks: B.\",\"warnings\":[]}"
+      },
+      "describe/facts": {
+        "isError": false,
+        "text": "{\"ok\":true,\"facts\":[\"direction TD\",\"edge A -> B\",\"edge#0 A -> B\",\"family flowchart\",\"node A : Start\",\"node A shape rectangle\",\"node B : OK?\",\"node B shape diamond\"],\"warnings\":[]}"
+      },
+      "describe_sdk/flowchart-signatures": {
+        "isError": false,
+        "text": "{\"ok\":true,\"family\":\"flowchart\",\"detail\":\"signatures\",\"signatures\":[\"add_node(id, label, shape?, parent?)\",\"remove_node(id)\",\"rename_node(from, to)\",\"set_label(target, label)\",\"add_edge(from, to, label?, style?)\",\"remove_edge(id)\",\"set_shape(id, shape)\",\"set_direction(direction, subgraph?)\",\"add_subgraph(id, label?, parent?, members?)\",\"remove_subgraph(id, removeMembers?)\",\"move_node(id, subgraph)\",\"define_class(name, style)\",\"set_node_class(id, className)\",\"set_node_style(id, style)\"]}"
+      },
+      "error/unknown-tool": {
+        "error": {
+          "code": -32602,
+          "message": "Unknown tool: no_such_tool"
+        }
+      },
+      "error/unknown-method": {
+        "error": {
+          "code": -32601,
+          "message": "Method not found: no/such/method"
+        }
+      },
+      "error/malformed-envelope": {
+        "error": {
+          "code": -32600,
+          "message": "invalid JSON-RPC request"
+        }
+      },
+      "error/describe-missing-source": {
+        "error": {
+          "code": -32602,
+          "message": "Invalid arguments for describe: arguments.source is required"
+        }
+      },
+      "error/describe-unknown-argument": {
+        "error": {
+          "code": -32602,
+          "message": "Invalid arguments for describe: arguments.nope is not allowed"
+        }
+      },
+      "prompts/list": {
+        "result": {
+          "prompts": []
+        }
+      },
+      "resources/list": {
+        "result": {
+          "resources": []
+        }
+      },
+      "modern/server-discover": {
+        "resultType": "complete",
+        "ttlMs": 300000,
+        "cacheScope": "public",
+        "result": {
+          "supportedVersions": [
+            "2026-07-28"
+          ],
+          "capabilities": {
+            "tools": {},
+            "prompts": {},
+            "resources": {}
+          },
+          "instructions": "agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph/asRadar. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "agentic-mermaid-mcp",
+              "version": "<package-version>"
+            }
+          }
+        }
+      },
+      "modern/tools-list": {
+        "resultType": "complete",
+        "ttlMs": 300000,
+        "cacheScope": "public",
+        "result": {
+          "tools": [
+            "execute",
+            "describe_sdk",
+            "render_png",
+            "describe"
+          ],
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "agentic-mermaid-mcp",
+              "version": "<package-version>"
+            }
+          }
+        }
+      },
+      "modern/describe": {
+        "resultType": "complete",
+        "ttlMs": null,
+        "cacheScope": null,
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "agentic-mermaid-mcp",
+            "version": "<package-version>"
+          }
+        },
+        "isError": false,
+        "text": "{\"ok\":true,\"text\":\"A 2-node flowchart with 1 edges. Nodes: Start, OK?. Edges: A -> B. Entry points: A. Sinks: B.\",\"warnings\":[]}"
+      },
+      "modern/error-initialize-is-unknown": {
+        "error": {
+          "code": -32601,
+          "message": "Method not found: initialize"
+        }
+      },
+      "modern/error-missing-capabilities": {
+        "error": {
+          "code": -32602,
+          "message": "Invalid params: params._meta.io.modelcontextprotocol/clientCapabilities is required and must be an object (an empty object declares no optional capabilities)"
+        }
+      },
+      "modern/no-client-info": {
+        "resultType": "complete",
+        "ttlMs": 300000,
+        "cacheScope": "public",
+        "result": {
+          "tools": [
+            "execute",
+            "describe_sdk",
+            "render_png",
+            "describe"
+          ],
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "agentic-mermaid-mcp",
+              "version": "<package-version>"
+            }
+          }
+        }
+      },
+      "modern/server-discover-over-http-sse": {
+        "error": {
+          "code": -32022,
+          "message": "Unsupported protocol version: 2026-07-28",
+          "data": {
+            "supported": [
+              "2024-11-05"
+            ],
+            "requested": "2026-07-28"
+          }
+        }
+      },
+      "modern/tools-list-over-http-sse": {
+        "error": {
+          "code": -32022,
+          "message": "Unsupported protocol version: 2026-07-28",
+          "data": {
+            "supported": [
+              "2024-11-05"
+            ],
+            "requested": "2026-07-28"
+          }
+        }
+      }
+    }
+  },
+  "hosted": {
+    "initialize": {
+      "protocolVersion": "2025-06-18",
+      "serverInfo": {
+        "name": "agentic-mermaid-hosted",
+        "version": "<package-version>"
+      },
+      "capabilities": {
+        "tools": {},
+        "prompts": {},
+        "resources": {}
+      },
+      "instructions": "agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/)."
+    },
+    "supportedProtocolVersions": [
+      "2024-11-05",
+      "2025-03-26",
+      "2025-06-18",
+      "2025-11-25",
+      "2026-07-28"
+    ],
+    "tools": [
+      {
+        "name": "execute",
+        "description": "Run JavaScript in an isolated sandbox; return a value.\nOne call composes edits. Submit JavaScript; declaration types are guidance.\nNo promises, async/await, dynamic import, or type annotations.\nHosted note: execute runs in an on-demand isolate and costs more than the direct\nrender_svg/render_ascii/render_png/verify/describe tools — prefer those for plain\nrender/verify calls. For straightforward structured edits, prefer the declarative\nmutate/build tools; reserve execute for logic the ops don't express.\nHosted mermaid.renderMermaidSVG*, renderMermaidASCII*, and\nlayoutMermaidWithReceipt calls force security:'strict' and\nembedFontImport:false; caller code cannot weaken that host policy.\n\nSDK declaration:\ntype DiagramKind = 'flowchart' | 'state' | 'sequence' | 'timeline' | 'class' | 'er' | 'journey' | 'architecture' | 'xychart' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar'\ntype MutationOp = { kind: string; [field: string]: unknown }\ntype Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }\ninterface SourceLocation { readonly line: number; readonly col: number }\ninterface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan> }\ninterface SourceMap { readonly nodes: ReadonlyMap<string, SourceLocation>; readonly edges: ReadonlyMap<string, SourceLocation>; readonly groups: ReadonlyMap<string, SourceLocation>; readonly labels: ReadonlyMap<string, SourceLocation>; readonly spans?: SourceMapSpans }\ninterface ValidDiagram { readonly kind: DiagramKind; readonly source: SourceMap }\ntype ExternalFamilyId = `family:${string}`\ninterface ExtensionCompatibility {\n  readonly [contract: string]: string | undefined\n  readonly core?: string\n  readonly scene?: string\n}\ninterface ExtensionProvenance { readonly owner: string; readonly source: string; readonly reference?: string }\ninterface ExtensionIdentity<Kind extends string = string> {\n  readonly id: `${Kind}:${string}`\n  readonly kind: Kind\n  readonly version: string\n  readonly compatibility: ExtensionCompatibility\n  readonly provenance: ExtensionProvenance\n}\ninterface SourceSpanPoint { readonly offset: number; readonly line: number; readonly col: number }\ninterface SourceSpan { readonly start: SourceSpanPoint; readonly end: SourceSpanPoint }\ninterface PreservedSourceSpans {\n  readonly source: SourceSpan\n  readonly wrapper?: SourceSpan\n  readonly frontmatter?: SourceSpan\n  readonly initDirectives?: readonly SourceSpan[]\n  readonly accessibilityDirectives?: readonly SourceSpan[]\n  readonly header: SourceSpan\n  readonly body: SourceSpan\n}\ninterface SourcePreservationReceipt {\n  readonly version: 1\n  readonly classification: 'unsupported' | 'inventory-only' | 'unknown'\n  readonly source: string\n  readonly header: string\n  readonly upstreamFamilyId?: string\n  readonly mermaidVersion: string\n  readonly spans?: PreservedSourceSpans\n}\ninterface ParseError {\n  readonly code: string\n  readonly message: string\n  readonly line?: number\n  readonly col?: number\n  readonly preservation?: SourcePreservationReceipt\n  readonly help?: string\n}\ninterface ExtensionValidDiagram {\n  readonly kind: ExternalFamilyId\n  readonly descriptorIdentity: ExtensionIdentity<'family'>\n  readonly source: SourceMap\n}\ninterface PreservedValidDiagram {\n  readonly kind: ExternalFamilyId\n  readonly source: SourceMap\n  readonly body: {\n    readonly kind: 'preserved'\n    readonly representation: 'opaque' | 'unknown'\n    readonly source: string\n    readonly preservation: SourcePreservationReceipt\n    readonly spans: PreservedSourceSpans\n    readonly diagnostic: {\n      readonly code: 'UNSUPPORTED_FAMILY' | 'UNKNOWN_HEADER' | 'FAMILY_DESCRIPTOR_MISMATCH'\n      readonly message: string\n      readonly help: string\n    }\n  }\n}\ntype ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram\ntype RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'\ntype DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'\ninterface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};sourceLine?:number }\ninterface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;security:DiagramActionSecurity;executable:false;message?:string }\ninterface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; bounds: { w: number; h: number }; nodes: unknown[]; edges: unknown[]; groups: unknown[]; regions?: RenderedRegion[]; actions?: DiagramActionRecord[] }\ninterface VerifyResult { ok: boolean; warnings: unknown[]; layout: RenderedLayout }\ntype CheckMermaidSpec = string[] | { include?: string[]; exclude?: string[]; exact?: boolean }\ninterface CheckMermaidResult { ok: boolean; missing: string[]; unexpected: string[]; facts: string[] }\ntype MermaidConfigScalar = string | number | boolean | null\ntype MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }\ntype MermaidRuntimeConfig = { [key: string]: MermaidConfigValue | undefined }\n\ninterface StyleColors {bg?:string;fg?:string;line?:string;accent?:string;muted?:string;surface?:string;border?:string}\ntype SceneStyleRole=\"node\"|\"edge\"|\"edge-label\"|\"group\"|\"group-header\"|\"label\"|\"actor\"|\"lifeline\"|\"activation\"|\"message\"|\"block\"|\"note\"|\"class-box\"|\"member\"|\"entity\"|\"attribute\"|\"relationship\"|\"cardinality\"|\"pie-slice\"|\"legend\"|\"bar\"|\"series\"|\"point\"|\"axis\"|\"grid\"|\"plate\"|\"section\"|\"task\"|\"milestone\"|\"marker-line\"|\"rail\"|\"period\"|\"event\"|\"score\"|\"actor-pill\"|\"service\"|\"junction\"|\"icon\"|\"title\"|\"defs\"|\"prelude\"|\"chrome\"\ntype ExactSceneStyleRole=\"node\"|\"edge\"|\"group\"|\"group-header\"|\"label\"|\"actor\"|\"relationship\"|\"pie-slice\"|\"legend\"|\"bar\"|\"series\"|\"point\"|\"task\"|\"milestone\"\ntype BindableSceneStyleRole=\"group-header\"|\"actor\"|\"relationship\"|\"pie-slice\"|\"legend\"|\"bar\"|\"series\"|\"point\"|\"task\"|\"milestone\"\ntype RoleStyleSpec={\"fontFamily\"?:string;\"fontSize\"?:number;\"fontWeight\"?:number;\"letterSpacing\"?:number;\"textTransform\"?:\"uppercase\"|\"lowercase\"|\"capitalize\";\"textColor\"?:string;\"paddingX\"?:number;\"paddingY\"?:number;\"cornerRadius\"?:number;\"lineWidth\"?:number;\"bendRadius\"?:number;\"fillColor\"?:string;\"borderColor\"?:string;\"strokeColor\"?:string;\"headerFillColor\"?:string;\"cue\"?:\"none\"|\"outline\"|\"double-line\"|\"pattern\"}\ntype RoleStyleFor<R extends ExactSceneStyleRole>=R extends \"node\"|\"actor\"?Pick<RoleStyleSpec,\"borderColor\"|\"cornerRadius\"|\"fillColor\"|\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"lineWidth\"|\"paddingX\"|\"paddingY\"|\"textColor\"|\"textTransform\">:R extends \"edge\"|\"relationship\"?Pick<RoleStyleSpec,\"bendRadius\"|\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"lineWidth\"|\"strokeColor\"|\"textColor\"|\"textTransform\">:R extends \"group\"?Pick<RoleStyleSpec,\"borderColor\"|\"cornerRadius\"|\"fillColor\"|\"fontFamily\"|\"fontSize\"|\"fontWeight\"|\"headerFillColor\"|\"letterSpacing\"|\"lineWidth\"|\"paddingX\"|\"paddingY\"|\"textColor\"|\"textTransform\">:R extends \"group-header\"?Pick<RoleStyleSpec,\"borderColor\"|\"cue\"|\"fillColor\"|\"fontFamily\"|\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"lineWidth\"|\"strokeColor\"|\"textColor\"|\"textTransform\">:R extends \"label\"?Pick<RoleStyleSpec,\"fontSize\"|\"fontWeight\"|\"letterSpacing\"|\"textColor\"|\"textTransform\">:R extends \"pie-slice\"|\"task\"|\"milestone\"?Pick<RoleStyleSpec,\"borderColor\"|\"cue\"|\"fillColor\"|\"lineWidth\"|\"strokeColor\">:R extends \"legend\"?Pick<RoleStyleSpec,\"borderColor\"|\"fillColor\"|\"lineWidth\"|\"strokeColor\"|\"textColor\">:R extends \"bar\"|\"point\"?Pick<RoleStyleSpec,\"borderColor\"|\"fillColor\"|\"lineWidth\"|\"strokeColor\">:R extends \"series\"?Pick<RoleStyleSpec,\"borderColor\"|\"lineWidth\"|\"strokeColor\">:never\ntype RoleStyles={[R in ExactSceneStyleRole]?:Readonly<RoleStyleFor<R>>}\ntype SemanticBindingChannel=\"category\"\ninterface SemanticBinding {channel:SemanticBindingChannel;value:string;slot:string;role?:BindableSceneStyleRole}\ntype BrandConstraint={kind:\"contrast\";action:'warn'|'error';role?:SceneStyleRole;minimum?:number}|{kind:\"accent-area\";action:'warn'|'error';maxFraction:number}|{kind:\"mono-role\";action:'warn'|'error';role:SceneStyleRole}\ninterface StyleSpec {\"formatVersion\"?:1;\"$schema\"?:string;\"name\"?:string;\"blurb\"?:string;\"colors\"?:StyleColors;\"font\"?:string;\"roles\"?:RoleStyles;\"semanticSlots\"?:Readonly<Record<string,Readonly<RoleStyleSpec>>>;\"bindings\"?:readonly SemanticBinding[];\"constraints\"?:readonly BrandConstraint[];\"stroke\"?:\"crisp\"|\"jittered\"|\"freehand\";\"roughness\"?:number;\"bowing\"?:number;\"passes\"?:number;\"strokeWidth\"?:number;\"fill\"?:\"none\"|\"hachure\"|\"solid\"|\"wash\";\"hachureAngle\"?:number;\"hachureGap\"?:number;\"fillWeight\"?:number;\"washOpacity\"?:number;\"washEdge\"?:number;\"backdrop\"?:\"plain\"|\"paper-ruled\"|\"grid\";\"intent\"?:\"premium\"|\"draft\"|\"lofi\";\"mono\"?:boolean}\ntype StyleInput=string|StyleSpec\ntype ArchitectureVisualOverrides = Readonly<Record<string, unknown>>\n\ninterface SharedRenderOptions { bg?:string;fg?:string;line?:string;accent?:string;muted?:string;surface?:string;border?:string;font?:string;style?:StyleInput | StyleInput[];padding?:number;nodeSpacing?:number;layerSpacing?:number;wrappingWidth?:number;componentSpacing?:number;transparent?:boolean;interactive?:boolean;shadow?:boolean;class?:{ hierarchicalNamespaces?:boolean };architecture?:{ visual?:ArchitectureVisualOverrides };timeline?:{ maxWidth?:number };journey?:{ experienceCurve?:boolean };gantt?:{ dependencyArrows?:boolean; criticalPath?:boolean };mermaidConfig?:MermaidRuntimeConfig;embedFontImport?:boolean;compact?:boolean;idPrefix?:string;security?:'default' | 'strict';ganttToday?:string;seed?:number;}\n\ninterface ConfigDiagnostic { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }\ninterface TerminalProjectionDiagnostic { code: string; feature: string; message: string }\ninterface SvgRenderOptions extends SharedRenderOptions { onConfigDiagnostic?:(diagnostic: ConfigDiagnostic) => void;}\ninterface AsciiRenderOptions extends SharedRenderOptions { useAscii?:boolean;paddingX?:number;paddingY?:number;boxBorderPadding?:number;colorMode?:'auto' | 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html';theme?:{ fg?:string; border?:string; line?:string; arrow?:string; accent?:string; bg?:string; corner?:string; junction?:string };maxWidth?:number;targetWidth?:number;onConfigDiagnostic?:(diagnostic: ConfigDiagnostic) => void;onProjectionDiagnostic?:(diagnostic: TerminalProjectionDiagnostic) => void;}\ninterface LayoutRenderOptions extends SharedRenderOptions { debug?:boolean;regions?:boolean;actions?:boolean;onConfigDiagnostic?:(diagnostic: ConfigDiagnostic) => void;}\n\ninterface RenderArtifactDiagnostic { code: string; message?: string; reference?: string; feature?: string; input?: string; canonicalId?: string; removal?: { release: string; date: string } }\ninterface CapabilityResolution { readonly id: `${string}:${string}`; readonly range: string; readonly level: 'required' | 'preferred' | 'optional'; readonly status: 'selected' | 'unsupported' | 'incompatible'; readonly version?: string }\ninterface CapabilityDecision { readonly version: 1; readonly accepted: boolean; readonly resolutions: readonly CapabilityResolution[] }\ninterface RenderExecutionDecision { readonly family: { readonly id: string; readonly version: string };readonly backend: { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean } | { readonly mode: 'family-svg' };readonly digest: string;}\ninterface RenderRequestReceipt { version: 2; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision }\n\ninterface RenderedSvg { svg: string; receipt: RenderRequestReceipt }\ninterface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }\ninterface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }\n\ndeclare const mermaid: {\n  parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>\n  createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram\n  buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>\n  asFlowchart(diagram: ValidDiagram): ValidDiagram | null\n  asState(diagram: ValidDiagram): ValidDiagram | null\n  asSequence(diagram: ValidDiagram): ValidDiagram | null\n  asTimeline(diagram: ValidDiagram): ValidDiagram | null\n  asClass(diagram: ValidDiagram): ValidDiagram | null\n  asEr(diagram: ValidDiagram): ValidDiagram | null\n  asJourney(diagram: ValidDiagram): ValidDiagram | null\n  asArchitecture(diagram: ValidDiagram): ValidDiagram | null\n  asXyChart(diagram: ValidDiagram): ValidDiagram | null\n  asPie(diagram: ValidDiagram): ValidDiagram | null\n  asQuadrant(diagram: ValidDiagram): ValidDiagram | null\n  asGantt(diagram: ValidDiagram): ValidDiagram | null\n  asMindmap(diagram: ValidDiagram): ValidDiagram | null\n  asGitGraph(diagram: ValidDiagram): ValidDiagram | null\n  asRadar(diagram: ValidDiagram): ValidDiagram | null\n  mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>\n  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult\n  analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>\n  analyzeMermaidSource(source: string): Result<Record<string, unknown>>\n  describeMermaidFacts(diagram: ValidDiagram): string[]\n  describeMermaidFactsSource(source: string): Result<string[]>\n  checkMermaid(diagram: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult\n  checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult>\n  serializeMermaid(diagram: ParsedDiagram): string\n  renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string\n  renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts?: SvgRenderOptions): RenderedSvg\n  renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string\n  renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts?: AsciiRenderOptions): RenderedAscii\n  layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact\n  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>\n  opSignatures(family: DiagramKind): string[]\n}",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "b26c8f5d3549c7704931f3fbbf4b40c5e95db47f808696a01cc1119316f292e7",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "timeoutMs": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      {
+        "name": "describe_sdk",
+        "description": "Return version-matched mutation operations for one diagram family.\nUse detail=signatures for the compact op menu or detail=fields (default) for exact\nfield types, required flags, enum values, defaults, and constraints. Call this\nbefore build, mutate, or execute when the family schema is not already known.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "e716f5f7a72a6cbfb1dbbf2f43ebb76fd498d3ca4041001c50970bd3efb369f1",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "family"
+          ],
+          "properties": {
+            "detail": {
+              "type": "string",
+              "enum": [
+                "signatures",
+                "fields"
+              ]
+            },
+            "family": {
+              "type": "string",
+              "enum": [
+                "flowchart",
+                "state",
+                "sequence",
+                "timeline",
+                "class",
+                "er",
+                "journey",
+                "architecture",
+                "xychart",
+                "pie",
+                "quadrant",
+                "gantt",
+                "mindmap",
+                "gitgraph",
+                "radar"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "render_svg",
+        "description": "Render a Mermaid source string to themeable SVG. Returns { ok, svg }.\nLayout is deterministic: identical input produces identical geometry. The hosted\nboundary forces security:'strict' and embedFontImport:false.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "3a71aa9e5dcde248b36bd1bdf2143183c575e181ee2ba40ac5b0f52c80de0c7e",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "options": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "accent": {
+                  "type": "string"
+                },
+                "architecture": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "visual"
+                  ]
+                },
+                "bg": {
+                  "type": "string"
+                },
+                "border": {
+                  "type": "string"
+                },
+                "class": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "hierarchicalNamespaces"
+                  ]
+                },
+                "compact": {
+                  "type": "boolean"
+                },
+                "componentSpacing": {
+                  "type": "number"
+                },
+                "embedFontImport": {
+                  "type": "boolean"
+                },
+                "fg": {
+                  "type": "string"
+                },
+                "font": {
+                  "type": "string"
+                },
+                "gantt": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "criticalPath",
+                    "dependencyArrows"
+                  ]
+                },
+                "ganttToday": {
+                  "type": "string"
+                },
+                "idPrefix": {
+                  "type": "string"
+                },
+                "interactive": {
+                  "type": "boolean"
+                },
+                "journey": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "experienceCurve"
+                  ]
+                },
+                "layerSpacing": {
+                  "type": "number"
+                },
+                "line": {
+                  "type": "string"
+                },
+                "mermaidConfig": {
+                  "type": "object"
+                },
+                "muted": {
+                  "type": "string"
+                },
+                "nodeSpacing": {
+                  "type": "number"
+                },
+                "padding": {
+                  "type": "number"
+                },
+                "security": {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "strict"
+                  ]
+                },
+                "seed": {
+                  "type": "number"
+                },
+                "shadow": {
+                  "type": "boolean"
+                },
+                "style": {},
+                "surface": {
+                  "type": "string"
+                },
+                "timeline": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "maxWidth"
+                  ]
+                },
+                "transparent": {
+                  "type": "boolean"
+                },
+                "wrappingWidth": {
+                  "type": "number"
+                }
+              }
+            },
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "render_ascii",
+        "description": "Render a Mermaid source string to text. Returns { ok, text }.\nuseAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌,─,│).\ntargetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "5559ec5b45362c403fbbc17f17de95ff276ffb379bc02ce4d1c9cae38ab764a6",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "options": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "accent": {
+                  "type": "string"
+                },
+                "architecture": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "visual"
+                  ]
+                },
+                "bg": {
+                  "type": "string"
+                },
+                "border": {
+                  "type": "string"
+                },
+                "class": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "hierarchicalNamespaces"
+                  ]
+                },
+                "compact": {
+                  "type": "boolean"
+                },
+                "componentSpacing": {
+                  "type": "number"
+                },
+                "embedFontImport": {
+                  "type": "boolean"
+                },
+                "fg": {
+                  "type": "string"
+                },
+                "font": {
+                  "type": "string"
+                },
+                "gantt": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "criticalPath",
+                    "dependencyArrows"
+                  ]
+                },
+                "ganttToday": {
+                  "type": "string"
+                },
+                "idPrefix": {
+                  "type": "string"
+                },
+                "interactive": {
+                  "type": "boolean"
+                },
+                "journey": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "experienceCurve"
+                  ]
+                },
+                "layerSpacing": {
+                  "type": "number"
+                },
+                "line": {
+                  "type": "string"
+                },
+                "mermaidConfig": {
+                  "type": "object"
+                },
+                "muted": {
+                  "type": "string"
+                },
+                "nodeSpacing": {
+                  "type": "number"
+                },
+                "padding": {
+                  "type": "number"
+                },
+                "security": {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "strict"
+                  ]
+                },
+                "seed": {
+                  "type": "number"
+                },
+                "shadow": {
+                  "type": "boolean"
+                },
+                "style": {},
+                "surface": {
+                  "type": "string"
+                },
+                "timeline": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "maxWidth"
+                  ]
+                },
+                "transparent": {
+                  "type": "boolean"
+                },
+                "wrappingWidth": {
+                  "type": "number"
+                }
+              }
+            },
+            "source": {
+              "type": "string"
+            },
+            "targetWidth": {
+              "type": "integer"
+            },
+            "useAscii": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      {
+        "name": "render_png",
+        "description": "Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.\nHosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the\nlocal napi renderer, so hosted PNG is a convenience surface, not part of the\nbyte-determinism contract. For file/URL artifacts use the local stdio server.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "ea4b98f43ecfbadabf4d7fefe2dfdedd34a8e49cf8744320231ae5d81f6ac772",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "background": {
+              "type": "string"
+            },
+            "fitTo": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "height": {
+                  "type": "integer"
+                },
+                "width": {
+                  "type": "integer"
+                }
+              }
+            },
+            "options": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "accent": {
+                  "type": "string"
+                },
+                "architecture": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "visual"
+                  ]
+                },
+                "bg": {
+                  "type": "string"
+                },
+                "border": {
+                  "type": "string"
+                },
+                "class": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "hierarchicalNamespaces"
+                  ]
+                },
+                "compact": {
+                  "type": "boolean"
+                },
+                "componentSpacing": {
+                  "type": "number"
+                },
+                "embedFontImport": {
+                  "type": "boolean"
+                },
+                "fg": {
+                  "type": "string"
+                },
+                "font": {
+                  "type": "string"
+                },
+                "gantt": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "criticalPath",
+                    "dependencyArrows"
+                  ]
+                },
+                "ganttToday": {
+                  "type": "string"
+                },
+                "idPrefix": {
+                  "type": "string"
+                },
+                "interactive": {
+                  "type": "boolean"
+                },
+                "journey": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "experienceCurve"
+                  ]
+                },
+                "layerSpacing": {
+                  "type": "number"
+                },
+                "line": {
+                  "type": "string"
+                },
+                "mermaidConfig": {
+                  "type": "object"
+                },
+                "muted": {
+                  "type": "string"
+                },
+                "nodeSpacing": {
+                  "type": "number"
+                },
+                "padding": {
+                  "type": "number"
+                },
+                "security": {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "strict"
+                  ]
+                },
+                "seed": {
+                  "type": "number"
+                },
+                "shadow": {
+                  "type": "boolean"
+                },
+                "style": {},
+                "surface": {
+                  "type": "string"
+                },
+                "timeline": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "maxWidth"
+                  ]
+                },
+                "transparent": {
+                  "type": "boolean"
+                },
+                "wrappingWidth": {
+                  "type": "number"
+                }
+              }
+            },
+            "scale": {
+              "type": "number"
+            },
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "verify",
+        "description": "Parse and verify a Mermaid diagram without rendering it. Returns\n{ ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid\ndiagrams and { ok: false, errors } for parse failures. `family` is the detected\ndiagram family and `summary` a one-line description — check them: ok:true only\nmeans the diagram is structurally valid, not that it is the kind you intended.\nWarnings use the layout-rubric codes.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "f975076b861b165987668234f098efac3eaf1b537059405c812235e7247f5584",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "describe",
+        "description": "Describe a Mermaid diagram. format=text returns { ok, text } with\none or two summary sentences; format=json returns { ok, tree } with the AX tree;\nformat=facts returns { ok, facts } with deterministic semantic fact lines for\nmachine checking (for example edge A -> B : label, member Duck +quack()).",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "0c40404b076c601fb8b220ddc268827445fb093cea5ebc31c3f034a17a586ee6",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "text",
+                "json",
+                "facts"
+              ]
+            },
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "mutate",
+        "description": "Apply a list of structured edit ops to an existing Mermaid `source` and\nreturn the edited diagram. This is the declarative counterpart to `execute`:\nplain JSON in, plain JSON out, no sandbox. Prefer it for straightforward edits;\nreserve `execute` for logic the ops don't express.\nReturns { ok, family, source, verify:{ ok, warnings } } on success, or\n{ ok:false, family, opIndex, error } — where `error` names the offending field\nand lists the valid ones — when an op is malformed or cannot apply. Ops apply in\norder and are all-or-nothing: the first failing op stops the batch (its position\nis `opIndex`) and the input is left untouched.\nEach op is { \"kind\": <op>, …fields }. Call `describe_sdk` for the detected\nfamily before authoring unfamiliar ops; it returns compact signatures or exact\nfield types, enum values, defaults, and constraints.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "34d15bcd5687e53a9017c4b6d44d46d61b71e1d2f3a581d7f009636423a0effd",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ops",
+            "source"
+          ],
+          "properties": {
+            "ops": {
+              "type": "array"
+            },
+            "source": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "build",
+        "description": "Author a new Mermaid diagram from blank by folding a list of structured ops\nover an empty diagram of `family`. The declarative counterpart to hand-writing\nsource. Returns the same envelope as `mutate`:\n{ ok, family, source, verify } or { ok:false, family, opIndex, error }.\nCall `describe_sdk` for the family before authoring unfamiliar ops.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchemaSha256": "bc41db39c35b1402e6ed816b454fcbb1b885ad67b474d5215d54d09077d6c038",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "family",
+            "ops"
+          ],
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "ops": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    ],
+    "calls": {
+      "describe/text": {
+        "isError": false,
+        "text": "{\"ok\":true,\"text\":\"A 2-node flowchart with 1 edges. Nodes: Start, OK?. Edges: A -> B. Entry points: A. Sinks: B.\",\"warnings\":[]}"
+      },
+      "describe/facts": {
+        "isError": false,
+        "text": "{\"ok\":true,\"facts\":[\"direction TD\",\"edge A -> B\",\"edge#0 A -> B\",\"family flowchart\",\"node A : Start\",\"node A shape rectangle\",\"node B : OK?\",\"node B shape diamond\"],\"warnings\":[]}"
+      },
+      "describe_sdk/flowchart-signatures": {
+        "isError": false,
+        "text": "{\"ok\":true,\"family\":\"flowchart\",\"detail\":\"signatures\",\"signatures\":[\"add_node(id, label, shape?, parent?)\",\"remove_node(id)\",\"rename_node(from, to)\",\"set_label(target, label)\",\"add_edge(from, to, label?, style?)\",\"remove_edge(id)\",\"set_shape(id, shape)\",\"set_direction(direction, subgraph?)\",\"add_subgraph(id, label?, parent?, members?)\",\"remove_subgraph(id, removeMembers?)\",\"move_node(id, subgraph)\",\"define_class(name, style)\",\"set_node_class(id, className)\",\"set_node_style(id, style)\"]}"
+      },
+      "error/unknown-tool": {
+        "error": {
+          "code": -32602,
+          "message": "Unknown tool: no_such_tool"
+        }
+      },
+      "error/unknown-method": {
+        "error": {
+          "code": -32601,
+          "message": "Method not found: no/such/method"
+        }
+      },
+      "error/malformed-envelope": {
+        "error": {
+          "code": -32600,
+          "message": "invalid JSON-RPC request"
+        }
+      },
+      "error/describe-missing-source": {
+        "error": {
+          "code": -32602,
+          "message": "Invalid arguments for describe: arguments.source is required"
+        }
+      },
+      "error/describe-unknown-argument": {
+        "error": {
+          "code": -32602,
+          "message": "Invalid arguments for describe: arguments.nope is not allowed"
+        }
+      },
+      "prompts/list": {
+        "result": {
+          "prompts": []
+        }
+      },
+      "resources/list": {
+        "result": {
+          "resources": []
+        }
+      },
+      "verify/flowchart": {
+        "isError": false,
+        "text": "{\"ok\":true,\"family\":\"flowchart\",\"summary\":\"A 2-node flowchart with 1 edges. Nodes: Start, OK?. Edges: A -> B. Entry points: A. Sinks: B.\",\"warnings\":[],\"layout\":{\"bounds\":{\"w\":171,\"h\":256},\"nodes\":2,\"edges\":1}}"
+      },
+      "mutate/add-class": {
+        "isError": false,
+        "text": "{\"ok\":true,\"family\":\"class\",\"source\":\"classDiagram\\n  class Animal\\n  class Dog\\n\",\"verify\":{\"ok\":true,\"warnings\":[]}}"
+      },
+      "build/class-from-blank": {
+        "isError": false,
+        "text": "{\"ok\":true,\"family\":\"class\",\"source\":\"classDiagram\\n  class Duck\\n\",\"verify\":{\"ok\":true,\"warnings\":[]}}"
+      },
+      "error/mutate-invalid-op": {
+        "isError": true,
+        "text": "{\"ok\":false,\"family\":\"class\",\"opIndex\":0,\"error\":{\"code\":\"INVALID_OP\",\"reason\":\"unknown_kind\",\"family\":\"class\",\"opKind\":\"not_an_op\",\"message\":\"Unknown class op \\\"not_an_op\\\" — valid ops: set_title, add_class, remove_class, rename_class, set_class_generic, add_member, remove_member, add_relation, remove_relation, add_note, remove_note, set_class_namespace, define_class, set_css_class, set_class_style\",\"validFields\":[\"set_title\",\"add_class\",\"remove_class\",\"rename_class\",\"set_class_generic\",\"add_member\",\"remove_member\",\"add_relation\",\"remove_relation\",\"add_note\",\"remove_note\",\"set_class_namespace\",\"define_class\",\"set_css_class\",\"set_class_style\"]}}"
+      },
+      "render_svg/flowchart": {
+        "isError": false,
+        "textSha256": "fc75393b0b13babc24d8584d06fc7e874eccbc7b1a1cc5fa492c18ac78479b9d",
+        "textLength": 9774
+      },
+      "render_ascii/flowchart": {
+        "isError": false,
+        "textSha256": "5c578be54a579c5cb2f67ae040f800604fb90da7cdd0140257972f4b0d7723df",
+        "textLength": 2834
+      },
+      "modern/server-discover": {
+        "resultType": "complete",
+        "ttlMs": 300000,
+        "cacheScope": "public",
+        "result": {
+          "supportedVersions": [
+            "2026-07-28"
+          ],
+          "capabilities": {
+            "tools": {},
+            "prompts": {},
+            "resources": {}
+          },
+          "instructions": "agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "agentic-mermaid-hosted",
+              "version": "<package-version>"
+            }
+          }
+        }
+      },
+      "modern/tools-list": {
+        "resultType": "complete",
+        "ttlMs": 300000,
+        "cacheScope": "public",
+        "result": {
+          "tools": [
+            "execute",
+            "describe_sdk",
+            "render_svg",
+            "render_ascii",
+            "render_png",
+            "verify",
+            "describe",
+            "mutate",
+            "build"
+          ],
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "agentic-mermaid-hosted",
+              "version": "<package-version>"
+            }
+          }
+        }
+      },
+      "modern/describe": {
+        "resultType": "complete",
+        "ttlMs": null,
+        "cacheScope": null,
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "agentic-mermaid-hosted",
+            "version": "<package-version>"
+          }
+        },
+        "isError": false,
+        "text": "{\"ok\":true,\"text\":\"A 2-node flowchart with 1 edges. Nodes: Start, OK?. Edges: A -> B. Entry points: A. Sinks: B.\",\"warnings\":[]}"
+      },
+      "modern/error-initialize-is-unknown": {
+        "error": {
+          "code": -32601,
+          "message": "Method not found: initialize"
+        }
+      },
+      "modern/error-missing-capabilities": {
+        "error": {
+          "code": -32602,
+          "message": "Invalid params: params._meta.io.modelcontextprotocol/clientCapabilities is required and must be an object (an empty object declares no optional capabilities)"
+        }
+      },
+      "modern/no-client-info": {
+        "resultType": "complete",
+        "ttlMs": 300000,
+        "cacheScope": "public",
+        "result": {
+          "tools": [
+            "execute",
+            "describe_sdk",
+            "render_svg",
+            "render_ascii",
+            "render_png",
+            "verify",
+            "describe",
+            "mutate",
+            "build"
+          ],
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "agentic-mermaid-hosted",
+              "version": "<package-version>"
+            }
+          }
+        }
+      }
+    }
+  }
+}

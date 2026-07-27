@@ -22,6 +22,28 @@ const REPO = join(import.meta.dir, '..', '..')
 const PUBLIC = join(REPO, 'website', 'public')
 const report = JSON.parse(readFileSync(join(REPO, 'eval', 'website-payload', 'baseline.json'), 'utf8')) as WebsitePayloadReport
 
+// The baseline records the toolchain that produced it, and a different Bun
+// emits a byte-different bundle from identical sources — 1.3.13 and 1.3.11
+// differ by 11 bytes on the home document alone. Comparing locally built bytes
+// against the recorded ones is therefore only meaningful on the recorded
+// toolchain; elsewhere it reports a toolchain difference as a payload
+// regression. The report already carried the fact needed to tell those apart
+// and simply never consulted it.
+//
+// This does NOT weaken the gate on the recording toolchain (CI), where every
+// exact byte, hash, and total is still compared. Off it, the byte comparison is
+// skipped VISIBLY rather than softened: the budgets are ratcheted to zero
+// headroom (each budget equals the recorded total exactly), so a "≤ budget"
+// fallback would be just as toolchain-sensitive as equality, and any tolerance
+// loose enough to absorb a toolchain delta would be loose enough to hide a real
+// regression. There is no honest local approximation, so the test says so
+// instead of pretending. Everything derived from the RECORDED report — route
+// coverage, totals-versus-budget, and the budget verifier — is toolchain-
+// independent and keeps running everywhere.
+const RECORDED_BUN = report.toolchain.bun
+const ON_RECORDING_TOOLCHAIN = Bun.version === RECORDED_BUN
+const TOOLCHAIN_NOTE = `built with Bun ${Bun.version}, baseline recorded with Bun ${RECORDED_BUN}`
+
 function independentPublicFile(requestPath: string): string {
   const pathname = new URL(requestPath, 'https://independent.invalid').pathname
   const relative = pathname === '/' ? 'index.html' : pathname.slice(1).replace(/\/$/, '/index.html')
@@ -31,12 +53,27 @@ function independentPublicFile(requestPath: string): string {
 }
 
 describe('deterministic website payload authority', () => {
-  test('independently verifies every recorded byte, compression result, hash, and total', () => {
+  // Toolchain-independent: reads only the recorded report, so it guards route
+  // coverage and the ratcheted budgets in every environment.
+  test('the recorded report covers every route and matches the ratcheted budgets', () => {
     expect(report.routes.map(route => route.id)).toEqual(WEBSITE_PAYLOAD_ROUTES.map(route => route.id))
     expect(report.capture.observationAfterReadyMs).toBe(WEBSITE_PAYLOAD_OBSERVATION_MS)
     expect(report.toolchain.bun).not.toBeEmpty()
     expect(report.toolchain.playwright).not.toBeEmpty()
     expect(report.toolchain.chromium).not.toBeEmpty()
+    for (const route of report.routes) {
+      const budget = WEBSITE_PAYLOAD_BUDGETS[route.id]!
+      expect(route.totals, route.id).toEqual({
+        requests: budget.maxRequests,
+        rawBytes: budget.maxRawBytes,
+        gzipBytes: budget.maxGzipBytes,
+        brotliBytes: budget.maxBrotliBytes,
+      })
+    }
+    expect(verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)).toEqual([])
+  })
+
+  test.skipIf(!ON_RECORDING_TOOLCHAIN)(`independently verifies every recorded byte, compression result, hash, and total (${TOOLCHAIN_NOTE})`, () => {
     const measurementCache = new Map<string, { sha256: string, rawBytes: number, gzipBytes: number, brotliBytes: number }>()
     for (const route of report.routes) {
       const totals = { requests: 0, rawBytes: 0, gzipBytes: 0, brotliBytes: 0 }
@@ -67,22 +104,15 @@ describe('deterministic website payload authority', () => {
         totals.brotliBytes += measured.brotliBytes * asset.count
       }
       expect(totals, route.id).toEqual(route.totals)
-      expect(route.totals).toEqual({
-        requests: WEBSITE_PAYLOAD_BUDGETS[route.id]!.maxRequests,
-        rawBytes: WEBSITE_PAYLOAD_BUDGETS[route.id]!.maxRawBytes,
-        gzipBytes: WEBSITE_PAYLOAD_BUDGETS[route.id]!.maxGzipBytes,
-        brotliBytes: WEBSITE_PAYLOAD_BUDGETS[route.id]!.maxBrotliBytes,
-      })
     }
-    expect(verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)).toEqual([])
   }, 30_000)
 
   test('rejects every budget dimension, eager forbidden resources, and missing required resources', () => {
     for (const [field, expected] of [
       ['requests', 'home: requests 10 exceeds 9'],
       ['rawBytes', 'home: rawBytes 682620 exceeds 682619'],
-      ['gzipBytes', 'home: gzipBytes 406567 exceeds 406566'],
-      ['brotliBytes', 'home: brotliBytes 387929 exceeds 387928'],
+      ['gzipBytes', 'home: gzipBytes 406568 exceeds 406567'],
+      ['brotliBytes', 'home: brotliBytes 388070 exceeds 388069'],
     ] as const) {
       const grown = structuredClone(report)
       grown.routes[0]!.totals[field]++

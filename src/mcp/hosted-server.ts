@@ -25,12 +25,13 @@ import {
   createDescribeTool,
   createExecuteTool,
   createRenderPngTool,
-  dispatchMcpRequest,
+  dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
   mcpRenderOptionSchemaProperties,
   projectMcpRenderOptions,
   validateMcpToolArguments,
   withClosedMcpInputSchema,
+  type McpDispatchOptions,
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
@@ -52,6 +53,12 @@ import {
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
+import {
+  admitMcpMessage,
+  type AdmittedMcpMessage,
+  type McpAdmissionOptions,
+  type McpAdmissionResult,
+} from './admission.ts'
 
 export type { ExecuteResult }
 
@@ -70,8 +77,16 @@ export interface HostedMcpContext {
 
 // Streamable HTTP clients negotiate 2025-03-26+; the node transports pin
 // 2024-11-05. Echo whichever supported version the client offers.
-export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18']
-const DEFAULT_PROTOCOL_VERSION = '2025-03-26'
+//
+// Dual-era: 2026-07-28 is the stateless revision (no initialize, no ping,
+// server/discover mandatory); everything before it is handshake-based. We serve
+// both, which the spec explicitly permits. Older entries are retained because
+// per-request, header-driven versioning makes multi-version support free —
+// there is no session whose version could go stale.
+//
+// This constant is the SINGLE authority for the accepted set. The published
+// discovery document (website/build.ts) derives from it; nothing restates it.
+export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28']
 
 // Hosted server identity, distinct from the local stdio server's
 // MCP_SERVER_NAME: registries and clients cache tool lists by server identity,
@@ -202,21 +217,47 @@ Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
 
 const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
-function hostedProtocolVersion(params: unknown): string {
-  const offered = (params as { protocolVersion?: unknown } | undefined)?.protocolVersion
-  return typeof offered === 'string' && SUPPORTED_PROTOCOL_VERSIONS.includes(offered) ? offered : DEFAULT_PROTOCOL_VERSION
-}
-
 const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
-  protocolVersion: hostedProtocolVersion,
+  // Historical fallback for callers that construct a surface without an
+  // explicit version list. Normal negotiation is centralized in the admitted
+  // dispatcher and selects from supportedVersions below.
+  protocolVersion: '2025-11-25',
   serverName: HOSTED_MCP_SERVER_NAME,
+  supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
   tools: HOSTED_TOOLS,
   instructions: INSTRUCTIONS,
   handleToolCall,
 }
 
-export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
-  return dispatchMcpRequest(req, context, HOSTED_SURFACE)
+export type HostedMcpAdmissionOptions = Omit<McpAdmissionOptions, 'supportedVersions'> & {
+  supportedVersions?: readonly string[]
+}
+
+/** The hosted surface's single raw-message entrypoint. HTTP uses this before
+ * cache lookup; direct library callers reach it through handleHostedRequest. */
+export function admitHostedRequest(req: unknown, options: HostedMcpAdmissionOptions = {}): McpAdmissionResult {
+  const { supportedVersions: transportVersions, ...admissionOptions } = options
+  const supportedVersions = transportVersions
+    ? SUPPORTED_PROTOCOL_VERSIONS.filter(version => transportVersions.includes(version))
+    : SUPPORTED_PROTOCOL_VERSIONS
+  return admitMcpMessage(req, { ...admissionOptions, supportedVersions })
+}
+
+export async function handleAdmittedHostedRequest(message: AdmittedMcpMessage, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
+  return dispatchAdmittedMcpRequest(message, context, HOSTED_SURFACE)
+}
+
+/** Compatibility wrapper for tests and embedders which pass a typed-looking but
+ * still untrusted JsonRpcRequest directly. Transport code must admit first. */
+export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
+  const admission = admitHostedRequest(req, {
+    negotiatedVersion: options.protocolVersion,
+    protocolEra: options.protocolEra,
+    supportedVersions: options.supportedVersions,
+  })
+  return admission.ok
+    ? handleAdmittedHostedRequest(admission.message, context)
+    : admission.response
 }
 
 

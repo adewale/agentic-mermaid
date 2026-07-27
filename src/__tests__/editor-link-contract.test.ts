@@ -56,7 +56,17 @@ describe('editor link producer/consumer contract', () => {
       const state = decodeEditorStateHash(url.hash.slice(1))
       expect(state.source.trim().length, `${path}: decoded source`).toBeGreaterThan(0)
       expect(Object.keys(state).filter(key => !EDITOR_SHARE_STATE_KEYS.includes(key as any)), `${path}: state fields`).toEqual([])
-      expect(hostedEditorStateHref(state), `${path}: canonical round-trip`).toBe(href)
+      // The contract a stale link breaks is that the CURRENT codec and schema
+      // can still read it — which the path, `#deflate:` prefix, and state-field
+      // checks above already enforce. Comparing the re-encoded href byte-for-
+      // byte additionally pinned the DEFLATE output, and identical input
+      // compresses to different bytes across zlib builds, so a link that
+      // decodes perfectly failed here purely for being encoded elsewhere.
+      // Round-trip through the state instead: an old codec fails the prefix
+      // check, an old schema fails the field check, and a link the current
+      // encoder cannot reproduce semantically fails here.
+      const reencoded = new URL(hostedEditorStateHref(state))
+      expect(decodeEditorStateHash(reencoded.hash.slice(1)), `${path}: canonical round-trip`).toEqual(state)
     }
   })
 

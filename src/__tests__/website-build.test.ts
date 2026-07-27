@@ -21,7 +21,7 @@ import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 ensureWebsiteBuilt()
-import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
+import { HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../mcp/hosted-server.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
@@ -260,7 +260,10 @@ describe('Workers Static Assets website contract', () => {
     expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS', run_worker_first: true, not_found_handling: '404-page' })
     // Hosted MCP contract: the Worker Loader binding backs Code Mode execute.
     expect(config.worker_loaders).toEqual([{ binding: 'LOADER' }])
-    expect(readFileSync(join(REPO, 'package.json'), 'utf8')).toContain('wrangler@latest dev --port 9095 --ip 127.0.0.1')
+    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
+    expect(packageJson.scripts['website:dev']).toBe('cd website && WRANGLER_SEND_METRICS=false ../node_modules/.bin/wrangler dev --local --host 127.0.0.1 --port 9095 --ip 127.0.0.1')
+    expect(packageJson.devDependencies.wrangler).toBe('4.114.0')
+    expect(packageJson.scripts.deploy).toBe('gh workflow run deploy-cloudflare.yml --ref main')
   })
 
   test('Worker-first routing canonicalizes hosts, preserves path redirects, and wraps assets with headers', async () => {
@@ -390,13 +393,14 @@ describe('Workers Static Assets website contract', () => {
     assetFetches = 0
     const mcp = await worker.fetch(new Request('https://agentic-mermaid.dev/mcp'), env(() => new Response('should not run')))
     expect(mcp.status).toBe(405)
-    expect(((await mcp.json()) as any).error.message).toContain('stateless')
+    // A pre-parse refusal carries no JSON-RPC envelope: `error` is the reason.
+    expect(((await mcp.json()) as any).error).toContain('stateless')
     expect(mcp.headers.get('strict-transport-security')).toBe('max-age=31536000')
     expect(assetFetches).toBe(0)
 
     const wellKnownMcp = await worker.fetch(new Request('https://agentic-mermaid.dev/.well-known/mcp'), env(() => new Response('should not run')))
     expect(wellKnownMcp.status).toBe(405)
-    expect(((await wellKnownMcp.json()) as any).error.message).toContain('stateless')
+    expect(((await wellKnownMcp.json()) as any).error).toContain('stateless')
     expect(assetFetches).toBe(0)
 
     const wellKnownInitialize = await worker.fetch(new Request('https://agentic-mermaid.dev/.well-known/mcp', {
@@ -405,7 +409,10 @@ describe('Workers Static Assets website contract', () => {
         'content-type': 'application/json',
         accept: 'application/json, text/event-stream',
       },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }),
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1, method: 'initialize',
+        params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'website-test', version: '0' } },
+      }),
     }), env(() => new Response('should not run')))
     expect(wellKnownInitialize.status).toBe(200)
     const wellKnownPayload = await wellKnownInitialize.json() as any
@@ -1427,9 +1434,48 @@ describe('Workers Static Assets website contract', () => {
       expect(Number.isNaN(Date.parse(json.generatedFrom.buildTime))).toBe(false)
     }
     const deployWorkflow = readRepo('.github/workflows/deploy-cloudflare.yml')
-    expect(deployWorkflow).toContain('SITE_GIT_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"')
+    expect(deployWorkflow).toContain('SITE_GIT_SHA="$EXPECTED_SHA"')
     expect(deployWorkflow).toContain('SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website')
     expect(deployWorkflow).not.toContain('SITE_GIT_SHA="$(git rev-parse HEAD)"')
+    expect(deployWorkflow).toContain("EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}")
+    expect(deployWorkflow).toContain("jq -r '.generatedFrom.gitSha // empty'")
+    expect(deployWorkflow).toContain("\n          await_deployed_sha\n          probe 'verify accepts")
+    // Production deployment is a transaction: build only the exact current
+    // main commit and npm bytes, attach a candidate at zero traffic, exercise
+    // that immutable version through the real domain, then promote or roll
+    // back. These checks deliberately reject the old deploy-then-probe shape.
+    expect(deployWorkflow).toContain('cancel-in-progress: false')
+    expect(deployWorkflow).not.toContain('queue:')
+    expect(deployWorkflow).toContain('actions: read')
+    expect(deployWorkflow).toContain('::error title=Cloudflare credentials missing::')
+    expect(deployWorkflow).toContain('### Cloudflare deploy failed')
+    expect(deployWorkflow).not.toContain('Skipping Cloudflare deploy because CLOUDFLARE_API_TOKEN')
+    expect(deployWorkflow).toContain('Require successful canonical CI for a manual deployment')
+    expect(deployWorkflow).toContain("if: github.event_name == 'workflow_dispatch' && steps.cloudflare-secrets.outputs.available == 'true'")
+    expect(deployWorkflow).toContain('"repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs"')
+    expect(deployWorkflow).toContain('-f head_sha="$EXPECTED_SHA"')
+    expect(deployWorkflow).toContain('-f branch=main')
+    expect(deployWorkflow).toContain('-f event=push')
+    expect(deployWorkflow).toContain('.head_sha == $sha')
+    expect(deployWorkflow).toContain('.head_branch == "main"')
+    expect(deployWorkflow).toContain('.event == "push"')
+    expect(deployWorkflow).toContain('.conclusion == "success"')
+    expect(deployWorkflow).toContain('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1')
+    expect(deployWorkflow).toContain('oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6')
+    expect(deployWorkflow).toContain('bun install --frozen-lockfile')
+    expect(deployWorkflow).toContain("test \"$(node_modules/.bin/wrangler --version)\" = '4.114.0'")
+    expect(deployWorkflow).toContain('cmp -s dist/browser.global.js "$published_dist/browser.global.js"')
+    expect(deployWorkflow).toContain('diff --brief --recursive dist/browser-lazy "$published_dist/browser-lazy"')
+    expect(deployWorkflow).toContain('../node_modules/.bin/wrangler versions upload')
+    expect(deployWorkflow).toContain('"${PREVIOUS_ID}@100%" "${CANDIDATE_ID}@0%"')
+    expect(deployWorkflow).toContain('Cloudflare-Workers-Version-Overrides: agentic-mermaid-website=')
+    expect(deployWorkflow).toContain('"${CANDIDATE_ID}@100%"')
+    expect(deployWorkflow).toContain('Arm rollback before changing production state')
+    expect(deployWorkflow).toContain('always() && steps.rollback-guard.outputs.armed == \'true\'')
+    expect(deployWorkflow.indexOf('Arm rollback before changing production state')).toBeLessThan(deployWorkflow.indexOf('Attach the candidate at zero traffic'))
+    expect(deployWorkflow).toContain('../node_modules/.bin/wrangler rollback "$PREVIOUS_ID"')
+    expect(deployWorkflow).not.toContain('wrangler@latest')
+    expect(deployWorkflow.indexOf('Probe the full zero-traffic /mcp candidate')).toBeLessThan(deployWorkflow.indexOf('Promote the verified candidate to all traffic'))
     for (const rel of ['agent-manifest.json', 'harnesses.json', 'recipes/index.json', 'skills/index.json', 'schemas/index.json']) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: false })
     }
@@ -1444,6 +1490,11 @@ describe('Workers Static Assets website contract', () => {
     expect(mcpCard.serverUrl).toBe('https://agentic-mermaid.dev/mcp')
     expect(mcpCard.wellKnownUrl).toBe('https://agentic-mermaid.dev/.well-known/mcp')
     expect(mcpCard.transport).toBe('streamable-http')
+    // The published discovery document must advertise exactly what /mcp admits.
+    // These were separately maintained literals until the version list became
+    // single-source; a bump to one without the other tells clients we do not
+    // support a version we in fact serve, or vice versa.
+    expect(mcpCard.protocolVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
     expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)

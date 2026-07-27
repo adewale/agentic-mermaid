@@ -4,6 +4,23 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.3.2 — 2026-07-27
+
+### Added
+- Added MCP protocol revision `2025-11-25` — the *current* revision — to the hosted endpoint's supported list. It was previously rejected with HTTP 400, so any client pinning the current revision was locked out.
+- Added dual-era support for the `2026-07-28` stateless revision alongside the existing handshake-based clients: `server/discover`, per-request `_meta`, the `-32020`/`-32022` error codes, HTTP 404 for unknown modern methods, and `Mcp-Method`/`Mcp-Name` header validation.
+- Added `resultType: "complete"` and the required `ttlMs`/`cacheScope` caching hints to `server/discover` and `tools/list` results on the modern path. Legacy responses are unchanged, since an absent `resultType` is how a client identifies an older server.
+
+### Changed
+- The local MCP server now reports protocol versions **per transport**. Its stdio transport advertises every revision the dispatcher implements (through `2026-07-28`); its HTTP+SSE transport advertises only `2024-11-05`, which is the revision that transport actually is. A client declaring a revision a transport does not serve is now refused with `-32022` and the list to retry from, rather than being silently served a different era.
+- Transport-level rejections from the hosted endpoint (bad origin, wrong method, wrong content-type, oversized body) no longer carry a JSON-RPC error envelope. All four refuse before a JSON-RPC request is parsed, so they answer `{"error": "<reason>"}` with the HTTP status — 403, 405, 415, 413 — as the signal. The `-32000` code they used to carry came from a range the spec says receivers "MUST NOT assume any specific meaning for", so it conveyed nothing.
+
+### Fixed
+- Fixed the modern MCP boundary end to end: hosted compute-cache entries are protocol-neutral and partitioned by era/revision, stateless metadata and known capability shapes fail with correlated HTTP 400 responses, every successful modern result carries the final server identity stamp, invalid-origin preflights fail closed, and stdio retains the revision selected by `initialize` for later requests.
+- Hardened the release and review gates around that protocol work: the live deploy smoke test waits for the exact workflow SHA, golden approval is bound to each golden-changing commit, browser CORS coverage is portable and skips without starting servers when Chromium is absent, source scanning removes comments lexically, and equivalent named/record Style inputs are canonical before every family hook.
+- Fixed the local MCP server downgrading clients that offer a newer protocol revision. `initialize` now echoes the newest revision the client and the transport share; the reference MCP SDK client offers `2025-11-25` and was being answered `2024-11-05`.
+- Fixed the hosted endpoint rejecting conforming `2026-07-28` clients that omit `io.modelcontextprotocol/clientInfo`. The spec marks that field optional — clients "**SHOULD** include [it] … unless specifically configured not to do so" — and a client configured to withhold it received HTTP 400. It is still validated when present.
+
 ## 0.3.1 — 2026-07-27
 
 ### Added

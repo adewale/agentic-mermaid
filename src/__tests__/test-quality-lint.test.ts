@@ -90,7 +90,15 @@ describe('test-quality lint (testing-best-practices guardrails)', () => {
     const portfolio = readFileSync(join(REPO, 'src', '__tests__', 'render-conformance-plan.test.ts'), 'utf8')
     expect(showcase).not.toContain('every built-in Look × Palette combination renders every docs family')
     expect(showcase).not.toMatch(/\}, 300_000\)/)
-    expect(portfolio.match(/\}, 60_000\)/g)?.length).toBe(2)
+    // The ceiling this guards is portfolio SIZE. That is asserted directly and
+    // deterministically by the row bound below; a wall-clock cap was only ever a
+    // proxy for it, and being a proxy it also encoded machine speed — 60s failed
+    // on a box completing the portfolio in ~62s with every oracle passing. Guard
+    // the real bound, and require the timeout to be the named hang-detector
+    // constant so nobody reintroduces a bare literal sized to one machine.
+    expect(portfolio).toMatch(/expect\(corePlan\.length\)\.toBeLessThan\(1500\)/)
+    expect(portfolio.match(/\}, RENDER_PORTFOLIO_TIMEOUT_MS\)/g)?.length).toBe(2)
+    expect(portfolio).toMatch(/const RENDER_PORTFOLIO_TIMEOUT_MS = \d[\d_]*$/m)
     expect(portfolio.match(/\}, 20_000\)/g)?.length).toBe(1)
   })
 

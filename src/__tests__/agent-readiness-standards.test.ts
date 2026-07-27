@@ -73,6 +73,10 @@ describe('agent-readiness standards syntax', () => {
     expect(ci.jobs.unit.strategy.matrix.shard).toEqual(['1/3', '2/3', '3/3'])
     expect(unitSteps.find((step: any) => step.name === 'Build the Node bundle for cross-runtime determinism contracts')?.run)
       .toBe('bun run build')
+    expect(unitSteps.find((step: any) => step.name === 'Reject a divergent already-published immutable npm version')).toMatchObject({
+      if: "${{ matrix.shard == '1/3' }}",
+      run: 'bun run scripts/ci/published-version.ts',
+    })
     expect(unitSteps.find((step: any) => step.name === 'Run test shard (coverage = under-tested finder, NOT an adequacy target)')?.run)
       .toBe('bun run test -- --shard=${{ matrix.shard }}')
     expect(unitSteps.find((step: any) => step.name === 'Upload shard coverage')?.uses)
@@ -91,6 +95,7 @@ describe('agent-readiness standards syntax', () => {
       { file: 'security-csp.e2e.test.ts' },
       { file: 'browser.test.ts' },
       { file: 'browser-bundle.e2e.test.ts' },
+      { file: 'mcp-browser-cors.e2e.test.ts' },
       { file: '../src/__tests__/editor-theme-switch.test.ts', browserOptIn: true },
       { file: '../src/__tests__/editor-style-switch.test.ts', browserOptIn: true },
       { file: '../src/__tests__/website-browser-a11y.test.ts', browserOptIn: true },

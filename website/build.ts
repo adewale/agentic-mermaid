@@ -14,7 +14,7 @@ import { knownStyleDescriptors } from '../src/scene/style-registry.ts'
 import { HOSTED_FONT_RESOURCES, RESOURCE_MANIFEST, hostedFontFaceCss } from '../src/font-manifest.ts'
 import { NodeResourceResolver } from '../src/node-resource-resolver.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
-import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS } from '../src/mcp/hosted-server.ts'
+import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { computeDeployVersion } from './src/deploy-hash.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
@@ -2142,7 +2142,10 @@ const mcpServerCard = {
   serverUrl: `${siteOrigin}/mcp`,
   wellKnownUrl: `${siteOrigin}/.well-known/mcp`,
   transport: 'streamable-http',
-  protocolVersions: ['2024-11-05', '2025-03-26', '2025-06-18'],
+  // Derived, never restated: the runtime gate in hosted-server.ts is the single
+  // authority. A hardcoded copy here would publish a discovery document that
+  // disagrees with what /mcp actually accepts on the first version bump.
+  protocolVersions: [...SUPPORTED_PROTOCOL_VERSIONS],
   instructions: 'Use Agentic Mermaid for Mermaid diagram workflows. Prefer verify, describe, render_svg, render_ascii, render_png, mutate, and build for direct work; reserve execute for synchronous Code Mode logic that the declarative tools do not express.',
   capabilities: {
     tools: true,

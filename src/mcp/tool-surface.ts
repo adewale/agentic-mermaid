@@ -1,4 +1,14 @@
-import { reply, rpcError, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import {
+  META_SERVER_INFO,
+  isLegacyProtocolVersion,
+  isModernProtocolVersion,
+  mcpClientCapabilitiesProblems,
+  mcpImplementationProblems,
+  usesToolErrorForInvalidArguments,
+  type ProtocolEra,
+} from './protocol-versions.ts'
+import { admitMcpMessage, type AdmittedMcpMessage } from './admission.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import {
   sharedRenderOptionsJsonSchema,
@@ -38,9 +48,37 @@ export interface McpServerSurface<Context> {
   protocolVersion: string | ((params: unknown) => string)
   /** initialize serverInfo.name; defaults to the local MCP_SERVER_NAME. */
   serverName?: string
+  /** Every revision this surface implements, newest-relevant order preserved.
+   *  Reported by server/discover and by UnsupportedProtocolVersionError.
+   *  Defaults to the single pinned `protocolVersion` when it is a constant. */
+  supportedVersions?: readonly string[]
   tools: McpToolDefinition[]
   instructions: string
   handleToolCall(id: number | string | null, params: unknown, context: Context): JsonRpcResponse | Promise<JsonRpcResponse>
+}
+
+export interface McpDispatchOptions {
+  /** The version negotiated by a stateful transport. Supplies the version for
+   *  legacy requests, whose bodies carry none; never overrides modern `_meta`.
+   *  HTTP passes its header through admission's distinct `headerVersion` field
+   *  so only a real mirror disagreement can become HeaderMismatch. */
+  protocolVersion?: string | null
+  /** Connection-scoped era selected by a stateful transport. Hosted HTTP leaves
+   *  this unset because its dual-era endpoint classifies each independent POST;
+   *  stdio sets it after the client opens with initialize or modern metadata. */
+  protocolEra?: ProtocolEra
+  /**
+   * Revisions THIS TRANSPORT serves, when they are narrower than the surface's.
+   *
+   * One dispatcher can sit behind several transports whose obligations differ:
+   * the local server answers over stdio and over a 2024-11-05-era HTTP+SSE
+   * transport, and a revision the dispatcher implements is not thereby served
+   * over a transport that cannot carry it. `server/discover` must answer for
+   * the transport the request actually arrived on, so this NARROWS the surface
+   * list — it never widens it, because a transport cannot add a capability the
+   * dispatcher lacks.
+   */
+  supportedVersions?: readonly string[]
 }
 
 // The LOCAL stdio/HTTP server identity. The hosted transport reports its own
@@ -51,6 +89,7 @@ export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
 export const MCP_SERVER_VERSION = PACKAGE_VERSION
+const SERVER_CAPABILITIES = { tools: {}, prompts: {}, resources: {} } as const
 export const PURE_COMPUTE_ANNOTATIONS = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -329,34 +368,91 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
   return limitJsonConfigDiagnostics(problems, 'arguments')
 }
 
-export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
-  const raw = req as unknown as Record<string, unknown> | null
-  const hasId = Boolean(raw && Object.prototype.hasOwnProperty.call(raw, 'id'))
-  const rawId = raw?.id
-  const validId = rawId === undefined || rawId === null || typeof rawId === 'string' || (typeof rawId === 'number' && Number.isFinite(rawId))
-  const valid = Boolean(raw && raw.jsonrpc === '2.0' && typeof raw.method === 'string' && validId)
-  const id = validId && rawId !== undefined ? rawId as number | string | null : null
-  // Only a valid Request object without `id` is a notification. Malformed
-  // envelopes still receive the spec's -32600 response with id:null.
-  if (!valid) return rpcError(null, -32600, 'invalid JSON-RPC request')
-  const notification = !hasId
+/** The versions a surface implements: its explicit list, else its pinned constant. */
+export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Context>, options: McpDispatchOptions = {}): readonly string[] {
+  const surfaceVersions = surface.supportedVersions
+    ?? (typeof surface.protocolVersion === 'string' ? [surface.protocolVersion] : [])
+  if (!options.supportedVersions) return surfaceVersions
+  // Intersect rather than replace: a transport narrows what the dispatcher can
+  // do, so a transport list may not introduce a revision the surface lacks.
+  return surfaceVersions.filter(version => options.supportedVersions!.includes(version))
+}
+
+/** server/discover is the modern replacement for initialize. Its version list
+ * is deliberately modern-only: legacy revisions are negotiated by initialize
+ * and do not belong in this method's stateless contract. */
+function discoverResult<Context>(surface: McpServerSurface<Context>, supportedVersions: readonly string[]) {
+  return {
+    supportedVersions: supportedVersions.filter(isModernProtocolVersion),
+    capabilities: SERVER_CAPABILITIES,
+    instructions: surface.instructions,
+  }
+}
+
+function initializeParamsProblems(params: unknown): string[] {
+  if (!plainJsonObject(params)) return ['params is required and must be an object']
+  const problems: string[] = []
+  if (typeof params.protocolVersion !== 'string') {
+    problems.push('params.protocolVersion is required and must be a string')
+  }
+  problems.push(...mcpClientCapabilitiesProblems(params.capabilities, 'params.capabilities'))
+  problems.push(...mcpImplementationProblems(params.clientInfo, 'params.clientInfo'))
+  return problems
+}
+
+export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: Context, surface: McpServerSurface<Context>, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
+  const servedVersions = surfaceSupportedVersions(surface, options)
+  const admission = admitMcpMessage(req, {
+    supportedVersions: servedVersions,
+    negotiatedVersion: options.protocolVersion,
+    protocolEra: options.protocolEra,
+  })
+  if (!admission.ok) return admission.response
+  return dispatchAdmittedMcpRequest(admission.message, context, surface)
+}
+
+/** Execute a message that has crossed the sole raw/protocol admission boundary.
+ * Cache and transport code call this form so dispatch cannot reclassify it. */
+export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMessage, context: Context, surface: McpServerSurface<Context>): Promise<JsonRpcResponse | null> {
+  const { request: req, id, notification, protocol } = message
+  const { era, version, supportedVersions: servedVersions } = protocol
 
   let response: JsonRpcResponse | null
   switch (req.method) {
+    // initialize / notifications/initialized / ping are REMOVED in the modern
+    // era. Under a modern request they are simply unknown methods; a legacy
+    // request keeps the handshake it depends on.
     case 'initialize': {
-      const protocolVersion = typeof surface.protocolVersion === 'function'
-        ? surface.protocolVersion(req.params)
-        : surface.protocolVersion
+      if (era === 'modern') { response = unknownMethod(id, req.method); break }
+      const problems = initializeParamsProblems(req.params)
+      if (problems.length > 0) {
+        response = rpcError(id, -32602, `Invalid params: ${problems.join('; ')}`)
+        break
+      }
+      // Echo the client's version when this transport serves it. Advertising a
+      // revision in server/discover and then refusing to negotiate it would
+      // reproduce, inside one server, the exact mismatch per-transport
+      // reporting exists to remove.
+      const offered = (req.params as { protocolVersion?: unknown } | undefined)?.protocolVersion
+      const legacyServedVersions = servedVersions.filter(isLegacyProtocolVersion)
+      const fallbackLegacyVersion = legacyServedVersions.at(-1)
+        ?? (typeof surface.protocolVersion === 'function' ? surface.protocolVersion(req.params) : surface.protocolVersion)
+      const protocolVersion = isLegacyProtocolVersion(offered) && legacyServedVersions.includes(offered)
+        ? offered
+        : fallbackLegacyVersion
       response = reply(id, {
         protocolVersion,
         serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
-        capabilities: { tools: {} },
+        capabilities: SERVER_CAPABILITIES,
         instructions: surface.instructions,
       })
       break
     }
-    case 'notifications/initialized': response = null; break
-    case 'ping': response = reply(id, {}); break
+    case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
+    case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
+    case 'server/discover': response = era === 'modern'
+      ? reply(id, discoverResult(surface, servedVersions))
+      : unknownMethod(id, req.method); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!plainJsonObject(req.params)) {
@@ -376,7 +472,14 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
       const args = req.params.arguments ?? {}
       const problems = validateMcpToolArguments(tool, args)
       if (problems.length > 0) {
-        response = rpcError(id, -32602, `Invalid arguments for ${name}: ${problems.join('; ')}`)
+        const message = `Invalid arguments for ${name}: ${problems.join('; ')}`
+        // SEP-1303 (2025-11-25): an input-validation failure is a TOOL
+        // execution error, not a protocol error, so the model can read it and
+        // self-correct instead of seeing a transport fault. The diagnostic text
+        // is identical either way — only the envelope changes.
+        response = usesToolErrorForInvalidArguments(version)
+          ? toolResult(id, { ok: false, error: { code: 'INVALID_ARGUMENTS', message } }, true)
+          : rpcError(id, -32602, message)
         break
       }
       response = await surface.handleToolCall(id, { ...req.params, arguments: args }, context)
@@ -384,9 +487,77 @@ export async function dispatchMcpRequest<Context>(req: JsonRpcRequest, context: 
     }
     case 'prompts/list': response = reply(id, { prompts: [] }); break
     case 'resources/list': response = reply(id, { resources: [] }); break
-    default: response = rpcError(id, -32601, `Method not found: ${req.method}`)
+    default: response = unknownMethod(id, req.method)
   }
-  return notification ? null : response
+  return notification ? null : decorateMcpResult(response, req.method, era, surface.serverName ?? MCP_SERVER_NAME)
+}
+
+/**
+ * How long a client may treat a list result as fresh. The tool surface is fixed
+ * at build time and changes only when a deploy changes it, so the only staleness
+ * this can cause is a client holding a previous deploy's list for up to this
+ * long. Five minutes bounds that while removing essentially all repeat listing
+ * traffic, and is the value the spec's own example uses.
+ */
+export const LIST_RESULT_TTL_MS = 300_000
+
+/** The operations the spec requires caching hints on, intersected with ours. */
+const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list', 'prompts/list', 'resources/list'])
+
+/**
+ * Result fields this revision requires, applied on the MODERN path only.
+ *
+ * `resultType` is a MUST — "The `result` MUST include a `resultType` field to
+ * indicate the type of the result" — and legacy results must NOT grow it: "For
+ * backward compatibility with servers implementing earlier protocol versions,
+ * which do not include `resultType`, clients MUST treat an absent `resultType`
+ * as `complete`". Every result we return is terminal, since no tool of ours asks
+ * the client for more input, so `complete` is the only value we can produce.
+ *
+ * Caching hints are a MUST too, not the optional nicety the migration plan
+ * recorded them as: "Servers MUST include caching hints on results with
+ * `resultType: 'complete'` returned by the following operations: server/discover,
+ * tools/list, …". Ours are identical for every caller and carry no user data, so
+ * `public` is the honest scope — and the spec is explicit that a public result
+ * may be shared across authorization contexts, which is true of a static tool
+ * list by construction.
+ *
+ * Errors are left alone: caching hints and `resultType` live on results.
+ */
+export function decorateMcpResult(response: JsonRpcResponse | null, method: string, era: ProtocolEra, serverName: string): JsonRpcResponse | null {
+  if (era !== 'modern' || !response || !plainJsonObject(response.result)) return response
+  const existingMeta = plainJsonObject(response.result._meta) ? response.result._meta : {}
+  const result: Record<string, unknown> = {
+    resultType: 'complete',
+    ...response.result,
+    _meta: {
+      ...existingMeta,
+      [META_SERVER_INFO]: { name: serverName, version: MCP_SERVER_VERSION },
+    },
+  }
+  if (CACHEABLE_METHODS.has(method)) {
+    result.ttlMs = LIST_RESULT_TTL_MS
+    result.cacheScope = 'public'
+  }
+  return { ...response, result }
+}
+
+/** Strip response-era fields before a deterministic tool result enters the
+ * shared compute cache. Cache hits are decorated again for the current request,
+ * so a legacy fill can never dictate a modern envelope (or vice versa). */
+export function protocolNeutralMcpResult(result: unknown): unknown {
+  if (!plainJsonObject(result)) return result
+  const { resultType: _resultType, ttlMs: _ttlMs, cacheScope: _cacheScope, _meta, ...neutral } = result
+  if (plainJsonObject(_meta)) {
+    const { [META_SERVER_INFO]: _serverInfo, ...retainedMeta } = _meta
+    if (Object.keys(retainedMeta).length > 0) neutral._meta = retainedMeta
+  }
+  return neutral
+}
+
+/** -32601, which the HTTP transport maps to 404 for modern requests. */
+function unknownMethod(id: number | string | null, method: string): JsonRpcResponse {
+  return rpcError(id, -32601, `Method not found: ${method}`)
 }
 
 export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {

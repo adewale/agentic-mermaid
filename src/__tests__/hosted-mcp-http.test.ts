@@ -13,9 +13,11 @@
 import { describe, expect, test } from 'bun:test'
 import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache, type McpRequestEvent } from '../../website/src/mcp-handler.ts'
 import type { HostedMcpContext } from '../mcp/hosted-server.ts'
+import { META_CLIENT_CAPABILITIES, META_PROTOCOL_VERSION } from '../mcp/protocol-versions.ts'
 import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
+const MODERN = '2026-07-28'
 const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
 
 function makeCache(): McpCache & { store: Map<string, string> } {
@@ -57,6 +59,19 @@ function post(body: unknown, headers: Record<string, string> = {}): Request {
 
 const rpc = (method: string, params?: unknown, id: number | string = 1) => ({ jsonrpc: '2.0', id, method, params })
 const call = (name: string, args: Record<string, unknown>, id: number | string = 1) => rpc('tools/call', { name, arguments: args }, id)
+const modernCall = (name: string, args: Record<string, unknown>, id: number | string = 1) => ({
+  jsonrpc: '2.0', id, method: 'tools/call',
+  params: {
+    name,
+    arguments: args,
+    _meta: { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: {} },
+  },
+})
+const modernHeaders = (name: string) => ({
+  'mcp-protocol-version': MODERN,
+  'mcp-method': 'tools/call',
+  'mcp-name': name,
+})
 
 describe('method and header validation', () => {
   test('OPTIONS preflight answers CORS without touching the server', async () => {
@@ -71,7 +86,10 @@ describe('method and header validation', () => {
     const { handler } = makeHandler()
     const res = await handler(new Request('https://agentic-mermaid.dev/mcp'))
     expect(res.status).toBe(405)
-    expect(((await res.json()) as any).error.message).toContain('stateless')
+    // A pre-parse refusal answers no JSON-RPC request, so it carries no
+    // JSON-RPC envelope and no error code — the status is the machine signal
+    // and `error` is the readable reason.
+    expect(((await res.json()) as any).error).toContain('stateless')
   })
 
   test('non-JSON content types are 415', async () => {
@@ -80,13 +98,43 @@ describe('method and header validation', () => {
     expect(res.status).toBe(415)
   })
 
+  // Every one of these refuses BEFORE a JSON-RPC request is parsed — a GET has
+  // no body, and the content-type and size checks refuse precisely because they
+  // will not read one. Answering with {"jsonrpc":"2.0","id":null,error:{code}}
+  // claimed to answer a request that does not exist, and the code we invented
+  // for it came from the legacy sub-range whose meaning receivers "MUST NOT
+  // assume" — so it carried no information at all. The envelope is kept only
+  // where the spec defines a JSON-RPC error (-32020, -32022, -32601), which the
+  // tests below this one cover.
+  test('pre-parse transport refusals carry no JSON-RPC envelope', async () => {
+    const { handler } = makeHandler()
+    const oversized = JSON.stringify(call('describe', { source: 'x'.repeat(MAX_MCP_BODY_BYTES) }))
+    const cases: Array<[string, number, Request]> = [
+      ['GET', 405, new Request('https://agentic-mermaid.dev/mcp')],
+      ['content-type', 415, post('x', { 'content-type': 'text/plain' })],
+      ['body size', 413, post(oversized)],
+      ['origin', 403, post(JSON.stringify(call('describe', { source: 'flowchart TD\n  A --> B' })), { origin: 'https://evil.example' })],
+    ]
+    for (const [label, status, request] of cases) {
+      const response = await handler(request)
+      const body = await response.json() as Record<string, unknown>
+      expect({ label, status: response.status }).toEqual({ label, status })
+      expect({ label, jsonrpc: body.jsonrpc }).toEqual({ label, jsonrpc: undefined })
+      expect({ label, id: 'id' in body }).toEqual({ label, id: false })
+      // `error` is the readable reason, not an object with a numeric code.
+      expect({ label, kind: typeof body.error }).toEqual({ label, kind: 'string' })
+      // CORS still decorates every refusal (§10 invariant 2).
+      expect({ label, cors: response.headers.has('access-control-allow-methods') }).toEqual({ label, cors: true })
+    }
+  })
+
   test('bodies over the cap are 413 with the local-fallback hint, declared or not', async () => {
     const { handler } = makeHandler()
     const big = JSON.stringify(call('describe', { source: 'x'.repeat(MAX_MCP_BODY_BYTES) }))
     const declared = await handler(post(big))
     expect(declared.status).toBe(413)
     // Parity with the 64KB per-field cap: the refusal names the way out.
-    expect(((await declared.json()) as any).error.message).toContain('agentic-mermaid.dev/docs/mcp')
+    expect(((await declared.json()) as any).error).toContain('agentic-mermaid.dev/docs/mcp')
     const undeclared = await handler(new Request('https://agentic-mermaid.dev/mcp', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -118,6 +166,15 @@ describe('method and header validation', () => {
     expect(noIdBody).toMatchObject({ jsonrpc: '2.0', id: null, error: { code: -32600 } })
   })
 
+  test.each([null, 1.5])('MCP rejects the non-integer request id %p', async id => {
+    const { handler } = makeHandler()
+    const res = await handler(post({ jsonrpc: '2.0', id, method: 'ping' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      jsonrpc: '2.0', id: null, error: { code: -32600, message: 'invalid JSON-RPC request' },
+    })
+  })
+
   test('HTTP-level error responses still carry CORS so a browser client can read them', async () => {
     // 405/415/413/400 all flow through the same json() helper; a browser fetch
     // needs the CORS header on the error too or it never sees the status.
@@ -137,7 +194,9 @@ describe('method and header validation', () => {
 describe('JSON-RPC round trips', () => {
   test('initialize round trip carries protocol version and CORS', async () => {
     const { handler } = makeHandler()
-    const res = await handler(post(rpc('initialize', { protocolVersion: '2025-03-26' })))
+    const res = await handler(post(rpc('initialize', {
+      protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'http-test', version: '0' },
+    })))
     expect(res.status).toBe(200)
     expect(res.headers.get('access-control-allow-origin')).toBe('*')
     expect(res.headers.get('cache-control')).toBe('no-store')
@@ -278,7 +337,7 @@ describe('CORS Origin validation', () => {
   test('a disallowed Origin is refused on the OPTIONS preflight too (no ACAO granted)', async () => {
     const { handler } = makeHandler()
     const res = await handler(new Request('https://agentic-mermaid.dev/mcp', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }))
-    expect(res.status).toBe(204)
+    expect(res.status).toBe(403)
     expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
 
@@ -304,12 +363,69 @@ describe('deterministic-response caching', () => {
     expect(second.result).toEqual(first.result)
   })
 
+  test('cache hits cannot answer notifications or echo malformed ids', async () => {
+    const cache = makeCache()
+    const { handler } = makeHandler({ cache })
+    const request = call('describe', { source: FLOW }, 'warm')
+    expect((await handler(post(request))).status).toBe(200)
+    expect(cache.store.size).toBe(1)
+
+    const notification = structuredClone(request) as any
+    delete notification.id
+    const notificationResponse = await handler(post(notification))
+    expect({ status: notificationResponse.status, body: await notificationResponse.text() })
+      .toEqual({ status: 202, body: '' })
+
+    const malformed = { ...request, id: { invalid: true } }
+    const malformedResponse = await handler(post(malformed))
+    expect(malformedResponse.status).toBe(200)
+    expect(await malformedResponse.json()).toEqual({
+      jsonrpc: '2.0', id: null, error: { code: -32600, message: 'invalid JSON-RPC request' },
+    })
+  })
+
   test('argument key order does not split the cache', async () => {
     const cache = makeCache()
     const { handler } = makeHandler({ cache })
     await handler(post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'describe', arguments: { source: FLOW } } }))
     await handler(post({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { arguments: { source: FLOW }, name: 'describe' } }))
     expect(cache.store.size).toBe(1)
+  })
+
+  test('legacy and modern cache fills are redecorated for the requesting era in either order', async () => {
+    for (const firstEra of ['legacy', 'modern'] as const) {
+      const cache = makeCache()
+      const { handler } = makeHandler({ cache })
+      const legacyRequest = call('describe', { source: FLOW }, 'legacy')
+      const modernRequest = modernCall('describe', { source: FLOW }, 'modern')
+      const sendLegacy = async () => (await (await handler(post(legacyRequest))).json()) as any
+      const sendModern = async () => (await (await handler(post(modernRequest, modernHeaders('describe')))).json()) as any
+      const first = firstEra === 'legacy' ? await sendLegacy() : await sendModern()
+      const second = firstEra === 'legacy' ? await sendModern() : await sendLegacy()
+      const legacy = firstEra === 'legacy' ? first : second
+      const modern = firstEra === 'modern' ? first : second
+      expect(legacy.result.resultType).toBeUndefined()
+      expect(modern.result.resultType).toBe('complete')
+      // Partitioning prevents version-dependent payload reuse; cache entries
+      // themselves are still protocol-neutral and decorated on every hit.
+      expect(cache.store.size).toBe(2)
+      for (const stored of cache.store.values()) {
+        expect(JSON.parse(stored).resultType).toBeUndefined()
+      }
+    }
+  })
+
+  test('a warm valid modern call cannot bypass required per-request metadata', async () => {
+    const cache = makeCache()
+    const { handler } = makeHandler({ cache })
+    const valid = modernCall('describe', { source: FLOW }, 'valid')
+    expect((await handler(post(valid, modernHeaders('describe')))).status).toBe(200)
+
+    const malformed = modernCall('describe', { source: FLOW }, 'malformed') as any
+    delete malformed.params._meta[META_CLIENT_CAPABILITIES]
+    const response = await handler(post(malformed, modernHeaders('describe')))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ id: 'malformed', error: { code: -32602 } })
   })
 
   test('error results are never cached', async () => {
@@ -348,7 +464,9 @@ describe('deterministic-response caching', () => {
     const cache = makeCache()
     const { handler } = makeHandler({ cache })
     await handler(post(rpc('tools/list')))
-    await handler(post(rpc('initialize')))
+    await handler(post(rpc('initialize', {
+      protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'cache-test', version: '0' },
+    })))
     expect(cache.store.size).toBe(0)
   })
 })

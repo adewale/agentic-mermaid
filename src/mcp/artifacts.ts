@@ -10,6 +10,7 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  rmdirSync,
   unlinkSync,
   writeFileSync,
   writeSync,
@@ -19,6 +20,9 @@ import { basename, join, resolve, sep } from 'node:path'
 
 export interface ArtifactStoreOptions {
   dir?: string
+  /** Parent for a fresh managed namespace when dir is omitted. Primarily useful
+   * to isolate embedding environments and tests; cannot be combined with dir. */
+  namespaceRoot?: string
   baseUrl?: string
   maxBytes?: number
   maxTotalBytes?: number
@@ -66,7 +70,12 @@ const DEFAULT_TTL_MS = 60 * 60 * 1000
 const MANIFEST_NAME = '.agentic-mermaid-artifacts-v1.json'
 const LOCK_NAME = '.agentic-mermaid-artifacts-v1.lock'
 const MAX_MANIFEST_BYTES = 1024 * 1024
+const MAX_LOCK_BYTES = 4096
 const MANAGED_NAME = /^[0-9a-z]+-[0-9a-f-]{36}\.[a-z0-9_-]+$/
+const IMPLICIT_NAMESPACE = /^store-[1-9][0-9]*-[0-9a-f-]{36}$/
+const LEGACY_IMPLICIT_NAMESPACE = /^agentic-mermaid-mcp-artifacts-[1-9][0-9]*-[0-9a-f-]{36}$/
+const IMPLICIT_REAP_GRACE_MS = 30_000
+const DEFAULT_ARTIFACT_ROOT = join(tmpdir(), 'agentic-mermaid-mcp-artifacts')
 
 function positiveSafeInteger(value: number, field: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`artifact ${field} must be a positive safe integer`)
@@ -89,7 +98,9 @@ export class ArtifactStore {
   private closed = false
 
   constructor(opts: ArtifactStoreOptions = {}) {
-    this.dir = resolve(opts.dir ?? join(tmpdir(), 'agentic-mermaid-mcp-artifacts'))
+    if (opts.dir !== undefined && opts.namespaceRoot !== undefined) {
+      throw new Error('artifact dir and namespaceRoot are mutually exclusive')
+    }
     this.baseUrl = normalizeBaseUrl(opts.baseUrl)
     this.maxBytes = positiveSafeInteger(opts.maxBytes ?? DEFAULT_MAX_BYTES, 'maxBytes')
     this.maxTotalBytes = positiveSafeInteger(opts.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES, 'maxTotalBytes')
@@ -97,7 +108,25 @@ export class ArtifactStore {
     this.ttlMs = positiveSafeInteger(opts.ttlMs ?? DEFAULT_TTL_MS, 'ttlMs')
     if (this.maxBytes > this.maxTotalBytes) throw new Error('artifact maxBytes must not exceed maxTotalBytes')
     this.now = opts.now ?? (() => Date.now())
-    mkdirSync(this.dir, { recursive: true, mode: 0o700 })
+    if (opts.dir !== undefined) {
+      this.dir = resolve(opts.dir)
+      mkdirSync(this.dir, { recursive: true, mode: 0o700 })
+    } else {
+      const root = resolve(opts.namespaceRoot ?? DEFAULT_ARTIFACT_ROOT)
+      mkdirSync(root, { recursive: true, mode: 0o700 })
+      const rootStat = lstatSync(root)
+      if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+        throw new Error('artifact namespace root must be a real directory')
+      }
+      if (opts.namespaceRoot === undefined) {
+        // Migrate namespaces made by the previous process-local layout, which
+        // placed each store directly in the OS temp directory.
+        reapImplicitArtifactNamespaces(resolve(tmpdir()), this.now(), LEGACY_IMPLICIT_NAMESPACE)
+      }
+      reapImplicitArtifactNamespaces(root, this.now())
+      this.dir = join(root, `store-${process.pid}-${randomUUID()}`)
+      mkdirSync(this.dir, { mode: 0o700 })
+    }
     this.manifestPath = join(this.dir, MANIFEST_NAME)
     this.lockPath = join(this.dir, LOCK_NAME)
     this.acquireOwnership()
@@ -288,13 +317,7 @@ export class ArtifactStore {
     }
     let totalBytes = 0
     for (const candidate of manifest.records) {
-      if (!candidate || typeof candidate !== 'object'
-        || typeof candidate.name !== 'string' || !MANAGED_NAME.test(candidate.name)
-        || typeof candidate.mimeType !== 'string' || candidate.mimeType.length === 0
-        || !Number.isSafeInteger(candidate.bytes) || candidate.bytes < 0
-        || typeof candidate.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(candidate.sha256)
-        || !Number.isSafeInteger(candidate.createdAt) || !Number.isSafeInteger(candidate.expiresAt)
-        || candidate.expiresAt <= candidate.createdAt) {
+      if (!isManifestRecord(candidate)) {
         throw new Error('artifact manifest contains an invalid record')
       }
       const path = safePath(this.dir, candidate.name)
@@ -332,6 +355,118 @@ export class ArtifactStore {
     try { unlinkSync(path) } catch {}
     if (persist) this.persistManifest()
   }
+}
+
+/** Reap only auto-created namespaces that are no longer owned. Artifacts stay
+ * available after a normal server shutdown until their recorded TTL expires;
+ * the next implicit store removes expired files and empty namespaces. */
+function reapImplicitArtifactNamespaces(root: string, now: number, namespacePattern = IMPLICIT_NAMESPACE): void {
+  let entries: string[]
+  try { entries = readdirSync(root) } catch { return }
+  for (const name of entries) {
+    if (!namespacePattern.test(name)) continue
+    const dir = safePath(root, name)
+    try {
+      const namespace = lstatSync(dir)
+      if (!namespace.isDirectory() || namespace.isSymbolicLink()) continue
+      // A just-created directory may not have written its lock yet. The grace
+      // period makes that construction window ineligible for collection.
+      if (now - namespace.mtimeMs < IMPLICIT_REAP_GRACE_MS) continue
+      const lockPath = join(dir, LOCK_NAME)
+      if (existsSync(lockPath)) {
+        const lock = lstatSync(lockPath)
+        if (!lock.isFile() || lock.isSymbolicLink() || lock.size > MAX_LOCK_BYTES) continue
+        const marker = JSON.parse(readFileSync(lockPath, 'utf8')) as { pid?: unknown; host?: unknown }
+        if (marker.host !== hostname() || !Number.isSafeInteger(marker.pid) || (marker.pid as number) <= 0) continue
+        if (processIsAlive(marker.pid as number)) continue
+        const current = lstatSync(lockPath)
+        if (current.dev !== lock.dev || current.ino !== lock.ino) continue
+        unlinkSync(lockPath)
+      }
+      reapClosedNamespace(dir, now)
+    } catch {
+      // Corrupt or externally modified namespaces are quarantined rather than
+      // guessed at. A future operator can inspect them without data loss.
+    }
+  }
+}
+
+function processIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== 'ESRCH'
+  }
+}
+
+function reapClosedNamespace(dir: string, now: number): void {
+  const manifestPath = join(dir, MANIFEST_NAME)
+  let records: ArtifactManifest['records'] = []
+  if (existsSync(manifestPath)) {
+    const stat = lstatSync(manifestPath)
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_MANIFEST_BYTES) return
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ArtifactManifest
+    if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.records)
+      || manifest.records.some(record => !isManifestRecord(record))) return
+    records = manifest.records
+  }
+
+  const live: ArtifactManifest['records'] = []
+  for (const record of records) {
+    const path = safePath(dir, record.name)
+    if (record.expiresAt <= now) {
+      try { unlinkSync(path) } catch {}
+      continue
+    }
+    try {
+      const file = lstatSync(path)
+      if (file.isFile() && !file.isSymbolicLink() && file.size === record.bytes) live.push(record)
+      else if (file.isFile() || file.isSymbolicLink()) unlinkSync(path)
+    } catch {}
+  }
+
+  const liveNames = new Set(live.map(record => record.name))
+  for (const name of readdirSync(dir)) {
+    if (!MANAGED_NAME.test(name) || liveNames.has(name)) continue
+    const path = safePath(dir, name)
+    try {
+      const file = lstatSync(path)
+      if (file.isFile() || file.isSymbolicLink()) unlinkSync(path)
+    } catch {}
+  }
+
+  if (live.length > 0) {
+    if (live.length !== records.length) persistManifestRecords(dir, live)
+    return
+  }
+  try {
+    const manifest = lstatSync(manifestPath)
+    if (manifest.isFile() && !manifest.isSymbolicLink()) unlinkSync(manifestPath)
+  } catch {}
+  try { rmdirSync(dir) } catch {}
+}
+
+function persistManifestRecords(dir: string, records: ArtifactManifest['records']): void {
+  const path = join(dir, MANIFEST_NAME)
+  const temp = join(dir, `.${MANIFEST_NAME}.${process.pid}.${randomUUID()}.tmp`)
+  try {
+    writeFileSync(temp, JSON.stringify({ schemaVersion: 1, records } satisfies ArtifactManifest), { mode: 0o600 })
+    renameSync(temp, path)
+  } finally {
+    try { unlinkSync(temp) } catch {}
+  }
+}
+
+function isManifestRecord(candidate: unknown): candidate is ArtifactManifest['records'][number] {
+  if (!candidate || typeof candidate !== 'object') return false
+  const record = candidate as Record<string, unknown>
+  return typeof record.name === 'string' && MANAGED_NAME.test(record.name)
+    && typeof record.mimeType === 'string' && record.mimeType.length > 0
+    && Number.isSafeInteger(record.bytes) && (record.bytes as number) >= 0
+    && typeof record.sha256 === 'string' && /^[a-f0-9]{64}$/.test(record.sha256)
+    && Number.isSafeInteger(record.createdAt) && Number.isSafeInteger(record.expiresAt)
+    && (record.expiresAt as number) > (record.createdAt as number)
 }
 
 export function createArtifactStore(opts: ArtifactStoreOptions = {}): ArtifactStore {

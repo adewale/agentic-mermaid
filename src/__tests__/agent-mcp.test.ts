@@ -489,13 +489,27 @@ describe('sandbox — expression-first wrap handles every common code shape', ()
 
 describe('MCP — JSON-RPC happy + sad', () => {
   test('initialize', async () => {
-    const r = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize' })
+    const r = await handleRequest({
+      jsonrpc: '2.0', id: 1, method: 'initialize',
+      params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'test', version: '0' } },
+    })
     expect((r!.result as any).serverInfo.name).toBe('agentic-mermaid-mcp')
     // The MCP handshake version is derived from package.json; keep them aligned.
     expect((r!.result as any).serverInfo.version).toBe(pkg.version)
     const instructions = (r!.result as any).instructions as string
     for (const family of BUILTIN_FAMILY_METADATA) expect(instructions).toContain(family.narrower)
     expect(instructions).not.toContain('Journey, xychart, architecture')
+    expect((r!.result as any).capabilities).toEqual({ tools: {}, prompts: {}, resources: {} })
+  })
+  test.each([
+    undefined,
+    {},
+    { protocolVersion: '2025-11-25', capabilities: {} },
+    { protocolVersion: '2025-11-25', capabilities: [], clientInfo: { name: 'test', version: '0' } },
+    { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'test' } },
+  ])('initialize rejects malformed params %#', async params => {
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', ...(params === undefined ? {} : { params }) })
+    expect(response?.error?.code).toBe(-32602)
   })
   test('tools/list has a compact execute SDK plus progressive family discovery', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
