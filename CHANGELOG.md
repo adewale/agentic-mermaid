@@ -4,6 +4,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.3.1 — 2026-07-27
+
 ### Added
 - Added the framework-neutral `agentic-mermaid/browser/lazy` ESM entry with async, per-built-in-family SVG loading, shared on-demand ELK, exact all-family parity tests, and raw/gzip/Brotli/request-count build budgets.
 
