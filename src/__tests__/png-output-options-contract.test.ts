@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -13,6 +14,7 @@ import {
   PNG_OUTPUT_POLICY_VERSION,
   PNG_OUTPUT_OPTION_FIELDS,
   PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS,
+  PNG_WASM_RUNTIME,
   PORTABLE_PNG_OUTPUT_OPTION_FIELDS,
   normalizePortablePngBackground,
   omitPngOutputOptions,
@@ -177,6 +179,44 @@ describe('canonical PNG output-option authority', () => {
       seed: 13,
     })
     expect(validateMcpToolArguments(createRenderPngTool('hosted'), args)).toEqual([])
+  })
+
+  test('the hosted PNG parity helper bootstraps built-in families in a fresh process', () => {
+    const source = 'flowchart LR\n  A[Start 漢] --> B[Finish]'
+    const rendered = renderMermaidPNGWithReceipt(source, {
+      style: ['watercolor', 'paper'],
+      seed: 13,
+      padding: 19,
+      security: 'strict',
+      scale: 0.75,
+      background: '#123456',
+      fitTo: { width: 96 },
+      onWarning: () => {},
+    })
+    const response = {
+      result: {
+        content: [{
+          text: JSON.stringify({
+            ok: true,
+            png_base64: Buffer.from(rendered.png).toString('base64'),
+            receipt: rendered.receipt,
+            runtime: PNG_WASM_RUNTIME,
+            warnings: [{ code: 'PNG_FONT_COVERAGE', script: 'Han' }],
+          }),
+        }],
+      },
+    }
+    const result = spawnSync('bun', [
+      'run',
+      join(import.meta.dir, '..', '..', 'scripts', 'verify-hosted-png-e2e.ts'),
+    ], {
+      cwd: join(import.meta.dir, '..', '..'),
+      encoding: 'utf8',
+      input: JSON.stringify(response),
+    })
+
+    expect(result.status, result.stderr || result.stdout).toBe(0)
+    expect(result.stdout).toContain('ok   render_png enforces portable WASM parity (96x29, sRGB, receipt, runtime, font warning)')
   })
 
   test('MCP admission enforces the canonical fit and native-font shapes', () => {
