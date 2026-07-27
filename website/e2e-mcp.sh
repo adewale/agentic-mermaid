@@ -19,7 +19,18 @@ set -euo pipefail
 MCP="${1:-http://127.0.0.1:9095/mcp}"
 pass=0
 
+pace_request() {
+  # Production enables this fixed cadence so the exhaustive probe remains a
+  # legitimate client of the public WAF policy. Sleeping before the first
+  # request also leaves headroom for the smoke checks that immediately precede
+  # this script in the deployment workflow.
+  if [[ -n "${MCP_REQUEST_INTERVAL_SECONDS:-}" ]]; then
+    sleep "$MCP_REQUEST_INTERVAL_SECONDS"
+  fi
+}
+
 mcurl() {
+  pace_request
   if [[ -n "${MCP_WORKER_VERSION_ID:-}" ]]; then
     local worker_name="${MCP_WORKER_NAME:-agentic-mermaid-website}"
     curl -H "Cloudflare-Workers-Version-Overrides: ${worker_name}=\"${MCP_WORKER_VERSION_ID}\"" "$@"

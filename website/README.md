@@ -39,6 +39,8 @@ bun run website          # rebuild website/public + src/generated from website/s
 bun run website:check    # verify clean in-memory website + Worker artifact contracts
 bun run website:dev      # Wrangler dev server on port 9095
 bash website/e2e-mcp.sh  # end-to-end probe of /mcp against a running server
+# Against production, stay below the public WAF budget:
+MCP_REQUEST_INTERVAL_SECONDS=2 bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp
 ```
 
 Unit coverage: `src/__tests__/hosted-mcp.test.ts` (tool surface), `hosted-mcp-http.test.ts` (transport + caching), `hosted-execute-differential.test.ts` (hosted execute semantics pinned against the local vm sandbox).
