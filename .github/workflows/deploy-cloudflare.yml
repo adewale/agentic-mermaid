@@ -335,8 +335,11 @@ jobs:
         env:
           MCP_WORKER_NAME: agentic-mermaid-website
           MCP_WORKER_VERSION_ID: ${{ steps.candidate.outputs.candidate_id }}
+          MCP_REQUEST_INTERVAL_SECONDS: '2'
         # The exact gitSha poll above gates propagation. This no-retry probe then
         # asserts every tool, modern routing rule, and raw F3 transport body.
+        # Every request is paced to at most 30/minute: half the documented WAF
+        # budget, leaving rolling-window headroom for the preceding smoke test.
         run: bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp
 
       - name: Require target still current before promotion
