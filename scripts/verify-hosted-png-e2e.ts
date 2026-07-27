@@ -1,3 +1,7 @@
+// This standalone helper exercises the complete synchronous runtime. Keep the
+// graphical core registry-neutral for browser-lazy consumers and install the
+// built-in family resolver explicitly at this full-runtime entry point.
+import '../src/agent/families.ts'
 import { inspectPngColorProfile, inspectPngDimensions, OUTPUT_COLOR_PROFILE } from '../src/output-color-profile.ts'
 import { PNG_WASM_RUNTIME } from '../src/png-contract.ts'
 import { renderPortablePngGraphicalProjection } from '../src/png-graphical.ts'
