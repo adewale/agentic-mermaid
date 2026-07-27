@@ -53,6 +53,10 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   { id: 'install', label: 'Install locked dependencies', command: ['bun', 'install', '--frozen-lockfile'] },
   { id: 'dependency-audit', label: 'Reject high or critical dependency advisories', command: ['bun', 'run', 'audit:dependencies'] },
   { id: 'font-subsets', label: 'Regenerate and byte-verify canonical Inter subsets', command: ['bun', 'run', 'scripts/site/subset-website-inter-fonts.ts', '--check'] },
+  // This must precede website:check: the website demo intentionally performs
+  // a write-mode lazy build, which would otherwise repair stale committed
+  // catalog/descriptors before CI inspected them.
+  { id: 'browser-family-catalog', label: 'Verify the committed lazy browser family catalog', command: ['bun', 'run', 'check:browser-families'] },
   { id: 'website', label: 'Verify website and Worker artifacts', command: ['bun', 'run', 'website:check'] },
   { id: 'evidence', label: 'Check all generated evidence receipts and provenance', command: ['bun', 'run', 'evidence:check'] },
   { id: 'sketch', label: 'Run sketch prototype style checks', command: ['bun', 'run', 'sketch:check'] },

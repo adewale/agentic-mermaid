@@ -81,8 +81,8 @@ describe('deterministic website payload authority', () => {
     for (const [field, expected] of [
       ['requests', 'home: requests 10 exceeds 9'],
       ['rawBytes', 'home: rawBytes 682620 exceeds 682619'],
-      ['gzipBytes', 'home: gzipBytes 406568 exceeds 406567'],
-      ['brotliBytes', 'home: brotliBytes 388565 exceeds 388564'],
+      ['gzipBytes', 'home: gzipBytes 406567 exceeds 406566'],
+      ['brotliBytes', 'home: brotliBytes 387929 exceeds 387928'],
     ] as const) {
       const grown = structuredClone(report)
       grown.routes[0]!.totals[field]++
@@ -106,7 +106,8 @@ describe('deterministic website payload authority', () => {
     missingDemo.routes.find(route => route.id === 'demo')!.requests = []
     expect(verifyWebsitePayloadBudgets(missingDemo, WEBSITE_PAYLOAD_BUDGETS)).toEqual(expect.arrayContaining([
       'demo: missing required ^/demo/$',
-      'demo: missing required ^/demo/browser-[a-f0-9]{12}\\.js$',
+      'demo: missing required ^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
+      'demo: missing required ^/demo/browser-lazy/chunks/timeline-[A-Z0-9]{8}\\.js$',
       'demo: missing required ^/generated/inline-[a-f0-9]{12}\\.js$',
     ]))
   })

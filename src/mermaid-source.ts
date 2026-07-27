@@ -10,7 +10,8 @@
 // ============================================================================
 
 import YAML from 'yaml'
-import { detectRegisteredFamilyFromFirstLine, type FamilyId } from './agent/families.ts'
+import { detectInstalledFamilyFromFirstLine } from './agent/family-router.ts'
+import type { FamilyId } from './agent/types.ts'
 import {
   assertJsonConfigAdmission,
   assertJsonConfigSourceTextAdmission,
@@ -1074,7 +1075,7 @@ export function preprocessMermaidLines(text: string): string[] {
  * Returns null for headers that are known not to be routed by this renderer.
  */
 export function detectDiagramTypeFromFirstLine(firstLine: string): FamilyId | null {
-  return detectRegisteredFamilyFromFirstLine(firstLine, 'strict')
+  return detectInstalledFamilyFromFirstLine(firstLine, 'strict')
 }
 
 /**
@@ -1082,7 +1083,7 @@ export function detectDiagramTypeFromFirstLine(firstLine: string): FamilyId | nu
  * should become opaque round-trip bodies instead of UNKNOWN_HEADER errors.
  */
 export function detectLooseDiagramTypeFromFirstLine(firstLine: string): FamilyId | null {
-  return detectRegisteredFamilyFromFirstLine(firstLine, 'loose')
+  return detectInstalledFamilyFromFirstLine(firstLine, 'loose')
 }
 
 /**

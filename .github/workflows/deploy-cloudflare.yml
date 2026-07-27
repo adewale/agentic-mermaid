@@ -100,7 +100,7 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Build the published artifacts the site serves
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
-        # /demo/ serves the real dist/browser.global.js. Building explicitly
+        # /demo/ serves the real dist/browser-lazy graph. Building explicitly
         # prevents an ignored artifact left by an older checkout from leaking
         # into the deployment.
         run: bun run build

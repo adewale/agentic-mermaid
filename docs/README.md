@@ -15,7 +15,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`design/families/style-switch-contact-sheet.html`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/style-switch-contact-sheet.html) | Self-contained interactive contact sheet for every registered family and every built-in Look/Palette Style resource. |
 | [`custom-fonts.md`](./custom-fonts.md) | How custom Styles select and resolve fonts across SVG, PNG, browser, and MCP surfaces. |
 | [`react.md`](./react.md) | Zero-flash React rendering with CSS variables. |
-| [`browser.md`](./browser.md) | Static sites and browsers: build-time pre-rendering, and the prebuilt `<script src>` bundle. |
+| [`browser.md`](./browser.md) | Framework-neutral pre-rendering, Alpine and plain-JS adapters, the classic `<script src>` bundle, and the shipped lazy all-family browser renderer. |
 | [`ascii.md`](./ascii.md) | Terminal output, ASCII vs Unicode, color modes, XY charts. |
 | [`config.md`](./config.md) | `mermaidConfig`, YAML frontmatter, and init directives. |
 | [`features.md`](./features.md) | Capability inventory. |

@@ -45,7 +45,7 @@ import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
-  return familyConfigDiagnostics(d.kind, roots)
+  return familyConfigDiagnostics(d.kind, roots, getFamily(d.kind)?.config)
 }
 
 const KNOWN_SHAPES = new Set([

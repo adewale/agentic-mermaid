@@ -1,7 +1,7 @@
 {
   "name": "agentic-mermaid",
   "mcpName": "io.github.adewale/agentic-mermaid",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "description": "Agentic Mermaid: render, verify, and safely edit Mermaid diagrams as ASCII, PNG, SVG, or structured agent workflows — with composable styles (hand-drawn, excalidraw, watercolor, or your own as JSON).",
   "type": "module",
@@ -24,6 +24,11 @@
       "default": "./dist/agent-core.js"
     },
     "./browser": "./dist/browser.global.js",
+    "./browser/lazy": {
+      "types": "./dist/browser-lazy/index.d.ts",
+      "import": "./dist/browser-lazy/index.js",
+      "default": "./dist/browser-lazy/index.js"
+    },
     "./style-spec.schema.json": "./docs/schemas/style-spec.schema.json",
     "./package.json": "./package.json"
   },
@@ -102,7 +107,8 @@
     "LICENSES/",
     "THIRD_PARTY_NOTICES.md",
     "README.md",
-    "!dist/**/*.map"
+    "!dist/**/*.map",
+    "!dist/metafile-esm.json"
   ],
   "scripts": {
     "test": "bun test --coverage --timeout 30000 src/__tests__/",
@@ -121,8 +127,12 @@
     "benchmark:palette:check": "bun run eval/palette-performance/run.ts --check",
     "harvest:upstream": "bun run eval/mermaid-upstream-suite-bench/harvest.ts",
     "harvest:upstream:refresh-check": "bun run eval/mermaid-upstream-suite-bench/refresh-check.ts",
-    "build": "tsup && bun run build:browser",
+    "build": "tsup && bun run build:browser && bun run build:browser:lazy",
     "build:browser": "tsup --config tsup.browser.config.ts",
+    "build:browser:lazy": "bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts && bun run check:browser-lazy",
+    "check:browser-lazy": "bun run scripts/build/browser-lazy-report.ts",
+    "generate:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts",
+    "check:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts --check",
     "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
     "website": "bun run website/build.ts",
     "website:check": "bun run website/build.ts --check",

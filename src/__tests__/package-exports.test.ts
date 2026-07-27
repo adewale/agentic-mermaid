@@ -50,6 +50,7 @@ describe('package exports', () => {
       './agent',
       './agent/core',
       './browser',
+      './browser/lazy',
       './style-spec.schema.json',
       './package.json',
     ])
@@ -67,6 +68,14 @@ describe('package exports', () => {
     expect(packageJson.exports['./browser']).toBe(browserArtifact)
     expect(packageJson.unpkg).toBe(browserArtifact)
     expect(packageJson.jsdelivr).toBe(browserArtifact)
+  })
+
+  it('publishes the code-split async browser renderer as framework-neutral ESM', () => {
+    expect(packageJson.exports['./browser/lazy']).toEqual({
+      types: './dist/browser-lazy/index.d.ts',
+      import: './dist/browser-lazy/index.js',
+      default: './dist/browser-lazy/index.js',
+    })
   })
 
   it('TypeScript path aliases match the published import paths', () => {
@@ -87,6 +96,7 @@ describe('package exports', () => {
       'website/**/*.ts',
       'tsup.config.ts',
       'tsup.browser.config.ts',
+      'tsup.browser-lazy.config.ts',
     ])
     expect(repoTsconfig.exclude).toContain('eval/mermaid-upstream-suite-bench/upstream-*/**')
   })

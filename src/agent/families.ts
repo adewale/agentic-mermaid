@@ -47,6 +47,14 @@ import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import {
+  detectsFlowchartFamily,
+  detectsStateFamily,
+  detectsStateFamilyLoose,
+  installRegisteredFamilyByIdResolver,
+  installRegisteredFamilyResolver,
+  normalizeFamilyDetectionLine,
+} from './family-router.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
 
 export interface ExtractedLabel {
@@ -463,7 +471,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'], noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'padding', 'subGraphTitleMargin', 'titleTopMargin'] },
     aliases: ['swimlane'],
     semanticChannels: [],
-    detect: (line: string) => /^(?:flowchart|graph|swimlane)(?:\s|$)/.test(line),
+    detect: detectsFlowchartFamily,
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text')],
     example: 'flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]',
     editorExample: `flowchart TD
@@ -475,8 +483,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   { id: 'state', upstreamId: 'stateDiagram', maturity: 'stable', label: 'State', headers: ['stateDiagram', 'stateDiagram-v2'], narrower: 'asState', editorDiagramType: 'State', editorLabel: 'State diagram', editorDescription: 'Lifecycle using Mermaid stateDiagram-v2 syntax.', editorExampleId: 'state-basic', editorGlyph: 'S',
     config: { section: 'state', keys: ['arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin', 'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth', 'labelHeight', 'miniPadding', 'nodeSpacing', 'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin'] },
     semanticChannels: ['status'],
-    detect: (line: string) => /^statediagram(?:-v2)?\s*$/.test(line),
-    detectLoose: (line: string) => /^statediagram(?:-v2)?(?:\s|$)/.test(line),
+    detect: detectsStateFamily,
+    detectLoose: detectsStateFamilyLoose,
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
     example: 'stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve',
     editorExample: `stateDiagram-v2
@@ -1479,10 +1487,6 @@ export function knownBuiltinFamilies(): BuiltinFamilyId[] {
   return BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(seed => seed.id)
 }
 
-function normalizeDetectionLine(firstLine: string): string {
-  return (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-}
-
 /** A detector refines the grammar of a declared header; it does not create a
  * second, invisible header authority. The boundary rule admits Mermaid's
  * ordinary header arguments and gitGraph's colon form while preventing a
@@ -1502,7 +1506,7 @@ export function detectRegisteredFamilyDescriptorFromFirstLine(
   firstLine: string,
   mode: 'strict' | 'loose' = 'strict',
 ): FamilyDescriptor | null {
-  const line = normalizeDetectionLine(firstLine)
+  const line = normalizeFamilyDetectionLine(firstLine)
   const descriptors = Array.from(REGISTRY.values()).sort((a, b) =>
     b.collisionPriority - a.collisionPriority || compareCodePointStrings(a.id, b.id))
   for (const descriptor of descriptors) {
@@ -1519,6 +1523,9 @@ export function detectRegisteredFamilyDescriptorFromFirstLine(
 export function detectRegisteredFamilyFromFirstLine(firstLine: string, mode: 'strict' | 'loose' = 'strict'): FamilyId | null {
   return detectRegisteredFamilyDescriptorFromFirstLine(firstLine, mode)?.id ?? null
 }
+
+installRegisteredFamilyResolver(detectRegisteredFamilyDescriptorFromFirstLine)
+installRegisteredFamilyByIdResolver(getFamily)
 
 export type { FamilyId, ExternalFamilyId } from './types.ts'
 export type { ExtensionIdentity } from '../shared/extension-identity.ts'

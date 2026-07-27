@@ -62,13 +62,21 @@ const probes: Probe[] = [
   {
     name: 'known invalid family config values cannot disappear silently',
     file: 'src/shared/family-config-diagnostics.ts',
-    find: `export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
+    find: `export function familyConfigValueDiagnostics(
+  kind: DiagramKind,
+  root: unknown,
+  spec?: FamilyConfigContract,
+): ConfigDiagnostic[] {
   if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics`,
-    replace: `export function familyConfigValueDiagnostics(kind: DiagramKind, root: unknown): ConfigDiagnostic[] {
+    replace: `export function familyConfigValueDiagnostics(
+  kind: DiagramKind,
+  root: unknown,
+  spec?: FamilyConfigContract,
+): ConfigDiagnostic[] {
   return [] // injected fault: silently swallow invalid known values
   if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics`,
     test: ['src/__tests__/unknown-config-wire-or-warn.test.ts'],
-    failures: 14,
+    failures: 15,
   },
   {
     name: 'invalid XY reserved-space config is ignored rather than clamped into geometry',
@@ -111,8 +119,8 @@ const probes: Probe[] = [
   {
     name: 'SVG relation checks reject wrong ids with unchanged endpoints',
     file: 'src/renderer.ts',
-    find: '    parts.push(renderEdge(edge, style, `edge:${pairKey}#${k}`))',
-    replace: '    parts.push(renderEdge(edge, style, `fault:${pairKey}#${k}`))',
+    find: '    const sceneId = `edge:${pairKey}#${k}`',
+    replace: '    const sceneId = `fault:${pairKey}#${k}`',
     test: ['src/__tests__/svg-identity-contract.test.ts', '-t', 'enrolls every registered family'],
     failures: 1,
   },
@@ -165,8 +173,8 @@ const probes: Probe[] = [
   {
     name: 'XYChart raster output honors authored backgroundColor',
     file: 'src/agent/png.ts',
-    find: `    background: opts.background ?? familyBackground ?? 'white',`,
-    replace: `    background: opts.background ?? 'white', // injected fault: drop family background`,
+    find: `    background: graphical.rasterBackground,`,
+    replace: `    background: 'white', // injected fault: drop projected family background`,
     test: ['src/__tests__/xychart-renderer.test.ts', '-t', 'carries the authored background'],
     failures: 1,
   },

@@ -1,7 +1,5 @@
-import {
-  detectRegisteredFamilyDescriptorFromFirstLine,
-} from './agent/families.ts'
 import type { FamilyDescriptor } from './agent/families.ts'
+import { detectInstalledFamilyDescriptorFromFirstLine } from './agent/family-router.ts'
 import type {
   FamilyId,
   PreservedDiagramBody,
@@ -32,7 +30,7 @@ export function classifyMermaidFamilyDescriptorFromFirstLine(
   firstLine: string,
   mode: 'strict' | 'loose' = 'strict',
 ): MermaidFamilyDescriptorClassification {
-  const family = detectRegisteredFamilyDescriptorFromFirstLine(firstLine, mode)
+  const family = detectInstalledFamilyDescriptorFromFirstLine(firstLine, mode)
   if (family) return { kind: 'registered', family }
   const upstream = findUpstreamFamilyByHeader(firstLine)
   if (upstream) return { kind: 'upstream', match: upstream }
