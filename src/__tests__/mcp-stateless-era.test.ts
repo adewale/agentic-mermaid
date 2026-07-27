@@ -363,6 +363,26 @@ describe('transport: modern header/body validation', () => {
     expect(body.error.code).toBe(HEADER_MISMATCH)
   })
 
+  test('matching legacy header and modern-shaped body is unsupported, not a fabricated header mismatch', async () => {
+    const request = modern('tools/list')
+    ;((request.params as any)._meta as Record<string, unknown>)[META_PROTOCOL_VERSION] = '2025-11-25'
+    const { status, body } = await payload(await handler()(post(request, {
+      'mcp-protocol-version': '2025-11-25',
+      'mcp-method': 'tools/list',
+    })))
+    expect(status).toBe(400)
+    expect(body.error.code).toBe(UNSUPPORTED_PROTOCOL_VERSION)
+    expect(body.error.data).toEqual({ supported: [MODERN], requested: '2025-11-25' })
+  })
+
+  test('a legacy revision in modern metadata still reports a genuinely missing HTTP mirror', async () => {
+    const request = modern('tools/list')
+    ;((request.params as any)._meta as Record<string, unknown>)[META_PROTOCOL_VERSION] = '2025-11-25'
+    const { status, body } = await payload(await handler()(post(request, { 'mcp-method': 'tools/list' })))
+    expect(status).toBe(400)
+    expect(body.error.code).toBe(HEADER_MISMATCH)
+  })
+
   test.each([
     ['Mcp-Method missing', (h: Record<string, string>) => { const { 'mcp-method': _drop, ...rest } = h; return rest }],
     ['Mcp-Method mismatched', (h: Record<string, string>) => ({ ...h, 'mcp-method': 'tools/list' })],

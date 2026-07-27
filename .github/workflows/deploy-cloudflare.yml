@@ -6,17 +6,17 @@ name: Deploy website to Cloudflare
 # with wrangler.
 #
 # Gated on a successful CI or npm-publish run for the same commit on main, and
-# on the checked-out package version already existing on npm with a browser
-# bundle byte-identical to the one built from the validated commit. This keeps
+# on the checked-out package version already existing on npm with every browser
+# artifact byte-identical to the ones built from the validated commit. This keeps
 # the site's pinned CDN URL and its locally bundled artifact on one provenance.
 # Also runnable manually via workflow_dispatch after proving the same exact-SHA
 # canonical CI success as the automatic path.
 #
 # Requires two repository secrets to publish from GitHub: CLOUDFLARE_API_TOKEN
 # (a token with the Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
-# If either secret is absent, the workflow exits green with a warning instead of
-# making the repository's build status red. Add the secrets and rerun this
-# workflow; production deploys retain the same staging and rollback guardrails.
+# If either secret is absent, the workflow fails before checkout. A green deploy
+# workflow therefore means the production transaction actually reached its
+# guarded deployment path; missing credentials can no longer look like success.
 #
 # Note: /mcp is public, unauthenticated compute. Keep the DEC-2 WAF rate-limit
 # rule and DEC-3 worker_loaders binding (see TODO.md) provisioned before
@@ -63,17 +63,16 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Skipping Cloudflare deploy because CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID is not configured."
+            echo "::error title=Cloudflare credentials missing::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID is not configured."
             {
-              echo "### Cloudflare deploy skipped"
+              echo "### Cloudflare deploy failed"
               echo ""
               echo 'GitHub Actions is missing `CLOUDFLARE_API_TOKEN` and/or `CLOUDFLARE_ACCOUNT_ID`.'
               echo 'Add those repository secrets, then rerun this workflow or dispatch it manually so the staged probes, identity checks, and rollback guard all remain in force.'
             } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "available=true" >> "$GITHUB_OUTPUT"
+            exit 1
           fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: steps.cloudflare-secrets.outputs.available == 'true'
         with:
@@ -161,7 +160,7 @@ jobs:
         # into the deployment.
         run: bun run build
 
-      - name: Verify the published browser artifact is byte-identical
+      - name: Verify every published browser artifact is byte-identical
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
         run: |
           version="$(node -p "require('./package.json').version")"
@@ -169,16 +168,22 @@ jobs:
           mkdir -p "$artifact_dir"
           pack_json="$(npm pack "agentic-mermaid@$version" --ignore-scripts --json --pack-destination "$artifact_dir")"
           filename="$(jq -er '.[0].filename' <<<"$pack_json")"
-          published_browser="$RUNNER_TEMP/published-browser.global.js"
-          tar -xOf "$artifact_dir/$filename" package/dist/browser.global.js >"$published_browser"
+          published_root="$RUNNER_TEMP/published-package"
+          mkdir -p "$published_root"
+          tar -xf "$artifact_dir/$filename" -C "$published_root"
+          published_dist="$published_root/package/dist"
 
           local_sri="sha384-$(openssl dgst -sha384 -binary dist/browser.global.js | openssl base64 -A)"
-          published_sri="sha384-$(openssl dgst -sha384 -binary "$published_browser" | openssl base64 -A)"
-          if ! cmp -s dist/browser.global.js "$published_browser"; then
+          published_sri="sha384-$(openssl dgst -sha384 -binary "$published_dist/browser.global.js" | openssl base64 -A)"
+          if ! cmp -s dist/browser.global.js "$published_dist/browser.global.js"; then
             echo "::error title=Published browser artifact mismatch::HEAD builds $local_sri, but agentic-mermaid@$version serves $published_sri. Bump and publish the package before deploying this site."
             exit 1
           fi
-          echo "ok   local browser artifact is byte-identical to agentic-mermaid@$version ($local_sri)"
+          if ! diff --brief --recursive dist/browser-lazy "$published_dist/browser-lazy"; then
+            echo "::error title=Published lazy browser graph mismatch::The complete local dist/browser-lazy tree differs from agentic-mermaid@$version. Bump and publish the package before deploying this site."
+            exit 1
+          fi
+          echo "ok   global bundle and complete lazy graph are byte-identical to agentic-mermaid@$version ($local_sri)"
 
       - name: Build the site bundle
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'

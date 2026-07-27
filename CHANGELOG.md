@@ -4,6 +4,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.3.2 — 2026-07-27
+
 ### Added
 - Added MCP protocol revision `2025-11-25` — the *current* revision — to the hosted endpoint's supported list. It was previously rejected with HTTP 400, so any client pinning the current revision was locked out.
 - Added dual-era support for the `2026-07-28` stateless revision alongside the existing handshake-based clients: `server/discover`, per-request `_meta`, the `-32020`/`-32022` error codes, HTTP 404 for unknown modern methods, and `Mcp-Method`/`Mcp-Name` header validation.

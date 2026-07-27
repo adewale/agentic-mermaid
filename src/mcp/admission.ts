@@ -253,6 +253,29 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
     )
   }
 
+  // Presence of the per-request protocol field selects the modern wire era.
+  // A legacy revision copied into that field is not a valid modern context,
+  // even when an HTTP mirror carries the same value. Treat it as an
+  // unsupported era/version pair and advertise only revisions that can
+  // actually be retried with this body shape. HeaderMismatch is reserved for
+  // mirrors that genuinely disagree or are absent when required.
+  if (requestedEra === 'modern' && isLegacyProtocolVersion(declaredVersion)
+    && (!options.requireModernVersionHeader || options.headerVersion != null)) {
+    const modernSupportedVersions = supportedVersions.filter(isModernProtocolVersion)
+    return rejection(
+      'unsupported-version',
+      notification,
+      rpcError(
+        id,
+        UNSUPPORTED_PROTOCOL_VERSION,
+        `Unsupported protocol version: ${declaredVersion}`,
+        { supported: modernSupportedVersions, requested: declaredVersion },
+      ),
+      provisionalProtocol,
+      requestedEra,
+    )
+  }
+
   if (declaredVersion !== undefined && !supportedVersions.includes(declaredVersion)) {
     return rejection(
       'unsupported-version',

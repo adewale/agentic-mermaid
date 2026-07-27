@@ -29,13 +29,17 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { ProtocolEra } from './protocol-versions.ts'
-import { admitMcpMessage, type McpAdmissionResult } from './admission.ts'
+import { admitMcpMessage, type AdmittedMcpMessage, type McpAdmissionResult } from './admission.ts'
 
 export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
 export interface McpRequestContext {
   artifactStore?: ArtifactStore
   maxSandboxTimeoutMs?: number
+  /** Transport-owned cancellation. Tool handlers may cooperate with it; the
+   * stdio coordinator independently guarantees that an aborted call cannot
+   * emit a response. */
+  signal?: AbortSignal
 }
 
 export interface HttpMcpOptions {
@@ -245,6 +249,173 @@ function warmUpPngRenderer(): void {
   }
 }
 
+type StdioDispatch = (
+  message: AdmittedMcpMessage,
+  context: McpRequestContext,
+  surface: McpServerSurface<McpRequestContext>,
+) => Promise<JsonRpcResponse | null>
+
+export interface StdioMessageProcessor {
+  /** Accept one complete, non-empty newline-delimited JSON value. */
+  accept(line: string): void
+  /** Wait until admission and every dispatched request have settled. */
+  drain(): Promise<void>
+}
+
+function stdioCancellationTarget(value: unknown): number | string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const request = value as Record<string, unknown>
+  if (request.jsonrpc !== '2.0' || request.method !== 'notifications/cancelled'
+    || Object.prototype.hasOwnProperty.call(request, 'id')) return undefined
+  const params = request.params
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return undefined
+  const requestId = (params as Record<string, unknown>).requestId
+  return typeof requestId === 'string'
+    || (typeof requestId === 'number' && Number.isSafeInteger(requestId))
+    ? requestId
+    : undefined
+}
+
+function stdioRequestId(value: unknown): number | string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const request = value as Record<string, unknown>
+  if (request.jsonrpc !== '2.0' || typeof request.method !== 'string'
+    || !Object.prototype.hasOwnProperty.call(request, 'id')) return undefined
+  const requestId = request.id
+  return typeof requestId === 'string'
+    || (typeof requestId === 'number' && Number.isSafeInteger(requestId))
+    ? requestId
+    : undefined
+}
+
+function stdioRequestKey(id: number | string): string {
+  return `${typeof id}:${String(id)}`
+}
+
+/**
+ * Stateful stdio protocol coordinator.
+ *
+ * Admission is briefly serialized because initialize must commit its selected
+ * legacy revision before a following line is classified. Dispatch is not: once
+ * the era is known, independent requests run concurrently and cancellation
+ * notifications bypass admission/dispatch as connection-level control.
+ */
+export function createStdioMessageProcessor(
+  context: McpRequestContext,
+  write: (line: string) => void,
+  dispatch: StdioDispatch = dispatchAdmittedMcpRequest,
+): StdioMessageProcessor {
+  let negotiatedProtocolVersion: string | null = null
+  let negotiatedEra: ProtocolEra | null = null
+  let admissionGate = Promise.resolve()
+  const tasks = new Set<Promise<void>>()
+  const inFlight = new Map<string, Set<AbortController>>()
+
+  const register = (id: number | string | undefined, controller: AbortController): void => {
+    if (id === undefined) return
+    const key = stdioRequestKey(id)
+    const controllers = inFlight.get(key) ?? new Set<AbortController>()
+    controllers.add(controller)
+    inFlight.set(key, controllers)
+  }
+  const unregister = (id: number | string | undefined, controller: AbortController): void => {
+    if (id === undefined) return
+    const key = stdioRequestKey(id)
+    const controllers = inFlight.get(key)
+    controllers?.delete(controller)
+    if (controllers?.size === 0) inFlight.delete(key)
+  }
+  const emit = (response: JsonRpcResponse | null, exactIds: ExactJsonRpcId[], signal?: AbortSignal): void => {
+    if (response && !signal?.aborted) write(stringifyJsonRpc(response, exactIds) + '\n')
+  }
+
+  const accept = (line: string): void => {
+    let exact: { body: string; ids: ExactJsonRpcId[] }
+    let request: JsonRpcRequest
+    try {
+      exact = preserveExactJsonRpcIds(line)
+      request = JSON.parse(exact.body) as JsonRpcRequest
+    } catch (cause) {
+      write(JSON.stringify(error(null, -32700, `parse error: ${cause instanceof Error ? cause.message : String(cause)}`)) + '\n')
+      return
+    }
+
+    // Cancellation is a connection-level notification. It deliberately has no
+    // per-request modern metadata and must remain actionable after modern pinning.
+    const cancellationTarget = stdioCancellationTarget(request)
+    if (cancellationTarget !== undefined) {
+      for (const controller of inFlight.get(stdioRequestKey(cancellationTarget)) ?? []) controller.abort()
+      return
+    }
+
+    const requestId = stdioRequestId(request)
+    const controller = new AbortController()
+    register(requestId, controller)
+
+    // Keep only classification/era commitment behind the gate. A modern first
+    // request commits its era immediately; initialize stays in the gate until
+    // its response selects the legacy version, so later lines cannot race it.
+    const preparation = admissionGate.then(async () => {
+      const dispatchOptions: McpDispatchOptions = negotiatedEra === 'legacy'
+        ? { protocolEra: 'legacy', protocolVersion: negotiatedProtocolVersion, supportedVersions: negotiatedProtocolVersion ? [negotiatedProtocolVersion] : undefined }
+        : negotiatedEra === 'modern'
+          ? { protocolEra: 'modern', supportedVersions: STDIO_PROTOCOL_VERSIONS }
+          : {}
+      const admission = admitLocalRequest(request, dispatchOptions)
+
+      if (admission.ok && negotiatedEra === null && request.method === 'initialize') {
+        const response = controller.signal.aborted
+          ? null
+          : await dispatch(admission.message, { ...context, signal: controller.signal }, LOCAL_SURFACE)
+        if (!controller.signal.aborted && response?.result && typeof response.result === 'object') {
+          const selected = (response.result as { protocolVersion?: unknown }).protocolVersion
+          if (typeof selected === 'string' && (STDIO_PROTOCOL_VERSIONS as readonly string[]).includes(selected)) {
+            negotiatedProtocolVersion = selected
+            negotiatedEra = 'legacy'
+          }
+        }
+        emit(response, exact.ids, controller.signal)
+        return { handled: true as const, admission }
+      }
+
+      if (admission.ok && negotiatedEra === null && admission.message.protocol.era === 'modern') {
+        negotiatedEra = 'modern'
+      }
+      return { handled: false as const, admission }
+    })
+    admissionGate = preparation.then(() => undefined, () => undefined)
+
+    let task: Promise<void>
+    task = preparation.then(async prepared => {
+      if (prepared.handled) return
+      const response = prepared.admission.ok
+        ? controller.signal.aborted
+          ? null
+          : await dispatch(prepared.admission.message, { ...context, signal: controller.signal }, LOCAL_SURFACE)
+        : prepared.admission.response
+      emit(response, exact.ids, controller.signal)
+    }).catch(cause => {
+      emit(
+        error(requestId ?? null, -32603, `internal error: ${cause instanceof Error ? cause.message : String(cause)}`),
+        exact.ids,
+        controller.signal,
+      )
+    }).finally(() => {
+      unregister(requestId, controller)
+      tasks.delete(task)
+    })
+    tasks.add(task)
+  }
+
+  return {
+    accept,
+    async drain() {
+      await admissionGate
+      while (tasks.size > 0) await Promise.allSettled([...tasks])
+    },
+  }
+}
+
 export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; maxArtifactTotalBytes?: number; maxArtifacts?: number; artifactTtlMs?: number; maxSandboxTimeoutMs?: number } = {}): Promise<void> {
   warmUpPngRenderer()
   const artifactStore = createArtifactStore({
@@ -254,48 +425,12 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
     maxArtifacts: options.maxArtifacts,
     ttlMs: options.artifactTtlMs,
   })
+  const processor = createStdioMessageProcessor(
+    { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs },
+    line => process.stdout.write(line),
+  )
   process.stdin.setEncoding('utf8')
   let buf = ''
-  let negotiatedProtocolVersion: string | null = null
-  let negotiatedEra: ProtocolEra | null = null
-  // Serialize line handling so an initialize response commits its negotiated
-  // version before any later request is dispatched, even when Node delivers
-  // those lines in separate data events while the first handler is awaiting.
-  let pending = Promise.resolve()
-  const enqueue = (line: string) => {
-    pending = pending.then(async () => {
-      try {
-        const exact = preserveExactJsonRpcIds(line)
-        const request = JSON.parse(exact.body) as JsonRpcRequest
-        const dispatchOptions: McpDispatchOptions = negotiatedEra === 'legacy'
-          ? { protocolEra: 'legacy', protocolVersion: negotiatedProtocolVersion, supportedVersions: negotiatedProtocolVersion ? [negotiatedProtocolVersion] : undefined }
-          : negotiatedEra === 'modern'
-            ? { protocolEra: 'modern', supportedVersions: STDIO_PROTOCOL_VERSIONS }
-            : {}
-        const admission = admitLocalRequest(request, dispatchOptions)
-        const res = admission.ok
-          ? await dispatchAdmittedMcpRequest(
-            admission.message,
-            { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs },
-            LOCAL_SURFACE,
-          )
-          : admission.response
-        if (admission.ok && negotiatedEra === null && request.method === 'initialize' && res?.result && typeof res.result === 'object') {
-          const selected = (res.result as { protocolVersion?: unknown }).protocolVersion
-          if (typeof selected === 'string' && (STDIO_PROTOCOL_VERSIONS as readonly string[]).includes(selected)) {
-            negotiatedProtocolVersion = selected
-            negotiatedEra = 'legacy'
-          }
-        }
-        if (admission.ok && negotiatedEra === null && admission.message.protocol.era === 'modern') {
-          negotiatedEra = 'modern'
-        }
-        if (res) process.stdout.write(stringifyJsonRpc(res, exact.ids) + '\n')
-      } catch (e) {
-        process.stdout.write(JSON.stringify(error(null, -32700, `parse error: ${(e as Error).message}`)) + '\n')
-      }
-    })
-  }
   process.stdin.on('data', (chunk: string) => {
     buf += chunk
     let nl: number
@@ -303,7 +438,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       const line = buf.slice(0, nl).trim()
       buf = buf.slice(nl + 1)
       if (!line) continue
-      enqueue(line)
+      processor.accept(line)
     }
   })
   try {
@@ -311,7 +446,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
       process.stdin.on('end', () => resolve())
       process.stdin.on('close', () => resolve())
     })
-    await pending
+    await processor.drain()
   } finally {
     artifactStore.close()
   }

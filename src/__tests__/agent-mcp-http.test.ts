@@ -409,6 +409,14 @@ describe('local server: per-transport protocol versions', () => {
     expect((response?.result as { resultType?: string }).resultType).toBe('complete')
   })
 
+  test('stdio rejects a legacy revision carried in modern per-request metadata with -32022', async () => {
+    const request = modern('tools/list')
+    ;((request.params as any)._meta as Record<string, unknown>)['io.modelcontextprotocol/protocolVersion'] = '2025-11-25'
+    const response = await handleRequest(request)
+    expect(response?.error?.code).toBe(-32022)
+    expect(response?.error?.data).toEqual({ supported: ['2026-07-28'], requested: '2025-11-25' })
+  })
+
   test('a stdio process pinned by initialize cannot switch to modern result shapes', async () => {
     const response = await handleRequest(modern('tools/list'), {}, {
       protocolEra: 'legacy',
