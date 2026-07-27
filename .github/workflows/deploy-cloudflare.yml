@@ -9,7 +9,8 @@ name: Deploy website to Cloudflare
 # on the checked-out package version already existing on npm with a browser
 # bundle byte-identical to the one built from the validated commit. This keeps
 # the site's pinned CDN URL and its locally bundled artifact on one provenance.
-# Also runnable manually via workflow_dispatch.
+# Also runnable manually via workflow_dispatch after proving the same exact-SHA
+# canonical CI success as the automatic path.
 #
 # Requires two repository secrets to publish from GitHub: CLOUDFLARE_API_TOKEN
 # (a token with the Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
@@ -49,6 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
+      actions: read
       contents: read
     env:
       WRANGLER_SEND_METRICS: 'false'
@@ -93,6 +95,30 @@ jobs:
             echo "::error title=Stale deployment trigger::Refusing to deploy $EXPECTED_SHA because current main is $main_tip."
             exit 1
           fi
+
+      - name: Require successful canonical CI for a manual deployment
+        if: github.event_name == 'workflow_dispatch' && steps.cloudflare-secrets.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          runs="$(gh api -X GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f head_sha="$EXPECTED_SHA" \
+            -f branch=main \
+            -f event=push \
+            -f status=success \
+            -f per_page=100)"
+          if ! jq -e --arg sha "$EXPECTED_SHA" '
+            any(.workflow_runs[];
+              .head_sha == $sha
+              and .head_branch == "main"
+              and .event == "push"
+              and .conclusion == "success")
+          ' <<<"$runs" >/dev/null; then
+            echo "::error title=Canonical CI proof missing::No successful CI push run exists for manual deployment commit $EXPECTED_SHA on main."
+            exit 1
+          fi
+          echo "ok   canonical CI passed for manual deployment commit $EXPECTED_SHA"
 
       - name: Setup Bun
         if: steps.cloudflare-secrets.outputs.available == 'true'
