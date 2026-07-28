@@ -75,8 +75,10 @@ export interface HostedMcpContext {
   renderPng?(source: string, opts: RenderOptions & import('../png-contract.ts').PortablePngOutputOptions): Promise<PngRasterResult>
 }
 
-// Streamable HTTP clients negotiate 2025-03-26+; the node transports pin
-// 2024-11-05. Echo whichever supported version the client offers.
+// Streamable HTTP begins at 2025-03-26. The 2024-11-05 revision belongs to the
+// separate local HTTP+SSE transport and must not be advertised by this hosted
+// POST-only endpoint. Echo whichever supported Streamable revision the client
+// offers.
 //
 // Dual-era: 2026-07-28 is the stateless revision (no initialize, no ping,
 // server/discover mandatory); everything before it is handshake-based. We serve
@@ -86,7 +88,7 @@ export interface HostedMcpContext {
 //
 // This constant is the SINGLE authority for the accepted set. The published
 // discovery document (website/build.ts) derives from it; nothing restates it.
-export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28']
+export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28']
 
 // Hosted server identity, distinct from the local stdio server's
 // MCP_SERVER_NAME: registries and clients cache tool lists by server identity,

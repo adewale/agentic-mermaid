@@ -1,0 +1,18 @@
+# The official harness exposes these checks through diagnostic fixtures that
+# are intentionally not part of agentic-mermaid's product surface. Entries are
+# scenario-qualified so any additional failure remains fatal, and an upstream
+# harness improvement that skips inapplicable checks turns into a stale-baseline
+# failure that must be reviewed.
+server:
+  # This tools-only server does not implement optional prompts/resources RPCs.
+  - caching:sep-2549-prompts-list-caching-hints
+  - caching:sep-2549-resources-list-caching-hints
+  - caching:sep-2549-resources-templates-list-caching-hints
+
+  # These checks require conformance-only tools named test_missing_capability,
+  # test_streaming_elicitation, and test_logging_tool. Shipping those fixtures
+  # would expand and misrepresent the public tool surface.
+  - server-stateless:sep-2575-server-rejects-undeclared-capability
+  - server-stateless:sep-2575-missing-capability-http-400
+  - server-stateless:sep-2575-http-server-no-independent-requests-on-stream
+  - server-stateless:sep-2575-server-no-log-without-loglevel

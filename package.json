@@ -168,6 +168,7 @@
     "lint:contracts": "bun test src/__tests__/agent-substrate-lint.test.ts src/__tests__/test-quality-lint.test.ts",
     "eval:agent-live": "bun run eval/agent-usage/live.ts",
     "eval:agent-subagent": "bun run eval/agent-usage/capture-subagent-prompt-eval.ts",
+    "eval:mcp-conformance": "bun run scripts/ci/mcp-conformance.ts",
     "eval:degenerate-routes": "bun run eval/degenerate-etn/enumerate.ts",
     "rubric:visual": "bun run eval/visual-rubric/run.ts",
     "contact:sheet": "bun run eval/visual-rubric/contact-sheet.ts",

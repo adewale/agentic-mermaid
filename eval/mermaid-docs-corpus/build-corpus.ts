@@ -1,8 +1,9 @@
-// Mine mermaid-js source docs for example diagrams across supported docs
-// families. Output: eval/mermaid-docs-corpus/corpus.json — a curated set
+// Mine mermaid-js source docs for the original twelve-family docs corpus.
+// Output: eval/mermaid-docs-corpus/corpus.json — a curated set
 // of (family, source) pairs we can run through parse → verify → round-trip.
-// The committed corpus was fully regenerated from upstream docs on
-// 2026-06-16 and includes every registered renderable built-in family.
+// Newer registered families are covered by the companion corpora named in the
+// README; claiming this historical corpus alone is exhaustive would hide its
+// large family imbalance and later enrollment boundary.
 //
 // Run with: bun run eval/mermaid-docs-corpus/build-corpus.ts <path-to-mermaid-clone>
 //
@@ -10,6 +11,10 @@
 
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
+
+export const UPSTREAM_REPOSITORY = 'https://github.com/mermaid-js/mermaid'
+export const UPSTREAM_REVISION = 'a2d9686451df7c4644a3eeca20535bbd4c5776b0'
 
 const FILE_TO_FAMILY: Record<string, string> = {
   'flowchart.md': 'flowchart',
@@ -35,6 +40,14 @@ export interface CorpusEntry {
   source: string
   origin: string
   index: number
+}
+
+function checkoutRevision(mermaidRepo: string): string {
+  try {
+    return execFileSync('git', ['-C', mermaidRepo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+  } catch {
+    throw new Error(`cannot read upstream git revision from ${mermaidRepo}`)
+  }
 }
 
 export function buildCorpus(mermaidRepo: string): CorpusEntry[] {
@@ -63,11 +76,30 @@ if (import.meta.main) {
     console.error('Clone with: git clone --depth 1 https://github.com/mermaid-js/mermaid /tmp/mermaid')
     process.exit(1)
   }
+  const revision = checkoutRevision(repo)
+  if (revision !== UPSTREAM_REVISION) {
+    console.error(`wrong Mermaid revision: expected ${UPSTREAM_REVISION}, got ${revision}`)
+    console.error(`Run: git -C ${repo} checkout ${UPSTREAM_REVISION}`)
+    process.exit(1)
+  }
   const corpus = buildCorpus(repo)
   const out = join(import.meta.dir, 'corpus.json')
   writeFileSync(out, JSON.stringify(corpus, null, 2))
   const byFamily: Record<string, number> = {}
   for (const e of corpus) byFamily[e.family] = (byFamily[e.family] || 0) + 1
+  writeFileSync(join(import.meta.dir, 'provenance.json'), JSON.stringify({
+    schemaVersion: 1,
+    upstream: { repository: UPSTREAM_REPOSITORY, revision },
+    scope: 'Original twelve-family Mermaid syntax-document corpus; not the complete registered-family inventory.',
+    entries: corpus.length,
+    familyCounts: Object.fromEntries(Object.entries(byFamily).sort()),
+    companions: [
+      'eval/mermaid-upstream-suite-bench',
+      'eval/mindmap-gitgraph-content-corpus',
+      'eval/mermaid-radar-bench',
+      'eval/mermaid-doc-showcase',
+    ],
+  }, null, 2) + '\n')
   console.log(`Wrote ${corpus.length} examples to ${out}`)
   for (const [f, n] of Object.entries(byFamily).sort()) console.log(`  ${f}: ${n}`)
 }

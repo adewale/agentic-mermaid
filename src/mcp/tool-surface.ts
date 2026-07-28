@@ -89,7 +89,10 @@ export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
 export const MCP_SERVER_VERSION = PACKAGE_VERSION
-const SERVER_CAPABILITIES = { tools: {}, prompts: {}, resources: {} } as const
+// The product surface is tools-only. Advertising an empty prompt/resource
+// namespace makes clients probe methods we do not implement and overstates the
+// server's scope; optional MCP features must be claimed only when complete.
+const SERVER_CAPABILITIES = { tools: {} } as const
 export const PURE_COMPUTE_ANNOTATIONS = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -379,11 +382,11 @@ export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Cont
 }
 
 /** server/discover is the modern replacement for initialize. Its version list
- * is deliberately modern-only: legacy revisions are negotiated by initialize
- * and do not belong in this method's stateless contract. */
+ * reports every revision this exact surface/transport accepts, including
+ * legacy revisions a dual-era client may select for its next request. */
 function discoverResult<Context>(surface: McpServerSurface<Context>, supportedVersions: readonly string[]) {
   return {
-    supportedVersions: supportedVersions.filter(isModernProtocolVersion),
+    supportedVersions: [...supportedVersions],
     capabilities: SERVER_CAPABILITIES,
     instructions: surface.instructions,
   }
@@ -485,8 +488,6 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       response = await surface.handleToolCall(id, { ...req.params, arguments: args }, context)
       break
     }
-    case 'prompts/list': response = reply(id, { prompts: [] }); break
-    case 'resources/list': response = reply(id, { resources: [] }); break
     default: response = unknownMethod(id, req.method)
   }
   return notification ? null : decorateMcpResult(response, req.method, era, surface.serverName ?? MCP_SERVER_NAME)
@@ -502,7 +503,7 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
 export const LIST_RESULT_TTL_MS = 300_000
 
 /** The operations the spec requires caching hints on, intersected with ours. */
-const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list', 'prompts/list', 'resources/list'])
+const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list'])
 
 /**
  * Result fields this revision requires, applied on the MODERN path only.

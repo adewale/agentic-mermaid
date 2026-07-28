@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "protocolRevision": "2026-07-28",
+    "source": "MCP specification plus @modelcontextprotocol/conformance@0.2.0-alpha.10 server-stateless and http-header-validation scenarios",
+    "design": "Each negative case changes one protocol field or transport mirror from a conforming request. Expected outcomes are committed independently of the implementation."
+  },
+  "cases": [
+    {
+      "name": "missing-meta",
+      "mutation": "Remove params._meta",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/list" },
+      "body": { "jsonrpc": "2.0", "id": 101, "method": "tools/list", "params": {} },
+      "expected": { "status": 400, "id": 101, "errorCode": -32602 }
+    },
+    {
+      "name": "missing-protocol-version",
+      "mutation": "Remove io.modelcontextprotocol/protocolVersion from _meta",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/list" },
+      "body": { "jsonrpc": "2.0", "id": 102, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 400, "id": 102, "errorCode": -32602 }
+    },
+    {
+      "name": "missing-client-capabilities",
+      "mutation": "Remove io.modelcontextprotocol/clientCapabilities from _meta",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/list" },
+      "body": { "jsonrpc": "2.0", "id": 103, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28" } } },
+      "expected": { "status": 400, "id": 103, "errorCode": -32602 }
+    },
+    {
+      "name": "mismatched-protocol-header",
+      "mutation": "Change MCP-Protocol-Version without changing _meta",
+      "headers": { "mcp-protocol-version": "2025-11-25", "mcp-method": "tools/list" },
+      "body": { "jsonrpc": "2.0", "id": 104, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 400, "id": 104, "errorCode": -32020 }
+    },
+    {
+      "name": "missing-protocol-header",
+      "mutation": "Remove MCP-Protocol-Version from a modern request",
+      "headers": { "mcp-method": "tools/list" },
+      "body": { "jsonrpc": "2.0", "id": 105, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 400, "id": 105, "errorCode": -32020 }
+    },
+    {
+      "name": "missing-method-header",
+      "mutation": "Remove Mcp-Method from a modern request",
+      "headers": { "mcp-protocol-version": "2026-07-28" },
+      "body": { "jsonrpc": "2.0", "id": 106, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 400, "id": 106, "errorCode": -32020 }
+    },
+    {
+      "name": "missing-name-header",
+      "mutation": "Remove Mcp-Name from tools/call",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/call" },
+      "body": { "jsonrpc": "2.0", "id": 107, "method": "tools/call", "params": { "name": "verify", "arguments": { "source": "flowchart TD\n  A --> B" }, "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 400, "id": 107, "errorCode": -32020 }
+    },
+    {
+      "name": "unsupported-version-correlates-id",
+      "mutation": "Replace MCP-Protocol-Version with an unsupported revision",
+      "headers": { "mcp-protocol-version": "2099-01-01", "mcp-method": "tools/list" },
+      "body": { "jsonrpc": "2.0", "id": 108, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 400, "id": 108, "errorCode": -32022, "errorData": { "supported": ["2025-03-26", "2025-06-18", "2025-11-25", "2026-07-28"], "requested": "2099-01-01" } }
+    },
+    {
+      "name": "hosted-rejects-pre-streamable-http-revision",
+      "mutation": "Use the 2024-11-05 HTTP+SSE revision on the hosted Streamable HTTP endpoint",
+      "headers": { "mcp-protocol-version": "2024-11-05" },
+      "body": { "jsonrpc": "2.0", "id": 113, "method": "tools/list" },
+      "expected": { "status": 400, "id": 113, "errorCode": -32022, "errorData": { "supported": ["2025-03-26", "2025-06-18", "2025-11-25", "2026-07-28"], "requested": "2024-11-05" } }
+    },
+    {
+      "name": "modern-batch-rejected",
+      "mutation": "Wrap two conforming requests in a JSON-RPC batch",
+      "headers": { "mcp-protocol-version": "2026-07-28" },
+      "body": [
+        { "jsonrpc": "2.0", "id": 109, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+        { "jsonrpc": "2.0", "id": 110, "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } }
+      ],
+      "expected": { "status": 400, "id": null, "errorCode": -32600 }
+    },
+    {
+      "name": "malformed-modern-notification-is-silent",
+      "mutation": "Remove clientCapabilities and id from a modern request",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/list" },
+      "body": { "jsonrpc": "2.0", "method": "tools/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28" } } },
+      "expected": { "status": 400, "emptyBody": true }
+    },
+    {
+      "name": "legacy-positive-control",
+      "mutation": "Use the pre-stateless request shape with no modern transport headers",
+      "headers": {},
+      "body": { "jsonrpc": "2.0", "id": 111, "method": "tools/list" },
+      "expected": { "status": 200, "id": 111, "hasResult": true }
+    },
+    {
+      "name": "unadvertised-resource-templates",
+      "mutation": "Probe an optional method omitted from discovery capabilities",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/templates/list" },
+      "body": { "jsonrpc": "2.0", "id": 112, "method": "resources/templates/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 404, "id": 112, "errorCode": -32601 }
+    }
+  ]
+}

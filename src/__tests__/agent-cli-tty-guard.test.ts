@@ -40,30 +40,24 @@ describe('TTY-stdin guard', () => {
     expect(r.err).toContain('needs a file argument or piped stdin')
   })
 
-  test('non-TTY stdin (pipe) is allowed through', () => {
-    // We don't need to verify the actual read — just that the TTY guard
-    // doesn't fire. We allow the call to proceed; the actual file read
-    // happens on fd 0 which is fine under the test runner.
-    const r = withTty(false, () => {
-      // Wrap in try because the actual stdin under bun:test is not a real
-      // pipe and may error or hang; we just need to confirm the guard
-      // doesn't throw the "needs a file argument" message immediately.
-      const chunks: string[] = []
-      const errChunks: string[] = []
-      const origOut = process.stdout.write.bind(process.stdout)
-      const origErr = process.stderr.write.bind(process.stderr)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(process.stdout as any).write = (s: string) => { chunks.push(s); return true }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(process.stderr as any).write = (s: string) => { errChunks.push(s); return true }
-      try {
-        const code = runCli(['render', '-'])
-        return { code, err: errChunks.join('') }
-      } finally {
-        (process.stdout as any).write = origOut
-        ;(process.stderr as any).write = origErr
-      }
-    })
-    expect(r.err).not.toContain('needs a file argument')
+  test('non-TTY stdin (pipe) is consumed end-to-end', async () => {
+    // A subprocess gives fd 0 a real, bounded pipe. Calling readFileSync(0)
+    // inside bun:test can inherit the runner's open stdin and hang forever.
+    const proc = Bun.spawn(
+      [process.execPath, 'src/cli/am-bin.ts', 'render', '--format', 'ascii', '-'],
+      { cwd: process.cwd(), stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' },
+    )
+    proc.stdin.write('flowchart LR\n  A --> B\n')
+    await proc.stdin.end()
+
+    const [code, out, err] = await Promise.all([
+      proc.exited,
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ])
+    expect(code).toBe(0)
+    expect(out).toContain('A')
+    expect(out).toContain('B')
+    expect(err).not.toContain('needs a file argument')
   })
 })

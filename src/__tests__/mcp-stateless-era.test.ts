@@ -135,10 +135,10 @@ describe('server/discover', () => {
   test('reports the supported versions, identity, capabilities, and instructions', async () => {
     const response = await handleHostedRequest(modern('server/discover'), context())
     const result = response?.result as any
-    expect(result.supportedVersions).toEqual([MODERN])
+    expect(result.supportedVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
     expect(result.serverInfo).toBeUndefined()
     expect(result._meta[META_SERVER_INFO]).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
-    expect(result.capabilities).toEqual({ tools: {}, prompts: {}, resources: {} })
+    expect(result.capabilities).toEqual({ tools: {} })
     expect(typeof result.instructions).toBe('string')
   })
 
@@ -350,10 +350,10 @@ describe('transport: modern header/body validation', () => {
     expect(body.error.code).toBe(HEADER_MISMATCH)
   })
 
-  test('a modern header with no _meta is rejected rather than silently served as legacy', async () => {
+  test('a modern header with no _meta is invalid params rather than a fabricated transport mismatch', async () => {
     const { status, body } = await payload(await handler()(post(legacy('initialize'), { 'mcp-protocol-version': MODERN, 'mcp-method': 'initialize' })))
     expect(status).toBe(400)
-    expect(body.error.code).toBe(HEADER_MISMATCH)
+    expect(body.error.code).toBe(-32602)
     expect(body.error.message).toContain(META_PROTOCOL_VERSION)
   })
 
@@ -375,12 +375,12 @@ describe('transport: modern header/body validation', () => {
     expect(body.error.data).toEqual({ supported: [MODERN], requested: '2025-11-25' })
   })
 
-  test('a legacy revision in modern metadata still reports a genuinely missing HTTP mirror', async () => {
+  test('a legacy revision in modern metadata is invalid before checking its HTTP mirror', async () => {
     const request = modern('tools/list')
     ;((request.params as any)._meta as Record<string, unknown>)[META_PROTOCOL_VERSION] = '2025-11-25'
     const { status, body } = await payload(await handler()(post(request, { 'mcp-method': 'tools/list' })))
     expect(status).toBe(400)
-    expect(body.error.code).toBe(HEADER_MISMATCH)
+    expect(body.error.code).toBe(-32602)
   })
 
   test.each([
@@ -551,7 +551,7 @@ describe('modern results carry the fields this revision requires', () => {
     expect(result._meta[META_SERVER_INFO]).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
   })
 
-  test.each(['tools/list', 'prompts/list', 'resources/list', 'server/discover'])('%s carries public caching hints in the modern era', async method => {
+  test.each(['tools/list', 'server/discover'])('%s carries public caching hints in the modern era', async method => {
     const response = await handleHostedRequest(modern(method), context())
     const result = response?.result as { ttlMs?: number; cacheScope?: string }
     // "Servers MUST provide a ttlMs value that is >= 0."
@@ -561,10 +561,18 @@ describe('modern results carry the fields this revision requires', () => {
     expect(result.cacheScope).toBe('public')
   })
 
-  test.each(['tools/list', 'prompts/list', 'resources/list'])('%s carries no caching hints in the legacy era', async method => {
+  test('tools/list carries no caching hints in the legacy era', async () => {
+    const method = 'tools/list'
     const result = (await handleHostedRequest(legacy(method), context()))?.result as Record<string, unknown>
     expect(result.ttlMs).toBeUndefined()
     expect(result.cacheScope).toBeUndefined()
+  })
+
+  test.each(['prompts/list', 'resources/list', 'resources/templates/list'])('%s is unadvertised and unimplemented', async method => {
+    const modernResponse = await handleHostedRequest(modern(method), context())
+    const legacyResponse = await handleHostedRequest(legacy(method), context())
+    expect(modernResponse?.error?.code).toBe(-32601)
+    expect(legacyResponse?.error?.code).toBe(-32601)
   })
 
   // The spec lists exactly which operations get hints; tools/call is not one of

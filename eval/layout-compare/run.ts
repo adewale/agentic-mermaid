@@ -102,6 +102,22 @@ export interface Comparison {
   after: SampleResult | undefined
 }
 
+export interface FamilyComparisonSummary {
+  family: string
+  samples: number
+  adverse: number
+  adverseRate: number
+  counts: Record<Verdict, number>
+}
+
+export interface FamilyBalancedSummary {
+  families: FamilyComparisonSummary[]
+  /** Every family contributes equally, regardless of corpus size. */
+  macroAdverseRate: number
+  /** Every sample contributes equally; retained to expose corpus skew. */
+  microAdverseRate: number
+}
+
 const LEGIBILITY_EPS = 0.01
 
 export function compareSample(before: SampleResult | undefined, after: SampleResult | undefined): Comparison {
@@ -167,11 +183,39 @@ export function compareSnapshots(before: Snapshot, after: Snapshot): Comparison[
   return [...ids].map(id => compareSample(byId.get(id), afterById.get(id)))
 }
 
+/** Report both sample-weighted and family-weighted outcomes. The docs corpus is
+ * intentionally source-faithful rather than balanced (flowchart has far more
+ * examples than journey/pie), so raw totals alone can conceal a complete
+ * regression in a small family. */
+export function summarizeComparisonsByFamily(comparisons: readonly Comparison[]): FamilyBalancedSummary {
+  const byFamily = new Map<string, Comparison[]>()
+  for (const comparison of comparisons) {
+    const rows = byFamily.get(comparison.family) ?? []
+    rows.push(comparison)
+    byFamily.set(comparison.family, rows)
+  }
+  const verdicts: readonly Verdict[] = ['status-changed', 'regression', 'improvement', 'changed', 'unchanged']
+  const families = [...byFamily.entries()]
+    .sort(([a], [b]) => compareCodePointStrings(a, b))
+    .map(([family, rows]) => {
+      const counts = Object.fromEntries(verdicts.map(verdict => [verdict, rows.filter(row => row.verdict === verdict).length])) as Record<Verdict, number>
+      const adverse = counts['status-changed'] + counts.regression
+      return { family, samples: rows.length, adverse, adverseRate: adverse / rows.length, counts }
+    })
+  const totalAdverse = families.reduce((sum, family) => sum + family.adverse, 0)
+  return {
+    families,
+    macroAdverseRate: families.length === 0 ? 0 : families.reduce((sum, family) => sum + family.adverseRate, 0) / families.length,
+    microAdverseRate: comparisons.length === 0 ? 0 : totalAdverse / comparisons.length,
+  }
+}
+
 const VERDICT_ORDER: Record<Verdict, number> = { 'status-changed': 0, regression: 1, improvement: 2, changed: 3, unchanged: 4 }
 
 export function buildReportHtml(before: Snapshot, after: Snapshot): string {
   const comparisons = compareSnapshots(before, after).sort((a, b) =>
     VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict] || compareCodePointStrings(a.id, b.id))
+  const balanced = summarizeComparisonsByFamily(comparisons)
   const counts = new Map<Verdict, number>()
   for (const c of comparisons) counts.set(c.verdict, (counts.get(c.verdict) ?? 0) + 1)
 
@@ -200,6 +244,13 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
   const summary = (['status-changed', 'regression', 'improvement', 'changed', 'unchanged'] as Verdict[])
     .map(v => `<li><strong>${counts.get(v) ?? 0}</strong> ${v}</li>`).join('')
 
+  const familyRows = balanced.families.map(family => `<tr>
+    <td>${esc(family.family)}</td><td>${family.samples}</td>
+    <td>${family.counts['status-changed']}</td><td>${family.counts.regression}</td>
+    <td>${family.counts.improvement}</td><td>${family.counts.changed}</td><td>${family.counts.unchanged}</td>
+    <td>${(family.adverseRate * 100).toFixed(1)}%</td>
+  </tr>`).join('')
+
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>Layout comparison: ${esc(before.label)} → ${esc(after.label)}</title>
 <style>
@@ -219,12 +270,20 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
   .improvement .badge { background: #e3f7ef; }
   .family { font-size: 12px; color: #777; }
   .notes { color: #444; font-size: 13px; }
+  table { border-collapse: collapse; background: #fff; }
+  th, td { border: 1px solid #ddd; padding: 5px 8px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
 </style></head>
 <body>
 <h1>Layout comparison</h1>
 <p><strong>${esc(before.label)}</strong> (${esc(before.rev)}, ${esc(before.createdAt)}) →
    <strong>${esc(after.label)}</strong> (${esc(after.rev)}, ${esc(after.createdAt)})</p>
 <ul>${summary}</ul>
+<p><strong>Family-balanced adverse rate:</strong> ${(balanced.macroAdverseRate * 100).toFixed(1)}%
+   (sample-weighted: ${(balanced.microAdverseRate * 100).toFixed(1)}%).</p>
+<details open><summary>Per-family outcomes</summary>
+<table><thead><tr><th>family</th><th>samples</th><th>status</th><th>regressions</th><th>improvements</th><th>changed</th><th>unchanged</th><th>adverse</th></tr></thead>
+<tbody>${familyRows}</tbody></table></details>
 <p>Unchanged samples are hidden. Verdicts: metric deltas use measureQuality
 (edge crossings, label legibility) plus node/edge-count faithfulness;
 "changed" means bytes differ with no metric movement.</p>

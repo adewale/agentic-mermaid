@@ -383,10 +383,13 @@ describe('local server: per-transport protocol versions', () => {
     } },
   })
 
-  test('stdio discovery advertises the modern revisions it implements', async () => {
+  test('stdio discovery advertises every revision this transport accepts', async () => {
     const response = await handleRequest(modern('server/discover'))
     expect((response?.result as { supportedVersions: string[] }).supportedVersions)
-      .toEqual(['2026-07-28'])
+      .toEqual([...STDIO_PROTOCOL_VERSIONS])
+    // 2025-03-26 receivers must accept JSON-RPC batches. This newline-delimited
+    // stdio transport does not, so claiming that revision would be dishonest.
+    expect(STDIO_PROTOCOL_VERSIONS).not.toContain('2025-03-26')
   })
 
   test('HTTP+SSE does not expose modern discovery on its legacy transport', async () => {
