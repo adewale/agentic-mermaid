@@ -7,10 +7,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 9,
     maxRawBytes: 682_619,
     maxGzipBytes: 406_567,
-    // Re-recorded exactly for 0.3.2. The raw total is unchanged; the same-length
+    // Re-recorded exactly for 0.3.3. The raw total is unchanged; the same-length
     // projected version string slightly changes compression. These ceilings
     // intentionally match the checked-in payload capture for this toolchain.
-    maxBrotliBytes: 388_069,
+    maxBrotliBytes: 388_020,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -21,10 +21,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   examples: Object.freeze({
     maxRequests: 6,
     maxRawBytes: 380_391,
-    maxGzipBytes: 66_937,
-    // The 0.3.2 release identity changes only compressed back-references on
-    // this route; raw and gzip totals remain byte-for-byte at their ratchets.
-    maxBrotliBytes: 53_189,
+    maxGzipBytes: 66_939,
+    // The 0.3.3 release identity changes only compressed back-references on
+    // this route; the raw total remains byte-for-byte at its ratchet.
+    maxBrotliBytes: 53_148,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -37,8 +37,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     maxRequests: 30,
     maxRawBytes: 718_098,
-    maxGzipBytes: 269_733,
-    maxBrotliBytes: 246_198,
+    maxGzipBytes: 269_735,
+    maxBrotliBytes: 246_247,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -53,8 +53,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // accounts for this bounded compatibility-path delta. These exact totals
     // include the shared code-point comparator used by family routing.
     maxRawBytes: 3_289_905,
-    maxGzipBytes: 967_139,
-    maxBrotliBytes: 760_071,
+    maxGzipBytes: 967_140,
+    maxBrotliBytes: 760_395,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
