@@ -1,0 +1,362 @@
+[
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    group api(cloud)[API]\n\n    service db(database)[Database] in api\n    service disk1(disk)[Storage] in api\n    service disk2(disk)[Storage] in api\n    service server(server)[Server] in api\n\n    db:L -- R:server\n    disk1:T -- B:server\n    disk2:T -- B:db",
+    "origin": "eval/mermaid-docs-corpus/syntax/architecture.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n    group api(cloud)[API]\n    service db1(database)[DB1] in api\n    service db2(database)[DB2] in api\n    service db3(database)[DB3] in api\n    service mcp(server)[MCP] in api\n    db1:R --> L:mcp\n    db2:R --> L:mcp\n    db3:R --> L:mcp\n    align column db1 db2 db3",
+    "origin": "eval/mermaid-docs-corpus/syntax/architecture.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service disk(disk)[Storage] in api\n  service server(server)[Server] in api\n  db:L -- R:server\n  disk:T -- B:server",
+    "origin": "eval/layout-compare/fixtures/architecture-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "architecture",
+    "source": "architecture-beta\n  group app(cloud)[Application]\n  service api(server)[API] in app\n  service db(database)[Database] in app\n  api:R -- L:db",
+    "origin": "skill-evals/fixtures/architecture-cache/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "class",
+    "source": "---\ntitle: Animal example\n---\nclassDiagram\n    note \"From Duck till Zebra\"\n    Animal <|-- Duck\n    note for Duck \"can fly<br>can swim<br>can dive<br>can help in debugging\"\n    Animal <|-- Fish\n    Animal <|-- Zebra\n    Animal : +int age\n    Animal : +String gender\n    Animal: +isMammal()\n    Animal: +mate()\n    class Duck{\n        +String beakColor\n        +swim()\n        +quack()\n    }\n    class Fish{\n        -int sizeInFeet\n        -canEat()\n    }\n    class Zebra{\n        +bool is_wild\n        +run()\n    }",
+    "origin": "eval/mermaid-docs-corpus/syntax/classDiagram.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "class",
+    "source": "---\ntitle: Bank example\n---\nclassDiagram\n    class BankAccount\n    BankAccount : +String owner\n    BankAccount : +Bigdecimal balance\n    BankAccount : +deposit(amount)\n    BankAccount : +withdrawal(amount)",
+    "origin": "eval/mermaid-docs-corpus/syntax/classDiagram.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  Animal <|-- Dog\n  Animal <|-- Cat\n  Animal : +String name\n  Animal : +int age\n  Animal : +eat()\n  class Dog {\n    +bark()\n  }\n  class Cat {\n    +meow()\n  }",
+    "origin": "eval/layout-compare/fixtures/class-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "class",
+    "source": "classDiagram\n  class PaymentService\n  class Invoice\n  PaymentService --> Invoice : creates",
+    "origin": "skill-evals/fixtures/class-payment/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "er",
+    "source": "---\ntitle: Order example\n---\nerDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses",
+    "origin": "eval/mermaid-docs-corpus/syntax/entityRelationshipDiagram.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        string name\n        string custNumber\n        string sector\n    }\n    ORDER ||--|{ LINE-ITEM : contains\n    ORDER {\n        int orderNumber\n        string deliveryAddress\n    }\n    LINE-ITEM {\n        string productCode\n        int quantity\n        float pricePerUnit\n    }",
+    "origin": "eval/mermaid-docs-corpus/syntax/entityRelationshipDiagram.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE_ITEM : contains\n  CUSTOMER {\n    string name\n    string email\n  }\n  ORDER {\n    int id\n    date created\n  }",
+    "origin": "eval/layout-compare/fixtures/er-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "er",
+    "source": "erDiagram\n  CUSTOMER {\n    string id PK\n    string email\n  }\n  ORDER {\n    string id PK\n    string customer_id FK\n  }\n  CUSTOMER ||--o{ ORDER : places",
+    "origin": "skill-evals/fixtures/er-orders/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "flowchart",
+    "source": "---\ntitle: Node\n---\nflowchart LR\n    id",
+    "origin": "eval/mermaid-docs-corpus/syntax/flowchart.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "flowchart",
+    "source": "---\ntitle: Node with text\n---\nflowchart LR\n    id1[This is the text in the box]",
+    "origin": "eval/mermaid-docs-corpus/syntax/flowchart.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n  Start[Start] --> Parse[Parse request]\n  Parse --> Render[Render diagram]\n  Render --> Done[Done]",
+    "origin": "eval/layout-compare/fixtures/flowchart-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "flowchart",
+    "source": "flowchart TD\n  Client[Client] --> API[API]\n  API --> DB[(Database)]",
+    "origin": "skill-evals/fixtures/flowchart-cache/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "gantt",
+    "source": "gantt\n    title A Gantt Diagram\n    dateFormat YYYY-MM-DD\n    section Section\n        A task          :a1, 2014-01-01, 30d\n        Another task    :after a1, 20d\n    section Another\n        Task in Another :2014-01-12, 12d\n        another task    :24d",
+    "origin": "eval/mermaid-docs-corpus/syntax/gantt.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "gantt",
+    "source": "gantt\n    dateFormat  YYYY-MM-DD\n    title       Adding GANTT diagram functionality to mermaid\n    excludes    weekends\n    %% (`excludes` accepts specific dates in YYYY-MM-DD format, days of the week (\"sunday\") or \"weekends\", but not the word \"weekdays\".)\n\n    section A section\n    Completed task            :done,    des1, 2014-01-06,2014-01-08\n    Active task               :active,  des2, 2014-01-09, 3d\n    Future task               :         des3, after des2, 5d\n    Future task2              :         des4, after des3, 5d\n\n    section Critical tasks\n    Completed task in the critical line :crit, done, 2014-01-06,24h\n    Implement parser and jison          :crit, done, after des1, 2d\n    Create tests for parser             :crit, active, 3d\n    Future task in critical line        :crit, 5d\n    Create tests for renderer           :2d\n    Add to mermaid                      :until isadded\n    Functionality added                 :milestone, isadded, 2014-01-25, 0d\n\n    section Documentation\n    Describe gantt syntax               :active, a1, after des1, 3d\n    Add gantt diagram to demo page      :after a1  , 20h\n    Add another diagram to demo page    :doc1, after a1  , 48h\n\n    section Last section\n    Describe gantt syntax               :after doc1, 3d\n    Add gantt diagram to demo page      :20h\n    Add another diagram to demo page    :48h",
+    "origin": "eval/mermaid-docs-corpus/syntax/gantt.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "gantt",
+    "source": "gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Spec   :spec, 2024-01-01, 2d\n    Render :render, after spec, 3d\n  section Release\n    Ship   :milestone, ship, after render, 0d",
+    "origin": "eval/layout-compare/fixtures/gantt-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "gantt",
+    "source": "gantt\n  title Release train\n  dateFormat YYYY-MM-DD\n  section Build\n    Build renderer :build, 2024-01-08, 3d\n  section Ship\n    Release        :milestone, rel, after build, 0d",
+    "origin": "skill-evals/fixtures/gantt-release/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "gitgraph",
+    "source": "gitGraph\n  commit id:\"base\" msg:\"Foundation\"\n  branch feature\n  commit id:\"work\" msg:\"Build\"\n  checkout main\n  commit id:\"release\"\n  merge feature id:\"merge\"",
+    "origin": "eval/layout-compare/fixtures/gitgraph-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "gitgraph",
+    "source": "gitGraph\n  commit id:\"base\" msg:\"Foundation\"\n  commit id:\"release\" msg:\"Prepare release\"",
+    "origin": "skill-evals/fixtures/gitgraph-release/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "gitgraph",
+    "source": "---\ntitle: Gitflow release and emergency hotfix\nconfig:\n  gitGraph:\n    mainBranchName: main\n    showBranches: true\n    showCommitLabel: true\n---\ngitGraph LR:\n  accTitle: Gitflow release history\n  accDescr: Develop, feature, release, and hotfix branches merge into main\n  commit id:\"v1\" tag:\"v1.0.0\" msg:\"Production baseline\"\n  branch develop order:2\n  commit id:\"develop-base\" msg:\"Open next cycle\"\n  branch feature/login order:3\n  commit id:\"login-api\" msg:\"Add login API\"\n  commit id:\"login-ui\" type:HIGHLIGHT msg:\"Finish login UI\"\n  checkout develop\n  merge feature/login id:\"merge-login\" tag:\"login-integrated\"\n  branch release/2.0 order:4\n  commit id:\"rc\" type:REVERSE tag:\"v2.0.0-rc.1\" msg:\"Release candidate\"\n  checkout main\n  branch hotfix/security order:1\n  commit id:\"security-fix\" type:HIGHLIGHT msg:\"Patch production\"\n  checkout main\n  merge hotfix/security id:\"hotfix-merge\" tag:\"v1.0.1\"\n  merge release/2.0 id:\"release-merge\" tag:\"v2.0.0\"",
+    "origin": "eval/mindmap-gitgraph-content-corpus/gitgraph/gitflow-release-hotfix.mmd",
+    "sourceClass": "family-corpus"
+  },
+  {
+    "family": "gitgraph",
+    "source": "---\ntitle: Long release labels in top-to-bottom history\nconfig:\n  gitGraph:\n    rotateCommitLabel: false\n  themeVariables:\n    commitLabelFontSize: 18\n---\ngitGraph TB:\n  accTitle: Top to bottom release history with long labels\n  commit id:\"foundation\" tag:\"release-2026.07-long-term-support\" msg:\"Establish a stable production foundation\"\n  branch feature/observability order:2\n  commit id:\"telemetry\" tag:\"observability-preview-candidate\" msg:\"Add traces, logs, metrics, and structured events\"\n  checkout main\n  commit id:\"policy\" type:REVERSE msg:\"Document compatibility and rollback policy\"\n  merge feature/observability id:\"observability-merge\" type:HIGHLIGHT tag:\"release-2026.08-observability-general-availability\"",
+    "origin": "eval/mindmap-gitgraph-content-corpus/gitgraph/long-labels-and-tags-tb.mmd",
+    "sourceClass": "family-corpus"
+  },
+  {
+    "family": "journey",
+    "source": "journey\n    title My working day\n    section Go to work\n      Make tea: 5: Me\n      Go upstairs: 3: Me\n      Do work: 1: Me, Cat\n    section Go home\n      Go downstairs: 5: Me\n      Sit down: 5: Me",
+    "origin": "eval/mermaid-docs-corpus/syntax/userJourney.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "journey",
+    "source": "journey\n  title My working day\n  section Go to work\n    Make tea: 5: Me\n    Go upstairs: 3: Me\n    Do work: 1: Me, Cat\n  section Go home\n    Go downstairs: 5: Me\n    Sit down: 5: Me",
+    "origin": "eval/layout-compare/fixtures/journey-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "journey",
+    "source": "journey\n  title Checkout\n  section Browse\n    Find item: 4: Customer\n  section Pay\n    Enter payment: 3: Customer",
+    "origin": "skill-evals/fixtures/journey-checkout/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "journey",
+    "source": "journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper",
+    "origin": "src/agent/families.ts#journey",
+    "sourceClass": "registry-example"
+  },
+  {
+    "family": "mindmap",
+    "source": "mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch",
+    "origin": "eval/layout-compare/fixtures/mindmap-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "mindmap",
+    "source": "mindmap\n  root((Product))\n    Research\n      Interviews\n    Delivery\n      Launch",
+    "origin": "skill-evals/fixtures/mindmap-product/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "mindmap",
+    "source": "mindmap\n  accTitle: Documentation research map\n  accDescr: Official shapes, formatted labels, local icons, and accessible metadata\n  root((Research map))\n    sources[Sources]\n      ::icon(fa fa-book)\n      :::reference important\n      docs[\"`**Official docs** & issue reports`\"]\n      repos{{Repositories}}\n        Mermaid\n        Mermaid ASCII\n        Beautiful Mermaid\n    findings(Findings)\n      syntax))Syntax parity((\n      safety)Offline safety(\n      gaps{{Named divergences}}\n    evidence[\"`Unicode evidence: naïve café, 東京, مرحبا`\"]",
+    "origin": "eval/mindmap-gitgraph-content-corpus/mindmap/docs-shapes-and-accessibility.mmd",
+    "sourceClass": "family-corpus"
+  },
+  {
+    "family": "mindmap",
+    "source": "mindmap\n  accTitle: Incident response command map\n  accDescr: A broad operational map with more than eleven second-level nodes\n  root((Production incident))\n    Detection\n      Alerts\n      Customer reports\n    Triage\n      Severity\n      Scope\n    Containment\n      Feature flags\n      Traffic shift\n    Investigation\n      Logs\n      Traces\n    Communications\n      Status page\n      Stakeholders\n    Recovery\n      Rollback\n      Data repair\n    Validation\n      Synthetic checks\n      Error budget\n    Follow-up\n      Timeline\n      Action items\n    Security\n      Credentials\n      Audit trail\n    Vendors\n      Cloud provider\n      Payment processor\n    Legal\n      Notification duties\n      Evidence hold\n    Support\n      Response macros\n      Escalations\n    Analytics\n      Impact estimate\n      Cohort analysis",
+    "origin": "eval/mindmap-gitgraph-content-corpus/mindmap/wide-incident-response.mmd",
+    "sourceClass": "family-corpus"
+  },
+  {
+    "family": "pie",
+    "source": "pie title Pets adopted by volunteers\n    \"Dogs\" : 386\n    \"Cats\" : 85\n    \"Rats\" : 15",
+    "origin": "eval/mermaid-docs-corpus/syntax/pie.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "pie",
+    "source": "---\nconfig:\n  pie:\n    textPosition: 0.5\n    donutHole: 0.2\n    highlightSlice: Potassium\n  themeVariables:\n    pieOuterStrokeWidth: \"5px\"\n---\npie showData\n    title Key elements in Product X\n    \"Calcium\" : 42.96\n    \"Potassium\" : 50.05\n    \"Magnesium\" : 10.01\n    \"Iron\" :  5",
+    "origin": "eval/mermaid-docs-corpus/syntax/pie.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "pie",
+    "source": "---\nconfig:\n  pie:\n    highlightSlice: Images\n---\npie showData\n  title Storage use\n  \"Images\" : 48.2\n  \"Video\" : 30\n  \"Documents\" : 12.5\n  \"Other\" : 9.3",
+    "origin": "eval/layout-compare/fixtures/pie-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "pie",
+    "source": "pie showData\n  title Export requests\n  \"SVG\" : 42\n  \"PNG\" : 28\n  \"ASCII\" : 18",
+    "origin": "skill-evals/fixtures/pie-exports/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "quadrant",
+    "source": "quadrantChart\n    title Reach and engagement of campaigns\n    x-axis Low Reach --> High Reach\n    y-axis Low Engagement --> High Engagement\n    quadrant-1 We should expand\n    quadrant-2 Need to promote\n    quadrant-3 Re-evaluate\n    quadrant-4 May be improved\n    Campaign A: [0.3, 0.6]\n    Campaign B: [0.45, 0.23]\n    Campaign C: [0.57, 0.69]\n    Campaign D: [0.78, 0.34]\n    Campaign E: [0.40, 0.34]\n    Campaign F: [0.35, 0.78]",
+    "origin": "eval/mermaid-docs-corpus/syntax/quadrantChart.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "quadrant",
+    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 400\n    chartHeight: 400\n  themeVariables:\n    quadrant1TextFill: \"ff0000\"\n---\nquadrantChart\n  x-axis Urgent --> Not Urgent\n  y-axis Not Important --> \"Important ❤\"\n  quadrant-1 Plan\n  quadrant-2 Do\n  quadrant-3 Delegate\n  quadrant-4 Delete",
+    "origin": "eval/mermaid-docs-corpus/syntax/quadrantChart.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "quadrant",
+    "source": "quadrantChart\n  title Reach and engagement\n  x-axis Low Reach --> High Reach\n  y-axis Low Engagement --> High Engagement\n  quadrant-1 Expand\n  quadrant-2 Promote\n  quadrant-3 Re-evaluate\n  quadrant-4 Improve\n  Campaign A: [0.9, 0.8]\n  Campaign B: [0.2, 0.7]\n  Campaign C: [0.3, 0.2]\n  Campaign D: [0.8, 0.3]",
+    "origin": "eval/layout-compare/fixtures/quadrant-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "quadrant",
+    "source": "quadrantChart\n  title Feature priorities\n  x-axis Low impact --> High impact\n  y-axis Low effort --> High effort\n  quadrant-1 Plan carefully\n  quadrant-2 Big bets\n  quadrant-3 Defer\n  quadrant-4 Quick wins\n  SVG export: [0.78, 0.28]\n  MCP setup: [0.62, 0.72]\n  Theme polish: [0.35, 0.24]",
+    "origin": "skill-evals/fixtures/quadrant-priorities/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "radar",
+    "source": "radar-beta\n  title Team skills\n  axis design[\"Design\"], code[\"Code\"], comms[\"Comms\"]\n  axis ops[\"Ops\"], data[\"Data\"], test[\"Testing\"]\n  curve alice[\"Alice\"]{4, 5, 3, 2, 4, 5}\n  curve bob[\"Bob\"]{3, 4, 5, 4, 3, 2}\n  max 5",
+    "origin": "eval/layout-compare/fixtures/radar-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "radar",
+    "source": "radar-beta\n  title Model comparison\n  axis speed[\"Speed\"], accuracy[\"Accuracy\"], cost[\"Cost\"]\n  curve a[\"Model A\"]{4, 5, 3}\n  max 5",
+    "origin": "skill-evals/fixtures/radar-profile/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "radar",
+    "source": "---\ntitle: \"Grades\"\n---\nradar-beta\n  axis m[\"Math\"], s[\"Science\"], e[\"English\"]\n  axis h[\"History\"], g[\"Geography\"], a[\"Art\"]\n  curve a[\"Alice\"]{85, 90, 80, 70, 75, 90}\n  curve b[\"Bob\"]{70, 75, 85, 80, 90, 85}\n  max 100\n  min 0",
+    "origin": "eval/mermaid-radar-bench/harvest.json#grades",
+    "sourceClass": "family-corpus"
+  },
+  {
+    "family": "radar",
+    "source": "radar-beta\n  title Restaurant Comparison\n  axis food[\"Food Quality\"], service[\"Service\"], price[\"Price\"], ambiance[\"Ambiance\"]\n  curve a[\"Restaurant A\"]{4, 3, 2, 4}\n  curve b[\"Restaurant B\"]{3, 4, 3, 3}\n  graticule polygon\n  max 5",
+    "origin": "eval/mermaid-radar-bench/harvest.json#restaurant-polygon",
+    "sourceClass": "family-corpus"
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    John-->>Alice: Great!\n    Alice-)John: See you later!",
+    "origin": "eval/mermaid-docs-corpus/syntax/sequenceDiagram.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n    participant Alice\n    participant Bob\n    Bob->>Alice: Hi Alice\n    Alice->>Bob: Hi Bob",
+    "origin": "eval/mermaid-docs-corpus/syntax/sequenceDiagram.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n  participant Alice\n  participant Bob\n  Alice->>Bob: Hello Bob\n  Bob-->>Alice: Hi Alice\n  Alice->>Bob: How are you?\n  Bob-->>Alice: Doing well",
+    "origin": "eval/layout-compare/fixtures/sequence-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "sequence",
+    "source": "sequenceDiagram\n  participant Client\n  participant API\n  participant DB\n  Client->>API: Request\n  API->>DB: Query\n  DB-->>API: Result\n  API-->>Client: Response",
+    "origin": "skill-evals/fixtures/sequence-retry/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "state",
+    "source": "---\ntitle: Simple sample\n---\nstateDiagram-v2\n    [*] --> Still\n    Still --> [*]\n\n    Still --> Moving\n    Moving --> Still\n    Moving --> Crash\n    Crash --> [*]",
+    "origin": "eval/mermaid-docs-corpus/syntax/stateDiagram.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram\n    [*] --> Still\n    Still --> [*]\n\n    Still --> Moving\n    Moving --> Still\n    Moving --> Crash\n    Crash --> [*]",
+    "origin": "eval/mermaid-docs-corpus/syntax/stateDiagram.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n  [*] --> Still\n  Still --> Moving\n  Moving --> Still\n  Moving --> Crash\n  Crash --> [*]",
+    "origin": "eval/layout-compare/fixtures/state-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "state",
+    "source": "stateDiagram-v2\n  [*] --> Idle\n  Idle --> Processing: start\n  Processing --> Complete: done\n  Complete --> [*]",
+    "origin": "skill-evals/fixtures/state-lifecycle/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n    title History of Social Media Platform\n    2002 : LinkedIn\n    2004 : Facebook\n         : Google\n    2005 : YouTube\n    2006 : Twitter",
+    "origin": "eval/mermaid-docs-corpus/syntax/timeline.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n    title History of Social Media Platform\n    2002 : LinkedIn\n    2004 : Facebook : Google\n    2005 : YouTube\n    2006 : Twitter",
+    "origin": "eval/mermaid-docs-corpus/syntax/timeline.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n  title History of Social Media\n  section Early\n    2002 : LinkedIn launched\n    2004 : Facebook launched : Google IPO\n  section Growth\n    2006 : Twitter launched\n    2010 : Instagram launched",
+    "origin": "eval/layout-compare/fixtures/timeline-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "timeline",
+    "source": "timeline\n  title Agentic Mermaid Release\n  section Plan\n    Design : API surface\n  section Build\n    Implement : Renderer",
+    "origin": "skill-evals/fixtures/timeline-release/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "xychart",
+    "source": "xychart\n    title \"Sales Revenue\"\n    x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]\n    y-axis \"Revenue (in $)\" 4000 --> 11000\n    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]\n    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]",
+    "origin": "eval/mermaid-docs-corpus/syntax/xyChart.md#0",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "xychart",
+    "source": "xychart-beta\n  title \"An Example Chart\"\n  x-axis [\"90d\", \"60d\", \"30d\", \"7d\", \"1d\", \"Current\"]\n  y-axis \"Seconds\" 0 --> 198.2\n  line \"avg\" [48.1, 41.5, 45.7, 72.8, 67.7, 59.9]\n  line \"p50\" [38.2, 36.8, 39.7, 54.5, 49.0, 38.4]\n  line \"p95\" [112.2, 75.3, 103.0, 177.0, 180.2, 109.4]",
+    "origin": "eval/mermaid-docs-corpus/syntax/xyChart.md#1",
+    "sourceClass": "upstream-docs"
+  },
+  {
+    "family": "xychart",
+    "source": "xychart-beta\n  title \"Monthly revenue\"\n  x-axis [jan, feb, mar, apr, may]\n  y-axis \"Revenue (k)\" 0 --> 100\n  bar [30, 45, 60, 50, 80]\n  line [20, 40, 55, 45, 75]",
+    "origin": "eval/layout-compare/fixtures/xychart-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "xychart",
+    "source": "xychart-beta\n  title \"Adoption\"\n  x-axis [Jan, Feb, Mar]\n  y-axis \"Users\" 0 --> 100\n  bar [20, 45, 70]",
+    "origin": "skill-evals/fixtures/xychart-growth/input.mmd",
+    "sourceClass": "skill-fixture"
+  }
+]

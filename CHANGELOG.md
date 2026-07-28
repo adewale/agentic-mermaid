@@ -5,6 +5,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
+- Added an executable skill-eval evidence gate: private holdout hydration,
+  targeted evaluator sabotage across every text assertion type, exact-checkout
+  task preparation with gradeable artifact paths, and a pinned repeated-run
+  cohort requiring slice, false-positive/negative, latency, token, and cost
+  reporting.
+- Added a deterministic 60-example Mermaid family portfolio with an exact quota
+  of four provenance-bearing inputs for each of the 15 registered built-ins,
+  complementing the syntax-broad but heavily flowchart-weighted documentation
+  corpus.
 - Added a pinned official MCP conformance CI lane for the current `2025-11-25` initialize path and the applicable `2026-07-28` release-candidate discovery, tool-list, HTTP-header, caching, and stateless scenarios. Its strict expected-failure baseline contains only probes that require unadvertised optional methods or harness-only diagnostic tools; new failures and stale baseline entries both fail CI.
 - Added a committed MCP protocol-input matrix covering required per-request metadata, header mirrors, request-id correlation, version/transport boundaries, batch rules, notification silence, and unadvertised methods. The response corpus now records those negative wire contracts explicitly.
 - Expanded the skill benchmark from 31 to 39 cases, including direct hosted tool selection, schema-error recovery, hosted-size fallback, underspecified quality goals, and a repository-grounded MCP scope audit. Every case now carries domain, difficulty, trigger-type, and success-goal taxonomy, and the manifest audit reports no prompt/assertion leakage.
@@ -15,6 +24,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Layout comparison reports both example-weighted and family-balanced adverse rates, so a large flowchart sample cannot hide a regression in a small family. The Mermaid documentation corpus now records its exact upstream commit, sample counts, and legacy 12-family scope instead of implying complete registry coverage.
 
 ### Fixed
+- Fixed skill paths resolving under `skill-evals/skills` instead of the shipped
+  top-level `skills/`, removed public holdout/holdback answer keys, and made
+  fixture outputs land under the same run directory that artifact assertions
+  grade.
 - Unsupported protocol-version errors are now emitted after the bounded request parse so they preserve a valid JSON-RPC request id and include the retryable supported-version list. Modern requests with missing required `_meta` fields use `-32602`; only actual header/body disagreements use `-32020`.
 - Modern caching hints are emitted only for implemented cacheable list methods (`server/discover` and `tools/list`), keeping discovery, handlers, and cache metadata consistent.
 - Replaced a CLI TTY-guard test that could block on the aggregate runner's inherited stdin with a bounded end-to-end subprocess using an explicitly closed pipe.

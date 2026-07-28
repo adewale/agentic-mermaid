@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "familyQuota": 4,
+    "selection": "registry-exact, provenance-diverse, deterministic first candidates by source class"
+  },
+  "entries": 60,
+  "familyCounts": {
+    "architecture": 4,
+    "class": 4,
+    "er": 4,
+    "flowchart": 4,
+    "gantt": 4,
+    "gitgraph": 4,
+    "journey": 4,
+    "mindmap": 4,
+    "pie": 4,
+    "quadrant": 4,
+    "radar": 4,
+    "sequence": 4,
+    "state": 4,
+    "timeline": 4,
+    "xychart": 4
+  },
+  "sourceClassCounts": {
+    "family-corpus": 6,
+    "layout-fixture": 15,
+    "registry-example": 1,
+    "skill-fixture": 15,
+    "upstream-docs": 23
+  },
+  "inputs": [
+    "eval/mermaid-docs-corpus/corpus.json",
+    "eval/layout-compare/fixtures",
+    "skill-evals/fixtures",
+    "eval/mindmap-gitgraph-content-corpus/manifest.json",
+    "eval/mermaid-radar-bench/harvest.json",
+    "src/agent/families.ts"
+  ]
+}

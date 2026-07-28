@@ -898,7 +898,7 @@ describe('skill eval manifest coverage', () => {
   test('covers families, channels, adversarial/no-trigger cases, fixtures, and hidden splits', () => {
     const manifestText = readFileSync(join(REPO, 'skill-evals/shared-benchmark.json'), 'utf8')
     const manifest = JSON.parse(manifestText)
-    const cases = manifest.cases as Array<{ id: string; split: string; kind: string; tags?: string[]; files?: string[]; prompt?: string; prompt_ref?: string }>
+    const cases = manifest.cases as Array<{ id: string; split: string; kind: string; tags?: string[]; files?: string[]; prompt?: string; prompt_ref?: string; expected_behavior?: string[]; assertions?: unknown[]; review_rubric?: string[] }>
     const tags = new Set(cases.flatMap(c => c.tags ?? []))
     for (const family of BUILTIN_FAMILY_METADATA.map(f => f.id)) {
       expect({ family, covered: tags.has(`family:${family}`) }).toEqual({ family, covered: true })
@@ -919,8 +919,11 @@ describe('skill eval manifest coverage', () => {
     expect(cases.filter(c => c.split === 'holdback').length).toBeGreaterThan(0)
     for (const c of cases.filter(c => c.split === 'holdout' || c.split === 'holdback')) {
       expect({ id: c.id, publicPrompt: Boolean(c.prompt), privateRef: c.prompt_ref?.startsWith('private/') }).toEqual({ id: c.id, publicPrompt: false, privateRef: true })
+      expect({ id: c.id, expectedBehavior: c.expected_behavior, assertions: c.assertions, reviewRubric: c.review_rubric })
+        .toEqual({ id: c.id, expectedBehavior: undefined, assertions: undefined, reviewRubric: undefined })
     }
     for (const c of cases.flatMap(c => c.files ?? [])) expect(existsSync(join(REPO, 'skill-evals', c))).toBe(true)
+    for (const skillPath of manifest.skill_paths as string[]) expect(existsSync(join(REPO, 'skill-evals', skillPath))).toBe(true)
     expect(manifest.run_policy.minimum_runs_per_variant).toBeGreaterThanOrEqual(3)
     expect(manifest.run_policy.recommended_runs_per_variant).toBeGreaterThanOrEqual(5)
   })

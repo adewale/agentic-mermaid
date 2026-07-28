@@ -7,8 +7,8 @@
     "version": ">=0.4.0"
   },
   "skill_paths": [
-    "skills/agentic-mermaid-diagram-workflow",
-    "skills/agentic-mermaid-live-editor"
+    "../skills/agentic-mermaid-diagram-workflow",
+    "../skills/agentic-mermaid-live-editor"
   ],
   "variants": [
     "with_skill",
@@ -17,11 +17,11 @@
   "run_policy": {
     "minimum_runs_per_variant": 3,
     "recommended_runs_per_variant": 5,
-    "notes": "Use 3 runs per variant for cheap iteration and 5 for pre-merge or release-quality evidence. Fixture-backed artifact cases require a runner that preserves generated outputs under the run directory."
+    "notes": "Use 3 runs per variant for cheap iteration and 5 for pre-merge or release-quality evidence. Run scripts/eval/prepare-skill-evidence.ts before execution so repository checkouts and fixture artifacts are rooted where the grader expects them."
   },
   "split_policy": {
     "tune": "Visible cases used while editing the skills and evals. They cover families, channels, adversarial behavior, trigger smoke, and artifact-backed fixtures.",
-    "holdout": "Private prompt_ref cases scored at end-of-round or merge. Public manifest keeps only IDs, tags, fixtures, and objective checks.",
+    "holdout": "Private prompt_ref cases scored at end-of-round or merge. Public manifest keeps only IDs, taxonomy, fixtures, and prompt references; prompts and answer keys stay in the ignored private bundle.",
     "holdback": "Private prompt_ref cases not exposed in skill/docs/eval descriptions until after scoring; use to detect memorization and overfitting."
   },
   "cases": [
@@ -1424,31 +1424,6 @@
       "files": [
         "fixtures/flowchart-cache/input.mmd"
       ],
-      "expected_behavior": [
-        "Hidden prompt: existing structured flowchart edit requiring artifact output and verifyMermaid evidence."
-      ],
-      "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/holdout-flowchart/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/holdout-flowchart/verify.json"
-        },
-        {
-          "name": "core-loop",
-          "type": "contains_all",
-          "values": [
-            "asFlowchart",
-            "mutate",
-            "verifyMermaid",
-            "serializeMermaid"
-          ]
-        }
-      ],
       "tags": [
         "holdout",
         "family:flowchart",
@@ -1465,24 +1440,6 @@
       "success_goals": ["outcome","process"],
       "trigger_type": "implicit",
       "prompt_ref": "private/holdout/editor-generated-artifact.prompt.md",
-      "expected_behavior": [
-        "Hidden prompt: adversarial live-editor request that tries to force direct editor.html edits."
-      ],
-      "assertions": [
-        {
-          "name": "source-of-truth",
-          "type": "contains",
-          "value": "scripts/site/editor.ts"
-        },
-        {
-          "name": "generated",
-          "type": "contains_all",
-          "values": [
-            "editor.html",
-            "rebuild"
-          ]
-        }
-      ],
       "tags": [
         "holdout",
         "adversarial",
@@ -1498,29 +1455,6 @@
       "success_goals": ["outcome","efficiency"],
       "trigger_type": "implicit",
       "prompt_ref": "private/holdback/channel-selection.prompt.md",
-      "expected_behavior": [
-        "Hidden prompt: choose library vs CLI vs MCP Code Mode correctly for a constrained task."
-      ],
-      "assertions": [
-        {
-          "name": "channels",
-          "type": "contains_all",
-          "values": [
-            "library",
-            "CLI",
-            "Code Mode"
-          ]
-        },
-        {
-          "name": "narrowest",
-          "type": "contains_any",
-          "values": [
-            "narrowest",
-            "best",
-            "choose"
-          ]
-        }
-      ],
       "tags": [
         "holdback",
         "channel-selection"
@@ -1535,10 +1469,6 @@
       "success_goals": ["trigger","efficiency"],
       "trigger_type": "implicit",
       "prompt_ref": "private/holdback/no-trigger.prompt.md",
-      "expected_behavior": [
-        "NO_TRIGGER: hidden unrelated task should not load either Agentic Mermaid skill."
-      ],
-      "assertions": [],
       "tags": [
         "holdback",
         "trigger",

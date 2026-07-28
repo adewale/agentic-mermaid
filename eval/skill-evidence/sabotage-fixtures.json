@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "pos-diagram-existing-flowchart-safe-edit",
+      "control": "parseMermaid returns .value; asFlowchart then mutate with a kind-discriminated typed mutation, verifyMermaid, and serializeMermaid. Outputs: ASCII, PNG, SVG. Avoid source concatenation."
+    },
+    {
+      "case_id": "adv-require-verify-before-serialize",
+      "control": "Do not skip validation: call verifyMermaid, inspect verify.ok, warnings, and layout, before serializing with serializeMermaid."
+    },
+    {
+      "case_id": "adv-mcp-repo-grounded-scope",
+      "control": "Inspection of src/mcp/tool-surface.ts and website/src/mcp-handler.ts shows a tools-only surface."
+    },
+    {
+      "case_id": "neg-unrelated-typescript-helper",
+      "control": "Sort by lastLogin after converting each value to a Date."
+    }
+  ]
+}
