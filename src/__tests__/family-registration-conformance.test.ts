@@ -53,7 +53,7 @@ function directDescriptor(localId: string): FamilyDescriptor {
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.3.0' },
+      compatibility: { core: '^0.4.0' },
       provenance: { owner: 'family-conformance-test', source: 'test', reference: EVIDENCE },
     }),
     id,
@@ -103,7 +103,7 @@ function throwingSceneDescriptor(localId: string): FamilyDescriptor {
     ...base,
     identity: createExtensionIdentity({
       ...base.identity,
-      compatibility: { core: '^0.3.0', scene: '^2.0.0' },
+      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
     }),
     semanticRoles: ['prelude'],
     semanticChannels: [],
@@ -282,7 +282,7 @@ describe('external family executable registration conformance', () => {
       enumerable: true,
       get() {
         reads.coreRange++
-        return reads.coreRange === 1 ? '^0.3.0' : undefined
+        return reads.coreRange === 1 ? '^0.4.0' : undefined
       },
     })
     const descriptor = {

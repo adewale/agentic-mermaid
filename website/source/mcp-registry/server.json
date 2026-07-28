@@ -8,7 +8,7 @@
     "source": "github"
   },
   "websiteUrl": "https://agentic-mermaid.dev",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "remotes": [
     {
       "type": "streamable-http",

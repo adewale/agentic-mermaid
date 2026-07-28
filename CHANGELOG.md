@@ -4,6 +4,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.4.0 — 2026-07-28
+
 ### Added
 - Added a hosted-MCP skill reference with exact direct-tool request shapes,
   declarative edit recovery, response acceptance rules, privacy/size fallback,
@@ -56,6 +58,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - MCP discovery and initialization now advertise a tools-only capability surface. The server no longer claims empty prompt or resource namespaces, and unadvertised `prompts/list`, `resources/list`, and `resources/templates/list` calls return Method Not Found instead of synthetic empty results.
 - Protocol revision claims are now transport-exact: hosted Streamable HTTP serves `2025-03-26`, `2025-06-18`, `2025-11-25`, and the `2026-07-28` release candidate; local stdio omits batch-mandatory `2025-03-26`; and local HTTP+SSE remains `2024-11-05` only. `server/discover` and unsupported-version errors report the same exact list.
 - Layout comparison reports both example-weighted and family-balanced adverse rates, so a large flowchart sample cannot hide a regression in a small family. The Mermaid documentation corpus now records its exact upstream commit, sample counts, and legacy 12-family scope instead of implying complete registry coverage.
+- Recorded the owner-configured production WAF budget for the hosted MCP (`10 requests / 60 seconds / source IP`, block) and closed the route-scope promotion gate after the account owner confirmed that one dashboard rule covers both compute-capable POST paths: `/mcp` and `/.well-known/mcp`.
+- Validated the deployed endpoint through the official `@modelcontextprotocol/sdk@1.29.0` client across the real Cloudflare edge: server `0.3.2` negotiated `2025-11-25` without a session, returned the exact nine-tool surface, and completed a real `render_svg` call.
 
 ### Fixed
 - Fixed the hosted direct-tool eval inputs: the mutation case now supplies an
@@ -97,15 +101,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Unsupported protocol-version errors are now emitted after the bounded request parse so they preserve a valid JSON-RPC request id and include the retryable supported-version list. Modern requests with missing required `_meta` fields use `-32602`; only actual header/body disagreements use `-32020`.
 - Modern caching hints are emitted only for implemented cacheable list methods (`server/discover` and `tools/list`), keeping discovery, handlers, and cache metadata consistent.
 - Replaced a CLI TTY-guard test that could block on the aggregate runner's inherited stdin with a bounded end-to-end subprocess using an explicitly closed pipe.
-
-## 0.3.3 — 2026-07-28
-
-### Changed
-- Recorded the owner-configured production WAF budget for the hosted MCP (`10 requests / 60 seconds / source IP`, block) and closed the route-scope promotion gate after the account owner confirmed that one dashboard rule covers both compute-capable POST paths: `/mcp` and `/.well-known/mcp`.
-- Validated the deployed endpoint through the official `@modelcontextprotocol/sdk@1.29.0` client across the real Cloudflare edge: server `0.3.2` negotiated `2025-11-25` without a session, returned the exact nine-tool surface, and completed a real `render_svg` call.
-
-### Fixed
 - Made guarded Cloudflare promotion survive its real production boundaries: parse the uploaded Worker version from Wrangler's structured result, pace every smoke/E2E/final MCP request under one job-wide WAF budget, and structurally decode application JSON nested inside JSON-RPC tool content before deciding whether verification passed.
+
+### Breaking
+- Advanced the external extension compatibility line to `^0.4.0`. Third-party family, style, backend, scene-role, and font extensions that declare only `^0.3.0` must be reviewed against the 0.4 contracts before updating their range; a `0.x` caret range does not include the next minor.
 
 ## 0.3.2 — 2026-07-27
 
