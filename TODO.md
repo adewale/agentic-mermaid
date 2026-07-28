@@ -9,14 +9,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
-- [ ] **DEC-2 — Add the WAF rate-limit rule on `POST /mcp` before broadly
-  promoting the hosted endpoint** (`owner-decision`). The hosted MCP (`#94`,
-  `https://agentic-mermaid.dev/mcp`) is public, unauthenticated compute. Body /
-  input / output caps, the batch fan-out cap, edge caching, isolate CPU
-  budgets, and CORS Origin validation bound each request in code, but the abuse
-  backstop is a **dashboard** WAF rate-limit rule (e.g. 60 req/min per IP) that
-  cannot live in the repo. Don't market or broadly promote the endpoint until it
-  is live. See the promotion checklist in `website/README.md`.
 - [ ] **DEC-4 — Establish Google and Bing search visibility**
   (`owner-decision`). In ownership-verified Google Search Console and Bing
   Webmaster Tools, submit `https://agentic-mermaid.dev/sitemap.xml`, request
@@ -45,7 +37,9 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 ## Security backlog
 
 - [ ] **SEC-4 — Implement and drill hosted MCP abuse controls** (`todo`; the
-  dashboard WAF prerequisite remains `DEC-2`). Execute the bounded admission,
+  outer WAF covers both compute-capable POST routes, while the application
+  controls and production game day remain unfinished).
+  Execute the bounded admission,
   payload-proportional CPU, per-item rate/fan-out, concurrency, disable-gate,
   and redacted-observability contract in
   `docs/project/mcp-abuse-controls-plan.md`. That document provides threat-model

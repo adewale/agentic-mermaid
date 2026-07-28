@@ -4,6 +4,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.3.3 — 2026-07-28
+
+### Changed
+- Recorded the owner-configured production WAF budget for the hosted MCP (`10 requests / 60 seconds / source IP`, block) and closed the route-scope promotion gate after the account owner confirmed that one dashboard rule covers both compute-capable POST paths: `/mcp` and `/.well-known/mcp`.
+- Validated the deployed endpoint through the official `@modelcontextprotocol/sdk@1.29.0` client across the real Cloudflare edge: server `0.3.2` negotiated `2025-11-25` without a session, returned the exact nine-tool surface, and completed a real `render_svg` call.
+
+### Fixed
+- Made guarded Cloudflare promotion survive its real production boundaries: parse the uploaded Worker version from Wrangler's structured result, pace every smoke/E2E/final MCP request under one job-wide WAF budget, and structurally decode application JSON nested inside JSON-RPC tool content before deciding whether verification passed.
+
 ## 0.3.2 — 2026-07-27
 
 ### Added

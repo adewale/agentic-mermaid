@@ -6,6 +6,11 @@ import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const REPO = join(import.meta.dir, '..', '..')
+// This regression deliberately starts a second Bun runtime, warms the native
+// rasterizer, enters node:vm, and renders under the parent shard's coverage
+// load. Keep the hang detector above the observed cold-start contention; the
+// MCP sandbox and transport retain their own much tighter execution limits.
+const STDIO_RENDER_REGRESSION_TIMEOUT_MS = 60_000
 
 describe('MCP — render_png tool', () => {
   test('tool annotations reflect managed-file side effects and advertise the font remedy', () => {
@@ -161,5 +166,5 @@ describe('MCP — render_png tool', () => {
     const payload = JSON.parse(pngResponse!.result!.content[0]!.text) as { ok: boolean; png_base64?: string }
     expect(payload.ok).toBe(true)
     expect(Buffer.from(payload.png_base64!, 'base64').length).toBeGreaterThan(100)
-  }, 30_000)
+  }, STDIO_RENDER_REGRESSION_TIMEOUT_MS)
 })

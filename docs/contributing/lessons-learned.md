@@ -8,6 +8,39 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — hosted MCP production rollout (#228, #233–#236)
+
+**Treat production promotion as a transaction.** The first workflow could report
+success without proving the intended bytes were live; later attempts exposed
+credential, upload-result, rate-limit, and response-parsing failures at different
+state transitions. Rule: bind a candidate to the exact successful main SHA,
+attach it at zero traffic, test it through production, re-check the target,
+promote that immutable version, and keep rollback armed until final identity and
+behavior pass.
+
+**Put the production rate budget below every probe.** Pacing only the long E2E
+script still let smoke and final verification burst into the WAF. A phase-local
+sleep also forgets requests spent by earlier phases. Rule: one shared helper owns
+every production request and one job-wide timestamp owns the rolling cadence;
+contract tests reject bare bypasses. Also enumerate equivalent compute routes:
+protecting `/mcp` alone says nothing about `/.well-known/mcp` when both dispatch
+to the same handler.
+
+**Parse machine output structurally all the way down.** Wrangler's uploaded
+version identifier moved inside structured JSON, and a valid MCP tool result put
+its application JSON inside `result.content[].text`. Grepping either output made
+correct responses look broken. Rule: validate cardinality and type at each layer,
+decode nested JSON explicitly, and make malformed fixtures fail the same helper
+production uses.
+
+**Crossing the production edge is a separate interop claim.** The reference SDK
+unit lane proves an external client drives the handler, but it bypasses Cloudflare,
+the deployed Worker, and the public route. Rule: before promotion, run a pinned
+official client against the live URL, record server identity, negotiated version,
+session behavior, exact tools, and one real call. Keep the limitation honest: the
+stable `1.29.0` client exercised `2025-11-25`, not the unreleased final
+`2026-07-28` client path.
+
 ## 2026-07 — BUILD-31 lazy browser split
 
 **A green aggregate suite can hide an import-order bug.** The family-loaded
