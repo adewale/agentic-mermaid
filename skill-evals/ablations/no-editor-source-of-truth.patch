@@ -1,0 +1,4 @@
+@@ -21,1 +21,0 @@
+-| `scripts/site/editor.ts` | Assemble the standalone `editor.html`. |
+@@ -26,1 +25,0 @@
+-Do not edit generated `editor.html` or `website/public/` files directly.

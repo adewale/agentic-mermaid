@@ -10,6 +10,103 @@ date; do not delete old ones — supersede them in place.
 
 ## 2026-07 — MCP scope honesty and conformance
 
+**An aggregate runner exit code is not task completeness.** One hosted attempt
+returned zero from the harness even though all 80 Codex provider calls had
+failed before producing traces. Rule: after execution, enumerate the exact
+prepared run directories and require a successful provider return code,
+complete process/provider/trace/operation observations, a completed final agent
+message, and a non-empty output for every row. Write the failure receipt before
+exiting so the rejected run remains diagnosable.
+
+**A declared runner version is not provenance.** A stale 0.4.0 executable was
+passed alongside the string `0.6.0`, changing workspace-trust behavior while
+the receipt looked current. Rule: verify the installed distribution version
+behind the exact runner binary, bind its digest, and fail before model calls
+when the declared and installed versions disagree.
+
+**A before/after run with byte-identical treatments is not an A/B test.** The
+first hosted comparison changed repository code while both loaded skill trees
+had identical blobs, so its numerical delta could not be attributed to the
+skill. Rule: hold one neutral workspace, fixture tree, manifest, stimulus set,
+and randomized schedule constant; hash both selected treatment trees; reject
+the comparison unless those hashes differ and every non-treatment receipt
+matches.
+
+**Hash the model input, not a convenient description of it.** The first receipt
+hashed selected IDs and path-shaped metadata, so an instruction edit or changed
+workspace bytes could retain the same claimed stimulus/workspace identity.
+Rule: canonicalize and hash every prepared task field the model can observe,
+hash workspace contents, bind the emitted JSONL bytes, and make downstream
+execution, output, and report receipts recompute those digests rather than trust
+copied labels.
+
+**Freeze the treatment before the release matrix, then test generalization
+elsewhere.** Focused follow-ups found useful prompt improvements but were not a
+substitute for rerunning the complete repeated matrix over the final skill tree.
+Rule: use three repetitions for iteration, five exact repetitions for release,
+and report tune-set gains as tune-set gains. Keep holdout prompts and keys
+private together; do not tune after opening them, and do not send them to a
+hosted model without explicit data-egress approval. A small green canary can
+still miss stochastic schema and response-shape errors; stress the failing
+slice at higher repetition, freeze the resulting treatment, then run the full
+release matrix once and report it as-is.
+
+**A summary file is not a reproducible result.** A hand-maintained aggregate can
+outlive the runs or silently describe a different treatment. Rule: publish the
+generated comparison with an archive of prepared tasks, runner manifest,
+execution/materialization receipts, immutable traces, outputs, and grader
+reports; content-address both payload and archive, verify after fresh extraction,
+and prove regeneration is byte-identical with relocated run roots.
+
+**An instruction to ignore a component is not an ablation.** The initial four
+arms mounted the full skill and merely told the model to disregard a named rule,
+making them non-blind and impossible to confirmation-grade. Rule: declare an
+exact section, patch, list item, or resource removal; materialize the altered
+skill trees; require different hashes and zero isolation warnings; and teach
+manifest relocation to rebase both `skill_root` and repository patch paths.
+
+**The no-skill arm must be isolated by construction.** Prepared rows carried
+both project skills even for hosted-diagram tasks, including the unrelated live
+editor skill, and older harness output left skill paths on `without_skill`
+rows. Agents spent up to 768,563 input tokens in one run and could still reach
+the treatment from the repository. Rule: make workspace, fixtures, and skill
+tree independent roots, filter to the skill the case targets, use a neutral
+workspace when repository access is unnecessary, and emit no treatment paths
+for the control arm.
+
+**A normalized event summary is not answer evidence.** The former harness 0.4.0 retained
+the complete Codex final message in `trace.jsonl` but wrote only its first 500
+characters to `output.md`. Valid request JSON placed after a short explanation
+was cut mid-token and graded as absent. Rule: materialize the full final message
+from the immutable trace before grading, rewrite only when the shorter artifact
+is an exact prefix, preserve the adapter output, record content digests, and
+fail closed on any mismatch.
+
+**Execute a proposed request instead of grading its vocabulary.** Keyword
+assertions gave credit to invalid hosted calls with anonymous argument objects,
+wrong JSON-RPC methods, `classDiagram` as a family, or library APIs in place of
+direct tools. Rule: require one machine-readable `{tool, arguments}` envelope,
+validate it against the advertised closed schema, and run it through the same
+production verify/describe/mutation core. Bind exact source bytes, requested
+detail fields, relationship direction/kind, and the response envelope itself;
+near-matches such as a missing terminal newline or a second JSON block must
+fail. Keep a semantic judge for honesty and interpretation that the executable
+oracle cannot establish, and count those rows as deferred until calibrated.
+
+**Optional expected behavior must not become a mandatory literal.** The
+underspecified-quality case said an agent *may* inspect read-only, then failed
+safe clarifying answers that did not contain `verify`, `describe`, or `render`.
+Rule: deterministic gates cover required behavior and forbidden actions;
+optional phrasing belongs in a soft semantic rubric. Report both mean assertion
+fraction and all-graded-assertions pass rate so partial credit cannot look like
+complete success, while disclosing deferred semantic rows separately.
+
+**Model identity is surface-specific.** The hosted receipt requested an API
+snapshot name that ChatGPT Codex rejected, then actually ran a stable alias.
+Rule: configure the model per executor/auth surface, record requested and
+accepted identities separately, and never stamp a configured snapshot onto
+traces that ran another model name.
+
 **Protocol compliance belongs to a surface and transport, not to a shared
 dispatcher.** The dispatcher understood five revisions, but the local stdio
 transport could not receive the batches required by `2025-03-26`, and the

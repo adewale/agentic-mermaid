@@ -1,0 +1,2 @@
+@@ -46,1 +46,0 @@
+-Any diagram with constructs we don't model falls back to an **opaque** body: it still parses, renders, verifies, and round-trips losslessly — it just isn't offered for structured mutation (the narrower returns null). The parser never silently drops anything.

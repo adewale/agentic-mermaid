@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "comparison": "hosted-mcp-causal-2026-07-28.json",
+  "archive": {
+    "path": "artifacts/744d48b0399db16ff3b66417ea78c0c533354b9cae885a2f0eb554ca7329e4cc.tar.gz",
+    "format": "tar+gzip",
+    "bytes": 1447838,
+    "digest": "sha256:744d48b0399db16ff3b66417ea78c0c533354b9cae885a2f0eb554ca7329e4cc"
+  },
+  "payload": {
+    "contentDigest": "sha256:c8bc90fb95c573cb264c7fb57ee76a92227275d5d5ea5d44d5a20aadb5c91678",
+    "fileCount": 1401
+  },
+  "verification": {
+    "bundleCommand": "bun run eval:skill:bundle-evidence --verify <extracted-directory>",
+    "comparisonRegeneratedByteIdentical": true
+  },
+  "scope": "Public tune split only; the frozen private holdout was not sent to the hosted model."
+}

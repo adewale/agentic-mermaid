@@ -30,6 +30,38 @@ function absoluteFrom(base: string, value: string): string {
   return isAbsolute(value) ? value : resolve(base, value)
 }
 
+function resolveScriptAssertions(assertions: unknown[], manifestDir: string): unknown[] {
+  return assertions.map(assertion => {
+    if (!assertion || typeof assertion !== 'object' || Array.isArray(assertion)) return assertion
+    const record = assertion as Record<string, unknown>
+    if (record.type !== 'script' || !Array.isArray(record.command)) return assertion
+    const command = [...record.command]
+    if (typeof command[1] === 'string') command[1] = absoluteFrom(manifestDir, command[1])
+    for (let index = 0; index < command.length - 1; index++) {
+      if (command[index] === '--source-file' && typeof command[index + 1] === 'string') {
+        command[index + 1] = absoluteFrom(manifestDir, command[index + 1] as string)
+      }
+    }
+    return { ...record, command }
+  })
+}
+
+function resolveAblationComponent(component: unknown, manifestDir: string): unknown {
+  if (!component || typeof component !== 'object' || Array.isArray(component)) return component
+  const record = component as Record<string, unknown>
+  const target = record.target
+  if (!target || typeof target !== 'object' || Array.isArray(target)) return component
+  const targetRecord = target as Record<string, unknown>
+  return {
+    ...record,
+    target: {
+      ...targetRecord,
+      ...(typeof targetRecord.skill_root === 'string' ? { skill_root: absoluteFrom(manifestDir, targetRecord.skill_root) } : {}),
+      ...(record.mechanism === 'patch' && typeof targetRecord.patch === 'string' ? { patch: absoluteFrom(manifestDir, targetRecord.patch) } : {}),
+    },
+  }
+}
+
 export function hydratePrivateManifest(publicPath: string, privateBundlePath: string): Manifest {
   const publicManifest = JSON.parse(readFileSync(publicPath, 'utf8')) as Manifest
   const privateBundle = JSON.parse(readFileSync(privateBundlePath, 'utf8')) as { version: number; cases: PrivateCase[] }
@@ -55,17 +87,35 @@ export function hydratePrivateManifest(publicPath: string, privateBundlePath: st
   return {
     ...publicManifest,
     skill_paths: publicManifest.skill_paths.map(value => absoluteFrom(manifestDir, value)),
+    ...(Array.isArray(publicManifest.ablations)
+      ? {
+          ablations: publicManifest.ablations.map(value => {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+            const entry = value as Record<string, unknown>
+            return {
+              ...(resolveAblationComponent(entry, manifestDir) as Record<string, unknown>),
+              ...(Array.isArray(entry.components)
+                ? { components: entry.components.map(component => resolveAblationComponent(component, manifestDir)) }
+                : {}),
+            }
+          }),
+        }
+      : {}),
     cases: publicManifest.cases.map(entry => {
       const answer = privateById.get(entry.id)
+      const assertions = answer?.assertions ?? entry.assertions
       return {
         ...entry,
         ...(entry.prompt_ref ? { prompt_ref: absoluteFrom(manifestDir, entry.prompt_ref) } : {}),
         ...(entry.files ? { files: entry.files.map(value => absoluteFrom(manifestDir, value)) } : {}),
-        ...(answer ? {
-          expected_behavior: answer.expected_behavior,
-          assertions: answer.assertions,
-          ...(answer.review_rubric ? { review_rubric: answer.review_rubric } : {}),
-        } : {}),
+        ...(answer
+          ? {
+              expected_behavior: answer.expected_behavior,
+              assertions: resolveScriptAssertions(answer.assertions, manifestDir),
+              ...(answer.review_rubric ? { review_rubric: answer.review_rubric } : {}),
+            }
+          : {}),
+        ...(!answer && assertions ? { assertions: resolveScriptAssertions(assertions, manifestDir) } : {}),
       }
     }),
   }

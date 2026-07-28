@@ -1,8 +1,16 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "comparison": {
-    "baseline": "bf64396d",
-    "candidate": "3054a0a9"
+    "baseline": "pre-change skill tree",
+    "candidate": "candidate skill tree",
+    "design": "skill-only treatment over one neutral workspace and one frozen stimulus set",
+    "requireSameWorkspace": true,
+    "requireSameFixtures": true,
+    "requireSameStimuli": true,
+    "requireSameSchedule": true,
+    "requireSameTreatmentPaths": true,
+    "requireDifferentTreatments": true,
+    "requireSameManifest": true
   },
   "behavior": {
     "split": "tune",
@@ -14,11 +22,12 @@
       "adv-mcp-recover-invalid-op-schema",
       "adv-mcp-hosted-size-fallback",
       "adv-mcp-underspecified-quality-objective",
-      "adv-mcp-repo-grounded-scope",
       "neg-unrelated-typescript-helper"
     ],
     "minimumRunsPerVariant": 3,
-    "releaseRunsPerVariant": 5
+    "releaseRunsPerVariant": 5,
+    "skillPaths": ["agentic-mermaid-diagram-workflow"],
+    "randomizationSeed": "agentic-mermaid-hosted-mcp-v2"
   },
   "trigger": {
     "split": "tune",
@@ -26,8 +35,17 @@
   },
   "executor": {
     "runner": "skill-eval-harness",
-    "runnerVersion": "0.4.0",
-    "model": "gpt-5.4-mini-2026-03-17",
+    "runnerVersion": "0.6.0",
+    "activeProfile": "chatgptCodex",
+    "profiles": {
+      "chatgptCodex": {
+        "model": "gpt-5.4-mini",
+        "note": "The ChatGPT Codex surface rejected the API snapshot identifier in the 2026-07-28 receipt."
+      },
+      "api": {
+        "model": "gpt-5.4-mini-2026-03-17"
+      }
+    },
     "reasoningEffort": "low"
   },
   "pricingUsdPerMillionTokens": {
@@ -38,13 +56,13 @@
     "checkedAt": "2026-07-28"
   },
   "requiredReportFields": [
-    "with_skill and without_skill objective rates",
-    "absolute and normalized gains",
+    "with_skill and without_skill mean-assertion and all-graded-assertions pass rates, with deferred semantic-judge rows counted separately",
+    "absolute and normalized gains for both score views",
     "per-case and domain/difficulty/trigger-type slices",
-    "false-positive and false-negative rows",
+    "imperfect positive rows and negative-behavior violations; false positives and false negatives only in the autonomous trigger report",
     "input/cached-input/output tokens and estimated cost",
     "median and p95 elapsed milliseconds",
     "missing output and timeout counts",
-    "model snapshot, runner version, manifest digest, and compared SHAs"
+    "executor profile, runner version, manifest digest, preparation and full-output materialization receipts, treatment digests, and causal checks"
   ]
 }

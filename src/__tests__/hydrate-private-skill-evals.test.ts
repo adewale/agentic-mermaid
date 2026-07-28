@@ -10,23 +10,42 @@ test('private hydration rejects public answer keys and resolves every input', ()
     mkdirSync(join(root, 'skill-evals/private/holdback'), { recursive: true })
     mkdirSync(join(root, 'skill-evals/fixtures/case'), { recursive: true })
     mkdirSync(join(root, 'skills/a'), { recursive: true })
+    mkdirSync(join(root, 'skill-evals/oracles'), { recursive: true })
     writeFileSync(join(root, 'skill-evals/private/holdback/case.prompt.md'), 'Private prompt')
     writeFileSync(join(root, 'skill-evals/fixtures/case/input.mmd'), 'flowchart LR\nA-->B')
+    writeFileSync(join(root, 'skill-evals/oracles/check.ts'), '')
     const publicPath = join(root, 'skill-evals/manifest.json')
     const privatePath = join(root, 'skill-evals/private/cases.json')
     const publicManifest = {
       skill_paths: ['../skills/a'],
+      ablations: [
+        {
+          id: 'no-rule',
+          mechanism: 'patch',
+          target: { skill_root: '../skills/a', patch: 'ablations/no-rule.patch' },
+        },
+      ],
       cases: [{ id: 'case', split: 'holdback', prompt_ref: 'private/holdback/case.prompt.md', files: ['fixtures/case/input.mmd'] }],
     }
     writeFileSync(publicPath, JSON.stringify(publicManifest))
-    writeFileSync(privatePath, JSON.stringify({ version: 1, cases: [{ id: 'case', expected_behavior: ['answer'], assertions: [] }] }))
+    writeFileSync(privatePath, JSON.stringify({ version: 1, cases: [{ id: 'case', expected_behavior: ['answer'], assertions: [{ type: 'script', command: ['bun', 'oracles/check.ts', '{output_dir}'] }] }] }))
     const hydrated = hydratePrivateManifest(publicPath, privatePath)
     expect(hydrated.skill_paths).toEqual([join(root, 'skills/a')])
+    expect(hydrated.ablations).toEqual([
+      {
+        id: 'no-rule',
+        mechanism: 'patch',
+        target: {
+          skill_root: join(root, 'skills/a'),
+          patch: join(root, 'skill-evals/ablations/no-rule.patch'),
+        },
+      },
+    ])
     expect(hydrated.cases[0]).toMatchObject({
       prompt_ref: join(root, 'skill-evals/private/holdback/case.prompt.md'),
       files: [join(root, 'skill-evals/fixtures/case/input.mmd')],
       expected_behavior: ['answer'],
-      assertions: [],
+      assertions: [{ type: 'script', command: ['bun', join(root, 'skill-evals/oracles/check.ts'), '{output_dir}'] }],
     })
 
     writeFileSync(publicPath, JSON.stringify({ ...publicManifest, cases: [{ ...publicManifest.cases[0], expected_behavior: ['leak'] }] }))
