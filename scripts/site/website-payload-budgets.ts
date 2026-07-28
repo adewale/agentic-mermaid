@@ -6,11 +6,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
     maxRawBytes: 682_619,
-    maxGzipBytes: 406_567,
-    // Re-recorded exactly for 0.3.3. The raw total is unchanged; the same-length
+    maxGzipBytes: 406_568,
+    // Re-recorded exactly for 0.4.0. The raw total is unchanged; the same-length
     // projected version string slightly changes compression. These ceilings
     // intentionally match the checked-in payload capture for this toolchain.
-    maxBrotliBytes: 388_020,
+    maxBrotliBytes: 388_011,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -21,10 +21,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   examples: Object.freeze({
     maxRequests: 6,
     maxRawBytes: 380_391,
-    maxGzipBytes: 66_939,
-    // The 0.3.3 release identity changes only compressed back-references on
+    maxGzipBytes: 66_937,
+    // The 0.4.0 release identity changes only compressed back-references on
     // this route; the raw total remains byte-for-byte at its ratchet.
-    maxBrotliBytes: 53_148,
+    maxBrotliBytes: 53_152,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -37,8 +37,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     maxRequests: 30,
     maxRawBytes: 718_098,
-    maxGzipBytes: 269_735,
-    maxBrotliBytes: 246_247,
+    maxGzipBytes: 269_729,
+    maxBrotliBytes: 246_213,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -54,7 +54,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // include the shared code-point comparator used by family routing.
     maxRawBytes: 3_289_905,
     maxGzipBytes: 967_140,
-    maxBrotliBytes: 760_395,
+    maxBrotliBytes: 760_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

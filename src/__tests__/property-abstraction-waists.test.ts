@@ -337,7 +337,7 @@ describe('property: FamilyDescriptor render waist', () => {
           seen.add(familyId)
           registerFamily({
             contractVersion: 2,
-            identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: '^0.3.0' }, provenance: { owner: 'property-test', source: 'test' } },
+            identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: '^0.4.0' }, provenance: { owner: 'property-test', source: 'test' } },
             id: familyId,
             label: familyId,
             example: 'test-' + id + '\n  example payload',

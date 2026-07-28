@@ -260,7 +260,7 @@ contract explicitly; no built-in compatibility default is borrowed by
 ```ts
 registerBackend(backend, {
   version: '1.0.0',
-  compatibility: { core: '^0.3.0', scene: '^2.0.0' },
+  compatibility: { core: '^0.4.0', scene: '^2.0.0' },
   provenance: { owner: 'acme-diagrams', source: 'application-startup' },
 })
 ```

@@ -757,7 +757,7 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed): FamilyDes
       id: `family:${seed.id}`,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.3.0' },
+      compatibility: { core: '^0.4.0' },
       provenance: { owner: 'agentic-mermaid', source: 'built-in' },
     }),
     collisionPriority: 100,

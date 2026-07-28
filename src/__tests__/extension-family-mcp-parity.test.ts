@@ -30,7 +30,7 @@ function descriptor(onVerify: () => void = () => {}): FamilyDescriptor {
       id: FAMILY,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.3.0' },
+      compatibility: { core: '^0.4.0' },
       provenance: { owner: 'extension-mcp-parity-test', source: 'test', reference: EVIDENCE },
     }),
     id: FAMILY,
