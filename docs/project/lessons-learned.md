@@ -121,6 +121,12 @@ family docs, and `TODO.md`.
     Record the client version and negotiated protocol revision: a stable legacy
     client does not prove a newer stateless era, and neither run proves adoption
     by an external user.
+25. **An eval manifest is not eval evidence.** Validate path resolution from the
+    manifest directory, keep prompts and answer keys private together, prove
+    evaluators reject targeted bad outputs, and run treatment and control
+    repeatedly. Report exact run counts, missing outputs, slices, false
+    positives/negatives, latency, tokens, cost, model snapshot, and compared
+    commits. A larger case list or a one-run smoke cannot establish improvement.
 
 ## Lessons from the consolidation audits
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adewale/agentic-mermaid/skill-evals/private-bundle.schema.json",
+  "title": "Agentic Mermaid private skill-eval answer bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "cases"],
+  "properties": {
+    "version": { "const": 1 },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "expected_behavior", "assertions"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "expected_behavior": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "assertions": { "type": "array", "items": { "type": "object" } },
+          "review_rubric": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

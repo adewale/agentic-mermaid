@@ -50,6 +50,31 @@ rates together, pin corpus commit/count provenance, state known family skew, tag
 every agent case for slice reporting, and replace answer-shaped keyword checks
 with structural or artifact assertions.
 
+**A hidden prompt with a public answer key is not hidden.** The holdout and
+holdback rows omitted prompt text but retained expected behavior and literal
+assertions in the committed manifest. The documented strict command also could
+not run because the ignored prompt bundle did not exist. Rule: publish only the
+case identity, taxonomy, fixture reference, and private prompt reference; keep
+the prompt and its full answer key in one ignored bundle, hydrate them only at
+execution time, and make strict validation part of the evidence receipt.
+
+**Prepared tasks must resolve from the directory the harness actually uses.**
+Skill paths written as repository-root-relative were resolved from
+`skill-evals/`, and artifact prompts wrote to a checkout while `file_exists`
+graded a run directory. Both failures could make the treatment ineffective or
+turn correct work into a false negative. Rule: inspect a prepared task before a
+large run, re-home skills and fixtures to the exact compared checkout, and make
+artifact destinations absolute under that run's grading root.
+
+**Evaluate the evaluator before evaluating the agent.** Expanding 31 cases to
+39 improved intended coverage but did not show that the assertions could detect
+their named faults, did not execute the new rows, and left a one-run two-case
+smoke as the latest result. Rule: feed known-good controls plus targeted
+sabotage across every assertion class, run with/without treatment at least three times, execute
+trigger precision separately, and publish per-slice failures, variance,
+timeouts, tokens, latency, and cost. Manifests are inputs; completed repeated
+runs are evidence.
+
 **A test must not inherit an input that its own comment says may hang.** The
 TTY guard's positive-control case called `readFileSync(0)` inside the aggregate
 runner and could wait forever on the runner's open stdin. Rule: give blocking

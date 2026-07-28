@@ -23,7 +23,7 @@ The public tune split now includes:
   overall mean. Output assertions avoid repeating literal prompt clues; regex
   checks are used where a structural relationship matters.
 
-The manifest also contains private `prompt_ref` stubs for `holdout` and `holdback`. Those paths are intentionally under ignored `skill-evals/private/`; keep real hidden prompts and answer keys out of public commits.
+The manifest also contains private `prompt_ref` stubs for `holdout` and `holdback`. Those paths are intentionally under ignored `skill-evals/private/`; real hidden prompts and answer keys must stay out of public commits. Public stubs contain no `expected_behavior`, `assertions`, or `review_rubric`, because an unpublished prompt with a published answer key is not a holdback.
 
 ## Harness
 
@@ -40,11 +40,18 @@ skill-benchmark validate skill-evals/shared-benchmark.json
 skill-benchmark audit-manifest skill-evals/shared-benchmark.json --format markdown --out /tmp/agentic-mermaid-skill-audit.md
 ```
 
-Use strict hidden-prompt validation only in a private eval workspace where `skill-evals/private/...` exists:
+Create an ignored `skill-evals/private/cases.json` conforming to
+[`private-bundle.schema.json`](./private-bundle.schema.json), add the referenced
+prompt files, hydrate, then use strict validation:
 
 ```bash
-skill-benchmark validate skill-evals/shared-benchmark.json --strict-holdback
+bun run eval:skill:hydrate
+skill-benchmark validate skill-evals/private/hydrated-benchmark.json --strict-holdback
 ```
+
+Hydration fails on a missing/extra private case, a missing prompt, or any answer
+key leaked into a public hidden stub. It also resolves skill, fixture, and prompt
+paths absolutely so moving the hydrated file cannot silently retarget inputs.
 
 Prepare visible tune tasks with repeated runs:
 
@@ -55,7 +62,12 @@ skill-benchmark prepare skill-evals/shared-benchmark.json \
   --out /tmp/agentic-mermaid-skill-tasks.jsonl
 ```
 
-Use 3 runs per variant for cheap iteration; use 5 for pre-merge/release evidence. Fixture-backed artifact cases require a runner that preserves generated `outputs/...` files inside each run directory so `file_exists` assertions can grade them.
+Use 3 runs per variant for iteration and 5 for pre-merge/release evidence. Before
+execution, run `eval:skill:prepare-evidence` with `--checkout`, `--runs-root`, and
+`--cases`. It moves the agent to the exact checkout under test, re-homes its
+skill/fixture inputs to that SHA, and rewrites requested `outputs/...` paths into
+the matching run directory. Without this step, an agent can produce the right
+artifact in the repository while `file_exists` grades the unrelated run folder.
 
 Run autonomous trigger/no-trigger checks separately:
 
@@ -84,4 +96,48 @@ Runner: Pi CLI, one run per variant, tune split only, model reported by Pi as `g
 | `with_skill` | 2 | 2 | 1.00 |
 | `without_skill` | 2 | 2 | 0.00 |
 
-That older result was a positive smoke signal. It is superseded as a coverage target by the expanded manifest above and should be rerun with 3–5 runs per variant before claiming benchmark-level evidence.
+That older result is only a runner smoke signal: one run cannot estimate
+variance, the two-case sample predates the MCP cohort, and it has no slice,
+false-positive/negative, latency, or cost report. Do not cite it as benchmark or
+release evidence.
+
+## Evidence gate
+
+[`../eval/skill-evidence/release-cohort.json`](../eval/skill-evidence/release-cohort.json)
+pins the comparison SHAs, behavior cohort, model snapshot, repetition policy,
+trigger repetition, pricing source, and required report fields. A behavior run
+is not complete unless both variants have the exact expected run count and zero
+missing outputs/timeouts. Run autonomous trigger/no-trigger evals separately;
+good answers to forcibly loaded skills do not prove routing precision.
+
+After grading both pinned checkouts, summarize only complete run matrices:
+
+```bash
+bun run eval:skill:summarize-evidence \
+  --before /tmp/eval-before/report.json \
+  --after /tmp/eval-after/report.json \
+  --before-manifest /tmp/eval-before/checkout/skill-evals/shared-benchmark.json \
+  --after-manifest /tmp/eval-after/checkout/skill-evals/shared-benchmark.json \
+  --out /tmp/skill-evidence-comparison.json
+```
+
+The summary refuses duplicate or missing case/variant/run cells, ungraded rows,
+missing outputs, and timeouts. It emits the runner/model identity, compared SHAs,
+both manifest digests, absolute and headroom-normalized treatment gains, per-case
+and taxonomy slices, false-positive/negative rows, latency, token usage, and
+price-source-backed cost estimates.
+
+The deterministic preflight is:
+
+```bash
+bun run eval:skill:sabotage
+bun run eval:family-portfolio:check
+skill-benchmark audit-manifest skill-evals/shared-benchmark.json --format markdown
+```
+
+The sabotage lane feeds known-good controls and targeted bad outputs through
+every deterministic text assertion type. It must prove the control passes and
+each mutation fails; otherwise the evaluator is not sensitive to the fault it
+claims to detect. The balanced portfolio is a separate 4 × 15 registry-derived
+input set for family-macro reporting; retain the 271-example documentation
+corpus for syntax breadth and report both views.

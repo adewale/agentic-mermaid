@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "comparison": {
+    "baseline": "bf64396d",
+    "candidate": "3054a0a9"
+  },
+  "behavior": {
+    "split": "tune",
+    "cases": [
+      "pos-channel-mcp-direct-verify",
+      "pos-channel-mcp-direct-describe",
+      "pos-channel-mcp-direct-mutate",
+      "pos-channel-mcp-direct-build",
+      "adv-mcp-recover-invalid-op-schema",
+      "adv-mcp-hosted-size-fallback",
+      "adv-mcp-underspecified-quality-objective",
+      "adv-mcp-repo-grounded-scope",
+      "neg-unrelated-typescript-helper"
+    ],
+    "minimumRunsPerVariant": 3,
+    "releaseRunsPerVariant": 5
+  },
+  "trigger": {
+    "split": "tune",
+    "runsPerQuery": 5
+  },
+  "executor": {
+    "runner": "skill-eval-harness",
+    "runnerVersion": "0.4.0",
+    "model": "gpt-5.4-mini-2026-03-17",
+    "reasoningEffort": "low"
+  },
+  "pricingUsdPerMillionTokens": {
+    "input": 0.75,
+    "cachedInput": 0.075,
+    "output": 4.5,
+    "source": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+    "checkedAt": "2026-07-28"
+  },
+  "requiredReportFields": [
+    "with_skill and without_skill objective rates",
+    "absolute and normalized gains",
+    "per-case and domain/difficulty/trigger-type slices",
+    "false-positive and false-negative rows",
+    "input/cached-input/output tokens and estimated cost",
+    "median and p95 elapsed milliseconds",
+    "missing output and timeout counts",
+    "model snapshot, runner version, manifest digest, and compared SHAs"
+  ]
+}
