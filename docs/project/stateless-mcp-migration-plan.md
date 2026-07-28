@@ -529,7 +529,7 @@ than adopted wholesale.
 | Import the SDK dynamically to avoid cold-start cost | **No** | We have no SDK import. The equivalent concern — the generated execute harness — is already lazy behind the Worker Loader. |
 | ID grammar colliding with an existing wire protocol | **No, but instructive** | We mint no caller-chosen IDs. The nearest analogue is artifact names (§4.4), where the risk is entropy, not grammar collision. |
 | Agent-only traffic breaks flush-on-disconnect persistence | **No** | We have no persistence lifecycle. |
-| Rate limiting: shared-NAT IP bucketing, 429 without `Retry-After`, Workers `limit()` returning only `{success}` | **Yes** | Directly relevant and *still unimplemented for us* — `docs/project/mcp-abuse-controls-plan.md` is "planned, not implemented" and the endpoint is public and keyless. Their shared-NAT point is a good argument against IP-keyed limits for agent traffic. Tracked under SEC-4, out of scope here. |
+| Rate limiting: shared-NAT IP bucketing, 429 without `Retry-After`, Workers `limit()` returning only `{success}` | **Yes** | Directly relevant. The primary `/mcp` route now has an outer WAF limit, while alias-complete WAF evidence remains `DEC-2` and the application-level bindings/concurrency/disable controls remain unimplemented under `SEC-4`. Their shared-NAT point is a good argument against treating IP-keyed limits as a complete agent-traffic control. |
 | "Assign, never replace" mutation safety | **No** | Their rule protects concurrent writers to shared state. Our `mutate` takes a source string and returns a new one; there is no shared document to clobber. |
 | Use the app's own ID as the state handle | **No** | We have no app state (§4.4). |
 | Tiny deliberate tool surface; enum-in-schema over a resource | **Already done** | `describe_sdk` progressively discloses per-family op schemas rather than shipping a separate catalog. |
@@ -629,6 +629,11 @@ Regression guards, not bug-discriminating tests — state them as such:
   caching-hint operation list, and the `clientInfo` optionality survived
   assembly unchanged, and diff the response corpus. Nothing in the
   implementation assumes the draft was correct beyond what those pages say.
+  Rechecked at `2026-07-28T02:29Z`: the
+  [official versioning page](https://modelcontextprotocol.io/docs/learn/versioning)
+  still named `2025-11-25` as current and the final `2026-07-28` pages were
+  still absent. Issue #186 therefore remains open for this final-text diff,
+  rather than being closed merely because the implementation PR merged.
 - **Vacuous conformance tests** (§7.2) — the highest-probability way this
   migration ships broken while appearing tested. Mitigation: assert the
   negotiated version inside every conformance test.
@@ -637,8 +642,8 @@ Regression guards, not bug-discriminating tests — state them as such:
   change reviewable.
 - **Dual-era doubles the paths under test.** Mitigation: the era predicate is a
   single function, tested directly, with the matrix in §7.3 driven off it.
-- **Unmitigated:** `/mcp` remains public, keyless, and unrate-limited (SEC-4).
-  Removing `initialize` as a required first request marginally lowers the cost
-  of an unauthenticated `tools/call`, which is an argument for landing rate
-  limiting before advertising modern support widely — not a blocker for the
-  work itself.
+- **Partly mitigated:** `/mcp` remains public and keyless, but its primary route
+  now has an outer per-IP WAF limit. `DEC-2` remains until the equivalent
+  `/.well-known/mcp` compute path is confirmed in the same rule; per-tool
+  admission, bounded concurrency, a disable gate, and redacted observability
+  remain `SEC-4`.

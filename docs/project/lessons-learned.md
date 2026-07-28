@@ -101,6 +101,26 @@ family docs, and `TODO.md`.
     loopback origin, load them from the documented `<script src>` or ESM URL,
     assert that request occurred, and then verify the public API and rendered
     result. The transport is part of the distribution contract.
+21. **A production deployment is a transaction, not an upload command.** Build
+    one immutable candidate, attach it at zero traffic, probe it through the
+    production edge, re-check that the target commit is still current, promote
+    only that version, and keep rollback armed until the promoted identity and
+    behavior pass. A successful upload or workflow wrapper is not delivery.
+22. **Operational controls apply to route equivalence classes.** A WAF rule on
+    the advertised `/mcp` path is incomplete when `/.well-known/mcp` reaches the
+    same compute handler. Enumerate every public route to the protected resource,
+    keep one rate budget across every deployment phase, and prove enforcement
+    plus recovery at the edge without turning routine CI into a load test.
+23. **Machine-readable output must be parsed at every nested boundary.** Wrangler
+    upload output is structured JSON, and MCP tool content can be a JSON string
+    inside a JSON-RPC result. Parse and validate the documented shape at each
+    layer; substring checks are neither schema validation nor useful diagnostics.
+24. **A real client closes only the boundary it actually crosses.** An official
+    SDK against an in-process handler proves client framing, while the same SDK
+    against production proves CDN, Worker, and deployed-version interoperability.
+    Record the client version and negotiated protocol revision: a stable legacy
+    client does not prove a newer stateless era, and neither run proves adoption
+    by an external user.
 
 ## Lessons from the consolidation audits
 
