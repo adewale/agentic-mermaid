@@ -55,6 +55,9 @@ jobs:
     env:
       WRANGLER_SEND_METRICS: 'false'
       EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      # One shared cadence covers smoke, exhaustive, and post-promotion probes.
+      # 10 requests/minute leaves substantial rolling-window WAF headroom.
+      MCP_REQUEST_INTERVAL_SECONDS: '6'
     steps:
       - name: Check Cloudflare deployment secrets
         id: cloudflare-secrets
@@ -288,6 +291,7 @@ jobs:
         # part of this contract. The full-surface probe runs in the next step,
         # which depends on the SHA gate here having absorbed propagation lag.
         run: |
+          source scripts/ci/mcp-paced-curl.sh
           MCP='https://agentic-mermaid.dev/mcp'
           CARD='https://agentic-mermaid.dev/.well-known/mcp/server-card.json'
           OVERRIDE="Cloudflare-Workers-Version-Overrides: agentic-mermaid-website=\"${CANDIDATE_ID}\""
@@ -295,7 +299,7 @@ jobs:
             local attempt
             for attempt in 1 2 3 4 5; do
               local got served
-              got="$(curl -sS --max-time 30 -H "$OVERRIDE" -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&attempt=${attempt}" || true)"
+              got="$(mcp_curl -sS --max-time 30 -H "$OVERRIDE" -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&attempt=${attempt}" || true)"
               served="$(jq -r '.generatedFrom.gitSha // empty' <<<"$got" 2>/dev/null || true)"
               if [[ "$served" == "$EXPECTED_SHA" ]]; then
                 echo "ok   deployed build SHA is $EXPECTED_SHA"
@@ -311,7 +315,7 @@ jobs:
             local attempt
             for attempt in 1 2 3 4 5; do
               local got
-              got="$(curl -sS --max-time 30 -X POST "$MCP" -H "$OVERRIDE" -H 'content-type: application/json' -d "$2" || true)"
+              got="$(mcp_curl -sS --max-time 30 -X POST "$MCP" -H "$OVERRIDE" -H 'content-type: application/json' -d "$2" || true)"
               if [[ "$got" == *"$3"* ]]; then
                 echo "ok   $1"
                 return 0
@@ -335,11 +339,10 @@ jobs:
         env:
           MCP_WORKER_NAME: agentic-mermaid-website
           MCP_WORKER_VERSION_ID: ${{ steps.candidate.outputs.candidate_id }}
-          MCP_REQUEST_INTERVAL_SECONDS: '2'
         # The exact gitSha poll above gates propagation. This no-retry probe then
         # asserts every tool, modern routing rule, and raw F3 transport body.
-        # Every request is paced to at most 30/minute: half the documented WAF
-        # budget, leaving rolling-window headroom for the preceding smoke test.
+        # The job-wide shared cadence keeps every production-domain request at
+        # most 10/minute across phase boundaries, without a WAF bypass.
         run: bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp
 
       - name: Require target still current before promotion
@@ -374,13 +377,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
         run: |
+          source scripts/ci/mcp-paced-curl.sh
           MCP='https://agentic-mermaid.dev/mcp'
           CARD='https://agentic-mermaid.dev/.well-known/mcp/server-card.json'
           for attempt in 1 2 3 4 5; do
-            card="$(curl -sS --max-time 30 -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&promotion=${attempt}" || true)"
+            card="$(mcp_curl -sS --max-time 30 -H 'cache-control: no-cache' "${CARD}?deploy=${EXPECTED_SHA}&promotion=${attempt}" || true)"
             served="$(jq -r '.generatedFrom.gitSha // empty' <<<"$card" 2>/dev/null || true)"
-            verify="$(curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}' || true)"
-            execute="$(curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' || true)"
+            verify="$(mcp_curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}' || true)"
+            execute="$(mcp_curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' || true)"
             if [[ "$served" == "$EXPECTED_SHA" && "$verify" == *'"ok":true'* && "$execute" == *'"value":42'* ]]; then
               deployments="$(node_modules/.bin/wrangler --cwd website deployments list --json)"
               jq -e --arg candidate "$CANDIDATE_ID" '
@@ -393,7 +397,7 @@ jobs:
               echo "ok   $EXPECTED_SHA is verified at 100% production traffic"
               exit 0
             fi
-            echo "retry $attempt/5 promoted production verification (served: ${served:-unreadable})"
+            echo "retry $attempt/5 promoted production verification (served: ${served:-unreadable}; verify: ${verify:0:120}; execute: ${execute:0:120})"
             sleep $((attempt * 15))
           done
           echo "::error title=Promoted production verification failed::Rolling back from $EXPECTED_SHA."

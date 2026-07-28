@@ -16,26 +16,18 @@
 # a wall-clock backstop (execute-loader.ts).
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$REPO_ROOT/scripts/ci/mcp-paced-curl.sh"
+
 MCP="${1:-http://127.0.0.1:9095/mcp}"
 pass=0
 
-pace_request() {
-  # Production enables this fixed cadence so the exhaustive probe remains a
-  # legitimate client of the public WAF policy. Sleeping before the first
-  # request also leaves headroom for the smoke checks that immediately precede
-  # this script in the deployment workflow.
-  if [[ -n "${MCP_REQUEST_INTERVAL_SECONDS:-}" ]]; then
-    sleep "$MCP_REQUEST_INTERVAL_SECONDS"
-  fi
-}
-
 mcurl() {
-  pace_request
   if [[ -n "${MCP_WORKER_VERSION_ID:-}" ]]; then
     local worker_name="${MCP_WORKER_NAME:-agentic-mermaid-website}"
-    curl -H "Cloudflare-Workers-Version-Overrides: ${worker_name}=\"${MCP_WORKER_VERSION_ID}\"" "$@"
+    mcp_curl -H "Cloudflare-Workers-Version-Overrides: ${worker_name}=\"${MCP_WORKER_VERSION_ID}\"" "$@"
   else
-    curl "$@"
+    mcp_curl "$@"
   fi
 }
 j() { mcurl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d "$1"; }
