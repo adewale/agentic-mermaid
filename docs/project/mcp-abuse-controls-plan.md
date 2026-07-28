@@ -1,9 +1,8 @@
 # Hosted MCP abuse controls: plan
 
 > **Status: application controls planned, not implemented; root backlog owner
-> `SEC-4`.** The outer WAF is live on the primary `/mcp` route, while `DEC-2`
-> remains open until the compute-capable `/.well-known/mcp` alias is confirmed
-> in the same rule. See the
+> `SEC-4`.** The outer WAF is live on both compute-capable POST routes; the
+> owner-confirmed dashboard scope closed `DEC-2`. See the
 > [2026-07-28 production record](./archive/hosted-mcp-production-validation-2026-07-28.md).
 > Revised 2026-07-10 after a
 > Cloudflare Doctor audit of this plan, the hosted MCP implementation, and live
@@ -21,11 +20,10 @@
 
 ## Threat model and current baseline
 
-The hosted MCP transport is public, keyless, and unauthenticated. Its primary
-`POST /mcp` route is protected by an owner-configured WAF rate limit of 10
-requests per 60 seconds per source IP, but the equivalent
-`POST /.well-known/mcp` route must be confirmed in that rule before `DEC-2`
-closes. Each request accepts up to 128 KiB per HTTP body and 64 KiB for each
+The hosted MCP transport is public, keyless, and unauthenticated. Its
+`POST /mcp` and `POST /.well-known/mcp` routes are protected by one
+owner-configured WAF rate limit of 10 requests per 60 seconds per source IP.
+Each request accepts up to 128 KiB per HTTP body and 64 KiB for each
 source/code field, allows batches of up to
 20 items, and currently permits at most one `execute` per batch
 (`website/src/mcp-handler.ts`). `execute` invokes a Dynamic Worker with a
@@ -172,9 +170,9 @@ Cache API access and dispatch. Do not use the binding as a global accounting
 or distributed-attack guarantee: its counters are local to a Cloudflare
 location and eventually consistent. A dashboard-side WAF rate-limit rule on
 both hosted POST paths remains required because it runs before the Worker and
-provides an independent outer control. The primary `/mcp` rule is live; alias
-scope, rule order, and enforcement/recovery remain owner evidence under
-`DEC-2`, not facts the Worker can infer.
+provides an independent outer control. That both-path scope is live and recorded
+as owner evidence; rule order and bounded enforcement/recovery remain `SEC-4`
+game-day evidence, not facts the Worker can infer.
 
 `MAX_EXECUTE_ITEMS_PER_BATCH` stays 1. Add `MAX_RENDER_PNG_ITEMS_PER_BATCH =
 1`, and dispatch the remaining admitted work through a small explicit
@@ -238,9 +236,9 @@ and [Dynamic Worker pricing](https://developers.cloudflare.com/dynamic-workers/p
 ## Composition and build order
 
 1. Finish the production inputs: traffic/RPS, acceptable false-positive rate,
-   Workers/Dynamic Workers/Logs usage, and the alias-complete dashboard WAF
-   evidence. Primary-route enforcement and one CI false positive are recorded
-   in the 2026-07-28 production record.
+   and Workers/Dynamic Workers/Logs usage. Both-path dashboard WAF scope,
+   primary-route enforcement, and one CI false positive are recorded in the
+   2026-07-28 production record.
 2. Implement and drill the upstream execute gate (`execute` cache eligibility
    is already removed).
 3. Implement payload-proportional limits, per-item rate admission, per-batch
@@ -251,13 +249,11 @@ and [Dynamic Worker pricing](https://developers.cloudflare.com/dynamic-workers/p
 
 ## Promotion evidence
 
-Primary-route WAF enforcement and the stable reference-client production smoke
-are recorded in
+Both-path WAF scope, primary-route enforcement, and the stable reference-client
+production smoke are recorded in
 [`archive/hosted-mcp-production-validation-2026-07-28.md`](./archive/hosted-mcp-production-validation-2026-07-28.md).
 The following still cannot be inferred from this repository:
 
-- Dashboard confirmation and bounded enforcement/recovery evidence that the WAF
-  rule covers both `/mcp` and `/.well-known/mcp`, including rule order.
 - Cloudflare account plan; current Workers, Dynamic Workers, and Workers Logs
   usage/overage data; and the current official pricing pages used to choose
   rate and logging thresholds.

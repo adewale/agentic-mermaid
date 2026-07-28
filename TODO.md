@@ -9,15 +9,6 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
-- [ ] **DEC-2 — Finish WAF coverage for every hosted MCP POST route before
-  broadly promoting the endpoint** (`owner-decision`). The owner-configured
-  primary rule blocks `POST /mcp` above 10 requests per 60 seconds per source
-  IP, and Cloudflare error 1015 proved enforcement. However,
-  `POST /.well-known/mcp` reaches the same compute handler and its dashboard
-  coverage is not yet recorded. Expand or confirm the rule across both exact
-  paths, run the bounded alias enforcement/recovery check, and retain the
-  dashboard event plus rollback owner. See the dated production record in
-  `docs/project/archive/hosted-mcp-production-validation-2026-07-28.md`.
 - [ ] **DEC-4 — Establish Google and Bing search visibility**
   (`owner-decision`). In ownership-verified Google Search Console and Bing
   Webmaster Tools, submit `https://agentic-mermaid.dev/sitemap.xml`, request
@@ -46,7 +37,8 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 ## Security backlog
 
 - [ ] **SEC-4 — Implement and drill hosted MCP abuse controls** (`todo`; the
-  primary-route WAF is live, while complete route coverage remains `DEC-2`).
+  outer WAF covers both compute-capable POST routes, while the application
+  controls and production game day remain unfinished).
   Execute the bounded admission,
   payload-proportional CPU, per-item rate/fan-out, concurrency, disable-gate,
   and redacted-observability contract in

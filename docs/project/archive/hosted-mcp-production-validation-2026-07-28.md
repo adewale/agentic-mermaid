@@ -1,10 +1,10 @@
 # Hosted MCP production validation — 2026-07-28
 
 > **Status:** production version `0.3.2` is deployed and passes the guarded
-> deployment plus an independent reference-client smoke. The primary `/mcp`
-> route has an owner-configured WAF rate limit. Promotion remains gated on
-> confirming that the same rule also covers the compute-capable
-> `/.well-known/mcp` alias.
+> deployment plus an independent reference-client smoke. One owner-configured
+> WAF rate-limit rule covers both compute-capable POST routes. The account
+> owner's 2026-07-28 dashboard confirmation closes the route-scope promotion
+> gate formerly tracked as `DEC-2`.
 
 This is the dated owner/evidence record for the dashboard-side controls that
 cannot be derived from the repository. Current application hardening work stays
@@ -25,12 +25,12 @@ backlog.
 
 ## Dashboard WAF control
 
-The Cloudflare account owner configured the primary production control as:
+The Cloudflare account owner configured the production control as:
 
 | Property | Owner record |
 | --- | --- |
 | Host | `agentic-mermaid.dev` |
-| Method and path | `POST /mcp` |
+| Method and paths | `POST /mcp`; `POST /.well-known/mcp` |
 | Characteristic | Source IP |
 | Rate | 10 requests per 60 seconds |
 | Action | Block at the edge |
@@ -43,15 +43,13 @@ one request per six seconds, keeping the whole job at or below ten requests per
 rolling minute. The cadence applies to the initial smoke, the full dual-era
 probe, and final promoted-version verification; it is not reset between phases.
 
-### Remaining route-scope gate
+### Route-scope closure
 
 `website/src/worker-core.ts` routes both `/mcp` and `/.well-known/mcp` to the
 same hosted handler. A production `POST /.well-known/mcp` returned HTTP 200 at
-`2026-07-28T02:29Z`, proving that the alias can invoke compute. Repository
-evidence cannot see whether the dashboard rule includes that second path.
-
-Before closing `DEC-2`, inspect the Cloudflare rule and make its effective scope
-equivalent to:
+`2026-07-28T02:29Z`, proving that the alias can invoke compute. On 2026-07-28,
+the Cloudflare account owner then confirmed in the dashboard that the same
+rate-limit rule includes both exact paths, with effective scope equivalent to:
 
 ```text
 http.host eq "agentic-mermaid.dev" and
@@ -59,10 +57,11 @@ http.request.method eq "POST" and
 http.request.uri.path in {"/mcp" "/.well-known/mcp"}
 ```
 
-Then send the bounded owner test through the alias, confirm an over-budget
-request is blocked before the Worker, confirm an ordinary below-budget request
-still succeeds after the mitigation window, and record the dashboard event.
-Do not generate enough public traffic to test this from routine CI.
+The rule's block action was already observed as Cloudflare error 1015 through
+`/mcp`. A second public over-budget burst through the alias was deliberately not
+generated: the single rule's path predicate provides the route-coverage proof,
+while bounded enforcement/recovery and rule-order drills remain part of the
+`SEC-4` production game day. Routine CI must stay below the shared WAF budget.
 
 ## Independent production client
 

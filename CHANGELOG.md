@@ -7,7 +7,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## 0.3.3 — 2026-07-28
 
 ### Changed
-- Recorded the owner-configured production WAF budget for the hosted MCP (`10 requests / 60 seconds / source IP`, block) and kept the promotion record fail-closed on route scope: `POST /.well-known/mcp` reaches the same compute handler as `/mcp`, so broad promotion remains gated until the dashboard rule is confirmed across both paths.
+- Recorded the owner-configured production WAF budget for the hosted MCP (`10 requests / 60 seconds / source IP`, block) and closed the route-scope promotion gate after the account owner confirmed that one dashboard rule covers both compute-capable POST paths: `/mcp` and `/.well-known/mcp`.
 - Validated the deployed endpoint through the official `@modelcontextprotocol/sdk@1.29.0` client across the real Cloudflare edge: server `0.3.2` negotiated `2025-11-25` without a session, returned the exact nine-tool surface, and completed a real `render_svg` call.
 
 ### Fixed
