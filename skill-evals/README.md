@@ -8,10 +8,20 @@ The public tune split now includes:
 
 - Diagram families: every registry-declared built-in, via the manifest's
   `family:*` tags (enforced by the doc-sync test rather than copied here).
-- Channels: library, CLI, and MCP Code Mode.
+- Channels: library, CLI, hosted MCP direct tools, and MCP Code Mode.
+- Hosted MCP routing: direct `verify`/`describe`/`mutate`/`build` cases,
+  schema-error recovery through `describe_sdk`, and local fallback for inputs
+  beyond the hosted limit. A separate repository-grounding case requires scope
+  claims to cite inspected implementation files rather than generic MCP lore.
 - Negative/no-trigger rows for unrelated work.
-- Adversarial rows for source concatenation, skipping verify, editing generated `editor.html`, and using `type` instead of `kind`.
+- Adversarial rows for source concatenation, skipping verify, editing generated
+  `editor.html`, using `type` instead of `kind`, underspecified quality goals,
+  and oversized hosted inputs.
 - Fixture-backed artifact rows under [`fixtures/`](./fixtures/) that require changed Mermaid/source plus `verifyMermaid` evidence.
+- Every case is tagged by domain, difficulty, trigger type, and success goal so
+  aggregate pass rates can be sliced instead of hiding regressions in one
+  overall mean. Output assertions avoid repeating literal prompt clues; regex
+  checks are used where a structural relationship matters.
 
 The manifest also contains private `prompt_ref` stubs for `holdout` and `holdback`. Those paths are intentionally under ignored `skill-evals/private/`; keep real hidden prompts and answer keys out of public commits.
 
@@ -20,7 +30,7 @@ The manifest also contains private `prompt_ref` stubs for `holdout` and `holdbac
 Install/run with:
 
 ```bash
-uvx --from git+https://github.com/adewale/skill-eval-harness.git@v0.1.1 skill-benchmark --help
+uvx --from git+https://github.com/adewale/skill-eval-harness.git@v0.4.0 skill-benchmark --help
 ```
 
 Validate and audit the public manifest:

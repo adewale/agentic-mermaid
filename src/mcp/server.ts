@@ -77,14 +77,12 @@ const PROTOCOL_VERSION = '2024-11-05'
  * from 2025-11-25, and the 2026-07-28 stateless era (server/discover,
  * per-request `_meta`, resultType, caching hints).
  *
- * One honest caveat, pre-existing and unchanged: this server has never
- * implemented JSON-RPC batching — every transport parses a single object, so an
- * array body is refused with -32600 on every revision. That is exactly what
- * 2025-06-18 and later require, and a deviation for the two older revisions
- * that permit it. The previous 2024-11-05-only pin was, on that axis, the least
- * accurate claim this server could have made.
+ * This stdio transport is newline-delimited and intentionally does not accept
+ * JSON-RPC batch arrays. It therefore omits 2025-03-26, whose receivers MUST
+ * accept batches, while serving the revisions whose wire contract is compatible
+ * with one-message-per-line operation.
  */
-export const STDIO_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28'] as const
+export const STDIO_PROTOCOL_VERSIONS = ['2024-11-05', '2025-06-18', '2025-11-25', '2026-07-28'] as const
 
 /**
  * What the HTTP+SSE transport serves — and it is literally the 2024-11-05 one:

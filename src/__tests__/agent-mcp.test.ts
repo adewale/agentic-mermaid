@@ -499,7 +499,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const instructions = (r!.result as any).instructions as string
     for (const family of BUILTIN_FAMILY_METADATA) expect(instructions).toContain(family.narrower)
     expect(instructions).not.toContain('Journey, xychart, architecture')
-    expect((r!.result as any).capabilities).toEqual({ tools: {}, prompts: {}, resources: {} })
+    expect((r!.result as any).capabilities).toEqual({ tools: {} })
   })
   test.each([
     undefined,

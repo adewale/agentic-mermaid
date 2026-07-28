@@ -8,6 +8,54 @@ date; do not delete old ones — supersede them in place.
 > long-form fork narrative and major-PR retrospectives, see
 > [`../project/lessons-learned.md`](../project/lessons-learned.md).
 
+## 2026-07 — MCP scope honesty and conformance
+
+**Protocol compliance belongs to a surface and transport, not to a shared
+dispatcher.** The dispatcher understood five revisions, but the local stdio
+transport could not receive the batches required by `2025-03-26`, and the
+hosted POST-only endpoint could not honestly claim the `2024-11-05` HTTP+SSE
+transport. Rule: advertise the intersection of message semantics, transport
+obligations, and implemented handlers. Test each transport's advertised version
+list independently; shared code is not evidence that every caller serves the
+same protocol.
+
+**An empty optional namespace is still a capability claim.** Returning empty
+`prompts/list` and `resources/list` results while advertising both capabilities
+made clients and conformance probes reasonably treat those methods as product
+surface. Rule: omit optional capabilities that the product does not implement,
+and return Method Not Found for their methods. Do not add fake empty handlers or
+diagnostic tools merely to make a generic harness look greener.
+
+**A protocol error that answers a parsed request must preserve its id.** The
+hosted endpoint rejected an unsupported protocol header before reading the body,
+so it returned `id: null` even when the request carried a valid id. Rule: keep
+transport refusals before parsing, but perform request-level version admission
+after a bounded body read. Invalid modern metadata is `-32602`; a real
+header/body mirror disagreement is `-32020`; an unsupported revision is
+`-32022` with the correlated request id and retryable supported-version list.
+
+**Official conformance needs a strict applicability boundary.** The upstream
+caching scenario probes prompts and resources even when discovery omits them,
+and several stateless checks require specially named diagnostic tools. Rule:
+commit a narrow expected-failure baseline only for demonstrably inapplicable
+fixtures, fail on every unlisted failure, and also fail when a baseline entry
+unexpectedly passes. Product discovery must remain more honest than the test
+fixture.
+
+**Eval volume, provenance, and answer leakage are separate quality axes.** A
+271-example documentation corpus was dominated by flowcharts, aggregate layout
+rates could hide a one-example family regression, and literal prompt phrases
+appeared in output assertions. Rule: publish family-macro and example-micro
+rates together, pin corpus commit/count provenance, state known family skew, tag
+every agent case for slice reporting, and replace answer-shaped keyword checks
+with structural or artifact assertions.
+
+**A test must not inherit an input that its own comment says may hang.** The
+TTY guard's positive-control case called `readFileSync(0)` inside the aggregate
+runner and could wait forever on the runner's open stdin. Rule: give blocking
+input paths a real bounded subprocess pipe and close it explicitly; a timeout
+comment is not an oracle.
+
 ## 2026-07 — hosted MCP production rollout (#228, #233–#236)
 
 **Treat production promotion as a transaction.** The first workflow could report

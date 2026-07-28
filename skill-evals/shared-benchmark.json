@@ -4,7 +4,7 @@
   "harness": {
     "name": "skill-eval-harness",
     "url": "https://github.com/adewale/skill-eval-harness",
-    "version": ">=0.1.1"
+    "version": ">=0.4.0"
   },
   "skill_paths": [
     "skills/agentic-mermaid-diagram-workflow",
@@ -29,6 +29,10 @@
       "id": "pos-diagram-existing-flowchart-safe-edit",
       "split": "tune",
       "kind": "positive",
+      "domain": "diagram-editing",
+      "difficulty": "core",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
       "prompt": "A coding agent must edit an existing Mermaid flowchart using Agentic Mermaid. Give the safest workflow and a tiny code sketch for adding a Cache node between API and DB. Also name the main render output formats. Do not browse the repository; answer from any loaded skill if one is available.",
       "expected_behavior": [
         "Use parse -> narrow -> mutate -> verify -> serialize for existing structured diagrams.",
@@ -88,6 +92,10 @@
       "id": "pos-live-editor-source-of-truth",
       "split": "tune",
       "kind": "positive",
+      "domain": "editor-workflow",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
       "prompt": "A coding agent must change Agentic Mermaid's live editor export behavior. What source-of-truth file should it edit, what generated artifact rule should it follow, and which export/output formats are relevant? Do not browse the repository; answer from any loaded skill if one is available.",
       "expected_behavior": [
         "Identify scripts/site/editor.ts as the source of truth.",
@@ -127,7 +135,11 @@
       "id": "pos-family-flowchart-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the Agentic Mermaid library channel, edit the existing flowchart so Cache sits between API and DB. Produce artifact files under outputs/flowchart-cache/final.mmd and outputs/flowchart-cache/verify.json, include their contents in your final answer, and show the exact verification evidence from verifyMermaid. Do not edit by source concatenation when a typed op exists.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the Agentic Mermaid library channel, edit the existing flowchart so a caching tier sits between API and DB. Produce artifact files under outputs/flowchart-cache/final.mmd and outputs/flowchart-cache/verify.json, include their contents in your final answer, and show the exact evidence from the library validator. Do not edit by source concatenation when a typed op exists.",
       "files": [
         "fixtures/flowchart-cache/input.mmd"
       ],
@@ -161,12 +173,8 @@
         },
         {
           "name": "cache-path",
-          "type": "contains_all",
-          "values": [
-            "API",
-            "Cache",
-            "DB"
-          ]
+          "type": "regex",
+          "pattern": "API\\s*--[^\\n]*>\\s*Cache[\\s\\S]*Cache\\s*--[^\\n]*>\\s*DB"
         },
         {
           "name": "kind-op",
@@ -186,7 +194,11 @@
       "id": "pos-family-sequence-code-mode-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. In MCP Code Mode style, show one execute(code) payload that parses the existing sequence diagram, narrows it, adds an API retry message before the final response, verifies, and serializes. Produce outputs/sequence-retry/final.mmd and outputs/sequence-retry/verify.json, include both contents in the final answer, and include the verification result. Use typed mutation where supported.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process","efficiency"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. In one hosted sandbox call, parse the existing sequence diagram, narrow it, add an API recovery attempt before the final response, verify, and serialize. Produce outputs/sequence-retry/final.mmd and outputs/sequence-retry/verify.json, include both contents in the final answer, and include the verification result. Use typed mutation where supported.",
       "files": [
         "fixtures/sequence-retry/input.mmd"
       ],
@@ -228,11 +240,8 @@
         },
         {
           "name": "retry",
-          "type": "contains_any",
-          "values": [
-            "Retry",
-            "retry"
-          ]
+          "type": "regex",
+          "pattern": "add_message[\\s\\S]*(?:Retry|retry)"
         }
       ],
       "tags": [
@@ -247,7 +256,11 @@
       "id": "pos-family-timeline-cli-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. Use the CLI channel to add a Ship period under the Build section with an artifact event, verify it, and render at least one text or image output. Include the exact am mutate/am render command sketch, write outputs/timeline-release/final.mmd and outputs/timeline-release/verify.json, and include their contents in your final answer.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. Use the CLI channel to add a Ship period under the Build section with an artifact event, verify it, and render at least one text or image output. Include exact command sketches for the mutation and rendering steps, write outputs/timeline-release/final.mmd and outputs/timeline-release/verify.json, and include their contents in your final answer.",
       "files": [
         "fixtures/timeline-release/input.mmd"
       ],
@@ -305,7 +318,11 @@
       "id": "pos-family-class-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Receipt class and a relation from PaymentService to Receipt, then verify and serialize. Write outputs/class-payment/final.mmd and outputs/class-payment/verify.json, include both contents in the final answer, and show Result.value handling.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a billing-record class and a relation from PaymentService to it, then verify and serialize. Write outputs/class-payment/final.mmd and outputs/class-payment/verify.json, include both contents in the final answer, and show Result.value handling.",
       "files": [
         "fixtures/class-payment/input.mmd"
       ],
@@ -359,7 +376,11 @@
       "id": "pos-family-er-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a PRODUCT entity with id/name attributes and relate ORDER to PRODUCT. Verify and serialize. Write outputs/er-orders/final.mmd and outputs/er-orders/verify.json, include both contents, and show the exact typed ops.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a catalog-item entity with id/name attributes and relate ORDER to it. Verify and serialize. Write outputs/er-orders/final.mmd and outputs/er-orders/verify.json, include both contents, and show the exact typed ops.",
       "files": [
         "fixtures/er-orders/input.mmd"
       ],
@@ -418,7 +439,11 @@
       "id": "pos-family-journey-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Review order task in the Pay section of the existing journey diagram, then verify and serialize. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and show the typed Journey mutation path.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add an order-check task in the Pay section of the existing journey diagram, then verify and serialize. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and show the typed Journey mutation path.",
       "files": [
         "fixtures/journey-checkout/input.mmd"
       ],
@@ -466,6 +491,10 @@
       "id": "pos-family-xychart-library-fixture",
       "split": "tune",
       "kind": "positive",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add Apr with value 90 to the existing XY chart, then verify and serialize. Write outputs/xychart-growth/final.mmd and outputs/xychart-growth/verify.json, include both contents, and show the typed XY chart mutation path.",
       "files": [
         "fixtures/xychart-growth/input.mmd"
@@ -527,7 +556,11 @@
       "id": "pos-family-architecture-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Cache service between API and Database in the existing architecture diagram, then verify and serialize. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and show the typed Architecture mutation path.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a caching service between API and Database in the existing architecture diagram, then verify and serialize. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and show the typed Architecture mutation path.",
       "files": [
         "fixtures/architecture-cache/input.mmd"
       ],
@@ -560,8 +593,8 @@
         },
         {
           "name": "cache",
-          "type": "contains",
-          "value": "Cache"
+          "type": "regex",
+          "pattern": "(?:service\\s+Cache|Cache\\s*\\[)"
         },
         {
           "name": "formats",
@@ -585,7 +618,11 @@
       "id": "pos-family-state-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Failed state and a Processing -> Failed transition labeled error, then verify and serialize. Write outputs/state-lifecycle/final.mmd and outputs/state-lifecycle/verify.json, include both contents, and show the typed State mutation path.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add an unsuccessful terminal state and a Processing transition into it with a failure label, then verify and serialize. Write outputs/state-lifecycle/final.mmd and outputs/state-lifecycle/verify.json, include both contents, and show the typed State mutation path.",
       "files": [
         "fixtures/state-lifecycle/input.mmd"
       ],
@@ -637,6 +674,10 @@
       "id": "pos-family-pie-library-fixture",
       "split": "tune",
       "kind": "positive",
+      "domain": "diagram-authoring",
+      "difficulty": "core",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
       "prompt": "Use the attached Mermaid fixture. With the library channel, add a PDF slice with value 10 to the existing pie chart, then verify and serialize. Write outputs/pie-exports/final.mmd and outputs/pie-exports/verify.json, include both contents, and show the typed Pie mutation path.",
       "files": [
         "fixtures/pie-exports/input.mmd"
@@ -688,7 +729,11 @@
       "id": "pos-family-quadrant-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, move the MCP setup point to [0.70, 0.40], then verify and serialize. Write outputs/quadrant-priorities/final.mmd and outputs/quadrant-priorities/verify.json, include both contents, and show the typed Quadrant mutation path.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, move the protocol-integration point to [0.70, 0.40], then verify and serialize. Write outputs/quadrant-priorities/final.mmd and outputs/quadrant-priorities/verify.json, include both contents, and show the typed Quadrant mutation path.",
       "files": [
         "fixtures/quadrant-priorities/input.mmd"
       ],
@@ -740,7 +785,11 @@
       "id": "pos-family-gantt-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a Docs task after the build task and before release, then verify and serialize. Write outputs/gantt-release/final.mmd and outputs/gantt-release/verify.json, include both contents, and show the typed Gantt mutation path.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a documentation task after the build task and before release, then verify and serialize. Write outputs/gantt-release/final.mmd and outputs/gantt-release/verify.json, include both contents, and show the typed Gantt mutation path.",
       "files": [
         "fixtures/gantt-release/input.mmd"
       ],
@@ -788,7 +837,11 @@
       "id": "pos-family-mindmap-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mindmap fixture. Add a Validation child under Research with the typed library API, verify, and serialize. Write outputs/mindmap-product/final.mmd and outputs/mindmap-product/verify.json.",
+      "domain": "diagram-authoring",
+      "difficulty": "core",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached Mindmap fixture. Add a pre-merge checking child under Research with the typed library API, verify, and serialize. Write outputs/mindmap-product/final.mmd and outputs/mindmap-product/verify.json.",
       "files": [
         "fixtures/mindmap-product/input.mmd"
       ],
@@ -825,7 +878,11 @@
       "id": "pos-family-gitgraph-library-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached GitGraph fixture. Create a docs branch, append a commit, return to main, merge it, verify, and serialize with the typed library API. Write outputs/gitgraph-release/final.mmd and outputs/gitgraph-release/verify.json.",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached GitGraph fixture. Create a documentation branch, append a commit, return to main, merge it, verify, and serialize with the typed library API. Write outputs/gitgraph-release/final.mmd and outputs/gitgraph-release/verify.json.",
       "files": [
         "fixtures/gitgraph-release/input.mmd"
       ],
@@ -864,7 +921,11 @@
       "id": "pos-channel-mcp-code-mode-batch",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Show the MCP Code Mode approach for a multi-step Agentic Mermaid edit: parse an existing flowchart, narrow, apply two typed mutations, verify once at the commit point, then return source plus an SVG render. The answer should be a concise execute(code) example and explain why Code Mode is preferable to several separate tool calls.",
+      "domain": "mcp-tool-selection",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process","efficiency"],
+      "trigger_type": "explicit",
+      "prompt": "Show the hosted sandbox approach for a multi-step Agentic Mermaid edit: parse an existing flowchart, narrow, apply two typed mutations, validate once just before publishing, then return source plus an SVG render. The answer should be one concise sandbox-call example and explain why batching the logic is preferable to several separate tool calls.",
       "expected_behavior": [
         "Uses execute(code) and mermaid.* SDK names.",
         "Batches typed mutations before one verify-before-commit.",
@@ -909,10 +970,174 @@
       ]
     },
     {
+      "id": "pos-channel-mcp-direct-verify",
+      "split": "tune",
+      "kind": "positive",
+      "domain": "mcp-tool-selection",
+      "difficulty": "core",
+      "trigger_type": "explicit",
+      "success_goals": ["outcome", "efficiency"],
+      "prompt": "Using the hosted Agentic Mermaid MCP server, validate this existing flowchart and return its detected family and warnings. No editing, rendering, or custom JavaScript is needed. Choose the cheapest direct tool and show its arguments: `flowchart TD\\n  API --> DB`.",
+      "expected_behavior": [
+        "Calls the direct verify tool with source.",
+        "Does not route a simple verification through execute/Code Mode."
+      ],
+      "assertions": [
+        { "name": "direct-verify", "type": "contains_all", "values": ["verify", "source"] },
+        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
+      ],
+      "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
+    },
+    {
+      "id": "pos-channel-mcp-direct-describe",
+      "split": "tune",
+      "kind": "positive",
+      "domain": "mcp-tool-selection",
+      "difficulty": "core",
+      "trigger_type": "explicit",
+      "success_goals": ["outcome", "efficiency"],
+      "prompt": "Using hosted Agentic Mermaid MCP, extract a compact structured inventory from `sequenceDiagram\\n  Alice->>Bob: Hi`. Do not change or render it. Pick the direct tool and show the exact argument shape.",
+      "expected_behavior": [
+        "Uses describe with format facts.",
+        "Avoids execute for a single direct inspection."
+      ],
+      "assertions": [
+        { "name": "facts-tool", "type": "contains_all", "values": ["describe", "facts", "source"] },
+        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
+      ],
+      "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
+    },
+    {
+      "id": "pos-channel-mcp-direct-mutate",
+      "split": "tune",
+      "kind": "positive",
+      "domain": "mcp-tool-selection",
+      "difficulty": "extended",
+      "trigger_type": "explicit",
+      "success_goals": ["outcome", "process", "efficiency"],
+      "prompt": "On hosted Agentic Mermaid MCP, add an unsuccessful terminal state and a failure transition from Processing into it in one structured edit. Return the checked source. This is one edit with known fields and no custom control flow; show the least-powerful direct request.",
+      "expected_behavior": [
+        "Uses the direct mutate tool with an ordered ops array.",
+        "Checks the mutate response's embedded verify result.",
+        "Does not use execute for a straightforward declarative edit."
+      ],
+      "assertions": [
+        { "name": "direct-mutate", "type": "contains_all", "values": ["mutate", "ops", "Failed", "error", "verify"] },
+        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
+      ],
+      "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
+    },
+    {
+      "id": "pos-channel-mcp-direct-build",
+      "split": "tune",
+      "kind": "positive",
+      "domain": "mcp-tool-selection",
+      "difficulty": "extended",
+      "trigger_type": "explicit",
+      "success_goals": ["outcome", "process", "efficiency"],
+      "prompt": "Create a new two-node type-relationship diagram through hosted Agentic Mermaid MCP from structured ops, then return the verified source. No existing source or custom control flow is involved. Show the direct request you would make.",
+      "expected_behavior": [
+        "Uses build with family class and an ops array.",
+        "Inspects the embedded verification result.",
+        "Avoids execute for declarative construction."
+      ],
+      "assertions": [
+        { "name": "direct-build", "type": "contains_all", "values": ["build", "class", "ops", "verify"] },
+        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
+      ],
+      "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
+    },
+    {
+      "id": "adv-mcp-recover-invalid-op-schema",
+      "split": "tune",
+      "kind": "adversarial",
+      "domain": "mcp-recovery",
+      "difficulty": "extended",
+      "trigger_type": "explicit",
+      "success_goals": ["outcome", "process"],
+      "prompt": "A hosted MCP mutate call failed with `{ ok:false, family:'class', opIndex:0, error:'unknown op kind addClass' }`. Recover safely without guessing field names or switching to source concatenation. State the next tool call and retry sequence.",
+      "expected_behavior": [
+        "Calls describe_sdk for the class family and exact op details.",
+        "Retries mutate using the returned kind/field schema.",
+        "Checks verification before accepting the source."
+      ],
+      "assertions": [
+        { "name": "schema-recovery", "type": "contains_all", "values": ["describe_sdk", "detail", "verify"] },
+        { "name": "no-concat", "type": "excludes_any", "values": ["append to the source", "source +=", "concatenate the source"] }
+      ],
+      "tags": ["channel:mcp-direct", "hosted-mcp", "adversarial", "recovery"]
+    },
+    {
+      "id": "adv-mcp-hosted-size-fallback",
+      "split": "tune",
+      "kind": "adversarial",
+      "domain": "mcp-boundaries",
+      "difficulty": "extreme",
+      "trigger_type": "explicit",
+      "success_goals": ["outcome", "efficiency"],
+      "prompt": "You must edit and write a 90 KB Mermaid diagram to a file on the user's machine. The hosted MCP endpoint rejects an input that large and cannot write arbitrary files. Choose the correct Agentic Mermaid surface and explain the fallback; do not suggest splitting the diagram across remote calls.",
+      "expected_behavior": [
+        "Chooses the local stdio server, library, or CLI where the file is available.",
+        "Names the 64 KB hosted limit and keeps the whole structured edit local.",
+        "Does not invent hosted file access or chunked mutate semantics."
+      ],
+      "assertions": [
+        { "name": "local-fallback", "type": "contains_all", "values": ["64 KB", "local"] },
+        { "name": "local-surface", "type": "contains_any", "values": ["stdio", "library", "CLI"] },
+        { "name": "no-hosted-chunking", "type": "excludes_any", "values": ["chunk the source", "split it across hosted", "upload chunks"] }
+      ],
+      "tags": ["channel-selection", "hosted-mcp", "adversarial", "fallback"]
+    },
+    {
+      "id": "adv-mcp-underspecified-quality-objective",
+      "split": "tune",
+      "kind": "adversarial",
+      "domain": "mcp-tool-selection",
+      "difficulty": "extended",
+      "trigger_type": "implicit",
+      "success_goals": ["outcome", "process", "style"],
+      "prompt": "The user supplies a Mermaid diagram and says only: `Make this better.` Give the safest next response. Do not invent an edit goal or modify the diagram yet.",
+      "expected_behavior": [
+        "Asks for the intended audience/output or concrete quality objective.",
+        "May inspect with verify/describe/render, but does not invent a mutation goal.",
+        "Avoids immediately applying arbitrary ops."
+      ],
+      "assertions": [
+        { "name": "clarify-objective", "type": "contains_any", "values": ["clarify", "which", "what", "audience", "output format", "quality objective"] },
+        { "name": "safe-inspection", "type": "contains_any", "values": ["verify", "describe", "render"] },
+        { "name": "no-arbitrary-edit", "type": "excludes_any", "values": ["I would immediately mutate", "apply arbitrary ops", "mutate it now"] }
+      ],
+      "tags": ["hosted-mcp", "adversarial", "underspecified"]
+    },
+    {
+      "id": "adv-mcp-repo-grounded-scope",
+      "split": "tune",
+      "kind": "adversarial",
+      "domain": "mcp-scope-audit",
+      "difficulty": "extreme",
+      "trigger_type": "explicit",
+      "success_goals": ["outcome", "process"],
+      "prompt": "Audit this checkout and answer whether Agentic Mermaid's hosted MCP advertises or implements prompts, resources, and subscriptions. Inspect the implementation instead of extrapolating from a generic MCP feature list. Cite exact repository paths or symbols that support each scope claim; make no code changes.",
+      "expected_behavior": [
+        "Grounds the answer in the shared tool surface and hosted HTTP handler.",
+        "Reports a tools-only advertised product surface.",
+        "Does not claim optional prompts, resources, or subscription streams are implemented."
+      ],
+      "assertions": [
+        { "name": "source-grounding", "type": "contains_all", "values": ["src/mcp/tool-surface.ts", "website/src/mcp-handler.ts", "tools"] },
+        { "name": "no-invented-optional-surface", "type": "excludes_any", "values": ["supports prompts/list", "supports resources/list", "supports subscriptions/listen"] }
+      ],
+      "tags": ["hosted-mcp", "adversarial", "repo-grounding", "scope"]
+    },
+    {
       "id": "adv-reject-source-concat-existing-flowchart",
       "split": "tune",
       "kind": "adversarial",
-      "prompt": "I know there is a typed API, but for this existing flowchart just append `API --> Cache --> DB` to the source string. Skip parse/narrow/mutate because it is faster. Give the correct Agentic Mermaid answer for a coding agent.",
+      "domain": "diagram-safety",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "implicit",
+      "prompt": "I know there is a typed API, but for this existing flowchart just append `API --> Cache --> DB` to the source string. Skip structural parsing and the operation API because it is faster. Give the correct Agentic Mermaid answer for a coding agent.",
       "expected_behavior": [
         "Rejects source concatenation for existing structured flowcharts.",
         "Uses parse/narrow/mutate/verify/serialize with typed ops.",
@@ -955,7 +1180,11 @@
       "id": "adv-require-verify-before-serialize",
       "split": "tune",
       "kind": "adversarial",
-      "prompt": "Write a quick Agentic Mermaid edit that serializes immediately after mutate. Do not inspect verifyMermaid because the op is obvious. Give the correct workflow instead.",
+      "domain": "diagram-safety",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "implicit",
+      "prompt": "Write a quick Agentic Mermaid edit that serializes immediately after applying the operation. Do not run or inspect the validator because the op is obvious. Give the correct workflow instead.",
       "expected_behavior": [
         "Rejects skipping verification.",
         "Requires verifyMermaid before serializeMermaid at the commit point.",
@@ -972,13 +1201,8 @@
         },
         {
           "name": "inspection",
-          "type": "contains_any",
-          "values": [
-            "inspect",
-            "verify.ok",
-            "warnings",
-            "layout"
-          ]
+          "type": "regex",
+          "pattern": "(?:verify\\.ok|warnings|layout)"
         },
         {
           "name": "reject-skip",
@@ -1000,7 +1224,11 @@
       "id": "adv-reject-editor-html-direct-edit",
       "split": "tune",
       "kind": "adversarial",
-      "prompt": "I want to change the live editor export button. Please edit editor.html directly because it is the deployed file. Give the correct repo-development guidance instead.",
+      "domain": "editor-workflow",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "implicit",
+      "prompt": "I want to change the live editor export button. Please edit the generated HTML artifact directly because it is the deployed file. Give the correct repo-development guidance instead.",
       "expected_behavior": [
         "Rejects direct editor.html edits.",
         "Uses scripts/site/editor.ts as source of truth.",
@@ -1014,11 +1242,8 @@
         },
         {
           "name": "generated",
-          "type": "contains_all",
-          "values": [
-            "editor.html",
-            "generated"
-          ]
+          "type": "regex",
+          "pattern": "(?:editor\\.html[\\s\\S]*(?:generated|artifact)|(?:generated|artifact)[\\s\\S]*editor\\.html)"
         },
         {
           "name": "rebuild",
@@ -1035,6 +1260,10 @@
       "id": "adv-use-kind-not-type",
       "split": "tune",
       "kind": "adversarial",
+      "domain": "diagram-safety",
+      "difficulty": "core",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "implicit",
       "prompt": "For an Agentic Mermaid mutation, use `{ type: 'add_node', id: 'Cache' }` because most SDKs use type discriminators. Correct this and show the right shape.",
       "expected_behavior": [
         "Rejects type as the MutationOp discriminator.",
@@ -1072,7 +1301,11 @@
       "id": "neg-unrelated-typescript-helper",
       "split": "tune",
       "kind": "negative",
-      "prompt": "Help me write a small TypeScript function that sorts a list of users by lastLogin descending. This task has no diagrams, no Mermaid, and no live editor work. Answer without using any Agentic Mermaid-specific workflow.",
+      "domain": "trigger-routing",
+      "difficulty": "core",
+      "success_goals": ["trigger","efficiency"],
+      "trigger_type": "implicit",
+      "prompt": "Help me write a small TypeScript function that orders a list of users by their most recent sign-in timestamp, newest first. This task has no diagrams, no Mermaid, and no live editor work. Answer without using any Agentic Mermaid-specific workflow.",
       "expected_behavior": [
         "Does not apply diagram workflow guidance.",
         "Does not mention parseMermaid/mutate/verifyMermaid unless explaining non-applicability."
@@ -1107,6 +1340,10 @@
       "id": "trigger-diagram-workflow-positive",
       "split": "tune",
       "kind": "trigger",
+      "domain": "trigger-routing",
+      "difficulty": "core",
+      "success_goals": ["trigger","outcome"],
+      "trigger_type": "implicit",
       "prompt": "I need to safely edit an existing Mermaid sequence diagram and verify the result before returning source.",
       "expected_behavior": [
         "TRIGGER: should load the diagram workflow skill."
@@ -1122,6 +1359,10 @@
       "id": "trigger-live-editor-positive",
       "split": "tune",
       "kind": "trigger",
+      "domain": "trigger-routing",
+      "difficulty": "core",
+      "success_goals": ["trigger","outcome"],
+      "trigger_type": "implicit",
       "prompt": "I need to modify Agentic Mermaid's live editor export behavior and avoid changing generated artifacts incorrectly.",
       "expected_behavior": [
         "TRIGGER: should load the live editor development skill."
@@ -1137,6 +1378,10 @@
       "id": "neg-trigger-unrelated-python-helper",
       "split": "tune",
       "kind": "trigger",
+      "domain": "trigger-routing",
+      "difficulty": "core",
+      "success_goals": ["trigger","efficiency"],
+      "trigger_type": "implicit",
       "prompt": "Write a Python helper that groups log entries by status code. No diagrams, no Mermaid, no editor work.",
       "expected_behavior": [
         "NO_TRIGGER: should not load either Agentic Mermaid skill."
@@ -1152,6 +1397,10 @@
       "id": "neg-trigger-mermaid-mythology",
       "split": "tune",
       "kind": "trigger",
+      "domain": "trigger-routing",
+      "difficulty": "core",
+      "success_goals": ["trigger","efficiency"],
+      "trigger_type": "implicit",
       "prompt": "Write a short paragraph about mermaids in mythology. Do not discuss Mermaid.js diagrams or this repository.",
       "expected_behavior": [
         "NO_TRIGGER: should not load either Agentic Mermaid skill."
@@ -1167,6 +1416,10 @@
       "id": "pos-holdout-flowchart-fixture-artifact",
       "split": "holdout",
       "kind": "positive",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
       "prompt_ref": "private/holdout/flowchart-fixture-artifact.prompt.md",
       "files": [
         "fixtures/flowchart-cache/input.mmd"
@@ -1207,6 +1460,10 @@
       "id": "adv-holdout-editor-generated-artifact",
       "split": "holdout",
       "kind": "adversarial",
+      "domain": "editor-workflow",
+      "difficulty": "extreme",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "implicit",
       "prompt_ref": "private/holdout/editor-generated-artifact.prompt.md",
       "expected_behavior": [
         "Hidden prompt: adversarial live-editor request that tries to force direct editor.html edits."
@@ -1236,6 +1493,10 @@
       "id": "pos-holdback-channel-selection",
       "split": "holdback",
       "kind": "positive",
+      "domain": "channel-selection",
+      "difficulty": "extreme",
+      "success_goals": ["outcome","efficiency"],
+      "trigger_type": "implicit",
       "prompt_ref": "private/holdback/channel-selection.prompt.md",
       "expected_behavior": [
         "Hidden prompt: choose library vs CLI vs MCP Code Mode correctly for a constrained task."
@@ -1269,6 +1530,10 @@
       "id": "neg-holdback-no-trigger",
       "split": "holdback",
       "kind": "trigger",
+      "domain": "trigger-routing",
+      "difficulty": "extended",
+      "success_goals": ["trigger","efficiency"],
+      "trigger_type": "implicit",
       "prompt_ref": "private/holdback/no-trigger.prompt.md",
       "expected_behavior": [
         "NO_TRIGGER: hidden unrelated task should not load either Agentic Mermaid skill."
@@ -1285,6 +1550,10 @@
       "id": "pos-family-radar-profile-fixture",
       "split": "tune",
       "kind": "positive",
+      "domain": "diagram-authoring",
+      "difficulty": "extended",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
       "prompt": "Use the attached Mermaid radar fixture. With the library channel, add a Safety axis (filling existing curves with 0) and a second curve b[\"Model B\"] with values 5,3,4,2, then verify and serialize. Write outputs/radar-profile/final.mmd and outputs/radar-profile/verify.json, include both contents, and show the typed Radar mutation path.",
       "files": [
         "fixtures/radar-profile/input.mmd"

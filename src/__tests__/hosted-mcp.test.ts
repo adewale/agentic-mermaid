@@ -85,7 +85,7 @@ describe('hosted MCP handshake', () => {
     expect(result.serverInfo).toEqual({ name: 'agentic-mermaid-hosted', version: pkg.version })
     expect(result.instructions).toContain('stateless')
     expect(result.instructions).toContain('render_svg')
-    expect(result.capabilities).toEqual({ tools: {}, prompts: {}, resources: {} })
+    expect(result.capabilities).toEqual({ tools: {} })
   })
 
   test('the hosted identity is distinct from the local stdio server', () => {

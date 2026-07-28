@@ -13,6 +13,7 @@ import { isDrop } from '../agent/structural-count.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 const DIVERGENCES_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'divergences.json')
+const PROVENANCE_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'provenance.json')
 
 interface CorpusEntry { family: string; source: string; origin: string; index: number }
 interface CorpusDivergence {
@@ -45,10 +46,31 @@ function corpusKey(entry: Pick<CorpusEntry, 'family' | 'origin' | 'index'>): str
 
 const divergenceKeys = new Set(divergences.flatMap(d => d.indices.map(index => corpusKey({ family: d.family, origin: d.origin, index }))))
 
-describe('mermaid-js docs corpus (271 examples, 12 families)', () => {
+describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
   test('corpus is present with the expected family coverage', () => {
     expect(corpus.length).toBe(271)
     expect(new Set(corpus.map(entry => entry.family))).toEqual(new Set(Object.keys(expected)))
+  })
+
+  test('records exact upstream provenance and the real imbalanced distribution', () => {
+    const provenance = JSON.parse(readFileSync(PROVENANCE_PATH, 'utf8')) as {
+      upstream: { repository: string; revision: string }
+      entries: number
+      familyCounts: Record<string, number>
+      scope: string
+      companions: string[]
+    }
+    const actualCounts = Object.fromEntries([...new Set(corpus.map(entry => entry.family))].sort().map(family => [
+      family, corpus.filter(entry => entry.family === family).length,
+    ]))
+    expect(provenance.upstream).toEqual({
+      repository: 'https://github.com/mermaid-js/mermaid',
+      revision: 'a2d9686451df7c4644a3eeca20535bbd4c5776b0',
+    })
+    expect(provenance.entries).toBe(corpus.length)
+    expect(provenance.familyCounts).toEqual(actualCounts)
+    expect(provenance.scope).toContain('not the complete registered-family inventory')
+    expect(provenance.companions.length).toBeGreaterThanOrEqual(3)
   })
 
   // Per-family parse rate. mermaid-js's docs use some constructs we don't

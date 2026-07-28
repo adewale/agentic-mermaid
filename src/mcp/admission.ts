@@ -90,8 +90,8 @@ export interface McpAdmissionOptions {
    * server surface. Admission copies the list into ProtocolContext. */
   supportedVersions: readonly string[]
   /** HTTP mirror. Unlike negotiated state, disagreement with this value is a
-   * HeaderMismatch error and an unsupported value is correlated with id:null,
-   * preserving the pre-body transport refusal shape. */
+   * HeaderMismatch error. Unsupported values are rejected after the body is
+   * parsed so request errors preserve the JSON-RPC id. */
   headerVersion?: string | null
   /** Version selected for a stateful connection. It supplies the version for a
    * legacy body but never fabricates an HTTP header-mismatch error. */
@@ -103,27 +103,6 @@ export interface McpAdmissionOptions {
    * web Request type. */
   requireModernVersionHeader?: boolean
   modernTransportProblem?: (request: JsonRpcRequest) => string | null
-}
-
-/** Pre-body HTTP gate for the mirrored protocol version. The full message
- * admission repeats this invariant so non-HTTP callers cannot bypass it; this
- * early form preserves transport refusal ordering ahead of content-type/body
- * reads without duplicating the rule in the HTTP handler. */
-export function admitMcpHeaderVersion(
-  headerVersion: string | null,
-  supportedVersions: readonly string[],
-): RejectedMcpMessage | null {
-  if (headerVersion === null || supportedVersions.includes(headerVersion)) return null
-  return {
-    ok: false,
-    kind: 'unsupported-version',
-    response: rpcError(
-      null,
-      UNSUPPORTED_PROTOCOL_VERSION,
-      `Unsupported protocol version: ${headerVersion}`,
-      { supported: [...supportedVersions], requested: headerVersion },
-    ),
-  }
 }
 
 function responseId(raw: Record<string, unknown>, validId: boolean): number | string | null {
@@ -189,14 +168,6 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
     ? { era: 'modern', version: declaredVersion, supportedVersions }
     : { era: 'legacy', version: declaredVersion ?? effectiveTransportVersion, supportedVersions }
 
-  // HTTP used to reject an unknown MCP-Protocol-Version before parsing the
-  // body. Keep its id:null response and notification-independent envelope even
-  // though the decision now lives in this shared admission boundary.
-  const headerAdmission = admitMcpHeaderVersion(options.headerVersion ?? null, supportedVersions)
-  if (headerAdmission) {
-    return { ...headerAdmission, protocol: provisionalProtocol, requestedEra }
-  }
-
   if (versionClaim.present && typeof versionClaim.value !== 'string') {
     return rejection(
       'invalid-modern-metadata',
@@ -204,6 +175,24 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
       rpcError(id, -32602, `Invalid params: params._meta.${META_PROTOCOL_VERSION} is required and must be a string`),
       undefined,
       'modern',
+    )
+  }
+
+  // A protocol error answers this parsed request, so it MUST preserve the
+  // request id. The HTTP transport deliberately waits until after its bounded
+  // body parse before reaching this shared gate.
+  if (options.headerVersion != null && !supportedVersions.includes(options.headerVersion)) {
+    return rejection(
+      'unsupported-version',
+      notification,
+      rpcError(
+        id,
+        UNSUPPORTED_PROTOCOL_VERSION,
+        `Unsupported protocol version: ${options.headerVersion}`,
+        { supported: [...supportedVersions], requested: options.headerVersion },
+      ),
+      provisionalProtocol,
+      requestedEra,
     )
   }
 
@@ -298,18 +287,28 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
 
   if (era === 'modern') {
     // A modern ProtocolContext is constructible only from the body declaration;
-    // a modern header with no matching body reaches the mirror error below.
+    // a modern header cannot manufacture the required per-request metadata.
     if (!isModernProtocolVersion(declaredVersion)) {
       const problem = `params._meta.${META_PROTOCOL_VERSION} is required and must match the MCP-Protocol-Version header (${options.headerVersion})`
       return rejection(
-        'header-mismatch',
+        'invalid-modern-metadata',
         notification,
-        rpcError(id, HEADER_MISMATCH, `Header mismatch: ${problem}`),
+        rpcError(id, -32602, `Invalid params: ${problem}`),
         provisionalProtocol,
         requestedEra,
       )
     }
     const protocol: ModernProtocolContext = { era: 'modern', version: declaredVersion, supportedVersions }
+    const metaProblems = modernRequestMetaProblems(request)
+    if (metaProblems.length > 0) {
+      return rejection(
+        'invalid-modern-metadata',
+        notification,
+        rpcError(id, -32602, `Invalid params: ${metaProblems.join('; ')}`),
+        protocol,
+        requestedEra,
+      )
+    }
     if (options.requireModernVersionHeader && options.headerVersion == null) {
       return rejection(
         'header-mismatch',
@@ -329,16 +328,6 @@ export function admitMcpMessage(rawMessage: unknown, options: McpAdmissionOption
         'header-mismatch',
         notification,
         rpcError(id, HEADER_MISMATCH, `Header mismatch: ${transportProblem}`),
-        protocol,
-        requestedEra,
-      )
-    }
-    const metaProblems = modernRequestMetaProblems(request)
-    if (metaProblems.length > 0) {
-      return rejection(
-        'invalid-modern-metadata',
-        notification,
-        rpcError(id, -32602, `Invalid params: ${metaProblems.join('; ')}`),
         protocol,
         requestedEra,
       )

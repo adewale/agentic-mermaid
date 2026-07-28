@@ -12,7 +12,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache, type McpRequestEvent } from '../../website/src/mcp-handler.ts'
-import type { HostedMcpContext } from '../mcp/hosted-server.ts'
+import { SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../mcp/hosted-server.ts'
 import { META_CLIENT_CAPABILITIES, META_PROTOCOL_VERSION } from '../mcp/protocol-versions.ts'
 import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 
@@ -270,11 +270,19 @@ describe('protocol-version header validation', () => {
     expect(res.status).toBe(200)
   })
 
-  test('an unsupported version header is 400 before any work', async () => {
+  test('an unsupported version header is 400, preserves the request id, and does no work', async () => {
     const { handler, executeCalls } = makeHandler()
     const res = await handler(post(call('execute', { code: '1' }), { 'mcp-protocol-version': '1999-01-01' }))
     expect(res.status).toBe(400)
-    expect(((await res.json()) as any).error.message).toContain('1999-01-01')
+    expect(await res.json()).toEqual({
+      jsonrpc: '2.0',
+      id: 1,
+      error: {
+        code: -32022,
+        message: 'Unsupported protocol version: 1999-01-01',
+        data: { supported: [...SUPPORTED_PROTOCOL_VERSIONS], requested: '1999-01-01' },
+      },
+    })
     expect(executeCalls).toHaveLength(0)
   })
 

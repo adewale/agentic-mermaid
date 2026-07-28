@@ -16,7 +16,6 @@
 import { admitHostedRequest, handleAdmittedHostedRequest, cacheKeyFor, HOSTED_MCP_SERVER_NAME, LOCAL_FALLBACK_HINT, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from '../../src/mcp/protocol.ts'
 import {
-  admitMcpHeaderVersion,
   isAdmittedMcpRequest,
   type AdmittedMcpMessage,
   type AdmittedMcpRequest,
@@ -407,17 +406,10 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (request.method !== 'POST') {
       return transportError(405, 'use POST with a JSON-RPC body; this MCP endpoint is stateless and offers no server-initiated stream', cors, { Allow: 'POST, OPTIONS' })
     }
-    // MCP-Protocol-Version validation: an explicit unsupported version is 400
-    // (a missing header stays permitted for pre-2025-06-18 clients that never
-    // send one). Used below to enforce that revision's single-message rule.
-    //
-    // The error is UnsupportedProtocolVersionError (-32022) carrying the
-    // supported list, not a bare message: that `data.supported` array is what
-    // lets a client pick a mutually supported version and retry instead of
-    // failing. The negotiation flow depends on it.
+    // A missing header stays permitted for pre-2025-06-18 clients. Explicit
+    // unsupported versions are rejected by message admission after the bounded
+    // body parse so a request error can echo its JSON-RPC id.
     const protocolVersion = request.headers.get('mcp-protocol-version')
-    const headerAdmission = admitMcpHeaderVersion(protocolVersion, SUPPORTED_PROTOCOL_VERSIONS)
-    if (headerAdmission) return json(400, headerAdmission.response, cors)
     if (!isJsonContentType(request.headers.get('content-type'))) {
       return transportError(415, 'content-type must be application/json', cors)
     }
@@ -450,11 +442,18 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     if (Array.isArray(parsed)) {
       event.method = 'batch'
       event.batch_size = parsed.length
+      // A batch has no single request id to correlate. Reject an unsupported
+      // transport pin before applying the revision-specific batch rule.
+      if (protocolVersion !== null && !SUPPORTED_PROTOCOL_VERSIONS.includes(protocolVersion)) {
+        return json(400, rpcError(null, -32022, `Unsupported protocol version: ${protocolVersion}`, {
+          supported: [...SUPPORTED_PROTOCOL_VERSIONS], requested: protocolVersion,
+        }), cors, exact.ids)
+      }
       // 2025-06-18 removed JSON-RPC batching, and every later revision keeps it
       // removed — 2026-07-28 requires the POST body to be a SINGLE request or
       // notification. Compared lexically, which is chronological for ISO dates,
       // so a new revision inherits the rule instead of needing a new branch.
-      // Older negotiated versions (2024-11-05 / 2025-03-26, or no header) may
+      // The original Streamable HTTP revision (2025-03-26, or no header) may
       // still batch.
       if (protocolVersion !== null && protocolVersion >= '2025-06-18') {
         return json(400, { jsonrpc: '2.0', id: null, error: { code: -32600, message: `JSON-RPC batching was removed in MCP 2025-06-18; send a single message (negotiated ${protocolVersion})` } }, cors, exact.ids)

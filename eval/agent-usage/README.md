@@ -153,14 +153,14 @@ The no-docs baseline fails canonical serialization every time; every
 doc-bearing surface fixes it. At equal outcome the homepage/start.md surface was
 the cheapest doc-bearing surface. Single-model harness, n=3: direction, not magnitudes.
 
-Known blind spots of the stored case set: it measures task success and
-response shape on fully specified tasks. It does not yet measure discovery
-cost (turns/tokens spent before the first productive call), underspecified-task
-handling (does the agent ask instead of guessing when placeholders are left
-unreplaced), or repo-grounding honesty (are architecture claims traceable to
-inspected source). A variant comparison cannot detect regressions on an axis
-with no cases — add adversarial cases for those axes before trusting a
-comparison on them.
+Known blind spots of this stored Code Mode case set: it measures task success
+and response shape on fully specified tasks, but still does not measure
+discovery cost (turns/tokens spent before the first productive call). The
+companion `skill-evals/shared-benchmark.json` now carries adversarial
+underspecified-task and repository-grounded MCP scope cases, so those axes can
+be measured in multi-turn coding-agent runs rather than forced into this
+single-response JavaScript harness. A variant comparison cannot support a
+discovery-cost claim until its runner records that pre-productive-call metric.
 
 Run deterministic layers: `bun run eval/agent-usage/harness.ts`
 Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`

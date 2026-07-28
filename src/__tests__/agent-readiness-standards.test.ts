@@ -81,7 +81,7 @@ describe('agent-readiness standards syntax', () => {
       .toBe('bun run test -- --shard=${{ matrix.shard }}')
     expect(unitSteps.find((step: any) => step.name === 'Upload shard coverage')?.uses)
       .toBe('actions/upload-artifact@v7')
-    expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage'])
+    expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage', 'mcp-conformance'])
     expect(aggregateSteps.find((step: any) => step.name === 'Merge shard coverage')?.run)
       .toBe('bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3')
     expect(ci.jobs.e2e.strategy.matrix.suite).toEqual(['cli', 'dist-artifact', 'tarball-consumer', 'tarball-consumer-node22', 'browser'])

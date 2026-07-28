@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "repository": "https://github.com/mermaid-js/mermaid",
+    "revision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
+  },
+  "scope": "Original twelve-family Mermaid syntax-document corpus; not the complete registered-family inventory.",
+  "entries": 271,
+  "familyCounts": {
+    "architecture": 6,
+    "class": 36,
+    "er": 23,
+    "flowchart": 111,
+    "gantt": 11,
+    "journey": 1,
+    "pie": 2,
+    "quadrant": 3,
+    "sequence": 36,
+    "state": 20,
+    "timeline": 14,
+    "xychart": 8
+  },
+  "companions": [
+    "eval/mermaid-upstream-suite-bench",
+    "eval/mindmap-gitgraph-content-corpus",
+    "eval/mermaid-radar-bench",
+    "eval/mermaid-doc-showcase"
+  ]
+}

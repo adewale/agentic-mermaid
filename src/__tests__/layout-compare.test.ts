@@ -3,7 +3,7 @@
 // grouping, subgraph direction); these tests pin its comparison semantics.
 
 import { describe, test, expect } from 'bun:test'
-import { snapshotSample, compareSample, buildReportHtml, collectSamples, type Snapshot, type SampleResult } from '../../eval/layout-compare/run.ts'
+import { snapshotSample, compareSample, buildReportHtml, collectSamples, summarizeComparisonsByFamily, type Comparison, type Snapshot, type SampleResult } from '../../eval/layout-compare/run.ts'
 import type { QualityMetrics } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
@@ -65,6 +65,25 @@ describe('layout-compare harness', () => {
     expect(html).toContain('before')
     expect(html).toContain('after')
     expect(html).toContain('<svg')
+    expect(html).toContain('Family-balanced adverse rate')
+    expect(html).toContain('Per-family outcomes')
+  })
+
+  test('family-balanced reporting prevents a large family from drowning out a small one', () => {
+    const comparison = (id: string, family: string, verdict: Comparison['verdict']): Comparison => ({
+      id, family, verdict, notes: [], before: undefined, after: undefined,
+    })
+    const comparisons = [
+      ...Array.from({ length: 9 }, (_, i) => comparison(`flow/${i}`, 'flowchart', 'unchanged')),
+      comparison('flow/regression', 'flowchart', 'regression'),
+      comparison('journey/regression', 'journey', 'regression'),
+    ]
+    const summary = summarizeComparisonsByFamily(comparisons)
+    expect(summary.microAdverseRate).toBeCloseTo(2 / 11)
+    expect(summary.macroAdverseRate).toBeCloseTo((0.1 + 1) / 2)
+    expect(summary.families.find(family => family.family === 'journey')).toMatchObject({
+      samples: 1, adverse: 1, adverseRate: 1,
+    })
   })
 
   // QUAL-1: families that previously had an EMPTY layout (nodeCount 0) gaining
