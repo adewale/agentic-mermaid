@@ -291,7 +291,7 @@ jobs:
         # part of this contract. The full-surface probe runs in the next step,
         # which depends on the SHA gate here having absorbed propagation lag.
         run: |
-          source scripts/ci/mcp-paced-curl.sh
+          source scripts/ci/mcp-probe.sh
           MCP='https://agentic-mermaid.dev/mcp'
           CARD='https://agentic-mermaid.dev/.well-known/mcp/server-card.json'
           OVERRIDE="Cloudflare-Workers-Version-Overrides: agentic-mermaid-website=\"${CANDIDATE_ID}\""
@@ -311,28 +311,29 @@ jobs:
             echo "::error title=Deployment propagation failed::Live server card never reported expected gitSha $EXPECTED_SHA."
             return 1
           }
-          probe() { # label payload expected-substring
+          probe() { # label payload jq-expression over the decoded tool result
             local attempt
             for attempt in 1 2 3 4 5; do
-              local got
+              local got result
               got="$(mcp_curl -sS --max-time 30 -X POST "$MCP" -H "$OVERRIDE" -H 'content-type: application/json' -d "$2" || true)"
-              if [[ "$got" == *"$3"* ]]; then
+              result="$(mcp_result_json "$got" 2>/dev/null || true)"
+              if jq -e "$3" <<<"$result" >/dev/null 2>&1; then
                 echo "ok   $1"
                 return 0
               fi
               echo "retry $attempt/5 $1 (got: ${got:0:200})"
               sleep $((attempt * 15))
             done
-            echo "::error title=Live /mcp smoke test failed::$1 never returned the expected substring $3 — see website/README.md promotion checklist."
+            echo "::error title=Live /mcp smoke test failed::$1 never produced a tool result matching $3 — see website/README.md promotion checklist."
             return 1
           }
           await_deployed_sha
           probe 'verify accepts a 2-node flowchart' \
             '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}' \
-            '\"ok\":true'
+            '.ok == true and .family == "flowchart"'
           probe 'execute runs in a dynamic-worker isolate (LOADER provisioned)' \
             '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' \
-            '\"value\":42'
+            '.ok == true and .value == 42'
 
       - name: Probe the full zero-traffic /mcp candidate
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
@@ -377,7 +378,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
         run: |
-          source scripts/ci/mcp-paced-curl.sh
+          source scripts/ci/mcp-probe.sh
           MCP='https://agentic-mermaid.dev/mcp'
           CARD='https://agentic-mermaid.dev/.well-known/mcp/server-card.json'
           for attempt in 1 2 3 4 5; do
@@ -385,7 +386,11 @@ jobs:
             served="$(jq -r '.generatedFrom.gitSha // empty' <<<"$card" 2>/dev/null || true)"
             verify="$(mcp_curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify","arguments":{"source":"flowchart TD\n  A --> B"}}}' || true)"
             execute="$(mcp_curl -sS --max-time 30 -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute","arguments":{"code":"1 + 41"}}}' || true)"
-            if [[ "$served" == "$EXPECTED_SHA" && "$verify" == *'"ok":true'* && "$execute" == *'"value":42'* ]]; then
+            verify_result="$(mcp_result_json "$verify" 2>/dev/null || true)"
+            execute_result="$(mcp_result_json "$execute" 2>/dev/null || true)"
+            if [[ "$served" == "$EXPECTED_SHA" ]] \
+              && jq -e '.ok == true and .family == "flowchart"' <<<"$verify_result" >/dev/null 2>&1 \
+              && jq -e '.ok == true and .value == 42' <<<"$execute_result" >/dev/null 2>&1; then
               deployments="$(node_modules/.bin/wrangler --cwd website deployments list --json)"
               jq -e --arg candidate "$CANDIDATE_ID" '
                 (sort_by(.created_on) | last | .versions) as $versions

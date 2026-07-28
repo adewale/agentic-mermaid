@@ -17,7 +17,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$REPO_ROOT/scripts/ci/mcp-paced-curl.sh"
+source "$REPO_ROOT/scripts/ci/mcp-probe.sh"
 
 MCP="${1:-http://127.0.0.1:9095/mcp}"
 pass=0
