@@ -5,11 +5,27 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Added
+- Added a hosted-MCP skill reference with exact direct-tool request shapes,
+  declarative edit recovery, response acceptance rules, privacy/size fallback,
+  and the distinction between MCP `tools/call` and tool arguments.
+- Added a production-executable deterministic hosted-request oracle. It extracts an agent's
+  `{tool, arguments}` proposal, validates the exact production tool schema, and
+  executes verify, describe, mutate, build, and schema-discovery requests
+  through the production core instead of scoring tool-name keywords alone.
+- Added a fail-closed Codex evidence materializer that restores the complete
+  final assistant message from immutable JSONL traces, preserves the harness
+  artifact when necessary, and binds every trace/output to an explicit execution
+  receipt before rubric grading.
+- Added content-addressed raw eval evidence bundles, independently verifiable
+  preparation/execution/materialization receipts, and `iteration` (three-run)
+  versus `release` (five-run) completeness profiles.
+- Replaced four label-only skill ablations with blind removal-based arms and
+  added safe root-manifest rebasing for multi-skill ablation targets and patches.
 - Added an executable skill-eval evidence gate: private holdout hydration,
   targeted evaluator sabotage across every text assertion type, exact-checkout
   task preparation with gradeable artifact paths, and a pinned repeated-run
-  cohort requiring slice, false-positive/negative, latency, token, and cost
-  reporting.
+  cohort requiring slice, all-graded-assertions, deferred semantic-judge,
+  trigger-classification, latency, token, and cost reporting.
 - Added a deterministic 60-example Mermaid family portfolio with an exact quota
   of four provenance-bearing inputs for each of the 15 registered built-ins,
   complementing the syntax-broad but heavily flowchart-weighted documentation
@@ -19,11 +35,61 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Expanded the skill benchmark from 31 to 39 cases, including direct hosted tool selection, schema-error recovery, hosted-size fallback, underspecified quality goals, and a repository-grounded MCP scope audit. Every case now carries domain, difficulty, trigger-type, and success-goal taxonomy, and the manifest audit reports no prompt/assertion leakage.
 
 ### Changed
+- Skill evidence preparation now separates the neutral model workspace, frozen
+  fixtures, and treatment skill checkout; filters unrelated skills, strips
+  treatment paths from control rows, deterministically randomizes runs, and
+  writes content-addressed preparation receipts over workspace bytes, full
+  model stimuli, prepared tasks, fixtures, and selected treatment trees.
+  Comparison fails unless the two treatment trees differ while workspace,
+  fixtures, stimuli, schedule, treatment paths, and manifest remain identical.
+- Skill reports now include all-graded-assertions pass rates alongside mean
+  assertion fractions, count deferred semantic-judge rows separately, and use
+  `imperfectPositiveRows` / `negativeBehaviorViolations` for
+  answer-quality failures. False-positive and false-negative terminology is
+  reserved for the autonomous trigger classifier.
+- The hosted-MCP release cohort uses executor-specific model identities: the
+  ChatGPT Codex profile records the accepted `gpt-5.4-mini` alias while the API
+  profile retains the dated snapshot.
+- The hosted workflow now gives exact production-valid state-mutation and
+  class-build patterns and forbids provider-qualified or invented hosted tool
+  names, closing the concrete schema guesses found by repeated model runs.
 - MCP discovery and initialization now advertise a tools-only capability surface. The server no longer claims empty prompt or resource namespaces, and unadvertised `prompts/list`, `resources/list`, and `resources/templates/list` calls return Method Not Found instead of synthetic empty results.
 - Protocol revision claims are now transport-exact: hosted Streamable HTTP serves `2025-03-26`, `2025-06-18`, `2025-11-25`, and the `2026-07-28` release candidate; local stdio omits batch-mandatory `2025-03-26`; and local HTTP+SSE remains `2024-11-05` only. `server/discover` and unsupported-version errors report the same exact list.
 - Layout comparison reports both example-weighted and family-balanced adverse rates, so a large flowchart sample cannot hide a regression in a small family. The Mermaid documentation corpus now records its exact upstream commit, sample counts, and legacy 12-family scope instead of implying complete registry coverage.
 
 ### Fixed
+- Fixed the hosted direct-tool eval inputs: the mutation case now supplies an
+  actual source fixture, the build objective names an unambiguous class
+  relationship, schema recovery requires an executable `describe_sdk` request,
+  and optional read-only inspection no longer fails an otherwise safe
+  clarification response.
+- Fixed the hosted-request oracle so it binds exact source bytes and requested
+  detail fields, proves class relationship direction/kind structurally, and
+  rejects extra JSON blocks, trailing explanation, and almost-correct requests.
+- Fixed the current harness integration by materializing a checkout-root runner
+  manifest for harness 0.6.0, recording explicit model/reasoning execution
+  provenance, and checking every compared report against the exact prepared
+  task and run-output digests.
+- Fixed the Codex evidence wrapper accepting an aggregate harness exit code of
+  zero when every provider task had failed. It now verifies the declared
+  harness package version and fails closed unless every expected task has a
+  successful provider receipt, complete observations, a final agent message,
+  and a non-empty output.
+- Fixed evidence archives that contained run outputs but omitted the workspace,
+  fixtures, and treatment trees needed to verify their causal input receipts.
+  Bundle verification now recomputes those digests after extraction.
+- Replaced the earlier non-causal/manual hosted summary with a generated
+  five-run comparison over 160 executions. The candidate improves the tune-set
+  deterministic/executable and all-graded pass rates from 55% to 100% while the
+  no-skill control is unchanged; the record discloses 20 deferred semantic rows
+  per variant and does not generalize the public tune-set result to the
+  unexecuted private holdout.
+- Fixed Codex evidence grading against 500-character normalized message
+  summaries, which truncated otherwise-valid final JSON requests and created
+  false failures. Grading now materializes the full final trace message first.
+- Removed the repository-scope audit from the skill-lift cohort. It remains a
+  useful product regression case, but comparing different repository
+  implementations measures context/code changes rather than a skill treatment.
 - Fixed skill paths resolving under `skill-evals/skills` instead of the shipped
   top-level `skills/`, removed public holdout/holdback answer keys, and made
   fixture outputs land under the same run directory that artifact assertions

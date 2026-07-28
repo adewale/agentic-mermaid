@@ -121,12 +121,31 @@ family docs, and `TODO.md`.
     Record the client version and negotiated protocol revision: a stable legacy
     client does not prove a newer stateless era, and neither run proves adoption
     by an external user.
-25. **An eval manifest is not eval evidence.** Validate path resolution from the
-    manifest directory, keep prompts and answer keys private together, prove
-    evaluators reject targeted bad outputs, and run treatment and control
-    repeatedly. Report exact run counts, missing outputs, slices, false
-    positives/negatives, latency, tokens, cost, model snapshot, and compared
-    commits. A larger case list or a one-run smoke cannot establish improvement.
+25. **An eval manifest is not eval evidence.** Keep prompts and answer keys
+    private together, then run treatment and control repeatedly. A causal skill
+    comparison holds workspace, fixtures, stimuli, manifest, and randomized
+    schedule constant; filters unrelated skills; isolates the no-skill arm; and
+    proves the selected treatment-tree hashes differ. Execute structured agent
+    proposals through production schemas/cores where possible, calibrate
+    semantic judges separately, and report both all-graded-assertions success
+    and partial assertion scores, with deferred semantic rows counted explicitly.
+    A receipt must hash the full model input and workspace contents—not merely
+    path-shaped metadata—and each downstream receipt must bind the exact tasks,
+    runner command, traces, outputs, and reports it claims. Grade the complete
+    final answer from immutable traces, not a bounded event summary; preserve
+    and hash any deterministic evidence materialization. Verify that the
+    declared runner version matches the installed package behind the bound
+    binary, and treat an aggregate exit code as insufficient until every
+    expected provider result, trace, and output is complete. Reserve
+    false-positive/false-negative terms for trigger
+    classification. Record the model identity the executor actually accepted,
+    not merely the configured snapshot. A larger case list, identical treatment
+    blobs, a changed repository context, or a one-run smoke cannot establish
+    skill improvement. Tune-set gains remain tune-set gains until a private
+    prompt-and-answer-key holdout is executed without post-hoc treatment edits.
+    Ablations must be blind removal-based skill trees with materialization
+    provenance; prompt-level instructions to ignore still-mounted guidance are
+    raw interventions, not confirmation-gradeable ablations.
 
 ## Lessons from the consolidation audits
 

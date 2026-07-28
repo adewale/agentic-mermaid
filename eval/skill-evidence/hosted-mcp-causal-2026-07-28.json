@@ -1,0 +1,3152 @@
+{
+  "schemaVersion": 2,
+  "evidenceProfile": "release",
+  "runsPerVariant": 5,
+  "comparison": {
+    "baseline": "pre-change skill tree",
+    "candidate": "candidate skill tree",
+    "design": "skill-only treatment over one neutral workspace and one frozen stimulus set",
+    "requireSameWorkspace": true,
+    "requireSameFixtures": true,
+    "requireSameStimuli": true,
+    "requireSameSchedule": true,
+    "requireSameTreatmentPaths": true,
+    "requireDifferentTreatments": true,
+    "requireSameManifest": true
+  },
+  "executor": {
+    "runner": "skill-eval-harness",
+    "runnerVersion": "0.6.0",
+    "activeProfile": "chatgptCodex",
+    "profiles": {
+      "chatgptCodex": {
+        "model": "gpt-5.4-mini",
+        "note": "The ChatGPT Codex surface rejected the API snapshot identifier in the 2026-07-28 receipt."
+      },
+      "api": {
+        "model": "gpt-5.4-mini-2026-03-17"
+      }
+    },
+    "reasoningEffort": "low"
+  },
+  "manifestDigests": {
+    "baseline": "sha256:35566b197e51f82d0418071aa04de4c84dcb294f0e7aa757573d3dcdc2b391eb",
+    "candidate": "sha256:35566b197e51f82d0418071aa04de4c84dcb294f0e7aa757573d3dcdc2b391eb"
+  },
+  "reportDigests": {
+    "baseline": "sha256:00d78c4c8b1b81b96096dbed8cc172007d4703f1438f6d6ec812476e44ea3cc0",
+    "candidate": "sha256:a5343eddb85da36da593441077c2d5114168ed190eea6438a53b1c5be124a61b"
+  },
+  "preparationReceipts": {
+    "baseline": {
+      "schemaVersion": 2,
+      "workspaceRoot": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/neutral",
+      "workspaceDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "fixtureRoot": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/frozen",
+      "fixtureDigest": "sha256:e377145bed803cd845c849c87c168ad76fc8a0a0d29761ca3c5914de43ee44ee",
+      "treatmentRoot": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/baseline",
+      "treatmentPaths": [
+        "skills/agentic-mermaid-diagram-workflow"
+      ],
+      "treatmentDigest": "sha256:72a16e119e1194708f9d70053a666b06f0b77b3c182c31579f06a0ea1c254550",
+      "stimulusDigest": "sha256:31fc18bbe611ae02b4d411e2a96cb7d60636951b6ff5a32afb3638e78c6de747",
+      "scheduleDigest": "sha256:a5e78b9a5f84df58d89ce133369590afcbef044955f20a49afb777f926401dcc",
+      "preparedTasksDigest": "sha256:f7c8de8f0a2a2ba4999c005d7c0217a6bd2f3e4ad32e87d306144c07839d652c",
+      "seed": "agentic-mermaid-hosted-mcp-v2",
+      "taskCount": 80,
+      "cases": [
+        "adv-mcp-hosted-size-fallback",
+        "adv-mcp-recover-invalid-op-schema",
+        "adv-mcp-underspecified-quality-objective",
+        "neg-unrelated-typescript-helper",
+        "pos-channel-mcp-direct-build",
+        "pos-channel-mcp-direct-describe",
+        "pos-channel-mcp-direct-mutate",
+        "pos-channel-mcp-direct-verify"
+      ]
+    },
+    "candidate": {
+      "schemaVersion": 2,
+      "workspaceRoot": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/neutral",
+      "workspaceDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "fixtureRoot": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/frozen",
+      "fixtureDigest": "sha256:e377145bed803cd845c849c87c168ad76fc8a0a0d29761ca3c5914de43ee44ee",
+      "treatmentRoot": "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/candidate-v7",
+      "treatmentPaths": [
+        "skills/agentic-mermaid-diagram-workflow"
+      ],
+      "treatmentDigest": "sha256:30d200fa1ef3d3632c5929c67fa56c25ce822b9960e84e8c554227568a6a1932",
+      "stimulusDigest": "sha256:31fc18bbe611ae02b4d411e2a96cb7d60636951b6ff5a32afb3638e78c6de747",
+      "scheduleDigest": "sha256:a5e78b9a5f84df58d89ce133369590afcbef044955f20a49afb777f926401dcc",
+      "preparedTasksDigest": "sha256:45fb6328771834b17e764597f9db3f266623d70f9391c0516735ac5825d5d192",
+      "seed": "agentic-mermaid-hosted-mcp-v2",
+      "taskCount": 80,
+      "cases": [
+        "adv-mcp-hosted-size-fallback",
+        "adv-mcp-recover-invalid-op-schema",
+        "adv-mcp-underspecified-quality-objective",
+        "neg-unrelated-typescript-helper",
+        "pos-channel-mcp-direct-build",
+        "pos-channel-mcp-direct-describe",
+        "pos-channel-mcp-direct-mutate",
+        "pos-channel-mcp-direct-verify"
+      ]
+    }
+  },
+  "outputMaterializationReceipts": {
+    "baseline": {
+      "schemaVersion": 2,
+      "runsRoot": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+      "traceCount": 80,
+      "materializedCount": 0,
+      "alreadyCompleteCount": 80,
+      "traceDigest": "sha256:ae4f33199e18a7bda93bac9cda802578134c51c823496e2b57e736dbe6425b86",
+      "outputDigest": "sha256:2ebc06d2bb2bcbafa5e549972aa319371817e419bddc31e9c4eb50feb861b6e1",
+      "harnessOutputDigest": "sha256:c0321bbf3169ea5c7c2557679a2b9c6eebf6430eb5371b5f533370595d16b4ea",
+      "execution": {
+        "receiptDigest": "sha256:713cff59734beaea7abcb4d2d2f6dafbf952078689fdc0d29390ceeca4a4ab57",
+        "receipt": {
+          "schemaVersion": 1,
+          "runner": "skill-eval-harness",
+          "runnerVersion": "0.6.0",
+          "runnerBinary": "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+          "runnerBinaryDigest": "sha256:0f59dbe53c78e9acfe8e629e16fb854206b3ae94251569a13b61e56d1ab4ffcf",
+          "model": "gpt-5.4-mini",
+          "reasoningEffort": "low",
+          "codexCommand": "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+          "command": [
+            "/Users/adewale/.bun/bin/bun",
+            "/Users/adewale/Documents/Codex/2026-07-28/what-s-the-scope-of-our/scripts/eval/run-codex-evidence.ts",
+            "--runner",
+            "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+            "--runner-version",
+            "0.6.0",
+            "--tasks",
+            "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/tasks.jsonl",
+            "--runs",
+            "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+            "--model",
+            "gpt-5.4-mini",
+            "--reasoning-effort",
+            "low",
+            "--codex-cmd",
+            "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+            "--receipt",
+            "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/execution.json",
+            "--timeout",
+            "180",
+            "--concurrency",
+            "8"
+          ],
+          "runnerCommands": [
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-1.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-2.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-3.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-4.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-5.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-6.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-7.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/.runner-shards-9pl44e/tasks-8.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+              "--codex-cmd",
+              "/opt/homebrew/bin/codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ]
+          ],
+          "concurrency": 8,
+          "tasksPath": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/tasks.jsonl",
+          "tasksDigest": "sha256:f7c8de8f0a2a2ba4999c005d7c0217a6bd2f3e4ad32e87d306144c07839d652c",
+          "runsRoot": "/private/tmp/agentic-mermaid-final-evidence.PGt7m9/tune/before/runs",
+          "startedAt": "2026-07-28T16:04:23.972Z",
+          "completedAt": "2026-07-28T16:10:05.991Z",
+          "exitCode": 0
+        }
+      },
+      "runs": [
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:5612376b1348d79db5b90e2b9bb97bed4cb9be6d3c6fcfc16c7883077b6763d6",
+          "outputDigest": "sha256:6eeb8eebe4fc2ccac3ec0f4faee944b95a940c72d5e01c09c9d7ff4d20b446e3",
+          "harnessOutputDigest": "sha256:6eeb8eebe4fc2ccac3ec0f4faee944b95a940c72d5e01c09c9d7ff4d20b446e3"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:b3fd8b2f693a3755cbcf7b74091ff9ce77bd528d6450f2c4ef0a720bf2a9bfbe",
+          "outputDigest": "sha256:8a4daf67fe2c6c17a3cd20c8cefafa12839551d69a540cd42d2f7eed78fb52a1",
+          "harnessOutputDigest": "sha256:8a4daf67fe2c6c17a3cd20c8cefafa12839551d69a540cd42d2f7eed78fb52a1"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:9259e42c90197e2abeb9dee35d4a33e76e45aea865b4a2bc34cffb20caac63de",
+          "outputDigest": "sha256:53ced15777b089901275be6ab5800103abcc44a7392dc7d44bfd1935aee57506",
+          "harnessOutputDigest": "sha256:53ced15777b089901275be6ab5800103abcc44a7392dc7d44bfd1935aee57506"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:4d7c0b931663c98462a3ab1bcdcd3cdc640840ddc8f7bf991e62caa5ff5b6cdd",
+          "outputDigest": "sha256:3b5fb128ceba8cf168738ce392ab7bcff7419e50b7e7ec07d1dd81ace7e59888",
+          "harnessOutputDigest": "sha256:3b5fb128ceba8cf168738ce392ab7bcff7419e50b7e7ec07d1dd81ace7e59888"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:4147a72bf26802a4b1795fa7a12f8785d21da6a75c6c08464ea2c39df65c34f7",
+          "outputDigest": "sha256:bb7f0df880355aedceff898a390f7da3ed235853978e1fd5924439613a09f33a",
+          "harnessOutputDigest": "sha256:bb7f0df880355aedceff898a390f7da3ed235853978e1fd5924439613a09f33a"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:1b58e7f19bfe5e96228c4b03f0808333addaa5237be8c81b915ca8d3f2731f3a",
+          "outputDigest": "sha256:c126d0110e4b42d2032fe430e83603e58a93395601b9b0755b4f9b66f45ae2e7",
+          "harnessOutputDigest": "sha256:c126d0110e4b42d2032fe430e83603e58a93395601b9b0755b4f9b66f45ae2e7"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:1cabd3d4394ab04b5c5b2f6c107f01546f06e51584080d3c434221a7aac8621a",
+          "outputDigest": "sha256:ab826dbd99349c4040fb805f6befb0b12b8d44f6fc71bd20a0c4e157c20a3286",
+          "harnessOutputDigest": "sha256:ab826dbd99349c4040fb805f6befb0b12b8d44f6fc71bd20a0c4e157c20a3286"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:fb29a0962db78a5bdaa445e158fd231b35fd279de7b3b519b31d56aef56e385c",
+          "outputDigest": "sha256:c0e7e4839e0f3cfebefe654e492b75ab8f65fdfb0cb572e357766470e09d6c68",
+          "harnessOutputDigest": "sha256:c0e7e4839e0f3cfebefe654e492b75ab8f65fdfb0cb572e357766470e09d6c68"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:3af78c3838b947cd0be2fa077a40c8294372588b7043f0fdc5b5a54eac5d4db8",
+          "outputDigest": "sha256:2d8c040a5c1ccd8a7f9c9b70d4e7fe9b4b07bec9376ce27c116d9180d7a61eb9",
+          "harnessOutputDigest": "sha256:2d8c040a5c1ccd8a7f9c9b70d4e7fe9b4b07bec9376ce27c116d9180d7a61eb9"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:16d1d7080c5806e4049a99f81db7fc1f6c5bcee18b8836e4fb5409e7ef8c2659",
+          "outputDigest": "sha256:93efe656a4f63c6e7550b36f2430f49c332cefa16f7fda98a5ac8160a1c1f56a",
+          "harnessOutputDigest": "sha256:93efe656a4f63c6e7550b36f2430f49c332cefa16f7fda98a5ac8160a1c1f56a"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:219a24a62e4400378b4b39455bd83a1efccab41846c5c78c17c6dc7f782839c8",
+          "outputDigest": "sha256:54336ba11d18c0fbe7c75d681aac68cdf961c10014e9a5cb4b5a896024f1fa52",
+          "harnessOutputDigest": "sha256:54336ba11d18c0fbe7c75d681aac68cdf961c10014e9a5cb4b5a896024f1fa52"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:ad81d06fd86db11c7a64ea00203c18c73c15b96ef1653aefa8c44a1baed77c1b",
+          "outputDigest": "sha256:036deaceb137056e2f55975fae06322bc84eb5333a62321025dc06c423cc925f",
+          "harnessOutputDigest": "sha256:036deaceb137056e2f55975fae06322bc84eb5333a62321025dc06c423cc925f"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:94f47cfe47bb4db6813147a0b65425bd585e5a1d5eeec80b4dac74b96fbd41db",
+          "outputDigest": "sha256:d6d671353fee9604d0f8cef687408ce3719f07ddeae01f3196f8fc68cb44055c",
+          "harnessOutputDigest": "sha256:d6d671353fee9604d0f8cef687408ce3719f07ddeae01f3196f8fc68cb44055c"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:23a53a8c2de8b939a9a6ccc6e85d5f38f452b8a19a930ff61cb08d0c6bd52e4d",
+          "outputDigest": "sha256:3fb7bee608108a930b4a9f7ed3879a451560be59733ce2c67c479adce4818b59",
+          "harnessOutputDigest": "sha256:3fb7bee608108a930b4a9f7ed3879a451560be59733ce2c67c479adce4818b59"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:42e87c1cbfa1fbc919ebb8aa5d43f931277d7b0ca111875947be68e6675d0c2b",
+          "outputDigest": "sha256:95f58074e8c3b26ebc1e6b79cc0a37ac8f95d0c8ed3f2aafa65734a3a2d60d93",
+          "harnessOutputDigest": "sha256:95f58074e8c3b26ebc1e6b79cc0a37ac8f95d0c8ed3f2aafa65734a3a2d60d93"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:c5fff36942a597eecd4af5c60069c2eeaddfb0811850acab166a425cb83f5abc",
+          "outputDigest": "sha256:f1d2adfe3f02b7e148cb51de3c8e6dc47960b3530f8c8add4f7b6831bc583a87",
+          "harnessOutputDigest": "sha256:f1d2adfe3f02b7e148cb51de3c8e6dc47960b3530f8c8add4f7b6831bc583a87"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:e8dceb13ed41c3e23b0a34d93cec1e2676c91918d3cdea9f649e8943c5349a35",
+          "outputDigest": "sha256:e3c53053d5bac1fd6ae59b3d24bdcaac461eeefd93fe033ade3b9ed01bb97c00",
+          "harnessOutputDigest": "sha256:e3c53053d5bac1fd6ae59b3d24bdcaac461eeefd93fe033ade3b9ed01bb97c00"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:0ecde6b9831cc43903b7dabf839ce44f1281da7fddaa4e50d4315c1fcbb68550",
+          "outputDigest": "sha256:99e21f14967ffe920d4ab5f02099de0e288438b83f0d648334742ed8aa9d91a4",
+          "harnessOutputDigest": "sha256:99e21f14967ffe920d4ab5f02099de0e288438b83f0d648334742ed8aa9d91a4"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:22ca3e0d3dc74cd27848565557a755582ee76a08f7e12aa9af1c2c2263b4e374",
+          "outputDigest": "sha256:debd891888ff2dbdb7cdf641261838d907f4dc3b971fae21f4221cdd0910414f",
+          "harnessOutputDigest": "sha256:debd891888ff2dbdb7cdf641261838d907f4dc3b971fae21f4221cdd0910414f"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:f582e0dcb4be13886ed774a4c9195c88568d2d90d22c5d1f928e64650a1f85b5",
+          "outputDigest": "sha256:0020cf12f41fec455beb9ff0f385141dc5bce27f726335f88d31238b118a4c96",
+          "harnessOutputDigest": "sha256:0020cf12f41fec455beb9ff0f385141dc5bce27f726335f88d31238b118a4c96"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:7b4266acf14e2ac90701276cdbeb3fef5237f47b0daca62a1a0abaec8d431467",
+          "outputDigest": "sha256:c69fb91f35026940bf93aed3585b11b4c65f5ebbbb6f4ed667047d08d6e2e67c",
+          "harnessOutputDigest": "sha256:c69fb91f35026940bf93aed3585b11b4c65f5ebbbb6f4ed667047d08d6e2e67c"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:37a3de17380bd77b581ec4b62bea8fa56b255aab820735cc6b395af8a541a20b",
+          "outputDigest": "sha256:d2875821996e117ddb303d3af008de59db113c4c0e1c73b4f9ee548a5497f1cf",
+          "harnessOutputDigest": "sha256:d2875821996e117ddb303d3af008de59db113c4c0e1c73b4f9ee548a5497f1cf"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:cc96edfda1edbdb631e016cd41faff8ea02d069f20b5d2b02e9ee3ac67b1681a",
+          "outputDigest": "sha256:98c58a3ecde1b4ea82f13800548e0d16be939e63f5efa628ea67f163fe9e04e0",
+          "harnessOutputDigest": "sha256:98c58a3ecde1b4ea82f13800548e0d16be939e63f5efa628ea67f163fe9e04e0"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:a9621c0d6a256eeaca658a10242279a1ba14f1a250d821d97337970abe72e5f1",
+          "outputDigest": "sha256:7107cf7ec6e5b8d5ac8670d57dcaa69e959a4d3e0e91a3e88dceee8afe1226b4",
+          "harnessOutputDigest": "sha256:7107cf7ec6e5b8d5ac8670d57dcaa69e959a4d3e0e91a3e88dceee8afe1226b4"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:e8b6ede5b5c65b794d7d0cdf8a7e085c0a4eaeab68539976cfbd440ea087a78e",
+          "outputDigest": "sha256:4c178b605bc79d00d45fb40395b39361d8303319677cf4790c034dc0a2c89ced",
+          "harnessOutputDigest": "sha256:4c178b605bc79d00d45fb40395b39361d8303319677cf4790c034dc0a2c89ced"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:66a1323b19885d6ce3d0daf8575df6d6d71fe8f709d8d942e0387b62db56ea71",
+          "outputDigest": "sha256:a043d91e285eefd860f822630d5ee9c768f6404122b1af9b9997c57425cde519",
+          "harnessOutputDigest": "sha256:a043d91e285eefd860f822630d5ee9c768f6404122b1af9b9997c57425cde519"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:60c13f57e84b8c696a668f047f5a17123a297c9f59d71ebc606930fee6024aae",
+          "outputDigest": "sha256:2f4491ac7cd2971a8fa249fc54e8b293215580928ffa705f6d854a9e016a6526",
+          "harnessOutputDigest": "sha256:2f4491ac7cd2971a8fa249fc54e8b293215580928ffa705f6d854a9e016a6526"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:a9a918c74c13f8d99223467eddda70bd4044c226b2d711759807002f2fb702c7",
+          "outputDigest": "sha256:86993c29c6f560760db649538dd7bbea51f1b11e249e8b93a1cd9c8bb6a7c7a0",
+          "harnessOutputDigest": "sha256:86993c29c6f560760db649538dd7bbea51f1b11e249e8b93a1cd9c8bb6a7c7a0"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:b99a00d90bf1d59206aa8abd20265ad4f366ae316755e95d82c08934df445fc5",
+          "outputDigest": "sha256:7d5ff5c6abab488a509216763b574e44cfd426d161bd280435899cc138e04bae",
+          "harnessOutputDigest": "sha256:7d5ff5c6abab488a509216763b574e44cfd426d161bd280435899cc138e04bae"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:26b6436c765463c5fc6380682066f6130ec3e640ab09496fa2b2f64609aba487",
+          "outputDigest": "sha256:275d6061de0b2f182ada9feee54e2f3bb0a9961593c39fe406e9a9c05431833d",
+          "harnessOutputDigest": "sha256:275d6061de0b2f182ada9feee54e2f3bb0a9961593c39fe406e9a9c05431833d"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:7d07f39d35b17093c8458177c754329deb5e685dbe4eec48d813522947a8e762",
+          "outputDigest": "sha256:af6d94b39084148563daf7c1902b2cb1f212119379c07bb3dfbfeb3adb72992d",
+          "harnessOutputDigest": "sha256:af6d94b39084148563daf7c1902b2cb1f212119379c07bb3dfbfeb3adb72992d"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:931cd7605be1c297f47d210e745de39aabddbd0af2e3b7c10cbc3988376f4fe4",
+          "outputDigest": "sha256:9579bc266c2fcf151b2f40e122385c63988bc1c6ff157375ea6611267e90e517",
+          "harnessOutputDigest": "sha256:9579bc266c2fcf151b2f40e122385c63988bc1c6ff157375ea6611267e90e517"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:e05f5ba31e29c3d36a8f45ad7aae563c78fe2f23b9e073dd762f623cacdb7067",
+          "outputDigest": "sha256:57feb205f093ea8f541038a5e3378496b0857c247ed391e43d7626246009b27d",
+          "harnessOutputDigest": "sha256:57feb205f093ea8f541038a5e3378496b0857c247ed391e43d7626246009b27d"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:2f780f1a9b33611830f4dee5a5f74de98e7145cab71c49dd2d5dc4e94b4913b9",
+          "outputDigest": "sha256:af361834ac359e81bd55a61c8e26f4de0c2b46f37f7da1401444caf8e603e8b7",
+          "harnessOutputDigest": "sha256:af361834ac359e81bd55a61c8e26f4de0c2b46f37f7da1401444caf8e603e8b7"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:db791e06ff7e6e63a0fb4edd72ce9f80604c41efecac36f005aeb5f37094834a",
+          "outputDigest": "sha256:f16d99f1fec7bc4aa7f14320f28cf964880ef06616be0d7f354e351ebb306725",
+          "harnessOutputDigest": "sha256:f16d99f1fec7bc4aa7f14320f28cf964880ef06616be0d7f354e351ebb306725"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:03f8a0fbd491765e59067da662c408e2dd70a70a3cca15e531d8ce560008a38b",
+          "outputDigest": "sha256:cc2c02f775fcf2a8e539a3f77d42608192828834063bcd3bf2c57f2934ef4c55",
+          "harnessOutputDigest": "sha256:cc2c02f775fcf2a8e539a3f77d42608192828834063bcd3bf2c57f2934ef4c55"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:19bf64463c4f81a519ab65db27ede634d3f5924da20d3a8275501b40c4d14feb",
+          "outputDigest": "sha256:541c0cea22509fba92a717117d8ba54d94610bebabd510da6c42a354a941ddae",
+          "harnessOutputDigest": "sha256:541c0cea22509fba92a717117d8ba54d94610bebabd510da6c42a354a941ddae"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:1acc16e232a929feb40aeba095b7a10daa504e32eeabd3f00fdf497e67152914",
+          "outputDigest": "sha256:05b919c015be7cd6a57dcca596b0d9de8947f1d29403a2d471d070c40d963c45",
+          "harnessOutputDigest": "sha256:05b919c015be7cd6a57dcca596b0d9de8947f1d29403a2d471d070c40d963c45"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:bcc10899f807363c8231271f894c65b644165bc4142aa9a17700c7a99daa15e0",
+          "outputDigest": "sha256:e57f2ef5a89e73a7685502e2fa9d6f33e4b25235832843ca8d1007345a5086fe",
+          "harnessOutputDigest": "sha256:e57f2ef5a89e73a7685502e2fa9d6f33e4b25235832843ca8d1007345a5086fe"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:49a85a9136d79d2cbe4e8e6186ba8811b3c415b1abd0337f33e16575f0e8b4ad",
+          "outputDigest": "sha256:c313ac3edce6cb493914613740e0f6c8d10dcfce94f0996b5f61d5447e7eb0f0",
+          "harnessOutputDigest": "sha256:c313ac3edce6cb493914613740e0f6c8d10dcfce94f0996b5f61d5447e7eb0f0"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:8fcaa278abdbc5dcd00e29ca9e71881149f03425b269dba7c21c0344fb89b1c5",
+          "outputDigest": "sha256:c115388728e2049ddc6d215c343bda6a171f10b68bb9aa37352278bea1fb1b13",
+          "harnessOutputDigest": "sha256:c115388728e2049ddc6d215c343bda6a171f10b68bb9aa37352278bea1fb1b13"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:eb5a61b0da608b2cdd87e5328996a1a70f8a52dc87be62061d7af33f37221d05",
+          "outputDigest": "sha256:ac30a5790c1894bd7c3d08efd5d2acf17ad2de814940fc75ac903121fc977af8",
+          "harnessOutputDigest": "sha256:ac30a5790c1894bd7c3d08efd5d2acf17ad2de814940fc75ac903121fc977af8"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:bea5e07ef5fb0b346dc4e8bcf0d313565042423584421dc19df54fa9b405cce6",
+          "outputDigest": "sha256:c26120f8b0ec130cb2b3e846e401e25283a4ae5b2a6b4e739b3855258288f99a",
+          "harnessOutputDigest": "sha256:c26120f8b0ec130cb2b3e846e401e25283a4ae5b2a6b4e739b3855258288f99a"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:16765802322aef25d580bf6a12fb4ec9dde82e517e94336cd4c0ba5fa9e59fe7",
+          "outputDigest": "sha256:9881bb491082f3743280fdbcfdd9975e7d5d91a03b9a2ca0c61e416969b943ca",
+          "harnessOutputDigest": "sha256:9881bb491082f3743280fdbcfdd9975e7d5d91a03b9a2ca0c61e416969b943ca"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:47c29ce93cacf10ac0d9acf7d464af075bf5c734b5bb37ce8c6222590534efc4",
+          "outputDigest": "sha256:809de9e11134d9c8f90fe448964ecc745c00b32a983dcec3ec69edb5b71da657",
+          "harnessOutputDigest": "sha256:809de9e11134d9c8f90fe448964ecc745c00b32a983dcec3ec69edb5b71da657"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:ef7e43d03f6f591e502066cad09a7d0c57b52c1090e215bda3eead3b072758cc",
+          "outputDigest": "sha256:eb32ccdd75f1f0c391772881f4dd03fd4f83ed6de8ae856d3bc3c22b44d88d1a",
+          "harnessOutputDigest": "sha256:eb32ccdd75f1f0c391772881f4dd03fd4f83ed6de8ae856d3bc3c22b44d88d1a"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:c4a939b3f4ac339a1c1b88edeccd6fb89cc66f884513309358fab75ff38e5e7f",
+          "outputDigest": "sha256:a6c4e516c0fa5e66c59135597a582a38a65c98313b33bc43ebc1fd2af6fbefb3",
+          "harnessOutputDigest": "sha256:a6c4e516c0fa5e66c59135597a582a38a65c98313b33bc43ebc1fd2af6fbefb3"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:11827deddbb2bd13e97b3b28ad26871cd87305c4bfa58f5cd9edfdd4ffe24a9e",
+          "outputDigest": "sha256:19c50092d274794d8d6b7adcbb8909610d01d4a568837ae3d59300de950df31c",
+          "harnessOutputDigest": "sha256:19c50092d274794d8d6b7adcbb8909610d01d4a568837ae3d59300de950df31c"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:bd5b3290281eca97590277d9d7aef8e9dde47207de5b425a44587970bd89f464",
+          "outputDigest": "sha256:1225f0983e9919b1cb4749524e79003b39d241427b4462f571dee90f0d42757f",
+          "harnessOutputDigest": "sha256:1225f0983e9919b1cb4749524e79003b39d241427b4462f571dee90f0d42757f"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:2b4e6fb4aa6a04552aa476088f36c77bf3a99f11853483a918b4d806500dc8ff",
+          "outputDigest": "sha256:80f9320a3de2e4b81ee7a7a6bd0cf5cc3a9e8ba7b18e4dae892e0ba56a40fd42",
+          "harnessOutputDigest": "sha256:80f9320a3de2e4b81ee7a7a6bd0cf5cc3a9e8ba7b18e4dae892e0ba56a40fd42"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:e3b2022548d665ddd3ddecf7f844838bdda313f996eb3560caa38dbb96e92c2c",
+          "outputDigest": "sha256:536615823ec49e385f0ae37ddd30cf68ece84e32972e3190a24d656e07093ee2",
+          "harnessOutputDigest": "sha256:536615823ec49e385f0ae37ddd30cf68ece84e32972e3190a24d656e07093ee2"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:8127fe4af3ee9f590576841706d300c47c0e022d144b4574922adf83f27b9b65",
+          "outputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057",
+          "harnessOutputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:6f9e2bf45d9a32d57aec6dfb35a696319b2ab540855e084952f32c960bc5997c",
+          "outputDigest": "sha256:eafc19a4dd7865b6f8cbd787100cad5a5544d06334c3d4cd1264551a8d06ede6",
+          "harnessOutputDigest": "sha256:eafc19a4dd7865b6f8cbd787100cad5a5544d06334c3d4cd1264551a8d06ede6"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:589728d90a6e3a64efd1a59da92da173317d5388306dba112f93e824dad0e6e0",
+          "outputDigest": "sha256:48b5aa121f47343f3e6e36e9761eb7af5c0994a4dcb8dc6b333a177a5bb916d5",
+          "harnessOutputDigest": "sha256:48b5aa121f47343f3e6e36e9761eb7af5c0994a4dcb8dc6b333a177a5bb916d5"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:b2600c2cf7113b1a9f616d272ea49343312d168b553c28b70d2808e16e09c905",
+          "outputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057",
+          "harnessOutputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:3e134498d9ce2a9e27bc3e5eb61cf1cc1a1014219fed3add77ad9d2c3078a0a7",
+          "outputDigest": "sha256:072df1a4921a719213e000dbcf6cedd425b8b5f5ac50ea8db96bb311ece2a61a",
+          "harnessOutputDigest": "sha256:072df1a4921a719213e000dbcf6cedd425b8b5f5ac50ea8db96bb311ece2a61a"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:b91f845c50e32e5cca6020304d04e67540237c8f4b37f50e91fbd61599cad80f",
+          "outputDigest": "sha256:fba56f50d85b89cef938a88dd6091d6a84d1d5660c92b4f9ddeda024135e2cbb",
+          "harnessOutputDigest": "sha256:fba56f50d85b89cef938a88dd6091d6a84d1d5660c92b4f9ddeda024135e2cbb"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:5e72da06a4a8725128d4638656bf6f12ecbd42ff18d2932dafd34d974dc5d671",
+          "outputDigest": "sha256:03b34cf786e82e148e453a6834d8af9fe80bcdc26f50415c4c6c839cb30fc42b",
+          "harnessOutputDigest": "sha256:03b34cf786e82e148e453a6834d8af9fe80bcdc26f50415c4c6c839cb30fc42b"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:c7fa0f83168fbd6a13c5eb54f659f270db14b57774b259fa3036e2048642d1d2",
+          "outputDigest": "sha256:29f5977037f29141725c0ccb45ce0090db9c12b971f21fbdbe3b6b509d29cbe3",
+          "harnessOutputDigest": "sha256:29f5977037f29141725c0ccb45ce0090db9c12b971f21fbdbe3b6b509d29cbe3"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:366aaef04adf1902d8737284494eb24acdf86ba99c478654ce44d8b9e70b762f",
+          "outputDigest": "sha256:fba56f50d85b89cef938a88dd6091d6a84d1d5660c92b4f9ddeda024135e2cbb",
+          "harnessOutputDigest": "sha256:fba56f50d85b89cef938a88dd6091d6a84d1d5660c92b4f9ddeda024135e2cbb"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:defd81d136b59550ba36a9c67bf11d66b90cd9417e5dd062b9a79ef5a47996f8",
+          "outputDigest": "sha256:b9196301bd4463d01cb46375e34d576cf8fc87bf7c80a7fdda810bd3149d8750",
+          "harnessOutputDigest": "sha256:b9196301bd4463d01cb46375e34d576cf8fc87bf7c80a7fdda810bd3149d8750"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:d253cec2649af848e8e45b843be6feba832a8b045e5a02e6c26a0199cecd1cde",
+          "outputDigest": "sha256:d8455cb24fcddef53495cc01c57600e8cb3fd946d4570859fff9a7f2bf0e895e",
+          "harnessOutputDigest": "sha256:d8455cb24fcddef53495cc01c57600e8cb3fd946d4570859fff9a7f2bf0e895e"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:b7d6050fa930a7cfe51481189d89a26da4d1cc7b63b8e3b55f6176905ef8ac4d",
+          "outputDigest": "sha256:c81d45585d6956f5a404c661d179ad77ad41220b2c23c1bb97eaa690f19d1ee8",
+          "harnessOutputDigest": "sha256:c81d45585d6956f5a404c661d179ad77ad41220b2c23c1bb97eaa690f19d1ee8"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:883402164172eb217b7ccb661cee2cb73858203dcedf9b1f8908553b78dd64da",
+          "outputDigest": "sha256:6f76183a23f469953fea50deb35c578f52b10e77b6337663d40c647a171c68aa",
+          "harnessOutputDigest": "sha256:6f76183a23f469953fea50deb35c578f52b10e77b6337663d40c647a171c68aa"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:5207a6167a2f481b76faf0a1f4aa50b5426ab045c890cdee56a0541bc959bf43",
+          "outputDigest": "sha256:1017851664e67160367d9cc635036bc88266f2b75b144c122eaac4bde148698f",
+          "harnessOutputDigest": "sha256:1017851664e67160367d9cc635036bc88266f2b75b144c122eaac4bde148698f"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:cd64aa9641aa86ae4ac6b38fdf2349542bd7651da0771d87770333c00e75661e",
+          "outputDigest": "sha256:5a054f53dde037bcbe13f4ce1da3dd8727999ea0d92f852198d446cf52752f09",
+          "harnessOutputDigest": "sha256:5a054f53dde037bcbe13f4ce1da3dd8727999ea0d92f852198d446cf52752f09"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:9df3f37769f98f806188d82819feb2e45592df8998224fa266e318755e3a306b",
+          "outputDigest": "sha256:23d15b569553e2da4f9e3c63f5d2bcf812bcdec4ad9eb279595ef299b9fbe2a8",
+          "harnessOutputDigest": "sha256:23d15b569553e2da4f9e3c63f5d2bcf812bcdec4ad9eb279595ef299b9fbe2a8"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:819b140d95dfaec1c9a0203239fccce179e51bb6bd666cf3da286582f05d9b98",
+          "outputDigest": "sha256:c581ade3b3503fdf855933957bb7b026eb27e485582f30a05d3ff50ce5b03178",
+          "harnessOutputDigest": "sha256:c581ade3b3503fdf855933957bb7b026eb27e485582f30a05d3ff50ce5b03178"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:39586012e2647e1e6ed7c7f59bc5c7fa6d1dcff8b2d7725cbef2176ec2a89adf",
+          "outputDigest": "sha256:678c0d8e85d1c59fe69694f6171e5f3af575b3dd1b2caf9a0d6c5610b4bd2cca",
+          "harnessOutputDigest": "sha256:678c0d8e85d1c59fe69694f6171e5f3af575b3dd1b2caf9a0d6c5610b4bd2cca"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:9fac625bac3857f095c2ba984e390978dfe46bc2b0446b018ef7d4f0090a8b31",
+          "outputDigest": "sha256:b88e7087c796fb0e9fed77a431842545aaefbbb564428dd76e7facd434ba4e74",
+          "harnessOutputDigest": "sha256:b88e7087c796fb0e9fed77a431842545aaefbbb564428dd76e7facd434ba4e74"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:4a3dabdabfe72bf934ac0852fa91843224dd2a41a12c5a9dd699895c80823df5",
+          "outputDigest": "sha256:b31554a42577aa15d4b78be796378715b4bf91eeb1abbd6de7bc98364dd3f8d0",
+          "harnessOutputDigest": "sha256:b31554a42577aa15d4b78be796378715b4bf91eeb1abbd6de7bc98364dd3f8d0"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:5e82d10cd89dbeb892fce8bbfb686a1f504e7c661c8fb98fe3284db26b232c6f",
+          "outputDigest": "sha256:f7dc059bc01420ff1727e4ca4291cb2e91106e9020192dc87904f71051dce8e5",
+          "harnessOutputDigest": "sha256:f7dc059bc01420ff1727e4ca4291cb2e91106e9020192dc87904f71051dce8e5"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:1119877d2a06355c3f6119d2740b9da1a4118b44154e94b0481c6165b33317be",
+          "outputDigest": "sha256:e0e5ced801ae16bbc411816a1f2bfb322a8ec99cf742c900a6e34a73d3f74be4",
+          "harnessOutputDigest": "sha256:e0e5ced801ae16bbc411816a1f2bfb322a8ec99cf742c900a6e34a73d3f74be4"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:a8dab733d096a80646bde445b62648de5969e58e51f76716335ed56726041b82",
+          "outputDigest": "sha256:b48262dd94542d15f7e27619f15b6361433dbc6c1595c6b968d2d635789d1636",
+          "harnessOutputDigest": "sha256:b48262dd94542d15f7e27619f15b6361433dbc6c1595c6b968d2d635789d1636"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:31552595c8088b56174497bd33a343c408a32e75e48eb2016ac6f225e6cb8b03",
+          "outputDigest": "sha256:6cf057aed1a1ac8a0060c56f60bff98fc7b3d2de4d8bafe8682f0653e12b38f6",
+          "harnessOutputDigest": "sha256:6cf057aed1a1ac8a0060c56f60bff98fc7b3d2de4d8bafe8682f0653e12b38f6"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:56b1ce4eab9edabb5ead548d2bc45a66d2304684195bc38ccc67d9b58efd08f4",
+          "outputDigest": "sha256:2c86e5b022e0a2b6c262a262f85ea12e9e36353b667a32aa03798662d6b80baa",
+          "harnessOutputDigest": "sha256:2c86e5b022e0a2b6c262a262f85ea12e9e36353b667a32aa03798662d6b80baa"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:0bddffe00756fc343667aa93bdc6d16927b689459c74876250ba8b2ee2ca9fe5",
+          "outputDigest": "sha256:b78be5ac71404e4e49235540db47401ac054cc1459bdd524abe8615cccd5f018",
+          "harnessOutputDigest": "sha256:b78be5ac71404e4e49235540db47401ac054cc1459bdd524abe8615cccd5f018"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:b945d315553028654cb4def08610ca337488d028683b24ead8d6649fe4a86fcb",
+          "outputDigest": "sha256:3f2dbe02211a6d67416c69703789c6cbba4284fe5e90fa5950bef2c100f672ac",
+          "harnessOutputDigest": "sha256:3f2dbe02211a6d67416c69703789c6cbba4284fe5e90fa5950bef2c100f672ac"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:15514a00d7c3cce62d9694741f95a747972a168300e6a6bf892c7747bbd6c6ed",
+          "outputDigest": "sha256:e0237439e052758493cfac008f69bf1152c443a355181c6eeaf9ae0781605996",
+          "harnessOutputDigest": "sha256:e0237439e052758493cfac008f69bf1152c443a355181c6eeaf9ae0781605996"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:50b3da1ce2d0b3be09ffa7bae71e0b99394e91fc67d54265cfcadbc4a05ee2e5",
+          "outputDigest": "sha256:ab2d5299f2cb192f981ecdb710f0b94370198b1654f0571cf4257873a7263f3b",
+          "harnessOutputDigest": "sha256:ab2d5299f2cb192f981ecdb710f0b94370198b1654f0571cf4257873a7263f3b"
+        }
+      ]
+    },
+    "candidate": {
+      "schemaVersion": 2,
+      "runsRoot": "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+      "traceCount": 80,
+      "materializedCount": 0,
+      "alreadyCompleteCount": 80,
+      "traceDigest": "sha256:d43559857d981317c9b048bed521341f5e62382706a37161756cce371ebef086",
+      "outputDigest": "sha256:0de18d951d965c24e9ee1295694d34f7275ba8704ac3c8bf734a2519125713e7",
+      "harnessOutputDigest": "sha256:f67b3f8ccb5aa94dc79dd36a9f9c1ea8647312e181d04d5474568518a8e0cdb1",
+      "execution": {
+        "receiptDigest": "sha256:eedf496de492e54727e4c191fb6a03c026cef834d6205ff565ef4e960db8aeb9",
+        "receipt": {
+          "schemaVersion": 2,
+          "runner": "skill-eval-harness",
+          "runnerVersion": "0.6.0",
+          "runnerBinary": "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+          "runnerBinaryDigest": "sha256:16c0c215de72184d1b4e8ff30b7e85c896da81b548e7c15cf7a626a8181105d6",
+          "model": "gpt-5.4-mini",
+          "reasoningEffort": "low",
+          "codexCommand": "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+          "command": [
+            "/Users/adewale/.bun/bin/bun",
+            "/Users/adewale/Documents/Codex/2026-07-28/what-s-the-scope-of-our/scripts/eval/run-codex-evidence.ts",
+            "--runner",
+            "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+            "--runner-version",
+            "0.6.0",
+            "--tasks",
+            "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/tasks.jsonl",
+            "--runs",
+            "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+            "--model",
+            "gpt-5.4-mini",
+            "--reasoning-effort",
+            "low",
+            "--codex-cmd",
+            "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+            "--receipt",
+            "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/execution.json",
+            "--timeout",
+            "180",
+            "--concurrency",
+            "8"
+          ],
+          "runnerCommands": [
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-1.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-2.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-3.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-4.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-5.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-6.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-7.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ],
+            [
+              "/private/tmp/skill-eval-harness-keyboardia-019f9da7/.venv/bin/skill-benchmark",
+              "run-codex",
+              "--tasks",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/.runner-shards-Hu9mnW/tasks-8.jsonl",
+              "--runs",
+              "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+              "--codex-cmd",
+              "codex exec --json --model gpt-5.4-mini -c model_reasoning_effort=low",
+              "--timeout",
+              "180"
+            ]
+          ],
+          "concurrency": 8,
+          "tasksPath": "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/tasks.jsonl",
+          "tasksDigest": "sha256:45fb6328771834b17e764597f9db3f266623d70f9391c0516735ac5825d5d192",
+          "runsRoot": "/private/tmp/agentic-mermaid-hosted-refresh.4UVMPw/after-v7/runs",
+          "startedAt": "2026-07-28T18:25:04.675Z",
+          "completedAt": "2026-07-28T18:29:19.698Z",
+          "exitCode": 0,
+          "runnerExitCode": 0,
+          "taskResults": {
+            "expectedCount": 80,
+            "completeCount": 80,
+            "failures": []
+          }
+        }
+      },
+      "runs": [
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:8e0fa786db43c016dd7903aafbeeeb2a06f103dc61bae13fd26d630987db9fa4",
+          "outputDigest": "sha256:46bdfb9e0d1818bcfab257d05105847d1ca05210376b16a3c6792947831cd767",
+          "harnessOutputDigest": "sha256:46bdfb9e0d1818bcfab257d05105847d1ca05210376b16a3c6792947831cd767"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:cd8ee1ae72ac7975adafac4b1ae1e103c0231b7ed13822c4357daf72b6657fd9",
+          "outputDigest": "sha256:6765aa2efa26bfb59a3c212be3c3eb67cc956b0223212f7b67b3a7bde2db6ae7",
+          "harnessOutputDigest": "sha256:6765aa2efa26bfb59a3c212be3c3eb67cc956b0223212f7b67b3a7bde2db6ae7"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:a2559878a04c99c9c5fa6d05b939e073b1d038f993d89d542fb114f0068faea6",
+          "outputDigest": "sha256:00c0317e1e49096763fecf5f6171c4b53be349752a6201064773d1fd40365b16",
+          "harnessOutputDigest": "sha256:00c0317e1e49096763fecf5f6171c4b53be349752a6201064773d1fd40365b16"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:47091339788afd61e79ad773ae3abe50b0eb6a39a4a67f7aeb3d7e99c4c970c5",
+          "outputDigest": "sha256:117a29999129e26bd4cfe14c5427abafa2cd73c5901698ac0e64726518120a9c",
+          "harnessOutputDigest": "sha256:117a29999129e26bd4cfe14c5427abafa2cd73c5901698ac0e64726518120a9c"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:0d2a58948ce3eb1489db47575e39eab1667e67edf695174a7ba30e9bd83b6564",
+          "outputDigest": "sha256:e9ee350aacd4d5c2f411549f432062309ff8085c2789b0e57d79eaf394a2daac",
+          "harnessOutputDigest": "sha256:e9ee350aacd4d5c2f411549f432062309ff8085c2789b0e57d79eaf394a2daac"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:395819aa3c6d6ecf45a1a91f2daeb7f93e7c8e391f0c95e68d794ca8a63ce4a7",
+          "outputDigest": "sha256:651d5ec7de8b03a4dfc253f51b848c5c6012789d7095e1b6e51089908b4562f9",
+          "harnessOutputDigest": "sha256:651d5ec7de8b03a4dfc253f51b848c5c6012789d7095e1b6e51089908b4562f9"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:cee49e36e4f78a720aa033417dca0617c95d24a82f809ffe272f8b06ac022ee3",
+          "outputDigest": "sha256:1a22fa4853755f531e5936701329c3a98fae8931ade740aa511a4e3d8ab6c222",
+          "harnessOutputDigest": "sha256:1a22fa4853755f531e5936701329c3a98fae8931ade740aa511a4e3d8ab6c222"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:3c6345f4f02515882c8b90cbd56a8d51dc626ca1f1c6e9dd4fc28ed603ab2adf",
+          "outputDigest": "sha256:9c1d92ef063c47acf9dcb0d4a3842d8f3ad425937d25e33a24b62e2fb8e6d124",
+          "harnessOutputDigest": "sha256:9c1d92ef063c47acf9dcb0d4a3842d8f3ad425937d25e33a24b62e2fb8e6d124"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:da9e7d61363be4a6624c7b3ab75fd24236501a5d66cdd978d5ffdedd97723710",
+          "outputDigest": "sha256:b44b528abb0e4b4139498aca4187c3d12342e944d86e7a597484aa1c8ba4b251",
+          "harnessOutputDigest": "sha256:b44b528abb0e4b4139498aca4187c3d12342e944d86e7a597484aa1c8ba4b251"
+        },
+        {
+          "runDir": "adv-mcp-hosted-size-fallback/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:1521215bd952d012fd7d94e6eb98667f4f1a23ce98d5d862c44be83a8def174d",
+          "outputDigest": "sha256:d8f2f9d4009f1ab75a5ebd7987a230543dc88cbd58838a0b4d8632e4692f291f",
+          "harnessOutputDigest": "sha256:d8f2f9d4009f1ab75a5ebd7987a230543dc88cbd58838a0b4d8632e4692f291f"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:fad369a3686129350d782bf8cb784a29a4b4b0552c103274b3579d0ba0b2a0d7",
+          "outputDigest": "sha256:550bf1183d44dc6ea46701e56c72db477241b0883dec3b3c487692d6283f1ed7",
+          "harnessOutputDigest": "sha256:550bf1183d44dc6ea46701e56c72db477241b0883dec3b3c487692d6283f1ed7"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:03ef83e17ae5129cb3e216ba3acdc1badbc5017e328cd983335315451022ab39",
+          "outputDigest": "sha256:7cd161889fef13d1f13b256b52a5df26a27a44dbb462f7b4ae0badde3877f014",
+          "harnessOutputDigest": "sha256:7cd161889fef13d1f13b256b52a5df26a27a44dbb462f7b4ae0badde3877f014"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:0e827a9f95750ff9efa85f35d13d909db835148467c3067666df0e70d02fb253",
+          "outputDigest": "sha256:5c27d2da3bae78aa62607840fcc41139782e59d0ed3c44bc5dc0ce02f2d4e077",
+          "harnessOutputDigest": "sha256:5c27d2da3bae78aa62607840fcc41139782e59d0ed3c44bc5dc0ce02f2d4e077"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:557f9bf4cdb6ef89eca9bb8addb24ec2f71123d0400eb1bf2426b6c335573bc1",
+          "outputDigest": "sha256:bf7b5e31f2f70198f50e1b4910b41b361e8601a7cb82fa9a3c95cc61c11d1c3d",
+          "harnessOutputDigest": "sha256:bf7b5e31f2f70198f50e1b4910b41b361e8601a7cb82fa9a3c95cc61c11d1c3d"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:ad40cf3f55333e5377958ec1ac18aa4fc30f30140e2067a5552d5e9837af5e6d",
+          "outputDigest": "sha256:472a04f02e949b37562f50dcb2bdf61fb41da78e0baeea84d9086ef832a418cd",
+          "harnessOutputDigest": "sha256:472a04f02e949b37562f50dcb2bdf61fb41da78e0baeea84d9086ef832a418cd"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:bbe2e5eb825dfdd1dbf6b78a0f1778913c671d739914d0e50e8aad3107158a36",
+          "outputDigest": "sha256:4a0379943f534f1cba9535cc904e888b6e124e12debaadf25801277c6c46cad4",
+          "harnessOutputDigest": "sha256:4a0379943f534f1cba9535cc904e888b6e124e12debaadf25801277c6c46cad4"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:457f8b0edb4757d5b6114d460f8603a2d90101ed6b40f450db9133e64c1c1c7f",
+          "outputDigest": "sha256:2993979a5b569019f652c55d6aa992e0031d5a9cd3930c4a7ebe495ac0c0b042",
+          "harnessOutputDigest": "sha256:2993979a5b569019f652c55d6aa992e0031d5a9cd3930c4a7ebe495ac0c0b042"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:ba3db14a0b36ea25da5f43f82ce49303c0a47974b8a78becbb4fda570e8c19fb",
+          "outputDigest": "sha256:78149360cef09029f58a88d44b3c9fecc2c0b457464be37185d18a1dc1f7662a",
+          "harnessOutputDigest": "sha256:78149360cef09029f58a88d44b3c9fecc2c0b457464be37185d18a1dc1f7662a"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:5353f44ea00626b1155b5ef0623bd540b7deaba876635f7675ad2918b3848e9a",
+          "outputDigest": "sha256:4a99816eeda419567ed921b4cd30232e83f30885321bd9780b57f39a70fb1edc",
+          "harnessOutputDigest": "sha256:4a99816eeda419567ed921b4cd30232e83f30885321bd9780b57f39a70fb1edc"
+        },
+        {
+          "runDir": "adv-mcp-recover-invalid-op-schema/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:e6ba08bf43a03ddf60b4b04039913ce222e961a5540456ad9c3cf80c5828fcf8",
+          "outputDigest": "sha256:f3ce3a7e9f04c43e1f281e22ee984d477931ea98d668ba2ddd429151a0362473",
+          "harnessOutputDigest": "sha256:f3ce3a7e9f04c43e1f281e22ee984d477931ea98d668ba2ddd429151a0362473"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:7997586ffc77525e4f0e16206af88ff1106bea8ac06fdd4815ef0ae1da6ebc44",
+          "outputDigest": "sha256:41d7ce811733dbb1c1f758ee872df7b9891ce9194d513acb59d961e267d59242",
+          "harnessOutputDigest": "sha256:41d7ce811733dbb1c1f758ee872df7b9891ce9194d513acb59d961e267d59242"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:9fad7b57dbd1d5b4379f0ffa7c1d969d1a9d9d9a2ef5f5d3c365e3f525445990",
+          "outputDigest": "sha256:8b46f469b068c62ad048577a8bb354b8d8d7f2fe1c54434ba6dab5209fabe442",
+          "harnessOutputDigest": "sha256:8b46f469b068c62ad048577a8bb354b8d8d7f2fe1c54434ba6dab5209fabe442"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:1639d1c302a46006962803909106bddb647d739a99bd3db879bea6e2d0887568",
+          "outputDigest": "sha256:1d23063830055baebc1274999c619ef9a93fc567e3e6bb8ebb81a2838d6f916e",
+          "harnessOutputDigest": "sha256:1d23063830055baebc1274999c619ef9a93fc567e3e6bb8ebb81a2838d6f916e"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:7ee635358ca9e243502b59e2a44995be7c03f786a4bb58d6c8370c20838d1c31",
+          "outputDigest": "sha256:5f76414c7e8f23920552297c57216906915d9446fa7825d658ba836d74193d3a",
+          "harnessOutputDigest": "sha256:5f76414c7e8f23920552297c57216906915d9446fa7825d658ba836d74193d3a"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:d8452646c62a71afb167329fbd61874e3b8fcabf826bf1e77c3b1d268efae7e9",
+          "outputDigest": "sha256:913bea21f0deef2dd16086ffa4b2d0f023bc512adf444a8c318d0dcfadfc5567",
+          "harnessOutputDigest": "sha256:913bea21f0deef2dd16086ffa4b2d0f023bc512adf444a8c318d0dcfadfc5567"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:cea89c520fa652c44ed9241a6e02fd8154cdc74ae38e56dcbd6b3463f6ffd5a3",
+          "outputDigest": "sha256:0b93d522d93b6892b83a74563b513058f878d0b150de827a5b228144d11e9907",
+          "harnessOutputDigest": "sha256:0b93d522d93b6892b83a74563b513058f878d0b150de827a5b228144d11e9907"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:3be26b2096df0cc2652fca23056b023dba9d04eb7942d1bd069a1774fa68f6a1",
+          "outputDigest": "sha256:e7031303d6c760787e1100fd99fa2d9278fb0b7049bfe56a677b0cd9f0e5dfd6",
+          "harnessOutputDigest": "sha256:e7031303d6c760787e1100fd99fa2d9278fb0b7049bfe56a677b0cd9f0e5dfd6"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:177174464a5aee64d5fb6ae1830e6d8d3133eb7aa27c92bce140264545c638ea",
+          "outputDigest": "sha256:1a92a89bd338b24252964ed72784e91df52659e1ab3e69dddfc9bbfdb49a9128",
+          "harnessOutputDigest": "sha256:1a92a89bd338b24252964ed72784e91df52659e1ab3e69dddfc9bbfdb49a9128"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:9ac1e7663edddc18d85111e7026b9ae62fb509a802e9ee436c435bd4f49d88ea",
+          "outputDigest": "sha256:f457454e70508c3e1829d18034fe6c3666d98b154e6157a94e68cb1a7d10b71a",
+          "harnessOutputDigest": "sha256:f457454e70508c3e1829d18034fe6c3666d98b154e6157a94e68cb1a7d10b71a"
+        },
+        {
+          "runDir": "adv-mcp-underspecified-quality-objective/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:2e491c8e766228479adcd54a396f6a80fa1252df958243e5c32621946760f5fa",
+          "outputDigest": "sha256:5624c88120b01d5171218e30254aeb739216c076bc2658e4690e83bd827614f8",
+          "harnessOutputDigest": "sha256:5624c88120b01d5171218e30254aeb739216c076bc2658e4690e83bd827614f8"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:b495586dbb4b8a438848d632d79fc7cdab0db6398a906983b9e854fc71f92b12",
+          "outputDigest": "sha256:be2cb9a33cd0342f6653a6cd1f8bef085f7378d6abd45fe78d5e474f9b305ba3",
+          "harnessOutputDigest": "sha256:be2cb9a33cd0342f6653a6cd1f8bef085f7378d6abd45fe78d5e474f9b305ba3"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:afdefa1e99e09369d2b5d783b5a196e4d3ec2103cce718508a901b009266d643",
+          "outputDigest": "sha256:5ff561348c0b03c0611aecdaff31c3329983fa94e4c8bac2fd122d570f39cb6f",
+          "harnessOutputDigest": "sha256:5ff561348c0b03c0611aecdaff31c3329983fa94e4c8bac2fd122d570f39cb6f"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:5f66c37d57116feb9056545af66ace10bd134c028f60f23c76aee6c85d7860a6",
+          "outputDigest": "sha256:1f790839d9eb64c7e337eaebda2326fe515ccc04e76f0781aa4599740830cb9c",
+          "harnessOutputDigest": "sha256:1f790839d9eb64c7e337eaebda2326fe515ccc04e76f0781aa4599740830cb9c"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:aa4448861c8b7e40590b5d9d83f8678dd5132bdc257c811529a1e1e4ec015136",
+          "outputDigest": "sha256:9793333c584cf3fdf5b60d1787a62c0af9719762669fa46fbbb607a20178ae01",
+          "harnessOutputDigest": "sha256:9793333c584cf3fdf5b60d1787a62c0af9719762669fa46fbbb607a20178ae01"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:0443baadd17cab8f32c0f223c2c9900be719679f781391bbb65e1d86b7ed144c",
+          "outputDigest": "sha256:ef8395d7dcc7860dd0426bbb1ee3dc4af645f71464e687410061b38d0809374f",
+          "harnessOutputDigest": "sha256:ef8395d7dcc7860dd0426bbb1ee3dc4af645f71464e687410061b38d0809374f"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:f5aeff0818a6cc0e765837f9ebce439072983c121c4b8ea6c2549cf6f2cb02d7",
+          "outputDigest": "sha256:36003cdbb7a267ee9fdf97e8015347867cff986dda91a6c9b1e8a2014ad82ed4",
+          "harnessOutputDigest": "sha256:36003cdbb7a267ee9fdf97e8015347867cff986dda91a6c9b1e8a2014ad82ed4"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:185b4621a24a8f9b08d930db363c1a2b53a5333f7963d809852dd0629e0bff4a",
+          "outputDigest": "sha256:bc08f0f9f19bedb29e1f40b9d6bad4138b66c28405aa2ffcc12836736424d6b6",
+          "harnessOutputDigest": "sha256:bc08f0f9f19bedb29e1f40b9d6bad4138b66c28405aa2ffcc12836736424d6b6"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:97e3a4a081f5c02c4696721204ebc6bc2c6a6061af09082882e5434b58eef8a0",
+          "outputDigest": "sha256:6b2731fc26993c465a1c72d1e73461e825b54b6cf1a3f206e02f18c03a689b4c",
+          "harnessOutputDigest": "sha256:6b2731fc26993c465a1c72d1e73461e825b54b6cf1a3f206e02f18c03a689b4c"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:ff4e4b931a1bab62f8734a55e0e9eb91f96049cd5a4a851f7cbd2b9202244773",
+          "outputDigest": "sha256:c7ccb488cfbdafb9e24b9ef28facd9424ddab53ad560cf32fc20f1b0aa0de304",
+          "harnessOutputDigest": "sha256:c7ccb488cfbdafb9e24b9ef28facd9424ddab53ad560cf32fc20f1b0aa0de304"
+        },
+        {
+          "runDir": "neg-unrelated-typescript-helper/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:2a8418200a9b92a4095d04b881a0b9283e0a4505e211df7769331da81803fd26",
+          "outputDigest": "sha256:a39aac99bb79972be23220e276fd49068fdd36c8dc4d53070735430ced4b805e",
+          "harnessOutputDigest": "sha256:a39aac99bb79972be23220e276fd49068fdd36c8dc4d53070735430ced4b805e"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:ee5c1de61f7a50d33f1e472cf021b80bd6eb8db0e7b922f6a9825613a695e81e",
+          "outputDigest": "sha256:9c0fa82ba192648ae56b99a80bcff2da34817f17c328bfce36a7f80f1aa73997",
+          "harnessOutputDigest": "sha256:9c0fa82ba192648ae56b99a80bcff2da34817f17c328bfce36a7f80f1aa73997"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:0a7ac16fde082cb4de7e8e06e74e92a2f9c4514f1facc5d8fe9341ad1edfe6de",
+          "outputDigest": "sha256:d2d7316eafc0c8eadb51d62aade1dcdfbaf0b40dbca8a94c6072aa302aae80c1",
+          "harnessOutputDigest": "sha256:d2d7316eafc0c8eadb51d62aade1dcdfbaf0b40dbca8a94c6072aa302aae80c1"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:4ab5d92cf646b69aa4e615c6a0e74385fe5b26ad240db9bbcd77ec63b2a54f19",
+          "outputDigest": "sha256:2c74986beff0d5101870464803da8bb9f5abc82ace744fe259399a9352e8d948",
+          "harnessOutputDigest": "sha256:2c74986beff0d5101870464803da8bb9f5abc82ace744fe259399a9352e8d948"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:b2e1a36355afdbfae4b44d2eeacc04a99ab32760c7724dbd185ba754bfe3d43f",
+          "outputDigest": "sha256:3dc9a35e443e53da280e7e66523331141506203057ca946e2427448a379f2594",
+          "harnessOutputDigest": "sha256:3dc9a35e443e53da280e7e66523331141506203057ca946e2427448a379f2594"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:f9ddc4827d1ef29fbfd4543ee681f090438ff6e8671442653362d80c67484e7f",
+          "outputDigest": "sha256:b6597859e192405d0d88a870f89c8fa3860e941860c618919f26be8d4e75a6f6",
+          "harnessOutputDigest": "sha256:b6597859e192405d0d88a870f89c8fa3860e941860c618919f26be8d4e75a6f6"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:85d5c39917574c88f521c18fdeb88f5b9a9a281733fe19103c343c6f0a521754",
+          "outputDigest": "sha256:ca3aa001c282007524a93c9f2b6a26d1f9075672ba15497684193e7943e7f407",
+          "harnessOutputDigest": "sha256:ca3aa001c282007524a93c9f2b6a26d1f9075672ba15497684193e7943e7f407"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:fbef1a227edc4c7f4af641e5be631822b12073f5846b71d2aa5e51b42256340f",
+          "outputDigest": "sha256:a9c2355ee7d7868858ba69d0209dd6269c6614cd54cef313384aa0b6ef3b1ecb",
+          "harnessOutputDigest": "sha256:a9c2355ee7d7868858ba69d0209dd6269c6614cd54cef313384aa0b6ef3b1ecb"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:60452608388a63c1dc65afaace7caf5af8e3af410acbdba23b3a2e75410958ab",
+          "outputDigest": "sha256:3685cd67a01bd8804b3e57a58c432e8d62544fdfb0eb9b8dcb486007f11ff300",
+          "harnessOutputDigest": "sha256:3685cd67a01bd8804b3e57a58c432e8d62544fdfb0eb9b8dcb486007f11ff300"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:4cf70f6712873d24d26ea02eea6a4e0470e0bcf22c17478d5e48b2a01550f5aa",
+          "outputDigest": "sha256:07b0b341137273cc2b0f9053c9da654fe9a27850362e89de3c884d1dc22ab46c",
+          "harnessOutputDigest": "sha256:07b0b341137273cc2b0f9053c9da654fe9a27850362e89de3c884d1dc22ab46c"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-build/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:69fad6c0dc480d5b007a1f57df5ba4de97c7d4d57d015f2fdf98b0adf7875c0a",
+          "outputDigest": "sha256:5219443d9098e2feb587b16939f3080f3313b092c4277addc859c2a320fe500c",
+          "harnessOutputDigest": "sha256:5219443d9098e2feb587b16939f3080f3313b092c4277addc859c2a320fe500c"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:cddc020421bca178d8b692159fc3c01f1d975468e64704bf182a45a7e2fb7b95",
+          "outputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057",
+          "harnessOutputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:26207fdc9cab81a6caa4f588f42e097929cb210a7f035f8d0139f687a19b6207",
+          "outputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057",
+          "harnessOutputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:e5f4af4107fd89d71170dc83a2d0f20642d885b79a8555cd4d92c22afcebb5ef",
+          "outputDigest": "sha256:751afc827534d7da8e615156b84e382955ce794d4b77ae562a56c097877b8132",
+          "harnessOutputDigest": "sha256:751afc827534d7da8e615156b84e382955ce794d4b77ae562a56c097877b8132"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:2eef142216b3b92e4629b4c21d5fbf5d0b37d280d32aaa9d7f33c738235d3bab",
+          "outputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057",
+          "harnessOutputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:427a670e707318e7b2b7891d1e80eb98174c1a73ddaffdc73bb7896be6374f57",
+          "outputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057",
+          "harnessOutputDigest": "sha256:ff728587eea094a4e7f8ff7f678e3064f70bfca42bcef74f8e238b424cfa3057"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:a65f6cbef51f2fad95749350d807cceb9a9b770b2ae2f3e0f574dc6505226cd1",
+          "outputDigest": "sha256:fab57d4f357d7fa5483fc5519ab5d3fef1b3a9bec533cf27597c4f8ef9278242",
+          "harnessOutputDigest": "sha256:fab57d4f357d7fa5483fc5519ab5d3fef1b3a9bec533cf27597c4f8ef9278242"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:661abbe6d928dab63a4fe2058078896fb46891c8fc0630e667cbdc0954b51249",
+          "outputDigest": "sha256:d5547a2aaba110ae84180b16fe1485ac52998d6e1fb9cb72c150d6e9782ac32a",
+          "harnessOutputDigest": "sha256:d5547a2aaba110ae84180b16fe1485ac52998d6e1fb9cb72c150d6e9782ac32a"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:e62a8944dc9c0e56f16ad2ae71ac9fba3a313709416b5869b0500593a7fde1cb",
+          "outputDigest": "sha256:9aeca3e4caddd79651500aff9d29ed70feb2ab6dfcae453e4d2df84aef78406f",
+          "harnessOutputDigest": "sha256:9aeca3e4caddd79651500aff9d29ed70feb2ab6dfcae453e4d2df84aef78406f"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:106c21907be9990b2bfd3b685ab57578cc991e227f7e395a15b88d47f28fe570",
+          "outputDigest": "sha256:3600117dcd11c3edac8b9e39edd007eb03e419174b3e94dbddbe93570b37ed63",
+          "harnessOutputDigest": "sha256:3600117dcd11c3edac8b9e39edd007eb03e419174b3e94dbddbe93570b37ed63"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-describe/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:fa57a5d4c9268a2a75288d7df3f91d0bd7533640ae50eb13687eb2f6bbedfc1a",
+          "outputDigest": "sha256:06bb6d8904facc9484e3f4d446c9626b51f8d8adeca6a04b83afd902d1aa98be",
+          "harnessOutputDigest": "sha256:06bb6d8904facc9484e3f4d446c9626b51f8d8adeca6a04b83afd902d1aa98be"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:33207b2d694a394f0863deec12fa47aa722313d164a438f9a49b96d642a0f301",
+          "outputDigest": "sha256:a72cf65ee0971c425312a2b1233ea916fd1f23e830d12f6d2e4793ed9e7158dd",
+          "harnessOutputDigest": "sha256:a72cf65ee0971c425312a2b1233ea916fd1f23e830d12f6d2e4793ed9e7158dd"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:60b56b5f129c0037a3d2d0c2452f3aa23e6860797a658d7327cea2f8a2ebae9b",
+          "outputDigest": "sha256:261f4c3138aa6b40404f183abac0fbedf02e4436654cccfb6a93935070b03a32",
+          "harnessOutputDigest": "sha256:261f4c3138aa6b40404f183abac0fbedf02e4436654cccfb6a93935070b03a32"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:f3ec4ac10dd6a6c34966190ef740425f567be7b82d53c8f7fa65716fa2cf7cb8",
+          "outputDigest": "sha256:e5503eb0fd69fb66d288eb6db7f4f6082627a5f55b92cd5780c7567cde9b12e5",
+          "harnessOutputDigest": "sha256:e5503eb0fd69fb66d288eb6db7f4f6082627a5f55b92cd5780c7567cde9b12e5"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:6a5a4155c20e9b97051952a47891bee0fa77694cbe80af3904754e12e2debb5c",
+          "outputDigest": "sha256:26933a16ca0afa09b58e84583fb380657788657a15369edf85cb97bb4e36b781",
+          "harnessOutputDigest": "sha256:26933a16ca0afa09b58e84583fb380657788657a15369edf85cb97bb4e36b781"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:7bd7680ee3cbb4d7b0dd3e86ed34b4486441e0d30db4ec6e6517f8e592b9778b",
+          "outputDigest": "sha256:f6af8f97614f3b48184ab1a058f82cbdb50944da6d71939580abde5e0bb97ea0",
+          "harnessOutputDigest": "sha256:f6af8f97614f3b48184ab1a058f82cbdb50944da6d71939580abde5e0bb97ea0"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:a6732e0ef85c1ce8494a9eaf89edafd31d6221e46f73ee8cd4a61dd7c6ea4c95",
+          "outputDigest": "sha256:611601b4f2016fa4d278e8263c215fd588112537185e1cd773de3b452d93c9ce",
+          "harnessOutputDigest": "sha256:611601b4f2016fa4d278e8263c215fd588112537185e1cd773de3b452d93c9ce"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:56c8437a7448efee9d8a91207f2331c2c022029b8f0145c05317316e66fcd28f",
+          "outputDigest": "sha256:c0879a75b1cd8f24753279bf76091c38469c431f3f3690fd5a318889f8875bbf",
+          "harnessOutputDigest": "sha256:c0879a75b1cd8f24753279bf76091c38469c431f3f3690fd5a318889f8875bbf"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:be13d8d4e564f6e8d191e698d1d263729add0df0c79810028799f8cc4ab6a375",
+          "outputDigest": "sha256:2c7849ae29ed772568521af2de37f5b7ac8fe685d7102e454d341d958996c9b3",
+          "harnessOutputDigest": "sha256:2c7849ae29ed772568521af2de37f5b7ac8fe685d7102e454d341d958996c9b3"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:ab713908cd130fdcdd4beb4fc244a069fb057af19c1f8d991340cdca314a548c",
+          "outputDigest": "sha256:e10d3c3a48c43c25f8483e9eb9a3a358396b8d9fc7caacc2a9da36c680da3276",
+          "harnessOutputDigest": "sha256:e10d3c3a48c43c25f8483e9eb9a3a358396b8d9fc7caacc2a9da36c680da3276"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-mutate/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:8fde14879e9d01825d70de83215ff98ed2ed7a0dc1f89dbf08ad3b0da2a541e2",
+          "outputDigest": "sha256:63c9e9ccee70084678a8eb48692060acac21652a5dc79a53703b94f91000858b",
+          "harnessOutputDigest": "sha256:63c9e9ccee70084678a8eb48692060acac21652a5dc79a53703b94f91000858b"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:f065ce56410e01539494d70f40d25868476138c635f2e5a1488587bc9f282267",
+          "outputDigest": "sha256:602875e97cd38d00a12a684d89a4a58df7d2460a5769189b169e86aaf49536b3",
+          "harnessOutputDigest": "sha256:602875e97cd38d00a12a684d89a4a58df7d2460a5769189b169e86aaf49536b3"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:75d0ef2ed241afd51ade63521ad5e7d1f9a537d420e05da76ebb0c471f7c653b",
+          "outputDigest": "sha256:c18f55b55685eb5ff30854a0834fee3f474c431baf72c2bc67e8af08a6df1fcb",
+          "harnessOutputDigest": "sha256:c18f55b55685eb5ff30854a0834fee3f474c431baf72c2bc67e8af08a6df1fcb"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:b0da6cdaf34f4d25b0dc13cc828c12fe0d176065add07c9b24cda58915f6eab8",
+          "outputDigest": "sha256:b215ca2a94fdded49b7177e3541519a8dc87693b9e33178aa81d28cddac5447e",
+          "harnessOutputDigest": "sha256:b215ca2a94fdded49b7177e3541519a8dc87693b9e33178aa81d28cddac5447e"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:67af981609a160fe154872648c10331e40d19e36b4d37b7e345e48189928c32a",
+          "outputDigest": "sha256:4ea42e9f6e6e87b0ce878ae171722e0fe2001e3c5c7e39ac9fb6a22c92f86ee0",
+          "harnessOutputDigest": "sha256:4ea42e9f6e6e87b0ce878ae171722e0fe2001e3c5c7e39ac9fb6a22c92f86ee0"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/with_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:a43b1cca12768fb7b26cc5324e972d24332d44a5e2f3d7aef4535477ee795def",
+          "outputDigest": "sha256:6008fb36440666efca604f9559ba2fb7e80cc231715c6491768bee9010387269",
+          "harnessOutputDigest": "sha256:6008fb36440666efca604f9559ba2fb7e80cc231715c6491768bee9010387269"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-1",
+          "materialized": false,
+          "traceDigest": "sha256:17f58458a80ca165bb86c14142382fbaa5485d155cb1e6e28885702cc7b9e03a",
+          "outputDigest": "sha256:4ad13499965c291b10d72013f42312836b30b5e4f5c8ebe56286cbad3e428173",
+          "harnessOutputDigest": "sha256:4ad13499965c291b10d72013f42312836b30b5e4f5c8ebe56286cbad3e428173"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-2",
+          "materialized": false,
+          "traceDigest": "sha256:f79c91d8dc94fa4864ff3cbca2f8ceedc7c5af2f1ba310d8b686eb56f3ee6339",
+          "outputDigest": "sha256:6d6a06d87ce233b134f83b2735d88a9eefc0b64300ca427773a81a59732e699b",
+          "harnessOutputDigest": "sha256:6d6a06d87ce233b134f83b2735d88a9eefc0b64300ca427773a81a59732e699b"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-3",
+          "materialized": false,
+          "traceDigest": "sha256:ee623e30842cac9a56a8057459957c1246a22ce0dc5c0de2666937668b57600f",
+          "outputDigest": "sha256:3f8b789df8c779270cf6882a60b6032a32414f7b7c4d007d5f8b4122fbfdf515",
+          "harnessOutputDigest": "sha256:3f8b789df8c779270cf6882a60b6032a32414f7b7c4d007d5f8b4122fbfdf515"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-4",
+          "materialized": false,
+          "traceDigest": "sha256:0f121da0cb175268cec9c4f80579fb6f78528fd26da0786f828a8f3ef53bc80d",
+          "outputDigest": "sha256:4a05aa2daa398370a0bd00f7491875ec40f760b1822d610f3328fdd55b828055",
+          "harnessOutputDigest": "sha256:4a05aa2daa398370a0bd00f7491875ec40f760b1822d610f3328fdd55b828055"
+        },
+        {
+          "runDir": "pos-channel-mcp-direct-verify/without_skill/run-5",
+          "materialized": false,
+          "traceDigest": "sha256:e6556852788a33ef713e8661ae6fb6fb00afaac4cb6fe398576346f1422e375c",
+          "outputDigest": "sha256:5cd2bfc1b5e2a7682edd1d4377cf52307f20e4e1834ec13f5cbd0110e27c7983",
+          "harnessOutputDigest": "sha256:5cd2bfc1b5e2a7682edd1d4377cf52307f20e4e1834ec13f5cbd0110e27c7983"
+        }
+      ]
+    }
+  },
+  "causalChecks": {
+    "sameWorkspace": true,
+    "sameFixtures": true,
+    "sameStimuli": true,
+    "sameSchedule": true,
+    "sameTreatmentPaths": true,
+    "differentTreatments": true,
+    "sameManifest": true
+  },
+  "pricing": {
+    "input": 0.75,
+    "cachedInput": 0.075,
+    "output": 4.5,
+    "source": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+    "checkedAt": "2026-07-28"
+  },
+  "expectedRunsPerTreatment": 80,
+  "baseline": {
+    "variants": {
+      "with_skill": {
+        "runs": 40,
+        "missingOutputs": 0,
+        "timeouts": 0,
+        "meanObjectivePassRate": 0.55,
+        "allGradedAssertionsPassRate": 0.55,
+        "deferredSemanticJudgeRows": 20,
+        "latencyMs": {
+          "median": 28201,
+          "p95": 54580
+        },
+        "tokens": {
+          "input": 2568907,
+          "cachedInput": 2055040,
+          "uncachedInput": 513867,
+          "output": 39985
+        },
+        "estimatedCostUsd": 0.71946075
+      },
+      "without_skill": {
+        "runs": 40,
+        "missingOutputs": 0,
+        "timeouts": 0,
+        "meanObjectivePassRate": 0.29166666666666663,
+        "allGradedAssertionsPassRate": 0.25,
+        "deferredSemanticJudgeRows": 20,
+        "latencyMs": {
+          "median": 24804,
+          "p95": 41651
+        },
+        "tokens": {
+          "input": 1996960,
+          "cachedInput": 1585664,
+          "uncachedInput": 411296,
+          "output": 27509
+        },
+        "estimatedCostUsd": 0.5511873
+      }
+    },
+    "treatmentGain": {
+      "absolute": 0.2583333333333334,
+      "normalized": 0.36470588235294127,
+      "allGradedAssertionsAbsolute": 0.30000000000000004,
+      "allGradedAssertionsNormalized": 0.4000000000000001
+    },
+    "slices": {
+      "case_id": {
+        "adv-mcp-hosted-size-fallback": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 27092,
+              "p95": 28201
+            },
+            "tokens": {
+              "input": 112828,
+              "cachedInput": 93440,
+              "uncachedInput": 19388,
+              "output": 3252
+            },
+            "estimatedCostUsd": 0.036183
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 20359,
+              "p95": 24804
+            },
+            "tokens": {
+              "input": 52467,
+              "cachedInput": 42880,
+              "uncachedInput": 9587,
+              "output": 1964
+            },
+            "estimatedCostUsd": 0.01924425
+          }
+        },
+        "adv-mcp-recover-invalid-op-schema": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 24656,
+              "p95": 29514
+            },
+            "tokens": {
+              "input": 113115,
+              "cachedInput": 93440,
+              "uncachedInput": 19675,
+              "output": 2950
+            },
+            "estimatedCostUsd": 0.03503925
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 23139,
+              "p95": 24606
+            },
+            "tokens": {
+              "input": 52595,
+              "cachedInput": 42880,
+              "uncachedInput": 9715,
+              "output": 3110
+            },
+            "estimatedCostUsd": 0.02449725
+          }
+        },
+        "adv-mcp-underspecified-quality-objective": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 18380,
+              "p95": 22891
+            },
+            "tokens": {
+              "input": 112561,
+              "cachedInput": 91904,
+              "uncachedInput": 20657,
+              "output": 1234
+            },
+            "estimatedCostUsd": 0.02793855
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 16278,
+              "p95": 19707
+            },
+            "tokens": {
+              "input": 52355,
+              "cachedInput": 42880,
+              "uncachedInput": 9475,
+              "output": 612
+            },
+            "estimatedCostUsd": 0.01307625
+          }
+        },
+        "neg-unrelated-typescript-helper": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 23373,
+              "p95": 24187
+            },
+            "tokens": {
+              "input": 112734,
+              "cachedInput": 93440,
+              "uncachedInput": 19294,
+              "output": 2205
+            },
+            "estimatedCostUsd": 0.031401
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 17724,
+              "p95": 21383
+            },
+            "tokens": {
+              "input": 52443,
+              "cachedInput": 42880,
+              "uncachedInput": 9563,
+              "output": 1426
+            },
+            "estimatedCostUsd": 0.01680525
+          }
+        },
+        "pos-channel-mcp-direct-build": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 38673,
+              "p95": 54165
+            },
+            "tokens": {
+              "input": 540696,
+              "cachedInput": 429568,
+              "uncachedInput": 111128,
+              "output": 6493
+            },
+            "estimatedCostUsd": 0.1447821
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 39162,
+              "p95": 39786
+            },
+            "tokens": {
+              "input": 430018,
+              "cachedInput": 328192,
+              "uncachedInput": 101826,
+              "output": 5220
+            },
+            "estimatedCostUsd": 0.1244739
+          }
+        },
+        "pos-channel-mcp-direct-describe": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.4,
+            "allGradedAssertionsPassRate": 0.4,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 42913,
+              "p95": 54580
+            },
+            "tokens": {
+              "input": 593561,
+              "cachedInput": 493696,
+              "uncachedInput": 99865,
+              "output": 6851
+            },
+            "estimatedCostUsd": 0.14275545
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 33118,
+              "p95": 38279
+            },
+            "tokens": {
+              "input": 378585,
+              "cachedInput": 293632,
+              "uncachedInput": 84953,
+              "output": 4326
+            },
+            "estimatedCostUsd": 0.10520415
+          }
+        },
+        "pos-channel-mcp-direct-mutate": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 45030,
+              "p95": 57501
+            },
+            "tokens": {
+              "input": 481686,
+              "cachedInput": 397312,
+              "uncachedInput": 84374,
+              "output": 9190
+            },
+            "estimatedCostUsd": 0.1344339
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 34975,
+              "p95": 51628
+            },
+            "tokens": {
+              "input": 454061,
+              "cachedInput": 366336,
+              "uncachedInput": 87725,
+              "output": 6224
+            },
+            "estimatedCostUsd": 0.12127695
+          }
+        },
+        "pos-channel-mcp-direct-verify": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 43401,
+              "p95": 60931
+            },
+            "tokens": {
+              "input": 501726,
+              "cachedInput": 362240,
+              "uncachedInput": 139486,
+              "output": 7810
+            },
+            "estimatedCostUsd": 0.1669275
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 40504,
+              "p95": 41955
+            },
+            "tokens": {
+              "input": 524436,
+              "cachedInput": 425984,
+              "uncachedInput": 98452,
+              "output": 4627
+            },
+            "estimatedCostUsd": 0.1266093
+          }
+        }
+      },
+      "domain": {
+        "mcp-boundaries": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 27092,
+              "p95": 28201
+            },
+            "tokens": {
+              "input": 112828,
+              "cachedInput": 93440,
+              "uncachedInput": 19388,
+              "output": 3252
+            },
+            "estimatedCostUsd": 0.036183
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 20359,
+              "p95": 24804
+            },
+            "tokens": {
+              "input": 52467,
+              "cachedInput": 42880,
+              "uncachedInput": 9587,
+              "output": 1964
+            },
+            "estimatedCostUsd": 0.01924425
+          }
+        },
+        "mcp-recovery": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 24656,
+              "p95": 29514
+            },
+            "tokens": {
+              "input": 113115,
+              "cachedInput": 93440,
+              "uncachedInput": 19675,
+              "output": 2950
+            },
+            "estimatedCostUsd": 0.03503925
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 23139,
+              "p95": 24606
+            },
+            "tokens": {
+              "input": 52595,
+              "cachedInput": 42880,
+              "uncachedInput": 9715,
+              "output": 3110
+            },
+            "estimatedCostUsd": 0.02449725
+          }
+        },
+        "mcp-tool-selection": {
+          "with_skill": {
+            "runs": 25,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.48,
+            "allGradedAssertionsPassRate": 0.48,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 42030,
+              "p95": 57501
+            },
+            "tokens": {
+              "input": 2230230,
+              "cachedInput": 1774720,
+              "uncachedInput": 455510,
+              "output": 31578
+            },
+            "estimatedCostUsd": 0.6168375
+          },
+          "without_skill": {
+            "runs": 25,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.2,
+            "allGradedAssertionsPassRate": 0.2,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 34975,
+              "p95": 41955
+            },
+            "tokens": {
+              "input": 1839455,
+              "cachedInput": 1457024,
+              "uncachedInput": 382431,
+              "output": 21009
+            },
+            "estimatedCostUsd": 0.49064055
+          }
+        },
+        "trigger-routing": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 23373,
+              "p95": 24187
+            },
+            "tokens": {
+              "input": 112734,
+              "cachedInput": 93440,
+              "uncachedInput": 19294,
+              "output": 2205
+            },
+            "estimatedCostUsd": 0.031401
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 17724,
+              "p95": 21383
+            },
+            "tokens": {
+              "input": 52443,
+              "cachedInput": 42880,
+              "uncachedInput": 9563,
+              "output": 1426
+            },
+            "estimatedCostUsd": 0.01680525
+          }
+        }
+      },
+      "difficulty": {
+        "core": {
+          "with_skill": {
+            "runs": 15,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.8,
+            "allGradedAssertionsPassRate": 0.8,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 41058,
+              "p95": 60931
+            },
+            "tokens": {
+              "input": 1208021,
+              "cachedInput": 949376,
+              "uncachedInput": 258645,
+              "output": 16866
+            },
+            "estimatedCostUsd": 0.34108395
+          },
+          "without_skill": {
+            "runs": 15,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0.3333333333333333,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 33118,
+              "p95": 41955
+            },
+            "tokens": {
+              "input": 955464,
+              "cachedInput": 762496,
+              "uncachedInput": 192968,
+              "output": 10379
+            },
+            "estimatedCostUsd": 0.2486187
+          }
+        },
+        "extended": {
+          "with_skill": {
+            "runs": 20,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.25,
+            "allGradedAssertionsPassRate": 0.25,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 26639,
+              "p95": 54165
+            },
+            "tokens": {
+              "input": 1248058,
+              "cachedInput": 1012224,
+              "uncachedInput": 235834,
+              "output": 19867
+            },
+            "estimatedCostUsd": 0.3421938
+          },
+          "without_skill": {
+            "runs": 20,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.25,
+            "allGradedAssertionsPassRate": 0.25,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 24606,
+              "p95": 39786
+            },
+            "tokens": {
+              "input": 989029,
+              "cachedInput": 780288,
+              "uncachedInput": 208741,
+              "output": 15166
+            },
+            "estimatedCostUsd": 0.28332435
+          }
+        },
+        "extreme": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 27092,
+              "p95": 28201
+            },
+            "tokens": {
+              "input": 112828,
+              "cachedInput": 93440,
+              "uncachedInput": 19388,
+              "output": 3252
+            },
+            "estimatedCostUsd": 0.036183
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 20359,
+              "p95": 24804
+            },
+            "tokens": {
+              "input": 52467,
+              "cachedInput": 42880,
+              "uncachedInput": 9587,
+              "output": 1964
+            },
+            "estimatedCostUsd": 0.01924425
+          }
+        }
+      },
+      "trigger_type": {
+        "explicit": {
+          "with_skill": {
+            "runs": 30,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.4,
+            "allGradedAssertionsPassRate": 0.4,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 38673,
+              "p95": 57501
+            },
+            "tokens": {
+              "input": 2343612,
+              "cachedInput": 1869696,
+              "uncachedInput": 473916,
+              "output": 36546
+            },
+            "estimatedCostUsd": 0.6601212
+          },
+          "without_skill": {
+            "runs": 30,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.05555555555555555,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 33697,
+              "p95": 41955
+            },
+            "tokens": {
+              "input": 1892162,
+              "cachedInput": 1499904,
+              "uncachedInput": 392258,
+              "output": 25471
+            },
+            "estimatedCostUsd": 0.5213058
+          }
+        },
+        "implicit": {
+          "with_skill": {
+            "runs": 10,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 20540,
+              "p95": 24187
+            },
+            "tokens": {
+              "input": 225295,
+              "cachedInput": 185344,
+              "uncachedInput": 39951,
+              "output": 3439
+            },
+            "estimatedCostUsd": 0.059339550000000005
+          },
+          "without_skill": {
+            "runs": 10,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 16431,
+              "p95": 21383
+            },
+            "tokens": {
+              "input": 104798,
+              "cachedInput": 85760,
+              "uncachedInput": 19038,
+              "output": 2038
+            },
+            "estimatedCostUsd": 0.0298815
+          }
+        }
+      }
+    },
+    "imperfectPositiveRows": [
+      {
+        "case_id": "pos-channel-mcp-direct-describe",
+        "variant": "with_skill",
+        "run": 1,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-describe",
+        "variant": "with_skill",
+        "run": 3,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-describe",
+        "variant": "with_skill",
+        "run": 4,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-mutate",
+        "variant": "with_skill",
+        "run": 1,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-mutate",
+        "variant": "with_skill",
+        "run": 2,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-mutate",
+        "variant": "with_skill",
+        "run": 3,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-mutate",
+        "variant": "with_skill",
+        "run": 4,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-mutate",
+        "variant": "with_skill",
+        "run": 5,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-build",
+        "variant": "with_skill",
+        "run": 1,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-build",
+        "variant": "with_skill",
+        "run": 2,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-build",
+        "variant": "with_skill",
+        "run": 3,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-build",
+        "variant": "with_skill",
+        "run": 4,
+        "passRate": 0
+      },
+      {
+        "case_id": "pos-channel-mcp-direct-build",
+        "variant": "with_skill",
+        "run": 5,
+        "passRate": 0
+      },
+      {
+        "case_id": "adv-mcp-recover-invalid-op-schema",
+        "variant": "with_skill",
+        "run": 1,
+        "passRate": 0
+      },
+      {
+        "case_id": "adv-mcp-recover-invalid-op-schema",
+        "variant": "with_skill",
+        "run": 2,
+        "passRate": 0
+      },
+      {
+        "case_id": "adv-mcp-recover-invalid-op-schema",
+        "variant": "with_skill",
+        "run": 3,
+        "passRate": 0
+      },
+      {
+        "case_id": "adv-mcp-recover-invalid-op-schema",
+        "variant": "with_skill",
+        "run": 4,
+        "passRate": 0
+      },
+      {
+        "case_id": "adv-mcp-recover-invalid-op-schema",
+        "variant": "with_skill",
+        "run": 5,
+        "passRate": 0
+      }
+    ],
+    "negativeBehaviorViolations": []
+  },
+  "candidate": {
+    "variants": {
+      "with_skill": {
+        "runs": 40,
+        "missingOutputs": 0,
+        "timeouts": 0,
+        "meanObjectivePassRate": 1,
+        "allGradedAssertionsPassRate": 1,
+        "deferredSemanticJudgeRows": 20,
+        "latencyMs": {
+          "median": 20954,
+          "p95": 31668
+        },
+        "tokens": {
+          "input": 1733485,
+          "cachedInput": 1391488,
+          "uncachedInput": 341997,
+          "output": 26261
+        },
+        "estimatedCostUsd": 0.47903385
+      },
+      "without_skill": {
+        "runs": 40,
+        "missingOutputs": 0,
+        "timeouts": 0,
+        "meanObjectivePassRate": 0.29166666666666663,
+        "allGradedAssertionsPassRate": 0.25,
+        "deferredSemanticJudgeRows": 20,
+        "latencyMs": {
+          "median": 25297,
+          "p95": 36418
+        },
+        "tokens": {
+          "input": 2292852,
+          "cachedInput": 1808768,
+          "uncachedInput": 484084,
+          "output": 29180
+        },
+        "estimatedCostUsd": 0.6300306
+      }
+    },
+    "treatmentGain": {
+      "absolute": 0.7083333333333334,
+      "normalized": 1,
+      "allGradedAssertionsAbsolute": 0.75,
+      "allGradedAssertionsNormalized": 1
+    },
+    "slices": {
+      "case_id": {
+        "adv-mcp-hosted-size-fallback": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 24916,
+              "p95": 31668
+            },
+            "tokens": {
+              "input": 163590,
+              "cachedInput": 129920,
+              "uncachedInput": 33670,
+              "output": 3281
+            },
+            "estimatedCostUsd": 0.049761
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 18582,
+              "p95": 21930
+            },
+            "tokens": {
+              "input": 56779,
+              "cachedInput": 42880,
+              "uncachedInput": 13899,
+              "output": 2795
+            },
+            "estimatedCostUsd": 0.02621775
+          }
+        },
+        "adv-mcp-recover-invalid-op-schema": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 17404,
+              "p95": 27328
+            },
+            "tokens": {
+              "input": 132451,
+              "cachedInput": 106112,
+              "uncachedInput": 26339,
+              "output": 2458
+            },
+            "estimatedCostUsd": 0.03877365
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 19910,
+              "p95": 28772
+            },
+            "tokens": {
+              "input": 52579,
+              "cachedInput": 42880,
+              "uncachedInput": 9699,
+              "output": 3303
+            },
+            "estimatedCostUsd": 0.02535375
+          }
+        },
+        "adv-mcp-underspecified-quality-objective": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 18013,
+              "p95": 22296
+            },
+            "tokens": {
+              "input": 117454,
+              "cachedInput": 93440,
+              "uncachedInput": 24014,
+              "output": 1247
+            },
+            "estimatedCostUsd": 0.03063
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 13933,
+              "p95": 15468
+            },
+            "tokens": {
+              "input": 52363,
+              "cachedInput": 42880,
+              "uncachedInput": 9483,
+              "output": 613
+            },
+            "estimatedCostUsd": 0.01308675
+          }
+        },
+        "neg-unrelated-typescript-helper": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 19638,
+              "p95": 20954
+            },
+            "tokens": {
+              "input": 117595,
+              "cachedInput": 90368,
+              "uncachedInput": 27227,
+              "output": 1981
+            },
+            "estimatedCostUsd": 0.03611235
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 13027,
+              "p95": 18907
+            },
+            "tokens": {
+              "input": 52436,
+              "cachedInput": 42880,
+              "uncachedInput": 9556,
+              "output": 1459
+            },
+            "estimatedCostUsd": 0.0169485
+          }
+        },
+        "pos-channel-mcp-direct-build": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 23265,
+              "p95": 31925
+            },
+            "tokens": {
+              "input": 301267,
+              "cachedInput": 245760,
+              "uncachedInput": 55507,
+              "output": 4013
+            },
+            "estimatedCostUsd": 0.07812075
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 29357,
+              "p95": 34944
+            },
+            "tokens": {
+              "input": 477608,
+              "cachedInput": 376576,
+              "uncachedInput": 101032,
+              "output": 5156
+            },
+            "estimatedCostUsd": 0.1272192
+          }
+        },
+        "pos-channel-mcp-direct-describe": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 25967,
+              "p95": 29448
+            },
+            "tokens": {
+              "input": 295932,
+              "cachedInput": 239104,
+              "uncachedInput": 56828,
+              "output": 3238
+            },
+            "estimatedCostUsd": 0.0751248
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 31432,
+              "p95": 36418
+            },
+            "tokens": {
+              "input": 523550,
+              "cachedInput": 425856,
+              "uncachedInput": 97694,
+              "output": 4820
+            },
+            "estimatedCostUsd": 0.1268997
+          }
+        },
+        "pos-channel-mcp-direct-mutate": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 26102,
+              "p95": 30221
+            },
+            "tokens": {
+              "input": 241933,
+              "cachedInput": 198400,
+              "uncachedInput": 43533,
+              "output": 4865
+            },
+            "estimatedCostUsd": 0.06942225
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 32374,
+              "p95": 40454
+            },
+            "tokens": {
+              "input": 438882,
+              "cachedInput": 328704,
+              "uncachedInput": 110178,
+              "output": 6370
+            },
+            "estimatedCostUsd": 0.1359513
+          }
+        },
+        "pos-channel-mcp-direct-verify": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 26807,
+              "p95": 51932
+            },
+            "tokens": {
+              "input": 363263,
+              "cachedInput": 288384,
+              "uncachedInput": 74879,
+              "output": 5178
+            },
+            "estimatedCostUsd": 0.10108905
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 30088,
+              "p95": 39115
+            },
+            "tokens": {
+              "input": 638655,
+              "cachedInput": 506112,
+              "uncachedInput": 132543,
+              "output": 4664
+            },
+            "estimatedCostUsd": 0.15835364999999998
+          }
+        }
+      },
+      "domain": {
+        "mcp-boundaries": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 24916,
+              "p95": 31668
+            },
+            "tokens": {
+              "input": 163590,
+              "cachedInput": 129920,
+              "uncachedInput": 33670,
+              "output": 3281
+            },
+            "estimatedCostUsd": 0.049761
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 18582,
+              "p95": 21930
+            },
+            "tokens": {
+              "input": 56779,
+              "cachedInput": 42880,
+              "uncachedInput": 13899,
+              "output": 2795
+            },
+            "estimatedCostUsd": 0.02621775
+          }
+        },
+        "mcp-recovery": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 17404,
+              "p95": 27328
+            },
+            "tokens": {
+              "input": 132451,
+              "cachedInput": 106112,
+              "uncachedInput": 26339,
+              "output": 2458
+            },
+            "estimatedCostUsd": 0.03877365
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 19910,
+              "p95": 28772
+            },
+            "tokens": {
+              "input": 52579,
+              "cachedInput": 42880,
+              "uncachedInput": 9699,
+              "output": 3303
+            },
+            "estimatedCostUsd": 0.02535375
+          }
+        },
+        "mcp-tool-selection": {
+          "with_skill": {
+            "runs": 25,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 23265,
+              "p95": 31925
+            },
+            "tokens": {
+              "input": 1319849,
+              "cachedInput": 1065088,
+              "uncachedInput": 254761,
+              "output": 18541
+            },
+            "estimatedCostUsd": 0.35438685
+          },
+          "without_skill": {
+            "runs": 25,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.2,
+            "allGradedAssertionsPassRate": 0.2,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 30088,
+              "p95": 39115
+            },
+            "tokens": {
+              "input": 2131058,
+              "cachedInput": 1680128,
+              "uncachedInput": 450930,
+              "output": 21623
+            },
+            "estimatedCostUsd": 0.5615106
+          }
+        },
+        "trigger-routing": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 19638,
+              "p95": 20954
+            },
+            "tokens": {
+              "input": 117595,
+              "cachedInput": 90368,
+              "uncachedInput": 27227,
+              "output": 1981
+            },
+            "estimatedCostUsd": 0.03611235
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 13027,
+              "p95": 18907
+            },
+            "tokens": {
+              "input": 52436,
+              "cachedInput": 42880,
+              "uncachedInput": 9556,
+              "output": 1459
+            },
+            "estimatedCostUsd": 0.0169485
+          }
+        }
+      },
+      "difficulty": {
+        "core": {
+          "with_skill": {
+            "runs": 15,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 20954,
+              "p95": 51932
+            },
+            "tokens": {
+              "input": 776790,
+              "cachedInput": 617856,
+              "uncachedInput": 158934,
+              "output": 10397
+            },
+            "estimatedCostUsd": 0.21232620000000002
+          },
+          "without_skill": {
+            "runs": 15,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0.3333333333333333,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 28702,
+              "p95": 39115
+            },
+            "tokens": {
+              "input": 1214641,
+              "cachedInput": 974848,
+              "uncachedInput": 239793,
+              "output": 10943
+            },
+            "estimatedCostUsd": 0.30220185
+          }
+        },
+        "extended": {
+          "with_skill": {
+            "runs": 20,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 20276,
+              "p95": 30221
+            },
+            "tokens": {
+              "input": 793105,
+              "cachedInput": 643712,
+              "uncachedInput": 149393,
+              "output": 12583
+            },
+            "estimatedCostUsd": 0.21694665
+          },
+          "without_skill": {
+            "runs": 20,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.25,
+            "allGradedAssertionsPassRate": 0.25,
+            "deferredSemanticJudgeRows": 10,
+            "latencyMs": {
+              "median": 25297,
+              "p95": 34944
+            },
+            "tokens": {
+              "input": 1021432,
+              "cachedInput": 791040,
+              "uncachedInput": 230392,
+              "output": 15442
+            },
+            "estimatedCostUsd": 0.301611
+          }
+        },
+        "extreme": {
+          "with_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 24916,
+              "p95": 31668
+            },
+            "tokens": {
+              "input": 163590,
+              "cachedInput": 129920,
+              "uncachedInput": 33670,
+              "output": 3281
+            },
+            "estimatedCostUsd": 0.049761
+          },
+          "without_skill": {
+            "runs": 5,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.3333333333333333,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 0,
+            "latencyMs": {
+              "median": 18582,
+              "p95": 21930
+            },
+            "tokens": {
+              "input": 56779,
+              "cachedInput": 42880,
+              "uncachedInput": 13899,
+              "output": 2795
+            },
+            "estimatedCostUsd": 0.02621775
+          }
+        }
+      },
+      "trigger_type": {
+        "explicit": {
+          "with_skill": {
+            "runs": 30,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 23537,
+              "p95": 31925
+            },
+            "tokens": {
+              "input": 1498436,
+              "cachedInput": 1207680,
+              "uncachedInput": 290756,
+              "output": 23033
+            },
+            "estimatedCostUsd": 0.4122915
+          },
+          "without_skill": {
+            "runs": 30,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 0.05555555555555555,
+            "allGradedAssertionsPassRate": 0,
+            "deferredSemanticJudgeRows": 15,
+            "latencyMs": {
+              "median": 28772,
+              "p95": 39115
+            },
+            "tokens": {
+              "input": 2188053,
+              "cachedInput": 1723008,
+              "uncachedInput": 465045,
+              "output": 27108
+            },
+            "estimatedCostUsd": 0.5999953499999999
+          }
+        },
+        "implicit": {
+          "with_skill": {
+            "runs": 10,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 18282,
+              "p95": 22296
+            },
+            "tokens": {
+              "input": 235049,
+              "cachedInput": 183808,
+              "uncachedInput": 51241,
+              "output": 3228
+            },
+            "estimatedCostUsd": 0.06674235
+          },
+          "without_skill": {
+            "runs": 10,
+            "missingOutputs": 0,
+            "timeouts": 0,
+            "meanObjectivePassRate": 1,
+            "allGradedAssertionsPassRate": 1,
+            "deferredSemanticJudgeRows": 5,
+            "latencyMs": {
+              "median": 13103,
+              "p95": 18907
+            },
+            "tokens": {
+              "input": 104799,
+              "cachedInput": 85760,
+              "uncachedInput": 19039,
+              "output": 2072
+            },
+            "estimatedCostUsd": 0.03003525
+          }
+        }
+      }
+    },
+    "imperfectPositiveRows": [],
+    "negativeBehaviorViolations": []
+  },
+  "objectivePassRateDelta": {
+    "with_skill": 0.44999999999999996,
+    "without_skill": 0
+  },
+  "allGradedAssertionsPassRateDelta": {
+    "with_skill": 0.44999999999999996,
+    "without_skill": 0
+  },
+  "treatmentGainDelta": {
+    "absolute": 0.44999999999999996,
+    "normalized": 0.6352941176470588,
+    "allGradedAssertionsAbsolute": 0.44999999999999996,
+    "allGradedAssertionsNormalized": 0.5999999999999999
+  }
+}

@@ -4,7 +4,7 @@
   "harness": {
     "name": "skill-eval-harness",
     "url": "https://github.com/adewale/skill-eval-harness",
-    "version": ">=0.4.0"
+    "version": ">=0.6.0"
   },
   "skill_paths": [
     "../skills/agentic-mermaid-diagram-workflow",
@@ -977,14 +977,15 @@
       "difficulty": "core",
       "trigger_type": "explicit",
       "success_goals": ["outcome", "efficiency"],
-      "prompt": "Using the hosted Agentic Mermaid MCP server, validate this existing flowchart and return its detected family and warnings. No editing, rendering, or custom JavaScript is needed. Choose the cheapest direct tool and show its arguments: `flowchart TD\\n  API --> DB`.",
+      "prompt": "Using the hosted Agentic Mermaid MCP server, validate `flowchart TD\\n  API --> DB`. No editing, rendering, or custom JavaScript is needed. Show the cheapest direct request and identify the response fields that establish the detected family and diagnostics; do not claim the server ran if it was unavailable. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
       "expected_behavior": [
         "Calls the direct verify tool with source.",
         "Does not route a simple verification through execute/Code Mode."
       ],
       "assertions": [
-        { "name": "direct-verify", "type": "contains_all", "values": ["verify", "source"] },
-        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
+        { "name": "executable-direct-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "verify", "--source", "flowchart TD\n  API --> DB", "--family", "flowchart"], "severity": "critical", "oracle": "strong" },
+        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] },
+        { "name": "response-interpretation", "type": "judge", "severity": "soft", "prompt": "Does the answer say it will inspect the returned family and warnings or diagnostics, while avoiding a fabricated claim that an unavailable server actually ran?" }
       ],
       "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
     },
@@ -996,14 +997,15 @@
       "difficulty": "core",
       "trigger_type": "explicit",
       "success_goals": ["outcome", "efficiency"],
-      "prompt": "Using hosted Agentic Mermaid MCP, extract a compact structured inventory from `sequenceDiagram\\n  Alice->>Bob: Hi`. Do not change or render it. Pick the direct tool and show the exact argument shape.",
+      "prompt": "Using hosted Agentic Mermaid MCP, request compact deterministic semantic fact lines for `sequenceDiagram\\n  Alice->>Bob: Hi`. Do not change or render it, and do not claim a response you did not receive. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
       "expected_behavior": [
         "Uses describe with format facts.",
         "Avoids execute for a single direct inspection."
       ],
       "assertions": [
-        { "name": "facts-tool", "type": "contains_all", "values": ["describe", "facts", "source"] },
-        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
+        { "name": "executable-facts-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "describe", "--source", "sequenceDiagram\n  Alice->>Bob: Hi", "--format", "facts"], "severity": "critical", "oracle": "strong" },
+        { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] },
+        { "name": "honest-result-boundary", "type": "judge", "severity": "soft", "prompt": "Does the answer distinguish a proposed valid request from a response actually returned by the server, without inventing inventory contents?" }
       ],
       "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
     },
@@ -1015,14 +1017,16 @@
       "difficulty": "extended",
       "trigger_type": "explicit",
       "success_goals": ["outcome", "process", "efficiency"],
-      "prompt": "On hosted Agentic Mermaid MCP, add an unsuccessful terminal state and a failure transition from Processing into it in one structured edit. Return the checked source. This is one edit with known fields and no custom control flow; show the least-powerful direct request.",
+      "prompt": "Use the attached state-diagram source. On hosted Agentic Mermaid MCP, add an unsuccessful terminal state named Failed and a failure transition from Processing into it in one structured request. This uses known fields and no custom control flow. Show which embedded verification fields must pass before accepting returned source; do not fabricate a response. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
+      "files": ["fixtures/mcp-state-failure/input.mmd"],
       "expected_behavior": [
         "Uses the direct mutate tool with an ordered ops array.",
         "Checks the mutate response's embedded verify result.",
         "Does not use execute for a straightforward declarative edit."
       ],
       "assertions": [
-        { "name": "direct-mutate", "type": "contains_all", "values": ["mutate", "ops", "Failed", "error", "verify"] },
+        { "name": "executable-mutation-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "mutate", "--source-file", "fixtures/mcp-state-failure/input.mmd", "--family", "state", "--result-contains", "Failed,Processing --> Failed"], "severity": "critical", "oracle": "strong" },
+        { "name": "embedded-verification", "type": "contains_all", "values": ["verify.ok", "verify.warnings"] },
         { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
       ],
       "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
@@ -1035,14 +1039,15 @@
       "difficulty": "extended",
       "trigger_type": "explicit",
       "success_goals": ["outcome", "process", "efficiency"],
-      "prompt": "Create a new two-node type-relationship diagram through hosted Agentic Mermaid MCP from structured ops, then return the verified source. No existing source or custom control flow is involved. Show the direct request you would make.",
+      "prompt": "Through hosted Agentic Mermaid MCP, author a new class diagram containing Customer and Account with an association from Customer to Account. Use structured operations; there is no existing source or custom control flow. Show which embedded verification fields must pass before accepting returned source; do not fabricate a response. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
       "expected_behavior": [
         "Uses build with family class and an ops array.",
         "Inspects the embedded verification result.",
         "Avoids execute for declarative construction."
       ],
       "assertions": [
-        { "name": "direct-build", "type": "contains_all", "values": ["build", "class", "ops", "verify"] },
+        { "name": "executable-build-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "build", "--family", "class", "--class-relation", "Customer,Account,association"], "severity": "critical", "oracle": "strong" },
+        { "name": "embedded-verification", "type": "contains_all", "values": ["verify.ok", "verify.warnings"] },
         { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
       ],
       "tags": ["channel:mcp-direct", "hosted-mcp", "positive"]
@@ -1055,15 +1060,16 @@
       "difficulty": "extended",
       "trigger_type": "explicit",
       "success_goals": ["outcome", "process"],
-      "prompt": "A hosted MCP mutate call failed with `{ ok:false, family:'class', opIndex:0, error:'unknown op kind addClass' }`. Recover safely without guessing field names or switching to source concatenation. State the next tool call and retry sequence.",
+      "prompt": "A hosted MCP mutate call failed with `{ ok:false, family:'class', opIndex:0, error:'unknown op kind addClass' }`. Recover safely without guessing field names or switching to source concatenation. State the retry and acceptance sequence. End with one fenced JSON object containing exactly `{\"tool\": <next tool>, \"arguments\": <argument object>}` for the immediate schema-discovery call.",
       "expected_behavior": [
         "Calls describe_sdk for the class family and exact op details.",
         "Retries mutate using the returned kind/field schema.",
         "Checks verification before accepting the source."
       ],
       "assertions": [
-        { "name": "schema-recovery", "type": "contains_all", "values": ["describe_sdk", "detail", "verify"] },
-        { "name": "no-concat", "type": "excludes_any", "values": ["append to the source", "source +=", "concatenate the source"] }
+        { "name": "executable-schema-recovery", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "describe_sdk", "--family", "class", "--detail", "fields"], "severity": "critical", "oracle": "strong" },
+        { "name": "no-concat", "type": "excludes_any", "values": ["append to the source", "source +=", "concatenate the source"] },
+        { "name": "checked-retry", "type": "judge", "severity": "soft", "prompt": "Does the answer say to retry the original mutate call using only the returned kind and fields, then accept source only after top-level ok and embedded verify.ok pass and warnings are inspected?" }
       ],
       "tags": ["channel:mcp-direct", "hosted-mcp", "adversarial", "recovery"]
     },
@@ -1104,8 +1110,8 @@
       ],
       "assertions": [
         { "name": "clarify-objective", "type": "contains_any", "values": ["clarify", "which", "what", "audience", "output format", "quality objective"] },
-        { "name": "safe-inspection", "type": "contains_any", "values": ["verify", "describe", "render"] },
-        { "name": "no-arbitrary-edit", "type": "excludes_any", "values": ["I would immediately mutate", "apply arbitrary ops", "mutate it now"] }
+        { "name": "no-arbitrary-edit", "type": "excludes_any", "values": ["I would immediately mutate", "apply arbitrary ops", "mutate it now"] },
+        { "name": "semantic-safety", "type": "judge", "severity": "soft", "prompt": "Does the response ask for a concrete quality objective, audience, or output need and clearly defer mutation, without inventing what the user means by better? Read-only inspection may be offered but is not required." }
       ],
       "tags": ["hosted-mcp", "adversarial", "underspecified"]
     },
@@ -1413,6 +1419,50 @@
       ]
     },
     {
+      "id": "pos-holdout-hosted-a",
+      "split": "holdout",
+      "kind": "positive",
+      "domain": "mcp-tool-selection",
+      "difficulty": "extended",
+      "success_goals": ["outcome","efficiency"],
+      "trigger_type": "explicit",
+      "prompt_ref": "private/holdout/hosted-a.prompt.md",
+      "tags": ["holdout", "hosted-mcp", "channel:mcp-direct"]
+    },
+    {
+      "id": "pos-holdout-hosted-b",
+      "split": "holdout",
+      "kind": "positive",
+      "domain": "mcp-tool-selection",
+      "difficulty": "extended",
+      "success_goals": ["outcome","efficiency"],
+      "trigger_type": "explicit",
+      "prompt_ref": "private/holdout/hosted-b.prompt.md",
+      "tags": ["holdout", "hosted-mcp", "channel:mcp-direct"]
+    },
+    {
+      "id": "pos-holdout-hosted-c",
+      "split": "holdout",
+      "kind": "positive",
+      "domain": "mcp-tool-selection",
+      "difficulty": "extreme",
+      "success_goals": ["outcome","process","efficiency"],
+      "trigger_type": "explicit",
+      "prompt_ref": "private/holdout/hosted-c.prompt.md",
+      "tags": ["holdout", "hosted-mcp", "channel:mcp-direct"]
+    },
+    {
+      "id": "adv-holdout-hosted-d",
+      "split": "holdout",
+      "kind": "adversarial",
+      "domain": "mcp-recovery",
+      "difficulty": "extreme",
+      "success_goals": ["outcome","process"],
+      "trigger_type": "explicit",
+      "prompt_ref": "private/holdout/hosted-d.prompt.md",
+      "tags": ["holdout", "hosted-mcp", "adversarial", "recovery"]
+    },
+    {
       "id": "pos-holdout-flowchart-fixture-artifact",
       "split": "holdout",
       "kind": "positive",
@@ -1524,6 +1574,12 @@
     {
       "id": "no-verify-before-serialize",
       "removed_component": "verify-before-commit rule",
+      "mechanism": "patch",
+      "class": "instructions",
+      "target": {
+        "skill_root": "../skills/agentic-mermaid-diagram-workflow",
+        "patch": "ablations/no-verify-before-serialize.patch"
+      },
       "expected_regressions": [
         "May serialize or emit edited Mermaid without inspecting verifyMermaid results."
       ]
@@ -1531,6 +1587,12 @@
     {
       "id": "no-editor-source-of-truth",
       "removed_component": "live editor source-of-truth file guidance",
+      "mechanism": "patch",
+      "class": "instructions",
+      "target": {
+        "skill_root": "../skills/agentic-mermaid-live-editor",
+        "patch": "ablations/no-editor-source-of-truth.patch"
+      },
       "expected_regressions": [
         "May tell agents to edit generated editor.html instead of scripts/site/editor.ts."
       ]
@@ -1538,6 +1600,12 @@
     {
       "id": "no-source-level-family-boundary",
       "removed_component": "opaque-fallback boundary guidance",
+      "mechanism": "patch",
+      "class": "instructions",
+      "target": {
+        "skill_root": "../skills/agentic-mermaid-diagram-workflow",
+        "patch": "ablations/no-source-level-family-boundary.patch"
+      },
       "expected_regressions": [
         "May concatenate existing structured diagrams or falsely claim an opaque fallback body has a structured narrower."
       ]
@@ -1545,6 +1613,12 @@
     {
       "id": "no-channel-picker",
       "removed_component": "library vs CLI vs MCP Code Mode channel selection",
+      "mechanism": "section",
+      "class": "instructions",
+      "target": {
+        "skill_root": "../skills/agentic-mermaid-diagram-workflow",
+        "heading": "## Pick a channel"
+      },
       "expected_regressions": [
         "May choose slow multi-call workflows or emit CLI when Code Mode/library is the safer fit."
       ]

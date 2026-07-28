@@ -1,0 +1,4 @@
+@@ -62,3 +62,0 @@
+-4. `verifyMermaid(d)` — structured warnings; inspect `ok` / `warnings` / `layout`.
+-5. On `!ok`, revert to the previous `ValidDiagram`, try another op.
+-6. `serializeMermaid(d)` only after inspected verify passes.

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 2,
+  "comparison": {
+    "baseline": "pre-change skill tree",
+    "candidate": "frozen final candidate skill tree",
+    "design": "skill-only treatment over one neutral workspace and a private prompt set frozen before execution",
+    "requireSameWorkspace": true,
+    "requireSameFixtures": true,
+    "requireSameStimuli": true,
+    "requireSameSchedule": true,
+    "requireSameTreatmentPaths": true,
+    "requireDifferentTreatments": true,
+    "requireSameManifest": true
+  },
+  "behavior": {
+    "split": "holdout",
+    "cases": [
+      "pos-holdout-hosted-a",
+      "pos-holdout-hosted-b",
+      "pos-holdout-hosted-c",
+      "adv-holdout-hosted-d"
+    ],
+    "minimumRunsPerVariant": 3,
+    "releaseRunsPerVariant": 5,
+    "skillPaths": ["agentic-mermaid-diagram-workflow"],
+    "randomizationSeed": "agentic-mermaid-hosted-mcp-private-v1"
+  },
+  "executor": {
+    "runner": "skill-eval-harness",
+    "runnerVersion": "0.6.0",
+    "activeProfile": "chatgptCodex",
+    "profiles": {
+      "chatgptCodex": { "model": "gpt-5.4-mini" }
+    },
+    "reasoningEffort": "low"
+  },
+  "pricingUsdPerMillionTokens": {
+    "input": 0.75,
+    "cachedInput": 0.075,
+    "output": 4.5,
+    "source": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+    "checkedAt": "2026-07-28"
+  },
+  "requiredReportFields": [
+    "mean assertion score and all-graded-assertions pass rate for both variants",
+    "absolute and normalized treatment gains",
+    "complete release repetition matrix",
+    "executor, preparation, output, report, and raw-artifact digests"
+  ]
+}
