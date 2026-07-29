@@ -136,6 +136,7 @@
     "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
     "website": "bun run website/build.ts",
     "website:check": "bun run website/build.ts --check",
+    "website:smoke:production": "bun run scripts/site/smoke-live-site.ts",
     "website:payload:write": "bun run scripts/site/website-payload-report.ts --write",
     "website:payload:check": "bun run scripts/site/website-payload-report.ts --check",
     "website:dev": "cd website && WRANGLER_SEND_METRICS=false ../node_modules/.bin/wrangler dev --local --host 127.0.0.1 --port 9095 --ip 127.0.0.1",

@@ -38,7 +38,10 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 bun run website          # rebuild website/public + src/generated from website/source + product truth
 bun run website:check    # verify clean in-memory website + Worker artifact contracts
 bun run website:dev      # Wrangler dev server on port 9095
+bun run scripts/site/smoke-live-site.ts --origin=http://127.0.0.1:9095
 bash website/e2e-mcp.sh  # end-to-end probe of /mcp against a running server
+# Read-only smoke of the canonical production routes and machine resources:
+bun run website:smoke:production
 # Against production, stay below the public WAF budget:
 MCP_REQUEST_INTERVAL_SECONDS=6 bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp
 ```
@@ -81,7 +84,8 @@ deployment of the current `main`, run `bun run deploy`; that command dispatches
 the workflow rather than invoking Wrangler directly. The workflow rejects a
 stale main commit or a browser bundle that differs from the exact npm package,
 attaches the uploaded Worker version at 0%, probes that immutable candidate
-through the production domain, then either promotes it to 100% and verifies it
-or restores the previous version.
+through the production domain, smoke-tests the website routes and hosted MCP,
+then either promotes it to 100% and repeats both checks or restores the previous
+version.
 
 The site still exposes no REST render API: `/mcp` speaks MCP JSON-RPC only. Code Mode `execute` runs agent JavaScript exclusively inside per-code dynamic-worker isolates with no bindings and no network.
