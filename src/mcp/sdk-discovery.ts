@@ -128,6 +128,7 @@ export type DescribeSdkDetail = 'signatures' | 'fields'
 export function createDescribeSdkTool(): McpToolDefinition {
   return {
     name: 'describe_sdk',
+    title: 'Describe Mermaid SDK operations',
     description: `Return version-matched mutation operations for one diagram family.
 Use detail=signatures for the compact op menu or detail=fields (default) for exact
 field types, required flags, enum values, defaults, and constraints. Call this
