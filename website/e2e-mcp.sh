@@ -22,6 +22,14 @@ source "$REPO_ROOT/scripts/ci/mcp-probe.sh"
 MCP="${1:-http://127.0.0.1:9095/mcp}"
 pass=0
 
+# Read the hosted transport's accepted revisions from the same TypeScript
+# authority that builds the Worker and its server card. Keeping this out of the
+# shell probe prevents a release from being blocked by a stale copied list.
+HOSTED_PROTOCOL_VERSIONS_JSON="$(
+  cd "$REPO_ROOT"
+  bun -e 'import { SUPPORTED_PROTOCOL_VERSIONS } from "./src/mcp/hosted-server.ts"; process.stdout.write(JSON.stringify(SUPPORTED_PROTOCOL_VERSIONS))'
+)"
+
 mcurl() {
   if [[ -n "${MCP_WORKER_VERSION_ID:-}" ]]; then
     local worker_name="${MCP_WORKER_NAME:-agentic-mermaid-website}"
@@ -71,7 +79,7 @@ check_http_jq() { # label expected-status jq-expression curl-args...
   status="$(mcurl -sS --max-time 30 -o "$response_file" -w '%{http_code}' "$@")"
   body="$(<"$response_file")"
   rm -f "$response_file"
-  if [[ "$status" == "$expected_status" ]] && jq -e "$expression" <<<"$body" >/dev/null; then
+  if [[ "$status" == "$expected_status" ]] && jq -e --argjson supported "$HOSTED_PROTOCOL_VERSIONS_JSON" "$expression" <<<"$body" >/dev/null; then
     echo "ok   $label"
     pass=$((pass + 1))
   else
@@ -180,15 +188,15 @@ check_http_exact 'a non-JSON body is a raw 415 transport refusal' '415' \
   -X POST "$MCP" -H 'content-type: text/plain' -d 'not-json'
 
 # An explicit unsupported protocol version keeps its protocol-defined JSON-RPC
-# error: exact code, supported list, and request-independent null id.
+# error: exact code, authority-derived supported list, and original request id.
 check_http_jq 'an unsupported MCP-Protocol-Version is exact -32022' '400' \
-  '.jsonrpc == "2.0" and .id == null and .error.code == -32022 and .error.data.requested == "1999-01-01" and .error.data.supported == ["2024-11-05","2025-03-26","2025-06-18","2025-11-25","2026-07-28"]' \
+  '.jsonrpc == "2.0" and .id == 1 and .error.code == -32022 and .error.data.requested == "1999-01-01" and .error.data.supported == $supported' \
   -X POST "$MCP" -H 'content-type: application/json' -H 'mcp-protocol-version: 1999-01-01' -d '{"jsonrpc":"2.0","id":1,"method":"ping"}'
 
 # Body-only claims exercise the admission route that no transport header can
 # cover. This is the path that used to fall through to legacy semantics.
 check_http_jq 'an unsupported body-only protocol version is exact -32022' '400' \
-  '.jsonrpc == "2.0" and .id == "body-version" and .error.code == -32022 and .error.data.requested == "2099-01-01" and .error.data.supported == ["2024-11-05","2025-03-26","2025-06-18","2025-11-25","2026-07-28"] and (keys | sort == ["error","id","jsonrpc"]) and (.error.data | keys | sort == ["requested","supported"])' \
+  '.jsonrpc == "2.0" and .id == "body-version" and .error.code == -32022 and .error.data.requested == "2099-01-01" and .error.data.supported == $supported and (keys | sort == ["error","id","jsonrpc"]) and (.error.data | keys | sort == ["requested","supported"])' \
   -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":"body-version","method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2099-01-01","io.modelcontextprotocol/clientCapabilities":{}}}}'
 
 check_http_exact 'an unsupported body-only notification is an empty 400' '400' '' \
