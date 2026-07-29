@@ -86,6 +86,9 @@ stale main commit or a browser bundle that differs from the exact npm package,
 attaches the uploaded Worker version at 0%, probes that immutable candidate
 through the production domain, smoke-tests the website routes and hosted MCP,
 then either promotes it to 100% and repeats both checks or restores the previous
-version.
+version. The candidate website smoke requires the exact target git SHA. The
+post-promotion website smoke checks semantic health without requiring cached
+static machine resources to switch SHAs atomically; the adjacent `/mcp`
+attestation proves the promoted Worker SHA.
 
 The site still exposes no REST render API: `/mcp` speaks MCP JSON-RPC only. Code Mode `execute` runs agent JavaScript exclusively inside per-code dynamic-worker isolates with no bindings and no network.
