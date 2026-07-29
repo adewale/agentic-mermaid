@@ -140,6 +140,7 @@ describe('production website smoke deployment wiring', () => {
       workflow.indexOf('- name: Roll back any unverified deployment'),
     )
     expect(promoted).toContain('id: production-site-verify')
+    expect(promoted).not.toContain('SITE_SMOKE_EXPECTED_SHA')
     expect(promoted).toContain('echo "verified=true" >> "$GITHUB_OUTPUT"')
   })
 

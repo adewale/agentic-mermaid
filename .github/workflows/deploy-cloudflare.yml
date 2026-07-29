@@ -422,8 +422,10 @@ jobs:
       - name: Smoke-test the promoted production website
         id: production-site-verify
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
-        env:
-          SITE_SMOKE_EXPECTED_SHA: ${{ env.EXPECTED_SHA }}
+        # The immutable candidate smoke above proves the static site was built
+        # from EXPECTED_SHA, while the preceding /mcp check proves that Worker
+        # version is serving production traffic. Do not require cached static
+        # machine resources to change SHA atomically at promotion time.
         run: |
           bun run scripts/site/smoke-live-site.ts
           echo "verified=true" >> "$GITHUB_OUTPUT"
