@@ -41,7 +41,7 @@ bun run website:dev      # Wrangler dev server on port 9095
 bun run scripts/site/smoke-live-site.ts --origin=http://127.0.0.1:9095
 bash website/e2e-mcp.sh  # end-to-end probe of /mcp against a running server
 # Read-only smoke of the canonical production routes and machine resources:
-bun run website:smoke:production
+bun run scripts/site/smoke-live-site.ts
 # Against production, stay below the public WAF budget:
 MCP_REQUEST_INTERVAL_SECONDS=6 bash website/e2e-mcp.sh https://agentic-mermaid.dev/mcp
 ```

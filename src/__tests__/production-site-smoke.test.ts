@@ -124,7 +124,6 @@ describe('production website smoke runner', () => {
 
 describe('production website smoke deployment wiring', () => {
   const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')
-  const packageJson = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
 
   test('runs against both the zero-traffic candidate and promoted production', () => {
     expect(workflow.match(/bun run scripts\/site\/smoke-live-site\.ts/g)).toHaveLength(2)
@@ -150,7 +149,4 @@ describe('production website smoke deployment wiring', () => {
     expect(rollback).toContain("steps.production-site-verify.outputs.verified != 'true'")
   })
 
-  test('exposes an explicit read-only production command', () => {
-    expect(packageJson.scripts['website:smoke:production']).toBe('bun run scripts/site/smoke-live-site.ts')
-  })
 })
