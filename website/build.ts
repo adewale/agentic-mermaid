@@ -2125,6 +2125,7 @@ function parametersFromSchema(schema: Record<string, unknown>) {
 
 const hostedToolCards = HOSTED_TOOLS.map((tool) => ({
   name: tool.name,
+  title: tool.title,
   description: compactToolDescription(tool.description),
   annotations: tool.annotations,
   inputSchema: tool.inputSchema,

@@ -1140,7 +1140,7 @@
     },
     {
       "path": "src/version.ts",
-      "sha256": "6cc435e93d5bdc21e1a554e197e6cf8dece146e6d20a3f10b1d6e24e7456849e"
+      "sha256": "73aabaaf88a8be767f99c115a9cf3f7f3c745661aae4b95f84fae66cc1a5a825"
     },
     {
       "path": "src/xychart/axis-utils.ts",
@@ -1193,11 +1193,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "101ec42ecd973b114f8c7ec5a95b773936cb3cb022c66e21f1384c5df45f8ba8"
+      "sha256": "8b28dadcc2236e9260dd8560f42f9a9c347dd68323a130ef01d13a9f93f2544f"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "bb0064d50473f88dafac1098de591719c5d2f0a8ca8eeb9ed2250730b2d0e762"
+      "sha256": "2b82b5613f49976066094ec145af2b1b6cedb0251d96ec632650bd0039a13283"
     }
   ]
 }

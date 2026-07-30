@@ -4,6 +4,10 @@ This file is the canonical, copy-ready registration record for Agentic
 Mermaid's hosted MCP server. Update it whenever the endpoint, tool surface,
 version, support contact, or directory status changes.
 
+The root [`server.json`](../server.json) is the single official MCP Registry
+authority. It covers both the npm package and hosted endpoint; do not publish a
+second domain-namespaced record for the same server.
+
 ## Canonical listing
 
 | Field | Value |
