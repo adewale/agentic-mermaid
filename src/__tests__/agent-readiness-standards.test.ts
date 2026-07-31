@@ -73,6 +73,21 @@ describe('agent-readiness standards syntax', () => {
     expect(ci.jobs.unit.strategy.matrix.shard).toEqual(['1/3', '2/3', '3/3'])
     expect(unitSteps.find((step: any) => step.name === 'Build the Node bundle for cross-runtime determinism contracts')?.run)
       .toBe('bun run build')
+    expect(unitSteps.find((step: any) => step.name === 'Setup Node for the reviewed package manifest')).toMatchObject({
+      if: "${{ matrix.shard == '1/3' }}",
+      uses: 'actions/setup-node@v7',
+      with: {
+        'node-version': 24,
+        'registry-url': 'https://registry.npmjs.org',
+        'package-manager-cache': false,
+      },
+    })
+    expect(unitSteps.find((step: any) => step.name === 'Install the pinned publishing npm for manifest verification')?.run)
+      .toContain('npm install -g npm@11.18.0 --ignore-scripts')
+    expect(unitSteps.find((step: any) => step.name === 'Verify the reviewed npm package file manifest')).toMatchObject({
+      if: "${{ matrix.shard == '1/3' }}",
+      run: 'bun run scripts/ci/verify-publish-package.ts --pack-destination ci-release-artifact',
+    })
     expect(unitSteps.find((step: any) => step.name === 'Reject a divergent already-published immutable npm version')).toMatchObject({
       if: "${{ matrix.shard == '1/3' }}",
       run: 'bun run scripts/ci/published-version.ts',
