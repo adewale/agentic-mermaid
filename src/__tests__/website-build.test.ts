@@ -1496,9 +1496,14 @@ describe('Workers Static Assets website contract', () => {
     // support a version we in fact serve, or vice versa.
     expect(mcpCard.protocolVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
     expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
+    expect(mcpCard.tools.every((tool: any) => typeof tool.title === 'string' && tool.title.trim().length > 0)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)
-    expect(read('.well-known/mcp.json')).toContain('"serverUrl": "https://agentic-mermaid.dev/mcp"')
+    const mcpManifest = JSON.parse(read('.well-known/mcp.json'))
+    expect(mcpManifest.serverUrl).toBe('https://agentic-mermaid.dev/mcp')
+    expect(mcpManifest.tools.map((tool: any) => ({ name: tool.name, title: tool.title }))).toEqual(
+      mcpCard.tools.map((tool: any) => ({ name: tool.name, title: tool.title })),
+    )
     expect(JSON.parse(read('schemas/render-options.schema.json'))).toEqual(sharedRenderOptionsJsonSchema())
     const aiCatalog = JSON.parse(read('.well-known/ai-catalog.json'))
     expect(aiCatalog.entries.find((entry: any) => entry.identifier === 'urn:air:agentic-mermaid.dev:warnings')).toMatchObject({

@@ -300,9 +300,12 @@ describe('agent-readiness standards syntax', () => {
     expect(manifest.serverUrl).toBe(card.serverUrl)
     expect(manifest.transport).toBe(card.transport)
     expect(manifest.tools.map((tool: any) => tool.name)).toEqual(card.tools.map((tool: any) => tool.name))
+    expect(manifest.tools.map((tool: any) => tool.title)).toEqual(card.tools.map((tool: any) => tool.title))
 
     for (const tool of card.tools) {
       expect(typeof tool.name).toBe('string')
+      expect(typeof tool.title).toBe('string')
+      expect(tool.title.trim().length).toBeGreaterThan(0)
       expect(typeof tool.description).toBe('string')
       expect(tool.inputSchema).toEqual(expect.objectContaining({ type: 'object' }))
       expect(typeof tool.inputSchema.properties).toBe('object')

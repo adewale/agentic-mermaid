@@ -143,6 +143,8 @@ Agentic Mermaid ships a Model Context Protocol server so MCP-capable agents can 
 
 Local-first is the default posture: prefer the library, CLI, or a self-hosted MCP for anything sensitive, offline, larger than the hosted caps, or needing local PNG file/URL artifacts. The hosted endpoint is a public, unauthenticated convenience for zero-install render/verify/describe and bounded structured edits.
 
+Directory maintainers can use the canonical [MCP listing record](./docs/MCP-DIRECTORY-LISTINGS.md). Hosted data handling is described in the [MCP privacy notice](./docs/MCP-PRIVACY.md).
+
 ## Structured edit example
 
 ```ts

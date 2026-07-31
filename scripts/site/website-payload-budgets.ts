@@ -6,11 +6,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
     maxRawBytes: 682_619,
-    maxGzipBytes: 406_568,
-    // Re-recorded exactly for 0.4.0. The raw total is unchanged; the same-length
+    maxGzipBytes: 406_567,
+    // Re-recorded exactly for 0.4.1. The raw total is unchanged; the same-length
     // projected version string slightly changes compression. These ceilings
     // intentionally match the checked-in payload capture for this toolchain.
-    maxBrotliBytes: 388_011,
+    maxBrotliBytes: 388_076,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -24,7 +24,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxGzipBytes: 66_937,
     // The 0.4.0 release identity changes only compressed back-references on
     // this route; the raw total remains byte-for-byte at its ratchet.
-    maxBrotliBytes: 53_152,
+    maxBrotliBytes: 53_146,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -37,8 +37,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     maxRequests: 30,
     maxRawBytes: 718_098,
-    maxGzipBytes: 269_729,
-    maxBrotliBytes: 246_213,
+    maxGzipBytes: 269_728,
+    // The 0.4.1 release identity changes compressed back-references without
+    // changing the route's raw payload total.
+    maxBrotliBytes: 246_296,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -54,7 +56,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // include the shared code-point comparator used by family routing.
     maxRawBytes: 3_289_905,
     maxGzipBytes: 967_140,
-    maxBrotliBytes: 760_000,
+    // Re-recorded for the same-length 0.4.1 identity; raw API bytes are
+    // unchanged, while Brotli back-references shift slightly.
+    maxBrotliBytes: 760_103,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

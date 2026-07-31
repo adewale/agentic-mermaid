@@ -104,6 +104,8 @@ describe('hosted MCP handshake', () => {
       expect(execute.description).toContain(signature)
     }
     for (const tool of (res?.result as any).tools) {
+      expect(tool.title).toEqual(expect.any(String))
+      expect(tool.title.trim()).not.toBe('')
       expect(tool.annotations).toEqual(expect.objectContaining({
         readOnlyHint: true,
         destructiveHint: false,

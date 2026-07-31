@@ -108,15 +108,14 @@ describe('deterministic website payload authority', () => {
   }, 30_000)
 
   test('rejects every budget dimension, eager forbidden resources, and missing required resources', () => {
-    for (const [field, expected] of [
-      ['requests', 'home: requests 10 exceeds 9'],
-      ['rawBytes', 'home: rawBytes 682620 exceeds 682619'],
-      ['gzipBytes', 'home: gzipBytes 406569 exceeds 406568'],
-      ['brotliBytes', 'home: brotliBytes 388012 exceeds 388011'],
-    ] as const) {
+    for (const field of ['requests', 'rawBytes', 'gzipBytes', 'brotliBytes'] as const) {
       const grown = structuredClone(report)
-      grown.routes[0]!.totals[field]++
-      expect(verifyWebsitePayloadBudgets(grown, WEBSITE_PAYLOAD_BUDGETS), field).toContain(expected)
+      const home = grown.routes[0]!
+      const limit = home.totals[field]
+      home.totals[field] = limit + 1
+      expect(verifyWebsitePayloadBudgets(grown, WEBSITE_PAYLOAD_BUDGETS), field).toContain(
+        'home: ' + field + ' ' + (limit + 1) + ' exceeds ' + limit,
+      )
     }
 
     const eager = structuredClone(report)

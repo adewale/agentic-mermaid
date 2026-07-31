@@ -4,6 +4,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Added
+- Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
+
 ## 0.4.0 — 2026-07-28
 
 ### Added

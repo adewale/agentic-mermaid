@@ -118,6 +118,7 @@ export const HOSTED_TOOLS = [
   withClosedMcpInputSchema(createDescribeSdkTool()),
   {
     name: 'render_svg',
+    title: 'Render Mermaid as SVG',
     description: `Render a Mermaid source string to themeable SVG. Returns { ok, svg }.
 Layout is deterministic: identical input produces identical geometry. The hosted
 boundary forces security:'strict' and embedFontImport:false.`,
@@ -136,6 +137,7 @@ boundary forces security:'strict' and embedFontImport:false.`,
   },
   {
     name: 'render_ascii',
+    title: 'Render Mermaid as text',
     description: `Render a Mermaid source string to text. Returns { ok, text }.
 useAscii true → plain ASCII (+,-,|); false/absent → Unicode box drawing (┌,─,│).
 targetWidth sets a hard terminal display-cell bound; impossible bounds return a typed error.`,
@@ -155,6 +157,7 @@ targetWidth sets a hard terminal display-cell bound; impossible bounds return a 
   createRenderPngTool('hosted'),
   {
     name: 'verify',
+    title: 'Verify Mermaid diagram',
     description: `Parse and verify a Mermaid diagram without rendering it. Returns
 { ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid
 diagrams and { ok: false, errors } for parse failures. \`family\` is the detected
@@ -174,6 +177,7 @@ Warnings use the layout-rubric codes.`,
   createDescribeTool(),
   {
     name: 'mutate',
+    title: 'Edit Mermaid diagram',
     description: `Apply a list of structured edit ops to an existing Mermaid \`source\` and
 return the edited diagram. This is the declarative counterpart to \`execute\`:
 plain JSON in, plain JSON out, no sandbox. Prefer it for straightforward edits;
@@ -199,6 +203,7 @@ field types, enum values, defaults, and constraints.`,
   },
   {
     name: 'build',
+    title: 'Build Mermaid diagram',
     description: `Author a new Mermaid diagram from blank by folding a list of structured ops
 over an empty diagram of \`family\`. The declarative counterpart to hand-writing
 source. Returns the same envelope as \`mutate\`:

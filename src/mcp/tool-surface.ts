@@ -27,6 +27,7 @@ import type { RenderOptions } from '../types.ts'
 
 export interface McpToolDefinition {
   name: string
+  title: string
   description: string
   inputSchema: Record<string, unknown>
   annotations?: {
@@ -579,6 +580,7 @@ embedFontImport:false; caller code cannot weaken that host policy.
   const runtime = options.hosted ? 'an isolated sandbox' : 'a sandboxed node:vm context'
   return {
     name: 'execute',
+    title: 'Execute Mermaid SDK code',
     description: `Run JavaScript in ${runtime}; return a value.
 One call composes edits. Submit JavaScript; declaration types are guidance.
 No promises, async/await, dynamic import, or type annotations.
@@ -603,6 +605,7 @@ export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition
   const pngProperties = pngSchema.properties as Record<string, JsonSchema>
   return {
     name: 'render_png',
+    title: 'Render Mermaid as PNG',
     description: hosted
       ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
 Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
@@ -634,6 +637,7 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
 export function createDescribeTool(): McpToolDefinition {
   return {
     name: 'describe',
+    title: 'Describe Mermaid diagram',
     description: `Describe a Mermaid diagram. format=text returns { ok, text } with
 one or two summary sentences; format=json returns { ok, tree } with the AX tree;
 format=facts returns { ok, facts } with deterministic semantic fact lines for
