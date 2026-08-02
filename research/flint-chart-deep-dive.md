@@ -2,6 +2,10 @@
 
 Research date: 2026-08-02. Flint version examined: v0.4.0 (2026-07-24).
 
+> Follow-up: four of the lessons below (edit-cost metric, MCP
+> resources/prompts, readability floor, MCP App editor view) are specified in
+> [`docs/project/flint-derived-improvements-plan.md`](../docs/project/flint-derived-improvements-plan.md).
+
 ## Summary
 
 [Flint](https://microsoft.github.io/flint-chart/) is Microsoft Research + Renmin
