@@ -7,6 +7,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ### Added
 - Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
 
+### Changed
+- Updated the `brace-expansion` development override to the first 5.x release
+  patched for GHSA-rgw5-rvv9-x895.
+
 ## 0.4.0 — 2026-07-28
 
 ### Added
