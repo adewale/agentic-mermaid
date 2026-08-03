@@ -83,7 +83,8 @@ Every receipt must identify:
 - minimal authored source;
 - a typed expectation for every pipeline stage, including whether it applies;
 - a versioned semantic oracle for every applicable native stage;
-- exact structured diagnostic expectations for every non-native stage;
+- exact structured diagnostic expectations for every public non-native
+  disposition and an explicit dependency for every blocked stage;
 - applicable serialization, mutation, layout, Scene, SVG, terminal,
   interaction, configuration, and accessibility implications; and
 - a named divergence ID when local behavior intentionally differs.
@@ -91,16 +92,20 @@ Every receipt must identify:
 ### 3.2 No silent statement loss
 
 Every nonblank, non-comment family statement must be modeled, preserved with a
-typed reason, or rejected with a named error. A parser must never return a
-visually plausible partial diagram after silently skipping an authored
-statement.
+route-specific typed runtime diagnostic, or rejected with a named error. A
+parser must never return a visually plausible partial diagram after silently
+skipping an authored statement. Lossless preservation by a serialization stage
+may be silent only when every applicable public parse, verify, and render route
+models the construct natively; preservation does not excuse a semantic gap on
+another route.
 
 ### 3.3 Fail-closed public claims
 
 Receipt aggregation uses the following policy:
 
 - `native`: every applicable receipt required by the claim passes;
-- `source-preserved`: source survives but native semantics are not established;
+- `source-preserved`: source survives, native semantics are not established,
+  and the applicable public route emits the exact typed diagnostic;
 - `diagnosed`: a named unsupported or divergent behavior is surfaced exactly;
 - `not-applicable`: the upstream behavior genuinely cannot apply to authored
   source or the output surface; and
@@ -113,9 +118,10 @@ semantic projection, and native render semantics. An opaque agent case caps
 the construct and public claim at `source-preserved` even when the native
 renderer succeeds. `diagnosed` is valid only when the actual public path
 emits the exact asserted runtime diagnostic. A divergence-ledger entry alone
-cannot manufacture diagnosed behavior. Silent loss remains `source-preserved`
-or `absent`, as applicable, until a runtime diagnostic or native fix lands.
-Divergence ledgers are inputs to aggregation, not parallel documentation.
+cannot manufacture diagnosed behavior. Silent semantic loss is `absent`,
+blocks programme closure, and may be promoted only when an exact runtime
+diagnostic or native fix lands. Divergence ledgers are inputs to aggregation,
+not parallel documentation.
 
 ### 3.4 Every regression test must discriminate
 
@@ -250,19 +256,31 @@ claim this exception:
    digest, and squash strategy;
 2. run `git diff --check <merge-base>...<head>` and verify the changed-path set;
 3. validate the external issue/PR links with `gh issue view 248` and
-   `gh pr view 192`, and require the target-bound `gh pr checks` result;
-4. pre-register the three sessions in a timestamped PR comment before dispatch;
-5. post every individual first report under a stable comment ID, record its
-   SHA-256 in the finding ledger, and verify that its GitHub `updated_at` value
-   has not changed at final readiness;
-6. reconcile every commissioned session, fix every actionable finding, and
+   `gh pr view 192`, and require every target-bound `gh pr checks` identity to
+   be complete and green before registration or dispatch;
+4. before dispatch, anchor a content-addressed round manifest in an
+   independently controlled append-only record that does not mutate the frozen
+   candidate: a protected audit ref, signed annotated tag, or server-issued
+   immutable record. It records session IDs, prompt/scope hashes, tuple, tree/
+   diff digest, timestamp, artifact hash, and anchor object/URL. A PR comment
+   points to that anchor but is not its authority;
+5. require each auditor to publish the first report through an independently
+   authenticated identity or a server-issued immutable transcript/artifact;
+   an implementer-pasted report alone is invalid;
+6. post every individual report pointer under a stable comment ID, record the
+   manifest/report artifact SHA-256 values plus comment `created_at`/
+   `updated_at` in the finding ledger, and have an independent human witness
+   compare the posted bytes with the origin artifacts and anchored manifest
+   before final readiness;
+7. reconcile every commissioned session and the committed manifest, fix every
+   actionable finding, and
    repeat against each new tuple until unanimous approval; and
-7. have a human maintainer verify the final tuple, hashes, comments, and checks
+8. have a human maintainer verify the final tuple, hashes, comments, and checks
    before merge.
 
-A0 must add a deterministic `bun run check:programme-docs` command for future
-plan/governance link and path validation and replace this bootstrap with trusted
-runner artifacts and automation.
+A0 must add a deterministic package script named `check:programme-docs` for
+future plan/governance link and path validation and replace this bootstrap with
+trusted runner artifacts and automation.
 
 ## 5. Evidence architecture
 
@@ -278,8 +296,8 @@ Exact-set validation must prove:
 
 - every pinned built-in construct maps to at least one fidelity case;
 - every case maps back to one or more stable construct IDs;
-- every manifest `syntaxFeature`, official `example`, and `configKey` appears in
-  its own typed index;
+- every manifest `syntaxFeature`, official `example`, `configKey`, and
+  `themeVariable` appears in its own typed index;
 - every construct exercised by an official fence is enumerated rather than
   treating the fence as one atomic feature;
 - multiple witnesses may exercise the same construct without inventing new
@@ -298,9 +316,11 @@ type FidelityAuthorityRef =
   | { kind: 'feature'; id: string }
   | { kind: 'example'; id: string }
   | { kind: 'config-key'; id: string }
+  | { kind: 'theme-variable'; id: string }
 
 type FidelityDiagnosticExpectation = {
   stage: FidelityStage
+  invocationId: string
   code: string
   stableFields: Readonly<Record<string, string | number | boolean>>
   cardinality: { min: number; max: number }
@@ -309,28 +329,69 @@ type FidelityDiagnosticExpectation = {
 
 type FidelityStageExpectation =
   | {
+      stage: FidelityStage
+      invocationId: string
       state: 'not-applicable'
       reasonCode: string
       upstreamEvidence: readonly [string, ...string[]]
     }
   | {
+      stage: FidelityStage
+      invocationId: string
       state: 'applicable'
       disposition: 'native'
       oracle: { id: string; schemaVersion: number }
       diagnostics: readonly FidelityDiagnosticExpectation[]
     }
   | {
+      stage: FidelityStage
+      invocationId: string
       state: 'applicable'
       disposition: 'source-preserved'
       oracle: { id: string; schemaVersion: number }
-      diagnostics: readonly FidelityDiagnosticExpectation[]
+      diagnostics: readonly [FidelityDiagnosticExpectation, ...FidelityDiagnosticExpectation[]]
     }
   | {
+      stage: FidelityStage
+      invocationId: string
       state: 'applicable'
       disposition: 'diagnosed' | 'reject'
       oracle?: { id: string; schemaVersion: number }
       diagnostics: readonly [FidelityDiagnosticExpectation, ...FidelityDiagnosticExpectation[]]
     }
+  | {
+      stage: FidelityStage
+      invocationId: string
+      state: 'applicable'
+      disposition: 'blocked'
+      blockedBy: { stage: FidelityStage; invocationId: string }
+      requiredOracle: { id: string; schemaVersion: number }
+    }
+
+interface FidelityInvocation {
+  invocationId: string
+  sourceRef: 'case-source'
+  publicRoute: string
+  renderOptions: Readonly<Record<string, JSONValue>>
+  config?: Readonly<Record<string, JSONValue>>
+  backendId?: string
+  terminalMode?: 'ascii' | 'unicode'
+  security?: Readonly<Record<string, JSONValue>>
+  interaction?: Readonly<Record<string, JSONValue>>
+}
+
+interface FidelityMutationInvocation {
+  mutationId: string
+  invocationId: string
+  operation: FamilyMutationOperation
+}
+
+interface FidelityComparison {
+  comparisonId: string
+  leftInvocationId: string
+  rightInvocationId: string
+  oracle: { id: string; schemaVersion: number }
+}
 
 interface FamilyFidelityCase {
   caseId: string
@@ -339,7 +400,10 @@ interface FamilyFidelityCase {
   authority: FidelityAuthorityRef
   upstreamRevision: string
   source: string
-  stages: Record<FidelityStage, FidelityStageExpectation>
+  invocations: readonly [FidelityInvocation, ...FidelityInvocation[]]
+  mutations: readonly FidelityMutationInvocation[]
+  comparisons: readonly FidelityComparison[]
+  stages: readonly [FidelityStageExpectation, ...FidelityStageExpectation[]]
   divergenceId?: string
 }
 ```
@@ -352,20 +416,32 @@ implication snapshots; generated JSON never embeds arbitrary executable
 callbacks.
 
 Schema validation must reject a native applicable stage without an oracle, a
-source-preserved stage without a preservation oracle, a diagnosed/rejected
-stage without an exact structured diagnostic, and any not-applicable stage
-without a typed reason and upstream evidence. Source preservation may be silent
-and therefore does not imply a public diagnostic. When agent parse applies,
-native aggregation additionally requires a structured agent oracle; opaque
-preservation caps the aggregate at `source-preserved` even when downstream
-native rendering succeeds.
+source-preserved stage without both a preservation oracle and an exact
+structured diagnostic, a diagnosed/rejected stage without an exact structured
+diagnostic, and any not-applicable stage without a typed reason and authority
+evidence. Silent loss is not a compatibility disposition. When agent parse
+applies, native aggregation additionally requires a structured agent oracle;
+opaque preservation caps the aggregate at `source-preserved` even when
+downstream native rendering succeeds.
 
-Define short-circuiting explicitly: detection or native parse rejection makes
-dependent downstream stages not applicable with a `blocked-by:<stage>` reason;
-opaque agent preservation still executes independently applicable native-render
-checks but cannot be promoted to an agent-native claim. Stage-specific
-diagnostics must identify the public route that emitted them and cannot be
-satisfied by a warning from another surface.
+Every expectation and diagnostic references a declared invocation, and every
+declared route has an exact stage-coverage policy. Define the stage dependency
+graph explicitly. A locally blocked downstream stage remains semantically
+`applicable`, carries the blocking stage/invocation plus the required semantic
+oracle, stays in
+the claim denominator, and inherits the blocking disposition as an aggregate
+cap. Reserve `not-applicable` for genuine upstream or governed local-surface
+irrelevance. Agent parsing does not block an independently executable native-
+render invocation. Stage-specific diagnostics must match the referenced public
+route and cannot be satisfied by a warning from another invocation.
+
+Invocations, render options, typed family mutations, interactions, and A/B
+comparisons are declarative and schema-versioned. The runner owns route
+adapters, diagnostic collectors, and the registry for the discriminated
+`FamilyMutationOperation` union. Oracles may normalize and assert supplied
+results, but must not secretly select inputs, routes, configuration variants,
+backends, or mutations. Every config-key and theme-variable effect case joins
+to an explicit named A/B invocation pair.
 
 Pinned Mermaid rejecting the source is the only ordinary basis for local
 `reject`. An official fence may also be rejected when it is proven partial or
@@ -374,24 +450,25 @@ be an executable named diagnosed compatibility divergence.
 
 ### 5.3 Receipt runner
 
-The runner executes the same source through:
+The runner executes every named declarative invocation over the case source
+through the applicable dependency graph:
 
 ```text
 detection
-  -> agent parse/body
-  -> verification
-  -> native parser and layout
-  -> normalized family semantic projection
-  -> Scene and output implication
-  -> canonical serialize/reparse
-  -> declared mutation round trip
+  |-> agent parse/body -> verification -> agent semantic projection
+  `-> native parser -> layout -> native semantic projection
+                                     |-> Scene and output implication
+                                     |-> canonical serialize/reparse
+                                     `-> each declared typed mutation
+  named A/B comparisons join their declared invocation results
 ```
 
 It records disposition and semantic results, not just thrown/not-thrown status.
 Every opaque agent outcome caps the applicable construct/public claim at
-`source-preserved`, regardless of native-render success. Opaque agent success
-paired with render failure additionally requires an exact diagnosed policy
-rather than `verify.ok === true` under an unqualified claim.
+`source-preserved` and requires its exact route-specific typed diagnostic,
+regardless of native-render success. Opaque agent success paired with render
+failure additionally requires an exact diagnosed policy rather than
+`verify.ok === true` under an unqualified claim.
 
 ### 5.4 Family semantic projectors
 
@@ -474,10 +551,15 @@ adoption PR. Only this plan and A0 may use the manual bootstrap in §4.5:
 - fail readiness when reports are missing, roles are reused, findings remain
   unresolved, runs are unreconciled, or approvals/checks are stale or
   superseded;
+- own a versioned path/dependency-to-authority map, derive the complete affected
+  authority set from the full diff, fail closed on unknown or ambiguous paths,
+  and require the newest trusted/provider-issued result for every derived check
+  identity; an exception is valid only as an immutable auditor-approved ledger
+  entry;
 - from the first behavioral repair, run a trusted exact-head red/green job in a
   detached worktree that applies the content-addressed revert/sabotage, verifies
   the expected red signature, restores the audited tree, and verifies green;
-- add `bun run check:programme-docs`; and
+- add the `check:programme-docs` package script; and
 - run the final readiness/tuple comparison from §4.3 after the final audit.
 
 The existing CI workflow runs pull requests targeting `main`; without A0, a
@@ -497,7 +579,8 @@ implementer-authored manual results are not substitutes after bootstrap.
 2. **A2: fidelity contract and runner skeleton**
    - add stable `caseId`, discriminated authority references, construct IDs,
      deterministic receipt schema, exact-set indexes for features/examples/
-     config keys, and a small cross-family exemplar set;
+     config keys/theme variables, named route invocations, typed mutations, A/B
+     comparisons, and a small cross-family exemplar set;
    - keep cases, raw receipts, snapshots, and upstream adapters behind an
      enforced test/eval-only import boundary;
    - add the deterministic compact-index generator contract and initial bundle
@@ -542,8 +625,8 @@ infrastructure may begin earlier where they do not consume those authorities.
 
 ### Stack B — parser and seam guardrails
 
-1. **B1: statement-consumption contract** — consume, typed-preserve, or reject
-   every nonblank statement.
+1. **B1: statement-consumption contract** — consume, preserve with an exact
+   route-specific typed diagnostic, or reject every nonblank statement.
 2. **B2: shared comment/delimiter normalization and agent/native seam** — run
    each fidelity source through both paths and require compatible dispositions.
 3. **B3: keyword-boundary and dual-vocabulary checks** — detect prefix regexes
@@ -643,27 +726,34 @@ Follow with focused work for:
 5. permit `reject` only when pinned Mermaid also rejects the source or the fence
    is proven partial/config-only; otherwise require an executable named
    diagnosed divergence;
-6. require exact-set closure for construct, feature, example, and case indexes
-   so new, removed, orphaned, or multiply ambiguous entries cannot disappear;
-   and
+6. require exact-set closure for construct, feature, example, and case indexes,
+   and assert that the global config-key and theme-variable indexes remain
+   joined, so new, removed, orphaned, or multiply ambiguous entries cannot
+   disappear; and
 7. keep selected galleries as visual reviewer evidence, not native proof.
 
 Classification may discover new defects. File each as a child of #248 and add
 it to the appropriate severity phase; do not weaken the case expectation to
 match current behavior.
 
-### Stack E — generated config-effect matrix
+### Stack E — generated config and theme-effect matrix
 
-For every pinned built-in-family config key, generate exactly one disposition:
+For every pinned built-in-family config key and theme-variable leaf path,
+generate exactly one disposition:
 
 - `wired`, with an A/B predicate over typed semantics, geometry, paint, or
   interaction;
 - `diagnosed-noop`, with unchanged semantics and an exact warning; or
-- `unsupported`, with a named reason.
+- `unsupported`, with a named reason and exact warning or rejection on every
+  public route that accepts the configuration.
 
-Join the upstream config inventory, descriptor declarations, runtime resolver
-reads, docs, and tests. Fail on missing or multiply owned keys. Do not create a
-third hand-maintained config roster.
+Join the upstream config and `semanticInventory.themeVariables` inventories,
+descriptor declarations, runtime resolver/theme reads, docs, and tests. Expand
+object-valued or `any` authorities to reviewed leaf paths from the pinned type/
+default authority, or explicitly enumerate their nested effect cases; a shallow
+`xyChart: any` row cannot hide `dataLabelColor`. Every disposition references a
+named A/B invocation pair. Fail on missing or multiply owned paths. Do not
+create another hand-maintained config or theme roster.
 
 ### Stack F — depth and adversarial quality
 
@@ -717,8 +807,8 @@ Every implementation PR must state:
   command, expected failure signature, observed red failure, and green result
   on the audited head, all linked to the required trusted exact-head job rather
   than supplied only as implementer-authored prose;
-- mandatory baseline and touched-authority checks, with exact-head CI job URLs
-  or command/result records;
+- mandatory baseline and touched-authority checks, with the newest exact-head
+  provider-issued CI job identities and URLs;
 - generated artifacts changed and why;
 - stack position and dependencies;
 - individual audit reports, finding ledger, rounds, and final audited tuple; and
@@ -754,16 +844,19 @@ Add deterministic checks by touched authority:
 | Scene, backend, security, output | Backend conformance, External Scene compatibility, renderer security, affected output/browser checks, `build` |
 | Browser family/catalog | `check:browser-families`, browser-lazy checks, affected browser contracts |
 | Website/package/transport | Website freshness/payload checks, package build, affected CLI/MCP/transport contracts |
-| Official fence or config matrix | Exact-set corpus/config generator check and every affected semantic A/B case |
+| Official fence, config, or theme matrix | Exact-set corpus/config/theme generator check and every affected named semantic A/B case |
 
 The audited tuple must have canonical CI or the A0 equivalent against its exact
 target base; a green run against `main` cannot substitute for a stacked PR whose
 target is a parent branch. A0 defines the required check identities; readiness
 accepts only the newest non-superseded provider-issued run for each identity,
-bound to the tested merge tree and required workflow revision. From the first
-behavioral repair onward, the trusted red/green job is a required check and must
-run the content-addressed revert or sabotage in a detached worktree against the
-exact audited head. A manual command transcript cannot satisfy either gate.
+including every identity derived from the versioned touched-authority map,
+bound to the tested merge tree and required workflow revision. Unknown or
+ambiguous paths fail closed; any exception must be an immutable auditor-approved
+ledger entry. From the first behavioral repair onward, the trusted red/green
+job is a required check and must run the content-addressed revert or sabotage
+in a detached worktree against the exact audited head. A manual command
+transcript cannot satisfy either gate.
 
 The final programme closure run includes at least:
 
@@ -798,7 +891,7 @@ Maintain a checklist on #248 grouped by:
 - Phase 0 silent-corruption fixes;
 - Phase 1 implication/config/interaction fixes;
 - official-fence classification;
-- config-effect closure;
+- config/theme-effect closure;
 - per-family projector and receipt closure; and
 - depth/hardening and final audit.
 
@@ -811,17 +904,20 @@ Close #248 only when all of the following hold:
 
 - every officially authorable construct for every claimed built-in family has
   an executed receipt;
-- the construct, feature, example, config-key, and case indexes have exact-set
-  closure with no orphan or ambiguous ownership;
+- the construct, feature, example, config-key, theme-variable, and case indexes
+  have exact-set closure with no orphan or ambiguous ownership;
 - every official fence has a reviewed disposition;
-- every nonblank statement is modeled, typed-preserved, or rejected;
+- every nonblank statement is modeled, preserved with an exact route-specific
+  typed runtime diagnostic, or rejected; no silent semantic preservation can
+  satisfy closure;
 - every applicable agent-native claim has a passing structured agent oracle;
   an opaque agent outcome remains capped at `source-preserved` even if native
   rendering succeeds;
 - agent parse, verification, native render, serialization, mutation, Scene,
   applicable output, accessibility, and interaction behavior agree with the
   case policy;
-- every config key has exactly one executable effect disposition;
+- every config key and expanded theme-variable leaf path has exactly one
+  executable effect disposition joined to a named A/B invocation pair;
 - capability and citizenship reports derive from passing receipts and
   downgrade divergences automatically;
 - every enrolled family has a complete, versioned semantic projector and every
