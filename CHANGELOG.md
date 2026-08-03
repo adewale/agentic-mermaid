@@ -13,6 +13,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Updated the transitive `fast-uri` override to 3.1.5 for
   GHSA-7p8r-x3mc-p8w7 and pinned transitive `undici` to 7.29.0 for
   GHSA-4cwx-7wf7-3272.
+- Pinned transitive `ip-address` to 10.3.1 for
+  GHSA-mwp4-54f8-5fhr.
 
 ## 0.4.0 — 2026-07-28
 
