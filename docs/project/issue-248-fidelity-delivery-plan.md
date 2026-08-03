@@ -370,7 +370,7 @@ type FidelityStageExpectation =
 
 interface FidelityInvocation {
   invocationId: string
-  sourceRef: 'case-source'
+  sourceRef: string
   publicRoute: string
   renderOptions: Readonly<Record<string, JSONValue>>
   config?: Readonly<Record<string, JSONValue>>
@@ -380,18 +380,49 @@ interface FidelityInvocation {
   interaction?: Readonly<Record<string, JSONValue>>
 }
 
+interface FidelitySource {
+  sourceId: string
+  source: string
+  role: 'authored' | 'metamorphic-variant' | 'boundary' | 'malformed'
+  derivedFromSourceId?: string
+  transformId?: string
+}
+
+type FidelityResultRef =
+  | { kind: 'invocation'; invocationId: string; stage: FidelityStage }
+  | { kind: 'mutation'; mutationId: string }
+
 interface FidelityMutationInvocation {
   mutationId: string
-  invocationId: string
+  constructIds: readonly [string, ...string[]]
+  input: { invocationId: string; stage: FidelityStage }
   operation: FamilyMutationOperation
+  oracle: { id: string; schemaVersion: number }
+  preserveOracles: readonly [{ id: string; schemaVersion: number }, ...{
+    id: string
+    schemaVersion: number
+  }[]]
+  diagnostics: readonly FidelityDiagnosticExpectation[]
 }
 
 interface FidelityComparison {
   comparisonId: string
-  leftInvocationId: string
-  rightInvocationId: string
+  left: FidelityResultRef
+  right: FidelityResultRef
   oracle: { id: string; schemaVersion: number }
 }
+
+type FidelityMutationPlan =
+  | {
+      state: 'applicable'
+      entries: readonly [FidelityMutationInvocation, ...FidelityMutationInvocation[]]
+    }
+  | {
+      state: 'not-applicable'
+      entries: readonly []
+      reasonCode: string
+      upstreamEvidence: readonly [string, ...string[]]
+    }
 
 interface FamilyFidelityCase {
   caseId: string
@@ -399,9 +430,9 @@ interface FamilyFidelityCase {
   constructIds: readonly [string, ...string[]]
   authority: FidelityAuthorityRef
   upstreamRevision: string
-  source: string
+  sources: readonly [FidelitySource, ...FidelitySource[]]
   invocations: readonly [FidelityInvocation, ...FidelityInvocation[]]
-  mutations: readonly FidelityMutationInvocation[]
+  mutationPlan: FidelityMutationPlan
   comparisons: readonly FidelityComparison[]
   stages: readonly [FidelityStageExpectation, ...FidelityStageExpectation[]]
   divergenceId?: string
@@ -424,9 +455,12 @@ applies, native aggregation additionally requires a structured agent oracle;
 opaque preservation caps the aggregate at `source-preserved` even when
 downstream native rendering succeeds.
 
-Every expectation and diagnostic references a declared invocation, and every
-declared route has an exact stage-coverage policy. Define the stage dependency
-graph explicitly. A locally blocked downstream stage remains semantically
+Every source reference, expectation, diagnostic, result reference, and mutation
+input resolves to a declared object, and every declared route has an exact
+stage-coverage policy. A comparison names the exact invocation-stage or
+mutation result it consumes; an oracle cannot substitute a hidden source,
+stage, invocation, or mutation. Define the stage dependency graph explicitly.
+A locally blocked downstream stage remains semantically
 `applicable`, carries the blocking stage/invocation plus the required semantic
 oracle, stays in
 the claim denominator, and inherits the blocking disposition as an aggregate
@@ -435,13 +469,20 @@ irrelevance. Agent parsing does not block an independently executable native-
 render invocation. Stage-specific diagnostics must match the referenced public
 route and cannot be satisfied by a warning from another invocation.
 
-Invocations, render options, typed family mutations, interactions, and A/B
-comparisons are declarative and schema-versioned. The runner owns route
+Invocations, named authored/source-variant inputs, render options, typed family
+mutations, interactions, and A/B or metamorphic comparisons are declarative and
+schema-versioned. Source variants carry an explicit derivation and transform
+identity rather than being selected inside an oracle. The runner owns route
 adapters, diagnostic collectors, and the registry for the discriminated
 `FamilyMutationOperation` union. Oracles may normalize and assert supplied
 results, but must not secretly select inputs, routes, configuration variants,
-backends, or mutations. Every config-key and theme-variable effect case joins
-to an explicit named A/B invocation pair.
+backends, or mutations. Every mutation has its own result oracle and a non-empty
+set of preservation oracles for semantic facets unrelated to the operation.
+For every case with a structured applicable construct, the union of mutation
+`constructIds` must exactly cover those constructs; empty mutation coverage is
+valid only through a reviewed `not-applicable` reason with upstream evidence.
+Every config-key and theme-variable effect case joins to an explicit named A/B
+invocation pair.
 
 Pinned Mermaid rejecting the source is the only ordinary basis for local
 `reject`. An official fence may also be rejected when it is proven partial or
@@ -459,8 +500,9 @@ detection
   `-> native parser -> layout -> native semantic projection
                                      |-> Scene and output implication
                                      |-> canonical serialize/reparse
-                                     `-> each declared typed mutation
-  named A/B comparisons join their declared invocation results
+                                     `-> each declared typed mutation result
+  named A/B and metamorphic comparisons join their declared invocation-stage
+  or mutation results
 ```
 
 It records disposition and semantic results, not just thrown/not-thrown status.
@@ -669,8 +711,12 @@ for A4's report migration.
    rejects or emits exact runtime diagnostics for gradient/compositing and keeps
    every affected capability/report row downgraded.
 4. **C4: Sankey receipts and closure** — source-to-target gradient stops,
-   multiply overlap, contrast behavior, header consistency, and final report
-   state.
+   multiply overlap, contrast behavior, header consistency, quoted-field
+   whitespace identity, and final report state. The identity receipt must prove
+   that leading/trailing whitespace inside quoted fields follows the pinned
+   Mermaid normalization (currently trim-before-node-identity), or record an
+   exact diagnosed divergence; preserving the whitespace while claiming native
+   identity is a failure.
 
 If #192 is used as C3, it cannot merge or contribute to any programme claim
 until that PR itself passes the complete audit loop on its final tuple. If it
@@ -690,7 +736,8 @@ Create focused child issues and PRs for:
 - ER word-form aliases;
 - Timeline `%` comments and unsupported header directions;
 - XY Chart unknown-statement rejection; and
-- Sankey gradients/compositing and header claim consistency through Stack C.
+- Sankey gradients/compositing, quoted-field whitespace identity, and header
+  claim consistency through Stack C.
 
 Each family PR adds the receipt first, proves it discriminates, fixes both agent
 and native paths as applicable, and regenerates the affected claim rows.
@@ -916,6 +963,9 @@ Close #248 only when all of the following hold:
 - agent parse, verification, native render, serialization, mutation, Scene,
   applicable output, accessibility, and interaction behavior agree with the
   case policy;
+- every structured applicable construct is covered by at least one named typed
+  mutation result, every declared mutation has a discriminating oracle, and its
+  preservation oracles prove that unrelated semantic facets remain unchanged;
 - every config key and expanded theme-variable leaf path has exactly one
   executable effect disposition joined to a named A/B invocation pair;
 - capability and citizenship reports derive from passing receipts and
@@ -928,7 +978,9 @@ Close #248 only when all of the following hold:
 - every Phase 0 defect is fixed or truthfully downgraded with a discriminating
   regression receipt;
 - Sankey receipts observe endpoint stops and overlap compositing, not merely a
-  changed stroke byte;
+  changed stroke byte, and prove pinned trim-before-identity behavior for
+  leading/trailing whitespace in quoted fields or an exact diagnosed
+  divergence;
 - generated authorities have no unexplained drift;
 - the full validation ladder passes; and
 - a final cross-programme multi-agent audit of the closure head returns
