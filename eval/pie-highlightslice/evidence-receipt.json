@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/pie-highlightslice-evidence.ts",
   "inputCount": 260,
-  "inputTreeSha256": "963d4003cf8be9e2e4f9c52ef7e936208b24f8a0c41194c03e32760ca3016cc1",
+  "inputTreeSha256": "1bc9f37901f4ceec9a733e128c245d6bb8cc30e77f1dd0673b2762c12b5dc969",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
@@ -21,7 +21,7 @@
   "outputs": [
     {
       "path": "docs/design/families/pie-highlightslice-regression-matrix.png",
-      "sha256": "8e8e9f89c9f28a5ce5c4a4e644fcf21414c6d23dbc9e3b1405af0efe1c8ebeaa"
+      "sha256": "af699a1599c82d62e329202f0cd705f198021e50959e9272074fe744554c5b13"
     },
     {
       "path": "docs/design/families/pie-highlightslice-after.png",

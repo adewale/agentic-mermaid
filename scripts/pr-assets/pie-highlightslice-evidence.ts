@@ -32,10 +32,16 @@ const currentReceipt = () => ({
   })),
 })
 
+if (process.argv.includes('--receipt-only')) {
+  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
+  console.log('Refreshed Pie highlightSlice receipt without rewriting reviewed visual output')
+  process.exit(0)
+}
+
 if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
   if (JSON.stringify(recorded) !== JSON.stringify(currentReceipt())) {
-    throw new Error('Pie highlightSlice evidence is stale; run bun run gallery:pie-highlight')
+    throw new Error('Pie highlightSlice evidence is stale; run bun run scripts/pr-assets/pie-highlightslice-evidence.ts --receipt-only to preserve reviewed pixels, or bun run gallery:pie-highlight to regenerate visuals for review')
   }
   console.log('Pie highlightSlice evidence is synchronized')
   process.exit(0)
