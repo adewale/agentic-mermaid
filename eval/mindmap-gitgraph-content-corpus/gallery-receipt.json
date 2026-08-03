@@ -1140,7 +1140,7 @@
     },
     {
       "path": "src/version.ts",
-      "sha256": "73aabaaf88a8be767f99c115a9cf3f7f3c745661aae4b95f84fae66cc1a5a825"
+      "sha256": "16ad00dfa2e70ee45ee35b72db9ca2cb44b29337ed2f9b7b54f3cbbd2589dd2e"
     },
     {
       "path": "src/xychart/axis-utils.ts",
