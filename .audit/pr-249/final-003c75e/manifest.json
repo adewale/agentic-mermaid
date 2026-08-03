@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "programme": "issue-248-fidelity",
+  "pullRequest": 249,
+  "roundId": "final-after-route-exactset-correction-2",
+  "registeredAt": "2026-08-03T21:56:36Z",
+  "registeredBeforeDispatch": true,
+  "candidate": {
+    "targetBranch": "main",
+    "targetTip": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "mergeBase": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "head": "003c75ee625f6a434937fe531dd48a7013b186a3",
+    "headTree": "35b4ff73240da2a23f45b30ed1ddf3df591e0f8e",
+    "diffCommand": "git diff --binary f203ab6a3faf09a4c2dd4057523f2cf651ca540a...003c75ee625f6a434937fe531dd48a7013b186a3",
+    "diffSha256": "a109557a3c9c09567cf9af1e918976e75b1bbe9dc0f902366b0d10cc02cc8bb8",
+    "mergeStrategy": "squash"
+  },
+  "checks": {
+    "provider": "github-actions",
+    "runId": 30855992530,
+    "supplementalRunIds": [30855992541, 30855991159],
+    "status": "completed",
+    "conclusion": "success",
+    "requiredCheckPolicy": "all checks in the newest exact-head CI run plus target-bound pull-request and push Ruff runs",
+    "focusedChecks": [
+      "clean bun install --frozen-lockfile",
+      "npm ls ip-address --all",
+      "bun test src/__tests__/dependency-security.test.ts",
+      "bun test src/__tests__/docs-consolidation-contract.test.ts",
+      "git diff --check f203ab6a3faf09a4c2dd4057523f2cf651ca540a...003c75ee625f6a434937fe531dd48a7013b186a3"
+    ]
+  },
+  "anchor": {
+    "type": "protected-git-ref",
+    "ref": "refs/heads/audit/pr-249-final-003c75e",
+    "url": "https://github.com/adewale/agentic-mermaid/tree/audit/pr-249-final-003c75e/.audit/pr-249/final-003c75e",
+    "protection": {
+      "enforceAdmins": true,
+      "lockBranch": true,
+      "allowForcePushes": false,
+      "allowDeletions": false
+    }
+  },
+  "promptHashNormalization": "SHA-256 of the UTF-8 prompt file bytes including the final LF",
+  "sessions": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/security_audit_correctness",
+      "runRegistrationId": "pr249-final-003c75e-architecture-2",
+      "promptPath": "architecture-prompt.txt",
+      "promptSha256": "5b9f34f31d50dfcbedd8ec569feda8c74bf648f2a34c88726e5b8cf1963ec43b",
+      "scopeSha256": "5b9f34f31d50dfcbedd8ec569feda8c74bf648f2a34c88726e5b8cf1963ec43b",
+      "state": "registered"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/security_audit_release",
+      "runRegistrationId": "pr249-final-003c75e-upstream-2",
+      "promptPath": "upstream-prompt.txt",
+      "promptSha256": "a4b2a8140420c771d985e6362d7406c65b4a50c213dcbc6556003dd25621841c",
+      "scopeSha256": "a4b2a8140420c771d985e6362d7406c65b4a50c213dcbc6556003dd25621841c",
+      "state": "registered"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/security_audit_tests",
+      "runRegistrationId": "pr249-final-003c75e-adversarial-2",
+      "promptPath": "adversarial-prompt.txt",
+      "promptSha256": "06d54c2e494928d1ce78d4df7165554a0a286e56b070396f2eba2ed00fe3f323",
+      "scopeSha256": "06d54c2e494928d1ce78d4df7165554a0a286e56b070396f2eba2ed00fe3f323",
+      "state": "registered"
+    }
+  ],
+  "reconciliation": {
+    "commissionedRuns": 3,
+    "firstReportsExpected": 3,
+    "state": "registered-not-dispatched"
+  }
+}
