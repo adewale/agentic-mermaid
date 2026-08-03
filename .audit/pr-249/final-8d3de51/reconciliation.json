@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "roundId": "final-after-pr254-rebase-1",
+  "manifestCommit": "b71273bdb59bd988114a644e40019f8821faddd5",
+  "manifestSha256": "8485938f5ade68b6057832bf8b6272cb7e02ddf0be5a6f0285a77ad2ae07b837",
+  "candidateHead": "8d3de5198f1effa6b1c8278ffdb81da71b853ee3",
+  "reports": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/security_audit_correctness",
+      "path": "reports/architecture.md",
+      "sha256": "894da948469d98f5f4449708a2f7059c375463696f2988ad32d6fa14ac555a80",
+      "verdict": "CHANGES_REQUIRED"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/security_audit_release",
+      "path": "reports/upstream.md",
+      "sha256": "bbbfcba475bc55de904b2cf8f488f94d2c55300d688e2796eeff24579fe1fe6a",
+      "verdict": "APPROVED"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/security_audit_tests",
+      "path": "reports/adversarial.md",
+      "sha256": "4bef112c83e30e4b780b6c1d7335eefe46f5c856b5cd30d8b0ff1a7ea9b6560a",
+      "verdict": "APPROVED"
+    }
+  ],
+  "commissionedRuns": {
+    "registered": 3,
+    "firstReportsReceived": 3,
+    "failed": 0,
+    "timedOut": 0,
+    "cancelled": 0
+  },
+  "result": "CHANGES_REQUIRED",
+  "findings": [
+    {
+      "findingId": "ARCH-ROUTE-EXACTSET-001",
+      "severity": "medium",
+      "disposition": "accepted-and-corrected",
+      "correctionCommit": "003c75ee625f6a434937fe531dd48a7013b186a3",
+      "validatingRound": null
+    }
+  ],
+  "humanWitness": "pending",
+  "nextAction": "Run complete CI, register a new protected manifest, and dispatch a complete replacement round against the corrected tuple."
+}

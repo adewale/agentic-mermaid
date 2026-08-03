@@ -1,0 +1,6 @@
+CHANGES_REQUIRED
+
+- **ARCH-ROUTE-EXACTSET-001 — Medium:** Public routes can still be silently omitted from fidelity evidence. The exact-set authorities cover constructs, features, examples, config keys, and theme variables ([lines 295–306]), while `publicRoute` remains an unconstrained string ([lines 371–381]) and validation only covers “every declared route” ([lines 458–470]). This cannot prove requirements such as diagnostics on every accepting public route ([lines 788–802]).
+  - Smallest correction: require a versioned, exact-set public-route registry; type `publicRoute` with its route ID; require every case/config effect to cover every applicable route or provide an evidenced `not-applicable` disposition; fail on missing, unknown, or orphaned routes; include route closure in A2, freshness binding, and §11 closure criteria.
+
+Explicit non-findings: source variants and mutation results are now independently addressable; mutation preservation and coverage are enforceable; Sankey quoted-field trim-before-identity behavior is explicitly covered; offline upstream adapters, local-only paint resources, bounded compositing, runtime bundle exclusion, and #192 quarantine/dependency boundaries are adequately specified.
