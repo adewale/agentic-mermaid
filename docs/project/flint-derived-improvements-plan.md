@@ -2,8 +2,9 @@
 
 > **Status: specification, not implemented.** Derived from
 > [`research/flint-chart-deep-dive.md`](../../research/flint-chart-deep-dive.md)
-> (2026-08-02). This document supplies contracts, file-level design, testing,
-> and verification detail for four workstreams; it is not a second
+> (2026-08-02, aesthetics addendum 2026-08-03). This document supplies
+> contracts, file-level design, testing, and verification detail for six
+> workstreams; it is not a second
 > status-bearing backlog — `TODO.md` is authoritative for active work, and
 > nothing here is committed work until it appears there.
 >
@@ -23,9 +24,13 @@ The four workstreams, in dependency order:
 | WS2 | MCP resources + prompts on local and hosted servers | — | M |
 | WS3 | `BELOW_READABLE_SIZE` raster-legibility warning (`fitTo` / raster budget) | — | S–M |
 | WS4 | MCP App editor view (`open_editor_view` on hosted) | WS2 | M–L |
+| WS5 | Generated perceptual-constants ledger with provenance + confidence tiers | — | S |
+| WS6 | Stressor registry → designed contact sheet + site gallery (no test-page aesthetics) | — | M |
 
-WS1 and WS3 are independent and can land in any order. WS4 rides on WS2's
-resource plumbing (`ui://` templates **are** MCP resources).
+WS1, WS3, WS5, and WS6 are independent and can land in any order. WS4 rides
+on WS2's resource plumbing (`ui://` templates **are** MCP resources). WS5's
+ledger feeds WS6's captions and WS3's floor documentation but blocks
+neither.
 
 ## Shared invariants (apply to every workstream)
 
@@ -527,15 +532,227 @@ the chat client with the tool-call consent path intact. Flint's
 
 ---
 
+## WS5 — Generated perceptual-constants ledger
+
+### Motivation
+
+Every layout, quality, and color decision in this repo rests on a numeric
+constant, and each one has provenance — but scattered: `DEFAULT_BOUNDS` +
+`BOUND_PROVENANCE` in `src/agent/quality.ts`, rubric severities and route
+thresholds in `src/layout-rubric.ts`, the ΔE_OK 0.10 collision floor and
+APCA/WCAG visibility floors in the palette contract, the 40-char label cap
+in verify, WS3's `minLabelPx` once it lands, ASCII truncation limits.
+Flint's `design-stretch-model.md` shows the value of the opposite posture:
+every constant named, valued, and justified in one reviewable document
+(banking 45° ← Cleveland; facet floor 3px ← "readers compare patterns
+rather than read precise values"). The ledger makes our defaults reviewable
+*as a set* and exposes which ones are validated research versus heuristic
+convention — the aesthetics addendum's lesson 2.
+
+### Contract
+
+A **generated** document, `docs/design/perceptual-constants.md`, emitted by
+`scripts/design/perceptual-constants.ts` with a `--check` mode (the
+`characterization:check` pattern). Hand-editing it is a CI failure — the
+no-second-source-of-truth invariant. One row per constant:
+
+| field | meaning |
+|---|---|
+| name | e.g. `maxCrossingsRatio`, `minStep`-analog, `deltaEOkFloor` |
+| value + unit | the shipped default |
+| enforced in | file reference(s) where the constant is read |
+| task-dependence | `global` or the reading task it should vary by (detail vs overview render, pattern-reading vs value-reading) — documentation first, parameterization later |
+| source | citation (Purchase 2002, APCA, WCAG 2.x, Kakoulis–Tollis, …) or `project convention` |
+| confidence | `validated-research` \| `project-convention` \| `heuristic-default` |
+
+The generator imports constants from their homes — constants do **not**
+move into a central module (that refactor is explicitly not required). A
+roster in the generator names what must appear; completeness is
+test-enforced.
+
+The `heuristic-default` tier is the point: its row count is the standing
+backlog of constants that lack evidence, and the prototype plan's
+evidence-before-weight rule applies to upgrading them.
+
+### Testing plan
+
+- **Check mode**: `--check` fails when any imported constant, roster entry,
+  or provenance record changed without regenerating the doc.
+- **Completeness**: every `DEFAULT_BOUNDS` key must have a
+  `BOUND_PROVENANCE` entry *and* a ledger row; every rubric hard metric and
+  every shipped color-contract constant likewise. Adding a bound without
+  provenance fails the test — extending the discipline `BOUND_PROVENANCE`
+  already establishes.
+- **Determinism**: two generator runs produce byte-identical output.
+- **Red→green statement**: change a constant without regenerating → check
+  fails; add a roster entry without provenance → completeness fails.
+
+### Verification / acceptance
+
+The deliverable is the ledger itself plus its gates. Acceptance: all
+rostered constants present with source and confidence tier; CI runs the
+check; `docs/quality.md` and the rubric header link to it as the canonical
+inventory. Success metric over time: the `heuristic-default` count goes
+down, never silently up (a PR adding a heuristic constant must say so).
+
+### Risks
+
+- *Provenance theater* — citing research a constant doesn't actually
+  implement. Mitigation: the confidence tier is mandatory and
+  `heuristic-default` is an acceptable, honest answer.
+- *Scope creep into refactoring constants* — explicitly out of scope; the
+  generator imports from where constants live today.
+
+---
+
+## WS6 — Stressor registry, designed contact sheet, and site gallery
+
+### Motivation
+
+The mechanisms already exist but are scattered and engineer-only:
+`eval/visual-rubric/` renders 44 lettered route-contract scenarios into one
+utilitarian PNG (`bun run contact:sheet`) that doubles as a CI byte-gate
+(`contact-sheet.test.ts` geometry hashes, `contact-sheet-png.test.ts`);
+`scripts/characterization/` and `scripts/pr-assets/` maintain three more
+sheet generators; the palette rollout added hashed machine-readable
+comparisons (prototype-plan lesson 8). What's missing is what Flint's
+gallery has: **organization by named failure mode, a designed human
+surface, and a public home** — while its site plan names the constraint we
+must respect: real diagrams, large renders, unified whitespace, and no
+"test-page aesthetics" on the public surface.
+
+A throwaway demonstrator (2026-08-03, not committed) validated the shape:
+10 cases in three failure-mode sections, rasterized through the same DejaVu
+pipeline as CI, captioned with `measureQuality` chips flagged against
+`DEFAULT_BOUNDS` in DESIGN.md's paper/ink language. It also proved the
+concept pays immediately: it surfaced a real rendering artifact (a class
+docs-corpus example renders a literal `<br>` inside a note label, absent
+from `divergences.json`) and a real caption bug (a trailing-zero formatter
+displayed 100% as 1%) — both of which become required tests below.
+
+### Contract
+
+**1. Stressor registry** (`eval/stressors/registry.ts`): the single source
+of case membership. Each case:
+`{ id, family, failureMode, why, source, provenance, expectations }` where
+`failureMode` is a small closed taxonomy (route-contracts,
+density-and-scale, degenerate-inputs, label-stress, style-stress — extend
+deliberately), `provenance` is `hand-authored | corpus(origin) |
+generator(name)`, and `expectations` names the verify warnings the case is
+*supposed* to produce (an overlong-label stressor EXPECTS
+`LABEL_OVERFLOW`). Existing scenario sources are **referenced, not
+copied** — `eval/visual-rubric/scenarios.ts` stays authoritative for its
+letters and keeps its own pins.
+
+**2. Contact sheet, engineer surface** (`bun run contact:sheet:stressors`):
+two artifacts from one registry —
+- the flat PNG grid (CI byte-gate, exactly today's mechanism extended);
+- a designed self-contained HTML sheet: DESIGN.md tokens (paper `#F5F0E4`,
+  ink, surface cards with hairline `#D8D0C1` borders, serif section
+  headings, mono metric chips, terracotta reserved for out-of-band values
+  and warnings), one section per failure mode with a one-line rationale,
+  renders rasterized via the DejaVu font pipeline so text metrics are
+  honest, captions carrying `measureQuality` values chip-flagged against
+  `DEFAULT_BOUNDS` plus the verify-warning count.
+
+Pinning follows the palette-rollout pattern: a **machine-readable
+manifest** (case ids, per-case render SHA-256, metric values) is the
+hash-pinned artifact; the HTML is regenerated from it and size-ceilinged
+but not byte-pinned.
+
+**3. Site gallery, public surface** (generated page in the website build,
+`website/src/generated/` ephemeral as usual, covered by `website:check`):
+renders the same registry through the site design system. Presentation
+rules — the no-test-page-aesthetics clause:
+- The public **showcase** gallery (existing samples surface) leads with
+  real diagrams under default and flagship looks: large renders, unified
+  whitespace, code secondary. Stressors never mix into it.
+- The **stressor** gallery is a separate, clearly named page in the
+  standards-manual voice ("torture tests", stated purpose up front), same
+  design language, honest metric captions. Hard cases are presented as
+  evidence of discipline — published, not hidden, and never dressed as
+  showcase pieces.
+- Both pages follow DESIGN.md: flat panels, hairline borders, serif
+  headings, terracotta as the single accent; no SaaS gloss.
+
+**4. Convergence rule**: PNG grid, HTML sheet, and site page render the
+same registry through the same render pipeline; a test compares case-id
+sets across all three so they cannot diverge in membership.
+
+### Testing plan
+
+- **Registry integrity**: every case parses and verifies with *exactly* its
+  declared expectations — an expected warning disappearing (renderer
+  improved) or appearing (regression) both fail until the registry is
+  consciously updated. This is the divergence-ledger discipline applied to
+  stressors.
+- **Determinism + pinning**: manifest byte-identical across two runs;
+  manifest hash pinned in a test (conscious re-pin + re-review on any
+  geometry/metric drift — the `contact-sheet.test.ts` contract extended);
+  new registry cases require a pin entry or the test names them.
+- **Caption correctness** (the demonstrator's bug, encoded): a unit test
+  that chip values equal `measureQuality` output for a fixture, including
+  the 100%/boundary formatting cases; a chip flagged iff the metric is
+  outside `DEFAULT_BOUNDS`.
+- **Self-containment + budget**: the HTML sheet passes the
+  no-external-reference lint (shared with WS4) and a measured size
+  ceiling.
+- **Site coverage**: `website:check` covers the gallery page's clean
+  regeneration; a Playwright smoke (preinstalled Chromium) asserts the
+  page renders and shows the registry's case count.
+- **First-find regression**: the `<br>`-in-class-note artifact is filed
+  during implementation (issue or `divergences.json` entry, whichever the
+  triage supports) with a pinned test either way — the sheet's first
+  catch must not evaporate.
+- **Red→green statement**: revert the manifest pin → pinning test fails;
+  break a caption formatter → caption test fails; drop a case from one
+  surface → convergence test fails. State all three in the PR.
+
+### Verification / acceptance (the value demonstration)
+
+- **Review-time value**: one designed sheet regenerated per relevant PR
+  replaces ad-hoc gallery scripts for layout-touching changes; the
+  `scripts/pr-assets/` sheets remain and may migrate into registry
+  sections later (follow-on, not forced).
+- **Discovery value**: the registry's find log — starting with the `<br>`
+  artifact — records what the stressor surface caught and when. A stressor
+  gallery that never catches anything is a smell the log makes visible.
+- **Public honesty value**: `docs/comparison.md` gains one line: we
+  publish our torture tests with instrument readings; the strongest
+  comparable project (Flint) reviews charts by eye in a private gallery.
+- Acceptance: registry + both sheets + site page shipped under the tests
+  above; visual evidence in the PR is the sheet itself (captioned,
+  per good-pr dimension 2); presentation reviewed against DESIGN.md and the
+  no-test-page-aesthetics clause.
+
+### Risks
+
+- *Sheet bloat* — per-section case budgets; the PNG grid stays the CI
+  gate; the HTML sheet exists for humans and has a size ceiling.
+- *Two aesthetics regimes drifting* (CI sheet vs site page) — one
+  registry, one render pipeline, the convergence test.
+- *Test-page aesthetics creeping into the public gallery* — the
+  presentation rules above are contract text; PR review checks against
+  DESIGN.md explicitly.
+- *Stressor cases ossifying* — expectations force conscious updates in
+  both directions (improvement and regression), so the registry tracks the
+  renderer instead of rotting.
+
+---
+
 ## Sequencing and rollout
 
 1. **WS1** (independent, smallest): land the eval + numbers; update README
    and comparison.md.
-2. **WS3 stage 1** (independent): warning + option + parity; stage 2
+2. **WS5** (independent, small): the ledger lands early so WS3's floor and
+   WS6's captions cite it rather than retrofit it.
+3. **WS3 stage 1** (independent): warning + option + parity; stage 2
    (`fitStrategy: 'error'`) immediately after or in the same PR if small.
-3. **WS2**: resource/prompt surfaces + era matrix + differential parity;
+4. **WS6** (independent): registry + engineer sheet first; the site gallery
+   page may follow in a second PR once the sheet is stable.
+5. **WS2**: resource/prompt surfaces + era matrix + differential parity;
    then run the A/B and write it up.
-4. **WS4**: after WS2, behind the capability gate.
+6. **WS4**: after WS2, behind the capability gate.
 
 Each lands as its own PR (WS2 may split into local-surface and
 hosted-surface PRs if the diff grows); every PR follows the good-pr
@@ -554,3 +771,5 @@ listings (WS2/WS4).
 | WS2 | era-matrix units, protocol cases, conformance, drift guards, local/hosted differential | agent-usage A/B: anti-pattern rate with vs without served doctrine, two model tiers |
 | WS3 | contract + property + parity + determinism tests, hosted budget case | corpus scan: N silently-unreadable renders today → 0 silent (all warned) |
 | WS4 | self-containment lint, gating matrix, E2E round trip, App≡CLI byte equivalence, size budget | adoption counts post-release + recorded demo; lab proof is the round trip |
+| WS5 | check mode, completeness vs roster, determinism | the ledger itself; `heuristic-default` count as the standing evidence backlog |
+| WS6 | registry expectations, manifest pinning, caption correctness, convergence, website:check, size ceiling | the find log (first entry: the `<br>` note artifact); one designed sheet replacing ad-hoc PR galleries; the published torture-test page |
