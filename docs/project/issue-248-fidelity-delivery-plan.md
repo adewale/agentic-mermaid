@@ -284,7 +284,7 @@ trusted runner artifacts and automation.
 
 ## 5. Evidence architecture
 
-### 5.1 Construct authority and exact-set joins
+### 5.1 Construct and public-route authority with exact-set joins
 
 The current syntax-feature inventory is derived largely from documentation
 headings; it is not by itself a construct-complete grammar authority. A1 must
@@ -292,17 +292,32 @@ establish a stable construct roster from the pinned grammar/spec blocks,
 official fences, and config authority, with reviewed many-to-many mappings to
 documentation headings and existing manifest coordinates.
 
+A2 must also generate a versioned public-route registry from the canonical
+SDK, CLI, MCP, hosted, browser/editor, and output adapter declarations. A route
+ID represents one executable public entry path and records its family/input
+applicability, accepted config/theme surfaces, reachable stages, and owning
+adapter. It is not a hand-maintained list inside the cases. Adding, removing, or
+renaming a public entry point or route adapter without regenerating this
+authority must fail.
+
 Exact-set validation must prove:
 
 - every pinned built-in construct maps to at least one fidelity case;
 - every case maps back to one or more stable construct IDs;
 - every manifest `syntaxFeature`, official `example`, `configKey`, and
   `themeVariable` appears in its own typed index;
+- every generated public-route ID maps to exactly one owning adapter and every
+  public adapter maps back to one route ID;
+- every case and config/theme effect has one coverage entry for every registry
+  route that can accept the relevant family/input, either an applicable named
+  invocation or an evidenced `not-applicable` disposition;
 - every construct exercised by an official fence is enumerated rather than
   treating the fence as one atomic feature;
 - multiple witnesses may exercise the same construct without inventing new
-  feature IDs; and
+  feature IDs;
 - orphan constructs, orphan cases, stale authorities, and ambiguous ownership
+  fail generation; and
+- missing, unknown, duplicate, or orphaned route IDs and route-coverage entries
   fail generation.
 
 ### 5.2 `FamilyFidelityContract`
@@ -371,7 +386,7 @@ type FidelityStageExpectation =
 interface FidelityInvocation {
   invocationId: string
   sourceRef: string
-  publicRoute: string
+  publicRoute: PublicRouteId
   renderOptions: Readonly<Record<string, JSONValue>>
   config?: Readonly<Record<string, JSONValue>>
   backendId?: string
@@ -379,6 +394,35 @@ interface FidelityInvocation {
   security?: Readonly<Record<string, JSONValue>>
   interaction?: Readonly<Record<string, JSONValue>>
 }
+
+type PublicRouteId = string & { readonly __publicRouteId: unique symbol }
+
+interface FidelityPublicRoute {
+  routeId: PublicRouteId
+  schemaVersion: number
+  surface: 'sdk' | 'cli' | 'mcp' | 'hosted' | 'browser' | 'editor' | 'output'
+  adapterId: string
+  familyIds: readonly [string, ...string[]]
+  acceptedInputs: readonly [
+    'source' | 'config' | 'theme' | 'interaction',
+    ...('source' | 'config' | 'theme' | 'interaction')[],
+  ]
+  stages: readonly [FidelityStage, ...FidelityStage[]]
+}
+
+type FidelityRouteCoverage =
+  | {
+      routeId: PublicRouteId
+      state: 'applicable'
+      invocationIds: readonly [string, ...string[]]
+    }
+  | {
+      routeId: PublicRouteId
+      state: 'not-applicable'
+      invocationIds: readonly []
+      reasonCode: string
+      authorityEvidence: readonly [string, ...string[]]
+    }
 
 interface FidelitySource {
   sourceId: string
@@ -432,6 +476,7 @@ interface FamilyFidelityCase {
   upstreamRevision: string
   sources: readonly [FidelitySource, ...FidelitySource[]]
   invocations: readonly [FidelityInvocation, ...FidelityInvocation[]]
+  routeCoverage: readonly [FidelityRouteCoverage, ...FidelityRouteCoverage[]]
   mutationPlan: FidelityMutationPlan
   comparisons: readonly FidelityComparison[]
   stages: readonly [FidelityStageExpectation, ...FidelityStageExpectation[]]
@@ -456,8 +501,12 @@ opaque preservation caps the aggregate at `source-preserved` even when
 downstream native rendering succeeds.
 
 Every source reference, expectation, diagnostic, result reference, and mutation
-input resolves to a declared object, and every declared route has an exact
-stage-coverage policy. A comparison names the exact invocation-stage or
+input resolves to a declared object. For each case, the route-coverage route-ID
+set must equal the applicable generated registry set. Every applicable entry
+resolves to at least one invocation on that exact route and has the route's
+exact stage-coverage policy; every `not-applicable` entry carries governed
+authority evidence. Unknown routes, uncovered registry routes, and orphaned
+invocations fail validation. A comparison names the exact invocation-stage or
 mutation result it consumes; an oracle cannot substitute a hidden source,
 stage, invocation, or mutation. Define the stage dependency graph explicitly.
 A locally blocked downstream stage remains semantically
@@ -550,7 +599,8 @@ Use a two-tier dataflow:
    versioned aggregate capability index consumed by runtime family descriptors,
    CLI discovery, and public report generators;
 3. freshness hashes bind the aggregate to case definitions, receipt results,
-   projector/oracle/schema versions, divergence ledgers, and upstream revision;
+   the public-route registry and adapter versions, projector/oracle/schema
+   versions, divergence ledgers, and upstream revision;
    and
 4. build metafile, tarball, and bundle negative tests prove that Mermaid oracle
    code, case source, raw receipts, and semantic snapshots do not enter Node,
@@ -621,8 +671,9 @@ implementer-authored manual results are not substitutes after bootstrap.
 2. **A2: fidelity contract and runner skeleton**
    - add stable `caseId`, discriminated authority references, construct IDs,
      deterministic receipt schema, exact-set indexes for features/examples/
-     config keys/theme variables, named route invocations, typed mutations, A/B
-     comparisons, and a small cross-family exemplar set;
+     config keys/theme variables/public routes, typed route applicability and
+     named invocations, typed mutations, A/B comparisons, and a small cross-
+     family exemplar set;
    - keep cases, raw receipts, snapshots, and upstream adapters behind an
      enforced test/eval-only import boundary;
    - add the deterministic compact-index generator contract and initial bundle
@@ -951,8 +1002,13 @@ Close #248 only when all of the following hold:
 
 - every officially authorable construct for every claimed built-in family has
   an executed receipt;
-- the construct, feature, example, config-key, theme-variable, and case indexes
-  have exact-set closure with no orphan or ambiguous ownership;
+- the construct, feature, example, config-key, theme-variable, public-route,
+  and case indexes have exact-set closure with no orphan or ambiguous
+  ownership;
+- every case and config/theme effect covers every applicable generated public
+  route with a named invocation, or carries an evidenced `not-applicable`
+  disposition; missing, unknown, duplicate, and orphaned route entries are
+  zero;
 - every official fence has a reviewed disposition;
 - every nonblank statement is modeled, preserved with an exact route-specific
   typed runtime diagnostic, or rejected; no silent semantic preservation can
