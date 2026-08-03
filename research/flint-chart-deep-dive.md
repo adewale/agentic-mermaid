@@ -286,6 +286,106 @@ Ordered by expected value.
   because it is optional with graceful fallback; a mandatory annotation layer
   on Mermaid source would break corpus compatibility, our reason to exist.
 
+## Addendum (2026-08-03): Flint and computational aesthetics
+
+Question examined: does Flint's approach to aesthetics — or computational
+aesthetics specifically — teach us anything beyond the layout-contract
+lessons above? Grounded against `docs/quality.md`,
+`docs/computational-aesthetics-prototype-plan.md`, `src/layout-rubric.ts`,
+and Flint's `design-stretch-model.md`, `color-decisions.md`,
+`test_plan.md`, and `website-design-plan.md`.
+
+### The structural difference
+
+The two projects put computational aesthetics on **opposite sides of the
+pipeline**. Flint's aesthetics are *feed-forward*: perceptual principles are
+compiled into closed-form decisions — banking to 45° (Cleveland) blended
+50/50 in log space with density pressure, a target band aspect ratio of 10,
+elasticity exponents tuned to encoding robustness (α = 0.3 for position
+"because position encoding is robust"), floors of 6 px steps / 45 px arcs /
+60 px radius, `maxColorValues` 24, cat10/cat20 sizing by cardinality, and
+diverging midpoints at semantic zero. Ours are *feedback*: ELK decides, then
+`layout-rubric.ts` (Purchase/Tamassia/Kakoulis–Tollis with provenance),
+`QualityBounds`, the ΔE_OK/APCA color contract, and the periodic LLM judge
+verify. Flint has **no evaluative layer at all**: `test_plan.md` describes
+combinatorial fixture generators and an interactive human gallery
+(`ChartGallery.tsx`) — no snapshot tests, no perceptual metrics, no
+deterministic quality gate, no VLM in CI. The VLM judging in the paper is an
+offline research instrument, not part of the product loop. Their aesthetic
+quality rests entirely on the model being right, checked by human eyes.
+
+Two consequences. First, a genuine differentiator to state in
+`docs/comparison.md`: *Flint generates good defaults but cannot tell an
+agent that a particular render is bad; we can* — for an agent workflow,
+the evaluative half is what makes self-correction possible. Second, a
+vindication: the prototype plan's governing rule (no scalar beauty score;
+domain, runtime, reachability, and evidence before a mechanism ships) is
+not over-caution — the strongest comparable project simply declined to
+build the evaluative half rather than build it loosely.
+
+### Where Flint is ahead (transferable)
+
+1. **Task-indexed floors.** Their minimum sizes depend on the *reading
+   task*: facet bars may shrink to 3 px (vs 6 px single-chart) "because
+   readers compare patterns rather than read precise values." We treat
+   floors and bounds as global. The analog: legibility floors and
+   `QualityBounds` parameterized by declared purpose (detail render vs
+   overview/thumbnail; SVG-for-reading vs ASCII-for-structure), instead of
+   one band for all uses. This also refines WS3: `minLabelPx` could carry a
+   purpose-derived default rather than a single constant.
+2. **A perceptual-constants ledger.** Every Flint constant is named, valued,
+   and justified in one document. Our equivalents (QualityBounds defaults,
+   rubric thresholds, color floors, the 40-char label cap) are scattered
+   across code and docs, each with provenance but no single ledger. One
+   `docs/design/` page — constant, value, source, task-dependence,
+   confidence — matches the evidence discipline we already claim and makes
+   the defaults reviewable as a set.
+3. **Aesthetic stressor matrices as a first-class corpus.** Their fixture
+   generators enumerate *aesthetic failure modes by name* — label overflow,
+   legend saturation, discrete-axis cutoff, sparse dropout, 4,000-point
+   density — rendered in an interactive gallery that doubles as human
+   review surface. Our color rollout already built the mechanism (frozen
+   SVGs, extracted colors, hashed contact sheet, `--check` on drift —
+   prototype-plan lesson 8); the lesson is to *promote* it: a standing
+   generator-driven hard-case gallery on the site, organized by failure
+   mode, serving as both review surface and regression corpus.
+4. **Closed-form aspect-ratio decisions where the family allows.** We
+   *check* AR in a loose 0.2–5.0 band; Flint *decides* AR. For ELK
+   families that's ELK's territory, but for the families whose layout we
+   compute directly (pie, radar, quadrant, timeline, xychart, mindmap's
+   radial packing) target-AR rules are closed-form, deterministic, and
+   cheap — candidates for the prototype pipeline with the usual
+   evidence-before-weight gate.
+5. **Effective visual count.** Pie radius uses
+   `N_eff = min(100, Σvᵢ/min(vᵢ))` — aesthetic load measured as *visual*
+   item count (tiny slices weigh more), not item count. Possible analog:
+   weighting density/spacing metrics by label length or edge length.
+   Prototype-tier at best; listed for completeness.
+
+### Where we are ahead (keep, and say so)
+
+- **Color guarantees.** Flint selects scheme *classes* well
+  (semantics-driven diverging/sequential/categorical) but has nothing like
+  the shipped constant-lightness OKLCH ramps, the ΔE_OK collision floor, or
+  the APCA+WCAG visibility floors. Their answer to categorical crowding is
+  a cap (`maxColorValues` 24) and backend delegation; our
+  harmony-vs-distinctness rejection (4/360 palettes survive Cohen-Or over
+  the distinctness floor) is the rigorous treatment of the same tension.
+- **Deterministic verification.** The rubric's hard-zero metrics, the
+  drift sentinel, and `measureQuality`/`checkQuality` per PR have no Flint
+  counterpart. This is the half of computational aesthetics they skipped.
+
+### Product-surface note
+
+Their `website-design-plan.md` aims the gallery at "readable by default,
+professionally presented" on *real datasets*, "large images, clear grids,
+unified whitespace," code secondary, explicitly avoiding "test-page
+aesthetics" — conventions benchmarked against ECharts/Observable/Vega-Lite
+docs. Same method as our `research/` site studies; the one import worth
+taking is *real diagrams over synthetic fixtures* in the public gallery,
+with the stressor gallery (item 3 above) as the separate, honest hard-case
+surface.
+
 ## Sources
 
 - Kept: [microsoft.github.io/flint-chart](https://microsoft.github.io/flint-chart/) — project site (SPA; content thin when fetched, used for orientation).
