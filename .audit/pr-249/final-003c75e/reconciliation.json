@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "roundId": "final-after-route-exactset-correction-2",
+  "manifestCommit": "37dabeab601d02f86e1fc1f60fb9e912108841ca",
+  "manifestSha256": "3d2df184151296f75d46fbaff20b1be24047abb482818bb8fbed2f2026300127",
+  "candidateHead": "003c75ee625f6a434937fe531dd48a7013b186a3",
+  "reports": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/security_audit_correctness",
+      "path": "reports/architecture.md",
+      "sha256": "212850070594a116241fb23c926c9709fc6cfe9c99be07d42db29ca935a33c7e",
+      "verdict": "APPROVED"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/security_audit_release",
+      "path": "reports/upstream.md",
+      "sha256": "a6b09c58ee52aec87d0ca8bb6c578fa2d08dd64c66b061b9f0d329b73bf26a37",
+      "verdict": "APPROVED"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/security_audit_tests",
+      "path": "reports/adversarial.md",
+      "sha256": "ef7d95b2747d80f8f70ccf70ccfc36b58618fb9df0c2a0ca1708cb92fae2bbc2",
+      "verdict": "APPROVED"
+    }
+  ],
+  "commissionedRuns": {
+    "registered": 3,
+    "firstReportsReceived": 3,
+    "failed": 0,
+    "timedOut": 0,
+    "cancelled": 0
+  },
+  "result": "APPROVED",
+  "validatedFindings": [
+    {
+      "findingId": "ARCH-ROUTE-EXACTSET-001",
+      "correctionCommit": "003c75ee625f6a434937fe531dd48a7013b186a3",
+      "disposition": "verified-closed-by-all-three-roles"
+    }
+  ],
+  "humanWitness": "pending",
+  "finalPreMergeTupleCheck": "pending",
+  "nextAction": "An independent maintainer must witness the immutable report bytes, then verify the final PR tuple and checks immediately before merge."
+}
