@@ -81,10 +81,9 @@ Every receipt must identify:
 - stable case ID, family, construct IDs, and upstream authority coordinates;
 - exact upstream authority revision;
 - minimal authored source;
-- expected agent disposition: `structured`, `opaque`, or `reject`;
-- expected render disposition: `native`, `diagnosed`, or `reject`;
-- normalized semantic expectation;
-- exact expected diagnostics;
+- a typed expectation for every pipeline stage, including whether it applies;
+- a versioned semantic oracle for every applicable native stage;
+- exact structured diagnostic expectations for every non-native stage;
 - applicable serialization, mutation, layout, Scene, SVG, terminal,
   interaction, configuration, and accessibility implications; and
 - a named divergence ID when local behavior intentionally differs.
@@ -107,8 +106,12 @@ Receipt aggregation uses the following policy:
   source or the output surface; and
 - `absent`: there is neither implementation nor an honest supported envelope.
 
-Unknown, uncovered, opaque-only, and divergent cases cannot contribute to a
-family-wide native claim. `diagnosed` is valid only when the actual public path
+Unknown, uncovered, opaque, and divergent cases cannot contribute to a
+family-wide native claim. Whenever the agent surface applies, `native`
+aggregation requires a structured agent disposition, a passing structured
+semantic projection, and native render semantics. An opaque agent case caps
+the construct and public claim at `source-preserved` even when the native
+renderer succeeds. `diagnosed` is valid only when the actual public path
 emits the exact asserted runtime diagnostic. A divergence-ledger entry alone
 cannot manufacture diagnosed behavior. Silent loss remains `source-preserved`
 or `absent`, as applicable, until a runtime diagnostic or native fix lands.
@@ -141,12 +144,18 @@ must pass the following loop before it is marked ready or merged.
    uncommitted or dirty candidate cannot begin a formal audit round.
 3. Run the mandatory baseline and touched-authority checks from §9.
 4. Record the exact target branch, target-tip SHA, merge-base SHA, head SHA, and
-   intended merge strategy. This tuple identifies the effective candidate.
-5. Freeze implementation work while the auditors inspect that tuple.
+   intended merge strategy, plus the head tree and full diff digest. This tuple
+   and digest identify the effective candidate.
+5. Before dispatch, create a content-addressed round manifest that registers
+   the three role/session/run IDs, prompt/scope hashes, candidate tuple, tree/
+   diff digest, and timestamp.
+6. Freeze implementation work while the auditors inspect that registered
+   candidate.
 
 ### 4.2 Run at least three independent agent audits
 
-Use one distinct, read-only agent/session per role in independent contexts.
+Use one distinct, trusted-runner-issued read-only agent/session per role in
+independent contexts.
 Auditors must not see or coordinate with the other auditors before submitting
 their first report. The implementation agent may orchestrate the audit but must
 not count as an auditor or reuse one session for multiple roles.
@@ -178,6 +187,11 @@ Each auditor must return:
 
 An audit that only summarizes the PR is not an approval.
 
+Every commissioned run must resolve to a recorded first report, failure,
+timeout, or cancellation. Do not replace or omit an unfavorable, failed, or
+abandoned run. A replacement requires a new manifest and a new round containing
+the complete registered role set.
+
 ### 4.3 Fix, retest, and audit again
 
 1. Preserve each auditor's first report verbatim, then consolidate the findings
@@ -193,14 +207,19 @@ Any change to the head SHA, target-tip SHA, merge-base SHA, target branch, or
 intended merge strategy invalidates checks and approval and requires another
 round. This includes target-branch advancement, retargeting, parent-PR merge,
 and rebasing even when the child head tree appears unchanged. Immediately
-before merge, compare the current tuple with the final audit record and fail
-closed on any difference.
+before merge, compare the current tuple, tree/diff digest, required workflow
+revision, and newest non-superseded provider-issued check runs with the final
+audit record and fail closed on any difference. A newer failed or cancelled run
+for the same tuple supersedes an older success.
 
 ### 4.4 Preserve audit evidence in the PR
 
-The PR conversation must preserve each individual first report verbatim or by
-an immutable link and identify the distinct session/role that produced it. It
-must also contain an audit table with:
+The trusted runner must preserve each individual first report as a
+content-addressed immutable artifact. Each artifact records role, actor/session/
+run identity, candidate tuple, tree/diff digest, prompt/scope hash, timestamp,
+verbatim report, and artifact hash. The PR conversation contains immutable
+pointers and hashes; mutable pasted comments are not the sole evidence. It must
+also contain an audit table with:
 
 | Round | Target | Target tip | Merge base | Head | Strategy | Individual reports | Result |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -215,8 +234,35 @@ reports. The final row must identify the audited tuple and show approval from
 every role with no unresolved finding. Reviewers must be able to trace a
 finding to its correction without accessing an ephemeral agent transcript.
 Readiness automation added by A0 must reject a missing report, reused role,
-unresolved finding, or approval bound to a stale tuple; implementer-authored
-summary text alone is not audit evidence.
+unreconciled commissioned run, unresolved finding, invalid artifact hash, or
+approval bound to a stale tuple/digest; implementer-authored summary text alone
+is not audit evidence. The final readiness job runs after the final audit and
+accepts only the newest required provider-issued check for each declared check
+identity.
+
+### 4.5 Manual bootstrap for this plan and A0
+
+This plan PR and the A0 governance PR necessarily precede the trusted audit
+runner. They use one explicit, temporary bootstrap protocol; no later PR may
+claim this exception:
+
+1. commit a clean candidate and record target tip, merge base, head, tree, diff
+   digest, and squash strategy;
+2. run `git diff --check <merge-base>...<head>` and verify the changed-path set;
+3. validate the external issue/PR links with `gh issue view 248` and
+   `gh pr view 192`, and require the target-bound `gh pr checks` result;
+4. pre-register the three sessions in a timestamped PR comment before dispatch;
+5. post every individual first report under a stable comment ID, record its
+   SHA-256 in the finding ledger, and verify that its GitHub `updated_at` value
+   has not changed at final readiness;
+6. reconcile every commissioned session, fix every actionable finding, and
+   repeat against each new tuple until unanimous approval; and
+7. have a human maintainer verify the final tuple, hashes, comments, and checks
+   before merge.
+
+A0 must add a deterministic `bun run check:programme-docs` command for future
+plan/governance link and path validation and replace this bootstrap with trusted
+runner artifacts and automation.
 
 ## 5. Evidence architecture
 
@@ -253,20 +299,37 @@ type FidelityAuthorityRef =
   | { kind: 'example'; id: string }
   | { kind: 'config-key'; id: string }
 
-type SurfaceApplicability =
-  | { state: 'applicable' }
-  | { state: 'not-applicable'; reasonCode: string; upstreamEvidence: string[] }
+type FidelityDiagnosticExpectation = {
+  stage: FidelityStage
+  code: string
+  stableFields: Readonly<Record<string, string | number | boolean>>
+  cardinality: { min: number; max: number }
+  order: 'exact' | 'any'
+}
 
-type FidelityExpectation =
+type FidelityStageExpectation =
   | {
-      renderDisposition: 'native'
-      semanticSnapshot: FamilySemanticSnapshot
-      expectedDiagnostics: readonly string[]
+      state: 'not-applicable'
+      reasonCode: string
+      upstreamEvidence: readonly [string, ...string[]]
     }
   | {
-      renderDisposition: 'diagnosed' | 'reject'
-      semanticSnapshot?: FamilySemanticSnapshot
-      expectedDiagnostics: readonly [string, ...string[]]
+      state: 'applicable'
+      disposition: 'native'
+      oracle: { id: string; schemaVersion: number }
+      diagnostics: readonly FidelityDiagnosticExpectation[]
+    }
+  | {
+      state: 'applicable'
+      disposition: 'source-preserved'
+      oracle: { id: string; schemaVersion: number }
+      diagnostics: readonly FidelityDiagnosticExpectation[]
+    }
+  | {
+      state: 'applicable'
+      disposition: 'diagnosed' | 'reject'
+      oracle?: { id: string; schemaVersion: number }
+      diagnostics: readonly [FidelityDiagnosticExpectation, ...FidelityDiagnosticExpectation[]]
     }
 
 interface FamilyFidelityCase {
@@ -276,19 +339,33 @@ interface FamilyFidelityCase {
   authority: FidelityAuthorityRef
   upstreamRevision: string
   source: string
-  expectedAgentDisposition: 'structured' | 'opaque' | 'reject'
-  expectation: FidelityExpectation
-  surfaces: Record<FidelitySurface, SurfaceApplicability>
+  stages: Record<FidelityStage, FidelityStageExpectation>
   divergenceId?: string
 }
 ```
 
-`FamilySemanticSnapshot` must be a versioned, family-discriminated union rather
-than `unknown`. Schema validation must reject a native case without a semantic
-snapshot, a diagnosed/rejected case without an exact diagnostic, and any
-`not-applicable` surface without a typed reason and upstream evidence. Keep
-expectations deterministic; do not encode arbitrary executable callbacks in
-generated JSON authorities.
+`FidelityStage` covers detection, agent parse, verification, native parse,
+configuration, layout, Scene, SVG, PNG, terminal, serialization, mutation,
+accessibility, and interaction. Oracle IDs resolve through a runner-owned typed
+registry whose outputs are versioned, family-discriminated semantic or
+implication snapshots; generated JSON never embeds arbitrary executable
+callbacks.
+
+Schema validation must reject a native applicable stage without an oracle, a
+source-preserved stage without a preservation oracle, a diagnosed/rejected
+stage without an exact structured diagnostic, and any not-applicable stage
+without a typed reason and upstream evidence. Source preservation may be silent
+and therefore does not imply a public diagnostic. When agent parse applies,
+native aggregation additionally requires a structured agent oracle; opaque
+preservation caps the aggregate at `source-preserved` even when downstream
+native rendering succeeds.
+
+Define short-circuiting explicitly: detection or native parse rejection makes
+dependent downstream stages not applicable with a `blocked-by:<stage>` reason;
+opaque agent preservation still executes independently applicable native-render
+checks but cannot be promoted to an agent-native claim. Stage-specific
+diagnostics must identify the public route that emitted them and cannot be
+satisfied by a warning from another surface.
 
 Pinned Mermaid rejecting the source is the only ordinary basis for local
 `reject`. An official fence may also be rejected when it is proven partial or
@@ -311,9 +388,10 @@ detection
 ```
 
 It records disposition and semantic results, not just thrown/not-thrown status.
-Opaque agent success paired with native render failure must be an explicit
-diagnosed policy rather than `verify.ok === true` under an unqualified native
-claim.
+Every opaque agent outcome caps the applicable construct/public claim at
+`source-preserved`, regardless of native-render success. Opaque agent success
+paired with render failure additionally requires an exact diagnosed policy
+rather than `verify.ok === true` under an unqualified claim.
 
 ### 5.4 Family semantic projectors
 
@@ -342,7 +420,28 @@ adapter binds to the declared revision, resets or isolates mutable upstream DB
 state per case, and emits a deterministic typed/versioned snapshot consumed by
 the receipt.
 
-### 5.5 Capability and citizenship projection
+### 5.5 Runtime projection boundary
+
+Use a two-tier dataflow:
+
+1. case definitions, authored witnesses, upstream adapters, semantic
+   expectations, raw receipts, and divergence authorities live in test/eval-
+   only modules that production code cannot import;
+2. one deterministic generator validates those authorities and emits a compact,
+   versioned aggregate capability index consumed by runtime family descriptors,
+   CLI discovery, and public report generators;
+3. freshness hashes bind the aggregate to case definitions, receipt results,
+   projector/oracle/schema versions, divergence ledgers, and upstream revision;
+   and
+4. build metafile, tarball, and bundle negative tests prove that Mermaid oracle
+   code, case source, raw receipts, and semantic snapshots do not enter Node,
+   browser, CLI, MCP, hosted, or package runtime artifacts.
+
+Runtime surfaces consume the derived index, never the dev-only runner. Public
+reports and runtime discovery therefore share one generated result without
+shipping the evidence corpus.
+
+### 5.6 Capability and citizenship projection
 
 Replace blanket built-in capability evidence with aggregation over passing
 receipts. Section A, the syntax capability ledger, citizenship, CLI discovery,
@@ -358,20 +457,33 @@ description, and ensure every PR is green against its actual target branch.
 
 ### A0 — programme governance prerequisite
 
-Land this before opening non-`main`-targeted implementation stacks:
+Land this immediately after the plan and before every implementation or
+adoption PR. Only this plan and A0 may use the manual bootstrap in §4.5:
 
-- make canonical CI run for every pull-request target branch, or provide an
-  equivalent required reusable/manual workflow bound to the exact target-tip,
-  merge-base, and head tuple;
-- extend the PR template and readiness tooling to require three distinct
-  individual audit reports, the finding ledger, and the current tuple;
+- make canonical trusted CI run for every programme pull-request target branch
+  and attest the exact target tip, merge base, head, tested merge result, and
+  workflow revision;
+- protect every temporary programme base with a ruleset or sole merge bot,
+  disallow bypass and force-push, and enforce the declared squash strategy;
+- add trusted multi-agent runner artifacts, pre-registered round manifests,
+  distinct actor/session/run identities, content hashes, and reconciliation of
+  failed/timed-out/abandoned runs;
+- extend the PR template and readiness tooling to require the three immutable
+  individual reports, finding ledger, newest check identities, and current
+  tuple/tree/diff digest;
 - fail readiness when reports are missing, roles are reused, findings remain
-  unresolved, or approvals/checks are stale; and
-- add the pre-merge tuple comparison required by §4.3.
+  unresolved, runs are unreconciled, or approvals/checks are stale or
+  superseded;
+- from the first behavioral repair, run a trusted exact-head red/green job in a
+  detached worktree that applies the content-addressed revert/sabotage, verifies
+  the expected red signature, restores the audited tree, and verifies green;
+- add `bun run check:programme-docs`; and
+- run the final readiness/tuple comparison from §4.3 after the final audit.
 
 The existing CI workflow runs pull requests targeting `main`; without A0, a
-child PR targeting its immediate parent can appear reviewable without a
-canonical CI result against its actual base.
+child PR targeting its immediate parent can appear reviewable without canonical
+CI or an enforceable merge gate against its actual base. Locally recorded or
+implementer-authored manual results are not substitutes after bootstrap.
 
 ### Stack A — authority and truthful evidence
 
@@ -386,12 +498,24 @@ canonical CI result against its actual base.
    - add stable `caseId`, discriminated authority references, construct IDs,
      deterministic receipt schema, exact-set indexes for features/examples/
      config keys, and a small cross-family exemplar set;
+   - keep cases, raw receipts, snapshots, and upstream adapters behind an
+     enforced test/eval-only import boundary;
+   - add the deterministic compact-index generator contract and initial bundle
+     exclusion tests;
    - do not change public capability claims yet.
-3. **A3: semantic projector API and initial projectors**
-   - establish normalized snapshot/versioning rules;
-   - land enough projectors to exercise the Phase 0 defects.
+3. **A3: semantic projectors for the complete family roster**
+   - A3.0 establishes the runner-owned oracle registry and normalized snapshot/
+     versioning rules, then lands enough projectors for Phase 0;
+   - A3.x family shards complete projectors for all 15 families currently on
+     `main`, with exact-set tracking; and
+   - the Sankey projector shard depends on C3 enrollment.
 4. **A4: receipt-driven reports and citizenship**
    - feed divergences and receipts into capability aggregation;
+   - generate the compact versioned runtime/report index and bind its freshness
+     hash to cases, results, projectors/oracles/schemas, divergences, and upstream
+     revision;
+   - prove raw evidence and Mermaid oracle code are absent from every shipped
+     bundle and tarball;
    - deliberately downgrade every not-yet-receipted claim during migration;
    - classify known defects from actual behavior: `diagnosed` only when the
      public path emits the exact asserted diagnostic, otherwise
@@ -402,7 +526,7 @@ canonical CI result against its actual base.
 Primary dependency graph:
 
 ```text
-A0 ───────────────────────────────> every stacked implementation PR
+A0 ───────────────────────────────> every implementation/adoption PR
 A1 -> A2 -> A3 -> A4
           |           |-> family repairs + relevant B guardrail/projector
           |           |-> Stack D official-example closure
@@ -412,8 +536,9 @@ A1 -> A2 -> A3 -> A4
 ```
 
 Family repairs depend on A4 plus their family projector and relevant guardrail.
-Stacks D and E depend on the receipt schema and aggregation base. B and generic
-C infrastructure may begin earlier where they do not consume those authorities.
+Each family shard in Stacks D and E depends on that family's completed projector
+as well as the receipt schema and aggregation base. B and generic C
+infrastructure may begin earlier where they do not consume those authorities.
 
 ### Stack B — parser and seam guardrails
 
@@ -443,9 +568,17 @@ for A4's report migration.
    - test reference ownership, namespacing, deterministic serialization, local-
      only references, and external-reference rejection.
 2. **C2: typed compositing**
-   - add the bounded blend-mode behavior required for upstream Sankey overlap;
+   - model compositing as an explicit Scene feature/field independent of paint
+     resources, with a bounded blend-mode set and deterministic inheritance/
+     defaulting rules;
+   - decide and test the core Scene contract-version migration separately from
+     C1, including old snapshot and consumer compatibility;
+   - explicitly version compositing through External Scene or deliberately
+     reject it at that boundary with an exact diagnostic;
+   - add backend-specific Scene-to-output conformance fixtures for every
+     supported mode rather than inferring compositing from gradient support;
    - update backend capability claims and conformance so unsupported backends
-     cannot retain a false native resource claim; and
+     cannot retain a false native compositing claim; and
    - add explicit terminal loss/projection diagnostics for gradients and
      compositing.
 3. **C3: Sankey enrollment** — rebased/narrowed #192 or its replacement,
@@ -456,10 +589,13 @@ for A4's report migration.
    multiply overlap, contrast behavior, header consistency, and final report
    state.
 
-If #192 is used as C3, that PR itself must pass the complete audit loop after
-its final rebase. If it merges before this programme can audit it, the first
-C-stack PR must audit the imported Sankey implementation against its effective
-merged base before relying on it.
+If #192 is used as C3, it cannot merge or contribute to any programme claim
+until that PR itself passes the complete audit loop on its final tuple. If it
+has already merged before A0 can enforce that gate, treat the imported Sankey
+diff as quarantined: a dedicated adoption PR must identify and audit the entire
+effective imported diff, add the required receipts, and pass the loop before
+any later C-stack work or public claim may rely on it. Retrospective inspection
+inside an otherwise unrelated C-stack PR is not sufficient.
 
 ### Family repair PRs — Phase 0
 
@@ -554,7 +690,10 @@ Rules:
 1. target the immediate parent branch, not `main`, while the parent is open;
 2. keep each diff meaningful when viewed against that parent;
 3. do not hide generated artifacts or unrelated refactors in the top stack PR;
-4. after a parent merges, rebase or retarget descendants promptly;
+4. after a parent merges, rebase or recreate each descendant on the merged
+   parent when the parent was squash-merged; retargeting alone is permitted only
+   when ancestry was preserved and exact merge-base/diff proof shows that the
+   child candidate is unchanged;
 5. rerun checks and the full multi-agent audit loop after every rebase;
 6. merge from the bottom of the stack upward; and
 7. split a stack if reviewers must understand more than one semantic decision
@@ -576,7 +715,8 @@ Every implementation PR must state:
 - focused receipt/test and a reproducible red/green record containing the
   defective base SHA or deterministic sabotage/probe ID, patch/hash, exact
   command, expected failure signature, observed red failure, and green result
-  on the audited head;
+  on the audited head, all linked to the required trusted exact-head job rather
+  than supplied only as implementer-authored prose;
 - mandatory baseline and touched-authority checks, with exact-head CI job URLs
   or command/result records;
 - generated artifacts changed and why;
@@ -618,7 +758,12 @@ Add deterministic checks by touched authority:
 
 The audited tuple must have canonical CI or the A0 equivalent against its exact
 target base; a green run against `main` cannot substitute for a stacked PR whose
-target is a parent branch.
+target is a parent branch. A0 defines the required check identities; readiness
+accepts only the newest non-superseded provider-issued run for each identity,
+bound to the tested merge tree and required workflow revision. From the first
+behavioral repair onward, the trusted red/green job is a required check and must
+run the content-addressed revert or sabotage in a detached worktree against the
+exact audited head. A manual command transcript cannot satisfy either gate.
 
 The final programme closure run includes at least:
 
@@ -670,12 +815,19 @@ Close #248 only when all of the following hold:
   closure with no orphan or ambiguous ownership;
 - every official fence has a reviewed disposition;
 - every nonblank statement is modeled, typed-preserved, or rejected;
+- every applicable agent-native claim has a passing structured agent oracle;
+  an opaque agent outcome remains capped at `source-preserved` even if native
+  rendering succeeds;
 - agent parse, verification, native render, serialization, mutation, Scene,
   applicable output, accessibility, and interaction behavior agree with the
   case policy;
 - every config key has exactly one executable effect disposition;
 - capability and citizenship reports derive from passing receipts and
   downgrade divergences automatically;
+- every enrolled family has a complete, versioned semantic projector and every
+  shipped runtime/report claim comes from the compact aggregate index; raw
+  cases, Mermaid oracles, receipts, and snapshots are absent from runtime,
+  browser, CLI, MCP, hosted, and package artifacts;
 - all upstream oracle revisions are closed and reproducible;
 - every Phase 0 defect is fixed or truthfully downgraded with a discriminating
   regression receipt;
@@ -686,7 +838,23 @@ Close #248 only when all of the following hold:
 - a final cross-programme multi-agent audit of the closure head returns
   unanimous `APPROVE` with no actionable findings.
 
-## 12. Strengths to preserve
+## 12. Governance risks and ownership
+
+A0 has one named maintainer owner and is itself a merge prerequisite, not an
+optional reporting enhancement. Repository rules or the sole merge bot must
+prevent a privileged bypass from merging a programme PR without exact-base CI,
+complete audit artifacts, and final readiness. Any emergency bypass is a
+programme stop: quarantine the resulting diff and use the adoption procedure
+defined for #192 before relying on it.
+
+Multi-agent review reduces blind spots but does not prove independence when all
+auditors use correlated models, prompts, or training data. The trusted runner
+must preserve prompt/scope hashes and actor/session/run identities, rotate or
+diversify audit implementations where available, and record correlated-model
+risk in the final residual-risk report. Human maintainer verification remains
+mandatory for the manual bootstrap and final programme closure.
+
+## 13. Strengths to preserve
 
 Do not weaken the repository's existing deterministic layout/output contracts,
 typed registry enrollment, role/primitive Scene admission, opaque source
