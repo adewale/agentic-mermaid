@@ -19,6 +19,14 @@ The programme has two inseparable outcomes:
 2. capability and citizenship claims are generated from construct-level
    semantic receipts so the same class of overclaim cannot recur.
 
+The architecture is deliberately factored. One generated authority fixes the
+16-family scope. Family cases prove construct semantics once through the
+canonical core. Generated route-conformance cases prove that CLI, SDK, MCP,
+editor, website, and output adapters preserve or accurately diagnose those
+semantics. One executable gate joins both results into the compact public
+capability index. A0 enforces candidate identity and evidence provenance; it is
+not a mandate to build a general-purpose governance platform.
+
 Fixing only the audit's defect table does not close #248. Building only the
 evidence framework while leaving silent corruption in place does not close it
 either.
@@ -149,9 +157,11 @@ must pass the following loop before it is marked ready or merged.
 2. Commit the complete candidate and require a clean working tree. An
    uncommitted or dirty candidate cannot begin a formal audit round.
 3. Run the mandatory baseline and touched-authority checks from §9.
-4. Record the exact target branch, target-tip SHA, merge-base SHA, head SHA, and
-   intended merge strategy, plus the head tree and full diff digest. This tuple
-   and digest identify the effective candidate.
+4. Record the candidate tuple: repository ID, PR number, target branch,
+   target-tip SHA, merge-base SHA, head SHA, intended merge strategy, protected
+   governance-policy revision, and frozen semantic PR title/body digest.
+   Recompute and record the head-tree and full-diff digests as derived integrity
+   receipts rather than treating them as additional identity fields.
 5. Before dispatch, create a content-addressed round manifest that registers
    the three role/session/run IDs, prompt/scope hashes, candidate tuple, tree/
    diff digest, and timestamp.
@@ -209,23 +219,27 @@ the complete registered role set.
 4. Start a new independent audit round against the new candidate tuple.
 5. Repeat until every auditor returns `APPROVE` with no actionable findings.
 
-Any change to the head SHA, target-tip SHA, merge-base SHA, target branch, or
-intended merge strategy invalidates checks and approval and requires another
-round. This includes target-branch advancement, retargeting, parent-PR merge,
-and rebasing even when the child head tree appears unchanged. Immediately
-before merge, compare the current tuple, tree/diff digest, required workflow
-revision, and newest non-superseded provider-issued check runs with the final
-audit record and fail closed on any difference. A newer failed or cancelled run
-for the same tuple supersedes an older success.
+Any change to the repository/PR identity, semantic title/body digest, head SHA,
+target-tip SHA, merge-base SHA, target branch, intended merge strategy, or
+protected governance-policy revision invalidates checks and approval and
+requires another round. This includes target-branch advancement, semantic PR
+description edits, retargeting, parent-PR merge, and rebasing even when the
+child head tree appears unchanged. Immediately before merge, compare the
+current tuple, tree/diff and semantic-description digests, required workflow
+and governance-policy revisions, and newest non-superseded provider-issued
+check runs with the final audit record and fail closed on any difference. A
+newer failed or cancelled run for the same tuple supersedes an older success.
 
 ### 4.4 Preserve audit evidence in the PR
 
-The trusted runner must preserve each individual first report as a
-content-addressed immutable artifact. Each artifact records role, actor/session/
-run identity, candidate tuple, tree/diff digest, prompt/scope hash, timestamp,
-verbatim report, and artifact hash. The PR conversation contains immutable
-pointers and hashes; mutable pasted comments are not the sole evidence. It must
-also contain an audit table with:
+The trusted runner preserves each individual first report as a content-addressed
+immutable payload. One detached signed or protected round envelope records all
+payload hashes, roles, actor/session/run identities, candidate tuple, tree/diff
+and semantic-description digests, prompt/scope hashes, timestamps, commissioned-
+run reconciliation, and finding ledger. Never require a payload to contain its
+own byte hash. The PR conversation needs one machine-owned comment per round
+pointing to this bundle; it does not duplicate each report as a separate pasted
+comment. The bundle contains an audit table with:
 
 | Round | Target | Target tip | Merge base | Head | Strategy | Individual reports | Result |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -235,15 +249,16 @@ Maintain a persistent finding ledger with:
 | Finding ID | Originating auditor | Severity | Disposition | Correction commit or rejection rationale | Validating round |
 | --- | --- | --- | --- | --- | --- |
 
-Post one consolidated audit comment per round in addition to the individual
-reports. The final row must identify the audited tuple and show approval from
-every role with no unresolved finding. Reviewers must be able to trace a
-finding to its correction without accessing an ephemeral agent transcript.
-Readiness automation added by A0 must reject a missing report, reused role,
-unreconciled commissioned run, unresolved finding, invalid artifact hash, or
-approval bound to a stale tuple/digest; implementer-authored summary text alone
-is not audit evidence. The final readiness job runs after the final audit and
-accepts only the newest required provider-issued check for each declared check
+The final row must identify the audited tuple and show approval from every role
+with no unresolved finding. Reviewers must be able to trace a finding to its
+correction without accessing an ephemeral agent transcript. Audit results and
+the finding ledger live in the immutable round bundle, referenced by its
+machine-owned comment, not in mutable semantic PR-body sections. Readiness
+automation added by A0 must reject a missing report, reused role, unreconciled
+commissioned run, unresolved finding, invalid payload/envelope hash, or approval
+bound to a stale tuple/digest; implementer-authored summary text alone is not
+audit evidence. The final readiness job runs after the final audit and accepts
+only the newest required provider-issued check for each declared check
 identity.
 
 ### 4.5 Manual bootstrap for this plan and A0
@@ -252,25 +267,29 @@ This plan PR and the A0 governance PR necessarily precede the trusted audit
 runner. They use one explicit, temporary bootstrap protocol; no later PR may
 claim this exception:
 
-1. commit a clean candidate and record target tip, merge base, head, tree, diff
-   digest, and squash strategy;
+1. commit a clean candidate and record repository/PR identity, semantic
+   title/body digest, target tip, merge base, head, tree, diff digest, protected
+   policy revision, and squash strategy;
 2. run `git diff --check <merge-base>...<head>` and verify the changed-path set;
 3. validate the external issue/PR links with `gh issue view 248` and
    `gh pr view 192`, and require every target-bound `gh pr checks` identity to
    be complete and green before registration or dispatch;
-4. before dispatch, anchor a content-addressed round manifest in an
+4. before dispatch, anchor a canonical round-manifest payload in an
    independently controlled append-only record that does not mutate the frozen
    candidate: a protected audit ref, signed annotated tag, or server-issued
-   immutable record. It records session IDs, prompt/scope hashes, tuple, tree/
-   diff digest, timestamp, artifact hash, and anchor object/URL. A PR comment
-   points to that anchor but is not its authority;
+   immutable record. A detached envelope records the manifest payload hash,
+   session IDs, prompt/scope hashes, tuple, tree/diff and semantic-description
+   digests, timestamp, and anchor object/URL. A PR comment points to that anchor
+   but is not its authority;
 5. require each auditor to publish the first report through an independently
    authenticated identity or a server-issued immutable transcript/artifact;
-   an implementer-pasted report alone is invalid;
-6. post every individual report pointer under a stable comment ID, record the
-   manifest/report artifact SHA-256 values plus comment `created_at`/
-   `updated_at` in the finding ledger, and have an independent human witness
-   compare the posted bytes with the origin artifacts and anchored manifest
+   record the provider artifact/transcript ID, immutable URL, actor/run identity,
+   origin timestamp, and payload hash before accepting an implementer-preserved
+   copy; an implementer-pasted report alone is invalid;
+6. post the round-bundle pointer under one stable comment ID, record the
+   manifest/report payload and envelope SHA-256 values plus comment
+   `created_at`/`updated_at` in the bundle, and have an independent human witness
+   compare the preserved bytes with the origin artifacts and anchored manifest
    before final readiness;
 7. reconcile every commissioned session and the committed manifest, fix every
    actionable finding, and
@@ -284,264 +303,141 @@ trusted runner artifacts and automation.
 
 ## 5. Evidence architecture
 
-### 5.1 Construct and public-route authority with exact-set joins
+### 5.1 Scoped family, construct, and public-route authorities
 
 The current syntax-feature inventory is derived largely from documentation
-headings; it is not by itself a construct-complete grammar authority. A1 must
-establish a stable construct roster from the pinned grammar/spec blocks,
-official fences, and config authority, with reviewed many-to-many mappings to
-documentation headings and existing manifest coordinates.
+headings and the upstream manifest covers families outside #248. A1 must first
+generate one `FidelityScopeAuthority` containing exactly the 16 families named
+by #248: the 15 built-ins on `main` plus Sankey. It then establishes the scoped
+construct roster from pinned grammar/spec blocks, official fences, and config
+authority, with reviewed many-to-many mappings to documentation headings and
+manifest coordinates. Manifest rows outside this family authority remain in an
+explicit unsupported/out-of-scope envelope; they do not silently enter this
+programme or require projectors and cases.
 
-A2 must also generate a versioned public-route registry from the canonical
-SDK, CLI, MCP, hosted, browser/editor, and output adapter declarations. A route
-ID represents one executable public entry path and records its family/input
-applicability, accepted config/theme surfaces, reachable stages, and owning
-adapter. It is not a hand-maintained list inside the cases. Adding, removing, or
-renaming a public entry point or route adapter without regenerating this
-authority must fail.
+A2 generates a versioned public-route registry from canonical SDK declarations,
+CLI command/selector tables, MCP tool declarations, browser/editor/website
+entrypoints, and `RENDER_TRANSPORT_SURFACES` × `RENDER_OUTPUTS`. A route records
+independent transport, operation, entrypoint, selector, and optional output
+dimensions plus its owning adapter. One adapter may own many routes; every route
+has exactly one owner. No semantic dimension is hidden only inside a route-ID
+string or hand-maintained in cases.
 
 Exact-set validation must prove:
 
-- every pinned built-in construct maps to at least one fidelity case;
-- every case maps back to one or more stable construct IDs;
-- every manifest `syntaxFeature`, official `example`, `configKey`, and
-  `themeVariable` appears in its own typed index;
-- every generated public-route ID maps to exactly one owning adapter and every
-  public adapter maps back to one route ID;
-- every case and config/theme effect has one coverage entry for every registry
-  route that can accept the relevant family/input, either an applicable named
-  invocation or an evidenced `not-applicable` disposition;
+- the in-scope family-ID set equals the 16-family authority unless #248 itself
+  is amended;
+- every scoped construct maps to at least one fidelity case and every case maps
+  back to scoped constructs and authorities;
+- every scoped manifest `syntaxFeature`, official `example`, `configKey`, and
+  `themeVariable` appears in its typed index, while every unscoped row has an
+  explicit out-of-scope disposition;
+- every generated route maps to one owner, every public entrypoint/selector/
+  output cell maps back to a route, and an adapter may map to multiple routes;
 - every construct exercised by an official fence is enumerated rather than
   treating the fence as one atomic feature;
 - multiple witnesses may exercise the same construct without inventing new
-  feature IDs;
-- orphan constructs, orphan cases, stale authorities, and ambiguous ownership
-  fail generation; and
-- missing, unknown, duplicate, or orphaned route IDs and route-coverage entries
-  fail generation.
+  feature IDs; and
+- orphan constructs, cases, sources, invocations, authorities, routes, and
+  ambiguous ownership fail generation.
 
-### 5.2 `FamilyFidelityContract`
+### 5.2 Factored semantic and route contracts
 
-Add a typed registry beside the built-in family descriptors, projected from the
-construct authority and existing upstream manifest rather than maintained as a
-second roster. The conceptual core is:
+Do not materialize a construct × source × public-route × stage Cartesian
+product. Most public adapters are transport projections over the same semantic
+core, so repeating every construct through every transport adds cost without
+independent evidence. Use two exact, joined contracts instead:
 
-```ts
-type FidelityAuthorityRef =
-  | { kind: 'feature'; id: string }
-  | { kind: 'example'; id: string }
-  | { kind: 'config-key'; id: string }
-  | { kind: 'theme-variable'; id: string }
+1. family cases prove construct/source semantics through the canonical agent and
+   native core routes; and
+2. route-conformance cases prove every public adapter's accepted inputs,
+   operation, selector, output, diagnostics, and pass-through/projection rules.
 
-type FidelityDiagnosticExpectation = {
-  stage: FidelityStage
-  invocationId: string
-  code: string
-  stableFields: Readonly<Record<string, string | number | boolean>>
-  cardinality: { min: number; max: number }
-  order: 'exact' | 'any'
-}
+An adapter may use factored conformance only when its registry declaration and
+tests prove it is family-agnostic: it delegates to the canonical core without
+branching on family or construct, and its touched-authority rule invalidates
+that classification when dispatch code changes. Any family/construct-specific
+branch is `route-specific` and requires direct family-case coverage for the
+affected constructs. A2 owns the precise TypeScript schema; this plan requires
+the following records and joins rather than freezing implementation syntax:
 
-type FidelityStageExpectation =
-  | {
-      stage: FidelityStage
-      invocationId: string
-      state: 'not-applicable'
-      reasonCode: string
-      upstreamEvidence: readonly [string, ...string[]]
-    }
-  | {
-      stage: FidelityStage
-      invocationId: string
-      state: 'applicable'
-      disposition: 'native'
-      oracle: { id: string; schemaVersion: number }
-      diagnostics: readonly FidelityDiagnosticExpectation[]
-    }
-  | {
-      stage: FidelityStage
-      invocationId: string
-      state: 'applicable'
-      disposition: 'source-preserved'
-      oracle: { id: string; schemaVersion: number }
-      diagnostics: readonly [FidelityDiagnosticExpectation, ...FidelityDiagnosticExpectation[]]
-    }
-  | {
-      stage: FidelityStage
-      invocationId: string
-      state: 'applicable'
-      disposition: 'diagnosed' | 'reject'
-      oracle?: { id: string; schemaVersion: number }
-      diagnostics: readonly [FidelityDiagnosticExpectation, ...FidelityDiagnosticExpectation[]]
-    }
-  | {
-      stage: FidelityStage
-      invocationId: string
-      state: 'applicable'
-      disposition: 'blocked'
-      blockedBy: { stage: FidelityStage; invocationId: string }
-      requiredOracle: { id: string; schemaVersion: number }
-    }
-
-interface FidelityInvocation {
-  invocationId: string
-  sourceRef: string
-  publicRoute: PublicRouteId
-  renderOptions: Readonly<Record<string, JSONValue>>
-  config?: Readonly<Record<string, JSONValue>>
-  backendId?: string
-  terminalMode?: 'ascii' | 'unicode'
-  security?: Readonly<Record<string, JSONValue>>
-  interaction?: Readonly<Record<string, JSONValue>>
-}
-
-type PublicRouteId = string & { readonly __publicRouteId: unique symbol }
-
-interface FidelityPublicRoute {
-  routeId: PublicRouteId
-  schemaVersion: number
-  surface: 'sdk' | 'cli' | 'mcp' | 'hosted' | 'browser' | 'editor' | 'output'
-  adapterId: string
-  familyIds: readonly [string, ...string[]]
-  acceptedInputs: readonly [
-    'source' | 'config' | 'theme' | 'interaction',
-    ...('source' | 'config' | 'theme' | 'interaction')[],
-  ]
-  stages: readonly [FidelityStage, ...FidelityStage[]]
-}
-
-type FidelityRouteCoverage =
-  | {
-      routeId: PublicRouteId
-      state: 'applicable'
-      invocationIds: readonly [string, ...string[]]
-    }
-  | {
-      routeId: PublicRouteId
-      state: 'not-applicable'
-      invocationIds: readonly []
-      reasonCode: string
-      authorityEvidence: readonly [string, ...string[]]
-    }
-
-interface FidelitySource {
-  sourceId: string
-  source: string
-  role: 'authored' | 'metamorphic-variant' | 'boundary' | 'malformed'
-  derivedFromSourceId?: string
-  transformId?: string
-}
-
-type FidelityResultRef =
-  | { kind: 'invocation'; invocationId: string; stage: FidelityStage }
-  | { kind: 'mutation'; mutationId: string }
-
-interface FidelityMutationInvocation {
-  mutationId: string
-  constructIds: readonly [string, ...string[]]
-  input: { invocationId: string; stage: FidelityStage }
-  operation: FamilyMutationOperation
-  oracle: { id: string; schemaVersion: number }
-  preserveOracles: readonly [{ id: string; schemaVersion: number }, ...{
-    id: string
-    schemaVersion: number
-  }[]]
-  diagnostics: readonly FidelityDiagnosticExpectation[]
-}
-
-interface FidelityComparison {
-  comparisonId: string
-  left: FidelityResultRef
-  right: FidelityResultRef
-  oracle: { id: string; schemaVersion: number }
-}
-
-type FidelityMutationPlan =
-  | {
-      state: 'applicable'
-      entries: readonly [FidelityMutationInvocation, ...FidelityMutationInvocation[]]
-    }
-  | {
-      state: 'not-applicable'
-      entries: readonly []
-      reasonCode: string
-      upstreamEvidence: readonly [string, ...string[]]
-    }
-
-interface FamilyFidelityCase {
-  caseId: string
-  familyId: string
-  constructIds: readonly [string, ...string[]]
-  authority: FidelityAuthorityRef
-  upstreamRevision: string
-  sources: readonly [FidelitySource, ...FidelitySource[]]
-  invocations: readonly [FidelityInvocation, ...FidelityInvocation[]]
-  routeCoverage: readonly [FidelityRouteCoverage, ...FidelityRouteCoverage[]]
-  mutationPlan: FidelityMutationPlan
-  comparisons: readonly FidelityComparison[]
-  stages: readonly [FidelityStageExpectation, ...FidelityStageExpectation[]]
-  divergenceId?: string
-}
-```
+| Record | Required data |
+| --- | --- |
+| Family case | Stable case/family IDs, non-empty construct and authority IDs, upstream revision, sources, canonical invocations, semantic cells, comparisons, optional divergence ID |
+| Source | Stable ID, exact source, authored/metamorphic/boundary/malformed role, and base/transform IDs for a derived variant |
+| Invocation | Stable ID, source/mutation/build kind, canonical core or public route ID, source or family input, and declarative options/operations |
+| Semantic cell | Stable ID, construct ID, invocation ID, stage, disposition, oracle/diagnostic requirements, or governed blocking/not-applicable evidence |
+| Public route | Generated transport, operation, entrypoint, selector, optional output, owning adapter, pass-through/route-specific mode, family/input applicability, and reachable stages |
+| Route-conformance case | Stable ID, route ID, contract IDs, fixture invocation IDs, oracle, and diagnostic expectations |
+| Comparison | Stable ID, construct IDs, two exact invocation-stage results, and a versioned oracle |
 
 `FidelityStage` covers detection, agent parse, verification, native parse,
 configuration, layout, Scene, SVG, PNG, terminal, serialization, mutation,
-accessibility, and interaction. Oracle IDs resolve through a runner-owned typed
-registry whose outputs are versioned, family-discriminated semantic or
-implication snapshots; generated JSON never embeds arbitrary executable
-callbacks.
+accessibility, and interaction. `FidelityInputKind` includes source, config,
+theme, interaction, mutation, and build inputs. Transport, operation, and output
+IDs are generated branded types, not handwritten unions in the cases. Oracle
+IDs resolve through a runner-owned typed registry whose outputs are versioned,
+family-discriminated semantic or implication snapshots; generated JSON never
+embeds arbitrary executable callbacks.
 
-Schema validation must reject a native applicable stage without an oracle, a
-source-preserved stage without both a preservation oracle and an exact
-structured diagnostic, a diagnosed/rejected stage without an exact structured
-diagnostic, and any not-applicable stage without a typed reason and authority
-evidence. Silent loss is not a compatibility disposition. When agent parse
-applies, native aggregation additionally requires a structured agent oracle;
-opaque preservation caps the aggregate at `source-preserved` even when
-downstream native rendering succeeds.
+The generator derives two required grids. The semantic grid contains exactly one
+cell for every construct × named source × applicable core stage. Every source
+must participate in a canonical semantic invocation; orphan sources are
+rejected. Every metamorphic source must name its derivation and participate in a
+comparison with its base. Multi-construct official fences produce separate
+construct/source cells even when one invocation exercises several constructs.
 
-Every source reference, expectation, diagnostic, result reference, and mutation
-input resolves to a declared object. For each case, the route-coverage route-ID
-set must equal the applicable generated registry set. Every applicable entry
-resolves to at least one invocation on that exact route and has the route's
-exact stage-coverage policy; every `not-applicable` entry carries governed
-authority evidence. Unknown routes, uncovered registry routes, and orphaned
-invocations fail validation. A comparison names the exact invocation-stage or
-mutation result it consumes; an oracle cannot substitute a hidden source,
-stage, invocation, or mutation. Define the stage dependency graph explicitly.
-A locally blocked downstream stage remains semantically
-`applicable`, carries the blocking stage/invocation plus the required semantic
-oracle, stays in
-the claim denominator, and inherits the blocking disposition as an aggregate
-cap. Reserve `not-applicable` for genuine upstream or governed local-surface
-irrelevance. Agent parsing does not block an independently executable native-
-render invocation. Stage-specific diagnostics must match the referenced public
-route and cannot be satisfied by a warning from another invocation.
+The route grid contains exactly one conformance result for every generated
+public route × accepted input kind × operation/selector/output contract. It
+checks real transport admission, option/config/theme/interaction pass-through,
+diagnostic envelopes, mutation atomicity, serialization, output bytes, and
+security rules as applicable. Use a small cross-family fixture set chosen by
+semantic category, not one fixture per construct. A `route-specific` adapter
+also generates direct required family-case cells for each affected construct.
+Aggregation permits a public native claim only when both its semantic cells and
+the applicable route-conformance cells pass.
 
-Invocations, named authored/source-variant inputs, render options, typed family
-mutations, interactions, and A/B or metamorphic comparisons are declarative and
-schema-versioned. Source variants carry an explicit derivation and transform
-identity rather than being selected inside an oracle. The runner owns route
-adapters, diagnostic collectors, and the registry for the discriminated
-`FamilyMutationOperation` union. Oracles may normalize and assert supplied
-results, but must not secretly select inputs, routes, configuration variants,
-backends, or mutations. Every mutation has its own result oracle and a non-empty
-set of preservation oracles for semantic facets unrelated to the operation.
-For every case with a structured applicable construct, the union of mutation
-`constructIds` must exactly cover those constructs; empty mutation coverage is
-valid only through a reviewed `not-applicable` reason with upstream evidence.
-Every config-key and theme-variable effect case joins to an explicit named A/B
-invocation pair.
+Every invocation, cell, diagnostic, comparison, source, route case, and
+authority reference must resolve and have reverse coverage. Public mutation and
+build conformance must execute the real route; runner-internal operations cannot
+stand in for CLI, MCP, SDK, or other public admission, batching, diagnostics,
+verification, and serialization behavior. A native mutation/build semantic
+cell requires a result oracle and preservation oracles for unrelated semantic
+facets. A route that does not support an operation must emit an exact diagnosed
+outcome or carry governed `not-applicable` evidence; the programme does not
+require inventing a mutation API merely to satisfy a native render claim.
 
-Pinned Mermaid rejecting the source is the only ordinary basis for local
-`reject`. An official fence may also be rejected when it is proven partial or
-config-only. If pinned Mermaid accepts a complete fence, local rejection must
-be an executable named diagnosed compatibility divergence.
+Schema validation rejects a native applicable cell without an oracle, a
+source-preserved cell without both a preservation oracle and at least one
+expected runtime diagnostic, a diagnosed/rejected cell without at least one
+expected diagnostic, invalid diagnostic cardinalities, and a not-applicable
+cell without a typed reason and authority evidence. Silent loss is not a
+compatibility disposition. When agent parse applies, native aggregation
+additionally requires a structured agent oracle; opaque preservation caps the
+aggregate at `source-preserved` even when downstream rendering succeeds.
+
+Define the stage dependency graph explicitly. A locally blocked downstream
+stage remains applicable, identifies the blocking invocation/stage and required
+oracle, stays in the claim denominator, and inherits the blocking disposition
+as an aggregate cap. Agent parsing does not block an independently executable
+native-render invocation. Diagnostics and oracles are bound to their exact
+invocation, route, construct, and stage; they cannot select hidden sources,
+routes, configuration variants, backends, mutations, or builds.
+
+Config and theme semantic effects use the same family cells. Ownership is exact
+per `(authority ID, family ID, input dialect)`, so a shared global theme path
+has one disposition for every applicable in-scope family rather than one
+arbitrary family owner. Route conformance separately proves pass-through for
+each accepting public route; a route-specific transformation requires its own
+A/B case. Every wired effect joins to an explicit named A/B comparison. Pinned
+Mermaid rejecting the source is the ordinary basis for local `reject`; if pinned
+Mermaid accepts a complete fence, local rejection requires an executable named
+diagnosed compatibility divergence.
 
 ### 5.3 Receipt runner
 
-The runner executes every named declarative invocation over the case source
-through the applicable dependency graph:
+The runner executes every named declarative invocation through its real public
+route adapter and the applicable dependency graph:
 
 ```text
 detection
@@ -549,9 +445,8 @@ detection
   `-> native parser -> layout -> native semantic projection
                                      |-> Scene and output implication
                                      |-> canonical serialize/reparse
-                                     `-> each declared typed mutation result
-  named A/B and metamorphic comparisons join their declared invocation-stage
-  or mutation results
+                                     `-> public mutation/build invocation
+  named A/B and metamorphic comparisons join declared invocation-stage results
 ```
 
 It records disposition and semantic results, not just thrown/not-thrown status.
@@ -560,6 +455,15 @@ Every opaque agent outcome caps the applicable construct/public claim at
 regardless of native-render success. Opaque agent success paired with render
 failure additionally requires an exact diagnosed policy rather than
 `verify.ok === true` under an unqualified claim.
+
+A2 adds one deterministic package script, `fidelity:check`. It executes the
+complete scoped semantic and route-conformance corpus against the pinned
+upstream revision, builds raw receipts in a temporary directory, derives the
+compact capability index in the same process, and compares generated committed
+outputs. Committed or manually edited raw result files are never trusted as
+inputs. CI may retain
+the raw receipts as immutable debugging artifacts, but a freshness-only check
+cannot substitute for execution.
 
 ### 5.4 Family semantic projectors
 
@@ -593,13 +497,13 @@ the receipt.
 Use a two-tier dataflow:
 
 1. case definitions, authored witnesses, upstream adapters, semantic
-   expectations, raw receipts, and divergence authorities live in test/eval-
-   only modules that production code cannot import;
-2. one deterministic generator validates those authorities and emits a compact,
-   versioned aggregate capability index consumed by runtime family descriptors,
-   CLI discovery, and public report generators;
-3. freshness hashes bind the aggregate to case definitions, receipt results,
-   the public-route registry and adapter versions, projector/oracle/schema
+   expectations, ephemeral raw receipts, and divergence authorities live in
+   test/eval-only modules that production code cannot import;
+2. `fidelity:check` validates and executes those authorities, then emits a
+   compact, versioned aggregate capability index consumed by runtime family
+   descriptors, CLI discovery, and public report generators;
+3. freshness hashes bind the aggregate to case definitions, the executed result
+   summary, public-route registry and adapter versions, projector/oracle/schema
    versions, divergence ledgers, and upstream revision;
    and
 4. build metafile, tarball, and bundle negative tests prove that Mermaid oracle
@@ -612,11 +516,11 @@ shipping the evidence corpus.
 
 ### 5.6 Capability and citizenship projection
 
-Replace blanket built-in capability evidence with aggregation over passing
-receipts. Section A, the syntax capability ledger, citizenship, CLI discovery,
-and generated docs must consume the same result. A report freshness check must
-fail when behavior, a receipt, a divergence, or an upstream revision changes
-without regenerating the public claims.
+Replace blanket built-in capability evidence with aggregation over freshly
+executed passing receipts. Section A, the syntax capability ledger, citizenship,
+CLI discovery, and generated docs must consume the same result.
+`fidelity:check` must fail when behavior, a case, a divergence, an authority, or
+an upstream revision changes without a matching execution-derived public claim.
 
 ## 6. Delivery stacks and work packages
 
@@ -630,16 +534,28 @@ Land this immediately after the plan and before every implementation or
 adoption PR. Only this plan and A0 may use the manual bootstrap in §4.5:
 
 - make canonical trusted CI run for every programme pull-request target branch
-  and attest the exact target tip, merge base, head, tested merge result, and
-  workflow revision;
+  and attest the repository/PR identity, semantic-description digest, exact
+  target tip, merge base, head, tested merge result, workflow revision, and
+  governance-policy revision;
 - protect every temporary programme base with a ruleset or sole merge bot,
   disallow bypass and force-push, and enforce the declared squash strategy;
+- evaluate readiness workflows and the path/dependency-to-authority policy from
+  a protected target revision or external service, never solely from candidate
+  bytes. A governance-changing PR is checked against the union of base and
+  candidate policies, receives fixed meta-checks, and activates its new policy
+  only after merge;
 - add trusted multi-agent runner artifacts, pre-registered round manifests,
   distinct actor/session/run identities, content hashes, and reconciliation of
   failed/timed-out/abandoned runs;
-- extend the PR template and readiness tooling to require the three immutable
-  individual reports, finding ledger, newest check identities, and current
-  tuple/tree/diff digest;
+- isolate hostile candidate content from audit authority: dependency acquisition
+  uses a vetted cache stage; candidate tests and auditors run without secrets or
+  write tokens, without network after acquisition, and with the candidate
+  mounted read-only for auditors. A separate narrowly privileged publisher that
+  never executes candidate bytes emits audit artifacts/checks. Privileged
+  `pull_request_target` checkout or execution of candidate bytes is forbidden;
+- extend the PR template and readiness tooling to require one immutable round
+  bundle containing the three individual reports, finding ledger, newest check
+  identities, and current tuple/tree/diff/semantic-description digests;
 - fail readiness when reports are missing, roles are reused, findings remain
   unresolved, runs are unreconciled, or approvals/checks are stale or
   superseded;
@@ -665,17 +581,19 @@ implementer-authored manual results are not substitutes after bootstrap.
    - choose the canonical Mermaid 11.16 revision;
    - make all executable artifacts name it or an explicit reviewed
      compatibility revision;
-   - establish the construct-complete roster and many-to-many authority joins
-     from §5.1; and
+   - generate the exact 16-family scope, explicit out-of-scope envelope,
+     construct-complete roster, and many-to-many authority joins from §5.1; and
    - fail generation on unacknowledged splits or roster gaps.
 2. **A2: fidelity contract and runner skeleton**
    - add stable `caseId`, discriminated authority references, construct IDs,
-     deterministic receipt schema, exact-set indexes for features/examples/
-     config keys/theme variables/public routes, typed route applicability and
-     named invocations, typed mutations, A/B comparisons, and a small cross-
-     family exemplar set;
-   - keep cases, raw receipts, snapshots, and upstream adapters behind an
-     enforced test/eval-only import boundary;
+     deterministic coverage cells, exact-set indexes for scoped features/
+     examples/config keys/theme variables/public routes, route-bound source/
+     mutation/build invocations, A/B comparisons, and a small cross-family
+     exemplar set;
+   - add `fidelity:check` to execute the complete scoped corpus and
+     derive the compact index in one process;
+   - keep cases, ephemeral raw receipts, snapshots, and upstream adapters behind
+     an enforced test/eval-only import boundary;
    - add the deterministic compact-index generator contract and initial bundle
      exclusion tests;
    - do not change public capability claims yet.
@@ -686,10 +604,12 @@ implementer-authored manual results are not substitutes after bootstrap.
      `main`, with exact-set tracking; and
    - the Sankey projector shard depends on C3 enrollment.
 4. **A4: receipt-driven reports and citizenship**
-   - feed divergences and receipts into capability aggregation;
+   - feed divergences and freshly executed receipts into capability aggregation;
    - generate the compact versioned runtime/report index and bind its freshness
-     hash to cases, results, projectors/oracles/schemas, divergences, and upstream
-     revision;
+     hash to scope, cases, executed result summary, routes, projectors/oracles/
+     schemas, divergences, and upstream revision;
+   - make `evidence:check` invoke `fidelity:check`; a hash-only or
+     generated-file-only check is insufficient;
    - prove raw evidence and Mermaid oracle code are absent from every shipped
      bundle and tarball;
    - deliberately downgrade every not-yet-receipted claim during migration;
@@ -814,9 +734,11 @@ Follow with focused work for:
 
 ### Stack D — exhaustive official examples
 
-1. generate one case record for every harvested official fence;
-2. review all 331 audited fences as structured, opaque, reject, partial, or
-   config-only;
+1. generate one case record for every official fence projected through the
+   16-family scope authority;
+2. review the complete generated scoped set (331 in the audit baseline) as
+   structured, opaque, reject, partial, or config-only; do not use a hard-coded
+   count as the authority;
 3. enumerate every construct exercised by each fence and join it to the
    construct authority rather than treating the fence as one feature;
 4. attach one or more semantic receipts or a named diagnosed compatibility
@@ -824,10 +746,10 @@ Follow with focused work for:
 5. permit `reject` only when pinned Mermaid also rejects the source or the fence
    is proven partial/config-only; otherwise require an executable named
    diagnosed divergence;
-6. require exact-set closure for construct, feature, example, and case indexes,
-   and assert that the global config-key and theme-variable indexes remain
-   joined, so new, removed, orphaned, or multiply ambiguous entries cannot
-   disappear; and
+6. require exact-set closure for scoped family, construct, feature, example,
+   source, semantic-cell, route-conformance, and case indexes, plus explicit dispositions for
+   out-of-scope manifest rows, so new, removed, orphaned, or ambiguous entries
+   cannot disappear; and
 7. keep selected galleries as visual reviewer evidence, not native proof.
 
 Classification may discover new defects. File each as a child of #248 and add
@@ -836,7 +758,7 @@ match current behavior.
 
 ### Stack E — generated config and theme-effect matrix
 
-For every pinned built-in-family config key and theme-variable leaf path,
+For every applicable `(authority path, family ID, input dialect)` semantic cell,
 generate exactly one disposition:
 
 - `wired`, with an A/B predicate over typed semantics, geometry, paint, or
@@ -849,9 +771,13 @@ Join the upstream config and `semanticInventory.themeVariables` inventories,
 descriptor declarations, runtime resolver/theme reads, docs, and tests. Expand
 object-valued or `any` authorities to reviewed leaf paths from the pinned type/
 default authority, or explicitly enumerate their nested effect cases; a shallow
-`xyChart: any` row cannot hide `dataLabelColor`. Every disposition references a
-named A/B invocation pair. Fail on missing or multiply owned paths. Do not
-create another hand-maintained config or theme roster.
+`xyChart: any` row cannot hide `dataLabelColor`. Expand shared global paths such
+as `primaryColor` across every applicable in-scope family instead of assigning
+one arbitrary owner. Route-conformance cases prove unchanged admission and
+pass-through for every accepting route; a route-specific transformation adds a
+direct A/B case. Every wired disposition references a named A/B invocation pair.
+Fail on missing cells or duplicate ownership of the same tuple. Do not create
+another hand-maintained config or theme roster.
 
 ### Stack F — depth and adversarial quality
 
@@ -893,7 +819,8 @@ base is stable. They should not stack on each other merely to avoid updating
 
 ## 8. Required PR description and evidence
 
-Every implementation PR must state:
+Before audit registration, every implementation PR must freeze these semantic
+description sections and include their digest in the candidate tuple:
 
 - child issue and parent epic;
 - exact claim being changed;
@@ -909,8 +836,11 @@ Every implementation PR must state:
   provider-issued CI job identities and URLs;
 - generated artifacts changed and why;
 - stack position and dependencies;
-- individual audit reports, finding ledger, rounds, and final audited tuple; and
 - residual limitations.
+
+After dispatch, the round-bundle pointer, finding ledger, round status, and
+final tuple live in machine-owned audit comments and immutable artifacts. They
+are not appended to or edited into the frozen semantic body.
 
 Visual-output PRs must include proportional before/after evidence generated from
 the same named input at immutable base/head revisions. The semantic receipt is
@@ -927,6 +857,9 @@ bun run lint
 bun run test
 ```
 
+After A2 lands, every implementation PR also runs the `fidelity:check` gate;
+focused receipts accelerate iteration but never replace the complete corpus.
+
 A documentation-only PR runs `git diff --check`, repository-path/link
 validation for every changed document, and the documentation audit roles from
 §4. It need not rerun unchanged runtime behavior unless the document is itself
@@ -938,23 +871,25 @@ Add deterministic checks by touched authority:
 | --- | --- |
 | Family parser/renderer/projector | Focused fidelity receipt, parser/renderer family tests, red/green record |
 | Upstream manifest or authority | `upstream-manifest:check`, upstream bench/corpus checks, revision closure |
-| Section A/B, citizenship, receipts | `section-a-report:check`, `section-b-report:check`, `quality:check`, `evidence:check` |
+| Fidelity scope/routes/cases, Section A/B, citizenship, receipts | `fidelity:check`, `section-a-report:check`, `section-b-report:check`, `quality:check`, `evidence:check` |
 | Scene, backend, security, output | Backend conformance, External Scene compatibility, renderer security, affected output/browser checks, `build` |
 | Browser family/catalog | `check:browser-families`, browser-lazy checks, affected browser contracts |
 | Website/package/transport | Website freshness/payload checks, package build, affected CLI/MCP/transport contracts |
 | Official fence, config, or theme matrix | Exact-set corpus/config/theme generator check and every affected named semantic A/B case |
+| Governance policy, workflow, readiness, or touched-authority map | Fixed external/protected meta-gate and union of base/candidate required checks |
 
 The audited tuple must have canonical CI or the A0 equivalent against its exact
 target base; a green run against `main` cannot substitute for a stacked PR whose
 target is a parent branch. A0 defines the required check identities; readiness
 accepts only the newest non-superseded provider-issued run for each identity,
 including every identity derived from the versioned touched-authority map,
-bound to the tested merge tree and required workflow revision. Unknown or
-ambiguous paths fail closed; any exception must be an immutable auditor-approved
-ledger entry. From the first behavioral repair onward, the trusted red/green
-job is a required check and must run the content-addressed revert or sabotage
-in a detached worktree against the exact audited head. A manual command
-transcript cannot satisfy either gate.
+bound to the tested merge tree, semantic-description digest, and protected
+workflow/governance-policy revisions. Candidate changes to those policies
+cannot weaken their own gate. Unknown or ambiguous paths fail closed; any
+exception must be an immutable auditor-approved ledger entry. From the first
+behavioral repair onward, the trusted red/green job is a required check and must
+run the content-addressed revert or sabotage in a detached worktree against the
+exact audited head. A manual command transcript cannot satisfy either gate.
 
 The final programme closure run includes at least:
 
@@ -970,6 +905,8 @@ bun run section-b-report:check
 bun run check:browser-families
 bun run build
 ```
+
+Once A2 lands, the final closure run also includes its `fidelity:check` gate.
 
 Family and browser/output changes add their focused corpus, gallery, browser,
 package, and transport checks. Upstream refresh commands must execute against
@@ -1000,16 +937,20 @@ and generated reports become the live authority.
 
 Close #248 only when all of the following hold:
 
-- every officially authorable construct for every claimed built-in family has
-  an executed receipt;
-- the construct, feature, example, config-key, theme-variable, public-route,
-  and case indexes have exact-set closure with no orphan or ambiguous
-  ownership;
-- every case and config/theme effect covers every applicable generated public
-  route with a named invocation, or carries an evidenced `not-applicable`
-  disposition; missing, unknown, duplicate, and orphaned route entries are
+- the generated family scope equals the 16 families named by #248 unless the
+  issue is explicitly amended, and every unscoped manifest family/row has an
+  explicit out-of-scope disposition;
+- every officially authorable scoped construct has freshly executed coverage;
+- the scoped construct, feature, example, config-key, theme-variable, source,
+  public-route, semantic-cell, route-conformance, and case indexes have exact-set
+  closure with no orphan or ambiguous ownership;
+- every construct × named source × applicable core stage has a semantic
+  invocation and oracle/diagnostic, and every public route × accepted input ×
+  operation/selector/output contract has conformance evidence or an evidenced
+  `not-applicable` disposition; route-specific branches also have direct
+  affected-construct cases; missing, unknown, duplicate, and orphaned cells are
   zero;
-- every official fence has a reviewed disposition;
+- every scoped official fence has a reviewed disposition;
 - every nonblank statement is modeled, preserved with an exact route-specific
   typed runtime diagnostic, or rejected; no silent semantic preservation can
   satisfy closure;
@@ -1019,16 +960,19 @@ Close #248 only when all of the following hold:
 - agent parse, verification, native render, serialization, mutation, Scene,
   applicable output, accessibility, and interaction behavior agree with the
   case policy;
-- every structured applicable construct is covered by at least one named typed
-  mutation result, every declared mutation has a discriminating oracle, and its
-  preservation oracles prove that unrelated semantic facets remain unchanged;
-- every config key and expanded theme-variable leaf path has exactly one
-  executable effect disposition joined to a named A/B invocation pair;
-- capability and citizenship reports derive from passing receipts and
-  downgrade divergences automatically;
+- every applicable public mutation/build route is exercised through that real
+  route; a native cell has a discriminating result oracle and preservation
+  oracles, while unsupported operations are exactly diagnosed or evidenced
+  not-applicable;
+- every applicable `(config/theme authority, family, input dialect)` semantic
+  cell has exactly one executable effect disposition, with every wired effect
+  joined to a named A/B comparison, and each accepting route passes its
+  conformance or route-specific A/B case;
+- capability and citizenship reports derive in the same `fidelity:check` run
+  from passing receipts and downgrade divergences automatically;
 - every enrolled family has a complete, versioned semantic projector and every
-  shipped runtime/report claim comes from the compact aggregate index; raw
-  cases, Mermaid oracles, receipts, and snapshots are absent from runtime,
+  shipped runtime/report claim comes from the compact aggregate index; cases,
+  Mermaid oracles, ephemeral raw receipts, and snapshots are absent from runtime,
   browser, CLI, MCP, hosted, and package artifacts;
 - all upstream oracle revisions are closed and reproducible;
 - every Phase 0 defect is fixed or truthfully downgraded with a discriminating
