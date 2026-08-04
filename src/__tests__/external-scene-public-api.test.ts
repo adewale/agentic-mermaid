@@ -277,6 +277,7 @@ describe('public external Scene construction and admission', () => {
       [{ strokeLinejoin: 'round" /><style>*{display:none}</style><rect stroke-linejoin="round' }, 'strokeLinejoin'],
       [{ vectorEffect: 'none" /><text>FORGED</text><rect vector-effect="none' }, 'vectorEffect'],
       [{ paintOrder: 'stroke url(https://evil.invalid/x)' }, 'paintOrder'],
+      [{ mixBlendMode: 'multiply' }, 'mixBlendMode'],
       [{ unknownPaintEscape: '<style>*{display:none}</style>' }, 'unknownPaintEscape'],
     ]
     for (const [hostile, field] of hostilePaints) {
@@ -285,6 +286,10 @@ describe('public external Scene construction and admission', () => {
         parts: [safe.parts[0]!, { ...data, paint: { ...data.paint, ...hostile } }, ...safe.parts.slice(2)],
       })).toThrow(new RegExp(field))
     }
+    expect(() => buildExternalScene({
+      ...safe,
+      gradients: [{ id: 'not-in-external-scene-v1' }],
+    } as ExternalSceneInput)).toThrow(/gradients/)
   })
 
   test('parses external SVG path data semantically before projection', () => {

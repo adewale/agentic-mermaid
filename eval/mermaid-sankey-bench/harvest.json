@@ -14,9 +14,9 @@
   "constructs": [
     {
       "id": "header",
-      "form": "sankey[-beta][:]",
+      "form": "sankey | sankey-beta",
       "modeled": true,
-      "note": "both spellings route to the family; canonical serialization emits sankey-beta (the spelling the wider rendering ecosystem accepts)"
+      "note": "both exact spellings route to the family; the colon-suffixed detector prefix is not accepted by Mermaid 11.16's Sankey parser, so Agentic Mermaid rejects it too; canonical serialization emits sankey-beta"
     },
     {
       "id": "csv-row",
@@ -26,9 +26,9 @@
     },
     {
       "id": "quoted-field",
-      "form": "\"label, with comma\"",
+      "form": "\"label, with comma or newline\"",
       "modeled": true,
-      "note": "double-quoted fields may contain commas; content preserved exactly"
+      "note": "double-quoted fields may contain commas and physical line breaks; doubled quotes are decoded and edge whitespace is trimmed before node identity, matching Mermaid 11.16"
     },
     {
       "id": "escaped-quote",
@@ -64,13 +64,13 @@
       "id": "config-size",
       "form": "sankey.width / sankey.height",
       "modeled": true,
-      "note": "flow-area extent; canvas additionally grows so labels never clip"
+      "note": "requested flow-area extent; the effective corridor grows when required to fit nodeWidth across every layer, and the canvas additionally grows so labels and nodes never clip"
     },
     {
       "id": "config-link-color",
       "form": "sankey.linkColor: source|target|gradient|<css>",
       "modeled": true,
-      "note": "gradient renders as the source→target color-mix midpoint blend (see divergences)"
+      "note": "gradient renders as a typed, fragment-local user-space linear gradient with source and target node colors as its stops"
     },
     {
       "id": "config-alignment",
@@ -82,7 +82,7 @@
       "id": "config-values",
       "form": "sankey.showValues / prefix / suffix",
       "modeled": true,
-      "note": "value line under node labels, full authored precision"
+      "note": "value line under node labels with Mermaid's display-only two-decimal rounding; exact numeric values remain in typed/data channels"
     },
     {
       "id": "config-node-geometry",
@@ -129,12 +129,6 @@
   ],
   "divergences": [
     {
-      "id": "gradient-link-paint",
-      "upstream": "linkColor: gradient paints each ribbon with an SVG <linearGradient> from the source node color to the target node color",
-      "agentic": "the scene-security contract forbids URL-referencing paints (url(#…) is a fetching form), so gradient renders as the deterministic source→target midpoint blend via color-mix(); each direction pair still gets a distinct hue",
-      "rationale": "no existing family emits gradient paints; markers are the only sanctioned def references, via typed MarkerDescriptors"
-    },
-    {
       "id": "cycle-rejection",
       "upstream": "cycles reach d3-sankey, which throws an opaque 'circular link' error at layout time",
       "agentic": "self-loops and cycles are rejected at parse time with the offending path named (A -> B -> A)",
@@ -143,7 +137,7 @@
     {
       "id": "zero-value-visibility",
       "upstream": "a zero/tiny-value node can render as a zero-height rectangle (invisible data)",
-      "agentic": "node heights clamp to a 1px visibility floor; zero-value links render at width 0 but their nodes stay visible",
+      "agentic": "node heights clamp to a 1px visibility floor; zero-value links render at width 0 but their nodes stay visible, including when every authored flow is zero",
       "rationale": "the faithfulness contract forbids silently dropping authored data from the drawing"
     },
     {
@@ -151,12 +145,6 @@
       "upstream": "labels can overflow the fixed width×height canvas and clip",
       "agentic": "the canvas grows (and content shifts) so measured labels never clip; sankey.width/height size the flow area, not the final SVG",
       "rationale": "deterministic text metrics make non-clipping label layout a solvable constraint"
-    },
-    {
-      "id": "value-precision",
-      "upstream": "showValues renders values through upstream number formatting",
-      "agentic": "values render at full authored precision (String(value)) with prefix/suffix applied verbatim",
-      "rationale": "authored data is displayed faithfully; no rounding policy is invented"
     },
     {
       "id": "ribbon-composited-visibility",

@@ -284,6 +284,7 @@ export type ConnectorTerminalStrokeLoss =
   | 'dash-offset'
   | 'path-length'
   | 'paint-order'
+  | 'gradient-paint'
   | 'mix-blend-mode'
   | 'non-scaling-stroke'
 

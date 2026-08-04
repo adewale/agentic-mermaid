@@ -7,7 +7,7 @@ Generated from the Style, SceneRole, and FamilyDescriptor registries. Do not edi
 - Built-in families: **16**
 - Exportable built-in Looks: **16**
 - BrandPack promoted: **no** — No external consumer has shown that ordinary version-controlled StyleSpec files are insufficient for repeated distribution, exact selection, or installed-resource integrity.
-- Digest: `sha256:4f639a45b99a0959d113c0466677df0f25582fda20ddfa2d1654a501788fc4b5`
+- Digest: `sha256:f5515b4851f078573d327f52a85da0f818c3fa1e82677adab4d0995eddcb9ace`
 
 ## SceneRole styling
 

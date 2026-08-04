@@ -33,7 +33,7 @@ import {
   sameConnectorPoint,
 } from './connector-geometry.ts'
 import { assertRenderableMarker, serializeMarkerResources } from './marker-resources.ts'
-import { assertRenderableLinearGradient, serializeLinearGradientResources } from './gradient-resources.ts'
+import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinearGradientResources } from './gradient-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
@@ -810,8 +810,8 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       if (value.element !== 'definitions') add(state.diagnostics, 'SCENE_PAINT', `${path}.gradientResources`, 'are only valid on a definitions document mark')
       if (!Array.isArray(value.gradientResources)) add(state.diagnostics, 'SCENE_PAINT', `${path}.gradientResources`, 'must be an array')
       else {
-        if (value.gradientResources.length > MAX_SCENE_NODES) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.gradientResources`, 'contains too many gradient resources')
-        for (let index = 0; index < Math.min(value.gradientResources.length, MAX_SCENE_NODES); index++) {
+        if (value.gradientResources.length > LINEAR_GRADIENT_LIMITS.maxResources) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.gradientResources`, `contains more than ${LINEAR_GRADIENT_LIMITS.maxResources} gradient resources`)
+        for (let index = 0; index < Math.min(value.gradientResources.length, LINEAR_GRADIENT_LIMITS.maxResources); index++) {
           const gradient = value.gradientResources[index]
           const gradientPath = `${path}.gradientResources[${index}]`
           try {

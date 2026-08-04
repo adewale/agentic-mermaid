@@ -45,6 +45,8 @@ export interface SankeyDiagram {
 // ============================================================================
 
 export interface PositionedSankeyNode {
+  /** Bounded Scene identity; labels remain the public semantic identity. */
+  id: string
   /** The node label (node identity). */
   label: string
   /** Node throughput: max(sum of incoming, sum of outgoing). */
@@ -67,8 +69,13 @@ export interface PositionedSankeyNode {
 export interface PositionedSankeyLink {
   /** Stable link id: `source→target` with an occurrence suffix for duplicates. */
   id: string
+  /** Bounded collision-free Scene identity, independent of authored labels. */
+  sceneId: string
   source: string
   target: string
+  /** Bounded collision-free Scene endpoint identities. */
+  sourceId: string
+  targetId: string
   value: number
   /** Centerline cubic Bézier path (`M sx y0 C mx y0, mx y1, tx y1`). */
   path: string

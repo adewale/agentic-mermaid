@@ -74,7 +74,8 @@ export function formatSankeyValue(value: number, visual: SankeyVisualConfig): st
   return `${visual.prefix}${String(Math.round(value * 100) / 100)}${visual.suffix}`
 }
 
-/** Stable link id: endpoints plus an occurrence suffix for duplicate rows. */
+/** Stable semantic link id: endpoints plus an occurrence suffix for duplicate
+ * rows. Scene identities are separate bounded authored-index keys. */
 export function sankeyLinkId(source: string, target: string, occurrence: number): string {
   const base = `link:${source}->${target}`
   return occurrence === 0 ? base : `${base}#${occurrence}`
@@ -93,6 +94,7 @@ interface D3NodeData extends SankeyExtraProperties {
 
 interface D3LinkData extends SankeyExtraProperties {
   authoredIndex: number
+  authoredValue: number
 }
 
 type D3Node = SankeyNode<D3NodeData, D3LinkData>
@@ -112,6 +114,40 @@ function requiredCoordinate(value: number | undefined, name: string): number {
   return value
 }
 
+/** Longest-path layer count for the already-validated DAG. d3-sankey needs a
+ * corridor at least nodeWidth × layers wide or its horizontal step becomes
+ * smaller than a node (and can become negative when width < nodeWidth). */
+function sankeyLayerCount(diagram: SankeyDiagram): number {
+  const indegree = new Map(diagram.nodes.map(label => [label, 0]))
+  const outgoing = new Map<string, string[]>()
+  for (const link of diagram.links) {
+    indegree.set(link.target, (indegree.get(link.target) ?? 0) + 1)
+    outgoing.set(link.source, [...(outgoing.get(link.source) ?? []), link.target])
+  }
+  const depth = new Map(diagram.nodes.map(label => [label, 0]))
+  const queue = diagram.nodes.filter(label => indegree.get(label) === 0)
+  for (let index = 0; index < queue.length; index++) {
+    const source = queue[index]!
+    for (const target of outgoing.get(source) ?? []) {
+      depth.set(target, Math.max(depth.get(target) ?? 0, (depth.get(source) ?? 0) + 1))
+      const remaining = (indegree.get(target) ?? 1) - 1
+      indegree.set(target, remaining)
+      if (remaining === 0) queue.push(target)
+    }
+  }
+  return Math.max(1, ...depth.values()) + 1
+}
+
+function semanticNodeValues(diagram: SankeyDiagram): Map<string, number> {
+  const incoming = new Map(diagram.nodes.map(label => [label, 0]))
+  const outgoing = new Map(diagram.nodes.map(label => [label, 0]))
+  for (const link of diagram.links) {
+    outgoing.set(link.source, (outgoing.get(link.source) ?? 0) + link.value)
+    incoming.set(link.target, (incoming.get(link.target) ?? 0) + link.value)
+  }
+  return new Map(diagram.nodes.map(label => [label, Math.max(incoming.get(label) ?? 0, outgoing.get(label) ?? 0)]))
+}
+
 /**
  * Lay out a parsed sankey diagram. Node order (palette identity) is
  * first-appearance order; d3-sankey decides deterministic layer placement,
@@ -123,13 +159,20 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   // Mermaid feeds these exact parameters into d3-sankey. The extra 15px is
   // its allowance for the second value-label line.
   const layoutNodePadding = visual.nodePadding + (visual.showValues ? 15 : 0)
+  const flowWidth = Math.max(visual.width, visual.nodeWidth * sankeyLayerCount(diagram))
+  const allZero = diagram.links.every(link => link.value === 0)
+  const nodeValues = semanticNodeValues(diagram)
   const graph: SankeyGraph<D3NodeData, D3LinkData> = {
     nodes: diagram.nodes.map((id, authoredIndex) => ({ id, authoredIndex })),
     links: diagram.links.map((link, authoredIndex) => ({
       source: link.source,
       target: link.target,
-      value: link.value,
+      // d3-sankey cannot assign finite vertical geometry to a graph whose
+      // total weight is zero. Equal surrogate weights provide ordering and
+      // positions only; every public/paint value below remains authored zero.
+      value: allZero ? 1 : link.value,
       authoredIndex,
+      authoredValue: link.value,
     })),
   }
   createSankeyLayout<D3NodeData, D3LinkData>()
@@ -137,7 +180,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     .nodeWidth(visual.nodeWidth)
     .nodePadding(layoutNodePadding)
     .nodeAlign(ALIGNMENTS[visual.nodeAlignment] as (node: D3Node, n: number) => number)
-    .extent([[0, 0], [visual.width, visual.height]])(graph)
+    .extent([[0, 0], [flowWidth, visual.height]])(graph)
 
   const nodes = graph.nodes as D3Node[]
   const links = graph.links as D3Link[]
@@ -146,13 +189,15 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   // over-stack its node face. Preserve d3's layers and ordering, then grow
   // only the affected node/layer projection enough to hold rendered widths.
   const linkWidths = new Map<D3Link, number>(
-    links.map(link => [link, round(Math.max(link.value > 0 ? 1 : 0, link.width ?? 0))]),
+    links.map(link => [link, round(Math.max(link.authoredValue > 0 ? 1 : 0, allZero ? 0 : link.width ?? 0))]),
   )
   const nodeHeights = new Map<D3Node, number>()
   for (const node of nodes) {
     const outgoing = (node.sourceLinks ?? []).reduce((sum, link) => sum + linkWidths.get(link as D3Link)!, 0)
     const incoming = (node.targetLinks ?? []).reduce((sum, link) => sum + linkWidths.get(link as D3Link)!, 0)
-    const d3Height = requiredCoordinate(node.y1, `y1 for node ${node.id}`) - requiredCoordinate(node.y0, `y0 for node ${node.id}`)
+    const d3Height = allZero
+      ? 0
+      : requiredCoordinate(node.y1, `y1 for node ${node.id}`) - requiredCoordinate(node.y0, `y0 for node ${node.id}`)
     nodeHeights.set(node, Math.max(SANKEY.minNodeHeight, d3Height, outgoing, incoming))
   }
 
@@ -195,7 +240,6 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     stack('target', targetY)
   }
 
-  const flowWidth = visual.width
   const flowLeft = SANKEY.padding
   const renderedTitle = diagram.title ? applyTextTransform(diagram.title, style.groupTextTransform) : undefined
   const titleFontSize = style.groupHeaderFontSize
@@ -211,16 +255,17 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     width: number
   }
   const centralNodeLayer = nodes.reduce(
-    (central, node) => (node.value ?? 0) > (central.value ?? 0) ? node : central,
+    (central, node) => (nodeValues.get(node.id) ?? 0) > (nodeValues.get(central.id) ?? 0) ? node : central,
     nodes[0]!,
   ).layer ?? 0
   const labelPlans = new Map<D3Node, LabelPlan>()
   for (const node of nodes) {
     const name = applyTextTransform(node.id, style.nodeTextTransform)
-    const value = node.value ?? 0
+    const value = nodeValues.get(node.id) ?? 0
     const layer = node.layer ?? node.depth ?? 0
     const x0 = requiredCoordinate(node.x0, `x0 for node ${node.id}`)
-    const lines = visual.showValues ? [name, formatSankeyValue(value, visual)] : [name]
+    const nameLines = name.split(/\r?\n/)
+    const lines = visual.showValues ? [...nameLines, formatSankeyValue(value, visual)] : nameLines
     const anchor: 'start' | 'end' = visual.labelStyle === 'outlined'
       ? layer < centralNodeLayer ? 'end' : 'start'
       : flowLeft + x0 < flowCenterX ? 'start' : 'end'
@@ -251,8 +296,9 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     const y0 = flowTop + nodeY.get(node)!
     const y1 = y0 + nodeHeights.get(node)!
     return {
+      id: `sankey-node-${node.authoredIndex + 1}`,
       label: node.id,
-      value: node.value ?? 0,
+      value: nodeValues.get(node.id) ?? 0,
       layer: node.layer ?? node.depth ?? 0,
       x0: round(x0),
       y0: round(y0),
@@ -265,6 +311,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     }
   })
 
+  const positionedNodeByLabel = new Map(positionedNodes.map(node => [node.label, node]))
   const occurrences = new Map<string, number>()
   const positionedLinks: PositionedSankeyLink[] = links.map(link => {
     const source = link.source as D3Node
@@ -279,9 +326,12 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     const geometry = linkCenterline(sx, sy, tx, ty)
     return {
       id: sankeyLinkId(source.id, target.id, occurrence),
+      sceneId: `sankey-link-${link.authoredIndex + 1}`,
       source: source.id,
       target: target.id,
-      value: link.value,
+      sourceId: positionedNodeByLabel.get(source.id)!.id,
+      targetId: positionedNodeByLabel.get(target.id)!.id,
+      value: link.authoredValue,
       path: geometry.path,
       points: geometry.points,
       width: linkWidths.get(link)!,

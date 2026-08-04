@@ -38,7 +38,8 @@ const linksArb = fc
 const visualArb = fc.record({
   nodeAlignment: fc.constantFrom('justify', 'center', 'left', 'right'),
   nodePadding: fc.integer({ min: 4, max: 30 }),
-  width: fc.integer({ min: 300, max: 1200 }),
+  nodeWidth: fc.integer({ min: 1, max: 200 }),
+  width: fc.integer({ min: 1, max: 1200 }),
   height: fc.integer({ min: 200, max: 800 }),
 })
 

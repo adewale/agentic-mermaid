@@ -160,6 +160,30 @@ describe('sankey integration · deterministic layout invariants', () => {
     expect(zero.width).toBe(0)
   })
 
+  test('an all-zero diagram renders deterministically with visible nodes and zero-width links', () => {
+    const source = 'sankey-beta\n  A,B,0\n  A,C,0'
+    const chart = layout(source)
+    expect(chart.total).toBe(0)
+    expect(chart.nodes.every(node => node.value === 0 && node.y1 - node.y0 >= 1)).toBe(true)
+    expect(chart.links.every(link => link.value === 0 && link.width === 0)).toBe(true)
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('</svg>')
+    expect(renderMermaidSVG(source)).toBe(svg)
+  })
+
+  test('incompatible flow width and node width grow the flow area instead of placing nodes off-canvas', () => {
+    const chart = layout('sankey-beta\n  A,B,1', { width: 1, nodeWidth: 200 })
+    expect(chart.nodes.map(node => [node.x0, node.x1])).toEqual([
+      [24, 224],
+      [224, 424],
+    ])
+    for (const node of chart.nodes) {
+      expect(node.x0).toBeGreaterThanOrEqual(0)
+      expect(node.x1).toBeLessThanOrEqual(chart.width)
+    }
+    expect(chart.links[0]!.sx).toBeLessThanOrEqual(chart.links[0]!.tx)
+  })
+
   test('layer counts follow longest-path depth', () => {
     const chart = layout('sankey-beta\n  A,B,1\n  B,C,1\n  A,C,1')
     const layerOf = (label: string) => chart.nodes.find(n => n.label === label)!.layer

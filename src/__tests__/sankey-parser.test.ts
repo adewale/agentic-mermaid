@@ -39,9 +39,21 @@ describe('sankey parser · header and rows', () => {
 })
 
 describe('sankey parser · RFC 4180 quoting', () => {
-  test('quoted fields preserve commas and internal spacing exactly', () => {
+  test('quoted fields preserve commas and internal spacing', () => {
     const d = parseSankeyDiagram(lines('sankey-beta\nPumped heat,"Heating and cooling, homes",193.026'))
     expect(d.links[0]!.target).toBe('Heating and cooling, homes')
+  })
+
+  test('quoted fields may span physical lines (Mermaid 11.16 parity)', () => {
+    const d = parseSankeyDiagram(lines('sankey-beta\n"North\nAmerica",Demand,1'))
+    expect(d.nodes).toEqual(['North\nAmerica', 'Demand'])
+    expect(d.links[0]).toEqual({ source: 'North\nAmerica', target: 'Demand', value: 1 })
+  })
+
+  test('quoted edge whitespace is trimmed before node identity is assigned', () => {
+    const d = parseSankeyDiagram(lines('sankey-beta\n"A ",B,1\nA,C,2'))
+    expect(d.nodes).toEqual(['A', 'B', 'C'])
+    expect(d.links.map(link => link.source)).toEqual(['A', 'A'])
   })
 
   test('a doubled quote inside a quoted field is a literal quote', () => {
@@ -79,6 +91,8 @@ describe('sankey parser · loud row diagnostics (faithfulness contract)', () => 
     expect(() => parseSankeyDiagram(lines('sankey-beta\nA,B,-1'))).toThrow(/invalid value "-1"/)
     expect(parseSankeyDiagram(lines('sankey-beta\nA,B,0')).links[0]!.value).toBe(0)
     expect(parseSankeyDiagram(lines('sankey-beta\nA,B,.5')).links[0]!.value).toBe(0.5)
+    expect(parseSankeyDiagram(lines('sankey-beta\nA,B,1.')).links[0]!.value).toBe(1)
+    expect(parseSankeyDiagram(lines('sankey-beta\nA,B,1e3')).links[0]!.value).toBe(1000)
   })
 
   test('a diagram with no data rows errors loudly', () => {

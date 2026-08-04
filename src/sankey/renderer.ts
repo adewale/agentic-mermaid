@@ -118,7 +118,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
   if (visual.linkColor.mode === 'gradient') {
     const gradientResources: LinearGradientDescriptor[] = chart.links.map((link, index) => {
       const id = `sankey-gradient-${index + 1}`
-      gradientByLink.set(link.id, id)
+      gradientByLink.set(link.sceneId, id)
       const source = nodeColor.get(link.source)!
       const target = nodeColor.get(link.target)!
       return {
@@ -152,12 +152,12 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
       colors.bg,
       nodeColor.get(link.source)!,
       nodeColor.get(link.target)!,
-      gradientByLink.get(link.id),
+      gradientByLink.get(link.sceneId),
     )
     parts.push(
       marks.connector(
         {
-          id: link.id,
+          id: link.sceneId,
           role: 'edge',
           geometry: { kind: 'path', d: link.path, points: link.points },
           lineStyle: 'solid',
@@ -168,7 +168,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
             opacity: String(SANKEY_LINK_OPACITY),
           },
           stroke: { mixBlendMode: linkBlendMode },
-          endpoints: { from: link.source, to: link.target },
+          endpoints: { from: link.sourceId, to: link.targetId },
           relationship: { kind: 'flow', direction: 'forward' },
           channels: { category: link.source, value: link.value },
         },
@@ -184,7 +184,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
     parts.push(
       marks.shape(
         {
-          id: node.label,
+          id: node.id,
           role: 'bar',
           geometry: {
             kind: 'rect',
@@ -218,7 +218,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
     parts.push(
       marks.text(
         {
-          id: `label:${node.label}`,
+          id: `${node.id}:label`,
           role: 'label',
           text,
           x: node.labelX,

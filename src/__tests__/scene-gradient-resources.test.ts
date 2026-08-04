@@ -34,8 +34,11 @@ describe('typed Scene linear-gradient resources', () => {
 
   test('rejects unsafe IDs, fetching paints, unordered stops, and invalid numbers', () => {
     expect(() => assertRenderableLinearGradient(gradient({ id: 'bad id' }))).toThrow(/safe SVG id grammar/)
+    expect(() => assertRenderableLinearGradient(gradient({ id: `g${'x'.repeat(256)}` }))).toThrow(/at most 256/)
     expect(() => assertRenderableLinearGradient(gradient({ x2: Number.NaN }))).toThrow(/x2 must be finite/)
+    expect(() => assertRenderableLinearGradient(gradient({ x2: 1_000_001 }))).toThrow(/must not exceed/)
     expect(() => assertRenderableLinearGradient(gradient({ stops: [{ offset: 0, color: '#000' }] }))).toThrow(/at least two stops/)
+    expect(() => assertRenderableLinearGradient(gradient({ stops: Array.from({ length: 257 }, (_, index) => ({ offset: index / 256, color: '#000' })) }))).toThrow(/at most 256 stops/)
     expect(() => assertRenderableLinearGradient(gradient({ stops: [{ offset: 0.8, color: '#000' }, { offset: 0.2, color: '#fff' }] }))).toThrow(/non-decreasing/)
     expect(() => assertRenderableLinearGradient(gradient({ stops: [{ offset: 0, color: 'url(https://example.test/a.svg)' }, { offset: 1, color: '#fff' }] }))).toThrow(/safe non-fetching/)
     expect(() => assertRenderableLinearGradient(gradient({ stops: [{ offset: 0, color: '#000', opacity: 2 }, { offset: 1, color: '#fff' }] }))).toThrow(/opacity must be in/)
@@ -43,5 +46,10 @@ describe('typed Scene linear-gradient resources', () => {
 
   test('rejects duplicate resource IDs before emitting ambiguous SVG', () => {
     expect(() => serializeLinearGradientResources([gradient(), gradient()])).toThrow(/Duplicate linear gradient resource/)
+  })
+
+  test('bounds aggregate resource and stop work before serialization', () => {
+    const gradients = Array.from({ length: 10_001 }, (_, index) => gradient({ id: `g-${index}` }))
+    expect(() => serializeLinearGradientResources(gradients)).toThrow(/at most 10000 linear gradients/)
   })
 })

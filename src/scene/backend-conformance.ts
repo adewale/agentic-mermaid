@@ -37,6 +37,7 @@ import {
 } from './ir.ts'
 import { hitTestConnector } from './hit-test.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
+import { serializeLinearGradientResource } from './gradient-resources.ts'
 import { assertFinalSvgByteBudget } from './scene-validation.ts'
 import {
   connector,
@@ -51,7 +52,7 @@ import {
 import { sceneNodeSerialization } from './serialization.ts'
 
 export const BACKEND_CONFORMANCE_VERSION = 4 as const
-export const BACKEND_CONFORMANCE_FIXTURE_ID = 'backend-claim-matrix@3' as const
+export const BACKEND_CONFORMANCE_FIXTURE_ID = 'backend-claim-matrix@4' as const
 
 export const BACKEND_CONFORMANCE_CHECK_IDS = Object.freeze([
   'draw-node-determinism',
@@ -161,6 +162,12 @@ function createFixture(): ConformanceFixture {
     overflow: 'visible' as const,
     paint: { fill: '#a33b20', stroke: '#334155', strokeWidth: '1' },
   }
+  const gradient = {
+    id: 'backend-conformance-gradient',
+    units: 'userSpaceOnUse' as const,
+    x1: 0, y1: 0, x2: 120, y2: 0,
+    stops: [{ offset: 0, color: '#a33b20' }, { offset: 1, color: '#334155' }],
+  }
   const root = documentOpen({
     id: 'backend-conformance-prelude',
     width: 120,
@@ -183,8 +190,8 @@ function createFixture(): ConformanceFixture {
     domId: 'backend-conformance-description',
   })
   const marker = definitions(
-    { id: 'backend-conformance-definitions', markerResources: [arrow] },
-    `<defs>\n${serializeMarkerResource(arrow)}\n</defs>`,
+    { id: 'backend-conformance-definitions', markerResources: [arrow], gradientResources: [gradient] },
+    `<defs>\n${serializeMarkerResource(arrow)}\n${serializeLinearGradientResource(gradient)}\n</defs>`,
   )
   const node = shape({
     id: 'backend-conformance-node',
@@ -247,6 +254,7 @@ function createFixture(): ConformanceFixture {
       miterLimit: 7,
       pathLength: 77,
       paintOrder: 'stroke fill',
+      mixBlendMode: 'multiply',
       nonScaling: true,
     },
     markers: { start: arrow, mid: [arrow], end: arrow },
@@ -255,7 +263,7 @@ function createFixture(): ConformanceFixture {
       clearance: 2, halo: { color: '#ffffff', width: 3 }, paint: { fill: '#172033' },
       fontSize: 11, textAnchor: 'middle', visual: { kind: 'inline' },
     }],
-  }, '<path d="M 42 28 L 62 14 Q 66 12 70 14 L 90 28" fill="none" stroke="#334155" stroke-width="2" stroke-opacity="0.65" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="7" stroke-dasharray="6 3" stroke-dashoffset="2" pathLength="77" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-start="url(#backend-conformance-arrow)" marker-mid="url(#backend-conformance-arrow)" marker-end="url(#backend-conformance-arrow)" />')
+  }, '<path d="M 42 28 L 62 14 Q 66 12 70 14 L 90 28" fill="none" stroke="#334155" stroke-width="2" stroke-opacity="0.65" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="7" stroke-dasharray="6 3" stroke-dashoffset="2" pathLength="77" paint-order="stroke fill" vector-effect="non-scaling-stroke" style="mix-blend-mode:multiply" marker-start="url(#backend-conformance-arrow)" marker-mid="url(#backend-conformance-arrow)" marker-end="url(#backend-conformance-arrow)" />')
   const freehandConnector = connector({
     id: 'backend-conformance-freehand-relation',
     role: 'edge',
@@ -491,8 +499,9 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
   'document/resources/serialize': backend => {
     const svg = rendered(backend)
     return outcome(
-      svg.includes('<defs>') && svg.includes('id="backend-conformance-arrow"') && verifyNoExternalRefs(svg).ok,
-      'typed marker resource serialized without external references',
+      svg.includes('<defs>') && svg.includes('id="backend-conformance-arrow"')
+        && svg.includes('<linearGradient id="backend-conformance-gradient"') && verifyNoExternalRefs(svg).ok,
+      'typed marker and linear-gradient resources serialized without external references',
       'document resources were missing or unsafe',
     )
   },
@@ -715,6 +724,7 @@ const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
     )
   },
   'connector/paint-order/render': (backend, claim) => connectorProjectedField(backend, claim, 'paint-order', 'stroke fill'),
+  'connector/compositing/render': (backend, claim) => connectorProjectedField(backend, claim, 'style', 'mix-blend-mode:multiply'),
   'connector/non-scaling-stroke/render': (backend, claim) => connectorProjectedField(backend, claim, 'vector-effect', 'non-scaling-stroke'),
   'connector/marker-orientation/render': (backend, claim) => {
     const svg = rendered(backend)

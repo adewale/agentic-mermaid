@@ -11,10 +11,11 @@ import type { SankeyDiagram, SankeyLink } from './types.ts'
 //   source,target,value
 //
 // RFC 4180 subset, matching the upstream syntax page:
-//   - quoted fields ("...") may contain commas
+//   - quoted fields ("...") may contain commas and physical line breaks
 //   - a doubled quote inside a quoted field is a literal quote ("")
 //   - empty lines (no separators) are allowed for visual grouping
-//   - unquoted fields are trimmed; quoted field content is preserved exactly
+//   - every field is trimmed before it becomes a node identity, matching
+//     Mermaid's Sankey database actions after CSV unquoting
 //
 // Faithfulness contract (see docs/project/lessons-learned.md, ER lesson):
 // malformed rows ERROR LOUDLY — they are never silently dropped. Upstream's
@@ -23,8 +24,8 @@ import type { SankeyDiagram, SankeyLink } from './types.ts'
 // sankey flow graph must be acyclic to have a layered layout at all.
 // ============================================================================
 
-/** Mermaid sankey values: non-negative decimal numbers. */
-const NUMBER_RE = /^\+?(?:\d+(?:\.\d+)?|\.\d+)$/
+/** Mermaid Sankey numeric tokens, including exponent and trailing-dot forms. */
+const NUMBER_RE = /^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
 
 export interface SankeyParseOptions {
   /** Frontmatter `title:` — sankey has no in-body title statement. */
@@ -66,10 +67,11 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
   }
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!.replace(/\r$/, '')
-    const trimmed = line.trim()
+    let row = lines[i]!.replace(/\r$/, '')
+    const rowNumber = i + 1
+    const trimmedPhysicalLine = row.trim()
     // Empty lines are explicitly allowed by the upstream syntax page.
-    if (trimmed.length === 0 || trimmed.startsWith('%%')) continue
+    if (trimmedPhysicalLine.length === 0 || trimmedPhysicalLine.startsWith('%%')) continue
 
     // Mermaid-universal accessibility directives: accept and skip (the shared
     // render pipeline projects them into the SVG title/desc).
@@ -79,10 +81,18 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
       continue
     }
 
-    const fields = parseCsvRow(line, i + 1)
+    // Mermaid's lexer admits CR/LF inside an escaped CSV field. Reassemble
+    // that logical record before handing it to the strict row parser; comment
+    // and accessibility-looking text inside the quotes remains label content.
+    while (csvQuotedFieldIsOpen(row) && i + 1 < lines.length) {
+      i++
+      row += `\n${lines[i]!.replace(/\r$/, '')}`
+    }
+    const trimmed = row.trim()
+    const fields = parseCsvRow(row, rowNumber)
     if (fields.length !== 3) {
       throw syntaxError({
-        what: `Sankey row ${i + 1} has ${fields.length} column${fields.length === 1 ? '' : 's'}: "${trimmed}"`,
+        what: `Sankey row ${rowNumber} has ${fields.length} column${fields.length === 1 ? '' : 's'}: "${trimmed}"`,
         expectedForm: 'exactly three CSV columns: source,target,value',
         example: 'Electricity grid,Industry,342.165',
       })
@@ -90,12 +100,12 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
 
     const [source, target, rawValue] = fields as [string, string, string]
     if (source.length === 0 || target.length === 0) {
-      throw new Error(`Sankey row ${i + 1} has an empty ${source.length === 0 ? 'source' : 'target'} label: "${trimmed}"`)
+      throw new Error(`Sankey row ${rowNumber} has an empty ${source.length === 0 ? 'source' : 'target'} label: "${trimmed}"`)
     }
     if (!NUMBER_RE.test(rawValue)) {
       throw new Error(`Sankey flow "${source}" -> "${target}" has invalid value "${rawValue}". ` + 'Values must be non-negative numbers.')
     }
-    const value = Number.parseFloat(rawValue)
+    const value = Number(rawValue)
     if (!Number.isFinite(value) || value < 0) {
       throw new Error(`Sankey flow "${source}" -> "${target}" has invalid value "${rawValue}". ` + 'Values must be non-negative numbers.')
     }
@@ -121,8 +131,8 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
 }
 
 /**
- * Split one CSV row into fields (RFC 4180 subset). Unquoted fields are
- * trimmed; quoted fields preserve their content exactly, with `""` decoding
+ * Split one logical CSV record into fields (RFC 4180 subset). Every field is
+ * trimmed before identity assignment, and `""` inside a quoted field decodes
  * to a literal quote. Whitespace may surround a quoted field, but any other
  * text between the closing quote and the next comma errors loudly.
  */
@@ -161,7 +171,7 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
       if (after < line.length && line[after] !== ',') {
         throw new Error(`Sankey row ${lineNumber} has text after a closing quote: "${line.trim()}". ` + 'Escape a literal quote by doubling it ("").')
       }
-      fields.push(content)
+      fields.push(content.trim())
       index = after
     } else {
       let comma = line.indexOf(',', start)
@@ -179,6 +189,21 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
     }
   }
   return fields
+}
+
+/** True when a logical CSV record ends inside a quoted field. Doubled quotes
+ * are one escaped data character and therefore do not change quote state. */
+function csvQuotedFieldIsOpen(record: string): boolean {
+  let open = false
+  for (let index = 0; index < record.length; index++) {
+    if (record[index] !== '"') continue
+    if (open && record[index + 1] === '"') {
+      index++
+      continue
+    }
+    open = !open
+  }
+  return open
 }
 
 /**

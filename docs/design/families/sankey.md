@@ -44,12 +44,15 @@ Pumped heat,"Heating and cooling, homes",193.026
 Pumped heat,"Heating and cooling, ""commercial""",70.672
 ```
 
-- Exactly three columns per row; unquoted fields are trimmed, quoted fields
-  preserved exactly (`""` is a literal quote).
+- Exactly three columns per logical row. Quoted fields may span physical lines
+  and contain commas; `""` is a literal quote. Every decoded field is trimmed
+  before it becomes a node identity, matching Mermaid 11.16.
 - Empty lines and `%%` comments are allowed.
-- Values are non-negative numbers; malformed rows error loudly with the line
-  named. Self-loops and cycles are rejected at parse time with the offending
-  path spelled out (upstream defers to d3-sankey's opaque "circular link").
+- Values are non-negative finite numbers, including exponent (`1e3`) and
+  trailing-decimal (`1.`) forms; malformed rows error loudly with the starting
+  line named. Self-loops and cycles are rejected at parse time with the
+  offending path spelled out (upstream defers to d3-sankey's opaque "circular
+  link").
 
 ## Layout
 
@@ -58,9 +61,12 @@ engine pinned by Mermaid 11.16—for layering, all four `nodeAlignment` policies
 (justify default), barycenter relaxation, collision resolution, and ribbon
 stacking. Agentic Mermaid owns the typed projection around that engine:
 deterministic mark IDs, measured label/canvas bounds, typed connector routes,
-and explicit visibility floors. Node labels sit beside the rectangles and
-flip sides at the canvas midline; the canvas grows so measured labels never
-clip.
+and explicit visibility floors. An all-zero graph uses equal surrogate weights
+only to obtain finite d3 ordering/positions; authored node/link values and link
+widths remain zero. If the requested `width` cannot fit `nodeWidth` across the
+graph's layers, the effective flow corridor grows to the smallest non-
+overlapping width. Node labels sit beside the rectangles and flip sides at the
+canvas midline; the canvas grows so measured labels and nodes never clip.
 
 ![Alignment demo](./sankey-alignment-demo.png)
 
@@ -77,6 +83,16 @@ with the render's `idPrefix`, stops preserve authored endpoint colors, and the
 gradient uses `userSpaceOnUse` coordinates so each transition spans its actual
 link. Local `url(#id)` paints are accepted only when they resolve to a declared
 typed resource; dangling or external references are rejected.
+
+This is an additive implementation of core Scene v2's existing `resources`
+capability plus its already-typed connector `mixBlendMode`; the optional
+gradient descriptor does not widen the External Scene wire format, so the Scene
+contract version does not change. First-party backend admission now proves
+marker and gradient resource serialization plus blend-mode realization
+independently. External Scene v1 remains closed: authored gradient resources
+and `mixBlendMode` keys reject at its exact-key boundary. Terminal projection
+preserves the typed stroke receipt but reports `gradient-paint` and
+`mix-blend-mode` as explicit continuous-visual losses.
 
 ## Agent surface
 

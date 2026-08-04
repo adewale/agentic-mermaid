@@ -41,6 +41,20 @@ describe('sankey SVG renderer · structure', () => {
     const first = renderMermaidSVG(BASIC)
     expect(renderMermaidSVG(BASIC)).toBe(first)
   })
+
+  test('legal long labels do not escape the bounded Scene identity contract', () => {
+    const label = 'L'.repeat(255)
+    const svg = renderMermaidSVG(`sankey-beta\n"${label}",Target,1`)
+    expect(svg).toContain(`data-label="${label}"`)
+    expect(svg).toContain('data-id="sankey-node-1"')
+    expect(svg).toContain('</svg>')
+  })
+
+  test('multiline quoted labels render as multiline text through the public seam', () => {
+    const svg = renderMermaidSVG('sankey-beta\n"North\nAmerica",Demand,1')
+    expect(svg).toContain('>North</tspan>')
+    expect(svg).toContain('>America</tspan>')
+  })
 })
 
 describe('sankey SVG renderer · config wiring', () => {

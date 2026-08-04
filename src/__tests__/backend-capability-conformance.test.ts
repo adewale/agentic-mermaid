@@ -37,7 +37,7 @@ describe('claim-keyed backend capability conformance', () => {
       expect(results.map(result => result.claimKey)).toEqual(declarations)
       expect(new Set(results.map(result => result.claimKey)).size).toBe(declarations.length)
       expect(results.every(result => result.status === 'passed')).toBe(true)
-      expect(results.every(result => result.witnessId?.startsWith('backend-claim-matrix@3/'))).toBe(true)
+      expect(results.every(result => result.witnessId?.startsWith('backend-claim-matrix@4/'))).toBe(true)
       expect(results.every(result => Boolean(result.observation))).toBe(true)
       expect(descriptor.conformance.checks.find(check => check.id === 'capability-claims'))
         .toEqual({ id: 'capability-claims', passed: true })
@@ -48,6 +48,14 @@ describe('claim-keyed backend capability conformance', () => {
       expect(hybrid.conformance.claims.find(claim =>
         claim.primitive === 'shape' && claim.feature === feature && claim.operation === 'render'))
         .toMatchObject({ realization: 'emulated', status: 'passed' })
+    }
+    for (const descriptor of backends) {
+      expect(descriptor.conformance.claims.find(claim =>
+        claim.primitive === 'connector' && claim.feature === 'compositing' && claim.operation === 'render'))
+        .toMatchObject({ status: 'passed' })
+      expect(descriptor.conformance.claims.find(claim =>
+        claim.primitive === 'document' && claim.feature === 'resources' && claim.operation === 'serialize'))
+        .toMatchObject({ status: 'passed', observation: expect.stringContaining('marker and linear-gradient') })
     }
   })
 
