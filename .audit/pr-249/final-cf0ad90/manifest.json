@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 2,
+  "programme": "issue-248-fidelity",
+  "repository": {
+    "fullName": "adewale/agentic-mermaid",
+    "id": "1181667327"
+  },
+  "pullRequest": 249,
+  "roundId": "final-after-factored-simplification-1",
+  "registeredAt": "2026-08-06T21:11:43Z",
+  "registeredBeforeDispatch": true,
+  "candidate": {
+    "targetBranch": "main",
+    "targetTip": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "mergeBase": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "head": "cf0ad9021ee40d23d4d6572a58c6a79e3b63ca83",
+    "headTree": "a7bc33eb1db7fdc2212ebb6a2eb74ea166e8c2b8",
+    "changedPaths": [
+      "docs/project/issue-248-fidelity-delivery-plan.md"
+    ],
+    "diffCommand": "git diff --binary f203ab6a3faf09a4c2dd4057523f2cf651ca540a...cf0ad9021ee40d23d4d6572a58c6a79e3b63ca83",
+    "diffSha256": "e09d1db9db9b47c5be247e8906433a9984a3c0a0b474ff403d5cd396b9cebb65",
+    "mergeStrategy": "squash"
+  },
+  "semanticDescription": {
+    "title": "Document issue #248 fidelity delivery plan",
+    "githubUpdatedAt": "2026-08-06T21:09:26Z",
+    "canonicalization": "UTF-8 bytes of title:<title>\\nbody:\\n<body>, with title and body exactly as returned by GitHub",
+    "sha256": "1c8a4cf32fdf2cd876ad8ca56de92f52863cb2aa78d59899a7fa36def0aada19",
+    "bodySha256": "303727e9bcc23ac30a23ae5e8154f0932340d3df93b38a59c610f32590966681"
+  },
+  "governancePolicy": {
+    "revision": "cf0ad9021ee40d23d4d6572a58c6a79e3b63ca83",
+    "path": "docs/project/issue-248-fidelity-delivery-plan.md",
+    "blob": "49947b19ad23d2301bf37d516604b186f031b6c8",
+    "bootstrap": true
+  },
+  "checks": {
+    "provider": "github-actions",
+    "requiredRuns": [
+      {
+        "id": 30944095575,
+        "name": "CI",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 30944095622,
+        "name": "Ruff",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "requiredCheckPolicy": "newest pull-request-triggered CI and Ruff workflow runs for the exact candidate head",
+    "focusedChecks": [
+      "git diff --check f203ab6a3faf09a4c2dd4057523f2cf651ca540a...cf0ad9021ee40d23d4d6572a58c6a79e3b63ca83",
+      "bun install --frozen-lockfile (lockfile unchanged)",
+      "bun test src/__tests__/docs-consolidation-contract.test.ts (12 pass, 0 fail)",
+      "bun run lint:contracts (78 pass, 0 fail)"
+    ]
+  },
+  "anchor": {
+    "type": "protected-git-ref",
+    "ref": "refs/heads/audit/pr-249-final-cf0ad90",
+    "url": "https://github.com/adewale/agentic-mermaid/tree/audit/pr-249-final-cf0ad90/.audit/pr-249/final-cf0ad90",
+    "requiredProtection": {
+      "enforceAdmins": true,
+      "lockBranch": true,
+      "allowForcePushes": false,
+      "allowDeletions": false
+    }
+  },
+  "promptHashNormalization": "SHA-256 of the UTF-8 prompt file bytes including the final LF",
+  "sessions": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/pr249_architecture_cf0ad90",
+      "runRegistrationId": "pr249-final-cf0ad90-architecture-1",
+      "promptPath": "architecture-prompt.txt",
+      "promptSha256": "9b38cd35db3e404a8c67fb711dbcf115259803013c5f7c42d40f39627dbc54bf",
+      "scopeSha256": "9b38cd35db3e404a8c67fb711dbcf115259803013c5f7c42d40f39627dbc54bf",
+      "state": "registered"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/pr249_upstream_cf0ad90",
+      "runRegistrationId": "pr249-final-cf0ad90-upstream-1",
+      "promptPath": "upstream-prompt.txt",
+      "promptSha256": "ef27583ea18104ab6ea2f481e8228dab56c388ca7b39f88749b97e9bdab2d995",
+      "scopeSha256": "ef27583ea18104ab6ea2f481e8228dab56c388ca7b39f88749b97e9bdab2d995",
+      "state": "registered"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/pr249_adversarial_cf0ad90",
+      "runRegistrationId": "pr249-final-cf0ad90-adversarial-1",
+      "promptPath": "adversarial-prompt.txt",
+      "promptSha256": "d635e71ba6932718488adf90c8d7c818f1bc3aa92cd163ee234efd874e17455f",
+      "scopeSha256": "d635e71ba6932718488adf90c8d7c818f1bc3aa92cd163ee234efd874e17455f",
+      "state": "registered"
+    }
+  ],
+  "reconciliation": {
+    "commissionedRuns": 3,
+    "firstReportsExpected": 3,
+    "state": "registered-not-dispatched"
+  }
+}
