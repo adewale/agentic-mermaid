@@ -2,9 +2,12 @@
 
 Status: proposed. This document turns
 [#248](https://github.com/adewale/agentic-mermaid/issues/248) into a staged
-delivery programme. The issue remains the authority for the audited findings
-and closure criteria; this plan owns sequencing, PR boundaries, dependency
-policy, and review discipline.
+delivery programme. The issue remains the tracking and historical-evidence
+record. This repository document supplies the initial scoped family authority;
+after A1, the checked-in, versioned `FidelityScopeAuthority` is the sole
+executable closure authority. Editing the issue alone cannot change programme
+scope. This plan also owns sequencing, PR boundaries, dependency policy, and
+review discipline.
 
 ## 1. Decision
 
@@ -131,6 +134,10 @@ blocks programme closure, and may be promoted only when an exact runtime
 diagnostic or native fix lands. Divergence ledgers are inputs to aggregation,
 not parallel documentation.
 
+`uncovered` is an internal migration state, not a public capability
+disposition. It carries no behavioral claim, always projects to public
+`absent`, and cannot satisfy native, diagnosed, or final-closure coverage.
+
 ### 3.4 Every regression test must discriminate
 
 For each behavioral fix, demonstrate that the focused test or receipt is red on
@@ -156,17 +163,34 @@ must pass the following loop before it is marked ready or merged.
 1. Finish the scoped implementation.
 2. Commit the complete candidate and require a clean working tree. An
    uncommitted or dirty candidate cannot begin a formal audit round.
-3. Run the mandatory baseline and touched-authority checks from §9.
+3. Freeze the complete semantic PR title/body. Record its SHA-256 and GitHub
+   `lastEditedAt`; dynamic workflow run IDs and audit status do not belong in
+   that body.
 4. Record the candidate tuple: repository ID, PR number, target branch,
    target-tip SHA, merge-base SHA, head SHA, intended merge strategy, protected
-   governance-policy revision, and frozen semantic PR title/body digest.
-   Recompute and record the head-tree and full-diff digests as derived integrity
-   receipts rather than treating them as additional identity fields.
-5. Before dispatch, create a content-addressed round manifest that registers
+   governance-policy revision, and semantic-description digest. Recompute and
+   record the head tree and canonical delta digest as derived integrity receipts
+   rather than additional identity fields. `git-raw-tree-delta-v1` is SHA-256
+   over the exact NUL-delimited stdout of:
+
+   ```text
+   git -c core.abbrev=40 -c color.ui=false diff-tree --no-commit-id -r --raw -z --abbrev=40 --no-renames <merge-base> <head>
+   ```
+
+   Record the repository object format. Rendered patches, abbreviated object
+   IDs, textconv, external diff drivers, rename heuristics, locale, and object-
+   count-dependent abbreviation are not identity inputs; a binary patch may be
+   retained only as human-readable review evidence.
+5. Run the mandatory baseline and touched-authority checks from §9 against that
+   exact frozen state. A0 checks attest the semantic digest; during bootstrap,
+   every accepted provider run must start after `lastEditedAt`.
+6. Immediately before registration, reread the live PR metadata, target tip,
+   tuple, digests, and newest required runs. Any difference restarts preparation.
+7. Before dispatch, create a content-addressed round manifest that registers
    the three role/session/run IDs, prompt/scope hashes, candidate tuple, tree/
-   diff digest, and timestamp.
-6. Freeze implementation work while the auditors inspect that registered
-   candidate.
+   canonical-delta digest, and timestamp.
+8. Freeze implementation and semantic-description work while the auditors
+   inspect that registered candidate.
 
 ### 4.2 Run at least three independent agent audits
 
@@ -195,7 +219,7 @@ architecture/dependency feasibility, and enforceability/adversarial review.
 
 Each auditor must return:
 
-- `APPROVE` or `CHANGES_REQUIRED`;
+- `APPROVED` or `CHANGES_REQUIRED`;
 - stable finding IDs ordered by severity;
 - exact file, contract, or upstream evidence for each finding;
 - the smallest acceptable correction; and
@@ -217,7 +241,10 @@ the complete registered role set.
    acceptance criteria.
 3. Rerun focused and affected wider checks.
 4. Start a new independent audit round against the new candidate tuple.
-5. Repeat until every auditor returns `APPROVE` with no actionable findings.
+5. Repeat until every auditor returns `APPROVED` with no actionable findings.
+
+`AuditVerdict` is exactly `APPROVED | CHANGES_REQUIRED`. Manifests, prompts,
+reconciliation, readiness parsers, and examples must reject every other token.
 
 Any change to the repository/PR identity, semantic title/body digest, head SHA,
 target-tip SHA, merge-base SHA, target branch, intended merge strategy, or
@@ -225,7 +252,7 @@ protected governance-policy revision invalidates checks and approval and
 requires another round. This includes target-branch advancement, semantic PR
 description edits, retargeting, parent-PR merge, and rebasing even when the
 child head tree appears unchanged. Immediately before merge, compare the
-current tuple, tree/diff and semantic-description digests, required workflow
+current tuple, tree/canonical-delta and semantic-description digests, required workflow
 and governance-policy revisions, and newest non-superseded provider-issued
 check runs with the final audit record and fail closed on any difference. A
 newer failed or cancelled run for the same tuple supersedes an older success.
@@ -234,7 +261,8 @@ newer failed or cancelled run for the same tuple supersedes an older success.
 
 The trusted runner preserves each individual first report as a content-addressed
 immutable payload. One detached signed or protected round envelope records all
-payload hashes, roles, actor/session/run identities, candidate tuple, tree/diff
+payload hashes, roles, actor/session/run identities, candidate tuple, tree/
+canonical-delta
 and semantic-description digests, prompt/scope hashes, timestamps, commissioned-
 run reconciliation, and finding ledger. Never require a payload to contain its
 own byte hash. The PR conversation needs one machine-owned comment per round
@@ -267,18 +295,21 @@ This plan PR and the A0 governance PR necessarily precede the trusted audit
 runner. They use one explicit, temporary bootstrap protocol; no later PR may
 claim this exception:
 
-1. commit a clean candidate and record repository/PR identity, semantic
-   title/body digest, target tip, merge base, head, tree, diff digest, protected
-   policy revision, and squash strategy;
-2. run `git diff --check <merge-base>...<head>` and verify the changed-path set;
+1. commit a clean candidate, freeze its semantic title/body, and record its
+   digest and GitHub `lastEditedAt` together with repository/PR identity, target
+   tip, merge base, head, tree, canonical delta digest, protected policy
+   revision, and squash strategy;
+2. run `git diff --check <merge-base>...<head>`, verify the changed-path set,
+   and compute the canonical `git-raw-tree-delta-v1` receipt from §4.1;
 3. validate the external issue/PR links with `gh issue view 248` and
    `gh pr view 192`, and require every target-bound `gh pr checks` identity to
-   be complete and green before registration or dispatch;
+   start after the recorded `lastEditedAt` and be complete and green before
+   registration or dispatch;
 4. before dispatch, anchor a canonical round-manifest payload in an
    independently controlled append-only record that does not mutate the frozen
    candidate: a protected audit ref, signed annotated tag, or server-issued
    immutable record. A detached envelope records the manifest payload hash,
-   session IDs, prompt/scope hashes, tuple, tree/diff and semantic-description
+   session IDs, prompt/scope hashes, tuple, tree/canonical-delta and semantic-description
    digests, timestamp, and anchor object/URL. A PR comment points to that anchor
    but is not its authority;
 5. require each auditor to publish the first report through an independently
@@ -307,13 +338,17 @@ trusted runner artifacts and automation.
 
 The current syntax-feature inventory is derived largely from documentation
 headings and the upstream manifest covers families outside #248. A1 must first
-generate one `FidelityScopeAuthority` containing exactly the 16 families named
-by #248: the 15 built-ins on `main` plus Sankey. It then establishes the scoped
+generate one repository-versioned `FidelityScopeAuthority` containing exactly
+these initial family IDs: `flowchart`, `state`, `sequence`, `timeline`, `class`,
+`er`, `journey`, `architecture`, `xychart`, `pie`, `quadrant`, `gantt`,
+`mindmap`, `gitgraph`, `radar`, and `sankey`. It then establishes the scoped
 construct roster from pinned grammar/spec blocks, official fences, and config
 authority, with reviewed many-to-many mappings to documentation headings and
 manifest coordinates. Manifest rows outside this family authority remain in an
 explicit unsupported/out-of-scope envelope; they do not silently enter this
-programme or require projectors and cases.
+programme or require projectors and cases. A scope amendment requires an
+audited repository PR that changes the authority and its digest; synchronize the
+tracking issue, but do not treat it as a trust root.
 
 A2 generates a versioned public-route registry from canonical SDK declarations,
 CLI command/selector tables, MCP tool declarations, browser/editor/website
@@ -325,10 +360,10 @@ string or hand-maintained in cases.
 
 Exact-set validation must prove:
 
-- the in-scope family-ID set equals the 16-family authority unless #248 itself
-  is amended;
-- every scoped construct maps to at least one fidelity case and every case maps
-  back to scoped constructs and authorities;
+- the in-scope family-ID set equals the repository-versioned scope authority;
+- every scoped construct and manifest authority generates at least one coverage
+  obligation, every case maps back to scoped constructs and authorities, and
+  final closure requires every obligation to be discharged by executable cases;
 - every scoped manifest `syntaxFeature`, official `example`, `configKey`, and
   `themeVariable` appears in its typed index, while every unscoped row has an
   explicit out-of-scope disposition;
@@ -353,13 +388,30 @@ independent evidence. Use two exact, joined contracts instead:
 2. route-conformance cases prove every public adapter's accepted inputs,
    operation, selector, output, diagnostics, and pass-through/projection rules.
 
-An adapter may use factored conformance only when its registry declaration and
-tests prove it is family-agnostic: it delegates to the canonical core without
-branching on family or construct, and its touched-authority rule invalidates
-that classification when dispatch code changes. Any family/construct-specific
-branch is `route-specific` and requires direct family-case coverage for the
-affected constructs. A2 owns the precise TypeScript schema; this plan requires
-the following records and joins rather than freezing implementation syntax:
+Factored conformance is permitted only when an adapter proves a refinement to
+the canonical core for every generated route contract. An `opaque-transport`
+adapter must prove across its complete transitive production dependency closure
+that it cannot inspect or modify family, construct, source, options,
+diagnostics, semantic results, Scene data, or output bytes except through
+schema-checked lossless envelope serialization. Caching, normalization,
+coercion, security/option projection, diagnostic mapping, mutation/build
+handling, output conversion, truncation, and output-size policy are
+transformations, not opaque transport.
+
+A2 generates an exact-set `RouteTransformAuthority`. Every transformation has a
+stable contract ID, declared affected input and semantic-implication IDs, and a
+versioned refinement oracle. The runner records normalized source/request,
+operation, selector, output, config/theme/interaction/options, core result, and
+diagnostic identities at the adapter handoff, then proves that the public result
+equals the declared projection. Every semantic cell declares the implication
+IDs it proves. Missing, extra, dynamic, unclassified, or orphaned joins fail
+generation. Absence of family/construct branching is insufficient; a transform
+without a finite authoritative implication mapping is `route-specific` and
+requires direct affected-construct coverage. Touched-authority invalidation
+includes the adapter's transitive codecs, projectors, and dependencies.
+
+A2 owns the precise TypeScript schema; this plan requires the following records
+and joins rather than freezing implementation syntax:
 
 | Record | Required data |
 | --- | --- |
@@ -367,9 +419,16 @@ the following records and joins rather than freezing implementation syntax:
 | Source | Stable ID, exact source, authored/metamorphic/boundary/malformed role, and base/transform IDs for a derived variant |
 | Invocation | Stable ID, source/mutation/build kind, canonical core or public route ID, source or family input, and declarative options/operations |
 | Semantic cell | Stable ID, construct ID, invocation ID, stage, disposition, oracle/diagnostic requirements, or governed blocking/not-applicable evidence |
-| Public route | Generated transport, operation, entrypoint, selector, optional output, owning adapter, pass-through/route-specific mode, family/input applicability, and reachable stages |
-| Route-conformance case | Stable ID, route ID, contract IDs, fixture invocation IDs, oracle, and diagnostic expectations |
+| Public route | Generated transport, operation, entrypoint, selector, optional output, owning adapter, opaque-transport/refined-transform/route-specific mode, family/input applicability, and reachable stages |
+| Route transform | Stable contract ID, affected input/implication IDs, transitive dependency coordinates, handoff/result identity fields, and refinement oracle |
+| Route-conformance case | Stable ID, route ID, transform/contract IDs, fixture invocation IDs, core-handoff witness, refinement oracle, and diagnostic expectations |
 | Comparison | Stable ID, construct IDs, two exact invocation-stage results, and a versioned oracle |
+| Coverage obligation | Stable authority coordinate, required family/input/stage or route contract, state (`uncovered` or `discharged`), and resolving case/cell IDs when discharged |
+
+Coverage obligations are generated exhaustively from scope and route
+authorities before cases are authored. `uncovered` is permitted only during
+migration: it maps to public `absent`, cannot satisfy a claim, and fails final
+programme closure. This preserves exact-set accounting while evidence lands.
 
 `FidelityStage` covers detection, agent parse, verification, native parse,
 configuration, layout, Scene, SVG, PNG, terminal, serialization, mutation,
@@ -391,11 +450,16 @@ The route grid contains exactly one conformance result for every generated
 public route × accepted input kind × operation/selector/output contract. It
 checks real transport admission, option/config/theme/interaction pass-through,
 diagnostic envelopes, mutation atomicity, serialization, output bytes, and
-security rules as applicable. Use a small cross-family fixture set chosen by
-semantic category, not one fixture per construct. A `route-specific` adapter
-also generates direct required family-case cells for each affected construct.
-Aggregation permits a public native claim only when both its semantic cells and
-the applicable route-conformance cells pass.
+security rules as applicable. Use one discriminating case for every generated
+route-transform contract and equivalence class. A small cross-family fixture set
+provides concrete controls for declared pass-through/refinement invariants; it
+is not their sole proof. Property or metamorphic cases cover generic transforms
+and boundary policies that exact digest equality cannot establish. Cache
+conformance proves every semantic request field participates in the cache key.
+A `route-specific` adapter also generates direct required family-case cells for
+each affected construct or implicated semantic type. Aggregation permits a
+public native claim only when both its semantic cells and applicable route-
+conformance/refinement cells pass.
 
 Every invocation, cell, diagnostic, comparison, source, route case, and
 authority reference must resolve and have reverse coverage. Public mutation and
@@ -407,6 +471,23 @@ facets. A route that does not support an operation must emit an exact diagnosed
 outcome or carry governed `not-applicable` evidence; the programme does not
 require inventing a mutation API merely to satisfy a native render claim.
 
+The generator also derives exact mutation/build membership indexes without
+multiplying constructs across transports. Every structured `(case ID, construct
+ID, source ID)` membership whose family has a public mutation route participates
+in at least one canonical real-route invocation that mutates the construct or
+proves it survives an unrelated mutation. It requires a discriminating result
+oracle and preservation oracles for unrelated semantic facets. `not-applicable`
+is valid only when no generated public mutation operation can exercise or
+preserve that membership, with typed authority evidence.
+
+For build, every advertised `(family ID, construct ID, build-operation ID)`
+membership participates in at least one real-route sequence whose result oracle
+proves the requested construct and whose preservation oracles prove later
+operations retain unrelated constructs already built. Additional transports use
+route conformance; canonical memberships are not repeated per route. Missing,
+unknown, or orphaned required memberships fail generation, while multiple
+witnesses may satisfy one membership.
+
 Schema validation rejects a native applicable cell without an oracle, a
 source-preserved cell without both a preservation oracle and at least one
 expected runtime diagnostic, a diagnosed/rejected cell without at least one
@@ -415,6 +496,9 @@ cell without a typed reason and authority evidence. Silent loss is not a
 compatibility disposition. When agent parse applies, native aggregation
 additionally requires a structured agent oracle; opaque preservation caps the
 aggregate at `source-preserved` even when downstream rendering succeeds.
+Schema validation also rejects a pass-through route result without a complete
+core-handoff/refinement witness, or a projected result without a versioned
+projection oracle.
 
 Define the stage dependency graph explicitly. A locally blocked downstream
 stage remains applicable, identifies the blocking invocation/stage and required
@@ -456,14 +540,15 @@ regardless of native-render success. Opaque agent success paired with render
 failure additionally requires an exact diagnosed policy rather than
 `verify.ok === true` under an unqualified claim.
 
-A2 adds one deterministic package script, `fidelity:check`. It executes the
-complete scoped semantic and route-conformance corpus against the pinned
-upstream revision, builds raw receipts in a temporary directory, derives the
-compact capability index in the same process, and compares generated committed
-outputs. Committed or manually edited raw result files are never trusted as
-inputs. CI may retain
-the raw receipts as immutable debugging artifacts, but a freshness-only check
-cannot substitute for execution.
+A2 adds one deterministic package script, `fidelity:check`. It executes every
+registered semantic and route-conformance case against the pinned upstream
+revision, validates the complete generated coverage-obligation grids, derives
+public `absent` for every uncovered obligation, builds raw receipts in a
+temporary directory, derives the compact capability index in the same process,
+and compares generated committed outputs. Committed or manually edited raw
+result files are never trusted as inputs. CI may retain the raw receipts as
+immutable debugging artifacts, but a freshness-only check cannot substitute
+for execution.
 
 ### 5.4 Family semantic projectors
 
@@ -503,8 +588,10 @@ Use a two-tier dataflow:
    compact, versioned aggregate capability index consumed by runtime family
    descriptors, CLI discovery, and public report generators;
 3. freshness hashes bind the aggregate to case definitions, the executed result
-   summary, public-route registry and adapter versions, projector/oracle/schema
-   versions, divergence ledgers, and upstream revision;
+   summary, the scope authority's schema version, blob ID, and content digest,
+   the public-route/transform registries and transitive adapter dependency
+   versions, projector/oracle/schema versions, divergence ledgers, and upstream
+   revision;
    and
 4. build metafile, tarball, and bundle negative tests prove that Mermaid oracle
    code, case source, raw receipts, and semantic snapshots do not enter Node,
@@ -555,7 +642,8 @@ adoption PR. Only this plan and A0 may use the manual bootstrap in §4.5:
   `pull_request_target` checkout or execution of candidate bytes is forbidden;
 - extend the PR template and readiness tooling to require one immutable round
   bundle containing the three individual reports, finding ledger, newest check
-  identities, and current tuple/tree/diff/semantic-description digests;
+  identities, and current tuple/tree/canonical-delta/semantic-description
+  digests;
 - fail readiness when reports are missing, roles are reused, findings remain
   unresolved, runs are unreconciled, or approvals/checks are stale or
   superseded;
@@ -581,29 +669,37 @@ implementer-authored manual results are not substitutes after bootstrap.
    - choose the canonical Mermaid 11.16 revision;
    - make all executable artifacts name it or an explicit reviewed
      compatibility revision;
-   - generate the exact 16-family scope, explicit out-of-scope envelope,
-     construct-complete roster, and many-to-many authority joins from §5.1; and
+   - land the repository-versioned exact 16-family scope authority, explicit
+     out-of-scope envelope, construct-complete roster, and many-to-many
+     authority joins from §5.1; and
    - fail generation on unacknowledged splits or roster gaps.
 2. **A2: fidelity contract and runner skeleton**
    - add stable `caseId`, discriminated authority references, construct IDs,
-     deterministic coverage cells, exact-set indexes for scoped features/
-     examples/config keys/theme variables/public routes, route-bound source/
-     mutation/build invocations, A/B comparisons, and a small cross-family
-     exemplar set;
-   - add `fidelity:check` to execute the complete scoped corpus and
-     derive the compact index in one process;
+     generated coverage obligations, exact-set indexes for scoped features/
+     examples/config keys/theme variables/public routes/route transforms/
+     mutation-build memberships, route-bound source/mutation/build invocations,
+     A/B comparisons, and a small cross-family exemplar set;
+   - add `fidelity:check` to execute all registered cases, reject missing,
+     unknown, or orphaned obligations, permit explicit migration-only
+     `uncovered` obligations, project them as public `absent`, and derive the
+     compact index in one process;
    - keep cases, ephemeral raw receipts, snapshots, and upstream adapters behind
      an enforced test/eval-only import boundary;
    - add the deterministic compact-index generator contract and initial bundle
      exclusion tests;
    - do not change public capability claims yet.
-3. **A3: semantic projectors for the complete family roster**
+3. **A3: semantic projectors for enrolled families plus deferred Sankey**
    - A3.0 establishes the runner-owned oracle registry and normalized snapshot/
-     versioning rules, then lands enough projectors for Phase 0;
-   - A3.x family shards complete projectors for all 15 families currently on
-     `main`, with exact-set tracking; and
-   - the Sankey projector shard depends on C3 enrollment.
+     versioning rules and one vertical slice that validates A4 aggregation;
+   - independent A3.x shards add projectors for all 15 families currently on
+     `main`, with exact-set tracking;
+   - A4 depends on A3.0, not completion of every family shard. Unprojected
+     obligations remain present and project as public `absent`; and
+   - the Sankey projector shard alone depends on C3 enrollment and is required
+     for C4 and final 16-family closure.
 4. **A4: receipt-driven reports and citizenship**
+   - depend on A1, A2, and A3.0, then migrate reports before every family
+     projector is complete;
    - feed divergences and freshly executed receipts into capability aggregation;
    - generate the compact versioned runtime/report index and bind its freshness
      hash to scope, cases, executed result summary, routes, projectors/oracles/
@@ -612,7 +708,8 @@ implementer-authored manual results are not substitutes after bootstrap.
      generated-file-only check is insufficient;
    - prove raw evidence and Mermaid oracle code are absent from every shipped
      bundle and tarball;
-   - deliberately downgrade every not-yet-receipted claim during migration;
+   - deliberately downgrade every uncovered, unprojected, or not-yet-receipted
+     claim to `absent` during migration;
    - classify known defects from actual behavior: `diagnosed` only when the
      public path emits the exact asserted diagnostic, otherwise
      `source-preserved` or `absent` as applicable; and
@@ -622,19 +719,21 @@ implementer-authored manual results are not substitutes after bootstrap.
 Primary dependency graph:
 
 ```text
-A0 ───────────────────────────────> every implementation/adoption PR
-A1 -> A2 -> A3 -> A4
-          |           |-> family repairs + relevant B guardrail/projector
-          |           |-> Stack D official-example closure
-          |           `-> Stack E config-effect closure
-          |-> Stack B parser/seam work where the receipt API is required
-          `-> Stack C may start independently from main, but C4 consumes A4
+A0 ─────────────────────────────────────> every implementation/adoption PR
+A1 -> A2 -> A3.0 -> A4
+       |       |-> A3.<family> -> corresponding repair / D / E shard
+       |       `-> A3.sankey (after C3) -> C4
+       |-> Stack B parser/seam work where the receipt API is required
+       `-> generic C1/C2 may start independently from main
+
+C1 + C2 -> C3 -> A3.sankey
+A4 + A3.sankey -> C4 -> final 16-family closure
 ```
 
-Family repairs depend on A4 plus their family projector and relevant guardrail.
-Each family shard in Stacks D and E depends on that family's completed projector
-as well as the receipt schema and aggregation base. B and generic C
-infrastructure may begin earlier where they do not consume those authorities.
+Each non-Sankey family repair and D/E shard depends only on A4, its own completed
+family projector, and its relevant guardrail. No non-Sankey work depends on C3
+or the Sankey projector. B and generic C infrastructure may begin earlier where
+they do not consume those authorities.
 
 ### Stack B — parser and seam guardrails
 
@@ -832,8 +931,9 @@ description sections and include their digest in the candidate tuple:
   command, expected failure signature, observed red failure, and green result
   on the audited head, all linked to the required trusted exact-head job rather
   than supplied only as implementer-authored prose;
-- mandatory baseline and touched-authority checks, with the newest exact-head
-  provider-issued CI job identities and URLs;
+- required baseline and touched-authority check names and commands. Provider
+  run IDs, attempts, URLs, timestamps, and results belong in the pre-dispatch
+  manifest and machine-owned audit comment, not the frozen semantic body;
 - generated artifacts changed and why;
 - stack position and dependencies;
 - residual limitations.
@@ -842,9 +942,13 @@ After dispatch, the round-bundle pointer, finding ledger, round status, and
 final tuple live in machine-owned audit comments and immutable artifacts. They
 are not appended to or edited into the frozen semantic body.
 
-Visual-output PRs must include proportional before/after evidence generated from
-the same named input at immutable base/head revisions. The semantic receipt is
-the oracle; the image helps a reviewer inspect the consequence.
+Visual-output PRs use the same named input/config at immutable base and head
+revisions. When both revisions render, include proportional before/after
+evidence. When the base does not support the surface or fails before producing
+an artifact, preserve that exact error or unsupported receipt as the honest
+baseline and provide the head image; never fabricate a before render. The
+semantic receipt is the oracle, the image helps inspect the consequence, and
+the description states the evidence's material limitation.
 
 ## 9. Validation ladder
 
@@ -937,19 +1041,21 @@ and generated reports become the live authority.
 
 Close #248 only when all of the following hold:
 
-- the generated family scope equals the 16 families named by #248 unless the
-  issue is explicitly amended, and every unscoped manifest family/row has an
+- the generated family scope equals the current repository-versioned
+  `FidelityScopeAuthority`, and every unscoped manifest family/row has an
   explicit out-of-scope disposition;
 - every officially authorable scoped construct has freshly executed coverage;
 - the scoped construct, feature, example, config-key, theme-variable, source,
-  public-route, semantic-cell, route-conformance, and case indexes have exact-set
-  closure with no orphan or ambiguous ownership;
+  public-route, route-transform, semantic-cell, route-conformance,
+  mutation/build-membership, coverage-obligation, and case indexes have exact-
+  set closure with no orphan or ambiguous ownership;
 - every construct × named source × applicable core stage has a semantic
   invocation and oracle/diagnostic, and every public route × accepted input ×
   operation/selector/output contract has conformance evidence or an evidenced
-  `not-applicable` disposition; route-specific branches also have direct
-  affected-construct cases; missing, unknown, duplicate, and orphaned cells are
-  zero;
+  `not-applicable` disposition; every factored route has a passing core-handoff/
+  refinement witness, every unproved transformation is route-specific, and
+  route-specific transforms have direct affected-construct cases; uncovered,
+  missing, unknown, duplicate, and orphaned cells are zero;
 - every scoped official fence has a reviewed disposition;
 - every nonblank statement is modeled, preserved with an exact route-specific
   typed runtime diagnostic, or rejected; no silent semantic preservation can
@@ -960,10 +1066,12 @@ Close #248 only when all of the following hold:
 - agent parse, verification, native render, serialization, mutation, Scene,
   applicable output, accessibility, and interaction behavior agree with the
   case policy;
-- every applicable public mutation/build route is exercised through that real
-  route; a native cell has a discriminating result oracle and preservation
-  oracles, while unsupported operations are exactly diagnosed or evidenced
-  not-applicable;
+- the mutation/build membership indexes have exact-set closure; every required
+  structured mutation membership and advertised buildable construct/operation
+  membership has a real-route discriminating result and unrelated-facet
+  preservation oracle, while genuinely unavailable operations carry governed
+  `not-applicable` evidence; applicable public adapters separately pass route
+  conformance;
 - every applicable `(config/theme authority, family, input dialect)` semantic
   cell has exactly one executable effect disposition, with every wired effect
   joined to a named A/B comparison, and each accepting route passes its
@@ -984,7 +1092,7 @@ Close #248 only when all of the following hold:
 - generated authorities have no unexplained drift;
 - the full validation ladder passes; and
 - a final cross-programme multi-agent audit of the closure head returns
-  unanimous `APPROVE` with no actionable findings.
+  unanimous `APPROVED` with no actionable findings.
 
 ## 12. Governance risks and ownership
 
