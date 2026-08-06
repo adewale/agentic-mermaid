@@ -168,6 +168,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
             opacity: String(SANKEY_LINK_OPACITY),
           },
           stroke: { mixBlendMode: linkBlendMode },
+          identity: { id: link.sceneId, from: link.source, to: link.target },
           endpoints: { from: link.sourceId, to: link.targetId },
           relationship: { kind: 'flow', direction: 'forward' },
           channels: { category: link.source, value: link.value },

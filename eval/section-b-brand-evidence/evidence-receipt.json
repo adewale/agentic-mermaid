@@ -3,7 +3,7 @@
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
     "count": 275,
-    "treeSha256": "55b7a23ba5176d4d934e73ea26bdff0003fb53110e1674d3ced5610ebba0ad59"
+    "treeSha256": "8ed780e3ff533aaaa8f9e0073c7f2b61be13e0e6e928576cbdd857985bdd751f"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,18 +62,18 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "25c51fa2d5fd19324f9b2406b9200578e1da8761038378267c7c9c775de79cf7",
+      "svgSha256": "d3d173fd070f344d7e93c9d0f340e044efc2d17448e876525168412c16de8bf5",
       "pngSha256": "68d983f94ac17e1a1e4d3df9ddbfe55d6df2f6eb4d1dbb0f83cdd0195ac65a93"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "e9bdd04fefd9391603e2d2814927dcf98eb8b6b9ab303864bfa067bb7a7f7a9b",
-      "pngSha256": "d659c54f1c202c15812cd43428fe5f26833a66851edda7b435ca99fb5a25f557"
+      "svgSha256": "c40056a3a5986d6cc702a8f96ca90e72adffd7dabfb93f3dc31420ff9c938973",
+      "pngSha256": "9666940ef9cd6e988800b52e930f07da2bf870b7513805fd6623432c74984b41"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "5bbb4e2c0090b6d68f626aff54e0edc56b0d3bbe4ccc4fbf7ec13782a5c4c922",
-      "pngSha256": "3c908858bea5ed9323568278e4f2f7a5a75397ff2935ec128a437153b29e65a5"
+      "svgSha256": "b23b249add5625984b848f2759f125e890f182af1480a6fc2dbe788eb4bcf46f",
+      "pngSha256": "40dd6a4215ff73431d8e08d067652faf84d974a1d2cedc60730b56f36b4a9dce"
     }
   },
   "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
