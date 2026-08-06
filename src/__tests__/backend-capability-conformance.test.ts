@@ -50,11 +50,14 @@ describe('claim-keyed backend capability conformance', () => {
         .toMatchObject({ realization: 'emulated', status: 'passed' })
     }
     for (const descriptor of backends) {
-      expect(descriptor.conformance.claims.find(claim =>
-        claim.primitive === 'connector' && claim.feature === 'compositing' && claim.operation === 'render'))
+      // Bun's asymmetric toMatchObject matchers may rewrite their received
+      // value. Match structural copies so this assertion cannot poison the
+      // registry's shared conformance authority for later capability reports.
+      expect(structuredClone(descriptor.conformance.claims.find(claim =>
+        claim.primitive === 'connector' && claim.feature === 'compositing' && claim.operation === 'render')))
         .toMatchObject({ status: 'passed' })
-      expect(descriptor.conformance.claims.find(claim =>
-        claim.primitive === 'document' && claim.feature === 'resources' && claim.operation === 'serialize'))
+      expect(structuredClone(descriptor.conformance.claims.find(claim =>
+        claim.primitive === 'document' && claim.feature === 'resources' && claim.operation === 'serialize')))
         .toMatchObject({ status: 'passed', observation: expect.stringContaining('marker and linear-gradient') })
     }
   })

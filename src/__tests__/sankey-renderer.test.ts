@@ -1,9 +1,30 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { getFamily } from '../agent/families.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import type { SceneDoc } from '../scene/ir.ts'
+import type { RenderContext } from '../types.ts'
 
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120\n  Electricity,Industry,87.93'
 
 const configured = (config: string, body = BASIC) => `---\nconfig:\n  sankey:\n${config}\n---\n${body}`
+
+function lowerSankeyScene(source: string): SceneDoc {
+  const request = resolveRenderRequest(source, {}, 'svg')
+  const result = positionResolvedFamily('sankey', request)
+  const context: RenderContext = {
+    positioned: result.positioned,
+    colors: request.appearance.colors,
+    resolved: {
+      renderOptions: request.renderOptions,
+      ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+      ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
+      ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
+    },
+  }
+  return getFamily('sankey')!.lowerScene!(context)
+}
 
 describe('sankey SVG renderer · structure', () => {
   test('emits a complete SVG with the sankey role description', () => {
@@ -44,9 +65,12 @@ describe('sankey SVG renderer · structure', () => {
 
   test('legal long labels do not escape the bounded Scene identity contract', () => {
     const label = 'L'.repeat(255)
-    const svg = renderMermaidSVG(`sankey-beta\n"${label}",Target,1`)
+    const source = `sankey-beta\n"${label}",Target,1`
+    const svg = renderMermaidSVG(source)
     expect(svg).toContain(`data-label="${label}"`)
-    expect(svg).toContain('data-id="sankey-node-1"')
+    expect(svg).toContain(`data-id="${label}"`)
+    const node = lowerSankeyScene(source).parts.find(mark => mark.kind === 'shape' && mark.identity?.id === label)
+    expect(node?.id).toBe('sankey-node-1')
     expect(svg).toContain('</svg>')
   })
 
