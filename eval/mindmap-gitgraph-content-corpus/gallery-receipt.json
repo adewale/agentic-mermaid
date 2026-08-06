@@ -832,7 +832,7 @@
     },
     {
       "path": "src/sankey/renderer.ts",
-      "sha256": "cdd8697785a55a3f01b424c3881017c8c452e74e9c5fb277e2fbc27628e04e21"
+      "sha256": "a17a843046b9c2cea8d5c04f667951cd9562a9bec8f218a7efbce44771977a1a"
     },
     {
       "path": "src/sankey/types.ts",
@@ -924,7 +924,7 @@
     },
     {
       "path": "src/scene/marks.ts",
-      "sha256": "7ede4d8e65f5eca2785df63e7d35903f93ede00d488767ef61f35c5c8b54d077"
+      "sha256": "28f49ab87f0ace64c5e535f81df2e04142b92981d3a7b4222419d16d766da723"
     },
     {
       "path": "src/scene/role-style-contract.ts",

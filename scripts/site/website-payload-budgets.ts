@@ -22,8 +22,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Sixteenth-family enrollment adds the Sankey example and metadata to the
     // registry-driven gallery; no new request is introduced.
     maxRawBytes: 391_117,
-    maxGzipBytes: 68_588,
-    maxBrotliBytes: 54_398,
+    maxGzipBytes: 68_589,
+    maxBrotliBytes: 54_406,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -37,11 +37,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 30,
     // The shared lazy catalog now advertises Sankey; Timeline remains the only
     // family chunk fetched by this route and the request ceiling is unchanged.
-    maxRawBytes: 725_190,
-    maxGzipBytes: 271_508,
+    maxRawBytes: 725_390,
+    maxGzipBytes: 271_572,
     // The same Bun build differs by three compressed bytes across Linux and
     // macOS; exact hashes remain enforced on the recorded Linux toolchain.
-    maxBrotliBytes: 247_921,
+    maxBrotliBytes: 247_932,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -54,8 +54,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 2,
     // The editor exercises the complete API, so its bounded delta includes the
     // Sankey parser/renderer, d3-sankey, and typed gradient-resource support.
-    maxRawBytes: 3_328_519,
-    maxGzipBytes: 979_799,
+    maxRawBytes: 3_328_737,
+    maxGzipBytes: 979_877,
     maxBrotliBytes: 769_403,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),

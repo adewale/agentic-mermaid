@@ -1184,8 +1184,8 @@
       },
       "render_svg/flowchart": {
         "isError": false,
-        "textSha256": "fc75393b0b13babc24d8584d06fc7e874eccbc7b1a1cc5fa492c18ac78479b9d",
-        "textLength": 9774
+        "textSha256": "fcf3d3ecfc1f0a81904df576223144307b76a70fb70db185d537f22481c5a515",
+        "textLength": 9902
       },
       "render_ascii/flowchart": {
         "isError": false,

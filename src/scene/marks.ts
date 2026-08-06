@@ -39,15 +39,32 @@ import {
 export function shape(fields: {
   id: string
   role: SceneRole
+  /** Optional public DOM identity when the bounded Scene key is internal. */
+  identity?: Omit<SvgSemanticIdentity, 'role'>
   geometry: Geometry
   paint: MarkPaint
   channels?: SemanticChannels
   transform?: SceneTransform
 }, crisp: string): ShapeMark {
-  const identity = semanticIdentityForSvg(crisp, fields)
-  const accessibility = relationAccessibilityForSvg(crisp, identity)
+  const identity: SvgSemanticIdentity = fields.identity
+    ? { ...fields.identity, role: fields.role }
+    : semanticIdentityForSvg(crisp, fields)
+  const accessibility = fields.identity
+    ? relationAccessibility(identity)
+    : relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return attachSceneNodeSerialization({ kind: 'shape', identity, accessibility, ...fields }, decorated)
+  const result: ShapeMark = {
+    kind: 'shape',
+    id: fields.id,
+    role: fields.role,
+    identity,
+    ...(accessibility ? { accessibility } : {}),
+    geometry: fields.geometry,
+    paint: fields.paint,
+    ...(fields.channels ? { channels: fields.channels } : {}),
+    ...(fields.transform ? { transform: fields.transform } : {}),
+  }
+  return attachSceneNodeSerialization(result, decorated)
 }
 
 export interface ConnectorFields {
