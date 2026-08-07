@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 2,
+  "programme": "issue-248-fidelity",
+  "roundId": "final-after-operation-evidence-correction-round-3",
+  "createdAt": "2026-08-07T01:06:23Z",
+  "createdBeforeDispatch": true,
+  "controlPlane": {
+    "role": "bootstrap-controller-not-auditor",
+    "independentAuditorsMayNotModifyThisEnvelope": true,
+    "humanWitnessStillRequired": true,
+    "humanWitnessImpersonated": false
+  },
+  "candidate": {
+    "repository": "adewale/agentic-mermaid",
+    "repositoryDatabaseId": 1181667327,
+    "repositoryNodeId": "R_kgDORm7P_w",
+    "objectFormat": "sha1",
+    "pullRequest": 249,
+    "targetBranch": "main",
+    "targetTip": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "mergeBase": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "head": "7d9e49d739b690db9c03b8962b7b72e2249bdb0d",
+    "tree": "cbd6402c7a7aa249122cfb4f356c85f74d382d9a",
+    "governancePolicyBlob": "67123663107354c258d6c23d4dd1a0bd197f8f05",
+    "canonicalDelta": {
+      "algorithm": "git-raw-tree-delta-v1",
+      "objectFormat": "sha1",
+      "sha256": "4d4e9f2caa6d1d5fb5318bc5e034540b2f4151e245208c76d226d7ad41be0972"
+    },
+    "semanticDescription": {
+      "lastEditedAt": "2026-08-07T00:51:10Z",
+      "sha256": "98a68b6a68a3c2a8db5421023552466dfdfb0d0b2da3298d9a90d08359030e34",
+      "bodySha256": "9e6b4f05020dbd6a444dc53c67d639f8f571ce86d25286217120e92c279a1f5b"
+    },
+    "mergeStrategy": "squash"
+  },
+  "providerEvidence": {
+    "requiredRuns": [
+      {
+        "id": 31136099908,
+        "attempt": 1,
+        "name": "CI",
+        "event": "pull_request",
+        "createdAt": "2026-08-07T00:51:47Z",
+        "completedAt": "2026-08-07T01:02:16Z",
+        "conclusion": "success"
+      },
+      {
+        "id": 31136099791,
+        "attempt": 1,
+        "name": "Ruff",
+        "event": "pull_request",
+        "createdAt": "2026-08-07T00:51:47Z",
+        "completedAt": "2026-08-07T00:51:56Z",
+        "conclusion": "success"
+      }
+    ],
+    "freshnessRule": "each required run is pull_request-triggered for the exact head and was created after candidate.semanticDescription.lastEditedAt"
+  },
+  "manifest": {
+    "ref": "refs/heads/audit/pr-249-final-7d9e49d",
+    "commit": "a6927f48a23da55b34870bd564bbba79ca7362ff",
+    "tree": "f5525982245876ee4ed80a11ae83ae4f88713139",
+    "path": ".audit/pr-249/final-7d9e49d/manifest.json",
+    "sha256": "f9ee5d543aa0973605907f364e8157afc9469cbc3b1ee2a518498e19980f4038",
+    "url": "https://github.com/adewale/agentic-mermaid/blob/a6927f48a23da55b34870bd564bbba79ca7362ff/.audit/pr-249/final-7d9e49d/manifest.json",
+    "protectionVerifiedAt": "2026-08-07T01:05:56Z",
+    "protection": {
+      "enforceAdmins": true,
+      "lockBranch": true,
+      "allowForcePushes": false,
+      "allowDeletions": false
+    }
+  },
+  "registeredSessions": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/pr249_architecture_cf0ad90",
+      "runRegistrationId": "pr249-final-7d9e49d-architecture-3",
+      "promptSha256": "3708464ad41991c02e80e0ff37b6d5af7a1a3d94867c3ec765db256051e071f7",
+      "scopeSha256": "3708464ad41991c02e80e0ff37b6d5af7a1a3d94867c3ec765db256051e071f7",
+      "state": "registered-not-dispatched"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/pr249_upstream_cf0ad90",
+      "runRegistrationId": "pr249-final-7d9e49d-upstream-3",
+      "promptSha256": "2b6c5c6d0b5fd1788e7ec233204b97db8192f5231c5330e48ae6eb960a5ccded",
+      "scopeSha256": "2b6c5c6d0b5fd1788e7ec233204b97db8192f5231c5330e48ae6eb960a5ccded",
+      "state": "registered-not-dispatched"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/pr249_adversarial_cf0ad90",
+      "runRegistrationId": "pr249-final-7d9e49d-adversarial-3",
+      "promptSha256": "afc7e79e177c9e8a48e87116ebdc4af2f2944725e876454bfc6245f8ff62b12f",
+      "scopeSha256": "afc7e79e177c9e8a48e87116ebdc4af2f2944725e876454bfc6245f8ff62b12f",
+      "state": "registered-not-dispatched"
+    }
+  ],
+  "preDispatchChronology": {
+    "semanticBodyFrozenAt": "2026-08-07T00:51:10Z",
+    "requiredChecksCompletedAt": "2026-08-07T01:02:16Z",
+    "manifestRegisteredAt": "2026-08-07T01:02:47Z",
+    "manifestCommitCreatedAt": "2026-08-07T01:05:17Z",
+    "manifestProtectionVerifiedAt": "2026-08-07T01:05:56Z",
+    "envelopeCreatedAt": "2026-08-07T01:06:23Z",
+    "livePullRequestPointer": {
+      "requiredAfterEnvelopeProtectionAndBeforeDispatch": true,
+      "stateAtEnvelopeCreation": "pending"
+    },
+    "auditorDispatchState": "not-dispatched"
+  },
+  "anchor": {
+    "type": "separately-protected-detached-git-ref",
+    "ref": "refs/heads/audit/pr-249-final-7d9e49d-envelope",
+    "path": ".audit/pr-249/final-7d9e49d/envelope.json",
+    "requiredProtection": {
+      "enforceAdmins": true,
+      "lockBranch": true,
+      "allowForcePushes": false,
+      "allowDeletions": false
+    }
+  },
+  "resultAtCreation": "REGISTERED_NOT_DISPATCHED"
+}
