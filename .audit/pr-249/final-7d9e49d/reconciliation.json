@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 4,
+  "roundId": "final-after-operation-evidence-correction-round-3",
+  "reconciledAt": "2026-08-07T01:18:25Z",
+  "candidate": {
+    "objectFormat": "sha1",
+    "targetTip": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "mergeBase": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "head": "7d9e49d739b690db9c03b8962b7b72e2249bdb0d",
+    "tree": "cbd6402c7a7aa249122cfb4f356c85f74d382d9a",
+    "governancePolicyBlob": "67123663107354c258d6c23d4dd1a0bd197f8f05",
+    "canonicalDeltaAlgorithm": "git-raw-tree-delta-v1",
+    "canonicalDeltaSha256": "4d4e9f2caa6d1d5fb5318bc5e034540b2f4151e245208c76d226d7ad41be0972",
+    "semanticDescriptionSha256": "98a68b6a68a3c2a8db5421023552466dfdfb0d0b2da3298d9a90d08359030e34",
+    "semanticBodyLastEditedAt": "2026-08-07T00:51:10Z",
+    "mergeStrategy": "squash"
+  },
+  "manifest": {
+    "commit": "a6927f48a23da55b34870bd564bbba79ca7362ff",
+    "ref": "refs/heads/audit/pr-249-final-7d9e49d",
+    "sha256": "f9ee5d543aa0973605907f364e8157afc9469cbc3b1ee2a518498e19980f4038"
+  },
+  "detachedEnvelope": {
+    "commit": "3c2768a93e43b689bda404a13341e1d15eb444f6",
+    "ref": "refs/heads/audit/pr-249-final-7d9e49d-envelope",
+    "sha256": "6b60a9e6c76aa71120c503036d248c4439a14e7b107448d83167b8ed9a55ae72"
+  },
+  "registrationPointer": {
+    "id": 5210752091,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/249#issuecomment-5210752091",
+    "createdAt": "2026-08-07T01:08:44Z",
+    "updatedAtBeforeReconciliation": "2026-08-07T01:08:44Z",
+    "bodySha256BeforeReconciliation": "38c29a35554829250abfee3f3fcb216ef492be1e731f3ab18a5d22d4ad5a7668",
+    "publishedBeforeDispatch": true
+  },
+  "checks": [
+    {
+      "name": "CI",
+      "runId": 31136099908,
+      "attempt": 1,
+      "createdAt": "2026-08-07T00:51:47Z",
+      "completedAt": "2026-08-07T01:02:16Z",
+      "conclusion": "success"
+    },
+    {
+      "name": "Ruff",
+      "runId": 31136099791,
+      "attempt": 1,
+      "createdAt": "2026-08-07T00:51:47Z",
+      "completedAt": "2026-08-07T00:51:56Z",
+      "conclusion": "success"
+    }
+  ],
+  "reports": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/pr249_architecture_cf0ad90",
+      "runRegistrationId": "pr249-final-7d9e49d-architecture-3",
+      "originProvider": "codex-collaboration",
+      "originArtifactId": "/root/pr249_architecture_cf0ad90:pr249-final-7d9e49d-architecture-3:first-report",
+      "receivedAt": "2026-08-07T01:14:57Z",
+      "path": "reports/architecture-first-report.md",
+      "sha256": "9a7e5339c64812d0dc59590975b0dd8b955a60ff2e3a350eaada020035f41a63",
+      "verdict": "APPROVED"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/pr249_upstream_cf0ad90",
+      "runRegistrationId": "pr249-final-7d9e49d-upstream-3",
+      "originProvider": "codex-collaboration",
+      "originArtifactId": "/root/pr249_upstream_cf0ad90:pr249-final-7d9e49d-upstream-3:first-report",
+      "receivedAt": "2026-08-07T01:16:14Z",
+      "path": "reports/upstream-first-report.md",
+      "sha256": "67f5c5f2ca2321a09b701f9794a25d397eb6353f29b76415c1ff02587cfe0581",
+      "verdict": "APPROVED"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/pr249_adversarial_cf0ad90",
+      "runRegistrationId": "pr249-final-7d9e49d-adversarial-3",
+      "originProvider": "codex-collaboration",
+      "originArtifactId": "/root/pr249_adversarial_cf0ad90:pr249-final-7d9e49d-adversarial-3:first-report",
+      "receivedAt": "2026-08-07T01:15:59Z",
+      "path": "reports/adversarial-first-report.md",
+      "sha256": "cd6fe71618ec8a2a25e494c4914093833a85392efcf87963232fa119e5884c64",
+      "verdict": "APPROVED"
+    }
+  ],
+  "commissionedRuns": {
+    "registered": 3,
+    "firstReportsReceived": 3,
+    "failed": 0,
+    "timedOut": 0,
+    "cancelled": 0,
+    "reusedApprovals": 0
+  },
+  "findingLedger": [],
+  "priorCorrectionsVerified": [
+    {
+      "findingIds": ["AIS-249-004", "ADV-2FBB-003"],
+      "disposition": "closed",
+      "evidence": "replacement manifest and detached envelope both record objectFormat=sha1"
+    },
+    {
+      "findingIds": ["ADV-2FBB-001"],
+      "disposition": "closed",
+      "evidence": "direct mutation membership is operation-specific and distinct from unrelated-operation preservation"
+    },
+    {
+      "findingIds": ["ADV-2FBB-002"],
+      "disposition": "closed",
+      "evidence": "manifest, detached envelope, and live PR pointer were all published and protected before dispatch"
+    }
+  ],
+  "protocolAssessment": {
+    "preDispatchManifest": "present-protected",
+    "preDispatchEnvelope": "present-separately-protected",
+    "preDispatchPrPointer": "present-before-dispatch",
+    "objectFormatReceipt": "present-sha1",
+    "exactHeadPostFreezeChecks": "complete-success",
+    "independentFirstReports": "three-received-before-reconciliation",
+    "roundValidForAgentApproval": true
+  },
+  "result": "APPROVED",
+  "programmeReadiness": "PENDING_INDEPENDENT_HUMAN_WITNESS",
+  "residualRisks": [
+    "governance remains prose until A0 implements the trusted runner and merge gates",
+    "PR 192 cannot contribute until audited adoption or replacement",
+    "correlated-model risk remains despite independent role sessions",
+    "the final live tuple and newest checks can change after this reconciliation"
+  ],
+  "humanWitness": "outstanding-independent-human-only",
+  "finalPreMergeTupleCheck": "outstanding-human-only",
+  "nextAction": "Protect these report and reconciliation bytes, publish the final round bundle under the stable pointer comment, and have an independent human maintainer complete the witness packet without agent impersonation or merge."
+}
