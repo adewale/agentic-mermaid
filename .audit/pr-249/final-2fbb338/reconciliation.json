@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 3,
+  "roundId": "final-after-correction-round-2",
+  "reconciledAt": "2026-08-07T00:47:50Z",
+  "manifestCommit": "72d6360412e9962a4f6007d3481697bd11539a1f",
+  "manifestSha256": "1596130916e86fc266f8d8baee90d347ed3d32a4a9a4e0c0835a6e760e9fd08e",
+  "candidateHead": "2fbb338b15e8263493cbc320daaa77af40a6257a",
+  "registrationComment": null,
+  "reports": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/pr249_architecture_cf0ad90",
+      "runRegistrationId": "pr249-final-2fbb338-architecture-2",
+      "path": "reports/architecture-first-report.md",
+      "sha256": "ce5acfcc7436ba3d0cd9b0ba1dfebea727f84e2dc40287bc30f83c13b32c66e7",
+      "verdict": "CHANGES_REQUIRED"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/pr249_upstream_cf0ad90",
+      "runRegistrationId": "pr249-final-2fbb338-upstream-2",
+      "path": "reports/upstream-first-report.md",
+      "sha256": "732b98701351dbbb4eb5df302edb3a2d0d5172f070f24b8961878d789baaab27",
+      "verdict": "APPROVED"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/pr249_adversarial_cf0ad90",
+      "runRegistrationId": "pr249-final-2fbb338-adversarial-2",
+      "path": "reports/adversarial-first-report.md",
+      "sha256": "8f60c24141db91f5abf78714d5f75ad308187a4d860f04841f7935f5e18c4587",
+      "verdict": "CHANGES_REQUIRED"
+    }
+  ],
+  "commissionedRuns": {
+    "registered": 3,
+    "firstReportsReceived": 3,
+    "failed": 0,
+    "timedOut": 0,
+    "cancelled": 0
+  },
+  "result": "CHANGES_REQUIRED",
+  "findingLedger": [
+    {
+      "findingId": "AIS-249-004",
+      "severity": "medium",
+      "disposition": "accepted",
+      "correction": "Record repository objectFormat=sha1 in a replacement manifest and detached envelope."
+    },
+    {
+      "findingId": "ADV-2FBB-001",
+      "severity": "high",
+      "disposition": "accepted",
+      "correction": "Index mutation membership by applicable operation and require both direct discriminating mutation evidence and separate unrelated-mutation preservation."
+    },
+    {
+      "findingId": "ADV-2FBB-002",
+      "severity": "high",
+      "disposition": "accepted",
+      "correction": "Publish and protect a detached pre-dispatch envelope plus PR pointer before dispatching the complete replacement role set."
+    },
+    {
+      "findingId": "ADV-2FBB-003",
+      "severity": "medium",
+      "disposition": "accepted-duplicate-of-AIS-249-004",
+      "correction": "Record repository objectFormat=sha1 in a replacement manifest and detached envelope."
+    }
+  ],
+  "protocolAssessment": {
+    "preDispatchEnvelope": "missing",
+    "preDispatchPrPointer": "missing",
+    "objectFormatReceipt": "missing",
+    "roundValidForApproval": false
+  },
+  "humanWitness": "not-applicable-round-superseded",
+  "finalPreMergeTupleCheck": "not-applicable-round-superseded",
+  "nextAction": "Correct ADV-2FBB-001 in the candidate document, preserve this round, freeze the new semantic description, obtain fresh exact-head checks, and register a complete replacement round whose protected manifest and detached envelope record objectFormat=sha1 and whose PR pointer exists before dispatch."
+}
