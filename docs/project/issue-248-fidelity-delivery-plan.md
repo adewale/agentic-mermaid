@@ -472,13 +472,18 @@ outcome or carry governed `not-applicable` evidence; the programme does not
 require inventing a mutation API merely to satisfy a native render claim.
 
 The generator also derives exact mutation/build membership indexes without
-multiplying constructs across transports. Every structured `(case ID, construct
-ID, source ID)` membership whose family has a public mutation route participates
-in at least one canonical real-route invocation that mutates the construct or
-proves it survives an unrelated mutation. It requires a discriminating result
-oracle and preservation oracles for unrelated semantic facets. `not-applicable`
-is valid only when no generated public mutation operation can exercise or
-preserve that membership, with typed authority evidence.
+multiplying constructs across transports. Direct mutation membership is the
+exact generated set of `(case ID, construct ID, source ID, applicable mutation-
+operation ID)` tuples. Every advertised operation whose governed schema can
+target that construct executes through the canonical real public route and has
+a discriminating direct-result oracle; survival under an unrelated mutation
+cannot discharge a direct membership. Each direct membership also has a
+separate preservation obligation, exercised by a governed unrelated operation
+or operation equivalence class, whose oracle proves that operation's target changed
+while unrelated semantic facets survived. `not-applicable` is typed per
+construct and mutation-operation ID and is valid only when authority proves
+that operation cannot exercise the membership. Missing, unknown, duplicate, or
+orphaned direct or preservation memberships fail generation.
 
 For build, every advertised `(family ID, construct ID, build-operation ID)`
 membership participates in at least one real-route sequence whose result oracle
@@ -1067,11 +1072,14 @@ Close #248 only when all of the following hold:
   applicable output, accessibility, and interaction behavior agree with the
   case policy;
 - the mutation/build membership indexes have exact-set closure; every required
-  structured mutation membership and advertised buildable construct/operation
-  membership has a real-route discriminating result and unrelated-facet
-  preservation oracle, while genuinely unavailable operations carry governed
-  `not-applicable` evidence; applicable public adapters separately pass route
-  conformance;
+  `(case ID, construct ID, source ID, applicable mutation-operation ID)`
+  membership executes that advertised operation through the canonical real
+  route with a discriminating direct-result oracle, plus a separately discharged
+  unrelated-operation preservation obligation; every advertised buildable
+  construct/operation membership has a real-route discriminating result and
+  unrelated-facet preservation oracle; genuinely unavailable operations carry
+  governed per-operation `not-applicable` evidence; and applicable public
+  adapters separately pass route conformance;
 - every applicable `(config/theme authority, family, input dialect)` semantic
   cell has exactly one executable effect disposition, with every wired effect
   joined to a named A/B comparison, and each accepting route passes its
