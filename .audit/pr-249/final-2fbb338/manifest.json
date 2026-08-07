@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 3,
+  "programme": "issue-248-fidelity",
+  "repository": {
+    "fullName": "adewale/agentic-mermaid",
+    "id": "1181667327"
+  },
+  "pullRequest": 249,
+  "roundId": "final-after-correction-round-2",
+  "registeredAt": "2026-08-07T00:29:51Z",
+  "registeredBeforeDispatch": true,
+  "candidate": {
+    "targetBranch": "main",
+    "targetTip": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "mergeBase": "f203ab6a3faf09a4c2dd4057523f2cf651ca540a",
+    "head": "2fbb338b15e8263493cbc320daaa77af40a6257a",
+    "headTree": "31d20c197aabf6bbf25a4b49d6fae26954f6a44b",
+    "changedPaths": [
+      "docs/project/issue-248-fidelity-delivery-plan.md"
+    ],
+    "canonicalDelta": {
+      "algorithm": "git-raw-tree-delta-v1",
+      "command": "git -c core.abbrev=40 -c color.ui=false diff-tree --no-commit-id -r --raw -z --abbrev=40 --no-renames f203ab6a3faf09a4c2dd4057523f2cf651ca540a 2fbb338b15e8263493cbc320daaa77af40a6257a",
+      "sha256": "9a2c52d17ac51eb88fc7a3a9291fee4db99d025635000f2d904674fd34aa1d02"
+    },
+    "humanReviewDiffCommand": "git diff --binary f203ab6a3faf09a4c2dd4057523f2cf651ca540a...2fbb338b15e8263493cbc320daaa77af40a6257a",
+    "mergeStrategy": "squash"
+  },
+  "semanticDescription": {
+    "title": "Document issue #248 fidelity delivery plan",
+    "githubLastEditedAt": "2026-08-06T22:20:42Z",
+    "githubStateUpdatedAt": "2026-08-07T00:07:44Z",
+    "canonicalization": "UTF-8 bytes of title:<title>\\nbody:\\n<body>, with title and body exactly as returned by GitHub",
+    "sha256": "191dc49863a03885385299f99630fc5c052444e0b612c9c3c5c9ca11147746a5",
+    "bodySha256": "c19374312b25a5716e96fd0ba229e28246d85df6067e61618aceaed6b5bd2b4a"
+  },
+  "governancePolicy": {
+    "revision": "2fbb338b15e8263493cbc320daaa77af40a6257a",
+    "path": "docs/project/issue-248-fidelity-delivery-plan.md",
+    "blob": "02589d0cc5ace05e1ccea5580117f3abfc66c10c",
+    "bootstrap": true
+  },
+  "externalScope": {
+    "issue248": {
+      "state": "OPEN",
+      "url": "https://github.com/adewale/agentic-mermaid/issues/248",
+      "validatedAt": "2026-08-07T00:29:51Z"
+    },
+    "pullRequest192": {
+      "state": "OPEN",
+      "head": "84848d507a18280224bbf186f7e74a4e18ceb972",
+      "url": "https://github.com/adewale/agentic-mermaid/pull/192",
+      "validatedAt": "2026-08-07T00:29:51Z"
+    }
+  },
+  "checks": {
+    "provider": "github-actions",
+    "semanticBodyLastEditedAt": "2026-08-06T22:20:42Z",
+    "requiredRuns": [
+      {
+        "id": 31133525250,
+        "attempt": 1,
+        "name": "CI",
+        "event": "pull_request",
+        "head": "2fbb338b15e8263493cbc320daaa77af40a6257a",
+        "createdAt": "2026-08-07T00:07:46Z",
+        "startedAt": "2026-08-07T00:07:46Z",
+        "completedAt": "2026-08-07T00:18:34Z",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/adewale/agentic-mermaid/actions/runs/31133525250"
+      },
+      {
+        "id": 31133525257,
+        "attempt": 1,
+        "name": "Ruff",
+        "event": "pull_request",
+        "head": "2fbb338b15e8263493cbc320daaa77af40a6257a",
+        "createdAt": "2026-08-07T00:07:46Z",
+        "startedAt": "2026-08-07T00:07:46Z",
+        "completedAt": "2026-08-07T00:07:57Z",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/adewale/agentic-mermaid/actions/runs/31133525257"
+      }
+    ],
+    "requiredCheckPolicy": "newest pull-request-triggered CI and Ruff workflow runs for the exact candidate head, each created after semanticDescription.githubLastEditedAt",
+    "focusedChecks": [
+      "git diff --check f203ab6a3faf09a4c2dd4057523f2cf651ca540a...2fbb338b15e8263493cbc320daaa77af40a6257a",
+      "changed paths exactly docs/project/issue-248-fidelity-delivery-plan.md",
+      "bun install --frozen-lockfile (lockfile unchanged)",
+      "bun test src/__tests__/docs-consolidation-contract.test.ts (12 pass, 0 fail)",
+      "bun run lint:contracts (78 pass, 0 fail)"
+    ]
+  },
+  "anchor": {
+    "type": "protected-git-ref",
+    "ref": "refs/heads/audit/pr-249-final-2fbb338",
+    "url": "https://github.com/adewale/agentic-mermaid/tree/audit/pr-249-final-2fbb338/.audit/pr-249/final-2fbb338",
+    "requiredProtection": {
+      "enforceAdmins": true,
+      "lockBranch": true,
+      "allowForcePushes": false,
+      "allowDeletions": false
+    }
+  },
+  "promptHashNormalization": "SHA-256 of the UTF-8 prompt file bytes including the final LF",
+  "sessions": [
+    {
+      "role": "architecture-integration-security",
+      "sessionId": "/root/pr249_architecture_cf0ad90",
+      "runRegistrationId": "pr249-final-2fbb338-architecture-2",
+      "promptPath": "architecture-prompt.txt",
+      "promptSha256": "a8a982f0c5df97d8e7c5cb33a99ca96c64fb58ce962a4b50665df3adf80c3fc5",
+      "scopeSha256": "a8a982f0c5df97d8e7c5cb33a99ca96c64fb58ce962a4b50665df3adf80c3fc5",
+      "state": "registered"
+    },
+    {
+      "role": "upstream-semantic-fidelity",
+      "sessionId": "/root/pr249_upstream_cf0ad90",
+      "runRegistrationId": "pr249-final-2fbb338-upstream-2",
+      "promptPath": "upstream-prompt.txt",
+      "promptSha256": "4f816418b2e5feabc9d9098d501997c16982bcc5e69d03fcd2847df5f99d6c65",
+      "scopeSha256": "4f816418b2e5feabc9d9098d501997c16982bcc5e69d03fcd2847df5f99d6c65",
+      "state": "registered"
+    },
+    {
+      "role": "adversarial-test-evidence-governance",
+      "sessionId": "/root/pr249_adversarial_cf0ad90",
+      "runRegistrationId": "pr249-final-2fbb338-adversarial-2",
+      "promptPath": "adversarial-prompt.txt",
+      "promptSha256": "d8713ea4fe00ba2ee03e80b42eab25a9a4233ac8b807f298ae924c8d274fc40d",
+      "scopeSha256": "d8713ea4fe00ba2ee03e80b42eab25a9a4233ac8b807f298ae924c8d274fc40d",
+      "state": "registered"
+    }
+  ],
+  "reconciliation": {
+    "commissionedRuns": 3,
+    "firstReportsExpected": 3,
+    "priorRoundReportsDoNotCarryForward": true,
+    "state": "registered-not-dispatched"
+  }
+}
