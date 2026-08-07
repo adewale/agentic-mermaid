@@ -68,6 +68,11 @@ needs them.
 type FidelityDisposition = 'native' | 'source-preserved' | 'diagnosed' | 'absent'
 type FidelitySurface = 'agent' | 'render' | 'serialize' | 'mutate'
 
+interface FidelityDiagnosticExpectation {
+  surface: FidelitySurface
+  code: string
+}
+
 interface FidelityCase {
   id: string
   family: string
@@ -75,7 +80,7 @@ interface FidelityCase {
   source: string
   upstreamReference: string
   expected: Partial<Record<FidelitySurface, FidelityDisposition>>
-  expectedDiagnostics?: string[]
+  expectedDiagnostics?: FidelityDiagnosticExpectation[]
   assertSemantics?: (result: unknown) => void
 }
 ```
@@ -84,6 +89,12 @@ Each case should contain the smallest source that demonstrates one meaningful
 claim. Semantic assertions should inspect normalized family data—participants,
 edges, dates, cardinalities, labels, paint stops, or similar domain meaning—not
 just non-empty output or changed SVG bytes.
+
+An omitted surface is one where the construct genuinely does not apply. If an
+earlier failure prevents an applicable later surface from running, the runner
+must record that surface as blocked by the failing stage; it must not silently
+turn it into an omission or `not-applicable` result. Match expected diagnostics
+by their stable code and surface rather than by free-form message text.
 
 Where pinned Mermaid exposes a stable parser or database, compare normalized
 local and upstream meaning. Where it does not, use the official syntax reference
@@ -111,6 +122,12 @@ result or diagnostics.
 A route needs a direct construct case only when it transforms the input or
 result in a way that can change meaning. Simple pass-through routes should not
 duplicate every family case.
+
+Route conformance should assert typed request and result equivalence at the
+adapter boundary: the same source and options reach the core, and the adapter
+preserves the resulting disposition, semantics, and diagnostics. Do not infer
+conformance merely from the absence of route-specific branches or from a small
+fixture count.
 
 Mutation tests follow the same rule: directly test each advertised operation
 that changes a construct, and separately assert that unrelated meaning survives.
@@ -162,10 +179,13 @@ Flowchart, Gantt, Journey, Pie, icons, and the remaining family seams. Split
 shared parser or identity work from family-specific rendering work when that
 keeps review smaller.
 
-### 4. Scene resources and Sankey
+### 4. Scene paint, compositing, and Sankey
 
-Land generic typed local gradients and compositing from `main`. These resources
-must remain deterministic and must not introduce external references.
+Land generic typed local gradients from `main`. Model blend/compositing
+separately as typed mark behavior and a backend capability, not as a gradient or
+definition resource. Decide how both concepts are represented and versioned in
+core Scene and External Scene before publishing a native claim. They must remain
+deterministic and must not introduce external references.
 
 Then rebase and narrow PR #192, or replace it with a smaller Sankey enrollment
 PR. Add Sankey semantic cases only after the family implementation is available.
@@ -195,7 +215,9 @@ Every implementation PR should include:
 - confirmation that the case fails when the fix is removed, where practical;
 - the relevant family and route tests;
 - regenerated capability output when the public claim changes; and
-- visual evidence only when pixels are part of the claim.
+- visual evidence only when pixels are part of the claim. For newly supported
+  output, preserve the real prior error or unsupported state as the baseline;
+  never manufacture a successful "before" render.
 
 Run the normal repository CI. Additional independent review is welcome for
 cross-family or security-sensitive changes, but it is not a bespoke release
