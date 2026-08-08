@@ -203,6 +203,7 @@
     "gallery:style-switch:check": "bun run scripts/pr-assets/style-switch-contact-sheet.ts --check",
     "gallery:pie-highlight": "bun run scripts/pr-assets/pie-highlightslice-evidence.ts",
     "gallery:pie-highlight:check": "bun run scripts/pr-assets/pie-highlightslice-evidence.ts --check",
+    "gallery:sankey-comparison": "bun run scripts/pr-assets/sankey-mermaid-comparison.ts",
     "gallery:palette-rollout:baseline": "bun run scripts/pr-assets/palette-rollout-evidence.ts --record-baseline",
     "gallery:palette-rollout": "bun run scripts/pr-assets/palette-rollout-evidence.ts",
     "gallery:palette-rollout:check": "bun run scripts/pr-assets/palette-rollout-evidence.ts --check",
