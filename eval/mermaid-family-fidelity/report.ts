@@ -66,7 +66,7 @@ export function renderFamilyFidelityReport(): string {
     `6. Re-run \`bun run fidelity:families:check\`; a new family, missing source evidence, stale generated report, invalid score, or empty action list must fail.\n\n` +
     `## Library-adoption summary\n\n` +
     `These are engineering candidates, not instructions to copy Mermaid. Adopt a library only when it improves semantic correctness or maintainability without weakening Agentic's intent, determinism, safety, and accessibility contracts.\n\n` +
-    `- **Pending family enrollment:** Sankey is not a built-in on this base. Evaluate \`d3-sankey\` behind the typed Scene adapter when Sankey is enrolled; do not claim adoption from an unmerged implementation.\n` +
+    `- **Adopted behind a typed adapter:** Sankey uses Mermaid's pinned \`d3-sankey\` 0.12.3 geometry through bounded Scene resources and explicit projection-loss contracts.\n` +
     `- **Evaluate behind an adapter/oracle:** Architecture (Cytoscape/fCOSE), Mindmap (Cytoscape/Cose-Bilkent), XY chart (D3 scales/shapes), and Pie (D3 pie/arc).\n` +
     `- **Retain custom/ELK:** Flowchart, State, Class, ER, Sequence, Timeline, Journey, Quadrant, Gantt, GitGraph, and Radar. These either have deliberate product contracts, use an equally custom upstream layout, or gain too little from swapping a primitive. Differential tests are still required.\n\n` +
     details
