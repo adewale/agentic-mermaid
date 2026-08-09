@@ -8,14 +8,6 @@ check that every built-in has a row; machine capability states live in the
 generated Section A capability report, and live work lives only in root
 `TODO.md`.
 
-This ledger does **not** make visual parity the product objective. The primary,
-executable author-intent contract is generated in
-[`mermaid-intent-compatibility-rubric.md`](./mermaid-intent-compatibility-rubric.md).
-The source-map-backed
-[`mermaid-renderer-fidelity-rubric.md`](./mermaid-renderer-fidelity-rubric.md)
-is a secondary migration/familiarity audit; it never overrides intent
-preservation or Agentic artifact quality.
-
 This is the compatibility and visual-metaphor half of the diagram-family citizenship contract. The ordinary citizenship matrix proves that a family reaches every product surface; this audit proves that the thing reaching those surfaces still means and looks like that family.
 
 ## Claim boundary

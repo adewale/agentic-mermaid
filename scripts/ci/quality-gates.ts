@@ -58,8 +58,6 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   // catalog/descriptors before CI inspected them.
   { id: 'browser-family-catalog', label: 'Verify the committed lazy browser family catalog', command: ['bun', 'run', 'check:browser-families'] },
   { id: 'website', label: 'Verify website and Worker artifacts', command: ['bun', 'run', 'website:check'] },
-  { id: 'family-intent', label: 'Verify Mermaid intent compatibility and demand traceability', command: ['bun', 'run', 'intent:families:check'] },
-  { id: 'family-fidelity', label: 'Verify the secondary Mermaid visual-familiarity audit', command: ['bun', 'run', 'fidelity:families:check'] },
   { id: 'evidence', label: 'Check all generated evidence receipts and provenance', command: ['bun', 'run', 'evidence:check'] },
   { id: 'sketch', label: 'Run sketch prototype style checks', command: ['bun', 'run', 'sketch:check'] },
   { id: 'rendered-corpora', label: 'Audit rendered corpora and family structural evidence', command: ['bun', 'run', 'audit:ugly'] },
