@@ -433,7 +433,7 @@ describe('Section A capability report', () => {
             .toEqual({
               backend: backend.id,
               claim: `${claim.primitive}/${claim.feature}/${claim.operation}`,
-              witness: expect.stringContaining('backend-claim-matrix@3/'),
+              witness: expect.stringContaining('backend-claim-matrix@4/'),
             })
         } else {
           expect(claim.status).toBe('unverified-extension')

@@ -2,13 +2,14 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 267,
-    "treeSha256": "2d97f545aab87610e7a6379e83c4f1220a4c55b0d96c6c2a363df38e61517095"
+    "count": 275,
+    "treeSha256": "365fb84d1c1670b1bece800000f4ead50b3adff08904369aeefce24430e27364"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
       "@resvg/resvg-js",
+      "d3-sankey",
       "elkjs",
       "entities",
       "perfect-freehand",
@@ -16,8 +17,8 @@
       "typescript",
       "yaml"
     ],
-    "packageCount": 23,
-    "sha256": "4baecb188fb9502a023324ed25b8da6f6be45dcf26df8b69849cff22e80dfda9"
+    "packageCount": 28,
+    "sha256": "e3d41e4a0cfb727bfd664ebddbe4c601227ca74563a1eb738c9f78083393780f"
   },
   "fontInputs": [
     {
@@ -44,7 +45,8 @@
     "gantt",
     "mindmap",
     "gitgraph",
-    "radar"
+    "radar",
+    "sankey"
   ],
   "variants": [
     "Sentinel · every channel deliberately distinctive",
@@ -59,22 +61,22 @@
   },
   "graphicalBackends": {
     "default": {
-      "familyCount": 15,
-      "svgSha256": "cf79a730de4b35ee3d8c020a48a9b690d9c8784ca355e138178d14ff19407ca5",
-      "pngSha256": "19374ce911cecf7e065304942d6628dfe32f2b73e96ec2343b2028341e8f408d"
+      "familyCount": 16,
+      "svgSha256": "25c51fa2d5fd19324f9b2406b9200578e1da8761038378267c7c9c775de79cf7",
+      "pngSha256": "68d983f94ac17e1a1e4d3df9ddbfe55d6df2f6eb4d1dbb0f83cdd0195ac65a93"
     },
     "rough": {
-      "familyCount": 15,
-      "svgSha256": "af8e27213fc79626efc9f2431c9d6d4ffccb9abb669e987b37c1fdd031053bab",
-      "pngSha256": "9092d91b7d53e5c4e1b23fa724f074eefb01ecf5631d55dde9ffa79e91647ae4"
+      "familyCount": 16,
+      "svgSha256": "d32e1a70ae53b0336355e1042d5b114c31f1132fec577f07d717a83b65fd036a",
+      "pngSha256": "9666940ef9cd6e988800b52e930f07da2bf870b7513805fd6623432c74984b41"
     },
     "hybrid": {
-      "familyCount": 15,
-      "svgSha256": "2ff439f024573611e2a16882e8eddb8767801a0e8f2da505586378a1cdc97094",
-      "pngSha256": "fc10e0c3888697e225c8c96ab8bd280df82f0aa94562b6a2c1c0eed43ec2c85c"
+      "familyCount": 16,
+      "svgSha256": "ae76b8e4ed49cc6c35f91155891dd207ae7e62a47a0092071e42d3c88170cb05",
+      "pngSha256": "40dd6a4215ff73431d8e08d067652faf84d974a1d2cedc60730b56f36b4a9dce"
     }
   },
-  "terminalSha256": "b4ce32cb71246e74c52052f6fe6db25d4dd0788299935bc446e3b462355e22ab",
+  "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
   "baseline": {
     "state": "unsupported-style-fields",
     "commit": "e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8",
@@ -85,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12",
-    "reviewedAt": "2026-07-16",
-    "reviewer": "OpenAI coding agent, at the user's explicit request",
+    "artifactSha256": "e078e050d62e9ae5c80335fce6d5e4b0e2d025714d10497c78cbad5bb5bf4b5a",
+    "reviewedAt": "2026-08-03",
+    "reviewer": "Codex coding agent, during the PR #192 conflict-resolution pass",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "1ea138f591d35cc575aeb5f11c15134358276ce25a1f9d0576db99877f749f12"
+      "sha256": "e078e050d62e9ae5c80335fce6d5e4b0e2d025714d10497c78cbad5bb5bf4b5a"
     }
   ]
 }

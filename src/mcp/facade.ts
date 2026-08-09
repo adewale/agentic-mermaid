@@ -3,14 +3,14 @@
 // mermaid.* proxy, the sync-only code screen, and the expression-first code
 // wrapping. Must stay free of node:* imports so it bundles for workerd.
 
-import * as mermaid from '../agent/core.ts'
-import type { DiagramKind } from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { parse as parseJavaScript } from 'acorn'
 import type { Node as AcornNode } from 'acorn'
+import { parse as parseJavaScript } from 'acorn'
+import * as mermaid from '../agent/core.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import type { DiagramKind } from '../agent/types.ts'
 import { ParsedDiagramFamilyMismatchError, RenderCapabilityError } from '../render-contract.ts'
-import type { CodeModeHostPolicy } from '../render-host-policy.ts'
 import { projectKnownRenderErrorDiagnostic, projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import type { CodeModeHostPolicy } from '../render-host-policy.ts'
 
 export type ExecutionTraceCall =
   | { verb: 'parse'; diagram?: number; source?: string }
@@ -27,13 +27,7 @@ export type ExecutionTraceCall =
 type TraceMutationBody = Extract<ExecutionTraceCall, { verb: 'mutate' }>['body']
 type TraceNarrowFamily = Extract<ExecutionTraceCall, { verb: 'narrow' }>['family']
 
-export function createTracingMermaid(
-  trace?: ExecutionTraceCall[],
-  makeSandboxError?: (message: string) => Error,
-  isClosed?: () => boolean,
-  hostPolicy?: CodeModeHostPolicy,
-  beforeSdkCall?: () => string | undefined,
-): typeof mermaid {
+export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (message: string) => Error, isClosed?: () => boolean, hostPolicy?: CodeModeHostPolicy, beforeSdkCall?: () => string | undefined): typeof mermaid {
   const diagramIds = new WeakMap<object, number>()
   const trusted = new WeakSet<object>()
   const hardened = new WeakMap<object, unknown>()
@@ -41,14 +35,16 @@ export function createTracingMermaid(
   let nextId = 1
 
   const forbidden = (prop: string | symbol): boolean => prop === 'constructor' || prop === '__proto__' || prop === 'prototype'
-  const protoFor = (target: object): object | null => Object.isExtensible(target) ? null : Reflect.getPrototypeOf(target)
-  const sandboxError = (message: string): Error => makeSandboxError ? makeSandboxError(message) : new Error(message)
+  const protoFor = (target: object): object | null => (Object.isExtensible(target) ? null : Reflect.getPrototypeOf(target))
+  const sandboxError = (message: string): Error => (makeSandboxError ? makeSandboxError(message) : new Error(message))
   const assertOpen = () => {
     if (isClosed?.()) throw sandboxError('Code Mode SDK calls are not allowed while returning results')
     const blocked = beforeSdkCall?.()
     if (blocked) throw sandboxError(blocked)
   }
-  const readonly = () => { throw sandboxError('Code Mode SDK results are read-only; use mermaid.mutate(...) for structured edits') }
+  const readonly = () => {
+    throw sandboxError('Code Mode SDK results are read-only; use mermaid.mutate(...) for structured edits')
+  }
   const arrayMutators = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
   const arrayCallbackMethods = new Set(['forEach', 'map', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex', 'some', 'every', 'flatMap'])
   const rawOf = <T>(value: T): T => (value && (typeof value === 'object' || typeof value === 'function') && raw.has(value as object) ? raw.get(value as object) : value) as T
@@ -83,15 +79,13 @@ export function createTracingMermaid(
       const renderDiagnostic = projectKnownRenderErrorDiagnostic(error)
       if (!renderDiagnostic) return undefined
       fields = {
-        name: renderDiagnostic.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE'
-          ? 'AsciiWidthError'
-          : 'MermaidFamilyDetectionError',
+        name: renderDiagnostic.code === 'ASCII_TARGET_WIDTH_IMPOSSIBLE' ? 'AsciiWidthError' : 'MermaidFamilyDetectionError',
         ...renderDiagnostic,
       }
     }
     if (!fields) return undefined
     const encoded = JSON.stringify(fields)
-    return encoded === undefined ? undefined : JSON.parse(encoded) as Record<string, unknown>
+    return encoded === undefined ? undefined : (JSON.parse(encoded) as Record<string, unknown>)
   }
   /** A proxy may not substitute hardened child proxies for non-configurable,
    * non-writable properties on a frozen target. Move plain immutable data onto
@@ -101,16 +95,14 @@ export function createTracingMermaid(
     if (Object.isExtensible(value)) return value
     if (Array.isArray(value)) return value.slice()
     const prototype = Reflect.getPrototypeOf(value)
-    return prototype === Object.prototype || prototype === null
-      ? Object.assign(Object.create(prototype), value)
-      : value
+    return prototype === Object.prototype || prototype === null ? Object.assign(Object.create(prototype), value) : value
   }
   const hostCall = <T>(fn: () => T, genericRenderFailure = false): T => {
-    try { return fn() } catch (e) {
-      const fields = structuredErrorFields(e) ?? (genericRenderFailure
-        ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e) }
-        : undefined)
-      const wrapped = sandboxError(fields?.message as string ?? (e as Error).message)
+    try {
+      return fn()
+    } catch (e) {
+      const fields = structuredErrorFields(e) ?? (genericRenderFailure ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e) } : undefined)
+      const wrapped = sandboxError((fields?.message as string) ?? (e as Error).message)
       if (fields) {
         structuredErrorMetadata.set(wrapped, fields)
         for (const [field, value] of Object.entries(fields)) {
@@ -125,19 +117,20 @@ export function createTracingMermaid(
       throw wrapped
     }
   }
-  const jsonClone = <T>(value: T): T => hostCall(() => {
-    if (!value || (typeof value !== 'object' && typeof value !== 'function')) return value
-    const encoded = JSON.stringify(value)
-    return (encoded === undefined ? undefined : JSON.parse(encoded)) as T
-  })
+  const jsonClone = <T>(value: T): T =>
+    hostCall(() => {
+      if (!value || (typeof value !== 'object' && typeof value !== 'function')) return value
+      const encoded = JSON.stringify(value)
+      return (encoded === undefined ? undefined : JSON.parse(encoded)) as T
+    })
   const iteratorOf = (items: unknown[]) => {
     let index = 0
     const iterator = {
-      [Symbol.iterator]() { return this },
+      [Symbol.iterator]() {
+        return this
+      },
       next() {
-        return index < items.length
-          ? { value: items[index++], done: false }
-          : { value: undefined, done: true }
+        return index < items.length ? { value: items[index++], done: false } : { value: undefined, done: true }
       },
     }
     return harden(iterator)
@@ -155,7 +148,10 @@ export function createTracingMermaid(
     if (!isDiagramLike(value)) return undefined
     const obj = value as object
     let id = diagramIds.get(obj)
-    if (!id) { id = nextId++; diagramIds.set(obj, id) }
+    if (!id) {
+      id = nextId++
+      diagramIds.set(obj, id)
+    }
     return id
   }
   const trustDiagram = (value: unknown): void => {
@@ -193,17 +189,34 @@ export function createTracingMermaid(
           if (prop === Symbol.iterator || prop === 'entries') return harden(() => iteratorOf(Array.from(target.entries(), ([k, v]) => harden([harden(k), harden(v)]))))
           if (prop === 'values') return harden(() => iteratorOf(Array.from(target.values(), v => harden(v))))
           if (prop === 'keys') return harden(() => iteratorOf(Array.from(target.keys(), k => harden(k))))
-          if (prop === 'forEach') return harden((cb: (value: unknown, key: unknown, map: Map<unknown, unknown>) => unknown, thisArg?: unknown) => { for (const [k, v] of target.entries()) cb.call(thisArg, harden(v), harden(k), proxy) })
+          if (prop === 'forEach')
+            return harden((cb: (value: unknown, key: unknown, map: Map<unknown, unknown>) => unknown, thisArg?: unknown) => {
+              for (const [k, v] of target.entries()) cb.call(thisArg, harden(v), harden(k), proxy)
+            })
           const got = hostCall(() => Reflect.get(target, prop, target))
           return typeof got === 'function' ? undefined : harden(got)
         },
-        set() { return readonly() },
-        deleteProperty() { return readonly() },
-        defineProperty() { return readonly() },
-        setPrototypeOf() { return readonly() },
-        getOwnPropertyDescriptor(target, prop) { return descriptorFor(target, prop) },
-        preventExtensions() { return readonly() },
-        getPrototypeOf(target) { return protoFor(target) },
+        set() {
+          return readonly()
+        },
+        deleteProperty() {
+          return readonly()
+        },
+        defineProperty() {
+          return readonly()
+        },
+        setPrototypeOf() {
+          return readonly()
+        },
+        getOwnPropertyDescriptor(target, prop) {
+          return descriptorFor(target, prop)
+        },
+        preventExtensions() {
+          return readonly()
+        },
+        getPrototypeOf(target) {
+          return protoFor(target)
+        },
       })
       hardened.set(obj, proxy)
       return rememberRaw(proxy, value) as T
@@ -219,17 +232,34 @@ export function createTracingMermaid(
           if (prop === 'has') return harden((val: unknown) => target.has(rawOf(val)))
           if (prop === Symbol.iterator || prop === 'values' || prop === 'keys') return harden(() => iteratorOf(Array.from(target.values(), v => harden(v))))
           if (prop === 'entries') return harden(() => iteratorOf(Array.from(target.values(), v => harden([harden(v), harden(v)]))))
-          if (prop === 'forEach') return harden((cb: (value: unknown, value2: unknown, set: Set<unknown>) => unknown, thisArg?: unknown) => { for (const v of target.values()) cb.call(thisArg, harden(v), harden(v), proxy) })
+          if (prop === 'forEach')
+            return harden((cb: (value: unknown, value2: unknown, set: Set<unknown>) => unknown, thisArg?: unknown) => {
+              for (const v of target.values()) cb.call(thisArg, harden(v), harden(v), proxy)
+            })
           const got = hostCall(() => Reflect.get(target, prop, target))
           return typeof got === 'function' ? undefined : harden(got)
         },
-        set() { return readonly() },
-        deleteProperty() { return readonly() },
-        defineProperty() { return readonly() },
-        setPrototypeOf() { return readonly() },
-        getOwnPropertyDescriptor(target, prop) { return descriptorFor(target, prop) },
-        preventExtensions() { return readonly() },
-        getPrototypeOf(target) { return protoFor(target) },
+        set() {
+          return readonly()
+        },
+        deleteProperty() {
+          return readonly()
+        },
+        defineProperty() {
+          return readonly()
+        },
+        setPrototypeOf() {
+          return readonly()
+        },
+        getOwnPropertyDescriptor(target, prop) {
+          return descriptorFor(target, prop)
+        },
+        preventExtensions() {
+          return readonly()
+        },
+        getPrototypeOf(target) {
+          return protoFor(target)
+        },
       })
       hardened.set(obj, proxy)
       return rememberRaw(proxy, value) as T
@@ -239,19 +269,35 @@ export function createTracingMermaid(
       const original = value
       const callable = (...args: unknown[]) => harden(hostCall(() => Reflect.apply(original, undefined, args)))
       const proxy = new Proxy(callable, {
-        apply(_target, thisArg, args) { return harden(hostCall(() => Reflect.apply(original, thisArg, args))) },
+        apply(_target, thisArg, args) {
+          return harden(hostCall(() => Reflect.apply(original, thisArg, args)))
+        },
         get(_target, prop, receiver) {
           if (forbidden(prop)) return undefined
           if (!Reflect.getOwnPropertyDescriptor(original, prop)) return undefined
           return harden(hostCall(() => Reflect.get(original, prop, receiver)))
         },
-        set() { return readonly() },
-        deleteProperty() { return readonly() },
-        defineProperty() { return readonly() },
-        setPrototypeOf() { return readonly() },
-        getOwnPropertyDescriptor(_target, prop) { return descriptorFor(original, prop) },
-        preventExtensions() { return readonly() },
-        getPrototypeOf() { return protoFor(original) },
+        set() {
+          return readonly()
+        },
+        deleteProperty() {
+          return readonly()
+        },
+        defineProperty() {
+          return readonly()
+        },
+        setPrototypeOf() {
+          return readonly()
+        },
+        getOwnPropertyDescriptor(_target, prop) {
+          return descriptorFor(original, prop)
+        },
+        preventExtensions() {
+          return readonly()
+        },
+        getPrototypeOf() {
+          return protoFor(original)
+        },
       })
       hardened.set(obj, proxy)
       return rememberRaw(proxy, value) as T
@@ -264,20 +310,29 @@ export function createTracingMermaid(
         if (forbidden(prop)) return undefined
         if (Array.isArray(target)) {
           if (typeof prop === 'string' && arrayMutators.has(prop)) return harden(readonly)
-          if (prop === Symbol.iterator || prop === 'values') return harden(() => iteratorOf(Array.prototype.map.call(target, (v) => harden(v))))
+          if (prop === Symbol.iterator || prop === 'values') return harden(() => iteratorOf(Array.prototype.map.call(target, v => harden(v))))
           if (prop === 'entries') return harden(() => iteratorOf(Array.prototype.map.call(target, (v, i) => harden([i, harden(v)]))))
           if (prop === 'keys') return harden(() => iteratorOf(Array.from({ length: target.length }, (_, i) => i)))
           if (typeof prop === 'string' && arrayCallbackMethods.has(prop)) {
             return harden((cb: (value: unknown, index: number, array: unknown) => unknown, thisArg?: unknown) => {
-              const values = Array.prototype.map.call(target, (v) => harden(v))
+              const values = Array.prototype.map.call(target, v => harden(v))
               const call = (v: unknown, i: number) => cb.call(thisArg, v, i, proxy)
-              if (prop === 'forEach') { values.forEach(call); return undefined }
+              if (prop === 'forEach') {
+                values.forEach(call)
+                return undefined
+              }
               if (prop === 'map') return values.map(call)
               if (prop === 'filter') return values.filter((v, i) => call(v, i))
               if (prop === 'find') return values.find((v, i) => Boolean(call(v, i)))
               if (prop === 'findIndex') return values.findIndex((v, i) => Boolean(call(v, i)))
-              if (prop === 'findLast') { for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return values[i]; return undefined }
-              if (prop === 'findLastIndex') { for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return i; return -1 }
+              if (prop === 'findLast') {
+                for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return values[i]
+                return undefined
+              }
+              if (prop === 'findLastIndex') {
+                for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return i
+                return -1
+              }
               if (prop === 'some') return values.some((v, i) => Boolean(call(v, i)))
               if (prop === 'every') return values.every((v, i) => Boolean(call(v, i)))
               if (prop === 'flatMap') return values.flatMap(call as any)
@@ -285,31 +340,33 @@ export function createTracingMermaid(
           }
           if (prop === 'toSorted') {
             return harden((compare?: (a: unknown, b: unknown) => number) => {
-              const values = Array.prototype.map.call(target, (v) => harden(v))
+              const values = Array.prototype.map.call(target, v => harden(v))
               return compare ? values.slice().sort((a, b) => compare(a, b)) : values.slice().sort()
             })
           }
-          if (prop === 'toReversed') return harden(() => Array.prototype.map.call(target, (v) => harden(v)).reverse())
-          if (prop === 'toSpliced') return harden(function (start: number, deleteCount?: number, ...items: unknown[]) {
-            const values = Array.prototype.map.call(target, (v) => harden(v))
-            const copy = values.slice()
-            if (arguments.length === 1) copy.splice(start)
-            else copy.splice(start, deleteCount ?? 0, ...items.map(item => harden(rawOf(item))))
-            return copy
-          })
-          if (prop === 'with') return harden((index: number, item: unknown) => {
-            const values = Array.prototype.map.call(target, (v) => harden(v))
-            const normalized = index < 0 ? values.length + index : index
-            if (normalized < 0 || normalized >= values.length) throw sandboxError('Invalid array index')
-            const copy = values.slice(); copy[normalized] = harden(rawOf(item)); return copy
-          })
+          if (prop === 'toReversed') return harden(() => Array.prototype.map.call(target, v => harden(v)).reverse())
+          if (prop === 'toSpliced')
+            return harden(function (start: number, deleteCount?: number, ...items: unknown[]) {
+              const values = Array.prototype.map.call(target, v => harden(v))
+              const copy = values.slice()
+              if (arguments.length === 1) copy.splice(start)
+              else copy.splice(start, deleteCount ?? 0, ...items.map(item => harden(rawOf(item))))
+              return copy
+            })
+          if (prop === 'with')
+            return harden((index: number, item: unknown) => {
+              const values = Array.prototype.map.call(target, v => harden(v))
+              const normalized = index < 0 ? values.length + index : index
+              if (normalized < 0 || normalized >= values.length) throw sandboxError('Invalid array index')
+              const copy = values.slice()
+              copy[normalized] = harden(rawOf(item))
+              return copy
+            })
           if (prop === 'reduce' || prop === 'reduceRight') {
             return harden(function (cb: (previous: unknown, current: unknown, index: number, array: unknown) => unknown, initial?: unknown) {
-              const values = Array.prototype.map.call(target, (v) => harden(v))
+              const values = Array.prototype.map.call(target, v => harden(v))
               const reducer = (previous: unknown, current: unknown, index: number) => cb(previous, current, index, proxy)
-              return arguments.length >= 2
-                ? (prop === 'reduce' ? values.reduce(reducer, initial) : values.reduceRight(reducer, initial))
-                : (prop === 'reduce' ? values.reduce(reducer) : values.reduceRight(reducer))
+              return arguments.length >= 2 ? (prop === 'reduce' ? values.reduce(reducer, initial) : values.reduceRight(reducer, initial)) : prop === 'reduce' ? values.reduce(reducer) : values.reduceRight(reducer)
             })
           }
         }
@@ -317,14 +374,30 @@ export function createTracingMermaid(
         const got = hostCall(() => Reflect.get(target, prop, receiver))
         return typeof got === 'function' ? undefined : harden(got)
       },
-      set() { return readonly() },
-      deleteProperty() { return readonly() },
-      defineProperty() { return readonly() },
-      setPrototypeOf() { return readonly() },
-      has(target, prop) { return forbidden(prop) ? false : Reflect.has(target, prop) },
-      getOwnPropertyDescriptor(target, prop) { return descriptorFor(target, prop) },
-      preventExtensions() { return readonly() },
-      getPrototypeOf(target) { return protoFor(target) },
+      set() {
+        return readonly()
+      },
+      deleteProperty() {
+        return readonly()
+      },
+      defineProperty() {
+        return readonly()
+      },
+      setPrototypeOf() {
+        return readonly()
+      },
+      has(target, prop) {
+        return forbidden(prop) ? false : Reflect.has(target, prop)
+      },
+      getOwnPropertyDescriptor(target, prop) {
+        return descriptorFor(target, prop)
+      },
+      preventExtensions() {
+        return readonly()
+      },
+      getPrototypeOf(target) {
+        return protoFor(target)
+      },
     })
     hardened.set(obj, proxy)
     if (proxyTarget !== obj) hardened.set(proxyTarget, proxy)
@@ -336,7 +409,9 @@ export function createTracingMermaid(
     const kind = (value as { body?: { kind?: string } } | undefined)?.body?.kind
     return kind != null && FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : 'opaque'
   }
-  const push = (call: ExecutionTraceCall) => { trace?.push(call) }
+  const push = (call: ExecutionTraceCall) => {
+    trace?.push(call)
+  }
   const sdkTarget = {
     parseRegisteredMermaid: mermaid.parseRegisteredMermaid,
     createMermaid: mermaid.createMermaid,
@@ -356,6 +431,7 @@ export function createTracingMermaid(
     asMindmap: mermaid.asMindmap,
     asGitGraph: mermaid.asGitGraph,
     asRadar: mermaid.asRadar,
+    asSankey: mermaid.asSankey,
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,
     analyzeMermaid: mermaid.analyzeMermaid,
@@ -383,36 +459,42 @@ export function createTracingMermaid(
     if (forbidden(prop) || !sdkProps.has(prop)) return undefined
     if (sdkValues.has(prop)) return sdkValues.get(prop)
     let value: unknown
-    if (prop === 'parseRegisteredMermaid') value = harden((source: string) => {
-      assertOpen()
-      if (typeof source !== 'string') throw sandboxError(`Code Mode ${prop} source must be a string`)
-      const r = hostCall(() => target.parseRegisteredMermaid(source))
-      if (r.ok) trustDiagram(r.value)
-      const diagram = r.ok ? idOf(r.value) : undefined
-      push({ verb: 'parse', diagram, source: r.ok ? (r.value.body.kind === 'opaque' ? r.value.body.source : r.value.canonicalSource) : undefined })
-      return harden(r)
-    })
-    else if (prop === 'createMermaid') value = harden((kind: unknown, opts?: unknown) => {
-      assertOpen()
-      const r = hostCall(() => target.createMermaid(kind as DiagramKind, jsonClone(opts) as Parameters<typeof target.createMermaid>[1]))
-      trustDiagram(r)
-      push({ verb: 'create', family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined, diagram: idOf(r), ok: true })
-      return harden(r)
-    })
-    else if (prop === 'buildMermaid') value = harden((kind: unknown, ops: unknown, opts?: unknown) => {
-      assertOpen()
-      const opsForHost = jsonClone(ops) as Parameters<typeof target.buildMermaid>[1]
-      // buildChecked shape-validates each op before the mutator, so a malformed
-      // op fails with a prescriptive INVALID_OP error instead of silently
-      // building a mangled diagram — the same check the declarative path uses.
-      const r = hostCall(() => mermaid.buildChecked(kind as DiagramKind, opsForHost as unknown[], jsonClone(opts) as Parameters<typeof target.buildMermaid>[2]))
-      if (r.ok) trustDiagram(r.value)
-      push({
-        verb: 'create', family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined,
-        diagram: r.ok ? idOf(r.value) : undefined, ops: Array.isArray(ops) ? ops.length : undefined, ok: r.ok,
+    if (prop === 'parseRegisteredMermaid')
+      value = harden((source: string) => {
+        assertOpen()
+        if (typeof source !== 'string') throw sandboxError(`Code Mode ${prop} source must be a string`)
+        const r = hostCall(() => target.parseRegisteredMermaid(source))
+        if (r.ok) trustDiagram(r.value)
+        const diagram = r.ok ? idOf(r.value) : undefined
+        push({ verb: 'parse', diagram, source: r.ok ? (r.value.body.kind === 'opaque' ? r.value.body.source : r.value.canonicalSource) : undefined })
+        return harden(r)
       })
-      return harden(r)
-    })
+    else if (prop === 'createMermaid')
+      value = harden((kind: unknown, opts?: unknown) => {
+        assertOpen()
+        const r = hostCall(() => target.createMermaid(kind as DiagramKind, jsonClone(opts) as Parameters<typeof target.createMermaid>[1]))
+        trustDiagram(r)
+        push({ verb: 'create', family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined, diagram: idOf(r), ok: true })
+        return harden(r)
+      })
+    else if (prop === 'buildMermaid')
+      value = harden((kind: unknown, ops: unknown, opts?: unknown) => {
+        assertOpen()
+        const opsForHost = jsonClone(ops) as Parameters<typeof target.buildMermaid>[1]
+        // buildChecked shape-validates each op before the mutator, so a malformed
+        // op fails with a prescriptive INVALID_OP error instead of silently
+        // building a mangled diagram — the same check the declarative path uses.
+        const r = hostCall(() => mermaid.buildChecked(kind as DiagramKind, opsForHost as unknown[], jsonClone(opts) as Parameters<typeof target.buildMermaid>[2]))
+        if (r.ok) trustDiagram(r.value)
+        push({
+          verb: 'create',
+          family: FAMILY_KINDS.has(kind as DiagramKind) ? (kind as DiagramKind) : undefined,
+          diagram: r.ok ? idOf(r.value) : undefined,
+          ops: Array.isArray(ops) ? ops.length : undefined,
+          ok: r.ok,
+        })
+        return harden(r)
+      })
     else if (typeof prop === 'string' && prop.startsWith('as') && prop in target) {
       value = harden((d: any) => {
         assertOpen()
@@ -423,150 +505,173 @@ export function createTracingMermaid(
         push({ verb: 'narrow', family: narrowerFamily(prop), input, ok: r !== null })
         return harden(r)
       })
-    } else if (prop === 'mutate') value = harden((d: any, op: any) => {
-      assertOpen()
-      requireTrustedDiagram(d, 'mutate')
-      const opForHost = jsonClone(op)
-      const call: Extract<ExecutionTraceCall, { verb: 'mutate' }> = {
-        verb: 'mutate', body: bodyKind(rawOf(d)), input: idOf(d), opKind: typeof opForHost === 'object' && opForHost && 'kind' in opForHost ? String((opForHost as { kind: unknown }).kind) : undefined,
-      }
-      push(call)
-      // mutateChecked runs the shape validator before the mutator: the SAME
-      // choke point the declarative applyOps path funnels through, so an op
-      // rejected here is rejected identically there (no second validator).
-      const r = hostCall(() => mermaid.mutateChecked(rawOf(d), opForHost))
-      if (r.ok) {
-        trustDiagram(r.value)
-        call.output = idOf(r.value)
-        call.fingerprint = fingerprint(r.value)
-      }
-      return harden(r)
-    })
-    else if (prop === 'verifyMermaid') value = harden((input: any, opts?: any) => {
-      assertOpen()
-      requireTrustedDiagram(input, 'verifyMermaid')
-      const r = hostCall(() => target.verifyMermaid(rawOf(input), opts))
-      const diagram = idOf(input)
-      push({ verb: 'verify', diagram, ok: r.ok, inspected: false, fingerprint: fingerprint(input) })
-      return harden(new Proxy(r, {
-        get(verifyTarget, verifyProp, verifyReceiver) {
-          if (isClosed?.()) throw sandboxError('Code Mode SDK calls are not allowed while returning results')
-          if (verifyProp === 'ok' || verifyProp === 'warnings' || verifyProp === 'layout') {
-            push({ verb: 'verify_inspect', diagram, property: verifyProp })
-          }
-          if (forbidden(verifyProp)) return undefined
-          return harden(hostCall(() => Reflect.get(verifyTarget, verifyProp, verifyReceiver)))
-        },
-        set() { return readonly() },
-        deleteProperty() { return readonly() },
-        defineProperty() { return readonly() },
-        setPrototypeOf() { return readonly() },
-        getOwnPropertyDescriptor(target, prop) { return descriptorFor(target, prop) },
-        preventExtensions() { return readonly() },
-        getPrototypeOf(target) { return protoFor(target) },
-      }))
-    })
-    else if (prop === 'analyzeMermaid') value = harden((d: any) => {
-      assertOpen()
-      requireTrustedDiagram(d, 'analyzeMermaid')
-      const r = hostCall(() => target.analyzeMermaid(rawOf(d)))
-      push({ verb: 'analyze', diagram: idOf(d), ok: true, fingerprint: fingerprint(d) })
-      return harden(r)
-    })
-    else if (prop === 'analyzeMermaidSource') value = harden((source: string) => {
-      assertOpen()
-      if (typeof source !== 'string') throw sandboxError('Code Mode analyzeMermaidSource source must be a string')
-      const r = hostCall(() => target.analyzeMermaidSource(source))
-      push({ verb: 'analyze', source, ok: r.ok })
-      return harden(r)
-    })
-    else if (prop === 'describeMermaidFacts') value = harden((d: any) => {
-      assertOpen()
-      requireTrustedDiagram(d, 'describeMermaidFacts')
-      const r = hostCall(() => target.describeMermaidFacts(rawOf(d)))
-      push({ verb: 'facts', diagram: idOf(d), ok: true, fingerprint: fingerprint(d) })
-      return harden(r)
-    })
-    else if (prop === 'describeMermaidFactsSource') value = harden((source: string) => {
-      assertOpen()
-      if (typeof source !== 'string') throw sandboxError('Code Mode describeMermaidFactsSource source must be a string')
-      const r = hostCall(() => target.describeMermaidFactsSource(source))
-      push({ verb: 'facts', source, ok: r.ok })
-      return harden(r)
-    })
-    else if (prop === 'checkMermaid') value = harden((d: any, spec: any) => {
-      assertOpen()
-      requireTrustedDiagram(d, 'checkMermaid')
-      const r = hostCall(() => target.checkMermaid(rawOf(d), jsonClone(spec) as Parameters<typeof target.checkMermaid>[1]))
-      push({ verb: 'check', diagram: idOf(d), ok: r.ok, fingerprint: fingerprint(d) })
-      return harden(r)
-    })
-    else if (prop === 'checkMermaidSource') value = harden((source: string, spec: any) => {
-      assertOpen()
-      if (typeof source !== 'string') throw sandboxError('Code Mode checkMermaidSource source must be a string')
-      const r = hostCall(() => target.checkMermaidSource(source, jsonClone(spec) as Parameters<typeof target.checkMermaidSource>[1]))
-      push({ verb: 'check', source, ok: r.ok ? r.value.ok : false })
-      return harden(r)
-    })
-    else if (prop === 'serializeMermaid') value = harden((d: any) => {
-      assertOpen()
-      requireTrustedDiagram(d, 'serializeMermaid')
-      const source = hostCall(() => target.serializeMermaid(rawOf(d)))
-      push({ verb: 'serialize', diagram: idOf(d), source, fingerprint: fingerprint(d) })
-      return source
-    })
-    else if (
-      prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' ||
-      prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' ||
-      prop === 'layoutMermaidWithReceipt'
-    ) value = harden((input: any, opts?: any) => {
-      assertOpen()
-      if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
-      const isAscii = prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt'
-      const configCallback = opts?.onConfigDiagnostic
-      const projectionCallback = isAscii ? opts?.onProjectionDiagnostic : undefined
-      if (configCallback !== undefined && typeof configCallback !== 'function') {
-        throw sandboxError(`Code Mode ${String(prop)} onConfigDiagnostic must be a function`)
-      }
-      if (projectionCallback !== undefined && typeof projectionCallback !== 'function') {
-        throw sandboxError(`Code Mode ${String(prop)} onProjectionDiagnostic must be a function`)
-      }
-      let cloned = jsonClone(opts) as Record<string, unknown> | undefined
-      // The host policy is applied after cloning caller data, so even an
-      // explicit weaker value cannot cross any hosted render/layout boundary.
-      // Local Code Mode supplies no policy and retains caller-selectable
-      // behavior.
-      if (hostPolicy) cloned = { ...(cloned ?? {}), ...hostPolicy.render }
-      const configDiagnostics: unknown[] = []
-      const projectionDiagnostics: unknown[] = []
-      if (configCallback || projectionCallback) cloned ??= {}
-      if (configCallback) {
-        cloned!.onConfigDiagnostic = (diagnostic: unknown) => configDiagnostics.push(diagnostic)
-      }
-      if (projectionCallback) {
-        cloned!.onProjectionDiagnostic = (diagnostic: unknown) => projectionDiagnostics.push(diagnostic)
-      }
-      const rendered = hostCall(
-        () => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned),
-        true,
-      )
-      for (const diagnostic of configDiagnostics) configCallback(harden(jsonClone(diagnostic)))
-      for (const diagnostic of projectionDiagnostics) projectionCallback(harden(jsonClone(diagnostic)))
-      // Render artifacts/receipts are immutable host records. Clone to an
-      // extensible data envelope before hardening so Proxy descriptor
-      // invariants remain valid when Code Mode returns the artifact as JSON.
-      return jsonClone(rendered)
-    })
-    else if (prop === 'describeOps' || prop === 'opSignatures') value = harden((family: any) => {
-      assertOpen()
-      if (typeof family !== 'string') throw sandboxError(`Code Mode ${String(prop)} family must be a string`)
-      if (!mermaid.hasOpSchema(family)) {
-        const families = mermaid.knownBuiltinFamilies().filter(mermaid.hasOpSchema)
-        throw sandboxError(`Code Mode ${String(prop)} family must be one of: ${families.join(', ')}`)
-      }
-      // Pure lookup over static op schemas — no diagram, no trace, read-only.
-      return harden(hostCall(() => ((target as any)[prop] as (f: string) => unknown)(family)))
-    })
+    } else if (prop === 'mutate')
+      value = harden((d: any, op: any) => {
+        assertOpen()
+        requireTrustedDiagram(d, 'mutate')
+        const opForHost = jsonClone(op)
+        const call: Extract<ExecutionTraceCall, { verb: 'mutate' }> = {
+          verb: 'mutate',
+          body: bodyKind(rawOf(d)),
+          input: idOf(d),
+          opKind: typeof opForHost === 'object' && opForHost && 'kind' in opForHost ? String((opForHost as { kind: unknown }).kind) : undefined,
+        }
+        push(call)
+        // mutateChecked runs the shape validator before the mutator: the SAME
+        // choke point the declarative applyOps path funnels through, so an op
+        // rejected here is rejected identically there (no second validator).
+        const r = hostCall(() => mermaid.mutateChecked(rawOf(d), opForHost))
+        if (r.ok) {
+          trustDiagram(r.value)
+          call.output = idOf(r.value)
+          call.fingerprint = fingerprint(r.value)
+        }
+        return harden(r)
+      })
+    else if (prop === 'verifyMermaid')
+      value = harden((input: any, opts?: any) => {
+        assertOpen()
+        requireTrustedDiagram(input, 'verifyMermaid')
+        const r = hostCall(() => target.verifyMermaid(rawOf(input), opts))
+        const diagram = idOf(input)
+        push({ verb: 'verify', diagram, ok: r.ok, inspected: false, fingerprint: fingerprint(input) })
+        return harden(
+          new Proxy(r, {
+            get(verifyTarget, verifyProp, verifyReceiver) {
+              if (isClosed?.()) throw sandboxError('Code Mode SDK calls are not allowed while returning results')
+              if (verifyProp === 'ok' || verifyProp === 'warnings' || verifyProp === 'layout') {
+                push({ verb: 'verify_inspect', diagram, property: verifyProp })
+              }
+              if (forbidden(verifyProp)) return undefined
+              return harden(hostCall(() => Reflect.get(verifyTarget, verifyProp, verifyReceiver)))
+            },
+            set() {
+              return readonly()
+            },
+            deleteProperty() {
+              return readonly()
+            },
+            defineProperty() {
+              return readonly()
+            },
+            setPrototypeOf() {
+              return readonly()
+            },
+            getOwnPropertyDescriptor(target, prop) {
+              return descriptorFor(target, prop)
+            },
+            preventExtensions() {
+              return readonly()
+            },
+            getPrototypeOf(target) {
+              return protoFor(target)
+            },
+          }),
+        )
+      })
+    else if (prop === 'analyzeMermaid')
+      value = harden((d: any) => {
+        assertOpen()
+        requireTrustedDiagram(d, 'analyzeMermaid')
+        const r = hostCall(() => target.analyzeMermaid(rawOf(d)))
+        push({ verb: 'analyze', diagram: idOf(d), ok: true, fingerprint: fingerprint(d) })
+        return harden(r)
+      })
+    else if (prop === 'analyzeMermaidSource')
+      value = harden((source: string) => {
+        assertOpen()
+        if (typeof source !== 'string') throw sandboxError('Code Mode analyzeMermaidSource source must be a string')
+        const r = hostCall(() => target.analyzeMermaidSource(source))
+        push({ verb: 'analyze', source, ok: r.ok })
+        return harden(r)
+      })
+    else if (prop === 'describeMermaidFacts')
+      value = harden((d: any) => {
+        assertOpen()
+        requireTrustedDiagram(d, 'describeMermaidFacts')
+        const r = hostCall(() => target.describeMermaidFacts(rawOf(d)))
+        push({ verb: 'facts', diagram: idOf(d), ok: true, fingerprint: fingerprint(d) })
+        return harden(r)
+      })
+    else if (prop === 'describeMermaidFactsSource')
+      value = harden((source: string) => {
+        assertOpen()
+        if (typeof source !== 'string') throw sandboxError('Code Mode describeMermaidFactsSource source must be a string')
+        const r = hostCall(() => target.describeMermaidFactsSource(source))
+        push({ verb: 'facts', source, ok: r.ok })
+        return harden(r)
+      })
+    else if (prop === 'checkMermaid')
+      value = harden((d: any, spec: any) => {
+        assertOpen()
+        requireTrustedDiagram(d, 'checkMermaid')
+        const r = hostCall(() => target.checkMermaid(rawOf(d), jsonClone(spec) as Parameters<typeof target.checkMermaid>[1]))
+        push({ verb: 'check', diagram: idOf(d), ok: r.ok, fingerprint: fingerprint(d) })
+        return harden(r)
+      })
+    else if (prop === 'checkMermaidSource')
+      value = harden((source: string, spec: any) => {
+        assertOpen()
+        if (typeof source !== 'string') throw sandboxError('Code Mode checkMermaidSource source must be a string')
+        const r = hostCall(() => target.checkMermaidSource(source, jsonClone(spec) as Parameters<typeof target.checkMermaidSource>[1]))
+        push({ verb: 'check', source, ok: r.ok ? r.value.ok : false })
+        return harden(r)
+      })
+    else if (prop === 'serializeMermaid')
+      value = harden((d: any) => {
+        assertOpen()
+        requireTrustedDiagram(d, 'serializeMermaid')
+        const source = hostCall(() => target.serializeMermaid(rawOf(d)))
+        push({ verb: 'serialize', diagram: idOf(d), source, fingerprint: fingerprint(d) })
+        return source
+      })
+    else if (prop === 'renderMermaidSVG' || prop === 'renderMermaidSVGWithReceipt' || prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt' || prop === 'layoutMermaidWithReceipt')
+      value = harden((input: any, opts?: any) => {
+        assertOpen()
+        if (input && typeof input === 'object') requireTrustedDiagram(input, String(prop))
+        const isAscii = prop === 'renderMermaidASCII' || prop === 'renderMermaidASCIIWithReceipt'
+        const configCallback = opts?.onConfigDiagnostic
+        const projectionCallback = isAscii ? opts?.onProjectionDiagnostic : undefined
+        if (configCallback !== undefined && typeof configCallback !== 'function') {
+          throw sandboxError(`Code Mode ${String(prop)} onConfigDiagnostic must be a function`)
+        }
+        if (projectionCallback !== undefined && typeof projectionCallback !== 'function') {
+          throw sandboxError(`Code Mode ${String(prop)} onProjectionDiagnostic must be a function`)
+        }
+        let cloned = jsonClone(opts) as Record<string, unknown> | undefined
+        // The host policy is applied after cloning caller data, so even an
+        // explicit weaker value cannot cross any hosted render/layout boundary.
+        // Local Code Mode supplies no policy and retains caller-selectable
+        // behavior.
+        if (hostPolicy) cloned = { ...(cloned ?? {}), ...hostPolicy.render }
+        const configDiagnostics: unknown[] = []
+        const projectionDiagnostics: unknown[] = []
+        if (configCallback || projectionCallback) cloned ??= {}
+        if (configCallback) {
+          cloned!.onConfigDiagnostic = (diagnostic: unknown) => configDiagnostics.push(diagnostic)
+        }
+        if (projectionCallback) {
+          cloned!.onProjectionDiagnostic = (diagnostic: unknown) => projectionDiagnostics.push(diagnostic)
+        }
+        const rendered = hostCall(() => ((target as any)[prop] as (diagram: any, options?: any) => unknown)(rawOf(input), cloned), true)
+        for (const diagnostic of configDiagnostics) configCallback(harden(jsonClone(diagnostic)))
+        for (const diagnostic of projectionDiagnostics) projectionCallback(harden(jsonClone(diagnostic)))
+        // Render artifacts/receipts are immutable host records. Clone to an
+        // extensible data envelope before hardening so Proxy descriptor
+        // invariants remain valid when Code Mode returns the artifact as JSON.
+        return jsonClone(rendered)
+      })
+    else if (prop === 'describeOps' || prop === 'opSignatures')
+      value = harden((family: any) => {
+        assertOpen()
+        if (typeof family !== 'string') throw sandboxError(`Code Mode ${String(prop)} family must be a string`)
+        if (!mermaid.hasOpSchema(family)) {
+          const families = mermaid.knownBuiltinFamilies().filter(mermaid.hasOpSchema)
+          throw sandboxError(`Code Mode ${String(prop)} family must be one of: ${families.join(', ')}`)
+        }
+        // Pure lookup over static op schemas — no diagram, no trace, read-only.
+        return harden(hostCall(() => ((target as any)[prop] as (f: string) => unknown)(family)))
+      })
     sdkValues.set(prop, value)
     return value
   }
@@ -585,10 +690,7 @@ export function createTracingMermaid(
     try {
       const rawObj = rawOf(value)
       // Unwrap a Result<diagram> ({ ok:true, value:<diagram> }) to the diagram.
-      const candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj)
-        && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object)
-        ? rawOf((rawObj as { value: unknown }).value)
-        : rawObj
+      const candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj) && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object) ? rawOf((rawObj as { value: unknown }).value) : rawObj
       if (isDiagramLike(candidate) && trusted.has(candidate as object)) {
         const d = candidate as unknown as Parameters<typeof mermaid.serializeMermaid>[0] & { kind: DiagramKind }
         const verification = mermaid.verifyMermaid(d)
@@ -614,20 +716,38 @@ export function createTracingMermaid(
     return value
   }
   const proxy = new Proxy(sdkTarget, {
-    get(target, prop) { return sdkValue(target, prop) },
-    set() { return readonly() },
-    deleteProperty() { return readonly() },
-    defineProperty() { return readonly() },
-    setPrototypeOf() { return readonly() },
+    get(target, prop) {
+      return sdkValue(target, prop)
+    },
+    set() {
+      return readonly()
+    },
+    deleteProperty() {
+      return readonly()
+    },
+    defineProperty() {
+      return readonly()
+    },
+    setPrototypeOf() {
+      return readonly()
+    },
     getOwnPropertyDescriptor(target, prop) {
       if (!sdkProps.has(prop) || forbidden(prop)) return undefined
       const desc = Reflect.getOwnPropertyDescriptor(target, prop)
       return desc && 'value' in desc ? { ...desc, value: sdkValue(target, prop) } : undefined
     },
-    preventExtensions() { return readonly() },
-    getPrototypeOf(target) { return protoFor(target) },
-    has(_target, prop) { return sdkProps.has(prop) && !forbidden(prop) },
-    ownKeys() { return Array.from(sdkProps) },
+    preventExtensions() {
+      return readonly()
+    },
+    getPrototypeOf(target) {
+      return protoFor(target)
+    },
+    has(_target, prop) {
+      return sdkProps.has(prop) && !forbidden(prop)
+    },
+    ownKeys() {
+      return Array.from(sdkProps)
+    },
   }) as typeof mermaid
   resultMarshallers.set(proxy, marshalResult)
   return proxy
@@ -659,14 +779,16 @@ export const CODE_MODE_RETURN_HINT = 'return plain data instead — e.g. seriali
 function fingerprintDiagram(value: unknown): string | undefined {
   if (!value || typeof value !== 'object') return undefined
   if (!('body' in value) || !('canonicalSource' in value)) return undefined
-  try { return JSON.stringify(value, jsonReplacer) } catch { return undefined }
+  try {
+    return JSON.stringify(value, jsonReplacer)
+  } catch {
+    return undefined
+  }
 }
 
 /** Kind/narrower lookup tables derived from the family metadata (single source of truth). */
 const FAMILY_KINDS: ReadonlySet<DiagramKind> = new Set(BUILTIN_FAMILY_METADATA.map(m => m.id))
-const NARROWER_TO_FAMILY: ReadonlyMap<string, DiagramKind> = new Map(
-  BUILTIN_FAMILY_METADATA.map(m => [m.narrower, m.id]),
-)
+const NARROWER_TO_FAMILY: ReadonlyMap<string, DiagramKind> = new Map(BUILTIN_FAMILY_METADATA.map(m => [m.narrower, m.id]))
 
 function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
   const family = NARROWER_TO_FAMILY.get(String(prop))
@@ -711,12 +833,8 @@ export function unsupportedCodeReason(code: string): string | undefined {
     // Identifier spellings used only as object/member property names do not
     // reference the corresponding global. Preserve the explicit Array.fromAsync
     // rejection because that is the actual disabled async intrinsic.
-    const propertyNameOnly = (parentKey === 'key' && parent?.computed !== true)
-      || (parent?.type === 'MemberExpression' && parentKey === 'property' && parent.computed === false)
-    if (propertyNameOnly
-      && !(node.name === 'fromAsync' && parent?.type === 'MemberExpression'
-        && (parent.object as { type?: unknown; name?: unknown } | undefined)?.type === 'Identifier'
-        && (parent.object as { name?: unknown }).name === 'Array')) return
+    const propertyNameOnly = (parentKey === 'key' && parent?.computed !== true) || (parent?.type === 'MemberExpression' && parentKey === 'property' && parent.computed === false)
+    if (propertyNameOnly && !(node.name === 'fromAsync' && parent?.type === 'MemberExpression' && (parent.object as { type?: unknown; name?: unknown } | undefined)?.type === 'Identifier' && (parent.object as { name?: unknown }).name === 'Array')) return
     if (SYNC_UNSUPPORTED_IDENTIFIERS.has(node.name)) usesAsync = true
     if (REALM_UNSUPPORTED_IDENTIFIERS.has(node.name)) usesRealm = true
   })
@@ -729,10 +847,7 @@ export function unsupportedCodeReason(code: string): string | undefined {
   return undefined
 }
 
-const SYNC_UNSUPPORTED_IDENTIFIERS = new Set([
-  'async', 'await', 'Promise', 'AsyncDisposableStack', 'FinalizationRegistry',
-  'WeakRef', 'fromAsync', 'queueMicrotask',
-])
+const SYNC_UNSUPPORTED_IDENTIFIERS = new Set(['async', 'await', 'Promise', 'AsyncDisposableStack', 'FinalizationRegistry', 'WeakRef', 'fromAsync', 'queueMicrotask'])
 const REALM_UNSUPPORTED_IDENTIFIERS = new Set(['Atomics', 'SharedArrayBuffer', 'ShadowRealm', 'WebAssembly'])
 
 /** Parse the same expression-first/statement-fallback language Code Mode runs.
@@ -759,16 +874,7 @@ function parseCodeModeAst(code: string): AcornNode | undefined {
   return undefined
 }
 
-function walkJavaScriptAst(
-  node: AcornNode,
-  visit: (
-    node: AcornNode & Record<string, unknown>,
-    parent?: AcornNode & Record<string, unknown>,
-    parentKey?: string,
-  ) => void,
-  parent?: AcornNode & Record<string, unknown>,
-  parentKey?: string,
-): void {
+function walkJavaScriptAst(node: AcornNode, visit: (node: AcornNode & Record<string, unknown>, parent?: AcornNode & Record<string, unknown>, parentKey?: string) => void, parent?: AcornNode & Record<string, unknown>, parentKey?: string): void {
   const record = node as AcornNode & Record<string, unknown>
   visit(record, parent, parentKey)
   for (const [key, value] of Object.entries(record)) {

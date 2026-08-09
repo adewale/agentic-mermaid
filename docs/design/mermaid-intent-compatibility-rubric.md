@@ -105,6 +105,7 @@ Classification is deterministic keyword/label routing. Family routing uses title
 | architecture | 75 | 81 | 2 | 56 | 122.39 | 71 | 94.40 | strengthen |
 | xychart | 95 | 100 | 3 | 29 | 48.05 | 40 | 55.87 | protect |
 | pie | 90 | 100 | 2 | 33 | 43.37 | 21 | 23.73 | protect |
+| sankey | 90 | 100 | 2 | 19 | 28.45 | 45 | 41.43 | protect |
 | quadrant | 90 | 100 | 2 | 13 | 18.23 | 16 | 21.01 | protect |
 | gantt | 90 | 100 | 2 | 140 | 176.78 | 86 | 91.79 | protect |
 | mindmap | 90 | 100 | 2 | 55 | 82.57 | 39 | 53.29 | protect |
@@ -538,6 +539,54 @@ Highest-weight matching user evidence (54 matching items):
 - [mermaid-js/mermaid#5899](https://github.com/mermaid-js/mermaid/issues/5899) — Pie slices aren't sorted by their label as claimed by docs (issue, score 2.61, updated 2026-03-03)
 - [mermaid-js/mermaid#7760](https://github.com/mermaid-js/mermaid/pull/7760) — Feature: Enhance Pie Chart - Enable donut chart, Set legend position, and highlight slice (pull-request, score 2.36, updated 2026-05-26)
 - [mermaid-js/mermaid#7394](https://github.com/mermaid-js/mermaid/pull/7394) — fix: prevent long pie chart titles from being clipped (pull-request, score 2.20, updated 2026-03-13)
+
+## sankey
+
+Intent compatibility: **90/100**; implementation evidence: **100/100**; demand traceability: **2/4**; decision: **protect**.
+
+Contract: Preserve source and target identity, authored flow values, link multiplicity, DAG topology, node alignment, labels, value formatting, node colors, and source-to-target paint intent.
+
+| Intent dimension | Syntax acceptance | Semantic preservation | Communicative equivalence | No silent loss | Demand traceability |
+|---|---:|---:|---:|---:|---:|
+| Evidence level (0–4) | 4 | 4 | 4 | 4 | 2 |
+
+Facts AM must preserve:
+
+- Every authored CSV row remains an inspectable source-target-value link in source order.
+- Ribbon width and node extent derive from authored flow magnitude without changing public values.
+- Gradient, source, target, and static link-color modes retain their endpoint paint semantics.
+
+Presentation freedom:
+
+- Agentic may expand an impossible width/node-width corridor to keep geometry finite and forward-moving.
+- Dark concrete backgrounds use normal compositing when multiply would erase flow distinction.
+
+Known intent risks:
+
+- CSV quoting, duplicate links, exponent values, and all-zero graphs can parse plausibly while changing identity or magnitude.
+- A ribbon can look attached while targeting the wrong public or Scene identity.
+- Terminal projection cannot preserve SVG gradients or compositing and must report those losses.
+
+Next actions:
+
+- Add a pinned Mermaid differential covering node/link coordinates, label placement, gradients, and every documented Sankey configuration.
+- Keep parser, identity, resource-bound, and zero-flow property matrices enrolled as the family evolves.
+
+Executable evidence:
+
+- `src/__tests__/sankey-parser.test.ts`
+- `src/__tests__/sankey-integration.test.ts`
+- `src/__tests__/sankey-renderer.test.ts`
+- `src/__tests__/sankey-rubric-properties.test.ts`
+- `src/__tests__/scene-gradient-resources.test.ts`
+
+Highest-weight matching user evidence (64 matching items):
+
+- [mermaid-js/mermaid#4799](https://github.com/mermaid-js/mermaid/pull/4799) — feat: create `sankey` parser and integrate `sankey` parser into `mermaid` package (pull-request, score 2.75, updated 2026-06-01)
+- [mermaid-js/mermaid#7613](https://github.com/mermaid-js/mermaid/issues/7613) — Sankey diagram throws "Syntax error in text" with sankey keyword (missing hyphen) (issue, score 2.69, updated 2026-05-12)
+- [mermaid-js/mermaid#4584](https://github.com/mermaid-js/mermaid/issues/4584) — Mermaid Iteration plan (issue, score 2.68, updated 2025-09-22)
+- [mermaid-js/mermaid#5684](https://github.com/mermaid-js/mermaid/issues/5684) — Sankey does not maintain node order, resulting in unnecessary crossing of lines (issue, score 2.67, updated 2025-09-18)
+- [mermaid-js/mermaid#7272](https://github.com/mermaid-js/mermaid/pull/7272) — feat(sankey): add Apple-style rendering with smart labels and custom node colors (pull-request, score 2.53, updated 2026-04-01)
 
 ## quadrant
 

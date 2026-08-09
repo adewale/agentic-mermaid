@@ -2,12 +2,11 @@ import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-
-import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { parseMindmap } from '../mindmap/parser.ts'
-import { layoutMindmap } from '../mindmap/layout.ts'
 import { hashArtifactInputs, runtimeDependencyClosure, runtimeDependencySummary, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { layoutMindmap } from '../mindmap/layout.ts'
+import { parseMindmap } from '../mindmap/parser.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const manifest = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'), 'utf8')) as {
@@ -42,9 +41,9 @@ describe('official Mermaid documentation showcase', () => {
     for (const entry of manifest.cases) {
       expect(entry.officialDocs).toMatch(/^https:\/\/mermaid\.js\.org\/syntax\//)
       expect(sha256(entry.source), entry.family).toBe(entry.sourceSha256)
-      // mindmap/gitgraph/radar were added after the legacy 12-family docs corpus
-      // was frozen; their showcase source lives only in this manifest.
-      if (entry.family !== 'mindmap' && entry.family !== 'gitgraph' && entry.family !== 'radar') {
+      // mindmap/gitgraph/radar/sankey were added after the legacy 12-family docs
+      // corpus was frozen; their showcase source lives only in this manifest.
+      if (entry.family !== 'mindmap' && entry.family !== 'gitgraph' && entry.family !== 'radar' && entry.family !== 'sankey') {
         const corpusEntry = docsCorpus.find(candidate => candidate.family === entry.family && candidate.index === entry.index)
         expect(corpusEntry, `${entry.family} docs corpus row`).toBeDefined()
         expect(corpusEntry?.origin).toBe(entry.origin)
@@ -81,10 +80,7 @@ describe('official Mermaid documentation showcase', () => {
     expect(receipt.schemaVersion).toBe(1)
     expect(receipt.generator).toBe('scripts/pr-assets/mermaid-doc-showcase-gallery.ts')
     const entrypoints = [join(ROOT, receipt.generator)]
-    const inputs = sortRepositoryPaths(ROOT, [
-      join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'),
-      ...transitiveLocalInputs(ROOT, entrypoints),
-    ])
+    const inputs = sortRepositoryPaths(ROOT, [join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'), ...transitiveLocalInputs(ROOT, entrypoints)])
     const runtimeDependencies = runtimeDependencyClosure(ROOT, entrypoints)
     expect(receipt.inputCount).toBe(inputs.length)
     expect(receipt.inputTreeSha256).toBe(hashArtifactInputs(ROOT, inputs, runtimeDependencies))

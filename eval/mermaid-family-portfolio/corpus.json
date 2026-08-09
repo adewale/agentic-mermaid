@@ -264,6 +264,30 @@
     "sourceClass": "family-corpus"
   },
   {
+    "family": "sankey",
+    "source": "sankey-beta\n  Coal,Electricity generation,127.93\n  Gas,Electricity generation,151.89\n  Electricity generation,Industry,342.16\n  Electricity generation,Homes,113.73\n  Electricity generation,Losses,56.69",
+    "origin": "eval/layout-compare/fixtures/sankey-basic.mmd",
+    "sourceClass": "layout-fixture"
+  },
+  {
+    "family": "sankey",
+    "source": "sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,151.89\n  Electricity,Industry,342.16\n  Electricity,Homes,113.73",
+    "origin": "skill-evals/fixtures/sankey-budget/input.mmd",
+    "sourceClass": "skill-fixture"
+  },
+  {
+    "family": "sankey",
+    "source": "sankey-beta\n  Coal,Electricity grid,127.93\n  Electricity grid,Industry,71.24\n  Electricity grid,Losses,56.69",
+    "origin": "src/agent/families.ts#sankey",
+    "sourceClass": "registry-example"
+  },
+  {
+    "family": "sankey",
+    "source": "sankey-beta\n  Coal,Electricity,60\n  Gas,Electricity,80\n  Solar,Electricity,40\n  Electricity,Homes,120\n  Electricity,Industry,60",
+    "origin": "src/agent/families.ts#sankey-basic",
+    "sourceClass": "registry-example"
+  },
+  {
     "family": "sequence",
     "source": "sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    John-->>Alice: Great!\n    Alice-)John: See you later!",
     "origin": "eval/mermaid-docs-corpus/syntax/sequenceDiagram.md#0",

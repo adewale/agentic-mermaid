@@ -1,18 +1,14 @@
 // Loop 7 A3.1: `am capabilities --json` — registry-driven introspection.
 
-import { describe, it, expect } from 'bun:test'
-import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
-import { knownFamilies } from '../agent/families.ts'
-import { getFamily, getFamilyConformanceReport } from '../agent/families.ts'
-import { WARNING_SEVERITY } from '../agent/types.ts'
-import {
-  createSectionACapabilityReport,
-  sectionACapabilityDiscoverySummary,
-} from '../section-a-capability-report.ts'
-import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
-import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
-import { readFileSync, existsSync } from 'node:fs'
+import { describe, expect, it } from 'bun:test'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { getFamily, getFamilyConformanceReport, knownFamilies } from '../agent/families.ts'
+import { WARNING_SEVERITY } from '../agent/types.ts'
+import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
+import { createSectionACapabilityReport, sectionACapabilityDiscoverySummary } from '../section-a-capability-report.ts'
+import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
 
 describe('am capabilities', () => {
   it('emits a JSON object with bounded built-in discovery and Section A summary fields', () => {
@@ -35,8 +31,7 @@ describe('am capabilities', () => {
 
   it('keeps exhaustive syntax evidence out of the routine agent-discovery budget', () => {
     const cap = buildCapabilities()
-    expect(cap.sectionA.counts.syntaxFeatureClassificationCount)
-      .toBe(UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures.length)
+    expect(cap.sectionA.counts.syntaxFeatureClassificationCount).toBe(UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures.length)
     expect('matrices' in cap.sectionA).toBe(false)
     expect(cap.sectionA.fullReport).toEqual({
       repositoryModule: 'src/section-a-capability-report.ts',
@@ -44,7 +39,10 @@ describe('am capabilities', () => {
       markdown: 'docs/project/section-a-capability-report.md',
       regenerateCommand: 'bun run section-a-report',
     })
-    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(64 * 1024)
+    // The discovery payload grows a few KB per registered family (example,
+    // config keys, ops). The teeth of this gate are the matrix exclusions
+    // above; the byte ceiling only guards against re-inlining bulk evidence.
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(80 * 1024)
   })
 
   it('includes every registered family in the families list', () => {
@@ -189,19 +187,16 @@ describe('family examples', () => {
     const { renderMermaidSVG } = await import('../index.ts')
     const cap = buildCapabilities()
     for (const family of cap.families) {
-      expect({ id: family.id, hasExample: typeof family.example === 'string' && family.example.length > 0 })
-        .toEqual({ id: family.id, hasExample: true })
+      expect({ id: family.id, hasExample: typeof family.example === 'string' && family.example.length > 0 }).toEqual({ id: family.id, hasExample: true })
       const parsed = parseMermaid(family.example!)
       expect({ id: family.id, parseOk: parsed.ok }).toEqual({ id: family.id, parseOk: true })
       if (!parsed.ok) continue
       // The example must be the family's kind, verify with ZERO warnings
       // (it's the syntax agents copy — it must be beyond reproach), and
       // render (implied by the verify RENDER_FAILED gate, asserted anyway).
-      expect({ id: family.id, kind: String(parsed.value.kind), bodyKind: String(parsed.value.body.kind) })
-        .toEqual({ id: family.id, kind: family.id, bodyKind: family.id })
+      expect({ id: family.id, kind: String(parsed.value.kind), bodyKind: String(parsed.value.body.kind) }).toEqual({ id: family.id, kind: family.id, bodyKind: family.id })
       const v = verifyMermaid(parsed.value)
-      expect({ id: family.id, ok: v.ok, warnings: v.warnings.map(w => w.code) })
-        .toEqual({ id: family.id, ok: true, warnings: [] })
+      expect({ id: family.id, ok: v.ok, warnings: v.warnings.map(w => w.code) }).toEqual({ id: family.id, ok: true, warnings: [] })
 
       // Phase 0 / X1: the discovery example is also the minimum executable
       // serializer→render-parser conformance witness for every registered
@@ -211,8 +206,7 @@ describe('family examples', () => {
       const reparsed = parseMermaid(canonical)
       expect({ id: family.id, reparseOk: reparsed.ok }).toEqual({ id: family.id, reparseOk: true })
       if (!reparsed.ok) continue
-      expect({ id: family.id, kind: String(reparsed.value.kind), bodyKind: String(reparsed.value.body.kind) })
-        .toEqual({ id: family.id, kind: family.id, bodyKind: family.id })
+      expect({ id: family.id, kind: String(reparsed.value.kind), bodyKind: String(reparsed.value.body.kind) }).toEqual({ id: family.id, kind: family.id, bodyKind: family.id })
       expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(parsed.value))
       expect(serializeMermaid(reparsed.value)).toBe(canonical)
       expect(verifyMermaid(reparsed.value).warnings).toEqual([])

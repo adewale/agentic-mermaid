@@ -133,6 +133,7 @@ geometry assertions, screenshot/PNG review, or human inspection.
   | mindmap       | hierarchy nodes                    | parent links | —                    |
   | gitgraph      | commits                            | parent links | —                    |
   | radar         | curve vertices (one ring per axis) | —            | axis spokes/grid     |
+  | sankey        | node rectangles | ribbon links (from/to) | —                    |
 
   Families with no structural relations (pie/quadrant/xychart/journey/gantt/radar) carry an
   honestly-empty `edges` array. Bounds is the family layout's canvas size.

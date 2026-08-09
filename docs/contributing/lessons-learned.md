@@ -1,5 +1,41 @@
 # Lessons learned
 
+## 2026-07 — the sankey enrollment audit (what the machinery forced vs. what it let slide)
+
+The sankey family enrolled cleanly through every gate the typechecker or a
+registry-iterating test could see: `DiagramKind` rosters, scene admission,
+fidelity oracles, doc-sync of warning codes, the tracker's auto-enrolling
+group 9, and the citizenship matrix. An audit afterwards found every gap sat
+in exactly the surfaces that were *hand-written per family* or *prose*:
+
+**A contract enforced where a value is generated is not enforced where it is
+consumed.** The palette guarantees WCAG/APCA visibility floors at generation
+time, implicitly for opaque marks. Sankey applied those colors at 0.5 opacity
+— the repo's first translucent sole-encoding marks — and the composited
+ribbons dropped to WCAG ≈1.0 / APCA 0 on several built-in backgrounds with no
+gate noticing. Fix: `ensureCompositedBgContrast` (effective-color floors) plus
+a scene-tier registry-driven gate (`scene-effective-paint-contract.test.ts`)
+that measures translucent connector paints where opacity is applied.
+
+**Hand-written reach tests do not scale to the next family.** Radar's
+palette-reach section in `perceptual-palette-impact.test.ts` was added by hand
+in radar's PR; nothing enumerated category-channel families, so sankey simply
+wasn't there. Same story for the union review table and the L9 aesthetic
+thesis (prose conventions, zero forcing function). Fix: doc-sync gates that
+enumerate `BUILTIN_FAMILY_METADATA` — a review-table row for every family, a
+thesis for every non-grandfathered family — and a grandfathered ratchet list
+that must not grow.
+
+**Family-specific quality metrics are opt-in code; treat the opt-in as part of
+enrollment.** The tracker auto-enrolled sankey into the generic family rubric,
+but the journey-style family assessor (the metric that actually measures the
+family's defining aesthetic — ribbon crossings here) had to be hand-added.
+When adding a family, ask: what is this family's *domain-defining* invariant
+(conservation → `FLOW_IMBALANCE` lint) and its *domain-defining* aesthetic
+number (crossings → `sankeyCrossings`), and wire both before calling
+enrollment done. The property harness immediately repaid this: it found a real
+1px-visibility-floor overstack defect the fixture tests never reached.
+
 Process lessons this repo has paid for, so they only have to be paid for once.
 Each entry names the incident that taught it. Add new lessons at the top with a
 date; do not delete old ones — supersede them in place.

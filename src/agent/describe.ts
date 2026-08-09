@@ -10,17 +10,14 @@
 // only have a string.
 // ============================================================================
 
-import { parseRegisteredMermaid } from './parse.ts'
-import type {
-  ValidDiagram, ParsedDiagram, FamilyId, FlowchartValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram,
-} from './types.ts'
-import { getFamily, extractLabelsGeneric } from './families.ts'
-import { describeMermaidFacts } from './facts.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
-import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
+import { formatGanttInstant, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { describeMermaidFacts } from './facts.ts'
+import { extractLabelsGeneric, getFamily } from './families.ts'
+import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
+import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
 export interface DescribeOptions {
   /** 'text' (default): prose summary. 'json': structured AX tree (#7349). 'facts': deterministic semantic facts. */
@@ -77,6 +74,15 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     const title = d.body.title ? `"${d.body.title}" ` : ''
     return `A radar chart ${title}comparing ${d.body.curves.length} curve(s)${curves ? ` (${curves})` : ''} across ${d.body.axes.length} axis/axes${axes ? ` (${axes})` : ''}.`
   }
+  if (d.body.kind === 'sankey') {
+    const nodes = new Set<string>()
+    for (const link of d.body.links) {
+      nodes.add(link.source)
+      nodes.add(link.target)
+    }
+    const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
+    return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
+  }
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   if (d.body.kind === 'extension') return describeOpaque(d.kind, d.body.source)
   if (d.body.kind === 'preserved') return `An unregistered ${d.body.preservation.upstreamFamilyId ?? d.body.preservation.header} diagram preserved as source. ${d.body.diagnostic.message}`
@@ -114,17 +120,19 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     sequenceMessageContexts(d.body).forEach(context => {
       const m = context.message
       tree.edges.push({
-        from: m.from, to: m.to, label: m.text || undefined,
-        ...(context.scope === 'fragment' ? {
-          sequence: {
-            fragmentIndex: context.fragmentIndex,
-            branchIndex: context.branchIndex,
-            fragmentKind: context.fragmentKind,
-            ...((context.branchLabel ?? (context.branchIndex === 0 ? context.fragmentLabel : undefined))
-              ? { branchLabel: context.branchLabel ?? context.fragmentLabel }
-              : {}),
-          },
-        } : {}),
+        from: m.from,
+        to: m.to,
+        label: m.text || undefined,
+        ...(context.scope === 'fragment'
+          ? {
+              sequence: {
+                fragmentIndex: context.fragmentIndex,
+                branchIndex: context.branchIndex,
+                fragmentKind: context.fragmentKind,
+                ...((context.branchLabel ?? (context.branchIndex === 0 ? context.fragmentLabel : undefined)) ? { branchLabel: context.branchLabel ?? context.fragmentLabel } : {}),
+              },
+            }
+          : {}),
       })
     })
   } else if (d.body.kind === 'class') {
@@ -134,17 +142,19 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     for (const e of d.body.entities) tree.nodes.push({ id: e.id, label: e.label || e.id })
     for (const r of d.body.relations) tree.edges.push({ from: r.from, to: r.to, label: r.label || undefined })
   } else if (d.body.kind === 'timeline') {
-    for (const s of d.body.sections) for (const p of s.periods) {
-      tree.nodes.push({ id: p.id, label: p.label })
-    }
+    for (const s of d.body.sections)
+      for (const p of s.periods) {
+        tree.nodes.push({ id: p.id, label: p.label })
+      }
   } else if (d.body.kind === 'journey') {
     // Tasks carry their journey semantics (score + actors) in the label, the
     // same way pie embeds values and quadrant embeds coordinates — an agent
     // reading the tree can find the pain points without re-parsing source.
-    for (const s of d.body.sections) for (const t of s.tasks) {
-      const actors = t.actors.length ? `; ${t.actors.join(', ')}` : ''
-      tree.nodes.push({ id: t.id, label: `${t.text} (score ${t.score}${actors})` })
-    }
+    for (const s of d.body.sections)
+      for (const t of s.tasks) {
+        const actors = t.actors.length ? `; ${t.actors.join(', ')}` : ''
+        tree.nodes.push({ id: t.id, label: `${t.text} (score ${t.score}${actors})` })
+      }
   } else if (d.body.kind === 'architecture') {
     for (const g of d.body.groups) tree.nodes.push({ id: g.id, label: g.label || g.id })
     for (const s of d.body.services) tree.nodes.push({ id: s.id, label: s.label || s.id })
@@ -156,20 +166,25 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   } else if (d.body.kind === 'gantt') {
     // Tasks are the nodes; after/until references are the edges, so the
     // generic entry/sink pass below reports dependency entry tasks and sinks.
-    for (const s of d.body.sections) for (const t of s.tasks) {
-      tree.nodes.push({ id: t.taskId ?? t.id, label: t.label })
-    }
+    for (const s of d.body.sections)
+      for (const t of s.tasks) {
+        tree.nodes.push({ id: t.taskId ?? t.id, label: t.label })
+      }
     const idOf = new Map<string, string>()
     for (const s of d.body.sections) for (const t of s.tasks) if (t.taskId) idOf.set(t.taskId, t.taskId)
-    for (const s of d.body.sections) for (const t of s.tasks) {
-      for (const [expr, label] of [[t.start, 'after'], [t.end, 'until']] as const) {
-        const m = expr?.match(/^(?:after|until)\s+(.+)$/)
-        if (!m || !expr!.startsWith(label)) continue
-        for (const ref of m[1]!.split(/\s+/).filter(Boolean)) {
-          if (idOf.has(ref)) tree.edges.push({ from: ref, to: t.taskId ?? t.id, label })
+    for (const s of d.body.sections)
+      for (const t of s.tasks) {
+        for (const [expr, label] of [
+          [t.start, 'after'],
+          [t.end, 'until'],
+        ] as const) {
+          const m = expr?.match(/^(?:after|until)\s+(.+)$/)
+          if (!m || !expr!.startsWith(label)) continue
+          for (const ref of m[1]!.split(/\s+/).filter(Boolean)) {
+            if (idOf.has(ref)) tree.edges.push({ from: ref, to: t.taskId ?? t.id, label })
+          }
         }
       }
-    }
   } else if (d.body.kind === 'pie') {
     // Slices are the nodes of a pie AX tree; charts have no edges.
     for (const sl of d.body.slices) tree.nodes.push({ id: sl.id, label: `${sl.label} (${sl.value})` })
@@ -192,6 +207,18 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     // Axes and curves are the nodes of a radar AX tree; charts have no edges.
     d.body.axes.forEach((a, i) => tree.nodes.push({ id: `axis-${i}`, label: a.label }))
     d.body.curves.forEach((c, i) => tree.nodes.push({ id: `curve-${i}`, label: c.label }))
+  } else if (d.body.kind === 'sankey') {
+    // Flow nodes are the AX nodes; each CSV row is a directed edge, so the
+    // generic entry/sink pass below reports sources and terminal sinks.
+    const seen = new Set<string>()
+    for (const link of d.body.links) {
+      for (const label of [link.source, link.target]) {
+        if (seen.has(label)) continue
+        seen.add(label)
+        tree.nodes.push({ id: label, label })
+      }
+      tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
+    }
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -245,7 +272,10 @@ function describeFlowchart(d: FlowchartValidDiagram): string {
   const labels = nodes.map(n => n.label || n.id)
   const incoming = new Map<string, number>()
   const outgoing = new Map<string, number>()
-  for (const id of nodeIds) { incoming.set(id, 0); outgoing.set(id, 0) }
+  for (const id of nodeIds) {
+    incoming.set(id, 0)
+    outgoing.set(id, 0)
+  }
   for (const e of edges) {
     outgoing.set(e.source, (outgoing.get(e.source) ?? 0) + 1)
     incoming.set(e.target, (incoming.get(e.target) ?? 0) + 1)
@@ -398,7 +428,7 @@ function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
 function describeClass(d: ClassValidDiagram): string {
   const classes = d.body.classes
   const relations = d.body.relations
-  const names = classes.map(c => c.generic ? `${c.id}<${c.generic}>` : c.id)
+  const names = classes.map(c => (c.generic ? `${c.id}<${c.generic}>` : c.id))
   const relStr = relations.map(r => `${r.from} ${r.kind} ${r.to}`)
   let s = `A class diagram with ${classes.length} classes.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`
@@ -418,7 +448,7 @@ function describeClass(d: ClassValidDiagram): string {
 function describeEr(d: ErValidDiagram): string {
   const entities = d.body.entities
   const relations = d.body.relations
-  const names = entities.map(e => e.label ? `${e.id} ("${e.label}")` : e.id)
+  const names = entities.map(e => (e.label ? `${e.id} ("${e.label}")` : e.id))
   const relStr = relations.map(r => {
     const lbl = r.label ? ` (${r.label})` : ''
     return `${r.from} ${r.leftCard}-${r.rightCard} ${r.to}${lbl}`
@@ -443,7 +473,9 @@ function describeGantt(d: ValidDiagram & { body: import('./types.ts').GanttBody 
     if (schedule.analysis && schedule.analysis.criticalPathTaskIds.length > 0) {
       s += ` Critical path: ${schedule.analysis.criticalPathTaskIds.join(' -> ')}.`
     }
-  } catch { /* unresolvable schedule: keep the structural summary */ }
+  } catch {
+    /* unresolvable schedule: keep the structural summary */
+  }
 
   const sectionLabels = body.sections.map(sec => sec.label).filter((l): l is string => l !== undefined)
   if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`

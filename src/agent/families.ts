@@ -731,6 +731,21 @@ gitGraph LR:
   curve b["Model B"]{5, 3, 4, 3, 5, 3}
   graticule polygon
   max 5` },
+  { id: 'sankey', upstreamId: 'sankey', maturity: 'experimental', label: 'Sankey', headers: ['sankey', 'sankey-beta'], narrower: 'asSankey', editorDiagramType: 'Sankey', editorLabel: 'Sankey diagram', editorDescription: 'Conserved flows between layered stages — ribbon width is the quantity.', editorExampleId: 'sankey-basic', editorGlyph: 'SK',
+    config: { section: 'sankey', keys: ['width', 'height', 'linkColor', 'nodeAlignment', 'showValues', 'prefix', 'suffix', 'labelStyle', 'nodeWidth', 'nodePadding', 'nodeColors', 'useMaxWidth'], noopKeys: ['useMaxWidth'] },
+    semanticChannels: ['value', 'category'],
+    detect: (line: string) => /^sankey(?:-beta)?\s*$/.test(line),
+    detectLoose: (line: string) => /^sankey(?:-beta)?(?:\s|$)/.test(line),
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('edge', 'connector'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('label', 'text'), nativeSceneRole('title', 'text')],
+    // Balanced by construction (Electricity grid: in 127.93 = out 71.24 + 56.69):
+    // the example agents copy must clear the FLOW_IMBALANCE conservation lint.
+    example: 'sankey-beta\n  Coal,Electricity grid,127.93\n  Electricity grid,Industry,71.24\n  Electricity grid,Losses,56.69',
+    editorExample: `sankey-beta
+  Coal,Electricity,60
+  Gas,Electricity,80
+  Solar,Electricity,40
+  Electricity,Homes,120
+  Electricity,Industry,60` },
 ] as const satisfies readonly BuiltinFamilyDescriptorSeed[]
 
 export type BuiltinFamilyId = typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS[number]['id']

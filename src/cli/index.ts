@@ -2,64 +2,36 @@
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
 
-import { readFileSync, existsSync, writeFileSync, mkdtempSync, statSync, watch } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { basename, dirname, join, resolve } from 'node:path'
+import { existsSync, mkdtempSync, readFileSync, statSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { PACKAGE_VERSION } from '../version.ts'
-import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { logToolInvocation } from '../agent/trace-log.ts'
-import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
-import { mutateChecked } from '../agent/mutate.ts'
-import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
-import {
-  renderMermaidSVG, renderMermaidSVGWithReceipt,
-  renderMermaidASCII, renderMermaidASCIIWithReceipt,
-  renderMermaidPNG, renderMermaidPNGWithReceipt,
-  layoutMermaidWithReceipt,
-} from '../agent/index.ts'
-import type { PngFontWarning } from '../agent/png.ts'
+import { basename, dirname, join, resolve } from 'node:path'
 import { describeMermaid } from '../agent/describe.ts'
-import { collectBatched } from '../shared/batched.ts'
-import type {
-  ValidDiagram, ParsedDiagram, WarningCode, AnyMutationOp,
-  MutationError, Result, MutableValidDiagram, LayoutWarning,
-} from '../agent/types.ts'
+import type { BuiltinFamilyId, FamilyConformanceReport } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, getFamily, getFamilyConformanceReport, isBuiltinFamilyId, knownFamilies } from '../agent/families.ts'
+import { layoutMermaidWithReceipt, renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidPNG, renderMermaidPNGWithReceipt, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../agent/index.ts'
+import { mutateChecked } from '../agent/mutate.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import type { PngFontWarning, PngOptions } from '../agent/png.ts'
+import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
+import { logToolInvocation } from '../agent/trace-log.ts'
+import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
-import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, isBuiltinFamilyId, knownFamilies, getFamily, getFamilyConformanceReport } from '../agent/families.ts'
-import type { FamilyConformanceReport } from '../agent/families.ts'
-import { knownStyleDescriptors, validateStyleSpec, inferBackend, resolveStyleStack } from '../scene/style-registry.ts'
-import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
-import type { RenderOptions } from '../types.ts'
-import type { PngOptions } from '../agent/png.ts'
+import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import { PNG_DEFAULT_SCALE, type PngOutputOptionField } from '../png-contract.ts'
-import {
-  CLI_RENDER_FORMATS,
-  DEFAULT_CLI_RENDER_FORMAT,
-  cliRenderFormatHelpLines,
-  isCliRenderFormat,
-  renderOutputForCliFormat,
-  validateSerializableRenderOptions,
-} from '../render-contract.ts'
 import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
-import {
-  createSectionACapabilityReport,
-  sectionACapabilityDiscoverySummary,
-  type SectionACapabilityDiscoverySummary,
-} from '../section-a-capability-report.ts'
-import type { BuiltinFamilyId } from '../agent/families.ts'
+import { CLI_RENDER_FORMATS, cliRenderFormatHelpLines, DEFAULT_CLI_RENDER_FORMAT, isCliRenderFormat, renderOutputForCliFormat, validateSerializableRenderOptions } from '../render-contract.ts'
+import { projectRenderErrorDiagnostic, type RenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
+import { inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../scene/style-registry.ts'
+import { createSectionACapabilityReport, type SectionACapabilityDiscoverySummary, sectionACapabilityDiscoverySummary } from '../section-a-capability-report.ts'
+import { collectBatched } from '../shared/batched.ts'
+import type { RenderOptions } from '../types.ts'
+import { PACKAGE_VERSION } from '../version.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
+import { EXIT_ARG_ERROR, EXIT_INTERNAL, EXIT_OK, EXIT_VERIFY_FAILED } from './exit-codes.ts'
 import { initAgentFiles } from './init-agent.ts'
-import { EXIT_OK, EXIT_ARG_ERROR, EXIT_VERIFY_FAILED, EXIT_INTERNAL } from './exit-codes.ts'
-import type { ParseError } from '../agent/types.ts'
-import {
-  familyDetectionDiagnosticFromPreservedBody,
-  MermaidFamilyDetectionError,
-} from '../family-detection.ts'
-import {
-  projectRenderErrorDiagnostic,
-  type RenderErrorDiagnostic,
-} from '../render-error-diagnostic.ts'
 
 /**
  * Loop 12 M1: build a structured CLI error envelope. Keeps `message` a short
@@ -98,14 +70,17 @@ function preflightCliRenderableSource(source: string): ParsedDiagram {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw parseErrorEnvelope(parsed.error)
   if (parsed.value.body.kind === 'preserved') {
-    throw new MermaidFamilyDetectionError(
-      familyDetectionDiagnosticFromPreservedBody(parsed.value.body),
-    )
+    throw new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(parsed.value.body))
   }
   return parsed.value
 }
 
-export interface ParsedArgs { command?: string; positional: string[]; flags: Record<string, string | boolean>; errors: string[] }
+export interface ParsedArgs {
+  command?: string
+  positional: string[]
+  flags: Record<string, string | boolean>
+  errors: string[]
+}
 
 // Single source of truth for CLI flags. A flag with no `arg` is a boolean;
 // `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS is
@@ -113,18 +88,39 @@ export interface ParsedArgs { command?: string; positional: string[]; flags: Rec
 // the documented usage.
 export const FLAG_SPECS: Record<string, { arg?: string }> = {
   // booleans
-  'agent-instructions': {}, 'ascii': {}, 'certificates': {}, 'help': {}, 'json': {},
-  'jsonl': {}, 'watch': {}, 'open': {}, 'force': {}, 'canonical-wrapper': {}, 'system-fonts': {},
+  'agent-instructions': {},
+  ascii: {},
+  certificates: {},
+  help: {},
+  json: {},
+  jsonl: {},
+  watch: {},
+  open: {},
+  force: {},
+  'canonical-wrapper': {},
+  'system-fonts': {},
   // value flags (placeholder = what the usage shows after the flag)
-  'suppress': { arg: 'CODES' }, 'label-cap': { arg: 'N' }, 'op': { arg: 'JSON' },
-  'style': { arg: 'NAMES|file' }, 'seed': { arg: 'N' }, 'options': { arg: 'JSON|file' },
-  'ops': { arg: 'JSON|file' }, 'output': { arg: 'FILE' }, 'format': { arg: 'fmt' },
-  'security': { arg: 'mode' }, 'dir': { arg: 'DIR' }, 'font-dirs': { arg: 'DIRS' },
-  'gantt-today': { arg: 'DATE' }, 'target-width': { arg: 'CELLS' },
+  suppress: { arg: 'CODES' },
+  'label-cap': { arg: 'N' },
+  op: { arg: 'JSON' },
+  style: { arg: 'NAMES|file' },
+  seed: { arg: 'N' },
+  options: { arg: 'JSON|file' },
+  ops: { arg: 'JSON|file' },
+  output: { arg: 'FILE' },
+  format: { arg: 'fmt' },
+  security: { arg: 'mode' },
+  dir: { arg: 'DIR' },
+  'font-dirs': { arg: 'DIRS' },
+  'gantt-today': { arg: 'DATE' },
+  'target-width': { arg: 'CELLS' },
   // PNG raster knobs (read by cmdRender's png path since v4; registered so
   // the unknown-flag gate cannot reject them).
-  'scale': { arg: 'N' }, 'bg': { arg: 'COLOR' },
-  'fit-width': { arg: 'PX' }, 'fit-height': { arg: 'PX' }, 'o': { arg: 'FILE' },
+  scale: { arg: 'N' },
+  bg: { arg: 'COLOR' },
+  'fit-width': { arg: 'PX' },
+  'fit-height': { arg: 'PX' },
+  o: { arg: 'FILE' },
 }
 
 export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
@@ -211,7 +207,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
       } else {
         const next = argv[i + 1]
         if (BOOLEAN_FLAGS.has(name) || next === undefined || next.startsWith('--')) record(name, true)
-        else { record(name, next); i++ }
+        else {
+          record(name, next)
+          i++
+        }
       }
     } else if (!out.command) out.command = arg
     else out.positional.push(arg)
@@ -226,13 +225,19 @@ function readSourceArg(arg: string | undefined): string {
     // pipe), the read blocks forever waiting for the user to paste + Ctrl-D
     // — confusing UX. Fail fast with a clear hint.
     if (process.stdin.isTTY) throw new Error('needs a file argument or piped stdin')
-    try { return readFileSync(0).toString('utf8') } catch { return '' }
+    try {
+      return readFileSync(0).toString('utf8')
+    } catch {
+      return ''
+    }
   }
   if (!existsSync(arg)) throw new Error(`File not found: ${arg}`)
   return readFileSync(arg, 'utf8')
 }
 
-function replacer(_k: string, v: unknown): unknown { return v instanceof Map ? Object.fromEntries(v) : v }
+function replacer(_k: string, v: unknown): unknown {
+  return v instanceof Map ? Object.fromEntries(v) : v
+}
 
 export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
@@ -328,7 +333,7 @@ RENDER_FAILED (source verifies structurally but the render parser rejects it), B
 UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap),
 NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
 ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
-DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
+DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, BRAND_CONSTRAINT_WARNING.
 Brand constraints inspect without repainting or relayout; other Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
@@ -397,9 +402,18 @@ export function runCli(argv: string[]): number {
     return EXIT_ARG_ERROR
   }
   if (args.errors.length > 0) return argError(args.errors.join(' '))
-  if (args.flags['agent-instructions']) { process.stdout.write(AGENT_INSTRUCTIONS); return EXIT_OK }
-  if (args.flags.help && !args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_OK }
-  if (!args.command) { process.stdout.write(GLOBAL_USAGE); return EXIT_ARG_ERROR }
+  if (args.flags['agent-instructions']) {
+    process.stdout.write(AGENT_INSTRUCTIONS)
+    return EXIT_OK
+  }
+  if (args.flags.help && !args.command) {
+    process.stdout.write(GLOBAL_USAGE)
+    return EXIT_OK
+  }
+  if (!args.command) {
+    process.stdout.write(GLOBAL_USAGE)
+    return EXIT_ARG_ERROR
+  }
   if (args.flags.help) {
     process.stdout.write((COMMAND_HELP[args.command] ?? GLOBAL_USAGE) + '\n')
     return EXIT_OK
@@ -435,20 +449,34 @@ export function runCli(argv: string[]): number {
   logToolInvocation(args.command)
   try {
     switch (args.command) {
-      case 'render': return cmdRender(args, json)
-      case 'verify': return cmdVerify(args)
-      case 'parse': return cmdParse(args)
-      case 'serialize': return cmdSerialize()
-      case 'mutate': return cmdMutate(args, json)
-      case 'preview': return cmdPreview(args, json)
-      case 'format': return cmdFormat(args)
-      case 'describe': return cmdDescribe(args, json)
-      case 'capabilities': return cmdCapabilities()
-      case 'styles': return cmdStyles(json)
-      case 'llms-txt': return cmdLlmsTxt()
-      case 'init-agent': return cmdInitAgent(args, json)
-      case 'batch': return cmdBatch()
-      case 'render-markdown': return cmdRenderMarkdown(args)
+      case 'render':
+        return cmdRender(args, json)
+      case 'verify':
+        return cmdVerify(args)
+      case 'parse':
+        return cmdParse(args)
+      case 'serialize':
+        return cmdSerialize()
+      case 'mutate':
+        return cmdMutate(args, json)
+      case 'preview':
+        return cmdPreview(args, json)
+      case 'format':
+        return cmdFormat(args)
+      case 'describe':
+        return cmdDescribe(args, json)
+      case 'capabilities':
+        return cmdCapabilities()
+      case 'styles':
+        return cmdStyles(json)
+      case 'llms-txt':
+        return cmdLlmsTxt()
+      case 'init-agent':
+        return cmdInitAgent(args, json)
+      case 'batch':
+        return cmdBatch()
+      case 'render-markdown':
+        return cmdRenderMarkdown(args)
       default:
         process.stderr.write(`Unknown command: ${args.command}\n${GLOBAL_USAGE}`)
         return EXIT_ARG_ERROR
@@ -458,11 +486,7 @@ export function runCli(argv: string[]): number {
     // Argument and file-shape failures are not renderer failures even when
     // they occur under the render command.
     const isArgError = /^needs a file argument|^File not found:/.test(msg)
-    const structured = isArgError
-      ? undefined
-      : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e)
-        ? cliStructuredRenderFailure(e)
-        : undefined
+    const structured = isArgError ? undefined : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e) ? cliStructuredRenderFailure(e) : undefined
     if (structured) {
       if (json) process.stdout.write(JSON.stringify(structured) + '\n')
       else process.stderr.write(`Error: ${structured.error.code}: ${structured.error.message}\n`)
@@ -479,7 +503,7 @@ export function runCli(argv: string[]): number {
 
 function cmdRender(args: ParsedArgs, json: boolean): number {
   const format = typeof args.flags.format === 'string' ? args.flags.format : DEFAULT_CLI_RENDER_FORMAT
-  const security = args.flags.security === 'strict' ? 'strict' as const : undefined
+  const security = args.flags.security === 'strict' ? ('strict' as const) : undefined
   // Explicit gantt clock (rendering never reads wall-clock time).
   const ganttToday = typeof args.flags['gantt-today'] === 'string' ? args.flags['gantt-today'] : undefined
   const targetWidth = typeof args.flags['target-width'] === 'string' ? Number(args.flags['target-width']) : undefined
@@ -605,7 +629,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   const configWarnings = configWarningsForMermaid(source)
 
   if (output.id === 'png') {
-    const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
+    const outFile = typeof args.flags.o === 'string' ? args.flags.o : typeof args.flags.output === 'string' ? args.flags.output : ''
     if (!outFile) {
       process.stderr.write('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
       return EXIT_ARG_ERROR
@@ -622,19 +646,18 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       process.stderr.write('am render PNG fitting accepts --fit-width or --fit-height, not both\n')
       return EXIT_ARG_ERROR
     }
-    if ((fitWidth !== undefined && (!Number.isSafeInteger(fitWidth) || fitWidth <= 0))
-      || (fitHeight !== undefined && (!Number.isSafeInteger(fitHeight) || fitHeight <= 0))) {
+    if ((fitWidth !== undefined && (!Number.isSafeInteger(fitWidth) || fitWidth <= 0)) || (fitHeight !== undefined && (!Number.isSafeInteger(fitHeight) || fitHeight <= 0))) {
       process.stderr.write('am render --fit-width/--fit-height expects a positive integer pixel value\n')
       return EXIT_ARG_ERROR
     }
-    const fitTo = fitWidth !== undefined
-      ? { width: fitWidth }
-      : fitHeight !== undefined
-        ? { height: fitHeight }
+    const fitTo = fitWidth !== undefined ? { width: fitWidth } : fitHeight !== undefined ? { height: fitHeight } : undefined
+    const fontDirs =
+      typeof args.flags['font-dirs'] === 'string'
+        ? args.flags['font-dirs']
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
         : undefined
-    const fontDirs = typeof args.flags['font-dirs'] === 'string'
-      ? args.flags['font-dirs'].split(',').map(s => s.trim()).filter(Boolean)
-      : undefined
     const loadSystemFonts = args.flags['system-fonts'] === true
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
@@ -649,10 +672,8 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   // --output writes the artifact for every single-shot format, matching the
   // documented `am render --format svg --output diagram.svg` (it was png-only,
   // silently ignored elsewhere — the docs' samples produced no file).
-  const outFile = typeof args.flags.o === 'string' ? args.flags.o : (typeof args.flags.output === 'string' ? args.flags.output : '')
-  const text = typeof out === 'string'
-    ? (json ? JSON.stringify({ [format]: out, receipt: rendered.receipt, warnings: configWarnings }) + '\n' : (out.endsWith('\n') ? out : out + '\n'))
-    : JSON.stringify({ ...out, receipt: rendered.receipt, ...(configWarnings.length > 0 ? { warnings: configWarnings } : {}) }) + '\n'
+  const outFile = typeof args.flags.o === 'string' ? args.flags.o : typeof args.flags.output === 'string' ? args.flags.output : ''
+  const text = typeof out === 'string' ? (json ? JSON.stringify({ [format]: out, receipt: rendered.receipt, warnings: configWarnings }) + '\n' : out.endsWith('\n') ? out : out + '\n') : JSON.stringify({ ...out, receipt: rendered.receipt, ...(configWarnings.length > 0 ? { warnings: configWarnings } : {}) }) + '\n'
   if (outFile) {
     writeFileSync(outFile, text)
     return EXIT_OK
@@ -661,7 +682,10 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   return EXIT_OK
 }
 
-export interface RenderFormatOptions extends RenderOptions { certificates?: boolean; targetWidth?: number }
+export interface RenderFormatOptions extends RenderOptions {
+  certificates?: boolean
+  targetWidth?: number
+}
 
 /** The ONE format dispatch behind every render path — single-input,
  *  multi-input, and watch differ only in I/O and error envelopes, so they
@@ -727,17 +751,14 @@ export function renderFileOnce(file: string, format: string, opts: RenderFormatO
   }
 }
 
-export interface PathWatchHandle { close(): void }
+export interface PathWatchHandle {
+  close(): void
+}
 
 /** Watch the containing directory so rename-over atomic saves keep following
  * the input pathname rather than a stale inode. A metadata poll closes the
  * documented fs.watch event-loss gap; both signals share one coalescer. */
-export function watchPathForChanges(
-  file: string,
-  onChange: () => void,
-  debounceMs = 25,
-  watchDirectory: typeof watch = watch,
-): PathWatchHandle {
+export function watchPathForChanges(file: string, onChange: () => void, debounceMs = 25, watchDirectory: typeof watch = watch): PathWatchHandle {
   const absolute = resolve(file)
   const watchedName = basename(absolute)
   const fingerprint = (): string => {
@@ -793,8 +814,10 @@ function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: bo
       emitConfigWarnings(configWarningsForMermaid(src), 'am render --watch')
       const out = renderSourceToFormat(src, format, opts)
       const text = typeof out === 'string' ? out : JSON.stringify(out)
-      if (outFile) { writeFileSync(outFile, text) ; process.stderr.write(`rendered → ${outFile}\n`) }
-      else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'))
+      if (outFile) {
+        writeFileSync(outFile, text)
+        process.stderr.write(`rendered → ${outFile}\n`)
+      } else process.stdout.write(text + (text.endsWith('\n') ? '' : '\n'))
     } catch (e) {
       const structured = cliStructuredRenderFailure(e)
       if (json && structured) process.stderr.write(`${JSON.stringify(structured)}\n`)
@@ -847,7 +870,10 @@ function cmdVerify(args: ParsedArgs): number {
       process.stderr.write('am verify --suppress requires a comma-separated list of warning codes\n')
       return EXIT_ARG_ERROR
     }
-    const values = suppressFlag.split(',').map(value => value.trim()).filter(Boolean)
+    const values = suppressFlag
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean)
     const known = new Set(Object.keys(WARNING_SEVERITY))
     if (values.length === 0 || values.some(value => !known.has(value))) {
       process.stderr.write('am verify --suppress accepts only known warning codes\n')
@@ -907,18 +933,24 @@ function cmdParse(args: ParsedArgs): number {
 function cmdSerialize(): number {
   const stdin = readSourceArg('-')
   let payload: unknown
-  try { payload = JSON.parse(stdin) } catch (e) { process.stderr.write(`serialize: invalid JSON: ${(e as Error).message}\n`); return EXIT_ARG_ERROR }
+  try {
+    payload = JSON.parse(stdin)
+  } catch (e) {
+    process.stderr.write(`serialize: invalid JSON: ${(e as Error).message}\n`)
+    return EXIT_ARG_ERROR
+  }
   const r = synthesizeFromGraph(payload as Parameters<typeof synthesizeFromGraph>[0])
-  if (!r.ok) { process.stderr.write(`serialize: ${JSON.stringify(r.error)}\n`); return EXIT_ARG_ERROR }
+  if (!r.ok) {
+    process.stderr.write(`serialize: ${JSON.stringify(r.error)}\n`)
+    return EXIT_ARG_ERROR
+  }
   process.stdout.write(serializeMermaid(r.value))
   return EXIT_OK
 }
 
 type CliMutationError = MutationError | { code: 'UNSUPPORTED_FAMILY' | 'VERIFY_FAILED' | 'PARSE_FAILED' | 'INVALID_OP'; message: string; details?: unknown }
 
-type MutationRunResult =
-  | { ok: true; source: string; verify: ReturnType<typeof verifyMermaid> }
-  | { ok: false; error: CliMutationError; verify?: ReturnType<typeof verifyMermaid> }
+type MutationRunResult = { ok: true; source: string; verify: ReturnType<typeof verifyMermaid> } | { ok: false; error: CliMutationError; verify?: ReturnType<typeof verifyMermaid> }
 
 function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
   const opStr = typeof args.flags.op === 'string' ? args.flags.op : ''
@@ -968,7 +1000,7 @@ export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunR
     const next = mutateAny(current, op)
     if (!next.ok) {
       const details = (next.error as { details?: unknown }).details
-      return { ok: false, error: { ...next.error, details: { index, op, ...(typeof details === 'object' && details ? details as Record<string, unknown> : {}) } } }
+      return { ok: false, error: { ...next.error, details: { index, op, ...(typeof details === 'object' && details ? (details as Record<string, unknown>) : {}) } } }
     }
     current = next.value
   }
@@ -986,7 +1018,10 @@ export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunR
 function cmdMutate(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
   const ops = parseMutationOpsFlag(args)
-  if (!ops.ok) { process.stderr.write(`mutate: ${ops.error.message}\n`); return EXIT_ARG_ERROR }
+  if (!ops.ok) {
+    process.stderr.write(`mutate: ${ops.error.message}\n`)
+    return EXIT_ARG_ERROR
+  }
   return emitMutationRun(mutateSource(source, ops.value), json)
 }
 
@@ -1009,7 +1044,9 @@ export function buildPreviewHtml(source: string, opts: { security?: 'default' | 
   const title = parsed.value.meta.frontmatter?.title ?? 'Mermaid preview'
   const escapedTitle = escapeHtml(String(title))
   const escapedSource = escapeHtml(source)
-  return { ok: true, value: `<!doctype html>
+  return {
+    ok: true,
+    value: `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -1032,7 +1069,8 @@ export function buildPreviewHtml(source: string, opts: { security?: 'default' | 
     <details><summary>Mermaid source</summary><pre>${escapedSource}</pre></details>
   </main>
 </body>
-</html>` }
+</html>`,
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -1056,7 +1094,10 @@ function cmdPreview(args: ParsedArgs, json: boolean): number {
     return EXIT_ARG_ERROR
   }
   const html = buildPreviewHtml(source, { security })
-  if (!html.ok) { process.stdout.write(JSON.stringify({ ok: false, error: html.error }) + '\n'); return EXIT_ARG_ERROR }
+  if (!html.ok) {
+    process.stdout.write(JSON.stringify({ ok: false, error: html.error }) + '\n')
+    return EXIT_ARG_ERROR
+  }
   let outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
   if (!outFile && args.flags.open) outFile = join(mkdtempSync(join(tmpdir(), 'am-preview-')), 'preview.html')
   if (outFile) {
@@ -1065,7 +1106,10 @@ function cmdPreview(args: ParsedArgs, json: boolean): number {
     let opened = false
     if (args.flags.open) {
       const openedResult = openPreviewFile(path)
-      if (!openedResult.ok) { process.stderr.write(`am preview --open: ${openedResult.error}\n`); return EXIT_INTERNAL }
+      if (!openedResult.ok) {
+        process.stderr.write(`am preview --open: ${openedResult.error}\n`)
+        return EXIT_INTERNAL
+      }
       opened = true
     }
     if (json) process.stdout.write(JSON.stringify({ ok: true, path, opened, bytes: html.value.length }) + '\n')
@@ -1078,8 +1122,11 @@ function cmdPreview(args: ParsedArgs, json: boolean): number {
 
 function cmdFormat(args: ParsedArgs): number {
   const r = parseRegisteredMermaid(readSourceArg(args.positional[0]))
-  if (!r.ok) { process.stderr.write(`format: parse failed: ${JSON.stringify(r.error)}\n`); return EXIT_ARG_ERROR }
-  const wrapper = args.flags['canonical-wrapper'] ? 'canonical' as const : 'verbatim' as const
+  if (!r.ok) {
+    process.stderr.write(`format: parse failed: ${JSON.stringify(r.error)}\n`)
+    return EXIT_ARG_ERROR
+  }
+  const wrapper = args.flags['canonical-wrapper'] ? ('canonical' as const) : ('verbatim' as const)
   process.stdout.write(serializeMermaid(r.value, { wrapper }))
   return EXIT_OK
 }
@@ -1087,9 +1134,7 @@ function cmdFormat(args: ParsedArgs): number {
 function cmdDescribe(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
   const rawFormat = args.flags.format
-  const format = rawFormat === 'json' || rawFormat === 'facts' || rawFormat === 'text' || rawFormat === undefined
-    ? (rawFormat ?? 'text') as 'text' | 'json' | 'facts'
-    : undefined
+  const format = rawFormat === 'json' || rawFormat === 'facts' || rawFormat === 'text' || rawFormat === undefined ? ((rawFormat ?? 'text') as 'text' | 'json' | 'facts') : undefined
   if (!format) {
     process.stderr.write('am describe --format must be one of: text, json, facts\n')
     return EXIT_ARG_ERROR
@@ -1188,7 +1233,9 @@ interface CapabilitiesEnvelope {
 // to keep the capabilities envelope and existing `from '../cli/index.ts'`
 // importers working.
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
+
 export { MUTATION_OPS_BY_FAMILY }
+
 import { describeOps, hasOpSchema, type OpFieldDoc } from '../agent/op-schema.ts'
 
 type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY
@@ -1214,7 +1261,7 @@ function familyConformanceDiscovery(report: FamilyConformanceReport): FamilyConf
 export function buildCapabilities(): CapabilitiesEnvelope {
   const sdkVersion = PACKAGE_VERSION
   const mutableFamilies = new Set(Object.keys(MUTATION_OPS_BY_FAMILY))
-  const families: FamilyCapability[] = knownFamilies().map((id) => {
+  const families: FamilyCapability[] = knownFamilies().map(id => {
     const p = getFamily(id)!
     const mutationOps = id in MUTATION_OPS_BY_FAMILY ? [...MUTATION_OPS_BY_FAMILY[id as MutableFamilyId]] : []
     const editPolicy: FamilyEditPolicy = mutationOps.length > 0 ? 'structured-when-narrowed' : 'source-level-only'
@@ -1261,22 +1308,28 @@ export function buildCapabilities(): CapabilitiesEnvelope {
  *  files forming a stack (merged left → right by resolveStyleStack). JSON
  *  specs are validated before use so bad files are arg errors, not throws. */
 function parseStyleFlag(value: string): StyleInput[] {
-  return value.split(',').map(entry => entry.trim()).filter(Boolean).map(entry => {
-    if (entry.endsWith('.json') || existsSync(entry)) {
-      if (!existsSync(entry)) throw new Error(`style spec file not found: ${entry}`)
-      const spec = JSON.parse(readFileSync(entry, 'utf8')) as unknown
-      const problems = validateStyleSpec(spec)
-      if (problems.length > 0) throw new Error(`invalid style spec ${entry}: ${problems.join('; ')}`)
-      return spec as StyleSpec
-    }
-    return entry
-  })
+  return value
+    .split(',')
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => {
+      if (entry.endsWith('.json') || existsSync(entry)) {
+        if (!existsSync(entry)) throw new Error(`style spec file not found: ${entry}`)
+        const spec = JSON.parse(readFileSync(entry, 'utf8')) as unknown
+        const problems = validateStyleSpec(spec)
+        if (problems.length > 0) throw new Error(`invalid style spec ${entry}: ${problems.join('; ')}`)
+        return spec as StyleSpec
+      }
+      return entry
+    })
 }
 
 function parseRenderOptionsFlag(value: string): RenderOptions {
   const raw = existsSync(value) ? readFileSync(value, 'utf8') : value
   let parsed: unknown
-  try { parsed = JSON.parse(raw) } catch (error) {
+  try {
+    parsed = JSON.parse(raw)
+  } catch (error) {
     throw new Error(`expected JSON object or JSON file: ${error instanceof Error ? error.message : String(error)}`)
   }
   const problems = validateSerializableRenderOptions(parsed)
@@ -1328,7 +1381,8 @@ export function buildLlmsTxt(): string {
   const codes = cap.warningCodes.map(w => `${w.code} (${w.tier}/${w.severity})`).join(', ')
   const looks = knownStyleDescriptors()
     .filter(descriptor => descriptor.kind === 'look')
-    .map(descriptor => `'${descriptor.inputName}'`).join(', ')
+    .map(descriptor => `'${descriptor.inputName}'`)
+    .join(', ')
   return `# Agentic Mermaid
 
 > Agent-native Mermaid runtime: parse, verify, mutate, and round-trip
@@ -1391,7 +1445,12 @@ All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
 Narrowers: ${narrowers}.
 State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
-Source-level-only: ${cap.families.filter(f => !f.hasMutate).map(f => f.id).join(', ') || 'none — every renderable family ships structured mutation'}.
+Source-level-only: ${
+    cap.families
+      .filter(f => !f.hasMutate)
+      .map(f => f.id)
+      .join(', ') || 'none — every renderable family ships structured mutation'
+  }.
 Opaque-fallback bodies (unmodeled syntax) round-trip losslessly via preserved source (never silently dropped) and stay source-level only.
 
 ## Warning codes
@@ -1451,7 +1510,7 @@ function cmdInitAgent(args: ParsedArgs, json: boolean): number {
     process.stdout.write(JSON.stringify({ ok: true, ...result }) + '\n')
     return EXIT_OK
   }
-  const rel = (p: string) => p.startsWith(dir) ? '.' + p.slice(dir.length) : p
+  const rel = (p: string) => (p.startsWith(dir) ? '.' + p.slice(dir.length) : p)
   for (const p of result.written) process.stdout.write(`  created  ${rel(p)}\n`)
   for (const p of result.appended) process.stdout.write(`  updated  ${rel(p)}\n`)
   for (const p of result.skipped) process.stdout.write(`  skipped  ${rel(p)} (exists; use --force if applicable)\n`)
@@ -1478,27 +1537,31 @@ export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'
   const FENCE = /```mermaid[ \t]*\r?\n([\s\S]*?)\r?\n```/g
   const blocks: string[] = []
   for (const m of md.matchAll(FENCE)) blocks.push(m[1]!)
-  return collectBatched(blocks, (src, i): MarkdownBlockResult => {
-    try {
-      const output = format === 'ascii' ? renderMermaidASCII(src, { useAscii: true }) : renderMermaidSVG(src)
-      return { index: i, ok: true, format, output }
-    } catch (e) {
-      const structured = cliStructuredRenderFailure(e)
-      return {
-        index: i,
-        ok: false,
-        error: structured?.error ?? {
-          code: 'RENDER_FAILED',
-          message: e instanceof Error ? e.message : String(e),
-        },
+  return collectBatched(
+    blocks,
+    (src, i): MarkdownBlockResult => {
+      try {
+        const output = format === 'ascii' ? renderMermaidASCII(src, { useAscii: true }) : renderMermaidSVG(src)
+        return { index: i, ok: true, format, output }
+      } catch (e) {
+        const structured = cliStructuredRenderFailure(e)
+        return {
+          index: i,
+          ok: false,
+          error: structured?.error ?? {
+            code: 'RENDER_FAILED',
+            message: e instanceof Error ? e.message : String(e),
+          },
+        }
       }
-    }
-  }, 'MARKDOWN_BLOCK_ERROR').map((r, i) => r.ok ? r.value : { index: i, ok: false, error: r.error })
+    },
+    'MARKDOWN_BLOCK_ERROR',
+  ).map((r, i) => (r.ok ? r.value : { index: i, ok: false, error: r.error }))
 }
 
 function cmdRenderMarkdown(args: ParsedArgs): number {
   const md = readSourceArg(args.positional[0])
-  const format = args.flags.ascii ? 'ascii' as const : 'svg' as const
+  const format = args.flags.ascii ? ('ascii' as const) : ('svg' as const)
   const results = renderMarkdownBlocks(md, format)
   process.stdout.write(JSON.stringify({ ok: true, blocks: results }) + '\n')
   // Per-block failures don't fail the command (#543) — exit OK.
@@ -1554,12 +1617,7 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         if (typeof options !== 'object' || options === null || Array.isArray(options)) {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render options must be a plain JSON object' } }
         }
-        const {
-          format: requestedFormat,
-          certificates,
-          targetWidth,
-          ...sharedCandidate
-        } = options as BatchRenderOptions
+        const { format: requestedFormat, certificates, targetWidth, ...sharedCandidate } = options as BatchRenderOptions
         if (requestedFormat !== undefined && typeof requestedFormat !== 'string') {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch render option "format" must be a string' } }
         }
@@ -1612,13 +1670,10 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         }
         const candidate = options as { suppress?: unknown; labelCharCap?: unknown }
         const warningCodes = new Set(Object.keys(WARNING_SEVERITY))
-        if (candidate.suppress !== undefined
-          && (!Array.isArray(candidate.suppress)
-            || candidate.suppress.some(code => typeof code !== 'string' || !warningCodes.has(code)))) {
+        if (candidate.suppress !== undefined && (!Array.isArray(candidate.suppress) || candidate.suppress.some(code => typeof code !== 'string' || !warningCodes.has(code)))) {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch verify option "suppress" must be an array of known warning-code strings' } }
         }
-        if (candidate.labelCharCap !== undefined
-          && (!Number.isSafeInteger(candidate.labelCharCap) || (candidate.labelCharCap as number) <= 0)) {
+        if (candidate.labelCharCap !== undefined && (!Number.isSafeInteger(candidate.labelCharCap) || (candidate.labelCharCap as number) <= 0)) {
           return { ok: false, op, error: { code: 'INVALID_OPTIONS', message: 'batch verify option "labelCharCap" must be a positive safe integer' } }
         }
         const r = verifyMermaid(parsed.source, options as { suppress?: WarningCode[]; labelCharCap?: number })
@@ -1641,7 +1696,10 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         // Batch is the streaming form of `am parse`; keep both on the open
         // registered-family envelope while preserving built-in result shapes.
         const r = parseRegisteredMermaid(parsed.source)
-        if (!r.ok) { const env = parseErrorEnvelope(r.error); return { ok: false, op, error: env.error } }
+        if (!r.ok) {
+          const env = parseErrorEnvelope(r.error)
+          return { ok: false, op, error: env.error }
+        }
         return { ok: true, op, data: JSON.parse(JSON.stringify(toJsonSafe(r.value), replacer)) }
       }
       case 'serialize': {
@@ -1669,16 +1727,17 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         const ops = (hasMutations ? parsed.mutations : [parsed.mutation]) as Parameters<typeof mutateSource>[1]
         if (ops.length === 0) return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line mutations must be a non-empty array' } }
         const r = mutateSource(parsed.source, ops)
-        if (!r.ok) return {
-          ok: false,
-          op,
-          error: {
-            code: r.error.code,
-            message: r.error.message,
-            ...('details' in r.error && r.error.details !== undefined ? { details: r.error.details } : {}),
-          },
-          ...(r.verify ? { verify: JSON.parse(JSON.stringify(r.verify, replacer)) } : {}),
-        }
+        if (!r.ok)
+          return {
+            ok: false,
+            op,
+            error: {
+              code: r.error.code,
+              message: r.error.message,
+              ...('details' in r.error && r.error.details !== undefined ? { details: r.error.details } : {}),
+            },
+            ...(r.verify ? { verify: JSON.parse(JSON.stringify(r.verify, replacer)) } : {}),
+          }
         return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)) } }
       }
       default:
@@ -1718,18 +1777,22 @@ function toJsonSafe(d: ParsedDiagram): unknown {
   if (d.body.kind === 'flowchart') {
     const g = d.body.graph
     return {
-      kind: d.kind, meta: d.meta,
-      body: { kind: 'flowchart', graph: {
-        direction: g.direction,
-        nodes: Object.fromEntries(g.nodes),
-        edges: g.edges,
-        subgraphs: g.subgraphs,
-        // Preserve styling so `am parse | am serialize` is lossless.
-        classDefs: Object.fromEntries(g.classDefs),
-        classAssignments: Object.fromEntries(g.classAssignments),
-        nodeStyles: Object.fromEntries(g.nodeStyles),
-        linkStyles: Object.fromEntries([...g.linkStyles].map(([k, v]) => [String(k), v])),
-      } },
+      kind: d.kind,
+      meta: d.meta,
+      body: {
+        kind: 'flowchart',
+        graph: {
+          direction: g.direction,
+          nodes: Object.fromEntries(g.nodes),
+          edges: g.edges,
+          subgraphs: g.subgraphs,
+          // Preserve styling so `am parse | am serialize` is lossless.
+          classDefs: Object.fromEntries(g.classDefs),
+          classAssignments: Object.fromEntries(g.classAssignments),
+          nodeStyles: Object.fromEntries(g.nodeStyles),
+          linkStyles: Object.fromEntries([...g.linkStyles].map(([k, v]) => [String(k), v])),
+        },
+      },
       canonicalSource: d.canonicalSource,
     }
   }

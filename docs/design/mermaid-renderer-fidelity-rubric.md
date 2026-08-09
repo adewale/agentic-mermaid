@@ -32,6 +32,7 @@ The five familiarity dimensions are layout geometry, routing/topology, paint/sty
 | architecture | 60 | 90 | evaluate | cytoscape 3.33.3; cytoscape-fcose 2.2.0; layout-base/cose-base |
 | xychart | 65 | 95 | evaluate | D3 scaleLinear; D3 scaleBand; D3 line/selection |
 | pie | 75 | 95 | evaluate | D3 pie; D3 arc; D3 scaleOrdinal |
+| sankey | 85 | 100 | adopt | d3-sankey 0.12.3; D3 selection and Tableau10 color scale |
 | quadrant | 70 | 100 | retain | D3 scaleLinear |
 | gantt | 75 | 100 | retain | dayjs; D3 scaleTime/axes/time intervals |
 | mindmap | 65 | 95 | evaluate | cytoscape; cytoscape-cose-bilkent |
@@ -51,7 +52,7 @@ The five familiarity dimensions are layout geometry, routing/topology, paint/sty
 
 These are engineering candidates, not instructions to copy Mermaid. Adopt a library only when it improves semantic correctness or maintainability without weakening Agentic's intent, determinism, safety, and accessibility contracts.
 
-- **Pending family enrollment:** Sankey is not a built-in on this base. Evaluate `d3-sankey` behind the typed Scene adapter when Sankey is enrolled; do not claim adoption from an unmerged implementation.
+- **Adopted behind a typed adapter:** Sankey uses Mermaid's pinned `d3-sankey` 0.12.3 geometry through bounded Scene resources and explicit projection-loss contracts.
 - **Evaluate behind an adapter/oracle:** Architecture (Cytoscape/fCOSE), Mindmap (Cytoscape/Cose-Bilkent), XY chart (D3 scales/shapes), and Pie (D3 pie/arc).
 - **Retain custom/ELK:** Flowchart, State, Class, ER, Sequence, Timeline, Journey, Quadrant, Gantt, GitGraph, and Radar. These either have deliberate product contracts, use an equally custom upstream layout, or gain too little from swapping a primitive. Differential tests are still required.
 
@@ -466,6 +467,51 @@ Evidence:
 - Agentic `src/pie/renderer.ts`
 - Agentic `src/__tests__/pie.test.ts`
 - Agentic `src/__tests__/pie-elevation.test.ts`
+
+## sankey
+
+Visual familiarity: **85/100**; artifact quality: **100/100**; dependency decision: **adopt**.
+
+Upstream engine: d3-sankey 0.12.3 for node layers, ordering, coordinates, and horizontal ribbon paths, with Mermaid-owned SVG labels and paint.
+
+Agentic engine: The same d3-sankey 0.12.3 geometry behind a typed deterministic Scene adapter with bounded local gradient resources and terminal loss reporting.
+
+Decision: Keep d3-sankey as the shared geometry authority. Preserve its layout through the Scene adapter while independently testing parser fidelity, resource safety, compositing, labels, and projections.
+
+| Visual dimension | Geometry | Routing/topology | Paint/style | Labels/type | Upstream differential |
+|---|---:|---:|---:|---:|---:|
+| Score (0–4) | 4 | 4 | 3 | 3 | 3 |
+
+| Quality dimension | Correctness | Robustness | Determinism | Semantics/a11y | Config parity |
+|---|---:|---:|---:|---:|---:|
+| Score (0–4) | 4 | 4 | 4 | 4 | 4 |
+
+Strengths:
+
+- Uses Mermaid’s pinned geometry engine and link-path generator while keeping authored values and identities explicit.
+- Typed local gradients, deterministic ID rewriting, palette compensation, dark-background compositing, and bounded resources have focused contracts.
+- Quoted CSV, numeric edge cases, duplicate links, zero-flow graphs, pathological dimensions, and layout invariants have regression and property coverage.
+
+Known gaps:
+
+- Agentic palette selection, text measurement, label composition, and dark-background compositing intentionally need not pixel-match Mermaid.
+- There is no continuously executed end-to-end geometry and raster differential against Mermaid browser output.
+- Terminal output necessarily projects away gradients and mix-blend-mode while reporting the loss.
+
+Next actions:
+
+- Add a pinned same-input Mermaid differential for node/link coordinates, label bounds, resolved paint resources, and raster output.
+- Track intentional dark-background and terminal divergences separately from shared-engine geometry parity.
+
+Evidence:
+
+- Mermaid 11.16 source map `node_modules/mermaid/dist/chunks/mermaid.esm.min/sankeyDiagram-H77HJZDF.mjs.map` → `src/diagrams/sankey/sankeyRenderer.ts`
+- Agentic `src/sankey/layout.ts`
+- Agentic `src/sankey/renderer.ts`
+- Agentic `src/__tests__/sankey-integration.test.ts`
+- Agentic `src/__tests__/sankey-renderer.test.ts`
+- Agentic `src/__tests__/sankey-rubric-properties.test.ts`
+- Agentic `src/__tests__/scene-gradient-resources.test.ts`
 
 ## quadrant
 

@@ -13,6 +13,7 @@ import {
   asPie,
   asQuadrant,
   asRadar,
+  asSankey,
   asSequence,
   asState,
   asTimeline,
@@ -261,6 +262,7 @@ const narrowers: Record<Family, (d: ValidDiagram) => ValidDiagram | null> = {
   quadrant: asQuadrant,
   radar: asRadar,
   gantt: asGantt,
+  sankey: asSankey,
 }
 
 const headerPattern = /\b(?:graph|flowchart|stateDiagram(?:-v2)?|sequenceDiagram|classDiagram|erDiagram|timeline|journey|architecture-beta|xychart(?:-beta)?|pie|quadrantChart|radar-beta|swimlane)\b/i

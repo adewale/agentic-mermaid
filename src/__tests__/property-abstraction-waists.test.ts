@@ -1,29 +1,20 @@
 import { describe, expect, test } from 'bun:test'
-import fc from 'fast-check'
 import { spawnSync } from 'node:child_process'
-import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
-import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
+import fc from 'fast-check'
 import { layoutCertificateProof } from '../agent/certificates.ts'
+import type { FamilyDescriptor } from '../agent/families.ts'
+import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
+import type { DiagramKind } from '../agent/types.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { detectDiagramTypeFromFirstLine, normalizeMermaidSource } from '../mermaid-source.ts'
-import type { FamilyDescriptor } from '../agent/families.ts'
-import type { DiagramKind } from '../agent/types.ts'
-import type {
-  EdgeRouteCertificate,
-  FamilyEdgeRouteCertificate,
-  LayoutRouteCertificate,
-  PositionedDiagram,
-  RegionContainmentCertificate,
-  RenderContext,
-  RenderOptions,
-  RouteCertificate,
-} from '../types.ts'
-import { DEFAULTS } from '../theme.ts'
-import { DefaultBackend } from '../scene/backend.ts'
-import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
-import { METAMORPHIC_FAMILIES, type FamilyMetamorphic } from './helpers/metamorphic-families.ts'
+import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
+import { DefaultBackend } from '../scene/backend.ts'
+import { DEFAULTS } from '../theme.ts'
+import type { EdgeRouteCertificate, FamilyEdgeRouteCertificate, LayoutRouteCertificate, PositionedDiagram, RegionContainmentCertificate, RenderContext, RenderOptions, RouteCertificate } from '../types.ts'
+import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 const RUNS = 24
 const TAG = fc.integer({ min: 0, max: 1_000_000 }).map(n => `p${n.toString(36)}`)
@@ -36,7 +27,10 @@ const FAMILY = fc.constantFrom(...Object.values(METAMORPHIC_FAMILIES)).chain(fam
 )
 const HEX = fc.constantFrom('#111827', '#f8fafc', '#ef4444', '#22c55e', '#2563eb', '#f59e0b', '#9333ea')
 
-function sceneContext(source: string, options: RenderOptions = {}): {
+function sceneContext(
+  source: string,
+  options: RenderOptions = {},
+): {
   family: FamilyDescriptor
   renderContext: RenderContext<PositionedDiagram>
 } {
@@ -62,21 +56,38 @@ function sceneContext(source: string, options: RenderOptions = {}): {
 
 function headerFor(kind: DiagramKind): string {
   switch (kind) {
-    case 'flowchart': return 'flowchart'
-    case 'state': return 'stateDiagram'
-    case 'sequence': return 'sequenceDiagram'
-    case 'timeline': return 'timeline'
-    case 'class': return 'classDiagram'
-    case 'er': return 'erDiagram'
-    case 'journey': return 'journey'
-    case 'architecture': return 'architecture-beta'
-    case 'xychart': return 'xychart-beta'
-    case 'pie': return 'pie'
-    case 'quadrant': return 'quadrantChart'
-    case 'gantt': return 'gantt'
-    case 'mindmap': return 'mindmap'
-    case 'gitgraph': return 'gitGraph'
-    case 'radar': return 'radar-beta'
+    case 'flowchart':
+      return 'flowchart'
+    case 'state':
+      return 'stateDiagram'
+    case 'sequence':
+      return 'sequenceDiagram'
+    case 'timeline':
+      return 'timeline'
+    case 'class':
+      return 'classDiagram'
+    case 'er':
+      return 'erDiagram'
+    case 'journey':
+      return 'journey'
+    case 'architecture':
+      return 'architecture-beta'
+    case 'xychart':
+      return 'xychart-beta'
+    case 'pie':
+      return 'pie'
+    case 'quadrant':
+      return 'quadrantChart'
+    case 'gantt':
+      return 'gantt'
+    case 'mindmap':
+      return 'mindmap'
+    case 'gitgraph':
+      return 'gitGraph'
+    case 'radar':
+      return 'radar-beta'
+    case 'sankey':
+      return 'sankey-beta'
     default: {
       const _exhaustive: never = kind
       return _exhaustive
@@ -182,7 +193,7 @@ describe('property: FamilyDescriptor render waist', () => {
 
     reject(() => ({ appearance: { family: { callback: () => true } as never } }), 'invalid appearance data')
     reject(ctx => ({ appearance: { colors: { ...ctx.colors, font: 'A Different Font' } } }), 'may not rewrite appearance field "font"')
-    reject(() => ({ legacyOptions: {} } as never), 'unknown field "legacyOptions"')
+    reject(() => ({ legacyOptions: {} }) as never, 'unknown field "legacyOptions"')
 
     const cyclic: Record<string, unknown> = {}
     cyclic.self = cyclic
@@ -212,9 +223,7 @@ describe('property: FamilyDescriptor render waist', () => {
           enumerable: true,
           get() {
             resultReads++
-            return resultReads === 1
-              ? { ...ctx.renderOptions, class: classOptions }
-              : { ...ctx.renderOptions, class: { hierarchicalNamespaces: 'changed after validation' } }
+            return resultReads === 1 ? { ...ctx.renderOptions, class: classOptions } : { ...ctx.renderOptions, class: { hierarchicalNamespaces: 'changed after validation' } }
           },
         })
         return result as never
@@ -456,21 +465,14 @@ describe('property: color-resolution waist', () => {
 })
 
 describe('property: layout certificate proof waist', () => {
-  const flowchartCert = fc.record({
-    edgeIndex: fc.nat(100),
-    routeClass: fc.constantFrom<RouteCertificate['routeClass']>('primary-forward', 'feedback', 'self-loop', 'container', 'cross-hierarchy'),
-    invariant: fc.constantFrom<RouteCertificate['invariant']>(
-      'straight',
-      'explained-detour',
-      'bundle',
-      'outer-feedback',
-      'feedback-detour',
-      'self-loop',
-      'container-attach',
-      'unverified-shape',
-    ),
-    bendCount: fc.nat(8),
-  }).map(cert => cert as RouteCertificate)
+  const flowchartCert = fc
+    .record({
+      edgeIndex: fc.nat(100),
+      routeClass: fc.constantFrom<RouteCertificate['routeClass']>('primary-forward', 'feedback', 'self-loop', 'container', 'cross-hierarchy'),
+      invariant: fc.constantFrom<RouteCertificate['invariant']>('straight', 'explained-detour', 'bundle', 'outer-feedback', 'feedback-detour', 'self-loop', 'container-attach', 'unverified-shape'),
+      bendCount: fc.nat(8),
+    })
+    .map(cert => cert as RouteCertificate)
 
   const familyEdgeCert: fc.Arbitrary<FamilyEdgeRouteCertificate> = fc.oneof(
     fc.record({
@@ -564,11 +566,7 @@ describe('property: layout certificate proof waist', () => {
 })
 
 describe('property: source-context layout hooks preserve structured-body layout independence', () => {
-  const structuredBodyFamilies = fc.constantFrom(
-    METAMORPHIC_FAMILIES.xychart,
-    METAMORPHIC_FAMILIES.pie,
-    METAMORPHIC_FAMILIES.quadrant,
-  ).chain(family =>
+  const structuredBodyFamilies = fc.constantFrom(METAMORPHIC_FAMILIES.xychart, METAMORPHIC_FAMILIES.pie, METAMORPHIC_FAMILIES.quadrant).chain(family =>
     fc.record({
       family: fc.constant(family),
       k: fc.integer({ min: family.kRange[0], max: family.kRange[1] }),

@@ -7,8 +7,8 @@
 // structural-count.test.ts and the metamorphic citizenship test consume it, so
 // a change to the counter's projection is asserted in exactly one place.
 
-import type { DiagramKind } from '../../agent/types.ts'
 import type { StructuralCount } from '../../agent/structural-count.ts'
+import type { DiagramKind } from '../../agent/types.ts'
 
 export interface FamilyCountFixture {
   family: DiagramKind
@@ -46,4 +46,6 @@ export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   { family: 'gitgraph', source: 'gitGraph\n  commit id:"a"\n  commit id:"b"\n  commit id:"c"', count: { nodes: 3, edges: 2, groups: 1 } },
   // Radar: nodes = curves × axes vertices (2 × 3 = 6), groups = axes (3).
   { family: 'radar', source: 'radar-beta\n  axis a, b, c\n  curve x{1, 2, 3}\n  curve y{3, 2, 1}\n  max 5', count: { nodes: 6, edges: 0, groups: 3 } },
+  // Sankey: nodes = distinct labels (A, B, C, D), edges = CSV rows.
+  { family: 'sankey', source: 'sankey-beta\n  A,B,10\n  B,C,4\n  B,D,6', count: { nodes: 4, edges: 3, groups: 0 } },
 ]

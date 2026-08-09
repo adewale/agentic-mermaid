@@ -3,7 +3,7 @@
   "status": "pending-independent-human-review",
   "kind": "citizenship",
   "manifest": "eval/test-portfolio/contact-sheets/citizenship.manifest.json",
-  "manifestSha256": "9df46a1240e4c08efb8ed96e79c4330692d12d7853245c83ce05dc5b7c523355",
+  "manifestSha256": "6bd8f0060b9fc5fef292fee2c9f1c7ff5588ca9634b27f4a6d0b01c462908034",
   "reviewedAt": null,
   "reviewer": null,
   "minutes": null,
@@ -12,7 +12,7 @@
   "automatedAndModelSanity": {
     "status": "passed-without-human-approval-claim",
     "checks": [
-      "60 registry-derived cells rendered without error",
+      "64 registry-derived cells rendered without error",
       "manifest binds every row, source and HTML byte",
       "overview scan found no empty, clipped-canvas, or catastrophic overlap cell"
     ],

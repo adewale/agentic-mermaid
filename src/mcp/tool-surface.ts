@@ -564,13 +564,9 @@ function unknownMethod(id: number | string | null, method: string): JsonRpcRespo
 
 export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {
   const hostedNote = options.hosted
-    ? `Hosted note: execute runs in an on-demand isolate and costs more than the direct
-render_svg/render_ascii/render_png/verify/describe tools — prefer those for plain
-render/verify calls. For straightforward structured edits, prefer the declarative
-mutate/build tools; reserve execute for logic the ops don't express.
-Hosted mermaid.renderMermaidSVG*, renderMermaidASCII*, and
-layoutMermaidWithReceipt calls force security:'strict' and
-embedFontImport:false; caller code cannot weaken that host policy.
+    ? `Hosted note: prefer direct render/verify tools and declarative mutate/build;
+reserve execute for custom logic. Hosted SVG, ASCII, and layout calls force
+security:'strict' and embedFontImport:false.
 
 `
     : ''

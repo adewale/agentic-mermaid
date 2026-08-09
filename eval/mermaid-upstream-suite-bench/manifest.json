@@ -350,6 +350,21 @@
         }
       ],
       "companionBench": "src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts"
+    },
+    {
+      "family": "sankey",
+      "status": "syntax-page-harvest-accounted",
+      "consideredBlocks": 8,
+      "importedCases": 8,
+      "importedBlocks": 8,
+      "excludedBlocks": 0,
+      "deferredBlocks": 0,
+      "files": [
+        {
+          "path": "packages/mermaid/src/docs/syntax/sankey.md",
+          "testBlocks": 8
+        }
+      ]
     }
   ]
 }

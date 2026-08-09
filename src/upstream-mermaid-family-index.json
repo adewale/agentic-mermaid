@@ -3,7 +3,7 @@
   "provenance": {
     "version": "11.16.0",
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-    "inventorySha256": "743517bef84810c6e8afc8b470b801b8cc4a1687445037bd42cc6079f57a3b59"
+    "inventorySha256": "d9ac79ab6e208196b30cd0d4f0168cad48837ede06a686383f2d463960f3ba91"
   },
   "families": [
     {
@@ -507,11 +507,11 @@
       "headers": [
         {
           "value": "sankey",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "sankey-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ],
       "officialSyntaxPage": {

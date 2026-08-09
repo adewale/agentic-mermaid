@@ -20,12 +20,11 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
-
-import { renderMermaidSVG } from '../index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines } from '../ascii/validate.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 const RUNS = 60
 const U = { colorMode: 'none', useAscii: false } as const
@@ -40,14 +39,11 @@ const word = fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,5}$/)
 const sequenceArb = fc
   .record({
     participants: fc.integer({ min: 2, max: 4 }),
-    messages: fc.array(
-      fc.record({ a: fc.nat(), b: fc.nat(), dashed: fc.boolean(), text: word }),
-      { minLength: 1, maxLength: 6 },
-    ),
+    messages: fc.array(fc.record({ a: fc.nat(), b: fc.nat(), dashed: fc.boolean(), text: word }), { minLength: 1, maxLength: 6 }),
   })
   .map(({ participants, messages }) => {
     const ps = Array.from({ length: participants }, (_, i) => `P${i}`)
-    const lines = ['sequenceDiagram', ...ps.map((p) => `  participant ${p}`)]
+    const lines = ['sequenceDiagram', ...ps.map(p => `  participant ${p}`)]
     for (const m of messages) {
       const a = ps[m.a % participants]!
       const b = ps[m.b % participants]!
@@ -56,96 +52,62 @@ const sequenceArb = fc
     return lines.join('\n')
   })
 
-const classArb = fc
-  .record({ n: fc.integer({ min: 1, max: 4 }), members: fc.array(word, { maxLength: 3 }) })
-  .map(({ n, members }) => {
-    const cs = Array.from({ length: n }, (_, i) => `C${i}`)
-    const lines = ['classDiagram']
-    for (const c of cs) {
-      if (members.length > 0) {
-        lines.push(`  class ${c} {`, ...members.map((m) => `    +${m} x`), '  }')
-      } else {
-        lines.push(`  class ${c}`)
-      }
+const classArb = fc.record({ n: fc.integer({ min: 1, max: 4 }), members: fc.array(word, { maxLength: 3 }) }).map(({ n, members }) => {
+  const cs = Array.from({ length: n }, (_, i) => `C${i}`)
+  const lines = ['classDiagram']
+  for (const c of cs) {
+    if (members.length > 0) {
+      lines.push(`  class ${c} {`, ...members.map(m => `    +${m} x`), '  }')
+    } else {
+      lines.push(`  class ${c}`)
     }
-    for (let i = 1; i < n; i++) lines.push(`  C${i - 1} <|-- C${i}`)
-    return lines.join('\n')
-  })
+  }
+  for (let i = 1; i < n; i++) lines.push(`  C${i - 1} <|-- C${i}`)
+  return lines.join('\n')
+})
 
 const CARD = ['||--o{', '||--|{', '}o--o{', '||--||']
-const erArb = fc
-  .record({ rels: fc.array(fc.record({ a: word, b: word, c: fc.nat(), label: word }), { minLength: 1, maxLength: 4 }) })
-  .map(({ rels }) => {
-    const lines = ['erDiagram']
-    for (const r of rels) lines.push(`  ${r.a.toUpperCase()} ${CARD[r.c % CARD.length]} ${r.b.toUpperCase()} : ${r.label}`)
-    return lines.join('\n')
-  })
+const erArb = fc.record({ rels: fc.array(fc.record({ a: word, b: word, c: fc.nat(), label: word }), { minLength: 1, maxLength: 4 }) }).map(({ rels }) => {
+  const lines = ['erDiagram']
+  for (const r of rels) lines.push(`  ${r.a.toUpperCase()} ${CARD[r.c % CARD.length]} ${r.b.toUpperCase()} : ${r.label}`)
+  return lines.join('\n')
+})
 
-const pieArb = fc
-  .array(fc.record({ label: word, value: fc.integer({ min: 1, max: 100 }) }), { minLength: 1, maxLength: 6 })
-  .map((slices) => ['pie title P', ...slices.map((s, i) => `  "${s.label}${i}" : ${s.value}`)].join('\n'))
+const pieArb = fc.array(fc.record({ label: word, value: fc.integer({ min: 1, max: 100 }) }), { minLength: 1, maxLength: 6 }).map(slices => ['pie title P', ...slices.map((s, i) => `  "${s.label}${i}" : ${s.value}`)].join('\n'))
 
-const xychartArb = fc
-  .record({ points: fc.integer({ min: 2, max: 6 }), kind: fc.constantFrom('line', 'bar') })
-  .map(({ points, kind }) => {
-    const xs = Array.from({ length: points }, (_, i) => `x${i}`)
-    const ys = Array.from({ length: points }, (_, i) => (i * 17 + 5) % 100)
-    return ['xychart-beta', '  title "T"', `  x-axis [${xs.join(', ')}]`, '  y-axis "y" 0 --> 100', `  ${kind} [${ys.join(', ')}]`].join('\n')
-  })
+const xychartArb = fc.record({ points: fc.integer({ min: 2, max: 6 }), kind: fc.constantFrom('line', 'bar') }).map(({ points, kind }) => {
+  const xs = Array.from({ length: points }, (_, i) => `x${i}`)
+  const ys = Array.from({ length: points }, (_, i) => (i * 17 + 5) % 100)
+  return ['xychart-beta', '  title "T"', `  x-axis [${xs.join(', ')}]`, '  y-axis "y" 0 --> 100', `  ${kind} [${ys.join(', ')}]`].join('\n')
+})
 
 const quadrantArb = fc
   .array(fc.record({ label: word, x: fc.integer({ min: 0, max: 100 }), y: fc.integer({ min: 0, max: 100 }) }), { minLength: 1, maxLength: 6 })
-  .map((pts) =>
-    ['quadrantChart', '  title Q', '  x-axis Low --> High', '  y-axis Low --> High',
-      ...pts.map((p, i) => `  "${p.label}${i}": [${(p.x / 100).toFixed(2)}, ${(p.y / 100).toFixed(2)}]`)].join('\n'),
-  )
+  .map(pts => ['quadrantChart', '  title Q', '  x-axis Low --> High', '  y-axis Low --> High', ...pts.map((p, i) => `  "${p.label}${i}": [${(p.x / 100).toFixed(2)}, ${(p.y / 100).toFixed(2)}]`)].join('\n'))
 
-const timelineArb = fc
-  .array(fc.record({ period: word, event: word }), { minLength: 1, maxLength: 6 })
-  .map((rows) => ['timeline', '  title T', ...rows.map((r) => `  ${r.period} : ${r.event}`)].join('\n'))
+const timelineArb = fc.array(fc.record({ period: word, event: word }), { minLength: 1, maxLength: 6 }).map(rows => ['timeline', '  title T', ...rows.map(r => `  ${r.period} : ${r.event}`)].join('\n'))
 
-const ganttArb = fc
-  .array(fc.integer({ min: 1, max: 6 }), { minLength: 1, maxLength: 6 })
-  .map((durations) => {
-    const lines = [
-      'gantt',
-      '  title G',
-      '  dateFormat YYYY-MM-DD',
-      '  axisFormat %m-%d',
-      '  excludes weekends',
-      '  section Build',
-      `    T0 :t0, 2024-01-01, ${durations[0]}d`,
-    ]
-    for (let i = 1; i < durations.length; i++) {
-      lines.push(`    T${i} :t${i}, after t${i - 1}, ${durations[i]}d`)
-    }
-    return lines.join('\n')
-  })
+const ganttArb = fc.array(fc.integer({ min: 1, max: 6 }), { minLength: 1, maxLength: 6 }).map(durations => {
+  const lines = ['gantt', '  title G', '  dateFormat YYYY-MM-DD', '  axisFormat %m-%d', '  excludes weekends', '  section Build', `    T0 :t0, 2024-01-01, ${durations[0]}d`]
+  for (let i = 1; i < durations.length; i++) {
+    lines.push(`    T${i} :t${i}, after t${i - 1}, ${durations[i]}d`)
+  }
+  return lines.join('\n')
+})
 
-const journeyArb = fc
-  .array(fc.record({ task: word, score: fc.integer({ min: 1, max: 5 }) }), { minLength: 1, maxLength: 6 })
-  .map((tasks) => ['journey', '  title J', '  section S', ...tasks.map((t, i) => `    ${t.task}${i}: ${t.score}: Me`)].join('\n'))
+const journeyArb = fc.array(fc.record({ task: word, score: fc.integer({ min: 1, max: 5 }) }), { minLength: 1, maxLength: 6 }).map(tasks => ['journey', '  title J', '  section S', ...tasks.map((t, i) => `    ${t.task}${i}: ${t.score}: Me`)].join('\n'))
 
-const architectureArb = fc.constant(
-  'architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service server(server)[Server] in api\n  db:L -- R:server',
-)
+const architectureArb = fc.constant('architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service server(server)[Server] in api\n  db:L -- R:server')
 
 const flowchartArb = fc.constant('flowchart TD\n  Start[Start] --> Done[Done]')
 const stateArb = fc.constant('stateDiagram-v2\n  [*] --> Idle\n  Idle --> Running\n  Running --> [*]')
-const mindmapArb = fc.uniqueArray(word, { minLength: 1, maxLength: 6 }).map(labels =>
-  ['mindmap', '  Root', ...labels.map((label, index) => `    n${index}[${label}]`)].join('\n'),
-)
-const gitgraphArb = fc.integer({ min: 1, max: 8 }).map(length =>
-  ['gitGraph', ...Array.from({ length }, (_, index) => `  commit id:"c${index}"`)].join('\n'),
-)
+const mindmapArb = fc.uniqueArray(word, { minLength: 1, maxLength: 6 }).map(labels => ['mindmap', '  Root', ...labels.map((label, index) => `    n${index}[${label}]`)].join('\n'))
+const gitgraphArb = fc.integer({ min: 1, max: 8 }).map(length => ['gitGraph', ...Array.from({ length }, (_, index) => `  commit id:"c${index}"`)].join('\n'))
 
-const radarArb = fc
-  .array(fc.array(fc.integer({ min: 1, max: 5 }), { minLength: 3, maxLength: 3 }), { minLength: 1, maxLength: 3 })
-  .map((curves) =>
-    ['radar-beta', '  axis a, b, c',
-      ...curves.map((vals, i) => `  curve c${i}["C${i}"]{${vals.join(', ')}}`),
-      '  max 5'].join('\n'),
-  )
+const radarArb = fc.array(fc.array(fc.integer({ min: 1, max: 5 }), { minLength: 3, maxLength: 3 }), { minLength: 1, maxLength: 3 }).map(curves => ['radar-beta', '  axis a, b, c', ...curves.map((vals, i) => `  curve c${i}["C${i}"]{${vals.join(', ')}}`), '  max 5'].join('\n'))
+
+// Distinct source/sink label spaces keep the generated flow graph acyclic.
+const sankeyArb = fc.array(fc.record({ src: fc.integer({ min: 0, max: 3 }), dst: fc.integer({ min: 0, max: 3 }), value: fc.integer({ min: 1, max: 500 }) }), { minLength: 1, maxLength: 8 }).map(rows => ['sankey-beta', ...rows.map(r => `  Source ${r.src},Sink ${r.dst},${r.value}`)].join('\n'))
 
 const RENDERER_CASES = [
   {
@@ -180,7 +142,8 @@ const RENDERER_CASES = [
   },
   {
     family: 'gantt',
-    source: 'gantt\n  title Launch plan\n  dateFormat YYYY-MM-DD\n  axisFormat %b %d\n  excludes weekends\n  section Build\n    Spec :done, spec, 2024-01-01, 2d\n    Implement :active, impl, after spec, 3d\n  section Ship\n    QA :crit, qa, after impl, 2d\n    Launch :milestone, launch, after qa, 0d\n    Release line :vert, release, 2024-01-10, 0d',
+    source:
+      'gantt\n  title Launch plan\n  dateFormat YYYY-MM-DD\n  axisFormat %b %d\n  excludes weekends\n  section Build\n    Spec :done, spec, 2024-01-01, 2d\n    Implement :active, impl, after spec, 3d\n  section Ship\n    QA :crit, qa, after impl, 2d\n    Launch :milestone, launch, after qa, 0d\n    Release line :vert, release, 2024-01-10, 0d',
     labels: ['Launch plan', 'Build', 'Spec', 'Implement', 'Ship', 'QA', 'Launch', 'Release line'],
   },
   {
@@ -200,8 +163,7 @@ const RENDERER_CASES = [
   },
   {
     family: 'quadrant',
-    source:
-      'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Risk --> Reward\n  quadrant-1 Invest\n  A: [0.7, 0.8]',
+    source: 'quadrantChart\n  title Priorities\n  x-axis Low --> High\n  y-axis Risk --> Reward\n  quadrant-1 Invest\n  A: [0.7, 0.8]',
     labels: ['Priorities', 'Low', 'High', 'Risk', 'Reward', 'Invest', 'A'],
   },
   {
@@ -223,6 +185,11 @@ const RENDERER_CASES = [
     family: 'radar',
     source: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5',
     labels: ['Skills', 'Speed', 'Power', 'Range', 'Current', 'Target'],
+  },
+  {
+    family: 'sankey',
+    source: 'sankey-beta\n  Coal,Electricity,127\n  Gas,Electricity,80\n  Electricity,Homes,120\n  Electricity,Industry,87',
+    labels: ['Coal', 'Gas', 'Electricity', 'Homes', 'Industry'],
   },
 ] as const
 
@@ -268,6 +235,7 @@ const ALL_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
   ['mindmap', mindmapArb],
   ['gitgraph', gitgraphArb],
   ['radar', radarArb],
+  ['sankey', sankeyArb],
 ]
 
 const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
@@ -334,7 +302,7 @@ describe('characterisation · families · universal invariants', () => {
   for (const [name, arb] of ALL_FAMILIES) {
     it(`${name}: total, deterministic, no diagonals`, () => {
       fc.assert(
-        fc.property(arb, (src) => {
+        fc.property(arb, src => {
           assertTotalDeterministicNoDiagonals(src)
         }),
         { numRuns: RUNS },
@@ -345,9 +313,9 @@ describe('characterisation · families · universal invariants', () => {
   for (const [name, arb] of BOX_FAMILIES) {
     it(`${name}: rectangular canvas (all rows one width)`, () => {
       fc.assert(
-        fc.property(arb, (src) => {
+        fc.property(arb, src => {
           const out = renderMermaidASCII(src, U)
-          expect(new Set(out.split('\n').map((l) => l.length)).size).toBe(1)
+          expect(new Set(out.split('\n').map(l => l.length)).size).toBe(1)
         }),
         { numRuns: RUNS },
       )
@@ -359,6 +327,6 @@ describe('characterisation · families · universal invariants', () => {
   // uniform-width padding is a deliberate, visible decision.
   it('known boundary — pie is non-rectangular today', () => {
     const out = renderMermaidASCII('pie title P\n  "Dogs" : 45\n  "Cats" : 35\n  "Birds" : 20', U)
-    expect(new Set(out.split('\n').map((l) => l.length)).size).toBeGreaterThan(1)
+    expect(new Set(out.split('\n').map(l => l.length)).size).toBeGreaterThan(1)
   })
 })

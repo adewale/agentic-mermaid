@@ -66,7 +66,9 @@ export type Geometry =
   | { kind: 'compound'; children: Geometry[] }
 
 /** The resolved paint attached to a mark — already cascaded (theme tokens,
- *  classDef, inline style, role defaults) by the family lowering. */
+ *  classDef, inline style, role defaults) by the family lowering. Internal
+ *  scenes may reference a declared typed gradient through `url(#safe-id)`;
+ *  arbitrary/external fetching paints remain forbidden. */
 export interface MarkPaint {
   fill?: string
   stroke?: string
@@ -138,6 +140,23 @@ export interface MarkerDescriptor {
   paint?: MarkPaint
   /** Scalar relative to marker units; used for conservative bounds. */
   scale?: number
+}
+
+/** A safe same-document SVG linear gradient. Paint marks reference it through
+ * `url(#id)`; the descriptor, not raw `<defs>` markup, remains the resource
+ * authority for validation and backend serialization. */
+export interface LinearGradientDescriptor {
+  id: string
+  units: 'userSpaceOnUse' | 'objectBoundingBox'
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  stops: readonly {
+    offset: number
+    color: string
+    opacity?: number
+  }[]
 }
 
 /** One continuous path contour. `closed` is semantic topology: callers must
@@ -225,6 +244,7 @@ export interface ConnectorStroke {
   miterLimit: number
   pathLength?: number
   paintOrder?: string
+  mixBlendMode?: 'normal' | 'multiply'
   nonScaling: boolean
 }
 
@@ -264,6 +284,8 @@ export type ConnectorTerminalStrokeLoss =
   | 'dash-offset'
   | 'path-length'
   | 'paint-order'
+  | 'gradient-paint'
+  | 'mix-blend-mode'
   | 'non-scaling-stroke'
 
 export type ConnectorTerminalMarkerProjection = Readonly<MarkerDescriptor>
@@ -366,6 +388,8 @@ export interface DocumentMark extends SceneNodeBase {
   /** Typed marker resources owned by the definitions mark. Backends may
    * reserialize these without inspecting the private SVG definition string. */
   markerResources?: readonly MarkerDescriptor[]
+  /** Typed, fragment-local paint resources. External URLs remain forbidden. */
+  gradientResources?: readonly LinearGradientDescriptor[]
 }
 
 export type SceneNode = ShapeMark | ConnectorMark | TextMark | GroupMark | DocumentMark
