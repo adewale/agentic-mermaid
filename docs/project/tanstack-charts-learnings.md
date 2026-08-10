@@ -98,7 +98,9 @@ not something to change.
    An intent-oriented index ("show a decision", "compare timelines", "explain a
    schema"), plus a machine-readable catalog entry for agents alongside
    `llms.txt` and `am capabilities --json`, would serve the agent that knows its
-   task but not Mermaid's family names.
+   task but not Mermaid's family names. The routing half now exists as
+   [`choosing-a-diagram.md`](../choosing-a-diagram.md), surfaced in the diagram
+   workflow skill; the machine-readable catalog entry remains a candidate.
 3. **Granularity as measured need, not default.** Their per-mark subpaths solve
    a real app-bundle problem. Our consumers are CLIs, agents, and workers, and
    we already split `agentic-mermaid/agent` from `agent/core`. Measure
@@ -131,8 +133,12 @@ not something to change.
 ## The gap that stays ours
 
 Their guarantees end at the type checker. A spec that compiles says nothing
-about the rendered artifact — occlusion, contrast, label fit, crossings — and
-the pages reviewed make no determinism, verification, or round-trip claims.
+about the rendered artifact — occlusion, contrast, label fit, crossings. The
+one determinism promise in their docs is scoped to hydration: the SSR guide
+renders "deterministic chart markup on the server" so the browser can adopt
+it, which is determinism in service of framework plumbing, not a CI-gated
+byte-identity guarantee on artifacts. Nothing on the reviewed pages verifies
+the rendered result or claims a round-trip.
 The differentiators here — `verifyMermaid`'s three warning tiers, the
 [deterministic layout rubric](../design/system/layout-rubric.md), CI-gated
 byte-identical output, and the round-trip contracts — are the *feedback* half
@@ -141,6 +147,62 @@ that the spec typechecked. If "designed for humans and agents" becomes table
 stakes for authoring surfaces — TanStack adopting the framing suggests it
 will — artifact verification is the axis competitors have not claimed. Keep
 investing there.
+
+## Implementation notes (repository, 2026-08-10)
+
+A shallow clone of `TanStack/charts` (default branch, 2026-08-10) shows how the
+"for humans and agents" posture is run day to day. Five practices stand out.
+
+1. **The friction log is the engine.** `API-FRICTION.md` (~7,700 lines) is
+   "the durable feedback loop for building the API with itself." Every entry
+   records the concrete task where the difficulty appeared, expected versus
+   actual authoring experience, a decision, and the verification that closed
+   it; the repo `AGENTS.md` requires agents to read it before touching the
+   public API and to log friction from actual tasks — "Do not add speculative
+   wishlist items." A triage table assigns each finding to API, Documentation,
+   Skill, Application, or Tooling, with the rule "Do not hide API problems in
+   a skill." Our dated
+   [contributor lessons](../contributing/lessons-learned.md) capture
+   retrospectives; we have no per-task log of agent-observed API friction with
+   owners and closing verification. That log is the most adoptable single
+   artifact in the repository.
+2. **Chart choice belongs to the skill layer — their words.** The triage table
+   routes a difficulty to Skill "when the difficulty is data analysis, chart
+   choice, or multi-step authoring," and their
+   `docs/guides/choosing-a-chart.md` opens with the doctrine "A chart type is
+   the result of that decision, not the starting point," then runs a
+   reader-task table, a data-shape checklist, a smallest-complete-composition
+   ladder, a misleading-defaults list, and a readiness checklist.
+   [`choosing-a-diagram.md`](../choosing-a-diagram.md) adopts that skeleton
+   for our families, and the diagram-workflow skill now carries the routing
+   doctrine. The inverse rule is worth keeping too: when routing guidance
+   exists to paper over a confusing operation, fix the operation.
+3. **Docs are single-owner and `llms.txt` is generated.** Their `llms.txt`
+   opens "Each concept is documented once; guides and examples link back to
+   its owner page," and `AGENTS.md` forbids editing the generated copies
+   (`pnpm docs:sync` owns them). Same shape as our registry-derived docs and
+   `am llms-txt`; convergence, not a gap.
+4. **Comparisons are measured against exact pins.** Their `docs/comparison.md`
+   distinguishes measured libraries from documentation-reviewed ones, pins
+   competitor versions exactly ("not latest versions inferred at page render
+   time"), and refuses "turning untested behavior into a checkmark"; a
+   `competitor-profiles/` directory keeps the raw evidence and states where
+   the competitor wins today. Our [`comparison.md`](../comparison.md) already
+   pins versions; the measured-versus-documented split is the discipline worth
+   copying at the next refresh.
+5. **Portability had to be designed; ours is inherited.** Because their chart
+   definitions hold live functions, `PORTABLE-CHART-SPEC.md` sketches a JSON
+   `$call` format resolved through a function registry just to make a chart
+   serializable. Our portable format is the Mermaid source itself — the corpus
+   moat restated at the wire level, with nothing to build or version.
+
+Two smaller observations. Accessibility is a required input, not an option:
+every DOM host demands `ariaLabel`, and the SVG renderer emits the image role,
+a chart roledescription, and a `<desc>`; a Tier 3 lint nudging a missing
+`accTitle` on large diagrams would be our equivalent (candidate only). And the
+core package carries 85 colocated test files across 174 sources plus
+per-adapter SSR test configs — the same per-surface gating instinct as our
+family-citizenship checks, pointed at frameworks instead of output surfaces.
 
 ## Sources
 
@@ -157,3 +219,9 @@ Reviewed 2026-08-10:
   subpath exports, naming conventions.
 - <https://github.com/TanStack/charts> — repository description and the
   project's statement on AI-agent implementation (surfaced via web search).
+- Shallow clone of the repository (default branch, 2026-08-10) for the
+  implementation notes: `AGENTS.md`, `API-FRICTION.md`,
+  `docs/guides/choosing-a-chart.md`, `docs/comparison.md`,
+  `docs/guides/accessibility.md`, `docs/guides/ssr-and-hydration.md`,
+  `PORTABLE-CHART-SPEC.md`, `competitor-profiles/`, `llms.txt`, and the
+  `packages/charts-core` source tree.

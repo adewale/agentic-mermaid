@@ -68,6 +68,17 @@ Gantt diagrams are segment-preserving: `asGantt` keeps title/section/task ops li
 
 `references/upstream/` documents Mermaid syntax for many more families than this renderer accepts; it is authoring reference only. `am capabilities --json` is the authoritative list of renderable families.
 
+## Choosing a family
+
+Choose the family from the reader's task; the family is the result of that decision, not the starting point. The full task router, with per-family anti-patterns and the verify codes that check each choice, is `docs/choosing-a-diagram.md`. The routes agents most often miss:
+
+- Steps and decisions toward an outcome: flowchart. A system moving between modes in response to events: state.
+- Ordered messages between actors: sequence. A flowchart arrow reads as causality, not time.
+- Dated work with durations and dependencies: gantt. Undated eras: timeline. One person's scored experience of a process: journey.
+- Quantities that must balance across stages: sankey. Parts of one whole at one moment: pie. Measured series across categories or time: xychart.
+
+Renderability and edit policy still come from `am capabilities --json`, not from this routing.
+
 ## Workflow
 
 For new diagrams, author Mermaid source directly, then `parseRegisteredMermaid` / `verifyMermaid` / render. For existing modeled diagrams:

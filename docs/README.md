@@ -9,6 +9,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`getting-started.md`](./getting-started.md) | Plain library use: render a Mermaid string to SVG/PNG/ASCII in 5 minutes. |
 | [`api.md`](./api.md) | Library, agent API, output functions, options, CLI/MCP pointers. |
 | [`diagram-families.md`](./diagram-families.md) | Supported Mermaid families, examples, and edit policy. |
+| [`choosing-a-diagram.md`](./choosing-a-diagram.md) | Task-first router: pick the family from the reader's task, with per-choice anti-patterns and verify checks. |
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
 | [`style-authoring.md`](./style-authoring.md) | Style model, stack semantics, field reference, rubric, and validation commands. |
 | [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, CLI commands, and the documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototypes. |
