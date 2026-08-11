@@ -202,7 +202,7 @@
     "duplicateStyledRendersAfter": 0,
     "styledOutputWallSecondsBefore": 13.9,
     "styledOutputWallSecondsAfter": 8.22,
-    "notes": "The candidate is slower than the provisional 20\u201336s estimate because the declared Look \u00d7 Palette \u00d7 background three-way obligation alone has a mathematical lower bound of 900 real SVG rows. Reliability obligations were retained instead of forcing the estimate.",
+    "notes": "The candidate is slower than the provisional 20–36s estimate because the declared Look × Palette × background three-way obligation alone has a mathematical lower bound of 900 real SVG rows. Reliability obligations were retained instead of forcing the estimate.",
     "fullCoveredSuiteWallSecondsBefore": 410.73,
     "fullCoveredSuiteWallSecondsAfter": 311.65,
     "fullCoveredSuiteWallSecondsSaved": 99.08,
@@ -211,23 +211,23 @@
   "receiptDependencyReduction": {
     "mermaidDocs": {
       "beforeInputs": 715,
-      "afterInputs": 255,
-      "percentReduction": 64.3
+      "afterInputs": 256,
+      "percentReduction": 64.2
     },
     "mindmapGitgraph": {
       "beforeInputs": 729,
-      "afterInputs": 293,
-      "percentReduction": 59.8
+      "afterInputs": 294,
+      "percentReduction": 59.7
     },
     "pieHighlight": {
       "beforeInputs": 714,
-      "afterInputs": 260,
-      "percentReduction": 63.6
+      "afterInputs": 261,
+      "percentReduction": 63.4
     },
     "sectionB": {
       "beforeInputs": 721,
-      "afterInputs": 267,
-      "percentReduction": 63.0
+      "afterInputs": 268,
+      "percentReduction": 62.8
     },
     "paletteRollout": {
       "beforeInputs": 723,
