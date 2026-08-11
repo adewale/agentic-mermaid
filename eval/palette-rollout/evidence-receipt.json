@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-rollout-evidence.ts",
-  "inputCount": 263,
-  "inputTreeSha256": "065736883171da731b0a005846e3cf3ba5d4d683d356a4083fd1a50eef7d308a",
+  "inputCount": 264,
+  "inputTreeSha256": "ddec9bd83d95ef35795469fc2f754349ecba5a4518318537c1a3cb37930af2bd",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [

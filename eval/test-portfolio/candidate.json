@@ -231,8 +231,8 @@
     },
     "paletteRollout": {
       "beforeInputs": 723,
-      "afterInputs": 263,
-      "percentReduction": 63.9
+      "afterInputs": 264,
+      "percentReduction": 63.5
     },
     "paletteHarmony": {
       "beforeInputs": 715,
@@ -241,8 +241,8 @@
     },
     "linkrankFeedbackPacking": {
       "beforeInputs": 727,
-      "afterInputs": 267,
-      "percentReduction": 63.3
+      "afterInputs": 268,
+      "percentReduction": 63.1
     },
     "visualOutputBytesChanged": 0
   },

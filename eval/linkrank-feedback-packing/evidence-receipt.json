@@ -66,8 +66,8 @@
       "after": 224.00000000000003
     }
   ],
-  "inputCount": 267,
-  "inputTreeSha256": "4247f93f161d6a2edb4806eff8bbb45fc9d4f722b7e766d4616546ea259dd0b7",
+  "inputCount": 268,
+  "inputTreeSha256": "4026429692cf54c5cb585a807d662cea314b2f548e604a0f14ff5ddcc2c8440b",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
