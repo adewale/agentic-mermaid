@@ -2,11 +2,16 @@
 
 > **Status: specification, not implemented.** Derived from
 > [`research/flint-chart-deep-dive.md`](../../research/flint-chart-deep-dive.md)
-> (2026-08-02, aesthetics addendum 2026-08-03). This document supplies
-> contracts, file-level design, testing, and verification detail for six
-> workstreams; it is not a second
-> status-bearing backlog — `TODO.md` is authoritative for active work, and
-> nothing here is committed work until it appears there.
+> (2026-08-02, aesthetics addendum 2026-08-03). **Revised 2026-08-03 after a
+> simplification review**: the plan is now a small core built immediately, a
+> tail gated on named evidence signals, and one parked decision — matching
+> this repo's own demand-before-build doctrine (see
+> `mcp-abuse-controls-plan.md`, `computational-aesthetics-prototype-plan.md`).
+> Cuts from the first revision are listed in "Cut outright" below. This
+> document supplies contracts, file-level design, testing, and verification
+> detail; it is not a second status-bearing backlog — `TODO.md` is
+> authoritative for active work, and nothing here is committed work until it
+> appears there.
 >
 > **Scope boundary.** This plan deliberately excludes the research note's other
 > recommendations: no new specification language (counter-lesson #1), no
@@ -16,21 +21,32 @@
 > Pressure-based density negotiation (WS3 "stage 3") is named as a follow-on
 > and intentionally not specified here.
 
-The four workstreams, in dependency order:
+The plan's shape:
 
-| WS | Deliverable | Depends on | Size |
+| Bucket | Item | Scope | Size |
 |---|---|---|---|
-| WS1 | `eval/edit-cost` — tokens-per-edit measurement + published number | — | S |
-| WS2 | MCP resources + prompts on local and hosted servers | — | M |
-| WS3 | `BELOW_READABLE_SIZE` raster-legibility warning (`fitTo` / raster budget) | — | S–M |
-| WS4 | MCP App editor view (`open_editor_view` on hosted) | WS2 | M–L |
-| WS5 | Generated perceptual-constants ledger with provenance + confidence tiers | — | S |
-| WS6 | Stressor registry → designed contact sheet + site gallery (no test-page aesthetics) | — | M |
+| **Core — build now** | WS1 | `eval/edit-cost`, bytes-per-edit measurement + published number | S |
+| **Core — build now** | WS3 stage 1 | `BELOW_READABLE_SIZE` warning (`fitTo` / `scale` / raster budget) + `minLabelPx` | S |
+| **Core — build now** | WS2-lite | Two MCP resources + one prompt, both eras, drift-guarded, demand-signal instrumented | S–M |
+| **Gated on evidence** | WS6 core | Stressor registry + designed contact sheet (gate: next layout-touching PR needing visual evidence) | M |
+| **Gated on evidence** | WS5 | Perceptual-constants ledger (gate: next PR touching a rostered constant, or standalone when convenient) | S |
+| **Gated on evidence** | WS2-full | Remaining resources/prompts + agent-usage A/B (gate: WS2-lite demand signal, then pilot) | M |
+| **Gated on evidence** | WS6 site page | Public torture-test gallery (gate: the sheet proves useful in ≥1 real PR review) | S–M |
+| **Gated on evidence** | WS4 | MCP App editor view (gate: sustained third-party pulls on the hosted surface) | M–L |
+| **Parked decision** | Outcome eval | Paired typed-workflow vs regeneration evaluation — see "Parked" section | L |
 
-WS1, WS3, WS5, and WS6 are independent and can land in any order. WS4 rides
-on WS2's resource plumbing (`ui://` templates **are** MCP resources). WS5's
-ledger feeds WS6's captions and WS3's floor documentation but blocks
-neither.
+Core items are independent and can land in any order, each as its own PR.
+No gated item enters `TODO.md` until its gate fires; the gates are named
+signals, not vibes, and each is defined in its workstream section.
+
+**Cut outright** (first-revision scope removed on review):
+`agentic-mermaid://ops/{family}` resource templates and
+`resources/templates/list` (duplicate the existing `describe_sdk` tool);
+the `agentic-mermaid://styles` resource and `author_mermaid_diagram` prompt
+(deferred into WS2-full); WS1's secondary token estimate (bytes only);
+WS3's `fitStrategy: 'error'` mode (an agent can treat the warning as fatal;
+build only if a consumer asks); WS6's three-surface convergence machinery
+(rebuilt as two-surface now, extended only when the site page exists).
 
 ## Shared invariants (apply to every workstream)
 
@@ -61,7 +77,7 @@ neither.
 
 ---
 
-## WS1 — `eval/edit-cost`: the tokens-per-edit measurement
+## WS1 — `eval/edit-cost`: the bytes-per-edit measurement
 
 ### Motivation
 
@@ -97,10 +113,9 @@ New directory `eval/edit-cost/`:
   scaling table bucketed by diagram size, and the **skip ledger** (every
   `(entry, task)` skipped, with reason and counts — no silent coverage
   gaps, mirroring `eval/mcp-protocol`'s "cannot quietly collapse" rule).
-- Units: bytes are canonical (tokenizer-independent, deterministic). A
-  secondary tokens estimate (bytes ÷ 4, labeled as an approximation) may be
-  reported; an exact-tokenizer mode may exist behind a flag but stays out of
-  CI to avoid a native dependency.
+- Units: bytes, full stop — tokenizer-independent and deterministic. No
+  token estimate, no tokenizer dependency; the ratio and its scaling curve
+  are the story, and bytes tell it.
 
 Wiring: `package.json` scripts `eval:edit-cost` (regenerate) and
 `eval:edit-cost:check` (assert `RESULTS.md` is current), following the
@@ -169,26 +184,34 @@ workflow. We have richer content and no delivery channel.
 
 ### Contract
 
-**Resources** (all projections; none hand-authored):
+**WS2-lite (core) — resources** (all projections; none hand-authored):
 
 | URI | mimeType | Source of truth |
 |---|---|---|
 | `agentic-mermaid://skill/diagram-workflow` | `text/markdown` | the SKILL.md file, embedded at build time |
 | `agentic-mermaid://capabilities` | `application/json` | the same projection as `am capabilities --json` (FamilyDescriptor registry) |
-| `agentic-mermaid://styles` | `application/json` | style + palette catalog registry |
-| `agentic-mermaid://ops/{family}` | `application/json` | `describeOps(family)` / `opSignatures` (resource template, RFC 6570) |
 
-**Prompts:**
+Per-family op discovery deliberately does **not** get a resource: the
+`describe_sdk` tool already serves that registry on both servers, and a
+second delivery path for the same data is exactly what
+`mcp-code-mode-rationale.md` argues against. A styles resource is deferred
+to WS2-full — the catalog is already runtime-discoverable through the
+library and CLI.
 
-- `author_mermaid_diagram` — args `{ family: <enum from registry>, description?: string }`;
-  returns messages embedding the skill workflow, the family's capability
-  summary, and its op signatures.
+**WS2-lite (core) — one prompt:**
+
 - `edit_mermaid_diagram` — args `{ source: string }`; returns the
   parse → narrow → mutate → verify → serialize recipe with the anti-pattern
-  warnings, parameterized with the caller's source.
+  warnings, parameterized with the caller's source. (This is the doctrine
+  the linter's anti-pattern codes police; delivering it is the point of the
+  whole workstream.)
 
-**Methods**: `resources/list`, `resources/read`, `resources/templates/list`,
-`prompts/list`, `prompts/get`. The surface is static per package version:
+**WS2-full (gated)** adds `agentic-mermaid://styles`, the
+`author_mermaid_diagram` prompt, and anything else the demand signal
+justifies. Gate: see Verification below.
+
+**Methods**: `resources/list`, `resources/read`, `prompts/list`,
+`prompts/get`. The surface is static per package version:
 capabilities advertise `listChanged: false`; `resources/subscribe` is not
 implemented and its absence is declared, never silently ignored.
 
@@ -224,14 +247,12 @@ authority on exact codes per era.
 - **Unit (per era)**: each method handled under legacy handshake and under
   modern per-request `_meta`; malformed modern requests rejected per
   `modernRequestMetaProblems`; unknown resource URI and unknown prompt name
-  produce the revision-correct errors; template expansion
-  (`agentic-mermaid://ops/flowchart`) resolves; an unregistered family in
-  the template errors rather than 200-with-empty.
+  produce the revision-correct errors.
 - **Drift guards**: `resources/read` of `capabilities` deep-equals the live
   registry projection; the embedded skill string equals
-  `skills/agentic-mermaid-diagram-workflow/SKILL.md` byte-for-byte; prompt
-  bodies contain the current op signatures (regenerating registries must
-  fail these tests until surfaces are rebuilt).
+  `skills/agentic-mermaid-diagram-workflow/SKILL.md` byte-for-byte; the
+  prompt's recipe is pinned to the embedded skill content (regenerating the
+  skill must fail the guard until the prompt surface is rebuilt).
 - **Protocol matrix** (`eval/mcp-protocol/cases.json`, currently 13 cases):
   add data-driven cases — modern `resources/read` missing `_meta` (400,
   -32602), unknown URI (error case), `prompts/get` with missing required arg,
@@ -248,27 +269,29 @@ authority on exact codes per era.
   era-matrix unit tests and the new protocol cases; reverting the embedded
   skill regeneration fails the drift guard. State both in the PR.
 
-### Verification / acceptance (the value demonstration)
+### Verification / acceptance — staged by evidence
 
-A/B on the existing instrument: run the `eval/agent-usage` live harness
-(`eval:agent-live`) through an MCP-only client configuration —
+Heavy verification is not bought before a cheap signal justifies it:
 
-- **Condition A**: tools only (today's surface).
-- **Condition B**: resources + prompts available; the session preamble
-  instructs the client to load the skill resource (or start from
-  `edit_mermaid_diagram`), mirroring Flint's documented step 1.
-
-Metric: anti-pattern findings per session from `lintAgentTrace`
-(`REGENERATE`, `SERIALIZE_WITHOUT_VERIFY`, `VERIFY_NOT_INSPECTED`,
-`STRING_CONCAT`), ≥ 20 sessions per condition, at two model tiers (one
-frontier, one small — Flint's capability-gradient finding predicts the
-larger effect on the small model). Results are reported in
-`eval/agent-usage/` alongside the existing baseline **whatever they show** —
-a null result is reportable and would cap further investment in prompt
-surface area.
-
-Acceptance: era-matrix + conformance + drift guards green; differential
-parity green; A/B executed and written up.
+- **Stage 0 (ships with WS2-lite)**: instrumentation. Hosted request logs
+  count `resources/read` and `prompts/get` (the observability posture from
+  the abuse-controls plan — counts, not content). WS2-lite acceptance:
+  era-matrix units, protocol cases, conformance, drift guards, local/hosted
+  differential parity all green, and the counters live.
+- **Stage 1 — demand gate for everything downstream**: sustained
+  third-party fetches (default: ≥25 distinct client sessions reading a
+  resource in a 30-day window; threshold owner-adjustable when the counter
+  ships). No fetches → the channel is dead; WS2-full and WS4 stay out of
+  `TODO.md`, and that is a finding, not a failure.
+- **Stage 2 — pilot** (gate fired): ~5 `eval:agent-live` sessions on one
+  small model, MCP-only client, doctrine served vs not, scored by
+  `lintAgentTrace` anti-pattern counts. Cheap answer to "does served
+  doctrine change behavior at all?"
+- **Stage 3 — full A/B** (pilot shows an effect): ≥20 sessions per
+  condition at two model tiers (one frontier, one small — Flint's
+  capability-gradient finding predicts the larger effect on the small
+  model). Results land in `eval/agent-usage/` **whatever they show**; a
+  null result is reportable and caps further prompt-surface investment.
 
 ### Risks
 
@@ -277,9 +300,9 @@ parity green; A/B executed and written up.
 - *Hosted cache staleness across releases* — cache key includes package
   version; a deploy-time test fetches `resources/read` and asserts the
   version stamp.
-- *Prompt bloat* — prompts embed excerpts (family capability + op
-  signatures), never whole documents; a size ceiling test (≤ 16 KiB per
-  prompt result) keeps them cheap to carry.
+- *Prompt bloat* — the prompt embeds the skill recipe, never whole
+  documents; a size ceiling test (≤ 16 KiB per prompt result) keeps it
+  cheap to carry.
 
 ---
 
@@ -342,9 +365,9 @@ boundary.
   coarse (warning on diagrams that don't actually use the smallest size),
   the refinement path is a scene-walk over rendered text runs — noted, not
   specced.
-- Stage 2 (same PR or immediate follow-up): `fitStrategy: 'warn' | 'error'`
-  (default `'warn'`); `'error'` turns the condition into a structured render
-  error for pipelines that must never publish an unreadable artifact.
+- Stage 2 (**cut from committed scope**): `fitStrategy: 'error'` — a hard
+  failure mode duplicates what any caller can do by treating the warning as
+  fatal. Build only if a consumer asks for it in their own words.
 - Stage 3 (explicitly deferred): density negotiation via ELK spacing
   modulation before glyph shrink. Requires its own design against the
   layout rubric and drift sentinel; out of scope here.
@@ -370,9 +393,10 @@ boundary.
   resolution math rather than to fixture-specific numbers.
 - **Determinism**: two renders of the same input produce identical warning
   lists (ordering included).
-- **Error-mode test** (stage 2): `fitStrategy: 'error'` converts the
-  condition into the documented structured error; `render_png` MCP path
-  returns it in the tool-error envelope required by ≥ 2025-11-25 revisions.
+- **Error-mode test** (only if stage 2 is ever built): `fitStrategy:
+  'error'` converts the condition into the documented structured error;
+  `render_png` MCP path returns it in the tool-error envelope required by
+  ≥ 2025-11-25 revisions.
 - **Red→green statement**: reverting the emission leaves the contract and
   property tests failing; state the count in the PR.
 
@@ -418,6 +442,15 @@ already validates — see `mcpClientCapabilitiesProblems`'s namespaced
 `extensions` check) lets the hosted server ship an interactive editor into
 the chat client with the tool-call consent path intact. Flint's
 `create_chart_view` is the precedent.
+
+### Build gate
+
+WS4 does not enter `TODO.md` on sequencing alone. It requires **both**:
+WS2-lite deployed, and its Stage 1 demand gate fired (sustained third-party
+pulls on the hosted resource/prompt surface — the counter and default
+threshold live in WS2's verification section). A hosted surface nobody
+fetches does not need an interactive editor; if the gate never fires, WS4
+never builds, and the plan considers that a correct outcome.
 
 ### Contract
 
@@ -549,6 +582,14 @@ rather than read precise values"). The ledger makes our defaults reviewable
 *as a set* and exposes which ones are validated research versus heuristic
 convention — the aesthetics addendum's lesson 2.
 
+### Build gate
+
+Opportunistic, not on any critical path: build alongside the next PR that
+touches a rostered constant (WS3's `minLabelPx` is a natural companion), or
+standalone when convenient. The roster is deliberately bounded to
+`src/agent/quality.ts`, `src/layout-rubric.ts`, and the shipped color
+contract — not "every constant in the repo", which is a tarpit.
+
 ### Contract
 
 A **generated** document, `docs/design/perceptual-constants.md`, emitted by
@@ -642,7 +683,14 @@ generator(name)`, and `expectations` names the verify warnings the case is
 *supposed* to produce (an overlong-label stressor EXPECTS
 `LABEL_OVERFLOW`). Existing scenario sources are **referenced, not
 copied** — `eval/visual-rubric/scenarios.ts` stays authoritative for its
-letters and keeps its own pins.
+letters and keeps its own pins. Corpus-sourced cases likewise **reference
+their `divergences.json` entry** instead of restating expectations, so each
+source keeps exactly one ledger.
+
+**Build gate for the core**: the next layout-touching PR that needs visual
+evidence anyway (per good-pr dimension 2), or standalone when the owner
+wants it — the registry and sheet are then that PR's evidence mechanism
+rather than extra work beside it.
 
 **2. Contact sheet, engineer surface** (`bun run contact:sheet:stressors`):
 two artifacts from one registry —
@@ -660,10 +708,12 @@ manifest** (case ids, per-case render SHA-256, metric values) is the
 hash-pinned artifact; the HTML is regenerated from it and size-ceilinged
 but not byte-pinned.
 
-**3. Site gallery, public surface** (generated page in the website build,
-`website/src/generated/` ephemeral as usual, covered by `website:check`):
-renders the same registry through the site design system. Presentation
-rules — the no-test-page-aesthetics clause:
+**3. Site gallery, public surface — GATED follow-up** (gate: the engineer
+sheet proves useful in at least one real PR review first). A generated page
+in the website build (`website/src/generated/` ephemeral as usual, covered
+by `website:check`) rendering the same registry through the site design
+system. Presentation rules — the no-test-page-aesthetics clause, contract
+text for whenever this ships:
 - The public **showcase** gallery (existing samples surface) leads with
   real diagrams under default and flagship looks: large renders, unified
   whitespace, code secondary. Stressors never mix into it.
@@ -675,9 +725,11 @@ rules — the no-test-page-aesthetics clause:
 - Both pages follow DESIGN.md: flat panels, hairline borders, serif
   headings, terracotta as the single accent; no SaaS gloss.
 
-**4. Convergence rule**: PNG grid, HTML sheet, and site page render the
-same registry through the same render pipeline; a test compares case-id
-sets across all three so they cannot diverge in membership.
+**4. Convergence rule**: the PNG grid and HTML sheet render the same
+registry through the same render pipeline; a test compares case-id sets so
+they cannot diverge in membership. The test extends to the site page when
+(and only when) that surface exists — no convergence machinery for
+surfaces that don't.
 
 ### Testing plan
 
@@ -697,9 +749,10 @@ sets across all three so they cannot diverge in membership.
 - **Self-containment + budget**: the HTML sheet passes the
   no-external-reference lint (shared with WS4) and a measured size
   ceiling.
-- **Site coverage**: `website:check` covers the gallery page's clean
-  regeneration; a Playwright smoke (preinstalled Chromium) asserts the
-  page renders and shows the registry's case count.
+- **Site coverage** (ships with the gated site page, not the core):
+  `website:check` covers the gallery page's clean regeneration; a
+  Playwright smoke (preinstalled Chromium) asserts the page renders and
+  shows the registry's case count.
 - **First-find regression**: the `<br>`-in-class-note artifact is filed
   during implementation (issue or `divergences.json` entry, whichever the
   triage supports) with a pinned test either way — the sheet's first
@@ -740,36 +793,62 @@ sets across all three so they cannot diverge in membership.
 
 ---
 
-## Sequencing and rollout
+## Parked — the paired outcome eval
 
-1. **WS1** (independent, smallest): land the eval + numbers; update README
-   and comparison.md.
-2. **WS5** (independent, small): the ledger lands early so WS3's floor and
-   WS6's captions cite it rather than retrofit it.
-3. **WS3 stage 1** (independent): warning + option + parity; stage 2
-   (`fitStrategy: 'error'`) immediately after or in the same PR if small.
-4. **WS6** (independent): registry + engineer sheet first; the site gallery
-   page may follow in a second PR once the sheet is stable.
-5. **WS2**: resource/prompt surfaces + era matrix + differential parity;
-   then run the A/B and write it up.
-6. **WS4**: after WS2, behind the capability gate.
+The research note's highest-value recommendation is deliberately **not** a
+workstream here, and the omission must be visible rather than silent. The
+item: a paired outcome evaluation — the same task set driven by two agents,
+one using the typed workflow (parse → narrow → mutate → verify →
+serialize), one regenerating raw Mermaid against a stock renderer — graded
+pairwise by a VLM judge (the `docs/quality.md` axes) *plus* the
+deterministic rubric, win/tie/loss with a sign test, at two or three model
+tiers. It is the experiment that would prove the product thesis outright
+and test Flint's capability-gradient prediction on this surface; it is also
+the most expensive item in the research note (harness work plus on the
+order of a hundred live agent sessions plus judge spend).
 
-Each lands as its own PR (WS2 may split into local-surface and
-hosted-surface PRs if the diff grows); every PR follows the good-pr
-dimensions, and none is opened without an explicit request. Documentation
-updates ship with their workstream, not batched at the end:
-`docs/features.md`, `CHANGELOG.md`, `llms.txt`, `Instructions_for_agents.md`
-(WS2: "load the skill resource first" becomes the documented step 1 for
-MCP-only clients), `docs/config.md` (WS3 option), MCP docs and directory
-listings (WS2/WS4).
+That combination — highest value, highest cost — makes it an owner
+decision, not something a plan should smuggle in by inclusion. Unparking
+requires an explicit go (and a spend ceiling); it then receives its own
+spec section covering task derivation from the corpus, judge protocol, and
+significance testing, mirroring Flint's Section 5.2 methodology. Until
+then, WS1's compactness number is the cheap proxy the README can cite.
+
+## Execution order
+
+**Core — now, any order, one PR each** (WS2-lite may split local/hosted if
+the diff grows):
+
+1. **WS1** — `eval/edit-cost`, bytes only; README + comparison.md cite the
+   number.
+2. **WS3 stage 1** — the warning, the `minLabelPx` option, backend parity.
+3. **WS2-lite** — two resources, one prompt, both eras, drift guards,
+   demand counters.
+
+**Gated — each enters `TODO.md` only when its named gate fires** (gates
+defined in the workstream sections): WS6 core (next layout-touching PR
+needing visual evidence), WS5 (next PR touching a rostered constant),
+WS2-full → then WS4 (the WS2 Stage 1 demand signal, then the pilot), WS6
+site page (the sheet proves useful in a real review).
+
+**Parked** — the outcome eval, awaiting an explicit decision.
+
+Every PR follows the good-pr dimensions, states its red→green evidence,
+and is opened only when explicitly requested. Documentation ships with its
+workstream, not batched at the end: `docs/features.md`, `CHANGELOG.md`,
+`llms.txt`, `Instructions_for_agents.md` (WS2-lite: "load the skill
+resource first" becomes the documented step 1 for MCP-only clients),
+`docs/config.md` (WS3 option), MCP docs and directory listings
+(WS2/WS4).
 
 ## Acceptance summary
 
 | WS | Proof it works (CI) | Proof it's worth it |
 |---|---|---|
 | WS1 | determinism + coverage-floor + oracle + check-mode tests | RESULTS.md headline + scaling curve, cited in README/comparison |
-| WS2 | era-matrix units, protocol cases, conformance, drift guards, local/hosted differential | agent-usage A/B: anti-pattern rate with vs without served doctrine, two model tiers |
+| WS2-lite | era-matrix units, protocol cases, conformance, drift guards, local/hosted differential, demand counters live | staged: fetch counts (Stage 1) → pilot (Stage 2) → full A/B (Stage 3), each bought only if the prior stage fires |
 | WS3 | contract + property + parity + determinism tests, hosted budget case | corpus scan: N silently-unreadable renders today → 0 silent (all warned) |
 | WS4 | self-containment lint, gating matrix, E2E round trip, App≡CLI byte equivalence, size budget | adoption counts post-release + recorded demo; lab proof is the round trip |
 | WS5 | check mode, completeness vs roster, determinism | the ledger itself; `heuristic-default` count as the standing evidence backlog |
-| WS6 | registry expectations, manifest pinning, caption correctness, convergence, website:check, size ceiling | the find log (first entry: the `<br>` note artifact); one designed sheet replacing ad-hoc PR galleries; the published torture-test page |
+| WS6 core | registry expectations, manifest pinning, caption correctness, two-surface convergence, size ceiling | the find log (first entry: the `<br>` note artifact); one designed sheet replacing ad-hoc PR galleries |
+| WS6 site page (gated) | website:check coverage, Playwright smoke, presentation review vs DESIGN.md | the published torture-test page as the honesty artifact cited in comparison.md |
