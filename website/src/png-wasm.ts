@@ -72,7 +72,10 @@ export async function renderMermaidPNGWasm(source: string, opts: RenderOptions &
     graphical.rasterDimensions,
   )
   const fontBuffers = FONT_INPUTS.map(({ bytes }) => bytes)
-  const warnings = buildPngFontWarnings(findUncoveredScriptsFromBuffers(svg, fontBuffers))
+  const warnings = [
+    ...buildPngFontWarnings(findUncoveredScriptsFromBuffers(svg, fontBuffers)),
+    ...graphical.legibilityWarnings,
+  ]
   const resvg = new Resvg(svg, {
     background: graphical.rasterBackground,
     fitTo: { mode: 'zoom', value: 1 },

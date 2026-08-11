@@ -18,7 +18,7 @@ import {
   renderMermaidPNG, renderMermaidPNGWithReceipt,
   layoutMermaidWithReceipt,
 } from '../agent/index.ts'
-import type { PngFontWarning } from '../agent/png.ts'
+import type { PngRasterWarning } from '../agent/png.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { collectBatched } from '../shared/batched.ts'
 import type {
@@ -125,6 +125,7 @@ export const FLAG_SPECS: Record<string, { arg?: string }> = {
   // the unknown-flag gate cannot reject them).
   'scale': { arg: 'N' }, 'bg': { arg: 'COLOR' },
   'fit-width': { arg: 'PX' }, 'fit-height': { arg: 'PX' }, 'o': { arg: 'FILE' },
+  'min-label-px': { arg: 'PX' },
 }
 
 export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
@@ -138,6 +139,7 @@ export const PNG_CLI_FLAG_BINDINGS = Object.freeze({
   scale: Object.freeze(['scale']),
   background: Object.freeze(['bg']),
   fitTo: Object.freeze(['fit-width', 'fit-height']),
+  minLabelPx: Object.freeze(['min-label-px']),
   fontDirs: Object.freeze(['font-dirs']),
   loadSystemFonts: Object.freeze(['system-fonts']),
   onWarning: Object.freeze([]),
@@ -632,6 +634,11 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       : fitHeight !== undefined
         ? { height: fitHeight }
         : undefined
+    const minLabelPx = typeof args.flags['min-label-px'] === 'string' ? Number(args.flags['min-label-px']) : undefined
+    if (minLabelPx !== undefined && (!Number.isFinite(minLabelPx) || minLabelPx < 0)) {
+      process.stderr.write('am render --min-label-px expects a non-negative finite number\n')
+      return EXIT_ARG_ERROR
+    }
     const fontDirs = typeof args.flags['font-dirs'] === 'string'
       ? args.flags['font-dirs'].split(',').map(s => s.trim()).filter(Boolean)
       : undefined
@@ -639,7 +646,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
     const { certificates: _certificates, targetWidth: _targetWidth, ...sharedOptions } = formatOptions
-    return renderPngSync(source, { ...sharedOptions, scale, background, fitTo, fontDirs, loadSystemFonts }, outFile, json, configWarnings)
+    return renderPngSync(source, { ...sharedOptions, scale, background, fitTo, minLabelPx, fontDirs, loadSystemFonts }, outFile, json, configWarnings)
   }
   // Loop 9 M3/M4, #7645: layout = layout shape; unicode is the default text
   // renderer; `--security strict` enforces the shared SVG output-security policy.
@@ -820,13 +827,14 @@ function emitConfigWarnings(warnings: LayoutWarning[], prefix: string): void {
 
 function renderPngSync(source: string, opts: PngOptions, outFile: string, json: boolean, configWarnings: LayoutWarning[] = []): number {
   try {
-    // Glyph-coverage warnings (CJK/emoji without a covering font) go to
-    // stderr — the PNG itself can't show what silently became tofu — and
+    // Glyph-coverage and legibility warnings (CJK/emoji without a covering
+    // font; text rasterized below the minLabelPx floor) go to stderr — the
+    // PNG itself can't show what silently became tofu or unreadable — and
     // ride along in the --json envelope for programmatic callers.
-    const fontWarnings: PngFontWarning[] = []
-    const rendered = renderMermaidPNGWithReceipt(source, { ...opts, onWarning: w => fontWarnings.push(w) })
+    const rasterWarnings: PngRasterWarning[] = []
+    const rendered = renderMermaidPNGWithReceipt(source, { ...opts, onWarning: w => rasterWarnings.push(w) })
     const png = rendered.png
-    const warnings: Array<PngFontWarning | LayoutWarning> = [...configWarnings, ...fontWarnings]
+    const warnings: Array<PngRasterWarning | LayoutWarning> = [...configWarnings, ...rasterWarnings]
     writeFileSync(outFile, png)
     for (const w of warnings) process.stderr.write(`am render --format png: warning ${w.code}: ${'message' in w ? w.message : 'configuration has no effect'}\n`)
     if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, receipt: rendered.receipt, runtime: rendered.runtime, warnings }) + '\n')

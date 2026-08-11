@@ -57,6 +57,24 @@ Palette selection uses `options.style`; `theme` and top-level
 
 Local managed artifacts are generated under one exclusively owned server artifact directory with safe names, per-file and aggregate limits, persisted TTL cleanup, MIME type, byte count, and SHA-256 integrity metadata; they are not arbitrary user-chosen file writes. A second live owner fails closed instead of racing a stale manifest. Hosted `render_png` returns base64 only.
 
+## Resources and prompts: discovery, not authoring
+
+Both servers publish two MCP resources and one prompt:
+`agentic-mermaid://skill/diagram-workflow` (the embedded
+`skills/agentic-mermaid-diagram-workflow/SKILL.md`),
+`agentic-mermaid://capabilities` (the same projection as
+`am capabilities --json`), and `edit_mermaid_diagram` (the safe-edit recipe
+wrapped around a caller source). These exist so an MCP-only client receives
+the doctrine without a repo checkout — they are **discovery surfaces, not a
+second authoring API**. There is deliberately no per-family ops resource:
+`describe_sdk` already serves that registry, and duplicating it would create
+a second delivery path to keep in lockstep. All three are generated
+projections with drift guards (`scripts/generate-agent-doc-artifacts.ts`
+embeds the bytes; `agent-doc-sync.test.ts` pins them to their sources), the
+roster is static per package version (`listChanged: false`,
+`resources/subscribe` unimplemented and declared as such), and the list
+methods carry the spec's caching hints in the modern era.
+
 ## Equivalence example
 
 `examples/mcp-vs-cli-complex-diagrams.ts` builds the same complicated diagrams two ways: an Auth Flow flowchart with feedback loops and an Order Domain ER diagram.

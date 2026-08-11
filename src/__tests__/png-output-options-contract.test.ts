@@ -37,11 +37,11 @@ const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 describe('canonical PNG output-option authority', () => {
   test('projects exact portable, native-policy, and native-host field sets', () => {
     expect(PNG_OUTPUT_OPTION_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'fontDirs', 'loadSystemFonts', 'onWarning',
+      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts', 'onWarning',
     ])
-    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS).toEqual(['scale', 'background', 'fitTo'])
+    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS).toEqual(['scale', 'background', 'fitTo', 'minLabelPx'])
     expect(NATIVE_PNG_OUTPUT_POLICY_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'fontDirs', 'loadSystemFonts',
+      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts',
     ])
     expect(NATIVE_PNG_HOST_ONLY_OPTION_FIELDS).toEqual(['fontDirs', 'loadSystemFonts', 'onWarning'])
     expect(Object.isFrozen(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS)).toBe(true)
@@ -151,6 +151,7 @@ describe('canonical PNG output-option authority', () => {
       scale: ['scale'],
       background: ['bg'],
       fitTo: ['fit-width', 'fit-height'],
+      minLabelPx: ['min-label-px'],
       fontDirs: ['font-dirs'],
       loadSystemFonts: ['system-fonts'],
       onWarning: [],

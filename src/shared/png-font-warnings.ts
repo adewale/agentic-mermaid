@@ -1,5 +1,6 @@
 import type { RenderRequestReceipt } from '../render-contract.ts'
 import type { PngRuntimeProvenance } from '../png-contract.ts'
+import type { PngLegibilityWarning } from './png-legibility-warnings.ts'
 
 export interface PngFontWarning {
   code: 'PNG_FONT_COVERAGE'
@@ -8,9 +9,13 @@ export interface PngFontWarning {
   message: string
 }
 
+/** Every structured warning a PNG raster can carry: glyph coverage plus the
+ * BELOW_READABLE_SIZE legibility gate. All flat records, code-discriminated. */
+export type PngRasterWarning = PngFontWarning | PngLegibilityWarning
+
 export interface PngRasterResult {
   png: Uint8Array
-  warnings: PngFontWarning[]
+  warnings: PngRasterWarning[]
   /** Receipt from the same resolved graphical request that produced the PNG. */
   receipt: RenderRequestReceipt
   /** Artifact/runtime provenance, separate from the logical request receipt. */

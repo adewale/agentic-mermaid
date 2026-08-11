@@ -1,4 +1,6 @@
 import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import type { McpResourceContents, McpResourceDefinition } from './resource-surface.ts'
+import type { McpPromptDefinition, McpPromptOutcome } from './prompt-surface.ts'
 import {
   META_SERVER_INFO,
   isLegacyProtocolVersion,
@@ -54,6 +56,12 @@ export interface McpServerSurface<Context> {
    *  Defaults to the single pinned `protocolVersion` when it is a constant. */
   supportedVersions?: readonly string[]
   tools: McpToolDefinition[]
+  /** Static resource roster (both first-party surfaces share MCP_RESOURCES).
+   *  Absent on a custom surface means an empty roster, not an error. */
+  resources?: readonly McpResourceDefinition[]
+  prompts?: readonly McpPromptDefinition[]
+  readResource?(uri: string): McpResourceContents | null
+  getPrompt?(name: string, args: Record<string, unknown> | undefined): McpPromptOutcome
   instructions: string
   handleToolCall(id: number | string | null, params: unknown, context: Context): JsonRpcResponse | Promise<JsonRpcResponse>
 }
@@ -90,10 +98,15 @@ export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
 export const MCP_SERVER_VERSION = PACKAGE_VERSION
-// The product surface is tools-only. Advertising an empty prompt/resource
-// namespace makes clients probe methods we do not implement and overstates the
-// server's scope; optional MCP features must be claimed only when complete.
-const SERVER_CAPABILITIES = { tools: {} } as const
+// Tools plus a static, version-pinned resource/prompt surface. The roster
+// never changes at runtime (listChanged: false is a statement, not a default)
+// and resources/subscribe stays unimplemented — its absence is declared here
+// rather than silently ignored.
+const SERVER_CAPABILITIES = {
+  tools: {},
+  resources: { subscribe: false, listChanged: false },
+  prompts: { listChanged: false },
+} as const
 export const PURE_COMPUTE_ANNOTATIONS = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -458,6 +471,38 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       ? reply(id, discoverResult(surface, servedVersions))
       : unknownMethod(id, req.method); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
+    case 'resources/list': response = reply(id, { resources: surface.resources ?? [] }); break
+    // No resource templates exist (per-family op discovery stays on the
+    // describe_sdk tool), but a client that saw the resources capability may
+    // legitimately probe: answer with the empty roster, not Method-not-found.
+    case 'resources/templates/list': response = reply(id, { resourceTemplates: [] }); break
+    case 'resources/read': {
+      const uri = plainJsonObject(req.params) ? req.params.uri : undefined
+      if (typeof uri !== 'string') {
+        response = rpcError(id, -32602, 'Invalid params: resources/read requires `uri` (string)')
+        break
+      }
+      const contents = surface.readResource?.(uri) ?? null
+      response = contents
+        ? reply(id, contents)
+        : rpcError(id, -32002, `Resource not found: ${uri}`, { uri })
+      break
+    }
+    case 'prompts/list': response = reply(id, { prompts: surface.prompts ?? [] }); break
+    case 'prompts/get': {
+      const params = plainJsonObject(req.params) ? req.params : undefined
+      const name = params?.name
+      if (typeof name !== 'string') {
+        response = rpcError(id, -32602, 'Invalid params: prompts/get requires `name` (string)')
+        break
+      }
+      const args = plainJsonObject(params?.arguments) ? params.arguments : undefined
+      const outcome: McpPromptOutcome = surface.getPrompt?.(name, args) ?? { ok: false, problem: `Unknown prompt: ${name}` }
+      response = outcome.ok
+        ? reply(id, outcome.result)
+        : rpcError(id, -32602, `Invalid params: ${outcome.problem}`)
+      break
+    }
     case 'tools/call': {
       if (!plainJsonObject(req.params)) {
         response = rpcError(id, -32602, 'Invalid params: tools/call requires an object')
@@ -504,7 +549,11 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
 export const LIST_RESULT_TTL_MS = 300_000
 
 /** The operations the spec requires caching hints on, intersected with ours. */
-const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list'])
+// resources/read is included because every served resource is a
+// version-static embedded projection — its content changes only with the
+// package version, exactly like the list rosters (SEP-2549 requires hints
+// on cacheable reads, and ours are all cacheable).
+const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list', 'resources/list', 'resources/templates/list', 'prompts/list', 'resources/read'])
 
 /**
  * Result fields this revision requires, applied on the MODERN path only.

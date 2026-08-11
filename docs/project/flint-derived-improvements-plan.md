@@ -1,6 +1,15 @@
 # Flint-derived improvements: specification and test plan
 
-> **Status: specification, not implemented.** Derived from
+> **Status: core implemented on `claude/flint-chart-deep-dive-nmxhua`
+> (2026-08-11); gated tail unchanged.** WS3 stage 1 (`BELOW_READABLE_SIZE` +
+> `minLabelPx`) and WS2-lite (two resources + one prompt, both eras, drift
+> guards) are implemented with their test plans; the former WS1 was removed
+> by owner decision. One WS3 premise was corrected during implementation:
+> the hosted raster budget **throws** rather than downscaling, so the
+> warning's `cause` is `'fitTo' | 'scale'` — a `raster-budget` cause would
+> require introducing budget-driven downscaling, which remains unbuilt.
+>
+> Original preface: derived from
 > [`research/flint-chart-deep-dive.md`](../../research/flint-chart-deep-dive.md)
 > (2026-08-02, aesthetics addendum 2026-08-03). **Revised 2026-08-03 after a
 > simplification review**: the plan is now a small core built immediately, a
@@ -243,7 +252,9 @@ boundary.
       baseMinLabelPx: number,        // smallest configured text size in the resolved style
       effectiveMinLabelPx: number,   // baseMinLabelPx × effectiveScale
       floorPx: number,               // the active floor
-      cause: 'fitTo' | 'scale' | 'raster-budget'
+      cause: 'fitTo' | 'scale'      // as-built: the raster budget throws
+                                    // rather than downscaling, so it can
+                                    // never be the binding shrink cause
     }
   }
   ```
