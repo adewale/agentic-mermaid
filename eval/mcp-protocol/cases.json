@@ -112,7 +112,7 @@
       "mutation": "Read an off-roster resource URI",
       "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/read", "mcp-name": "agentic-mermaid://nope" },
       "body": { "jsonrpc": "2.0", "id": 114, "method": "resources/read", "params": { "uri": "agentic-mermaid://nope", "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
-      "expected": { "status": 200, "id": 114, "errorCode": -32002 }
+      "expected": { "status": 400, "id": 114, "errorCode": -32602 }
     },
     {
       "name": "unadvertised-resources-subscribe",

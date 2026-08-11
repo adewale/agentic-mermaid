@@ -483,9 +483,12 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
         break
       }
       const contents = surface.readResource?.(uri) ?? null
+      // This revision retired -32002 (ResourceNotFound); unknown URIs are
+      // Invalid params per the reserved-error-code policy the static sweep
+      // in mcp-reserved-error-codes.test.ts enforces.
       response = contents
         ? reply(id, contents)
-        : rpcError(id, -32002, `Resource not found: ${uri}`, { uri })
+        : rpcError(id, -32602, `Invalid params: resource not found: ${uri}`, { uri })
       break
     }
     case 'prompts/list': response = reply(id, { prompts: surface.prompts ?? [] }); break

@@ -400,8 +400,8 @@
       },
       "error/resources-read-unknown-uri": {
         "error": {
-          "code": -32002,
-          "message": "Resource not found: agentic-mermaid://nope",
+          "code": -32602,
+          "message": "Invalid params: resource not found: agentic-mermaid://nope",
           "data": {
             "uri": "agentic-mermaid://nope"
           }
@@ -1280,8 +1280,8 @@
       },
       "error/resources-read-unknown-uri": {
         "error": {
-          "code": -32002,
-          "message": "Resource not found: agentic-mermaid://nope",
+          "code": -32602,
+          "message": "Invalid params: resource not found: agentic-mermaid://nope",
           "data": {
             "uri": "agentic-mermaid://nope"
           }

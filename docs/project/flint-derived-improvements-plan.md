@@ -609,7 +609,7 @@ evidence anyway (per good-pr dimension 2), or standalone when the owner
 wants it — the registry and sheet are then that PR's evidence mechanism
 rather than extra work beside it.
 
-**2. Contact sheet, engineer surface** (`bun run contact:sheet:stressors`):
+**2. Contact sheet, engineer surface** (a `contact:sheet:stressors` script):
 two artifacts from one registry —
 - the flat PNG grid (CI byte-gate, exactly today's mechanism extended);
 - a designed self-contained HTML sheet: DESIGN.md tokens (paper `#F5F0E4`,

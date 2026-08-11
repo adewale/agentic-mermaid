@@ -162,7 +162,7 @@ describe('hosted MCP handshake', () => {
     const parsed = JSON.parse((capabilities?.result as any).contents[0].text)
     expect(Array.isArray(parsed.families)).toBe(true)
     const missing = await handleHostedRequest(rpc('resources/read', { uri: 'agentic-mermaid://nope' }), makeContext())
-    expect(missing?.error?.code).toBe(-32002)
+    expect(missing?.error?.code).toBe(-32602)
     expect(missing?.error?.data).toEqual({ uri: 'agentic-mermaid://nope' })
     const badParams = await handleHostedRequest(rpc('resources/read', {}), makeContext())
     expect(badParams?.error?.code).toBe(-32602)
