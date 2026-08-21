@@ -1,6 +1,10 @@
 # Project Backlog
 
-`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Explicitly status-marked landing/completion evidence lives under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
+`TODO.md` is the canonical owner-facing inventory of unfinished work, owner
+decisions, blocked observations, and evidence-triggered watch items. Explicitly
+status-marked landing/completion evidence lives under `docs/project/archive/`;
+current capabilities live in `docs/features.md` and generated registry
+surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
