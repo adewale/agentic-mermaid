@@ -38,10 +38,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Shared outline authority adds one cacheable chunk to the Timeline route;
     // no additional family or ELK chunk is fetched.
     maxRawBytes: 729_394,
-    maxGzipBytes: 273_545,
+    maxGzipBytes: 273_544,
     // The same Bun build differs by three compressed bytes across Linux and
     // macOS; exact hashes remain enforced on the recorded Linux toolchain.
-    maxBrotliBytes: 249_790,
+    maxBrotliBytes: 249_799,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
