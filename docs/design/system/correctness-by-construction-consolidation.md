@@ -48,7 +48,7 @@ stops reproducing or the current contact is not closed. Regenerate with
 |---|---|---|
 | XYChart | Renderer parsing is the grammar authority; the agent projects its AST and uses its text serializer. Parsed-diagram rendering now preserves quoted multiword axis titles and authored ranges instead of silently inferring a replacement scale. | Direct raw-source rendering, marks, and mutation policy. |
 | Flowchart and State | Rendering, clipping, cardinal ports, and every existing route-shortening/repair path consume the same boundary and side-attachment declaration. This fixes State start/end and `sm-circ` clipping that previously used layout-box radii and prevents later repairs from restoring a bounding-box endpoint on semantic polygons or small circles. Arrow markers now reference their actual tips rather than extending one marker unit through the outline. State mutation also preserves an implicit endpoint as an explicit bare state when its last transition is removed. | ELK layout, side choice, bundling, label placement, marker dimensions, and the removed general-purpose endpoint router. |
-| Other 12 families | No production change. | Their family-specific layout and graphical geometry do not use this Flowchart/State shape profile or Flowchart arrow-marker resource. |
+| Other 13 families | No production change. | Their family-specific layout and graphical geometry do not use this Flowchart/State shape profile or Flowchart arrow-marker resource. |
 
 This separation matters: a flowchart silhouette model must not be smuggled into
 Sequence, Gantt, Radar, or other unrelated layout systems.
