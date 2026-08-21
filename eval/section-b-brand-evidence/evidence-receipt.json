@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 275,
-    "treeSha256": "365fb84d1c1670b1bece800000f4ead50b3adff08904369aeefce24430e27364"
+    "count": 277,
+    "treeSha256": "c168e9e544409ec2aadc211ff26a48259aa23a5fb65e805024213d49d7fc0a86"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,18 +62,18 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "25c51fa2d5fd19324f9b2406b9200578e1da8761038378267c7c9c775de79cf7",
-      "pngSha256": "68d983f94ac17e1a1e4d3df9ddbfe55d6df2f6eb4d1dbb0f83cdd0195ac65a93"
+      "svgSha256": "f73c1aae037fcb4f424f1c5b0c6f5aa0f4e640f0fdfce01a1d47ed09a9ce1094",
+      "pngSha256": "99555fa073f4c80647d3a46f2ed799483917d2fb605790282e613c0de6bd3173"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "d32e1a70ae53b0336355e1042d5b114c31f1132fec577f07d717a83b65fd036a",
-      "pngSha256": "9666940ef9cd6e988800b52e930f07da2bf870b7513805fd6623432c74984b41"
+      "svgSha256": "401a829ae7f26d6bd82876cec0127e8fdeeb8ad647a13df7f1c9bddcfed08bb8",
+      "pngSha256": "4ddcc7fae698bf6b8b0fec596520831df29f304a3fb585a5e46d72cc976ee3f6"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "ae76b8e4ed49cc6c35f91155891dd207ae7e62a47a0092071e42d3c88170cb05",
-      "pngSha256": "40dd6a4215ff73431d8e08d067652faf84d974a1d2cedc60730b56f36b4a9dce"
+      "svgSha256": "b49cb3ad8737e4afcb6be705e524b6d1ad317a0bc3df4ac52e3feb38dafa90f8",
+      "pngSha256": "5d700bc6bca928f9dd0c913ceac0d6ac2119095235826471702f898691d5f344"
     }
   },
   "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
@@ -87,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "e078e050d62e9ae5c80335fce6d5e4b0e2d025714d10497c78cbad5bb5bf4b5a",
-    "reviewedAt": "2026-08-03",
-    "reviewer": "Codex coding agent, during the PR #192 conflict-resolution pass",
+    "artifactSha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9",
+    "reviewedAt": "2026-08-21",
+    "reviewer": "Codex coding agent, during the PR #220 rebase verification",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "e078e050d62e9ae5c80335fce6d5e4b0e2d025714d10497c78cbad5bb5bf4b5a"
+      "sha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9"
     }
   ]
 }
