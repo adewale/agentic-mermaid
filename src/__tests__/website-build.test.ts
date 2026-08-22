@@ -519,6 +519,22 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(SITE, 'agents/workflow/index.html'))).toBe(false)
   })
 
+  test('served workflow skill closes repository-only references', () => {
+    const source = readRepo('skills/agentic-mermaid-diagram-workflow/SKILL.md')
+    const served = read('skills/agentic-mermaid-diagram-workflow/SKILL.md')
+    const repoBlob = 'https://github.com/adewale/agentic-mermaid/blob/main'
+    const refs = Array.from(source.matchAll(/`((?:docs\/|references\/upstream\/)[^`]*)`/g), match => match[1]!)
+
+    expect(refs.length).toBeGreaterThan(0)
+    for (const ref of refs) {
+      const target = ref.startsWith('docs/')
+        ? `${repoBlob}/${ref}`
+        : `${repoBlob}/skills/agentic-mermaid-diagram-workflow/${ref}`
+      expect(served).toContain(`[${ref}](${target})`)
+    }
+    expect(Array.from(served.matchAll(/`(?:docs\/|references\/upstream\/)[^`]*`/g), match => match[0])).toEqual([])
+  })
+
   test('getting started uses installed package bins rather than repository-only paths', () => {
     const page = read('docs/getting-started/index.html')
     expect(page).toContain('npx --no-install agentic-mermaid verify diagram.mmd --json')

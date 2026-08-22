@@ -9,6 +9,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`getting-started.md`](./getting-started.md) | Plain library use: render a Mermaid string to SVG/PNG/ASCII in 5 minutes. |
 | [`api.md`](./api.md) | Library, agent API, output functions, options, CLI/MCP pointers. |
 | [`diagram-families.md`](./diagram-families.md) | Supported Mermaid families, examples, and edit policy. |
+| [`choosing-a-diagram.md`](./choosing-a-diagram.md) | Task-first router: pick the family from the reader's task, with per-choice anti-patterns and verify checks. |
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
 | [`style-authoring.md`](./style-authoring.md) | Style model, stack semantics, field reference, rubric, and validation commands. |
 | [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, CLI commands, and the documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototypes. |
@@ -85,6 +86,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`mutation-testing.md`](./mutation-testing.md) | Mutation lanes, survivor handling, and fault-sensitivity evidence. |
 | [`project/divergences.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/divergences.md) | Deliberate divergences and guardrails. |
 | [`project/lessons-learned.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
+| [`research/tanstack-charts-learnings.md`](https://github.com/adewale/agentic-mermaid/blob/main/research/tanstack-charts-learnings.md) | External survey: what TanStack Charts v0 validates about the agent-native bet, what is worth adopting, and where we deliberately diverge. |
 | [`project/agent-interface-contract-audit-2026-07.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |
 | [`project/complexity-aware-test-portfolio-plan.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/complexity-aware-test-portfolio-plan.md) | Implemented measured migration from overlapping family/style matrices to automatic complexity-aware conformance, variable-strength interaction coverage, and periodic contact-sheet review. |
 | [`contributing/lessons-learned.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
