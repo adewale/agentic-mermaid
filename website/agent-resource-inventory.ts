@@ -6,6 +6,7 @@ export const AI_CATALOG_RESOURCES = [
   { identifier: 'urn:air:agentic-mermaid.dev:llms', type: 'text/markdown', path: '/llms.txt' },
   { identifier: 'urn:air:agentic-mermaid.dev:skill:diagram-workflow', type: 'application/ai-skill+md', path: '/skills/agentic-mermaid-diagram-workflow/SKILL.md' },
   { identifier: 'urn:air:agentic-mermaid.dev:capabilities', type: 'application/json', path: '/capabilities.json' },
+  { identifier: 'urn:air:agentic-mermaid.dev:capabilities-index', type: 'application/json', path: '/capabilities/index.json' },
   { identifier: 'urn:air:agentic-mermaid.dev:examples', type: 'application/json', path: '/examples/index.json' },
   { identifier: 'urn:air:agentic-mermaid.dev:start', type: 'text/markdown', path: '/start.md' },
   { identifier: 'urn:air:agentic-mermaid.dev:instructions', type: 'text/markdown', path: '/agent-instructions.md' },
