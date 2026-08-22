@@ -58,21 +58,19 @@ describe('TEST-3 measured candidate report', () => {
     expect(candidate.observations.fullCoveredUnitSuite.failed).toBe(0)
   })
 
-  test('records precise receipt reductions and unchanged visual output claims against current receipts', () => {
-    const receipts = [
-      ['mermaidDocs', 'eval/mermaid-doc-showcase/gallery-receipt.json'],
-      ['mindmapGitgraph', 'eval/mindmap-gitgraph-content-corpus/gallery-receipt.json'],
-      ['pieHighlight', 'eval/pie-highlightslice/evidence-receipt.json'],
-      ['sectionB', 'eval/section-b-brand-evidence/evidence-receipt.json'],
-      ['paletteRollout', 'eval/palette-rollout/evidence-receipt.json'],
-      ['paletteHarmony', 'eval/palette-harmony/evidence-receipt.json'],
-      ['linkrankFeedbackPacking', 'eval/linkrank-feedback-packing/evidence-receipt.json'],
-    ] as const
-    for (const [key, path] of receipts) {
-      const receipt = JSON.parse(readFileSync(join(ROOT, path), 'utf8'))
-      const count = Array.isArray(receipt.inputs) ? receipt.inputs.length : receipt.inputs?.count ?? receipt.inputCount
-      expect(candidate.receiptDependencyReduction[key].afterInputs, path).toBe(count)
-      expect(candidate.receiptDependencyReduction[key].afterInputs).toBeLessThan(candidate.receiptDependencyReduction[key].beforeInputs)
+  test('keeps the historical receipt-reduction capture internally consistent', () => {
+    // This report is an immutable July 19 measurement. Current gallery receipt
+    // freshness is proved by each gallery's own check; coupling this historical
+    // row to live receipt sizes made unrelated source additions rewrite history.
+    for (const [key, measurement] of Object.entries(candidate.receiptDependencyReduction)) {
+      if (key === 'visualOutputBytesChanged') continue
+      const { beforeInputs, afterInputs, percentReduction } = measurement as {
+        beforeInputs: number
+        afterInputs: number
+        percentReduction: number
+      }
+      expect(afterInputs, key).toBeLessThan(beforeInputs)
+      expect(percentReduction, key).toBeCloseTo((beforeInputs - afterInputs) / beforeInputs * 100, 1)
     }
     expect(candidate.receiptDependencyReduction.visualOutputBytesChanged).toBe(0)
   })

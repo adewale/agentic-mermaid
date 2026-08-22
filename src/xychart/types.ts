@@ -32,6 +32,11 @@ export interface XYChart {
 
 /** Axis configuration — categorical (labels) or numeric (range) */
 export interface XYAxis {
+  /** True when an axis directive was authored. Auto-derived renderer ranges
+   * deliberately leave this unset so source projections never invent syntax. */
+  authored?: true
+  /** Component provenance keeps auto-derived renderer ranges out of source AST projections. */
+  rangeAuthored?: true
   /** Optional axis title/label */
   title?: string
   /** Categorical labels (e.g., ["jan", "feb", "mar"]) — mutually exclusive with range */
@@ -48,7 +53,9 @@ export interface XYChartSeries {
   label?: string
   /** Data values — one per category, or evenly spaced across numeric range. */
   data: number[]
-  /** Mermaid 11.16 per-point text labels, index-aligned with data by parser construction. */
+  /** Mermaid 11.16 per-point text labels, index-aligned with data by parser construction.
+   * The renderer may ignore labels for a series kind, but the syntax AST is
+   * lossless so other consumers never delete authored text. */
   pointLabels?: Array<string | undefined>
 }
 

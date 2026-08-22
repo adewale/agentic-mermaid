@@ -206,3 +206,18 @@ describe('recursive remove_state', () => {
     expect(d.body.states.some(s => s.id === 'A')).toBe(true)
   })
 })
+
+describe('implicit-state preservation after transition removal', () => {
+  test('surviving implicit endpoints become bare declarations before serialization', () => {
+    const d = apply(state('stateDiagram-v2\n  A --> B\n'), { kind: 'remove_transition', index: 0 })
+    expect(d.body.states).toEqual([
+      expect.objectContaining({ id: 'A', declaredBare: true }),
+      expect.objectContaining({ id: 'B', declaredBare: true }),
+    ])
+    roundTrips(d)
+    const reparsed = parseMermaid(serializeMermaid(d))
+    expect(reparsed.ok && reparsed.value.body.kind === 'state'
+      ? reparsed.value.body.states.map(item => item.id)
+      : []).toEqual(['A', 'B'])
+  })
+})

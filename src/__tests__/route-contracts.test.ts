@@ -1397,14 +1397,14 @@ describe('repairs never increase edge crossings', () => {
 })
 
 describe('semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3)', () => {
-  it('shapePorts puts the four ports at the bbox side midpoints for every shape', () => {
+  it('shapePorts derives cardinal ports from each painted outline', () => {
     const node = { id: 'X', label: 'X', shape: 'diamond' as const, x: 100, y: 50, width: 80, height: 40 }
     for (const shape of ['diamond', 'rectangle', 'circle', 'stadium', 'hexagon', 'cylinder'] as const) {
       const ports = shapePorts({ ...node, shape })
       expect(ports.N).toEqual({ x: 140, y: 50 })
-      expect(ports.E).toEqual({ x: 180, y: 70 })
+      expect(ports.E).toEqual({ x: shape === 'circle' ? 160 : 180, y: 70 })
       expect(ports.S).toEqual({ x: 140, y: 90 })
-      expect(ports.W).toEqual({ x: 100, y: 70 })
+      expect(ports.W).toEqual({ x: shape === 'circle' ? 120 : 100, y: 70 })
     }
   })
 

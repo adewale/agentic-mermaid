@@ -16,15 +16,14 @@
 //   bar  [<n>, …]   /  bar  <name>  [<n>, …]
 //   line [<n>, …]   /  line <name> [<n>, …]
 //
-// Structured-or-opaque: any other non-blank, non-comment family line
-// (multi-statement `;` lines, quoted text, weird tokens) returns null.
+// Structured-or-opaque: any unsupported or malformed family statement returns
+// null. Quoted text and quote-aware semicolon-separated statements are part of
+// the shared renderer grammar and therefore remain structured.
 // Universal accTitle/accDescr directives are removed and preserved by the
 // source envelope before this family grammar runs.
-// Other unmodeled syntax falls back to a lossless opaque body. We deliberately model
-// ONLY bare (unquoted) text for titles, axis names, series names, and
-// categories so the serializer's canonical output re-parses identically under
-// the legacy parser (no quoting/escaping round-trip hazards). Render support is
-// unchanged — the legacy renderer keeps parsing the canonical source we emit.
+// Other unmodeled syntax falls back to a lossless opaque body. Mutations retain
+// a deliberately narrower bare-text input contract, but already-authored
+// quoted values are parsed and serialized by the shared lossless authority.
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -35,18 +34,29 @@ import type {
 import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
+import { parseXYChart, renderXYChartText } from '../xychart/parser.ts'
 
 // ---- Number format ----------------------------------------------------------
 //
-// Canonical number format is `String(n)` for finite n. JS `String(number)`
-// emits the shortest round-tripping decimal, and the legacy parser reads values
-// with `parseFloat`, so `parseFloat(String(n)) === n` for every finite n
-// (0.1 → "0.1", -5 → "-5", 2.5 → "2.5", 42 → "42"). We reject non-finite
-// (NaN / Infinity) at every entry point so a structured body never serializes a
-// token the legacy parser would turn into NaN.
+// Mermaid 11.16 accepts decimal notation but not exponent notation. JavaScript
+// switches `String(number)` to exponents for large and small finite values, so
+// expand that shortest round-tripping representation back into a plain decimal.
+// This makes every finite value admitted by mutation serializable by the same
+// grammar that must reparse it.
 
 function formatNumber(n: number): string {
-  return String(n)
+  if (!Number.isFinite(n)) throw new Error(`Cannot serialize non-finite XYChart number: ${String(n)}`)
+  if (Object.is(n, -0)) return '-0'
+  const source = String(n)
+  const match = source.match(/^(-?)(\d)(?:\.(\d+))?e([+-]?\d+)$/i)
+  if (!match) return source
+
+  const sign = match[1]!
+  const digits = match[2]! + (match[3] ?? '')
+  const decimalIndex = 1 + Number(match[4])
+  if (decimalIndex <= 0) return `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`
+  if (decimalIndex >= digits.length) return `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
+  return `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`
 }
 
 function isFiniteNumber(n: unknown): n is number {
@@ -54,10 +64,6 @@ function isFiniteNumber(n: unknown): n is number {
 }
 
 // ---- Parser -----------------------------------------------------------------
-
-const NUMBER = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`
-const RANGE_RE = new RegExp(`^(${NUMBER})\\s*-->\\s*(${NUMBER})$`)
-const HEADER_RE = /^xychart(?:-beta)?(?:\s+(horizontal|vertical))?$/i
 
 // A bare text token must not introduce quoting, brackets, the range operator,
 // or statement separators — anything that wouldn't round-trip through the
@@ -74,208 +80,48 @@ function isBareText(value: string): boolean {
   return value.length > 0 && BARE_TEXT_RE.test(value) && !value.includes('-->')
 }
 
-/** Strip a single layer of matching surrounding quotes. Mermaid's xychart
- *  syntax quotes text (and the family's own example does), so a model that
- *  quotes a title/axis/series name must not silently drop the whole chart to an
- *  opaque body. We accept quoted text whose inner content is otherwise bare and
- *  serialize it back canonically (unquoted); quoted text that still isn't bare
- *  after unquoting (embedded quotes/brackets/`-->`) legitimately stays opaque. */
-function unquote(value: string): string {
-  const v = value.trim()
-  if (v.length >= 2 && ((v[0] === '"' && v.endsWith('"')) || (v[0] === "'" && v.endsWith("'")))) {
-    return v.slice(1, -1).trim()
-  }
-  return v
-}
-
-/** Unquote then validate as bare text; returns the bare token or null. */
-function bareToken(value: string): string | null {
-  const t = unquote(value)
-  return isBareText(t) ? t : null
-}
-
-function parseNumber(token: string): number | null {
-  if (!new RegExp(`^${NUMBER}$`).test(token)) return null
-  const n = Number.parseFloat(token)
-  return Number.isFinite(n) ? n : null
-}
-
-/** Parse a `[a, b, c]` category list into bare tokens, or null if any token
- *  isn't bare (quoted/empty/bracketed categories fall back to opaque). */
-function parseCategories(inner: string): string[] | null {
-  const parts = inner.split(',').map(p => p.trim())
-  const out: string[] = []
-  for (const p of parts) {
-    const t = bareToken(p)
-    if (t === null) return null
-    out.push(t)
-  }
-  return out.length > 0 ? out : null
-}
-
-/** Parse the value portion of an `x-axis`/`y-axis` directive. axisName === 'x'
- *  additionally accepts categorical forms. Returns the axis or null. */
-function parseAxis(rawValue: string, axisName: 'x' | 'y'): XyChartAxis | null {
-  const value = rawValue.trim()
-  if (value.length === 0) return null
-
-  // Categorical: `[…]` or `<name> [...]` (x-axis only).
-  const catMatch = value.match(/^(.*?)\[([^\[\]]*)\]$/)
-  if (catMatch && axisName === 'x') {
-    const namePart = catMatch[1]!.trim()
-    const categories = parseCategories(catMatch[2]!)
-    if (!categories) return null
-    if (namePart.length > 0) {
-      const name = bareToken(namePart)
-      if (name === null) return null
-      return { name, categories }
-    }
-    return { categories }
-  }
-  if (catMatch) return null // y-axis cannot be categorical
-
-  // Range only: `<min> --> <max>`.
-  const rangeOnly = value.match(RANGE_RE)
-  if (rangeOnly) {
-    const min = parseNumber(rangeOnly[1]!)
-    const max = parseNumber(rangeOnly[2]!)
-    if (min === null || max === null) return null
-    return { range: { min, max } }
-  }
-
-  // Named range: `<name> <min> --> <max>`.
-  const arrowAt = value.indexOf('-->')
-  if (arrowAt >= 0) {
-    // Split the leading name from `<min> --> <max>`: the min is the last token
-    // before the arrow.
-    const before = value.slice(0, arrowAt).trim()
-    const after = value.slice(arrowAt + 3).trim()
-    const max = parseNumber(after)
-    const lastSpace = before.lastIndexOf(' ')
-    if (lastSpace < 0 || max === null) return null
-    const name = bareToken(before.slice(0, lastSpace).trim())
-    const min = parseNumber(before.slice(lastSpace + 1).trim())
-    if (min === null || name === null) return null
-    return { name, range: { min, max } }
-  }
-
-  // Name only (no range, no categories) — legacy accepts this for either axis
-  // (y-axis name only, x-axis title only).
-  const nameOnly = bareToken(value)
-  if (nameOnly !== null) return { name: nameOnly }
-  return null
-}
-
-const SERIES_RE = /^(bar|line)(?:\s+(.+?))?\s+\[([^\[\]]*)\]$/
-
-function splitSeriesPoints(value: string): string[] {
-  const out: string[] = []
-  let token = ''
-  let quoted = false
-  let escaped = false
-  for (const char of value) {
-    if (escaped) { token += char; escaped = false; continue }
-    if (char === '\\' && quoted) { token += char; escaped = true; continue }
-    if (char === '"') { quoted = !quoted; token += char; continue }
-    if (char === ',' && !quoted) { if (!token.trim()) return []; out.push(token.trim()); token = ''; continue }
-    token += char
-  }
-  if (quoted || !token.trim()) return []
-  out.push(token.trim())
-  return out
-}
-
-function parseSeries(line: string, idx: number): XyChartSeries | null {
-  const m = line.match(SERIES_RE)
-  if (!m) return null
-  const kind = m[1] as 'bar' | 'line'
-  const namePart = m[2]?.trim()
-  let name: string | undefined
-  if (namePart !== undefined && namePart.length > 0) {
-    const t = bareToken(namePart)
-    if (t === null) return null
-    name = t
-  }
-  const values: number[] = []
-  const pointLabels: Array<string | undefined> = []
-  for (const tok of splitSeriesPoints(m[3]!)) {
-    const point = tok.match(new RegExp(`^(${NUMBER})(?:\\s+"((?:\\\\.|[^"\\\\])*)")?$`))
-    if (!point) return null
-    const n = parseNumber(point[1]!)
-    if (n === null) return null
-    values.push(n)
-    pointLabels.push(point[2]?.replace(/\\(["\\])/g, '$1'))
-  }
-  if (values.length === 0) return null
-  return { id: `series-${idx}`, kind, name, values, ...(pointLabels.some(label => label !== undefined) ? { pointLabels } : {}) }
-}
-
 /**
- * Parse xychart body lines (header excluded). Returns a structured body only if
- * EVERY non-blank, non-comment line is a modeled title / x-axis / y-axis /
- * series directive using bare text and finite numbers. Otherwise returns null
- * (opaque fallback). A structured body must contain at least one series (the
- * legacy renderer needs data to render).
+ * Project the renderer's grammar AST into the agent AST. This is deliberately
+ * a projection rather than a second parser: syntax recognition, escaping,
+ * statement splitting, and last-writer rules have one authority.
  */
-export function parseXyChartBody(lines: string[]): XyChartBody | null {
-  const body: XyChartBody = { kind: 'xychart', series: [] }
-  let sIdx = 0
-
-  for (const raw of lines) {
-    const line = raw.trim()
-    if (!line) continue
-    if (line.startsWith('%%')) continue
-
-    const titleMatch = line.match(/^title\s+(.+)$/)
-    if (titleMatch) {
-      const title = bareToken(normalizeText(titleMatch[1]!))
-      if (title === null) return null
-      body.title = title
-      continue
+export function parseXyChartBody(lines: readonly string[]): XyChartBody | null {
+  try {
+    const chart = parseXYChart([...lines], { strict: true })
+    if (chart.series.length === 0) return null
+    const projectAxis = (axis: typeof chart.xAxis): XyChartAxis => ({
+      ...(axis.title !== undefined ? { name: axis.title } : {}),
+      ...(axis.categories !== undefined ? { categories: [...axis.categories] } : {}),
+      ...(axis.rangeAuthored && axis.range !== undefined ? { range: { ...axis.range } } : {}),
+    })
+    return {
+      kind: 'xychart',
+      ...(chart.title !== undefined ? { title: chart.title } : {}),
+      ...(chart.accessibility?.title !== undefined ? { accessibilityTitle: chart.accessibility.title } : {}),
+      ...(chart.accessibility?.description !== undefined ? { accessibilityDescription: chart.accessibility.description } : {}),
+      ...(chart.headerOrientation !== undefined ? { horizontal: chart.horizontal } : {}),
+      ...(chart.xAxis.authored ? { xAxis: projectAxis(chart.xAxis) } : {}),
+      ...(chart.yAxis.authored ? { yAxis: projectAxis(chart.yAxis) } : {}),
+      series: chart.series.map((series, index) => ({
+        id: `series-${index}`,
+        kind: series.type,
+        ...(series.label !== undefined ? { name: series.label } : {}),
+        values: [...series.data],
+        ...(series.pointLabels !== undefined ? { pointLabels: [...series.pointLabels] } : {}),
+      })),
     }
-
-    const xMatch = line.match(/^x-axis\s+(.+)$/)
-    if (xMatch) {
-      const axis = parseAxis(xMatch[1]!, 'x')
-      if (!axis) return null
-      body.xAxis = axis
-      continue
-    }
-
-    const yMatch = line.match(/^y-axis\s+(.+)$/)
-    if (yMatch) {
-      const axis = parseAxis(yMatch[1]!, 'y')
-      if (!axis) return null
-      body.yAxis = axis
-      continue
-    }
-
-    if (/^(bar|line)\b/.test(line)) {
-      const series = parseSeries(line, sIdx)
-      if (!series) return null
-      body.series.push(series)
-      sIdx++
-      continue
-    }
-
-    // Unmodeled family line (quoted/`;`-joined/anything else) → opaque.
+  } catch {
     return null
   }
-
-  // The legacy renderer needs at least one data series to render; model the
-  // same floor so a structured body always renders.
-  if (body.series.length === 0) return null
-
-  return body
 }
 
 // ---- Serializer -------------------------------------------------------------
 
 function renderAxis(keyword: 'x-axis' | 'y-axis', axis: XyChartAxis): string {
   const parts: string[] = []
-  if (axis.name !== undefined) parts.push(axis.name)
+  if (axis.name !== undefined) parts.push(renderXYChartText(axis.name, 'token'))
   if (axis.range) parts.push(`${formatNumber(axis.range.min)} --> ${formatNumber(axis.range.max)}`)
-  if (axis.categories) parts.push(`[${axis.categories.join(', ')}]`)
+  if (axis.categories) parts.push(`[${axis.categories.map(value => renderXYChartText(value, 'list')).join(', ')}]`)
   return `  ${keyword} ${parts.join(' ')}`
 }
 
@@ -287,14 +133,14 @@ export function renderXyChart(body: XyChartBody): string {
       : 'xychart-beta'
   const lines: string[] = [header]
   appendAccessibilityLines(lines, body)
-  if (body.title !== undefined) lines.push(`  title ${body.title}`)
+  if (body.title !== undefined) lines.push(`  title ${renderXYChartText(body.title, 'free')}`)
   if (body.xAxis) lines.push(renderAxis('x-axis', body.xAxis))
   if (body.yAxis) lines.push(renderAxis('y-axis', body.yAxis))
   for (const s of body.series) {
-    const namePart = s.name !== undefined ? `${s.name} ` : ''
+    const namePart = s.name !== undefined ? `${renderXYChartText(s.name, 'free')} ` : ''
     const values = s.values.map((value, index) => {
       const label = s.pointLabels?.[index]
-      return `${formatNumber(value)}${label !== undefined ? ` "${label.replace(/(["\\])/g, '\\$1')}"` : ''}`
+      return `${formatNumber(value)}${label !== undefined ? ` ${renderXYChartText(label, 'quoted')}` : ''}`
     })
     lines.push(`  ${s.kind} ${namePart}[${values.join(', ')}]`)
   }
