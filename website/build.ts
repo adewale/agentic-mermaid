@@ -2304,9 +2304,8 @@ const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 
 const SKILL_REPO_BLOB = 'https://github.com/adewale/agentic-mermaid/blob/main'
 function rewriteServedSkillRefs(text: string) {
   return text
-    .replaceAll('`references/upstream/gantt.md`', `[references/upstream/gantt.md](${SKILL_REPO_BLOB}/skills/agentic-mermaid-diagram-workflow/references/upstream/gantt.md)`)
-    .replaceAll('`docs/agent-api-cookbook.md`', `[docs/agent-api-cookbook.md](${SKILL_REPO_BLOB}/docs/agent-api-cookbook.md)`)
-    .replaceAll('`references/upstream/`', `[references/upstream/](${SKILL_REPO_BLOB}/skills/agentic-mermaid-diagram-workflow/references/upstream/)`)
+    .replaceAll(/`(docs\/[^`]+)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/${path})`)
+    .replaceAll(/`(references\/upstream\/[^`]*)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/skills/agentic-mermaid-diagram-workflow/${path})`)
 }
 for (const file of skillFiles) {
   const text = await Bun.file(join(ROOT, 'skills/agentic-mermaid-diagram-workflow', file)).text()

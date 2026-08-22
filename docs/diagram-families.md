@@ -8,6 +8,8 @@ The checked roster and per-family capability states are generated from `FamilyDe
 
 Opaque fallback does not mean unsupported: those bodies parse, render, verify, and round-trip losslessly, but agents should edit preserved source deliberately instead of calling `mutate`.
 
+To pick a family from the reader's task rather than from this inventory, start at [`choosing-a-diagram.md`](./choosing-a-diagram.md).
+
 ## Flowchart
 
 ```mermaid

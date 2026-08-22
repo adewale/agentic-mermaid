@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { WARNING_TIER, type WarningCode, type WarningTier } from '../agent/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const packageJson = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
@@ -15,6 +16,7 @@ function markdownFiles(directory: string): string[] {
 }
 
 const docs = markdownFiles(join(ROOT, 'docs'))
+const research = markdownFiles(join(ROOT, 'research'))
 const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
 
 describe('maintained documentation is derived from current contracts', () => {
@@ -123,7 +125,7 @@ describe('maintained documentation is derived from current contracts', () => {
 
   test('local Markdown links remain closed after archive moves', () => {
     const broken: string[] = []
-    for (const path of docs) {
+    for (const path of [...docs, ...research]) {
       const text = readFileSync(path, 'utf8')
       for (const match of text.matchAll(/(?<!!)\[[^\]]*\]\(([^)]+)\)/g)) {
         const target = match[1]!.split('#')[0]!.split('?')[0]!
@@ -132,6 +134,28 @@ describe('maintained documentation is derived from current contracts', () => {
       }
     }
     expect(broken).toEqual([])
+  })
+
+  test('the family router assigns named warning codes to their runtime tiers', () => {
+    const router = readFileSync(join(ROOT, 'docs', 'choosing-a-diagram.md'), 'utf8')
+    const verification = router.split('## Verify what the family promised')[1] ?? ''
+    const tierNames: Record<string, WarningTier> = { '1': 'structural', '2': 'geometric', '3': 'lint' }
+    const checked = new Set<WarningCode>()
+    const seenTiers = new Set<WarningTier>()
+
+    for (const match of verification.matchAll(/^- \*\*Tier ([123]) — [^*]+:\*\*([\s\S]*?)(?=^- \*\*Tier |\n\n)/gm)) {
+      const expectedTier = tierNames[match[1]!]!
+      seenTiers.add(expectedTier)
+      for (const codeMatch of match[2]!.matchAll(/`([A-Z][A-Z0-9_]+)`/g)) {
+        const code = codeMatch[1] as WarningCode
+        expect({ code, known: code in WARNING_TIER }).toEqual({ code, known: true })
+        expect({ code, tier: WARNING_TIER[code] }).toEqual({ code, tier: expectedTier })
+        checked.add(code)
+      }
+    }
+
+    expect(seenTiers).toEqual(new Set<WarningTier>(['structural', 'geometric', 'lint']))
+    expect(checked.size).toBeGreaterThan(0)
   })
 
   test('historical fork narrative is archived behind evergreen lessons', () => {
