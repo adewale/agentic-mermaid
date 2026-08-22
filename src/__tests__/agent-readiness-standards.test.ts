@@ -241,7 +241,12 @@ describe('agent-readiness standards syntax', () => {
     expect(lines.filter((line) => line.trim()).length).toBeGreaterThanOrEqual(5)
 
     const sections = h2Sections(text)
-    expect(sections.map((section) => section.title)).toEqual(['Start Here', 'Optional'])
+    expect(sections.map((section) => section.title)).toEqual([
+      'Do a task (start here)',
+      'Call the service',
+      'Reference contracts (fetch the smallest one that answers you)',
+      'Optional',
+    ])
     for (const section of sections) {
       const items = section.body.split(/\n+/).filter((line) => line.trim())
       expect(items.length).toBeGreaterThan(0)

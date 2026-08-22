@@ -501,7 +501,7 @@ describe('Workers Static Assets website contract', () => {
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/custom-styles/index.html', 'docs/quality/index.html', 'docs/fork-differences/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
-      'index.md', 'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json', 'schemas/render-options.schema.json',
+      'index.md', 'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'capabilities/index.json', 'capabilities/flowchart.json', 'examples/index.json', 'schemas/style-spec.schema.json', 'schemas/render-options.schema.json',
       '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json',
       'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
@@ -1736,13 +1736,49 @@ describe('Workers Static Assets website contract', () => {
     expect(editorScript).toContain('Diagram too large for text rendering')
   })
 
+  test('per-family capability slices mirror the full contract and guidance steers to them', () => {
+    const fullText = read('capabilities.json')
+    const capabilities = JSON.parse(fullText)
+    // Compact machine payload: agents pay for every byte they fetch mid-task.
+    expect(fullText.startsWith('{"sdkVersion"')).toBe(true)
+    const index = JSON.parse(read('capabilities/index.json'))
+    expect(index.sdkVersion).toBe(capabilities.sdkVersion)
+    expect(index.fullContract).toEqual({ path: '/capabilities.json', bytes: Buffer.byteLength(fullText) })
+    expect(index.families.map((entry: any) => entry.id)).toEqual(capabilities.families.map((family: any) => family.id))
+    for (const family of capabilities.families as Array<{ id: string }>) {
+      const entry = index.families.find((candidate: any) => candidate.id === family.id)
+      expect(entry.path).toBe(`/capabilities/${family.id}.json`)
+      const sliceText = read(`capabilities/${family.id}.json`)
+      expect(entry.bytes).toBe(Buffer.byteLength(sliceText))
+      expect(entry.bytes).toBeLessThan(Buffer.byteLength(fullText))
+      const slice = JSON.parse(sliceText)
+      expect(slice.sdkVersion).toBe(capabilities.sdkVersion)
+      expect(slice.generatedFrom).toEqual(capabilities.generatedFrom)
+      expect(slice.family).toEqual(family)
+    }
+    // Steering: discovery surfaces point channel-holders at the cheap lookups
+    // and channel-less agents at the slices, never bare at the full contract.
+    const llms = read('llms.txt')
+    expect(llms).toContain('/capabilities/index.json')
+    expect(llms).toContain('describe_sdk')
+    expect(llms).toContain('KB')
+    const start = read('start.md')
+    const stepTwo = start.slice(start.indexOf('## Step 2'), start.indexOf('## Step 3'))
+    expect(stepTwo).toContain('describe_sdk')
+    expect(stepTwo).toContain('describeOps')
+    expect(stepTwo).toContain('am capabilities --json')
+    expect(stepTwo).toContain('capabilities/<family>.json')
+  })
+
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {
     const text = read('llms.txt')
     expect(text).toStartWith('# Agentic Mermaid\n\n> Agent-native Mermaid runtime:')
     expect(text).toContain('[Agent bootstrap](https://agentic-mermaid.dev/start.md)')
     expect(text).toContain('[Capabilities](https://agentic-mermaid.dev/capabilities.json)')
     expect(text).toContain('Use Agentic Mermaid when an agent needs to create, edit, verify, describe, or render Mermaid diagrams')
-    expect(text).toContain('## Start Here')
+    expect(text).toContain('## Do a task (start here)')
+    expect(text).toContain('## Call the service')
+    expect(text).toContain('## Reference contracts (fetch the smallest one that answers you)')
     expect(text).toContain('## Optional')
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('skill-evals/')

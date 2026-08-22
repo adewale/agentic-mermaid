@@ -2234,8 +2234,14 @@ const aiCatalog = {
     {
       identifier: 'urn:air:agentic-mermaid.dev:capabilities', displayName: 'Agentic Mermaid capabilities',
       type: 'application/json', url: `${siteOrigin}/capabilities.json`,
-      description: 'Machine-readable families, mutation operations, warning contracts, and examples.',
+      description: 'Full machine-readable contract: every family, mutation operation, warning code, and output format in one large payload. For one family, prefer the per-family slices indexed at /capabilities/index.json.',
       tags: ['capabilities', 'mutation', 'warnings'], representativeQueries: ['what diagram families and typed edits are supported'],
+    },
+    {
+      identifier: 'urn:air:agentic-mermaid.dev:capabilities-index', displayName: 'Agentic Mermaid capability slices',
+      type: 'application/json', url: `${siteOrigin}/capabilities/index.json`,
+      description: 'Index of per-family capability slices (/capabilities/{family}.json, a few KB each): one family\'s headers, canonical example, and exact op fields without the full contract.',
+      tags: ['capabilities', 'mutation', 'discovery'], representativeQueries: ['what are the exact op fields for one diagram family'],
     },
     {
       identifier: 'urn:air:agentic-mermaid.dev:examples', displayName: 'Agentic Mermaid examples index',
@@ -2330,17 +2336,24 @@ Hosted successful deterministic pure-tool results may be reused by a private ser
 
 Styling: every render accepts style (a renderer treatment like hand-drawn, watercolor, or blueprint; a palette name; an inline JSON record; or a stack merged left-to-right) plus seed to re-roll styled ink. Layout never moves. A colors-only style is a palette.
 
-## Start Here
+## Do a task (start here)
 
 - [Agent bootstrap](https://agentic-mermaid.dev/start.md): copy-and-follow workflow for one diagram task.
-- [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp): stateless Streamable HTTP JSON-RPC with ${HOSTED_TOOLS.map(tool => tool.name).join(', ')}.
+- [Agent instructions](https://agentic-mermaid.dev/agent-instructions.md): compact operating guide for agents.
+- [Workflow skill](https://agentic-mermaid.dev/skills/agentic-mermaid-diagram-workflow/SKILL.md): optional skill for skills-capable agents.
+
+## Call the service
+
+- [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp): stateless Streamable HTTP JSON-RPC with ${HOSTED_TOOLS.map(tool => tool.name).join(', ')}. Its describe_sdk tool returns one family's op schema on demand — when you are on this channel, prefer it over fetching the capabilities contract.
 - [MCP server card](https://agentic-mermaid.dev/.well-known/mcp/server-card.json): pre-connection metadata for the hosted MCP server.
 - [MCP manifest](https://agentic-mermaid.dev/.well-known/mcp.json): compact tool manifest for agents and scanners.
-- [AI catalog](https://agentic-mermaid.dev/.well-known/ai-catalog.json): discovery index for the agent-facing resources on this domain.
-- [Agent instructions](https://agentic-mermaid.dev/agent-instructions.md): compact operating guide for agents.
-- [Capabilities](https://agentic-mermaid.dev/capabilities.json): authoritative family, output, mutation, and warning-code contract.
+
+## Reference contracts (fetch the smallest one that answers you)
+
+- [Capability slices](https://agentic-mermaid.dev/capabilities/index.json): per-family contract slices at /capabilities/{family}.json (a few KB each) — one family's headers, canonical example, and exact op fields.
+- [Capabilities](https://agentic-mermaid.dev/capabilities.json): the full authoritative family, output, mutation, and warning-code contract (~80 KB). Fetch it only when you need every family at once; with a channel established, \`describeOps(family)\`, \`am capabilities --json\`, or describe_sdk answer the same questions without the download.
 - [Examples](https://agentic-mermaid.dev/examples/index.json): the same example IDs and sources loaded by the editor.
-- [Workflow skill](https://agentic-mermaid.dev/skills/agentic-mermaid-diagram-workflow/SKILL.md): optional skill for skills-capable agents.
+- [AI catalog](https://agentic-mermaid.dev/.well-known/ai-catalog.json): discovery index for the agent-facing resources on this domain.
 
 ## Optional
 
@@ -2906,7 +2919,27 @@ for (const w of capabilities.warningCodes as unknown as Array<Record<string, unk
   w.fix = inlineHtmlToMarkdown(d.fix)
   if (d.example) w.example = d.example
 }
-await emitJson('capabilities.json', capabilities)
+// Capability payloads are fetched by agents mid-task, so bytes are latency:
+// emit them compact (humans read /docs and /warnings, not this JSON).
+const compactJson = (data: unknown) => JSON.stringify(data) + '\n'
+const fullCapabilitiesJson = compactJson(capabilities)
+await emit('capabilities.json', fullCapabilitiesJson)
+// Per-family slices (/capabilities/<id>.json): the channel-less lookup for one
+// family without the full contract. Each slice carries the same entry object as
+// capabilities.json, so the two surfaces can never disagree; the index maps ids
+// to slice paths and byte sizes so an agent can pick before fetching.
+const capabilitySliceIndex: Array<{ id: string; path: string; bytes: number }> = []
+for (const family of capabilities.families) {
+  const slice = compactJson({ sdkVersion: capabilities.sdkVersion, generatedFrom, family })
+  await emit(`capabilities/${family.id}.json`, slice)
+  capabilitySliceIndex.push({ id: family.id, path: `/capabilities/${family.id}.json`, bytes: Buffer.byteLength(slice) })
+}
+await emit('capabilities/index.json', compactJson({
+  sdkVersion: capabilities.sdkVersion,
+  generatedFrom,
+  fullContract: { path: '/capabilities.json', bytes: Buffer.byteLength(fullCapabilitiesJson) },
+  families: capabilitySliceIndex,
+}))
 
 // Build-time check: emit the firing demo only if the example really fires the
 // code against the current engine. A stale example degrades to prose, never to
