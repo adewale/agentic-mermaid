@@ -6,6 +6,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Added
 - Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
+- Added Sankey as the 16th built-in diagram family, with Mermaid-compatible
+  `sankey` and `sankey-beta` CSV syntax, deterministic SVG, PNG, and ASCII
+  rendering, typed agent editing, and support across the library, CLI, MCP,
+  website, and full and lazy browser bundles.
 
 ### Changed
 - Updated the `brace-expansion` development override to the first 5.x release
