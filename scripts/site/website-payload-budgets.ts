@@ -38,9 +38,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared lazy catalog now advertises Sankey; Timeline remains the only
     // family chunk fetched by this route and the request ceiling is unchanged.
     maxRawBytes: 725_390,
-    // +2 gzip bytes: the shared render-core chunk carries the minLabelPx
-    // policy field; raw bytes stay inside the existing ceiling.
-    maxGzipBytes: 271_574,
+    maxGzipBytes: 271_572,
     // The same Bun build differs by three compressed bytes across Linux and
     // macOS; exact hashes remain enforced on the recorded Linux toolchain.
     maxBrotliBytes: 247_932,
