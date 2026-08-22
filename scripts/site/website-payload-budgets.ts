@@ -38,7 +38,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared lazy catalog now advertises Sankey; Timeline remains the only
     // family chunk fetched by this route and the request ceiling is unchanged.
     maxRawBytes: 725_390,
-    maxGzipBytes: 271_572,
+    // +2 gzip bytes: the shared render-core chunk carries the minLabelPx
+    // policy field; raw bytes stay inside the existing ceiling.
+    maxGzipBytes: 271_574,
     // The same Bun build differs by three compressed bytes across Linux and
     // macOS; exact hashes remain enforced on the recorded Linux toolchain.
     maxBrotliBytes: 247_932,
@@ -53,10 +55,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     // The editor exercises the complete API, so its bounded delta includes the
-    // Sankey parser/renderer, d3-sankey, and typed gradient-resource support.
-    maxRawBytes: 3_328_737,
-    maxGzipBytes: 979_877,
-    maxBrotliBytes: 769_403,
+    // Sankey parser/renderer, d3-sankey, and typed gradient-resource support —
+    // and now the BELOW_READABLE_SIZE legibility gate (minLabelPx policy field
+    // plus the shared warning builder) in the bundled PNG contract.
+    maxRawBytes: 3_330_367,
+    maxGzipBytes: 980_492,
+    maxBrotliBytes: 769_608,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
