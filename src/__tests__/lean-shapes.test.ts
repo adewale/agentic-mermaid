@@ -96,7 +96,7 @@ describe('shapePorts — slanted family puts E/W on the slant midpoints', () => 
     expect(ports.S).toEqual({ x: 140, y: 90 })
   })
 
-  it.each(['rectangle', 'diamond', 'circle'] as const)(
+  it.each(['rectangle', 'diamond'] as const)(
     'regression: %s ports stay EXACTLY at the bbox side midpoints',
     shape => {
       const ports = shapePorts(mk(shape))
@@ -106,6 +106,14 @@ describe('shapePorts — slanted family puts E/W on the slant midpoints', () => 
       expect(ports.W).toEqual({ x: 100, y: 70 })
     },
   )
+
+  it('circle ports lie on the painted circle rather than its non-square layout box', () => {
+    const ports = shapePorts(mk('circle'))
+    expect(ports).toEqual({
+      N: { x: 140, y: 50 }, E: { x: 160, y: 70 },
+      S: { x: 140, y: 90 }, W: { x: 120, y: 70 },
+    })
+  })
 })
 
 describe('PORT_EXACT promotion — slanted fan-ins get the port-to-port composition', () => {

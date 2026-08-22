@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "e078e050d62e9ae5c80335fce6d5e4b0e2d025714d10497c78cbad5bb5bf4b5a",
-  "reviewedAt": "2026-08-03",
-  "reviewer": "Codex coding agent, during the PR #192 conflict-resolution pass",
-  "scope": "All 64 family-by-variant cells reviewed as a full-sheet render; the four Sankey cells were also inspected at native size after the typed-gradient and dark-compositing changes. Source-to-target gradients read clearly in sentinel, warm editorial, and light technical. The dark-operations ribbons now remain visibly teal against the near-black page because dark backgrounds use normal alpha compositing instead of multiply, which cannot brighten a dark backdrop. Conservation reads truthfully (Coal 127.93 into Electricity grid; out to Industry 71.24 + Losses 56.69 = 127.93), labels are legible, and the 60 pre-existing cells retain their compositions, endpoints, labels, and authored Pie emphasis.",
+  "artifactSha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9",
+  "reviewedAt": "2026-08-21",
+  "reviewer": "Codex coding agent, during the PR #220 rebase verification",
+  "scope": "All 64 family-by-variant cells were reviewed as a full-sheet render after rebasing the shared shape-outline and arrow-marker changes. Flowchart and State arrow shafts and visible tips meet circle and pseudostate outlines in all four styles; the causal contact change is shown separately in docs/pr-assets/shape-outline-authority-before-after.png. Sankey and the other unchanged families retain their compositions, endpoints, labels, containment, and authored emphasis.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

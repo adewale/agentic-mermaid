@@ -958,12 +958,12 @@ Trust is independent of capability and expressiveness:
 ### Native-family adoption boundary
 
 Section A6 supplies recognition, preservation, negotiation and conformance; it
-does not create a shadow adoption queue. Native-family growth is owned only by
-`BUILD-6` and each promoted family must pass the citizenship, syntax, primitive,
-backend, output and extension contracts then in force. Priority is decided from
-current demand, maturity and evidence when work is promoted. Inventory-only
-entries remain compatibility inputs unless a focused root TODO explicitly makes
-one product work.
+does not create a shadow adoption queue. The native-family promotion policy
+governs native-family growth, and each promoted family must pass the
+citizenship, syntax, primitive, backend, output and extension contracts then in
+force. Priority is decided from current demand, maturity and evidence when work
+is promoted. Inventory-only entries remain compatibility inputs unless a
+focused root TODO explicitly makes one product work.
 
 ## Internal-consistency contract
 
@@ -1225,7 +1225,7 @@ Section B does not wait for every missing Mermaid family. Each newly registered
 family must use the Section A protocol and pass the current Section B role,
 fallback, and channel contract available at that time. Public release of a B
 capability also requires its relevant A5 parity gates. Native-family adoption
-remains solely owned by `BUILD-6`.
+remains governed by the native-family promotion policy.
 
 Holdout brands and real authoring may reveal a recurring missing primitive, but
 promotion requires cross-family evidence, a behavioral contract, compatibility
@@ -1242,7 +1242,7 @@ brand-inspired prototypes supply public-API evidence only.
 | Plan boundary | Status owner | Independent scope retained |
 |---|---|---|
 | A0–A7 | PR #163 implementation and [`Section A landing record`](./archive/section-a-rendering-contract-2026-07.md) | referenced `CONS-*`, `SRC-*`, `TERM-*`, security, family-adoption and evidence items keep any work beyond Section A |
-| B0–B3, B5 | completed Section B scope | documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototype evidence; native-family adoption remains `BUILD-6` |
+| B0–B3, B5 | completed Section B scope | documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototype evidence; native-family adoption remains subject to the promotion policy |
 | B4 | not promoted; requires a new evidence-backed TODO after external consumer evidence | ordinary `StyleSpec` files remain the default distribution path; no pack registry was required to complete B1–B3/B5 |
 
 The graph above defines hard phase dependencies. Reused IDs in the table retain
@@ -1273,10 +1273,10 @@ checklists or imply that independently owned work is complete.
 | A1 — identities and registries | Shared `ExtensionIdentity` rules feed typed, kind-specific family, backend, resource, Palette and Look registries; external executable families and backends declare compatible core ranges before hooks run, Scene consumers also declare Scene ranges, and deterministic discovery exposes only committed registrations. Light Tufte is solely `look:tufte`; its duplicate palette, ambiguous bare input, and the `default` compatibility alias are retired. | Registry descriptors and generated discovery projections; `extension-registries.test.ts`; `style-spec-authority.test.ts`; `family-registration-conformance.test.ts`. | Future extension work remains root-TODO work; an evidence-promoted BrandPack registry belongs to Section B B4. |
 | A2 — request and appearance waist | One immutable `ResolvedRenderRequest` and one internal `ResolvedAppearance` normalize precedence once; checked shared/output field descriptors project validation and receipts into every transport and output adapter, with every shared-field×surface cell declared `forwarded`, `host-enforced`, or `unavailable`. Family-specific fields also declare applicability: a supplied field must affect that family or emit a stable `RENDER_OPTION_NOT_APPLICABLE` diagnostic instead of changing identity silently. | RenderOptions/StyleSpec generated artifacts, the generated shared-field×surface matrix, applicability diagnostics, and request/appearance digests; `render-options-authority.test.ts`; `section-a-transport-parity.test.ts`. | New surfaces from `BUILD-27`, `BUILD-28`, and `BUILD-29` must enroll in this contract when they land; they do not reopen or block Section A. |
 | A3 — essential primitives | Versioned typed Scene marks make connectors, routes, markers, hit geometry, identity and accessibility semantic inputs; terminal projections declare each lossy or unsupported feature instead of reconstructing graphical output. | Scene/Connector schema, capability report and conformance fixtures; `scene-connector-contract.test.ts`; `terminal-projection-security.test.ts`. | Family cell-grid topology remains family-owned; Section A does not claim terminal pixel or topology parity. |
-| A4 — families and positioned artifacts | `FamilyDescriptor` is the open, namespaced family authority for detection, parsing, examples, roles, capabilities and lowering; built-ins and extensions use one lossless envelope and one positioned artifact/projection without core switches. A native layout claim must prove finite positive positioned/projected bounds and at least one semantic item on its canonical example. | Descriptor registry and generated family projections; `section-a-family-descriptor-conformance.test.ts`; `family-registration-conformance.test.ts`; `positioned-artifact-convergence.test.ts`. | Native adoption remains `BUILD-6`; config-rule consolidation remains `CONS-44`. |
+| A4 — families and positioned artifacts | `FamilyDescriptor` is the open, namespaced family authority for detection, parsing, examples, roles, capabilities and lowering; built-ins and extensions use one lossless envelope and one positioned artifact/projection without core switches. A native layout claim must prove finite positive positioned/projected bounds and at least one semantic item on its canonical example. | Descriptor registry and generated family projections; `section-a-family-descriptor-conformance.test.ts`; `family-registration-conformance.test.ts`; `positioned-artifact-convergence.test.ts`. | Native adoption remains subject to the promotion policy; config-rule consolidation remains `CONS-44`. |
 | A5 — subsystem, backend and output parity | Every generated shared-field×surface and output×transport classification cell has an explicit evidence-linked state; every available forwarded or host-enforced request path has a comparable effective receipt. Every registered family and backend has separate registry-wide conformance evidence. External families are staged against one bounded example, run native claims twice through canonical parse/serialize, meaningful layout, strict SVG, portable PNG pre-raster, every terminal encoding/color mode, Scene and verify paths, and roll back on failure, reentrancy or nondeterminism; `native` requires a passed witness. Backend witnesses and browser callback outputs are allocation-bounded before parsing or rewriting. Hosted security and font-import policy is host-owned across SVG, PNG, ASCII and Code Mode layout. Graphical outputs share geometry, one output-security policy, fonts/resources and color policy, while admitted external terminal output reports projection limits rather than claiming pixel parity. | Generated capability/parity report; transport, backend, family-registration, hosted-execute render-policy, browser-PNG, website-receipt and editor-security conformance suites. | Each new surface, backend, family or output must enroll before advertising parity; family-owned terminal routing and host-dependent font inputs retain their narrower scopes. |
-| A6 — upstream and extension evolution | A pinned upstream manifest recognizes and losslessly preserves pinned-but-unsupported syntax; the open parser preserves unknown future headers and avoids Flowchart fallback. Namespaced identities/capabilities remain forward-compatible with structured unknown-feature diagnostics. | Upstream manifest/diff and compact generated runtime index; `upstream-family-manifest.test.ts`; `extension-registries.test.ts`; claim-keyed backend witnesses. | Native implementation remains solely `BUILD-6`; inventory or preservation never creates a shadow adoption queue. |
-| A7 — subtraction and evidence | Generated projections replace copied rosters, schemas, counts and routing authorities; one evidence catalogue and the landing archive preserve proof, while actionable status exists only in `TODO.md`. | Machine-readable Section A report, docs-consolidation contract and artifact freshness checks. | Remaining `CONS-11`, `CONS-16`, `CONS-26`, `CONS-30`, `CONS-43`, and `CONS-45` work keeps its independent TODO scope; Section A does not silently close it. |
+| A6 — upstream and extension evolution | A pinned upstream manifest recognizes and losslessly preserves pinned-but-unsupported syntax; the open parser preserves unknown future headers and avoids Flowchart fallback. Namespaced identities/capabilities remain forward-compatible with structured unknown-feature diagnostics. | Upstream manifest/diff and compact generated runtime index; `upstream-family-manifest.test.ts`; `extension-registries.test.ts`; claim-keyed backend witnesses. | Native implementation remains governed by the promotion policy; inventory or preservation never creates a shadow adoption queue. |
+| A7 — subtraction and evidence | Generated projections replace copied rosters, schemas, counts and routing authorities; one evidence catalogue and the landing archive preserve proof, while unfinished status exists only in `TODO.md`. | Machine-readable Section A report, docs-consolidation contract and artifact freshness checks. | Remaining `CONS-26`, `CONS-30`, `CONS-43`, and `CONS-45` work keeps its independent TODO scope; Section A does not silently close it. |
 
 The evidence column identifies authorities that future changes must keep fresh;
 the landing record may retain exact commands, retired-authority evidence and PR

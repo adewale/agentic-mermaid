@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-07-16",
+  "reviewedAt": "2026-07-24",
   "reviewer": "OpenAI coding agent, at the user's explicit request",
-  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after universal bundled/custom-font advance projection; reviewed for readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries.",
+  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after visible Flowchart arrow tips were aligned to their route endpoints; reviewed for clean marker contact, readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "6da847b969be329d771646ff4e64b4d43e7ea5d51806dced1cde425239b00268"
+      "sha256": "6441154b8206d989bbcbb6489fdc4d69cf444ff1a537bcf21d0516225b9c29c5"
     },
     {
       "id": "vercel-inspired-prototype",

@@ -66,8 +66,8 @@
       "after": 224.00000000000003
     }
   ],
-  "inputCount": 276,
-  "inputTreeSha256": "bfbcdbe41cf75752f15b730ea8ad6633c6f7c3126869e755974dea37ddce8d96",
+  "inputCount": 278,
+  "inputTreeSha256": "181960e2de7dae1a9b94d9cbf3cb7e1b63915d89733258a3cca25f4027724e03",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
@@ -90,7 +90,7 @@
     },
     {
       "path": "docs/pr-assets/issue-87-linkrank-feedback-packing-after.png",
-      "sha256": "f50d404ca98229efa39a4f75eca4fc7246bddb770a1cec6d85b91749b3b68da3"
+      "sha256": "ebfc5ed867aeba13e8c839a20d4914c59fc08d74100e8567908a9108845041b9"
     }
   ]
 }

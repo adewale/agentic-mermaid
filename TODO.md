@@ -1,6 +1,10 @@
 # Project Backlog
 
-`TODO.md` is the canonical owner-facing backlog and contains only actionable items. Explicitly status-marked landing/completion evidence lives under `docs/project/archive/`; current capabilities live in `docs/features.md` and generated registry surfaces. IDs are stable names, not ordering.
+`TODO.md` is the canonical owner-facing inventory of unfinished work, owner
+decisions, blocked observations, and evidence-triggered watch items. Explicitly
+status-marked landing/completion evidence lives under `docs/project/archive/`;
+current capabilities live in `docs/features.md` and generated registry
+surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
@@ -173,26 +177,58 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   churn, and escaped defects.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
+- [ ] **TEST-4 — Correct and strengthen the Python MCP interop probe** (`todo`,
+  [#191](https://github.com/adewale/agentic-mermaid/issues/191)). Replace the
+  deprecated `streamablehttp_client` alias, record the Python client's actual
+  request path, and correct the verification plan: all three SDKs prove
+  sessionless initialize/version negotiation/tool calls, while only TypeScript
+  and Go currently prove `GET -> 405`. Keep pinned `mcp==1.28.1` and latest
+  canary coverage green.
+- [ ] **TEST-5 — Make route-verification policy executable and retire the stale
+  score target** (`todo`,
+  [#265](https://github.com/adewale/agentic-mermaid/issues/265); supersedes the historical framing in
+  [#35](https://github.com/adewale/agentic-mermaid/issues/35)). Treat 50.69% as
+  a historical diagnostic, not a quality gate. Resolve whether
+  `offOutlineEndpoints` is hard or cosmetic, enroll final rendered-endpoint
+  diagnostics in `audit:ugly` if that public command should own them (the
+  independent diagnostic is now enforced by `auditRouteContracts` and the
+  layout rubric), extract an independent certificate consistency audit, and
+  make production pipeline invariant checks explicit.
+  Use the canonical 2,800-case corpus, focused mutation lanes, and bounded route
+  sabotage to prove named behaviors; do not restore a broad percentage chase.
+- [ ] **TEST-6 — Audit cross-family endpoint-marker and geometry authority**
+  (`todo`, [#258](https://github.com/adewale/agentic-mermaid/issues/258)).
+  Derive the marker-producing family inventory from the registry, characterize
+  Architecture and Journey contact intent before changing them, and require
+  separate shaft/surface and visible-marker/surface evidence. Inventory every
+  final endpoint writer per affected family; share family-owned production
+  geometry while keeping final verification independently derived.
+- [ ] **TEST-7 — Characterize tangential rectangle arrivals** (`todo`,
+  [#259](https://github.com/adewale/agentic-mermaid/issues/259)). Add the
+  independent final-geometry incidence metric and report ordinary curated cases
+  separately from the 2,800-case pathological corpus. Keep it non-blocking and
+  make no route repair unless the issue's representative-witness and
+  non-regression decision gate passes.
 
 ## Consolidation / dedup backlog
 
-- [ ] **CONS-11 — One shape-outline module** (`todo`). Every non-rectangular
-  flowchart silhouette is authored twice: the emitter in `src/renderer.ts` and
-  the edge clipper in `src/shape-clipping.ts` (hexagon `h/4`, cylinder `ry=7`,
-  trapezoid `w*0.15`, asymmetric `12`, diamond, stadium). Extract one
-  `shapeOutline(shape, x, y, w, h)` returning canonical vertices/cap radii;
-  renderer maps to SVG, clipper ray-intersects the same vertices.
-- [ ] **CONS-16 — Modeling `accTitle`/`accDescr` parser** (`todo`). The
-  directive regex has drifted (`xychart`/`agent` accept optional colon;
-  `architecture`/`timeline`/`gantt` require it) and the `accDescr { … }` block
-  scan is copy-pasted. Extend `src/shared/accessibility-directives.ts` with a
-  modeling `parseAccessibilityDirective(lines, i)` used by all parsers; pick one
-  colon rule consciously.
-- [ ] **CONS-26 — Unify agent vs legacy per-family parsers** (`owner-decision`,
-  architectural). The agent `*-body.ts` parsers re-encode grammars that
-  `src/<family>/parser.ts` already owns, kept in sync only by differential
-  tests. Build agent bodies as a projection of the legacy parser's AST so the
-  legacy parser is the single grammar authority. Schedule separately.
+- [ ] **CONS-26 — Finish agent/render grammar-authority convergence** (`todo`,
+  delivered as focused child work under
+  [#248](https://github.com/adewale/agentic-mermaid/issues/248)).
+  Flowchart, Pie, Quadrant, Mindmap, and GitGraph already project renderer-owned
+  ASTs; State, Timeline, and Journey share parse cores; XYChart now projects the
+  strict renderer AST and no longer owns a second grammar. Radar also projects
+  the strict renderer-owned `parseRadarChart()` result; it was incorrectly
+  retained in the old remainder list. The remaining duplicated families are
+  [Class #260](https://github.com/adewale/agentic-mermaid/issues/260),
+  [ER #266](https://github.com/adewale/agentic-mermaid/issues/266),
+  [Sequence #264](https://github.com/adewale/agentic-mermaid/issues/264),
+  [Architecture #262](https://github.com/adewale/agentic-mermaid/issues/262),
+  and [Gantt #261](https://github.com/adewale/agentic-mermaid/issues/261).
+  Migrate one family at a time behind differential and unknown-line tests. For
+  Class/ER/Sequence/Gantt, do not project from a lossy final AST that discards
+  statement order or opaque segments; expose a shared statement parser/event
+  stream consumed by both surfaces instead.
 - [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanically
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
@@ -212,6 +248,15 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry.
+
+## Contribution governance backlog
+
+- [ ] **GOV-1 — Enforce one primary contract boundary per PR** (`todo`,
+  [#263](https://github.com/adewale/agentic-mermaid/issues/263)). Require one of
+  grammar authority, mutation closure, rendered geometry, or an explicitly
+  justified coupled exception. Start with a ten-PR advisory period, measure
+  false positives and overrides, and only then make the least-privilege,
+  API-only metadata check blocking. Keep file-path inference advisory.
 
 ## Source-preservation defects
 

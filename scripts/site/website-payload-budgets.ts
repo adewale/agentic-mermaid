@@ -5,11 +5,11 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 682_619,
-    // Re-recorded with the current generated payload; raw bytes and requests
-    // are unchanged while cross-file compression improves slightly.
+    maxRawBytes: 682_645,
+    // The marker-reference change updates generated homepage SVG bytes without
+    // adding a request; gzip is unchanged and the other exact totals are pinned.
     maxGzipBytes: 406_565,
-    maxBrotliBytes: 387_993,
+    maxBrotliBytes: 387_996,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -19,9 +19,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    // Sixteenth-family enrollment adds the Sankey example and metadata to the
-    // registry-driven gallery; no new request is introduced.
-    maxRawBytes: 391_117,
+    // The marker-reference change updates generated example metadata without
+    // adding a request or increasing either compressed ceiling.
+    maxRawBytes: 391_130,
     maxGzipBytes: 68_589,
     maxBrotliBytes: 54_406,
     required: Object.freeze([
@@ -34,14 +34,15 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
-    maxRequests: 30,
-    // The shared lazy catalog now advertises Sankey; Timeline remains the only
-    // family chunk fetched by this route and the request ceiling is unchanged.
-    maxRawBytes: 725_390,
-    maxGzipBytes: 271_572,
-    // The same Bun build differs by three compressed bytes across Linux and
-    // macOS; exact hashes remain enforced on the recorded Linux toolchain.
-    maxBrotliBytes: 247_932,
+    maxRequests: 31,
+    // Cached shape-profile validation and point ownership add 308 raw bytes to
+    // the existing shared Timeline route; no request or family is added. The
+    // minLabelPx policy field in the shared render-core chunk adds 2 gzip
+    // bytes on the recording toolchain; raw bytes stay at the ceiling.
+    maxRawBytes: 729_702,
+    maxGzipBytes: 273_657,
+    // Exact hashes remain enforced on the recorded Linux toolchain.
+    maxBrotliBytes: 249_942,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -52,13 +53,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    // The editor exercises the complete API, so its bounded delta includes the
-    // Sankey parser/renderer, d3-sankey, and typed gradient-resource support —
-    // and now the BELOW_READABLE_SIZE legibility gate (minLabelPx policy field
-    // plus the shared warning builder) in the bundled PNG contract.
-    maxRawBytes: 3_330_367,
-    maxGzipBytes: 980_492,
-    maxBrotliBytes: 769_608,
+    // The editor exercises the complete API. The profile cache adds 309 raw,
+    // 100 gzip, and 293 Brotli bytes; the BELOW_READABLE_SIZE legibility gate
+    // (minLabelPx policy field plus the shared warning builder) rides in the
+    // bundled PNG contract on top of that.
+    maxRawBytes: 3_336_422,
+    maxGzipBytes: 982_401,
+    maxBrotliBytes: 771_504,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

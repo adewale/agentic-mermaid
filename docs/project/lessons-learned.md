@@ -146,6 +146,68 @@ family docs, and `TODO.md`.
     Ablations must be blind removal-based skill trees with materialization
     provenance; prompt-level instructions to ignore still-mounted guidance are
     raw interventions, not confirmation-gradeable ablations.
+26. **Separate discovery, telemetry, and contract enforcement.** Pathological
+    generators are valuable defect finders, but a generated observation does not
+    create product policy by itself. Declare each observation's valid-input domain,
+    user reachability, severity authority, blocking status, owner, and promotion
+    criteria. A metric called hard is either enforced wherever it is enrolled or
+    renamed and explicitly scoped; consumers must not silently weaken it.
+27. **Share expensive production, keep proof independent.** Parse, position, or
+    render once and fan the immutable result into independent semantic, geometric,
+    certificate, and aesthetic oracles. Keep the generator and obligation checker
+    separately falsifiable, publish blocking-versus-telemetry policy in receipts,
+    and fault-inject every blocking claim. Evaluate the result by runner cost and
+    workflow critical path rather than test-row count alone.
+28. **A production authority and an independent verifier solve different
+    duplication problems.** Renderer, clipper, port assignment, and other
+    producers should consume one canonical geometry model so they cannot drift.
+    The audit must not call the exact computation it is meant to verify; rederive
+    the invariant or compare against rendered pixels, then prove the verifier
+    discriminates with sabotage. Sharing production semantics prevents
+    inconsistency, while independent proof prevents self-certification.
+29. **Trace authority through the last writer, not the first correction.** A
+    shared renderer/clipper outline did not close endpoint correctness while late
+    route repair still reconstructed anchors from shape names and layout boxes.
+    Inventory every writer of the final artifact, centralize boundary and
+    attachment production through the last mutation, and make a separate final
+    diagnostic falsify the result. Force the late path in tests for every shape
+    and direction; a naturally straight example does not exercise repair.
+30. **Mutation admission implies grammar closure.** A typed mutator that accepts
+    every finite number must serialize every finite number into syntax accepted
+    by its pinned grammar. Expand exponent-form doubles into plain decimals when
+    the grammar has no exponent token, preserve semantic edge cases such as
+    negative zero, and reject any mutation whose canonical reparse changes the
+    diagram or body kind.
+31. **Relationship deletion can erase implicit entities.** If relationships
+    implicitly declare their endpoints, removing the last relationship must
+    either remove the endpoint by contract or promote it to an explicit
+    declaration. Enforce serialize/reparse family-and-body closure at the
+    mutation boundary so the loss cannot hide in an in-memory AST.
+32. **Marked-route correctness has two contact coordinates.** The path vertex
+    can lie exactly on a target outline while an SVG marker extends past it
+    because `refX` names a different point in the marker geometry. Verify shaft
+    and visible marker contact separately, then make the intended marker tip the
+    reference point so orientation and stroke scaling cannot reintroduce the
+    overrun.
+33. **Cache derived geometry at its authority, with mutation in the key and no
+    mutable aliases in the value.** Route proofs repeatedly request the same
+    shape profile, but positioned nodes move and route points are translated in
+    place. A safe cache validates every geometry input before reuse and returns
+    owned point copies wherever callers can mutate them. Prove both reuse and
+    invalidation, then run the full corpus: a faster run with changed findings is
+    corruption, not an optimization. Measure distribution cost too; a valuable
+    hot-path cache can still add bytes to every browser consumer.
+34. **Validation infrastructure is not a change introduced by every PR that
+    uses it.** Attribute generators, runners, and gates to the PR that landed
+    them; a later PR should state the observed base-to-head delta produced by
+    that infrastructure. This keeps benefits auditable and prevents scope from
+    expanding in prose after it was deliberately removed from code.
+35. **Grammar authority, mutation closure, and rendered geometry are separate
+    review dimensions.** Prefer one dimension per PR so its failure mode,
+    rollback boundary, and evidence remain legible. Combine dimensions only
+    when a named dependency makes every smaller sequence invalid; record that
+    dependency, give each dimension its own red test and receipt, and keep the
+    implementation in separable commits.
 
 ## Lessons from the consolidation audits
 
@@ -276,6 +338,18 @@ family docs, and `TODO.md`.
   CLI, API, and MCP. Removing the duplicate was better than wiring a second
   threshold. When a revert strands a helper, delete it; when an existing metric
   already owns the defect class, extend that metric instead of adding a shadow.
+- **Implemented, tested, and enrolled are different states.** A rendered-route
+  detector was covered by property tests but absent from the `audit:ugly` command
+  whose comments appeared to promise the same checks. Test public command
+  reachability with a discriminating fixture, list enrolled detectors in the
+  receipt, and never infer audit coverage from the existence of a helper.
+- **Test discovery is part of the test contract.** Bare `bun test` recursively
+  executes the repository's checked-in upstream Mermaid `*.spec.ts` source
+  fixtures and reports their deliberately unavailable upstream imports as
+  errors. Use `bun run test`, whose canonical scope is `src/__tests__/`, so the
+  harvested upstream cases run through our adapters. Diagnose broad-run errors
+  before calling them regressions, without substituting focused tests for the
+  declared full command.
 
 ## How to apply these lessons
 
