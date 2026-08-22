@@ -185,7 +185,8 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and Go currently prove `GET -> 405`. Keep pinned `mcp==1.28.1` and latest
   canary coverage green.
 - [ ] **TEST-5 — Make route-verification policy executable and retire the stale
-  score target** (`todo`, supersedes the historical framing in
+  score target** (`todo`,
+  [#265](https://github.com/adewale/agentic-mermaid/issues/265); supersedes the historical framing in
   [#35](https://github.com/adewale/agentic-mermaid/issues/35)). Treat 50.69% as
   a historical diagnostic, not a quality gate. Resolve whether
   `offOutlineEndpoints` is hard or cosmetic, enroll final rendered-endpoint
@@ -216,8 +217,14 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   [#248](https://github.com/adewale/agentic-mermaid/issues/248)).
   Flowchart, Pie, Quadrant, Mindmap, and GitGraph already project renderer-owned
   ASTs; State, Timeline, and Journey share parse cores; XYChart now projects the
-  strict renderer AST and no longer owns a second grammar. The remaining
-  duplicated families are Class, ER, Sequence, Architecture, Gantt, and Radar.
+  strict renderer AST and no longer owns a second grammar. Radar also projects
+  the strict renderer-owned `parseRadarChart()` result; it was incorrectly
+  retained in the old remainder list. The remaining duplicated families are
+  [Class #260](https://github.com/adewale/agentic-mermaid/issues/260),
+  [ER #266](https://github.com/adewale/agentic-mermaid/issues/266),
+  [Sequence #264](https://github.com/adewale/agentic-mermaid/issues/264),
+  [Architecture #262](https://github.com/adewale/agentic-mermaid/issues/262),
+  and [Gantt #261](https://github.com/adewale/agentic-mermaid/issues/261).
   Migrate one family at a time behind differential and unknown-line tests. For
   Class/ER/Sequence/Gantt, do not project from a lossy final AST that discards
   statement order or opaque segments; expose a shared statement parser/event
@@ -241,6 +248,15 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry.
+
+## Contribution governance backlog
+
+- [ ] **GOV-1 — Enforce one primary contract boundary per PR** (`todo`,
+  [#263](https://github.com/adewale/agentic-mermaid/issues/263)). Require one of
+  grammar authority, mutation closure, rendered geometry, or an explicitly
+  justified coupled exception. Start with a ten-PR advisory period, measure
+  false positives and overrides, and only then make the least-privilege,
+  API-only metadata check blocking. Keep file-path inference advisory.
 
 ## Source-preservation defects
 

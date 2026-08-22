@@ -15,7 +15,7 @@ import { renderMermaidSVG } from '../../src/index.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUTPUT = join(ROOT, 'docs', 'pr-assets', 'shape-outline-authority-before-after.png')
-const BEFORE_SHA = '1e57d78fa3928ee0053141025bc0aa03935e2e0a'
+const BEFORE_SHA = 'a4aa65a8aff968c1ebb91fa18b94371b20267ce3'
 
 const CASES = [
   {

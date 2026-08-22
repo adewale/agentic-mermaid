@@ -124,15 +124,21 @@ must not arrive as a side effect of outline deduplication.
 
 ## Remaining work
 
-CONS-26 is intentionally not declared complete. Class, ER, Sequence,
-Architecture, Gantt, and Radar still have agent/render grammar duplication.
-Several final ASTs discard statement order or opaque segments, so the safe next
-step is a shared statement parser or event stream, one family at a time, with
-differential and unknown-line tests. Projecting from a lossy final AST merely
-moves the drift to a different boundary.
+CONS-26 is intentionally not declared complete. Class ([#260](https://github.com/adewale/agentic-mermaid/issues/260)),
+ER ([#266](https://github.com/adewale/agentic-mermaid/issues/266)), Sequence
+([#264](https://github.com/adewale/agentic-mermaid/issues/264)), Architecture
+([#262](https://github.com/adewale/agentic-mermaid/issues/262)), and Gantt
+([#261](https://github.com/adewale/agentic-mermaid/issues/261)) retain
+agent/render statement-orchestration duplication. Radar does not: its agent
+body already projects the strict renderer-owned `parseRadarChart()` result.
+Several remaining final ASTs discard statement order or opaque segments, so the
+safe next step is a shared statement parser or event stream, one family at a
+time, with differential and unknown-line tests. Projecting from a lossy final
+AST merely moves the drift to a different boundary.
 
 PR #195 closed issue #88's residual-hitch and 4px-canyon decision. A future
-normal-incidence policy for tangential rectangle arrivals would be separate
-product work and currently has no backlog owner; it must not be implied by this
-endpoint-authority change. TEST-5 retains the separate severity,
-certificate-consistency, and public-audit-enrollment decisions.
+normal-incidence policy for tangential rectangle arrivals is separate product
+work under [#259](https://github.com/adewale/agentic-mermaid/issues/259); it must
+not be implied by this endpoint-authority change. TEST-5's separate severity,
+certificate-consistency, and public-audit-enrollment decisions are tracked by
+[#265](https://github.com/adewale/agentic-mermaid/issues/265).
