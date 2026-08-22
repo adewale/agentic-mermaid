@@ -35,6 +35,8 @@ import {
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
+import { MCP_RESOURCES, readMcpResource } from './resource-surface.ts'
+import { MCP_PROMPTS, getMcpPrompt } from './prompt-surface.ts'
 import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
@@ -42,6 +44,7 @@ import type { RenderOptions } from '../types.ts'
 import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
 import {
   MAX_HOSTED_PNG_BYTES,
+  PNG_DEFAULT_MIN_LABEL_PX,
   projectPortablePngOutputOptions,
   resolvePortablePngOutputPolicy,
   type PortablePngOutputOptions,
@@ -232,6 +235,10 @@ const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   serverName: HOSTED_MCP_SERVER_NAME,
   supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
   tools: HOSTED_TOOLS,
+  resources: MCP_RESOURCES,
+  prompts: MCP_PROMPTS,
+  readResource: readMcpResource,
+  getPrompt: getMcpPrompt,
   instructions: INSTRUCTIONS,
   handleToolCall,
 }
@@ -389,6 +396,9 @@ function normalizedHostedPngRequest(args: Record<string, unknown>): NormalizedHo
       : policy.fitTo.mode === 'height'
         ? { fitTo: { height: policy.fitTo.value } }
         : {}),
+    // Default-floor requests and explicit-default requests rasterize
+    // identically; canonicalize so their cache identities coincide.
+    ...(policy.minLabelPx === PNG_DEFAULT_MIN_LABEL_PX ? {} : { minLabelPx: policy.minLabelPx }),
   }
   return {
     output,

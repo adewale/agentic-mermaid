@@ -9,6 +9,8 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS, cacheKeyFor, type HostedMcpContext, type ExecuteResult,
 } from '../mcp/hosted-server.ts'
 import { MCP_SERVER_NAME, validateMcpToolArguments } from '../mcp/tool-surface.ts'
+import { MCP_RESOURCES } from '../mcp/resource-surface.ts'
+import { MCP_PROMPTS } from '../mcp/prompt-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import { isLegacyProtocolVersion } from '../mcp/protocol-versions.ts'
 import pkg from '../../package.json'
@@ -85,7 +87,11 @@ describe('hosted MCP handshake', () => {
     expect(result.serverInfo).toEqual({ name: 'agentic-mermaid-hosted', version: pkg.version })
     expect(result.instructions).toContain('stateless')
     expect(result.instructions).toContain('render_svg')
-    expect(result.capabilities).toEqual({ tools: {} })
+    expect(result.capabilities).toEqual({
+      tools: {},
+      resources: { subscribe: false, listChanged: false },
+      prompts: { listChanged: false },
+    })
   })
 
   test('the hosted identity is distinct from the local stdio server', () => {
@@ -127,10 +133,55 @@ describe('hosted MCP handshake', () => {
   })
 
   test('unknown methods and unknown tools are JSON-RPC errors', async () => {
-    const method = await handleHostedRequest(rpc('resources/read'), makeContext())
+    const method = await handleHostedRequest(rpc('resources/subscribe'), makeContext())
     expect(method?.error?.code).toBe(-32601)
     const tool = await handleHostedRequest(call('render_gif', { source: FLOW }), makeContext())
     expect(tool?.error?.code).toBe(-32602)
+  })
+
+  test('resources/list and prompts/list expose exactly the shared rosters', async () => {
+    const resources = await handleHostedRequest(rpc('resources/list'), makeContext())
+    expect((resources?.result as any).resources).toBe(MCP_RESOURCES)
+    expect((resources?.result as any).resources.map((r: { uri: string }) => r.uri)).toEqual([
+      'agentic-mermaid://skill/diagram-workflow',
+      'agentic-mermaid://capabilities',
+    ])
+    const prompts = await handleHostedRequest(rpc('prompts/list'), makeContext())
+    expect((prompts?.result as any).prompts).toBe(MCP_PROMPTS)
+    const templates = await handleHostedRequest(rpc('resources/templates/list'), makeContext())
+    expect((templates?.result as any).resourceTemplates).toEqual([])
+  })
+
+  test('resources/read serves the embedded skill and capabilities; unknown URIs are -32002', async () => {
+    const skill = await handleHostedRequest(rpc('resources/read', { uri: 'agentic-mermaid://skill/diagram-workflow' }), makeContext())
+    const skillContents = (skill?.result as any).contents
+    expect(skillContents).toHaveLength(1)
+    expect(skillContents[0].mimeType).toBe('text/markdown')
+    expect(skillContents[0].text).toContain('parse')
+    const capabilities = await handleHostedRequest(rpc('resources/read', { uri: 'agentic-mermaid://capabilities' }), makeContext())
+    const parsed = JSON.parse((capabilities?.result as any).contents[0].text)
+    expect(Array.isArray(parsed.families)).toBe(true)
+    const missing = await handleHostedRequest(rpc('resources/read', { uri: 'agentic-mermaid://nope' }), makeContext())
+    expect(missing?.error?.code).toBe(-32602)
+    expect(missing?.error?.data).toEqual({ uri: 'agentic-mermaid://nope' })
+    const badParams = await handleHostedRequest(rpc('resources/read', {}), makeContext())
+    expect(badParams?.error?.code).toBe(-32602)
+  })
+
+  test('prompts/get returns the edit doctrine with the caller source; bad requests are -32602', async () => {
+    const good = await handleHostedRequest(
+      rpc('prompts/get', { name: 'edit_mermaid_diagram', arguments: { source: FLOW } }),
+      makeContext(),
+    )
+    const messages = (good?.result as any).messages
+    expect(messages).toHaveLength(1)
+    expect(messages[0].role).toBe('user')
+    expect(messages[0].content.text).toContain(FLOW)
+    expect(messages[0].content.text).toContain('verify')
+    const unknown = await handleHostedRequest(rpc('prompts/get', { name: 'no_such_prompt', arguments: {} }), makeContext())
+    expect(unknown?.error?.code).toBe(-32602)
+    const missingArg = await handleHostedRequest(rpc('prompts/get', { name: 'edit_mermaid_diagram' }), makeContext())
+    expect(missingArg?.error?.code).toBe(-32602)
   })
 
   test('notifications return null; ping pongs', async () => {

@@ -5,9 +5,6 @@
 # failure that must be reviewed.
 server:
   # This tools-only server does not implement optional prompts/resources RPCs.
-  - caching:sep-2549-prompts-list-caching-hints
-  - caching:sep-2549-resources-list-caching-hints
-  - caching:sep-2549-resources-templates-list-caching-hints
 
   # These checks require conformance-only tools named test_missing_capability,
   # test_streaming_elicitation, and test_logging_tool. Shipping those fixtures

@@ -36,9 +36,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
     // Cached shape-profile validation and point ownership add 308 raw bytes to
-    // the existing shared Timeline route; no request or family is added.
+    // the existing shared Timeline route; no request or family is added. The
+    // minLabelPx policy field in the shared render-core chunk adds 2 gzip
+    // bytes on the recording toolchain; raw bytes stay at the ceiling.
     maxRawBytes: 729_702,
-    maxGzipBytes: 273_655,
+    maxGzipBytes: 273_657,
     // Exact hashes remain enforced on the recorded Linux toolchain.
     maxBrotliBytes: 249_942,
     required: Object.freeze([
@@ -52,10 +54,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     // The editor exercises the complete API. The profile cache adds 309 raw,
-    // 100 gzip, and 293 Brotli bytes without changing its request graph.
-    maxRawBytes: 3_334_792,
-    maxGzipBytes: 981_842,
-    maxBrotliBytes: 771_004,
+    // 100 gzip, and 293 Brotli bytes; the BELOW_READABLE_SIZE legibility gate
+    // (minLabelPx policy field plus the shared warning builder) rides in the
+    // bundled PNG contract on top of that.
+    maxRawBytes: 3_336_422,
+    maxGzipBytes: 982_401,
+    maxBrotliBytes: 771_504,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

@@ -6,6 +6,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { URL } from 'node:url'
 import { executeInSandbox } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
+import { MCP_RESOURCES, readMcpResource } from './resource-surface.ts'
+import { MCP_PROMPTS, getMcpPrompt } from './prompt-surface.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
@@ -120,6 +122,10 @@ const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
   supportedVersions: STDIO_PROTOCOL_VERSIONS,
   tools: LOCAL_TOOLS,
+  resources: MCP_RESOURCES,
+  prompts: MCP_PROMPTS,
+  readResource: readMcpResource,
+  getPrompt: getMcpPrompt,
   instructions: LOCAL_INSTRUCTIONS,
   handleToolCall,
 }

@@ -251,7 +251,10 @@ async function renderMermaidPNGInBrowserWithReceiptForHost(
   return Object.freeze({
     png,
     receipt: graphical.receipt,
-    diagnostics: Object.freeze([...(rasterDiagnostics ?? [])]),
+    diagnostics: Object.freeze([
+      ...graphical.legibilityWarnings.map(warning => ({ code: warning.code, message: warning.message })),
+      ...(rasterDiagnostics ?? []),
+    ]),
     colorProfile: Object.freeze(colorProfile),
     runtime,
   })

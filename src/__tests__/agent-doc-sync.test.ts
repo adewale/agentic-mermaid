@@ -12,6 +12,8 @@ import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJour
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { buildCapabilities, COMMAND_HELP, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
+import { CAPABILITIES_RESOURCE_JSON } from '../mcp/generated/capabilities-resource.ts'
+import { SKILL_MARKDOWN } from '../mcp/generated/skill-markdown.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
@@ -45,6 +47,13 @@ describe('Instructions_for_agents.md', () => {
   test('byte-matches am --agent-instructions exactly', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     expect(AGENT_INSTRUCTIONS).toEqual(guide)
+  })
+  test('the embedded MCP skill resource byte-matches SKILL.md', () => {
+    const skill = readFileSync(join(REPO, 'skills', 'agentic-mermaid-diagram-workflow', 'SKILL.md'), 'utf8')
+    expect(SKILL_MARKDOWN).toEqual(skill)
+  })
+  test('the embedded MCP capabilities resource deep-equals the live registry projection', () => {
+    expect(JSON.parse(CAPABILITIES_RESOURCE_JSON)).toEqual(JSON.parse(JSON.stringify(buildCapabilities())))
   })
   test('names every hosted MCP tool (so a new tool cannot silently drift the guide)', () => {
     for (const tool of HOSTED_TOOLS) {

@@ -399,7 +399,7 @@ am capabilities --json
 am init-agent --dir . --json
 ```
 
-PNG is single-input and requires `--output` so binary bytes are never accidentally printed to a terminal. Portable controls are `--scale`, `--bg`, and the mutually exclusive `--fit-width`/`--fit-height`; native-host font controls are `--font-dirs` and `--system-fonts`. `am init-agent` writes a non-clobbering agent-agnostic onboarding bundle (`AGENTS.md`, root `skills/`, and `.mcp.json`) into a consumer repo.
+PNG is single-input and requires `--output` so binary bytes are never accidentally printed to a terminal. Portable controls are `--scale`, `--bg`, the mutually exclusive `--fit-width`/`--fit-height`, and `--min-label-px` (legibility floor for the `BELOW_READABLE_SIZE` warning; default 9, `0` disables); native-host font controls are `--font-dirs` and `--system-fonts`. `am init-agent` writes a non-clobbering agent-agnostic onboarding bundle (`AGENTS.md`, root `skills/`, and `.mcp.json`) into a consumer repo.
 
 ## MCP
 

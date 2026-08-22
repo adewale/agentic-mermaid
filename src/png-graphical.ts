@@ -11,6 +11,7 @@ import {
   type PngRasterDimensions,
   type ResolvedPngOutputPolicy,
 } from './png-contract.ts'
+import { buildPngLegibilityWarnings, type PngLegibilityWarning } from './shared/png-legibility-warnings.ts'
 
 export interface PngGraphicalProjection extends GraphicalSvgArtifact {
   outputPolicy: ResolvedPngOutputPolicy
@@ -19,6 +20,9 @@ export interface PngGraphicalProjection extends GraphicalSvgArtifact {
   rasterBackground: string
   /** Exact integer allocation approved before any rasterizer is invoked. */
   rasterDimensions: PngRasterDimensions
+  /** BELOW_READABLE_SIZE gate computed once here so every raster substrate
+   * (native, browser, WASM, hosted) reports the identical verdict. */
+  legibilityWarnings: readonly PngLegibilityWarning[]
 }
 
 function renderResolvedPngGraphicalProjection(
@@ -35,6 +39,7 @@ function renderResolvedPngGraphicalProjection(
     outputPolicy,
     rasterBackground,
     rasterDimensions,
+    legibilityWarnings: Object.freeze(buildPngLegibilityWarnings(graphical.svg, outputPolicy)),
   }
 }
 

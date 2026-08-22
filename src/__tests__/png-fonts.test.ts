@@ -88,7 +88,7 @@ const CJK_FONT_DIR = '/usr/share/fonts/truetype/wqy'
 
 function collectWarnings(source: string, opts: Parameters<typeof renderMermaidPNG>[1] = {}): { png: Uint8Array; warnings: PngFontWarning[] } {
   const warnings: PngFontWarning[] = []
-  const png = renderMermaidPNG(source, { ...opts, onWarning: w => warnings.push(w) })
+  const png = renderMermaidPNG(source, { ...opts, onWarning: w => { if (w.code === 'PNG_FONT_COVERAGE') warnings.push(w) } })
   return { png, warnings }
 }
 

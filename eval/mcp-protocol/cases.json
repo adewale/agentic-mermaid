@@ -94,11 +94,32 @@
       "expected": { "status": 200, "id": 111, "hasResult": true }
     },
     {
-      "name": "unadvertised-resource-templates",
-      "mutation": "Probe an optional method omitted from discovery capabilities",
+      "name": "resource-templates-empty-roster",
+      "mutation": "Probe the advertised resources capability's template list (no templates exist)",
       "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/templates/list" },
       "body": { "jsonrpc": "2.0", "id": 112, "method": "resources/templates/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
-      "expected": { "status": 404, "id": 112, "errorCode": -32601 }
+      "expected": { "status": 200, "id": 112, "hasResult": true }
+    },
+    {
+      "name": "resources-list-modern",
+      "mutation": "Positive control: the advertised resource roster answers statelessly",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/list" },
+      "body": { "jsonrpc": "2.0", "id": 113, "method": "resources/list", "params": { "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 200, "id": 113, "hasResult": true }
+    },
+    {
+      "name": "resources-read-unknown-uri",
+      "mutation": "Read an off-roster resource URI",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/read", "mcp-name": "agentic-mermaid://nope" },
+      "body": { "jsonrpc": "2.0", "id": 114, "method": "resources/read", "params": { "uri": "agentic-mermaid://nope", "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 400, "id": 114, "errorCode": -32602 }
+    },
+    {
+      "name": "unadvertised-resources-subscribe",
+      "mutation": "Probe an optional method omitted from discovery capabilities",
+      "headers": { "mcp-protocol-version": "2026-07-28", "mcp-method": "resources/subscribe" },
+      "body": { "jsonrpc": "2.0", "id": 115, "method": "resources/subscribe", "params": { "uri": "agentic-mermaid://capabilities", "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } },
+      "expected": { "status": 404, "id": 115, "errorCode": -32601 }
     }
   ]
 }
