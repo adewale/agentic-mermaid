@@ -195,10 +195,25 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   make production pipeline invariant checks explicit.
   Use the canonical 2,800-case corpus, focused mutation lanes, and bounded route
   sabotage to prove named behaviors; do not restore a broad percentage chase.
+- [ ] **TEST-6 — Audit cross-family endpoint-marker and geometry authority**
+  (`todo`, [#258](https://github.com/adewale/agentic-mermaid/issues/258)).
+  Derive the marker-producing family inventory from the registry, characterize
+  Architecture and Journey contact intent before changing them, and require
+  separate shaft/surface and visible-marker/surface evidence. Inventory every
+  final endpoint writer per affected family; share family-owned production
+  geometry while keeping final verification independently derived.
+- [ ] **TEST-7 — Characterize tangential rectangle arrivals** (`todo`,
+  [#259](https://github.com/adewale/agentic-mermaid/issues/259)). Add the
+  independent final-geometry incidence metric and report ordinary curated cases
+  separately from the 2,800-case pathological corpus. Keep it non-blocking and
+  make no route repair unless the issue's representative-witness and
+  non-regression decision gate passes.
 
 ## Consolidation / dedup backlog
 
-- [ ] **CONS-26 — Finish agent/render grammar-authority convergence** (`todo`).
+- [ ] **CONS-26 — Finish agent/render grammar-authority convergence** (`todo`,
+  delivered as focused child work under
+  [#248](https://github.com/adewale/agentic-mermaid/issues/248)).
   Flowchart, Pie, Quadrant, Mindmap, and GitGraph already project renderer-owned
   ASTs; State, Timeline, and Journey share parse cores; XYChart now projects the
   strict renderer AST and no longer owns a second grammar. The remaining

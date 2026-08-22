@@ -1,7 +1,7 @@
 /**
  * Causal before/after evidence for the canonical shape-outline authority.
  * Both columns render the same Mermaid source through the public SVG API; the
- * BEFORE column comes from the rebased mainline revision.
+ * BEFORE column comes from the pull request's immutable base revision.
  *
  *   bun run scripts/pr-assets/shape-outline-authority-evidence.ts
  *   bun run scripts/pr-assets/shape-outline-authority-evidence.ts --check
@@ -15,7 +15,7 @@ import { renderMermaidSVG } from '../../src/index.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUTPUT = join(ROOT, 'docs', 'pr-assets', 'shape-outline-authority-before-after.png')
-const BEFORE_SHA = '078c0cfc930911de5a90d468164e694b4f6ac977'
+const BEFORE_SHA = '1e57d78fa3928ee0053141025bc0aa03935e2e0a'
 
 const CASES = [
   {

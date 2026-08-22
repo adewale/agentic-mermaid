@@ -183,12 +183,30 @@ family docs, and `TODO.md`.
     either remove the endpoint by contract or promote it to an explicit
     declaration. Enforce serialize/reparse family-and-body closure at the
     mutation boundary so the loss cannot hide in an in-memory AST.
-25. **Marked-route correctness has two contact coordinates.** The path vertex
+32. **Marked-route correctness has two contact coordinates.** The path vertex
     can lie exactly on a target outline while an SVG marker extends past it
     because `refX` names a different point in the marker geometry. Verify shaft
     and visible marker contact separately, then make the intended marker tip the
     reference point so orientation and stroke scaling cannot reintroduce the
     overrun.
+33. **Cache derived geometry at its authority, with mutation in the key and no
+    mutable aliases in the value.** Route proofs repeatedly request the same
+    shape profile, but positioned nodes move and route points are translated in
+    place. A safe cache validates every geometry input before reuse and returns
+    owned point copies wherever callers can mutate them. Prove both reuse and
+    invalidation, then run the full corpus: a faster run with changed findings is
+    corruption, not an optimization.
+34. **Validation infrastructure is not a change introduced by every PR that
+    uses it.** Attribute generators, runners, and gates to the PR that landed
+    them; a later PR should state the observed base-to-head delta produced by
+    that infrastructure. This keeps benefits auditable and prevents scope from
+    expanding in prose after it was deliberately removed from code.
+35. **Grammar authority, mutation closure, and rendered geometry are separate
+    review dimensions.** Prefer one dimension per PR so its failure mode,
+    rollback boundary, and evidence remain legible. Combine dimensions only
+    when a named dependency makes every smaller sequence invalid; record that
+    dependency, give each dimension its own red test and receipt, and keep the
+    implementation in separable commits.
 
 ## Lessons from the consolidation audits
 

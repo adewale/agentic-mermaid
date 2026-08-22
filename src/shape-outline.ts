@@ -41,6 +41,21 @@ export interface ShapeRoutingProfile {
   sides: Readonly<Record<PortSide, ShapeSideAttachment>>
 }
 
+interface CachedShapeRoutingProfile {
+  x: number
+  y: number
+  width: number
+  height: number
+  shape: PositionedNode['shape']
+  semanticShape: PositionedNode['semanticShape']
+  profile: ShapeRoutingProfile
+}
+
+/** Route proofs ask for the same node profile many times. Positioned nodes do
+ * move during layout, so identity alone is not a safe cache key: retain a weak
+ * per-node entry and validate every geometry input before reuse. */
+const ROUTING_PROFILE_CACHE = new WeakMap<PositionedNode, CachedShapeRoutingProfile>()
+
 interface Paint { fill: string; stroke: string; strokeWidth: string }
 
 const pointsText = (points: Point[]) => points.map(point => `${point.x},${point.y}`).join(' ')
@@ -138,6 +153,11 @@ export function shapeOutline(
  * bounded dynamic span. Envelopes and unenclosed text are explicit non-proofs.
  */
 export function shapeRoutingProfile(node: PositionedNode): ShapeRoutingProfile {
+  const cached = ROUTING_PROFILE_CACHE.get(node)
+  if (cached && cached.x === node.x && cached.y === node.y && cached.width === node.width &&
+    cached.height === node.height && cached.shape === node.shape && cached.semanticShape === node.semanticShape) {
+    return cached.profile
+  }
   const boundary = shapeOutline(node, { fill: '', stroke: '', strokeWidth: '' }).routing
   const fallback = boxCardinalPorts(node)
   const sides = {} as Record<PortSide, ShapeSideAttachment>
@@ -157,7 +177,17 @@ export function shapeRoutingProfile(node: PositionedNode): ShapeRoutingProfile {
       ? { kind: 'dynamic', ...dynamic, preferred }
       : { kind: 'port', point: preferred, preferred }
   }
-  return { boundary, sides }
+  const profile = { boundary, sides }
+  ROUTING_PROFILE_CACHE.set(node, {
+    x: node.x,
+    y: node.y,
+    width: node.width,
+    height: node.height,
+    shape: node.shape,
+    semanticShape: node.semanticShape,
+    profile,
+  })
+  return profile
 }
 
 /** Cardinal-point projection used by ELK and certificate metadata. For
@@ -166,10 +196,12 @@ export function shapeRoutingProfile(node: PositionedNode): ShapeRoutingProfile {
 export function shapeCardinalPorts(node: PositionedNode): ShapeCardinalPorts {
   const profile = shapeRoutingProfile(node)
   return {
-    N: profile.sides.N.preferred,
-    E: profile.sides.E.preferred,
-    S: profile.sides.S.preferred,
-    W: profile.sides.W.preferred,
+    // Routes own and later translate their point objects. Never let that
+    // in-place mutation alias the cached geometry authority.
+    N: { ...profile.sides.N.preferred },
+    E: { ...profile.sides.E.preferred },
+    S: { ...profile.sides.S.preferred },
+    W: { ...profile.sides.W.preferred },
   }
 }
 

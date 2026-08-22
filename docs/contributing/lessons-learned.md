@@ -305,6 +305,51 @@ transport from the product signal without weakening the browser guarantee.
 
 **Run the repository's test command, not the runner's broad default.** Bare `bun test` also discovers checked-in upstream Mermaid `*.spec.ts` source fixtures whose upstream-only imports are deliberately unavailable. The canonical `bun run test` scopes execution to `src/__tests__/` and tests harvested cases through repository adapters. Diagnose discovery errors before calling them product regressions, but still run the declared full suite after focused passes.
 
+## 2026-08 — PR #220 merge-readiness audit
+
+**Profile the repeated authority call before caching the verifier.** The first
+performance hypothesis was that final endpoint diagnostics repeatedly rebuilt
+their independent polygons. A per-audit predicate map made the profiled paths
+slightly slower because the corpus averages only about two endpoint checks per
+node. The dominant cost was repeated `shapeRoutingProfile()` construction in
+layout and hitch proof. Caching at that production authority reduced a clean
+2,800-case sequential run from 31.92s to 22.57s and its combined structural and
+contract audit from 2.19s to 0.48s on the same machine; the exact corpus
+findings stayed unchanged. Rule: retain an optimization only after a component
+profile identifies the repeated work and a paired base/head measurement
+shows the intended effect.
+
+**A cached point must not become route-owned mutable state.** The first routing-
+profile cache returned its stored cardinal-point objects. Late translation then
+mutated those points through edge paths, and the supposedly authoritative cache
+started returning corrupted anchors: the canonical corpus immediately grew
+hitches, through-node routes, stale endpoints, and off-outline findings. Rule:
+cache immutable derived values, validate every node field that affects geometry,
+and clone points at the boundary where a route takes ownership. Add a test that
+mutates a returned port and another that moves the node; both must leave the
+authority coherent.
+
+**Evidence provenance names the comparison, not merely equivalent pixels.** The
+circle contact fixtures happened to render byte-identically at an older mainline
+commit and PR #220's actual base, but the generator still labelled the older
+revision as the rebased baseline. Rule: pin the immutable merge base used by the
+claim and regenerate the caption. Pixel equality can prove the visual conclusion
+survives a repin; it cannot make an inaccurate provenance label acceptable.
+
+**Credit shared validation to the PR that introduced it.** PR #190 consolidated
+the degenerate-route generators into the canonical 2,800-case runner. PR #220
+uses that runner and changes its result from three off-outline observations in
+two cases to zero; it does not introduce the runner. Rule: distinguish mechanism,
+enrollment, and observed delta in PR descriptions so reviewers can tell what
+would actually disappear if the current change were reverted.
+
+**Treat authority dimensions as default PR boundaries.** Grammar convergence,
+mutation closure, and final rendered geometry need different counterexamples,
+oracles, and rollback decisions. Rule: select one as the PR's primary contract.
+If two or more are inseparable, name the dependency that makes a smaller merge
+invalid, keep one red/green evidence block per dimension, and preserve commit
+boundaries that allow each slice to be reviewed or reverted independently.
+
 ## 2026-07 — subtraction and release readiness (#205)
 
 **A live dependency audit is a release input, not background noise.** The PR's behavioral lanes were green, but a newly disclosed advisory in Stryker's `minimatch` chain stopped the quality job before the repository-specific checks ran. Rule: preserve the audit gate, resolve the smallest compatible transitive version explicitly, prove the dependent tool still runs, and distinguish inherited aggregate failures from product regressions.

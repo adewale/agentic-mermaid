@@ -38,6 +38,33 @@ describe('canonical shape outline authority', () => {
     }
   })
 
+  test('routing profiles reuse unchanged geometry without leaking route-owned points', () => {
+    const positioned = node('circle', 'sm-circ')
+    const first = shapeRoutingProfile(positioned)
+    expect(shapeRoutingProfile(positioned)).toBe(first)
+
+    const routedPort = shapePorts(positioned).E
+    routedPort.x += 100
+    expect(shapePorts(positioned).E).toEqual(first.sides.E.preferred)
+  })
+
+  test('routing-profile reuse invalidates after every geometry input', () => {
+    const mutations: Array<(positioned: PositionedNode) => void> = [
+      positioned => { positioned.x += 13 },
+      positioned => { positioned.y += 7 },
+      positioned => { positioned.width += 11 },
+      positioned => { positioned.height += 5 },
+      positioned => { positioned.shape = 'diamond' },
+      positioned => { positioned.semanticShape = 'cross-circ' },
+    ]
+    for (const mutate of mutations) {
+      const positioned = node('circle', 'sm-circ')
+      const before = shapeRoutingProfile(positioned)
+      mutate(positioned)
+      expect(shapeRoutingProfile(positioned)).not.toBe(before)
+    }
+  })
+
   test('exact polygon/circle paint geometry is the routing geometry', () => {
     for (const semanticShape of ['bang', 'notch-rect', 'hourglass', 'bolt', 'tri', 'notch-pent', 'flip-tri', 'tag-rect']) {
       const outline = shapeOutline(node(FLOWCHART_V11_SHAPES[semanticShape]!.geometry, semanticShape), PAINT)
