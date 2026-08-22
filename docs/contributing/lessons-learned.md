@@ -315,9 +315,12 @@ node. The dominant cost was repeated `shapeRoutingProfile()` construction in
 layout and hitch proof. Caching at that production authority reduced a clean
 2,800-case sequential run from 31.92s to 22.57s and its combined structural and
 contract audit from 2.19s to 0.48s on the same machine; the exact corpus
-findings stayed unchanged. Rule: retain an optimization only after a component
-profile identifies the repeated work and a paired base/head measurement
-shows the intended effect.
+findings stayed unchanged. The tradeoff is explicit: the existing lazy demo
+request graph grows by 308 raw / 111 gzip / 143 Brotli bytes, and the full
+editor by 309 / 100 / 293 bytes, with no new request. Rule: retain an
+optimization only after a component profile identifies the repeated work, a
+paired base/head measurement shows the intended effect, and shipped-byte cost
+is recorded alongside runtime benefit.
 
 **A cached point must not become route-owned mutable state.** The first routing-
 profile cache returned its stored cardinal-point objects. Late translation then

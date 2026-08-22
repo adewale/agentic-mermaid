@@ -195,7 +195,8 @@ family docs, and `TODO.md`.
     place. A safe cache validates every geometry input before reuse and returns
     owned point copies wherever callers can mutate them. Prove both reuse and
     invalidation, then run the full corpus: a faster run with changed findings is
-    corruption, not an optimization.
+    corruption, not an optimization. Measure distribution cost too; a valuable
+    hot-path cache can still add bytes to every browser consumer.
 34. **Validation infrastructure is not a change introduced by every PR that
     uses it.** Attribute generators, runners, and gates to the PR that landed
     them; a later PR should state the observed base-to-head delta produced by
