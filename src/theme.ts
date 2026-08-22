@@ -336,7 +336,7 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
 
   // Shadow CSS — applies drop shadow to node/box groups when enabled
   const shadowRules = shadow
-    ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task { filter: url(#bm-shadow); }'
+    ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task, .sankey-node { filter: url(#bm-shadow); }'
     : ''
 
   // CSS variable --font lets consumers swap the family post-render by mutating

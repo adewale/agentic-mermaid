@@ -36,8 +36,9 @@
  * diagram, the same geometry the SVG renderer draws.
  */
 
-import type { RenderedLayout, RenderedLayoutGroup, RenderedLayoutNode, DiagramKind } from './agent/types.ts'
+import type { DiagramKind, RenderedLayout, RenderedLayoutGroup, RenderedLayoutNode } from './agent/types.ts'
 import type { PositionedJourneyDiagram } from './journey/types.ts'
+import type { PositionedSankeyChart } from './sankey/types.ts'
 
 /** Geometry tolerance (px), matching layoutGeometryWarnings / layout-rubric. */
 const TOL = 0.5
@@ -87,9 +88,7 @@ export interface FamilyRubricResult {
 }
 
 /** The hard family-rubric metrics — must be zero for every diagram, always. */
-export const FAMILY_HARD_METRICS = [
-  'nonFiniteGeometry', 'offCanvas', 'nodeOverlaps', 'groupBreaches', 'groupOverlaps',
-] as const
+export const FAMILY_HARD_METRICS = ['nonFiniteGeometry', 'offCanvas', 'nodeOverlaps', 'groupBreaches', 'groupOverlaps'] as const
 
 /**
  * Stable score weights. Ordered by impact (Purchase 1997/2002: overlap and
@@ -160,18 +159,14 @@ function finiteRect(x: number, y: number, w: number, h: number): boolean {
   return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h) && w >= 0 && h >= 0
 }
 
-function rectOverlap(
-  a: { x: number; y: number; w: number; h: number },
-  b: { x: number; y: number; w: number; h: number },
-): boolean {
+function rectOverlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean {
   const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
   const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
   return ox > TOL && oy > TOL
 }
 
 function rectContains(outer: RenderedLayoutGroup, inner: RenderedLayoutGroup): boolean {
-  return inner.x >= outer.x - TOL && inner.y >= outer.y - TOL &&
-    inner.x + inner.w <= outer.x + outer.w + TOL && inner.y + inner.h <= outer.y + outer.h + TOL
+  return inner.x >= outer.x - TOL && inner.y >= outer.y - TOL && inner.x + inner.w <= outer.x + outer.w + TOL && inner.y + inner.h <= outer.y + outer.h + TOL
 }
 
 /** Whether `ancestor` is on `group`'s parentId chain (flattened group trees). */
@@ -191,11 +186,7 @@ function isAncestor(ancestor: RenderedLayoutGroup, group: RenderedLayoutGroup, b
  * members of every descendant group (a node in a nested child still belongs
  * inside its ancestor's region, so it is not an intruder).
  */
-function groupOccupants(
-  group: RenderedLayoutGroup,
-  groups: RenderedLayoutGroup[],
-  byId: Map<string, RenderedLayoutGroup>,
-): Set<string> {
+function groupOccupants(group: RenderedLayoutGroup, groups: RenderedLayoutGroup[], byId: Map<string, RenderedLayoutGroup>): Set<string> {
   const occupants = new Set<string>(group.members)
   for (const other of groups) {
     if (other.id !== group.id && isAncestor(group, other, byId)) {
@@ -267,7 +258,8 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   let pairs = 0
   for (let i = 0; i < layout.nodes.length; i++) {
     for (let j = i + 1; j < layout.nodes.length; j++) {
-      const a = layout.nodes[i]!, b = layout.nodes[j]!
+      const a = layout.nodes[i]!,
+        b = layout.nodes[j]!
       if (!finiteRect(a.x, a.y, a.w, a.h) || !finiteRect(b.x, b.y, b.w, b.h)) continue
       pairs++
       if (!rectOverlap(a, b)) continue
@@ -289,12 +281,8 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n || !finiteRect(n.x, n.y, n.w, n.h)) continue
-        const xOk = axes === 'center'
-          ? n.x + n.w / 2 >= g.x - TOL && n.x + n.w / 2 <= g.x + g.w + TOL
-          : n.x >= g.x - TOL && n.x + n.w <= g.x + g.w + TOL
-        const yOk = axes === 'x' || (axes === 'center'
-          ? n.y + n.h / 2 >= g.y - TOL && n.y + n.h / 2 <= g.y + g.h + TOL
-          : n.y >= g.y - TOL && n.y + n.h <= g.y + g.h + TOL)
+        const xOk = axes === 'center' ? n.x + n.w / 2 >= g.x - TOL && n.x + n.w / 2 <= g.x + g.w + TOL : n.x >= g.x - TOL && n.x + n.w <= g.x + g.w + TOL
+        const yOk = axes === 'x' || (axes === 'center' ? n.y + n.h / 2 >= g.y - TOL && n.y + n.h / 2 <= g.y + g.h + TOL : n.y >= g.y - TOL && n.y + n.h <= g.y + g.h + TOL)
         if (!xOk || !yOk) {
           groupBreaches++
           violations.push({ metric: 'groupBreaches', detail: `${memberId} outside ${g.id}` })
@@ -310,7 +298,8 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   const groupById = new Map(layout.groups.map(g => [g.id, g]))
   for (let i = 0; i < layout.groups.length; i++) {
     for (let j = i + 1; j < layout.groups.length; j++) {
-      const a = layout.groups[i]!, b = layout.groups[j]!
+      const a = layout.groups[i]!,
+        b = layout.groups[j]!
       if (!finiteRect(a.x, a.y, a.w, a.h) || !finiteRect(b.x, b.y, b.w, b.h)) continue
       if (!rectOverlap(a, b)) continue
       if (rectContains(a, b) || rectContains(b, a)) continue
@@ -365,17 +354,21 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   }
 
   const w = FAMILY_RUBRIC_WEIGHTS
-  const score = Math.max(0, Math.round((
-    100
-    - w.nonFiniteGeometry * metrics.nonFiniteGeometry
-    - w.offCanvas * metrics.offCanvas
-    - w.nodeOverlaps * metrics.nodeOverlaps
-    - w.groupBreaches * metrics.groupBreaches
-    - w.groupOverlaps * metrics.groupOverlaps
-    - w.regionIntrusions * metrics.regionIntrusions
-    - w.markOverlapRate * metrics.markOverlapRate
-    - w.missingLabelRate * (1 - metrics.labelledBoxRate)
-  ) * 10) / 10)
+  const score = Math.max(
+    0,
+    Math.round(
+      (100 -
+        w.nonFiniteGeometry * metrics.nonFiniteGeometry -
+        w.offCanvas * metrics.offCanvas -
+        w.nodeOverlaps * metrics.nodeOverlaps -
+        w.groupBreaches * metrics.groupBreaches -
+        w.groupOverlaps * metrics.groupOverlaps -
+        w.regionIntrusions * metrics.regionIntrusions -
+        w.markOverlapRate * metrics.markOverlapRate -
+        w.missingLabelRate * (1 - metrics.labelledBoxRate)) *
+        10,
+    ) / 10,
+  )
 
   return { metrics, violations, score }
 }
@@ -433,7 +426,8 @@ export function assessJourneyLayout(positioned: PositionedJourneyDiagram): Journ
   let sectionSpanOverlaps = 0
   for (let i = 0; i < positioned.sections.length; i++) {
     for (let j = i + 1; j < positioned.sections.length; j++) {
-      const a = positioned.sections[i]!, b = positioned.sections[j]!
+      const a = positioned.sections[i]!,
+        b = positioned.sections[j]!
       const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
       if (ox > TOL) {
         sectionSpanOverlaps++
@@ -453,8 +447,7 @@ export function assessJourneyLayout(positioned: PositionedJourneyDiagram): Journ
       violations.push({ metric: 'markerOffCenter', detail: `${t.id} marker at ${t.marker.cx}, column center ${t.centerX}` })
     }
     for (const d of t.actorDots) {
-      const inside = d.x - d.r >= t.x - TOL && d.x + d.r <= t.x + t.width + TOL &&
-        d.y - d.r >= t.y - TOL && d.y + d.r <= t.y + t.height + TOL
+      const inside = d.x - d.r >= t.x - TOL && d.x + d.r <= t.x + t.width + TOL && d.y - d.r >= t.y - TOL && d.y + d.r <= t.y + t.height + TOL
       if (!inside) {
         actorDotsOutsideTask++
         violations.push({ metric: 'actorDotsOutsideTask', detail: `${t.id} dot for ${d.label} at (${d.x},${d.y})` })
@@ -467,10 +460,9 @@ export function assessJourneyLayout(positioned: PositionedJourneyDiagram): Journ
   let scoreOrderViolations = 0
   for (let i = 0; i < tasks.length; i++) {
     for (let j = i + 1; j < tasks.length; j++) {
-      const a = tasks[i]!, b = tasks[j]!
-      const bad = (a.score > b.score && !(a.marker.cy < b.marker.cy - 1e-6)) ||
-        (a.score < b.score && !(b.marker.cy < a.marker.cy - 1e-6)) ||
-        (a.score === b.score && Math.abs(a.marker.cy - b.marker.cy) > 1e-6)
+      const a = tasks[i]!,
+        b = tasks[j]!
+      const bad = (a.score > b.score && !(a.marker.cy < b.marker.cy - 1e-6)) || (a.score < b.score && !(b.marker.cy < a.marker.cy - 1e-6)) || (a.score === b.score && Math.abs(a.marker.cy - b.marker.cy) > 1e-6)
       if (bad) {
         scoreOrderViolations++
         violations.push({ metric: 'scoreOrderViolations', detail: `${a.id}(score ${a.score}, y ${a.marker.cy}) vs ${b.id}(score ${b.score}, y ${b.marker.cy})` })
@@ -479,7 +471,8 @@ export function assessJourneyLayout(positioned: PositionedJourneyDiagram): Journ
   }
   const ticks = positioned.scoreGuide.ticks
   for (let i = 1; i < ticks.length; i++) {
-    const prev = ticks[i - 1]!, cur = ticks[i]!
+    const prev = ticks[i - 1]!,
+      cur = ticks[i]!
     if (!(prev.score > cur.score && prev.y < cur.y - 1e-6)) {
       scoreOrderViolations++
       violations.push({ metric: 'scoreOrderViolations', detail: `guide ticks out of order at index ${i} (score ${prev.score}→${cur.score}, y ${prev.y}→${cur.y})` })
@@ -496,13 +489,138 @@ export function assessJourneyLayout(positioned: PositionedJourneyDiagram): Journ
   }
 
   const w = JOURNEY_RUBRIC_WEIGHTS
-  const score = Math.max(0, Math.round((
-    100
-    - w.sectionSpanOverlaps * sectionSpanOverlaps
-    - w.markerOffCenter * markerOffCenter
-    - w.scoreOrderViolations * scoreOrderViolations
-    - w.actorDotsOutsideTask * actorDotsOutsideTask
-  ) * 10) / 10)
+  const score = Math.max(0, Math.round((100 - w.sectionSpanOverlaps * sectionSpanOverlaps - w.markerOffCenter * markerOffCenter - w.scoreOrderViolations * scoreOrderViolations - w.actorDotsOutsideTask * actorDotsOutsideTask) * 10) / 10)
 
   return { metrics, violations, score }
+}
+
+// ============================================================================
+// Sankey assessor — the family-specific layer over the generic family rubric,
+// mirroring the journey assessor. HARD metrics assert the layout invariants
+// the sankey construction is supposed to guarantee (so a regression that
+// breaks the construction is caught on arbitrary inputs, not just fixtures);
+// `linkCrossings` is the classic sankey computational-aesthetics metric —
+// SOFT, tracked in eval/heuristic-tracker so relaxation-quality changes are
+// measured rather than eyeballed.
+// ============================================================================
+
+export interface SankeyRubricMetrics {
+  nodes: number
+  links: number
+  /** HARD: a side's stacked ribbon widths exceed its node's height. */
+  sideOverstack: number
+  /** HARD: two nodes in one layer overlap vertically. */
+  layerOverlaps: number
+  /** HARD: a node box or label anchor leaves the canvas. */
+  offCanvas: number
+  /** HARD: a ribbon endpoint detached from its node face/extent. */
+  detachedEndpoints: number
+  /** SOFT: straight-centerline ribbon pairs that properly cross. */
+  linkCrossings: number
+}
+
+export interface SankeyRubricResult {
+  metrics: SankeyRubricMetrics
+  violations: FamilyRubricViolation[]
+}
+
+/** Strict proper-intersection test for two segments (shared endpoints and
+ *  collinear touches do not count — parallel ribbons out of one face share x). */
+function segmentsCross(a1: { x: number; y: number }, a2: { x: number; y: number }, b1: { x: number; y: number }, b2: { x: number; y: number }): boolean {
+  const orient = (p: { x: number; y: number }, q: { x: number; y: number }, r: { x: number; y: number }): number => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x))
+  const o1 = orient(a1, a2, b1),
+    o2 = orient(a1, a2, b2)
+  const o3 = orient(b1, b2, a1),
+    o4 = orient(b1, b2, a2)
+  return o1 !== 0 && o2 !== 0 && o3 !== 0 && o4 !== 0 && o1 !== o2 && o3 !== o4
+}
+
+export function assessSankeyLayout(chart: PositionedSankeyChart): SankeyRubricResult {
+  const violations: FamilyRubricViolation[] = []
+  const byLabel = new Map(chart.nodes.map(node => [node.label, node]))
+
+  // Side capacity: the ribbons stacked on one node face fit inside the node.
+  let sideOverstack = 0
+  for (const node of chart.nodes) {
+    const height = node.y1 - node.y0
+    for (const [side, widths] of [
+      ['outgoing', chart.links.filter(l => l.source === node.label).map(l => l.width)],
+      ['incoming', chart.links.filter(l => l.target === node.label).map(l => l.width)],
+    ] as const) {
+      const stacked = widths.reduce((sum, w) => sum + w, 0)
+      if (stacked > height + TOL) {
+        sideOverstack++
+        violations.push({ metric: 'sideOverstack', detail: `${node.label} ${side} ribbons stack to ${stacked.toFixed(1)}px in a ${height.toFixed(1)}px node` })
+      }
+    }
+  }
+
+  // Layer discipline: nodes sharing a layer never overlap vertically.
+  let layerOverlaps = 0
+  const layers = new Map<number, (typeof chart.nodes)[number][]>()
+  for (const node of chart.nodes) layers.set(node.layer, [...(layers.get(node.layer) ?? []), node])
+  for (const layer of layers.values()) {
+    for (let i = 0; i < layer.length; i++) {
+      for (let j = i + 1; j < layer.length; j++) {
+        const a = layer[i]!,
+          b = layer[j]!
+        const overlap = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0)
+        if (overlap > TOL) {
+          layerOverlaps++
+          violations.push({ metric: 'layerOverlaps', detail: `${a.label} overlaps ${b.label} by ${overlap.toFixed(1)}px in layer ${a.layer}` })
+        }
+      }
+    }
+  }
+
+  // Canvas containment: boxes and label anchors stay on the grown canvas.
+  let offCanvas = 0
+  for (const node of chart.nodes) {
+    const outside = node.x0 < -TOL || node.y0 < -TOL || node.x1 > chart.width + TOL || node.y1 > chart.height + TOL || node.labelX < -TOL || node.labelX > chart.width + TOL || node.labelY < -TOL || node.labelY > chart.height + TOL || !Number.isFinite(node.x0 + node.y0 + node.x1 + node.y1 + node.labelX + node.labelY)
+    if (outside) {
+      offCanvas++
+      violations.push({ metric: 'offCanvas', detail: `${node.label} leaves the ${chart.width}×${chart.height} canvas` })
+    }
+  }
+
+  // Attachment: every ribbon leaves its source's right face and enters its
+  // target's left face, inside the node's vertical extent.
+  let detachedEndpoints = 0
+  for (const link of chart.links) {
+    const source = byLabel.get(link.source),
+      target = byLabel.get(link.target)
+    if (!source || !target) {
+      detachedEndpoints++
+      violations.push({ metric: 'detachedEndpoints', detail: `${link.id} references a missing node` })
+      continue
+    }
+    const detached = Math.abs(link.sx - source.x1) > TOL || Math.abs(link.tx - target.x0) > TOL || link.sy < source.y0 - TOL || link.sy > source.y1 + TOL || link.ty < target.y0 - TOL || link.ty > target.y1 + TOL
+    if (detached) {
+      detachedEndpoints++
+      violations.push({ metric: 'detachedEndpoints', detail: `${link.id} detached from its node faces` })
+    }
+  }
+
+  // Crossings (SOFT): straight source→target centerlines that properly cross.
+  let linkCrossings = 0
+  for (let i = 0; i < chart.links.length; i++) {
+    for (let j = i + 1; j < chart.links.length; j++) {
+      const a = chart.links[i]!,
+        b = chart.links[j]!
+      if (segmentsCross({ x: a.sx, y: a.sy }, { x: a.tx, y: a.ty }, { x: b.sx, y: b.sy }, { x: b.tx, y: b.ty })) linkCrossings++
+    }
+  }
+
+  return {
+    metrics: {
+      nodes: chart.nodes.length,
+      links: chart.links.length,
+      sideOverstack,
+      layerOverlaps,
+      offCanvas,
+      detachedEndpoints,
+      linkCrossings,
+    },
+    violations,
+  }
 }

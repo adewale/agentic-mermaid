@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG } from '../index.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
@@ -21,6 +21,7 @@ const CASES: Array<{ family: string; section: string; source: string; invalidKey
   { family: 'mindmap', section: 'mindmap', source: 'mindmap\n  Root\n    Child', invalidKey: 'padding', invalidValue: 'bad' },
   { family: 'gitgraph', section: 'gitGraph', source: 'gitGraph\n  commit', invalidKey: 'showBranches', invalidValue: 'bad' },
   { family: 'radar', section: 'radar', source: 'radar-beta\n  axis a, b, c\n  curve x{1, 2, 3}\n  max 5', invalidKey: 'curveTension', invalidValue: 5 },
+  { family: 'sankey', section: 'sankey', source: 'sankey-beta\n  A,B,10\n  B,C,4', invalidKey: 'nodeWidth', invalidValue: 'bad' },
 ]
 
 function configured(section: string, source: string): string {
@@ -38,8 +39,7 @@ describe('family config is exhaustive wire-or-warn', () => {
       const parsed = parseMermaid(configured(entry.section, entry.source))
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) return
-      const warning = verifyMermaid(parsed.value).warnings.find(item =>
-        item.code === 'INEFFECTIVE_CONFIG' && item.field === `${entry.section}.madeUpKey`)
+      const warning = verifyMermaid(parsed.value).warnings.find(item => item.code === 'INEFFECTIVE_CONFIG' && item.field === `${entry.section}.madeUpKey`)
       expect(warning).toBeDefined()
     })
   }
@@ -48,9 +48,12 @@ describe('family config is exhaustive wire-or-warn', () => {
     const parsed = parseMermaid('%%{init: {"flowchart": {"madeUpKey": 7}}}%%\nflowchart LR\n  A --> B')
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
-      code: 'INEFFECTIVE_CONFIG', field: 'flowchart.madeUpKey',
-    }))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'INEFFECTIVE_CONFIG',
+        field: 'flowchart.madeUpKey',
+      }),
+    )
   })
 
   for (const entry of CASES) {

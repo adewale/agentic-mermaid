@@ -76,6 +76,7 @@ export const CORE_SCENE_FEATURES = [
   'dash-restart',
   'path-length',
   'paint-order',
+  'compositing',
   'non-scaling-stroke',
   'marker-orientation',
   'marker-overflow',
@@ -126,6 +127,7 @@ export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrim
   { primitive: 'connector', feature: 'dash-restart', operation: 'render' },
   { primitive: 'connector', feature: 'path-length', operation: 'render' },
   { primitive: 'connector', feature: 'paint-order', operation: 'render' },
+  { primitive: 'connector', feature: 'compositing', operation: 'render' },
   { primitive: 'connector', feature: 'non-scaling-stroke', operation: 'render' },
   { primitive: 'connector', feature: 'marker-orientation', operation: 'render' },
   { primitive: 'connector', feature: 'marker-overflow', operation: 'render' },
@@ -243,7 +245,7 @@ export function graphicalBackendCapabilityClaims(
   const detailedConnectorFeatures = [
     'transform', 'topology', 'subpaths', 'closedness', 'bend-radius', 'stroke-opacity', 'stroke-cap', 'stroke-join',
     'stroke-miter', 'dash-array', 'dash-offset', 'dash-restart', 'path-length',
-    'paint-order', 'non-scaling-stroke', 'marker-orientation', 'marker-overflow',
+    'paint-order', 'compositing', 'non-scaling-stroke', 'marker-orientation', 'marker-overflow',
   ] as const satisfies readonly CoreSceneFeature[]
   const claims: PrimitiveCapabilityClaim[] = [
     { target, primitive: 'document', feature: 'identity', operation: 'serialize', realization: 'native', evidence },
@@ -304,7 +306,7 @@ export function terminalConnectorCapabilityClaims(
   const lossy = new Set<CoreSceneFeature>([
     'geometry', 'paint', 'stroke', 'transform', 'bend-radius',
     'stroke-opacity', 'stroke-cap', 'stroke-join', 'stroke-miter',
-    'dash-array', 'dash-offset', 'dash-restart', 'path-length', 'paint-order',
+    'dash-array', 'dash-offset', 'dash-restart', 'path-length', 'paint-order', 'compositing',
     'non-scaling-stroke', 'marker-orientation', 'marker-overflow',
   ])
   const features = [
@@ -312,7 +314,7 @@ export function terminalConnectorCapabilityClaims(
     'geometry', 'topology', 'subpaths', 'closedness', 'bend-radius',
     'interaction', 'hit-geometry', 'stroke', 'transform', 'stroke-opacity',
     'stroke-cap', 'stroke-join', 'stroke-miter', 'dash-array', 'dash-offset',
-    'dash-restart', 'path-length', 'paint-order', 'non-scaling-stroke',
+    'dash-restart', 'path-length', 'paint-order', 'compositing', 'non-scaling-stroke',
     'marker-orientation', 'marker-overflow',
   ] as const satisfies readonly CoreSceneFeature[]
   const claims: PrimitiveCapabilityClaim[] = features.map(feature => ({

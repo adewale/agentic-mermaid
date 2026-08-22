@@ -64,6 +64,7 @@ export interface SketchStrokeProjection {
   opacity?: string | number
   pathLength?: number
   paintOrder?: string
+  mixBlendMode?: 'normal' | 'multiply'
   nonScaling?: boolean
 }
 
@@ -130,6 +131,7 @@ function projectedStrokeAttributes(projection: SketchStrokeProjection = {}): str
     ...(projection.opacity !== undefined ? [`stroke-opacity="${escapeAttr(String(projection.opacity))}"`] : []),
     ...(projection.pathLength !== undefined ? [`pathLength="${escapeAttr(String(projection.pathLength))}"`] : []),
     ...(projection.paintOrder !== undefined ? [`paint-order="${escapeAttr(projection.paintOrder)}"`] : []),
+    ...(projection.mixBlendMode !== undefined ? [`style="mix-blend-mode:${projection.mixBlendMode}"`] : []),
     ...(projection.nonScaling ? ['vector-effect="non-scaling-stroke"'] : []),
   ]
   return attrs.join(' ')
@@ -367,6 +369,7 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
     ...(node.stroke.opacity !== undefined ? { opacity: node.stroke.opacity } : {}),
     ...(node.stroke.pathLength !== undefined ? { pathLength: node.stroke.pathLength } : {}),
     ...(node.stroke.paintOrder !== undefined ? { paintOrder: node.stroke.paintOrder } : {}),
+    ...(node.stroke.mixBlendMode !== undefined ? { mixBlendMode: node.stroke.mixBlendMode } : {}),
     nonScaling: node.stroke.nonScaling,
   }
   let sketched = ''

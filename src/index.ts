@@ -53,7 +53,7 @@ export type {
 export type {
   MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig,
   JourneyRuntimeConfig, StateRuntimeConfig, XyChartRuntimeConfig,
-  PieRuntimeConfig, QuadrantRuntimeConfig, MindmapRuntimeConfig, GitGraphRuntimeConfig, RadarRuntimeConfig,
+  PieRuntimeConfig, QuadrantRuntimeConfig, MindmapRuntimeConfig, GitGraphRuntimeConfig, RadarRuntimeConfig, SankeyRuntimeConfig,
 } from './mermaid-source.ts'
 export { parseArchitectureDiagram, architectureToMermaidGraph } from './architecture/parser.ts'
 export { parseMindmap, serializeMindmap, MindmapDuplicateIdError, MindmapParseError } from './mindmap/parser.ts'
@@ -121,7 +121,7 @@ export type {
 export { SCENE_CONTRACT_VERSION } from './scene/ir.ts'
 export type {
   SceneDoc, SceneNode, SceneNodeBase, SemanticChannels, SceneRole, Geometry, MarkPaint,
-  ShapeMark, TextMark, GroupMark, DocumentMark, ConnectorMark,
+  ShapeMark, TextMark, GroupMark, DocumentMark, ConnectorMark, LinearGradientDescriptor,
   ConnectorGeometry, ConnectorSubpath, ConnectorDirection, ConnectorEndpointAnchor, ConnectorEndpoints,
   ConnectorRelationship, ConnectorRoute, ConnectorContourSemantics, ConnectorDash, ConnectorStroke,
   ConnectorLabelDescriptor, ConnectorHitGeometry, ConnectorTerminalProjection,
@@ -148,6 +148,9 @@ export type { SceneConnectorHit } from './scene/hit-test.ts'
 export {
   assertRenderableMarker, serializeMarkerResource, serializeMarkerResources,
 } from './scene/marker-resources.ts'
+export {
+  assertRenderableLinearGradient, serializeLinearGradientResource, serializeLinearGradientResources,
+} from './scene/gradient-resources.ts'
 export type { RenderableMarkerDescriptor, MarkerSerializationOptions } from './scene/marker-resources.ts'
 export {
   BUILTIN_SCENE_ROLE_TRAITS, SCENE_ROLE_DESCRIPTORS, resolveSceneRoleTraits, sceneRoleTraits,

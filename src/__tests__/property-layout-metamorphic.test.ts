@@ -21,13 +21,13 @@
 // preserves source order by design, so permuting statements may legitimately
 // change geometry.
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { parseRegisteredMermaid as parseMermaid, verifyMermaid, layoutMermaid, measureQuality, serializeMermaid } from '../agent/index.ts'
-import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { layoutMermaid, measureQuality, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
+import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 /** Parse + structural count, asserting the source is well-formed and structured. */
 function counts(source: string): StructuralCount {
@@ -73,7 +73,7 @@ describe('metamorphic: relations across all renderable families', () => {
   // generator legitimately changes.
   const BASE_COUNTS: Record<string, { nodes: number; edges: number; groups: number }> = {
     flowchart: { nodes: 2, edges: 1, groups: 0 },
-    state: { nodes: 5, edges: 2, groups: 0 },        // chain + nested composite
+    state: { nodes: 5, edges: 2, groups: 0 }, // chain + nested composite
     sequence: { nodes: 2, edges: 1, groups: 0 },
     class: { nodes: 2, edges: 1, groups: 0 },
     er: { nodes: 2, edges: 1, groups: 0 },
@@ -86,7 +86,8 @@ describe('metamorphic: relations across all renderable families', () => {
     gantt: { nodes: 2, edges: 0, groups: 1 },
     mindmap: { nodes: 3, edges: 2, groups: 0 },
     gitgraph: { nodes: 1, edges: 0, groups: 1 },
-    radar: { nodes: 3, edges: 0, groups: 3 },        // 1 curve × 3 axes vertices; 3 axes
+    radar: { nodes: 3, edges: 0, groups: 3 }, // 1 curve × 3 axes vertices; 3 axes
+    sankey: { nodes: 2, edges: 1, groups: 0 }, // 1 source + shared sink; 1 CSV row
   }
 
   test('every generator base build has its pinned structural count', () => {
@@ -122,46 +123,59 @@ describe('metamorphic: relations across all renderable families', () => {
     })
 
     test(`${fam.family}: base build is structured + verifiable`, () => {
-      fc.assert(fc.property(kArb, tagArb, (k, t) => {
-        const p = parseMermaid(fam.build(k, t))
-        expect(p.ok).toBe(true)
-        if (!p.ok) return
-        expect(countStructuralElements(p.value)).not.toBeNull()
-        expect(verifyMermaid(p.value).ok).toBe(true)
-        const rubric = assessRenderedLayout(layoutMermaid(p.value))
-        expect(familyHardViolations(rubric)).toEqual([])
-      }), { numRuns: 40 })
+      fc.assert(
+        fc.property(kArb, tagArb, (k, t) => {
+          const p = parseMermaid(fam.build(k, t))
+          expect(p.ok).toBe(true)
+          if (!p.ok) return
+          expect(countStructuralElements(p.value)).not.toBeNull()
+          expect(verifyMermaid(p.value).ok).toBe(true)
+          const rubric = assessRenderedLayout(layoutMermaid(p.value))
+          expect(familyHardViolations(rubric)).toEqual([])
+        }),
+        { numRuns: 40 },
+      )
     })
 
     test(`${fam.family}: MR2 relabeling preserves structure + verify.ok`, () => {
-      fc.assert(fc.property(kArb, tagArb, tagArb, (k, a, b) => {
-        expect(counts(fam.build(k, b))).toEqual(counts(fam.build(k, a)))
-        const pa = parseMermaid(fam.build(k, a)), pb = parseMermaid(fam.build(k, b))
-        if (pa.ok && pb.ok) expect(verifyMermaid(pb.value).ok).toBe(verifyMermaid(pa.value).ok)
-      }), { numRuns: 40 })
+      fc.assert(
+        fc.property(kArb, tagArb, tagArb, (k, a, b) => {
+          expect(counts(fam.build(k, b))).toEqual(counts(fam.build(k, a)))
+          const pa = parseMermaid(fam.build(k, a)),
+            pb = parseMermaid(fam.build(k, b))
+          if (pa.ok && pb.ok) expect(verifyMermaid(pb.value).ok).toBe(verifyMermaid(pa.value).ok)
+        }),
+        { numRuns: 40 },
+      )
     })
 
     if (fam.addPrimary) {
       const ap = fam.addPrimary
       test(`${fam.family}: MR3 add-primary ⇒ nodes += ${ap.nodeDelta}, edges unchanged`, () => {
-        fc.assert(fc.property(kArb, tagArb, (k, t) => {
-          const cb = counts(fam.build(k, t))
-          const ca = counts(fam.build(k, t) + ap.snippet(k, t))
-          expect(ca.nodes).toBe(cb.nodes + ap.nodeDelta)
-          expect(ca.edges).toBe(cb.edges)
-        }), { numRuns: 40 })
+        fc.assert(
+          fc.property(kArb, tagArb, (k, t) => {
+            const cb = counts(fam.build(k, t))
+            const ca = counts(fam.build(k, t) + ap.snippet(k, t))
+            expect(ca.nodes).toBe(cb.nodes + ap.nodeDelta)
+            expect(ca.edges).toBe(cb.edges)
+          }),
+          { numRuns: 40 },
+        )
       })
     }
 
     if (fam.addRelation) {
       const ar = fam.addRelation
       test(`${fam.family}: MR4 add-relation ⇒ edges += 1, nodes unchanged`, () => {
-        fc.assert(fc.property(kArb, tagArb, (k, t) => {
-          const cb = counts(fam.build(k, t))
-          const ca = counts(fam.build(k, t) + ar(k, t))
-          expect(ca.edges).toBe(cb.edges + 1)
-          expect(ca.nodes).toBe(cb.nodes)
-        }), { numRuns: 40 })
+        fc.assert(
+          fc.property(kArb, tagArb, (k, t) => {
+            const cb = counts(fam.build(k, t))
+            const ca = counts(fam.build(k, t) + ar(k, t))
+            expect(ca.edges).toBe(cb.edges + 1)
+            expect(ca.nodes).toBe(cb.nodes)
+          }),
+          { numRuns: 40 },
+        )
       })
     }
   }

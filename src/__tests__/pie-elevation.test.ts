@@ -550,6 +550,20 @@ pie showData
         .toBe(output.sha256)
     }
   })
+
+  it('refreshes the receipt without rewriting reviewed PNG evidence', () => {
+    const outputPaths = [
+      join(ROOT, 'docs', 'design', 'families', 'pie-highlightslice-regression-matrix.png'),
+      join(ROOT, 'docs', 'design', 'families', 'pie-highlightslice-after.png'),
+    ]
+    const before = outputPaths.map(path => readFileSync(path))
+    const result = Bun.spawnSync([
+      'bun', 'run', join(ROOT, 'scripts', 'pr-assets', 'pie-highlightslice-evidence.ts'), '--receipt-only',
+    ], { cwd: ROOT })
+    expect(result.exitCode, result.stderr.toString()).toBe(0)
+    expect(result.stdout.toString()).toContain('without rewriting reviewed visual output')
+    expect(outputPaths.map(path => readFileSync(path))).toEqual(before)
+  })
 })
 
 // ---------------------------------------------------------------------------

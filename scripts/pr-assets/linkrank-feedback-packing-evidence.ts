@@ -170,7 +170,7 @@ if (process.argv.includes('--receipt-only')) {
 if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
   if (JSON.stringify(recorded) !== JSON.stringify(currentReceipt())) {
-    throw new Error('Issue #87 visual evidence is stale; run bun run scripts/pr-assets/linkrank-feedback-packing-evidence.ts')
+    throw new Error('Issue #87 visual evidence is stale; run bun run scripts/pr-assets/linkrank-feedback-packing-evidence.ts --receipt-only to preserve reviewed pixels, or omit --receipt-only to regenerate visuals for review')
   }
   console.log('Issue #87 visual evidence is synchronized')
   process.exit(0)

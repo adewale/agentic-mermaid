@@ -114,6 +114,15 @@ describe('canonical terminal field applicability', () => {
     }))
   })
 
+  test('reports continuous local gradient paint and compositing as terminal losses', () => {
+    const rendered = renderMermaidASCIIWithReceipt('sankey-beta\n  A,B,1', { colorMode: 'none' })
+    expect(rendered.terminalStyle.connectorProjection.connectors).toHaveLength(1)
+    expect(rendered.terminalStyle.connectorProjection.connectors[0]!.strokeLosses)
+      .toEqual(expect.arrayContaining(['gradient-paint', 'mix-blend-mode']))
+    expect(rendered.terminalStyle.connectorProjection.connectors[0]!.diagnostics.join(' '))
+      .toContain('gradient-paint')
+  })
+
   test('terminal connector evidence preserves every typed feature behind its per-feature claims', () => {
     const rendered = renderMermaidASCIIWithReceipt('flowchart LR\n  A[Start] -->|ships| B[Finish]', { colorMode: 'none' })
     const projection = rendered.terminalStyle.connectorProjection.connectors[0]!
@@ -147,7 +156,7 @@ describe('canonical terminal field applicability', () => {
     expect(claims.every(claim => claim.operation === 'terminal-project')).toBe(true)
     expect(claims.every(claim => claim.evidence === 'src/__tests__/terminal-projection-security.test.ts')).toBe(true)
     expect(claims.filter(claim => claim.realization === 'lossy').every(claim => Boolean(claim.diagnostic))).toBe(true)
-    for (const feature of ['endpoints', 'topology', 'closedness', 'bend-radius', 'hit-geometry', 'labels', 'markers', 'stroke-cap', 'dash-array']) {
+    for (const feature of ['endpoints', 'topology', 'closedness', 'bend-radius', 'hit-geometry', 'labels', 'markers', 'stroke-cap', 'dash-array', 'compositing']) {
       expect(claims.some(claim => claim.feature === feature), feature).toBe(true)
     }
   })
@@ -185,7 +194,7 @@ describe('canonical terminal field applicability', () => {
       stroke: {
         opacity: 0.5, dash: { array: [7, 3], offset: 2 }, lineCap: 'square',
         lineJoin: 'miter', miterLimit: 8, pathLength: 40,
-        paintOrder: 'stroke fill', nonScaling: true,
+        paintOrder: 'stroke fill', mixBlendMode: 'multiply', nonScaling: true,
       },
       markers: { start: marker, mid: [marker], end: marker },
       labels: [{
@@ -225,6 +234,8 @@ describe('canonical terminal field applicability', () => {
       'dash-restart': projected.route.contours.length === 2 && projected.stroke.dash !== undefined,
       'path-length': projected.stroke.pathLength === 40,
       'paint-order': projected.stroke.paintOrder === 'stroke fill',
+      compositing: projected.stroke.mixBlendMode === 'multiply'
+        && projected.strokeLosses.includes('mix-blend-mode'),
       'non-scaling-stroke': projected.stroke.nonScaling,
       'marker-orientation': projected.markers.start?.orient === 'auto-start-reverse',
       'marker-overflow': projected.markers.end?.overflow === 'visible',

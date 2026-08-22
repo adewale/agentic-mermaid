@@ -459,7 +459,7 @@ const GRAPH_LAYOUT_OPTION_FAMILIES = [
 
 const SHADOW_OPTION_FAMILIES = [
   'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey',
-  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph',
+  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'sankey',
 ] as const satisfies readonly DiagramKind[]
 
 /**

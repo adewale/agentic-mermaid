@@ -1,10 +1,5 @@
-import {
-  architectureVisualOverridesTypeScriptDeclaration,
-  RENDER_CONTRACT_VERSION,
-  RENDER_OUTPUT_DESCRIPTORS,
-  sharedRenderOptionsTypeScriptDeclaration,
-} from '../render-contract.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
+import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
@@ -12,44 +7,35 @@ function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
 }
 
 function sdkFamilyBodyType(family: BuiltinFamilyMetadata): string {
-  return family.id === 'flowchart'
-    ? `{ kind: 'flowchart'; graph: FlowchartGraph }`
-    : `${sdkFamilyTypeStem(family)}Body`
+  return family.id === 'flowchart' ? `{ kind: 'flowchart'; graph: FlowchartGraph }` : `${sdkFamilyTypeStem(family)}Body`
 }
 
-const SDK_DIAGRAM_KIND_DECLARATION = `type DiagramKind = ${BUILTIN_FAMILY_METADATA
-  .map(family => `'${family.id}'`).join(' | ')}`
+const SDK_DIAGRAM_KIND_DECLARATION = `type DiagramKind = ${BUILTIN_FAMILY_METADATA.map(family => `'${family.id}'`).join(' | ')}`
 
-const SDK_DIAGRAM_BODY_MEMBERS = BUILTIN_FAMILY_METADATA
-  .map(family => `    | ${sdkFamilyBodyType(family)}`)
-  .join('\n')
+const SDK_DIAGRAM_BODY_MEMBERS = BUILTIN_FAMILY_METADATA.map(family => `    | ${sdkFamilyBodyType(family)}`).join('\n')
 
-const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA
-  .map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = ValidDiagram & { body: ${sdkFamilyBodyType(family)} }`)
-  .join('\n')
+const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = ValidDiagram & { body: ${sdkFamilyBodyType(family)} }`).join('\n')
 
-const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA
-  .map(family => `  ${family.narrower}(d: ValidDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`)
-  .join('\n')
+const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => `  ${family.narrower}(d: ValidDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`).join('\n')
 
-const SDK_MUTATE_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA
-  .map(family => {
-    const stem = sdkFamilyTypeStem(family)
-    return `  mutate(d: ${stem}ValidDiagram, op: ${stem}MutationOp): Result<${stem}ValidDiagram, { code: string; message: string }>`
-  })
-  .join('\n')
+const SDK_MUTATE_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => {
+  const stem = sdkFamilyTypeStem(family)
+  return `  mutate(d: ${stem}ValidDiagram, op: ${stem}MutationOp): Result<${stem}ValidDiagram, { code: string; message: string }>`
+}).join('\n')
 
-const SDK_ANY_MUTATION_OP_DECLARATION = `type AnyMutationOp = ${BUILTIN_FAMILY_METADATA
-  .map(family => `${sdkFamilyTypeStem(family)}MutationOp`).join(' | ')}`
+const SDK_ANY_MUTATION_OP_DECLARATION = `type AnyMutationOp = ${BUILTIN_FAMILY_METADATA.map(family => `${sdkFamilyTypeStem(family)}MutationOp`).join(' | ')}`
 
 const SDK_FAMILY_CONVENTION = `// 3. mutate works on ${BUILTIN_FAMILY_METADATA.map(family => family.id).join(', ')}. Narrow via\n//    ${BUILTIN_FAMILY_METADATA.map(family => family.narrower).join('/')}.`
 
 function codeModeRenderMethodDeclarations(): string {
-  const methods = new Map<string, {
-    optionsType: string
-    returnType: string
-    outputs: string[]
-  }>()
+  const methods = new Map<
+    string,
+    {
+      optionsType: string
+      returnType: string
+      outputs: string[]
+    }
+  >()
   for (const descriptor of RENDER_OUTPUT_DESCRIPTORS) {
     const transport = descriptor.transports.codeMode
     if (transport.availability !== 'direct' && transport.availability !== 'projected') continue
@@ -68,9 +54,7 @@ function codeModeRenderMethodDeclarations(): string {
       })
     }
   }
-  return [...methods].map(([method, declaration]) =>
-    `  // ${declaration.outputs.join('; ')}\n  ${method}(input: ParsedDiagram | string, opts?: ${declaration.optionsType}): ${declaration.returnType}`,
-  ).join('\n')
+  return [...methods].map(([method, declaration]) => `  // ${declaration.outputs.join('; ')}\n  ${method}(input: ParsedDiagram | string, opts?: ${declaration.optionsType}): ${declaration.returnType}`).join('\n')
 }
 
 /** Generated once from the canonical render-option descriptors and embedded in
@@ -134,15 +118,9 @@ function compactInterfaceDeclarations(declaration: string): string {
   return compact.trimEnd()
 }
 
-const CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION = compactInterfaceDeclarations(
-  CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION,
-)
-const CODE_MODE_CORE_OUTPUT_RENDER_OPTION_DECLARATIONS = compactInterfaceDeclarations(
-  CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS,
-)
-const CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS = compactInterfaceDeclarations(
-  CODE_MODE_RENDER_RECEIPT_DECLARATIONS,
-)
+const CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION = compactInterfaceDeclarations(CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION)
+const CODE_MODE_CORE_OUTPUT_RENDER_OPTION_DECLARATIONS = compactInterfaceDeclarations(CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS)
+const CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS = compactInterfaceDeclarations(CODE_MODE_RENDER_RECEIPT_DECLARATIONS)
 
 export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `${styleSpecTypeScriptDeclaration()}
 
@@ -193,9 +171,7 @@ interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: Rend
 /** Compact tools/list projection. It shares the exact generated public option
  * fields, output-option interfaces, and receipt contract with the full SDK,
  * while intentionally summarizing the full terminal evidence records. */
-const CODE_MODE_CORE_STYLE_SPEC_DECLARATION = styleSpecTypeScriptDeclaration({ compact: true })
-  .replaceAll(' | ', '|')
-  .replaceAll(', ', ',')
+const CODE_MODE_CORE_STYLE_SPEC_DECLARATION = styleSpecTypeScriptDeclaration({ compact: true }).replaceAll(' | ', '|').replaceAll(', ', ',')
 
 export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
 type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
@@ -247,6 +223,7 @@ type MermaidRuntimeConfig = {
   mindmap?: { [key: string]: MermaidConfigValue | undefined; padding?: number; maxNodeWidth?: number }
   gitGraph?: { [key: string]: MermaidConfigValue | undefined; showBranches?: boolean; showCommitLabel?: boolean; mainBranchName?: string; mainBranchOrder?: number; parallelCommits?: boolean; rotateCommitLabel?: boolean }
   radar?: { [key: string]: MermaidConfigValue | undefined; width?: number; height?: number; marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number; axisScaleFactor?: number; axisLabelFactor?: number; curveTension?: number; useMaxWidth?: boolean; tickLabels?: boolean }
+  sankey?: { [key: string]: MermaidConfigValue | undefined; width?: number; height?: number; linkColor?: string; nodeAlignment?: 'justify' | 'center' | 'left' | 'right'; showValues?: boolean; prefix?: string; suffix?: string; labelStyle?: 'legacy' | 'outlined'; nodeWidth?: number; nodePadding?: number; nodeColors?: Record<string, string>; useMaxWidth?: boolean }
   // Wired sequence keys (unlisted documented keys are accepted and named by
   // verify's INEFFECTIVE_CONFIG lint — see src/sequence/config.ts).
   sequence?: { [key: string]: MermaidConfigValue | undefined; actorMargin?: number; width?: number; height?: number; diagramMarginX?: number; diagramMarginY?: number; messageMargin?: number; noteMargin?: number; activationWidth?: number; showSequenceNumbers?: boolean }
@@ -500,6 +477,11 @@ interface RadarBodyAxis { id: string; label: string }
 interface RadarBodyCurve { id: string; label: string; values: number[] }
 interface RadarBody { kind: 'radar'; title?: string; axes: RadarBodyAxis[]; curves: RadarBodyCurve[]; min: number; max?: number; ticks: number; graticule: 'circle' | 'polygon'; showLegend: boolean }
 
+// Sankey flow diagram: CSV rows of source,target,value. Nodes are implied by
+// the labels (the label IS the node identity); parallel duplicate rows are legal.
+interface SankeyBodyLink { source: string; target: string; value: number }
+interface SankeyBody { kind: 'sankey'; links: SankeyBodyLink[] }
+
 type GanttTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
 // start: a date in the diagram's dateFormat or 'after id…'; undefined = previous task's end.
 // end: a date, a duration token ('3d', '2w'), or 'until id…'.
@@ -739,6 +721,12 @@ type RadarMutationOp =
   | { kind: 'reorder_curve'; from: number; to: number }
   | { kind: 'set_config'; max?: number | null; min?: number | null; ticks?: number | null; graticule?: 'circle' | 'polygon' | null; showLegend?: boolean | null }
 
+type SankeyMutationOp =
+  | { kind: 'add_link'; source: string; target: string; value: number; index?: number }
+  | { kind: 'remove_link'; source: string; target: string; occurrence?: number }
+  | { kind: 'set_link_value'; source: string; target: string; value: number; occurrence?: number }
+  | { kind: 'rename_node'; from: string; to: string }
+
 type GanttMutationOp =
   | { kind: 'set_title'; title: string | null }
   | { kind: 'add_section'; label: string }
@@ -770,7 +758,7 @@ type GanttMutationOp =
 // ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR,
 // ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE,
-// DECISION_BRANCH_UNLABELED, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
+// DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST,
 // BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
@@ -786,7 +774,7 @@ type WarningCode =
   | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
-  | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
+  | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
   | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST'
   | 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
 

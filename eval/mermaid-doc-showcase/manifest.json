@@ -137,6 +137,15 @@
       "index": 0,
       "source": "---\ntitle: \"Grades\"\n---\nradar-beta\n  axis m[\"math\"], s[\"science\"], e[\"english\"]\n  axis h[\"history\"], g[\"geography\"], a[\"art\"]\n  curve a[\"Alice\"]{85, 90, 80, 70, 75, 90}\n  curve b[\"Bob\"]{70, 75, 85, 80, 90, 85}\n  max 100\n  min 0",
       "sourceSha256": "d5c316755ef729d8179b47440f20682784a492e67ffcd9389c1a6702146dd941"
+    },
+    {
+      "family": "sankey",
+      "title": "Basic",
+      "officialDocs": "https://mermaid.js.org/syntax/sankey.html",
+      "origin": "syntax/sankey.md",
+      "index": 0,
+      "source": "sankey\n\n%% source,target,value\nElectricity grid,Over generation / exports,104.453\nElectricity grid,Heating and cooling - homes,113.726\nElectricity grid,H2 conversion,27.14",
+      "sourceSha256": "b088b06b854e48044606b7b85362addc2de3fe2d0e4096e010ec0a2070adc41e"
     }
   ],
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc"

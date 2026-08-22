@@ -20,6 +20,19 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   workflow — in both protocol eras, with caching hints on the list methods
   and drift guards pinning the embedded content to its sources.
 - Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
+- Added Sankey as the 16th built-in diagram family, with Mermaid-compatible
+  `sankey` and `sankey-beta` CSV syntax, deterministic SVG, PNG, and ASCII
+  rendering, typed agent editing, and support across the library, CLI, MCP,
+  website, and full and lazy browser bundles.
+
+### Changed
+- Updated the `brace-expansion` development override to the first 5.x release
+  patched for GHSA-rgw5-rvv9-x895.
+- Updated the transitive `fast-uri` override to 3.1.5 for
+  GHSA-7p8r-x3mc-p8w7 and pinned transitive `undici` to 7.29.0 for
+  GHSA-4cwx-7wf7-3272.
+- Pinned transitive `ip-address` to 10.3.1 for
+  GHSA-mwp4-54f8-5fhr.
 
 ## 0.4.0 — 2026-07-28
 

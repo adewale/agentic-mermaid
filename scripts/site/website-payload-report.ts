@@ -10,6 +10,8 @@ import {
   stablePayloadJson,
   verifyWebsitePayloadBudgets,
   websitePayloadCaptureProblems,
+  websitePayloadRecordingToolchainMatches,
+  type WebsitePayloadReport,
 } from './website-payload-authority.ts'
 import { WEBSITE_PAYLOAD_BUDGETS } from './website-payload-budgets.ts'
 
@@ -114,6 +116,8 @@ const report = buildWebsitePayloadReport(PUBLIC, captured, {
   bun: Bun.version,
   playwright: playwrightPackage.version,
   chromium: chromiumVersion,
+  platform: process.platform,
+  arch: process.arch,
 })
 cleanup()
 const problems = verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)
@@ -125,6 +129,14 @@ if (mode === 'write') {
 } else {
   if (!existsSync(REPORT)) throw new Error(`Missing payload report: ${REPORT}`)
   const recorded = readFileSync(REPORT, 'utf8')
-  assertWebsitePayloadReportCurrent(recorded, report)
-  console.log('Website payload report, request graphs, and budgets pass')
+  const recordedReport = JSON.parse(recorded) as WebsitePayloadReport
+  if (websitePayloadRecordingToolchainMatches(recordedReport.toolchain, report.toolchain)) {
+    assertWebsitePayloadReportCurrent(recorded, report)
+    console.log('Website payload report, exact request graphs, and budgets pass')
+  } else {
+    console.log(
+      `Website payload budgets pass; exact byte comparison skipped: built with Bun ${report.toolchain.bun} on ${report.toolchain.platform}/${report.toolchain.arch}, `
+      + `baseline recorded with Bun ${recordedReport.toolchain.bun} on ${recordedReport.toolchain.platform}/${recordedReport.toolchain.arch}`,
+    )
+  }
 }

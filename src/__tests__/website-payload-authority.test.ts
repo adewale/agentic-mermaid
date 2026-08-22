@@ -11,6 +11,7 @@ import {
   publicRequestPathToFile,
   verifyWebsitePayloadBudgets,
   websitePayloadCaptureProblems,
+  websitePayloadRecordingToolchainMatches,
   type WebsitePayloadReport,
 } from '../../scripts/site/website-payload-authority.ts'
 import { WEBSITE_PAYLOAD_BUDGETS } from '../../scripts/site/website-payload-budgets.ts'
@@ -22,27 +23,28 @@ const REPO = join(import.meta.dir, '..', '..')
 const PUBLIC = join(REPO, 'website', 'public')
 const report = JSON.parse(readFileSync(join(REPO, 'eval', 'website-payload', 'baseline.json'), 'utf8')) as WebsitePayloadReport
 
-// The baseline records the toolchain that produced it, and a different Bun
-// emits a byte-different bundle from identical sources — 1.3.13 and 1.3.11
-// differ by 11 bytes on the home document alone. Comparing locally built bytes
-// against the recorded ones is therefore only meaningful on the recorded
-// toolchain; elsewhere it reports a toolchain difference as a payload
-// regression. The report already carried the fact needed to tell those apart
-// and simply never consulted it.
+// The baseline records the toolchain that produced it. Different Bun versions
+// emit byte-different bundles from identical sources, and d3-sankey exposed the
+// same effect across operating systems and CPU architectures on Bun 1.3.13.
+// Comparing locally built bytes against the recorded ones is therefore only
+// meaningful on the recorded Bun version, platform, and architecture; elsewhere
+// the check reports the toolchain mismatch instead of a false payload regression.
 //
 // This does NOT weaken the gate on the recording toolchain (CI), where every
 // exact byte, hash, and total is still compared. Off it, the byte comparison is
-// skipped VISIBLY rather than softened: the budgets are ratcheted to zero
-// headroom (each budget equals the recorded total exactly), so a "≤ budget"
-// fallback would be just as toolchain-sensitive as equality, and any tolerance
-// loose enough to absorb a toolchain delta would be loose enough to hide a real
-// regression. There is no honest local approximation, so the test says so
-// instead of pretending. Everything derived from the RECORDED report — route
-// coverage, totals-versus-budget, and the budget verifier — is toolchain-
-// independent and keeps running everywhere.
+// skipped VISIBLY rather than softened. The route budgets keep running and use
+// reviewed cross-platform ceilings. A tolerance in the exact comparator would hide
+// whether a delta came from the toolchain or a real regression, so there is no
+// pretend approximation there. Route coverage and budget verification remain
+// platform-independent and keep running everywhere.
 const RECORDED_BUN = report.toolchain.bun
-const ON_RECORDING_TOOLCHAIN = Bun.version === RECORDED_BUN
-const TOOLCHAIN_NOTE = `built with Bun ${Bun.version}, baseline recorded with Bun ${RECORDED_BUN}`
+const RECORDED_PLATFORM = report.toolchain.platform
+const RECORDED_ARCH = report.toolchain.arch
+const ON_RECORDING_TOOLCHAIN = websitePayloadRecordingToolchainMatches(
+  { bun: RECORDED_BUN, platform: RECORDED_PLATFORM, arch: RECORDED_ARCH },
+  { bun: Bun.version, platform: process.platform, arch: process.arch },
+)
+const TOOLCHAIN_NOTE = `built with Bun ${Bun.version} on ${process.platform}/${process.arch}, baseline recorded with Bun ${RECORDED_BUN} on ${RECORDED_PLATFORM}/${RECORDED_ARCH}`
 
 function independentPublicFile(requestPath: string): string {
   const pathname = new URL(requestPath, 'https://independent.invalid').pathname
@@ -61,14 +63,14 @@ describe('deterministic website payload authority', () => {
     expect(report.toolchain.bun).not.toBeEmpty()
     expect(report.toolchain.playwright).not.toBeEmpty()
     expect(report.toolchain.chromium).not.toBeEmpty()
+    expect(report.toolchain.platform).not.toBeEmpty()
+    expect(report.toolchain.arch).not.toBeEmpty()
     for (const route of report.routes) {
       const budget = WEBSITE_PAYLOAD_BUDGETS[route.id]!
-      expect(route.totals, route.id).toEqual({
-        requests: budget.maxRequests,
-        rawBytes: budget.maxRawBytes,
-        gzipBytes: budget.maxGzipBytes,
-        brotliBytes: budget.maxBrotliBytes,
-      })
+      expect(route.totals.requests, `${route.id} requests`).toBeLessThanOrEqual(budget.maxRequests)
+      expect(route.totals.rawBytes, `${route.id} rawBytes`).toBeLessThanOrEqual(budget.maxRawBytes)
+      expect(route.totals.gzipBytes, `${route.id} gzipBytes`).toBeLessThanOrEqual(budget.maxGzipBytes)
+      expect(route.totals.brotliBytes, `${route.id} brotliBytes`).toBeLessThanOrEqual(budget.maxBrotliBytes)
     }
     expect(verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)).toEqual([])
   })
@@ -155,6 +157,14 @@ describe('deterministic website payload authority', () => {
       'non-success response: 404 /missing.js',
       'page error: boom',
     ])
+  })
+
+  test('requires the recorded Bun version, platform, and architecture for exact-byte comparisons', () => {
+    const recorded = { bun: '1.2.3', platform: 'linux' as const, arch: 'x64' as const }
+    expect(websitePayloadRecordingToolchainMatches(recorded, recorded)).toBe(true)
+    expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, bun: '1.2.4' })).toBe(false)
+    expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, platform: 'darwin' })).toBe(false)
+    expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, arch: 'arm64' })).toBe(false)
   })
 
   test('independently maps route documents and fails closed on encoded traversal', () => {

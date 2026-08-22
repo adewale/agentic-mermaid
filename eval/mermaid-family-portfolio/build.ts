@@ -61,6 +61,7 @@ export function buildBalancedPortfolio(repo: string): PortfolioEntry[] {
 
   for (const family of BUILTIN_FAMILY_METADATA) {
     addCandidate(candidates, { family: family.id, source: family.example.trim(), origin: `src/agent/families.ts#${family.id}`, sourceClass: 'registry-example' })
+    addCandidate(candidates, { family: family.id, source: family.editorExample.trim(), origin: `src/agent/families.ts#${family.editorExampleId}`, sourceClass: 'registry-example' })
   }
 
   const portfolio: PortfolioEntry[] = []
