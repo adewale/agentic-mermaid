@@ -47,9 +47,12 @@ Know which constraints apply before you author:
   coordinates live in `[0, 1]`, pie values are positive, radar curves carry
   one value per axis. Out-of-domain input falls back to a lossless opaque body
   instead of a wrong render.
-- **Labels are identity in the data families.** Pie slices, quadrant points,
-  radar axes and curves, and sankey nodes are addressed by their label or id;
-  a duplicate is rejected rather than silently merged.
+- **Labels select typed edits in the data families.** Pie slices, quadrant
+  points, and radar axes and curves use labels as mutation selectors; typed
+  add/rename operations reject collisions. Existing source can still contain
+  duplicate labels, so make those identities unique before a label-addressed
+  edit. Sankey node labels are intentionally shared across links and identify
+  the same flow node.
 - **Terminal delivery is real delivery.** Every registered family renders
   ASCII. A width the diagram cannot honestly meet throws `AsciiWidthError`
   with the required width instead of squeezing the layout.
@@ -96,14 +99,15 @@ and round-trips as an opaque body; what stops is structured mutation.
 Choosing well is checkable. After authoring or editing, run `verifyMermaid`
 (or `am verify`):
 
-- Tier 1 errors (`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`,
-  `RENDER_FAILED`) must be empty; they mean the render is broken, not ugly.
-- Tier 2 geometric advisories (`NODE_OVERLAP`, route warnings) flag layouts
+- **Tier 1 — structural:** `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`,
+  `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`,
+  `UNRESOLVABLE_SCHEDULE`, and `RENDER_FAILED` must be empty before committing;
+  they mean the source or render contract is broken, not merely ugly.
+- **Tier 2 — geometric:** `NODE_OVERLAP` and route warnings flag layouts
   worth a look; suppress them only when the geometry is intentional.
-- Tier 3 lint knows the family-specific mistakes this page warns about:
+- **Tier 3 — lint:** family-specific mistakes this page warns about include
   `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `UNREACHABLE_NODE`,
-  `DUPLICATE_EDGE`, `LABEL_OVERFLOW` past the 40-character default,
-  `LOW_CONTRAST` against the resolved background.
+  `DUPLICATE_EDGE`, and `LOW_CONTRAST` against the resolved background.
 
 Two checks no lint sees: give the diagram a title or `accTitle` that states
 the reader's question, and read the ASCII render in a terminal once, because

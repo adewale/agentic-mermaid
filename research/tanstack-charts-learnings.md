@@ -1,14 +1,14 @@
 # TanStack Charts v0: learnings for Agentic Mermaid
 
-**Status.** External-survey research note, written 2026-08-10 against
-[tanstack.com/charts/v0](https://tanstack.com/charts/v0) (docs reported version
-0.9.0, self-described "pre-alpha and its API may change between releases").
-Facts and quotes come from the pages listed under [Sources](#sources); TanStack
-Charts moves quickly, so treat specifics as dated. This note records what an
-adjacent, independently designed "for humans and agents" library validates,
-what is worth adopting, and where this project deliberately diverges. It is
-analysis, not backlog: any follow-up promoted from here gets its own `TODO.md`
-entry first.
+**Status.** External-survey research note, written 2026-08-10 against TanStack
+Charts commit
+[`c17d6772ba20f0edc32a5da80130871d7398a2a6`](https://github.com/TanStack/charts/commit/c17d6772ba20f0edc32a5da80130871d7398a2a6),
+whose `@tanstack/charts` package reported version 0.9.0 and whose docs described
+the API as pre-alpha. Facts and quotes come from the immutable sources listed
+under [Sources](#sources). This note records what an adjacent, independently
+designed "for humans and agents" library validates, what is worth adopting, and
+where this project deliberately diverges. It is analysis, not backlog: any
+follow-up promoted from here gets its own `TODO.md` entry first.
 
 ## What TanStack Charts is
 
@@ -23,9 +23,10 @@ entry first.
   primitives or D3-compatible inputs. "A chart is not a special-purpose
   component with a fixed series model"; there is "no required `{ series: [...] }`
   wrapper."
-- `defineChart()` compiles a declaration into a renderer-neutral `ChartScene`;
-  the "SVG renderer, DOM and framework hosts, static exporter, and custom
-  renderers" all consume that one scene object.
+- `defineChart()` produces a static or responsive chart definition;
+  `createChartScene()` or `ChartRuntime.render()` resolves that definition at a
+  concrete size into a renderer-neutral `ChartScene`. The SVG renderer, DOM and
+  framework hosts, static exporter, and custom renderers consume that scene.
 - Headless core with thin, optional framework adapters (React first). Granular
   subpath exports "keep optional capabilities and individual marks independently
   tree-shakeable."
@@ -48,7 +49,7 @@ the same bet. Convergence from an unrelated team is evidence the bet is sound,
 not something to change.
 
 1. **Dual-audience authorship is becoming the mainstream framing.** Their "two
-   equally important authors" is the thesis of [`AGENT_NATIVE.md`](../../AGENT_NATIVE.md)
+   equally important authors" is the thesis of [`AGENT_NATIVE.md`](../AGENT_NATIVE.md)
    arriving from the charts side. A flagship OSS brand now designs declarative
    visual surfaces for agent authors by default; comparison and positioning
    docs can cite that convergence instead of arguing the premise.
@@ -63,33 +64,37 @@ not something to change.
    `ChartScene` consumed identically by SVG, DOM hosts, static export, and
    custom renderers is this repo's typed Scene and positioned layout JSON
    consumed by SVG/PNG/ASCII/Unicode (the
-   [system architecture](../design/system/README.md) and the
-   [SVG semantic contract](../svg-semantic-contract.md)); the same shape as
-   lesson 8 in [`lessons-learned.md`](./lessons-learned.md) — final pixels and
-   public projections must agree because they come from one scene.
+   [system architecture](../docs/design/system/README.md) and the
+   [SVG semantic contract](../docs/svg-semantic-contract.md)); the same shape as
+   lesson 8 in
+   [`lessons-learned.md`](../docs/project/lessons-learned.md) — final pixels
+   and public projections must agree because they come from one scene.
 4. **Headless core, thin adapters.** Their optional framework adapters over a
-   framework-free core match [`react.md`](../react.md)'s `useMemo` wrapper and
-   [`browser.md`](../browser.md)'s adapters over the synchronous renderer.
+   framework-free core match [`react.md`](../docs/react.md)'s `useMemo` wrapper
+   and [`browser.md`](../docs/browser.md)'s adapters over the synchronous
+   renderer.
 5. **Accessible, browserless SVG as a default, not a mode.** Their
    accessible-SVG-by-default posture matches the zero-DOM renderer plus
    `accTitle`/`accDescr` and the accessibility section of the SVG semantic
    contract.
 6. **A compiler-gated example corpus.** "All examples compile under strict
    TypeScript" makes the docs a tested artifact. The analogue here is the
-   [dogfooded docs pipeline](./dogfooding-docs-strategy.md) and the website
-   examples corpus rendered by our own renderer; the stated contract worth
-   keeping sharp is "every published example parses, renders, and verifies."
-7. **Agent-built, human-reviewed development works at production scale.** Their
-   stated process (agents implement under supervision; humans review and
-   accept) is this fork's process. Useful as external evidence when the
-   process itself is questioned.
+   [dogfooded docs pipeline](../docs/project/dogfooding-docs-strategy.md) and
+   the website examples corpus rendered by our own renderer; the stated
+   contract worth keeping sharp is "every published example parses, renders,
+   and verifies."
+7. **Agent-built, human-reviewed development can sustain a substantial OSS
+   codebase.** Their stated process (agents implement under supervision; humans
+   review and accept) is this fork's process. The project was pre-alpha at the
+   reviewed revision, so this is evidence of scale and disciplined practice,
+   not evidence of production maturity.
 
 ## Worth adopting
 
 1. **State the retention promise as a promise.** "You don't have to outgrow"
    names the adopter's real fear — hitting a wall and rewriting. Our mechanism
    is arguably stronger (never-lossy structured-or-opaque parsing and the
-   [source-preservation ladder](../design/system/source-preservation-ladder.md))
+   [source-preservation ladder](../docs/design/system/source-preservation-ladder.md))
    but is documented mechanically. A one-line framing — *you don't outgrow the
    parser: syntax we don't model is preserved verbatim, never dropped* — belongs
    in README/comparison copy.
@@ -99,8 +104,9 @@ not something to change.
    schema"), plus a machine-readable catalog entry for agents alongside
    `llms.txt` and `am capabilities --json`, would serve the agent that knows its
    task but not Mermaid's family names. The routing half now exists as
-   [`choosing-a-diagram.md`](../choosing-a-diagram.md), surfaced in the diagram
-   workflow skill; the machine-readable catalog entry remains a candidate.
+   [`choosing-a-diagram.md`](../docs/choosing-a-diagram.md), surfaced in the
+   diagram workflow skill; the machine-readable catalog entry remains a
+   candidate.
 3. **Granularity as measured need, not default.** Their per-mark subpaths solve
    a real app-bundle problem. Our consumers are CLIs, agents, and workers, and
    we already split `agentic-mermaid/agent` from `agent/core`. Measure
@@ -113,7 +119,7 @@ not something to change.
    escapes the chart-type treadmill by refusing to have chart types. Mermaid
    *is* the enumerated-type treadmill, and its corpus plus native host
    rendering (GitHub, GitLab, Notion, Obsidian) is the moat this fork is built
-   on ([`AGENT_NATIVE.md`](../../AGENT_NATIVE.md)). Both projects answer the
+   on ([`AGENT_NATIVE.md`](../AGENT_NATIVE.md)). Both projects answer the
    same question — what happens when the model doesn't fit — with opposite
    mechanisms: they let authors drop to composable primitives; we preserve the
    unmodeled source losslessly and verify what we do model. Composition stays
@@ -121,12 +127,12 @@ not something to change.
    yet demanded more.
 2. **Interaction and motion layers.** First-class grammar layers for them;
    a non-goal here. Our artifacts are static and reviewable — SVG/PNG in docs
-   and PRs, ASCII in terminals — and [`comparison.md`](../comparison.md)
+   and PRs, ASCII in terminals — and [`comparison.md`](../docs/comparison.md)
    already says interactivity is not a focus. Unchanged.
 3. **The xychart boundary.** For genuine in-app data visualization, a chart
    grammar (TanStack Charts, Observable Plot) serves an agent better than
    Mermaid's small enumerated `xychart-beta` model. Our
-   [xychart](../design/families/xychart.md) exists for Mermaid-corpus
+   [xychart](../docs/design/families/xychart.md) exists for Mermaid-corpus
    compatibility, not charting ambition. Saying so in `comparison.md`'s
    choosing guidance fits `PRODUCT.md`'s honest-constraints principle.
 
@@ -140,7 +146,7 @@ it, which is determinism in service of framework plumbing, not a CI-gated
 byte-identity guarantee on artifacts. Nothing on the reviewed pages verifies
 the rendered result or claims a round-trip.
 The differentiators here — `verifyMermaid`'s three warning tiers, the
-[deterministic layout rubric](../design/system/layout-rubric.md), CI-gated
+[deterministic layout rubric](../docs/design/system/layout-rubric.md), CI-gated
 byte-identical output, and the round-trip contracts — are the *feedback* half
 of agent-native: an agent needs to know what the render actually did, not only
 that the spec typechecked. If "designed for humans and agents" becomes table
@@ -150,8 +156,10 @@ investing there.
 
 ## Implementation notes (repository, 2026-08-10)
 
-A shallow clone of `TanStack/charts` (default branch, 2026-08-10) shows how the
-"for humans and agents" posture is run day to day. Five practices stand out.
+The pinned `TanStack/charts` revision
+[`c17d6772`](https://github.com/TanStack/charts/tree/c17d6772ba20f0edc32a5da80130871d7398a2a6)
+shows how the "for humans and agents" posture was run day to day on 2026-08-10.
+Five practices stand out.
 
 1. **The friction log is the engine.** `API-FRICTION.md` (~7,700 lines) is
    "the durable feedback loop for building the API with itself." Every entry
@@ -162,7 +170,7 @@ A shallow clone of `TanStack/charts` (default branch, 2026-08-10) shows how the
    wishlist items." A triage table assigns each finding to API, Documentation,
    Skill, Application, or Tooling, with the rule "Do not hide API problems in
    a skill." Our dated
-   [contributor lessons](../contributing/lessons-learned.md) capture
+   [contributor lessons](../docs/contributing/lessons-learned.md) capture
    retrospectives; we have no per-task log of agent-observed API friction with
    owners and closing verification. That log is the most adoptable single
    artifact in the repository.
@@ -173,7 +181,7 @@ A shallow clone of `TanStack/charts` (default branch, 2026-08-10) shows how the
    the result of that decision, not the starting point," then runs a
    reader-task table, a data-shape checklist, a smallest-complete-composition
    ladder, a misleading-defaults list, and a readiness checklist.
-   [`choosing-a-diagram.md`](../choosing-a-diagram.md) adopts that skeleton
+   [`choosing-a-diagram.md`](../docs/choosing-a-diagram.md) adopts that skeleton
    for our families, and the diagram-workflow skill now carries the routing
    doctrine. The inverse rule is worth keeping too: when routing guidance
    exists to paper over a confusing operation, fix the operation.
@@ -187,9 +195,10 @@ A shallow clone of `TanStack/charts` (default branch, 2026-08-10) shows how the
    competitor versions exactly ("not latest versions inferred at page render
    time"), and refuses "turning untested behavior into a checkmark"; a
    `competitor-profiles/` directory keeps the raw evidence and states where
-   the competitor wins today. Our [`comparison.md`](../comparison.md) already
-   pins versions; the measured-versus-documented split is the discipline worth
-   copying at the next refresh.
+   the competitor wins today. Our
+   [`comparison.md`](../docs/comparison.md) already pins versions; the
+   measured-versus-documented split is the discipline worth copying at the next
+   refresh.
 5. **Portability had to be designed; ours is inherited.** Because their chart
    definitions hold live functions, `PORTABLE-CHART-SPEC.md` sketches a JSON
    `$call` format resolved through a function registry just to make a chart
@@ -206,22 +215,28 @@ family-citizenship checks, pointed at frameworks instead of output surfaces.
 
 ## Sources
 
-Reviewed 2026-08-10:
+Reviewed 2026-08-10 at commit
+[`c17d6772ba20f0edc32a5da80130871d7398a2a6`](https://github.com/TanStack/charts/commit/c17d6772ba20f0edc32a5da80130871d7398a2a6):
 
-- <https://tanstack.com/charts/v0> — landing page (tagline, feature summary,
-  catalog scope, packages).
-- <https://tanstack.com/charts/v0/docs/overview> and
-  <https://tanstack.com/charts/latest/docs/overview> — pitch, dual-audience
-  statement, accessibility posture, version/pre-alpha caveat.
-- <https://tanstack.com/charts/v0/docs/concepts/grammar-of-graphics> — grammar
-  layers, `ChartScene`, lineage.
-- <https://tanstack.com/charts/v0/docs/reference/index> — module organization,
-  subpath exports, naming conventions.
-- <https://github.com/TanStack/charts> — repository description and the
-  project's statement on AI-agent implementation (surfaced via web search).
-- Shallow clone of the repository (default branch, 2026-08-10) for the
-  implementation notes: `AGENTS.md`, `API-FRICTION.md`,
-  `docs/guides/choosing-a-chart.md`, `docs/comparison.md`,
-  `docs/guides/accessibility.md`, `docs/guides/ssr-and-hydration.md`,
-  `PORTABLE-CHART-SPEC.md`, `competitor-profiles/`, `llms.txt`, and the
-  `packages/charts-core` source tree.
+- [`README.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/README.md)
+  — tagline, feature summary, catalog scope, and the statement on AI-agent
+  implementation.
+- [`docs/overview.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/overview.md)
+  — pitch, dual-audience statement, accessibility posture, and pre-alpha caveat.
+- [`docs/concepts/grammar-of-graphics.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/concepts/grammar-of-graphics.md),
+  [`docs/reference/chart-definitions.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/reference/chart-definitions.md),
+  [`docs/reference/runtime-and-scene.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/reference/runtime-and-scene.md),
+  and [`docs/reference/index.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/reference/index.md)
+  — grammar layers, definition/scene compilation, module organization, subpath
+  exports, and naming conventions.
+- Repository implementation evidence:
+  [`AGENTS.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/AGENTS.md),
+  [`API-FRICTION.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/API-FRICTION.md),
+  [`docs/guides/choosing-a-chart.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/guides/choosing-a-chart.md),
+  [`docs/comparison.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/comparison.md),
+  [`docs/guides/accessibility.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/guides/accessibility.md),
+  [`docs/guides/ssr-and-hydration.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/docs/guides/ssr-and-hydration.md),
+  [`PORTABLE-CHART-SPEC.md`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/PORTABLE-CHART-SPEC.md),
+  [`competitor-profiles/`](https://github.com/TanStack/charts/tree/c17d6772ba20f0edc32a5da80130871d7398a2a6/competitor-profiles),
+  [`llms.txt`](https://github.com/TanStack/charts/blob/c17d6772ba20f0edc32a5da80130871d7398a2a6/llms.txt),
+  and the [`packages/charts-core` source tree](https://github.com/TanStack/charts/tree/c17d6772ba20f0edc32a5da80130871d7398a2a6/packages/charts-core/src).
