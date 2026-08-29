@@ -64,6 +64,7 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   { id: 'lint', label: 'Lint TypeScript and repository contracts', command: ['bun', 'run', 'lint'] },
   { id: 'typecheck', label: 'Type check', command: ['bun', 'run', 'typecheck'] },
   { id: 'hero', label: 'Check README hero image freshness', command: ['bun', 'run', 'hero:check'] },
+  { id: 'evidence-policy', label: 'Enforce attached-not-committed one-shot evidence', command: ['bun', 'run', 'scripts/ci/evidence-policy.ts'] },
   { id: 'golden-drift', label: 'Enforce reviewed golden snapshot drift', command: ['bun', 'run', 'scripts/ci/golden-drift.ts'] },
 ]
 

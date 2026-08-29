@@ -15,6 +15,13 @@ The checklist below covers the two CI gates that need a human decision.
       intended, and **a commit-message line starts with `[approve-goldens]`**.
       (CI hard-fails on unreviewed golden drift — see
       [docs/contributing/visual-review-evidence.md](../docs/contributing/visual-review-evidence.md).)
+- [ ] **Visual evidence:** one-shot before/after renders are **attached** to
+      the PR (`gh … --attach`, rendered into `docs/pr-assets/attached/`) — OR
+      any committed evidence media is named by full path in a
+      receipt/baseline/doc/test — OR this session cannot attach (`bun run
+      evidence:probe` says so) and **a commit-message line starts with
+      `[approve-committed-evidence]`**. (CI hard-fails otherwise — see
+      [docs/contributing/visual-review-evidence.md](../docs/contributing/visual-review-evidence.md).)
 - [ ] If I added a diagram family, it is wired into the central registries
       (`BUILTIN_FAMILY_METADATA`, metamorphic generators, baselines) per the
       citizenship checklist.

@@ -56,8 +56,10 @@ The seven dimensions:
 For dimension 2, attach one-shot before/after renders to the PR
 (`gh pr create|comment --attach`, gitignored output under
 `docs/pr-assets/attached/`) instead of committing them; receipt-gated living
-artifacts stay committed. Workflow, caveats, and the fallback when `--attach`
-is unavailable: `docs/contributing/visual-review-evidence.md`.
+artifacts stay committed. `bun run evidence:probe` reports which path your
+session supports, and `quality:check` CI-enforces the split (fallback escape
+hatch: an `[approve-committed-evidence]` commit line). Workflow and caveats:
+`docs/contributing/visual-review-evidence.md`.
 
 Quick automated hygiene check (diff size, tests touched, secrets, debug
 statements, UI files):

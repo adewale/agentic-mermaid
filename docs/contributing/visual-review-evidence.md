@@ -69,8 +69,9 @@ Mechanics that matter here:
   .webp .svg`), video ≤ 100 MB (`.mp4 .mov .webm`); incompatible with `--web`.
 
 **Availability and the fallback path.** As of 2026-08-29 `--attach` ships in
-`gh` preview builds only — stable releases through v2.98.0 lack it. Detect
-support with `gh pr comment --help | grep -q -- --attach`. Without it (a stable
+`gh` preview builds only — stable releases through v2.98.0 lack it. Run
+`bun run evidence:probe` to learn which path this session supports (it checks
+`gh pr comment --help` for `--attach`). Without it (a stable
 `gh`, or an agent session that reaches GitHub only through an API surface with
 no attachment upload), the previous flow stays correct: commit the composite
 under `docs/pr-assets/` and pin PR-body image URLs to the immutable final head,
@@ -84,6 +85,38 @@ reference them by path or pinned URL, and deleting them from HEAD buys back no
 history. The policy governs new one-shot evidence.
 
 [cli/cli#13256]: https://github.com/cli/cli/issues/13256
+
+## Committed-evidence gate (`[approve-committed-evidence]`)
+
+The policy above is CI-enforced, not advisory. The `quality` job — and
+`bun run quality:check` locally, the same aggregate — runs
+`scripts/ci/evidence-policy.ts`, which fails the build when a commit in the
+PR/push range **adds or modifies** media under `docs/pr-assets/` that nothing
+in the repository names by **full repository path**. That is the mechanical
+definition of a living artifact: every sanctioned consumer (evidence receipts,
+`eval/test-portfolio/baseline.json`, the citizenship matrix, tests, these
+docs) names assets exactly that way. A generator assembling the path from
+`join(...)` fragments is not a consumer and does not count.
+
+When the gate fires, one of three things is true:
+
+1. It is one-shot evidence → don't commit it. Render into
+   `docs/pr-assets/attached/` and attach it (`gh pr create|comment --attach`).
+2. It is a living artifact → wire the consumer that keeps it current (receipt,
+   baseline, doc, or test naming the full path) in the same PR. References are
+   judged at the range head, so the consumer may land in a later commit than
+   the asset.
+3. This session genuinely cannot attach (`bun run evidence:probe` says so:
+   no `gh`, or a `gh` without `--attach`) → keep the file committed and
+   **start a commit-message line** with `[approve-committed-evidence]`,
+   optionally followed by the reason.
+
+Token rules mirror `[approve-goldens]`: it counts only at the start of a line,
+a mid-sentence mention (as in this doc) is not approval, and a standalone token
+on a commit that adds no unreferenced evidence fails as a stray. Deleting
+committed evidence never needs the token — removal is the direction the policy
+encourages. The gate logic lives in `scripts/ci/evidence-policy.ts` and is
+unit-tested; the PR template restates it as a checklist item.
 
 ## Golden-snapshot drift gate (`[approve-goldens]`)
 

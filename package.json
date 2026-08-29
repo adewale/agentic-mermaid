@@ -118,6 +118,7 @@
     "typecheck:repo": "tsc --noEmit -p tsconfig.repo.json",
     "quality:check": "bun run scripts/ci/quality-gates.ts",
     "evidence:check": "bun run scripts/ci/quality-gates.ts --evidence-only",
+    "evidence:probe": "bun run scripts/ci/evidence-policy.ts --probe",
     "format": "biome format --write .",
     "format:changed": "biome format --write --changed",
     "test:browser": "bun run e2e/run-browser-contracts.ts",

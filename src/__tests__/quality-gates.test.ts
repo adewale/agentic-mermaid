@@ -36,6 +36,7 @@ describe('local/CI quality aggregate', () => {
     expect(qualityJob!.split('\n').filter(line => line.trimStart().startsWith('run:')))
       .toEqual(['        run: bun run quality:check'])
     expect(QUALITY_CHECKS[0]?.command).toEqual(['bun', 'install', '--frozen-lockfile'])
+    expect(QUALITY_CHECKS.at(-2)?.id).toBe('evidence-policy')
     expect(QUALITY_CHECKS.at(-1)?.id).toBe('golden-drift')
   })
 })
