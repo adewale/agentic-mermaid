@@ -17,9 +17,9 @@ The checklist below covers the two CI gates that need a human decision.
       [docs/contributing/visual-review-evidence.md](../docs/contributing/visual-review-evidence.md).)
 - [ ] **Visual evidence:** one-shot before/after renders are **attached** to
       the PR (`gh … --attach`, rendered into `docs/pr-assets/attached/`) — OR
-      any committed evidence media is named by full path in a
-      receipt/baseline/doc/test — OR this session cannot attach (`bun run
-      evidence:probe` says so) and **a commit-message line starts with
+      each commit adding evidence media under `docs/pr-assets/` (a new living
+      artifact, or this session cannot attach — `bun run evidence:probe` says
+      which) **starts a commit-message line with
       `[approve-committed-evidence]`**. (CI hard-fails otherwise — see
       [docs/contributing/visual-review-evidence.md](../docs/contributing/visual-review-evidence.md).)
 - [ ] If I added a diagram family, it is wired into the central registries

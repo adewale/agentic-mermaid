@@ -1,16 +1,21 @@
 // The committed-evidence gate. docs/contributing/visual-review-evidence.md
 // splits evidence into living artifacts (committed, kept current by a receipt,
-// baseline, test, or doc that names them) and one-shot PR evidence (attached
-// to the PR via `gh --attach`, never committed). Prose alone does not change
-// agent behavior, so this gate makes the split executable: media committed
-// under docs/pr-assets/ must have an in-repo consumer that names its full
-// repository path, or the commit must carry an explicit approval line — the
-// deliberate fallback for sessions that cannot attach (no gh, or a gh without
-// --attach). Structure mirrors golden-drift.ts: the decision is a pure
-// function unit-tested in src/__tests__/evidence-policy.test.ts; the CLI
-// wrapper gathers git facts and maps the verdict to GitHub annotations + exit
-// code. quality-gates.ts runs `bun run scripts/ci/evidence-policy.ts`;
-// `--probe` reports which evidence path the current environment supports.
+// baseline, test, or doc) and one-shot PR evidence (attached to the PR via
+// `gh --attach`, never committed). Prose alone does not change agent behavior,
+// so this gate makes the split executable, and the rule is deliberately blunt:
+// a commit that ADDS media under docs/pr-assets/ must carry an explicit
+// approval line, because one-shot evidence has its own gitignored home
+// (docs/pr-assets/attached/) and never lands there — so a new committed
+// evidence file is always a deliberate act: a new living artifact, or the
+// fallback for a session that cannot attach (no gh, or a gh without
+// --attach). Modifying or deleting an existing committed asset needs no
+// approval: the commit-vs-attach decision was made when the path first
+// landed, and regenerations are kept honest by their own byte/receipt gates.
+// Structure mirrors golden-drift.ts: the decision is a pure function
+// unit-tested in src/__tests__/evidence-policy.test.ts; the CLI wrapper
+// gathers git facts and maps the verdict to GitHub annotations + exit code.
+// quality-gates.ts runs `bun run scripts/ci/evidence-policy.ts`; `--probe`
+// reports which evidence path the current environment supports.
 
 import { githubPushBeforeSha } from './golden-drift.ts'
 
@@ -28,17 +33,12 @@ export function mediaEvidencePaths(paths: string[]): string[] {
 }
 
 export interface EvidencePolicyFacts {
-  /**
-   * Media added or modified under docs/pr-assets/ across the evaluated range
-   * that NO tracked text file at the range head names by full repository path.
-   * Referenced-ness is judged at the head so a PR may add the asset in one
-   * commit and its receipt/doc consumer in a later one.
-   */
-  unreferencedHeadFiles: string[]
-  /** Every commit in the range, with its own share of those files. */
+  /** Media newly added under docs/pr-assets/ across the evaluated range. */
+  addedHeadFiles: string[]
+  /** Every commit in the range, with its own added media. */
   commits: Array<{
     sha: string
-    unreferencedFiles: string[]
+    addedFiles: string[]
     commitMessage: string
   }>
   /** Same refusal as golden-drift: a range the shallow checkout cannot walk. */
@@ -46,11 +46,11 @@ export interface EvidencePolicyFacts {
 }
 
 export type EvidencePolicyCode =
-  | 'clean'                  // no unreferenced evidence committed
-  | 'approved'               // every offending commit carries the token
-  | 'unreferenced-evidence'  // one-shot pixels committed without approval
-  | 'stray-token'            // token present but nothing to approve
-  | 'shallow-history'        // approval spans a range the checkout cannot walk
+  | 'clean'                // no evidence media added
+  | 'approved'             // every adding commit carries the token
+  | 'unapproved-evidence'  // evidence media added without approval
+  | 'stray-token'          // token present but nothing to approve
+  | 'shallow-history'      // approval spans a range the checkout cannot walk
 
 export interface EvidencePolicyVerdict {
   ok: boolean
@@ -66,64 +66,60 @@ export function evaluateEvidencePolicy(f: EvidencePolicyFacts): EvidencePolicyVe
       message: `Approval spans a commit range, but the checkout is shallow so the range cannot be read — the gate would find no ${APPROVE_TOKEN} even where one exists. Check out with fetch-depth: 0.`,
     }
   }
-  const stray = f.commits.find(commit => APPROVE_TOKEN_RE.test(commit.commitMessage) && commit.unreferencedFiles.length === 0)
+  const stray = f.commits.find(commit => APPROVE_TOKEN_RE.test(commit.commitMessage) && commit.addedFiles.length === 0)
   if (stray) {
-    return { ok: false, code: 'stray-token', message: `Commit ${stray.sha} starts a line with ${APPROVE_TOKEN} but adds or modifies no unreferenced evidence media under ${EVIDENCE_DIR}. Remove the stray approval line.` }
+    return { ok: false, code: 'stray-token', message: `Commit ${stray.sha} starts a line with ${APPROVE_TOKEN} but adds no evidence media under ${EVIDENCE_DIR}. Remove the stray approval line.` }
   }
-  if (f.unreferencedHeadFiles.length === 0) {
-    return { ok: true, code: 'clean', message: 'No unreferenced committed evidence.' }
+  // A range whose additions net out (added then deleted) has nothing left to
+  // review, mirroring golden-drift's net-zero rule.
+  if (f.addedHeadFiles.length === 0) {
+    return { ok: true, code: 'clean', message: 'No committed evidence added.' }
   }
-  const unapproved = f.commits.find(commit => commit.unreferencedFiles.length > 0 && !APPROVE_TOKEN_RE.test(commit.commitMessage))
+  const unapproved = f.commits.find(commit => commit.addedFiles.length > 0 && !APPROVE_TOKEN_RE.test(commit.commitMessage))
   if (unapproved) {
     return {
       ok: false,
-      code: 'unreferenced-evidence',
+      code: 'unapproved-evidence',
       message:
-        `Commit ${unapproved.sha} commits evidence media under ${EVIDENCE_DIR} that nothing in the repository names by full path (${unapproved.unreferencedFiles.join(', ')}). ` +
+        `Commit ${unapproved.sha} adds evidence media under ${EVIDENCE_DIR} (${unapproved.addedFiles.join(', ')}). ` +
         `One-shot evidence is attached, not committed: write renders to docs/pr-assets/attached/ (gitignored) and pass them to \`gh pr create|comment --attach\` — \`bun run evidence:probe\` reports whether this environment can. ` +
-        `A living artifact instead needs the consumer that keeps it current: a receipt, baseline, test, or doc naming its full repository path. ` +
-        `Only when attaching is impossible here (no gh, or a gh without --attach), keep the file committed and start a commit-message line with ${APPROVE_TOKEN}. ` +
+        `If the file is a living artifact (kept current by a receipt, baseline, test, or doc) or this session cannot attach, keep it committed and start a commit-message line with ${APPROVE_TOKEN}. ` +
         `See docs/contributing/visual-review-evidence.md.`,
     }
   }
-  return { ok: true, code: 'approved', message: `Every commit adding unreferenced evidence is approved via ${APPROVE_TOKEN}.` }
+  return { ok: true, code: 'approved', message: `Every commit adding evidence is approved via ${APPROVE_TOKEN}.` }
 }
 
 /**
- * Which commits and trees the gate reads, mirroring goldenDriftCommands: PR
- * merge refs compare their two parents, pushes compare the before SHA, and a
- * bare HEAD evaluates the single commit. Deletions are exempt on purpose —
- * removing committed pixels is the direction the policy encourages — so the
- * file diffs filter to added/modified. `headTree` is where referenced-ness is
- * judged.
+ * Which commits the gate reads, mirroring goldenDriftCommands: PR merge refs
+ * compare their two parents, pushes compare the before SHA, and a bare HEAD
+ * evaluates the single commit. Only additions are gated — modifications and
+ * deletions of already-committed assets are exempt on purpose — so the file
+ * diffs filter to A.
  */
 export function evidenceRangeCommands(o: { parents: string[]; pushBefore: string | null }): {
   filesCmd: string
   commitsCmd: string
-  headTree: string
   needsRangeHistory: boolean
 } {
   if (o.parents.length >= 2) {
     const [base, prHead] = o.parents
     return {
-      filesCmd: `git diff --name-only --diff-filter=AM ${base} ${prHead} -- ${EVIDENCE_DIR}`,
+      filesCmd: `git diff --name-only --diff-filter=A ${base} ${prHead} -- ${EVIDENCE_DIR}`,
       commitsCmd: `git rev-list --reverse ${base}..${prHead}`,
-      headTree: prHead!,
       needsRangeHistory: true,
     }
   }
   if (o.pushBefore) {
     return {
-      filesCmd: `git diff --name-only --diff-filter=AM ${o.pushBefore}..HEAD -- ${EVIDENCE_DIR}`,
+      filesCmd: `git diff --name-only --diff-filter=A ${o.pushBefore}..HEAD -- ${EVIDENCE_DIR}`,
       commitsCmd: `git rev-list --reverse ${o.pushBefore}..HEAD`,
-      headTree: 'HEAD',
       needsRangeHistory: true,
     }
   }
   return {
-    filesCmd: `git show --name-only --diff-filter=AM --format= HEAD -- ${EVIDENCE_DIR}`,
+    filesCmd: `git show --name-only --diff-filter=A --format= HEAD -- ${EVIDENCE_DIR}`,
     commitsCmd: 'git rev-parse HEAD',
-    headTree: 'HEAD',
     needsRangeHistory: false,
   }
 }
@@ -162,33 +158,18 @@ if (import.meta.main) {
     const { readFileSync } = await import('node:fs')
     pushBefore = githubPushBeforeSha(process.env.GITHUB_EVENT_NAME, readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'))
   }
-  const { filesCmd, commitsCmd, headTree, needsRangeHistory } = evidenceRangeCommands({ parents, pushBefore })
+  const { filesCmd, commitsCmd, needsRangeHistory } = evidenceRangeCommands({ parents, pushBefore })
   const shallow = run('git rev-parse --is-shallow-repository').trim() === 'true'
-
-  // Referenced-ness: some tracked text file at the head tree, outside
-  // docs/pr-assets/ itself, contains the asset's full repository path. Every
-  // sanctioned consumer (evidence receipts, eval baselines, contributing docs,
-  // the citizenship matrix, tests) names assets that way; a generator writing
-  // the file via join() fragments is not a consumer and does not count.
-  const referenced = (path: string): boolean => {
-    try {
-      return run(`git grep -I --fixed-strings -l -e "${path}" ${headTree} -- ':(exclude)docs/pr-assets'`).trim() !== ''
-    } catch {
-      return false // git grep exits 1 when nothing matches
-    }
-  }
-  const headEvidence = mediaEvidencePaths(lines(filesCmd))
-  const unreferencedHead = new Set(headEvidence.filter(path => !referenced(path)))
   const commits = lines(commitsCmd).map(sha => ({
     sha,
-    unreferencedFiles: mediaEvidencePaths(
-      lines(`git diff-tree --root --no-commit-id --name-only --diff-filter=AM -r -m ${sha} -- ${EVIDENCE_DIR}`),
-    ).filter(path => unreferencedHead.has(path)),
+    addedFiles: mediaEvidencePaths(
+      lines(`git diff-tree --root --no-commit-id --name-only --diff-filter=A -r -m ${sha} -- ${EVIDENCE_DIR}`),
+    ),
     commitMessage: run(`git log -1 --format=%B ${sha}`),
   }))
 
   const facts: EvidencePolicyFacts = {
-    unreferencedHeadFiles: [...unreferencedHead],
+    addedHeadFiles: mediaEvidencePaths(lines(filesCmd)),
     commits,
     truncatedHistory: needsRangeHistory && shallow,
   }

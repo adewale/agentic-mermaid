@@ -91,32 +91,26 @@ history. The policy governs new one-shot evidence.
 The policy above is CI-enforced, not advisory. The `quality` job — and
 `bun run quality:check` locally, the same aggregate — runs
 `scripts/ci/evidence-policy.ts`, which fails the build when a commit in the
-PR/push range **adds or modifies** media under `docs/pr-assets/` that nothing
-in the repository names by **full repository path**. That is the mechanical
-definition of a living artifact: every sanctioned consumer (evidence receipts,
-`eval/test-portfolio/baseline.json`, the citizenship matrix, tests, these
-docs) names assets exactly that way. A generator assembling the path from
-`join(...)` fragments is not a consumer and does not count.
+PR/push range **adds** media under `docs/pr-assets/` without its own
+commit-message line starting with `[approve-committed-evidence]`. The rule is
+deliberately blunt: one-shot evidence never lands there (it renders into
+`docs/pr-assets/attached/` and goes onto the PR), so committing a *new*
+evidence file is always a deliberate act — a new living artifact, or the
+fallback for a session that cannot attach (`bun run evidence:probe` says
+which) — and one approval line per adding commit records that the decision was
+made, exactly as `[approve-goldens]` records a reviewed golden diff.
 
-When the gate fires, one of three things is true:
-
-1. It is one-shot evidence → don't commit it. Render into
-   `docs/pr-assets/attached/` and attach it (`gh pr create|comment --attach`).
-2. It is a living artifact → wire the consumer that keeps it current (receipt,
-   baseline, doc, or test naming the full path) in the same PR. References are
-   judged at the range head, so the consumer may land in a later commit than
-   the asset.
-3. This session genuinely cannot attach (`bun run evidence:probe` says so:
-   no `gh`, or a `gh` without `--attach`) → keep the file committed and
-   **start a commit-message line** with `[approve-committed-evidence]`,
-   optionally followed by the reason.
+Out of scope on purpose: **modifying** an existing committed asset (e.g. the
+contact-sheet regenerations) needs no token — the commit-vs-attach decision
+was made when the path first landed, and byte-match and receipt checks keep
+regenerations honest. **Deleting** committed evidence needs no token — removal
+is the direction the policy encourages.
 
 Token rules mirror `[approve-goldens]`: it counts only at the start of a line,
 a mid-sentence mention (as in this doc) is not approval, and a standalone token
-on a commit that adds no unreferenced evidence fails as a stray. Deleting
-committed evidence never needs the token — removal is the direction the policy
-encourages. The gate logic lives in `scripts/ci/evidence-policy.ts` and is
-unit-tested; the PR template restates it as a checklist item.
+on a commit that adds no evidence media fails as a stray. The gate logic lives
+in `scripts/ci/evidence-policy.ts` and is unit-tested; the PR template restates
+it as a checklist item.
 
 ## Golden-snapshot drift gate (`[approve-goldens]`)
 
