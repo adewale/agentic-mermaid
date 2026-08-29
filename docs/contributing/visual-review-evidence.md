@@ -11,7 +11,7 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 | Duplicate / parallel edges (a multigraph — the same directed pair written more than once) | `bun test src/__tests__/route-contracts.test.ts`; review the duplicate/parallel cases on the contact sheet (`AP`–`AR`) and the crossing ratchet in `layout-rubric.test.ts`. A duplicate-specific before/after lives at `docs/pr-assets/issue-62-duplicate-edge-lanes-before-after.png` (regenerate with `bun run scripts/pr-assets/issue-62-evidence.ts`). |
 | ASCII/Unicode routing or region metadata | Exact goldens/tests: `bun run goldens:ascii:check` plus relevant `src/__tests__/ascii*.test.ts` / `agent-ascii-meta.test.ts`. |
 | Family renderer/layout changes | Family parser/layout/renderer tests, SVG snapshot where available, and `agent-family-layouts.test.ts`. |
-| Broad layout heuristics | `bun run rubric:visual` and/or `eval/layout-compare` before/after output attached to the PR. Commit only small canonical assets; attach large HTML reports as artifacts. |
+| Broad layout heuristics | `bun run rubric:visual` and/or `eval/layout-compare` before/after output attached to the PR. Commit only living, receipt-gated assets; attach one-shot renders and large HTML reports (see “Committed artifacts vs. attached evidence”). |
 | Website/editor visual changes | `bun test e2e/browser.test.ts`; inspect captured screenshots when baselines or UI structure change. |
 | Region/action metadata only | Prefer JSON/SVG metadata assertions over raster screenshots; include one representative fixture proving stable `data-region`/sidecar IDs. |
 
@@ -22,6 +22,68 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 - `eval/visual-rubric` produces deterministic scored galleries. Its scores are a gate for obvious regressions, not a replacement for human review.
 - `eval/layout-compare` compares before/after layout faithfulness and quality over a corpus. “0 regressions” means no configured metric/faithfulness regression, not a claim of pixel parity with Mermaid.js.
 - Browser screenshots prove the shipped site/editor still renders and remains usable. Pixel-diff is only active when dependencies are available, so reviewer inspection still matters.
+
+## Committed artifacts vs. attached evidence (`gh --attach`)
+
+Evidence artifacts have two lifecycles, and the split decides where the pixels
+go:
+
+- **Living artifacts** are regression surfaces: a test, receipt, or baseline
+  references them and fails when they drift — `docs/pr-assets/contact-sheet.png`
+  and its byte-match test, the `gallery:*:check` receipt scripts, members of
+  `eval/test-portfolio/baseline.json`, any path named in an
+  `evidence-receipt.json`. These stay committed; the gate is what keeps them
+  current.
+- **One-shot PR evidence** is a before/after or annotated render that argues
+  for a single PR and is never checked again after merge. Historically these
+  were committed too (88 files / ~15 MB under `docs/pr-assets/` when this
+  policy changed) because there was no CLI path to put an image on a PR.
+
+GitHub CLI now uploads attachments directly ([cli/cli#13256]): a repeatable
+`--attach` flag on `gh issue create|comment|edit` and `gh pr create|comment|edit`
+uploads a local image or video to an immutable
+`https://github.com/user-attachments/assets/<uuid>` URL — the same hosting the
+web UI's drag-drop uses, valid regardless of later force-pushes or branch
+deletion.
+
+**Policy: attach one-shot evidence; commit only living artifacts.** The
+reproducibility bar does not move — the generator script
+(`scripts/pr-assets/<topic>-evidence.ts`) is committed either way; “attached,
+not committed” applies to the pixels only. Point one-shot renders at
+`docs/pr-assets/attached/` (gitignored) so they cannot ride along in a commit —
+e.g. pass `--out docs/pr-assets/attached/before-after.png` to
+`eval/visual-rubric/before-after.ts`, or write there from a new
+`scripts/pr-assets/<topic>-evidence.ts`.
+
+Mechanics that matter here:
+
+- Placement: a body reference to an attached local path, e.g.
+  `![Hub recenters over the peer group](docs/pr-assets/attached/hub-centering.png)`
+  with `--attach docs/pr-assets/attached/hub-centering.png`, is rewritten to the
+  uploaded URL (matching is on the resolved absolute path). Any attached file
+  the body does not reference is appended at the end.
+- Captions — good-pr dimension 2 requires them: alt text follows `#` in the
+  flag value, as in `--attach './before-after.png#Hub recentering, 2x zoom'`;
+  a reference already in the body keeps the alt text written there.
+- Limits: at most 50 files per command; images ≤ 10 MB (`.png .jpg .jpeg .gif
+  .webp .svg`), video ≤ 100 MB (`.mp4 .mov .webm`); incompatible with `--web`.
+
+**Availability and the fallback path.** As of 2026-08-29 `--attach` ships in
+`gh` preview builds only — stable releases through v2.98.0 lack it. Detect
+support with `gh pr comment --help | grep -q -- --attach`. Without it (a stable
+`gh`, or an agent session that reaches GitHub only through an API surface with
+no attachment upload), the previous flow stays correct: commit the composite
+under `docs/pr-assets/` and pin PR-body image URLs to the immutable final head,
+re-pointing them after any post-evidence push (the “generator and URL are
+current” lesson in `docs/contributing/lessons-learned.md`). Attached URLs make
+that re-pointing failure mode structurally impossible, which is the main reason
+to prefer them.
+
+Existing committed assets stay put: receipts, baselines, and merged PR bodies
+reference them by path or pinned URL, and deleting them from HEAD buys back no
+history. The policy governs new one-shot evidence.
+
+[cli/cli#13256]: https://github.com/cli/cli/issues/13256
 
 ## Golden-snapshot drift gate (`[approve-goldens]`)
 
@@ -48,6 +110,6 @@ unit-tested; the PR template restates it as a checklist item.
 2. Are generated artifacts reproducible from committed source/fixtures?
 3. If a committed PNG/snapshot changed, is the change explained in the PR body?
 4. If a visual check is skipped, is there a reason and an alternate structural test?
-5. Are large generated reports linked/attached rather than committed?
+5. Are one-shot before/afters and large generated reports attached rather than committed? (Committed artifacts are for living, receipt-gated evidence.)
 6. For peer fan-in/fan-out screenshots, is the hub centered over the peer group?
 7. Does the review wrapper match the rendered diagram background, or use a neutral surface, so it does not create false label/background contrast?
