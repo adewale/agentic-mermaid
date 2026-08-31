@@ -51,11 +51,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    // The editor exercises the complete API. The profile cache adds 309 raw,
-    // 100 gzip, and 293 Brotli bytes without changing its request graph.
-    maxRawBytes: 3_334_792,
-    maxGzipBytes: 981_842,
-    maxBrotliBytes: 771_004,
+    // The editor exercises the complete API. Preserving boundary whitespace in
+    // flowchart labels adds 14 raw, 6 gzip, and 236 Brotli bytes without
+    // changing its two-request graph.
+    maxRawBytes: 3_334_806,
+    maxGzipBytes: 981_848,
+    maxBrotliBytes: 771_240,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
