@@ -1,5 +1,24 @@
 # Lessons learned
 
+## 2026-08 — shrinkable flowchart mutation contracts
+
+**Parseability is too weak an oracle for typed mutation.** The original
+flowchart property accepted whichever generated operations happened to succeed
+and checked only that the final source parsed. It could therefore pass after a
+mutation changed an authored value. A command model with explicit preconditions
+and an independent shadow graph found exactly that defect: a boundary-whitespace
+label such as `" a "` was serialized bare and reparsed as `"a"`. Rule: after
+every accepted typed operation, compare the production graph with an independent
+semantic model; then serialize, reparse, and check canonical stability. A green
+parse alone proves syntax, not preservation.
+
+**Quote at the point where Mermaid's bare grammar normalizes meaning.** Boundary
+whitespace is data in a typed label even though Mermaid trims it from a bare
+label. The serializer now quotes those labels, and the minimized example is a
+fixed regression. Rule: when a target grammar's unquoted form normalizes an
+admitted value, choose a lossless quoted form rather than weakening the typed
+contract to match the parser's normalization.
+
 ## 2026-07 — the sankey enrollment audit (what the machinery forced vs. what it let slide)
 
 The sankey family enrolled cleanly through every gate the typechecker or a
