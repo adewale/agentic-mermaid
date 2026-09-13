@@ -20,6 +20,12 @@ export interface AgentUsageEvalResult {
   ok: boolean
   taskOk: boolean
   traceOk: boolean
+  /** Set by capture-based runners; omitted for deterministic in-process runs. */
+  captureOk?: boolean
+  captureError?: { code: string; message: string }
+  /** Whether the raw answer followed the response shape it was given. */
+  responseContractOk?: boolean
+  responseContractError?: { code: string; message: string }
   findings: AntiPattern[]
   error?: string
 }
@@ -519,6 +525,14 @@ export const CREATE_CASES: AgentUsageEvalCase[] = [
     'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,151.89\n  Electricity,Homes,223.13\n  Electricity,Losses,56.69',
   ),
 ]
+
+/** The live-model suite: exactly one create and one mutate case per family. */
+export const MUTATE_CASES: AgentUsageEvalCase[] = DEFAULT_CASES.filter(c => c.input !== undefined)
+export const AUTHOR_CASES: AgentUsageEvalCase[] = [
+  ...DEFAULT_CASES.filter(c => c.input === undefined),
+  ...CREATE_CASES,
+]
+export const FULL_EVAL_CASES: AgentUsageEvalCase[] = [...MUTATE_CASES, ...AUTHOR_CASES]
 
 export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
   {

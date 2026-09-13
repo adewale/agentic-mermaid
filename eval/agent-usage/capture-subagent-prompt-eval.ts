@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
-import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
+import { FULL_EVAL_CASES, KNOWLEDGE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval, type AgentUsageEvalCase, type AgentUsageEvalResult } from './run.ts'
 import { extractCodeModeScript } from './live.ts'
 import { SDK_DECLARATION } from '../../src/mcp/sdk-decl.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../../src/agent/index.ts'
@@ -18,10 +19,11 @@ export interface SubagentPromptEvalRequest {
   caseId: string
   requestPath: string
   responsePath: string
+  requestDigest?: string
 }
 
 export interface SubagentPromptEvalManifest {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   capturedAt: string
   provider: string
   model: string
@@ -48,10 +50,10 @@ export interface FinalizeSubagentPromptEvalOptions {
 }
 
 export interface SubagentPromptEvalSummary {
-  /** Correctness gate: every returned diagram is structurally correct
-   *  (taskOk === total). Driven by the independent task oracle, NOT by whether
-   *  the model's Trace prose named the right calls — a correct diagram with a
-   *  terse trace no longer sinks the run. */
+  schemaVersion: 2
+  /** Completeness + correctness gate: every request was captured and every
+   *  captured diagram is structurally correct. Formatting and Trace prose do
+   *  not affect this gate. */
   ok: boolean
   capturedAt: string
   provider: string
@@ -59,29 +61,58 @@ export interface SubagentPromptEvalSummary {
   surface: PromptEvalSurface
   mode: PromptEvalMode
   promptVariant: PromptEvalVariant
+  /** Requested cases, including capture failures. */
   total: number
+  /** Cases with complete model output that reached grading. */
+  captured: number
+  captureFailed: number
+  captureOkRate: number
+  captureFailures: Array<{ caseId: string; code: string; message: string }>
   /** PRIMARY metric: diagrams the task oracle accepts. */
   taskOk: number
-  taskOkRate: number
+  taskOkRate: number | null
   /** SECONDARY metric: cases that show safe-path tool engagement. In code mode
    *  and when an AM_TRACE_LOG is present this is OBSERVED (real calls); in chat
    *  mode without a log it is NARRATED (inferred from the Trace prose) and thus
    *  phrasing-sensitive — see traceSource. */
   traceOk: number
-  traceOkRate: number
+  traceOkRate: number | null
   /** How traceOk was determined: 'observed' (replayed sandbox trace or a CLI
    *  AM_TRACE_LOG), 'narrated' (Trace-prose heuristic), or 'mixed'. */
-  traceSource: 'observed' | 'narrated' | 'mixed'
-  /** Composite (taskOk && traceOk) count, kept for continuity — no longer the
-   *  headline, since a narration miss must not read as a capability failure. */
+  traceSource: 'observed' | 'narrated' | 'mixed' | 'unavailable'
+  /** Strict composite (taskOk && traceOk && responseContractOk) count. */
   passed: number
-  safePathRate: number
-  structuredPathRate: number
+  responseContractOk: number
+  responseContractOkRate: number | null
+  safePathRate: number | null
+  structuredPathRate: number | null
+  breakdown: Record<'create' | 'mutate', SubagentPromptEvalBreakdown>
   transcripts: string[]
+}
+
+export interface SubagentPromptEvalBreakdown {
+  total: number
+  captured: number
+  captureFailed: number
+  taskOk: number
+  taskOkRate: number | null
+  traceOk: number
+  traceOkRate: number | null
+  responseContractOk: number
+  responseContractOkRate: number | null
+  passed: number
 }
 
 export const SUBAGENT_PROMPT_EVAL_PARENT_CONTEXT = `Agentic Mermaid subagent prompt eval.
 Use one fresh subagent per request when your harness supports subagents. The request file is the complete parent-visible task. Save the raw response exactly; the finalize step gates it with the deterministic Agentic Mermaid oracle.`
+
+export function subagentPromptEvalCaseInventory() {
+  return FULL_EVAL_CASES.map(c => ({
+    id: c.id,
+    family: c.family,
+    kind: c.input === undefined ? 'create' as const : 'mutate' as const,
+  }))
+}
 
 const CODE_MODE_CONTRACT = `Return ONLY the JavaScript body that will be passed to Agentic Mermaid Code Mode execute(code).
 Do not include markdown, code fences, or prose.
@@ -113,11 +144,15 @@ function readRepo(relPath: string) {
   return readFileSync(join(REPO, relPath), 'utf8')
 }
 
+function digest(text: string) {
+  return `sha256:${createHash('sha256').update(text).digest('hex')}`
+}
+
 function selectedCases(caseIds?: string[]): AgentUsageEvalCase[] {
-  // Knowledge-proof cases join only by explicit id: the no-id default stays
-  // DEFAULT_CASES so existing prepare invocations keep their case set.
-  const pool = [...DEFAULT_CASES, ...KNOWLEDGE_CASES, ...CREATE_CASES]
-  const cases = caseIds?.length ? pool.filter(c => caseIds.includes(c.id)) : DEFAULT_CASES
+  // Knowledge-proof cases join only by explicit id. A no-id live run exercises
+  // the complete create+mutate matrix from the executable registry.
+  const pool = [...FULL_EVAL_CASES, ...KNOWLEDGE_CASES]
+  const cases = caseIds?.length ? pool.filter(c => caseIds.includes(c.id)) : FULL_EVAL_CASES
   if (caseIds?.length) {
     const found = new Set(cases.map(c => c.id))
     const missing = caseIds.filter(id => !found.has(id))
@@ -231,7 +266,7 @@ function writeRunReadme(outDir: string, manifest: SubagentPromptEvalManifest) {
     'Use from Pi, Claude, Codex, or any other harness with subagents:',
     '',
     '1. For each `requests/*.md` file, dispatch one fresh subagent with that file as the complete task.',
-    '2. Save the exact raw subagent response to the matching `responses/<case-id>.txt` file. Do not edit passing or failing responses.',
+    '2. Have the orchestrator capture the complete returned message, then use the `record` command to save it. Do not substitute acknowledgements or edit passing or failing responses.',
     '3. Run:',
     '',
     '```sh',
@@ -240,7 +275,7 @@ function writeRunReadme(outDir: string, manifest: SubagentPromptEvalManifest) {
     '',
     manifest.mode === 'code'
       ? 'The finalize step extracts Code Mode JavaScript and replays it through the existing sandbox, trace linter, and task oracle.'
-      : 'The finalize step extracts the Updated Mermaid section, verifies it, and checks the task oracle plus response-shape/trace claims.',
+      : 'The finalize step grades diagram correctness, response-contract compliance, and trace evidence independently. Missing or placeholder captures are reported separately and excluded from model-score denominators.',
     '',
     `Provider: ${manifest.provider}`,
     `Model: ${manifest.model}`,
@@ -278,11 +313,12 @@ export function prepareSubagentPromptEval(opts: PrepareSubagentPromptEvalOptions
   for (const c of cases) {
     const requestPath = join(requestsDir, `${c.id}.md`)
     const responsePath = join(responsesDir, `${c.id}.txt`)
-    writeFileSync(requestPath, buildSubagentPromptEvalRequest(c, surface, mode, promptVariant) + '\n')
-    requests.push({ caseId: c.id, requestPath, responsePath })
+    const request = buildSubagentPromptEvalRequest(c, surface, mode, promptVariant) + '\n'
+    writeFileSync(requestPath, request)
+    requests.push({ caseId: c.id, requestPath, responsePath, requestDigest: digest(request) })
   }
 
-  const manifest: SubagentPromptEvalManifest = { schemaVersion: 1, capturedAt, provider, model, surface, mode, promptVariant, cases: cases.map(c => c.id), requests }
+  const manifest: SubagentPromptEvalManifest = { schemaVersion: 2, capturedAt, provider, model, surface, mode, promptVariant, cases: cases.map(c => c.id), requests }
   writeFileSync(join(outDir, MANIFEST_FILE), JSON.stringify({ ...manifest, requests: manifest.requests.map(r => ({ ...r, requestPath: rel(r.requestPath), responsePath: rel(r.responsePath) })) }, null, 2) + '\n')
   writeRunReadme(outDir, manifest)
   return manifest
@@ -310,13 +346,63 @@ export function extractUpdatedMermaidSource(text: string): string | undefined {
   if (fenced?.[1]?.trim()) return fenced[1].trim()
   const section = text.match(/(?:^|\n)\s*(?:#+\s*)?Updated Mermaid\s*\n([\s\S]*?)(?=\n\s*(?:#+\s*)?(?:Verification|Trace)\b|$)/i)
   const source = section?.[1]?.trim()
-  return source || undefined
+  if (source) return source
+  // Response formatting is a separate metric. If the entire response is valid
+  // Mermaid, keep grading its semantics instead of turning a wrapper mistake
+  // into a diagram-correctness failure.
+  const bare = text.trim()
+  return bare && parseMermaid(bare).ok ? bare : undefined
+}
+
+type CaptureFailureCode = 'MISSING_RESPONSE' | 'EMPTY_RESPONSE' | 'CAPTURE_PLACEHOLDER' | 'REQUEST_DIGEST_MISMATCH'
+
+type CaptureValidation =
+  | { ok: true }
+  | { ok: false; error: { code: CaptureFailureCode; message: string } }
+
+export function validateCapturedResponse(rawResponse: string | undefined): CaptureValidation {
+  if (rawResponse === undefined) {
+    return { ok: false, error: { code: 'MISSING_RESPONSE', message: 'No model response was captured. Re-dispatch this case once and record the complete raw response before finalizing.' } }
+  }
+  const trimmed = rawResponse.trim()
+  if (!trimmed) {
+    return { ok: false, error: { code: 'EMPTY_RESPONSE', message: 'The captured response is empty. Re-dispatch this case once and record the complete raw response before finalizing.' } }
+  }
+  if (/^(?:\[(?:codex|agent|subagent) failure\]|(?:done|ok|success)|(?:wrote|saved|recorded)(?:\s+(?:the\s+)?response)?(?:\s+(?:to|at))?\s+\S+)\.?$/i.test(trimmed)) {
+    return { ok: false, error: { code: 'CAPTURE_PLACEHOLDER', message: 'The capture contains only an acknowledgement or failure placeholder, not the model output. Re-dispatch this case once and record the complete raw response.' } }
+  }
+  return { ok: true }
+}
+
+function chatResponseContractError(text: string, surface: PromptEvalSurface): AgentUsageEvalResult['responseContractError'] {
+  if (surface === 'none') {
+    return /```mermaid\s*\n[\s\S]*?```/i.test(text)
+      ? undefined
+      : { code: 'RESPONSE_CONTRACT_ERROR', message: 'Expected the final diagram in a ```mermaid fence.' }
+  }
+  const updated = [...text.matchAll(/(?:^|\n)\s*(?:#+\s*)?Updated Mermaid\b/gi)]
+  const verification = [...text.matchAll(/(?:^|\n)\s*(?:#+\s*)?Verification\b/gi)]
+  const trace = [...text.matchAll(/(?:^|\n)\s*(?:#+\s*)?Trace\b/gi)]
+  const startsWithUpdated = /^\s*(?:#+\s*)?Updated Mermaid\b/i.test(text)
+  const inOrder = updated[0] && verification[0] && trace[0]
+    ? updated[0].index! < verification[0].index! && verification[0].index! < trace[0].index!
+    : false
+  const updatedSection = text.match(/(?:^|\n)\s*(?:#+\s*)?Updated Mermaid\s*\n([\s\S]*?)(?=\n\s*(?:#+\s*)?Verification\b)/i)?.[1]
+  const hasFencedSource = Boolean(updatedSection && /```mermaid\s*\n[\s\S]*?```/i.test(updatedSection))
+  if (startsWithUpdated && updated.length === 1 && verification.length === 1 && trace.length === 1 && inOrder && hasFencedSource) return undefined
+  return {
+    code: 'RESPONSE_CONTRACT_ERROR',
+    message: 'Expected exactly one Updated Mermaid, Verification, and Trace section in that order, starting with Updated Mermaid and placing the final source in its ```mermaid fence.',
+  }
+}
+
+function codeResponseContractError(text: string, extractedScript: string): AgentUsageEvalResult['responseContractError'] {
+  return text.trim() === extractedScript.trim()
+    ? undefined
+    : { code: 'RESPONSE_CONTRACT_ERROR', message: 'Expected only the synchronous Code Mode JavaScript body, without prose, markdown fences, or an arrow-function wrapper.' }
 }
 
 function chatTraceOk(id: string, text: string): boolean {
-  if (!/(?:^|\n)\s*(?:#+\s*)?Updated Mermaid\b/i.test(text)) return false
-  if (!/(?:^|\n)\s*(?:#+\s*)?Verification\b/i.test(text)) return false
-  if (!/(?:^|\n)\s*(?:#+\s*)?Trace\b/i.test(text)) return false
   // The CLI (`am verify`) and the hosted MCP (`/mcp` verify tool or its Code
   // Mode execute) both parse the source themselves, so either is verification
   // evidence and — for a new diagram — construction evidence.
@@ -404,10 +490,6 @@ function observedTraceOk(id: string, verbs: string[]): boolean {
 }
 
 function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string, surface: PromptEvalSurface, observedVerbs?: string[] | null): { result: AgentUsageEvalResult; source?: string; traceObserved: boolean } {
-  // The no-docs baseline never saw the response-format contract, so grading it
-  // on Updated Mermaid/Verification/Trace shape would be meaningless: traceOk
-  // is reported for the record but only the task oracle gates ok.
-  const shapeRequired = surface !== 'none'
   // traceOk: an OBSERVED CLI log CONFIRMS tool use (phrasing-independent, ground
   // truth), but its ABSENCE cannot refute — the agent may have verified/mutated
   // through the library or hosted MCP, which the `am` log can't see (e.g. it ran
@@ -416,19 +498,24 @@ function scoreChatResponse(c: AgentUsageEvalCase, rawResponse: string, surface: 
   // NARRATED prose heuristic. `traceObserved` marks a positive observation.
   const traceObserved = observedVerbs != null && observedTraceOk(c.id, observedVerbs)
   const traceOk = traceObserved || chatTraceOk(c.id, rawResponse)
+  const responseContractError = chatResponseContractError(rawResponse, surface)
+  const responseContractOk = responseContractError === undefined
   const source = extractUpdatedMermaidSource(rawResponse)
-  if (!source) return { result: { id: c.id, ok: false, taskOk: false, traceOk, findings: [], error: 'Updated Mermaid mermaid fence not found' }, traceObserved }
+  const common = { id: c.id, captureOk: true, traceOk, responseContractOk, responseContractError, findings: [] }
+  if (!source) return { result: { ...common, ok: false, taskOk: false, error: 'DIAGRAM_SOURCE_MISSING: no Mermaid source could be extracted for semantic grading' }, traceObserved }
   const parsed = parseMermaid(source)
-  if (!parsed.ok) return { result: { id: c.id, ok: false, taskOk: false, traceOk, findings: [], error: `parse failed: ${String((parsed.error as { message?: unknown }).message ?? parsed.error)}` }, source, traceObserved }
+  if (!parsed.ok) return { result: { ...common, ok: false, taskOk: false, error: `DIAGRAM_PARSE_ERROR: ${String((parsed.error as { message?: unknown }).message ?? parsed.error)}` }, source, traceObserved }
   const verified = verifyMermaid(parsed.value)
-  if (!verified.ok) return { result: { id: c.id, ok: false, taskOk: false, traceOk, findings: [], error: `verify failed: ${verified.warnings.map(w => w.code).join(', ')}` }, source, traceObserved }
+  if (!verified.ok) return { result: { ...common, ok: false, taskOk: false, error: `DIAGRAM_VERIFY_ERROR: ${verified.warnings.map(w => w.code).join(', ')}` }, source, traceObserved }
   const taskOk = checkAgentUsageTaskSource(c.id, source)
-  return { result: { id: c.id, ok: taskOk && (traceOk || !shapeRequired), taskOk, traceOk, findings: [], error: taskOk ? undefined : 'task oracle rejected Updated Mermaid source' }, source, traceObserved }
+  const ok = taskOk && responseContractOk && (traceOk || surface === 'none')
+  return { result: { ...common, ok, taskOk, error: taskOk ? undefined : 'TASK_ORACLE_REJECTED: the diagram does not implement the requested structure' }, source, traceObserved }
 }
 
-function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c: AgentUsageEvalCase, rawResponse: string, script: string, result: AgentUsageEvalResult, extractedSource?: string) {
+function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, req: SubagentPromptEvalRequest, c: AgentUsageEvalCase, rawResponse: string, script: string, result: AgentUsageEvalResult, extractedSource?: string) {
+  const tracePath = join(abs(runDir), 'traces', `${c.id}.jsonl`)
   const transcript = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     capturedAt: manifest.capturedAt,
     provider: manifest.provider,
     model: manifest.model,
@@ -443,6 +530,13 @@ function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c
     rawResponse,
     script,
     extractedSource,
+    capture: {
+      ok: result.captureOk ?? true,
+      requestDigest: req.requestDigest,
+      responseDigest: rawResponse ? digest(rawResponse) : undefined,
+      traceDigest: existsSync(tracePath) ? digest(readFileSync(tracePath, 'utf8')) : undefined,
+      error: result.captureError,
+    },
     result,
   }
   const file = transcriptPath(runDir, c.id)
@@ -453,53 +547,114 @@ function writeTranscript(runDir: string, manifest: SubagentPromptEvalManifest, c
 export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEvalOptions): Promise<SubagentPromptEvalSummary> {
   const runDir = abs(opts.runDir)
   const manifest = loadManifest(runDir)
-  const byId = new Map([...DEFAULT_CASES, ...KNOWLEDGE_CASES, ...CREATE_CASES].map(c => [c.id, c]))
-  let passed = 0
-  let taskPassed = 0
-  let tracePassed = 0
-  let structuredCases = 0
-  let structuredPassed = 0
+  const byId = new Map([...FULL_EVAL_CASES, ...KNOWLEDGE_CASES].map(c => [c.id, c]))
   // Code mode observes the real replayed sandbox trace; chat mode observes only
   // when an AM_TRACE_LOG was captured for the case. Track which so the summary
   // can flag whether traceOk is ground truth or a prose heuristic.
   let observedCount = 0
   let narratedCount = 0
+  const graded: Array<{ c: AgentUsageEvalCase; result: AgentUsageEvalResult }> = []
+  const captureFailures: SubagentPromptEvalSummary['captureFailures'] = []
   const transcriptFiles: string[] = []
 
   for (const req of manifest.requests) {
     const c = byId.get(req.caseId)
     if (!c) throw new Error(`Unknown case in manifest: ${req.caseId}`)
-    if (!existsSync(req.responsePath)) throw new Error(`Missing raw subagent response for ${req.caseId}: ${rel(req.responsePath)}`)
-    const rawResponse = readFileSync(req.responsePath, 'utf8')
-    const script = manifest.mode === 'code' ? extractCodeModeScript(rawResponse) : ''
+    const rawResponse = existsSync(req.responsePath) ? readFileSync(req.responsePath, 'utf8') : undefined
+    let capture = validateCapturedResponse(rawResponse)
+    if (capture.ok && req.requestDigest) {
+      const requestMatches = existsSync(req.requestPath) && digest(readFileSync(req.requestPath, 'utf8')) === req.requestDigest
+      if (!requestMatches) {
+        capture = { ok: false, error: { code: 'REQUEST_DIGEST_MISMATCH', message: 'The request file changed after preparation. Prepare and dispatch this case again so the graded response is bound to the exact prompt.' } }
+      }
+    }
+    if (!capture.ok) {
+      const result: AgentUsageEvalResult = {
+        id: c.id,
+        ok: false,
+        taskOk: false,
+        traceOk: false,
+        captureOk: false,
+        captureError: capture.error,
+        responseContractOk: false,
+        findings: [],
+      }
+      captureFailures.push({ caseId: c.id, ...capture.error })
+      transcriptFiles.push(rel(writeTranscript(runDir, manifest, req, c, rawResponse ?? '', '', result)))
+      continue
+    }
+
+    const completeResponse = rawResponse!
+    const script = manifest.mode === 'code' ? extractCodeModeScript(completeResponse) : ''
     let traceObserved: boolean
     let scored: { result: AgentUsageEvalResult; source?: string }
     if (manifest.mode === 'code') {
-      scored = { result: (await runAgentUsageEval([{ ...c, script }])).results[0]!, source: undefined }
+      const result = (await runAgentUsageEval([{ ...c, script }])).results[0]!
+      const responseContractError = codeResponseContractError(completeResponse, script)
+      const responseContractOk = responseContractError === undefined
+      scored = {
+        result: {
+          ...result,
+          ok: result.taskOk && result.traceOk && responseContractOk,
+          captureOk: true,
+          responseContractOk,
+          responseContractError,
+        },
+        source: undefined,
+      }
       traceObserved = true // replayed through the sandbox trace linter
     } else {
-      const chat = scoreChatResponse(c, rawResponse, manifest.surface, readObservedVerbs(runDir, c.id))
+      const chat = scoreChatResponse(c, completeResponse, manifest.surface, readObservedVerbs(runDir, c.id))
       scored = { result: chat.result, source: chat.source }
       traceObserved = chat.traceObserved
     }
     const result = scored.result
-    if (result.ok) passed++
-    if (result.taskOk) taskPassed++
-    if (result.traceOk) tracePassed++
+    graded.push({ c, result })
     if (traceObserved) observedCount++; else narratedCount++
-    if (requiresStructuredMutation(c.id)) {
-      structuredCases++
-      if (result.traceOk) structuredPassed++
-    }
-    transcriptFiles.push(rel(writeTranscript(runDir, manifest, c, rawResponse, script, result, scored.source)))
+    transcriptFiles.push(rel(writeTranscript(runDir, manifest, req, c, completeResponse, script, result, scored.source)))
   }
 
   const total = manifest.requests.length
-  const traceSource: 'observed' | 'narrated' | 'mixed' =
-    observedCount === 0 ? 'narrated' : narratedCount === 0 ? 'observed' : 'mixed'
+  const captured = graded.length
+  const count = (predicate: (entry: typeof graded[number]) => boolean) => graded.filter(predicate).length
+  const taskPassed = count(({ result }) => result.taskOk)
+  const tracePassed = count(({ result }) => result.traceOk)
+  const contractPassed = count(({ result }) => result.responseContractOk === true)
+  const passed = count(({ result }) => result.ok)
+  const structured = graded.filter(({ c }) => requiresStructuredMutation(c.id))
+  const structuredPassed = structured.filter(({ result }) => result.traceOk).length
+  const rate = (value: number, denominator: number) => denominator === 0 ? null : value / denominator
+  const traceSource: SubagentPromptEvalSummary['traceSource'] = captured === 0
+    ? 'unavailable'
+    : observedCount === 0 ? 'narrated' : narratedCount === 0 ? 'observed' : 'mixed'
+  const breakdownFor = (kind: 'create' | 'mutate'): SubagentPromptEvalBreakdown => {
+    const isKind = (c: AgentUsageEvalCase) => (c.input === undefined ? 'create' : 'mutate') === kind
+    const requested = manifest.requests.filter(req => {
+      const c = byId.get(req.caseId)
+      return c !== undefined && isKind(c)
+    })
+    const rows = graded.filter(({ c }) => isKind(c))
+    const taskOk = rows.filter(({ result }) => result.taskOk).length
+    const traceOk = rows.filter(({ result }) => result.traceOk).length
+    const responseContractOk = rows.filter(({ result }) => result.responseContractOk === true).length
+    return {
+      total: requested.length,
+      captured: rows.length,
+      captureFailed: requested.length - rows.length,
+      taskOk,
+      taskOkRate: rate(taskOk, rows.length),
+      traceOk,
+      traceOkRate: rate(traceOk, rows.length),
+      responseContractOk,
+      responseContractOkRate: rate(responseContractOk, rows.length),
+      passed: rows.filter(({ result }) => result.ok).length,
+    }
+  }
   const summary: SubagentPromptEvalSummary = {
-    // Correctness gate — a narration miss no longer sinks the run.
-    ok: taskPassed === total,
+    schemaVersion: 2,
+    // Correctness gate — formatting and narration misses remain separate, while
+    // incomplete capture still prevents an apparently green run.
+    ok: captureFailures.length === 0 && taskPassed === captured,
     capturedAt: manifest.capturedAt,
     provider: manifest.provider,
     model: manifest.model,
@@ -507,14 +662,21 @@ export async function finalizeSubagentPromptEval(opts: FinalizeSubagentPromptEva
     mode: manifest.mode,
     promptVariant: manifest.promptVariant,
     total,
+    captured,
+    captureFailed: captureFailures.length,
+    captureOkRate: captured / Math.max(1, total),
+    captureFailures,
     taskOk: taskPassed,
-    taskOkRate: taskPassed / Math.max(1, total),
+    taskOkRate: rate(taskPassed, captured),
     traceOk: tracePassed,
-    traceOkRate: tracePassed / Math.max(1, total),
+    traceOkRate: rate(tracePassed, captured),
     traceSource,
     passed,
-    safePathRate: tracePassed / Math.max(1, total),
-    structuredPathRate: structuredPassed / Math.max(1, structuredCases),
+    responseContractOk: contractPassed,
+    responseContractOkRate: rate(contractPassed, captured),
+    safePathRate: rate(tracePassed, captured),
+    structuredPathRate: rate(structuredPassed, structured.length),
+    breakdown: { create: breakdownFor('create'), mutate: breakdownFor('mutate') },
     transcripts: transcriptFiles,
   }
   writeFileSync(join(runDir, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
@@ -525,6 +687,8 @@ export function recordSubagentPromptEvalResponse(runDir: string, caseId: string,
   const manifest = loadManifest(runDir)
   const req = manifest.requests.find(r => r.caseId === caseId)
   if (!req) throw new Error(`Case ${caseId} is not in ${rel(runDir)}`)
+  const capture = validateCapturedResponse(rawResponse)
+  if (!capture.ok) throw new Error(`${capture.error.code}: ${capture.error.message}`)
   mkdirSync(join(abs(runDir), 'responses'), { recursive: true })
   writeFileSync(req.responsePath, rawResponse)
   return req.responsePath
@@ -565,13 +729,14 @@ function parsePromptVariant(args: string[]): PromptEvalVariant {
 
 function usage() {
   return `Usage:
+  bun run eval:agent-subagent -- list-cases [--format json|csv]
   bun run eval:agent-subagent -- prepare [--provider pi-subagent] [--model delegate] [--surface homepage|instructions|skill|none] [--mode code|chat] [--prompt-variant baseline|no-semantic-readback] [--cases id1,id2] [--out-dir dir]
   bun run eval:agent-subagent -- record --run-dir dir --case id [--response-file file]
   bun run eval:agent-subagent -- finalize --run-dir dir
 
-Prepare writes requests under eval/agent-usage/transcripts/<provider>-<timestamp>/requests/.
+Prepare defaults to the complete create+mutate registry and writes requests under eval/agent-usage/transcripts/<provider>-<timestamp>/requests/.
 Dispatch each request to a fresh subagent in Pi, Claude, Codex, or another harness, save exact raw responses under responses/, then finalize.
-Finalize writes one transcript JSON per case plus summary.json and exits nonzero when the existing oracle rejects any response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. The homepage surface is fetch-only; compare start.md variants separately rather than with --prompt-variant.`
+Finalize writes one transcript JSON per case plus summary.json and exits nonzero when capture is incomplete or the task oracle rejects a response. Use --mode chat to test the raw public prompt response shape; use --mode code for executable Code Mode transcripts. --surface none is the chat-only no-docs baseline: the bare task with zero product guidance, graded on the task oracle alone. The homepage surface is fetch-only; compare start.md variants separately rather than with --prompt-variant.`
 }
 
 async function readStdin(): Promise<string> {
@@ -587,6 +752,14 @@ if (import.meta.main) {
     const rest = command === args[0] ? args.slice(1) : args
     if (command === 'help' || hasArg(args, '--help')) {
       console.log(usage())
+      process.exit(0)
+    }
+    if (command === 'list-cases') {
+      const inventory = subagentPromptEvalCaseInventory()
+      const format = argValue(rest, '--format') ?? 'json'
+      if (format === 'csv') console.log(inventory.map(c => c.id).join(','))
+      else if (format === 'json') console.log(JSON.stringify({ total: inventory.length, families: new Set(inventory.map(c => c.family)).size, cases: inventory }, null, 2))
+      else throw new Error(`Unsupported --format ${format}. Use json or csv.`)
       process.exit(0)
     }
     if (command === 'prepare') {

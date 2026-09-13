@@ -2,10 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { buildSubagentPromptEvalRequest, finalizeSubagentPromptEval, prepareSubagentPromptEval } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
+import { buildSubagentPromptEvalRequest, extractUpdatedMermaidSource, finalizeSubagentPromptEval, prepareSubagentPromptEval, recordSubagentPromptEvalResponse, subagentPromptEvalCaseInventory } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScript, type LiveTranscript, resolveLiveModelConfig, runLiveAgentUsageEval } from '../../eval/agent-usage/live.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES } from '../../eval/agent-usage/render-quality.ts'
-import { checkAgentUsageTaskSource, DEFAULT_CASES, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { checkAgentUsageTaskSource, DEFAULT_CASES, FULL_EVAL_CASES, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 
 const TRANSCRIPT_ROOT = join(import.meta.dir, '..', '..', 'eval', 'agent-usage', 'transcripts')
@@ -63,7 +63,7 @@ describe('live agent-usage eval harness', () => {
     expect(request).toContain('SDK declaration available in Code Mode')
     expect(buildSubagentPromptEvalRequest(c, 'skill')).toContain('skills/agentic-mermaid-diagram-workflow/SKILL.md')
 
-    writeFileSync(manifest.requests[0]!.responsePath, `The subagent should not add prose, but the extractor tolerates fences.\n\`\`\`js\n${c.script}\n\`\`\`\n`)
+    writeFileSync(manifest.requests[0]!.responsePath, c.script)
     const summary = await finalizeSubagentPromptEval({ runDir: dir })
     expect(summary.ok).toBe(true)
     expect(summary.provider).toBe('pi-subagent')
@@ -74,6 +74,23 @@ describe('live agent-usage eval harness', () => {
     expect(transcript.prompts.user).toContain(c.prompt)
     expect(transcript.result.ok).toBe(true)
     expect(existsSync(join(dir, 'summary.json'))).toBe(true)
+  })
+
+  test('the executable registry drives the complete live create and mutate matrix', () => {
+    const inventory = subagentPromptEvalCaseInventory()
+    expect(inventory.map(c => c.id)).toEqual(FULL_EVAL_CASES.map(c => c.id))
+    expect(new Set(inventory.map(c => c.id)).size).toBe(inventory.length)
+    const families = new Set(inventory.map(c => c.family))
+    expect(families).toEqual(new Set(AGENT_USAGE_SUPPORTED_FAMILIES))
+    for (const family of families) {
+      expect(inventory.filter(c => c.family === family).map(c => c.kind).sort()).toEqual(['create', 'mutate'])
+    }
+
+    const dir = mkdtempSync(join(tmpdir(), 'am-complete-subagent-eval-'))
+    const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'unit', model: 'unit' })
+    expect(manifest.schemaVersion).toBe(2)
+    expect(manifest.requests.map(r => r.caseId)).toEqual(inventory.map(c => c.id))
+    expect(manifest.requests.every(r => /^sha256:[0-9a-f]{64}$/.test(r.requestDigest ?? ''))).toBe(true)
   })
 
   test('subagent prompt capture can gate raw chat prompt responses separately from Code Mode', async () => {
@@ -96,6 +113,72 @@ describe('live agent-usage eval harness', () => {
     expect(transcript.extractedSource).toContain('sequenceDiagram')
     expect(transcript.script).toBe('')
     expect(transcript.result.ok).toBe(true)
+  })
+
+  test('valid bare Mermaid keeps task correctness independent from the response contract', async () => {
+    const c = DEFAULT_CASES.find(c => c.id === 'author_api_sequence_source')!
+    const bare = 'sequenceDiagram\n  participant User\n  participant App\n  participant API\n  User->>App: Export\n  App->>API: Render SVG\n  API-->>App: SVG string\n  App-->>User: Download'
+    expect(extractUpdatedMermaidSource(bare)).toBe(bare)
+
+    const dir = mkdtempSync(join(tmpdir(), 'am-bare-chat-eval-'))
+    const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat', caseIds: [c.id] })
+    writeFileSync(manifest.requests[0]!.responsePath, bare)
+    const summary = await finalizeSubagentPromptEval({ runDir: dir })
+    const transcript = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as {
+      result: { taskOk: boolean; responseContractOk: boolean; responseContractError: { code: string }; error?: string }
+    }
+
+    expect({ ok: summary.ok, taskOk: summary.taskOk, contractOk: summary.responseContractOk, traceOk: summary.traceOk, passed: summary.passed })
+      .toEqual({ ok: true, taskOk: 1, contractOk: 0, traceOk: 0, passed: 0 })
+    expect(transcript.result.taskOk).toBe(true)
+    expect(transcript.result.responseContractOk).toBe(false)
+    expect(transcript.result.responseContractError.code).toBe('RESPONSE_CONTRACT_ERROR')
+    expect(transcript.result.error).toBeUndefined()
+  })
+
+  test('capture failures are quarantined from model-score denominators and carry retry errors', async () => {
+    const valid = FULL_EVAL_CASES.find(c => c.id === 'author_api_sequence_source')!
+    const placeholder = FULL_EVAL_CASES.find(c => c.id === 'author_state_source')!
+    const missing = FULL_EVAL_CASES.find(c => c.id === 'author_class_source')!
+    const bare = 'sequenceDiagram\n  participant User\n  participant App\n  participant API\n  User->>App: Export\n  App->>API: Render SVG\n  API-->>App: SVG string\n  App-->>User: Download'
+    const dir = mkdtempSync(join(tmpdir(), 'am-capture-integrity-eval-'))
+    const manifest = prepareSubagentPromptEval({
+      outDir: dir,
+      provider: 'unit',
+      model: 'unit',
+      surface: 'homepage',
+      mode: 'chat',
+      caseIds: [valid.id, placeholder.id, missing.id],
+    })
+    const byId = new Map(manifest.requests.map(request => [request.caseId, request]))
+    recordSubagentPromptEvalResponse(dir, valid.id, bare)
+    expect(() => recordSubagentPromptEvalResponse(dir, placeholder.id, 'WROTE /tmp/response.txt')).toThrow('CAPTURE_PLACEHOLDER')
+    writeFileSync(byId.get(placeholder.id)!.responsePath, 'WROTE /tmp/response.txt')
+
+    const summary = await finalizeSubagentPromptEval({ runDir: dir })
+    expect({ ok: summary.ok, total: summary.total, captured: summary.captured, failed: summary.captureFailed, taskOk: summary.taskOk, taskOkRate: summary.taskOkRate })
+      .toEqual({ ok: false, total: 3, captured: 1, failed: 2, taskOk: 1, taskOkRate: 1 })
+    expect(summary.captureFailures.map(failure => failure.code).sort()).toEqual(['CAPTURE_PLACEHOLDER', 'MISSING_RESPONSE'])
+    expect(summary.captureFailures.every(failure => /Re-dispatch/.test(failure.message))).toBe(true)
+  })
+
+  test('request digests prevent grading a response against a changed prompt', async () => {
+    const c = FULL_EVAL_CASES.find(c => c.id === 'author_api_sequence_source')!
+    const bare = 'sequenceDiagram\n  participant User\n  participant App\n  participant API\n  User->>App: Export\n  App->>API: Render SVG\n  API-->>App: SVG string\n  App-->>User: Download'
+    const dir = mkdtempSync(join(tmpdir(), 'am-request-digest-eval-'))
+    const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat', caseIds: [c.id] })
+    const request = manifest.requests[0]!
+    writeFileSync(request.responsePath, bare)
+    writeFileSync(request.requestPath, `${readFileSync(request.requestPath, 'utf8')}changed after dispatch\n`)
+
+    const summary = await finalizeSubagentPromptEval({ runDir: dir })
+    expect({ ok: summary.ok, captured: summary.captured, taskOkRate: summary.taskOkRate })
+      .toEqual({ ok: false, captured: 0, taskOkRate: null })
+    expect(summary.captureFailures).toEqual([{
+      caseId: c.id,
+      code: 'REQUEST_DIGEST_MISMATCH',
+      message: 'The request file changed after preparation. Prepare and dispatch this case again so the graded response is bound to the exact prompt.',
+    }])
   })
 
   test('new-diagram authoring via buildMermaid or the CLI satisfies the chat trace check; no-tool does not', async () => {
