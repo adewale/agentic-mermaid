@@ -350,7 +350,7 @@ describe('stored agent-usage eval', () => {
   test('create cases cover every supported family and pass the authoring oracle', async () => {
     // Authoring (create) coverage mirrors the mutate coverage above: the two
     // author_* cases in DEFAULT_CASES (flowchart, sequence) plus CREATE_CASES
-    // (the other ten) must span every family, and every authored fixture must
+    // (the remaining families) must span every family, and every fixture must
     // parse, verify, and satisfy its structural oracle.
     const authored = [...DEFAULT_CASES, ...CREATE_CASES].filter(c => !c.input && c.family)
     expect(new Set(authored.map(c => c.family))).toEqual(new Set(AGENT_USAGE_SUPPORTED_FAMILIES))

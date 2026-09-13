@@ -1,43 +1,34 @@
 # Runbook — grading live agents on the homepage prompt
 
 How to measure whether a real agent, given only the agent-facing prompt, can
-create and mutate Mermaid diagrams across all 15 registered families. The harness is
-agnostic: it emits one request file per case, **you** dispatch each to a fresh
-agent, save the raw response, then `finalize` grades every response against the
-deterministic Agentic Mermaid oracle.
+create and mutate Mermaid diagrams across every registered family. The harness
+is agnostic: it emits one request file per case, **you** dispatch each to a
+fresh agent, capture the returned message, then `finalize` grades every response
+against the deterministic Agentic Mermaid oracle.
 
-Three subcommands: `prepare` → (you dispatch) → `finalize`.
+The run flow is `prepare` → (you dispatch) → `record` → `finalize`; `list-cases` inspects the executable case registry.
 
-## The 30 cases (create + mutate, one per family)
+## Case inventory
 
-```
-# 15 mutate (edit an existing diagram):
-cache_between_api_and_db state_add_done_transition sequence_alt_add_message
-timeline_add_event class_add_duck er_add_order journey_add_review_task
-architecture_add_cache xychart_add_forecast pie_add_docs_slice
-quadrant_add_docs_point gantt_add_docs_task mindmap_add_evidence_node
-gitgraph_add_release_commit radar_add_beta_curve
-# 15 create (author a new diagram):
-author_auth_flow_source author_api_sequence_source author_state_source
-author_class_source author_er_source author_journey_source author_timeline_source
-author_gantt_source author_pie_source author_quadrant_source author_xychart_source
-author_architecture_source author_mindmap_source author_gitgraph_source
-author_radar_source
+The executable registry is the source of truth. It contains exactly one create
+and one mutate case per registered family. Inspect the current matrix with:
+
+```bash
+bun run eval:agent-subagent -- list-cases
 ```
 
 ## Step 1 — Prepare a run (one per model)
 
 ```bash
-CASES="cache_between_api_and_db,state_add_done_transition,sequence_alt_add_message,timeline_add_event,class_add_duck,er_add_order,journey_add_review_task,architecture_add_cache,xychart_add_forecast,pie_add_docs_slice,quadrant_add_docs_point,gantt_add_docs_task,mindmap_add_evidence_node,gitgraph_add_release_commit,radar_add_beta_curve,author_auth_flow_source,author_api_sequence_source,author_state_source,author_class_source,author_er_source,author_journey_source,author_timeline_source,author_gantt_source,author_pie_source,author_quadrant_source,author_xychart_source,author_architecture_source,author_mindmap_source,author_gitgraph_source,author_radar_source"
-
 bun run eval:agent-subagent -- prepare \
   --provider <provider> --model <model> \
-  --surface homepage --mode chat --cases "$CASES"
+  --surface homepage --mode chat
 ```
 
 Creates `eval/agent-usage/transcripts/<provider>-<timestamp>/` with
-`requests/<case>.md` (30 files, each the complete parent-visible task) and a
-manifest. Note the printed run directory.
+one `requests/<case>.md` per registry entry and a manifest that binds each
+request to its SHA-256 digest. Note the printed run directory. Use `--cases`
+only for an intentional subset.
 
 ## Step 2 — Dispatch each request to a **fresh** agent
 
@@ -55,8 +46,8 @@ self-discover the tooling.
 Read <run-dir>/requests/<case>.md. Follow its "Task prompt under test" as a
 normal coding agent. This repo is checked out — use the Agentic Mermaid tooling
 the prompt points to (import ./src/agent/index.ts, or run `bun run bin/am.ts …`).
-Write ONLY the resulting chat response (Updated Mermaid / Verification / Trace)
-to <run-dir>/responses/<case>.txt. Modify no other file; scratch in /tmp.
+Return ONLY the resulting chat response (Updated Mermaid / Verification / Trace)
+to the orchestrator. Modify no project file; scratch in /tmp.
 ```
 
 **Observed tool-use (recommended):** set
@@ -89,18 +80,24 @@ POST https://agentic-mermaid.dev/mcp with content-type: application/json and a
 JSON-RPC tools/call body (tools: execute, render_svg, render_ascii, render_png,
 verify, describe, mutate, build). For an edit, send Code Mode JS to the `execute` tool
 (mermaid.parseRegisteredMermaid → asX → mutate → verifyMermaid → serializeMermaid). Do NOT
-read, import, or run any local agentic-mermaid checkout. Write ONLY the chat
-response (Updated Mermaid / Verification / Trace) to
-<run-dir>/responses/<case>.txt; name the hosted MCP and the tool calls in Trace.
+read, import, or run any local agentic-mermaid checkout. Return ONLY the chat
+response (Updated Mermaid / Verification / Trace) to the orchestrator; name the
+hosted MCP and the tool calls in Trace.
 ```
 
-## Step 3 — Save each raw response
+## Step 3 — Record each raw response
 
-Have the agent write directly to `<run-dir>/responses/<case>.txt`, or:
+The orchestrator should record the complete returned message rather than asking
+the model to write its own capture file:
 
 ```bash
 bun run eval:agent-subagent -- record --run-dir <run-dir> --case <case> --response-file <file>
 ```
+
+`record` rejects empty output and common acknowledgement/failure placeholders.
+If capture fails, re-dispatch that case once and record the full response.
+Directly written response files remain supported, but `finalize` applies the
+same validation before grading.
 
 ## Step 4 — Finalize (grade)
 
@@ -108,19 +105,29 @@ bun run eval:agent-subagent -- record --run-dir <run-dir> --case <case> --respon
 bun run eval:agent-subagent -- finalize --run-dir <run-dir>
 ```
 
-Writes one `<case>.json` + `summary.json`; prints `total / passed /
-safePathRate / structuredPathRate`; exits nonzero if any case fails.
+Writes one `<case>.json` + `summary.json`; exits nonzero if capture is incomplete
+or any diagram fails the task oracle. Capture failures are not model failures.
 
 ## Step 5 — Read results
 
-`summary.json` reports the two axes **separately** — read `taskOkRate` first.
-Each `<case>.json` has `.result.{ ok, taskOk, traceOk, error }`:
+`summary.json` reports capture integrity and three grading axes separately. Each
+`<case>.json` has `.result.{ captureOk, responseContractOk, taskOk, traceOk }`
+plus a specific error field for whichever axis failed:
+
+- **`captureOk` / `captureOkRate`** — the full model response was captured and
+  its prepared request still matches the manifest digest. Missing, empty,
+  acknowledgement-only, and request-mismatch cases appear in `captureFailures`
+  with a retry instruction. They are excluded from every model-score
+  denominator, but keep `summary.ok` false until recaptured.
 
 - **`taskOk` / `taskOkRate`** — PRIMARY. The returned diagram is structurally
   correct. The real capability signal: the harness independently parses and
-  verifies every returned diagram, so it does not depend on trusting narration.
-  `summary.ok` gates on this (every case `taskOk`), so a correct diagram with a
-  terse `Trace` no longer reads as a failure.
+  verifies every captured diagram, so it does not depend on trusting narration
+  or response formatting. A valid bare Mermaid response can therefore have
+  `taskOk: true` while failing the response contract.
+  `summary.ok` requires complete capture and every captured case to have
+  `taskOk: true`, so a correct diagram with a terse `Trace` no longer reads as
+  a capability failure.
 - **`traceOk` / `traceOkRate`** — SECONDARY. The agent engaged Agentic Mermaid
   on the safe path (verify; and `mutate`/`build` for existing diagrams) rather
   than hand-writing from memory. Trust it according to `summary.traceSource`:
@@ -129,21 +136,17 @@ Each `<case>.json` has `.result.{ ok, taskOk, traceOk, error }`:
   a `traceOk` dip under `narrated` is often a narration artifact, not a
   capability change, so confirm against `taskOk` before reading it as a
   regression.
-- **`passed`** — the composite (`taskOk && traceOk`) count, kept for continuity;
-  not the headline.
+- **`responseContractOk` / `responseContractOkRate`** — the response followed
+  the requested chat sections or Code Mode return shape. Failures use
+  `RESPONSE_CONTRACT_ERROR` and do not change `taskOk`.
+- **`passed`** — the strict composite (`taskOk && traceOk &&
+  responseContractOk`) count; not the capability headline.
 
-Break it down by create vs mutate:
+Create/mutate results are generated from the same registry and included in the
+summary:
 
 ```bash
-bun -e '
-const fs=require("fs"), dir=process.argv[1];
-const mut=["cache_between_api_and_db","state_add_done_transition","sequence_alt_add_message","timeline_add_event","class_add_duck","er_add_order","journey_add_review_task","architecture_add_cache","xychart_add_forecast","pie_add_docs_slice","quadrant_add_docs_point","gantt_add_docs_task","mindmap_add_evidence_node","gitgraph_add_release_commit"];
-const cre=["author_auth_flow_source","author_api_sequence_source","author_state_source","author_class_source","author_er_source","author_journey_source","author_timeline_source","author_gantt_source","author_pie_source","author_quadrant_source","author_xychart_source","author_architecture_source","author_mindmap_source","author_gitgraph_source"];
-const g=id=>{try{return JSON.parse(fs.readFileSync(dir+"/"+id+".json","utf8")).result}catch(e){return{}}};
-const t=ids=>ids.reduce((a,id)=>{const r=g(id);return{ok:a.ok+(r.ok?1:0),task:a.task+(r.taskOk?1:0)}},{ok:0,task:0});
-const m=t(mut),c=t(cre);
-console.log(`MUTATE ok ${m.ok}/${mut.length} (diagram-correct ${m.task}/${mut.length}) | CREATE ok ${c.ok}/${cre.length} (diagram-correct ${c.task}/${cre.length})`);
-' <run-dir>
+jq '.breakdown' <run-dir>/summary.json
 ```
 
 ## Knobs & caveats
