@@ -444,25 +444,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "fc40e808fbf87eaf13feb6e1d38b52cafbfdda352d99bb8b9e9817b69b6d4753",
+          "sha256": "05cbadbc65dc95c9f2f761b76d1a59680d24b13c1627344ab9da9e89102b54ff",
           "rawBytes": 102590,
           "gzipBytes": 18090,
-          "brotliBytes": 15344
+          "brotliBytes": 15354
         },
         {
-          "path": "/editor/editor-c1651c49c248.js",
+          "path": "/editor/editor-3b28b27b06c4.js",
           "count": 1,
-          "sha256": "a1577c7b01c6b587d6996f133dd1d3a8a43b589a8c7694c1c22854c6c7f59e98",
-          "rawBytes": 3232202,
-          "gzipBytes": 963752,
-          "brotliBytes": 755660
+          "sha256": "031bc04cc5df6af4cc6b0534b7be10c37ea43af915881f55396b89f9ca5036fd",
+          "rawBytes": 3232216,
+          "gzipBytes": 963758,
+          "brotliBytes": 755886
         }
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3334792,
-        "gzipBytes": 981842,
-        "brotliBytes": 771004
+        "rawBytes": 3334806,
+        "gzipBytes": 981848,
+        "brotliBytes": 771240
       }
     }
   ]

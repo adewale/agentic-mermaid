@@ -486,29 +486,132 @@ describe('round-trip stability', () => {
       expect(serializeMermaid(parse(out))).toBe(out)
     }
   })
-  test('property: random flowchart mutation chains stay parseable', () => {
+  test('typed mutations preserve boundary whitespace in labels', () => {
+    const original = flowchart('flowchart TD\n  A --> B')
+    const changed = mutate(original, { kind: 'add_edge', from: 'A', to: 'A', label: ' a ' })
+    expect(changed.ok).toBe(true)
+    if (!changed.ok) return
+    const source = serializeMermaid(changed.value)
+    expect(source).toContain('A -->|" a "| A')
+    const reparsed = flowchart(source)
+    expect(reparsed.body.graph.edges.at(-1)?.label).toBe(' a ')
+    expect(serializeMermaid(reparsed)).toBe(source)
+  })
+  test('property: flowchart mutation commands preserve a shadow model and stay parseable', () => {
+    type Model = {
+      nodes: Map<string, string>
+      edges: Array<{ from: string; to: string; label: string | undefined }>
+    }
+    type Real = { diagram: FlowchartValidDiagram }
+    type Action =
+      | { kind: 'add_node'; id: string; label: string }
+      | { kind: 'rename_node'; from: string; to: string }
+      | { kind: 'remove_node'; id: string }
+      | { kind: 'set_label'; id: string; label: string }
+      | { kind: 'add_edge'; from: string; to: string; label?: string }
+      | { kind: 'remove_edge'; from: string; to: string }
+
+    const assertConforms = (model: Model, real: Real) => {
+      const graph = real.diagram.body.graph
+      expect([...graph.nodes].map(([id, node]) => [id, node.label])).toEqual([...model.nodes])
+      expect(graph.edges.map(edge => ({ from: edge.source, to: edge.target, label: edge.label })))
+        .toEqual(model.edges)
+
+      const source = serializeMermaid(real.diagram)
+      const reparsed = parseMermaid(source)
+      expect(reparsed.ok).toBe(true)
+      if (reparsed.ok) expect(serializeMermaid(reparsed.value)).toBe(source)
+    }
+
+    class MutationCommand implements fc.Command<Model, Real> {
+      constructor(private readonly action: Action) {}
+
+      check(model: Readonly<Model>): boolean {
+        const action = this.action
+        switch (action.kind) {
+          case 'add_node': return !model.nodes.has(action.id)
+          case 'rename_node': return model.nodes.has(action.from) && !model.nodes.has(action.to)
+          case 'remove_node':
+          case 'set_label': return model.nodes.has(action.id)
+          case 'add_edge': return true
+          case 'remove_edge': return model.edges.some(edge => edge.from === action.from && edge.to === action.to)
+        }
+      }
+
+      run(model: Model, real: Real): void {
+        const action = this.action
+        const op: FlowchartMutationOp = action.kind === 'remove_edge'
+          ? { kind: 'remove_edge', id: `${action.from}->${action.to}` }
+          : action.kind === 'set_label'
+            ? { kind: 'set_label', target: action.id, label: action.label }
+            : action
+        const result = mutate(real.diagram, op)
+        expect(result.ok).toBe(true)
+        if (!result.ok) return
+        real.diagram = result.value
+
+        switch (action.kind) {
+          case 'add_node':
+            model.nodes.set(action.id, action.label)
+            break
+          case 'rename_node': {
+            const oldLabel = model.nodes.get(action.from)!
+            model.nodes.delete(action.from)
+            model.nodes.set(action.to, oldLabel === action.from ? action.to : oldLabel)
+            for (const edge of model.edges) {
+              if (edge.from === action.from) edge.from = action.to
+              if (edge.to === action.from) edge.to = action.to
+            }
+            break
+          }
+          case 'remove_node':
+            model.nodes.delete(action.id)
+            model.edges = model.edges.filter(edge => edge.from !== action.id && edge.to !== action.id)
+            break
+          case 'set_label':
+            model.nodes.set(action.id, action.label)
+            break
+          case 'add_edge':
+            if (!model.nodes.has(action.from)) model.nodes.set(action.from, action.from)
+            if (!model.nodes.has(action.to)) model.nodes.set(action.to, action.to)
+            model.edges.push({ from: action.from, to: action.to, label: action.label })
+            break
+          case 'remove_edge': {
+            const index = model.edges.findIndex(edge => edge.from === action.from && edge.to === action.to)
+            model.edges.splice(index, 1)
+            break
+          }
+        }
+        assertConforms(model, real)
+      }
+
+      toString(): string {
+        return JSON.stringify(this.action)
+      }
+    }
+
+    const ids = fc.constantFrom('A', 'B', 'C', 'D', 'E', 'F')
+    const labels = fc.array(fc.constantFrom(...'abc XYZ09'), { minLength: 1, maxLength: 8 }).map(parts => parts.join(''))
+    const commandArbs = [
+      fc.tuple(ids, labels).map(([id, label]) => new MutationCommand({ kind: 'add_node', id, label })),
+      fc.tuple(ids, ids).map(([from, to]) => new MutationCommand({ kind: 'rename_node', from, to })),
+      ids.map(id => new MutationCommand({ kind: 'remove_node', id })),
+      fc.tuple(ids, labels).map(([id, label]) => new MutationCommand({ kind: 'set_label', id, label })),
+      fc.tuple(ids, ids, fc.option(labels, { nil: undefined })).map(([from, to, label]) => new MutationCommand({ kind: 'add_edge', from, to, label })),
+      fc.tuple(ids, ids).map(([from, to]) => new MutationCommand({ kind: 'remove_edge', from, to })),
+    ]
+
     fc.assert(
       fc.property(
-        fc.array(
-          fc.record({
-            kind: fc.constantFrom('add_node', 'add_edge'),
-            id: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
-            label: fc.string({ minLength: 0, maxLength: 10 }).filter(s => !/[\[\]{}()<>|"]/.test(s)),
-            from: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
-            to: fc.string({ minLength: 1, maxLength: 5 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s)),
-          }),
-          { maxLength: 6 },
-        ),
-        ops => {
-          const f = asFlowchart(parse('flowchart TD\n  A --> B'))
-          if (!f) return true
-          let d = f
-          for (const o of ops) {
-            const op: FlowchartMutationOp = o.kind === 'add_node' ? { kind: 'add_node', id: o.id, label: o.label || o.id } : { kind: 'add_edge', from: o.from, to: o.to }
-            const next = mutate(d, op)
-            if (next.ok) d = next.value
-          }
-          return parseMermaid(serializeMermaid(d)).ok
+        fc.commands(commandArbs, { maxCommands: 30 }),
+        commands => {
+          fc.modelRun(() => ({
+            model: {
+              nodes: new Map([['A', 'A'], ['B', 'B']]),
+              edges: [{ from: 'A', to: 'B', label: undefined }],
+            },
+            real: { diagram: flowchart('flowchart TD\n  A --> B') },
+          }), commands)
         },
       ),
       { numRuns: 100 },
