@@ -38,9 +38,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Cached shape-profile validation and point ownership add 308 raw bytes to
     // the existing shared Timeline route; no request or family is added.
     maxRawBytes: 729_702,
-    maxGzipBytes: 273_655,
+    // Unicode identifier validation changes generated fingerprints while
+    // keeping the same request graph and raw total; gzip drops by two bytes.
+    maxGzipBytes: 273_653,
     // Exact hashes remain enforced on the recorded Linux toolchain.
-    maxBrotliBytes: 249_942,
+    maxBrotliBytes: 249_950,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -51,12 +53,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    // The editor exercises the complete API. Bounded terminal allocation and
-    // frame isolation add 1,670 raw, 591 gzip, and 573 Brotli bytes to that
-    // complete bundle without changing its two-request graph.
-    maxRawBytes: 3_336_462,
-    maxGzipBytes: 982_433,
-    maxBrotliBytes: 771_577,
+    // The editor exercises the complete API. Shared Unicode identifier
+    // validation adds 169 raw, 48 gzip, and 69 Brotli bytes over the
+    // renderer-safety layer; the request graph stays fixed.
+    maxRawBytes: 3_336_631,
+    maxGzipBytes: 982_481,
+    maxBrotliBytes: 771_646,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

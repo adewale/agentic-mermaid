@@ -11,6 +11,7 @@ import {
   MERMAID_IDENTIFIER_SOURCE,
   consumeClassShorthandPrefix,
   consumeMermaidIdentifier,
+  isMermaidIdentifier,
   parseClassShorthandStatement,
 } from './shared/mermaid-identifiers.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
@@ -198,6 +199,26 @@ function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
     return { text: markdownStringToFormattedText(unquoted.slice(1, -1)), markdown: true }
   }
   return { text: normalizeBrTags(raw), markdown: false }
+}
+
+function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: string } {
+  // Delimiter scanning is deliberately linear. A lazy `(.+?)` matcher followed
+  // by a bracketed label backtracked quadratically over long unterminated runs
+  // of `[` — an input shape that fits the hosted 64 KiB source limit.
+  const labelStart = rest.indexOf('[')
+  if (labelStart > 0 && labelStart < rest.length - 1 && rest.endsWith(']')) {
+    const id = rest.slice(0, labelStart).trim()
+    if (!isMermaidIdentifier(id)) {
+      throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
+    }
+    return { id, label: parseLabelText(rest.slice(labelStart + 1, -1)).text }
+  }
+  const label = parseLabelText(rest).text
+  // Mermaid identifiers are Unicode-aware everywhere else in this parser.
+  // Preserve non-Latin letters/numbers when deriving the implicit container id
+  // instead of silently collapsing a CJK title to an empty string.
+  const id = rest.replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '')
+  return { id, label }
 }
 
 /** Shared statement splitter for renderer and source-side action analysis. */
@@ -394,20 +415,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (subgraphMatch) {
         const rest = subgraphMatch[1]!.trim()
-        // Check for "subgraph id [Label]" form
-        // ID can contain hyphens (e.g. "us-east"), so use [\w-]+ not \w+
-        const bracketMatch = rest.match(/^([\w-]+)\s*\[(.+)\]$/)
-        let id: string
-        let label: string
-        if (bracketMatch) {
-          id = bracketMatch[1]!
-          label = parseLabelText(bracketMatch[2]!).text
-        } else {
-          // Use the label text as id (slugified); markdown-string labels
-          // ("`**Two**`") display as plain text like every other label.
-          label = parseLabelText(rest).text
-          id = rest.replace(/\s+/g, '_').replace(/[^\w]/g, '')
-        }
+        const { id, label } = parseFlowchartSubgraphDeclaration(rest)
         const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
         subgraphStack.push(sg)
         continue
@@ -444,8 +452,7 @@ function collectDeclaredFlowchartSubgraphIds(lines: string[]): Set<string> {
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (!subgraphMatch) continue
       const rest = subgraphMatch[1]!.trim()
-      const bracketMatch = rest.match(/^([\w-]+)\s*\[(.+)\]$/)
-      ids.add(bracketMatch ? bracketMatch[1]! : rest.replace(/\s+/g, '_').replace(/[^\w]/g, ''))
+      ids.add(parseFlowchartSubgraphDeclaration(rest).id)
     }
   }
   return ids
