@@ -24,14 +24,14 @@ The local `/sse` + `/message` pair is the MCP SSE session transport: `POST /mess
 Loopback/local development:
 
 ```sh
-npx -y agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000 \
+npx -y agentic-mermaid mcp --transport http --host 127.0.0.1 --port 3000 \
   --artifact-dir .agentic-mermaid-artifacts
 ```
 
 Remote binding requires a bearer token:
 
 ```sh
-npx -y agentic-mermaid-mcp --transport http --host 0.0.0.0 --port 3000 \
+npx -y agentic-mermaid mcp --transport http --host 0.0.0.0 --port 3000 \
   --artifact-dir .agentic-mermaid-artifacts \
   --auth-token "$AGENTIC_MERMAID_MCP_TOKEN"
 ```

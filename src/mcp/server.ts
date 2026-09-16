@@ -472,7 +472,7 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
 
   const server = createServer(async (req, res) => {
     try {
-      const u = new URL(req.url ?? '/', baseUrl || `http://${host}:${port || 0}`)
+      const u = new URL(req.url ?? '/', baseUrl || httpServerOrigin(host, port || 0))
       if (req.method === 'GET' && u.pathname === '/health') return sendJson(res, 200, { ok: true })
       if (req.method === 'GET' && u.pathname === '/sse') {
         if (!authorizeHttpAccess(req, res, baseUrl, publicOrigin, options.authToken)) return
@@ -507,7 +507,7 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
     })
     const address = server.address()
     if (!address || typeof address === 'string') throw new Error('HTTP MCP server did not expose a TCP address')
-    baseUrl = `http://${host}:${address.port}`
+    baseUrl = httpServerOrigin(host, address.port)
     artifactStore.setBaseUrl(options.publicUrl ?? `${baseUrl}/artifacts`)
   } catch (error) {
     artifactStore.close()
@@ -541,7 +541,27 @@ export async function runHttp(options: HttpMcpOptions = {}): Promise<void> {
 }
 
 function isLoopbackHost(host: string): boolean {
-  return host === '127.0.0.1' || host === 'localhost' || host === '::1'
+  const normalized = host.toLowerCase()
+  if (normalized === '127.0.0.1' || normalized === 'localhost') return true
+  const ipv6 = canonicalIpv6Hostname(host)
+  return ipv6 === '::1' || ipv6 === '::ffff:7f00:1'
+}
+
+function canonicalIpv6Hostname(host: string): string | undefined {
+  const unwrapped = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host
+  if (!unwrapped.includes(':')) return undefined
+  try {
+    const hostname = new URL(`http://[${unwrapped}]/`).hostname
+    return hostname.slice(1, -1).toLowerCase()
+  } catch {
+    return undefined
+  }
+}
+
+function httpServerOrigin(host: string, port: number): string {
+  const ipv6 = canonicalIpv6Hostname(host)
+  const urlHost = ipv6 ? `[${ipv6}]` : host
+  return `http://${urlHost}:${port}`
 }
 
 function httpOrigin(value: string | undefined, label: string): string | undefined {

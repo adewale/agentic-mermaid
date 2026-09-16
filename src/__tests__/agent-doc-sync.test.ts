@@ -713,6 +713,15 @@ describe('root docs consistency', () => {
     ).toEqual(['AGENT_NATIVE.md', 'CHANGELOG.md', 'CLAUDE.md', 'DESIGN.md', 'Instructions_for_agents.md', 'PRODUCT.md', 'README.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'TODO.md'])
   })
 
+  test('MCP package-runner quickstarts install the published package', () => {
+    const rationale = readFileSync(join(REPO, 'docs/mcp-code-mode-rationale.md'), 'utf8')
+    const transport = readFileSync(join(REPO, 'docs/mcp-http-transport.md'), 'utf8')
+    const combined = `${rationale}\n${transport}`
+    expect(combined).not.toContain('npx -y agentic-mermaid-mcp')
+    expect(combined.match(/npx -y agentic-mermaid mcp/g)?.length).toBe(3)
+    expect(rationale).toContain('"args": ["-y", "agentic-mermaid", "mcp"]')
+  })
+
   test('theme and RenderOptions inventory is delegated to live discovery and focused docs', () => {
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
     const theming = readFileSync(join(REPO, 'docs/theming.md'), 'utf8')

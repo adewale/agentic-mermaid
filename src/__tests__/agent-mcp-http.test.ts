@@ -43,6 +43,26 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(await readRequestBody(request as any)).toBe('{"source":"東🚀"}')
   })
 
+  test('IPv6 loopback spellings advertise bracketed URLs and serve requests', async () => {
+    for (const host of ['::1', '0:0:0:0:0:0:0:1']) {
+      const started = await startHttpServer({ host, port: 0, artifactDir: tempDir() })
+      servers.push(started)
+      expect(started.url).toMatch(/^http:\/\/\[::1\]:\d+$/)
+
+      const health = await fetch(`${started.url}/health`)
+      expect(health.status).toBe(200)
+      expect(await health.json()).toEqual({ ok: true })
+
+      const rpc = await fetch(`${started.url}/rpc`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+      })
+      expect(rpc.status).toBe(200)
+      expect(await rpc.json()).toMatchObject({ jsonrpc: '2.0', id: 1, result: {} })
+    }
+  })
+
   test('render_png can write a managed file artifact', async () => {
     const store = createArtifactStore({ dir: tempDir() })
     const r = await handleRequest({
