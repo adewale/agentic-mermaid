@@ -4,6 +4,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Fixed
+- Bounded horizontal XYChart terminal allocation by output width and kept
+  target-subgraph frames disjoint from outside nodes and sibling containers.
+
 ### Added
 - Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
 - Added Sankey as the 16th built-in diagram family, with Mermaid-compatible

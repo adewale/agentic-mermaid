@@ -23,6 +23,7 @@ import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { drawTextWithRole, mkCanvas, mkRoleCanvas } from './canvas.ts'
+import { AsciiWidthError } from './width-error.ts'
 
 // ============================================================================
 // Constants
@@ -327,19 +328,45 @@ function renderHorizontal(
   const showCategoryLabels = chart.config.xAxis?.showLabel !== false
   const showValueLabels = chart.config.yAxis?.showLabel !== false
   const catGutter = showCategoryLabels ? Math.max(...catLabels.map(visualWidth)) + 1 : 0
+  const hasTitle = !!chart.title && chart.config.showTitle !== false
+  const hasYTitle = !!chart.yAxis.title && chart.config.yAxis?.showTitle !== false
+
+  // Horizontal charts spend one band per category vertically. Category count
+  // must not also widen the value axis: that made both canvas dimensions O(n)
+  // and allocated three O(n^2) matrices before the shared targetWidth check.
+  // Reject an actually impossible fixed-width frame before deriving its height
+  // or allocating any canvases.
+  const plotLeft = catGutter + 1
+  const minimumPlotW = 2
+  const dataLabelPad = chart.config.showDataLabel ? 12 : 2
+  const minimumRequiredWidth = plotLeft + minimumPlotW
+  if (targetWidth !== undefined && minimumRequiredWidth > targetWidth) {
+    const visibleText = [
+      ...(hasTitle ? [chart.title] : []),
+      ...(hasYTitle ? [chart.yAxis.title] : []),
+      ...(showCategoryLabels ? catLabels : []),
+    ].filter(
+      (value): value is string => value !== undefined,
+    )
+    const hasTooWideGrapheme = visibleText.some(value =>
+      graphemes(value).some(cluster => visualWidth(cluster) > targetWidth),
+    )
+    throw new AsciiWidthError(
+      targetWidth,
+      minimumRequiredWidth,
+      'xychart',
+      hasTooWideGrapheme ? 'UNBREAKABLE_GRAPHEME' : 'MINIMUM_GEOMETRY',
+    )
+  }
 
   const naturalPlotW = Math.max(PLOT_WIDTH, 40)
-  const dataLabelPad = chart.config.showDataLabel ? 12 : 2
   const availablePlotW = targetWidth === undefined ? naturalPlotW : targetWidth - catGutter - 2 - dataLabelPad
-  const plotW = Math.max(dataCount * 2, Math.min(naturalPlotW, availablePlotW))
+  const plotW = Math.max(minimumPlotW, Math.min(naturalPlotW, availablePlotW))
   const bandH = Math.max(2, Math.floor(PLOT_HEIGHT / dataCount))
   const plotH = bandH * dataCount
 
-  const hasTitle = !!chart.title && chart.config.showTitle !== false
-  const hasYTitle = !!chart.yAxis.title && chart.config.yAxis?.showTitle !== false
   const hasLegend = chart.config.showLegend !== false && isLegendWorthy(chart.series)
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
-  const plotLeft = catGutter + 1
   const totalW = plotLeft + plotW + dataLabelPad
   const totalH = plotTop + plotH + 1 + (showValueLabels ? 1 : 0) + (hasYTitle ? 1 : 0)
   const xAxisRow = plotTop + plotH

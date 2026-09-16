@@ -6,7 +6,8 @@
  * and edge cases.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidASCII } from '../ascii/index.ts'
+import { AsciiWidthError, renderMermaidASCII } from '../ascii/index.ts'
+import { visualWidth } from '../ascii/width.ts'
 
 // ============================================================================
 // Helper — render with no colors for easy string matching
@@ -180,6 +181,63 @@ describe('xychart ASCII – horizontal', () => {
     // Should have horizontal staircase routing
     expect(result).toContain('─')
     expect(result).toContain('│')
+  })
+
+  it('keeps value-axis width independent of category count under targetWidth', () => {
+    const categories = Array.from({ length: 300 }, (_, index) => `C${index}`)
+    const values = Array.from({ length: categories.length }, (_, index) => index % 11)
+    const result = renderMermaidASCII(
+      `xychart-beta horizontal
+      x-axis [${categories.join(', ')}]
+      bar [${values.join(', ')}]`,
+      { colorMode: 'none', targetWidth: 80 },
+    )
+
+    expect(Math.max(...result.split('\n').map(visualWidth))).toBeLessThanOrEqual(80)
+    expect(result).toContain('C299')
+  })
+
+  it('does not reject narrow line output because of unused data-label padding', () => {
+    for (const showDataLabel of [false, true]) {
+      const result = renderMermaidASCII(
+        `---
+config:
+  xyChart:
+    showDataLabel: ${showDataLabel}
+    xAxis:
+      showLabel: false
+    yAxis:
+      showLabel: false
+---
+xychart-beta horizontal
+x-axis [A]
+line [1]`,
+        { colorMode: 'none', targetWidth: 3 },
+      )
+      expect(Math.max(...result.split('\n').map(visualWidth))).toBe(3)
+    }
+  })
+
+  it('does not classify hidden category text as an unbreakable grapheme', () => {
+    const source = `---
+config:
+  xyChart:
+    xAxis:
+      showLabel: false
+    yAxis:
+      showLabel: false
+---
+xychart-beta horizontal
+x-axis [🙂]
+line [1]`
+
+    try {
+      renderMermaidASCII(source, { colorMode: 'none', targetWidth: 1 })
+      throw new Error('expected targetWidth to reject minimum geometry')
+    } catch (error) {
+      expect(error).toBeInstanceOf(AsciiWidthError)
+      expect((error as AsciiWidthError).reason).toBe('MINIMUM_GEOMETRY')
+    }
   })
 })
 

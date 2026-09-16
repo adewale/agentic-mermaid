@@ -15,7 +15,7 @@
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { normalizeMermaidSource, toMermaidLines, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import type { FamilyId, ParsedDiagram } from '../agent/types.ts'
+import type { ParsedDiagram } from '../agent/types.ts'
 import { prepareRenderInput } from '../agent/render-input.ts'
 import { isBuiltinFamilyId } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
@@ -51,10 +51,13 @@ import {
   secureTerminalHtmlOutput,
   terminalOutputLineWidth,
 } from '../terminal-security.ts'
+import { AsciiWidthError } from './width-error.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
 export { DEFAULT_ASCII_THEME, detectColorMode, diagramColorsToAsciiTheme }
+export { AsciiWidthError } from './width-error.ts'
+export type { AsciiWidthErrorReason } from './width-error.ts'
 
 /** Scene lowering supplies typed connector semantics to terminal output, but
  * its prelude is graphical. Give that non-emitted prelude inert values while
@@ -138,22 +141,6 @@ export interface AsciiRenderOptions extends RenderOptions, TerminalOutputPolicyI
  * // +---+     +---+     +---+
  * ```
  */
-export type AsciiWidthErrorReason = 'UNBREAKABLE_GRAPHEME' | 'MINIMUM_GEOMETRY' | 'INVALID_WIDTH'
-
-export class AsciiWidthError extends Error {
-  readonly code = 'ASCII_TARGET_WIDTH_IMPOSSIBLE'
-  constructor(
-    readonly requestedWidth: number,
-    readonly requiredWidth: number,
-    readonly family: FamilyId,
-    readonly reason: AsciiWidthErrorReason,
-  ) {
-    super(`Cannot render ${family} within ${requestedWidth} terminal cells; required width is ${requiredWidth} (${reason}).`)
-    this.name = 'AsciiWidthError'
-  }
-
-}
-
 export function renderMermaidASCII(
   text: ParsedDiagram | string,
   options: AsciiRenderOptions = {},

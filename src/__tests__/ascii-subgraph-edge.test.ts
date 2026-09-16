@@ -31,6 +31,56 @@ function rowOf(out: string, needle: string): number {
   return out.split('\n').findIndex(l => l.includes(needle))
 }
 
+interface FrameBounds {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
+function frameAroundLabel(out: string, label: string): FrameBounds {
+  const lines = out.split('\n')
+  const labelRow = rowOf(out, label)
+  expect(labelRow).toBeGreaterThanOrEqual(0)
+  const labelColumn = lines[labelRow]!.indexOf(label)
+
+  let left = -1
+  let right = -1
+  let top = -1
+  for (let row = labelRow; row >= 0; row--) {
+    const candidateLeft = lines[row]!.lastIndexOf('┌', labelColumn)
+    const candidateRight = lines[row]!.indexOf('┐', labelColumn)
+    if (candidateLeft >= 0 && candidateRight > labelColumn) {
+      left = candidateLeft
+      right = candidateRight
+      top = row
+      break
+    }
+  }
+
+  let bottom = -1
+  if (left >= 0 && right >= 0) {
+    for (let row = labelRow + 1; row < lines.length; row++) {
+      const leftCorner = lines[row]![left]
+      const rightCorner = lines[row]![right]
+      if ('└├┴┼'.includes(leftCorner ?? '') && '┘┤┴┼'.includes(rightCorner ?? '')) {
+        bottom = row
+        break
+      }
+    }
+  }
+
+  expect(Math.min(left, right, top, bottom)).toBeGreaterThanOrEqual(0)
+  return { left, right, top, bottom }
+}
+
+function expectOutsideFrame(out: string, text: string, frame: FrameBounds): void {
+  const lines = out.split('\n')
+  const row = rowOf(out, text)
+  const column = lines[row]!.indexOf(text)
+  expect(row < frame.top || row > frame.bottom || column < frame.left || column > frame.right).toBe(true)
+}
+
 const LR_INSIDE_TD = `flowchart TD
   Start --> Pipeline
   subgraph Pipeline
@@ -117,6 +167,92 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
     // not exits it).
     expect(row.indexOf('►')).toBeLessThan(row.indexOf('inner1'))
   })
+
+  test('LR target container stays disjoint from an unconnected sibling frame', () => {
+    const out = renderMermaidASCII(`flowchart LR
+  A --> S
+  subgraph S [First]
+    s1 --> s2
+  end
+  subgraph T [Second]
+    t1 --> t2
+  end
+`)
+
+    expect(count(out, 'First')).toBe(1)
+    expect(count(out, 'Second')).toBe(1)
+    expect(out).not.toContain('SFirst')
+    for (const label of ['A', 's1', 's2', 't1', 't2']) expect(count(out, label)).toBe(1)
+
+    const lines = out.split('\n')
+    const firstRow = rowOf(out, 'First')
+    const secondRow = rowOf(out, 'Second')
+    expect(firstRow).not.toBe(secondRow)
+    const firstFrameBottom = lines.findIndex(
+      (line, index) => index > firstRow && line.includes('└') && line.includes('┘'),
+    )
+    const secondFrameTop = lines.findLastIndex(
+      (line, index) => index < secondRow && line.includes('┌') && line.includes('┐'),
+    )
+    expect(firstFrameBottom).toBeLessThan(secondFrameTop)
+  })
+
+  for (const direction of ['LR', 'TD'] as const) {
+    test(`${direction}: disconnected target members keep outside nodes and root frames disjoint`, () => {
+      const out = renderMermaidASCII(`flowchart ${direction}
+  X --> S
+  subgraph S [One]
+    a1
+    a2
+  end
+  subgraph T [Two]
+    b1
+    b2
+  end
+`)
+
+      for (const label of ['X', 'One', 'Two', 'a1', 'a2', 'b1', 'b2']) {
+        expect(count(out, label), `${direction}: ${label}`).toBe(1)
+      }
+      const one = frameAroundLabel(out, 'One')
+      const two = frameAroundLabel(out, 'Two')
+      expectOutsideFrame(out, 'X', one)
+      expect(
+        one.right < two.left
+        || two.right < one.left
+        || one.bottom < two.top
+        || two.bottom < one.top,
+      ).toBe(true)
+    })
+  }
+
+  for (const direction of ['LR', 'RL'] as const) {
+    test(`${direction}: outgoing container edges do not merge sibling frames or titles`, () => {
+      const out = renderMermaidASCII(`flowchart ${direction}
+  S --> Y
+  subgraph S [One]
+    a1 --> a2
+  end
+  subgraph T [Two]
+    b1 --> b2
+  end
+`)
+
+      for (const label of ['Y', 'One', 'Two', 'a1', 'a2', 'b1', 'b2']) {
+        expect(count(out, label), `${direction}: ${label}`).toBe(1)
+      }
+      const lines = out.split('\n')
+      expect(lines[rowOf(out, 'Two')]).not.toMatch(/[┌┐└┘┬┴┼]/)
+      const one = frameAroundLabel(out, 'One')
+      const two = frameAroundLabel(out, 'Two')
+      expect(
+        one.right < two.left
+        || two.right < one.left
+        || one.bottom < two.top
+        || two.bottom < one.top,
+      ).toBe(true)
+    })
+  }
 
   test('sad path: id collision — subgraph id also given a standalone label', () => {
     // Mermaid resolves a `subgraph P` ahead of any standalone `P[...]` node:
