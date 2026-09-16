@@ -1,8 +1,9 @@
 # Getting started (library)
 
 A 5-minute guide for using `agentic-mermaid` as a plain rendering library: turn a
-Mermaid string into **SVG**, **PNG**, or **ASCII/Unicode**. No agents, no server,
-no browser — every function below runs synchronously in Node, Bun, or the browser.
+Mermaid string into **SVG**, **PNG**, or **ASCII/Unicode**. The server examples
+below run synchronously in Node or Bun; browser clients use the asynchronous ESM
+entry shown later.
 
 > Editing diagrams with the typed parse → mutate → verify → serialize API is a
 > separate surface — see the [agent API cookbook](./agent-api-cookbook.md). You do
@@ -129,35 +130,56 @@ const safe = renderMermaidSVG(userProvidedSource, { security: 'strict' })
 
 ## In the browser and in frameworks
 
-`renderMermaidSVG` is synchronous and needs no DOM, so you can render during a
-component's render pass and drop the string straight into the markup. In React,
-memoize it to avoid re-rendering on every paint:
+Use the browser ESM entry in client components. It avoids the Node/native entry
+and loads only the selected diagram family:
 
 ```tsx
-import { useMemo } from 'react'
-import { renderMermaidSVG } from 'agentic-mermaid'
+import { useEffect, useState } from 'react'
+import { renderMermaidSVGAsync } from 'agentic-mermaid/browser/lazy'
 
 function Diagram({ code }: { code: string }) {
-  const svg = useMemo(() => renderMermaidSVG(code), [code])
+  const [svg, setSvg] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let current = true
+    setSvg('')
+    setError('')
+    renderMermaidSVGAsync(code, { security: 'strict' }).then(
+      result => {
+        if (current) setSvg(result)
+      },
+      cause => {
+        if (current) setError(cause instanceof Error ? cause.message : String(cause))
+      },
+    )
+    return () => { current = false }
+  }, [code])
+  if (error) return <pre role="alert">{error}</pre>
+  if (!svg) return <div aria-busy="true" />
   return <div dangerouslySetInnerHTML={{ __html: svg }} />
 }
 ```
 
-See [`react.md`](./react.md) for the zero-flash, live-theme-switching setup.
+See [`react.md`](./react.md) for error handling and live theme switching. For a
+server component or build step, the synchronous `agentic-mermaid` entry remains
+the simpler choice.
 
 ## Which import path?
 
 | You want | Import from |
 |---|---|
-| SVG | `agentic-mermaid` |
+| SVG (Node/Bun, server, or build step) | `agentic-mermaid` |
+| SVG (browser client bundle) | `agentic-mermaid/browser/lazy` |
 | ASCII / Unicode | `agentic-mermaid` |
 | PNG (native rasterizer) | `agentic-mermaid/agent` |
 | Palettes (`knownStyleDescriptors`, `fromShikiTheme`) | `agentic-mermaid` |
-| Everything in one path | `agentic-mermaid/agent` |
-| Typed editing (parse/mutate/verify) | `agentic-mermaid/agent` |
+| Everything in one path (Node/Bun) | `agentic-mermaid/agent` |
+| Typed editing (Node/Bun) | `agentic-mermaid/agent` |
+| Typed editing (browser/workerd) | `agentic-mermaid/agent/core` |
 
-`agentic-mermaid/agent` re-exports the renderers too, so if you would rather use a
-single import path for all formats, import everything from there.
+`agentic-mermaid/agent` re-exports the renderers too, so Node/Bun applications
+can use it as one import path for all formats. Browser and workerd code should
+use `agentic-mermaid/agent/core`, which excludes the native PNG implementation.
 
 ## Prefer the command line?
 

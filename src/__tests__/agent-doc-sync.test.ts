@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { build as buildWithEsbuild } from 'esbuild'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
@@ -711,6 +712,52 @@ describe('root docs consistency', () => {
         .filter(f => f.endsWith('.md'))
         .sort(),
     ).toEqual(['AGENT_NATIVE.md', 'CHANGELOG.md', 'CLAUDE.md', 'DESIGN.md', 'Instructions_for_agents.md', 'PRODUCT.md', 'README.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'TODO.md'])
+  })
+
+  test('React client recipes bundle through the browser ESM entry', async () => {
+    for (const file of ['docs/react.md', 'docs/getting-started.md']) {
+      const text = readFileSync(join(REPO, file), 'utf8')
+      if (file === 'docs/react.md') {
+        expect(text).toContain('className="diagram diagram-surface"')
+        expect(text).toContain('.diagram-surface {')
+        expect(text).toContain('.dark .diagram-surface {')
+      }
+      const clientBlocks = Array.from(text.matchAll(/```tsx\n([\s\S]*?)\n```/g))
+        .map(match => match[1]!)
+        .filter(block => /from ['"]react['"]/.test(block))
+      expect(clientBlocks.length, file).toBeGreaterThan(0)
+      for (const block of clientBlocks) {
+        expect({ file, block }).toMatchObject({ block: expect.stringContaining("from 'agentic-mermaid/browser/lazy'") })
+        expect(block).not.toMatch(/from ['"]agentic-mermaid(?:\/agent)?['"]/)
+        const bundled = await buildWithEsbuild({
+          stdin: {
+            contents: block,
+            loader: 'tsx',
+            resolveDir: REPO,
+            sourcefile: `${file}.tsx`,
+          },
+          bundle: true,
+          platform: 'browser',
+          format: 'esm',
+          jsx: 'automatic',
+          external: ['react', 'react/jsx-runtime'],
+          write: false,
+          metafile: true,
+          logLevel: 'silent',
+          plugins: [{
+            name: 'agentic-mermaid-browser-entry',
+            setup(build) {
+              build.onResolve({ filter: /^agentic-mermaid\/browser\/lazy$/ }, () => ({
+                path: join(REPO, 'src/browser-lazy.ts'),
+              }))
+            },
+          }],
+        })
+        expect(bundled.outputFiles.length).toBeGreaterThan(0)
+        const inputs = Object.keys(bundled.metafile.inputs)
+        expect(inputs.some(input => input.includes('@resvg') || input.includes('/agent/png.'))).toBe(false)
+      }
+    }
   })
 
   test('MCP package-runner quickstarts install the published package', () => {

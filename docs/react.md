@@ -1,29 +1,53 @@
 # React integration
 
-Agentic Mermaid renders synchronously to SVG strings, so React apps do not need iframe renderers, hidden browser sessions, or client-side Mermaid hydration.
+Browser-rendered React components should use the browser ESM entry. It loads the
+selected diagram family on demand and does not pull the Node/native package
+entry into a client bundle.
 
 ## Basic component
 
 ```tsx
-import { useMemo } from 'react'
-import { renderMermaidSVG } from 'agentic-mermaid'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { renderMermaidSVGAsync } from 'agentic-mermaid/browser/lazy'
 
 export function MermaidDiagram({ source }: { source: string }) {
-  const svg = useMemo(
-    () => renderMermaidSVG(source, { security: 'strict' }),
-    [source],
-  )
+  const [svg, setSvg] = useState('')
+  const [error, setError] = useState('')
 
-  return <div className="diagram" dangerouslySetInnerHTML={{ __html: svg }} />
+  useEffect(() => {
+    let current = true
+    setSvg('')
+    setError('')
+    renderMermaidSVGAsync(source, { security: 'strict' }).then(
+      result => {
+        if (!current) return
+        setSvg(result)
+        setError('')
+      },
+      cause => {
+        if (!current) return
+        setError(cause instanceof Error ? cause.message : String(cause))
+      },
+    )
+    return () => { current = false }
+  }, [source])
+
+  if (error) return <pre role="alert">{error}</pre>
+  if (!svg) return <div className="diagram diagram-surface" aria-busy="true" />
+  return <div className="diagram diagram-surface" dangerouslySetInnerHTML={{ __html: svg }} />
 }
 ```
 
-`security: 'strict'` removes external-fetch references and is the safest default for user- or agent-generated diagrams.
+`security: 'strict'` removes external-fetch references and is the safest default
+for user- or agent-generated diagrams. The cancellation guard prevents an older
+render from replacing a newer source after it resolves.
 
 ## Theme from CSS variables
 
 ```tsx
-const svg = renderMermaidSVG(source, {
+const svg = await renderMermaidSVGAsync(source, {
   bg: 'var(--diagram-bg)',
   fg: 'var(--diagram-fg)',
   accent: 'var(--diagram-accent)',
@@ -69,26 +93,17 @@ For client-only exports, use the live editor/browser's existing download path or
 
 ## Error handling
 
-For untrusted source, parse or verify before rendering:
+The component above reports parse and render failures through its `role="alert"`
+fallback. If a client workflow also needs structured parse/verify results, use
+the runtime-neutral agent entry; do not import the Node/native
+`agentic-mermaid/agent` entry into the browser bundle:
 
-```tsx
-import { parseRegisteredMermaid, verifyMermaid, renderMermaidSVG } from 'agentic-mermaid/agent'
-
-export function SafeDiagram({ source }: { source: string }) {
-  const result = useMemo(() => {
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok) return { ok: false, message: parsed.error.map(e => e.message).join('\n') }
-
-    const verify = verifyMermaid(parsed.value)
-    if (!verify.ok) return { ok: false, message: verify.warnings.map(w => w.code).join(', ') }
-
-    return { ok: true, svg: renderMermaidSVG(parsed.value, { security: 'strict' }) }
-  }, [source])
-
-  if (!result.ok) return <pre>{result.message}</pre>
-  return <div dangerouslySetInnerHTML={{ __html: result.svg }} />
-}
+```ts
+import { parseRegisteredMermaid, verifyMermaid } from 'agentic-mermaid/agent/core'
 ```
+
+For server components, build steps, and API routes, the synchronous
+`renderMermaidSVG` export from `agentic-mermaid` remains appropriate.
 
 ## See also
 
