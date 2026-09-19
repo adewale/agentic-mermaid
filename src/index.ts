@@ -193,7 +193,7 @@ export type { OutputSecurityMode, OutputSecurityDiagnostic, OutputSecurityResult
 export { OUTPUT_COLOR_PROFILE, applyPngColorProfile, inspectPngColorProfile, inspectPngDimensions } from './output-color-profile.ts'
 export type { PngColorProfileReceipt, PngDimensions } from './output-color-profile.ts'
 export {
-  PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE, PNG_DEFAULT_FONT_FAMILY,
+  PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE, PNG_DEFAULT_MIN_LABEL_PX, PNG_DEFAULT_FONT_FAMILY,
   PNG_FONT_SOURCES, PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME,
   MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, MAX_HOSTED_PNG_PIXELS, MAX_HOSTED_PNG_BYTES,
   MAX_PNG_FONT_DIRECTORIES, MAX_PNG_FONT_DIRECTORY_LENGTH,
@@ -220,7 +220,7 @@ export {
   BROWSER_CANVAS_RUNTIME,
 } from './browser-png.ts'
 export type {
-  BrowserPngDiagnostic, BrowserPngRasterContext, BrowserPngRasterResult,
+  BrowserPngDiagnostic, BrowserPngHostDiagnostic, BrowserPngRasterContext, BrowserPngRasterResult,
   BrowserPngRasterizer, RenderedBrowserPng, BrowserPngFontSource,
   BrowserPngRuntimeProvenance, MermaidBrowserPNGRenderer,
   MermaidBrowserPNGRendererHostOptions,

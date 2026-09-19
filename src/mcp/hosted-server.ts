@@ -42,6 +42,7 @@ import type { RenderOptions } from '../types.ts'
 import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
 import {
   MAX_HOSTED_PNG_BYTES,
+  PNG_DEFAULT_MIN_LABEL_PX,
   projectPortablePngOutputOptions,
   resolvePortablePngOutputPolicy,
   type PortablePngOutputOptions,
@@ -389,6 +390,9 @@ function normalizedHostedPngRequest(args: Record<string, unknown>): NormalizedHo
       : policy.fitTo.mode === 'height'
         ? { fitTo: { height: policy.fitTo.value } }
         : {}),
+    // Default-floor requests and explicit-default requests rasterize
+    // identically; canonicalize so their cache identities coincide.
+    ...(policy.minLabelPx === PNG_DEFAULT_MIN_LABEL_PX ? {} : { minLabelPx: policy.minLabelPx }),
   }
   return {
     output,

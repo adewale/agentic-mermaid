@@ -37,11 +37,11 @@ const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 describe('canonical PNG output-option authority', () => {
   test('projects exact portable, native-policy, and native-host field sets', () => {
     expect(PNG_OUTPUT_OPTION_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'fontDirs', 'loadSystemFonts', 'onWarning',
+      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts', 'onWarning',
     ])
-    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS).toEqual(['scale', 'background', 'fitTo'])
+    expect(PORTABLE_PNG_OUTPUT_OPTION_FIELDS).toEqual(['scale', 'background', 'fitTo', 'minLabelPx'])
     expect(NATIVE_PNG_OUTPUT_POLICY_FIELDS).toEqual([
-      'scale', 'background', 'fitTo', 'fontDirs', 'loadSystemFonts',
+      'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts',
     ])
     expect(NATIVE_PNG_HOST_ONLY_OPTION_FIELDS).toEqual(['fontDirs', 'loadSystemFonts', 'onWarning'])
     expect(Object.isFrozen(PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS)).toBe(true)
@@ -50,6 +50,8 @@ describe('canonical PNG output-option authority', () => {
       input: 'callback',
       policy: 'excluded',
       receipt: 'excluded',
+      typeScript: '(warning: PngRasterWarning) => void',
+      description: 'Native host callback for glyph-coverage and raster-legibility warnings; never serialized or receipted.',
     })
 
     const portable = pngOutputOptionsJsonSchema('portable') as {
@@ -73,6 +75,18 @@ describe('canonical PNG output-option authority', () => {
     })
     expect(portable.properties.fitTo).toHaveProperty('properties.width.type', 'integer')
     expect(portable.properties.background).toHaveProperty('x-agentic-mermaid-runtime-validator', 'portablePngBackground')
+  })
+
+  test('documents the raster-warning union and extension measurement boundary', () => {
+    const api = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'api.md'), 'utf8')
+    const rationale = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'mcp-code-mode-rationale.md'), 'utf8')
+    expect(api).toContain('| `minLabelPx` | `number` | `9` |')
+    expect(api).toContain('| `onWarning` | `(w: PngRasterWarning) => void` |')
+    expect(api).toContain('literal absolute-pixel `font-size`')
+    expect(api).toContain('`text`, `tspan`, and `textPath`')
+    expect(api).toContain('absence of a\n`BELOW_READABLE_SIZE` warning is therefore not proof')
+    expect(rationale).toContain('portable `scale`, `background`, `minLabelPx`')
+    expect(rationale).toContain('configuration and raster-legibility warnings')
   })
 
   test('admits only closed plain objects with substrate-appropriate fields', () => {
@@ -151,6 +165,7 @@ describe('canonical PNG output-option authority', () => {
       scale: ['scale'],
       background: ['bg'],
       fitTo: ['fit-width', 'fit-height'],
+      minLabelPx: ['min-label-px'],
       fontDirs: ['font-dirs'],
       loadSystemFonts: ['system-fonts'],
       onWarning: [],
@@ -193,6 +208,16 @@ describe('canonical PNG output-option authority', () => {
       fitTo: { width: 96 },
       onWarning: () => {},
     })
+    const projection = renderPortablePngGraphicalProjection(source, {
+      style: ['watercolor', 'paper'],
+      seed: 13,
+      padding: 19,
+      security: 'strict',
+    }, {
+      scale: 0.75,
+      background: '#123456',
+      fitTo: { width: 96 },
+    })
     const response = {
       result: {
         content: [{
@@ -201,7 +226,10 @@ describe('canonical PNG output-option authority', () => {
             png_base64: Buffer.from(rendered.png).toString('base64'),
             receipt: rendered.receipt,
             runtime: PNG_WASM_RUNTIME,
-            warnings: [{ code: 'PNG_FONT_COVERAGE', script: 'Han' }],
+            warnings: [
+              { code: 'PNG_FONT_COVERAGE', script: 'Han' },
+              ...projection.legibilityWarnings,
+            ],
           }),
         }],
       },
@@ -216,7 +244,7 @@ describe('canonical PNG output-option authority', () => {
     })
 
     expect(result.status, result.stderr || result.stdout).toBe(0)
-    expect(result.stdout).toContain('ok   render_png enforces portable WASM parity (96x29, sRGB, receipt, runtime, font warning)')
+    expect(result.stdout).toContain('ok   render_png enforces portable WASM parity (96x29, sRGB, receipt, runtime, font and legibility warnings)')
   })
 
   test('MCP admission enforces the canonical fit and native-font shapes', () => {

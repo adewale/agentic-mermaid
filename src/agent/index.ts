@@ -8,7 +8,8 @@
 export * from './core.ts'
 export { createMermaidPNGRenderer, renderMermaidPNG, renderMermaidPNGWithReceipt } from './png.ts'
 export type {
-  MermaidPNGRenderer, MermaidPNGRendererHostOptions, PngOptions, RenderedPng,
+  MermaidPNGRenderer, MermaidPNGRendererHostOptions, PngFontWarning,
+  PngLegibilityWarning, PngOptions, PngRasterWarning, RenderedPng,
 } from './png.ts'
 
 import { renderMermaidPNG } from './png.ts'

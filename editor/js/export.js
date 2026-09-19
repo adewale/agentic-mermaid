@@ -297,7 +297,7 @@ function canonicalBrowserPng(outputOptions) {
 
 function reportExportDiagnostics(diagnostics, action) {
   if (!diagnostics || diagnostics.length === 0) return false;
-  showToast(action + ' with ' + diagnostics.length + ' font warning' + (diagnostics.length === 1 ? '' : 's') + ': ' + diagnostics[0].message);
+  showToast(action + ' with ' + diagnostics.length + ' PNG warning' + (diagnostics.length === 1 ? '' : 's') + ': ' + diagnostics[0].message);
   return true;
 }
 

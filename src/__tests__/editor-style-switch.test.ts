@@ -359,7 +359,7 @@ describeBrowser('editor style switcher restyles the artwork, never the chrome', 
     expect(profile.profile).toBe('srgb')
     expect(profile.cICP).toEqual([1, 13, 0, 1])
     expect(profile.hasICC).toBe(false)
-    await expect(page.locator('#toast').textContent()).resolves.toContain('font warning')
+    await expect(page.locator('#toast').textContent()).resolves.toContain('PNG warning')
     await page.close()
   }, 60_000)
 

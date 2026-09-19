@@ -4,7 +4,7 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout through the CL
 
 ```text
 am render <file|-> --format svg|ascii|unicode|layout
-am render <file> --format png --output file.png  # one-shot only; no watch/multi-input
+am render <file> --format png --output file.png [--fit-width PX|--fit-height PX] [--min-label-px PX]
 am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]  # strict standalone HTML
 am verify <file|->            structured JSON warnings (exit 3 if not ok)
 am parse <file|->             ValidDiagram JSON
@@ -41,3 +41,8 @@ am mutate seq.mmd --op '{"kind":"add_message","from":"A","to":"B","text":"Hi"}'
 ```
 
 Exit codes: 0 ok, 2 arg/parse/mutation error, 3 verify failed, 4 internal.
+
+PNG emits `BELOW_READABLE_SIZE` when the smallest measurable configured text
+lands below `--min-label-px` after final raster sizing. The provisional default
+is 9px; pass `0` to disable it. Treat the warning as evidence of one bounded
+shrinkage condition, not proof that the whole image is or is not readable.

@@ -208,6 +208,17 @@ family docs, and `TODO.md`.
     when a named dependency makes every smaller sequence invalid; record that
     dependency, give each dimension its own red test and receipt, and keep the
     implementation in separable commits.
+36. **Computational aesthetics should name a bounded perceptual failure, not
+    claim a universal beauty score.** Put each threshold in explicit policy,
+    measure it at the last projection seam where its inputs are authoritative,
+    and return the measured evidence and cause without silently changing the
+    requested artifact. State the reading task and measurement boundary: a PNG
+    label-size warning can prove that a known literal font shrank below its
+    configured pixel floor, but absence of that warning cannot prove general
+    readability when inherited CSS, transforms, or extension output were not
+    measured. Carry the same verdict through every public transport, and use
+    named failure-mode stressors plus independent red→green tests rather than
+    an aggregate aesthetic score.
 
 ## Lessons from the consolidation audits
 

@@ -15,6 +15,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   loading, cancellation, and visible error handling.
 
 ### Added
+- Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
+  explicit `scale` rasterizes the smallest configured text below the new
+  portable `minLabelPx` floor (provisional product default 9px; `0` disables;
+  CLI `--min-label-px`), receipt-bearing PNG renders carry structured evidence
+  through library callbacks, CLI stderr and `--json`, local/hosted MCP
+  `render_png`, and browser diagnostics. Text-only agents can now detect when
+  measurable configured text falls below the selected floor; this bounded
+  warning does not certify whether an image is readable.
 - Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
 - Added Sankey as the 16th built-in diagram family, with Mermaid-compatible
   `sankey` and `sankey-beta` CSV syntax, deterministic SVG, PNG, and ASCII

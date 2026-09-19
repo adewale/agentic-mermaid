@@ -12,6 +12,7 @@ config:
 stateDiagram-v2
   A --> B
 `
+const LEGIBILITY_SOURCE = 'flowchart LR\n  A[Start] -- go --> B[Finish]\n'
 
 function fixture(): { source: string; png: string } {
   const dir = mkdtempSync(join(tmpdir(), 'am-config-warning-'))
@@ -51,5 +52,28 @@ describe('CLI render config diagnostics', () => {
     expect(result.code).toBe(0)
     expect(result.err.match(/state\.titleTopMargin/g)).toHaveLength(1)
     expect(JSON.parse(result.out).warnings).toContainEqual(expect.objectContaining({ field: 'state.titleTopMargin' }))
+  })
+
+  test('PNG reports a below-floor label warning on stderr and in JSON', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-legibility-warning-'))
+    const source = join(dir, 'flow.mmd')
+    writeFileSync(source, LEGIBILITY_SOURCE)
+
+    const plain = capture(() => runCli([
+      'render', source, '--format', 'png', '--output', join(dir, 'plain.png'), '--fit-width', '100',
+    ]))
+    expect(plain.code).toBe(0)
+    expect(plain.err).toContain('BELOW_READABLE_SIZE')
+
+    const json = capture(() => runCli([
+      'render', source, '--format', 'png', '--output', join(dir, 'json.png'), '--fit-width', '100', '--json',
+    ]))
+    expect(json.code).toBe(0)
+    expect(JSON.parse(json.out).warnings).toContainEqual(expect.objectContaining({
+      code: 'BELOW_READABLE_SIZE',
+      cause: 'fitTo',
+      floorPx: 9,
+      effectiveMinLabelPx: expect.any(Number),
+    }))
   })
 })

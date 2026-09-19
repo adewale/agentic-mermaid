@@ -76,6 +76,29 @@ describe('canonical browser PNG adapter', () => {
     expect(partial.runtime.fontSources).toEqual(['embedded-data-uri', 'unavailable'])
   })
 
+  test('preserves structured legibility evidence in browser diagnostics', async () => {
+    const artifact = await renderMermaidPNGInBrowserWithReceipt(
+      'flowchart LR\n  A[Start] -- go --> B[Finish]',
+      {},
+      { fitTo: { width: 100 } },
+      async (_svg, context) => ({
+        png: pngFixture(context.rasterDimensions.width, context.rasterDimensions.height),
+      }),
+    )
+    expect(artifact.diagnostics).toHaveLength(1)
+    expect(artifact.diagnostics[0]).toEqual(expect.objectContaining({
+      code: 'BELOW_READABLE_SIZE',
+      cause: 'fitTo',
+      floorPx: 9,
+      baseMinLabelPx: 11,
+      naturalWidth: expect.any(Number),
+      naturalHeight: expect.any(Number),
+      effectiveScale: expect.any(Number),
+      effectiveMinLabelPx: expect.any(Number),
+      message: expect.stringContaining('legibility floor'),
+    }))
+  })
+
   test('resolves nested custom-property font fallbacks only in raster CSS', async () => {
     const authored = 'var(--font, Courier)'
     await renderMermaidPNGInBrowserWithReceipt(

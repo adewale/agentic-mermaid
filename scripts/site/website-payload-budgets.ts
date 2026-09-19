@@ -54,11 +54,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     // The editor exercises the complete API. Shared Unicode identifier
-    // validation adds 169 raw, 48 gzip, and 69 Brotli bytes over the
-    // renderer-safety layer; the request graph stays fixed.
-    maxRawBytes: 3_336_631,
-    maxGzipBytes: 982_481,
-    maxBrotliBytes: 771_646,
+    // validation is already in the base. The PNG legibility policy and shared
+    // warning builder add 2,393 raw, 746 gzip, and 680 Brotli bytes; the request
+    // graph stays fixed.
+    maxRawBytes: 3_339_024,
+    maxGzipBytes: 983_227,
+    maxBrotliBytes: 772_326,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

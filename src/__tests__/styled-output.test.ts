@@ -322,6 +322,11 @@ describe('bundled fonts', () => {
       expect(hostedPng).toContain(`./generated/${file}`)
       expect(existsSync(join(generatedDir, file))).toBe(true)
     }
+    // The Worker cannot be imported into this native test runtime because its
+    // WASM/font modules are Wrangler-owned. Pin its final warning propagation
+    // seam while shared projection behavior is exercised by the native and
+    // browser suites.
+    expect(hostedPng).toContain('...graphical.legibilityWarnings')
   })
 })
 
