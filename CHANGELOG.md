@@ -7,6 +7,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ### Fixed
 - Bounded horizontal XYChart terminal allocation by output width and kept
   target-subgraph frames disjoint from outside nodes and sibling containers.
+- Preserved valid Unicode subgraph identifiers and rejected malformed explicit
+  identifiers instead of silently treating them as labels.
 
 ### Added
 - Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
