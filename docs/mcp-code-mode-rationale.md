@@ -90,7 +90,7 @@ Example stdio `.mcp.json` entry:
   "mcpServers": {
     "agentic-mermaid": {
       "command": "npx",
-      "args": ["-y", "agentic-mermaid-mcp"]
+      "args": ["-y", "agentic-mermaid", "mcp"]
     }
   }
 }
@@ -99,7 +99,7 @@ Example stdio `.mcp.json` entry:
 Example HTTP launch command for clients that manage MCP SSE URLs separately:
 
 ```sh
-npx -y agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000
+npx -y agentic-mermaid mcp --transport http --host 127.0.0.1 --port 3000
 # non-loopback requires --auth-token <token>
 ```
 
