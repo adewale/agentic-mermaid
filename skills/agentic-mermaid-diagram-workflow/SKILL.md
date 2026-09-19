@@ -147,12 +147,20 @@ Output artifact pattern:
 const verify = verifyMermaid(cur)
 if (!verify.ok) return { phase: 'verify', warnings: verify.warnings }
 const svg = renderMermaidSVG(cur, { security: 'strict' })
-const png = renderMermaidPNG(cur, { fitTo: { width: 1200 }, background: '#fff' })
+const png = renderMermaidPNG(cur, {
+  fitTo: { width: 1200 },
+  background: '#fff',
+  minLabelPx: 9,
+  onWarning: warning => console.warn(warning.code, warning.message),
+})
 const ascii = renderMermaidASCII(cur, { useAscii: true })
 const unicode = renderMermaidASCII(cur, { useAscii: false })
 const layout = verify.layout
 ```
 
-CLI PNG: `am render diagram.mmd --format png --output diagram.png`.
+CLI PNG: `am render diagram.mmd --format png --output diagram.png
+--min-label-px 9`. `BELOW_READABLE_SIZE` is a bounded shrinkage warning, not
+proof of readability; choose a task-specific floor when viewing conditions are
+known, or pass `0` to disable it.
 
 See `references/flowchart.md`, `references/sequence.md`, `references/timeline.md`, `references/upstream/gantt.md`, and the repository cookbook at `docs/agent-api-cookbook.md`.

@@ -59,5 +59,8 @@ if (profile.profile !== 'srgb'
 if (!payload.warnings?.some(warning => warning.code === 'PNG_FONT_COVERAGE')) {
   throw new Error('hosted WASM PNG did not report missing bundled-font coverage for the Han probe')
 }
+if (!payload.warnings?.some(warning => warning.code === 'BELOW_READABLE_SIZE')) {
+  throw new Error('hosted WASM PNG did not report the below-floor label size at the 96px fit')
+}
 
-console.log(`ok   render_png enforces portable WASM parity (${dimensions.width}x${dimensions.height}, sRGB, receipt, runtime, font warning)`)
+console.log(`ok   render_png enforces portable WASM parity (${dimensions.width}x${dimensions.height}, sRGB, receipt, runtime, font and legibility warnings)`)

@@ -275,6 +275,7 @@ export {
   normalizePortablePngBackground,
   omitPngOutputOptions,
   PNG_DEFAULT_FONT_FAMILY,
+  PNG_DEFAULT_MIN_LABEL_PX,
   PNG_DEFAULT_SCALE,
   PNG_FONT_SOURCES,
   PNG_NAPI_RUNTIME,

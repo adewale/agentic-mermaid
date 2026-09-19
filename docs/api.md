@@ -102,9 +102,10 @@ controls:
 | `scale` | `number` | `2` | Portable: native/browser library, CLI, and local/hosted MCP. Zoom multiplier when `fitTo` is not set. |
 | `background` | `string` | artifact background, then white | Portable on the same surfaces. Safe explicit PNG background color. |
 | `fitTo` | `{ width?: number; height?: number }` | — | Portable on the same surfaces. Constrain output to exactly one positive width or height. |
+| `minLabelPx` | `number` | `9` | Portable on the same surfaces. Warn with `BELOW_READABLE_SIZE` when rasterization puts the smallest measurable label below this effective-pixel floor; `0` disables the gate. The default is provisional product policy for general-purpose screen diagrams, not a universal readability or accessibility threshold. |
 | `fontDirs` | `string[]` | — | Trusted native-host input: Node/Bun library, CLI, and local MCP only. Extra font directories for unbundled families and scripts the bundled fonts do not cover. CLI: `--font-dirs <dirs>` (comma-separated). |
 | `loadSystemFonts` | `boolean` | `false` | Trusted native-host input on the same native surfaces. Trades cross-machine determinism for glyph coverage. CLI: `--system-fonts`. |
-| `onWarning` | `(w: PngFontWarning) => void` | stderr | Native library callback only. Receives `PNG_FONT_COVERAGE` warnings; callbacks never enter serializable requests or receipts. |
+| `onWarning` | `(w: PngRasterWarning) => void` | stderr | Native library callback only. Receives `PNG_FONT_COVERAGE` and `BELOW_READABLE_SIZE` warnings; callbacks never enter serializable requests or receipts. |
 
 PNG rasterization uses offline `@resvg/resvg-js` with bundled fonts for
 deterministic same-machine output: Inter (the default face — the same family
@@ -117,6 +118,28 @@ nor supplied via `fontDirs` rasterizes with Inter. Characters no loaded font
 covers (CJK, most emoji) draw as tofu boxes and raise a `PNG_FONT_COVERAGE`
 warning naming the script and the escape hatches (`fontDirs` /
 `loadSystemFonts`).
+
+The raster-legibility gate measures literal absolute-pixel `font-size`
+attributes on `text`, `tspan`, and `textPath` elements in the secured SVG.
+This is exact for first-party built-in emitters. Extension SVG text is measured
+only when the extension emits those literal attributes. The gate abstains when
+CSS can override size or transforms, or when an SVG transform can change glyph
+scale; translation and rotation are admitted because they preserve size. It
+does not resolve extension-specific visibility, such as text templates under
+`defs` or `display:none`, so such markup can conservatively over-report. The effective scale is
+computed from the finalized integer raster height divided by the SVG `viewBox`
+height, after projection rounding, because font sizes are expressed in user
+units and the root is pinned with `preserveAspectRatio="none"`. For an extension
+with no measurable literal size, absence of a
+`BELOW_READABLE_SIZE` warning is therefore not proof that its labels are
+readable. Callers that know the task, viewing distance, or display conditions
+should select a task-specific floor rather than relying on the default.
+
+The bytes-only browser convenience call returns only PNG bytes. Use
+`renderMermaidPNGWithReceipt` on a bound browser renderer, or
+`renderMermaidPNGInBrowserWithReceipt`, when the caller must inspect browser
+diagnostics.
+
 Note for third-party rasterizers: the SVG declares fonts as
 `font-family: var(--font, 'Face')`, and static rasterizers (resvg, librsvg)
 do not resolve CSS custom properties — `renderMermaidPNG` inlines the
@@ -399,7 +422,7 @@ am capabilities --json
 am init-agent --dir . --json
 ```
 
-PNG is single-input and requires `--output` so binary bytes are never accidentally printed to a terminal. Portable controls are `--scale`, `--bg`, and the mutually exclusive `--fit-width`/`--fit-height`; native-host font controls are `--font-dirs` and `--system-fonts`. `am init-agent` writes a non-clobbering agent-agnostic onboarding bundle (`AGENTS.md`, root `skills/`, and `.mcp.json`) into a consumer repo.
+PNG is single-input and requires `--output` so binary bytes are never accidentally printed to a terminal. Portable controls are `--scale`, `--bg`, the mutually exclusive `--fit-width`/`--fit-height`, and `--min-label-px` (legibility floor for the `BELOW_READABLE_SIZE` warning; default 9, `0` disables); native-host font controls are `--font-dirs` and `--system-fonts`. `am init-agent` writes a non-clobbering agent-agnostic onboarding bundle (`AGENTS.md`, root `skills/`, and `.mcp.json`) into a consumer repo.
 
 ## MCP
 
@@ -410,9 +433,9 @@ Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
 
 - `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
 - `describe_sdk({ family, detail })` — version-matched compact signatures or exact mutation fields for one family.
-- `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`; accepts portable `scale`/`background`/`fitTo`, plus local-only `fontDirs`/`loadSystemFonts`, and returns configuration/font-coverage warnings with every output mode.
+- `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`; accepts portable `scale`/`background`/`fitTo`/`minLabelPx`, plus local-only `fontDirs`/`loadSystemFonts`, and returns configuration, glyph-coverage, and raster-legibility warnings with every output mode.
 - `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
 
 Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`; that bearer token protects `/rpc`, `/sse`, `/message`, and `/artifacts/*`.
 
-A hosted Streamable HTTP endpoint also runs at `https://agentic-mermaid.dev/mcp`. It is MCP JSON-RPC only (not REST), stateless, public/unauthenticated, and capped at 64 KB inputs. Hosted tools are `execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`; `describe_sdk` returns compact signatures or exact mutation fields for one family, hosted `execute` uses a Cloudflare Dynamic Worker isolate with no network, and hosted `render_png` returns base64 only while retaining portable `scale`/`background`/`fitTo`. Prefer local CLI/library/MCP for sensitive diagrams, offline work, larger inputs, native font controls, or file/URL PNG artifacts. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.
+A hosted Streamable HTTP endpoint also runs at `https://agentic-mermaid.dev/mcp`. It is MCP JSON-RPC only (not REST), stateless, public/unauthenticated, and capped at 64 KB inputs. Hosted tools are `execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`; `describe_sdk` returns compact signatures or exact mutation fields for one family, hosted `execute` uses a Cloudflare Dynamic Worker isolate with no network, and hosted `render_png` returns base64 only while retaining portable `scale`/`background`/`fitTo`/`minLabelPx`. Prefer local CLI/library/MCP for sensitive diagrams, offline work, larger inputs, native font controls, or file/URL PNG artifacts. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.

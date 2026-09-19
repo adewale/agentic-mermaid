@@ -11,7 +11,7 @@
     "sourceState": "content-addressed-candidate",
     "capturedAt": "2026-07-19T02:10:00Z",
     "generator": "manual-command-capture/v1",
-    "inputTreeSha256": "f3684ab272bc86b38d8b6d9bbc9dc3d86b6579c03cda48096490b37f1a2cb825",
+    "inputTreeSha256": "0c7f62b9aa64fed1a17f61d402b2fe72a9c7965b6213b37ab74291e8df96c785",
     "inputs": [
       {
         "path": "eval/test-portfolio/contact-sheets/citizenship-review.json",
@@ -63,7 +63,7 @@
       },
       {
         "path": "src/__tests__/styled-output.test.ts",
-        "sha256": "edf680995fd031730d05597c8f352ddcdcab956fe1ed180615d7a367a9d47b7e"
+        "sha256": "06b2f6eb268287628fa9005fa9c03091cd44e85523923c9f2c3828102ba7c9ed"
       },
       {
         "path": "src/__tests__/test-portfolio-contact-sheet.test.ts",

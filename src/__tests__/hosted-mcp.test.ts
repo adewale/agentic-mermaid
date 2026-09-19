@@ -687,6 +687,15 @@ describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () =
     expect(cacheKeyFor('render_png', { source: FLOW, scale: 'big' })).toBeNull()
   })
 
+  test('render_png cache identity canonicalizes the default label floor', () => {
+    expect(cacheKeyFor('render_png', { source: FLOW }))
+      .toEqual(cacheKeyFor('render_png', { source: FLOW, minLabelPx: 9 }))
+    expect(cacheKeyFor('render_png', { source: FLOW, minLabelPx: 0 }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW }))
+    expect(cacheKeyFor('render_png', { source: FLOW, minLabelPx: 12 }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, minLabelPx: 0 }))
+  })
+
   test('render_png cache identity follows effective fit/style precedence', () => {
     expect(cacheKeyFor('render_png', { source: FLOW, scale: 2, fitTo: { width: 64 } }))
       .toEqual(cacheKeyFor('render_png', { source: FLOW, scale: 99, fitTo: { width: 64 } }))

@@ -95,7 +95,7 @@
           "idempotentHint": false,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "fa166d830bed73590d145d78cd443f606824ad2b95164ea09a37215450aab26f",
+        "inputSchemaSha256": "5cc456308d7dc21db9fd7503792844e7b262d7fbe7c3ad386f98780a3975eb79",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -123,6 +123,9 @@
             },
             "loadSystemFonts": {
               "type": "boolean"
+            },
+            "minLabelPx": {
+              "type": "number"
             },
             "options": {
               "type": "object",
@@ -848,7 +851,7 @@
           "idempotentHint": true,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "11c76ff0c17db39e3ba734fe8de4a80dd18fe0f04c486d361e630c593290cc29",
+        "inputSchemaSha256": "7127254a7ea28006d8d464935eca2bfef2ae41f1b3d058382fa3b2218a7498b2",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -870,6 +873,9 @@
                   "type": "integer"
                 }
               }
+            },
+            "minLabelPx": {
+              "type": "number"
             },
             "options": {
               "type": "object",

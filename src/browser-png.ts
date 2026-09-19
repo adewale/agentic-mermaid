@@ -21,12 +21,17 @@ import { snapshotHostBackendPolicy, type HostBackendPolicy } from './scene/backe
 import type { ParsedDiagram } from './agent/types.ts'
 import { prepareRenderInput } from './agent/render-input.ts'
 import { inlineFontVarForRaster } from './theme.ts'
+import type { PngLegibilityWarning } from './shared/png-legibility-warnings.ts'
 
-export interface BrowserPngDiagnostic {
+export interface BrowserPngHostDiagnostic {
   readonly code: string
   readonly message: string
   readonly resource?: string
 }
+
+/** Shared projection warnings retain their structured evidence; injected
+ * rasterizers may append host-specific diagnostics. */
+export type BrowserPngDiagnostic = PngLegibilityWarning | BrowserPngHostDiagnostic
 
 export interface BrowserPngRasterContext {
   readonly outputPolicy: ResolvedPngOutputPolicy
@@ -251,7 +256,10 @@ async function renderMermaidPNGInBrowserWithReceiptForHost(
   return Object.freeze({
     png,
     receipt: graphical.receipt,
-    diagnostics: Object.freeze([...(rasterDiagnostics ?? [])]),
+    diagnostics: Object.freeze([
+      ...graphical.legibilityWarnings,
+      ...(rasterDiagnostics ?? []),
+    ]),
     colorProfile: Object.freeze(colorProfile),
     runtime,
   })

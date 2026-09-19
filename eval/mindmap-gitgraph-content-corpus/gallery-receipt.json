@@ -104,7 +104,7 @@
     },
     {
       "path": "src/agent/core.ts",
-      "sha256": "ba91544c93b647de27bec7250c609f5774251e72c21a00ff0dd2f023ec1495cc"
+      "sha256": "856af4e119887c5f9ba2a68ece3a9d922bdf69cc573d12a087f55e818c41bdbc"
     },
     {
       "path": "src/agent/create.ts",
@@ -176,7 +176,7 @@
     },
     {
       "path": "src/agent/index.ts",
-      "sha256": "649c4264256476f8c2da9518f29900c0fa3f8649fe05aa64d49fd8a85370c6d7"
+      "sha256": "4b09c30dd90957d258dd3e4ae417cd8049115b28e947b20d1c819ee3e98e79fa"
     },
     {
       "path": "src/agent/journey-body.ts",
@@ -220,7 +220,7 @@
     },
     {
       "path": "src/agent/png.ts",
-      "sha256": "98879363d469c16dfbee8797804da7c9b6266d7102ab1ed608c22234d214d3e9"
+      "sha256": "8370e5a97a952bce2fdb9725a0073754c60ee4ac1f8765f5abdc1f4a6a36b548"
     },
     {
       "path": "src/agent/quadrant-body.ts",
@@ -480,7 +480,7 @@
     },
     {
       "path": "src/browser-png.ts",
-      "sha256": "a06d1ced655e694421db98285bbdd3644c6c3ed0f96e8d40e2a6b421f5198f0f"
+      "sha256": "cba735c22d933013efd97f31504a874f30a061d3951051b093b0ec0151d1115f"
     },
     {
       "path": "src/capability-negotiation.ts",
@@ -604,7 +604,7 @@
     },
     {
       "path": "src/index.ts",
-      "sha256": "f39a11383b928f780d3a9929b17319fa8188013a1372304e98290f84c389fdaf"
+      "sha256": "9db50e0f23262af2bebac754971b861d6c541a608e836a572500e8469bc15225"
     },
     {
       "path": "src/journey/layout.ts",
@@ -696,7 +696,7 @@
     },
     {
       "path": "src/output-policy-versions.ts",
-      "sha256": "71d15a072a68152dbc9f5eb4d583d04e695a0fe7bee69e622cc4db9d15a32a7c"
+      "sha256": "802b3a291e25541b3598eebcd8dd81eecea2b6271214d288c10bb014705e514a"
     },
     {
       "path": "src/output-security.ts",
@@ -736,11 +736,11 @@
     },
     {
       "path": "src/png-contract.ts",
-      "sha256": "62e95918408a60b27d7ae2177387eef5e8f54346711f8d402fb4eaa9dcfcded7"
+      "sha256": "f168cba6754da7765fe3190183b7aa226cbeb008dcb2cc466bc6752789f55195"
     },
     {
       "path": "src/png-graphical.ts",
-      "sha256": "de76e565f796b3b0343944de3502ed8f2c447325fa79feebc6c7480f14065674"
+      "sha256": "29f6d2301f687e8365d56953e1df0910c8e7609ea1e2d5646315fdf18b3cc491"
     },
     {
       "path": "src/positioning.ts",
@@ -1076,7 +1076,11 @@
     },
     {
       "path": "src/shared/png-font-warnings.ts",
-      "sha256": "60d6fced55d3fc6e5321c43904f5d3d04c9538be26f74982adaaaa1e2f21b4d6"
+      "sha256": "341bcdce9959b6bf0787b47c18dfbfebc5112441eb5656d13a7bba8fef34c580"
+    },
+    {
+      "path": "src/shared/png-legibility-warnings.ts",
+      "sha256": "37bb93448b9e086f6b056824bdfa81df2f149e00cc7e8f995ea0686b058496cc"
     },
     {
       "path": "src/shared/style-props.ts",

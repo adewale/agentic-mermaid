@@ -39,6 +39,17 @@ describe('MCP — render_png tool', () => {
     expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'state.titleTopMargin' }))
   })
 
+  test('a below-floor fitTo carries BELOW_READABLE_SIZE in the tool result', async () => {
+    const r = await handleRequest({
+      jsonrpc: '2.0', id: 101, method: 'tools/call',
+      params: { name: 'render_png', arguments: { source: 'flowchart LR\n  A[Start] -- go --> B[Finish]', fitTo: { width: 100 } } },
+    })
+    const result = r!.result as { content: Array<{ text: string }>; isError: boolean }
+    const payload = JSON.parse(result.content[0]!.text) as { ok: boolean; warnings?: Array<{ code: string; cause?: string }> }
+    expect(payload.ok).toBe(true)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'BELOW_READABLE_SIZE', cause: 'fitTo' }))
+  })
+
   test('happy path returns base64 PNG', async () => {
     const r = await handleRequest({
       jsonrpc: '2.0', id: 1, method: 'tools/call',

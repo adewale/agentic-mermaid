@@ -32,7 +32,7 @@ import type { RenderRequestReceipt } from '../render-contract.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
 import { findUncoveredScripts } from './font-coverage.ts'
 import { buildPngFontWarnings } from '../shared/png-font-warnings.ts'
-import type { PngFontWarning } from '../shared/png-font-warnings.ts'
+import type { PngRasterWarning } from '../shared/png-font-warnings.ts'
 import { applyPngColorProfile, inspectPngDimensions } from '../output-color-profile.ts'
 import {
   omitPngOutputOptions,
@@ -47,13 +47,14 @@ import { RESOURCE_MANIFEST } from '../font-manifest.ts'
 import { NodeResourceResolver } from '../node-resource-resolver.ts'
 import { verifyRegisteredEmbeddedFontResources } from './embedded-font-resources.ts'
 import { snapshotHostBackendPolicy, type HostBackendPolicy } from '../scene/backend.ts'
-export type { PngFontWarning } from '../shared/png-font-warnings.ts'
+export type { PngFontWarning, PngRasterWarning } from '../shared/png-font-warnings.ts'
+export type { PngLegibilityWarning } from '../shared/png-legibility-warnings.ts'
 
 export interface PngOptions extends RenderOptions, PngOutputPolicyInput {
-  /** Receives glyph-coverage warnings instead of the default stderr write.
-   *  Warnings never change the PNG bytes; identical inputs render
-   *  identically whether or not a handler is installed. */
-  onWarning?: (warning: PngFontWarning) => void
+  /** Receives glyph-coverage and legibility warnings instead of the default
+   *  stderr write. Warnings never change the PNG bytes; identical inputs
+   *  render identically whether or not a handler is installed. */
+  onWarning?: (warning: PngRasterWarning) => void
 }
 
 /**
@@ -212,12 +213,13 @@ function renderMermaidPNGWithReceiptForHost(
   // Surface known coverage/shaping uncertainty before bytes ship. System
   // fonts broaden the rasterizer's set but are machine-dependent, so they
   // qualify the warning rather than turning an unknown outcome into silence.
-  const emit = onWarning ?? ((w: PngFontWarning) => process.stderr.write(`agentic-mermaid renderMermaidPNG: warning ${w.code}: ${w.message}\n`))
+  const emit = onWarning ?? ((w: PngRasterWarning) => process.stderr.write(`agentic-mermaid renderMermaidPNG: warning ${w.code}: ${w.message}\n`))
   for (const warning of buildPngFontWarnings(findUncoveredScripts(
     svg,
     outputPolicy.fonts.callerDirectories,
     bundledFonts.buffers,
   ), { systemFontsMayCover: outputPolicy.fonts.loadSystemFonts })) emit(warning)
+  for (const warning of graphical.legibilityWarnings) emit(warning)
 
   const resvgOpts: ConstructorParameters<typeof Resvg>[1] = {
     background: graphical.rasterBackground,

@@ -28,10 +28,16 @@ export type PngFitTo =
   | { readonly width: number; readonly height?: never }
   | { readonly width?: never; readonly height: number }
 
+/** Provisional general screen-diagram policy, not a universal readability or
+ * accessibility standard. Callers with known viewing conditions should set a
+ * task-specific effective-text floor. 0 disables the gate. */
+export const PNG_DEFAULT_MIN_LABEL_PX = 9 as const
+
 export interface PortablePngOutputOptions {
   scale?: number
   background?: string
   fitTo?: PngFitTo
+  minLabelPx?: number
 }
 
 export interface PngOutputPolicyInput extends PortablePngOutputOptions {
@@ -125,6 +131,12 @@ export const PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS = deepFreeze({
     description: 'Exactly one output width or height constraint.',
     schema: FIT_TO_SCHEMA,
   },
+  minLabelPx: {
+    scope: 'portable', input: 'serializable', policy: 'included', receipt: 'included',
+    typeScript: 'number',
+    description: 'Legibility floor in effective px: the render warns (BELOW_READABLE_SIZE) when fitTo/scale rasterizes the smallest configured text below it. 0 disables.',
+    schema: { type: 'number', minimum: 0, default: PNG_DEFAULT_MIN_LABEL_PX },
+  },
   fontDirs: {
     scope: 'native-host-only', input: 'serializable', policy: 'included', receipt: 'included',
     typeScript: 'readonly string[]',
@@ -143,8 +155,8 @@ export const PNG_OUTPUT_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   },
   onWarning: {
     scope: 'native-host-only', input: 'callback', policy: 'excluded', receipt: 'excluded',
-    typeScript: '(warning: PngFontWarning) => void',
-    description: 'Native host callback for font-coverage warnings; never serialized or receipted.',
+    typeScript: '(warning: PngRasterWarning) => void',
+    description: 'Native host callback for glyph-coverage and raster-legibility warnings; never serialized or receipted.',
   },
 } as const satisfies Readonly<Record<keyof PngOutputPolicyInput | 'onWarning', PngOutputOptionFieldDescriptor>>)
 
@@ -213,6 +225,7 @@ export interface ResolvedPngOutputPolicy {
   readonly fitTo:
     | { readonly mode: 'zoom'; readonly value: number }
     | { readonly mode: 'width' | 'height'; readonly value: number }
+  readonly minLabelPx: number
   readonly fonts: {
     readonly defaultFamily: typeof PNG_DEFAULT_FONT_FAMILY
     readonly bundledResources: readonly string[]
@@ -252,7 +265,7 @@ function positiveSvgPixels(raw: string | undefined, field: string): number {
   return value
 }
 
-function svgViewBoxDimensions(root: SvgStartTagToken): { readonly width: number; readonly height: number } {
+function svgRootViewBoxDimensions(root: SvgStartTagToken): { readonly width: number; readonly height: number } {
   const values = svgRootAttribute(root, 'viewBox')?.trim().split(/[\s,]+/).map(Number)
   const width = values?.[2]
   const height = values?.[3]
@@ -265,6 +278,12 @@ function svgViewBoxDimensions(root: SvgStartTagToken): { readonly width: number;
   return Object.freeze({ width, height })
 }
 
+/** Read the root SVG user-space bounds that font-size and other presentation
+ * attributes are expressed in before raster projection. */
+export function svgViewBoxDimensions(svg: string): { readonly width: number; readonly height: number } {
+  return svgRootViewBoxDimensions(svgRootTag(svg))
+}
+
 /**
  * Read the dimensions a rasterizer will actually allocate from the SVG root.
  * The viewBox remains an integrity cross-check: mismatched aspect ratios are
@@ -273,7 +292,7 @@ function svgViewBoxDimensions(root: SvgStartTagToken): { readonly width: number;
  */
 export function svgIntrinsicDimensions(svg: string): { readonly width: number; readonly height: number } {
   const root = svgRootTag(svg)
-  const viewBox = svgViewBoxDimensions(root)
+  const viewBox = svgRootViewBoxDimensions(root)
   const rawWidth = svgRootAttribute(root, 'width')?.trim()
   const rawHeight = svgRootAttribute(root, 'height')?.trim()
   // A responsive root has no standalone pixel intrinsic size. Our PNG
@@ -554,6 +573,11 @@ function normalizePngOutputPolicy(
     ? PNG_DEFAULT_SCALE
     : positiveFiniteNumber(input.scale, 'PNG scale')
 
+  const minLabelPx = input.minLabelPx === undefined ? PNG_DEFAULT_MIN_LABEL_PX : input.minLabelPx
+  if (typeof minLabelPx !== 'number' || !Number.isFinite(minLabelPx) || minLabelPx < 0) {
+    throw new RangeError('PNG minLabelPx must be a non-negative finite number')
+  }
+
   let width: number | undefined
   let height: number | undefined
   if (input.fitTo !== undefined) {
@@ -626,6 +650,7 @@ function normalizePngOutputPolicy(
     scale,
     background: Object.freeze(background),
     fitTo: Object.freeze(fitTo),
+    minLabelPx,
     fonts: Object.freeze({
       defaultFamily: PNG_DEFAULT_FONT_FAMILY,
       bundledResources: BUNDLED_FONT_RESOURCES,
