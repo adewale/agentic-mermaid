@@ -304,41 +304,145 @@ function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph): voi
   sg.maxY = maxY + subgraphPadding
 }
 
-/** Ensure non-overlapping root subgraphs have minimum spacing. */
-function ensureSubgraphSpacing(graph: AsciiGraph): void {
-  const minSpacing = 1
-  const rootSubgraphs = graph.subgraphs.filter(sg => sg.parent === null && sg.nodes.length > 0)
-
-  for (let i = 0; i < rootSubgraphs.length; i++) {
-    for (let j = i + 1; j < rootSubgraphs.length; j++) {
-      const sg1 = rootSubgraphs[i]!
-      const sg2 = rootSubgraphs[j]!
-
-      // Horizontal overlap → adjust vertical
-      if (sg1.minX < sg2.maxX && sg1.maxX > sg2.minX) {
-        if (sg1.maxY >= sg2.minY - minSpacing && sg1.minY < sg2.minY) {
-          sg2.minY = sg1.maxY + minSpacing + 1
-        } else if (sg2.maxY >= sg1.minY - minSpacing && sg2.minY < sg1.minY) {
-          sg1.minY = sg2.maxY + minSpacing + 1
-        }
-      }
-      // Vertical overlap → adjust horizontal
-      if (sg1.minY < sg2.maxY && sg1.maxY > sg2.minY) {
-        if (sg1.maxX >= sg2.minX - minSpacing && sg1.minX < sg2.minX) {
-          sg2.minX = sg1.maxX + minSpacing + 1
-        } else if (sg2.maxX >= sg1.minX - minSpacing && sg2.minX < sg1.minX) {
-          sg1.minX = sg2.maxX + minSpacing + 1
-        }
-      }
-    }
-  }
-}
-
 export function calculateSubgraphBoundingBoxes(graph: AsciiGraph): void {
   for (const sg of graph.subgraphs) {
     calculateSubgraphBoundingBox(graph, sg)
   }
-  ensureSubgraphSpacing(graph)
+}
+
+interface GridBounds {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
+
+function boundsOfNodes(nodes: readonly AsciiNode[]): GridBounds | null {
+  const placed = nodes.filter((node): node is AsciiNode & { gridCoord: GridCoord } => node.gridCoord !== null)
+  if (placed.length === 0) return null
+  return {
+    minX: Math.min(...placed.map(node => node.gridCoord.x)),
+    minY: Math.min(...placed.map(node => node.gridCoord.y)),
+    maxX: Math.max(...placed.map(node => node.gridCoord.x + 2)),
+    maxY: Math.max(...placed.map(node => node.gridCoord.y + 2)),
+  }
+}
+
+function boundsOverlap(a: GridBounds, b: GridBounds): boolean {
+  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY
+}
+
+function subgraphFramesMayOverlap(a: GridBounds, b: GridBounds, halo: number, dir: 'LR' | 'TD'): boolean {
+  const xOverlap = dir === 'TD'
+    ? a.minX - halo <= b.maxX + halo && a.maxX + halo >= b.minX - halo
+    : a.minX - halo < b.maxX + halo && a.maxX + halo > b.minX - halo
+  const yOverlap = dir === 'LR'
+    ? a.minY - halo <= b.maxY + halo && a.maxY + halo >= b.minY - halo
+    : a.minY - halo < b.maxY + halo && a.maxY + halo > b.minY - halo
+  // Equality on the axis where root containers are assigned lanes still means
+  // their rendered borders occupy the same row/column. Keep the perpendicular
+  // comparison strict so already-disjoint side-by-side frames do not move.
+  return xOverlap && yOverlap
+}
+
+function expandedBounds(bounds: GridBounds, amount: number): GridBounds {
+  return {
+    minX: bounds.minX - amount,
+    minY: bounds.minY - amount,
+    maxX: bounds.maxX + amount,
+    maxY: bounds.maxY + amount,
+  }
+}
+
+function shiftedBounds(bounds: GridBounds, dir: 'LR' | 'TD', amount: number): GridBounds {
+  return dir === 'LR'
+    ? { ...bounds, minY: bounds.minY + amount, maxY: bounds.maxY + amount }
+    : { ...bounds, minX: bounds.minX + amount, maxX: bounds.maxX + amount }
+}
+
+function nodeBounds(node: AsciiNode): GridBounds | null {
+  if (!node.gridCoord) return null
+  const { x, y } = node.gridCoord
+  return { minX: x, minY: y, maxX: x + 2, maxY: y + 2 }
+}
+
+/**
+ * Keep root containers in disjoint logical lanes before edge routing.
+ *
+ * Node placement reserves individual 3x3 blocks, but it historically allowed
+ * members of different root subgraphs to interleave. Moving only the computed
+ * frame afterwards detached it from those members and let two frames merge,
+ * overwriting titles and node text. Translate the later root container as one
+ * unit instead, rebuild occupancy, then let routing and frame calculation use
+ * those final coordinates.
+ */
+function separateRootSubgraphLanes(graph: AsciiGraph, dir: 'LR' | 'TD'): void {
+  const roots = graph.subgraphs.filter(sg => sg.parent === null && sg.nodes.length > 0)
+  const rootMembers = new Set(roots.flatMap(sg => sg.nodes))
+  const externalBounds = graph.nodes
+    .filter(node => !rootMembers.has(node))
+    .map(nodeBounds)
+    .filter((bounds): bounds is GridBounds => bounds !== null)
+  const settled: GridBounds[] = []
+  const frameHalo = 1
+
+  for (const sg of roots) {
+    const members = [...new Set(sg.nodes)]
+    const original = boundsOfNodes(members)
+    if (!original) continue
+
+    let shift = 0
+    while (true) {
+      const candidate = shiftedBounds(original, dir, shift)
+      const candidateFrame = expandedBounds(candidate, frameHalo)
+      const settledBlockers = settled
+        .filter(bounds => subgraphFramesMayOverlap(bounds, candidate, frameHalo, dir))
+        .map(bounds => expandedBounds(bounds, frameHalo))
+      const externalBlockers = externalBounds
+        .filter(bounds => boundsOverlap(bounds, candidateFrame))
+      const blockers = [...settledBlockers, ...externalBlockers]
+      if (blockers.length === 0) break
+
+      // Move the whole member envelope just beyond every conflicting frame or
+      // outside node. The extra halo keeps the rendered border itself out of
+      // the blocker instead of merely preventing member-node collisions.
+      const blockerEnd = Math.max(...blockers.map(bounds => (dir === 'LR' ? bounds.maxY : bounds.maxX)))
+      const nextMemberStart = blockerEnd + frameHalo + 1
+      shift = nextMemberStart - (dir === 'LR' ? original.minY : original.minX)
+    }
+
+    if (shift > 0) {
+      for (const node of members) {
+        if (!node.gridCoord) continue
+        if (dir === 'LR') node.gridCoord.y += shift
+        else node.gridCoord.x += shift
+      }
+    }
+    const finalBounds = shiftedBounds(original, dir, shift)
+    settled.push(finalBounds)
+
+    // Frames extend two cells on every side, plus two header rows above.
+    // Preserve a visible gap even when targetWidth reduces normal padding.
+    if (shift > 0) {
+      if (dir === 'LR') {
+        const spacerRow = finalBounds.minY - 1
+        graph.rowHeight.set(spacerRow, Math.max(graph.rowHeight.get(spacerRow) ?? 0, 7))
+      } else {
+        const spacerColumn = finalBounds.minX - 1
+        graph.columnWidth.set(spacerColumn, Math.max(graph.columnWidth.get(spacerColumn) ?? 0, 5))
+      }
+    }
+  }
+
+  graph.grid.clear()
+  for (const node of graph.nodes) {
+    if (!node.gridCoord) continue
+    for (let dx = 0; dx < 3; dx++) {
+      for (let dy = 0; dy < 3; dy++) {
+        graph.grid.set(gridKey({ x: node.gridCoord.x + dx, y: node.gridCoord.y + dy }), node)
+      }
+    }
+  }
 }
 
 /**
@@ -606,6 +710,8 @@ export function createMapping(graph: AsciiGraph): void {
       force = false
     }
   }
+
+  separateRootSubgraphLanes(graph, dir)
 
   // Compute column widths and row heights
   for (const node of graph.nodes) {

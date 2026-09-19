@@ -356,11 +356,11 @@
     },
     {
       "path": "src/ascii/grid.ts",
-      "sha256": "7faed5c34d0d16821db0ff1b7ba3cef8fba0151c2c4f6364c37f6e4c94e971eb"
+      "sha256": "5880e1c4c01c1002519898fa4a8fe946d9df901bb1ac7870052f76ca011f92f5"
     },
     {
       "path": "src/ascii/index.ts",
-      "sha256": "92ef7149e19ed1003dfac29260ff3b72c580ea93220c0018a206640af8397441"
+      "sha256": "d83eb18064874bed45cb6c503e2496661b69b1ab39ae3192c9ad3d7ddc20e99f"
     },
     {
       "path": "src/ascii/journey.ts",
@@ -463,6 +463,10 @@
       "sha256": "69e23b9487bed25fe80dc2e722b07342e04a9fa09cb29d21de5fdfcd59ce3f6a"
     },
     {
+      "path": "src/ascii/width-error.ts",
+      "sha256": "1e9ecbddbd134cfd64b0181aade49dc5937d4af2a5cc04ebb9f5b03ef7c29324"
+    },
+    {
       "path": "src/ascii/width.ts",
       "sha256": "845446cb940aab3d690837c2eaf4b8abba29cfb59ebed61ebd5e86fd65d99efc"
     },
@@ -472,7 +476,7 @@
     },
     {
       "path": "src/ascii/xychart.ts",
-      "sha256": "e7866e76e58fb5b021fa35322ad00831535af59cbd31630f987d23d22a849030"
+      "sha256": "66fd5e29be3aa802858e65d008360ed00713101ec19b6e58c9436d0823a0bc44"
     },
     {
       "path": "src/browser-png.ts",
