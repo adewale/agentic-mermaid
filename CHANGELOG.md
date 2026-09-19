@@ -11,6 +11,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   identifiers instead of silently treating them as labels.
 - Canonicalized IPv6 MCP origins, recognized loopback literals, and corrected
   package-runner quickstarts to invoke the published package and `mcp` command.
+- Updated React browser recipes to use the lazy browser entry, with asynchronous
+  loading, cancellation, and visible error handling.
 
 ### Added
 - Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
