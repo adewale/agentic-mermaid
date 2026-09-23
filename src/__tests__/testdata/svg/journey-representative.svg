@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="682" height="499.20000000000005" viewBox="0 0 682 499.20000000000005" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="journey-1nl2g1i-title" aria-roledescription="user journey" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="682" height="499.20000000000005" viewBox="0 0 682 499.20000000000005" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="journey-1nl2g1i-title" aria-roledescription="user journey" role="img" class="am-9piy7x">
 <title id="journey-1nl2g1i-title">Product journey</title>
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-9piy7x text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-9piy7x {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -24,34 +24,34 @@
   </marker>
 </defs>
 <style>
-  .journey-title { fill: #27272A; }
-  .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
-  .journey-section-1 { fill: #ecedf4; stroke: #adb2d3; }
-  .journey-section-label-band { fill: #e5e5e6; stroke: none; }
-  .journey-section-band-0 { fill: #e5e5e6; }
-  .journey-section-band-1 { fill: #dddfec; }
-  .journey-section-label { fill: #27272A; }
-  .journey-section-label-0 { fill: #27272A; }
-  .journey-section-label-1 { fill: #27272A; }
-  .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-task-text { fill: #27272A; }
-  .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
-  .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
-  .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
-  .journey-score-label { fill: #575759; }
-  .journey-baseline { stroke: #47474a; stroke-width: 2; }
-  .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
-  .journey-face-eye { fill: #27272A; }
-  .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
-  .journey-actor-legend-title { fill: #575759; }
-  .journey-actor-legend-text { fill: #575759; }
-  .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
-  .journey-actor-0 { fill: #34438d; }
-  .journey-actor-1 { fill: #8d3f34; }
-  .journey-actor-2 { fill: #348d59; }
-  .journey-actor-3 { fill: #74348d; }
-  .journey-actor-4 { fill: #8d8d34; }
+  .am-9piy7x .journey-title { fill: #27272A; }
+  .am-9piy7x .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .am-9piy7x .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
+  .am-9piy7x .journey-section-1 { fill: #ecedf4; stroke: #adb2d3; }
+  .am-9piy7x .journey-section-label-band { fill: #e5e5e6; stroke: none; }
+  .am-9piy7x .journey-section-band-0 { fill: #e5e5e6; }
+  .am-9piy7x .journey-section-band-1 { fill: #dddfec; }
+  .am-9piy7x .journey-section-label { fill: #27272A; }
+  .am-9piy7x .journey-section-label-0 { fill: #27272A; }
+  .am-9piy7x .journey-section-label-1 { fill: #27272A; }
+  .am-9piy7x .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .am-9piy7x .journey-task-text { fill: #27272A; }
+  .am-9piy7x .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
+  .am-9piy7x .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
+  .am-9piy7x .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
+  .am-9piy7x .journey-score-label { fill: #575759; }
+  .am-9piy7x .journey-baseline { stroke: #47474a; stroke-width: 2; }
+  .am-9piy7x .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
+  .am-9piy7x .journey-face-eye { fill: #27272A; }
+  .am-9piy7x .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
+  .am-9piy7x .journey-actor-legend-title { fill: #575759; }
+  .am-9piy7x .journey-actor-legend-text { fill: #575759; }
+  .am-9piy7x .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
+  .am-9piy7x .journey-actor-0 { fill: #34438d; }
+  .am-9piy7x .journey-actor-1 { fill: #8d3f34; }
+  .am-9piy7x .journey-actor-2 { fill: #348d59; }
+  .am-9piy7x .journey-actor-3 { fill: #74348d; }
+  .am-9piy7x .journey-actor-4 { fill: #8d8d34; }
 </style>
 <g class="journey-score-guide" data-score-min="1" data-score-max="5">
   <line class="journey-guide" x1="176" y1="273.20000000000005" x2="650" y2="273.20000000000005" data-relationship="grid" data-direction="undirected" />

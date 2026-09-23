@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9",
-  "reviewedAt": "2026-08-21",
-  "reviewer": "Codex coding agent, during the PR #220 rebase verification",
-  "scope": "All 64 family-by-variant cells were reviewed as a full-sheet render after rebasing the shared shape-outline and arrow-marker changes. Flowchart and State arrow shafts and visible tips meet circle and pseudostate outlines in all four styles; the causal contact change is shown separately in docs/pr-assets/shape-outline-authority-before-after.png. Sankey and the other unchanged families retain their compositions, endpoints, labels, containment, and authored emphasis.",
+  "artifactSha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec",
+  "reviewedAt": "2026-09-23",
+  "reviewer": "Claude Code agent, during the Lieflat chart-honesty fixes",
+  "scope": "All 64 family-by-variant cells were compared with the previous approved sheet at native size through a per-pixel difference mask. Only peer-category paint and in-mark label ink changed: the one-to-six-color palette now meets the ΔE_OK 0.10 separation and page-visibility contract, so Mindmap branch tints, GitGraph branch lines, Radar curves, Sankey nodes and ribbons, the Journey section chip, and the Pie Pro slice move apart where they were too close; slice labels take the higher-contrast of black and white (the Pie 30% label). Geometry, typography, containment, endpoints, and authored emphasis are unchanged in every cell, and the Pie Pro slice remains the family-authored highlight.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

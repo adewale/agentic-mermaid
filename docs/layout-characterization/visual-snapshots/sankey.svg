@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="648" height="448" viewBox="0 0 648 448" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="sankey diagram" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="648" height="448" viewBox="0 0 648 448" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="sankey diagram" role="img" class="am-984k2x">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-984k2x text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-984k2x {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -23,12 +23,12 @@
     <stop offset="100%" stop-color="#0d5ba5" />
   </linearGradient>
   <linearGradient id="char-sankey-sankey-gradient-2" gradientUnits="userSpaceOnUse" x1="34" y1="322.77" x2="319" y2="310.05">
-    <stop offset="0%" stop-color="#5f79f2" />
+    <stop offset="0%" stop-color="#6d5cd8" />
     <stop offset="100%" stop-color="#0d5ba5" />
   </linearGradient>
   <linearGradient id="char-sankey-sankey-gradient-3" gradientUnits="userSpaceOnUse" x1="329" y1="176.87" x2="614" y2="162.59">
     <stop offset="0%" stop-color="#0d5ba5" />
-    <stop offset="100%" stop-color="#0a5076" />
+    <stop offset="100%" stop-color="#00486d" />
   </linearGradient>
   <linearGradient id="char-sankey-sankey-gradient-4" gradientUnits="userSpaceOnUse" x1="329" y1="363.37" x2="614" y2="376.09">
     <stop offset="0%" stop-color="#0d5ba5" />
@@ -41,8 +41,8 @@
 <path class="sankey-link" d="M 329 363.37 C 471.5 363.37, 471.5 376.09, 614 376.09" fill="none" stroke="url(#char-sankey-sankey-gradient-4)" stroke-width="95.83" opacity="0.5" style="mix-blend-mode:multiply" data-source="Electricity" data-target="Homes" data-value="71.89" data-relationship="flow" data-direction="forward" data-id="link:Electricity-&gt;Homes" data-role="edge" data-from="Electricity" data-to="Homes" role="graphics-symbol" aria-roledescription="relation" aria-label="Electricity to Homes" />
 <rect class="sankey-node" x="24" y="24" width="10" height="170.53" fill="#3b82f6" stroke="#d4d4d4" stroke-width="1" data-label="Coal" data-value="127.93" data-layer="0" data-id="Coal" data-role="bar" />
 <rect class="sankey-node" x="319" y="38.28" width="10" height="373" fill="#0d5ba5" stroke="#d4d4d4" stroke-width="1" data-label="Electricity" data-value="279.82" data-layer="1" data-id="Electricity" data-role="bar" />
-<rect class="sankey-node" x="24" y="221.53" width="10" height="202.47" fill="#5f79f2" stroke="#d4d4d4" stroke-width="1" data-label="Gas" data-value="151.89" data-layer="0" data-id="Gas" data-role="bar" />
-<rect class="sankey-node" x="614" y="24" width="10" height="277.17" fill="#0a5076" stroke="#d4d4d4" stroke-width="1" data-label="Industry" data-value="207.93" data-layer="2" data-id="Industry" data-role="bar" />
+<rect class="sankey-node" x="24" y="221.53" width="10" height="202.47" fill="#6d5cd8" stroke="#d4d4d4" stroke-width="1" data-label="Gas" data-value="151.89" data-layer="0" data-id="Gas" data-role="bar" />
+<rect class="sankey-node" x="614" y="24" width="10" height="277.17" fill="#00486d" stroke="#d4d4d4" stroke-width="1" data-label="Industry" data-value="207.93" data-layer="2" data-id="Industry" data-role="bar" />
 <rect class="sankey-node" x="614" y="328.17" width="10" height="95.83" fill="#9592f6" stroke="#d4d4d4" stroke-width="1" data-label="Homes" data-value="71.89" data-layer="2" data-id="Homes" data-role="bar" />
 <text x="40" y="109.27" class="sankey-node-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="40" dy="-3.9000000000000012" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Coal</tspan><tspan x="40" dy="16.900000000000002" textLength="37.518" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">127.93</tspan></text>
 <text x="335" y="224.78" class="sankey-node-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A"><tspan x="335" dy="-3.9000000000000012" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Electricity</tspan><tspan x="335" dy="16.900000000000002" textLength="41.964" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">279.82</tspan></text>

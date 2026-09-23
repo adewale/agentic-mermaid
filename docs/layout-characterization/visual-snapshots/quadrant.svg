@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="456" height="492" viewBox="0 0 456 492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-quadrant-quadrant-2kbvr6-title" aria-roledescription="quadrant chart" id="char-quadrant-quadrant-2kbvr6" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="492" viewBox="0 0 456 492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-quadrant-quadrant-2kbvr6-title" aria-roledescription="quadrant chart" id="char-quadrant-quadrant-2kbvr6" role="img" class="am-u56n94">
 <title id="char-quadrant-quadrant-2kbvr6-title">Priorities</title>
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-u56n94 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-u56n94 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -19,14 +19,14 @@
   }
 </style>
 <style>
-  .quadrant-region { stroke: none; }
-  .quadrant-divider { stroke: #939395; stroke-width: 1; }
-  .quadrant-border { stroke: #d4d4d4; stroke-width: 2; }
-  .quadrant-label { fill: #575759; }
-  .quadrant-point { fill: #47474a; stroke: #FFFFFF; stroke-width: 1; }
-  .quadrant-point-label { fill: #27272A; }
-  .quadrant-axis-label { fill: #707072; }
-  .quadrant-title { fill: #27272A; }
+  .am-u56n94 .quadrant-region { stroke: none; }
+  .am-u56n94 .quadrant-divider { stroke: #939395; stroke-width: 1; }
+  .am-u56n94 .quadrant-border { stroke: #d4d4d4; stroke-width: 2; }
+  .am-u56n94 .quadrant-label { fill: #575759; }
+  .am-u56n94 .quadrant-point { fill: #47474a; stroke: #FFFFFF; stroke-width: 1; }
+  .am-u56n94 .quadrant-point-label { fill: #27272A; }
+  .am-u56n94 .quadrant-axis-label { fill: #707072; }
+  .am-u56n94 .quadrant-title { fill: #27272A; }
 </style>
 <rect class="quadrant-region" x="52" y="60" width="190" height="190" fill="#f6f6f6" data-quadrant="2" data-id="plate:2" data-role="plate" />
 <rect class="quadrant-region" x="242" y="60" width="190" height="190" fill="#ededed" data-quadrant="1" data-id="plate:1" data-role="plate" />

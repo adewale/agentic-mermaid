@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="368.79" height="276" viewBox="0 0 368.79 276" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="pie chart" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="368.79" height="276" viewBox="0 0 368.79 276" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="pie chart" role="img" class="am-120au86">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-120au86 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-120au86 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -18,26 +18,26 @@
   }
 </style>
 <style>
-  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
-  .pie-slice.highlighted { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
-  .pie-slice.highlighted-on-hover:hover { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
-  .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
-  .pie-legend-text { fill: #27272A; }
-  .pie-title { fill: #27272A; }
-  .pie-slice.pie-dim { opacity: 0.4; }
-  .pie-legend-swatch.pie-dim { opacity: 0.4; }
+  .am-120au86 .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .am-120au86 .pie-slice.highlighted { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
+  .am-120au86 .pie-slice.highlighted-on-hover:hover { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
+  .am-120au86 .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .am-120au86 .pie-legend-text { fill: #27272A; }
+  .am-120au86 .pie-title { fill: #27272A; }
+  .am-120au86 .pie-slice.pie-dim { opacity: 0.4; }
+  .am-120au86 .pie-legend-swatch.pie-dim { opacity: 0.4; }
 </style>
 <path class="pie-slice" d="M 119 157 L 119 62 A 95 95 0 0 1 201.27 204.5 Z" fill="#3b82f6" data-label="Cats" data-value="4" data-percent="33.3%" data-id="slice:Cats" data-role="pie-slice" />
 <path class="pie-slice" d="M 119 157 L 201.27 204.5 A 95 95 0 0 1 36.73 109.5 Z" fill="#0d5ba5" data-label="Dogs" data-value="6" data-percent="50.0%" data-id="slice:Dogs" data-role="pie-slice" />
-<path class="pie-slice" d="M 119 157 L 36.73 109.5 A 95 95 0 0 1 119 62 Z" fill="#5f79f2" data-label="Birds" data-value="2" data-percent="16.7%" data-id="slice:Birds" data-role="pie-slice" />
-<text x="180.7" y="121.38" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">33%</text>
+<path class="pie-slice" d="M 119 157 L 36.73 109.5 A 95 95 0 0 1 119 62 Z" fill="#6d5cd8" data-label="Birds" data-value="2" data-percent="16.7%" data-id="slice:Birds" data-role="pie-slice" />
+<text x="180.7" y="121.38" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#000000" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">33%</text>
 <text x="83.38" y="218.7" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">50%</text>
 <text x="83.37" y="95.3" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999" textLength="19.584" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">17%</text>
 <rect class="pie-legend-swatch" x="246" y="128" width="14" height="14" rx="2" ry="2" fill="#3b82f6" />
 <text x="268" y="135" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55" textLength="72.345" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Cats (33.3%)</text>
 <rect class="pie-legend-swatch" x="246" y="150" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" />
 <text x="268" y="157" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55" textLength="76.791" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Dogs (50.0%)</text>
-<rect class="pie-legend-swatch" x="246" y="172" width="14" height="14" rx="2" ry="2" fill="#5f79f2" />
+<rect class="pie-legend-swatch" x="246" y="172" width="14" height="14" rx="2" ry="2" fill="#6d5cd8" />
 <text x="268" y="179" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55" textLength="73.827" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Birds (16.7%)</text>
 <text x="184.4" y="33" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title" textLength="41.58" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Pets</text>
 </svg>

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-07-24",
-  "reviewer": "OpenAI coding agent, at the user's explicit request",
-  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after visible Flowchart arrow tips were aligned to their route endpoints; reviewed for clean marker contact, readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries.",
+  "reviewedAt": "2026-09-23",
+  "reviewer": "Claude Code agent, during the Lieflat chart-honesty fixes",
+  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after visible Flowchart arrow tips were aligned to their route endpoints; reviewed for clean marker contact, readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries. Re-reviewed 2026-09-23 after the peer-category palette gained its separation contract: the Vercel-inspired prototype changes in 98 pixels, all in the \"Line 1\" legend swatch (a sub-perceptual tint shift); the other two prototypes are byte-identical.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
@@ -13,7 +13,7 @@
     {
       "id": "vercel-inspired-prototype",
       "path": "docs/assets/style-cookbook/vercel-inspired-prototype.png",
-      "sha256": "1eb8692e265800b3d00fdc0f6a20a169e8c4f24cdac98ef13f1f91536f352e52"
+      "sha256": "bd3653c7ba2fc7052370dbcde2f41bdb51f2e724bfb9983b805a079a2e9bfaa8"
     },
     {
       "id": "cloudflare-workers-inspired-prototype",
