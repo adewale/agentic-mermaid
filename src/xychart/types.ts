@@ -83,6 +83,8 @@ export interface XYChartConfig {
   plotReservedSpacePercent?: number
   /** Show numeric value labels on bars */
   showDataLabel?: boolean
+  /** Place bar value labels just beyond the bar end instead of inside it */
+  showDataLabelOutsideBar?: boolean
   /** Hide the chart title even when the source defines one */
   showTitle?: boolean
   /** Hide the legend even when the chart is legend-worthy (upstream PR #7724) */
@@ -146,6 +148,7 @@ export interface ResolvedXYChartConfig {
   chartOrientation: 'vertical' | 'horizontal'
   plotReservedSpacePercent: number
   showDataLabel: boolean
+  showDataLabelOutsideBar: boolean
   showTitle: boolean
   showLegend: boolean
   legendFontSize: number
@@ -179,6 +182,8 @@ export interface XYChartTheme {
   yAxisTitleColor?: string
   /** Legend label color (upstream themeVariables.xyChart.legendTextColor) */
   legendTextColor?: string
+  /** Bar value label color (upstream themeVariables.xyChart.dataLabelColor) */
+  dataLabelColor?: string
   /** Explicit per-series palette */
   plotColorPalette?: string[]
 }
@@ -209,6 +214,12 @@ export interface PositionedXYChart extends PositionedDiagram {
   gridLines: GridLine[]
   /** Legend items (shown when multiple series) */
   legend: LegendItem[]
+  /** Authored x-axis category names the fitted axis leaves undrawn */
+  hiddenCategoryLabels: string[]
+  /** Bar value labels, when `showDataLabel` is on */
+  dataLabels: PositionedDataLabel[]
+  /** Bars whose value label fits neither inside the bar nor beyond its end */
+  unlabeledBars: PositionedBar[]
   /** Resolved config carried through for rendering decisions */
   config: ResolvedXYChartConfig
   /** Mermaid theme variables carried through for rendering decisions */
@@ -267,6 +278,18 @@ export interface PlotArea {
   y: number
   width: number
   height: number
+}
+
+export interface PositionedDataLabel {
+  bar: PositionedBar
+  text: string
+  x: number
+  y: number
+  fontSize: number
+  anchor: 'start' | 'middle' | 'end'
+  dominantBaseline?: 'middle' | 'hanging'
+  /** Inside labels sit on the bar fill; outside labels sit on the page. */
+  placement: 'inside' | 'outside'
 }
 
 export interface PositionedBar {

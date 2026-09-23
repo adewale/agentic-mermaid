@@ -81,8 +81,9 @@ describe('characterisation generated artifacts', () => {
     }
     const pie = rows.find(row => row.family === 'pie')!
     expect(pie.metrics.minimumTextContrast).not.toBeNull()
-    expect(pie.metrics.minimumTextContrast!).toBeLessThan(4.5)
-    expect(pie.metrics.minimumTextContrast!).toBeGreaterThan(3.5)
+    // Slice labels take the higher-contrast of black and white against their
+    // slice, so the pie's weakest text now clears WCAG AA (it was 3.68:1).
+    expect(pie.metrics.minimumTextContrast!).toBeGreaterThanOrEqual(4.5)
     const classDiagram = rows.find(row => row.family === 'class')!
     expect(classDiagram.metrics.minimumTextContrast).toBeCloseTo(13.54, 2)
   })

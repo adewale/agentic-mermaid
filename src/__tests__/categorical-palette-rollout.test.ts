@@ -3,7 +3,7 @@ import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
-import { mixHex, wcagContrastRatio } from '../shared/color-math.ts'
+import { mixHex, toHex, tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
 
 const sources = {
@@ -112,17 +112,28 @@ function colorsFromSvg(family: keyof typeof sources, svg: string): string[] {
 }
 
 describe('controlled {1,2,3} categorical palette rollout', () => {
-  it('keeps the legacy ladder byte-for-byte for diagrams with at most six categories', () => {
+  it('keeps the legacy ladder byte-for-byte for at most six categories wherever it meets the palette contract', () => {
+    // The unconditional byte pin this replaces also preserved the ladder's
+    // collisions (#0969da at five slices held a pair below ΔE_OK 0.10).
+    // Compliant slots, including the authored slot-zero spelling, stay exact.
     const inputs = [
       { accent: '#0969da', bg: '#ffffff' },
       { accent: '#38f', bg: '#fff' },
       { accent: 'royalblue', bg: 'white' },
       { accent: 'rgb(9, 105, 218)', bg: 'rgb(255, 255, 255)' },
     ]
+    const concrete = (color: string): string => {
+      const [r, g, b] = tryParseCssColor(color)!
+      return toHex(r, g, b)
+    }
     for (const colors of inputs) {
       for (let count = 1; count <= 6; count++) {
-        const expected = Array.from({ length: count }, (_unused, index) => getSeriesColor(index, colors.accent, colors.bg))
-        expect(categoricalPalette(count, colors)).toEqual(expected)
+        const ladder = Array.from({ length: count }, (_unused, index) => getSeriesColor(index, colors.accent, colors.bg))
+        const palette = categoricalPalette(count, colors)
+        expect(palette[0]).toBe(ladder[0])
+        if (count > 1) expect(minPairwiseDeltaEOK(palette.map(concrete))).toBeGreaterThanOrEqual(0.10)
+        const ladderMeetsContract = count === 1 || minPairwiseDeltaEOK(ladder.map(concrete))! >= 0.10
+        if (ladderMeetsContract) expect(palette).toEqual(ladder)
       }
     }
   })

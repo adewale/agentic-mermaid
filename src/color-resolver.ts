@@ -1,5 +1,5 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
-import { tryParseHex, luma255 } from './shared/color-math.ts'
+import { relativeLuminance, tryParseHex } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
@@ -133,11 +133,15 @@ function parseRgbFunction(color: string): { r: number; g: number; b: number } | 
   return Object.values(rgb).every(v => v >= 0 && v <= 255) ? rgb : null
 }
 
+/** Ink for text drawn on an opaque fill: whichever of black and white has the
+ * higher WCAG contrast. The better of the two is at least 4.58:1 against any
+ * opaque color, so text on a data mark always clears WCAG AA; a brightness
+ * threshold picks the weaker ink for mid-tone fills. */
 export function contrastTextColor(fill: string): string | undefined {
   const rgb = parseHexToRgb(fill) ?? parseRgbFunction(fill)
   if (!rgb) return undefined
-  const brightness = luma255(rgb.r, rgb.g, rgb.b)
-  return brightness > 140 ? '#000000' : '#FFFFFF'
+  const luminance = relativeLuminance(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)!
+  return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? '#000000' : '#FFFFFF'
 }
 
 export function resolveInlineNodeTextColor(

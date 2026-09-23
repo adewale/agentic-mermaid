@@ -114,6 +114,7 @@ describe('agent-readiness standards syntax', () => {
       { file: '../src/__tests__/editor-theme-switch.test.ts', browserOptIn: true },
       { file: '../src/__tests__/editor-style-switch.test.ts', browserOptIn: true },
       { file: '../src/__tests__/website-browser-a11y.test.ts', browserOptIn: true },
+      { file: '../src/__tests__/svg-style-isolation-browser.test.ts', browserOptIn: true },
     ])
     const browserMarkers = /from ['"]playwright['"]|findChromiumExecutable|AM_BROWSER_TESTS/
     const discoveredBrowserFiles = [

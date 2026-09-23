@@ -19,6 +19,7 @@ import { colorizeText } from './ansi.ts'
 import { CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
+import { barBaselineValue } from '../xychart/axis-utils.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -258,7 +259,7 @@ function renderVertical(
     const usable = Math.max(1, bandW - 2)
     const singleBarW = Math.max(1, Math.min(Math.floor(usable / barCount), 8))
     const groupW = singleBarW * barCount + (barCount - 1)
-    const baseRow = valueToRow(Math.max(0, yRange.min))
+    const baseRow = valueToRow(barBaselineValue(yRange))
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
       const entry = barEntries[bIdx]!
@@ -452,7 +453,7 @@ function renderHorizontal(
     const barCount = barEntries.length
     const singleBarH = 1
     const groupH = singleBarH * barCount + (barCount - 1)
-    const baseCol = valueToCol(Math.max(0, yRange.min))
+    const baseCol = valueToCol(barBaselineValue(yRange))
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
       const entry = barEntries[bIdx]!

@@ -13,7 +13,9 @@ bounded perceptual failure, measure it, and return the evidence. Lieflat
 supplies a practitioner's list of chart-honesty rules and treats a page of
 charts, not a single chart, as the unit it checks. Applying both to this
 renderer found ten issues, listed under [Issues](#issues). In every case
-`verify` reports `ok`.
+`verify` reported `ok`. All ten are now fixed; [Resolution](#resolution)
+names each fix and the property-based test that pins it. The issue sections
+below describe the code as it was measured at `c349dac`.
 
 ## What Lieflat Charts is
 
@@ -329,6 +331,27 @@ warning at all, and the SVG is byte-identical with or without all three.
 Wiring these keys is already part of #248's config-effect matrix. The wording
 is a separate defect, because it sends an agent to fix a spelling that is
 already correct.
+
+## Resolution
+
+All ten issues are fixed on the branch that carries this note. Each fix is
+verified by a property-based test (fast-check, seed pinned by the test
+preload) that states the contract against rendered output rather than against
+the code that produces it. Unless the table says otherwise, the property was
+run against the unfixed code and fails there, and passes with the fix.
+
+| # | Fix | Property that pins it |
+|---:|---|---|
+| 1 | One baseline rule for SVG and ASCII: bars grow from zero clamped into the axis range, and their value end clamps too, so a bar never leaves the plot | [`property-xychart-bar-encoding`](../src/__tests__/property-xychart-bar-encoding.test.ts): shared baseline, length proportional to distance from it, sign agreement between SVG and ASCII |
+| 2 | Every SVG scopes its own `<style>` rules to a root class derived from the finished output ([`svg-style-scope.ts`](../src/svg-style-scope.ts)) | [`property-svg-style-scope`](../src/__tests__/property-svg-style-scope.test.ts): the CSS rewrite matches a stylesheet model exactly; every render in every family and style is fully scoped; resvg pixels are unchanged. The page property runs in Chromium: [`svg-style-isolation-browser`](../src/__tests__/svg-style-isolation-browser.test.ts) |
+| 3 | The one-to-six-color ladder now passes through the same visibility and separation repair as larger palettes, keeping its exact bytes wherever it already met the contract | [`property-categorical-palette-contract`](../src/__tests__/property-categorical-palette-contract.test.ts): ΔE_OK ≥ 0.10 between every pair and visibility on the page, for any accent, background, and count |
+| 4 | Labels share one font size fitted to the bars' cross-axis room; each bar then places its own label inside or beyond its end, and a bar with no room loses only its own label. Wires `showDataLabelOutsideBar` | [`property-xychart-data-labels`](../src/__tests__/property-xychart-data-labels.test.ts): shrinking one bar never removes another bar's label. The companion "sparse chart labels every bar" property passes on the unfixed code too, because the floor baseline of issue 1 kept bars long; it is a regression guard, and it found the zero-bar placement case during this work |
+| 5 | Label ink inside a bar is the black or white with the higher WCAG contrast against that bar's fill; the shared `contrastTextColor` switched from a brightness cut-off to that rule, which also fixes node text on custom fills. Wires `themeVariables.xyChart.dataLabelColor` | [`property-xychart-data-labels`](../src/__tests__/property-xychart-data-labels.test.ts) (every label ≥ 4.5:1 against the surface it sits on; fails when the inside-label ink is reverted) and [`renderer-contrast`](../src/__tests__/renderer-contrast.test.ts) (ink contract for any opaque fill) |
+| 6 | The layout records the authored category names it does not draw; `verify` reports them as `LABELS_HIDDEN` (`target: "x-axis"`), and bars with no room for their value as `target: "data-labels"` | [`property-xychart-verify-lints`](../src/__tests__/property-xychart-verify-lints.test.ts): the warning names exactly the categories and values absent from the SVG (fails when the report is removed) |
+| 7 | The automatic value range of a chart with a bar series includes zero, padding only the side away from zero | [`property-xychart-bar-encoding`](../src/__tests__/property-xychart-bar-encoding.test.ts) |
+| 8 | `BAR_RANGE_EXCLUDES_ZERO` flags an authored bar range that excludes zero and names the baseline the bars are drawn from | [`property-xychart-verify-lints`](../src/__tests__/property-xychart-verify-lints.test.ts): fires exactly when the range excludes zero on a chart with bars |
+| 9 | Layout reserves the half label that end ticks reach beyond the plot | [`property-xychart-text-containment`](../src/__tests__/property-xychart-text-containment.test.ts): resvg's glyph bounding box of every chart stays inside the viewBox; the same property found that bars beyond an authored range left the canvas (fixed under 1) |
+| 10 | The 17 official upstream keys the diagnostics called unknown, across sequence, xychart, gantt, mindmap, and gitgraph, are registered: wired where this renderer honors them, otherwise reported as accepted with no effect | [`upstream-config-key-diagnostics`](../src/__tests__/upstream-config-key-diagnostics.test.ts): no key in the pinned upstream manifest is ever called unknown or undocumented, while an invented key still is |
 
 ## Reconsidered and dropped
 

@@ -93,7 +93,30 @@ Current SVG rendering decisions:
 - subtle grid lines behind the plot area
 - straight line segments rather than spline interpolation
 - line dots only for interactive output
-- `showDataLabel` applies to bars only, matching Mermaid behavior
+- bars encode value as length from zero: every bar grows from zero clamped
+  into the value range (the axis end nearest zero when an authored range
+  excludes it) toward its own sign, and its value end clamps into the range
+  too, so a bar never leaves the plot. The automatic range of a chart with a
+  bar series always includes zero. The terminal renderer uses the same
+  baseline rule (`barBaselineValue` in `src/xychart/axis-utils.ts`)
+- `showDataLabel` applies to bars only, matching Mermaid behavior. All labels
+  share one font size fitted to the bars' cross-axis room; each bar then places
+  its own label inside its value end, or beyond it within the plot when the bar
+  is too short (`showDataLabelOutsideBar: true` prefers beyond). A bar with no
+  room for either keeps its bar and loses only its own label, which
+  `verify` reports (`LABELS_HIDDEN`, `target: "data-labels"`)
+- labels inside a bar use the black or white ink with the higher WCAG contrast
+  against that bar's fill (at least 4.58:1 for any opaque fill); labels beyond
+  a bar use the page text color. `themeVariables.xyChart.dataLabelColor`
+  overrides both
+- value-axis labels are centered on their ticks, so layout reserves the half
+  label that the end ticks reach beyond the plot (top of an untitled vertical
+  chart, left and right ends of a horizontal chart's top axis)
+- a vertical chart thins its category tick labels when they would overlap;
+  `verify` lists the authored names it does not draw (`LABELS_HIDDEN`,
+  `target: "x-axis"`), as it does when a horizontal chart drops a category
+  axis whose widest name does not fit. `BAR_RANGE_EXCLUDES_ZERO` flags an
+  authored bar range that excludes zero
 - `useMaxWidth` / `useWidth` control responsive root SVG sizing
 - `themeCSS` remains accounted for by the parser but is diagnosed at the public
   render boundary; raw selectors can escape an imported SVG, so authors use a

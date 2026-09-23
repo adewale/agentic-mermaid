@@ -80,6 +80,7 @@ export interface XyChartRuntimeConfig extends MermaidConfigMap {
   chartOrientation?: 'vertical' | 'horizontal'
   plotReservedSpacePercent?: number
   showDataLabel?: boolean
+  showDataLabelOutsideBar?: boolean
   showTitle?: boolean
   showLegend?: boolean
   legendFontSize?: number

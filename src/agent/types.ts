@@ -1414,7 +1414,7 @@ export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITC
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
@@ -1483,6 +1483,19 @@ export type LayoutWarning =
   /** Authored paint remains authoritative but fails a measurable contrast
    * threshold against the final resolved background. Advisory: never repaints. */
   | { code: 'LOW_CONTRAST'; field: string; foreground: string; background: string; ratio: number; minimum: number; message: string }
+  /**
+   * The layout left out chart text the source asked for because it did not
+   * fit: x-axis category names thinned or dropped, or bar value labels with no
+   * room inside or beyond their bar. `labels` lists exactly what is missing.
+   * Advisory: the chart still renders; never flips verify.ok.
+   */
+  | { code: 'LABELS_HIDDEN'; target: 'x-axis' | 'data-labels'; labels: string[]; message: string }
+  /**
+   * An authored value-axis range excludes zero on a chart with bar series, so
+   * bars start at `baseline` and their lengths are not proportional to their
+   * values. Advisory: the authored range is kept; never flips verify.ok.
+   */
+  | { code: 'BAR_RANGE_EXCLUDES_ZERO'; range: { min: number; max: number }; baseline: number; message: string }
   | {
       code: BrandConstraintWarningCode
       constraint: BrandConstraintKind
@@ -1526,6 +1539,8 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   CONTENT_DROPPED_ON_ROUNDTRIP: 'warning',
   INEFFECTIVE_CONFIG: 'warning',
   LOW_CONTRAST: 'warning',
+  LABELS_HIDDEN: 'warning',
+  BAR_RANGE_EXCLUDES_ZERO: 'warning',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.severity,
 }
 
@@ -1557,6 +1572,8 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
   INEFFECTIVE_CONFIG: 'lint',
   LOW_CONTRAST: 'lint',
+  LABELS_HIDDEN: 'lint',
+  BAR_RANGE_EXCLUDES_ZERO: 'lint',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.tier,
 }
 
