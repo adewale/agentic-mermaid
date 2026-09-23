@@ -28,6 +28,7 @@ import {
 import { applyOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
+import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { admitFamilyScene } from './scene/admission.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
@@ -144,6 +145,8 @@ export function renderPositionedMermaidSVG(
     svg = injectAccessibility(svg, accessibility, idPrefix)
     assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
+  svg = scopeSvgStyles(svg)
+  assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split
   // attribute (for example `on\n load`) into executable active content after

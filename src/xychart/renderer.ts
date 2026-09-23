@@ -7,6 +7,9 @@ import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layo
 import { escapeXml } from '../multiline-utils.ts'
 import { CHART_ACCENT_FALLBACK } from './colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
+import { contrastTextColor } from '../color-resolver.ts'
+import { toHex, tryParseCssColor } from '../shared/color-math.ts'
+import { formatBarValue } from './axis-utils.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -121,6 +124,8 @@ export function lowerXYChartScene(
 
   const barOverlay: SceneNode[] = []
   const barSeriesCount = new Map<number, number>()
+  const seriesPalette = resolveSeriesPalette(chart, colors.accent, colors.bg)
+  const barFills = new Map<PositionedBar, string>()
   for (const bar of chart.bars) {
     const catIndex = barSeriesCount.get(bar.seriesIndex) ?? 0
     barSeriesCount.set(bar.seriesIndex, catIndex + 1)
@@ -130,6 +135,7 @@ export function lowerXYChartScene(
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels, { includeFallback: false })
     const paletteFill = `var(--xychart-color-${bar.colorIndex})`
     const fill = hasAuthoredSeriesPalette ? paletteFill : roleStyle?.fillColor ?? paletteFill
+    barFills.set(bar, hasAuthoredSeriesPalette ? seriesPalette.concrete(bar.colorIndex) : roleStyle?.fillColor ?? seriesPalette.concrete(bar.colorIndex))
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor
     const strokeWidth = roleStyle?.lineWidth
     const inlineStyle = roleStyleAttr({
@@ -153,7 +159,7 @@ export function lowerXYChartScene(
     ))
 
     if (interactive) {
-      const tipText = formatTipValue(bar.value)
+      const tipText = formatBarValue(bar.value)
       const tipTitle = bar.label ? `${bar.label}: ${tipText}` : tipText
       const tipAnchorX = chart.horizontal ? bar.x + bar.width : bar.x + bar.width / 2
       const tipAnchorY = chart.horizontal ? bar.y + bar.height / 2 : bar.y
@@ -227,7 +233,7 @@ export function lowerXYChartScene(
       line.points.forEach((point, pointIndex) => {
         const pointId = `point:line-${line.seriesIndex}:${point.label ?? pointIndex}`
         const dataAttrs = ` data-value="${point.value}"${point.label ? ` data-label="${escapeXml(point.label)}"` : ''}`
-        const tipText = formatTipValue(point.value)
+        const tipText = formatBarValue(point.value)
         const tipTitle = point.label ? `${point.label}: ${tipText}` : tipText
         // The visible dot is a semantic point mark; the enlarged hit circle
         // and the tooltip block are interaction chrome and stay raw.
@@ -266,28 +272,32 @@ export function lowerXYChartScene(
     }
   }
 
-  if (chart.config.showDataLabel) {
-    const labelSeriesCount = new Map<number, number>()
-    for (const label of buildBarDataLabels(chart.bars, chart.horizontal ?? false)) {
-      const text = applyTextTransform(label.text, style.nodeTextTransform)
-      const catIndex = labelSeriesCount.get(label.bar.seriesIndex) ?? 0
-      labelSeriesCount.set(label.bar.seriesIndex, catIndex + 1)
-      parts.push(marks.text({
-        id: `label:bar:${label.bar.seriesIndex}:${label.bar.label ?? catIndex}`,
-        role: 'label',
-        text,
-        x: label.x,
-        y: label.y,
-        fontSize: label.fontSize,
-        anchor: label.anchor,
-        paint: { fill: chartColors.labelColor },
-        channels: { category: `bar-${label.bar.seriesIndex}`, value: normalized(label.bar.value) },
-      },
-        `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
-        `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
-        `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-data-label">${escapeXml(text)}</text>`,
-      ))
-    }
+  const labelSeriesCount = new Map<number, number>()
+  for (const label of chart.dataLabels) {
+    const text = applyTextTransform(label.text, style.nodeTextTransform)
+    const catIndex = labelSeriesCount.get(label.bar.seriesIndex) ?? 0
+    labelSeriesCount.set(label.bar.seriesIndex, catIndex + 1)
+    // Outside labels sit on the page, whose text contrast the palette contract
+    // certifies. Inside labels sit on the bar, so their ink is chosen against
+    // that bar's own fill.
+    const fill = chart.theme.dataLabelColor
+      ?? (label.placement === 'inside' ? inkOnFill(barFills.get(label.bar)) : undefined)
+      ?? chartColors.labelColor
+    parts.push(marks.text({
+      id: `label:bar:${label.bar.seriesIndex}:${label.bar.label ?? catIndex}`,
+      role: 'label',
+      text,
+      x: label.x,
+      y: label.y,
+      fontSize: label.fontSize,
+      anchor: label.anchor,
+      paint: { fill },
+      channels: { category: `bar-${label.bar.seriesIndex}`, value: normalized(label.bar.value) },
+    },
+      `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
+      `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
+      `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeXml(fill)}" class="xychart-data-label">${escapeXml(text)}</text>`,
+    ))
   }
 
   lowerAxisLabels(parts, chart.xAxis.ticks, chart.xAxis.config.labelFontSize, 'x', style, chartColors.xAxisLabelColor)
@@ -540,6 +550,38 @@ function resolveChartColors(
   }
 }
 
+/** Series colors by color index: the CSS value each `--xychart-color-N`
+ * carries, and the concrete color it resolves to. A small palette keeps
+ * `var(--accent)` in slot zero so consumers can retint it, unless the palette
+ * contract had to repair the accent (for example, an accent that vanishes
+ * against the background). */
+function resolveSeriesPalette(
+  chart: PositionedXYChart,
+  themeAccent: string | undefined,
+  bgColor: string | undefined,
+): { css: (index: number) => string; concrete: (index: number) => string } {
+  const accentHex = themeAccent ?? CHART_ACCENT_FALLBACK
+  const explicitPalette = chart.theme.plotColorPalette
+  const maxIndex = Math.max(0, ...chart.bars.map(bar => bar.colorIndex), ...chart.lines.map(line => line.colorIndex))
+  const derivedPalette = categoricalPalette(maxIndex + 1, { accent: accentHex, bg: bgColor })
+  const concrete = (index: number): string => explicitPalette && explicitPalette.length > 0
+    ? explicitPalette[index % explicitPalette.length]!
+    : derivedPalette[index]!
+  return {
+    concrete,
+    css: index => !(explicitPalette && explicitPalette.length > 0) && index === 0 && derivedPalette.length <= 6 && derivedPalette[0] === accentHex
+      ? `var(--accent, ${CHART_ACCENT_FALLBACK})`
+      : concrete(index),
+  }
+}
+
+/** Black or white, whichever reads better on a concrete fill; undefined when
+ * the fill cannot be resolved to sRGB. */
+function inkOnFill(fill: string | undefined): string | undefined {
+  const rgba = fill === undefined ? null : tryParseCssColor(fill)
+  return rgba && rgba[3] === 1 ? contrastTextColor(toHex(rgba[0], rgba[1], rgba[2])) : undefined
+}
+
 function chartStyles(
   chart: PositionedXYChart,
   interactive: boolean,
@@ -550,22 +592,14 @@ function chartStyles(
 ): { style: string; defs: string } {
   const renderStyle = resolveRenderStyle(options, XY_STYLE_DEFAULTS, styleFace)
   const cc = resolveChartColors(chart, renderStyle)
-  const accentHex = themeAccent ?? CHART_ACCENT_FALLBACK
-  const themeOverrides = chart.theme
   const colorIndices = new Set<number>()
   for (const bar of chart.bars) colorIndices.add(bar.colorIndex)
   for (const line of chart.lines) colorIndices.add(line.colorIndex)
 
   const colorVarDefs: string[] = []
-  const explicitPalette = themeOverrides.plotColorPalette
-  const derivedPalette = categoricalPalette(Math.max(0, ...colorIndices) + 1, { accent: accentHex, bg: bgColor })
+  const seriesPalette = resolveSeriesPalette(chart, themeAccent, bgColor)
   for (const index of [...colorIndices].sort((a, b) => a - b)) {
-    const value = explicitPalette && explicitPalette.length > 0
-      ? explicitPalette[index % explicitPalette.length]!
-      : (index === 0 && derivedPalette.length <= 6
-          ? `var(--accent, ${CHART_ACCENT_FALLBACK})`
-          : derivedPalette[index]!)
-    colorVarDefs.push(`    --xychart-color-${index}: ${value};`)
+    colorVarDefs.push(`    --xychart-color-${index}: ${seriesPalette.css(index)};`)
   }
 
   const seriesRules: string[] = []
@@ -599,7 +633,7 @@ function chartStyles(
   .xychart-x-axis-title { fill: ${cc.xAxisTitleColor}; }
   .xychart-y-axis-title { fill: ${cc.yAxisTitleColor}; }
   .xychart-title { fill: ${cc.titleColor}; }
-  .xychart-data-label { fill: ${cc.labelColor}; pointer-events: none; }${chart.legend.length > 0 ? `\n  .xychart-legend-label { fill: ${cc.legendTextColor}; }` : ''}${colorVarsBlock}
+  .xychart-data-label { pointer-events: none; }${chart.legend.length > 0 ? `\n  .xychart-legend-label { fill: ${cc.legendTextColor}; }` : ''}${colorVarsBlock}
 ${seriesRules.join('\n')}${tipRules}${extraThemeCss}
 </style>`
 
@@ -621,64 +655,6 @@ function polylinePath(points: Array<{ x: number; y: number }>): string {
     path += ` L${r(points[i]!.x)},${r(points[i]!.y)}`
   }
   return path
-}
-
-function buildBarDataLabels(
-  bars: PositionedBar[],
-  horizontal: boolean,
-): Array<{
-  bar: PositionedBar
-  x: number
-  y: number
-  text: string
-  anchor: 'middle' | 'end'
-  fontSize: number
-  dominantBaseline?: 'middle' | 'hanging'
-}> {
-  const visibleBars = bars.filter(bar => bar.width > 0 && bar.height > 0)
-  if (visibleBars.length === 0) return []
-
-  const texts = visibleBars.map(bar => formatTipValue(bar.value))
-  const candidates = visibleBars.map((bar, index) => {
-    const text = texts[index]!
-    if (horizontal) {
-      const widthFit = Math.max(0, (bar.width - 12) / Math.max(1, text.length * 0.62))
-      return Math.min(bar.height * 0.72, widthFit)
-    }
-    const widthFit = Math.max(0, (bar.width - 8) / Math.max(1, text.length * 0.62))
-    const heightFit = Math.max(0, bar.height - 10)
-    return Math.min(widthFit, heightFit)
-  })
-
-  const rawFontSize = Math.floor(Math.min(...candidates))
-  if (!Number.isFinite(rawFontSize) || rawFontSize < 8) return []
-  const fontSize = Math.min(16, rawFontSize)
-
-  return visibleBars.map((bar, index) => horizontal
-    ? {
-      bar,
-      x: bar.x + bar.width - 8,
-      y: bar.y + bar.height / 2,
-      text: texts[index]!,
-      anchor: 'end',
-      fontSize,
-      dominantBaseline: 'middle',
-    }
-    : {
-      bar,
-      x: bar.x + bar.width / 2,
-      y: bar.y + 8,
-      text: texts[index]!,
-      anchor: 'middle',
-      fontSize,
-      dominantBaseline: 'hanging',
-    })
-}
-
-
-function formatTipValue(value: number): string {
-  if (Number.isInteger(value)) return String(value)
-  return value.toFixed(Math.abs(value) < 10 ? 1 : 0)
 }
 
 /** Round to the same 2-decimal grid the crisp serializer uses, so semantic

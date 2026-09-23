@@ -43,6 +43,12 @@ Know which constraints apply before you author:
   emits 80 renders as if it carried 100, hiding the missing 20. Verification
   names the unaccounted amount (`FLOW_IMBALANCE`); balance the links or add an
   explicit remainder sink.
+- **Bar length is the value.** XY chart bars grow from zero, so an authored
+  `y-axis` range that excludes zero makes lengths lie; verification names the
+  baseline the bars start from (`BAR_RANGE_EXCLUDES_ZERO`). Many long category
+  names do not all fit under a vertical chart; verification lists the ones the
+  axis does not draw (`LABELS_HIDDEN`), and a horizontal chart lists them down
+  the side.
 - **Values have domains.** Journey scores are finite numbers 1–5, quadrant
   coordinates live in `[0, 1]`, pie values are positive, radar curves carry
   one value per axis. Out-of-domain input falls back to a lossless opaque body
@@ -107,7 +113,8 @@ Choosing well is checkable. After authoring or editing, run `verifyMermaid`
   worth a look; suppress them only when the geometry is intentional.
 - **Tier 3 — lint:** family-specific mistakes this page warns about include
   `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `UNREACHABLE_NODE`,
-  `DUPLICATE_EDGE`, and `LOW_CONTRAST` against the resolved background.
+  `DUPLICATE_EDGE`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`, and
+  `LOW_CONTRAST` against the resolved background.
 
 Two checks no lint sees: give the diagram a title or `accTitle` that states
 the reader's question, and read the ASCII render in a terminal once, because

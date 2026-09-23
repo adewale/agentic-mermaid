@@ -14,4 +14,5 @@ export const BROWSER_CONTRACT_FILES: readonly BrowserContractFile[] = Object.fre
   Object.freeze({ file: '../src/__tests__/editor-theme-switch.test.ts', browserOptIn: true }),
   Object.freeze({ file: '../src/__tests__/editor-style-switch.test.ts', browserOptIn: true }),
   Object.freeze({ file: '../src/__tests__/website-browser-a11y.test.ts', browserOptIn: true }),
+  Object.freeze({ file: '../src/__tests__/svg-style-isolation-browser.test.ts', browserOptIn: true }),
 ])

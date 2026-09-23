@@ -14,7 +14,11 @@ const descriptorData = Object.freeze({
     "section": "mindmap",
     "keys": [
       "padding",
-      "maxNodeWidth"
+      "maxNodeWidth",
+      "layoutAlgorithm"
+    ],
+    "noopKeys": [
+      "layoutAlgorithm"
     ]
   },
   "identity": {

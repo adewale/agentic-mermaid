@@ -35,6 +35,7 @@ import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { parseXYChart, renderXYChartText } from '../xychart/parser.ts'
+import { barBaselineValue } from '../xychart/axis-utils.ts'
 
 // ---- Number format ----------------------------------------------------------
 //
@@ -367,6 +368,21 @@ export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWar
         code: 'UNSUPPORTED_SYNTAX',
         syntax: 'xychart_axis_series_length_mismatch',
         message: `XY chart series ${s.id} has ${s.values.length} values for ${categoryCount} x-axis categories; Mermaid tolerates the mismatch by dropping or synthesizing positions. Make the lengths equal.`,
+      })
+    }
+  }
+  // Bars encode value as length from zero. An authored range that excludes
+  // zero clamps their common start to the axis end nearest zero, so lengths
+  // stop being proportional to values; the range is kept, and said so.
+  const range = body.yAxis?.range
+  if (range && body.series.some(s => s.kind === 'bar')) {
+    const baseline = barBaselineValue(range)
+    if (baseline !== 0) {
+      warnings.push({
+        code: 'BAR_RANGE_EXCLUDES_ZERO',
+        range: { min: range.min, max: range.max },
+        baseline,
+        message: `XY chart y-axis range ${range.min} --> ${range.max} excludes zero, so bars start at ${baseline} and their lengths are not proportional to their values. Include zero in the range (set_y_axis), or draw the series as a line.`,
       })
     }
   }

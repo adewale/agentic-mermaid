@@ -7,7 +7,10 @@
 // so the behavior can't silently regress.
 
 import { describe, test, expect } from 'bun:test'
+import fc from 'fast-check'
+import { contrastTextColor } from '../color-resolver.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { wcagContrastRatio } from '../shared/color-math.ts'
 
 function firstTextFill(svg: string): string | undefined {
   return svg.match(/<text[^>]*fill="([^"]+)"/)?.[1]
@@ -54,5 +57,27 @@ describe('#116 auto-contrast node text on custom fills', () => {
   test('rgb() fill drives contrast (Loop 12 M4 fix)', () => {
     const svg = renderMermaidSVG('flowchart TD\n A\n style A fill:rgb(10,10,10)')
     expect(firstTextFill(svg)).toBe('#FFFFFF')
+  })
+})
+
+// Auto ink is the better of black and white, which clears WCAG AA (4.5:1) on
+// every opaque fill. A brightness cut-off picked white on mid-tone fills such
+// as #3b82f6 (3.68:1) and #10b981 (2.54:1).
+describe('auto-contrast ink contract', () => {
+  const hexArb = fc.integer({ min: 0, max: 0xffffff }).map(value => `#${value.toString(16).padStart(6, '0')}`)
+
+  test('picks the higher-contrast ink, at least 4.5:1, for any opaque fill', () => {
+    fc.assert(fc.property(hexArb, fill => {
+      const ink = contrastTextColor(fill)!
+      const other = ink === '#000000' ? '#FFFFFF' : '#000000'
+      expect(wcagContrastRatio(ink, fill)!).toBeGreaterThanOrEqual(Math.max(4.5, wcagContrastRatio(other, fill)!))
+    }), { numRuns: 2000 })
+  })
+
+  test('node text on a custom fill clears WCAG AA end to end', () => {
+    fc.assert(fc.property(hexArb, fill => {
+      const svg = renderMermaidSVG(`flowchart TD\n  A\n  style A fill:${fill}`)
+      expect(wcagContrastRatio(firstTextFill(svg)!, fill)!).toBeGreaterThanOrEqual(4.5)
+    }), { numRuns: 60 })
   })
 })
