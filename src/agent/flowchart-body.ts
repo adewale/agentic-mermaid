@@ -714,7 +714,9 @@ function quoteLabel(label: string): string {
 
 function escapeLabel(label: string): string {
   const normalized = label.replace(/\r?\n/g, '<br>')
-  if (/[\[\]{}()|]/.test(normalized)) return quoteLabel(label)
+  // Bare Mermaid labels trim boundary whitespace when parsed. Quote them so
+  // typed mutations preserve the exact semantic label across serialization.
+  if (normalized !== normalized.trim() || /[\[\]{}()|]/.test(normalized)) return quoteLabel(label)
   return normalized
 }
 
