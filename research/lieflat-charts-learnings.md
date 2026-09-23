@@ -4,18 +4,16 @@
 Charts commit
 [`4eef5ce`](https://github.com/larashero3-dotcom/lieflat-charts/commit/4eef5ce00d0907a03b8eff42578b5a04942915e9)
 (2026-08-19). Every measurement of this repository was taken at `c349dac` and
-can be reproduced from the sources under [Reproduction](#reproduction). This is
-analysis, not backlog: any follow-up promoted from here gets its own `TODO.md`
-entry first.
+can be reproduced from the sources under [Reproduction](#reproduction); the
+production website was measured the same day. This is analysis, not backlog:
+any follow-up promoted from here gets its own `TODO.md` entry first.
 
 The [Flint note](./flint-chart-deep-dive.md) supplied the method: name a
 bounded perceptual failure, measure it, and return the evidence. Lieflat
-supplies a practitioner's list of chart-honesty rules. Applying those rules to
-this renderer found five places where the rendered chart misstates or hides
-what the source says, while `verify` reports `ok`. Four of them are concrete
-fixtures for the Flint note's lesson 4, "test semantic truth after presentation
-transforms"; the fifth is a readability failure of the kind lesson 36 in
-[lessons learned](../docs/project/lessons-learned.md) describes.
+supplies a practitioner's list of chart-honesty rules and treats a page of
+charts, not a single chart, as the unit it checks. Applying both to this
+renderer found ten issues, listed under [Issues](#issues). In every case
+`verify` reports `ok`.
 
 ## What Lieflat Charts is
 
@@ -65,7 +63,8 @@ transforms"; the fifth is a readability failure of the kind lesson 36 in
 3. **Text has a size floor; it is not shrunk to fit.** Lieflat's floor is
    6.5 px (5.5 px on full-width charts), and anything smaller moves to hover.
    Here xychart data labels stop at 8 px, and PNG output reports
-   `BELOW_READABLE_SIZE` (lesson 36).
+   `BELOW_READABLE_SIZE` (lesson 36 in
+   [lessons learned](../docs/project/lessons-learned.md)).
 4. **Emphasis leaves geometry alone, and there is one focus.** Lieflat's wire
    preset gives the accent to exactly one element. `highlightSlice` emphasizes
    a wedge without moving it, and the Brand `accent-area` constraint bounds
@@ -74,15 +73,89 @@ transforms"; the fifth is a readability failure of the kind lesson 36 in
    a single fill, the channel Lieflat reserves for ordered data.
 6. **Text drawn on a data mark needs its own contrast.** Every Lieflat preset
    carries a `HALO` color for `paint-order` halos. Pie picks label ink per wedge
-   with `contrastTextColor`, and sankey's `outlined` labels use a halo.
-   Finding 4 below is where this is not applied.
+   with `contrastTextColor`, and sankey's `outlined` labels use a halo. Issue 5
+   below is where this is not applied.
 
-## What applying its rules found
+## Issues
 
-Each finding gives Lieflat's rule, what renders here, why `verify` stays
-silent, and the smallest fix that reuses code already in this repository.
+Severity follows the spirit of the rubric in
+[#248](https://github.com/adewale/agentic-mermaid/issues/248): **high** means
+the rendered output contradicts the data or corrupts another diagram;
+**medium** means the chart loses identity or readability, or an authored
+option silently does nothing; **low** means a bounded defect or a missing lint.
 
-### 1. Peer colors: six or fewer is neither ordinal nor categorical
+| # | Severity | Issue | Where |
+|---:|---|---|---|
+| 1 | High | Signed bars grow from the axis floor in SVG, while ASCII grows them from zero | xychart SVG and PNG |
+| 2 | High | Inline SVG styles repaint other diagrams on the same page, including the production Examples page | SVG embedding, all families |
+| 3 | Medium | Peer colors collide for two to six series in every built-in style | xychart, radar, pie, sankey, gitgraph, mindmap |
+| 4 | Medium | One short bar removes every data label | xychart |
+| 5 | Medium | Data labels inside bars miss WCAG 4.5:1 in every built-in style | xychart |
+| 6 | Medium | Category axis labels are blanked to avoid overlap, without a warning | xychart |
+| 7 | Medium | The automatic range for bar charts excludes zero | xychart SVG and ASCII |
+| 8 | Low | An authored bar range that excludes zero passes `verify` silently | xychart |
+| 9 | Low | Untitled charts clip their outermost value-axis label | xychart |
+| 10 | Low | `INEFFECTIVE_CONFIG` misdescribes official xychart keys | xychart config |
+
+### 1. Signed bars grow from the axis floor in SVG
+
+**Lieflat's rule.** Bars never break the axis, because a bar's contract is
+length proportional to value. Its diverging-bar template draws an explicit
+zero rule and grows signed bars away from it.
+
+**What renders.** `layoutVerticalBars` and `layoutHorizontalBars` receive
+`yRange.min` as their baseline ([`xychart/layout.ts`](../src/xychart/layout.ts)
+lines 158 and 248). For bars −10, 20, −5, 25, every SVG bar grows upward (or
+rightward) from the axis floor, so −10 renders shorter than −5: 36 px against
+87 px vertically, 54 px against 131 px horizontally. The ASCII projection of
+the same source hangs negatives from zero (`Math.max(0, yRange.min)` in
+[`ascii/xychart.ts`](../src/ascii/xychart.ts) lines 261 and 455), so the two
+outputs disagree about the sign of the data. That breaks lesson 8, "final
+pixels and public projections must agree". `describe` reports the negative
+values, and `verify` returns `ok`.
+
+Upstream `mermaid@11.16.0` also draws bars from the plot floor
+([`barPlot.ts` line 52](https://github.com/mermaid-js/mermaid/blob/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc/packages/mermaid/src/diagrams/xychart/chartBuilder/components/plot/barPlot.ts#L52)),
+so the SVG behavior is inherited parity; the ASCII projection already
+diverges from it.
+
+**Smallest fix.** Give both projections one baseline rule: zero, clamped into
+the axis range. The SVG layout helpers already accept any baseline and grow
+bars in either direction; ASCII's `Math.max(0, min)` also needs the upper
+clamp for ranges that are entirely negative.
+
+### 2. Inline SVG styles repaint other diagrams on the same page
+
+**What renders.** Every rendered SVG carries unscoped `<style>` rules: family
+classes such as `.xychart-color-0 { … }` and a bare `svg { … }` block of
+derived variables. When two diagrams share a document, the later rule wins
+for both. `idPrefix`, the documented option for
+[multi-diagram pages](../docs/svg-semantic-contract.md), namespaces ids and
+references only. A minimal case: a default xychart and a `dracula` xychart on
+one page; the first chart's line computes to Dracula's `#bd93f9` although its
+own style says `#3b82f6`.
+
+**On the production site.** `agentic-mermaid.dev/examples/` inlines 15
+default-theme diagrams, and its loader inserts the style-and-palette gallery
+into the same document (`content.replaceChildren`). Reconstructed from the
+production page and fragment bytes, loading the gallery repaints 8 of the 15
+main-page diagrams: the timeline, journey, architecture, xychart, pie,
+quadrant, gantt, and radar examples. The xychart's grid lines turn from
+`rgb(225, 225, 225)` to `rgb(39, 39, 42)`, and the architecture example's group
+frame turns from near-white to dark blue, `rgb(28, 74, 120)`. The gallery
+diagrams themselves render as they would alone (0 of 785 elements differ),
+because each family appears only once among them.
+
+Upstream `mermaid@11.16.0` namespaces every rule under the SVG's id with
+stylis (`compileCSS` in
+[`mermaidAPI.ts`](https://github.com/mermaid-js/mermaid/blob/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc/packages/mermaid/src/mermaidAPI.ts#L219)).
+Lieflat's validator makes the same point from the other side: it treats the
+page as the unit and rejects duplicate ids across the charts on it.
+
+**Smallest fix.** Scope emitted rules to the root element's id, which every
+render already has, including the `svg` variable block.
+
+### 3. Peer colors collide for two to six series
 
 **Lieflat's rule.** Choose a palette's logic from the data's level of
 measurement: a lightness ramp for ordered values, distinct hues for unordered
@@ -96,12 +169,8 @@ accent, followed by HSL tiers that alternate darker and lighter with a small
 hue drift. The ladder is not monotone (for the default accent, OKLCH lightness
 runs 0.62, 0.47, 0.62, 0.41, 0.70, 0.45), so it cannot express order. It also
 stays inside one hue band (224° to 283° for the default accent), so it
-separates unordered peers poorly. Xychart series, pie slices, radar curves,
-sankey nodes, gitgraph and mindmap branches, and Journey sections all take
-their peer colors from it. Journey requests `Math.max(6, sectionCount)`
-colors, so every small journey draws from the six-color row. Rendered xychart
-series colors (pie slices are identical) across the default style and the 20
-built-in palettes:
+separates unordered peers poorly. Rendered xychart series colors (pie slices
+are identical) across the default style and the 20 built-in palettes:
 
 | Series | Styles with a pair below ΔE_OK 0.06 | Below 0.10 | Worst pair |
 |---:|---:|---:|---|
@@ -118,13 +187,16 @@ The 0.06 column is the "distinguishable" floor in
 floor the path for seven or more colors guarantees. In every built-in style, a
 six-series chart is harder to read than a seven-series one. On the default
 style, a three-series line chart paints North `#3b82f6` and West `#5f79f2` at
-1.04:1 (ΔE_OK 0.037) on 3 px strokes, and the legend swatch is the only link
-from a series name to its line. On `tokyo-night-light`, a two-series chart
-paints `#34548a` and `#285a8a` at 1.05:1 (ΔE_OK 0.020). Lieflat's `INK_BOOST`
-rule, which thickens colored hairlines 1.8×, exists because thin colored
-strokes are harder to tell apart than filled areas. Pie is less exposed than
-series charts: a 1.5 px white stroke separates wedges, and both the legend
-rows and the slice labels carry percentages.
+1.04:1 (ΔE_OK 0.037) on 3 px strokes; on `tokyo-night-light`, a two-series
+chart paints `#34548a` and `#285a8a` at 1.05:1 (ΔE_OK 0.020).
+
+Exposure differs by family. For xychart series and radar curves, the legend
+swatch is the only link from a name to its marks. Pie slices also carry
+percentages, and sankey nodes, gitgraph branches, and mindmap branches carry
+text labels, so for them color is a secondary cue. All six render the same
+colliding default pair. Lieflat's `INK_BOOST` rule, which thickens colored
+hairlines 1.8×, exists because thin colored strokes are harder to tell apart
+than filled areas.
 
 **Why the tests pass.** The separation floors are asserted only at seven
 colors and above (7, 8, 12, 15, and 24, in `pie-elevation.test.ts` and
@@ -141,62 +213,55 @@ and both change goldens for charts with two to six series:
 - run the existing `enforceMinDeltaE` repair over the ladder, which keeps the
   ladder's look wherever it already separates; or
 - adopt Lieflat's split: unordered peers get distinct hues at every count, and
-  a monotone single-hue ramp is kept for ordered encodings. The repository
-  already has a precedent. Journey's actor dots use a golden-angle hue palette
-  at constant lightness for up to six actors (`legacyActorPalette` in
-  [`journey/renderer.ts`](../src/journey/renderer.ts)). At five colors it
-  measures a minimum ΔE_OK of 0.101, where the ladder measures 0.037.
+  a monotone single-hue ramp is kept for ordered encodings. Journey's actor
+  dots are the precedent: a golden-angle hue palette at constant lightness for
+  up to six actors (`legacyActorPalette` in
+  [`journey/renderer.ts`](../src/journey/renderer.ts)), which measures a
+  minimum ΔE_OK of 0.101 at five colors where the ladder measures 0.037.
 
 Choosing between them is an aesthetic call for the owner.
 
-### 2. Bars are measured from the axis floor, not zero
+### 4. One short bar removes every data label
 
-**Lieflat's rule.** Bars never break the axis, because a bar's contract is
-length proportional to value. Its diverging-bar template draws an explicit
-zero rule and grows signed bars away from it.
+**Lieflat's rule.** Information that cannot fit at the size floor moves to
+hover instead of being shrunk or dropped.
 
-**What renders.** `layoutVerticalBars` and `layoutHorizontalBars` receive
-`yRange.min` as their baseline ([`xychart/layout.ts`](../src/xychart/layout.ts)
-lines 158 and 248). When the author gives no range, the parser pads the data
-minimum by 10% of the span and floors it to zero only when the minimum lies
-within half a span of zero ([`xychart/parser.ts`](../src/xychart/parser.ts)
-lines 132–143). In every case below, `verify` returns `ok` with no warnings.
+**What renders.** `buildBarDataLabels`
+([`xychart/renderer.ts`](../src/xychart/renderer.ts) from line 626) gives every
+label one shared font size, the smallest size that fits across all bars, and
+draws nothing if that falls below 8 px (line 654). With `showDataLabel: true`,
+bars 100, 90, 40 get three labels, but bars 100, 90, 2 get none: the one short
+bar removes the other two. Twenty-four daily bars with five-digit values also
+render zero labels. The authored option silently does nothing, and `verify`
+reports nothing.
 
-- Auto range, bars 52, 58, 61, 66: heights 36, 189, 266, 393 px. Enterprise
-  reads as 10.9 times Basic, while the data ratio is 1.27, a Tufte lie factor
-  of about 37.
-- Authored `y-axis 45 --> 75`, bars 50, 60, 70: heights 72, 215, 358 px, a lie
-  factor of about 10.
-- Signed bars −10, 20, −5, 25: every SVG bar grows upward from the floor, and
-  −10 renders shorter than −5 (36 px against 87 px with the auto range; 86 px
-  against 129 px with an authored `-20 --> 30`). The ASCII projection of the
-  same source hangs negatives from zero (`Math.max(0, yRange.min)` in
-  [`ascii/xychart.ts`](../src/ascii/xychart.ts) lines 261 and 455), so the two
-  outputs disagree about the sign of the data. That breaks lesson 8 in
-  [lessons learned](../docs/project/lessons-learned.md), "final pixels and
-  public projections must agree".
+**Smallest fix.** Label the bars that can hold a label, or place labels above
+the bars as upstream's `showDataLabelOutsideBar` does, and report suppressed
+labels; `INEFFECTIVE_CONFIG` already exists for configuration with no effect.
 
-Upstream `mermaid@11.16.0` draws bars from the plot floor
-([`barPlot.ts` line 52](https://github.com/mermaid-js/mermaid/blob/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc/packages/mermaid/src/diagrams/xychart/chartBuilder/components/plot/barPlot.ts#L52))
-and auto-ranges to exactly the data minimum and maximum
-([`xychartDb.ts` line 120](https://github.com/mermaid-js/mermaid/blob/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc/packages/mermaid/src/diagrams/xychart/xychartDb.ts#L120)),
-so upstream's smallest bar has zero height. The floor baseline is inherited
-parity; the padding heuristic is already our own divergence. The convention
-in chart grammars runs the other way: Vega-Lite's
-[`zero`](https://vega.github.io/vega-lite/docs/scale.html) is "true for x and y
-channels if the quantitative field is not binned and no custom domain is
-provided."
+### 5. Data labels inside bars miss WCAG 4.5:1
 
-**Smallest fix.** Give both projections one baseline rule: zero, clamped into
-the axis range. The SVG layout helpers already accept any baseline and grow
-bars in either direction; ASCII's `Math.max(0, min)` also needs the upper
-clamp for ranges that are entirely negative. For charts with bar series,
-include zero in the auto range. When the author wrote the range (the parser
-already records `rangeAuthored`) and it excludes zero, keep it and add a Tier 3
-lint that reports the implied lie factor. Charts with only line series keep
-their current range.
+**Lieflat's rule.** Labels drawn over data get a `paint-order` halo in the
+page color (every preset defines `HALO`), so they read on any fill.
 
-### 3. Category names are thinned like numeric ticks
+**What renders.** Data labels sit inside the top of each bar in the global
+text color (`var(--_text)`) rather than a color chosen against that bar. In a
+three-series chart, every one of the 21 styles has a series whose labels fall
+below WCAG 4.5:1: 2.17:1 on the default style, 1.19:1 on `tokyo-night`, and
+1.03:1 on `solarized-light`. The
+[palette contract](../docs/svg-semantic-contract.md) certifies text roles
+against the page background, but a data label's backdrop is its bar. The
+opt-in Brand `contrast` constraint returns "unmeasurable" on this chart rather
+than a ratio. Upstream's own remedies, `showDataLabelOutsideBar` and the theme
+variable `dataLabelColor`, are among the xychart settings #248 lists as
+byte-ineffective, so an author cannot fix it either.
+
+**Smallest fix.** Reuse pie's per-wedge `contrastTextColor(fill)`
+([`pie/renderer.ts`](../src/pie/renderer.ts) line 217), or the `label.halo`
+the Scene IR already carries ([`scene/ir.ts`](../src/scene/ir.ts) line 256),
+which only sankey's `outlined` labels use today.
+
+### 6. Category axis labels are blanked without a warning
 
 **Lieflat's rule.** A category label is an identity. Cramped category axes
 are reserved for names of about four characters or short abbreviations; long
@@ -210,82 +275,74 @@ Developer Experience, Identity and Access, Data Engineering, and Growth
 Experiments have bars but no names. `verify.layout` and `describe` both list
 all eight, so an agent that verifies and describes the chart cannot see the
 loss, which is the kind of invisible failure lesson 36 describes. The same
-source rendered `horizontal` shows all eight names.
+source rendered `horizontal` shows all eight names. Upstream's `labelRotation`
+is also byte-ineffective here (#248).
 
 **Smallest fix.** Keep thinning on numeric axes, where ticks can be
 interpolated. On a categorical axis, report it: a Tier 3 warning that names
 the blank categories and the existing typed remedy,
 `set_orientation {horizontal: true}`.
 
-### 4. Data labels are all or nothing, and ignore the bar they sit on
+### 7. The automatic range for bar charts excludes zero
 
-**Lieflat's rule.** Labels drawn over data get a `paint-order` halo in the
-page color (every preset defines `HALO`), so they read on any fill.
-Information that cannot fit at the size floor moves to hover instead of being
-shrunk.
+**What renders.** When the author gives no range, the parser pads the data
+minimum by 10% of the span and floors it to zero only when the minimum lies
+within half a span of zero ([`xychart/parser.ts`](../src/xychart/parser.ts)
+lines 132–143). For bars 52, 58, 61, and 66, heights are 36, 189, 266, and
+393 px: Enterprise reads as 10.9 times Basic, while the data ratio is 1.27, a
+Tufte lie factor of about 37. SVG and ASCII agree here.
 
-**What renders.** `buildBarDataLabels`
-([`xychart/renderer.ts`](../src/xychart/renderer.ts) from line 626) has two
-problems.
+Upstream auto-ranges to exactly the data minimum and maximum
+([`xychartDb.ts` line 120](https://github.com/mermaid-js/mermaid/blob/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc/packages/mermaid/src/diagrams/xychart/xychartDb.ts#L120)),
+so its smallest bar has zero height; the padding heuristic is already our own
+divergence. Chart grammars go the other way: Vega-Lite's
+[`zero`](https://vega.github.io/vega-lite/docs/scale.html) is "true for x and y
+channels if the quantitative field is not binned and no custom domain is
+provided."
 
-- Every label shares one font size: the smallest size that fits across all
-  bars. If that falls below 8 px, no labels are drawn at all. With 24 daily
-  bars of five-digit values and `showDataLabel: true`, the chart renders zero
-  labels, and `verify` says nothing.
-- Labels sit inside the top of each bar in the global text color
-  (`var(--_text)`) rather than a color chosen against that bar. In all 21
-  styles, some series' labels fall below WCAG 4.5:1: 2.17:1 on the default
-  style, 1.19:1 on `tokyo-night`, and 1.03:1 on `solarized-light`. The
-  [palette contract](../docs/svg-semantic-contract.md) certifies text roles
-  against the page background, but a data label's backdrop is its bar. The
-  opt-in Brand `contrast` constraint returns "unmeasurable" on this chart
-  rather than a ratio.
+**Smallest fix.** Include zero in the automatic range for charts with bar
+series. Charts with only line series keep their current range.
 
-Pie already solves the second problem with a per-wedge
-`contrastTextColor(fill)` ([`pie/renderer.ts`](../src/pie/renderer.ts) line
-217), and the Scene IR already carries `label.halo`
-([`scene/ir.ts`](../src/scene/ir.ts) line 256), which only sankey's `outlined`
-labels use today.
+### 8. An authored bar range that excludes zero passes silently
 
-**Smallest fix.** Reuse `contrastTextColor`, or the halo, for bar labels. When
-labels are dropped, say so; `INEFFECTIVE_CONFIG` already exists for
-configuration that has no effect.
+An authored `y-axis 45 --> 75` with bars 50, 60, and 70 renders heights 72,
+215, and 358 px, a lie factor of about 10. The author asked for that range,
+so it should render as written, but `verify` could say what it costs. The
+parser already records `rangeAuthored`, so a Tier 3 lint can report the
+implied lie factor.
 
-### 5. Published percentages are silently renormalized
+### 9. Untitled charts clip their outermost value-axis label
 
-**Lieflat's rule.** When rounded shares do not sum to 100, say so ("rounding
-ate the other two") and never invent the missing units. Its worked example is
-a real survey: 49, 27.4, 13.9, 5, and 3.2.
+Without a title, the top y-axis label "100" sits at `y="0"` with
+`dominant-baseline="middle"`; its bounding box spans y −9 to 7, so 9 of its
+16 px fall outside the viewBox. A horizontal chart's last value label spans x
+689.9 to 710.1 on a 700-wide viewBox. `verify` returns `ok`: `OFF_CANVAS`
+catches a bar below the axis minimum but not an axis label.
 
-**What renders.** That exact input produces a 50% slice and the legend row
-"Augmented [49] (49.7%)", because every share is divided by 98.5. The chart
-states numbers that are not in the source, and `verify` reports only that the
-title is long.
+### 10. `INEFFECTIVE_CONFIG` misdescribes official xychart keys
 
-**Smallest fix.** A Tier 3 lint for a pie whose values all lie between 0 and
-100 and whose total is near 100 but not 100. It should name the total and the
-remedies: an explicit remainder slice, or a note in `accDescr`. The tolerance
-needs calibrating against the corpus so that ordinary counts do not trigger
-it.
+The pinned upstream manifest lists `xyChart.showDataLabelOutsideBar` and
+`xyChart.xAxis.labelRotation`. The warning calls the first "unknown" and
+tells the author to "check the spelling", and says the second "must be a
+documented axis-config field". The theme variable `dataLabelColor` gets no
+warning at all, and the SVG is byte-identical with or without all three.
+Wiring these keys is already part of #248's config-effect matrix. The wording
+is a separate defect, because it sends an agent to fix a spelling that is
+already correct.
 
-### Incidental findings
+## Reconsidered and dropped
 
-Building a multi-chart evidence page for this note, the same shape as a
-Lieflat deliverable, surfaced two defects outside the rules above.
-
-- **Inline SVG styles leak between diagrams.** Each SVG's `<style>` rules are
-  unscoped (for example `.xychart-color-0 { … }` and a bare `svg { … }`). With
-  a default chart and a `dracula` chart inlined on one page, the first chart's
-  line computes to Dracula's `#bd93f9` in Chromium although its own style says
-  `#3b82f6`. `idPrefix`, the documented option for
-  [multi-diagram pages](../docs/svg-semantic-contract.md), namespaces ids and
-  references but not these rules. Lieflat's validator treats the page as the
-  unit and rejects duplicate ids across the charts on it; `idPrefix` covers
-  ids for the same reason but not styles.
-- **An untitled xychart clips its top tick label.** The label sits at `y="0"`
-  with `dominant-baseline="middle"`, so the upper half of its glyphs falls
-  outside the viewBox, and `verify` returns `ok`. `OFF_CANVAS` catches a bar
-  below the axis minimum but not an axis tick label.
+- **Pie renormalization of published percentages.** Survey shares of 49,
+  27.4, 13.9, 5, and 3.2 render a 50% slice, because each share is divided by
+  98.5. That is what a pie means: its slices are shares of the plotted total,
+  and `showData` already prints each raw value beside its share. Lieflat's
+  rule ("rounding ate the other two") is authoring advice. At most it belongs
+  in [choosing a diagram](../docs/choosing-a-diagram.md) as one line (add an
+  explicit remainder slice), not as a heuristic lint that would fire on
+  ordinary counts.
+- **Journey sections in issue 3.** Journey's section colors come from the same
+  function, but they render as pale tints behind named sections, so color is
+  not what identifies a section.
 
 ## Worth adopting
 
@@ -295,12 +352,12 @@ Lieflat deliverable, surfaced two defects outside the rules above.
    `surface`, and `border`, and every peer color is derived from `accent` and a
    count. The derivation therefore has to guess the data's level of
    measurement, and at six or fewer it serves neither ordered nor unordered
-   data well (finding 1). Several built-in palettes come from editor themes
-   that publish curated categorical colors (Dracula, Nord, Catppuccin,
-   Solarized, Tokyo Night). An optional authored categorical role would use
-   those designed colors where they exist and keep the derivation as the
-   fallback. This is a candidate only; it needs its own `TODO.md` entry and a
-   pass through the
+   data well (issue 3). Several built-in palettes come from editor themes that
+   publish curated categorical colors (Dracula, Nord, Catppuccin, Solarized,
+   Tokyo Night). An optional authored categorical role would use those
+   designed colors where they exist and keep the derivation as the fallback.
+   This is a candidate only; it needs its own `TODO.md` entry and a pass
+   through the
    [style–palette compatibility](../docs/design/style-palette-compatibility.md)
    audit.
 2. **Assert a contract over its whole domain.** Lieflat's palm preset
@@ -309,14 +366,19 @@ Lieflat deliverable, surfaced two defects outside the rules above.
    six or fewer, whose byte pins then protected the collisions. A byte pin is
    a regression guard, not evidence of quality. A perceptual contract should
    enumerate every count and every built-in style it claims to cover.
-3. **Use real data to find semantic failures.** Lieflat's
+3. **Check the page, not only the diagram.** Lieflat's deliverable is a page
+   of charts, and its validator checks the page. This repository verifies one
+   diagram at a time, which is how issue 2 reached production. A test that
+   renders two diagrams of one family in different styles on one page, and
+   compares each against its isolated render, would have caught it.
+4. **Use real data to find semantic failures.** Lieflat's
    `examples/lenny-2026-survey.html` works through a real survey and
    exercises its honesty rules: the rounding loss is stated, missing
    comparison data is deleted rather than invented, and decorative randomness
-   is turned off where shares must be exact. One published input found
-   finding 5, and one signed series found finding 2. The Flint note already
+   is turned off where shares must be exact. A signed series found issue 1,
+   and a series with one small value found issue 4. The Flint note already
    calls for cross-style and cross-output fixtures that assert direction,
-   ordering, emphasis, denominators, and units. The inputs in
+   ordering, emphasis, denominators, and units; the sources under
    [Reproduction](#reproduction) are the first such fixtures, each failing
    today.
 
@@ -359,9 +421,31 @@ Each source below was checked at `c349dac` with `bun run bin/am.ts verify
 <file> --json` and `bun run bin/am.ts render <file> --format svg` (or
 `--format ascii`). Color and contrast figures use the repository's own
 `deltaEOK` and `wcagContrastRatio` on rendered SVG colors, across the default
-style and every entry in `BUILTIN_PALETTE_DEFINITIONS`.
+style and every entry in `BUILTIN_PALETTE_DEFINITIONS`. Page-level figures
+compare each element's computed fill and stroke in Chromium, in the page and
+alone.
 
-Finding 1, with `--style tokyo-night-light`; three or more `line` series show
+Issue 1; add `horizontal` to the header for the horizontal case. Issue 7:
+replace the series with `bar [52, 58, 61, 66]`.
+
+```text
+xychart-beta
+    x-axis [North, South, East, West]
+    bar [-10, 20, -5, 25]
+```
+
+Issue 2: render this source twice, once with the default style and once with
+`--style dracula`, inline both SVGs in one HTML page, and read the first
+line's computed stroke.
+
+```text
+xychart-beta
+    x-axis [A, B, C]
+    y-axis 0 --> 100
+    line "S" [10, 50, 90]
+```
+
+Issue 3, with `--style tokyo-night-light`; three or more `line` series show
 the default-style collision:
 
 ```text
@@ -372,25 +456,22 @@ xychart-beta
     line "Declined" [42, 39, 45, 34, 30]
 ```
 
-Finding 2; replace the series with `bar [52, 58, 61, 66]` for the truncated
-auto range:
+Issue 4; change `2` to `40` and all three labels return:
 
 ```text
+---
+config:
+  xyChart:
+    showDataLabel: true
+---
 xychart-beta
-    x-axis [North, South, East, West]
-    bar [-10, 20, -5, 25]
+    x-axis [A, B, C]
+    y-axis 0 --> 100
+    bar [100, 90, 2]
 ```
 
-Finding 3; add `horizontal` to the header to see every name:
-
-```text
-xychart-beta
-    x-axis ["Platform Infrastructure", "Developer Experience", "Payments and Billing", "Identity and Access", "Mobile Applications", "Data Engineering", "Customer Support Tools", "Growth Experiments"]
-    y-axis "Tickets" 0 --> 120
-    bar [110, 95, 80, 72, 60, 44, 30, 12]
-```
-
-Finding 4, with `--style tokyo-night`:
+Issue 5, with `--style tokyo-night`; issue 9 is the same chart without a
+title:
 
 ```text
 ---
@@ -406,15 +487,13 @@ xychart-beta
     bar "West" [50, 60, 90]
 ```
 
-Finding 5:
+Issue 6; add `horizontal` to the header to see every name:
 
 ```text
-pie showData title How engineers describe their AI identity (survey, %)
-    "Augmented" : 49
-    "Skeptical" : 27.4
-    "Curious" : 13.9
-    "Resistant" : 5
-    "Dependent" : 3.2
+xychart-beta
+    x-axis ["Platform Infrastructure", "Developer Experience", "Payments and Billing", "Identity and Access", "Mobile Applications", "Data Engineering", "Customer Support Tools", "Growth Experiments"]
+    y-axis "Tickets" 0 --> 120
+    bar [110, 95, 80, 72, 60, 44, 30, 12]
 ```
 
 ## Sources
@@ -448,8 +527,15 @@ Reviewed at Lieflat Charts commit
 Upstream Mermaid at `mermaid@11.16.0`
 ([`f3dea58`](https://github.com/mermaid-js/mermaid/tree/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc)),
 the version pinned in `docs/project/upstream-mermaid-manifest.json`:
-`packages/mermaid/src/diagrams/xychart/chartBuilder/components/plot/barPlot.ts`
-and `packages/mermaid/src/diagrams/xychart/xychartDb.ts`.
+`packages/mermaid/src/diagrams/xychart/chartBuilder/components/plot/barPlot.ts`,
+`packages/mermaid/src/diagrams/xychart/xychartDb.ts`, and
+`packages/mermaid/src/mermaidAPI.ts`.
+
+This repository's issue
+[#248](https://github.com/adewale/agentic-mermaid/issues/248), for the
+fidelity rubric and the byte-ineffective xychart settings; and the production
+page `https://agentic-mermaid.dev/examples/` with its style-and-palette
+fragment, fetched 2026-09-23.
 
 Vega-Lite [scale documentation](https://vega.github.io/vega-lite/docs/scale.html),
 property `zero`.
