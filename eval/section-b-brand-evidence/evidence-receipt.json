@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 284,
-    "treeSha256": "7865fca636e7688baaae49906f91ed42183cc4b4c756d9da104ddf2ebc431308"
+    "count": 280,
+    "treeSha256": "3c88b24b487dfdf5fdcd03265e0e582d3b23408a6004ec92c6f4247c95e1d4a6"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,18 +62,18 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "ccd896660020fa3a931073b8c018a7c95410e8645b96e2b2b65b29cbd285177d",
-      "pngSha256": "f4e502ff4e2f96fe78585fd54fdb990b63636f34378a3f3e020915068cb2d5a0"
+      "svgSha256": "1325978955dc77ce0b673042605e4403c887fa46da8e0d83124cdd7d5ac56483",
+      "pngSha256": "b9f21d51e40040a4680d4dfbb29186c6831089ec2b667053398d648ce705ed14"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "23d898115e2630de62d80e1c81bdd40d235ae9ceb161166b79eac9f68602a9db",
-      "pngSha256": "8440e7c48e6394dd4d54fa71ddfe2b60ac5b575a90f644203092dcf0dc77e33f"
+      "svgSha256": "6fd84e2423d3c592e8ccd9e194c65ae0e746661ec6f656e56fccf807a7c95f80",
+      "pngSha256": "02003fca242f8f36d2fb7fe0ecb79c914feeb515123a3f379ca5b6ddad89e3f6"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "7d9bd47f2ffd73d1b9b851c9e9a3cae62922a39f8b05c58cb49755028195fb52",
-      "pngSha256": "02852911343985850369888a43d2054e40473e9e10651225873aa7d6c189c2ab"
+      "svgSha256": "8f640f7c0c3afcca47310be9cdd279cccfb4847e675b834f0ed65ae2bb69c24b",
+      "pngSha256": "386b5c2c2af51834939b6814edbd0337d48c79ed81a61158de58a2dd4942fae9"
     }
   },
   "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
@@ -87,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "2ab154227c65f7a418eb4133c2589d43251a904cbb8f47ecf5667ac9026e1d3b",
-    "reviewedAt": "2026-09-27",
-    "reviewer": "Codex coding agent, PR #306 Class member review",
+    "artifactSha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec",
+    "reviewedAt": "2026-09-23",
+    "reviewer": "Claude Code agent, during the Lieflat chart-honesty fixes",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "2ab154227c65f7a418eb4133c2589d43251a904cbb8f47ecf5667ac9026e1d3b"
+      "sha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec"
     }
   ]
 }

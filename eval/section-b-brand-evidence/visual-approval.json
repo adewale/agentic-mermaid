@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "2ab154227c65f7a418eb4133c2589d43251a904cbb8f47ecf5667ac9026e1d3b",
-  "reviewedAt": "2026-09-27",
-  "reviewer": "Codex coding agent, PR #306 Class member review",
-  "scope": "The 1560×9464 full sheet, all 64 family-by-variant cells, and the source-bound before/after Class member assets were reviewed. RGB comparison with the prior approved sheet found 673 changed pixels, confined to x=725–765 in the Class column across the four style variants (y=589–7693); all other family cells are byte-identical at the pixel level. The Class member text now preserves authored order without clipping or disturbing connectors, compartments, or labels.",
+  "artifactSha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec",
+  "reviewedAt": "2026-09-23",
+  "reviewer": "Claude Code agent, during the Lieflat chart-honesty fixes",
+  "scope": "All 64 family-by-variant cells were compared with the previous approved sheet at native size through a per-pixel difference mask. Only peer-category paint and in-mark label ink changed: the one-to-six-color palette now meets the ΔE_OK 0.10 separation and page-visibility contract, so Mindmap branch tints, GitGraph branch lines, Radar curves, Sankey nodes and ribbons, the Journey section chip, and the Pie Pro slice move apart where they were too close; slice labels take the higher-contrast of black and white (the Pie 30% label). Geometry, typography, containment, endpoints, and authored emphasis are unchanged in every cell, and the Pie Pro slice remains the family-authored highlight.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

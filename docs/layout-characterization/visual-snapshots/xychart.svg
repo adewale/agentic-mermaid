@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;max-width:700px" aria-roledescription="xychart" class="xychart" data-xychart-colors="1" id="char-xychart-mermaid-4bojql">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;max-width:700px" aria-roledescription="xychart" class="xychart am-ucina9" data-xychart-colors="1" id="char-xychart-mermaid-4bojql">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-ucina9 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-ucina9 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -18,35 +18,35 @@
   }
 </style>
 <style>
-  .xychart-grid { stroke: #e1e1e1; stroke-width: 1; }
-  .xychart-axis-line { fill: none; }
-  .xychart-tick { fill: none; }
-  .xychart-x-axis-line { stroke: #575759; }
-  .xychart-y-axis-line { stroke: #575759; }
-  .xychart-x-tick { stroke: #575759; }
-  .xychart-y-tick { stroke: #575759; }
-  .xychart-bar { stroke: none; }
-  .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-  .xychart-dot { stroke: #FFFFFF; stroke-width: 2; }
-  .xychart-label { fill: #27272A; }
-  .xychart-x-label { fill: #27272A; }
-  .xychart-y-label { fill: #27272A; }
-  .xychart-axis-title { fill: #27272A; }
-  .xychart-x-axis-title { fill: #27272A; }
-  .xychart-y-axis-title { fill: #27272A; }
-  .xychart-title { fill: #27272A; }
-  .xychart-data-label { fill: #27272A; pointer-events: none; }
-  .xychart-legend-label { fill: #27272A; }
-  svg {
+  .am-ucina9 .xychart-grid { stroke: #e1e1e1; stroke-width: 1; }
+  .am-ucina9 .xychart-axis-line { fill: none; }
+  .am-ucina9 .xychart-tick { fill: none; }
+  .am-ucina9 .xychart-x-axis-line { stroke: #575759; }
+  .am-ucina9 .xychart-y-axis-line { stroke: #575759; }
+  .am-ucina9 .xychart-x-tick { stroke: #575759; }
+  .am-ucina9 .xychart-y-tick { stroke: #575759; }
+  .am-ucina9 .xychart-bar { stroke: none; }
+  .am-ucina9 .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .am-ucina9 .xychart-dot { stroke: #FFFFFF; stroke-width: 2; }
+  .am-ucina9 .xychart-label { fill: #27272A; }
+  .am-ucina9 .xychart-x-label { fill: #27272A; }
+  .am-ucina9 .xychart-y-label { fill: #27272A; }
+  .am-ucina9 .xychart-axis-title { fill: #27272A; }
+  .am-ucina9 .xychart-x-axis-title { fill: #27272A; }
+  .am-ucina9 .xychart-y-axis-title { fill: #27272A; }
+  .am-ucina9 .xychart-title { fill: #27272A; }
+  .am-ucina9 .xychart-data-label { pointer-events: none; }
+  .am-ucina9 .xychart-legend-label { fill: #27272A; }
+  svg.am-ucina9 {
     --xychart-color-0: #3b82f6;
     --xychart-color-1: #0d5ba5;
   }
-  .xychart-bar.xychart-color-0 { fill: #3b82f6; }
-  path.xychart-color-0, line.xychart-color-0 { stroke: #3b82f6; }
-  circle.xychart-color-0 { fill: #3b82f6; }
-  .xychart-bar.xychart-color-1 { fill: #0d5ba5; }
-  path.xychart-color-1, line.xychart-color-1 { stroke: #0d5ba5; }
-  circle.xychart-color-1 { fill: #0d5ba5; }
+  .am-ucina9 .xychart-bar.xychart-color-0 { fill: #3b82f6; }
+  .am-ucina9 path.xychart-color-0, .am-ucina9 line.xychart-color-0 { stroke: #3b82f6; }
+  .am-ucina9 circle.xychart-color-0 { fill: #3b82f6; }
+  .am-ucina9 .xychart-bar.xychart-color-1 { fill: #0d5ba5; }
+  .am-ucina9 path.xychart-color-1, .am-ucina9 line.xychart-color-1 { stroke: #0d5ba5; }
+  .am-ucina9 circle.xychart-color-1 { fill: #0d5ba5; }
 </style>
 <line x1="55.68" y1="469" x2="637" y2="469" class="xychart-grid"/>
 <line x1="55.68" y1="426.1" x2="637" y2="426.1" class="xychart-grid"/>

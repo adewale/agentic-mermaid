@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1472.5357916666665" height="1222.333" viewBox="0 0 1472.5357916666665 1222.333" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="1472.5357916666665" height="1222.333" viewBox="0 0 1472.5357916666665 1222.333" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1pwkzjg">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-1pwkzjg text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1pwkzjg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;

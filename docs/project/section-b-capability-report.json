@@ -2571,10 +2571,10 @@
               "bar-0"
             ]
           },
-          "publicMigrationTarget": "label",
-          "styleProjection": "exact",
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/xychart/scene-role/label",
-          "styleWitnessId": "section-b/xychart/style/label/exact",
+          "styleWitnessId": "section-b/xychart/style/label/not-applicable",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/xychart/terminal/no-color"
         }
@@ -4501,5 +4501,5 @@
       ]
     }
   ],
-  "digest": "sha256:f5515b4851f078573d327f52a85da0f818c3fa1e82677adab4d0995eddcb9ace"
+  "digest": "sha256:398e060a3d13c10600157b889dadb936859301314c8c65402c258c90abe5b4f8"
 }
