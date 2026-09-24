@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
@@ -101,5 +102,11 @@ describe('Sequence half-arrow lexical fidelity', () => {
       expect(marker).toContain('fill="none"')
       expect(marker).toContain('stroke-width=')
     }
+  })
+
+  test('the reviewer-facing after SVG is current production output', () => {
+    const source = readFileSync(new URL('../../docs/pr-assets/issue-264-half-arrow.mmd', import.meta.url), 'utf8')
+    const recorded = readFileSync(new URL('../../docs/pr-assets/issue-264-half-arrow-after.svg', import.meta.url), 'utf8')
+    expect(renderMermaidSVG(source, { embedFontImport: false })).toBe(recorded)
   })
 })
