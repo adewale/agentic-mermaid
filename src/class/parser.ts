@@ -417,22 +417,22 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // --- Inline attribute: `ClassName : +String name` ---
     const inlineAttrMatch = line.match(/^(\S+?)\s*:\s*(.+)$/)
     if (inlineAttrMatch) {
-      // Make sure this isn't a relationship line (those have arrows)
       const rest = inlineAttrMatch[2]!
-      if (!rest.match(/<\|--|--|\*--|o--|-->|\.\.>|\.\.\|>/)) {
-        const ref = parseClassReference(inlineAttrMatch[1]!)
-        if (ref) {
-          const cls = ensureClass(classMap, ref.id, ref.generic)
-          const member = parseMember(rest)
-          if (member) {
-            if (member.isMethod) {
-              cls.methods.push(member.member)
-            } else {
-              cls.attributes.push(member.member)
-            }
+      // A valid class reference before ':' makes this an inline member even
+      // when its text contains link-looking punctuation. A relationship has
+      // both endpoints before ':', so its prefix cannot parse as one ref.
+      const ref = parseClassReference(inlineAttrMatch[1]!)
+      if (ref) {
+        const cls = ensureClass(classMap, ref.id, ref.generic)
+        const member = parseMember(rest)
+        if (member) {
+          if (member.isMethod) {
+            cls.methods.push(member.member)
+          } else {
+            cls.attributes.push(member.member)
           }
-          continue
         }
+        continue
       }
     }
 
@@ -457,6 +457,19 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
         what: `Unrecognized class annotation statement "${line}"`,
         expectedForm: 'class Name <<annotation>> or <<annotation>> Name',
         example: 'class Shape <<interface>>',
+      })
+    }
+    // A malformed relationship cannot be silently omitted from an otherwise
+    // plausible diagram. Ignore delimiter-looking text inside IDs/generics.
+    const bareOperator = findMarkerlessRelationshipOperator(line)
+    const beforeOperator = bareOperator > 0 ? line[bareOperator - 1] : undefined
+    const afterOperator = bareOperator >= 0 ? line[bareOperator + 2] : undefined
+    if (bareOperator >= 0 && !['<', '|', '*', 'o', ')'].includes(beforeOperator ?? '')
+      && !['>', '|', '*', 'o', '('].includes(afterOperator ?? '')) {
+      throw syntaxError({
+        what: `Unrecognized class relationship statement "${line}"`,
+        expectedForm: 'A .. B : label or A -- B : label',
+        example: 'A .. B : linked',
       })
     }
   }
@@ -635,20 +648,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     if (!inLabel && char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
   }
 
-  let inBacktick = false
-  let inQuote = false
-  let inGeneric = false
-  let operator = -1
-  for (let i = 0; i < line.length - 1; i++) {
-    const char = line[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false; continue }
-    if (inQuote) { if (char === '"') inQuote = false; continue }
-    if (inGeneric) { if (char === '~') inGeneric = false; continue }
-    if (char === '`') { inBacktick = true; continue }
-    if (char === '"') { inQuote = true; continue }
-    if (char === '~') { inGeneric = true; continue }
-    if ((char === '-' || char === '.') && line[i + 1] === char) { operator = i; break }
-  }
+  const operator = findMarkerlessRelationshipOperator(line)
   if (operator < 0) return null
 
   const left = line.slice(0, operator).trim()
@@ -666,9 +666,9 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
 
   // The first top-level colon separates a label; colons inside backtick IDs,
   // generic parameters, and cardinalities belong to those tokens instead.
-  inBacktick = false
-  inQuote = false
-  inGeneric = false
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
   let label: string | undefined
   for (let i = 0; i < right.length; i++) {
     const char = right[i]!
@@ -708,6 +708,23 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }
+}
+
+function findMarkerlessRelationshipOperator(line: string): number {
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  for (let i = 0; i < line.length - 1; i++) {
+    const char = line[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if ((char === '-' || char === '.') && line[i + 1] === char) return i
+  }
+  return -1
 }
 
 /**

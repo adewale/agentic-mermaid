@@ -134,6 +134,15 @@ describe('Class markerless link fidelity', () => {
     expect(native.relationships).toEqual([expect.objectContaining({ from: 'A..B', to: 'C', type: 'link-dashed' })])
     expect(renderMermaidSVG(source)).toContain('data-from="A..B" data-to="C"')
 
+    // Link bytes in an inline member are not a relationship. Mermaid accepts
+    // both members; the native fail-loud guard must leave them untouched.
+    for (const member of ['A : +String foo--bar', 'A : +foo() .. bar']) {
+      const memberSource = `classDiagram\n${member}`
+      expect(parseClassDiagram(memberSource.split('\n')).classes.map(node => node.id)).toEqual(['A'])
+      expect(parseClassDiagram(memberSource.split('\n')).relationships).toHaveLength(0)
+      expect(renderMermaidSVG(memberSource)).toContain('data-id="A"')
+    }
+
     const malformed = `A${'..'.repeat(32_000)} B`
     const start = performance.now()
     expect(parseClassRelationship(malformed)).toBeNull()
@@ -147,11 +156,31 @@ describe('Class markerless link fidelity', () => {
     }
     expect(performance.now() - agentStart).toBeLessThan(500)
     expect(parseClassRelationship('A .. B : a:b')).toBeNull()
-    const invalidLabel = parseRegisteredMermaid('classDiagram\nA .. B : a:b')
+    const invalidSource = 'classDiagram\nclass A\nclass B\nA .. B : a:b'
+    const upstreamReject = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        try { await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(invalidSource)}); process.stdout.write('accepted') }
+        catch { process.stdout.write('rejected') }
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(upstreamReject.exitCode).toBe(0)
+    expect(new TextDecoder().decode(upstreamReject.stdout)).toBe('rejected')
+    expect(() => parseClassDiagram(invalidSource.split('\n'))).toThrow('Unrecognized class relationship statement')
+    expect(() => renderMermaidSVG(invalidSource)).toThrow('Unrecognized class relationship statement')
+    const invalidLabel = parseRegisteredMermaid(invalidSource)
     expect(invalidLabel.ok).toBe(true)
     if (invalidLabel.ok) {
       expect(invalidLabel.value.body.kind).toBe('opaque')
-      expect(verifyMermaid(invalidLabel.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+      const result = verifyMermaid(invalidLabel.value)
+      expect(result.ok).toBe(false)
+      expect(result.warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+      expect(result.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(true)
     }
   })
 
