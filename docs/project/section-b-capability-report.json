@@ -2260,7 +2260,7 @@
       "terminalProjection": {
         "state": "native-lossy",
         "witnessId": "section-b/architecture/terminal/no-color",
-        "outputDigest": "sha256:71ef37c02c94b6c77068bb52f18cc8c6c6b53001712b5dfbf7a41341366b37b2"
+        "outputDigest": "sha256:0849d5d49876946bd8aad7ec56b54436766b487d13aca3a00690d8e8ef218d9d"
       },
       "roleWitnesses": [
         {
@@ -4585,5 +4585,5 @@
       ]
     }
   ],
-  "digest": "sha256:cbb75c95f3e6fa32ac59ba4dfc905de91d6bfb6e2ac5837d079572c068a3caee"
+  "digest": "sha256:5422884a7b00498de62bd5a8c2e447e79c68ed9245bb6ae8912c5ebe9a518ee9"
 }
