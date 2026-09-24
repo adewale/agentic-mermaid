@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { asClass, mutate, parseRegisteredMermaid, renderMermaidPNG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
-import { parseClassDiagram } from '../class/parser.ts'
+import { parseClassAnnotationStatement, parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 // Mermaid 11.16 official syntax: classDiagram.html#annotations-on-classes.
@@ -10,6 +10,9 @@ const sources = [
   'classDiagram\n  class Shape <<interface>>\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape\n  <<interface>> Shape\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape {\n    <<interface>>\n  }\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape<<interface>>\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape\n  <<interface>>Shape\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape["Thing"] <<interface>>\n  class Other\n  Shape --> Other',
 ]
 
 describe('Class official annotation forms', () => {
@@ -33,7 +36,7 @@ describe('Class official annotation forms', () => {
     const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
     expect(probe.exitCode).toBe(0)
     expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
-      ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
+      ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
     ])
   })
 
@@ -41,6 +44,7 @@ describe('Class official annotation forms', () => {
     for (const source of sources) {
       const native = parseClassDiagram(source.split('\n').map(line => line.trim()))
       expect(native.classes.find(node => node.id === 'Shape')?.annotation).toBe('interface')
+      if (source.includes('["Thing"]')) expect(native.classes.find(node => node.id === 'Shape')?.label).toBe('Thing')
       expect(native.relationships.map(relation => [relation.from, relation.to])).toEqual([['Shape', 'Other']])
       const svg = renderMermaidSVG(source)
       expect(svg).toContain('data-annotation="interface"')
@@ -51,6 +55,7 @@ describe('Class official annotation forms', () => {
       if (!parsed.ok) continue
       const body = asClass(parsed.value)?.body
       expect(body?.classes.find(node => node.id === 'Shape')?.members).toContain('<<interface>>')
+      if (source.includes('["Thing"]')) expect(body?.classes.find(node => node.id === 'Shape')?.label).toBe('Thing')
       expect(verifyMermaid(parsed.value).ok).toBe(true)
 
       const serialized = serializeMermaid(parsed.value)
@@ -83,6 +88,9 @@ describe('Class official annotation forms', () => {
     for (const source of [
       'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape',
       'classDiagram\n  class Shape\n  <<interface>> Shape extra',
+      'classDiagram\n  <<interface>> Shape',
+      'classDiagram\n  class Shape <<interface name>>',
+      'classDiagram\n  class Shape <<interface-name>>',
     ]) {
       const parsed = parseRegisteredMermaid(source)
       expect(parsed.ok).toBe(true)
@@ -94,6 +102,41 @@ describe('Class official annotation forms', () => {
       expect(verified.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]))
       expect(() => renderMermaidSVG(source)).toThrow(/annotation/i)
     }
+  })
+
+  test('pinned Mermaid rejects unsupported tokens and separate annotation before a class exists', () => {
+    const script = `
+      import DOMPurify from 'dompurify'
+      DOMPurify.addHook = () => {}
+      DOMPurify.sanitize = text => text
+      const { default: mermaid } = await import('mermaid')
+      mermaid.initialize({ startOnLoad: false })
+      const sources = ${JSON.stringify([
+        'classDiagram\n<<interface>> Shape',
+        'classDiagram\nclass Shape <<interface name>>',
+        'classDiagram\nclass Shape <<interface-name>>',
+      ])}
+      const rejected = []
+      for (const source of sources) {
+        try { await mermaid.mermaidAPI.getDiagramFromText(source); rejected.push(false) }
+        catch { rejected.push(true) }
+      }
+      process.stdout.write(JSON.stringify(rejected))
+    `
+    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([true, true, true])
+  })
+
+  test('direct parser ignores annotation text in full-line comments', () => {
+    expect(parseClassDiagram(['classDiagram', '%% note <<interface>>', 'class Shape']).classes.map(node => node.id)).toEqual(['Shape'])
+  })
+
+  test('annotation scanning stays linear at the public 64 KiB source limit', () => {
+    const malformed = `class ${' '.repeat(65_000)}x`
+    const start = performance.now()
+    expect(parseClassAnnotationStatement(malformed)).toBeNull()
+    expect(performance.now() - start).toBeLessThan(1_000)
   })
 
   test('the before/after SVGs are honest same-input renderer evidence', () => {

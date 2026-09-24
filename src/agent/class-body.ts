@@ -211,7 +211,8 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     // existing class-body member representation, which serializes as a block.
     const annotation = parseClassAnnotationStatement(raw)
     if (annotation) {
-      const node = upsert(annotation.id, undefined, annotation.generic)
+      if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return null
+      const node = upsert(annotation.id, annotation.label, annotation.generic)
       if (node.members.some(member => parseClassAnnotationToken(member) !== null)) return null
       node.members.push(`<<${annotation.annotation}>>`)
       claimClass(node)

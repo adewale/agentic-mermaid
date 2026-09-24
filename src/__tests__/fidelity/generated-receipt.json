@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "7b0224022788c43f048793ad5163510b3b21c363ee524b20d6fd036052a93faf",
+    "inputSha256": "16571f635440324e1cc3a9125abcd444e4da1c1f4c3da018426f572c833ee527",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -88,7 +88,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/class-annotation.fidelity.ts",
-        "sha256": "287c27857e6be6e63bc7f0ca06b495c366ee7412aa6f612594b7e025da6de355"
+        "sha256": "5b86727ac2f11c05780ca134f86ce54d6f34e664d924c16f3571e816e45a00e2"
       },
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
@@ -206,7 +206,7 @@
       "issues": []
     },
     {
-      "id": "class.annotations.inline-and-separate-native",
+      "id": "class.annotations.inline-native",
       "family": "class",
       "featureId": "official-doc:class:section:annotations-on-classes",
       "sourceSha256": "033c51d619d0c4bccc91342d9c34942354fef71c44f60253c6791cb8a18f3a48",
@@ -352,6 +352,79 @@
             "rejected": true
           },
           "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.annotations.separate-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "sourceSha256": "8f1e97d4a1b64984e0da6550352ef9d8e81a305ce7f5e48ab0a8d1b8c13bb5e2",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "kind": "class",
+            "relation": "Shape->Other"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "relation": "Shape->Other",
+            "visibleAnnotation": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "ok": true,
+            "relation": "Form->Other"
+          },
+          "disposition": "native"
         }
       },
       "passed": true,
@@ -1640,10 +1713,10 @@
     }
   ],
   "summary": {
-    "caseCount": 15,
-    "passedCaseCount": 15,
+    "caseCount": 16,
+    "passedCaseCount": 16,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 53,
+    "observedSurfaceCount": 57,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

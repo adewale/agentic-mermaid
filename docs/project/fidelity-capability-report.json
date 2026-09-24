@@ -3,10 +3,10 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "7b0224022788c43f048793ad5163510b3b21c363ee524b20d6fd036052a93faf",
-  "receiptResultSha256": "684273857eb40f383a0d43620bd6a2b521988a2daad02934f41ce067252c72f0",
+  "receiptInputSha256": "16571f635440324e1cc3a9125abcd444e4da1c1f4c3da018426f572c833ee527",
+  "receiptResultSha256": "7b3394dce6639de20a7b4ce8f7a92d12e9944be9d8d5efe6fd86a97c95c3c134",
   "summary": {
-    "caseCount": 15,
+    "caseCount": 16,
     "featureCount": 10,
     "dispositions": {
       "native": 3,
@@ -71,8 +71,9 @@
       "family": "class",
       "disposition": "diagnosed",
       "caseIds": [
-        "class.annotations.inline-and-separate-native",
-        "class.annotations.repeated-diagnosed"
+        "class.annotations.inline-native",
+        "class.annotations.repeated-diagnosed",
+        "class.annotations.separate-native"
       ],
       "surfaces": {
         "agent": "source-preserved",
@@ -93,7 +94,7 @@
       },
       "caseEvidence": [
         {
-          "caseId": "class.annotations.inline-and-separate-native",
+          "caseId": "class.annotations.inline-native",
           "surfaces": {
             "agent": "native",
             "render": "native",
@@ -121,6 +122,16 @@
               "INVALID_OP"
             ]
           }
+        },
+        {
+          "caseId": "class.annotations.separate-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
         }
       ],
       "acceptedDivergences": []

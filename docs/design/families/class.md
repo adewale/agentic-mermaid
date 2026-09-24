@@ -29,14 +29,20 @@ The official `class Shape <<interface>>`, `<<interface>> Shape`, and
 grammar between the native and agent parsers. The native class node owns the
 annotation and renders it in the header; the agent stores it as an annotation
 member and serializes a canonical class body, preserving class identity and
-unrelated relations through mutation.
+unrelated relations through mutation. The pinned parser also accepts the
+no-space `class Shape<<interface>>` / `<<interface>>Shape` spellings and an
+inline annotation after a bracket label. A separate annotation requires the
+class to have already been introduced; annotation names use Mermaid's
+word-token grammar. Unsupported forms produce a diagnostic rather than a
+plausible partial diagram.
 
 Pinned Mermaid 11.16 also permits multiple annotations on one class. The
 current native class model has one annotation slot, so that case is explicitly
 diagnosed instead of rendering only the last annotation. Its agent body stays
 opaque and source-preserved. The construct receipt therefore keeps the
-feature-wide capability claim `diagnosed`, while its single-annotation case
-proves native behavior. Broader Class statement/event consolidation remains
+feature-wide capability claim `diagnosed`, while separate executable inline
+and standalone-annotation cases prove native behavior. Broader Class
+statement/event consolidation remains
 tracked by #260.
 
 ## `:::` class shorthand evidence (2026-07)

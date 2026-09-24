@@ -6,6 +6,7 @@ const featureId = 'official-doc:class:section:annotations-on-classes'
 const upstreamReference = 'https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes'
 const upstreamRevision = 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc'
 const source = 'classDiagram\n  class Shape <<interface>>\n  class Other\n  Shape --> Other\n'
+const separateSource = 'classDiagram\n  class Shape\n  <<interface>> Shape\n  class Other\n  Shape --> Other\n'
 const repeatedSource = 'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape\n'
 
 function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
@@ -29,9 +30,10 @@ function parsedOrThrow(input: string) {
   return parsed.value
 }
 
-const officialPlacements: FidelityCaseDefinition = {
-  id: 'class.annotations.inline-and-separate-native',
-  family: 'class', featureId, source, upstreamReference, upstreamRevision,
+function officialPlacementCase(id: string, placementSource: string): FidelityCaseDefinition {
+  return {
+  id,
+  family: 'class', featureId, source: placementSource, upstreamReference, upstreamRevision,
   expected: {
     agent: {
       applicability: 'applicable', disposition: 'native',
@@ -63,10 +65,10 @@ const officialPlacements: FidelityCaseDefinition = {
     },
   },
   observe: () => {
-    const parsed = parsedOrThrow(source)
+    const parsed = parsedOrThrow(placementSource)
     const body = parsed.body
-    const native = nativeFacts(source)
-    const svg = renderMermaidSVG(source)
+    const native = nativeFacts(placementSource)
+    const svg = renderMermaidSVG(placementSource)
     const serialized = serializeMermaid(parsed)
     const reparsed = parsedOrThrow(serialized)
     const mutation = mutate(parsed, { kind: 'rename_class', from: 'Shape', to: 'Form' })
@@ -102,6 +104,7 @@ const officialPlacements: FidelityCaseDefinition = {
       },
     }
   },
+  }
 }
 
 const repeatedAnnotation: FidelityCaseDefinition = {
@@ -152,4 +155,8 @@ const repeatedAnnotation: FidelityCaseDefinition = {
   },
 }
 
-export const fidelityCases = [officialPlacements, repeatedAnnotation]
+export const fidelityCases = [
+  officialPlacementCase('class.annotations.inline-native', source),
+  officialPlacementCase('class.annotations.separate-native', separateSource),
+  repeatedAnnotation,
+]

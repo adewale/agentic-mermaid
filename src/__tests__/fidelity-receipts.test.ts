@@ -270,8 +270,9 @@ describe('issue #248 construct fidelity receipts', () => {
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
       'block.family.accurately-diagnosed-unsupported',
-      'class.annotations.inline-and-separate-native',
+      'class.annotations.inline-native',
       'class.annotations.repeated-diagnosed',
+      'class.annotations.separate-native',
       'er.relationships.word-cardinality-aliases',
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
@@ -290,10 +291,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 15,
-      passedCaseCount: 15,
+      caseCount: 16,
+      passedCaseCount: 16,
       failedCaseCount: 0,
-      observedSurfaceCount: 53,
+      observedSurfaceCount: 57,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })

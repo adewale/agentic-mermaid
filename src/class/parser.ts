@@ -70,21 +70,55 @@ export function parseClassReference(token: string): { id: string; generic?: stri
   }
 }
 
-/** The three official annotation placements plus our existing one-line body. */
+/** Mermaid's Class lexer accepts word-like annotation names only. */
 export function parseClassAnnotationToken(token: string): string | null {
-  const match = token.trim().match(/^<<([^<>]+)>>$/)
-  return match?.[1]?.trim() || null
+  const match = token.trim().match(/^<<(\w+)>>$/)
+  return match?.[1] ?? null
 }
 
-export function parseClassAnnotationStatement(line: string): { id: string; generic?: string; annotation: string } | null {
-  const inline = line.match(/^class\s+(.+?)\s+(<<[^<>]+>>)$/)
-  const separate = line.match(/^(<<[^<>]+>>)\s+(.+)$/)
-  const bodyInline = line.match(/^class\s+(.+?)\s*\{\s*(<<[^<>]+>>)\s*\}$/)
-  const ref = inline ? parseClassReference(inline[1]!)
-    : separate ? parseClassReference(separate[2]!)
-      : bodyInline ? parseClassReference(bodyInline[1]!) : null
-  const annotation = parseClassAnnotationToken(inline?.[2] ?? separate?.[1] ?? bodyInline?.[2] ?? '')
-  return ref && annotation ? { ...ref, annotation } : null
+export interface ParsedClassAnnotationStatement {
+  id: string
+  generic?: string
+  label?: string
+  annotation: string
+  placement: 'inline' | 'separate' | 'body-inline'
+}
+
+/** Split once at the annotation delimiters, then reuse the declaration and
+ * reference grammars. Avoid overlapping unbounded captures on hostile input. */
+export function parseClassAnnotationStatement(line: string): ParsedClassAnnotationStatement | null {
+  const text = line.trim()
+  if (text.startsWith('<<')) {
+    const close = text.indexOf('>>', 2)
+    if (close < 0) return null
+    const annotation = parseClassAnnotationToken(text.slice(0, close + 2))
+    const ref = parseClassReference(text.slice(close + 2))
+    return annotation && ref ? { ...ref, annotation, placement: 'separate' } : null
+  }
+
+  const prefix = text.match(/^class\s+/)
+  if (!prefix) return null
+  const declarationAndAnnotation = text.slice(prefix[0].length)
+  const start = declarationAndAnnotation.indexOf('<<')
+  if (start < 0) return null
+  let declarationText = declarationAndAnnotation.slice(0, start).trim()
+  let annotationText = declarationAndAnnotation.slice(start).trim()
+  const bodyInline = declarationText.endsWith('{') && annotationText.endsWith('}')
+  if (bodyInline) {
+    declarationText = declarationText.slice(0, -1).trim()
+    annotationText = annotationText.slice(0, -1).trim()
+  }
+  const declaration = parseClassDeclaration(`class ${declarationText}`)
+  const annotation = parseClassAnnotationToken(annotationText)
+  return declaration && !declaration.opensBody && annotation
+    ? {
+        id: declaration.id,
+        ...(declaration.generic ? { generic: declaration.generic } : {}),
+        ...(declaration.label !== undefined ? { label: declaration.label } : {}),
+        annotation,
+        placement: bodyInline ? 'body-inline' : 'inline',
+      }
+    : null
 }
 
 function applyClassAnnotation(node: ClassNode, annotation: string): void {
@@ -201,6 +235,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+    if (!line || line.startsWith('%%')) continue
 
     // --- Inside a class body block ---
     if (currentClass && braceDepth > 0) {
@@ -306,7 +341,15 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // --- Class annotation, in either official placement or a one-line body. ---
     const annotationStatement = parseClassAnnotationStatement(line)
     if (annotationStatement) {
+      if (annotationStatement.placement === 'separate' && !classMap.has(annotationStatement.id)) {
+        throw syntaxError({
+          what: `Annotation targets undeclared class "${annotationStatement.id}"`,
+          expectedForm: 'declare the class before a separate annotation',
+          example: `class ${annotationStatement.id}\n<<${annotationStatement.annotation}>> ${annotationStatement.id}`,
+        })
+      }
       const cls = ensureClass(classMap, annotationStatement.id, annotationStatement.generic)
+      if (annotationStatement.label !== undefined) cls.label = normalizeBrTags(annotationStatement.label)
       applyClassAnnotation(cls, annotationStatement.annotation)
       claimClass(cls.id)
       continue
