@@ -36,10 +36,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
     // Escaped Class relation IDs preserve the 31-request graph and raw total;
-    // these are the exact reviewed Linux/x64 capture totals.
+    // the audit correction changes compressed output by 10 bytes. These are
+    // the exact reviewed Linux/x64 capture totals.
     maxRawBytes: 732_199,
     maxGzipBytes: 274_698,
-    maxBrotliBytes: 250_900,
+    maxBrotliBytes: 250_881,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -63,10 +64,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Escaped Class relation handling preserves the two-request graph; these
-    // are the exact reviewed Linux/x64 capture totals.
-    maxRawBytes: 3_353_000,
-    maxGzipBytes: 988_000,
-    maxBrotliBytes: 776_000,
+    // are the exact reviewed Linux/x64 capture totals after audit correction.
+    maxRawBytes: 3_352_443,
+    maxGzipBytes: 987_668,
+    maxBrotliBytes: 775_679,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
