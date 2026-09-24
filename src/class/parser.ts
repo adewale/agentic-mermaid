@@ -187,6 +187,7 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
 //   A --> B                   (association)
 //   A ..> B                   (dependency)
 //   A ..|> B                  (realization)
+//   A -- B / A .. B           (markerless solid/dashed links)
 //   A "1" --> "*" B : label   (with cardinality + label)
 //   Animal : +String name     (inline attribute)
 //   namespace MyNamespace { class A { } }
@@ -544,6 +545,9 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 
 /** Parse a relationship line into a ClassRelationship */
 export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  const markerless = parseMarkerlessClassRelationship(line)
+  if (markerless) return markerless
+
   // Lollipop interface endpoints are distinct UML semantics, not associations.
   const lollipop = line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
   if (lollipop) {
@@ -600,6 +604,99 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
   return {
     from, to, type: parsed.type, markerAt: parsed.markerAt, label,
     fromCardinality, toCardinality,
+    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+  }
+}
+
+/** Mermaid permits spaces to be omitted around bare `--` and `..` links.
+ * Locate one operator outside IDs/cardinalities in linear time; the existing
+ * arrow grammar below remains responsible for marked relationships. */
+function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  // Class inline `%%` comments are legal after a relationship. Do not let the
+  // comment become part of an endpoint or label; a quoted cardinality, generic,
+  // or escaped ID can contain the same bytes without starting a comment.
+  let commentBacktick = false
+  let commentQuote = false
+  let commentGeneric = false
+  for (let i = 0; i < line.length - 1; i++) {
+    const char = line[i]!
+    if (commentBacktick) { if (char === '`') commentBacktick = false; continue }
+    if (commentQuote) { if (char === '"') commentQuote = false; continue }
+    if (commentGeneric) { if (char === '~') commentGeneric = false; continue }
+    if (char === '`') { commentBacktick = true; continue }
+    if (char === '"') { commentQuote = true; continue }
+    if (char === '~') { commentGeneric = true; continue }
+    if (char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
+  }
+
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let operator = -1
+  for (let i = 0; i < line.length - 1; i++) {
+    const char = line[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if ((char === '-' || char === '.') && line[i + 1] === char) { operator = i; break }
+  }
+  if (operator < 0) return null
+
+  const left = line.slice(0, operator).trim()
+  let right = line.slice(operator + 2).trim()
+  let fromRef = parseClassReference(left)
+  let fromCardinality: string | undefined
+  if (!fromRef && left.endsWith('"')) {
+    const cardStart = left.lastIndexOf(' "')
+    if (cardStart >= 0) {
+      fromRef = parseClassReference(left.slice(0, cardStart))
+      if (fromRef) fromCardinality = normalizeBrTags(left.slice(cardStart + 2, -1))
+    }
+  }
+  if (!fromRef) return null
+
+  // The first top-level colon separates a label; colons inside backtick IDs,
+  // generic parameters, and cardinalities belong to those tokens instead.
+  inBacktick = false
+  inQuote = false
+  inGeneric = false
+  let label: string | undefined
+  for (let i = 0; i < right.length; i++) {
+    const char = right[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if (char === ':') {
+      label = normalizeBrTags(right.slice(i + 1).trim()) || undefined
+      right = right.slice(0, i).trim()
+      break
+    }
+  }
+
+  let toCardinality: string | undefined
+  if (right.startsWith('"')) {
+    const close = right.indexOf('"', 1)
+    if (close < 0 || (right[close + 1] && !/\s/.test(right[close + 1]!))) return null
+    toCardinality = normalizeBrTags(right.slice(1, close))
+    right = right.slice(close + 1).trim()
+  }
+  const toRef = parseClassReference(right)
+  if (!toRef) return null
+  return {
+    from: fromRef.id,
+    to: toRef.id,
+    type: line[operator] === '.' ? 'link-dashed' : 'link-solid',
+    markerAt: 'none',
+    ...(label ? { label } : {}),
+    ...(fromCardinality !== undefined ? { fromCardinality } : {}),
+    ...(toCardinality !== undefined ? { toCardinality } : {}),
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }

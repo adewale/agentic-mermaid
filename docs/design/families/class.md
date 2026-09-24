@@ -51,6 +51,24 @@ and standalone-annotation cases prove native behavior. Broader Class
 statement/event consolidation remains
 tracked by #260.
 
+## Markerless relationship fidelity (issue #248)
+
+Mermaid 11.16 treats `A -- B` and `A .. B` as distinct solid and dashed
+links with no endpoint marker. Both create endpoint classes, including when
+spaces around the operator are omitted. The native and agent parsers now share
+that distinction as `link-solid` / `link-dashed` with `markerAt: none`;
+serialization, mutation, SVG/Scene, and terminal output preserve the line
+style without adding an arrowhead. Cardinalities and relation labels survive
+on bare dashed links. Mermaid-valid trailing `%%` comments stay inert. A
+bounded scanner locates the operator and comment boundary outside backtick IDs,
+generic parameters, and quoted cardinalities.
+
+The official relationship section's aggregate capability remains `absent`:
+escaped IDs with spaces on *marked* arrows still fall opaque in the agent and
+silently disappear from native rendering. A separate executable receipt names
+that gap so these two native bare-link cases do not promote the whole section.
+The broader identity/parser fix remains tracked by #260.
+
 ## `:::` class shorthand evidence (2026-07)
 
 **Why:** `Account:::highlight` decorates `Account`; the suffix is not an

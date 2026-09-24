@@ -174,7 +174,7 @@ export type ClassRelationKind =
   | 'inheritance' // <|--
   | 'composition' // *--
   | 'aggregation' // o--
-  | 'association' // -->  (or --)
+  | 'association' // -->
   | 'dependency' // ..>
   | 'realization' // ..|>
   | 'link-solid' // --
@@ -223,7 +223,7 @@ export interface ClassRelation {
   /** Optional cardinality on the `to` side. */
   toCardinality?: string
   /** Marker ownership for two-ended and lollipop relations. */
-  markerAt?: 'from' | 'to' | 'both'
+  markerAt?: 'from' | 'to' | 'both' | 'none'
   fromKind?: ClassRelationKind
   toKind?: ClassRelationKind
 }

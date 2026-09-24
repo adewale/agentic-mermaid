@@ -500,7 +500,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   }
 
   const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
-  const isDashed = rel.type === 'dependency' || rel.type === 'realization'
+  const isDashed = rel.type === 'dependency' || rel.type === 'realization' || rel.type === 'link-dashed'
   const dashArray = isDashed ? ' stroke-dasharray="6 4"' : ''
   const lineStyle = isDashed ? 'dashed' : 'solid'
 
@@ -622,9 +622,9 @@ function renderRelationshipMarkerOverlay(
  *   - 'from' → marker-start (prefix arrows like `<|--`, `*--`, `o--`)
  *   - 'to'   → marker-end   (suffix arrows like `..|>`, `-->`, `--*`)
  */
-function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to' | 'both'): string {
+function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to' | 'both' | 'none'): string {
   const markerId = getMarkerDefId(type)
-  if (!markerId) return ''
+  if (!markerId || markerAt === 'none') return ''
 
   if (markerAt === 'from') return ` marker-start="url(#${markerId})"`
   if (markerAt === 'both') return ` marker-start="url(#${markerId})" marker-end="url(#${markerId})"`
