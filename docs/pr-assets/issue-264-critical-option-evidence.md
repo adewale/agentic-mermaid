@@ -21,6 +21,11 @@ two `option` lines as `CRITICAL_OPTION`, and the focused test asserts the
 native block type, message indexes, both divider labels, and agent-source
 round trip. The old parser fails that test with a phantom `opt` block.
 
+A semantic-audit follow-up also checks Mermaid's keyword boundary: labels may
+start immediately with punctuation. The pinned upstream DB, native parser,
+and agent round trip agree on `critical:C`, `option:retry`, `opt(foo)`, and
+`par|label`; `optional` and `option_retry` remain non-keywords.
+
 This proves this one keyword/continuation slice. Agent mutation still keeps
 `critical` as an opaque block, and the broader lossless block-event authority
 and `par_over` semantics remain open in #264.
