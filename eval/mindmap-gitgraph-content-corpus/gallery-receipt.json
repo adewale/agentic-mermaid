@@ -316,7 +316,7 @@
     },
     {
       "path": "src/ascii/architecture.ts",
-      "sha256": "fae1feaeeeb583278a7117bba3d1a718980f532d1efcece7478100eaa99f5629"
+      "sha256": "738c4798a94fc63b31f811b473d357688b2ecdf7affc00459b551581ed3446c6"
     },
     {
       "path": "src/ascii/canvas.ts",
