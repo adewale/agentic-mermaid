@@ -125,8 +125,14 @@ describe('Sequence critical/option keyword boundary', () => {
     if (!parsed.ok) return
     const body = asSequence(parsed.value)?.body
     expect(body?.statements.map(statement => statement.kind)).toEqual(['opaque-block', 'message'])
-    expect(serializeMermaid(parsed.value)).toContain('option Credentials rejected')
-    expect(parseSequenceDiagram(serializeMermaid(parsed.value).trimEnd().split('\n')).blocks[0]?.type).toBe('critical')
+    const opaque = body?.statements[0]
+    expect(opaque?.kind).toBe('opaque-block')
+    if (opaque?.kind !== 'opaque-block') return
+    const authoredBlockLines = CRITICAL.trimEnd().split('\n').slice(1, -1)
+    expect(opaque.lines).toEqual(authoredBlockLines)
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toContain(authoredBlockLines.join('\n'))
+    expect(parseSequenceDiagram(serialized.trimEnd().split('\n')).blocks[0]?.type).toBe('critical')
   })
 
   test('reviewer-facing after SVG and PNG match the production renderer', () => {

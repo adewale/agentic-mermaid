@@ -22,9 +22,11 @@ native block type, message indexes, both divider labels, and agent-source
 round trip. The old parser fails that test with a phantom `opt` block.
 
 A semantic-audit follow-up also checks Mermaid's keyword boundary: labels may
-start immediately with punctuation. The pinned upstream DB, native parser,
-and agent round trip agree on `critical:C`, `option:retry`, `opt(foo)`, and
-`par|label`; `optional` and `option_retry` remain non-keywords.
+start immediately with punctuation. The pinned upstream DB recognizes the
+corresponding event kinds for `critical:C`, `option:retry`, `opt(foo)`, and
+`par|label`; the native parser retains their punctuation-adjacent labels, and
+agent serialization retains the authored lines. `optional` and
+`option_retry` remain non-keywords.
 The audit also caught a legacy `par_over` projection that inserted a space
 before punctuation; the regression test now pins its original raw suffix.
 
