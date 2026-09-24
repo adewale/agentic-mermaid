@@ -512,8 +512,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   { id: 'timeline', upstreamId: 'timeline', maturity: 'experimental', label: 'Timeline', headers: ['timeline'], narrower: 'asTimeline', editorDiagramType: 'Timeline', editorLabel: 'Timeline', editorDescription: 'Chronological milestones with sections.', editorExampleId: 'timeline-basic', editorGlyph: 'T',
     config: { section: 'timeline', keys: ['disableMulticolor', 'sectionFills', 'sectionColours', 'diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'], noopKeys: ['diagramMarginX', 'diagramMarginY', 'leftMargin', 'width', 'height', 'padding', 'boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'taskFontSize', 'taskFontFamily', 'taskMargin', 'activationWidth', 'textPlacement', 'actorColours', 'useMaxWidth', 'useWidth'] },
     semanticChannels: ['category'],
-    detect: (line: string) => /^timeline(?:\s+(?:td|tb|lr|bt|rl))?\s*$/.test(line),
-    detectLoose: (line: string) => /^timeline(?:\s|$)/.test(line),
+    detect: (line: string) => /^timeline(?=$|[\s;#%])/.test(line),
+    detectLoose: (line: string) => /^timeline(?=$|[\s;#%])/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('rail', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('section', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('period', 'container', 'shape'), nativeSceneRole('event', 'container', 'shape'), nativeSceneRole('label', 'text')],
     example: 'timeline\n  title Roadmap\n  2025 : Alpha : Beta\n  2026 : GA',
     editorExample: `timeline
@@ -1513,6 +1513,7 @@ function descriptorOwnsDetectionLine(descriptor: FamilyDescriptor, line: string)
     if (!line.startsWith(header)) return false
     const boundary = line[header.length]
     return boundary === undefined || boundary === ':' || /\s/.test(boundary)
+      || (descriptor.id === 'timeline' && (boundary === '#' || boundary === '%' || boundary === ';'))
   })
 }
 

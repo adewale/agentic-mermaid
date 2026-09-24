@@ -130,8 +130,8 @@ const DEFAULT_WRAP_CAPS: TimelineWrapCaps = {
 
 /**
  * Lay out a parsed timeline diagram. `diagram.direction === 'TD'` flows
- * top-down; anything else (including the tolerated tb/bt/rl tokens) keeps the
- * historical horizontal layout byte-for-byte.
+ * top-down; a bare or explicit LR header keeps the historical horizontal
+ * layout byte-for-byte. Other header suffixes are rejected by the parser.
  */
 export function layoutTimelineDiagram(
   diagram: TimelineDiagram,

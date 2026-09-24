@@ -882,7 +882,7 @@
           "evidence": [
             "docs/project/fidelity-capability-report.json"
           ],
-          "note": "Receipt-derived Mermaid 11.16 coverage: 0/26 features receipted; parity-satisfying=0 (native=0, accepted-security/offline-divergence=0), source-preserved=0, diagnosed=0, absent-or-unreceipted=26.",
+          "note": "Receipt-derived Mermaid 11.16 coverage: 1/26 features receipted; parity-satisfying=0 (native=0, accepted-security/offline-divergence=0), source-preserved=0, diagnosed=1, absent-or-unreceipted=25.",
           "tracked": [
             "#248"
           ]
@@ -1292,7 +1292,7 @@
           "evidence": [
             "docs/project/fidelity-capability-report.json"
           ],
-          "note": "Receipt-derived Mermaid 11.16 coverage: 0/162 features receipted; parity-satisfying=0 (native=0, accepted-security/offline-divergence=0), source-preserved=0, diagnosed=0, absent-or-unreceipted=162.",
+          "note": "Receipt-derived Mermaid 11.16 coverage: 1/162 features receipted; parity-satisfying=1 (native=1, accepted-security/offline-divergence=0), source-preserved=0, diagnosed=0, absent-or-unreceipted=161.",
           "tracked": [
             "#248"
           ]

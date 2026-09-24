@@ -4,7 +4,7 @@
     "package": "mermaid",
     "version": "11.16.0",
     "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-    "inventorySha256": "e4c273a67903d3cd3cfd5f7431b5e3515f73cf61e3b28358a61edcdfe0b6710d",
+    "inventorySha256": "0291b534d3df5c1bef8ee2a129a3286fa4e1bdd9c66c9a0c1a660073e87f098e",
     "revisionAcknowledgements": [
       {
         "id": "historical-docs-corpus-a2d968-to-f3dea",
@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "6ca0bc788eb2bfd584c8bd715ee59fa4986efe5525bb26eaefdab36159f1c572",
+    "inputSha256": "134689a8a405071fc6015141c31c1d36ca4863fdf1d4117c00bf34a8263258a2",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -87,12 +87,20 @@
         "sha256": "e06629fc663a628ac44f1edb8e3942e67e2ccfb6084cb31001e8a0878044ab02"
       },
       {
+        "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
+        "sha256": "b80f8c69c05c445cbc4ad8f27308b772381e0489389b93ba0de6f5247dd3d217"
+      },
+      {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
         "sha256": "b0c9a9ac480d357471d4f9b6dcc4cf5685e3fe4c0413de0809b4114d81cd5492"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
         "sha256": "ee4f0751717db2e0642d6f5abf23a6e76322a262446bb7ee2956f4159537042e"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/timeline-direction.fidelity.ts",
+        "sha256": "dce49907bab72433d65b3522576ce782c8d9c3d2e0fd46658e2a458accb46bdd"
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
@@ -188,6 +196,136 @@
             "exactBytes": true
           },
           "disposition": "source-preserved"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "er.relationships.word-cardinality-aliases",
+      "family": "er",
+      "featureId": "official-doc:er:section:relationship-syntax",
+      "sourceSha256": "3c9268caf92db6ac59155673f002a3c5854cc1433471d1d2135816545a81b3b3",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/entityRelationshipDiagram.html#relationship-syntax",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "kind": "er",
+            "relations": [
+              {
+                "dashed": false,
+                "from": "CAR",
+                "left": "one-only",
+                "right": "zero-or-many",
+                "to": "DRIVER"
+              },
+              {
+                "dashed": true,
+                "from": "DRIVER",
+                "left": "zero-or-many",
+                "right": "zero-or-many",
+                "to": "LICENSE"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relations": [
+              {
+                "from": "CAR",
+                "identifying": true,
+                "left": "one",
+                "right": "zero-many",
+                "to": "DRIVER"
+              },
+              {
+                "from": "DRIVER",
+                "identifying": false,
+                "left": "zero-many",
+                "right": "zero-many",
+                "to": "LICENSE"
+              }
+            ],
+            "visibleEdges": 2
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relations": [
+              {
+                "from": "CAR",
+                "identifying": true,
+                "left": "one",
+                "right": "zero-many",
+                "to": "DRIVER"
+              },
+              {
+                "from": "DRIVER",
+                "identifying": false,
+                "left": "zero-many",
+                "right": "zero-many",
+                "to": "LICENSE"
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "ok": true,
+            "relations": [
+              {
+                "from": "CAR",
+                "identifying": true,
+                "left": "one",
+                "right": "zero-many",
+                "to": "OPERATOR"
+              },
+              {
+                "from": "OPERATOR",
+                "identifying": false,
+                "left": "zero-many",
+                "right": "zero-many",
+                "to": "LICENSE"
+              }
+            ]
+          },
+          "disposition": "native"
         }
       },
       "passed": true,
@@ -873,6 +1011,163 @@
       "issues": []
     },
     {
+      "id": "timeline.direction.td-vertical-geometry",
+      "family": "timeline",
+      "featureId": "official-doc:timeline:section:direction-v11-14-0",
+      "sourceSha256": "be1fb8367def1d46d52546f336414ae35b39a20633a4929a216cd4e2c9d21acf",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/timeline.html#direction-v11-14-0",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "direction": "TD",
+            "kind": "timeline",
+            "periods": [
+              "2020",
+              "2021"
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "direction": "TD",
+            "periodsAdvanceDown": true,
+            "verticalRail": true,
+            "visibleLabels": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "direction": "TD",
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "changedEvent": "Scaled",
+            "direction": "TD",
+            "ok": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "timeline.direction.unsupported-header-diagnosis",
+      "family": "timeline",
+      "featureId": "official-doc:timeline:section:direction-v11-14-0",
+      "sourceSha256": "04db46772c8963b1ee9e2880e591b3c3032f02c68edc86095eccc553e4be8ec5",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/timeline.html#direction-v11-14-0",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "kind": "opaque",
+            "specificHeaderWarning": true
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
+          "semantics": {
+            "rejected": true,
+            "verifyRejected": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactSource": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejectedOpaqueMutation": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
       "id": "xychart.syntax.shared-parser-semantics",
       "family": "xychart",
       "featureId": "official-doc:xychart:section:syntax",
@@ -1188,10 +1483,10 @@
     }
   ],
   "summary": {
-    "caseCount": 10,
-    "passedCaseCount": 10,
+    "caseCount": 13,
+    "passedCaseCount": 13,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 33,
+    "observedSurfaceCount": 45,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

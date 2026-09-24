@@ -18,7 +18,7 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
   xychart: 'xychart-beta\n  curve basis\n  bar [1, 2, 3]', // unmodeled curve directive
   pie: 'pie\n  Dogs : 40\n  Cats : 30', // unquoted labels (Mermaid requires quotes)
   sequence: 'sequenceDiagram\n  A->>B: hi\n  end', // unmatched block terminator
-  timeline: 'timeline EXTRA\n  2026 : Event', // unmodeled header suffix
+  timeline: 'timeline EXTRA\n  2026 : Event', // diagnosed unsupported header suffix
   journey: 'journey EXTRA\n  Wake: 3: Me', // unmodeled header suffix
   architecture: 'architecture-beta\n  title First\n  title Second\n  service api(server)[API]',
   gantt: 'gantt LR\n  Task :t1, 2026-01-01, 1d', // unmodeled header suffix
@@ -63,7 +63,7 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
       const v = verifyMermaid(p.value)
       const unsupported = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
       expect(unsupported.length).toBeGreaterThanOrEqual(1)
-      expect(unsupported.some(w => 'syntax' in w && w.syntax === `${family}_opaque`)).toBe(true)
+      expect(unsupported.some(w => 'syntax' in w && w.syntax === (family === 'timeline' ? 'timeline_header_direction' : `${family}_opaque`))).toBe(true)
     })
   }
 

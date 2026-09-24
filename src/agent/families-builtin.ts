@@ -17,11 +17,13 @@
 // checks (verify.ts adds the geometric Tier 2 pass via the graph projection).
 // ============================================================================
 
+import { decodeXML } from 'entities'
 import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassReference } from '../class/parser.ts'
 import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax } from '../er/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
+import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { mutateClass, parseClassBody, parseClassRelationSyntax, renderClass, verifyClass } from './class-body.ts'
 import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
@@ -41,7 +43,7 @@ import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-bo
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { mutateState, parseStateBody, renderState, verifyState } from './state-body.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
-import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
+import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
 import { err, ok } from './types.ts'
 import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart } from './xychart-body.ts'
 
@@ -226,7 +228,7 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
   const lines = source.split(/\r?\n/)
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
+    if (!raw || isTimelineCommentLine(raw)) continue
     let m
     if ((m = raw.match(/^title\s+(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target: `line${i + 1}` })
@@ -244,19 +246,33 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-// Upstream PR #7270: the header may carry an LR/TD direction token
-// (`timeline TD` = vertical). It is part of the modeled grammar — captured on
-// the body so it survives serialize — while any OTHER header suffix still
-// falls back to a verbatim opaque body (structuredFamilyHooks headerOk
-// convention, spelled out here because the hook needs the header line).
-const TIMELINE_BODY_HEADER_RE = /^timeline(?:\s+(LR|TD))?\s*$/i
+// Any non-LR/TD header suffix stays opaque so it round-trips verbatim, but its
+// render path must reject it instead of silently projecting LR geometry.
+function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
+  if (body.kind !== 'opaque' || body.family !== 'timeline') return []
+  const lines = body.source.split(/\r?\n/)
+  const header = lines.map(line => parseTimelineHeader(decodeXML(line))).find(candidate => candidate !== null)
+  if (header?.kind !== 'unsupported') return []
+  return [{
+    code: 'UNSUPPORTED_SYNTAX',
+    // The opaque body excludes the authored wrapper, so its relative line
+    // cannot truthfully be reported as an authored-document location.
+    syntax: 'timeline_header_direction',
+    message: `Unsupported timeline header suffix "${header.suffix}"; only LR and TD are direction tokens. The source is preserved, but rendering is rejected instead of silently using LR.`,
+  }]
+}
 
 const TIMELINE_AGENT_HOOKS = {
   extractLabels: extractTimelineLabels,
+  verify: body => verifyOpaqueTimeline(body),
   parse: ({ lines, opaqueSource, meta }) => {
-    const header = (lines[0]?.trim() ?? '').match(TIMELINE_BODY_HEADER_RE)
-    const body = header ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
-    if (body && header?.[1]) body.direction = header[1].toUpperCase() as 'LR' | 'TD'
+    const header = parseTimelineHeader(lines[0] ?? '')
+    // Native rendering accepts inline header comments, but the structured
+    // serializer does not retain them. Preserve authored source instead.
+    const body = header?.kind === 'supported' && !header.hasInlineComment
+      ? parseTimelineBody(lines.slice(1), meta.accessibility)
+      : null
+    if (body && header?.kind === 'supported' && header.direction) body.direction = header.direction
     return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
   },
   serialize: body => {

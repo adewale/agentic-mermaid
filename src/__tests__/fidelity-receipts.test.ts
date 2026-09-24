@@ -262,11 +262,14 @@ describe('issue #248 construct fidelity receipts', () => {
   test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
+      'fidelity/cases/er-word-cardinality.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
+      'fidelity/cases/timeline-direction.fidelity.ts',
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
       'block.family.accurately-diagnosed-unsupported',
+      'er.relationships.word-cardinality-aliases',
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
       'journey.scores.fractional-parser-render-seam',
@@ -274,6 +277,8 @@ describe('issue #248 construct fidelity receipts', () => {
       'sankey.links.light-background-multiply',
       'sankey.links.typed-gradient-endpoints',
       'state.comments.trailing-transition-loss',
+      'timeline.direction.td-vertical-geometry',
+      'timeline.direction.unsupported-header-diagnosis',
       'xychart.syntax.shared-parser-semantics',
       'xychart.syntax.unknown-statement-render-seam',
     ])
@@ -282,10 +287,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 10,
-      passedCaseCount: 10,
+      caseCount: 13,
+      passedCaseCount: 13,
       failedCaseCount: 0,
-      observedSurfaceCount: 33,
+      observedSurfaceCount: 45,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
@@ -297,6 +302,9 @@ describe('issue #248 construct fidelity receipts', () => {
       expect(feature.caseEvidence.map(evidence => evidence.caseId)).toEqual([...feature.caseIds])
     }
     expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('native')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:timeline:section:direction-v11-14-0')!.surfaces).toEqual({
+      agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
+    })
     expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')

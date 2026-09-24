@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="344" height="195.2" viewBox="0 0 344 195.2" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1e31h6e">
+<style>
+  .am-1e31h6e text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1e31h6e {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .am-1e31h6e .timeline-title { fill: #27272A; }
+  .am-1e31h6e .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
+  .am-1e31h6e .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
+  .am-1e31h6e .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .am-1e31h6e .timeline-section-label { fill: #575759; }
+  .am-1e31h6e .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
+  .am-1e31h6e .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
+  .am-1e31h6e .timeline-marker-core { fill: #47474a; }
+  .am-1e31h6e .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
+  .am-1e31h6e .timeline-period-text { fill: #27272A; }
+  .am-1e31h6e .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .am-1e31h6e .timeline-event-text { fill: #69696c; }
+</style>
+<line class="timeline-rail" x1="96" y1="85.6" x2="248" y2="85.6" />
+<g class="timeline-period" data-id="period-0" data-label="2020" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="period">
+  <line class="timeline-stem" x1="96" y1="93.6" x2="96" y2="103.6" data-id="period-stem:period-0" data-role="period" />
+  <rect class="timeline-period-pill" x="60" y="28" width="72" height="35.6" rx="0" ry="0" data-id="period-pill:period-0" data-role="period" />
+  <text x="96" y="45.8" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999" textLength="30.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">2020</text>
+  <circle class="timeline-marker-ring" cx="96" cy="85.6" r="8" data-id="period-marker-ring:period-0" data-role="period" />
+  <circle class="timeline-marker-core" cx="96" cy="85.6" r="4.5" data-id="period-marker-core:period-0" data-role="period" />
+<g class="timeline-event" data-id="event-0" data-period="2020" data-family="0" data-role="event">
+  <rect class="timeline-event-card" x="32" y="113.6" width="128" height="35.6" rx="0" ry="0" data-id="event:event-0" data-role="event" />
+  <text x="46" y="131.4" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.199999999999999" textLength="41.976" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Launch</text>
+</g>
+</g>
+<g class="timeline-period" data-id="period-1" data-label="2021" data-family="1" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="period">
+  <line class="timeline-stem" x1="248" y1="93.6" x2="248" y2="103.6" data-id="period-stem:period-1" data-role="period" />
+  <rect class="timeline-period-pill" x="212" y="28" width="72" height="35.6" rx="0" ry="0" data-id="period-pill:period-1" data-role="period" />
+  <text x="248" y="45.8" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999" textLength="26.28" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">2021</text>
+  <circle class="timeline-marker-ring" cx="248" cy="85.6" r="8" data-id="period-marker-ring:period-1" data-role="period" />
+  <circle class="timeline-marker-core" cx="248" cy="85.6" r="4.5" data-id="period-marker-core:period-1" data-role="period" />
+<g class="timeline-event" data-id="event-1" data-period="2021" data-family="1" data-role="event">
+  <rect class="timeline-event-card" x="184" y="113.6" width="128" height="35.6" rx="0" ry="0" data-id="event:event-1" data-role="event" />
+  <text x="198" y="131.4" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.199999999999999" textLength="31.608" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Scale</text>
+</g>
+</g>
+</svg>
