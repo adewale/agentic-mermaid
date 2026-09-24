@@ -1,7 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { FidelityCaseDefinition, FidelityReceiptResult, FidelitySurfaceExpectation } from './fidelity/contract.ts'
+import type {
+  FidelityCaseDefinition,
+  FidelityJson,
+  FidelityReceiptResult,
+  FidelitySurface,
+  FidelitySurfaceExpectation,
+} from './fidelity/contract.ts'
 import { discoverFidelityRegistry } from './fidelity/registry.ts'
 import { projectFidelityCapabilityShadow } from './fidelity/projector.ts'
 import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './fidelity/revision-compatibility.ts'
@@ -19,22 +25,61 @@ function clonedManifest(): UpstreamMermaidManifest {
   return JSON.parse(JSON.stringify(UPSTREAM_MERMAID_MANIFEST)) as UpstreamMermaidManifest
 }
 
+function setJsonPath(value: FidelityJson, path: readonly (number | string)[], replacement: FidelityJson): FidelityJson {
+  const cloned = JSON.parse(JSON.stringify(value)) as FidelityJson
+  let cursor: unknown = cloned
+  for (const part of path.slice(0, -1)) {
+    if (typeof part === 'number') {
+      if (!Array.isArray(cursor) || cursor[part] === undefined) throw new Error(`Missing sabotage array path ${path.join('.')}`)
+      cursor = cursor[part]
+    } else {
+      if (!cursor || typeof cursor !== 'object' || Array.isArray(cursor) || !(part in cursor)) throw new Error(`Missing sabotage object path ${path.join('.')}`)
+      cursor = (cursor as Record<string, unknown>)[part]
+    }
+  }
+  const last = path.at(-1)
+  if (typeof last === 'number') {
+    if (!Array.isArray(cursor) || cursor[last] === undefined) throw new Error(`Missing sabotage array target ${path.join('.')}`)
+    cursor[last] = replacement
+  } else if (typeof last === 'string') {
+    if (!cursor || typeof cursor !== 'object' || Array.isArray(cursor) || !(last in cursor)) throw new Error(`Missing sabotage object target ${path.join('.')}`)
+    ;(cursor as Record<string, unknown>)[last] = replacement
+  } else {
+    throw new Error('Sabotage path must not be empty')
+  }
+  return cloned
+}
+
 describe('issue #248 construct fidelity receipts', () => {
   test('the discovered registry executes to the committed fresh result and explicit shadow projection', async () => {
     const registry = await discoverFidelityRegistry()
-    expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual(['fidelity/cases/seed.fidelity.ts'])
-    expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual(['block.family.accurately-diagnosed-unsupported', 'flowchart.classes.edge-paint-implication', 'journey.scores.fractional-parser-render-seam', 'state.comments.trailing-transition-loss'])
+    expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
+      'fidelity/cases/landed-adoption.fidelity.ts',
+      'fidelity/cases/seed.fidelity.ts',
+    ])
+    expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
+      'block.family.accurately-diagnosed-unsupported',
+      'flowchart.classes.edge-paint-implication',
+      'flowchart.links.boundary-whitespace-mutation-closure',
+      'journey.scores.fractional-parser-render-seam',
+      'sankey.links.dark-background-normal-alpha-divergence',
+      'sankey.links.light-background-multiply',
+      'sankey.links.typed-gradient-endpoints',
+      'state.comments.trailing-transition-loss',
+      'xychart.syntax.shared-parser-semantics',
+      'xychart.syntax.unknown-statement-render-seam',
+    ])
 
     const receipt = await runFidelityCases(registry.cases, registry.caseFiles)
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityShadow(receipt)).toEqual(readJson(SHADOW))
     expect(receipt.summary).toEqual({
-      caseCount: 4,
-      passedCaseCount: 4,
+      caseCount: 10,
+      passedCaseCount: 10,
       failedCaseCount: 0,
-      observedSurfaceCount: 15,
+      observedSurfaceCount: 33,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 1,
+      notApplicableSurfaceCount: 7,
     })
     const shadow = projectFidelityCapabilityShadow(receipt)
     for (const feature of shadow.features) {
@@ -42,7 +87,218 @@ describe('issue #248 construct fidelity receipts', () => {
     }
     expect(shadow.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
     expect(shadow.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
-    expect(shadow.features.find(feature => feature.family === 'flowchart')!.surfaces.mutate).toBe('native')
+    expect(shadow.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
+    expect(shadow.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
+    expect(shadow.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
+      agent: 'source-preserved',
+      render: 'absent',
+      serialize: 'source-preserved',
+      mutate: 'diagnosed',
+    })
+  })
+
+  test('landed-behavior receipts reject sabotaged semantic evidence', async () => {
+    const registry = await discoverFidelityRegistry()
+    const sabotages: ReadonlyArray<{
+      caseId: string
+      surface: FidelitySurface
+      path: readonly (number | string)[]
+      replacement: FidelityJson
+      additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
+    }> = [
+      {
+        caseId: 'sankey.links.typed-gradient-endpoints',
+        surface: 'render',
+        path: ['gradient', 'stops', 0, 'color'],
+        replacement: '#00ff00',
+      },
+      {
+        caseId: 'sankey.links.typed-gradient-endpoints',
+        surface: 'render',
+        path: ['gradient', 'id'],
+        replacement: 'broken-gradient-id',
+      },
+      {
+        caseId: 'sankey.links.typed-gradient-endpoints',
+        surface: 'render',
+        path: ['gradient', 'x1'],
+        replacement: '1',
+      },
+      {
+        caseId: 'sankey.links.typed-gradient-endpoints',
+        surface: 'render',
+        path: ['gradient', 'x1'],
+        replacement: '0x22',
+      },
+      {
+        caseId: 'sankey.links.light-background-multiply',
+        surface: 'render',
+        path: ['links', 0, 'blendMode'],
+        replacement: 'normal',
+      },
+      {
+        caseId: 'sankey.links.light-background-multiply',
+        surface: 'render',
+        path: ['background'],
+        replacement: '#000000',
+      },
+      {
+        caseId: 'sankey.links.dark-background-normal-alpha-divergence',
+        surface: 'render',
+        path: ['links', 0, 'blendMode'],
+        replacement: 'screen',
+      },
+      {
+        caseId: 'sankey.links.dark-background-normal-alpha-divergence',
+        surface: 'render',
+        path: ['links', 0, 'opacity'],
+        replacement: '1',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'series', 0, 'values', 1],
+        replacement: 999,
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'xAxis', 'name'],
+        replacement: 'unexpected',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'xAxis', 'range'],
+        replacement: { min: 0, max: 1 },
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'yAxis', 'categories'],
+        replacement: ['unexpected'],
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'series', 0, 'pointLabels'],
+        replacement: ['unexpected', null],
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'width'],
+        replacement: null,
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'width'],
+        replacement: '0x10',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'height'],
+        replacement: '0b1000000',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'width'],
+        replacement: '117.74',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'mutate',
+        path: ['renderedBars', 0, 'value'],
+        replacement: '999',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'mutate',
+        path: ['renderedBars', 0, 'width'],
+        replacement: '0x10',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'mutate',
+        path: ['renderedBars', 0, 'width'],
+        replacement: '147.18',
+        additionalChanges: [{ path: ['renderedBars', 1, 'width'], replacement: '58.87' }],
+      },
+      {
+        caseId: 'xychart.syntax.unknown-statement-render-seam',
+        surface: 'agent',
+        path: ['bodyFamily'],
+        replacement: 'flowchart',
+      },
+      {
+        caseId: 'xychart.syntax.unknown-statement-render-seam',
+        surface: 'agent',
+        path: ['bodySource'],
+        replacement: 'xychart-beta\n  bar [1, 2]\n',
+      },
+      {
+        caseId: 'xychart.syntax.unknown-statement-render-seam',
+        surface: 'render',
+        path: ['bars', 1, 'value'],
+        replacement: '999',
+      },
+      {
+        caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
+        surface: 'mutate',
+        path: ['mutatedDiagram', 'edges', 1, 'label'],
+        replacement: 'b',
+      },
+      {
+        caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
+        surface: 'render',
+        path: ['rendered', 'edges'],
+        replacement: [
+          { source: 'A', target: 'B', label: ' a ' },
+          { source: 'X', target: 'Y', label: 'ghost' },
+        ],
+      },
+      {
+        caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
+        surface: 'mutate',
+        path: ['rendered', 'edges'],
+        replacement: [{ source: 'A', target: 'B', label: ' a ' }],
+      },
+      {
+        caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
+        surface: 'mutate',
+        path: ['rendered', 'labelGroups', 0, 'visibleText'],
+        replacement: ' b ',
+        additionalChanges: [{ path: ['rendered', 'labelGroups', 1, 'visibleText'], replacement: ' a ' }],
+      },
+    ]
+
+    for (const sabotage of sabotages) {
+      const original = registry.cases.find(candidate => candidate.id === sabotage.caseId)!
+      const sabotaged: FidelityCaseDefinition = {
+        ...original,
+        id: `${original.id}.sabotage`,
+        observe: async () => {
+          const evidence = await original.observe()
+          const observation = evidence[sabotage.surface]
+          if (!observation || observation.status !== 'observed') throw new Error(`${sabotage.caseId}: missing observed ${sabotage.surface}`)
+          return {
+            ...evidence,
+            [sabotage.surface]: {
+              ...observation,
+              semantics: (sabotage.additionalChanges ?? []).reduce(
+                (semantics, change) => setJsonPath(semantics, change.path, change.replacement),
+                setJsonPath(observation.semantics, sabotage.path, sabotage.replacement),
+              ),
+            },
+          }
+        },
+      }
+      const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
+      expect(receipt.cases[0]!.passed).toBe(false)
+    }
   })
 
   test('registry validation rejects duplicate/unknown cases and unacknowledged revision splits', async () => {
