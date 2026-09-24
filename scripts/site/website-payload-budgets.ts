@@ -39,7 +39,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // reviewed Linux/x64 totals for the updated lazy browser chunk.
     maxRawBytes: 732_199,
     maxGzipBytes: 274_695,
-    maxBrotliBytes: 250_849,
+    maxBrotliBytes: 250_842,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
