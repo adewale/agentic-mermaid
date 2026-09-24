@@ -1,7 +1,26 @@
 import { syntaxError } from '../shared/syntax-error.ts'
 
 /** Shared Timeline line grammar consumed by the renderer and agent parsers. */
-export const TIMELINE_HEADER_DIRECTION_RE = /^timeline\s+(LR|TD)\s*$/i
+export type TimelineHeader =
+  | { readonly kind: 'supported'; readonly direction?: 'LR' | 'TD' }
+  | { readonly kind: 'unsupported'; readonly suffix: string }
+
+export function parseTimelineHeader(line: string): TimelineHeader | null {
+  const match = line.trim().match(/^timeline(?:\s+(.+))?$/i)
+  if (!match) return null
+  const suffix = match[1]?.trim()
+  if (!suffix) return { kind: 'supported' }
+  if (/^(?:LR|TD)$/i.test(suffix)) return { kind: 'supported', direction: suffix.toUpperCase() as 'LR' | 'TD' }
+  return { kind: 'unsupported', suffix }
+}
+
+export function unsupportedTimelineHeaderError(suffix: string): Error {
+  return syntaxError({
+    what: `Unsupported timeline header suffix "${suffix}"; only LR and TD are direction tokens`,
+    expectedForm: 'timeline [LR|TD]',
+    example: 'timeline TD',
+  })
+}
 export const TIMELINE_TITLE_RE = /^title\s+(.+)$/i
 export const TIMELINE_SECTION_RE = /^section\s+([^:]+)$/i
 export const TIMELINE_CONTINUATION_RE = /^:\s+(.+)$/
