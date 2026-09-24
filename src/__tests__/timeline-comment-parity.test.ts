@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import mermaid from 'mermaid'
 import { asTimeline, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
@@ -80,6 +81,15 @@ describe('Timeline full-line comments match pinned Mermaid 11.16.0', () => {
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(asTimeline(parsed.value)?.body.sections.flatMap(section => section.periods).map(period => period.label))
       .toEqual(['%{not-directive}', '2020'])
+  })
+
+  test('the reviewed percent-comment visual evidence is the current SVG', () => {
+    const before = readFileSync(new URL('../../docs/pr-assets/issue-248-timeline-percent-before.svg', import.meta.url), 'utf8')
+    const after = readFileSync(new URL('../../docs/pr-assets/issue-248-timeline-percent-after.svg', import.meta.url), 'utf8')
+    const current = renderMermaidSVG(source('% authored note'), { embedFontImport: false })
+    expect(before).toContain('authored note')
+    expect(after).not.toContain('authored note')
+    expect(current).toBe(after)
   })
 
   test('opaque Timeline summaries do not promote a comment with a colon into a label', () => {

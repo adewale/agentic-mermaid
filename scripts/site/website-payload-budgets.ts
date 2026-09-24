@@ -39,7 +39,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Linux/x64 content-hashed chunks change the exact compressed totals.
     maxRawBytes: 731_681,
     maxGzipBytes: 274_505,
-    maxBrotliBytes: 250_679,
+    maxBrotliBytes: 250_674,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
