@@ -116,6 +116,13 @@ describe('issue #248 construct fidelity receipts', () => {
         render: ['UNSUPPORTED_FAMILY'],
       },
     }])
+    expect(report.features[0]!.diagnosedCaseEvidence).toEqual([{
+      caseId: original.id,
+      surfaces: {
+        agent: ['UNSUPPORTED_FAMILY'],
+        render: ['UNSUPPORTED_FAMILY'],
+      },
+    }])
     expect(fidelityFeatureSatisfiesSyntaxParity(report.features[0]!)).toBe(false)
     const allOtherSurfacesNative = structuredClone(report.features[0]!)
     ;(allOtherSurfacesNative.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
@@ -134,6 +141,50 @@ describe('issue #248 construct fidelity receipts', () => {
     }
     expect(validateFidelityRegistry([nonDiagnosedSurface])).toContain(
       `${original.id}: accepted divergence surface serialize must be an applicable diagnosed expectation with a named diagnostic`,
+    )
+  })
+
+  test('every diagnosed case/surface needs its own accepted divergence before syntax parity is satisfied', async () => {
+    const registry = await discoverFidelityRegistry()
+    const original = registry.cases.find(fidelityCase => fidelityCase.id === 'block.family.accurately-diagnosed-unsupported')!
+    const accepted: FidelityCaseDefinition = {
+      ...original,
+      acceptedDivergence: {
+        policy: 'security',
+        rationale: 'The unsupported family stays disabled on these surfaces.',
+        surfaces: ['agent', 'render'],
+      },
+    }
+    const unaccepted: FidelityCaseDefinition = {
+      ...original,
+      id: 'block.family.unaccepted-same-surface-diagnosis',
+    }
+    expect(validateFidelityRegistry([accepted, unaccepted])).toEqual([])
+    const mixedReceipt = await runFidelityCases([accepted, unaccepted], registry.caseFiles)
+    const mixedReport = projectFidelityCapabilityReport(mixedReceipt)
+    expect(validateFidelityCapabilityReport(mixedReport)).toEqual([])
+    const mixedFeature = structuredClone(mixedReport.features[0]!)
+    ;(mixedFeature.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+    expect(mixedFeature.diagnosedCaseEvidence.map(evidence => evidence.caseId)).toEqual([
+      original.id,
+      unaccepted.id,
+    ])
+    expect(fidelityFeatureSatisfiesSyntaxParity(mixedFeature)).toBe(false)
+
+    const fullyAcceptedReceipt = await runFidelityCases([
+      accepted,
+      { ...unaccepted, acceptedDivergence: accepted.acceptedDivergence },
+    ], registry.caseFiles)
+    const fullyAcceptedReport = projectFidelityCapabilityReport(fullyAcceptedReceipt)
+    expect(validateFidelityCapabilityReport(fullyAcceptedReport)).toEqual([])
+    const fullyAcceptedFeature = structuredClone(fullyAcceptedReport.features[0]!)
+    ;(fullyAcceptedFeature.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+    expect(fidelityFeatureSatisfiesSyntaxParity(fullyAcceptedFeature)).toBe(true)
+
+    const missingCaseEvidence = structuredClone(fullyAcceptedReport)
+    ;(missingCaseEvidence.features[0]!.diagnosedCaseEvidence as unknown as unknown[]).pop()
+    expect(validateFidelityCapabilityReport(missingCaseEvidence)).toContain(
+      `${mixedFeature.featureId}/${unaccepted.id}/agent: accepted divergence lacks matching diagnosed evidence`,
     )
   })
 
@@ -187,6 +238,9 @@ describe('issue #248 construct fidelity receipts', () => {
     for (const feature of capability.features) {
       expect(Object.keys(feature.surfaces)).toEqual(['agent', 'render', 'serialize', 'mutate'])
       expect(feature.acceptedDivergences).toEqual([])
+      expect(feature.diagnosedCaseEvidence.map(evidence => evidence.caseId)).toEqual(
+        feature.caseIds.filter(caseId => feature.diagnosedCaseEvidence.some(evidence => evidence.caseId === caseId)),
+      )
     }
     expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
     expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')

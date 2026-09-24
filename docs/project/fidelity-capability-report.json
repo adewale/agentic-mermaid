@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "6d581403bc2a7fdf9579d877e86db3e1e9080b0265bbee5616f992418977353d",
-  "receiptResultSha256": "44303136b1153d0a978f6c41a3c689cf4d1a47aea8f12545a6e7b3e6bfeb4163",
+  "receiptInputSha256": "8f6efbac7bee7bed20c9b6d6a663c7b39e7dd200b4bfad7aa86006f85e0e1497",
+  "receiptResultSha256": "9727907e8eb24fca1cdadbff25f9bcc2e2d9dcd78807068fd81878c745442c1d",
   "summary": {
     "caseCount": 10,
     "featureCount": 7,
@@ -41,6 +41,19 @@
           "UNSUPPORTED_FAMILY"
         ]
       },
+      "diagnosedCaseEvidence": [
+        {
+          "caseId": "block.family.accurately-diagnosed-unsupported",
+          "surfaces": {
+            "agent": [
+              "UNSUPPORTED_FAMILY"
+            ],
+            "render": [
+              "UNSUPPORTED_FAMILY"
+            ]
+          }
+        }
+      ],
       "acceptedDivergences": []
     },
     {
@@ -57,6 +70,7 @@
         "mutate": "native"
       },
       "diagnostics": {},
+      "diagnosedCaseEvidence": [],
       "acceptedDivergences": []
     },
     {
@@ -73,6 +87,7 @@
         "mutate": "native"
       },
       "diagnostics": {},
+      "diagnosedCaseEvidence": [],
       "acceptedDivergences": []
     },
     {
@@ -99,6 +114,19 @@
           "INVALID_OP"
         ]
       },
+      "diagnosedCaseEvidence": [
+        {
+          "caseId": "journey.scores.fractional-parser-render-seam",
+          "surfaces": {
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        }
+      ],
       "acceptedDivergences": []
     },
     {
@@ -117,6 +145,7 @@
         "mutate": "native"
       },
       "diagnostics": {},
+      "diagnosedCaseEvidence": [],
       "acceptedDivergences": []
     },
     {
@@ -140,6 +169,16 @@
           "INVALID_OP"
         ]
       },
+      "diagnosedCaseEvidence": [
+        {
+          "caseId": "state.comments.trailing-transition-loss",
+          "surfaces": {
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        }
+      ],
       "acceptedDivergences": []
     },
     {
@@ -164,6 +203,16 @@
           "INVALID_OP"
         ]
       },
+      "diagnosedCaseEvidence": [
+        {
+          "caseId": "xychart.syntax.unknown-statement-render-seam",
+          "surfaces": {
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        }
+      ],
       "acceptedDivergences": []
     }
   ]

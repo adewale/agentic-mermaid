@@ -7,6 +7,7 @@ import {
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
   type FidelityCapabilitySurface,
+  type FidelityDiagnosedCaseEvidence,
   type FidelityAcceptedDivergencePolicy,
   type FidelityDisposition,
   type FidelitySurface,
@@ -129,6 +130,52 @@ export function validateFidelityCapabilityReport(
         }
       }
     }
+    const diagnosedEvidenceByCase = new Map<string, Record<string, unknown>>()
+    if (!Array.isArray(rawFeature.diagnosedCaseEvidence)) {
+      issues.push(`${context}: diagnosed case evidence is invalid`)
+    } else {
+      for (const evidence of rawFeature.diagnosedCaseEvidence) {
+        if (!isRecord(evidence) || typeof evidence.caseId !== 'string' || !isRecord(evidence.surfaces)) {
+          issues.push(`${context}: diagnosed case evidence is invalid`)
+          continue
+        }
+        const evidenceContext = `${context}/${evidence.caseId}`
+        if (diagnosedEvidenceByCase.has(evidence.caseId)) issues.push(`${evidenceContext}: duplicate diagnosed case evidence`)
+        diagnosedEvidenceByCase.set(evidence.caseId, evidence.surfaces)
+        if (!Array.isArray(rawFeature.caseIds) || !rawFeature.caseIds.includes(evidence.caseId)) {
+          issues.push(`${evidenceContext}: diagnosed evidence case is absent from the feature receipts`)
+        }
+        const diagnosedSurfaces = Object.keys(evidence.surfaces)
+        if (diagnosedSurfaces.length === 0
+          || diagnosedSurfaces.some(surface => !FIDELITY_SURFACES.includes(surface as FidelitySurface))
+          || JSON.stringify(diagnosedSurfaces) !== JSON.stringify(FIDELITY_SURFACES.filter(surface => diagnosedSurfaces.includes(surface)))) {
+          issues.push(`${evidenceContext}: diagnosed evidence surfaces are invalid`)
+          continue
+        }
+        for (const surface of diagnosedSurfaces as FidelitySurface[]) {
+          const codes = evidence.surfaces[surface]
+          if (!Array.isArray(codes) || codes.length === 0
+            || codes.some(code => typeof code !== 'string' || !code.trim())
+            || new Set(codes).size !== codes.length
+            || JSON.stringify(codes) !== JSON.stringify([...codes].sort(compareCodePointStrings))
+            || (surfaces[surface] !== 'diagnosed' && surfaces[surface] !== 'absent')) {
+            issues.push(`${evidenceContext}/${surface}: diagnosed case evidence is invalid`)
+          }
+        }
+      }
+      const diagnosedEvidenceCaseIds = rawFeature.diagnosedCaseEvidence
+        .map(evidence => isRecord(evidence) && typeof evidence.caseId === 'string' ? evidence.caseId : '')
+      if (JSON.stringify(diagnosedEvidenceCaseIds)
+        !== JSON.stringify([...diagnosedEvidenceByCase.keys()].sort(compareCodePointStrings))) {
+        issues.push(`${context}: diagnosed case evidence is out of order`)
+      }
+      for (const surface of FIDELITY_SURFACES) {
+        if (surfaces[surface] === 'diagnosed'
+          && ![...diagnosedEvidenceByCase.values()].some(evidence => evidence[surface] !== undefined)) {
+          issues.push(`${context}/${surface}: diagnosed aggregate lacks case-level evidence`)
+        }
+      }
+    }
     if (!Array.isArray(rawFeature.acceptedDivergences)) {
       issues.push(`${context}: accepted divergences are invalid`)
     } else {
@@ -162,13 +209,15 @@ export function validateFidelityCapabilityReport(
         for (const surface of divergenceSurfaces as FidelitySurface[]) {
           const surfaceCodes = divergence.diagnosticCodes[surface]
           const aggregateCodes = isRecord(rawFeature.diagnostics) ? rawFeature.diagnostics[surface] : undefined
-          if (rawFeature.surfaces?.[surface] !== 'diagnosed'
+          const caseCodes = diagnosedEvidenceByCase.get(divergence.caseId)?.[surface]
+          if ((rawFeature.surfaces?.[surface] !== 'diagnosed' && rawFeature.surfaces?.[surface] !== 'absent')
             || !Array.isArray(surfaceCodes) || surfaceCodes.length === 0
             || surfaceCodes.some(code => typeof code !== 'string' || !code.trim())
             || new Set(surfaceCodes).size !== surfaceCodes.length
             || JSON.stringify(surfaceCodes) !== JSON.stringify([...surfaceCodes].sort(compareCodePointStrings))
             || !Array.isArray(aggregateCodes)
-            || surfaceCodes.some(code => !aggregateCodes.includes(code))) {
+            || surfaceCodes.some(code => !aggregateCodes.includes(code))
+            || JSON.stringify(surfaceCodes) !== JSON.stringify(caseCodes)) {
             issues.push(`${divergenceContext}/${surface}: accepted divergence lacks matching diagnosed evidence`)
           }
         }
@@ -230,6 +279,7 @@ export type {
   FidelityCapabilityFeature,
   FidelityCapabilityReport,
   FidelityCapabilitySurface,
+  FidelityDiagnosedCaseEvidence,
   FidelityDisposition,
   FidelitySurface,
   FidelityAcceptedDivergencePolicy,

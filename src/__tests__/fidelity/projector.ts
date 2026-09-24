@@ -6,6 +6,7 @@ import {
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
   type FidelityCapabilitySurface,
+  type FidelityDiagnosedCaseEvidence,
   type FidelityDisposition,
   type FidelityReceiptResult,
   type FidelitySurface,
@@ -43,6 +44,7 @@ interface FeatureAccumulator {
   dispositions: Partial<Record<FidelitySurface, FidelityDisposition>>
   diagnostics: Partial<Record<FidelitySurface, string[]>>
   notApplicable: Partial<Record<FidelitySurface, string[]>>
+  diagnosedCaseEvidence: FidelityDiagnosedCaseEvidence[]
   acceptedDivergences: FidelityAcceptedDivergence[]
 }
 
@@ -72,10 +74,12 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
       dispositions: {},
       diagnostics: {},
       notApplicable: {},
+      diagnosedCaseEvidence: [],
       acceptedDivergences: [],
     }
     feature.caseIds.push(result.id)
 
+    const diagnosedSurfaces: Partial<Record<FidelitySurface, readonly string[]>> = {}
     for (const surface of FIDELITY_SURFACES) {
       const expectation = result.expected[surface]
       if (!expectation) throw new TypeError(`${result.id}: ${surface} expectation is undeclared`)
@@ -109,10 +113,14 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
       if (observation.disposition === 'diagnosed' && observation.diagnosticCodes.length === 0) {
         throw new TypeError(`${result.id}: ${surface} diagnosed observation has no diagnostic code`)
       }
+      if (observation.disposition === 'diagnosed') diagnosedSurfaces[surface] = [...observation.diagnosticCodes]
       feature.dispositions[surface] = leastCapable(feature.dispositions[surface], observation.disposition)
       const diagnosticCodes = feature.diagnostics[surface] ?? []
       diagnosticCodes.push(...observation.diagnosticCodes)
       feature.diagnostics[surface] = diagnosticCodes
+    }
+    if (Object.keys(diagnosedSurfaces).length > 0) {
+      feature.diagnosedCaseEvidence.push({ caseId: result.id, surfaces: diagnosedSurfaces })
     }
     if (result.acceptedDivergence) {
       const diagnosticCodes = Object.fromEntries(result.acceptedDivergence.surfaces.map(surface => {
@@ -162,6 +170,7 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
         caseIds: feature.caseIds.sort(compareCodePointStrings),
         surfaces,
         diagnostics,
+        diagnosedCaseEvidence: feature.diagnosedCaseEvidence.sort((a, b) => compareCodePointStrings(a.caseId, b.caseId)),
         acceptedDivergences: feature.acceptedDivergences.sort((a, b) => compareCodePointStrings(a.caseId, b.caseId)),
       }
     })
