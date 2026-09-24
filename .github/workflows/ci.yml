@@ -11,24 +11,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Temporary one-shot Linux/x64 capture for PR #282. Remove with the
-  # provisional ceilings once the reviewed baseline is committed.
-  sequence-payload-capture:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.13
-          no-cache: true
-      - run: bun install --frozen-lockfile
-      - run: bunx playwright install chromium --with-deps
-      - run: bun run website:payload:write
-      - uses: actions/upload-artifact@v7
-        with:
-          name: sequence-payload-candidate
-          path: eval/website-payload/baseline.json
-
   unit:
     name: Unit tests (${{ matrix.shard }})
     runs-on: ubuntu-latest
