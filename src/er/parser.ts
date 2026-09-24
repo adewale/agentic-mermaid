@@ -16,9 +16,9 @@ const ER_ENTITY_REFERENCE_SOURCE = `${ER_ENTITY_ID_SOURCE}(?:\\[\\s*(?:"(?:\\\\.
 // cardinalities. This is the single lexer vocabulary for renderer and agent.
 // Keep the glyph-candidate fallback so malformed crow's-foot tokens still reach
 // parseErCardinality and raise the existing fail-loud error.
-const ER_CARDINALITY_SOURCE = String.raw`(?:one[ \t]+or[ \t]+zero|zero[ \t]+or[ \t]+one|one[ \t]+or[ \t]+more|one[ \t]+or[ \t]+many|zero[ \t]+or[ \t]+more|zero[ \t]+or[ \t]+many|only[ \t]+one|many\(0\)|many\(1\)|1\+|0\+|many|one|1|[|o}{]+)`
+const ER_CARDINALITY_SOURCE = String.raw`(?:one or zero|zero or one|one or more|one or many|zero or more|zero or many|only one|many\(0\)|many\(1\)|1\+|0\+|many|one|1|[|o}{]+)`
 const ER_RELATIONSHIP_RE = new RegExp(
-  `^(${ER_ENTITY_REFERENCE_SOURCE})[ \\t]+(${ER_CARDINALITY_SOURCE})(?:([ \\t]*(?:--|\\.\\.)[ \\t]*)|([ \\t]+(?:optionally[ \\t]+to|to)[ \\t]+))(${ER_CARDINALITY_SOURCE})[ \\t]+(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
+  `^(${ER_ENTITY_REFERENCE_SOURCE})[ \\t]+(${ER_CARDINALITY_SOURCE})(?:([ \\t]*(?:--|\\.\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))(${ER_CARDINALITY_SOURCE})[ \\t]+(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
   'i',
 )
 
@@ -297,6 +297,9 @@ export interface ParsedErRelationshipSyntax {
 export function parseErRelationshipSyntax(line: string): ParsedErRelationshipSyntax | null {
   const match = line.match(ER_RELATIONSHIP_RE)
   if (!match) return null
+  // Mermaid's numeric `1` lexer recognizes a glyph operator only when it is
+  // adjacent on the left. Other aliases may have whitespace before the glyph.
+  if (match[2] === '1' && /^[ \t]/.test(match[3] ?? '')) return null
   const entity1 = parseErEntityReference(match[1]!)
   const entity2 = parseErEntityReference(match[6]!)
   if (!entity1 || !entity2) return null
@@ -353,7 +356,7 @@ export function erContainsSubgraphConstruct(lines: string[]): boolean {
 
 /** Parse a cardinality notation string into a Cardinality type */
 export function parseErCardinality(str: string): Cardinality | null {
-  switch (str.toLowerCase().replace(/[ \t]+/g, ' ')) {
+  switch (str.toLowerCase()) {
     case '||': case 'only one': case '1': case 'one': return 'one'
     case '|o': case 'o|': case 'one or zero': case 'zero or one': return 'zero-one'
     case '}|': case '|{': case 'one or more': case 'one or many': case 'many(1)': case '1+': return 'many'

@@ -262,11 +262,13 @@ describe('issue #248 construct fidelity receipts', () => {
   test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
+      'fidelity/cases/er-word-cardinality.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
       'block.family.accurately-diagnosed-unsupported',
+      'er.relationships.word-cardinality-aliases',
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
       'journey.scores.fractional-parser-render-seam',
@@ -282,10 +284,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 10,
-      passedCaseCount: 10,
+      caseCount: 11,
+      passedCaseCount: 11,
       failedCaseCount: 0,
-      observedSurfaceCount: 33,
+      observedSurfaceCount: 37,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })

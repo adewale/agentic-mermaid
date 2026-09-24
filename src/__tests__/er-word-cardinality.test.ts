@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid, asEr, mutate, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
-import { parseErDiagram } from '../er/parser.ts'
+import { parseErDiagram, parseErRelationshipSyntax } from '../er/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 const parseNative = (statement: string) => parseErDiagram(['erDiagram', statement])
@@ -97,6 +97,37 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
       const db = upstream.db as unknown as { getRelationships(): Array<{ relSpec: { cardA: string; cardB: string; relType: string } }> }
       expect(db.getRelationships().map(relation => relation.relSpec)).toEqual([{ cardA, cardB, relType }])
     }
+  })
+
+  test('numeric 1 requires adjacency to a glyph operator, matching Mermaid lexer', async () => {
+    const rejected = 'A 1 -- 0+ B : x'
+    const accepted = 'A one -- many B : x'
+    expect(parseErRelationshipSyntax(rejected)).toBeNull()
+    expect(parseErRelationshipSyntax(accepted)?.leftToken).toBe('one')
+    await expect(mermaid.mermaidAPI.getDiagramFromText(`erDiagram\n${rejected}\n`)).rejects.toThrow()
+    const upstream = await mermaid.mermaidAPI.getDiagramFromText(`erDiagram\n${accepted}\n`)
+    const db = upstream.db as unknown as { getRelationships(): unknown[] }
+    expect(db.getRelationships()).toHaveLength(1)
+  })
+
+  test('multiword aliases and operators use Mermaid literal single-space lexemes', async () => {
+    for (const rejected of [
+      'A one  or zero to 0+ B : x',
+      'A one\tor zero to 0+ B : x',
+      'A one or zero optionally  to 0+ B : x',
+      'A one or zero optionally\tto 0+ B : x',
+    ]) {
+      expect(parseErRelationshipSyntax(rejected)).toBeNull()
+      await expect(mermaid.mermaidAPI.getDiagramFromText(`erDiagram\n${rejected}\n`)).rejects.toThrow()
+    }
+    // Mermaid accepts this text only by silently making `only` the entity and
+    // `one` its cardinality, not as an A-to-B relationship. Do not emulate it.
+    const shifted = 'A only  one to 0+ B : x'
+    expect(parseErRelationshipSyntax(shifted)).toBeNull()
+    const upstream = await mermaid.mermaidAPI.getDiagramFromText(`erDiagram\n${shifted}\n`)
+    const db = upstream.db as unknown as { getRelationships(): Array<{ entityA: string }> }
+    expect(db.getRelationships()).toHaveLength(1)
+    expect(db.getRelationships()[0]!.entityA).toMatch(/^entity-only-/)
   })
 
   test('a typed mutation keeps surrounding relationships and canonical cardinalities', () => {
