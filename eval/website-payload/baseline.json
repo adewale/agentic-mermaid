@@ -444,10 +444,10 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "3dd57e89fb006ddac220d5ae6d172c4e02523a495c20a17e0768b542d89dbd26",
+          "sha256": "fa5513359ae6d6c3fb76191dba6e9bfa1f26ee48bd4214f422fb30bb97a2ab2e",
           "rawBytes": 102590,
-          "gzipBytes": 18090,
-          "brotliBytes": 15365
+          "gzipBytes": 18089,
+          "brotliBytes": 15383
         },
         {
           "path": "/editor/editor-5c2335765f42.js",
@@ -461,8 +461,8 @@
       "totals": {
         "requests": 2,
         "rawBytes": 3339038,
-        "gzipBytes": 983236,
-        "brotliBytes": 772230
+        "gzipBytes": 983235,
+        "brotliBytes": 772248
       }
     }
   ]
