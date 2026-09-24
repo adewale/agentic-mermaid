@@ -112,22 +112,94 @@ describe('issue #248 construct fidelity receipts', () => {
         replacement: '#00ff00',
       },
       {
+        caseId: 'sankey.links.typed-gradient-endpoints',
+        surface: 'render',
+        path: ['gradient', 'id'],
+        replacement: 'broken-gradient-id',
+      },
+      {
+        caseId: 'sankey.links.typed-gradient-endpoints',
+        surface: 'render',
+        path: ['gradient', 'x1'],
+        replacement: '1',
+      },
+      {
         caseId: 'sankey.links.light-background-multiply',
         surface: 'render',
-        path: ['blendModes', 0],
+        path: ['links', 0, 'blendMode'],
         replacement: 'normal',
+      },
+      {
+        caseId: 'sankey.links.light-background-multiply',
+        surface: 'render',
+        path: ['background'],
+        replacement: '#000000',
       },
       {
         caseId: 'sankey.links.dark-background-normal-alpha-divergence',
         surface: 'render',
-        path: ['blendModes', 0],
+        path: ['links', 0, 'blendMode'],
         replacement: 'screen',
+      },
+      {
+        caseId: 'sankey.links.dark-background-normal-alpha-divergence',
+        surface: 'render',
+        path: ['links', 0, 'opacity'],
+        replacement: '1',
       },
       {
         caseId: 'xychart.syntax.shared-parser-semantics',
         surface: 'agent',
         path: ['diagram', 'series', 0, 'values', 1],
         replacement: 999,
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'xAxis', 'name'],
+        replacement: 'unexpected',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'xAxis', 'range'],
+        replacement: { min: 0, max: 1 },
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'yAxis', 'categories'],
+        replacement: ['unexpected'],
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'agent',
+        path: ['diagram', 'series', 0, 'pointLabels'],
+        replacement: ['unexpected', null],
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'width'],
+        replacement: null,
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'mutate',
+        path: ['renderedBars', 0, 'value'],
+        replacement: '999',
+      },
+      {
+        caseId: 'xychart.syntax.unknown-statement-render-seam',
+        surface: 'agent',
+        path: ['bodyFamily'],
+        replacement: 'flowchart',
+      },
+      {
+        caseId: 'xychart.syntax.unknown-statement-render-seam',
+        surface: 'agent',
+        path: ['bodySource'],
+        replacement: 'xychart-beta\n  bar [1, 2]\n',
       },
       {
         caseId: 'xychart.syntax.unknown-statement-render-seam',
@@ -140,6 +212,21 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'mutate',
         path: ['mutatedDiagram', 'edges', 1, 'label'],
         replacement: 'b',
+      },
+      {
+        caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
+        surface: 'render',
+        path: ['edges'],
+        replacement: [
+          { source: 'A', target: 'B' },
+          { source: 'X', target: 'Y' },
+        ],
+      },
+      {
+        caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
+        surface: 'mutate',
+        path: ['renderedEdges'],
+        replacement: [{ source: 'A', target: 'B' }],
       },
     ]
 

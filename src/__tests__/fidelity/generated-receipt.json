@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "fae5f3968f64e863165ba5cf4f10baa7aeb24ef1025267ab0a98e853d52d77e2",
+    "inputSha256": "6818e4e590c8d8b59eb65a22817b007746e417284196e74d3e3d48cda945c1ef",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -88,7 +88,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
-        "sha256": "169cdb513bd1e088c7d0936ba7a967d59da2f2cbe283d0874f99ad3105635401"
+        "sha256": "978575d98b44989b0701848150e1028524e3da6555c3c6a297de840bfedc4807"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -397,6 +397,16 @@
               ]
             },
             "mutationOk": true,
+            "renderedEdges": [
+              {
+                "source": "A",
+                "target": "B"
+              },
+              {
+                "source": "B",
+                "target": "A"
+              }
+            ],
             "renderedTexts": [
               " a ",
               " b ",
@@ -540,8 +550,11 @@
           "diagnosticCodes": [],
           "semantics": {
             "background": "#071823",
-            "blendModes": [
-              "normal"
+            "links": [
+              {
+                "blendMode": "normal",
+                "opacity": "0.5"
+              }
             ]
           },
           "disposition": "absent"
@@ -582,8 +595,11 @@
           "diagnosticCodes": [],
           "semantics": {
             "background": "#ffffff",
-            "blendModes": [
-              "multiply"
+            "links": [
+              {
+                "blendMode": "multiply",
+                "opacity": "0.5"
+              }
             ]
           },
           "disposition": "native"
@@ -661,12 +677,20 @@
               ],
               "units": "userSpaceOnUse",
               "x1": "34",
-              "x2": "614"
+              "x2": "614",
+              "y1": "224",
+              "y2": "224"
             },
             "gradientCount": 1,
             "links": [
               {
                 "blendMode": "multiply",
+                "pathEndpoints": {
+                  "endX": 614,
+                  "endY": 224,
+                  "startX": 34,
+                  "startY": 224
+                },
                 "source": "A",
                 "stroke": "url(#sankey-gradient-1)",
                 "target": "B"
@@ -1052,7 +1076,9 @@
             "UNSUPPORTED_SYNTAX"
           ],
           "semantics": {
-            "bodyKind": "opaque"
+            "bodyFamily": "xychart",
+            "bodyKind": "opaque",
+            "bodySource": "xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n"
           },
           "disposition": "source-preserved"
         },
