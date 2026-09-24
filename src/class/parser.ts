@@ -557,8 +557,8 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
   const markerless = parseMarkerlessClassRelationship(line)
   if (markerless) return markerless
-  const escapedMarked = parseEscapedMarkedClassRelationship(line)
-  if (escapedMarked) return escapedMarked
+  const marked = parseMarkedClassRelationship(line)
+  if (marked) return marked
 
   // Lollipop interface endpoints are distinct UML semantics, not associations.
   const lollipop = !isEscapedMarkedClassRelationshipCandidate(line)
@@ -633,12 +633,10 @@ const ESCAPED_MARKED_ARROWS = [
   '<|--', '<|..', '--|>', '..|>', '<--', '<..', '-->', '..>', '*--', '--*', 'o--', '--o',
 ] as const
 
-/** Backtick IDs may contain spaces and delimiter-looking bytes. The legacy
- * marked-link regex needs whitespace-delimited endpoints, so scan the one-way
- * operator outside escaped IDs/cardinalities without changing its other
- * grammar. This path is linear even for a long malformed escaped endpoint. */
-function parseEscapedMarkedClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
-  if (!line.includes('`')) return null
+/** The legacy marked-link regex needs whitespace-delimited endpoints. Scan
+ * the one-way operator outside escaped IDs/cardinalities so compact ordinary
+ * links and space-bearing backtick IDs use the same bounded grammar. */
+function parseMarkedClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
   let inBacktick = false
   let inQuote = false
   let inGeneric = false
@@ -701,7 +699,6 @@ function parseEscapedMarkedClassRelationship(line: string): (ClassRelationship &
     toCardinality = normalizeBrTags(right.slice(1, close))
     right = right.slice(close + 1).trimStart()
   }
-  if (!left.startsWith('`') && !right.startsWith('`')) return null
   const fromRef = parseClassReference(left)
   const toRef = parseClassReference(right)
   const parsed = parseArrow(arrow)

@@ -17,6 +17,33 @@ const cases = [
 ] as const
 
 describe('Class escaped relationship IDs', () => {
+  test('compact ordinary marked links share native and agent semantics', () => {
+    const source = 'classDiagram\nclass A\nclass B\nA-->B'
+    const probe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
+        const relation = diagram.db.getRelations()[0]
+        process.stdout.write(JSON.stringify({ from: relation?.id1, to: relation?.id2, lineType: relation?.relation.lineType }))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual({ from: 'A', to: 'B', lineType: 0 })
+    expect(parseClassRelationship('A-->B')).toEqual(expect.objectContaining({ from: 'A', to: 'B', type: 'association' }))
+    expect(parseClassDiagram(source.split('\n')).relationships).toHaveLength(1)
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(asClass(parsed.value)?.body.relations).toEqual([expect.objectContaining({ from: 'A', to: 'B', kind: 'association' })])
+    expect(verifyMermaid(parsed.value).ok).toBe(true)
+    expect(renderMermaidSVG(source)).toContain('data-from="A" data-to="B"')
+  })
+
   test('pinned Mermaid 11.16 retains space-bearing endpoint identity and arrow meaning', () => {
     const probe = Bun.spawnSync({
       cmd: [process.execPath, '-e', `
