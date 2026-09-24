@@ -8,18 +8,23 @@
  * `@{...}` metadata and accessibility text keep their embedded semicolons.
  * Preserve each segment's own whitespace; consumers decide normalization.
  */
+export function isSequenceCommentLine(line: string): boolean {
+  return /^(?:%(?!\{)|#(?![a-z\d]+;))/i.test(line.trimStart())
+}
+
 export function splitSequenceStatementLines(lines: readonly string[]): string[] {
   const statements: string[] = []
   let inAccessibilityDescription = false
   for (const physicalLine of lines) {
+    const pushStatement = (statement: string): void => { statements.push(statement) }
     let line = physicalLine
     if (inAccessibilityDescription) {
       const closing = line.indexOf('}')
       if (closing < 0) {
-        statements.push(line)
+        pushStatement(line)
         continue
       }
-      statements.push(line.slice(0, closing + 1))
+      pushStatement(line.slice(0, closing + 1))
       line = line.slice(closing + 1)
       inAccessibilityDescription = false
     }
@@ -36,19 +41,20 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
           const opening = line.indexOf('{', start)
           const closing = line.indexOf('}', opening + 1)
           if (closing < 0) {
-            statements.push(line.slice(start))
+            pushStatement(line.slice(start))
             inAccessibilityDescription = true
             finished = true
             break
           }
-          statements.push(line.slice(start, closing + 1))
+          pushStatement(line.slice(start, closing + 1))
           start = closing + 1
           index = closing
           continue
         }
         if (/^(?:rect|box)\s+#[0-9a-f]{3,8};/i.test(remainder)
-          || /^(?:%(?!\{)|#(?![a-z\d]+;)|accTitle(?:\s*:|\s+)|accDescr(?:\s*:|\s+))/i.test(remainder)) {
-          statements.push(line.slice(start))
+          || isSequenceCommentLine(remainder)
+          || /^(?:accTitle|accDescr)(?:\s*:|\s+)/i.test(remainder)) {
+          pushStatement(line.slice(start))
           finished = true
           break
         }
@@ -72,16 +78,17 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
       }
       if (char === '#' && !/^#(?:\d+|[a-z][a-z\d]*);/i.test(line.slice(index))
         && !(/^\s*(?:rect|box)\s*$/i.test(line.slice(start, index))
-          && /^#[0-9a-f]{3,8}(?:;|$)/i.test(line.slice(index)))) {
-        statements.push(line.slice(start, index))
+          && /^#[0-9a-f]{3,8}(?=\s|;|$)/i.test(line.slice(index)))) {
+        pushStatement(line.slice(start, index))
+        pushStatement(line.slice(index))
         finished = true
         break
       }
       if (line[index] !== ';' || isHashEntityTerminator(line, start, index)) continue
-      statements.push(line.slice(start, index))
+      pushStatement(line.slice(start, index))
       start = index + 1
     }
-    if (!finished) statements.push(line.slice(start))
+    if (!finished) pushStatement(line.slice(start))
   }
   return statements
 }

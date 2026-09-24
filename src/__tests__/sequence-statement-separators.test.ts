@@ -2,9 +2,11 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { mutate } from '../agent/mutate.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
@@ -97,6 +99,73 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     if (agent.ok) expect(asSequence(agent.value)?.body.messages.map(message => message.text)).toEqual(['one', 'two'])
   })
 
+  test('agent serialization preserves a packed comment without reviving following ghost statements', () => {
+    const source = 'sequenceDiagram\nA->>B: one; %% important; B->>A: ghost\nB->>A: two'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.meta.comments).toEqual([{ text: 'important; B->>A: ghost', line: 2 }])
+    expect(parsed.value.meta.droppedComments).toBeUndefined()
+    expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toContain('%% important; B->>A: ghost')
+    expect(parseSequenceDiagram(serialized.trimEnd().split('\n')).messages.map(message => message.label)).toEqual(['one', 'two'])
+  })
+
+  test('a packed comment preserved in an opaque block does not raise a false loss warning', () => {
+    const source = 'sequenceDiagram\nalt yes; %% important\nA->>B: hi\nend'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.meta.comments).toEqual([{ text: 'important', line: 2 }])
+    expect(serializeMermaid(parsed.value)).toContain('%% important')
+    expect(parsed.value.meta.droppedComments).toBeUndefined()
+    expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+  })
+
+  test('accessibility block text is not confused with a later preserved packed comment', () => {
+    const source = 'sequenceDiagram\naccDescr {\n%% literal\n}\nA->>B: one; %% real comment'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.meta.comments).toEqual([{ text: 'real comment', line: 5 }])
+    expect(parsed.value.meta.droppedComments).toBeUndefined()
+    expect(serializeMermaid(parsed.value)).toContain('%% real comment')
+    const suffix = parseRegisteredMermaid('sequenceDiagram\naccDescr {x}; %% important\nA->>B: hi')
+    expect(suffix.ok).toBe(true)
+    if (suffix.ok) {
+      expect(suffix.value.meta.comments).toEqual([{ text: 'important', line: 2 }])
+      expect(serializeMermaid(suffix.value)).toContain('%% important')
+      expect(suffix.value.meta.droppedComments).toBeUndefined()
+    }
+  })
+
+  test('comment-only segments remain nonsemantic for verification and participant removal', () => {
+    const onlyComment = parseRegisteredMermaid('sequenceDiagram\n%% only a comment')
+    expect(onlyComment.ok).toBe(true)
+    if (!onlyComment.ok) return
+    expect(serializeMermaid(onlyComment.value)).toContain('%% only a comment')
+    const warnings = verifyMermaid(onlyComment.value).warnings
+    expect(warnings.some(warning => warning.code === 'EMPTY_DIAGRAM')).toBe(true)
+    expect(warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(false)
+
+    const named = parseRegisteredMermaid('sequenceDiagram\nparticipant A\n%% A is mentioned in a comment')
+    expect(named.ok).toBe(true)
+    if (!named.ok) return
+    const body = asSequence(named.value)
+    expect(body).not.toBeNull()
+    if (body) expect(mutate(body, { kind: 'remove_participant', id: 'A' }).ok).toBe(true)
+  })
+
+  test('a large packed Sequence keeps its trailing comment without quadratic diffing', () => {
+    const source = `sequenceDiagram\n${Array(1024).fill('A->>B: hi').join('; ')}; %% tail`
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(asSequence(parsed.value)?.body.messages).toHaveLength(1024)
+    expect(serializeMermaid(parsed.value)).toContain('%% tail')
+  })
+
   test('multiline accessibility description keeps its literal semicolon', () => {
     const parsed = parseSequenceDiagram(['sequenceDiagram', 'accTitle: First; second', 'accDescr {', 'first; second', '}', 'A->>B: hi'])
     expect(parsed.accessibilityTitle).toBe('First; second')
@@ -149,6 +218,9 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     expect(participant.messages.map(message => message.label)).toEqual(['real'])
     const rect = parseSequenceDiagram(['sequenceDiagram', 'rect # comment; A->>B: ghost', 'end', 'A->>B: real'])
     expect(rect.messages.map(message => message.label)).toEqual(['real'])
+    const noteAgent = parseRegisteredMermaid('sequenceDiagram\nNote right of A: keep # comment; A->>B: ghost')
+    expect(noteAgent.ok).toBe(true)
+    if (noteAgent.ok) expect(serializeMermaid(noteAgent.value)).toContain('# comment; A->>B: ghost')
   })
 
   test('participant metadata retains a semicolon inside its JSON-like alias', () => {

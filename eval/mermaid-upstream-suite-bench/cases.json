@@ -10345,17 +10345,16 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 2,
+      "edgeCount": 3,
       "groupCount": 1,
       "minNodes": 2,
-      "minEdges": 2,
+      "minEdges": 3,
       "minGroups": 1,
       "labelsContain": [
         "Alice",
         "Bob",
         "Hello Bob, how are you?",
-        "I am good thanks!",
-        ";Bob-->Alice: I am good thanks!"
+        "I am good thanks!"
       ]
     }
   },
@@ -10413,8 +10412,7 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?",
-        "I am good thanks!",
-        "# comment"
+        "I am good thanks!"
       ]
     }
   },
@@ -10434,17 +10432,16 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 2,
+      "edgeCount": 3,
       "groupCount": 1,
       "minNodes": 2,
-      "minEdges": 2,
+      "minEdges": 3,
       "minGroups": 1,
       "labelsContain": [
         "Alice",
         "Bob",
         "Hello Bob, how are you?",
-        "I am good thanks!",
-        ";Bob-->Alice: I am good thanks!"
+        "I am good thanks!"
       ]
     }
   },
@@ -11018,7 +11015,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },
@@ -11048,7 +11045,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },
@@ -11075,7 +11072,7 @@
       "labelsContain": [
         "Alice",
         "Bob",
-        "-:<>,;# comment",
+        "-:<>,",
         "Hello Bob, how are you?"
       ]
     }
@@ -11106,7 +11103,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },
@@ -11136,7 +11133,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },

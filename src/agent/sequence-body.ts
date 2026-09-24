@@ -29,7 +29,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
-import { splitSequenceStatementLines } from '../sequence/statements.ts'
+import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -84,7 +84,12 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   while (i < raw.length) {
     const rawLine = raw[i]!
     const line = rawLine.trim()
-    if (!line || line.startsWith('%%')) { i++; continue }
+    if (!line) { i++; continue }
+    if (isSequenceCommentLine(line)) {
+      appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
+      i++
+      continue
+    }
 
     if (/^(participant|actor)\b/i.test(line)) {
       let part
@@ -536,7 +541,7 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const token = new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`)
   return statements.some(statement =>
-    (statement.kind === 'opaque-block' && statement.lines.some(line => token.test(line)))
+    (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && token.test(line)))
     || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id))))
 }
 
