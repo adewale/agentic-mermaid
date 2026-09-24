@@ -4,6 +4,7 @@ import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts
 import { layoutGraphSync } from '../../layout-engine.ts'
 import { parseMermaid } from '../../parser.ts'
 import { lowerGraphScene } from '../../renderer.ts'
+import { frontmatterTitle } from '../../mermaid-source.ts'
 import { resolveStateRenderOptions } from '../../state/config.ts'
 import { checkAllGraphAuthoredStyles } from '../../shared/style-props.ts'
 
@@ -18,12 +19,14 @@ export default createBrowserFamilyDescriptor(descriptorData, {
   },
   layout: ctx => {
     const stateVisual = (ctx.familyAppearance as { visual?: ResolvedStateVisualConfig } | undefined)?.visual
+    const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
     const graph = parseMermaid(ctx.source.familyText)
     checkAllGraphAuthoredStyles(graph)
     return layoutResult(layoutGraphSync(graph, {
       ...ctx.renderOptions,
       ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
       ...(stateVisual ? { stateVisual } : {}),
+      ...(diagramTitle ? { diagramTitle } : {}),
     }))
   },
   lowerScene: scene(lowerGraphScene),

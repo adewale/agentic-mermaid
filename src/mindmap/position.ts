@@ -1,5 +1,6 @@
-import { layoutMindmap } from './layout.ts'
+import { layoutMindmap, withMindmapTitle } from './layout.ts'
 import type { MindmapDiagram, PositionedMindmapDiagram } from './types.ts'
+import type { ResolvedRenderStyle } from '../styles.ts'
 
 export interface MindmapPositionConfig {
   padding?: number
@@ -16,6 +17,12 @@ export function resolveMindmapPositionConfig(raw: unknown, authoredLayout: unkno
   return options
 }
 
-export function positionMindmap(body: MindmapDiagram, config: MindmapPositionConfig): PositionedMindmapDiagram {
-  return layoutMindmap(body, config)
+/** Lay out the map; a titled map (frontmatter `title:`) gets its title band,
+ * measured with the style's group text case and tracking when one is given. */
+export function positionMindmap(
+  body: MindmapDiagram,
+  config: MindmapPositionConfig,
+  titleStyle: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'> = { groupLetterSpacing: 0 },
+): PositionedMindmapDiagram {
+  return withMindmapTitle(layoutMindmap(body, config), body.title, titleStyle, config)
 }

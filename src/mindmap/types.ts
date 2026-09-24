@@ -1,4 +1,5 @@
 import type { PositionedDiagram } from '../types.ts'
+import type { PositionedDiagramTitle } from '../styles.ts'
 
 export type MindmapShape = 'default' | 'rect' | 'rounded' | 'circle' | 'cloud' | 'bang' | 'hexagon'
 
@@ -16,6 +17,8 @@ export interface MindmapNode {
 
 export interface MindmapDiagram {
   root: MindmapNode
+  /** The diagram's title (frontmatter `title:`). */
+  title?: string
   accessibilityTitle?: string
   accessibilityDescription?: string
 }
@@ -46,6 +49,8 @@ export interface PositionedMindmapEdge {
 }
 
 export interface PositionedMindmapDiagram extends PositionedDiagram {
+  /** The diagram's title, in its band above the map. */
+  title?: PositionedDiagramTitle
   accessibilityTitle?: string
   accessibilityDescription?: string
   nodes: PositionedMindmapNode[]

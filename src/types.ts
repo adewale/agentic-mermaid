@@ -2,6 +2,7 @@ import type { MermaidRuntimeConfig } from './mermaid-source.ts'
 import type { DiagramColors } from './theme.ts'
 import type { ArchitectureVisualOverrides } from './architecture/config.ts'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
+import type { PositionedDiagramTitle } from './styles.ts'
 
 // ============================================================================
 // Parsed graph — logical structure extracted from Mermaid text
@@ -175,6 +176,8 @@ export interface PositionedGraph extends PositionedDiagram {
    *  placeStateNotes: the box sits on the declared side of its target and
    *  overlaps no node/group box. */
   notes?: PositionedStateNote[]
+  /** The diagram's frontmatter title, in its band above the graph. */
+  title?: PositionedDiagramTitle
 }
 
 /** A placed state-diagram note box. */

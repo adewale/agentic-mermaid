@@ -339,6 +339,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ...(paintOrder !== undefined ? { paintOrder } : {}),
     ...(mixBlendMode !== undefined ? { mixBlendMode } : {}),
     nonScaling: fields.stroke?.nonScaling ?? fields.paint.vectorEffect === 'non-scaling-stroke',
+    ...(fields.stroke?.encodesValue ? { encodesValue: true } : {}),
   }
   const derivedContours = connectorContourSemantics(fields.geometry, routeClosed)
   const suppliedContours = fields.route?.contours

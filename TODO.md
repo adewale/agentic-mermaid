@@ -119,6 +119,24 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   already owns the recognition floor: official and unknown headers are
   preserved or diagnosed and never fall through to Flowchart. Maturity comes
   from manifest data rather than a `-beta` spelling heuristic.
+- [ ] **BUILD-30 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
+  Palettes separate peers where colors are generated (`categoricalPalette`,
+  ΔE_OK ≥ 0.10), but a scene-keyed census of every family's honesty corpus in
+  every style found three cases where the drawn colors compress: the
+  watercolor wash glazes pie slices at 30% (ΔE_OK 0.03 between slices) while
+  their legend keys stay opaque; journey actor dots under watercolor (0.049);
+  and radar legend keys, drawn at the curve opacity with a neutral border
+  (0.06–0.09 between keys in most palettes — the curves themselves separate by
+  their opaque outlines). Build an as-drawn oracle keyed by legend categories
+  (keys distinguishable; each key matches the marks it names), then decide the
+  look policy for keyed marks. See
+  [`docs/design/system/chart-honesty.md`](docs/design/system/chart-honesty.md).
+- [ ] **BUILD-31 — Report radar scales that exclude zero (chart honesty H6)**
+  (`todo`). An authored radar `min` above zero draws radii proportional to
+  `value − min` (`radarValueRatio`), and values outside `[min, max]` are
+  clamped, so a curve can misstate its values with no report. XY charts report
+  the same distortion as `BAR_RANGE_EXCLUDES_ZERO`; give radar the equivalent
+  verify warning (or a shared scale-baseline code).
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability

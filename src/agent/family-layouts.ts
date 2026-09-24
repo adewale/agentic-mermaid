@@ -774,12 +774,12 @@ export function projectXyChartPositioned({ positioned, options }: FamilyPosition
 export function projectPiePositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedPieChart>): FamilyPositionedView {
   // Pie has no structural nodes/edges — the slices are angular wedges. Use
   // each slice's legend row as a label-anchored box (legend swatch top-left,
-  // approximate width from label length at the legend font baseline). This
-  // gives the metrics a positive node area + legible labels to measure.
-  const CHAR_PX = 7
+  // text measured by layout — a per-character estimate overran the canvas for
+  // long labels and reported OFF_CANVAS where nothing was). This gives the
+  // metrics a positive node area + legible labels to measure.
   const nodes: RenderedLayoutNode[] = positioned.legend.map((l, i) => {
     const labelText = `${l.label} (${formatPiePercent(l.fraction)})`
-    const w = Math.max(l.swatchSize, labelText.length * CHAR_PX + l.swatchSize)
+    const w = Math.max(l.swatchSize, l.textX - l.x + l.textWidth)
     return { id: `slice#${i}:${l.label}`, x: f(l.x), y: f(l.y), w: f(w), h: f(l.swatchSize), shape: 'rectangle', label: labelText }
   })
   const layout: FamilyPositionedView = { version: 1, nodes, edges: [], groups: [], bounds: { w: f(positioned.width), h: f(positioned.height) } }
