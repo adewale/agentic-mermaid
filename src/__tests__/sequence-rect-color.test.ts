@@ -72,9 +72,13 @@ describe('Sequence rect background color', () => {
     if (!parsed.ok) return
     const body = asSequence(parsed.value)?.body
     expect(body?.statements.map(statement => statement.kind)).toEqual(['participant', 'participant', 'message', 'opaque-block', 'message'])
+    const opaque = body?.statements[3]
+    expect(opaque?.kind).toBe('opaque-block')
+    if (opaque?.kind !== 'opaque-block') return
+    const authoredBlockLines = SOURCE.trimEnd().split('\n').slice(4, -1)
+    expect(opaque.lines).toEqual(authoredBlockLines)
     const serialized = serializeMermaid(parsed.value)
-    expect(serialized).toContain('rect rgb(191, 223, 255)')
-    expect(serialized).toContain('rect rgba(0, 0, 255, .1)')
+    expect(serialized).toContain(authoredBlockLines.join('\n'))
     expect(parseSequenceDiagram(serialized.trimEnd().split('\n')).blocks).toEqual(
       parseSequenceDiagram(SOURCE.split('\n')).blocks,
     )
