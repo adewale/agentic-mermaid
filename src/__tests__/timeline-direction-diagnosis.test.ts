@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import mermaid from 'mermaid'
 import { asTimeline, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 
@@ -56,5 +57,12 @@ describe('Timeline header-direction admission', () => {
     expect(before).toContain('2020')
     expect(before).not.toContain('TB')
     expect(() => renderMermaidSVG(source('timeline TB'), { embedFontImport: false })).toThrow(/Unsupported timeline header/)
+  })
+
+  test('the lazy browser route rejects unsupported suffixes with the same Timeline diagnosis', async () => {
+    for (const header of ['timeline TB', 'timeline EXTRA']) {
+      await expect(renderMermaidSVGAsync(source(header))).rejects.toThrow(/Unsupported timeline header suffix/)
+    }
+    expect(await renderMermaidSVGAsync(source('timeline TD'))).toContain('Launch')
   })
 })
