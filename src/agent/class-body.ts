@@ -22,10 +22,8 @@
 //                                                 namespace grammar)
 //
 // Unmodeled (forces opaque):
-//   - direction TB (wired at layout, unmodeled here) / annotations like
-//     <<enum>> embedded after `class X` (we DO accept them
-//     as `members` of X via the `class X { <<interface>> }` form). The
-//     standalone `class X <<...>>` form falls back to opaque.
+//   - direction TB (wired at layout, unmodeled here); repeated class
+//     annotations stay opaque because the renderer has one annotation slot.
 //   - cssClass / link / callback / click handlers
 //   - styled / classDef
 // ============================================================================
@@ -37,7 +35,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -209,6 +207,18 @@ export function parseClassBody(lines: string[]): ClassBody | null {
       continue
     }
 
+    // The official inline and separate annotation forms project to the
+    // existing class-body member representation, which serializes as a block.
+    const annotation = parseClassAnnotationStatement(raw)
+    if (annotation) {
+      if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return null
+      const node = upsert(annotation.id, annotation.label, annotation.generic)
+      if (node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
+      node.members.push(`<<${annotation.annotation}>>`)
+      claimClass(node)
+      continue
+    }
+
     // Class declaration (with or without open brace)
     const declaration = parseClassDeclaration(raw)
     if (declaration) {
@@ -221,6 +231,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           i++
           if (!ml || ml.startsWith('%%')) continue
           if (ml === '}') break
+          if (parseClassBodyAnnotationToken(ml) !== null && node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
           node.members.push(ml)
         }
       }

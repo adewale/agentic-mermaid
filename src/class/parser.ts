@@ -3,6 +3,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
 
 // ---- Shared namespace grammar ----------------------------------------------
 // One grammar, two consumers: this render parser and the agent body parser
@@ -67,6 +68,100 @@ export function parseClassReference(token: string): { id: string; generic?: stri
     id: rawId.startsWith('`') ? rawId.slice(1, -1) : rawId,
     generic: match[2]?.trim() || undefined,
   }
+}
+
+/** Inline and separate annotations use Mermaid's word-token lexer. */
+export function parseClassAnnotationToken(token: string): string | null {
+  const match = token.trim().match(/^<<[ \t]*(\w+)[ \t]*>>$/)
+  return match?.[1] ?? null
+}
+
+/** Class-body annotations accept any interior text, including an empty
+ * string and additional angle brackets, and retain its authored bytes. */
+export function parseClassBodyAnnotationToken(token: string): string | null {
+  const text = token.trim()
+  return text.startsWith('<<') && text.endsWith('>>') ? text.slice(2, -2) : null
+}
+
+export interface ParsedClassAnnotationStatement {
+  id: string
+  generic?: string
+  label?: string
+  annotation: string
+  placement: 'inline' | 'separate' | 'body-inline'
+}
+
+/** A class ID, generic, or quoted label may itself contain `<<...>>`.
+ * Find the annotation opener only after leaving those declaration contexts.
+ * One pass bounds work even for a full-size hostile source line. */
+function findClassAnnotationStart(text: string): number {
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let bracketDepth = 0
+  for (let i = 0; i < text.length - 1; i++) {
+    const char = text[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~' && bracketDepth === 0) { inGeneric = true; continue }
+    if (char === '[') { bracketDepth++; continue }
+    if (char === ']') { bracketDepth = Math.max(0, bracketDepth - 1); continue }
+    if (bracketDepth === 0 && char === '<' && text[i + 1] === '<') return i
+  }
+  return -1
+}
+
+/** Split once at the annotation delimiters, then reuse the declaration and
+ * reference grammars. Avoid overlapping unbounded captures on hostile input. */
+export function parseClassAnnotationStatement(line: string): ParsedClassAnnotationStatement | null {
+  const text = line.trim()
+  if (text.startsWith('<<')) {
+    const close = text.indexOf('>>', 2)
+    if (close < 0) return null
+    const annotation = parseClassAnnotationToken(text.slice(0, close + 2))
+    const ref = parseClassReference(text.slice(close + 2))
+    return annotation && ref ? { ...ref, annotation, placement: 'separate' } : null
+  }
+
+  const prefix = text.match(/^class\s+/)
+  if (!prefix) return null
+  const declarationAndAnnotation = text.slice(prefix[0].length)
+  const start = findClassAnnotationStart(declarationAndAnnotation)
+  if (start < 0) return null
+  let declarationText = declarationAndAnnotation.slice(0, start).trim()
+  let annotationText = declarationAndAnnotation.slice(start).trim()
+  const bodyInline = declarationText.endsWith('{') && annotationText.endsWith('}')
+  if (bodyInline) {
+    declarationText = declarationText.slice(0, -1).trim()
+    annotationText = annotationText.slice(0, -1).trim()
+  }
+  const declaration = parseClassDeclaration(`class ${declarationText}`)
+  const annotation = bodyInline
+    ? parseClassBodyAnnotationToken(annotationText)
+    : parseClassAnnotationToken(annotationText)
+  return declaration && !declaration.opensBody && annotation !== null
+    ? {
+        id: declaration.id,
+        ...(declaration.generic ? { generic: declaration.generic } : {}),
+        ...(declaration.label !== undefined ? { label: declaration.label } : {}),
+        annotation,
+        placement: bodyInline ? 'body-inline' : 'inline',
+      }
+    : null
+}
+
+function applyClassAnnotation(node: ClassNode, annotation: string): void {
+  if (node.annotation !== undefined) {
+    throw syntaxError({
+      what: `Multiple annotations for class "${node.id}" are not modeled without losing identity`,
+      expectedForm: 'one annotation per class',
+      example: `class ${node.id} <<${annotation}>>`,
+    })
+  }
+  node.annotation = annotation
 }
 
 /** Shared safe-link grammar for renderer and agent class parsers. */
@@ -172,6 +267,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+    if (!line || line.startsWith('%%')) continue
 
     // --- Inside a class body block ---
     if (currentClass && braceDepth > 0) {
@@ -184,9 +280,9 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       }
 
       // Check for annotation like <<interface>>
-      const annotMatch = line.match(/^<<(\w+)>>$/)
-      if (annotMatch) {
-        currentClass.annotation = annotMatch[1]!
+      const annotation = parseClassBodyAnnotationToken(line)
+      if (annotation !== null) {
+        applyClassAnnotation(currentClass, annotation)
         continue
       }
 
@@ -274,6 +370,23 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       }
     }
 
+    // --- Class annotation, in either official placement or a one-line body. ---
+    const annotationStatement = parseClassAnnotationStatement(line)
+    if (annotationStatement) {
+      if (annotationStatement.placement === 'separate' && !classMap.has(annotationStatement.id)) {
+        throw syntaxError({
+          what: `Annotation targets undeclared class "${annotationStatement.id}"`,
+          expectedForm: 'declare the class before a separate annotation',
+          example: `class ${annotationStatement.id}\n<<${annotationStatement.annotation}>> ${annotationStatement.id}`,
+        })
+      }
+      const cls = ensureClass(classMap, annotationStatement.id, annotationStatement.generic)
+      if (annotationStatement.label !== undefined) cls.label = normalizeBrTags(annotationStatement.label)
+      applyClassAnnotation(cls, annotationStatement.annotation)
+      claimClass(cls.id)
+      continue
+    }
+
     // --- Class declaration (standalone or opening a member block) ---
     const declaration = parseClassDeclaration(line)
     if (declaration) {
@@ -284,17 +397,6 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
         braceDepth = 1
       }
       claimClass(declaration.id)
-      continue
-    }
-
-    // --- Inline annotation: `class ClassName { <<interface>> }` (single line) ---
-    const inlineAnnotMatch = line.match(/^class\s+(\S+?)\s*\{\s*<<(\w+)>>\s*\}$/)
-    if (inlineAnnotMatch) {
-      const ref = parseClassReference(inlineAnnotMatch[1]!)
-      if (!ref) continue
-      const cls = ensureClass(classMap, ref.id, ref.generic)
-      cls.annotation = inlineAnnotMatch[2]!
-      claimClass(cls.id)
       continue
     }
 
@@ -344,6 +446,16 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...relationship } = rel
       diagram.relationships.push(relationship)
       continue
+    }
+
+    // An annotation-like statement that misses the shared grammar must not
+    // disappear from an otherwise plausible class diagram.
+    if (line.includes('<<') || line.includes('>>')) {
+      throw syntaxError({
+        what: `Unrecognized class annotation statement "${line}"`,
+        expectedForm: 'class Name <<annotation>> or <<annotation>> Name',
+        example: 'class Shape <<interface>>',
+      })
     }
   }
 
