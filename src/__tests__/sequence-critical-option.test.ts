@@ -104,7 +104,7 @@ describe('Sequence critical/option keyword boundary', () => {
       ['par_over:label', '_over:label'],
       ['par_over    label', '_over    label'],
       ['par_over', '_over'],
-    ]) {
+    ] as const) {
       const source = `sequenceDiagram\n${opener}\nA->>B: work\nend\n`
       expect(parseSequenceDiagram(source.split('\n')).blocks[0]?.label).toBe(expected)
       const agent = parseRegisteredMermaid(source)
