@@ -1,0 +1,12 @@
+sequenceDiagram
+participant Alice
+participant John
+Alice->>John: Before
+rect rgb(191, 223, 255)
+Alice->>John: Outer
+rect rgba(0, 0, 255, .1)
+John-->>Alice: Inner
+end
+John-->>Alice: Outer again
+end
+Alice->>John: After

@@ -4,7 +4,7 @@
     "package": "mermaid",
     "version": "11.16.0",
     "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-    "inventorySha256": "dfb641f5259e3fcc4adcf3ca87ea1e96801b6fa7e8e6550a15ec67b0b1e3412a",
+    "inventorySha256": "e4c273a67903d3cd3cfd5f7431b5e3515f73cf61e3b28358a61edcdfe0b6710d",
     "revisionAcknowledgements": [
       {
         "id": "historical-docs-corpus-a2d968-to-f3dea",
@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "ec47dac325ddce7497bc90bb2fb533be190d3009ca7c1f1247c02d528c0e5f2c",
+    "inputSha256": "6ca0bc788eb2bfd584c8bd715ee59fa4986efe5525bb26eaefdab36159f1c572",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",

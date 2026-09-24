@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "docs/project/upstream-mermaid-manifest.json",
-      "sha256": "4f083aa4a62dbb312bfc0a03f8a1b86a522c5d6883477c8650f0956d31e6df3f"
+      "sha256": "2187dfbf3309ec9f9ec3348fc7f5d2ff86fd31315d55710a12d40470210660fb"
     },
     {
       "path": "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
@@ -980,7 +980,7 @@
     },
     {
       "path": "src/sequence/colors.ts",
-      "sha256": "56972ea72eb2f4a41cc2d42c4b0efedc5d3ad2150bf0984919347a4ccc132339"
+      "sha256": "681445812827c8efc6050522861fe014919f168f66c3ea32ae4cae198d3a88a3"
     },
     {
       "path": "src/sequence/config.ts",
@@ -988,15 +988,15 @@
     },
     {
       "path": "src/sequence/layout.ts",
-      "sha256": "a1e65bf8e0db67677e7ba4fea6b9524ab1d3ef3631579ffe636c8314013ff69f"
+      "sha256": "d34105c7c7d3aa492e8a077eccb36a3d5a115cc5a84af657cdce1903ef31c1c8"
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "b4b5faf289b2e85657950cbdd956ca4db0810a8124d806c623d06879218328f0"
+      "sha256": "d51fffc1b00a8497f6f13eb43bdc49a726d75ad05ee16400461e05b30a9ccfdf"
     },
     {
       "path": "src/sequence/renderer.ts",
-      "sha256": "4d6b98d45930532341259776de48604067ed2e854c59aac87e36bc52e2d7b991"
+      "sha256": "d45afe6536b1554f18080b95735c3c1202b4f5f2c06c0497146382ab37f81778"
     },
     {
       "path": "src/sequence/statements.ts",
@@ -1004,7 +1004,7 @@
     },
     {
       "path": "src/sequence/types.ts",
-      "sha256": "e2dd4591f01290e30b668f2e47f9053a06e9a235467db8c15f2d2e5ad8a58f73"
+      "sha256": "c8b36ebccdf2428c1300f4dadf8f3563d1c2e8fe9e5963c65c64bf9e498e5e33"
     },
     {
       "path": "src/shape-clipping.ts",
@@ -1192,7 +1192,7 @@
     },
     {
       "path": "src/upstream-mermaid-family-index.json",
-      "sha256": "985082ea11a7a2ef32a476c967e6bb32c6ce905912e342da24e106a732bcefda"
+      "sha256": "aad8880765ad4e32c63f6c3433f8cf3b8959ed72e15a8e363b13698b54835a4a"
     },
     {
       "path": "src/upstream-mermaid-manifest.ts",

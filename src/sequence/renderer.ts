@@ -109,12 +109,18 @@ export function lowerSequenceScene(
     parts.push(renderBoxGroup(box, style, `box:${boxKey}#${k}`))
   }
 
-  // 1. Block backgrounds (loop/alt/opt rectangles)
+  // 1. Block backgrounds. Completed nested blocks arrive inner-first; paint
+  // their enclosing background first so translucent rects remain visible.
   const blockOccurrence = new Map<string, number>()
+  const blockSceneIds = new Map<PositionedBlock, string>()
   for (const block of diagram.blocks) {
     const k = blockOccurrence.get(block.type) ?? 0
     blockOccurrence.set(block.type, k + 1)
-    parts.push(renderBlock(block, style, `block:${block.type}#${k}`))
+    blockSceneIds.set(block, `block:${block.type}#${k}`)
+  }
+  for (const block of [...diagram.blocks].reverse().sort((a, b) =>
+    b.width * b.height - a.width * a.height)) {
+    parts.push(renderBlock(block, style, blockSceneIds.get(block)!))
   }
 
   // 2. Lifelines (dashed vertical lines from actor to bottom)
@@ -129,7 +135,7 @@ export function lowerSequenceScene(
   for (const block of diagram.blocks) {
     const k = blockHeaderOccurrence.get(block.type) ?? 0
     blockHeaderOccurrence.set(block.type, k + 1)
-    parts.push(renderBlockHeader(block, style, `block:${block.type}#${k}`))
+    if (block.type !== 'rect') parts.push(renderBlockHeader(block, style, blockSceneIds.get(block)!))
   }
 
   // 3. Activation boxes
@@ -542,8 +548,8 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
     `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
 
   // Outer rectangle
-  const rawFill = style.groupFillColor ?? 'none'
-  const rawStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  const rawFill = block.type === 'rect' ? (block.color ?? 'rgba(128, 128, 128, 0.5)') : (style.groupFillColor ?? 'none')
+  const rawStroke = block.type === 'rect' ? 'none' : (style.groupBorderColor ?? 'var(--_node-stroke)')
   children.push({
     indent: 2,
     node: marks.shape({

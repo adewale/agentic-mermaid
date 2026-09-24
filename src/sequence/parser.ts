@@ -1,7 +1,7 @@
 import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup, SequenceActorType, SequenceMessageHead } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { isCssColorToken } from './colors.ts'
+import { isCssColorToken, sequenceRectColor } from './colors.ts'
 import { splitSequenceStatementLines } from './statements.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from './block-keywords.ts'
 
@@ -115,7 +115,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   // Track actor IDs to auto-create actors referenced in messages
   const actorIds = new Set<string>()
   // Track block nesting with a stack
-  const blockStack: Array<{ type: Block['type']; label: string; startIndex: number; dividers: Block['dividers'] }> = []
+  const blockStack: Array<{ type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers'] }> = []
   // Open `box … end` group (boxes never nest; they only wrap participant lines)
   let openBox: SequenceBoxGroup | null = null
   // Active autonumber state; null = numbering off
@@ -286,10 +286,21 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // The old `par` prefix match exposed the untouched `_over...` suffix as
       // its label. Keep that exact spacing/punctuation until `par_over` gains
       // its own native semantics; the shared classifier trims opener labels.
-      const label = normalizeBrTags(opener.type === 'par_over' ? `_over${line.slice(8)}`.trim() : opener.label)
+      const label = opener.type === 'rect'
+        ? ''
+        : normalizeBrTags(opener.type === 'par_over' ? `_over${line.slice(8)}`.trim() : opener.label)
+      // Mermaid permits a bare `rect` (default fill). A hash comment after
+      // the keyword also leaves the color empty; the shared statement scanner
+      // already keeps its remainder out of the message stream.
+      const rectArgument = opener.type === 'rect' && opener.label.startsWith('#') ? '' : opener.label
+      const color = opener.type === 'rect' ? sequenceRectColor(rectArgument) : undefined
+      if (opener.type === 'rect' && rectArgument && !color) {
+        throw new Error('SEQUENCE_RECT_COLOR_UNSUPPORTED: rect requires a safe concrete CSS color')
+      }
       blockStack.push({
         type: blockType,
         label,
+        ...(color ? { color } : {}),
         startIndex: diagram.messages.length,
         dividers: [],
       })
@@ -314,6 +325,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       diagram.blocks.push({
         type: completed.type,
         label: completed.label,
+        ...(completed.color ? { color: completed.color } : {}),
         startIndex: completed.startIndex,
         endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
         dividers: completed.dividers,
