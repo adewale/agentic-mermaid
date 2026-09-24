@@ -13,13 +13,13 @@ import { CSS_NAMED_COLORS } from './css-named-colors.ts'
 export type RgbaColor = [red: number, green: number, blue: number, alpha: number]
 
 /**
- * Parse a hex color to [r, g, b]. Accepts #RGB and #RRGGBB (a longer string
- * such as #RRGGBBAA is read as its first six digits; alpha is ignored).
- * Assumes a syntactically valid color — use tryParseHex when unsure.
+ * Parse a hex color to [r, g, b]. Accepts #RGB, #RGBA, #RRGGBB, and #RRGGBBAA;
+ * alpha is ignored, so #RGBA reads as #RGB and #RRGGBBAA as its first six
+ * digits. Assumes a syntactically valid color — use tryParseHex when unsure.
  */
 export function parseHex(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
-  const full = h.length === 3
+  const full = h.length === 3 || h.length === 4
     ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]!
     : h
   return [
