@@ -460,8 +460,8 @@
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3339038,
-        "gzipBytes": 983235,
+        "rawBytes": 3339124,
+        "gzipBytes": 983294,
         "brotliBytes": 772046
       }
     }
