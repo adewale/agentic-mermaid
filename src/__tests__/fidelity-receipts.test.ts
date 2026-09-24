@@ -104,6 +104,7 @@ describe('issue #248 construct fidelity receipts', () => {
       surface: FidelitySurface
       path: readonly (number | string)[]
       replacement: FidelityJson
+      additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
     }> = [
       {
         caseId: 'sankey.links.typed-gradient-endpoints',
@@ -185,9 +186,22 @@ describe('issue #248 construct fidelity receipts', () => {
       },
       {
         caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'width'],
+        replacement: '117.74',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
         surface: 'mutate',
         path: ['renderedBars', 0, 'value'],
         replacement: '999',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'mutate',
+        path: ['renderedBars', 0, 'width'],
+        replacement: '147.18',
+        additionalChanges: [{ path: ['renderedBars', 1, 'width'], replacement: '58.87' }],
       },
       {
         caseId: 'xychart.syntax.unknown-statement-render-seam',
@@ -243,7 +257,10 @@ describe('issue #248 construct fidelity receipts', () => {
             ...evidence,
             [sabotage.surface]: {
               ...observation,
-              semantics: setJsonPath(observation.semantics, sabotage.path, sabotage.replacement),
+              semantics: (sabotage.additionalChanges ?? []).reduce(
+                (semantics, change) => setJsonPath(semantics, change.path, change.replacement),
+                setJsonPath(observation.semantics, sabotage.path, sabotage.replacement),
+              ),
             },
           }
         },

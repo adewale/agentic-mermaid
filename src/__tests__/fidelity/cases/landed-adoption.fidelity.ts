@@ -140,12 +140,20 @@ function matchesXychartFacts(value: FidelityJson, secondValue: number): boolean 
 
 function matchesXychartBars(value: FidelityJson, expectedValues: readonly [string, string]): boolean {
   if (!Array.isArray(value) || value.length !== expectedValues.length) return false
-  return value.every((bar, index) => {
+  const dimensions = value.map((bar, index) => {
     const actual = record(bar, `xychart rendered bar ${index}`)
     const width = actual.width
     const height = actual.height
-    return actual.label === (index === 0 ? 'Jan' : 'Feb') && actual.value === expectedValues[index] && typeof width === 'string' && typeof height === 'string' && Number.isFinite(Number(width)) && Number.isFinite(Number(height)) && Number(width) > 0 && Number(height) > 0 && Number(width) < Number(height)
+    if (actual.label !== (index === 0 ? 'Jan' : 'Feb') || actual.value !== expectedValues[index] || typeof width !== 'string' || typeof height !== 'string') return null
+    const numericWidth = Number(width)
+    const numericHeight = Number(height)
+    const numericValue = Number(expectedValues[index])
+    if (!Number.isFinite(numericWidth) || !Number.isFinite(numericHeight) || !Number.isFinite(numericValue) || numericWidth <= 0 || numericHeight <= 0 || numericValue <= 0 || numericWidth >= numericHeight) return null
+    return { width: numericWidth, height: numericHeight, value: numericValue }
   })
+  if (dimensions.some(dimension => dimension === null)) return false
+  const [first, second] = dimensions as [{ width: number; height: number; value: number }, { width: number; height: number; value: number }]
+  return Math.abs(first.height - second.height) <= 0.01 && Math.abs(first.width / first.value - second.width / second.value) <= 0.001
 }
 
 function pathEndpoints(path: FidelityJson): FidelityJson {

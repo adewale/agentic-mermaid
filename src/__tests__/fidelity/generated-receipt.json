@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "6818e4e590c8d8b59eb65a22817b007746e417284196e74d3e3d48cda945c1ef",
+    "inputSha256": "32ec0ae37b35e937288583183275488e8db6343cdfaeedeb3c78b7e02896e56c",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -88,7 +88,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
-        "sha256": "978575d98b44989b0701848150e1028524e3da6555c3c6a297de840bfedc4807"
+        "sha256": "8c35020950589cb756f223b24fda48de7dcbde9fc904f18b3810460dc7eaeab7"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
