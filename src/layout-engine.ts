@@ -472,9 +472,7 @@ function mermaidToElk(
     nodeToSubgraphAncestors.get(id) ?? subgraphAncestors.get(id)?.slice(0, -1) ?? []
 
   // Determine if we need SEPARATE hierarchy handling
-  // We use SEPARATE when any subgraph has a direction override, or when a
-  // group's title needs a width INCLUDE_CHILDREN would not give it.
-  const hasDirectionOverride = opts.separateHierarchy === true || graph.subgraphs.some(sg => sg.direction !== undefined)
+  const hasDirectionOverride = usesSeparateHierarchy(graph, opts)
 
   // Classify edges into three categories:
   // 1. Internal edges (both endpoints in same subgraph)
@@ -931,12 +929,21 @@ function crossHierarchyElkEdge(
   return elkEdge
 }
 
-/** The width a titled group needs so its header title stays inside the frame. */
-function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'concurrencyRegion'>, style: ResolvedRenderStyle): number {
-  if (!sg.label || sg.concurrencyRegion) return 0
+/** SEPARATE hierarchy handling, used when any subgraph overrides its
+ * direction, or when a group's title needs a width INCLUDE_CHILDREN would not
+ * give it; otherwise INCLUDE_CHILDREN. */
+function usesSeparateHierarchy(graph: MermaidGraph, opts: Pick<ElkConversionOptions, 'separateHierarchy'>): boolean {
+  return opts.separateHierarchy === true || graph.subgraphs.some(sg => sg.direction !== undefined)
+}
+
+/** The width a titled group needs so its header title stays inside the frame.
+ * A group with nothing in it is laid out without one: it has no frame to hold
+ * the title, which is drawn from where the group sits. */
+function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'concurrencyRegion' | 'titleOffset' | 'nodeIds' | 'children'>, style: ResolvedRenderStyle): number {
+  if (!sg.label || sg.concurrencyRegion || (sg.nodeIds.length === 0 && sg.children.length === 0)) return 0
   const title = applyTextTransform(sg.label, style.groupTextTransform)
   const width = measureMultilineText(title, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing).width
-  return Math.ceil(width + 2 * style.groupLabelPaddingX)
+  return Math.ceil((sg.titleOffset ?? style.groupLabelPaddingX) + width + style.groupLabelPaddingX)
 }
 
 /**
@@ -992,10 +999,12 @@ function subgraphToElk(
 
   // The header title is drawn from the group's left edge, so a group narrower
   // than its title would push the title past the frame (and off the canvas).
-  // ELK centers the content in a compound node held to this minimum width;
-  // only SEPARATE hierarchy handling honors it (see layoutGraphSync).
+  // ELK centers the content in a compound node held to this minimum width, but
+  // only SEPARATE hierarchy handling honors it (see layoutUntitledGraph).
+  // INCLUDE_CHILDREN ignores the width and instead grows a small group by a
+  // title line's height, so the constraint is set for SEPARATE layouts alone.
   const titleWidth = groupTitleWidth(sg, style)
-  if (titleWidth > 0) {
+  if (titleWidth > 0 && usesSeparateHierarchy(graph, opts)) {
     layoutOptions['elk.nodeSize.constraints'] = 'MINIMUM_SIZE'
     layoutOptions['elk.nodeSize.minimum'] = `(${titleWidth}, 0)`
   }

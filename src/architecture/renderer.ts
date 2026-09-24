@@ -6,7 +6,7 @@ import type {
   PositionedArchitectureService,
 } from './types.ts'
 import type { ArchitectureVisualConfig } from './config.ts'
-import { DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
+import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
 import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT } from './layout.ts'
 import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
@@ -239,7 +239,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
   }
 
   const labelText = applyTextTransform(group.label, visual.groupTextTransform)
-  const labelX = group.x + (group.icon ? 36 : visual.groupLabelPaddingX)
+  const labelX = group.x + (group.icon ? ARCHITECTURE_GROUP_ICON_TITLE_OFFSET : visual.groupLabelPaddingX)
   const labelY = group.y + visual.groupHeaderHeight / 2
   children.push({
     indent: 2,

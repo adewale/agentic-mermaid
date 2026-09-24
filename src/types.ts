@@ -140,6 +140,10 @@ export interface MermaidSubgraph {
    *  parent composite (`--` separators, plan §State 2c). Regions draw no box
    *  of their own; the renderer draws dashed separators between siblings. */
   concurrencyRegion?: true
+  /** Where the family draws the group's title, from the group's left edge,
+   *  when something comes first (an architecture group's icon). Defaults to
+   *  the style's group label padding. */
+  titleOffset?: number
 }
 
 // ============================================================================
