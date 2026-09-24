@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "mode": "shadow",
+  "publicClaimsChanged": false,
+  "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+  "receiptInputSha256": "103a942d50d4baf3b0872ac042060b8528ac7e7ead206b577e11155a8a53de57",
+  "receiptResultSha256": "0ca2d05b2b8699887821765fac66dbbcb65105bb47696fc03df41267673b5f6a",
+  "summary": {
+    "caseCount": 4,
+    "featureCount": 4,
+    "dispositions": {
+      "native": 0,
+      "source-preserved": 0,
+      "diagnosed": 2,
+      "absent": 2
+    }
+  },
+  "features": [
+    {
+      "featureId": "official-doc:block:section:basic-structure",
+      "family": "block",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "block.family.accurately-diagnosed-unsupported"
+      ],
+      "surfaces": {
+        "agent": "diagnosed",
+        "render": "diagnosed",
+        "serialize": "source-preserved"
+      }
+    },
+    {
+      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
+      "family": "flowchart",
+      "disposition": "absent",
+      "caseIds": [
+        "flowchart.classes.edge-paint-implication"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native"
+      }
+    },
+    {
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "family": "journey",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "journey.scores.fractional-parser-render-seam"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved"
+      }
+    },
+    {
+      "featureId": "official-doc:state:section:comments",
+      "family": "state",
+      "disposition": "absent",
+      "caseIds": [
+        "state.comments.trailing-transition-loss"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "absent",
+        "serialize": "source-preserved"
+      }
+    }
+  ]
+}
