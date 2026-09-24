@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { renderMermaidPNG } from '../agent/png.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -111,5 +114,12 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     const agent = parseRegisteredMermaid(source)
     expect(agent.ok).toBe(true)
     if (agent.ok) expect(asSequence(agent.value)?.body.participants.find(actor => actor.id === 'A')?.label).toBe('A; B')
+  })
+
+  test('the reviewer-facing after SVG and PNG match the production renderer', () => {
+    const asset = (name: string): string => join(import.meta.dir, '..', '..', 'docs', 'pr-assets', name)
+    const source = readFileSync(asset('issue-264-separator.mmd'), 'utf8')
+    expect(renderMermaidSVG(source, { embedFontImport: false })).toBe(readFileSync(asset('issue-264-separator-after.svg'), 'utf8'))
+    expect(Buffer.from(renderMermaidPNG(source, { scale: 1 }))).toEqual(readFileSync(asset('issue-264-separator-after.png')))
   })
 })
