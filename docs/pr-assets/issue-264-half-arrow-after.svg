@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="280" height="166" viewBox="0 0 280 166" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="166" viewBox="0 0 280 166" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1bwimz8">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-1bwimz8 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1bwimz8 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -44,7 +44,7 @@
 <line class="lifeline" data-actor="B" x1="210" y1="70" x2="210" y2="136" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
 <g class="message" data-label="witness" data-line-style="solid" data-start-head="none" data-end-head="half-bottom" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#0" data-role="message">
   <line x1="70" y1="96" x2="210" y2="96" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow-half-bottom)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#0:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: witness" />
-  <text x="140" y="86" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="37.29" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">witness</text>
+  <text x="140" y="86" font-size="11" text-anchor="middle" font-weight="400" fill="#69696c" dy="3.8499999999999996" textLength="37.29" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">witness</text>
 </g>
 <g class="actor" data-id="A" data-label="A" data-type="participant" data-role="actor">
   <rect x="30" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="actor:A:box" data-role="actor" />
