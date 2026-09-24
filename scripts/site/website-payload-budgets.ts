@@ -62,11 +62,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    // Timeline header diagnosis changes the editor bundle while retaining
+    // Class annotation parsing changes the editor bundle while retaining
     // the two-request graph; these are the reviewed Linux/x64 totals.
-    maxRawBytes: 3_345_724,
-    maxGzipBytes: 985_653,
-    maxBrotliBytes: 773_637,
+    maxRawBytes: 3_346_610,
+    maxGzipBytes: 985_982,
+    maxBrotliBytes: 774_473,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
