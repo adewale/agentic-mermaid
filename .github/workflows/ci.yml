@@ -36,21 +36,6 @@ jobs:
       - name: Build the Node bundle for cross-runtime determinism contracts
         run: bun run build
 
-      - name: Temporarily capture Linux website payload baseline for review
-        if: ${{ matrix.shard == '2/3' }}
-        run: |
-          bunx playwright install chromium --with-deps
-          bun run website:payload:write
-
-      - name: Upload temporary Linux website payload baseline
-        if: ${{ matrix.shard == '2/3' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: issue-264-payload-candidate
-          path: eval/website-payload/baseline.json
-          if-no-files-found: error
-          overwrite: true
-
       - name: Setup Node for the reviewed package manifest
         if: ${{ matrix.shard == '1/3' }}
         uses: actions/setup-node@v7

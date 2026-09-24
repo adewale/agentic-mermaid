@@ -35,11 +35,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // Sequence statement handling keeps the request graph; these ceilings
-    // cover the larger of reviewed Linux/x64 and macOS/arm64 recordings.
-    maxRawBytes: 732_000,
-    maxGzipBytes: 275_000,
-    maxBrotliBytes: 251_000,
+    // The bounded Sequence hash-entity scanner keeps the request graph;
+    // these are the reviewed Linux/x64 totals for the final candidate.
+    maxRawBytes: 731_626,
+    maxGzipBytes: 274_476,
+    maxBrotliBytes: 250_621,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -61,10 +61,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // its bundle change raises the editor Brotli total by 152 bytes. The
     // two-request graph stays fixed.
     // The shared Sequence statement splitter keeps the two-request graph;
-    // these are the measured Linux/x64 and macOS/arm64 maxima.
-    maxRawBytes: 3_343_000,
-    maxGzipBytes: 985_000,
-    maxBrotliBytes: 774_000,
+    // raw and gzip are the reviewed Linux/x64 totals, while Brotli retains
+    // the slightly larger previously reviewed macOS/arm64 ceiling.
+    maxRawBytes: 3_342_339,
+    maxGzipBytes: 984_332,
+    maxBrotliBytes: 773_160,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
