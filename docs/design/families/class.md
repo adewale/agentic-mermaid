@@ -33,7 +33,9 @@ unrelated relations through mutation. The pinned parser also accepts the
 no-space `class Shape<<interface>>` / `<<interface>>Shape` spellings and an
 inline annotation after a bracket label. A separate annotation requires the
 class to have already been introduced; annotation names use Mermaid's
-word-token grammar. Unsupported forms produce a diagnostic rather than a
+word-token grammar for inline/separate placement. Class-body annotations are
+broader and preserve their interior text, including whitespace, punctuation,
+and an empty annotation. Unsupported forms produce a diagnostic rather than a
 plausible partial diagram.
 
 Pinned Mermaid 11.16 also permits multiple annotations on one class. The

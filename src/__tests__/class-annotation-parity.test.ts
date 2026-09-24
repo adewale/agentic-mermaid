@@ -13,6 +13,8 @@ const sources = [
   'classDiagram\n  class Shape<<interface>>\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape\n  <<interface>>Shape\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape["Thing"] <<interface>>\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape << interface >>\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape\n  << interface >>Shape\n  class Other\n  Shape --> Other',
 ]
 
 describe('Class official annotation forms', () => {
@@ -36,7 +38,7 @@ describe('Class official annotation forms', () => {
     const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
     expect(probe.exitCode).toBe(0)
     expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
-      ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
+      ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
     ])
   })
 
@@ -126,6 +128,55 @@ describe('Class official annotation forms', () => {
     const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
     expect(probe.exitCode).toBe(0)
     expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([true, true, true])
+  })
+
+  test('body annotations retain Mermaid 11.16 broad raw tokens, including empty and nested delimiters', () => {
+    const cases = [
+      ['class Shape { << interface >> }', ' interface '],
+      ['class Shape {\n<< interface >>\n}', ' interface '],
+      ['class Shape {\n<<interface-name>>\n}', 'interface-name'],
+      ['class Shape { <<>> }', ''],
+      ['class Shape { <<<foo>>> }', '<foo>'],
+      ['class Shape {\n<<foo>>bar>>\n}', 'foo>>bar'],
+    ] as const
+    const script = `
+      import DOMPurify from 'dompurify'
+      DOMPurify.addHook = () => {}
+      DOMPurify.sanitize = text => text
+      const { default: mermaid } = await import('mermaid')
+      mermaid.initialize({ startOnLoad: false })
+      const sources = ${JSON.stringify(cases.map(([body]) => `classDiagram\n${body}`))}
+      const annotations = []
+      for (const source of sources) {
+        const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
+        annotations.push(diagram.db.getClasses().get('Shape').annotations)
+      }
+      process.stdout.write(JSON.stringify(annotations))
+    `
+    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(cases.map(([, annotation]) => [annotation]))
+
+    for (const [body, annotation] of cases) {
+      const source = `classDiagram\n${body}`
+      const native = parseClassDiagram(source.split('\n').map(line => line.trim()))
+      expect(native.classes.find(node => node.id === 'Shape')?.annotation).toBe(annotation)
+      const svg = renderMermaidSVG(source)
+      expect(svg).toContain('data-annotation=')
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(asClass(parsed.value)?.body.classes.find(node => node.id === 'Shape')?.members).toContain(`<<${annotation}>>`)
+      expect(verifyMermaid(parsed.value).ok).toBe(true)
+      const serialized = serializeMermaid(parsed.value)
+      expect(parseClassDiagram(serialized.trim().split('\n').map(line => line.trim())).classes.find(node => node.id === 'Shape')?.annotation).toBe(annotation)
+    }
+
+    const repeated = 'classDiagram\nclass Shape {\n<<interface-name>>\n<<foo.bar>>\n}'
+    expect(() => renderMermaidSVG(repeated)).toThrow(/Multiple annotations/)
+    const parsed = parseRegisteredMermaid(repeated)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
   })
 
   test('direct parser ignores annotation text in full-line comments', () => {

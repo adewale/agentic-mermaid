@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "aa1663096654526116619a56cb8684987098d2b9e4257e5ef84e60e24070abd9"
+      "sha256": "4b84d3a5420f74934110c993e9555c290b5fb5db6113f6ebfdc1ab2e0610022b"
     },
     {
       "path": "src/agent/core.ts",
@@ -488,15 +488,15 @@
     },
     {
       "path": "src/class/layout.ts",
-      "sha256": "9d4db17fb0b56086d496a91c94b4f2b050e4d666b0cf30a0291fce2a42be276e"
+      "sha256": "262973de4d6ba583e2afdd13bcac77b4cf266104412f2394d76f61c72cb555b5"
     },
     {
       "path": "src/class/parser.ts",
-      "sha256": "c38f0fa702f86a706a84c9f3cd43232b8ff36ec7b7b563050d714517a74152f8"
+      "sha256": "8062a90127aa73d1ac8045c1f2424635dce3ce8c42cf6cc5ccc4ef1c3bf56ca3"
     },
     {
       "path": "src/class/renderer.ts",
-      "sha256": "13a9e040f1b5d013fc0895adba3317de4d93421a981598f9776ed99b9eba08a1"
+      "sha256": "176604c799ec7bbb6becad9f76d2b9a7a0f3eee5d1586465b99772dbfd0f3e6d"
     },
     {
       "path": "src/class/types.ts",

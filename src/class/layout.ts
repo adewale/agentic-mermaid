@@ -149,7 +149,7 @@ function buildClassElkGraph(
       CLS.headerBaseHeight,
       measureMultilineText(label, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2,
     )
-    const headerHeight = cls.annotation
+    const headerHeight = cls.annotation !== undefined
       ? headerBaseHeight + CLS.annotationHeight
       : headerBaseHeight
 

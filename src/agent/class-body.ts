@@ -35,7 +35,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, parseClassAnnotationStatement, parseClassAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -213,7 +213,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     if (annotation) {
       if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return null
       const node = upsert(annotation.id, annotation.label, annotation.generic)
-      if (node.members.some(member => parseClassAnnotationToken(member) !== null)) return null
+      if (node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
       node.members.push(`<<${annotation.annotation}>>`)
       claimClass(node)
       continue
@@ -231,7 +231,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           i++
           if (!ml || ml.startsWith('%%')) continue
           if (ml === '}') break
-          if (parseClassAnnotationToken(ml) && node.members.some(member => parseClassAnnotationToken(member) !== null)) return null
+          if (parseClassBodyAnnotationToken(ml) !== null && node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
           node.members.push(ml)
         }
       }

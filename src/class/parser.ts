@@ -70,10 +70,17 @@ export function parseClassReference(token: string): { id: string; generic?: stri
   }
 }
 
-/** Mermaid's Class lexer accepts word-like annotation names only. */
+/** Inline and separate annotations use Mermaid's word-token lexer. */
 export function parseClassAnnotationToken(token: string): string | null {
-  const match = token.trim().match(/^<<(\w+)>>$/)
+  const match = token.trim().match(/^<<[ \t]*(\w+)[ \t]*>>$/)
   return match?.[1] ?? null
+}
+
+/** Class-body annotations accept any interior text, including an empty
+ * string and additional angle brackets, and retain its authored bytes. */
+export function parseClassBodyAnnotationToken(token: string): string | null {
+  const text = token.trim()
+  return text.startsWith('<<') && text.endsWith('>>') ? text.slice(2, -2) : null
 }
 
 export interface ParsedClassAnnotationStatement {
@@ -109,8 +116,10 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
     annotationText = annotationText.slice(0, -1).trim()
   }
   const declaration = parseClassDeclaration(`class ${declarationText}`)
-  const annotation = parseClassAnnotationToken(annotationText)
-  return declaration && !declaration.opensBody && annotation
+  const annotation = bodyInline
+    ? parseClassBodyAnnotationToken(annotationText)
+    : parseClassAnnotationToken(annotationText)
+  return declaration && !declaration.opensBody && annotation !== null
     ? {
         id: declaration.id,
         ...(declaration.generic ? { generic: declaration.generic } : {}),
@@ -248,8 +257,8 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       }
 
       // Check for annotation like <<interface>>
-      const annotation = parseClassAnnotationToken(line)
-      if (annotation) {
+      const annotation = parseClassBodyAnnotationToken(line)
+      if (annotation !== null) {
         applyClassAnnotation(currentClass, annotation)
         continue
       }

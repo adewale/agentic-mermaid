@@ -266,7 +266,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   // data-id: class identifier
   // data-label: class name
   // data-annotation: stereotype (interface, abstract, etc.)
-  const annotationAttr = cls.annotation ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
+  const annotationAttr = cls.annotation !== undefined ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
   const classAttr = cls.className ? ` ${escapeAttr(cls.className)}` : ''
   const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
   const interaction = includeInteraction && cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
@@ -308,7 +308,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
   let nameY = y + headerHeight / 2
-  if (cls.annotation) {
+  if (cls.annotation !== undefined) {
     const annotY = y + 12
     const annotColor = local.color ?? style.nodeTextColor ?? 'var(--_text-muted)'
     children.push({
