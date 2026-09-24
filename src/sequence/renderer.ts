@@ -188,8 +188,10 @@ function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDes
     { ...base, id: 'seq-arrow', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: arrowPoints }, paint: { fill: edgeColor } },
     { ...base, id: 'seq-arrow-open', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polyline', points: arrowPoints }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
     { ...base, id: 'seq-arrow-cross', shape: 'cross', ref: { x: w / 2, y: h / 2 }, orient: 'auto', geometry: { kind: 'path', d: `M1 1 L${w - 1} ${h - 1} M1 ${h - 1} L${w - 1} 1` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
-    { ...base, id: 'seq-arrow-half-top', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 0 L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
-    { ...base, id: 'seq-arrow-half-bottom', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 ${h} L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
+    { ...base, id: 'seq-arrow-half-top', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h / 2 }] }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-half-bottom', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: h / 2 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-stick-top', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 0 L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { ...base, id: 'seq-arrow-stick-bottom', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 ${h} L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
   ] satisfies readonly MarkerDescriptor[]
 }
 
@@ -199,6 +201,8 @@ function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['
     : head === 'cross' ? 'seq-arrow-cross'
       : head === 'half-top' ? 'seq-arrow-half-top'
         : head === 'half-bottom' ? 'seq-arrow-half-bottom'
+          : head === 'stick-top' ? 'seq-arrow-stick-top'
+            : head === 'stick-bottom' ? 'seq-arrow-stick-bottom'
           : 'seq-arrow-open'
   return sequenceMarkerResources(style).find(marker => marker.id === id)
 }

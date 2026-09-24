@@ -272,7 +272,7 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "5c5627b0a3ba186816a8da3fa7e57e7516846b579528acbe34a5dddb5e9707fa"
+      "sha256": "acf8c09e3af62324c721139c734ae0172803cbfc4ce61a6cbe8fef0697267c8c"
     },
     {
       "path": "src/agent/verify.ts",
@@ -988,15 +988,15 @@
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "3f129c1c564372caa3c894481113319d749d0a276d8dd74494a601151f3984cf"
+      "sha256": "276b43d21f5b16fcd2cfa44bd18e413ca0d5215351de39eddfea4dcad084e51c"
     },
     {
       "path": "src/sequence/renderer.ts",
-      "sha256": "e59991a7eb411e36be42bd2ed5d406313235909bbcdd8a16e721a14ba1e0caea"
+      "sha256": "4d6b98d45930532341259776de48604067ed2e854c59aac87e36bc52e2d7b991"
     },
     {
       "path": "src/sequence/types.ts",
-      "sha256": "a3507909c3d6e0893d55561d763f6e72ac643c86fe521acd88825cacd794d8f8"
+      "sha256": "e2dd4591f01290e30b668f2e47f9053a06e9a235467db8c15f2d2e5ad8a58f73"
     },
     {
       "path": "src/shape-clipping.ts",

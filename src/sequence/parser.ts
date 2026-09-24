@@ -3,7 +3,37 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { isCssColorToken } from './colors.ts'
 
-const SEQUENCE_MESSAGE_RE = /^(\S+?)(\(\))?\s*(<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->|--[|\\/]|-[|\\/]|[|\\/]--|[|\\/]-)\s*(\(\))?([+-]?)(\S+?)\s*:\s*(.+)$/
+// Mermaid's half-arrow heads have multi-character spellings. Keep complete
+// tokens here, longest first in the regex, so a prefix cannot leak into an
+// actor ID (for example `A-|/B` must address B, not /B).
+const SEQUENCE_ARROW_HEADS = new Map<string, readonly [SequenceMessageHead, SequenceMessageHead]>([
+  ['<<-->>', ['filled', 'filled']], ['<<->>', ['filled', 'filled']],
+  ['-->>', ['none', 'filled']], ['->>', ['none', 'filled']],
+  ['-->', ['none', 'none']], ['->', ['none', 'none']],
+  ['--x', ['none', 'cross']], ['-x', ['none', 'cross']],
+  ['--)', ['none', 'open']], ['-)', ['none', 'open']],
+  ['--|\\', ['none', 'half-top']], ['-|\\', ['none', 'half-top']],
+  ['--|/', ['none', 'half-bottom']], ['-|/', ['none', 'half-bottom']],
+  ['--\\\\', ['none', 'stick-top']], ['-\\\\', ['none', 'stick-top']],
+  ['--//', ['none', 'stick-bottom']], ['-//', ['none', 'stick-bottom']],
+  ['/|--', ['half-bottom', 'none']], ['/|-', ['half-bottom', 'none']],
+  ['\\|--', ['half-top', 'none']], ['\\|-', ['half-top', 'none']],
+  ['//--', ['stick-bottom', 'none']], ['//-', ['stick-bottom', 'none']],
+  ['\\\\--', ['stick-top', 'none']], ['\\\\-', ['stick-top', 'none']],
+  // Preserve shorter pre-existing local spellings as compatibility aliases.
+  ['--|', ['none', 'stick-top']], ['-|', ['none', 'stick-top']],
+  ['--/', ['none', 'stick-bottom']], ['-/', ['none', 'stick-bottom']],
+  ['--\\', ['none', 'stick-top']], ['-\\', ['none', 'stick-top']],
+  ['|--', ['stick-top', 'none']], ['|-', ['stick-top', 'none']],
+  ['/--', ['stick-bottom', 'none']], ['/-', ['stick-bottom', 'none']],
+  ['\\--', ['stick-top', 'none']], ['\\-', ['stick-top', 'none']],
+])
+
+const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
+  .sort((a, b) => b.length - a.length)
+  .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|')
+const SEQUENCE_MESSAGE_RE = new RegExp(String.raw`^(\S+?)(\(\))?\s*(${arrowAlternatives})\s*(\(\))?([+-]?)(\S+?)\s*:\s*(.+)$`)
 
 export interface ParsedSequenceMessageLine {
   from: string
@@ -364,23 +394,13 @@ export function parseActorLinks(line: string): { actorId: string; links: Record<
 }
 
 function isMessageArrow(value: string): boolean {
-  return /^(?:<<-+>>|-+>>?|-+[)x]|-+[|\\/]|[|\\/]-+)$/.test(value)
+  return SEQUENCE_ARROW_HEADS.has(value)
 }
 
 function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; startHead: SequenceMessageHead; endHead: SequenceMessageHead } {
   const lineStyle = arrow.includes('--') ? 'dashed' : 'solid'
-  if (/^<<-+>>$/.test(arrow)) return { lineStyle, startHead: 'filled', endHead: 'filled' }
-  if (arrow.endsWith('x')) return { lineStyle, startHead: 'none', endHead: 'cross' }
-  if (arrow.endsWith(')')) return { lineStyle, startHead: 'none', endHead: 'open' }
-  if (/^-+>>$/.test(arrow)) return { lineStyle, startHead: 'none', endHead: 'filled' }
-  if (/^-+>$/.test(arrow)) return { lineStyle, startHead: 'none', endHead: 'none' }
-  if (/^[|\\/]-+$/.test(arrow)) {
-    return { lineStyle, startHead: arrow.startsWith('/') ? 'half-bottom' : 'half-top', endHead: 'none' }
-  }
-  if (/^-+[|\\/]$/.test(arrow)) {
-    return { lineStyle, startHead: 'none', endHead: arrow.endsWith('/') ? 'half-bottom' : 'half-top' }
-  }
-  return { lineStyle, startHead: 'none', endHead: 'open' }
+  const [startHead, endHead] = SEQUENCE_ARROW_HEADS.get(arrow) ?? ['none', 'none']
+  return { lineStyle, startHead, endHead }
 }
 
 /** Ensure an actor exists, creating a default participant if not */

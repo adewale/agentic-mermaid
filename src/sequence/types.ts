@@ -30,7 +30,7 @@ export interface SequenceDiagram {
 }
 
 export type SequenceActorType = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
-export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-top' | 'half-bottom'
+export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-top' | 'half-bottom' | 'stick-top' | 'stick-bottom'
 
 export interface Actor {
   id: string
