@@ -63,7 +63,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The two-request graph stays fixed.
     maxRawBytes: 3_339_124,
     maxGzipBytes: 983_294,
-    maxBrotliBytes: 772_248,
+    maxBrotliBytes: 772_046,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

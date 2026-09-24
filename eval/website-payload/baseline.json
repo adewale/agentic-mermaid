@@ -450,19 +450,19 @@
           "brotliBytes": 15383
         },
         {
-          "path": "/editor/editor-5c2335765f42.js",
+          "path": "/editor/editor-4b2345a4254d.js",
           "count": 1,
-          "sha256": "de4f07280ad634fca3b75f5cbc79154765077036d6355ec1f8c7fa7e86b0e39c",
-          "rawBytes": 3236448,
-          "gzipBytes": 965146,
-          "brotliBytes": 756865
+          "sha256": "df9374a96d07466b132e95a39ff751790ac896413d2d4063d89844878e12dd24",
+          "rawBytes": 3236534,
+          "gzipBytes": 965205,
+          "brotliBytes": 756663
         }
       ],
       "totals": {
         "requests": 2,
         "rawBytes": 3339038,
         "gzipBytes": 983235,
-        "brotliBytes": 772248
+        "brotliBytes": 772046
       }
     }
   ]
