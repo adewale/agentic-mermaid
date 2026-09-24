@@ -18,9 +18,9 @@ function nativePeriods(input: string) {
 }
 
 describe('Timeline full-line comments match pinned Mermaid 11.16.0', () => {
-  test('both native and agent projections ignore %% and # lines without changing neighboring periods', async () => {
+  test('both native and agent projections ignore %, %% and # lines without changing neighboring periods', async () => {
     mermaid.initialize({ startOnLoad: false })
-    for (const comment of ['%% authored note', '# legacy note']) {
+    for (const comment of ['% authored note', '%% authored note', '# legacy note']) {
       const input = source(comment)
       const expected = [
         { label: '2020', events: ['Launch'] },
@@ -60,14 +60,26 @@ describe('Timeline full-line comments match pinned Mermaid 11.16.0', () => {
   })
 
   test('comment markers inside an event remain literal text', async () => {
-    const input = 'timeline\n  2020 : Launch %% staged #internal'
+    const input = 'timeline\n  2020 : Launch % staged %% staged #internal'
     const upstream = await mermaid.mermaidAPI.getDiagramFromText(input)
     const db = upstream.db as unknown as { getTasks(): Array<{ events: string[] }> }
-    expect(db.getTasks()[0]?.events).toEqual(['Launch %% staged #internal'])
-    expect(nativePeriods(input)[0]?.events).toEqual(['Launch %% staged #internal'])
+    expect(db.getTasks()[0]?.events).toEqual(['Launch % staged %% staged #internal'])
+    expect(nativePeriods(input)[0]?.events).toEqual(['Launch % staged %% staged #internal'])
     const parsed = parseRegisteredMermaid(input)
     expect(parsed.ok).toBe(true)
-    if (parsed.ok) expect(asTimeline(parsed.value)?.body.sections[0]?.periods[0]?.events[0]?.text).toBe('Launch %% staged #internal')
+    if (parsed.ok) expect(asTimeline(parsed.value)?.body.sections[0]?.periods[0]?.events[0]?.text).toBe('Launch % staged %% staged #internal')
+  })
+
+  test('%{ at the start of a period is not a comment', async () => {
+    const input = 'timeline\n  %{not-directive}\n  2020 : Launch'
+    const upstream = await mermaid.mermaidAPI.getDiagramFromText(input)
+    const db = upstream.db as unknown as { getTasks(): Array<{ task: string }> }
+    expect(db.getTasks().map(task => task.task.trim())).toEqual(['%{not-directive}', '2020'])
+    expect(nativePeriods(input).map(period => period.label)).toEqual(['%{not-directive}', '2020'])
+    const parsed = parseRegisteredMermaid(input)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(asTimeline(parsed.value)?.body.sections.flatMap(section => section.periods).map(period => period.label))
+      .toEqual(['%{not-directive}', '2020'])
   })
 
   test('opaque Timeline summaries do not promote a comment with a colon into a label', () => {
