@@ -3,8 +3,10 @@
 Both runs use [the same one-line Mermaid source](issue-264-separator.mmd),
 SHA-256 `30e64bc3a5b9ff67b3475d5a9785bfd780e02f1e0650ff7672e113c31089b81c`.
 The *before* renderer is the merged base
-`8399250bd749a7cb58103cf6bab0c3bd593e466a`; the *after* renderer is
-implementation commit `0b73520b39002776538b9c52e60af9784704ec93`.
+`8399250bd749a7cb58103cf6bab0c3bd593e466a`; the *after* image was
+captured at implementation commit `0b73520b39002776538b9c52e60af9784704ec93`.
+The focused regression test checks that the after SVG and PNG remain
+byte-identical to the current production renderer after subsequent fixes.
 Each checkout uses its locked dependencies and the public native renderer:
 `renderMermaidSVG(source, { embedFontImport: false })` and
 `renderMermaidPNG(source, { scale: 1 })`.

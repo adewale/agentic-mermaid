@@ -22,6 +22,7 @@ import {
   scanAccessibilityDirectives,
   type MermaidAccessibility,
 } from './shared/accessibility-directives.ts'
+import { splitSequenceStatementLines } from './sequence/statements.ts'
 
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
@@ -481,7 +482,12 @@ export function normalizeMermaidSource(
   baseConfig: MermaidRuntimeConfig = {},
 ): NormalizedMermaidSource {
   const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
-  const accessibilityScan = scanAccessibilityDirectives(processed.body.split(/\r?\n/))
+  const physicalLines = processed.body.split(/\r?\n/)
+  const sequence = /^sequenceDiagram\b/i.test(processed.lines[0] ?? '')
+  const accessibilityLines = sequence && /;\s*acc(?:Title|Descr)\b/i.test(processed.body)
+    ? splitSequenceStatementLines(physicalLines)
+    : physicalLines
+  const accessibilityScan = scanAccessibilityDirectives(accessibilityLines)
   const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
   const familyBody = accessibilityScan.familyLines.join('\n')
   const familyLines = toMermaidLines(familyBody)

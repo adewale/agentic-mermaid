@@ -11,26 +11,48 @@
 export function splitSequenceStatementLines(lines: readonly string[]): string[] {
   const statements: string[] = []
   let inAccessibilityDescription = false
-  for (const line of lines) {
+  for (const physicalLine of lines) {
+    let line = physicalLine
     if (inAccessibilityDescription) {
-      statements.push(line)
-      if (line.includes('}')) inAccessibilityDescription = false
-      continue
+      const closing = line.indexOf('}')
+      if (closing < 0) {
+        statements.push(line)
+        continue
+      }
+      statements.push(line.slice(0, closing + 1))
+      line = line.slice(closing + 1)
+      inAccessibilityDescription = false
     }
     let start = 0
     let braceDepth = 0
     let quote: '"' | "'" | null = null
     let escaped = false
-    const protectRemainder = (): boolean => {
-      const remainder = line.slice(start).trimStart()
-      if (/^accDescr\s*\{/i.test(remainder) && !remainder.includes('}')) inAccessibilityDescription = true
-      return /^(?:%%|accTitle\s*:|accDescr\s*[:{])/i.test(remainder)
-    }
-    if (protectRemainder()) {
-      statements.push(line)
-      continue
-    }
+    let finished = false
     for (let index = 0; index < line.length; index++) {
+      if (index === start) {
+        const remainder = line.slice(start).trimStart()
+        const block = /^accDescr\s*:?\s*\{/i.exec(remainder)
+        if (block) {
+          const opening = line.indexOf('{', start)
+          const closing = line.indexOf('}', opening + 1)
+          if (closing < 0) {
+            statements.push(line.slice(start))
+            inAccessibilityDescription = true
+            finished = true
+            break
+          }
+          statements.push(line.slice(start, closing + 1))
+          start = closing + 1
+          index = closing
+          continue
+        }
+        if (/^(?:rect|box)\s+#[0-9a-f]{3,8};/i.test(remainder)
+          || /^(?:%(?!\{)|#(?![a-z\d]+;)|accTitle(?:\s*:|\s+)|accDescr(?:\s*:|\s+))/i.test(remainder)) {
+          statements.push(line.slice(start))
+          finished = true
+          break
+        }
+      }
       const char = line[index]!
       if (braceDepth > 0) {
         if (quote) {
@@ -48,12 +70,18 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
         index++
         continue
       }
+      if (char === '#' && !/^#(?:\d+|[a-z][a-z\d]*);/i.test(line.slice(index))
+        && !(/^\s*(?:rect|box)\s*$/i.test(line.slice(start, index))
+          && /^#[0-9a-f]{3,8}(?:;|$)/i.test(line.slice(index)))) {
+        statements.push(line.slice(start, index))
+        finished = true
+        break
+      }
       if (line[index] !== ';' || isHashEntityTerminator(line, start, index)) continue
       statements.push(line.slice(start, index))
       start = index + 1
-      if (protectRemainder()) break
     }
-    statements.push(line.slice(start))
+    if (!finished) statements.push(line.slice(start))
   }
   return statements
 }

@@ -652,7 +652,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "d951bfb6d8a7b9527eb8f90af96e96f1bf23e34867faa2c0e3386091f1400bdc"
+      "sha256": "59e27ff96acdf147d36403b91d7bc1a8cb86a43694d97e3736db51b961b023ab"
     },
     {
       "path": "src/mindmap/geometry.ts",
@@ -988,7 +988,7 @@
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "90d58bcae568dfca810689bcb10b3550434157d3734ef5c9b52ee7f42ee10e2a"
+      "sha256": "f059c0fe762c566a23d397b08678a71bf320becb4726525e131f84af4b5f07e9"
     },
     {
       "path": "src/sequence/renderer.ts",
@@ -996,7 +996,7 @@
     },
     {
       "path": "src/sequence/statements.ts",
-      "sha256": "f3c767566e3877fc69a588e46a8aa62088ab4aaa98110074c47ae616d904f206"
+      "sha256": "aa94de11e520f43e9d0ddf5eeeb88166e955fb65577c2f706f31286b41e28bd1"
     },
     {
       "path": "src/sequence/types.ts",

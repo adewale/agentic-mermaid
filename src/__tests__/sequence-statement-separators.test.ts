@@ -83,9 +83,9 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     expect(native.notes.map(note => note.text)).toEqual(['keep this'])
   })
 
-  test('comments are not split, while CSS hex block arguments still terminate', () => {
+  test('comments and upstream hex block arguments consume the physical line', () => {
     expect(splitSequenceStatementLines(['%% comment; not a message', 'rect #ff0000; A->>B: hi; end;'])).toEqual([
-      '%% comment; not a message', 'rect #ff0000', ' A->>B: hi', ' end', '',
+      '%% comment; not a message', 'rect #ff0000; A->>B: hi; end;',
     ])
   })
 
@@ -104,6 +104,51 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     expect(parsed.messages.map(message => message.label)).toEqual(['hi'])
     const oneLine = parseSequenceDiagram(['sequenceDiagram', 'accDescr: First; second', 'A->>B: hi'])
     expect(oneLine.accessibilityDescription).toBe('First; second')
+  })
+
+  test('packed accessibility directives are extracted before Sequence parsing', () => {
+    const source = 'sequenceDiagram; accTitle: Hello; world'
+    const native = parseSequenceDiagram([source])
+    expect(native.accessibilityTitle).toBe('Hello; world')
+    expect(renderMermaidSVG(source)).toContain('>Hello; world</title>')
+    const agent = parseRegisteredMermaid(source)
+    expect(agent.ok).toBe(true)
+    if (agent.ok) expect(agent.value.meta.accessibility.title).toBe('Hello; world')
+
+    expect(parseSequenceDiagram(['sequenceDiagram; accTitle First; second']).accessibilityTitle).toBe('First; second')
+    expect(parseSequenceDiagram(['sequenceDiagram', 'accDescr: {', 'first; second', '}', 'A->>B: hi']).accessibilityDescription).toBe('first; second')
+  })
+
+  test('a packed accessibility block keeps inner semicolons and resumes after the closing brace', () => {
+    const source = 'sequenceDiagram; accDescr { first; second }; A->>B: hi'
+    const native = parseSequenceDiagram([source])
+    expect(native.accessibilityDescription).toBe('first; second')
+    expect(native.messages.map(message => message.label)).toEqual(['hi'])
+    const agent = parseRegisteredMermaid(source)
+    expect(agent.ok).toBe(true)
+    if (agent.ok) {
+      expect(agent.value.meta.accessibility.descr).toBe('first; second')
+      expect(asSequence(agent.value)?.body.messages.map(message => message.text)).toEqual(['hi'])
+    }
+  })
+
+  test('single-percent and hash comments stop later packed statements', () => {
+    for (const marker of ['% comment', '# comment']) {
+      const source = `sequenceDiagram\nA->>B: one; ${marker}; B->>A: ghost\nB->>A: two`
+      expect(parseSequenceDiagram(source.split('\n')).messages.map(message => message.label)).toEqual(['one', 'two'])
+      const agent = parseRegisteredMermaid(source)
+      expect(agent.ok).toBe(true)
+      if (agent.ok) expect(asSequence(agent.value)?.body.messages.map(message => message.text)).toEqual(['one', 'two'])
+    }
+    expect(parseSequenceDiagram(['sequenceDiagram', 'A->>B: one # comment; B->>A: ghost']).messages.map(message => message.label)).toEqual(['one'])
+    const note = parseSequenceDiagram(['sequenceDiagram', 'Note right of A: keep # comment; A->>B: ghost'])
+    expect(note.notes.map(value => value.text)).toEqual(['keep'])
+    expect(note.messages).toHaveLength(0)
+    const participant = parseSequenceDiagram(['sequenceDiagram', 'participant A as Alice # comment; A->>B: ghost', 'A->>B: real'])
+    expect(participant.actors.find(actor => actor.id === 'A')?.label).toBe('Alice')
+    expect(participant.messages.map(message => message.label)).toEqual(['real'])
+    const rect = parseSequenceDiagram(['sequenceDiagram', 'rect # comment; A->>B: ghost', 'end', 'A->>B: real'])
+    expect(rect.messages.map(message => message.label)).toEqual(['real'])
   })
 
   test('participant metadata retains a semicolon inside its JSON-like alias', () => {

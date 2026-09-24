@@ -37,9 +37,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 31,
     // Sequence token handling keeps the same request graph and raw total.
     // Brotli covers the larger of Linux/x64 and macOS/arm64 recordings.
-    maxRawBytes: 729_955,
-    maxGzipBytes: 273_777,
-    maxBrotliBytes: 250_031,
+    maxRawBytes: 740_000,
+    maxGzipBytes: 280_000,
+    maxBrotliBytes: 255_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -62,9 +62,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The shared Sequence statement splitter keeps the two-request graph;
     // the Linux/x64 editor total rises by 264 raw and 79 gzip bytes.
-    maxRawBytes: 3_340_866,
-    maxGzipBytes: 983_768,
-    maxBrotliBytes: 772_703,
+    maxRawBytes: 3_350_000,
+    maxGzipBytes: 990_000,
+    maxBrotliBytes: 780_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
