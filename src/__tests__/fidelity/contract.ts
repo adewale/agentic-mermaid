@@ -4,10 +4,13 @@
 // generated public projection, never executable functions or raw observations.
 
 export {
+  FIDELITY_ACCEPTED_DIVERGENCE_POLICIES,
   FIDELITY_DISPOSITIONS,
   FIDELITY_SURFACES,
 } from '../../fidelity-capability-contract.ts'
 export type {
+  FidelityAcceptedDivergence,
+  FidelityAcceptedDivergencePolicy,
   FidelityCapabilityFeature,
   FidelityCapabilityReport,
   FidelityCapabilitySurface,
@@ -15,6 +18,7 @@ export type {
   FidelitySurface,
 } from '../../fidelity-capability-contract.ts'
 import type {
+  FidelityAcceptedDivergencePolicy,
   FidelityDisposition,
   FidelitySurface,
 } from '../../fidelity-capability-contract.ts'
@@ -61,6 +65,12 @@ export type FidelitySurfaceExpectation = ApplicableFidelitySurfaceExpectation | 
 
 export type FidelityExpectations = Record<FidelitySurface, FidelitySurfaceExpectation>
 
+export interface FidelityAcceptedDivergenceDeclaration {
+  policy: FidelityAcceptedDivergencePolicy
+  rationale: string
+  surfaces: readonly FidelitySurface[]
+}
+
 export interface FidelityCase {
   id: string
   family: string
@@ -69,6 +79,7 @@ export interface FidelityCase {
   upstreamReference: string
   upstreamRevision: string
   revisionCompatibility?: FidelityRevisionCompatibility
+  acceptedDivergence?: FidelityAcceptedDivergenceDeclaration
   expected: FidelityExpectations
 }
 
@@ -114,6 +125,7 @@ export interface FidelityCaseResult {
   sourceSha256: string
   upstreamReference: string
   upstreamRevision: string
+  acceptedDivergence?: FidelityAcceptedDivergenceDeclaration
   expected: Record<FidelitySurface, RecordedFidelitySurfaceExpectation>
   observations: ClassifiedFidelityObservations
   passed: boolean
@@ -121,7 +133,7 @@ export interface FidelityCaseResult {
 }
 
 export interface FidelityReceiptResult {
-  schemaVersion: 1
+  schemaVersion: 2
   upstream: {
     package: 'mermaid'
     version: string

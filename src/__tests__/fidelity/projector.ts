@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import {
   FIDELITY_DISPOSITIONS,
   FIDELITY_SURFACES,
+  type FidelityAcceptedDivergence,
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
   type FidelityCapabilitySurface,
@@ -42,6 +43,7 @@ interface FeatureAccumulator {
   dispositions: Partial<Record<FidelitySurface, FidelityDisposition>>
   diagnostics: Partial<Record<FidelitySurface, string[]>>
   notApplicable: Partial<Record<FidelitySurface, string[]>>
+  acceptedDivergences: FidelityAcceptedDivergence[]
 }
 
 function validateSurfaceKeys(value: object, context: string): void {
@@ -70,6 +72,7 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
       dispositions: {},
       diagnostics: {},
       notApplicable: {},
+      acceptedDivergences: [],
     }
     feature.caseIds.push(result.id)
 
@@ -111,6 +114,23 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
       diagnosticCodes.push(...observation.diagnosticCodes)
       feature.diagnostics[surface] = diagnosticCodes
     }
+    if (result.acceptedDivergence) {
+      const diagnosticCodes = Object.fromEntries(result.acceptedDivergence.surfaces.map(surface => {
+        const observation = result.observations[surface]
+        if (!observation || observation.status !== 'observed' || observation.disposition !== 'diagnosed'
+          || observation.diagnosticCodes.length === 0) {
+          throw new TypeError(`${result.id}: accepted divergence ${surface} lacks diagnosed observed evidence`)
+        }
+        return [surface, [...observation.diagnosticCodes]]
+      })) as Partial<Record<FidelitySurface, readonly string[]>>
+      feature.acceptedDivergences.push({
+        caseId: result.id,
+        policy: result.acceptedDivergence.policy,
+        rationale: result.acceptedDivergence.rationale,
+        surfaces: [...result.acceptedDivergence.surfaces],
+        diagnosticCodes,
+      })
+    }
     features.set(result.featureId, feature)
   }
 
@@ -142,6 +162,7 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
         caseIds: feature.caseIds.sort(compareCodePointStrings),
         surfaces,
         diagnostics,
+        acceptedDivergences: feature.acceptedDivergences.sort((a, b) => compareCodePointStrings(a.caseId, b.caseId)),
       }
     })
   const dispositions = Object.fromEntries(FIDELITY_DISPOSITIONS.map(disposition => [disposition, 0])) as Record<FidelityDisposition, number>

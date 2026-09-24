@@ -8,6 +8,7 @@ import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { FIDELITY_CAPABILITY_REPORT } from '../fidelity-capability-report.ts'
+import { fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -41,7 +42,8 @@ const EXPECTED_SURFACES = [
 
 // System-integration citizenship remains a hard all-family ratchet. Mermaid
 // syntax parity is now receipt-derived: it remains an explicit #248 exception
-// until every pinned feature for that family has a native construct receipt.
+// until every pinned feature is native or has a narrowly validated, named
+// security/offline divergence for each non-native applicable surface.
 const TRACKED_EXCEPTION_SURFACES = new Set<SurfaceId>(['mermaidSyntaxParity'])
 
 type SurfaceId = (typeof EXPECTED_SURFACES)[number]
@@ -377,9 +379,14 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
         .filter(feature => feature.families.includes(family.id))
       const receipts = new Map(FIDELITY_CAPABILITY_REPORT.features.map(feature => [feature.featureId, feature]))
       const native = manifestFeatures.filter(feature => receipts.get(feature.id)?.disposition === 'native').length
-      const satisfied = manifestFeatures.length > 0 && native === manifestFeatures.length
+      const paritySatisfied = manifestFeatures.filter(feature => {
+        const receipt = receipts.get(feature.id)
+        return receipt !== undefined && fidelityFeatureSatisfiesSyntaxParity(receipt)
+      }).length
+      const satisfied = manifestFeatures.length > 0 && paritySatisfied === manifestFeatures.length
       expect(row.cells.mermaidSyntaxParity.status).toBe(satisfied ? 'satisfied' : 'exception')
       expect(row.cells.mermaidSyntaxParity.evidence).toEqual(['docs/project/fidelity-capability-report.json'])
+      expect(row.cells.mermaidSyntaxParity.note).toContain(`${paritySatisfied}`)
       expect(row.cells.mermaidSyntaxParity.note).toContain(`${native}`)
       expect(row.cells.mermaidSyntaxParity.tracked).toEqual(satisfied ? undefined : ['#248'])
       expect(row.cells.familyVisualMetaphor.status).toBe('satisfied')

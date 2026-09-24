@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "3d9260e8d95482d0006cfaf4c60781296004858c3e91a9c1400a28a02738588b",
-  "receiptResultSha256": "3817186c2566837c7a59f48b5ad4d8be8faed43195d83c281e76d308c6f9e128",
+  "receiptInputSha256": "6d581403bc2a7fdf9579d877e86db3e1e9080b0265bbee5616f992418977353d",
+  "receiptResultSha256": "44303136b1153d0a978f6c41a3c689cf4d1a47aea8f12545a6e7b3e6bfeb4163",
   "summary": {
     "caseCount": 10,
     "featureCount": 7,
@@ -40,7 +40,8 @@
         "render": [
           "UNSUPPORTED_FAMILY"
         ]
-      }
+      },
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:flowchart:section:text-on-links",
@@ -55,7 +56,8 @@
         "serialize": "native",
         "mutate": "native"
       },
-      "diagnostics": {}
+      "diagnostics": {},
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
@@ -70,7 +72,8 @@
         "serialize": "native",
         "mutate": "native"
       },
-      "diagnostics": {}
+      "diagnostics": {},
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:journey:section:user-journey-diagram",
@@ -95,7 +98,8 @@
         "mutate": [
           "INVALID_OP"
         ]
-      }
+      },
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:sankey:section:links-coloring",
@@ -112,7 +116,8 @@
         "serialize": "native",
         "mutate": "native"
       },
-      "diagnostics": {}
+      "diagnostics": {},
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:state:section:comments",
@@ -134,7 +139,8 @@
         "mutate": [
           "INVALID_OP"
         ]
-      }
+      },
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:xychart:section:syntax",
@@ -157,7 +163,8 @@
         "mutate": [
           "INVALID_OP"
         ]
-      }
+      },
+      "acceptedDivergences": []
     }
   ]
 }

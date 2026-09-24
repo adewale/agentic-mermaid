@@ -1,11 +1,13 @@
 import rawReport from '../docs/project/fidelity-capability-report.json'
 import {
+  FIDELITY_ACCEPTED_DIVERGENCE_POLICIES,
   FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION,
   FIDELITY_DISPOSITIONS,
   FIDELITY_SURFACES,
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
   type FidelityCapabilitySurface,
+  type FidelityAcceptedDivergencePolicy,
   type FidelityDisposition,
   type FidelitySurface,
 } from './fidelity-capability-contract.ts'
@@ -23,6 +25,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isDisposition(value: unknown): value is FidelityDisposition {
   return typeof value === 'string' && FIDELITY_DISPOSITIONS.includes(value as FidelityDisposition)
+}
+
+function isAcceptedDivergencePolicy(value: unknown): value is FidelityAcceptedDivergencePolicy {
+  return typeof value === 'string'
+    && FIDELITY_ACCEPTED_DIVERGENCE_POLICIES.includes(value as FidelityAcceptedDivergencePolicy)
 }
 
 function validateSurface(value: unknown, context: string): string[] {
@@ -70,7 +77,11 @@ export function validateFidelityCapabilityReport(
     ids.add(context)
     const manifestFeature = manifestFeatures.get(context)
     if (!manifestFeature) issues.push(`${context}: fidelity capability feature is absent from the pinned manifest`)
-    if (typeof rawFeature.family !== 'string' || !manifestFeature?.families.includes(rawFeature.family)) {
+    if (manifestFeature && manifestFeature.families.length !== 1) {
+      issues.push(`${context}: multi-family fidelity capability features are not representable`)
+    }
+    if (typeof rawFeature.family !== 'string' || manifestFeature?.families.length !== 1
+      || manifestFeature.families[0] !== rawFeature.family) {
       issues.push(`${context}: fidelity capability family does not match the pinned manifest`)
     }
     if (!isDisposition(rawFeature.disposition)) {
@@ -116,6 +127,55 @@ export function validateFidelityCapabilityReport(
         if (surfaces[surface] === 'diagnosed' && !Array.isArray(codes)) {
           issues.push(`${context}/${surface}: diagnosed capability lacks a diagnostic code`)
         }
+      }
+    }
+    if (!Array.isArray(rawFeature.acceptedDivergences)) {
+      issues.push(`${context}: accepted divergences are invalid`)
+    } else {
+      const divergenceCaseIds = new Set<string>()
+      for (const divergence of rawFeature.acceptedDivergences) {
+        if (!isRecord(divergence) || typeof divergence.caseId !== 'string') {
+          issues.push(`${context}: accepted divergence is invalid`)
+          continue
+        }
+        const divergenceContext = `${context}/${divergence.caseId}`
+        if (divergenceCaseIds.has(divergence.caseId)) issues.push(`${divergenceContext}: duplicate accepted divergence`)
+        divergenceCaseIds.add(divergence.caseId)
+        if (!Array.isArray(rawFeature.caseIds) || !rawFeature.caseIds.includes(divergence.caseId)) {
+          issues.push(`${divergenceContext}: accepted divergence case is absent from the feature receipts`)
+        }
+        if (!isAcceptedDivergencePolicy(divergence.policy)) issues.push(`${divergenceContext}: accepted divergence policy is invalid`)
+        if (typeof divergence.rationale !== 'string' || !divergence.rationale.trim()) issues.push(`${divergenceContext}: accepted divergence rationale is empty`)
+        const divergenceSurfaces = divergence.surfaces
+        if (!Array.isArray(divergenceSurfaces) || divergenceSurfaces.length === 0
+          || divergenceSurfaces.some(surface => !FIDELITY_SURFACES.includes(surface as FidelitySurface))
+          || new Set(divergenceSurfaces).size !== divergenceSurfaces.length
+          || JSON.stringify(divergenceSurfaces) !== JSON.stringify(FIDELITY_SURFACES.filter(surface => divergenceSurfaces.includes(surface)))) {
+          issues.push(`${divergenceContext}: accepted divergence surfaces are invalid`)
+          continue
+        }
+        if (!isRecord(divergence.diagnosticCodes)
+          || JSON.stringify(Object.keys(divergence.diagnosticCodes)) !== JSON.stringify(divergenceSurfaces)) {
+          issues.push(`${divergenceContext}: accepted divergence diagnostics are incomplete or out of order`)
+          continue
+        }
+        for (const surface of divergenceSurfaces as FidelitySurface[]) {
+          const surfaceCodes = divergence.diagnosticCodes[surface]
+          const aggregateCodes = isRecord(rawFeature.diagnostics) ? rawFeature.diagnostics[surface] : undefined
+          if (rawFeature.surfaces?.[surface] !== 'diagnosed'
+            || !Array.isArray(surfaceCodes) || surfaceCodes.length === 0
+            || surfaceCodes.some(code => typeof code !== 'string' || !code.trim())
+            || new Set(surfaceCodes).size !== surfaceCodes.length
+            || JSON.stringify(surfaceCodes) !== JSON.stringify([...surfaceCodes].sort(compareCodePointStrings))
+            || !Array.isArray(aggregateCodes)
+            || surfaceCodes.some(code => !aggregateCodes.includes(code))) {
+            issues.push(`${divergenceContext}/${surface}: accepted divergence lacks matching diagnosed evidence`)
+          }
+        }
+      }
+      if (JSON.stringify(rawFeature.acceptedDivergences.map(divergence => isRecord(divergence) ? divergence.caseId : ''))
+        !== JSON.stringify([...divergenceCaseIds].sort(compareCodePointStrings))) {
+        issues.push(`${context}: accepted divergences are out of order`)
       }
     }
     const applicable = FIDELITY_SURFACES.flatMap(surface => {
@@ -172,4 +232,5 @@ export type {
   FidelityCapabilitySurface,
   FidelityDisposition,
   FidelitySurface,
+  FidelityAcceptedDivergencePolicy,
 }

@@ -95,13 +95,16 @@ import {
   validateSyntaxCapabilityLedger,
   type SyntaxCapabilityLedger,
 } from './syntax-capability-ledger.ts'
-import { FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION } from './fidelity-capability-contract.ts'
+import {
+  FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION,
+  fidelityFeatureSatisfiesSyntaxParity,
+} from './fidelity-capability-contract.ts'
 import {
   FIDELITY_CAPABILITY_REPORT,
   validateFidelityCapabilityReport,
 } from './fidelity-capability-report.ts'
 
-export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 13 as const
+export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 14 as const
 
 export { FAMILY_CAPABILITY_COLUMNS, UNREGISTERED_FAMILY_CAPABILITY_STATES }
 export type FamilyCapabilityColumn = FamilyCapability
@@ -218,7 +221,18 @@ export interface SectionAFamilyCapabilityRow {
   applicableRenderOptions: readonly FamilyScopedRenderOptionField[]
   semanticRoles: readonly string[]
   scenePrimitiveEvidence: readonly FamilyScenePrimitiveEvidence[]
+  /** Operation cells prove registered hook availability, not whole-family
+   * construct parity. Syntax fidelity is reported independently below. */
+  capabilityScope: 'registered-operation'
   capabilities: Readonly<Record<FamilyCapabilityColumn, FamilyCapabilityState>>
+  syntaxFidelity: {
+    status: 'complete' | 'incomplete' | 'not-applicable'
+    featureCount: number
+    receiptCount: number
+    paritySatisfiedFeatureCount: number
+    nativeFeatureCount: number
+    acceptedDivergenceFeatureCount: number
+  }
   evidence: readonly FamilyCapabilityEvidence[]
   conformance?: FamilyConformanceReport
 }
@@ -473,6 +487,44 @@ function supportState(family: UpstreamFamilyDescriptor): FamilySupportState {
   return 'inventory-only'
 }
 
+function familySyntaxFidelity(familyId: string): SectionAFamilyCapabilityRow['syntaxFidelity'] {
+  const features = UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures
+    .filter(feature => feature.families.includes(familyId))
+  if (features.length === 0) {
+    return {
+      status: 'not-applicable',
+      featureCount: 0,
+      receiptCount: 0,
+      paritySatisfiedFeatureCount: 0,
+      nativeFeatureCount: 0,
+      acceptedDivergenceFeatureCount: 0,
+    }
+  }
+  const receipts = new Map(FIDELITY_CAPABILITY_REPORT.features.map(feature => [`${feature.featureId}\0${feature.family}`, feature]))
+  let receiptCount = 0
+  let paritySatisfiedFeatureCount = 0
+  let nativeFeatureCount = 0
+  let acceptedDivergenceFeatureCount = 0
+  for (const feature of features) {
+    const receipt = receipts.get(`${feature.id}\0${familyId}`)
+    if (!receipt) continue
+    receiptCount++
+    if (receipt.disposition === 'native') nativeFeatureCount++
+    if (fidelityFeatureSatisfiesSyntaxParity(receipt)) {
+      paritySatisfiedFeatureCount++
+      if (receipt.disposition !== 'native') acceptedDivergenceFeatureCount++
+    }
+  }
+  return {
+    status: paritySatisfiedFeatureCount === features.length ? 'complete' : 'incomplete',
+    featureCount: features.length,
+    receiptCount,
+    paritySatisfiedFeatureCount,
+    nativeFeatureCount,
+    acceptedDivergenceFeatureCount,
+  }
+}
+
 function registeredDescriptors(): FamilyDescriptor[] {
   return knownFamilies()
     .map(id => getFamily(id))
@@ -555,12 +607,19 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
   const upstreamRows = UPSTREAM_MERMAID_MANIFEST.families.map(family => {
     const descriptor = descriptorForUpstreamFamily(family, descriptors)
     if (descriptor) matched.add(descriptor.id)
+    const syntaxFidelity = familySyntaxFidelity(family.id)
+    const declaredSupport = descriptor && !isBuiltinFamilyId(descriptor.id) ? 'extension' : supportState(family)
+    const support = descriptor && isBuiltinFamilyId(descriptor.id)
+      && (declaredSupport === 'native' || declaredSupport === 'partial-native')
+      && syntaxFidelity.status !== 'complete'
+      ? 'partial-native'
+      : declaredSupport
     return {
       id: family.id,
       label: family.label,
       source: family.source,
       maturity: family.maturity,
-      support: descriptor && !isBuiltinFamilyId(descriptor.id) ? 'extension' : supportState(family),
+      support,
       ...(descriptor ? { registrationId: descriptor.id } : {}),
       ...(descriptor ? { identity: familyIdentity(descriptor) } : {}),
       headers: liveFamilyHeaders(family, descriptor, owners),
@@ -568,7 +627,9 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       applicableRenderOptions: descriptor ? [...applicableFamilyScopedRenderOptions(descriptor)] : [],
       semanticRoles: descriptor ? [...descriptor.semanticRoles].sort(compareCodePointStrings) : [],
       scenePrimitiveEvidence: descriptor ? descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })) : [],
+      capabilityScope: 'registered-operation',
       capabilities: descriptorCapabilities(descriptor),
+      syntaxFidelity,
       evidence: descriptor ? [...descriptor.capabilityEvidence] : [],
       ...(descriptor ? { conformance: getFamilyConformanceReport(descriptor.id)! } : {}),
     } satisfies SectionAFamilyCapabilityRow
@@ -589,7 +650,9 @@ function familyRows(descriptors: readonly FamilyDescriptor[]): SectionAFamilyCap
       applicableRenderOptions: [...applicableFamilyScopedRenderOptions(descriptor)],
       semanticRoles: [...descriptor.semanticRoles].sort(compareCodePointStrings),
       scenePrimitiveEvidence: descriptor.scenePrimitiveEvidence.map(cell => ({ ...cell, evidence: [...cell.evidence] })),
+      capabilityScope: 'registered-operation' as const,
       capabilities: descriptorCapabilities(descriptor),
+      syntaxFidelity: familySyntaxFidelity(descriptor.id),
       evidence: [...descriptor.capabilityEvidence],
       conformance: getFamilyConformanceReport(descriptor.id)!,
     }))
@@ -1113,6 +1176,27 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
   }
   for (const row of families) {
     if (!stateIn(row.support, report.stateVocabularies.familySupport)) diagnostics.push(`family ${row.id} has invalid support state`)
+    if (row.capabilityScope !== 'registered-operation') diagnostics.push(`family ${row.id} has an invalid capability scope`)
+    const fidelity = row.syntaxFidelity
+    if (!['complete', 'incomplete', 'not-applicable'].includes(fidelity.status)
+      || [
+        fidelity.featureCount,
+        fidelity.receiptCount,
+        fidelity.paritySatisfiedFeatureCount,
+        fidelity.nativeFeatureCount,
+        fidelity.acceptedDivergenceFeatureCount,
+      ].some(value => typeof value !== 'number' || value < 0)
+      || fidelity.receiptCount > fidelity.featureCount
+      || fidelity.paritySatisfiedFeatureCount > fidelity.receiptCount
+      || fidelity.nativeFeatureCount + fidelity.acceptedDivergenceFeatureCount !== fidelity.paritySatisfiedFeatureCount
+      || (fidelity.status === 'complete') !== (fidelity.featureCount > 0 && fidelity.paritySatisfiedFeatureCount === fidelity.featureCount)
+      || (fidelity.status === 'not-applicable') !== (fidelity.featureCount === 0)) {
+      diagnostics.push(`family ${row.id} has an invalid syntax fidelity summary`)
+    }
+    if (row.registrationId && !row.registrationId.startsWith('family:')
+      && row.support === 'native' && fidelity.status !== 'complete') {
+      diagnostics.push(`family ${row.id} claims native support without complete construct receipts`)
+    }
     if (!Array.isArray(row.applicableRenderOptions)
       || !unique(row.applicableRenderOptions)
       || row.applicableRenderOptions.some(field => !FAMILY_SCOPED_RENDER_OPTION_FIELDS.includes(field))) {
@@ -1555,6 +1639,8 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('')
   out.push('## Family matrix')
   out.push('')
+  out.push('`Support` is header enrollment qualified by receipt-derived construct fidelity: a registered built-in remains `partial-native` until every pinned feature is native or a validated security/offline divergence. The operation columns are scoped to registered hook availability and do not claim whole-family syntax parity.')
+  out.push('')
   const familyHeaders = [
     'Family',
     'Support',
@@ -1562,6 +1648,7 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
     'Version',
     'Compatibility',
     'Headers',
+    'Construct fidelity',
     'Family-scoped RenderOptions',
     ...FAMILY_CAPABILITY_COLUMNS.map(capability => FAMILY_CAPABILITY_MARKDOWN_LABELS[capability]),
   ]
@@ -1580,6 +1667,7 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
       row.identity?.version ?? '—',
       compatibility,
       headers,
+      `${row.syntaxFidelity.status} (${row.syntaxFidelity.paritySatisfiedFeatureCount}/${row.syntaxFidelity.featureCount}; receipts=${row.syntaxFidelity.receiptCount}, native=${row.syntaxFidelity.nativeFeatureCount}, accepted-divergence=${row.syntaxFidelity.acceptedDivergenceFeatureCount})`,
       row.applicableRenderOptions.join(', ') || '—',
       ...FAMILY_CAPABILITY_COLUMNS.map(capability => c[capability]),
     ]))

@@ -63,9 +63,14 @@ describe('Section A capability report', () => {
       expect(Object.keys(output.transports).sort()).toEqual([...RENDER_TRANSPORT_SURFACES].sort())
     }
     for (const family of report.matrices.families) {
+      expect(family.capabilityScope).toBe('registered-operation')
       expect(Object.keys(family.capabilities)).toEqual([...FAMILY_CAPABILITY_COLUMNS])
       expect(family.applicableRenderOptions.every(field =>
         FAMILY_SCOPED_RENDER_OPTION_FIELDS.includes(field))).toBe(true)
+      if (family.registrationId && !family.registrationId.startsWith('family:')) {
+        if (family.support === 'native') expect(family.syntaxFidelity.status).toBe('complete')
+        if (family.syntaxFidelity.status !== 'complete') expect(family.support).not.toBe('native')
+      }
     }
     expect(report.summary.sharedRequestSurfaceCellCount)
       .toBe(report.summary.sharedRequestFieldCount * RENDER_TRANSPORT_SURFACES.length)
@@ -208,6 +213,14 @@ describe('Section A capability report', () => {
     ;(native.capabilities as Record<string, string>).svg = 'absent'
     expect(validateSectionACapabilityReport(contradictory)).toContain(
       'family flowchart svg state does not match declaration plus conformance',
+    )
+
+    const overstatedFamily = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
+    const incompleteSyntax = overstatedFamily.matrices.families.find(row =>
+      row.registrationId === 'flowchart' && row.syntaxFidelity.status === 'incomplete')!
+    ;(incompleteSyntax as { support: string }).support = 'native'
+    expect(validateSectionACapabilityReport(overstatedFamily)).toContain(
+      'family flowchart claims native support without complete construct receipts',
     )
 
     const staleFamilyConformance = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport

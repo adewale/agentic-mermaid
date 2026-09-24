@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "upstream": {
     "package": "mermaid",
     "version": "11.16.0",
@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "3d9260e8d95482d0006cfaf4c60781296004858c3e91a9c1400a28a02738588b",
+    "inputSha256": "6d581403bc2a7fdf9579d877e86db3e1e9080b0265bbee5616f992418977353d",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -84,7 +84,7 @@
       },
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
-        "sha256": "42b4f2ba51193f4120708773ef9e37f13d64fa15c1c1eb6d0829e04eff967388"
+        "sha256": "e06629fc663a628ac44f1edb8e3942e67e2ccfb6084cb31001e8a0878044ab02"
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
@@ -96,11 +96,11 @@
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
-        "sha256": "86630aba40a08aa857ef8c89b171f4f5a3bf0808001dcc0f24dd602774a6ae8b"
+        "sha256": "0f70914db8e2ac9de3bf170dac05373ec49704c880299e64b3a3c6e189d97fb0"
       },
       {
         "path": "src/__tests__/fidelity/projector.ts",
-        "sha256": "6fbaad532b12acebe9942c99ea60dfba4d9abcd91b73dab71c528d948f0f4c6a"
+        "sha256": "a18388a513f11bb32e054e3c8807a5c356dfc7eeeb483bad535f94c9bd644225"
       },
       {
         "path": "src/__tests__/fidelity/registry.ts",
@@ -112,15 +112,15 @@
       },
       {
         "path": "src/__tests__/fidelity/runner.ts",
-        "sha256": "e8ff68fbefb09d8f8b66f01529fc2566fc8f59751e1a56ce0b34eaa132b536de"
+        "sha256": "87ffc2850c695c53ebb48bf5dbd94bc421bde85e4d9402324484e08c80b26b0d"
       },
       {
         "path": "src/fidelity-capability-contract.ts",
-        "sha256": "216d4572a875f6835c00993e8da3da42837d3637701e0defe4cfb6be055fef4a"
+        "sha256": "21997e7299d26bdde2881b4b58f2c4f220ca76c7bab5acff65ba27e065ba8092"
       },
       {
         "path": "src/fidelity-capability-report.ts",
-        "sha256": "79f74c7ba0b1698ae183f4d6bb9aff5554c1c7f6ccedf98e77947437c9cf27cd"
+        "sha256": "b8024d1a7cf512a4263a0465c68dd237b392f292bcbf4a824cacdc21b4fa5af0"
       }
     ]
   },

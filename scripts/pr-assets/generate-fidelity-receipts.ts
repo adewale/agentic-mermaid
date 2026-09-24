@@ -1,6 +1,10 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { FidelityCapabilityReport, FidelityDisposition } from '../../src/fidelity-capability-contract.ts'
+import {
+  fidelityFeatureSatisfiesSyntaxParity,
+  type FidelityCapabilityReport,
+  type FidelityDisposition,
+} from '../../src/fidelity-capability-contract.ts'
 import { projectFidelityCapabilityReport } from '../../src/__tests__/fidelity/projector.ts'
 import { discoverFidelityRegistry } from '../../src/__tests__/fidelity/registry.ts'
 import { runFidelityCases } from '../../src/__tests__/fidelity/runner.ts'
@@ -29,8 +33,8 @@ interface CitizenshipMatrix {
 }
 
 /** Project the syntax-parity cell from executable receipts. Every manifest
- * feature for a built-in family must have a native receipt before the family
- * can regain a satisfied syntax-parity claim. */
+ * feature for a built-in family must have a native receipt or a narrowly
+ * validated security/offline divergence before syntax parity is satisfied. */
 export function projectFidelityCitizenship(
   source: string,
   report: FidelityCapabilityReport,
@@ -49,6 +53,8 @@ export function projectFidelityCitizenship(
       absent: 0,
     }
     let receipted = 0
+    let acceptedDivergence = 0
+    let satisfiedFeatureCount = 0
     for (const feature of features) {
       const receipt = receipts.get(feature.id)
       if (!receipt || receipt.family !== familyId) {
@@ -57,12 +63,16 @@ export function projectFidelityCitizenship(
       }
       receipted++
       counts[receipt.disposition]++
+      if (fidelityFeatureSatisfiesSyntaxParity(receipt)) {
+        satisfiedFeatureCount++
+        if (receipt.disposition !== 'native') acceptedDivergence++
+      }
     }
-    const satisfied = features.length > 0 && counts.native === features.length
+    const satisfied = features.length > 0 && satisfiedFeatureCount === features.length
     const cell: CitizenshipCell = {
       status: satisfied ? 'satisfied' : 'exception',
       evidence: ['docs/project/fidelity-capability-report.json'],
-      note: `Receipt-derived Mermaid 11.16 coverage: ${receipted}/${features.length} features receipted; native=${counts.native}, source-preserved=${counts['source-preserved']}, diagnosed=${counts.diagnosed}, absent-or-unreceipted=${counts.absent}.`,
+      note: `Receipt-derived Mermaid 11.16 coverage: ${receipted}/${features.length} features receipted; parity-satisfying=${satisfiedFeatureCount} (native=${counts.native}, accepted-security/offline-divergence=${acceptedDivergence}), source-preserved=${counts['source-preserved']}, diagnosed=${counts.diagnosed}, absent-or-unreceipted=${counts.absent}.`,
       ...(satisfied ? {} : { tracked: ['#248'] }),
     }
     family.cells.mermaidSyntaxParity = cell

@@ -434,7 +434,13 @@ function familyDimensionRows(
       classified.length,
       artifacts,
     )
-    const state = combineStates([baseline.state, ...classified.map(feature => feature.state)])
+    const combinedState = combineStates([baseline.state, ...classified.map(feature => feature.state)])
+    const hasNativeReceipt = classified.some(feature =>
+      feature.state === 'native' && feature.receipt.status === 'passed')
+    // Descriptor enrollment proves that an operation exists; it is not a
+    // construct receipt. A family/dimension aggregate may become native only
+    // when at least one current passing feature receipt backs that coordinate.
+    const state = combinedState === 'native' && !hasNativeReceipt ? 'absent' : combinedState
     const artifactEvidence = [...new Set(classified.map(feature => feature.artifactId))]
       .map(artifactId => artifacts.get(artifactId))
       .filter((artifact): artifact is UpstreamSemanticSourceArtifact => artifact !== undefined)
@@ -447,6 +453,9 @@ function familyDimensionRows(
       ? undefined
       : [
           baseline.diagnostic,
+          combinedState === 'native' && !hasNativeReceipt
+            ? 'NO_RECEIPTED_FEATURE: descriptor evidence alone cannot support a native public syntax claim.'
+            : undefined,
           `FEATURE_STATES: native=${featureStateCounts.native}, source-preserved=${featureStateCounts['source-preserved']}, diagnosed=${featureStateCounts.diagnosed}, not-applicable=${featureStateCounts['not-applicable']}, absent=${featureStateCounts.absent}.`,
         ].filter(Boolean).join(' ')
     return {
@@ -517,6 +526,9 @@ export function validateSyntaxCapabilityLedger(
       diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} lacks concrete evidence`)
     }
     if (row.state !== 'native' && !row.diagnostic?.trim()) diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} lacks a diagnostic`)
+    if (row.state === 'native' && row.featureStateCounts.native === 0) {
+      diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} claims native without a passing construct receipt`)
+    }
     if (Object.values(row.featureStateCounts).reduce((sum, count) => sum + count, 0) !== row.featureCount) {
       diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} feature counts are stale`)
     }
@@ -527,6 +539,17 @@ export function validateSyntaxCapabilityLedger(
     if (row.featureCount !== classified.length
       || JSON.stringify(row.featureStateCounts) !== JSON.stringify(expectedStateCounts)) {
       diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} does not summarize its feature rows`)
+    }
+    const classifiedState = combineStates(classified.map(feature => feature.state))
+    const conservatism: Record<FamilySyntaxState, number> = {
+      native: 0,
+      'not-applicable': 0,
+      'source-preserved': 1,
+      diagnosed: 2,
+      absent: 3,
+    }
+    if (classified.length > 0 && conservatism[row.state] < conservatism[classifiedState]) {
+      diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} is more capable than its feature receipts`)
     }
     if (row.dimensionId === 'processing') {
       if (!row.processing || JSON.stringify(Object.keys(row.processing)) !== JSON.stringify(FAMILY_CAPABILITY_COLUMNS)) {

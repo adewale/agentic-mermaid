@@ -65,6 +65,9 @@ describe('generated Mermaid syntax capability ledger', () => {
     for (const row of ledger.families.filter(row => row.dimensionId === 'processing' && !row.registrationId)) {
       expect(row.processing).toEqual(UNREGISTERED_FAMILY_CAPABILITY_STATES)
     }
+    for (const row of ledger.families.filter(row => row.state === 'native')) {
+      expect(row.featureStateCounts.native, `${row.familyId}/${row.dimensionId}`).toBeGreaterThan(0)
+    }
     expect(validateSyntaxCapabilityLedger(ledger, UPSTREAM_MERMAID_MANIFEST, familyIds(ledger))).toEqual([])
   })
 
@@ -122,6 +125,24 @@ describe('generated Mermaid syntax capability ledger', () => {
       UPSTREAM_MERMAID_MANIFEST,
       expectedFamilies,
     )).toContain(`syntax feature ${unreceiptedFeature.featureId} claims native without a passing construct receipt`)
+
+    const unreceiptedNativeFamily = structuredClone(original) as unknown as {
+      families: Array<{
+        familyId: string
+        dimensionId: string
+        state: string
+        diagnostic?: string
+      }>
+    }
+    const unreceiptedFamily = unreceiptedNativeFamily.families.find(row =>
+      row.familyId === 'flowchart' && row.dimensionId === 'identity-routing')!
+    unreceiptedFamily.state = 'native'
+    delete unreceiptedFamily.diagnostic
+    expect(validateSyntaxCapabilityLedger(
+      unreceiptedNativeFamily as unknown as SyntaxCapabilityLedger,
+      UPSTREAM_MERMAID_MANIFEST,
+      expectedFamilies,
+    )).toContain('syntax family flowchart/identity-routing claims native without a passing construct receipt')
 
     const driftedOpenFamily = structuredClone(original) as unknown as {
       families: Array<{
