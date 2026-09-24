@@ -4,6 +4,8 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asState, type StateMutationOp, type StateValidDiagram } from '../agent/types.ts'
 import { parseMermaid as parseRenderGraph } from '../parser.ts'
+import { verifyMermaid } from '../agent/verify.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 function state(source: string): StateValidDiagram {
   const parsed = parseMermaid(source)
@@ -20,6 +22,65 @@ function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagr
 }
 
 describe('typed State residual elevation (B07)', () => {
+  test('trailing Mermaid comments preserve transition topology in both parsers', () => {
+    const source = `stateDiagram-v2
+      A --> B %% legal trailing comment
+      B --> C`
+    const diagram = state(source)
+    expect(diagram.body.transitions).toEqual([{ from: 'A', to: 'B' }, { from: 'B', to: 'C' }])
+    const graph = parseRenderGraph(source)
+    expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['B', 'C']])
+    expect(state(serializeMermaid(diagram)).body.transitions).toEqual(diagram.body.transitions)
+    expect(verifyMermaid(diagram).warnings).toContainEqual({ code: 'COMMENT_DROPPED', count: 1, lines: [2] })
+  })
+
+  test('State header comments and comment-only delimiters never create or erase transitions', () => {
+    for (const source of [
+      'stateDiagram-v2 %% heading; Bogus --> Edge\nA --> B',
+      'stateDiagram-v2\nA --> B %% ; Bogus --> Edge\nB --> C',
+      'stateDiagram-v2\nA --> B %% `\nB --> C',
+      'stateDiagram-v2\nA --> B %% @{\nB --> C',
+    ]) {
+      const expected = source.includes('heading') ? [['A', 'B']] : [['A', 'B'], ['B', 'C']]
+      expect(state(source).body.transitions.map(transition => [transition.from, transition.to])).toEqual(expected)
+      expect(parseRenderGraph(source).edges.map(edge => [edge.source, edge.target])).toEqual(expected)
+      expect(verifyMermaid(state(source)).warnings).toContainEqual({
+        code: 'COMMENT_DROPPED', count: 1, lines: [source.includes('heading') ? 1 : 2],
+      })
+    }
+  })
+
+  test('trailing-comment diagnostics use authored line numbers after frontmatter and init directives', () => {
+    const source = `---
+config:
+  theme: default
+---
+%%{init: {"theme":"default"}}%%
+stateDiagram-v2
+  A --> B %% note`
+    const diagram = state(source)
+    expect(diagram.meta.comments).toEqual([{ text: 'note', line: 7 }])
+    expect(verifyMermaid(diagram).warnings).toContainEqual({ code: 'COMMENT_DROPPED', count: 1, lines: [7] })
+  })
+
+  test('spaced comma-separated State class targets retain both paint assignments', () => {
+    const source = `stateDiagram-v2
+      Moving --> Crash
+      classDef movement fill:#ff0000
+      class Moving, Crash movement`
+    const diagram = state(source)
+    expect(diagram.body.states.find(item => item.id === 'Moving')?.className).toBe('movement')
+    expect(diagram.body.states.find(item => item.id === 'Crash')?.className).toBe('movement')
+    const graph = parseRenderGraph(source)
+    expect(graph.classAssignments.get('Moving')).toBe('movement')
+    expect(graph.classAssignments.get('Crash')).toBe('movement')
+    expect(parseRenderGraph(serializeMermaid(diagram)).classAssignments).toEqual(graph.classAssignments)
+    const svg = renderMermaidSVG(source)
+    for (const id of ['Moving', 'Crash']) {
+      expect(svg).toMatch(new RegExp(`<rect[^>]*fill="#ff0000"[^>]*data-id="node-shape:${id}"`))
+    }
+  })
+
   test('models concurrency regions and lets region-addressed edits round-trip', () => {
     let diagram = state(`stateDiagram-v2
       state parallel-work {

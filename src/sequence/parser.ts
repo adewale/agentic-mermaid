@@ -1,9 +1,41 @@
 import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup, SequenceActorType, SequenceMessageHead } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { isCssColorToken } from './colors.ts'
+import { isCssColorToken, sequenceRectColor } from './colors.ts'
+import { splitSequenceStatementLines } from './statements.ts'
+import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from './block-keywords.ts'
 
-const SEQUENCE_MESSAGE_RE = /^(\S+?)(\(\))?\s*(<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->|--[|\\/]|-[|\\/]|[|\\/]--|[|\\/]-)\s*(\(\))?([+-]?)(\S+?)\s*:\s*(.+)$/
+// Mermaid's half-arrow heads have multi-character spellings. Keep complete
+// tokens here, longest first in the regex, so a prefix cannot leak into an
+// actor ID (for example `A-|/B` must address B, not /B).
+const SEQUENCE_ARROW_HEADS = new Map<string, readonly [SequenceMessageHead, SequenceMessageHead]>([
+  ['<<-->>', ['filled', 'filled']], ['<<->>', ['filled', 'filled']],
+  ['-->>', ['none', 'filled']], ['->>', ['none', 'filled']],
+  ['-->', ['none', 'none']], ['->', ['none', 'none']],
+  ['--x', ['none', 'cross']], ['-x', ['none', 'cross']],
+  ['--)', ['none', 'open']], ['-)', ['none', 'open']],
+  ['--|\\', ['none', 'half-top']], ['-|\\', ['none', 'half-top']],
+  ['--|/', ['none', 'half-bottom']], ['-|/', ['none', 'half-bottom']],
+  ['--\\\\', ['none', 'stick-top']], ['-\\\\', ['none', 'stick-top']],
+  ['--//', ['none', 'stick-bottom']], ['-//', ['none', 'stick-bottom']],
+  ['/|--', ['half-bottom', 'none']], ['/|-', ['half-bottom', 'none']],
+  ['\\|--', ['half-top', 'none']], ['\\|-', ['half-top', 'none']],
+  ['//--', ['stick-bottom', 'none']], ['//-', ['stick-bottom', 'none']],
+  ['\\\\--', ['stick-top', 'none']], ['\\\\-', ['stick-top', 'none']],
+  // Preserve shorter pre-existing local spellings as compatibility aliases.
+  ['--|', ['none', 'stick-top']], ['-|', ['none', 'stick-top']],
+  ['--/', ['none', 'stick-bottom']], ['-/', ['none', 'stick-bottom']],
+  ['--\\', ['none', 'stick-top']], ['-\\', ['none', 'stick-top']],
+  ['|--', ['stick-top', 'none']], ['|-', ['stick-top', 'none']],
+  ['/--', ['stick-bottom', 'none']], ['/-', ['stick-bottom', 'none']],
+  ['\\--', ['stick-top', 'none']], ['\\-', ['stick-top', 'none']],
+])
+
+const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
+  .sort((a, b) => b.length - a.length)
+  .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|')
+const SEQUENCE_MESSAGE_RE = new RegExp(String.raw`^(\S+?)(\(\))?\s*(${arrowAlternatives})\s*(\(\))?([+-]?)(\S+?)\s*:\s*(.+)$`)
 
 export interface ParsedSequenceMessageLine {
   from: string
@@ -63,8 +95,8 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
  * directive in the body still takes precedence from its own line on.
  */
 export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean } = {}): SequenceDiagram {
-  const accessibility = scanAccessibilityDirectives(lines)
-  lines = accessibility.familyLines
+  const accessibility = scanAccessibilityDirectives(splitSequenceStatementLines(lines))
+  lines = accessibility.familyLines.map(line => line.trim()).filter(Boolean)
   const diagram: SequenceDiagram = {
     actors: [],
     messages: [],
@@ -83,7 +115,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   // Track actor IDs to auto-create actors referenced in messages
   const actorIds = new Set<string>()
   // Track block nesting with a stack
-  const blockStack: Array<{ type: Block['type']; label: string; startIndex: number; dividers: Block['dividers'] }> = []
+  const blockStack: Array<{ type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers'] }> = []
   // Open `box … end` group (boxes never nest; they only wrap participant lines)
   let openBox: SequenceBoxGroup | null = null
   // Active autonumber state; null = numbering off
@@ -260,25 +292,40 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     }
 
     // --- Block start: loop, alt, opt, par, critical, break, rect ---
-    const blockMatch = line.match(/^(loop|alt|opt|par|critical|break|rect)\s*(.*)$/)
-    if (blockMatch) {
-      const blockType = blockMatch[1] as Block['type']
-      const rawBlockLabel = blockMatch[2]?.trim() ?? ''
-      const label = normalizeBrTags(rawBlockLabel)
+    const opener = parseSequenceBlockOpener(line)
+    if (opener && opener.type !== 'box') {
+      // Keep the pre-existing `par_over` render disposition until that
+      // separate upstream construct receives its own semantic slice.
+      const blockType = opener.type === 'par_over' ? 'par' : opener.type
+      // The old `par` prefix match exposed the untouched `_over...` suffix as
+      // its label. Keep that exact spacing/punctuation until `par_over` gains
+      // its own native semantics; the shared classifier trims opener labels.
+      const label = opener.type === 'rect'
+        ? ''
+        : normalizeBrTags(opener.type === 'par_over' ? `_over${line.slice(8)}`.trim() : opener.label)
+      // Mermaid permits a bare `rect` (default fill). A hash comment after
+      // the keyword also leaves the color empty; the shared statement scanner
+      // already keeps its remainder out of the message stream.
+      const rectArgument = opener.type === 'rect' && opener.label.startsWith('#') ? '' : opener.label
+      const color = opener.type === 'rect' ? sequenceRectColor(rectArgument) : undefined
+      if (opener.type === 'rect' && rectArgument && !color) {
+        throw new Error('SEQUENCE_RECT_COLOR_UNSUPPORTED: rect requires a safe concrete CSS color')
+      }
       blockStack.push({
         type: blockType,
         label,
+        ...(color ? { color } : {}),
         startIndex: diagram.messages.length,
         dividers: [],
       })
       continue
     }
 
-    // --- Block divider: else, and ---
-    const dividerMatch = line.match(/^(else|and)\s*(.*)$/)
-    if (dividerMatch && blockStack.length > 0) {
-      const rawDividerLabel = dividerMatch[2]?.trim() ?? ''
-      const label = normalizeBrTags(rawDividerLabel)
+    // --- Block divider: else, and, option (only on their owning blocks) ---
+    const continuation = parseSequenceBlockContinuation(line)
+    if (continuation && blockStack.length > 0
+      && continuationBelongsToBlock(continuation.type, blockStack[blockStack.length - 1]!.type)) {
+      const label = normalizeBrTags(continuation.label)
       blockStack[blockStack.length - 1]!.dividers.push({
         index: diagram.messages.length,
         label,
@@ -292,6 +339,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       diagram.blocks.push({
         type: completed.type,
         label: completed.label,
+        ...(completed.color ? { color: completed.color } : {}),
         startIndex: completed.startIndex,
         endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
         dividers: completed.dividers,
@@ -378,23 +426,13 @@ export function parseActorLinks(line: string): { actorId: string; links: Record<
 }
 
 function isMessageArrow(value: string): boolean {
-  return /^(?:<<-+>>|-+>>?|-+[)x]|-+[|\\/]|[|\\/]-+)$/.test(value)
+  return SEQUENCE_ARROW_HEADS.has(value)
 }
 
 function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; startHead: SequenceMessageHead; endHead: SequenceMessageHead } {
   const lineStyle = arrow.includes('--') ? 'dashed' : 'solid'
-  if (/^<<-+>>$/.test(arrow)) return { lineStyle, startHead: 'filled', endHead: 'filled' }
-  if (arrow.endsWith('x')) return { lineStyle, startHead: 'none', endHead: 'cross' }
-  if (arrow.endsWith(')')) return { lineStyle, startHead: 'none', endHead: 'open' }
-  if (/^-+>>$/.test(arrow)) return { lineStyle, startHead: 'none', endHead: 'filled' }
-  if (/^-+>$/.test(arrow)) return { lineStyle, startHead: 'none', endHead: 'none' }
-  if (/^[|\\/]-+$/.test(arrow)) {
-    return { lineStyle, startHead: arrow.startsWith('/') ? 'half-bottom' : 'half-top', endHead: 'none' }
-  }
-  if (/^-+[|\\/]$/.test(arrow)) {
-    return { lineStyle, startHead: 'none', endHead: arrow.endsWith('/') ? 'half-bottom' : 'half-top' }
-  }
-  return { lineStyle, startHead: 'none', endHead: 'open' }
+  const [startHead, endHead] = SEQUENCE_ARROW_HEADS.get(arrow) ?? ['none', 'none']
+  return { lineStyle, startHead, endHead }
 }
 
 /** Ensure an actor exists, creating a default participant if not */

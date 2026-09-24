@@ -56,7 +56,7 @@
     "sectionA": {
       "type": "object",
       "description": "Bounded discovery summary of the audit-only Section A report.",
-      "required": ["projectionVersion", "reportSchemaVersion", "reportDigest", "upstreamPin", "counts", "noAbsentSyntaxCapabilities", "fullReport"]
+      "required": ["projectionVersion", "reportSchemaVersion", "reportDigest", "upstreamPin", "counts", "noAbsentSyntaxCapabilities", "fidelity", "fullReport"]
     }
   }
 }

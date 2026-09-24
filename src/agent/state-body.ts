@@ -55,7 +55,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, stereotypeMarker,
+  isStateNodeId, stereotypeMarker, stripStateComment, matchStateClassAssignment,
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 
@@ -118,7 +118,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   // forward reference must never create a competing simple placeholder.
   const compositeIds = new Set<string>()
   for (const raw of lines) {
-    const match = raw.trim().match(COMPOSITE_OPEN_RE)
+    const match = stripStateComment(raw).match(COMPOSITE_OPEN_RE)
     if (!match) continue
     const id = match[2]!
     if (compositeIds.has(id)) return null
@@ -146,9 +146,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
   }
 
   for (const raw of lines) {
-    const line = raw.trim()
+    const line = stripStateComment(raw)
     if (!line) continue
-    if (line.startsWith('%%')) continue
 
     const scope = stack[stack.length - 1]!
 
@@ -183,10 +182,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
       for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) classDefs[name] = { ...props }
       continue
     }
-    const classLine = line.match(/^(?:class|cssClass)\s+([\w\p{L},-]+)\s+([\w-]+)$/u)
+    const classLine = matchStateClassAssignment(line)
     if (classLine) {
-      for (const id of classLine[1]!.split(',').map(value => value.trim()).filter(Boolean)) {
-        classAssignments.push({ id, className: classLine[2]!, scope })
+      for (const id of classLine.ids) {
+        classAssignments.push({ id, className: classLine.className, scope })
       }
       continue
     }

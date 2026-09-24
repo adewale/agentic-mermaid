@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/pie-highlightslice-evidence.ts",
-  "inputCount": 273,
-  "inputTreeSha256": "f9610b058430bd4f1cbd4d6c061454cfca312223e8270f249782d0bb42ce498f",
+  "inputCount": 275,
+  "inputTreeSha256": "1f1aa3a4432d55de5654801b58f46b14c128ee2f9f450a09822d7eeb762d5f70",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
@@ -22,11 +22,11 @@
   "outputs": [
     {
       "path": "docs/design/families/pie-highlightslice-regression-matrix.png",
-      "sha256": "6241b9cb1372f23d914f094f08d11c89e8658b671325178e4d1a02606916c7ea"
+      "sha256": "8e8e9f89c9f28a5ce5c4a4e644fcf21414c6d23dbc9e3b1405af0efe1c8ebeaa"
     },
     {
       "path": "docs/design/families/pie-highlightslice-after.png",
-      "sha256": "54a187fd37699b9a61f11d28b716d4aa080f4e035fbd15102456237a7fcee399"
+      "sha256": "e7a47a26f0d423c84b0bce3e7ea632bbbb6c84f941b3be1520794dd9e7d0ed2f"
     }
   ]
 }

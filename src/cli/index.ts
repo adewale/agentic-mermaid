@@ -374,7 +374,7 @@ Emits a single JSON object describing the SDK's capability surface:
     warningCodes: [{ code, tier, severity }],
     outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)},
     sectionA: { reportSchemaVersion, reportDigest, upstreamPin, counts,
-      noAbsentSyntaxCapabilities, fullReport } }
+      noAbsentSyntaxCapabilities, fidelity, fullReport } }
 editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
 introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)

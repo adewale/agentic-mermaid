@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "d9ac79ab6e208196b30cd0d4f0168cad48837ede06a686383f2d463960f3ba91",
+    "inventorySha256": "e4c273a67903d3cd3cfd5f7431b5e3515f73cf61e3b28358a61edcdfe0b6710d",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "981ef4a8078656671412706b081b704a42049f9213374f02f1e24afa8fa9ee5c",
+        "sha256": "08816014bd25d7b733ed59194e3cfa33fdfe7f75d4c8524bef370d7bd57dfbc0",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -13368,7 +13368,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "df263b64b4711813961a9bc8c4bf4f00bc8df3300905258443cf2119a331cb41",
+        "fingerprint": "04ba942fa0cf16a35cf96a73ed1ed8d5880d93daecff36066a157b79aa18152b",
         "sourceSha256": "592d41bce3e89aa72370fbef532dcf411efea4582dea383c6373201bcf4102bd"
       },
       {
@@ -13408,7 +13408,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "fb2dbac84e773f70f69bd714b85822565683381acebfc4c4b08a261b57c891ac",
+        "fingerprint": "6ca097979e0b5d27c9e2351954d7fb5199e41bc86c9c12ee24b162ceae99c592",
         "sourceSha256": "74d386a7ea184a412292c141c8f30824fa6468a4c87637a76538c05316647524"
       },
       {
@@ -13448,7 +13448,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "2b423422739e3eb91b7ffc6e58d1b43a76352cde30ea316e94f241bdc2f4e96d",
+        "fingerprint": "86ea56051a3fdb1501198b8d40b7baaca48a69832b11b454475457cbdee3f990",
         "sourceSha256": "bc3a1298d8deea708724c4f8d84ff4272ccfaad19e6d98a3e5be32b221125793"
       },
       {
@@ -13468,7 +13468,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "aa40d6697e9efbc76dde78dd4e5741162200a7e6ce0c5b0c1d7248be842aee6c",
+        "fingerprint": "2413a5999099ea2b6160a9854e5dee9415d548929c37f74c7cb8b2e721549cd7",
         "sourceSha256": "7243d398502846e14a9b8949b4a46c82dcbe1e47a5dd2534c8f3f40ac6e12c26"
       },
       {
@@ -13748,7 +13748,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "fc67a9f2f24125eb8c818a6b9b5214796dc5558d201e170666ec66d5b8a31793",
+        "fingerprint": "3c6e5463e90d0e30b8ba0c0f8f37876b0b25da9a518b9dbfdef850d0430f7487",
         "sourceSha256": "1fdb51e8b364a74b247f35448e963043ccd9a50a18219c53f81bb9da4ef36321"
       },
       {
@@ -13928,7 +13928,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "05c6a56684b6c682999bda6a4e2130ef9af1076deb91a439314ae6f9e8b4598c",
+        "fingerprint": "784791bc7bb803832bf280891f620161c4b9997ed9f7c0ad0bf2ee836a2349b5",
         "sourceSha256": "36c8c05d5924ea64eb97abef706f5a52e8c4c3f531c6243a739cfa2316e5fa1c"
       },
       {
@@ -13948,7 +13948,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "d946ed3b1ee70660ca52e167853f3f955b24706ec09d6190e3ed5e68642367f7",
+        "fingerprint": "12f34b288b9fc178d1387604f46bc4907a28e4b3243621700627c3011ccfd123",
         "sourceSha256": "b3ff1bef81f50eebc438a8cfbf7b00c66c982d3db364437f430e4ac9197eb591"
       },
       {
@@ -13958,7 +13958,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "f81ab8633955709c4806d957405eeaee535bfad89e6f8946080ef684b2d98249",
+        "fingerprint": "4456ebffafa31faa8b2472ee7369fdbf1e42f3130fd77f0baf7a76395bdf33e9",
         "sourceSha256": "8b1c6cb4f5a58e869bac29d08ccbaa6ef84da361136ebbaf1726b42ee3775a99"
       },
       {
@@ -14158,7 +14158,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "0c95bd7847fd5825e1028fe6e895163f995f4908946768c6c53a554999300529",
+        "fingerprint": "735d881b759fe36d824b0ead1ddb3db704ba1f10a604850cb2306f0b1818ef76",
         "sourceSha256": "12fa4614e29b2f1dbd56be7af6e01ce7e46e27d55421c5bff84c6d7d800d2114"
       },
       {
@@ -14168,7 +14168,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "c85676254ab64035aeec497c868b9255b4a9ccdfd2f4f5bc0be4a0ebe73b18f5",
+        "fingerprint": "0236010ff06e4c461ab1ccedf19789d41b007f03c0817e066aac83eefed93aa9",
         "sourceSha256": "b2a7b86c72cdcecb7b65ecfb73b3f47eb52ad361bcf4c53f0c295c73bd7001f3"
       },
       {
@@ -14178,7 +14178,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "b229218c2c8ee9208dcc130149fde84b12423f1f6239f72f98d751a8abd17322",
+        "fingerprint": "2b0c612d786979743a9c4417bbb2b1940216f032f49a78388af4187b2b1ecca9",
         "sourceSha256": "011dd9ca67267cdf5058a4dbf1f036f50c69e90ccd22a72607dc59784e554fbe"
       },
       {
@@ -14188,7 +14188,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "df00ed5f73f4dfa9429a8037f5218bb3968d9b2d055cc1c706848972bf985add",
+        "fingerprint": "85b8f2505b8335dc56b6cba773241d4a742493b7a13885931147e8c22590175c",
         "sourceSha256": "14665cc58ce48f39fadb00b4e7c7188958ca641e0764cb252da042268e2ed54d"
       },
       {
@@ -14198,7 +14198,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "8360cbc3afa34e032354cc980b92228ccfcc81abb3177abd53853578521fdfbb",
+        "fingerprint": "6e7dd1a7bc09506866a38a984cbd012d100ffe25aa2015fa641446d391811eee",
         "sourceSha256": "5a7c3517fe6c87499497a2f03524a6051c359bf11653af976409453d0b11e9f2"
       },
       {

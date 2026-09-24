@@ -8,6 +8,9 @@ import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { HONESTY_PARTS, HONESTY_SAMPLES, honestyPartition } from './helpers/chart-honesty.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { FIDELITY_CAPABILITY_REPORT } from '../fidelity-capability-report.ts'
+import { fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
+import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const MATRIX_PATH = join(REPO, 'docs/contributing/diagram-family-citizenship.matrix.json')
@@ -39,11 +42,11 @@ const EXPECTED_SURFACES = [
   'distributionPackage',
 ] as const
 
-// Previously four surfaces could ship as tracked 'exception's. The backfill (#49)
-// drove the matrix to zero exceptions, so the contract now admits NONE: every
-// family must satisfy every surface. Any regression back to an 'exception' fails
-// both "every exception is tracked" and "core surfaces cannot be deferred". (#41)
-const TRACKED_EXCEPTION_SURFACES = new Set<SurfaceId>()
+// System-integration citizenship remains a hard all-family ratchet. Mermaid
+// syntax parity is now receipt-derived: it remains an explicit #248 exception
+// until every pinned feature is native or has a narrowly validated, named
+// security/offline divergence for each non-native applicable surface.
+const TRACKED_EXCEPTION_SURFACES = new Set<SurfaceId>(['mermaidSyntaxParity'])
 
 type SurfaceId = (typeof EXPECTED_SURFACES)[number]
 
@@ -224,7 +227,7 @@ function repoPathExists(ref: string): boolean {
 describe('diagram-family citizenship ratchet (issue #41)', () => {
   test('matrix schema and family rows cover the built-in registry exactly', () => {
     const matrix = loadMatrix()
-    expect(matrix.schemaVersion).toBe(2)
+    expect(matrix.schemaVersion).toBe(3)
     expect(matrix.statusValues).toEqual(['satisfied', 'exception'])
     expect(matrix.surfaces.map(s => s.id)).toEqual([...EXPECTED_SURFACES])
     for (const surface of matrix.surfaces) expect(surface.description.length).toBeGreaterThan(20)
@@ -272,14 +275,14 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     }
   })
 
-  test('citizenship backfill has no remaining matrix exceptions', () => {
+  test('only receipt-derived Mermaid syntax parity may remain exceptional', () => {
     const matrix = loadMatrix()
     const exceptions = Object.entries(matrix.families).flatMap(([family, row]) =>
       Object.entries(row.cells)
         .filter(([, cell]) => cell.status === 'exception')
         .map(([surface]) => `${family}:${surface}`),
     )
-    expect(exceptions).toEqual([])
+    expect(exceptions).toEqual(BUILTIN_FAMILY_METADATA.map(family => `${family.id}:mermaidSyntaxParity`))
   })
 
   test('core citizenship surfaces cannot be deferred as exceptions', () => {
@@ -344,7 +347,7 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     }
   })
 
-  test('every family proves Mermaid syntax parity and its recognizable domain metaphor', () => {
+  test('every family reports receipt-backed syntax parity and proves its recognizable domain metaphor', () => {
     const matrix = loadMatrix()
     const audit = readFileSync(FIDELITY_AUDIT_PATH, 'utf8')
     expect(audit).toContain('Parser acceptance alone does not count')
@@ -374,8 +377,20 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       for (const evidence of [...fidelity.syntaxEvidence, fidelity.visualArtifact, ...fidelity.visualEvidence]) {
         expect(repoPathExists(evidence), `${family.id}: ${evidence}`).toBe(true)
       }
-      expect(row.cells.mermaidSyntaxParity.status).toBe('satisfied')
-      expect(row.cells.mermaidSyntaxParity.evidence).toEqual(fidelity.syntaxEvidence)
+      const manifestFeatures = UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures
+        .filter(feature => feature.families.includes(family.id))
+      const receipts = new Map(FIDELITY_CAPABILITY_REPORT.features.map(feature => [feature.featureId, feature]))
+      const native = manifestFeatures.filter(feature => receipts.get(feature.id)?.disposition === 'native').length
+      const paritySatisfied = manifestFeatures.filter(feature => {
+        const receipt = receipts.get(feature.id)
+        return receipt !== undefined && fidelityFeatureSatisfiesSyntaxParity(receipt)
+      }).length
+      const satisfied = manifestFeatures.length > 0 && paritySatisfied === manifestFeatures.length
+      expect(row.cells.mermaidSyntaxParity.status).toBe(satisfied ? 'satisfied' : 'exception')
+      expect(row.cells.mermaidSyntaxParity.evidence).toEqual(['docs/project/fidelity-capability-report.json'])
+      expect(row.cells.mermaidSyntaxParity.note).toContain(`${paritySatisfied}`)
+      expect(row.cells.mermaidSyntaxParity.note).toContain(`${native}`)
+      expect(row.cells.mermaidSyntaxParity.tracked).toEqual(satisfied ? undefined : ['#248'])
       expect(row.cells.familyVisualMetaphor.status).toBe('satisfied')
       expect(row.cells.familyVisualMetaphor.evidence).toEqual(expect.arrayContaining(['docs/design/mermaid-family-fidelity-audit.md', fidelity.visualArtifact]))
       expect(audit).toContain(`| ${family.label} |`)
@@ -400,6 +415,7 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       .map(([id]) => id)
     expect(worked).toEqual(['gantt'])
     for (const [surface, cell] of Object.entries(matrix.families.gantt!.cells) as Array<[SurfaceId, Cell]>) {
+      if (surface === 'mermaidSyntaxParity') continue
       expect({ family: 'gantt', surface, status: cell.status }).toEqual({ family: 'gantt', surface, status: 'satisfied' })
     }
 

@@ -4,7 +4,9 @@ import { extname, join, normalize, sep } from 'node:path'
 import { chromium } from 'playwright'
 import {
   WEBSITE_PAYLOAD_OBSERVATION_MS,
+  WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN,
   WEBSITE_PAYLOAD_ROUTES,
+  assertWebsitePayloadRecordingToolchain,
   assertWebsitePayloadReportCurrent,
   buildWebsitePayloadReport,
   stablePayloadJson,
@@ -26,6 +28,7 @@ function cleanup() {
 }
 process.on('exit', cleanup)
 const mode = process.argv.includes('--write') ? 'write' : process.argv.includes('--check') ? 'check' : ''
+const requireExact = process.argv.includes('--require-exact')
 if (!mode) throw new Error('Usage: bun run scripts/site/website-payload-report.ts --write|--check')
 
 const build = Bun.spawnSync(['bun', 'run', 'website/build.ts', '--public-only'], {
@@ -130,6 +133,10 @@ if (mode === 'write') {
   if (!existsSync(REPORT)) throw new Error(`Missing payload report: ${REPORT}`)
   const recorded = readFileSync(REPORT, 'utf8')
   const recordedReport = JSON.parse(recorded) as WebsitePayloadReport
+  assertWebsitePayloadRecordingToolchain(recordedReport.toolchain)
+  if (requireExact && !websitePayloadRecordingToolchainMatches(WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN, report.toolchain)) {
+    throw new Error(`Exact website payload verification requires Bun ${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.bun} on ${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.platform}/${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.arch}`)
+  }
   if (websitePayloadRecordingToolchainMatches(recordedReport.toolchain, report.toolchain)) {
     assertWebsitePayloadReportCurrent(recorded, report)
     console.log('Website payload report, exact request graphs, and budgets pass')

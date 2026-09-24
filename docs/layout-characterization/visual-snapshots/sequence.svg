@@ -28,10 +28,16 @@
     <path d="M1 1 L7 4 M1 4 L7 1" fill="none" stroke="#47474a" stroke-width="1.5" />
   </marker>
   <marker id="char-sequence-seq-arrow-half-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
-    <path d="M0 0 L8 2.5" fill="none" stroke="#47474a" stroke-width="1" />
+    <polygon points="0 0, 8 2.5, 0 2.5" fill="#47474a" />
   </marker>
   <marker id="char-sequence-seq-arrow-half-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
-    <path d="M0 5 L8 2.5" fill="none" stroke="#47474a" stroke-width="1" />
+    <polygon points="0 2.5, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="char-sequence-seq-arrow-stick-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 0 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="char-sequence-seq-arrow-stick-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 5 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
   </marker>
 </defs>
 <line class="lifeline" data-actor="Alice" x1="70" y1="70" x2="70" y2="256" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />

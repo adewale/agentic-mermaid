@@ -1,0 +1,1199 @@
+{
+  "schemaVersion": 2,
+  "upstream": {
+    "package": "mermaid",
+    "version": "11.16.0",
+    "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+    "inventorySha256": "e4c273a67903d3cd3cfd5f7431b5e3515f73cf61e3b28358a61edcdfe0b6710d",
+    "revisionAcknowledgements": [
+      {
+        "id": "historical-docs-corpus-a2d968-to-f3dea",
+        "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+        "artifactRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
+        "artifactIds": [
+          "docs-corpus"
+        ],
+        "usage": "historical-only",
+        "rationale": "The original 12-family documentation corpus predates the Mermaid 11.16 manifest pin and is not exhaustive. It remains regression evidence only.",
+        "evidence": [
+          "eval/mermaid-docs-corpus/provenance.json",
+          "eval/mermaid-docs-corpus/README.md",
+          "docs/project/issue-248-fidelity-delivery-plan.md"
+        ]
+      },
+      {
+        "id": "historical-gantt-harvest-unversioned",
+        "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+        "artifactRevision": "unversioned",
+        "artifactIds": [
+          "gantt-cases",
+          "gantt-exclusions"
+        ],
+        "usage": "historical-only",
+        "rationale": "The multi-repository Gantt harvest records a date and source files but no immutable revisions. It is quarantined until every source repository is pinned.",
+        "evidence": [
+          "eval/mermaid-gantt-bench/README.md",
+          "docs/project/issue-248-fidelity-delivery-plan.md"
+        ]
+      },
+      {
+        "id": "historical-suite-harvest-a2d968-to-f3dea",
+        "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+        "artifactRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
+        "artifactIds": [
+          "suite-accounting",
+          "suite-cases",
+          "suite-exclusions"
+        ],
+        "usage": "historical-only",
+        "rationale": "The cross-family parser/DB harvest predates the Mermaid 11.16 manifest pin. It remains historical accounting evidence only; it cannot satisfy a current receipt or native capability claim.",
+        "evidence": [
+          "eval/mermaid-upstream-suite-bench/manifest.json",
+          "eval/mermaid-upstream-suite-bench/README.md",
+          "docs/project/issue-248-fidelity-delivery-plan.md"
+        ]
+      }
+    ]
+  },
+  "freshness": {
+    "inputSha256": "6ca0bc788eb2bfd584c8bd715ee59fa4986efe5525bb26eaefdab36159f1c572",
+    "files": [
+      {
+        "path": "docs/project/issue-248-fidelity-delivery-plan.md",
+        "sha256": "992ea007b58c8586b5c2af0c7e47d748fe43094980f02991ce89ab5750d868c4"
+      },
+      {
+        "path": "eval/mermaid-docs-corpus/README.md",
+        "sha256": "00ba9170d7a84de575e6db94acf6c73a1686d98c15bbb0d0f9143586999ea857"
+      },
+      {
+        "path": "eval/mermaid-docs-corpus/provenance.json",
+        "sha256": "61fb6e5bb0190d2a434b2c9bc3c7cf002ecc973f025ad2ebcb5f4619ba7c96b8"
+      },
+      {
+        "path": "eval/mermaid-gantt-bench/README.md",
+        "sha256": "0c36d578dd852034d6b94c4bb12defc2afdbf0d53844fde4daf1f470f8411d02"
+      },
+      {
+        "path": "eval/mermaid-upstream-suite-bench/README.md",
+        "sha256": "8b02303705bc3bd97661812d75fe6d832adec854b18bfc43960ce60b619bf0cd"
+      },
+      {
+        "path": "eval/mermaid-upstream-suite-bench/manifest.json",
+        "sha256": "2e72253935fb8ccceadce70a272531b55237bdd479fbf9dd4b8a72239805f1d2"
+      },
+      {
+        "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
+        "sha256": "e06629fc663a628ac44f1edb8e3942e67e2ccfb6084cb31001e8a0878044ab02"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
+        "sha256": "b0c9a9ac480d357471d4f9b6dcc4cf5685e3fe4c0413de0809b4114d81cd5492"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
+        "sha256": "ee4f0751717db2e0642d6f5abf23a6e76322a262446bb7ee2956f4159537042e"
+      },
+      {
+        "path": "src/__tests__/fidelity/contract.ts",
+        "sha256": "062c54e58cabc3cb213d5ca90c737b2e14731136a45ddf69046d9f6dbd7380c2"
+      },
+      {
+        "path": "src/__tests__/fidelity/projector.ts",
+        "sha256": "165721000f12a9ddf962316ee3ed904ced302d44a7984df30c54a2e073fc381f"
+      },
+      {
+        "path": "src/__tests__/fidelity/registry.ts",
+        "sha256": "9e2672ba430f178a5277701cc091fb17355ce9d9fca722cf1642b9e7ade0fc56"
+      },
+      {
+        "path": "src/__tests__/fidelity/revision-compatibility.ts",
+        "sha256": "985590aff400c3fc900d57962d30da82cc2e36a97a42da5e1579a576b7b37359"
+      },
+      {
+        "path": "src/__tests__/fidelity/runner.ts",
+        "sha256": "87ffc2850c695c53ebb48bf5dbd94bc421bde85e4d9402324484e08c80b26b0d"
+      },
+      {
+        "path": "src/fidelity-capability-contract.ts",
+        "sha256": "d22729c3f4fbcc1189f603a90e642ef696eab1e5ca942bd256e37d4985e5ad3b"
+      },
+      {
+        "path": "src/fidelity-capability-report.ts",
+        "sha256": "bea8b73b1da1452143d25bb9092ed1d6935ada237bae70a107b5ad93ffd6399a"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "block.family.accurately-diagnosed-unsupported",
+      "family": "block",
+      "featureId": "official-doc:block:section:basic-structure",
+      "sourceSha256": "ade5278d38b142c7e6c51de3a8ff86da873e20178ee6b12b672a76cfd485e447",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/block.html#basic-structure",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Unsupported families expose no structured mutation target by design."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ],
+          "semantics": {
+            "bodyKind": "preserved",
+            "upstreamFamilyId": "block"
+          },
+          "disposition": "diagnosed"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ],
+          "semantics": {
+            "errorCode": "UNSUPPORTED_FAMILY",
+            "errorName": "MermaidFamilyDetectionError",
+            "upstreamFamilyId": "block"
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactBytes": true
+          },
+          "disposition": "source-preserved"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "flowchart.classes.edge-paint-implication",
+      "family": "flowchart",
+      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
+      "sourceSha256": "c572b64fac27f9f9b594c60543bee6b77ff703ed494c9498f88ce127e76a5a8a",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/flowchart.html#using-classdef-statements-for-animations",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "bodyKind": "flowchart",
+            "graphFacts": {
+              "e1Class": "hot",
+              "edges": [
+                {
+                  "id": "e1",
+                  "source": "A",
+                  "style": "solid",
+                  "target": "B"
+                }
+              ],
+              "hotClass": {
+                "stroke": "#ff0000",
+                "strokeWidth": "6px"
+              },
+              "nodeIds": [
+                "A",
+                "B"
+              ]
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeFound": true,
+            "stroke": "#939395",
+            "strokeWidth": "1"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactCanonicalBytes": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "errorCode": null,
+            "graphFacts": {
+              "e1Class": "hot",
+              "edges": [
+                {
+                  "id": "e1",
+                  "source": "A",
+                  "style": "solid",
+                  "target": "B"
+                }
+              ],
+              "hotClass": {
+                "stroke": "#00ff00",
+                "strokeWidth": "4px"
+              },
+              "nodeIds": [
+                "A",
+                "B"
+              ]
+            },
+            "mutationOk": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "flowchart.links.boundary-whitespace-mutation-closure",
+      "family": "flowchart",
+      "featureId": "official-doc:flowchart:section:text-on-links",
+      "sourceSha256": "cd62c30d4800d888420c3150205fb596775ca5468214caba76facaedf99e4f55",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/flowchart.html#text-on-links",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "diagram": {
+              "bodyKind": "flowchart",
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                }
+              ]
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "rendered": {
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                }
+              ],
+              "labelGroups": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B",
+                  "visibleText": " a "
+                }
+              ]
+            }
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "reparsedDiagram": {
+              "bodyKind": "flowchart",
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                }
+              ]
+            },
+            "reserializedSource": "flowchart TD\n  A -->|\" a \"| B\n",
+            "serializedSource": "flowchart TD\n  A -->|\" a \"| B\n"
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "errorCode": null,
+            "mutatedDiagram": {
+              "bodyKind": "flowchart",
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                },
+                {
+                  "label": " b ",
+                  "source": "B",
+                  "target": "A"
+                }
+              ]
+            },
+            "mutationOk": true,
+            "rendered": {
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                },
+                {
+                  "label": " b ",
+                  "source": "B",
+                  "target": "A"
+                }
+              ],
+              "labelGroups": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B",
+                  "visibleText": " a "
+                },
+                {
+                  "label": " b ",
+                  "source": "B",
+                  "target": "A",
+                  "visibleText": " b "
+                }
+              ]
+            },
+            "reparsedDiagram": {
+              "bodyKind": "flowchart",
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                },
+                {
+                  "label": " b ",
+                  "source": "B",
+                  "target": "A"
+                }
+              ]
+            },
+            "reserializedSource": "flowchart TD\n  A -->|\" a \"| B\n  B -->|\" b \"| A\n",
+            "serializedSource": "flowchart TD\n  A -->|\" a \"| B\n  B -->|\" b \"| A\n"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "journey.scores.fractional-parser-render-seam",
+      "family": "journey",
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "sourceSha256": "3d23049d375bea679b176bfe1492d5737b3109321df0c8ec22b8e0d1686f242e",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/userJourney.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "bodyKind": "opaque"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
+          "semantics": {
+            "rejectedFractionalScore": true,
+            "verifierDiagnosedRenderFailure": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactBytes": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "errorCode": "INVALID_OP",
+            "mutationOk": false,
+            "rejectedOpaqueBody": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.links.dark-background-normal-alpha-divergence",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:links-coloring",
+      "sourceSha256": "27e8bbca63aa3f94903dce6f574210ddefcb3660f88a5348616e83d4dd2d8ab3",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html#links-coloring",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "not-applicable",
+          "rationale": "Ribbon compositing is a renderer/backend implication, not an agent-domain construct."
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "not-applicable",
+          "rationale": "Backend compositing does not change or serialize Mermaid source."
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Backend compositing has no structured mutation operation."
+        }
+      },
+      "observations": {
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "background": "#071823",
+            "links": [
+              {
+                "blendMode": "normal",
+                "opacity": "0.5"
+              }
+            ]
+          },
+          "disposition": "absent"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.links.light-background-multiply",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:links-coloring",
+      "sourceSha256": "27e8bbca63aa3f94903dce6f574210ddefcb3660f88a5348616e83d4dd2d8ab3",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html#links-coloring",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "not-applicable",
+          "rationale": "Ribbon compositing is a renderer/backend implication, not an agent-domain construct."
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "not-applicable",
+          "rationale": "Backend compositing does not change or serialize Mermaid source."
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Backend compositing has no structured mutation operation."
+        }
+      },
+      "observations": {
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "background": "#ffffff",
+            "links": [
+              {
+                "blendMode": "multiply",
+                "opacity": "0.5"
+              }
+            ]
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.links.typed-gradient-endpoints",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:links-coloring",
+      "sourceSha256": "27e8bbca63aa3f94903dce6f574210ddefcb3660f88a5348616e83d4dd2d8ab3",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html#links-coloring",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "diagram": {
+              "bodyKind": "sankey",
+              "linkColor": "gradient",
+              "links": [
+                {
+                  "source": "A",
+                  "target": "B",
+                  "value": 1
+                }
+              ],
+              "nodeColorA": "#ff0000",
+              "nodeColorB": "#0000ff"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "externalReferences": [],
+            "gradient": {
+              "id": "sankey-gradient-1",
+              "stops": [
+                {
+                  "color": "#ff0000",
+                  "offset": "0%"
+                },
+                {
+                  "color": "#0000ff",
+                  "offset": "100%"
+                }
+              ],
+              "units": "userSpaceOnUse",
+              "x1": "34",
+              "x2": "614",
+              "y1": "224",
+              "y2": "224"
+            },
+            "gradientCount": 1,
+            "links": [
+              {
+                "blendMode": "multiply",
+                "pathEndpoints": {
+                  "endX": 614,
+                  "endY": 224,
+                  "startX": 34,
+                  "startY": 224
+                },
+                "source": "A",
+                "stroke": "url(#sankey-gradient-1)",
+                "target": "B"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "reparsedDiagram": {
+              "bodyKind": "sankey",
+              "linkColor": "gradient",
+              "links": [
+                {
+                  "source": "A",
+                  "target": "B",
+                  "value": 1
+                }
+              ],
+              "nodeColorA": "#ff0000",
+              "nodeColorB": "#0000ff"
+            },
+            "reserializedSource": "---\nconfig:\n  sankey:\n    linkColor: gradient\n    nodeColors:\n      A: \"#ff0000\"\n      B: \"#0000ff\"\n---\nsankey-beta\n  A,B,1\n",
+            "serializedSource": "---\nconfig:\n  sankey:\n    linkColor: gradient\n    nodeColors:\n      A: \"#ff0000\"\n      B: \"#0000ff\"\n---\nsankey-beta\n  A,B,1\n"
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "errorCode": null,
+            "mutationOk": true,
+            "reparsedDiagram": {
+              "bodyKind": "sankey",
+              "linkColor": "gradient",
+              "links": [
+                {
+                  "source": "A",
+                  "target": "B",
+                  "value": 2
+                }
+              ],
+              "nodeColorA": "#ff0000",
+              "nodeColorB": "#0000ff"
+            },
+            "serializedSource": "---\nconfig:\n  sankey:\n    linkColor: gradient\n    nodeColors:\n      A: \"#ff0000\"\n      B: \"#0000ff\"\n---\nsankey-beta\n  A,B,2\n"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "state.comments.trailing-transition-loss",
+      "family": "state",
+      "featureId": "official-doc:state:section:comments",
+      "sourceSha256": "6c20ac6c1cb40cb56e1b671bb3d1d3399da322dad8f14188f0bb790762ecc2b6",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/stateDiagram.html#comments",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ],
+          "semantics": {
+            "bodyKind": "state",
+            "droppedCommentLines": [
+              1,
+              2
+            ],
+            "transitions": [
+              "A->B",
+              "B->C"
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "renderedEdges": [
+              "A->B",
+              "B->C"
+            ]
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "commentLossDiagnosed": true,
+            "reparsedTransitions": [
+              "A->B",
+              "B->C"
+            ]
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ],
+          "semantics": {
+            "droppedCommentLines": [
+              1,
+              2
+            ],
+            "mutationOk": true,
+            "transitions": [
+              "A->B",
+              "B->C",
+              "B->A"
+            ]
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.syntax.shared-parser-semantics",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:syntax",
+      "sourceSha256": "9db3f9df65376ee62d00fe2cd997bcd3b92ba56dac9c7dbe118b3199f6f672a8",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#syntax",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "diagram": {
+              "bodyKind": "xychart",
+              "horizontal": true,
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": "Online",
+                  "pointLabels": null,
+                  "values": [
+                    10,
+                    20
+                  ]
+                }
+              ],
+              "title": "Revenue; Q1",
+              "xAxis": {
+                "categories": [
+                  "Jan",
+                  "Feb"
+                ],
+                "name": null,
+                "range": null
+              },
+              "yAxis": {
+                "categories": null,
+                "name": "USD",
+                "range": {
+                  "max": 100,
+                  "min": 0
+                }
+              }
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "bars": [
+              {
+                "height": "191.43",
+                "label": "Jan",
+                "value": "10",
+                "width": "58.87"
+              },
+              {
+                "height": "191.43",
+                "label": "Feb",
+                "value": "20",
+                "width": "117.74"
+              }
+            ],
+            "texts": [
+              "Jan",
+              "Feb",
+              "0",
+              "10",
+              "20",
+              "30",
+              "40",
+              "50",
+              "60",
+              "70",
+              "80",
+              "90",
+              "100",
+              "USD",
+              "Revenue; Q1",
+              "Online"
+            ]
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "reparsedDiagram": {
+              "bodyKind": "xychart",
+              "horizontal": true,
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": "Online",
+                  "pointLabels": null,
+                  "values": [
+                    10,
+                    20
+                  ]
+                }
+              ],
+              "title": "Revenue; Q1",
+              "xAxis": {
+                "categories": [
+                  "Jan",
+                  "Feb"
+                ],
+                "name": null,
+                "range": null
+              },
+              "yAxis": {
+                "categories": null,
+                "name": "USD",
+                "range": {
+                  "max": 100,
+                  "min": 0
+                }
+              }
+            },
+            "reserializedSource": "xychart-beta horizontal\n  title \"Revenue; Q1\"\n  x-axis [Jan, Feb]\n  y-axis USD 0 --> 100\n  bar Online [10, 20]\n",
+            "serializedSource": "xychart-beta horizontal\n  title \"Revenue; Q1\"\n  x-axis [Jan, Feb]\n  y-axis USD 0 --> 100\n  bar Online [10, 20]\n"
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "errorCode": null,
+            "mutationOk": true,
+            "renderedBars": [
+              {
+                "height": "191.43",
+                "label": "Jan",
+                "value": "10",
+                "width": "58.87"
+              },
+              {
+                "height": "191.43",
+                "label": "Feb",
+                "value": "25",
+                "width": "147.18"
+              }
+            ],
+            "reparsedDiagram": {
+              "bodyKind": "xychart",
+              "horizontal": true,
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": "Online",
+                  "pointLabels": null,
+                  "values": [
+                    10,
+                    25
+                  ]
+                }
+              ],
+              "title": "Revenue; Q1",
+              "xAxis": {
+                "categories": [
+                  "Jan",
+                  "Feb"
+                ],
+                "name": null,
+                "range": null
+              },
+              "yAxis": {
+                "categories": null,
+                "name": "USD",
+                "range": {
+                  "max": 100,
+                  "min": 0
+                }
+              }
+            },
+            "reserializedSource": "xychart-beta horizontal\n  title \"Revenue; Q1\"\n  x-axis [Jan, Feb]\n  y-axis USD 0 --> 100\n  bar Online [10, 25]\n",
+            "serializedSource": "xychart-beta horizontal\n  title \"Revenue; Q1\"\n  x-axis [Jan, Feb]\n  y-axis USD 0 --> 100\n  bar Online [10, 25]\n"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.syntax.unknown-statement-render-seam",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:syntax",
+      "sourceSha256": "158231f1732f1424733e4324ae6ce55fc0808febbd47a343b67f4d571c9f7dd0",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#syntax",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "bodyFamily": "xychart",
+            "bodyKind": "opaque",
+            "bodySource": "xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "bars": [
+              {
+                "label": "1",
+                "value": "1"
+              },
+              {
+                "label": "2",
+                "value": "2"
+              }
+            ],
+            "errorMessage": null,
+            "texts": [
+              "1",
+              "2",
+              "0.9",
+              "1",
+              "1.1",
+              "1.2",
+              "1.3",
+              "1.4",
+              "1.5",
+              "1.6",
+              "1.7",
+              "1.8",
+              "1.9",
+              "2",
+              "2.1"
+            ]
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "serializedSource": "xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n"
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "errorCode": "INVALID_OP",
+            "mutationOk": false,
+            "rejectedOpaqueBody": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    }
+  ],
+  "summary": {
+    "caseCount": 10,
+    "passedCaseCount": 10,
+    "failedCaseCount": 0,
+    "observedSurfaceCount": 33,
+    "blockedSurfaceCount": 0,
+    "notApplicableSurfaceCount": 7
+  }
+}

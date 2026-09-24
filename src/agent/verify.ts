@@ -14,6 +14,7 @@ import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graph
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
+import { isSequenceCommentLine } from '../sequence/statements.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
@@ -804,7 +805,7 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // BUILD-18: a segment-preserving body may carry content only in opaque-block
   // segments (e.g. activation-shorthand messages `A->>+B`, blocks). That is
   // not an empty diagram — it just isn't structurally modeled.
-  const hasOpaqueContent = body.statements.some(s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0))
+  const hasOpaqueContent = body.statements.some(s => s.kind === 'opaque-block' && s.lines.some(l => l.trim().length > 0 && !isSequenceCommentLine(l)))
   const allMessages = sequenceMessages(body)
   if (body.participants.length === 0 && allMessages.length === 0 && !hasOpaqueContent) {
     return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts, false)
@@ -841,7 +842,8 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
   // universal LABEL_OVERFLOW via the family's label extractor, so the safety
   // check survives the move from whole-body-opaque to structured-with-segments.
-  const opaqueLines = body.statements.filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block').flatMap(s => s.lines)
+  const opaqueLines = body.statements.filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
+    .flatMap(s => s.lines).filter(line => !isSequenceCommentLine(line))
   if (opaqueLines.length > 0) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',

@@ -29,6 +29,8 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
+import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from '../sequence/block-keywords.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -41,10 +43,6 @@ import { appendOpaqueSegment } from './opaque-segments.ts'
 // diagram keeps its typed ops. Participants declared inside a box are part of
 // the segment and stay invisible to ops. Direct-message alt/opt/loop/par
 // blocks are promoted to typed fragments below.
-const BLOCK_OPEN_RE = /^(alt|opt|loop|par|critical|break|rect|box)\b/i
-const TYPED_FRAGMENT_RE = /^(alt|opt|loop|par)\b\s*(.*)$/i
-// Continuation keywords valid only INSIDE an open block — never open/close one.
-const BLOCK_CONT_RE = /^(else|and|option)\b/i
 const BLOCK_END_RE = /^end\b/i
 
 /**
@@ -68,7 +66,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   // Align raw (indented) lines with trimmed lines. `rawLines` has the same
   // logical content but keeps indentation/blank lines; we walk it in lockstep
   // by skipping its blank/comment lines, which `trimmedLines` already drops.
-  const raw = rawLines ?? trimmedLines
+  const raw = splitSequenceStatementLines(rawLines ?? trimmedLines)
 
   // NB: do NOT name this `declare` — that's a TypeScript keyword and bun's
   // transpiler misparses `declare(x)` as an ambient declaration.
@@ -83,7 +81,12 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   while (i < raw.length) {
     const rawLine = raw[i]!
     const line = rawLine.trim()
-    if (!line || line.startsWith('%%')) { i++; continue }
+    if (!line) { i++; continue }
+    if (isSequenceCommentLine(line)) {
+      appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
+      i++
+      continue
+    }
 
     if (/^(participant|actor)\b/i.test(line)) {
       let part
@@ -121,7 +124,13 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
-    const msg = !BLOCK_OPEN_RE.test(line) && !BLOCK_CONT_RE.test(line) ? parseSequenceMessageLine(line) : null
+    const opener = parseSequenceBlockOpener(line)
+    const continuation = parseSequenceBlockContinuation(line)
+    // `par_over` remains a distinct upstream construct, not a typed `par`
+    // fragment. Preserve the previous whole-body opaque disposition until
+    // its own #264 projection is implemented.
+    if (opener?.type === 'par_over') return null
+    const msg = !opener && !continuation ? parseSequenceMessageLine(line) : null
     if (msg) {
       ensureKnown(msg.from)
       ensureKnown(msg.to)
@@ -133,9 +142,9 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
 
     // A stray `end` or block-continuation with no open block can't be cleanly
     // segmented → whole-body opaque fallback.
-    if (BLOCK_END_RE.test(line) || BLOCK_CONT_RE.test(line)) return null
+    if (BLOCK_END_RE.test(line) || continuation) return null
 
-    if (BLOCK_OPEN_RE.test(line)) {
+    if (opener) {
       // Capture start → matching end as ONE opaque-block (verbatim, nested).
       const blockLines: string[] = [rawLine]
       let depth = 1
@@ -144,7 +153,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
         const inner = raw[i]!
         const innerTrim = inner.trim()
         if (innerTrim && !innerTrim.startsWith('%%')) {
-          if (BLOCK_OPEN_RE.test(innerTrim)) depth++
+          if (parseSequenceBlockOpener(innerTrim)) depth++
           else if (BLOCK_END_RE.test(innerTrim)) depth--
         }
         blockLines.push(inner)
@@ -185,9 +194,9 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
 }
 
 function parseTypedFragment(lines: string[]): SequenceFragment | null {
-  const opener = lines[0]?.trim().match(TYPED_FRAGMENT_RE)
-  if (!opener) return null
-  const fragmentKind = opener[1]!.toLowerCase() as SequenceFragment['fragmentKind']
+  const opener = parseSequenceBlockOpener(lines[0]?.trim() ?? '')
+  if (!opener || !['alt', 'opt', 'loop', 'par'].includes(opener.type)) return null
+  const fragmentKind = opener.type as SequenceFragment['fragmentKind']
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
   for (let i = 1; i < lines.length - 1; i++) {
     const line = lines[i]!.trim()
@@ -195,23 +204,20 @@ function parseTypedFragment(lines: string[]): SequenceFragment | null {
     // Editing a fragment that carries comments would otherwise discard them.
     // Keep the entire block opaque until comments gain their own typed model.
     if (line.startsWith('%%')) return null
-    const continuation = line.match(/^(else|and)\b\s*(.*)$/i)
+    const continuation = parseSequenceBlockContinuation(line)
     if (continuation) {
-      const allowed = fragmentKind === 'alt' ? continuation[1]!.toLowerCase() === 'else'
-        : fragmentKind === 'par' ? continuation[1]!.toLowerCase() === 'and'
-          : false
-      if (!allowed) return null
-      branches.push({ ...(continuation[2]!.trim() ? { label: continuation[2]!.trim() } : {}), messages: [] })
+      if (!continuationBelongsToBlock(continuation.type, fragmentKind)) return null
+      branches.push({ ...(continuation.label ? { label: continuation.label } : {}), messages: [] })
       continue
     }
-    if (BLOCK_OPEN_RE.test(line) || BLOCK_END_RE.test(line)) return null
+    if (parseSequenceBlockOpener(line) || BLOCK_END_RE.test(line)) return null
     const parsed = parseSequenceMessageLine(line)
     if (!parsed) return null
     branches.at(-1)!.messages.push(sequenceMessageFromParsed(parsed))
   }
   return {
     fragmentKind,
-    ...(opener[2]!.trim() ? { label: opener[2]!.trim() } : {}),
+    ...(opener.label ? { label: opener.label } : {}),
     branches,
     rawLines: [...lines],
   }
@@ -550,7 +556,7 @@ function opaqueBlocksReference(statements: SequenceStatement[], id: string): boo
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const token = new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`)
   return statements.some(statement =>
-    (statement.kind === 'opaque-block' && statement.lines.some(line => token.test(line)))
+    (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && token.test(line)))
     || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id))))
 }
 

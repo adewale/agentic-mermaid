@@ -19,7 +19,9 @@ describe('am capabilities', () => {
     expect(Array.isArray(cap.warningCodes)).toBe(true)
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
     expect(cap.sectionA).toEqual(sectionACapabilityDiscoverySummary())
-    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(true)
+    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(false)
+    expect(cap.sectionA.counts.syntaxReceiptFeatureCount).toBe(cap.sectionA.fidelity.featureCount)
+    expect(cap.sectionA.counts.syntaxUnreceiptedFeatureCount).toBeGreaterThan(0)
   })
 
   it('Section A CLI discovery is the canonical registry projection, not a copied matrix', () => {
@@ -174,7 +176,7 @@ describe('am capabilities', () => {
     for (const k of schema.properties.sectionA.required ?? []) {
       expect(Object.prototype.hasOwnProperty.call(cap.sectionA, k)).toBe(true)
     }
-    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(true)
+    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(false)
   })
 })
 

@@ -7,6 +7,11 @@ import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts
 export const WEBSITE_PAYLOAD_SCHEMA_VERSION = 1
 export const WEBSITE_PAYLOAD_AUTHORITY = 'deterministic-route-request-graph-v1'
 export const WEBSITE_PAYLOAD_OBSERVATION_MS = 1_500
+export const WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN = Object.freeze({
+  bun: '1.3.13',
+  platform: 'linux' as const,
+  arch: 'x64' as const,
+})
 export const WEBSITE_PAYLOAD_COMPRESSION = Object.freeze({
   gzipLevel: 9,
   brotliQuality: 11,
@@ -90,6 +95,14 @@ export function websitePayloadRecordingToolchainMatches(
   return recorded.bun === current.bun
     && recorded.platform === current.platform
     && recorded.arch === current.arch
+}
+
+export function assertWebsitePayloadRecordingToolchain(
+  toolchain: Pick<WebsitePayloadReport['toolchain'], 'bun' | 'platform' | 'arch'>,
+): void {
+  if (!websitePayloadRecordingToolchainMatches(WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN, toolchain)) {
+    throw new Error(`Website payload baseline toolchain must be Bun ${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.bun} on ${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.platform}/${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.arch}`)
+  }
 }
 
 export function measurePayloadBytes(bytes: Uint8Array) {

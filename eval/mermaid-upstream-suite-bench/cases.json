@@ -8779,7 +8779,7 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 8,
       "groupCount": 0,
       "minNodes": 2,
       "labelsContain": [
@@ -8894,8 +8894,7 @@
         "Bob",
         "Bob thinks",
         "Hello Bob, how are you?",
-        "I am good thanks",
-        "rgb(200, 255, 200)"
+        "I am good thanks"
       ]
     }
   },
@@ -9013,9 +9012,7 @@
         "Bob",
         "Bob thinks",
         "Hello Bob, how are you?",
-        "I am good thanks",
-        "rgb(0, 0, 0)",
-        "rgb(200, 255, 200)"
+        "I am good thanks"
       ]
     }
   },
@@ -9073,8 +9070,7 @@
         "Alice",
         "Bob",
         "Hello Bob, are you alright?",
-        "I feel surrounded by darkness",
-        "rgb(0, 0, 0)"
+        "I feel surrounded by darkness"
       ]
     }
   },
@@ -9860,7 +9856,7 @@
         "connect",
         "Log error",
         "Log different error",
-        "ion Credentials rejected"
+        "Establish a connection to the DB"
       ]
     }
   },
@@ -10345,17 +10341,16 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 2,
+      "edgeCount": 3,
       "groupCount": 1,
       "minNodes": 2,
-      "minEdges": 2,
+      "minEdges": 3,
       "minGroups": 1,
       "labelsContain": [
         "Alice",
         "Bob",
         "Hello Bob, how are you?",
-        "I am good thanks!",
-        ";Bob-->Alice: I am good thanks!"
+        "I am good thanks!"
       ]
     }
   },
@@ -10413,8 +10408,7 @@
         "Alice",
         "Bob",
         "Hello Bob, how are you?",
-        "I am good thanks!",
-        "# comment"
+        "I am good thanks!"
       ]
     }
   },
@@ -10434,17 +10428,16 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 2,
+      "edgeCount": 3,
       "groupCount": 1,
       "minNodes": 2,
-      "minEdges": 2,
+      "minEdges": 3,
       "minGroups": 1,
       "labelsContain": [
         "Alice",
         "Bob",
         "Hello Bob, how are you?",
-        "I am good thanks!",
-        ";Bob-->Alice: I am good thanks!"
+        "I am good thanks!"
       ]
     }
   },
@@ -11018,7 +11011,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },
@@ -11048,7 +11041,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },
@@ -11075,7 +11068,7 @@
       "labelsContain": [
         "Alice",
         "Bob",
-        "-:<>,;# comment",
+        "-:<>,",
         "Hello Bob, how are you?"
       ]
     }
@@ -11106,7 +11099,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },
@@ -11136,7 +11129,7 @@
         "Bob",
         "Hello Bob, how are you?",
         "I am good thanks!",
-        "-:<>,;# comment"
+        "-:<>,"
       ]
     }
   },

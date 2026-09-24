@@ -30,9 +30,12 @@ export function classifyMermaidFamilyDescriptorFromFirstLine(
   firstLine: string,
   mode: 'strict' | 'loose' = 'strict',
 ): MermaidFamilyDescriptorClassification {
-  const family = detectInstalledFamilyDescriptorFromFirstLine(firstLine, mode)
+  // Mermaid comments are inert even when appended to a family declaration.
+  // Keep authored bytes separately for provenance and diagnostics.
+  const semanticFirstLine = firstLine.replace(/%%.*$/, '').trim()
+  const family = detectInstalledFamilyDescriptorFromFirstLine(semanticFirstLine, mode)
   if (family) return { kind: 'registered', family }
-  const upstream = findUpstreamFamilyByHeader(firstLine)
+  const upstream = findUpstreamFamilyByHeader(semanticFirstLine)
   if (upstream) return { kind: 'upstream', match: upstream }
   return { kind: 'unknown', header: firstLine }
 }

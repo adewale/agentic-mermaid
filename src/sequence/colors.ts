@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { tryParseHex, toHex } from '../shared/color-math.ts'
+import { safeCssColor } from '../shared/css-color.ts'
 import { CSS_NAMED_COLORS } from '../shared/css-named-colors.ts'
 
 /** True when `word` is a CSS color a `box` header can start with: a named
@@ -18,6 +19,23 @@ export function isCssColorToken(word: string): boolean {
   if (w === 'transparent' || w in CSS_NAMED_COLORS) return true
   if (/^#[0-9a-fA-F]{3,8}$/.test(word)) return true
   return /^(?:rgb|rgba|hsl|hsla)\([^)]*\)$/i.test(word)
+}
+
+/** Rect arguments become SVG background paint, never fragment labels. Admit
+ * the documented rgb()/rgba() spellings plus safe concrete color keywords;
+ * reject ambiguous or malformed CSS instead of displaying it as a label. */
+export function sequenceRectColor(argument: string): string | undefined {
+  const color = safeCssColor(argument)
+  if (!color) return undefined
+  const lower = color.toLowerCase()
+  if (lower === 'transparent' || Object.hasOwn(CSS_NAMED_COLORS, lower)) return color
+
+  const rgb = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i.exec(color)
+  if (rgb && rgb.slice(1).every(channel => Number(channel) <= 255)) return color
+
+  const rgba = /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(0(?:\.\d+)?|\.\d+|1(?:\.0+)?)\s*\)$/i.exec(color)
+  if (rgba && rgba.slice(1, 4).every(channel => Number(channel) <= 255)) return color
+  return undefined
 }
 
 /** Resolve a box color to #rrggbb where possible (named keyword, #hex,

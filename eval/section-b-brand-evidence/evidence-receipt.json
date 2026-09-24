@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 280,
-    "treeSha256": "cf0757fedab19d9324791ee30bda50ef9a1ee187d3293a20779a9bb05ba29df7"
+    "count": 282,
+    "treeSha256": "a959a672b0ace465b855aa831d103ee8aed5a8819bf5215d24df4bbae86a3f95"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,18 +62,18 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "1325978955dc77ce0b673042605e4403c887fa46da8e0d83124cdd7d5ac56483",
-      "pngSha256": "b9f21d51e40040a4680d4dfbb29186c6831089ec2b667053398d648ce705ed14"
+      "svgSha256": "324c1d058f4706f0eff0f2a07a9d403aac355aec338b7967c4cdfcc91943bb59",
+      "pngSha256": "99555fa073f4c80647d3a46f2ed799483917d2fb605790282e613c0de6bd3173"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "6fd84e2423d3c592e8ccd9e194c65ae0e746661ec6f656e56fccf807a7c95f80",
-      "pngSha256": "02003fca242f8f36d2fb7fe0ecb79c914feeb515123a3f379ca5b6ddad89e3f6"
+      "svgSha256": "e7b95e2ef2cfb971d6a9e81f357ee1e9d895faa96ab4ac627f812cea0fa42c6e",
+      "pngSha256": "4ddcc7fae698bf6b8b0fec596520831df29f304a3fb585a5e46d72cc976ee3f6"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "8f640f7c0c3afcca47310be9cdd279cccfb4847e675b834f0ed65ae2bb69c24b",
-      "pngSha256": "386b5c2c2af51834939b6814edbd0337d48c79ed81a61158de58a2dd4942fae9"
+      "svgSha256": "fbdb896bb30a8ef377a9a3bdf9d66fa9a29bce2c39c9432c2967673579b0a344",
+      "pngSha256": "5d700bc6bca928f9dd0c913ceac0d6ac2119095235826471702f898691d5f344"
     }
   },
   "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
@@ -87,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec",
-    "reviewedAt": "2026-09-23",
-    "reviewer": "Claude Code agent, during the Lieflat chart-honesty fixes",
+    "artifactSha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9",
+    "reviewedAt": "2026-08-21",
+    "reviewer": "Codex coding agent, during the PR #220 rebase verification",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec"
+      "sha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9"
     }
   ]
 }
