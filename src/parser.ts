@@ -36,14 +36,21 @@ import { flowchartTextArrowLabelRanges } from './flowchart-statement-labels.ts'
  * Throws on invalid/unsupported input.
  */
 export function parseMermaid(text: string): MermaidGraph {
-  const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(text.split('\n'))).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
+  const rawLines = text.split('\n')
+  const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
+  // State comments can contain syntax-looking delimiters. Remove them before
+  // the generic Markdown/metadata coalescers and inline-header splitter run.
+  const semanticLines = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
+    ? rawLines.map(stripStateComment)
+    : rawLines
+  const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(semanticLines)).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
   }
 
   // Detect diagram type from header
-  const header = stripStateComment(lines[0]!)
+  const header = lines[0]!
 
   const detection = classifyMermaidFamilyFromFirstLine(header, 'strict')
   const familyId = detection.kind === 'registered'

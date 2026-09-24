@@ -52,12 +52,7 @@ export function isStateNodeId(id: string): boolean {
   return STATE_NODE_ID_RE.test(id)
 }
 
-/** Mermaid State comments consume the remainder of their line, including when
- * they follow a statement. Normalize once for both render and agent parsers. */
-export function stripStateComment(line: string): string {
-  const marker = line.indexOf('%%')
-  return (marker < 0 ? line : line.slice(0, marker)).trim()
-}
+export { stripStateComment } from './comment.ts'
 
 /** `class Moving, Crash movement` (or `cssClass`) allows spaces around commas. */
 export function matchStateClassAssignment(line: string): { ids: string[]; className: string } | null {

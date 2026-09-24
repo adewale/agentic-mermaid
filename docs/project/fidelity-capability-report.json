@@ -3,8 +3,8 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "7a0cf0fe879bfdd8cff8a92fe7db7f0caab755dc1f27187e1e75d67066dcec78",
-  "receiptResultSha256": "c14b3e3efe57a66d7f6a2200cbe62062dcc3283822d28a2175e0c8701286a44c",
+  "receiptInputSha256": "091fda7b798ea954085e2623df156795f3120e957c9f72fdc59dc615cf3b8ede",
+  "receiptResultSha256": "ff825ea5bc38bc819ba1506d161a2171925cd24e3c8db9a9343e2eec4af17ebe",
   "summary": {
     "caseCount": 10,
     "featureCount": 7,
@@ -257,7 +257,14 @@
         "serialize": "native",
         "mutate": "native"
       },
-      "diagnostics": {},
+      "diagnostics": {
+        "agent": [
+          "COMMENT_DROPPED"
+        ],
+        "mutate": [
+          "COMMENT_DROPPED"
+        ]
+      },
       "caseEvidence": [
         {
           "caseId": "state.comments.trailing-transition-loss",
@@ -267,7 +274,14 @@
             "serialize": "native",
             "mutate": "native"
           },
-          "diagnostics": {}
+          "diagnostics": {
+            "agent": [
+              "COMMENT_DROPPED"
+            ],
+            "mutate": [
+              "COMMENT_DROPPED"
+            ]
+          }
         }
       ],
       "acceptedDivergences": []

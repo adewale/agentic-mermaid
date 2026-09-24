@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "7a0cf0fe879bfdd8cff8a92fe7db7f0caab755dc1f27187e1e75d67066dcec78",
+    "inputSha256": "091fda7b798ea954085e2623df156795f3120e957c9f72fdc59dc615cf3b8ede",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -92,7 +92,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "720580d8486a6e743f2946e13b032025a7d8d741976fe06344d71575496bc53f"
+        "sha256": "ee4f0751717db2e0642d6f5abf23a6e76322a262446bb7ee2956f4159537042e"
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
@@ -778,14 +778,16 @@
       "id": "state.comments.trailing-transition-loss",
       "family": "state",
       "featureId": "official-doc:state:section:comments",
-      "sourceSha256": "d92e9d4db74f22679fcc697800d8899799883233325a5848e81559add13a0a9c",
+      "sourceSha256": "6c20ac6c1cb40cb56e1b671bb3d1d3399da322dad8f14188f0bb790762ecc2b6",
       "upstreamReference": "https://mermaid.ai/open-source/syntax/stateDiagram.html#comments",
       "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
       "expected": {
         "agent": {
           "applicability": "applicable",
           "disposition": "native",
-          "diagnosticCodes": []
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ]
         },
         "render": {
           "applicability": "applicable",
@@ -800,15 +802,23 @@
         "mutate": {
           "applicability": "applicable",
           "disposition": "native",
-          "diagnosticCodes": []
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ]
         }
       },
       "observations": {
         "agent": {
           "status": "observed",
-          "diagnosticCodes": [],
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ],
           "semantics": {
             "bodyKind": "state",
+            "droppedCommentLines": [
+              1,
+              2
+            ],
             "transitions": [
               "A->B",
               "B->C"
@@ -831,6 +841,7 @@
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
+            "commentLossDiagnosed": true,
             "reparsedTransitions": [
               "A->B",
               "B->C"
@@ -840,8 +851,14 @@
         },
         "mutate": {
           "status": "observed",
-          "diagnosticCodes": [],
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ],
           "semantics": {
+            "droppedCommentLines": [
+              1,
+              2
+            ],
             "mutationOk": true,
             "transitions": [
               "A->B",

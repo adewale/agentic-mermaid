@@ -212,7 +212,7 @@
     },
     {
       "path": "src/agent/parse.ts",
-      "sha256": "750d69cde96c81d9e1221f122cfc3bceccb21a34dc29549f12300c871edf9b66"
+      "sha256": "7927f1b7c1692eddf561f5133ca411edc6b01703fd678bc231599e265318c75c"
     },
     {
       "path": "src/agent/pie-body.ts",
@@ -532,7 +532,7 @@
     },
     {
       "path": "src/family-detection.ts",
-      "sha256": "1231e571386dd55f0a2d24be8fa5da7d15ab6e817d8aa9036007dcc99570c315"
+      "sha256": "e1c53cbd4478086b8207d911eceeb3021f24dbb6b323ca6aca7a4624e5aa5ec2"
     },
     {
       "path": "src/flowchart-config.ts",
@@ -652,7 +652,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "03a787b89c0d29bc689278f702c8e27e32a792778a8b604f56018525ec091568"
+      "sha256": "d951bfb6d8a7b9527eb8f90af96e96f1bf23e34867faa2c0e3386091f1400bdc"
     },
     {
       "path": "src/mindmap/geometry.ts",
@@ -708,7 +708,7 @@
     },
     {
       "path": "src/parser.ts",
-      "sha256": "ac60eef091015025d3efb01edb9cfbcfd5ca759fc9a17a12689cbe63ca0f9a0d"
+      "sha256": "5f4b768c3a402eef3aecdeb329c3fe6baa2dc197c9b05231e7355f0a8fd08658"
     },
     {
       "path": "src/pie/config.ts",
@@ -1111,12 +1111,16 @@
       "sha256": "5fd803869ef7fc6269a0f7ada7642fbe34e2f637eb9eaab6435ad786299d0ea2"
     },
     {
+      "path": "src/state/comment.ts",
+      "sha256": "557fc4a3e6f4ea2cb6e1ab089bc518980b363fc9dbc14b8105ef62e512656270"
+    },
+    {
       "path": "src/state/config.ts",
       "sha256": "605ffa5017bfdae7c7be840431020187e655676e7e548da050817183335cd06b"
     },
     {
       "path": "src/state/parse-core.ts",
-      "sha256": "21f53b2ebb636e3bcff1b57635ffd63494f3968c01cd0f2a16761be39f2e5ac0"
+      "sha256": "99d6e9fb52ed19794f8576bb8e6fa42df34b198b0da3d81cd4730b2b5cfc697e"
     },
     {
       "path": "src/styles.ts",

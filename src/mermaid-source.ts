@@ -534,11 +534,17 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   const frontmatterEnd = frontmatter?.[0].length ?? (text.startsWith('\uFEFF') ? 1 : 0)
   const initDirectives = mermaidInitDirectives(text.slice(frontmatterEnd))
 
+  // Mask universal config instead of deleting it so comment locations remain
+  // physical line numbers in the authored source, including after frontmatter
+  // and multiline init directives.
+  const maskExceptNewlines = (value: string): string => value.replace(/[^\r\n]/g, ' ')
   const withoutUniversalConfig = text
-    .replace(FRONTMATTER_REGEX, '')
-    .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+    .replace(FRONTMATTER_REGEX, maskExceptNewlines)
+    .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), maskExceptNewlines)
   const comments: MermaidSourceComment[] = []
   const lines = withoutUniversalConfig.split(/\r?\n/)
+  const firstStatement = lines.find(line => line.trim().length > 0 && !COMMENT_LINE_REGEX.test(line))?.trim() ?? ''
+  const stateComments = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
   for (let index = 0; index < lines.length; index++) {
     const accessibility = parseAccessibilityDirective(lines, index)
     if (accessibility === undefined) break
@@ -549,6 +555,10 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
     const line = lines[index]!
     const comment = line.match(COMMENT_LINE_REGEX)
     if (comment) comments.push({ text: comment[1]!, line: index + 1 })
+    else if (stateComments) {
+      const marker = line.indexOf('%%')
+      if (marker >= 0) comments.push({ text: line.slice(marker + 2).trim(), line: index + 1 })
+    }
   }
 
   let wrapperEnd = frontmatterEnd

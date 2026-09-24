@@ -8,6 +8,7 @@
 // ============================================================================
 
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { stripStateComment } from '../state/comment.ts'
 import { decodeXML } from 'entities'
 import {
   classifyMermaidFamilyDescriptorFromFirstLine,
@@ -30,8 +31,6 @@ import { attachSourceMapSpans } from './source-map-spans.ts'
 // Re-exports for callers/tests that used the previous in-tree parser homes.
 export { parseSequenceBody } from './sequence-body.ts'
 export { parseTimelineBody } from './timeline-body.ts'
-
-const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)$/
 
 /** Copy descriptor-owned JSON into a core-owned graph without invoking
  * accessors during the copy. Shared references remain shared; the admission
@@ -112,7 +111,12 @@ function semanticFamilyLineSource(
   const newline = source.indexOf('\n', lineStart)
   const physicalEnd = newline < 0 ? source.length : newline
   const lineEnd = source.charCodeAt(physicalEnd - 1) === 13 ? physicalEnd - 1 : physicalEnd
-  const line = source.slice(lineStart, lineEnd)
+  const rawLine = source.slice(lineStart, lineEnd)
+  const stateHeader = /^\s*stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(rawLine)
+  const line = stateHeader ? stripStateComment(rawLine) : rawLine
+  const routedSource = line === rawLine
+    ? source
+    : `${source.slice(0, lineStart)}${line}${source.slice(lineEnd)}`
   const authoredLine = line.trim()
   // Mermaid accepts a family declaration followed by a semicolon-delimited
   // statement on the same physical line. Only the declaration is the header;
@@ -126,15 +130,15 @@ function semanticFamilyLineSource(
     break
   }
   const authoredHeader = (semicolon >= 0 ? authoredLine.slice(0, semicolon) : authoredLine).trimEnd()
-  if (!authoredHeader) return { source, authoredHeader }
+  if (!authoredHeader) return { source: routedSource, authoredHeader }
   const relativeStart = line.indexOf(authoredHeader)
   const headerStart = lineStart + relativeStart
   const headerEnd = headerStart + authoredHeader.length
   const semanticHeader = decodeXML(authoredHeader)
   return {
     source: semanticHeader === authoredHeader
-      ? source
-      : `${source.slice(0, headerStart)}${semanticHeader}${source.slice(headerEnd)}`,
+      ? routedSource
+      : `${routedSource.slice(0, headerStart)}${semanticHeader}${routedSource.slice(headerEnd)}`,
     authoredHeader,
   }
 }
@@ -301,7 +305,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     attachUniversalAccessibility(parsed.value, meta)
     const sourceMap = tracedSourceMap(plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource) ?? emptySourceMap())
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
-    markDroppedComments(diagram, normalized.body)
+    markDroppedComments(diagram, source)
     return ok(diagram)
   }
 
@@ -326,23 +330,24 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
 
 /**
  * 2C comment policy: structured bodies serialize to canonical source, which
- * does not model `%%` comment lines. Rather than dropping them *silently*,
+ * does not model standalone or trailing `%%` comments. Rather than dropping
+ * them *silently*,
  * diff the parsed comments against what actually survives serialization
  * (wrapper comments ride along verbatim via meta.wrapperSource; sequence
  * opaque segments may preserve in-body comments) and record the casualties so
  * verify can surface the Tier 3 COMMENT_DROPPED lint. Opaque bodies preserve
  * everything and never reach here.
  */
-function markDroppedComments(diagram: ValidDiagram, sourceBody: string): void {
+function markDroppedComments(diagram: ValidDiagram, authoredSource: string): void {
   const comments = diagram.meta.comments
   if (diagram.body.kind === 'opaque' || comments.length === 0) return
 
-  const sourceLines = sourceBody.split(/\r?\n/).map(line => line.trim())
+  const sourceLines = authoredSource.split(/\r?\n/).map(line => line.trim())
   const serializedLines = serializeMermaid(diagram).split(/\r?\n/).map(line => line.trim())
   const keptSourceLines = longestCommonSubsequenceIndices(sourceLines, serializedLines)
   const keptCommentLines = new Set<number>()
   for (const sourceIndex of keptSourceLines) {
-    if (COMMENT_LINE_REGEX.test(sourceLines[sourceIndex]!)) keptCommentLines.add(sourceIndex + 1)
+    if (sourceLines[sourceIndex]!.includes('%%')) keptCommentLines.add(sourceIndex + 1)
   }
 
   const dropped: SourceComment[] = comments.filter(comment => !keptCommentLines.has(comment.line))

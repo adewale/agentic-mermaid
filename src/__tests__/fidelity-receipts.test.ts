@@ -725,7 +725,7 @@ describe('issue #248 construct fidelity receipts', () => {
       expected: { ...state.expected, agent: { ...agent, diagnosticCodes: ['WRONG_CODE'] } },
     }
     const diagnosticReceipt = await runFidelityCases([wrongDiagnostic], registry.caseFiles)
-    expect(diagnosticReceipt.cases[0]!.issues).toContain('agent: expected diagnostics ["WRONG_CODE"], observed []')
+    expect(diagnosticReceipt.cases[0]!.issues).toContain('agent: expected diagnostics ["WRONG_CODE"], observed ["COMMENT_DROPPED"]')
   })
 
   test('diagnosed dispositions require a concrete diagnostic in validation, execution, and projection', async () => {

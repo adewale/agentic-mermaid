@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 279,
-    "treeSha256": "0a47f5c1d7c63efedbd171b94a66ca5f29270b919cb2c7f5ea01f57ee96b8bba"
+    "count": 280,
+    "treeSha256": "4bb6ea1c6e8af6f5595317f685eca07fcd745668c38ba7c46b27116d2311ce9d"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",

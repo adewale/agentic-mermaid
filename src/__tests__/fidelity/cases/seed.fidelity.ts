@@ -72,7 +72,7 @@ function matchesFlowchartClassFacts(value: FidelityJson, stroke: string, strokeW
   return hotRecord.stroke === stroke && hotRecord.strokeWidth === strokeWidth && record.e1Class === 'hot'
 }
 
-const stateTrailingCommentSource = `${['stateDiagram-v2', '  A --> B %% legal trailing comment', '  B --> C'].join('\n')}\n`
+const stateTrailingCommentSource = `${['stateDiagram-v2 %% heading; Bogus --> Edge', '  A --> B %% legal trailing comment', '  B --> C'].join('\n')}\n`
 
 const stateTrailingComment: FidelityCaseDefinition = {
   id: 'state.comments.trailing-transition-loss',
@@ -84,18 +84,28 @@ const stateTrailingComment: FidelityCaseDefinition = {
   expected: {
     agent: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
-      return semanticFacts.bodyKind === 'state' && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C']) ? 'native' : 'absent'
-    }),
+      return semanticFacts.bodyKind === 'state'
+        && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C'])
+        && JSON.stringify(semanticFacts.droppedCommentLines) === JSON.stringify([1, 2])
+        ? 'native' : 'absent'
+    }, ['COMMENT_DROPPED']),
     render: applicable('native', evidence => {
       const renderedEdges = facts(evidence).renderedEdges
       if (!Array.isArray(renderedEdges) || renderedEdges.some(edge => typeof edge !== 'string')) fail('renderedEdges must be strings')
       return JSON.stringify(renderedEdges) === JSON.stringify(['A->B', 'B->C']) ? 'native' : 'absent'
     }),
-    serialize: applicable('native', evidence => (JSON.stringify(facts(evidence).reparsedTransitions) === JSON.stringify(['A->B', 'B->C']) ? 'native' : 'absent')),
+    serialize: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return JSON.stringify(semanticFacts.reparsedTransitions) === JSON.stringify(['A->B', 'B->C'])
+        && semanticFacts.commentLossDiagnosed === true ? 'native' : 'absent'
+    }),
     mutate: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
-      return semanticFacts.mutationOk === true && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C', 'B->A']) ? 'native' : 'absent'
-    }),
+      return semanticFacts.mutationOk === true
+        && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C', 'B->A'])
+        && JSON.stringify(semanticFacts.droppedCommentLines) === JSON.stringify([1, 2])
+        ? 'native' : 'absent'
+    }, ['COMMENT_DROPPED']),
   },
   observe: () => {
     const parsed = parsedOrThrow(stateTrailingCommentSource)
@@ -105,14 +115,17 @@ const stateTrailingComment: FidelityCaseDefinition = {
     const serialized = serializeMermaid(parsed)
     const reparsed = parsedOrThrow(serialized)
     const mutation = mutate(parsed, { kind: 'add_transition', from: 'B', to: 'A' })
+    const commentLossLines = (diagram: typeof parsed): number[] => verifyMermaid(diagram).warnings
+      .filter(warning => warning.code === 'COMMENT_DROPPED')
+      .flatMap(warning => warning.lines)
     const transitions = (diagram: typeof parsed): string[] => diagram.body.kind === 'state'
       ? diagram.body.transitions.map(transition => `${transition.from}->${transition.to}`)
       : []
     return {
       agent: {
         status: 'observed',
-        diagnosticCodes: verification.warnings.map(warning => warning.code).filter(code => code === 'UNSUPPORTED_SYNTAX'),
-        semantics: { bodyKind: parsed.body.kind, transitions: transitions(parsed) },
+        diagnosticCodes: verification.warnings.map(warning => warning.code).filter(code => code === 'UNSUPPORTED_SYNTAX' || code === 'COMMENT_DROPPED'),
+        semantics: { bodyKind: parsed.body.kind, transitions: transitions(parsed), droppedCommentLines: commentLossLines(parsed) },
       },
       render: {
         status: 'observed',
@@ -122,12 +135,12 @@ const stateTrailingComment: FidelityCaseDefinition = {
       serialize: {
         status: 'observed',
         diagnosticCodes: [],
-        semantics: { reparsedTransitions: transitions(reparsed) },
+        semantics: { reparsedTransitions: transitions(reparsed), commentLossDiagnosed: JSON.stringify(commentLossLines(parsed)) === JSON.stringify([1, 2]) },
       },
       mutate: {
         status: 'observed',
-        diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
-        semantics: { mutationOk: mutation.ok, transitions: mutation.ok ? transitions(mutation.value) : [] },
+        diagnosticCodes: mutation.ok ? verifyMermaid(mutation.value).warnings.map(warning => warning.code).filter(code => code === 'COMMENT_DROPPED') : [mutation.error.code],
+        semantics: { mutationOk: mutation.ok, transitions: mutation.ok ? transitions(mutation.value) : [], droppedCommentLines: mutation.ok ? commentLossLines(mutation.value) : [] },
       },
     }
   },
