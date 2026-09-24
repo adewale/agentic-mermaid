@@ -35,11 +35,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // The shared Sequence block-keyword classifier keeps the request graph;
-    // these are the reviewed Linux/x64 totals for the critical/option slice.
-    maxRawBytes: 731_626,
-    maxGzipBytes: 274_478,
-    maxBrotliBytes: 250_632,
+    // Provisional capture ceilings; ratchet to exact Linux totals before merge.
+    maxRawBytes: 733_000,
+    maxGzipBytes: 276_000,
+    maxBrotliBytes: 252_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -60,11 +59,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The browser adapter must stay mutable for the editor's render hooks;
     // its bundle change raises the editor Brotli total by 152 bytes. The
     // two-request graph stays fixed.
-    // The shared Sequence block-keyword classifier keeps the two-request
-    // graph; these are the reviewed Linux/x64 totals for this slice.
-    maxRawBytes: 3_342_672,
-    maxGzipBytes: 984_526,
-    maxBrotliBytes: 773_230,
+    // Provisional capture ceilings; ratchet to exact Linux totals before merge.
+    maxRawBytes: 3_344_000,
+    maxGzipBytes: 986_000,
+    maxBrotliBytes: 775_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

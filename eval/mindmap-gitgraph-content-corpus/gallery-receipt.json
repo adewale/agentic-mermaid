@@ -992,7 +992,7 @@
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "4cfc16678a5eb58d6738386cef04a213f786b25270875c9b9f77e36e1c3c6895"
+      "sha256": "b4b5faf289b2e85657950cbdd956ca4db0810a8124d806c623d06879218328f0"
     },
     {
       "path": "src/sequence/renderer.ts",

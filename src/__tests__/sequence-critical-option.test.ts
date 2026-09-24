@@ -98,6 +98,27 @@ describe('Sequence critical/option keyword boundary', () => {
     }
   })
 
+  test('par_over retains its legacy native suffix without inserting whitespace', async () => {
+    for (const [opener, expected] of [
+      ['par_over|label', '_over|label'],
+      ['par_over:label', '_over:label'],
+      ['par_over    label', '_over    label'],
+      ['par_over', '_over'],
+    ]) {
+      const source = `sequenceDiagram\n${opener}\nA->>B: work\nend\n`
+      expect(parseSequenceDiagram(source.split('\n')).blocks[0]?.label).toBe(expected)
+      const agent = parseRegisteredMermaid(source)
+      expect(agent.ok).toBe(true)
+      if (agent.ok) expect(serializeMermaid(agent.value)).toContain(opener)
+    }
+    const upstream = await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\npar_over|label\nA->>B: work\nend\n')
+    const db = upstream.db as unknown as {
+      LINETYPE: { PAR_OVER_START: number }
+      getMessages(): Array<{ type: number }>
+    }
+    expect(db.getMessages()[0]?.type).toBe(db.LINETYPE.PAR_OVER_START)
+  })
+
   test('agent keeps the critical block lossless while later messages stay structured', () => {
     const parsed = parseRegisteredMermaid(CRITICAL)
     expect(parsed.ok).toBe(true)

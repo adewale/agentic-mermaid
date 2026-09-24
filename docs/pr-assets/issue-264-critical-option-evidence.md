@@ -25,6 +25,8 @@ A semantic-audit follow-up also checks Mermaid's keyword boundary: labels may
 start immediately with punctuation. The pinned upstream DB, native parser,
 and agent round trip agree on `critical:C`, `option:retry`, `opt(foo)`, and
 `par|label`; `optional` and `option_retry` remain non-keywords.
+The audit also caught a legacy `par_over` projection that inserted a space
+before punctuation; the regression test now pins its original raw suffix.
 
 This proves this one keyword/continuation slice. Agent mutation still keeps
 `critical` as an opaque block, and the broader lossless block-event authority
