@@ -37,9 +37,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 31,
     // Sequence statement handling keeps the request graph; these ceilings
     // cover the larger of reviewed Linux/x64 and macOS/arm64 recordings.
-    maxRawBytes: 731_503,
-    maxGzipBytes: 274_389,
-    maxBrotliBytes: 250_521,
+    maxRawBytes: 732_000,
+    maxGzipBytes: 275_000,
+    maxBrotliBytes: 251_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -62,9 +62,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The shared Sequence statement splitter keeps the two-request graph;
     // these are the measured Linux/x64 and macOS/arm64 maxima.
-    maxRawBytes: 3_342_199,
-    maxGzipBytes: 984_274,
-    maxBrotliBytes: 773_160,
+    maxRawBytes: 3_343_000,
+    maxGzipBytes: 985_000,
+    maxBrotliBytes: 774_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

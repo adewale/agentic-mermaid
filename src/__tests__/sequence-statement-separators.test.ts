@@ -57,10 +57,11 @@ describe('Sequence newline and semicolon statement equivalence', () => {
   })
 
   test('entity-heavy input stays bounded at the lexical boundary', () => {
-    const source = `sequenceDiagram\nA->>B: ${'#59;'.repeat(16_000)}`
+    const bodyLine = `A->>B: ${'#59;'.repeat(16_000)}`
+    const source = `sequenceDiagram\n${bodyLine}`
     expect(Buffer.byteLength(source)).toBeLessThan(64 * 1024)
     const started = performance.now()
-    expect(splitSequenceStatementLines(source.split('\n'))).toEqual(['sequenceDiagram', source.split('\n')[1]])
+    expect(splitSequenceStatementLines(source.split('\n'))).toEqual(['sequenceDiagram', bodyLine])
     expect(parseRegisteredMermaid(source).ok).toBe(true)
     // A growing-prefix/suffix copy at every entity took seconds through the
     // public parser even below the hosted 64 KiB input limit.
