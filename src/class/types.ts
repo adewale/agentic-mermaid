@@ -77,6 +77,8 @@ export type RelationshipType =
   | 'association'   // A --> B    (solid line, open arrow)
   | 'dependency'    // A ..> B    (dashed line, open arrow)
   | 'realization'   // A ..|> B   (dashed line, hollow triangle)
+  | 'link-solid'    // A -- B    (solid line, no marker)
+  | 'link-dashed'   // A .. B    (dashed line, no marker)
   | 'lollipop'      // Interface ()-- Class
 
 export interface ClassRelationship {
@@ -89,7 +91,7 @@ export interface ClassRelationship {
    *   - Prefix markers like `<|--`, `*--`, `o--` → 'from' (marker on left/from side)
    *   - Suffix markers like `..|>`, `-->`, `..>`, `--*`, `--o` → 'to' (marker on right/to side)
    */
-  markerAt: 'from' | 'to' | 'both'
+  markerAt: 'from' | 'to' | 'both' | 'none'
   /** Exact endpoint marker types when a two-way relation uses different ends. */
   fromType?: RelationshipType
   toType?: RelationshipType
@@ -192,7 +194,7 @@ export interface PositionedClassRelationship {
   to: string
   type: RelationshipType
   /** Which end of the line has the UML marker — propagated from ClassRelationship */
-  markerAt: 'from' | 'to' | 'both'
+  markerAt: 'from' | 'to' | 'both' | 'none'
   fromType?: RelationshipType
   toType?: RelationshipType
   label?: string

@@ -35,7 +35,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -56,8 +56,8 @@ const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind; markerAt?: 
   { pat: /<--/, kind: 'association' },
   { pat: /\.\.>/, kind: 'dependency' },
   { pat: /<\.\./, kind: 'dependency' },
-  { pat: /--/,    kind: 'link-solid' },
-  { pat: /\.\./,  kind: 'link-dashed' },
+  // Bare links are exclusively parsed by the shared scanner above. Keeping
+  // them here would re-admit malformed labels after that scanner rejects them.
 ]
 
 const MEMBER_DECL_RE = /^(\S+)\s*:\s*(.+)$/
@@ -79,6 +79,12 @@ export function parseClassRelationSyntax(line: string): (ClassRelation & { fromG
       ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
     }
   }
+  if (isBareClassRelationshipCandidate(line)) return null
+  // The legacy no-space token fallback uses several regexes with ambiguous
+  // endpoint captures. Keep malformed full-size inputs from multiplying that
+  // work; supported long relationships already return through the shared
+  // linear parser above, while unmatched source remains opaque/diagnosed.
+  if (line.length > 2_048) return null
   for (const { pat, kind, markerAt, fromKind, toKind } of RELATION_TOKENS) {
     const m = line.match(new RegExp(`^(\\S+?)(?:\\s+"([^"]+)")?\\s*${pat.source}\\s*(?:"([^"]+)"\\s+)?(\\S+?)(?:\\s*:\\s*(.+))?$`))
     if (!m) continue

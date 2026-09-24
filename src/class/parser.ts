@@ -187,6 +187,7 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
 //   A --> B                   (association)
 //   A ..> B                   (dependency)
 //   A ..|> B                  (realization)
+//   A -- B / A .. B           (markerless solid/dashed links)
 //   A "1" --> "*" B : label   (with cardinality + label)
 //   Animal : +String name     (inline attribute)
 //   namespace MyNamespace { class A { } }
@@ -416,11 +417,12 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // --- Inline attribute: `ClassName : +String name` ---
     const inlineAttrMatch = line.match(/^(\S+?)\s*:\s*(.+)$/)
     if (inlineAttrMatch) {
-      // Make sure this isn't a relationship line (those have arrows)
       const rest = inlineAttrMatch[2]!
-      if (!rest.match(/<\|--|--|\*--|o--|-->|\.\.>|\.\.\|>/)) {
-        const ref = parseClassReference(inlineAttrMatch[1]!)
-        if (!ref) continue
+      // A valid class reference before ':' makes this an inline member even
+      // when its text contains link-looking punctuation. A relationship has
+      // both endpoints before ':', so its prefix cannot parse as one ref.
+      const ref = parseClassReference(inlineAttrMatch[1]!)
+      if (ref) {
         const cls = ensureClass(classMap, ref.id, ref.generic)
         const member = parseMember(rest)
         if (member) {
@@ -455,6 +457,15 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
         what: `Unrecognized class annotation statement "${line}"`,
         expectedForm: 'class Name <<annotation>> or <<annotation>> Name',
         example: 'class Shape <<interface>>',
+      })
+    }
+    // A malformed relationship cannot be silently omitted from an otherwise
+    // plausible diagram. Ignore delimiter-looking text inside IDs/generics.
+    if (isBareClassRelationshipCandidate(line)) {
+      throw syntaxError({
+        what: `Unrecognized class relationship statement "${line}"`,
+        expectedForm: 'A .. B : label or A -- B : label',
+        example: 'A .. B : linked',
       })
     }
   }
@@ -544,6 +555,9 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 
 /** Parse a relationship line into a ClassRelationship */
 export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  const markerless = parseMarkerlessClassRelationship(line)
+  if (markerless) return markerless
+
   // Lollipop interface endpoints are distinct UML semantics, not associations.
   const lollipop = line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
   if (lollipop) {
@@ -577,7 +591,7 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
 
   // Relationship regex — handles ordinary one-ended arrows.
   const match = line.match(
-    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?|--)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
+    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
   )
   if (!match) return null
 
@@ -603,6 +617,149 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }
+}
+
+/** Mermaid permits spaces to be omitted around bare `--` and `..` links.
+ * Locate one operator outside IDs/cardinalities in linear time; the existing
+ * arrow grammar below remains responsible for marked relationships. */
+function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  // Class inline `%%` comments are legal after a relationship. Do not let the
+  // comment become part of an endpoint or label; a quoted cardinality, generic,
+  // or escaped ID can contain the same bytes without starting a comment.
+  let commentBacktick = false
+  let commentQuote = false
+  let commentGeneric = false
+  let inLabel = false
+  for (let i = 0; i < line.length - 1; i++) {
+    const char = line[i]!
+    if (commentBacktick) { if (char === '`') commentBacktick = false; continue }
+    if (commentQuote) { if (char === '"') commentQuote = false; continue }
+    if (commentGeneric) { if (char === '~') commentGeneric = false; continue }
+    if (char === '`') { commentBacktick = true; continue }
+    if (char === '"') { commentQuote = true; continue }
+    if (char === '~') { commentGeneric = true; continue }
+    // Mermaid treats `%%` after the label separator as label text, not a
+    // comment. Before the separator it is an inert trailing comment.
+    if (char === ':') { inLabel = true; continue }
+    if (!inLabel && char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
+  }
+
+  const operator = findMarkerlessRelationshipOperator(line)
+  if (operator < 0) return null
+
+  const left = line.slice(0, operator).trim()
+  let right = line.slice(operator + 2).trim()
+  let fromRef = parseClassReference(left)
+  let fromCardinality: string | undefined
+  if (!fromRef && left.endsWith('"')) {
+    const cardStart = left.lastIndexOf('"', left.length - 2)
+    if (cardStart >= 0) {
+      fromRef = parseClassReference(left.slice(0, cardStart).trimEnd())
+      if (fromRef) fromCardinality = normalizeBrTags(left.slice(cardStart + 1, -1))
+    }
+  }
+  if (!fromRef) return null
+
+  // The first top-level colon separates a label; colons inside backtick IDs,
+  // generic parameters, and cardinalities belong to those tokens instead.
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let label: string | undefined
+  for (let i = 0; i < right.length; i++) {
+    const char = right[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if (char === ':') {
+      const rawLabel = right.slice(i + 1).trim()
+      // Mermaid requires non-empty Class label text and rejects a second
+      // colon or semicolon. Numeric entities need separate source-normalizer
+      // work before native/agent rendering can claim them consistently.
+      if (!rawLabel || rawLabel.includes(':') || rawLabel.includes(';')) return null
+      label = normalizeBrTags(rawLabel)
+      right = right.slice(0, i).trim()
+      break
+    }
+  }
+
+  let toCardinality: string | undefined
+  if (right.startsWith('"')) {
+    const close = right.indexOf('"', 1)
+    if (close < 0) return null
+    toCardinality = normalizeBrTags(right.slice(1, close))
+    right = right.slice(close + 1).trim()
+  }
+  const toRef = parseClassReference(right)
+  if (!toRef) return null
+  if (!supportedBareEndpoint(fromRef.id, left) || !supportedBareEndpoint(toRef.id, right)) return null
+  return {
+    from: fromRef.id,
+    to: toRef.id,
+    type: line[operator] === '.' ? 'link-dashed' : 'link-solid',
+    markerAt: 'none',
+    ...(label ? { label } : {}),
+    ...(fromCardinality !== undefined ? { fromCardinality } : {}),
+    ...(toCardinality !== undefined ? { toCardinality } : {}),
+    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+  }
+}
+
+const BARE_RELATION_RESERVED_IDS = new Set([
+  'o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass',
+])
+const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
+
+/** Mermaid's unescaped bare-link endpoint lexer reserves keywords/`o` and
+ * rejects dollar signs; backtick IDs have a narrower reserved set. Other
+ * unmodeled escaped/compound identities remain outside this slice. */
+function supportedBareEndpoint(id: string, raw: string): boolean {
+  return raw.startsWith('`')
+    ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id)
+    : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
+}
+
+function findMarkerlessRelationshipOperator(line: string): number {
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  for (let i = 0; i < line.length - 1; i++) {
+    const char = line[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if ((char === '-' || char === '.') && line[i + 1] === char) return i
+  }
+  return -1
+}
+
+/** Distinguish marked arrows from malformed bare links without confusing an
+ * endpoint ID ending/starting with `o` (for example `Foo--B` or `A--out`). */
+function isMarkedRelationshipOperator(line: string, operator: number): boolean {
+  const before = line.slice(0, operator).trimEnd()
+  const after = line.slice(operator + 2)
+  if (line[operator] === '.') {
+    return /(?:<\||<)$/.test(before) || /^(?:>|\|>)/.test(after)
+  }
+  const spacedPrefixO = before.endsWith('o')
+    && /\s/.test(before[before.length - 2] ?? '')
+    && before.slice(0, -2).trim().length > 0
+  return /(?:<\||<|\*|\(\))$/.test(before) || spacedPrefixO
+    || /^(?:>|\|>|\*|o\s+(?![:%])\S|\(\))/.test(after)
+}
+
+/** Only the shared parser may accept bare links. A failed bare-link parse must
+ * not be reinterpreted by the agent's legacy marked-arrow fallback. */
+export function isBareClassRelationshipCandidate(line: string): boolean {
+  const operator = findMarkerlessRelationshipOperator(line)
+  return operator >= 0 && !isMarkedRelationshipOperator(line, operator)
 }
 
 /**
@@ -633,7 +790,6 @@ function parseArrow(arrow: string): { type: RelationshipType; markerAt: 'from' |
     case '<--':  return { type: 'association',  markerAt: 'from' }
     case '..>':  return { type: 'dependency',   markerAt: 'to' }
     case '<..':  return { type: 'dependency',   markerAt: 'from' }
-    case '--':   return { type: 'association',  markerAt: 'to' }
     default:     return null
   }
 }

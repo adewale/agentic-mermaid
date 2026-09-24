@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "16571f635440324e1cc3a9125abcd444e4da1c1f4c3da018426f572c833ee527",
-  "receiptResultSha256": "7b3394dce6639de20a7b4ce8f7a92d12e9944be9d8d5efe6fd86a97c95c3c134",
+  "receiptInputSha256": "081890f63043ad53abdcfd2a7873d7a40baa3dd55963ef3f5599c2153d4769b6",
+  "receiptResultSha256": "e7e76d9ca8255d6725028b63d219b4aae3cf4705a20853b529acfd3863659b11",
   "summary": {
-    "caseCount": 16,
-    "featureCount": 10,
+    "caseCount": 19,
+    "featureCount": 11,
     "dispositions": {
       "native": 3,
       "source-preserved": 0,
       "diagnosed": 4,
-      "absent": 3
+      "absent": 4
     }
   },
   "features": [
@@ -125,6 +125,70 @@
         },
         {
           "caseId": "class.annotations.separate-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:defining-relationship",
+      "family": "class",
+      "disposition": "absent",
+      "caseIds": [
+        "class.relationship.escaped-directed-absent",
+        "class.relationship.link-dashed-native",
+        "class.relationship.link-solid-native"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "absent",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.relationship.escaped-directed-absent",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "absent",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "class.relationship.link-dashed-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.relationship.link-solid-native",
           "surfaces": {
             "agent": "native",
             "render": "native",

@@ -51,6 +51,35 @@ and standalone-annotation cases prove native behavior. Broader Class
 statement/event consolidation remains
 tracked by #260.
 
+## Markerless relationship fidelity (issue #248)
+
+Mermaid 11.16 treats `A -- B` and `A .. B` as distinct solid and dashed
+links with no endpoint marker. Both create endpoint classes, including when
+spaces around the operator are omitted. The native and agent parsers now share
+that distinction as `link-solid` / `link-dashed` with `markerAt: none`;
+serialization, mutation, SVG/Scene, and terminal output preserve the line
+style without adding an arrowhead. Cardinalities and relation labels survive
+on bare dashed links. Trailing `%%` before a label stays inert; after `:` it
+belongs to the label, matching Mermaid. A
+bounded scanner locates the operator and comment boundary outside backtick IDs,
+generic parameters, and quoted cardinalities.
+
+The bare-link parser rejects Mermaid-reserved unescaped endpoint tokens (`o`,
+relation keywords, and dollar-bearing IDs) instead of manufacturing native
+edges. Malformed bare labels and incomplete links now fail loudly rather than
+leaving a plausible partial diagram. Upstream-valid whitespace-only labels
+(`A .. B : `) and numeric-entity labels (`a&#58;b`) still cross a shared
+source-normalization seam: trimming or entity decoding erases the distinction
+needed by the native parser. They remain source-preserved and diagnosed, not
+counted as native, pending the broader #260 parser/identity work. Hyphenated,
+dotted, and Unicode endpoint IDs also remain in that broader scope.
+
+The official relationship section's aggregate capability remains `absent`:
+escaped IDs with spaces on *marked* arrows still fall opaque in the agent and
+silently disappear from native rendering. A separate executable receipt names
+that gap so these two native bare-link cases do not promote the whole section.
+The broader identity/parser fix remains tracked by #260.
+
 ## `:::` class shorthand evidence (2026-07)
 
 **Why:** `Account:::highlight` decorates `Account`; the suffix is not an
