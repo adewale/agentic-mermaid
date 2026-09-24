@@ -33,6 +33,7 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
     let quote: '"' | "'" | null = null
     let escaped = false
     let finished = false
+    let firstHashIndex = -1
     for (let index = 0; index < line.length; index++) {
       if (index === start) {
         const remainder = line.slice(start).trimStart()
@@ -76,7 +77,8 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
         index++
         continue
       }
-      if (char === '#' && !/^#(?:\d+|[a-z][a-z\d]*);/i.test(line.slice(index))
+      if (char === '#' && firstHashIndex < 0) firstHashIndex = index
+      if (char === '#' && !hasHashEntityAt(line, index)
         && !(/^\s*(?:rect|box)\s*$/i.test(line.slice(start, index))
           && /^#[0-9a-f]{3,8}(?=\s|;|$)/i.test(line.slice(index)))) {
         pushStatement(line.slice(start, index))
@@ -84,19 +86,32 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
         finished = true
         break
       }
-      if (line[index] !== ';' || isHashEntityTerminator(line, start, index)) continue
+      if (line[index] !== ';' || isHashEntityTerminator(line, start, index, firstHashIndex)) continue
       pushStatement(line.slice(start, index))
       start = index + 1
+      firstHashIndex = -1
     }
     if (!finished) pushStatement(line.slice(start))
   }
   return statements
 }
 
-function isHashEntityTerminator(line: string, statementStart: number, semicolonIndex: number): boolean {
-  const before = line.slice(statementStart, semicolonIndex)
-  if (!/#(?:\d+|[a-z][a-z\d]*)$/i.test(before)) return false
+function isHashEntityTerminator(line: string, statementStart: number, semicolonIndex: number, firstHashIndex: number): boolean {
+  // Scan only the token immediately before this semicolon. Testing the entire
+  // growing statement prefix makes a line of repeated entities quadratic.
+  let hashIndex = semicolonIndex - 1
+  while (hashIndex >= statementStart && /[a-z\d]/i.test(line[hashIndex]!)) hashIndex--
+  if (line[hashIndex] !== '#' || hashIndex === semicolonIndex - 1) return false
+  if (!hasHashEntityAt(line, hashIndex)) return false
   // CSS hex colors are authored as block arguments, not HTML entities.
-  if (/^\s*(?:rect|box)\s+#[0-9a-f]{3,8}$/i.test(before)) return false
+  if (firstHashIndex === hashIndex
+    && /^\s*(?:rect|box)\s+#[0-9a-f]{3,8}$/i.test(line.slice(statementStart, semicolonIndex))) return false
   return true
+}
+
+const HASH_ENTITY_RE = /#(?:\d+|[a-z][a-z\d]*);/iy
+
+function hasHashEntityAt(line: string, index: number): boolean {
+  HASH_ENTITY_RE.lastIndex = index
+  return HASH_ENTITY_RE.test(line)
 }

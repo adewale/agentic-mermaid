@@ -56,6 +56,17 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     if (agent.ok) expect(asSequence(agent.value)?.body.messages.map(message => message.text)).toEqual(expectedLabels)
   })
 
+  test('entity-heavy input stays bounded at the lexical boundary', () => {
+    const source = `sequenceDiagram\nA->>B: ${'#59;'.repeat(16_000)}`
+    expect(Buffer.byteLength(source)).toBeLessThan(64 * 1024)
+    const started = performance.now()
+    expect(splitSequenceStatementLines(source.split('\n'))).toEqual(['sequenceDiagram', source.split('\n')[1]])
+    expect(parseRegisteredMermaid(source).ok).toBe(true)
+    // A growing-prefix/suffix copy at every entity took seconds through the
+    // public parser even below the hosted 64 KiB input limit.
+    expect(performance.now() - started).toBeLessThan(1_000)
+  })
+
   test('block boundaries and continuations have the same message order', () => {
     const source = 'sequenceDiagram; alt yes; A->>B: one; else no; B-->>A: two; end; A->>B: three;'
     const native = parseSequenceDiagram([source])
