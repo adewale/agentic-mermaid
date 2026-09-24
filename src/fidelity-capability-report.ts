@@ -72,8 +72,8 @@ export function validateFidelityCapabilityReport(
 
   const manifestFeatures = new Map(manifest.semanticInventory.syntaxFeatures.map(feature => [feature.id, feature]))
   const ids = new Set<string>()
+  const reportCaseIds = new Set<string>()
   const dispositionCounts = Object.fromEntries(FIDELITY_DISPOSITIONS.map(disposition => [disposition, 0])) as Record<FidelityDisposition, number>
-  let caseCount = 0
   for (const rawFeature of value.features) {
     if (!isRecord(rawFeature) || typeof rawFeature.featureId !== 'string') {
       issues.push('fidelity capability report contains an invalid feature row')
@@ -100,10 +100,13 @@ export function validateFidelityCapabilityReport(
       || rawFeature.caseIds.some(caseId => typeof caseId !== 'string' || !caseId.trim())) {
       issues.push(`${context}: fidelity capability feature lacks case ids`)
     } else {
-      caseCount += rawFeature.caseIds.length
       if (new Set(rawFeature.caseIds).size !== rawFeature.caseIds.length) issues.push(`${context}: fidelity case ids are duplicated`)
       if (JSON.stringify(rawFeature.caseIds) !== JSON.stringify([...rawFeature.caseIds].sort(compareCodePointStrings))) {
         issues.push(`${context}: fidelity case ids are out of order`)
+      }
+      for (const caseId of rawFeature.caseIds) {
+        if (reportCaseIds.has(caseId)) issues.push(`${context}/${caseId}: fidelity case id is reused across features`)
+        reportCaseIds.add(caseId)
       }
     }
     if (!isRecord(rawFeature.surfaces)) {
@@ -280,7 +283,7 @@ export function validateFidelityCapabilityReport(
   }
   if (isRecord(value.summary)) {
     if (value.summary.featureCount !== value.features.length) issues.push('fidelity capability feature count is stale')
-    if (value.summary.caseCount !== caseCount) issues.push('fidelity capability case count is stale')
+    if (value.summary.caseCount !== reportCaseIds.size) issues.push('fidelity capability case count is stale')
     if (!isRecord(value.summary.dispositions)
       || JSON.stringify(value.summary.dispositions) !== JSON.stringify(dispositionCounts)) {
       issues.push('fidelity capability disposition counts are stale')

@@ -97,6 +97,16 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(validateFidelityCapabilityReport(forgedDivergence)).toContain(
       `${divergenceTarget.featureId}/${divergenceTarget.caseIds[0]}: accepted divergence policy is invalid`,
     )
+
+    const reusedCase = structuredClone(FIDELITY_CAPABILITY_REPORT)
+    const sourceCaseId = reusedCase.features[0]!.caseIds[0]!
+    const reuseTarget = reusedCase.features[1]!
+    ;(reuseTarget.caseIds as unknown as string[])[0] = sourceCaseId
+    ;(reuseTarget.caseEvidence[0] as { caseId: string }).caseId = sourceCaseId
+    expect(validateFidelityCapabilityReport(reusedCase)).toEqual(expect.arrayContaining([
+      `${reuseTarget.featureId}/${sourceCaseId}: fidelity case id is reused across features`,
+      'fidelity capability case count is stale',
+    ]))
   })
 
   test('accepted divergences are explicit, diagnostic-backed, and limited to security/offline policy', async () => {

@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "30f1f651ece5c242b65ddcb8713736082d0a78649dddd0e8ec4c84b5e215be72",
+    "inputSha256": "b5d45cc13e5baff14997124b10b322e9f62360cc13256a5239a6e0f6cace2023",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -120,7 +120,7 @@
       },
       {
         "path": "src/fidelity-capability-report.ts",
-        "sha256": "3551c9afd353e343e460ba7c38d9d4a63173601cc4df26fc0213525b13ba2e84"
+        "sha256": "bea8b73b1da1452143d25bb9092ed1d6935ada237bae70a107b5ad93ffd6399a"
       }
     ]
   },
