@@ -5,11 +5,14 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 682_645,
     // The marker-reference change updates generated homepage SVG bytes without
-    // adding a request; gzip is unchanged and the other exact totals are pinned.
-    maxGzipBytes: 406_565,
-    maxBrotliBytes: 387_996,
+    // adding a request. Scoping each inline SVG's style rules to its own root
+    // (so diagrams on one page cannot repaint each other) adds 1,259 raw,
+    // 281 gzip, and 150 Brotli bytes of prefixed selectors to the prerendered
+    // homepage SVGs; the request graph is unchanged.
+    maxRawBytes: 683_904,
+    maxGzipBytes: 406_846,
+    maxBrotliBytes: 388_146,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -20,10 +23,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   examples: Object.freeze({
     maxRequests: 6,
     // The marker-reference change updates generated example metadata without
-    // adding a request or increasing either compressed ceiling.
-    maxRawBytes: 391_130,
-    maxGzipBytes: 68_589,
-    maxBrotliBytes: 54_406,
+    // adding a request. Root-scoped inline SVG styles add 2,047 raw, 337 gzip,
+    // and 266 Brotli bytes to the prerendered examples page.
+    maxRawBytes: 393_177,
+    maxGzipBytes: 68_916,
+    maxBrotliBytes: 54_665,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -36,13 +40,15 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
     // Cached shape-profile validation and point ownership add 308 raw bytes to
-    // the existing shared Timeline route; no request or family is added.
-    maxRawBytes: 729_702,
-    // Unicode identifier validation changes generated fingerprints while
-    // keeping the same request graph and raw total; gzip drops by two bytes.
-    maxGzipBytes: 273_653,
+    // the existing shared Timeline route; no request or family is added. The
+    // shared SVG style scoper, the black-or-white ink rule, the sketch
+    // backend's page ink, and the categorical palette's separation repair add
+    // 2,420 raw, 949 gzip, and 759 Brotli bytes to the shared chunks; the
+    // request graph is unchanged.
+    maxRawBytes: 732_122,
+    maxGzipBytes: 274_602,
     // Exact hashes remain enforced on the recorded Linux toolchain.
-    maxBrotliBytes: 249_950,
+    maxBrotliBytes: 250_650,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -57,10 +63,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // validation is already in the base. The PNG legibility policy and shared
     // warning builder add 2,393 raw, 746 gzip, and 680 Brotli bytes. The rebased
     // editor bundle adds 14 raw and 9 gzip bytes while reducing Brotli by 96;
-    // the two-request graph stays fixed.
-    maxRawBytes: 3_339_038,
-    maxGzipBytes: 983_236,
-    maxBrotliBytes: 772_230,
+    // the two-request graph stays fixed. The chart-honesty fixes (SVG style
+    // scoping, per-bar data labels, contrast ink, palette repair, the
+    // LABELS_HIDDEN and BAR_RANGE_EXCLUDES_ZERO lints, and the registered
+    // upstream config keys) add 7,022 raw, 2,821 gzip, and 2,169 Brotli bytes.
+    maxRawBytes: 3_346_060,
+    maxGzipBytes: 986_057,
+    maxBrotliBytes: 774_399,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
