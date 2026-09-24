@@ -80,7 +80,7 @@
     },
     {
       "path": "src/agent/analyze.ts",
-      "sha256": "e859933f323119d9d7cf15e9e0363ba0fa1317bd3a8cb877b14390fda1b1433e"
+      "sha256": "98c434238d6ba51e206e2799fa8aaaac47fca70bed71f41fca92a54c9c797203"
     },
     {
       "path": "src/agent/apply.ts",
