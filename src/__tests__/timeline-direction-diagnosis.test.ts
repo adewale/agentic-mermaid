@@ -101,9 +101,11 @@ describe('Timeline header-direction admission', () => {
   })
 
   test('the lazy browser route rejects unsupported suffixes with the same Timeline diagnosis', async () => {
-    for (const header of ['timeline TB', 'timeline EXTRA']) {
+    for (const header of ['timeline TB', 'timeline EXTRA', 'timeline; EXTRA', 'timeline%{note}']) {
       await expect(renderMermaidSVGAsync(source(header))).rejects.toThrow(/Unsupported timeline header suffix/)
     }
     expect(await renderMermaidSVGAsync(source('timeline TD'))).toContain('Launch')
+    expect(await renderMermaidSVGAsync(source('timeline TD#note'))).toContain('Launch')
+    expect(await renderMermaidSVGAsync(source('timeline%note'))).toContain('Launch')
   })
 })
