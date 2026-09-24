@@ -18,7 +18,15 @@ const cases = [
 
 describe('Class escaped relationship IDs', () => {
   test('compact ordinary marked links share native and agent semantics', () => {
-    const source = 'classDiagram\nclass A\nclass B\nA-->B'
+    const compact = [
+      { statement: 'A-->B', from: 'A', to: 'B', kind: 'association' },
+      { statement: 'Foo-->B', from: 'Foo', to: 'B', kind: 'association' },
+      { statement: 'Foo--|>B', from: 'Foo', to: 'B', kind: 'inheritance' },
+      { statement: 'Foo--*B', from: 'Foo', to: 'B', kind: 'composition' },
+      { statement: 'Foo--o B', from: 'Foo', to: 'B', kind: 'aggregation' },
+      { statement: 'Ao--B', from: 'Ao', to: 'B', kind: 'link-solid' },
+      { statement: 'Foo--oB', from: 'Foo', to: 'oB', kind: 'link-solid' },
+    ] as const
     const probe = Bun.spawnSync({
       cmd: [process.execPath, '-e', `
         import DOMPurify from 'dompurify'
@@ -26,22 +34,62 @@ describe('Class escaped relationship IDs', () => {
         DOMPurify.sanitize = text => text
         const { default: mermaid } = await import('mermaid')
         mermaid.initialize({ startOnLoad: false })
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
-        const relation = diagram.db.getRelations()[0]
-        process.stdout.write(JSON.stringify({ from: relation?.id1, to: relation?.id2, lineType: relation?.relation.lineType }))
+        const result = []
+        for (const statement of ${JSON.stringify(compact.map(item => item.statement))}) {
+          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
+          const relation = diagram.db.getRelations()[0]
+          result.push({ from: relation?.id1, to: relation?.id2, lineType: relation?.relation.lineType })
+        }
+        process.stdout.write(JSON.stringify(result))
       `],
       cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
     })
     expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual({ from: 'A', to: 'B', lineType: 0 })
-    expect(parseClassRelationship('A-->B')).toEqual(expect.objectContaining({ from: 'A', to: 'B', type: 'association' }))
-    expect(parseClassDiagram(source.split('\n')).relationships).toHaveLength(1)
-    const parsed = parseRegisteredMermaid(source)
-    expect(parsed.ok).toBe(true)
-    if (!parsed.ok) return
-    expect(asClass(parsed.value)?.body.relations).toEqual([expect.objectContaining({ from: 'A', to: 'B', kind: 'association' })])
-    expect(verifyMermaid(parsed.value).ok).toBe(true)
-    expect(renderMermaidSVG(source)).toContain('data-from="A" data-to="B"')
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(compact.map(item => ({
+      from: item.from, to: item.to, lineType: 0,
+    })))
+    for (const item of compact) {
+      const source = `classDiagram\n${item.statement}`
+      expect(parseClassRelationship(item.statement)).toEqual(expect.objectContaining({ from: item.from, to: item.to, type: item.kind }))
+      expect(parseClassDiagram(source.split('\n')).relationships).toHaveLength(1)
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(asClass(parsed.value)?.body.relations).toEqual([expect.objectContaining({ from: item.from, to: item.to, kind: item.kind })])
+      expect(verifyMermaid(parsed.value).ok).toBe(true)
+      expect(renderMermaidSVG(source)).toContain(`data-from="${item.from}" data-to="${item.to}"`)
+    }
+  })
+
+  test('576 ordinary endpoint/operator/spacing variants keep pinned identity', () => {
+    const ids = ['A', 'Ao', 'Foo', 'Zoo', 'Oo', 'AB', 'B', 'oB']
+    const arrows = ['-->', '--|>', '--*', '--o', 'o--', '*--', '<|--', '<--', '..>', '..|>', '--', '..']
+    const statements = ids.flatMap(from => ['B', 'oB'].flatMap(to => arrows.flatMap(arrow => ['', ' ', '  '].map(space => `${from}${space}${arrow}${space}${to}`))))
+    expect(statements).toHaveLength(576)
+    const probe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const result = []
+        for (const statement of ${JSON.stringify(statements)}) {
+          try { const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
+            const relation = diagram.db.getRelations()[0]
+            result.push(relation ? { from: relation.id1, to: relation.id2 } : null) }
+          catch { result.push(null) }
+        }
+        process.stdout.write(JSON.stringify(result))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(probe.exitCode).toBe(0)
+    const upstream = JSON.parse(new TextDecoder().decode(probe.stdout)) as Array<{ from: string; to: string } | null>
+    expect(statements.map(statement => {
+      const relation = parseClassRelationship(statement)
+      return relation ? { from: relation.from, to: relation.to } : null
+    })).toEqual(upstream)
   })
 
   test('pinned Mermaid 11.16 retains space-bearing endpoint identity and arrow meaning', () => {

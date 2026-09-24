@@ -629,9 +629,10 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
   }
 }
 
-const ESCAPED_MARKED_ARROWS = [
+const MARKED_ONE_WAY_ARROWS = [
   '<|--', '<|..', '--|>', '..|>', '<--', '<..', '-->', '..>', '*--', '--*', 'o--', '--o',
 ] as const
+const MARKED_SUFFIX_ARROWS = ['--|>', '-->', '--*', '--o'] as const
 
 /** The legacy marked-link regex needs whitespace-delimited endpoints. Scan
  * the one-way operator outside escaped IDs/cardinalities so compact ordinary
@@ -653,8 +654,13 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
     // After the label separator, `%%` is label text rather than a comment.
     if (char === ':' && operator >= 0) break
     if (char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
-    const found = ESCAPED_MARKED_ARROWS.find(token => line.startsWith(token, i))
+    const found = MARKED_ONE_WAY_ARROWS.find(token => line.startsWith(token, i))
     if (!found) continue
+    // In `Foo-->B`, the final `o` of Foo overlaps `o--` but the complete
+    // suffix arrow starts one byte later. Prefer that arrow. `Ao--B` has no
+    // competing suffix arrow; the markerless parser already handles it as a
+    // bare link from `Ao` to `B`, matching Mermaid.
+    if (found === 'o--' && MARKED_SUFFIX_ARROWS.some(token => line.startsWith(token, i + 1))) continue
     if (operator >= 0) return null
     operator = i
     arrow = found
