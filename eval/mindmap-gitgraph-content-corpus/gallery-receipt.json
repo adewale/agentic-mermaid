@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "docs/project/upstream-mermaid-manifest.json",
-      "sha256": "07f978e57a2348749e5c11bf4bb8017c7809fa229f12e64167229dcd1b8a09a8"
+      "sha256": "4f083aa4a62dbb312bfc0a03f8a1b86a522c5d6883477c8650f0956d31e6df3f"
     },
     {
       "path": "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
@@ -244,7 +244,7 @@
     },
     {
       "path": "src/agent/sequence-body.ts",
-      "sha256": "049ffbce145a8dcc6e42a2673223a2ea6e227f25ba8ecf4538f60f450df23fb3"
+      "sha256": "e0fe7fbff39246a423e677b11bbd1e979a2805adaa97ae848a86f3494d33477e"
     },
     {
       "path": "src/agent/serialize.ts",
@@ -975,6 +975,10 @@
       "sha256": "771b06b046c0c2d70bb1b04f6a00841e419a0e150c29fd7c58a50be78f05a6ee"
     },
     {
+      "path": "src/sequence/block-keywords.ts",
+      "sha256": "7d9ae087f74fc3a1c58bf4f725e72c63957aea319f012eb088e97c44eed08c8d"
+    },
+    {
       "path": "src/sequence/colors.ts",
       "sha256": "56972ea72eb2f4a41cc2d42c4b0efedc5d3ad2150bf0984919347a4ccc132339"
     },
@@ -988,7 +992,7 @@
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "f059c0fe762c566a23d397b08678a71bf320becb4726525e131f84af4b5f07e9"
+      "sha256": "4cfc16678a5eb58d6738386cef04a213f786b25270875c9b9f77e36e1c3c6895"
     },
     {
       "path": "src/sequence/renderer.ts",
@@ -1188,7 +1192,7 @@
     },
     {
       "path": "src/upstream-mermaid-family-index.json",
-      "sha256": "19840c86f5f3e698e71bc48e64aa045e64788bd83a300c82a7be35a3b7c4286f"
+      "sha256": "985082ea11a7a2ef32a476c967e6bb32c6ce905912e342da24e106a732bcefda"
     },
     {
       "path": "src/upstream-mermaid-manifest.ts",
