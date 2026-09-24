@@ -80,7 +80,7 @@
     },
     {
       "path": "src/agent/analyze.ts",
-      "sha256": "2fac85838d3fca10b96b134d9b539043e1d6a76fe55374a0ce887adbb70d916b"
+      "sha256": "e859933f323119d9d7cf15e9e0363ba0fa1317bd3a8cb877b14390fda1b1433e"
     },
     {
       "path": "src/agent/apply.ts",
@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "a059df1250c49f548b9b6c92f4b2bd7ca02dc431e6cdb35e23a1338dcf329103"
+      "sha256": "26821fab275842bac242b5881307bb20fb79075b492bd2c51f585358ccbb14fb"
     },
     {
       "path": "src/agent/core.ts",
@@ -492,7 +492,7 @@
     },
     {
       "path": "src/class/parser.ts",
-      "sha256": "82d68ab0d0b7c3f942ccfcf34a1b322d7ac55901185fc805a4488e4658c03993"
+      "sha256": "c161946ff2f4057a6c0138df4da2d910739f8df6a2211ec9e1637f26ad05dad9"
     },
     {
       "path": "src/class/renderer.ts",

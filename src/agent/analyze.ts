@@ -100,7 +100,11 @@ function collectClassActions(source: string): DiagramActionRecord[] {
   let inClassBody = false
   // Decode before splitting physical lines, just as the render waist does:
   // &#10; may introduce an entire interaction statement (or split one).
+  // Retain the authored physical line for each decoded segment in sidecars.
+  const authoredLineByDecodedLine = source.split(/\r?\n/).flatMap((line, index) =>
+    decodeXML(line).split(/\r?\n/).map(() => index + 1))
   for (const sourceLine of actionSourceLines(decodeXML(source))) {
+    const authoredLine = authoredLineByDecodedLine[sourceLine.line - 1] ?? sourceLine.line
     for (const text of expandInlineNamespaceStatement(sourceLine.text)) {
       if (inClassBody) {
         if (text.trim() === '}') inClassBody = false
@@ -116,15 +120,18 @@ function collectClassActions(source: string): DiagramActionRecord[] {
         if (embedded.tooltip !== undefined) effectiveTooltips.set(embedded.id, embedded.tooltip)
         const effectiveTooltip = effectiveTooltips.get(embedded.id)
         out.push({
-          ...actionRecord('class', embedded.id, 'href', embedded.href, sourceLine.line, embedded.href),
+          ...actionRecord('class', embedded.id, 'href', embedded.href, authoredLine, embedded.href),
           ...(effectiveTooltip !== undefined ? { tooltip: effectiveTooltip } : {}),
         })
         continue
       }
+      // Unknown Class interaction syntax remains source-only. Do not export
+      // raw terminal controls from a rejected tooltip into action metadata.
+      if (/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/.test(text)) continue
       const callback = text.match(/^(callback)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(.+)$/i)
       if (callback) {
         const ref = parseClassReference(callback[2]!)
-        if (ref) out.push(actionRecord('class', ref.id, 'callback', callback[3]!, sourceLine.line))
+        if (ref) out.push(actionRecord('class', ref.id, 'callback', callback[3]!, authoredLine))
         continue
       }
       const match = text.match(/^(click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(.+)$/i)
@@ -138,7 +145,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
       const explicit = rest.match(/^(href|call|callback)\s+(.+)$/i)
       const kind = explicit?.[1]?.toLowerCase()
       if (kind === 'call' || kind === 'callback') {
-        out.push(actionRecord('class', ref.id, kind, explicit![2]!, sourceLine.line))
+        out.push(actionRecord('class', ref.id, kind, explicit![2]!, authoredLine))
       } else {
         const raw = kind === 'href' ? explicit![2]! : rest
         out.push(actionRecord(
@@ -146,7 +153,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
           ref.id,
           match[1]!.toLowerCase() === 'link' || looksLikeHref(raw) ? 'href' : 'callback',
           raw,
-          sourceLine.line,
+          authoredLine,
         ))
       }
     }

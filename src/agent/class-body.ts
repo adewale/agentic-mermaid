@@ -208,9 +208,15 @@ export function parseClassBody(lines: string[]): ClassBody | null {
 
     const interaction = parseClassInteraction(raw)
     if (interaction) {
-      const node = upsert(interaction.id, undefined, interaction.generic)
-      node.href = interaction.href
-      if (interaction.tooltip !== undefined) node.tooltip = decodeXML(interaction.tooltip)
+      // The render waist decodes entities before Class parsing. Validate that
+      // same semantic statement before storing a typed node: encoded controls
+      // or targeted-navigation tokens must stay opaque, never serialized as
+      // trusted tooltip text.
+      const semantic = parseClassInteraction(decodeXML(raw))
+      if (!semantic || semantic.id !== interaction.id) return null
+      const node = upsert(semantic.id, undefined, semantic.generic)
+      node.href = semantic.href
+      if (semantic.tooltip !== undefined) node.tooltip = semantic.tooltip
       claimClass(node)
       continue
     }

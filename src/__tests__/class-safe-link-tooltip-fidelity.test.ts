@@ -77,9 +77,11 @@ describe('Class safe-link tooltip fidelity', () => {
   test('Mermaid-valid navigation targets remain diagnosed, not silently omitted', () => {
     for (const [id, statement] of [
       ['A', 'link A "https://example.com/docs" "API reference" _self'],
+      ['A', 'link A "https://example.com/docs" "API reference" _self ""'],
       ['A B', 'link `A B` "https://example.com/docs" "API reference" _self'],
       ['A B', 'click `A B` href "https://example.com/docs" "API reference" garbage'],
       ['A', 'link A~long generic~ "https://example.com/docs" "API reference" garbage'],
+      ['A', 'link A "https://example.com/docs" "API reference" garbage "extra"'],
     ] as const) {
       const source = `classDiagram\nclass \`${id}\`\n${statement}`
       expect(parseClassInteraction(statement)).toBeNull()
@@ -98,6 +100,27 @@ describe('Class safe-link tooltip fidelity', () => {
       expect(parseClassInteraction(statement)).toEqual({ id: 'A', href: 'https://example.com/docs', tooltip: 'API %% reference' })
       expect(parseClassDiagram(`classDiagram\nclass A\n${statement}`.split('\n')).classes[0]?.tooltip).toBe('API %% reference')
     }
+  })
+
+  test('pinned Mermaid ignores quoted text after a trailing comment', () => {
+    const statement = 'link A "https://example.com" "one" %%bad "garbage"'
+    const probe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\nclass A\\n' + ${JSON.stringify(statement)})
+        process.stdout.write(JSON.stringify(diagram.db.getClasses().get('A')?.tooltip))
+      `], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toBe('one')
+    expect(parseClassInteraction(statement)?.tooltip).toBe('one')
+    const source = `classDiagram\nclass A\n${statement}`
+    expect(renderMermaidSVG(source)).toContain('<title>one</title>')
+    expect(renderMermaidWithActions(source, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('one')
   })
 
   test('a later URL without hover text retains the last authored tooltip, like Mermaid', () => {
@@ -186,13 +209,17 @@ describe('Class safe-link tooltip fidelity', () => {
     expect(serialized).toContain('"A &quot;quote&quot;"')
     expect(renderMermaidSVG(source)).toContain('<title>A &quot;quote&quot;</title>')
     expect(renderMermaidWithActions(source, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('A "quote"')
+
+    const percentSource = 'classDiagram\nclass A\nlink A "https://example.com" "A &quot;quote&quot; %% literal" %% trailing'
+    expect(renderMermaidSVG(percentSource)).toContain('<title>A &quot;quote&quot; %% literal</title>')
+    expect(renderMermaidWithActions(percentSource, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('A "quote" %% literal')
   })
 
   test('entity newlines split Class actions at the same boundary as rendering', () => {
     const introduced = 'classDiagram\nclass A&#10;link A "https://example.com" "Tip"'
     expect(renderMermaidSVG(introduced)).toContain('<title>Tip</title>')
     expect(renderMermaidWithActions(introduced, { format: 'svg' }).actionSurface.actions).toEqual([
-      expect.objectContaining({ href: 'https://example.com', tooltip: 'Tip', security: 'safe' }),
+      expect.objectContaining({ href: 'https://example.com', tooltip: 'Tip', security: 'safe', line: 2 }),
     ])
     const splitTooltip = 'classDiagram\nclass A\nlink A "https://example.com" "First&#10;Second"'
     expect(() => renderMermaidSVG(splitTooltip)).toThrow()
@@ -217,6 +244,30 @@ describe('Class safe-link tooltip fidelity', () => {
       expect(parsed.value.body.kind).toBe('opaque')
       expect(collectActionRecords(parsed.value)[0]?.tooltip).toBeUndefined()
     }
+  })
+
+  test('encoded controls and navigation targets cannot bypass semantic Class validation', () => {
+    const encodedControl = 'classDiagram\nclass A\nlink A "https://example.com" "x&#27;y"'
+    const controlParsed = parseRegisteredMermaid(encodedControl)
+    expect(controlParsed.ok).toBe(true)
+    if (controlParsed.ok) {
+      expect(controlParsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(controlParsed.value)).toContain('"x&#27;y"')
+      expect(serializeMermaid(controlParsed.value)).not.toContain('\u001b')
+      expect(collectActionRecords(controlParsed.value)).toEqual([])
+    }
+    expect(() => renderMermaidSVG(encodedControl)).toThrow()
+
+    const encodedTarget = 'classDiagram\nclass A\nlink A "https://example.com" "tip&quot; _self &quot;"'
+    const targetParsed = parseRegisteredMermaid(encodedTarget)
+    expect(targetParsed.ok).toBe(true)
+    if (targetParsed.ok) expect(targetParsed.value.body.kind).toBe('opaque')
+    expect(() => renderMermaidSVG(encodedTarget)).toThrow()
+  })
+
+  test('malformed comment-rich tooltip parsing remains linear-sized', () => {
+    const statement = `link A "https://example.com" "unterminated${' %%'.repeat(80_000)}`
+    expect(parseClassInteraction(statement)).toBeNull()
   })
 
   test('tooltip content stays inert XML text', () => {
