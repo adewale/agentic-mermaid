@@ -91,6 +91,29 @@ export interface ParsedClassAnnotationStatement {
   placement: 'inline' | 'separate' | 'body-inline'
 }
 
+/** A class ID, generic, or quoted label may itself contain `<<...>>`.
+ * Find the annotation opener only after leaving those declaration contexts.
+ * One pass bounds work even for a full-size hostile source line. */
+function findClassAnnotationStart(text: string): number {
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let bracketDepth = 0
+  for (let i = 0; i < text.length - 1; i++) {
+    const char = text[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~' && bracketDepth === 0) { inGeneric = true; continue }
+    if (char === '[') { bracketDepth++; continue }
+    if (char === ']') { bracketDepth = Math.max(0, bracketDepth - 1); continue }
+    if (bracketDepth === 0 && char === '<' && text[i + 1] === '<') return i
+  }
+  return -1
+}
+
 /** Split once at the annotation delimiters, then reuse the declaration and
  * reference grammars. Avoid overlapping unbounded captures on hostile input. */
 export function parseClassAnnotationStatement(line: string): ParsedClassAnnotationStatement | null {
@@ -106,7 +129,7 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
   const prefix = text.match(/^class\s+/)
   if (!prefix) return null
   const declarationAndAnnotation = text.slice(prefix[0].length)
-  const start = declarationAndAnnotation.indexOf('<<')
+  const start = findClassAnnotationStart(declarationAndAnnotation)
   if (start < 0) return null
   let declarationText = declarationAndAnnotation.slice(0, start).trim()
   let annotationText = declarationAndAnnotation.slice(start).trim()

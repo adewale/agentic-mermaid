@@ -179,6 +179,56 @@ describe('Class official annotation forms', () => {
     if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
   })
 
+  test('annotation delimiter is outside quoted labels, generics, and backtick IDs', () => {
+    const cases = [
+      { source: 'classDiagram\nclass Shape["<<Vector>>"] <<interface>>', id: 'Shape', label: '<<Vector>>', renders: true },
+      { source: 'classDiagram\nclass Box~List<<T>>~ <<interface>>', id: 'Box', label: 'Box', renders: false },
+      { source: 'classDiagram\nclass `A<<B>>` <<interface>>', id: 'A<<B>>', label: 'A<<B>>', renders: false },
+    ] as const
+    const script = `
+      import DOMPurify from 'dompurify'
+      DOMPurify.addHook = () => {}
+      DOMPurify.sanitize = text => text
+      const { default: mermaid } = await import('mermaid')
+      mermaid.initialize({ startOnLoad: false })
+      const sources = ${JSON.stringify(cases.map(entry => entry.source))}
+      const classes = []
+      for (const source of sources) {
+        const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
+        const [id, cls] = [...diagram.db.getClasses()][0]
+        classes.push({ id, label: cls.label, annotations: cls.annotations })
+      }
+      process.stdout.write(JSON.stringify(classes))
+    `
+    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(cases.map(entry => ({
+      id: entry.id, label: entry.label, annotations: ['interface'],
+    })))
+
+    for (const { source, id, renders } of cases) {
+      const native = parseClassDiagram(source.split('\n'))
+      expect(native.classes.find(node => node.id === id)?.annotation).toBe('interface')
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(asClass(parsed.value)?.body.classes.find(node => node.id === id)?.members).toContain('<<interface>>')
+      const verified = verifyMermaid(parsed.value)
+      if (renders) {
+        expect(verified.ok).toBe(true)
+        expect(renderMermaidSVG(source)).toContain('data-annotation="interface"')
+      } else {
+        // These angle-bearing class labels already hit Scene validation on
+        // the base without annotations; preserve a public diagnostic here.
+        expect(verified.ok).toBe(false)
+        expect(verified.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]))
+        expect(() => renderMermaidSVG(source)).toThrow(/Scene validation failed/)
+      }
+      const serialized = serializeMermaid(parsed.value)
+      expect(parseClassDiagram(serialized.trim().split('\n').map(line => line.trim())).classes.find(node => node.id === id)?.annotation).toBe('interface')
+    }
+  })
+
   test('direct parser ignores annotation text in full-line comments', () => {
     expect(parseClassDiagram(['classDiagram', '%% note <<interface>>', 'class Shape']).classes.map(node => node.id)).toEqual(['Shape'])
   })
@@ -188,6 +238,10 @@ describe('Class official annotation forms', () => {
     const start = performance.now()
     expect(parseClassAnnotationStatement(malformed)).toBeNull()
     expect(performance.now() - start).toBeLessThan(1_000)
+    const labelWithDelimiters = `class Shape["${'<<'.repeat(30_000)}"] <<interface>>`
+    const labelStart = performance.now()
+    expect(parseClassAnnotationStatement(labelWithDelimiters)?.annotation).toBe('interface')
+    expect(performance.now() - labelStart).toBeLessThan(1_000)
   })
 
   test('the before/after SVGs are honest same-input renderer evidence', () => {

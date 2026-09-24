@@ -37,6 +37,10 @@ word-token grammar for inline/separate placement. Class-body annotations are
 broader and preserve their interior text, including whitespace, punctuation,
 and an empty annotation. Unsupported forms produce a diagnostic rather than a
 plausible partial diagram.
+An annotation after a quoted bracket label, generic, or backtick class ID is
+recognized outside that declaration content. Angle-bearing generic labels and
+backtick IDs still hit the existing Scene validation boundary even without an
+annotation; verification reports `RENDER_FAILED` until the broader #260 work.
 
 Pinned Mermaid 11.16 also permits multiple annotations on one class. The
 current native class model has one annotation slot, so that case is explicitly
