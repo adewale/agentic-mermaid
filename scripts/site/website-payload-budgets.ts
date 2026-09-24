@@ -43,12 +43,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 28,
     // The Sequence rect slice keeps the 31-request graph and raw total while
     // slightly reducing compressed bytes in the reviewed Linux/x64 capture.
-    // The chart-honesty text contract adds 4,983 raw, 1,646 gzip, and 1,142
+    // The chart-honesty text contract adds 4,983 raw, 1,645 gzip, and 1,138
     // Brotli bytes to the shared chunks, and its module moves regroup six small
     // shared chunks into three, so the graph drops to 28 requests.
     maxRawBytes: 736_609,
-    maxGzipBytes: 276_119,
-    maxBrotliBytes: 251_761,
+    maxGzipBytes: 276_118,
+    maxBrotliBytes: 251_757,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -74,11 +74,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
-    // family's text tones, halos, titles, and containment) adds 21,037 raw,
-    // 7,809 gzip, and 5,941 Brotli bytes without a new request.
-    maxRawBytes: 3_365_240,
-    maxGzipBytes: 992_959,
-    maxBrotliBytes: 779_519,
+    // family's text tones, halos, titles, and containment) adds 21,201 raw,
+    // 7,850 gzip, and 6,035 Brotli bytes without a new request.
+    maxRawBytes: 3_365_404,
+    maxGzipBytes: 993_000,
+    maxBrotliBytes: 779_613,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
