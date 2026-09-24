@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="703" height="282" viewBox="0 0 703 282" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1euzlmh">
+<svg xmlns="http://www.w3.org/2000/svg" width="703" height="282" viewBox="0 0 703 282" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-qgrcvv">
 <style>
-  .am-1euzlmh text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-1euzlmh {
+  .am-qgrcvv text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-qgrcvv {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -18,21 +18,21 @@
   }
 </style>
 <style>
-  .am-1euzlmh .gantt-section-band { fill: #27272A; opacity: 0.07; }
-  .am-1euzlmh .gantt-grid-line { stroke: #27272A; stroke-width: 1; opacity: 0.45; }
-  .am-1euzlmh .gantt-bar { fill: #27272A; stroke: none; opacity: 0.92; }
-  .am-1euzlmh .gantt-bar-active { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 1; }
-  .am-1euzlmh .gantt-bar-done { fill: #27272A; opacity: 0.55; }
-  .am-1euzlmh .gantt-bar-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 0.95; }
-  .am-1euzlmh .gantt-milestone { fill: #27272A; stroke: #27272A; stroke-width: 1; }
-  .am-1euzlmh .gantt-milestone-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; }
-  .am-1euzlmh .gantt-vert-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 6 3; }
-  .am-1euzlmh .gantt-today-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 4 3; }
-  .am-1euzlmh .gantt-title { fill: #27272A; }
-  .am-1euzlmh .gantt-section-label { fill: #27272A; }
-  .am-1euzlmh .gantt-task-label { fill: #27272A; }
-  .am-1euzlmh .gantt-axis-label { fill: #27272A; }
-  .am-1euzlmh .gantt-excluded-band { fill: #27272A; opacity: 0.1; }
+  .am-qgrcvv .gantt-section-band { fill: #27272A; opacity: 0.07; }
+  .am-qgrcvv .gantt-grid-line { stroke: #27272A; stroke-width: 1; opacity: 0.45; }
+  .am-qgrcvv .gantt-bar { fill: #27272A; stroke: none; opacity: 0.92; }
+  .am-qgrcvv .gantt-bar-active { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 1; }
+  .am-qgrcvv .gantt-bar-done { fill: #27272A; opacity: 0.55; }
+  .am-qgrcvv .gantt-bar-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 0.95; }
+  .am-qgrcvv .gantt-milestone { fill: #27272A; stroke: #27272A; stroke-width: 1; }
+  .am-qgrcvv .gantt-milestone-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; }
+  .am-qgrcvv .gantt-vert-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 6 3; }
+  .am-qgrcvv .gantt-today-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 4 3; }
+  .am-qgrcvv .gantt-title { fill: #27272A; }
+  .am-qgrcvv .gantt-section-label { fill: #27272A; }
+  .am-qgrcvv .gantt-task-label { fill: #27272A; }
+  .am-qgrcvv .gantt-axis-label { fill: #69696c; }
+  .am-qgrcvv .gantt-excluded-band { fill: #27272A; opacity: 0.1; }
 </style>
 <rect class="gantt-section-band" x="87" y="50" width="600" height="90" data-id="section-band:Build#0" data-role="section" />
 <rect class="gantt-excluded-band" x="420.33" y="50" width="133.33" height="192" />

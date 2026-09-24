@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "5b633b55fe2febc047cba8d7ac02f25e76589455c7b2279d09197e10631bf5b9",
+    "inputSha256": "3f8ab115ffb678311702515ed80340027de78ad8cf33b78a9254bd0e7ffdb108",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -99,24 +99,12 @@
         "sha256": "4a2743a4866339f2b9e7cfa93538a5d6fbc615d3f331d77eed13a238df8cdfcc"
       },
       {
-        "path": "src/__tests__/fidelity/cases/er-multi-class.fidelity.ts",
-        "sha256": "cc02cc9da620421bebee8d6c7ecd9421f1860e86c7146ff3b3feed908980db58"
-      },
-      {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
         "sha256": "b80f8c69c05c445cbc4ad8f27308b772381e0489389b93ba0de6f5247dd3d217"
       },
       {
-        "path": "src/__tests__/fidelity/cases/gitgraph-duplicate-official.fidelity.ts",
-        "sha256": "43997b963ed7b697af374730b9a4dea0ee1f880fb02abcb9ddb41b39bfe9e57c"
-      },
-      {
-        "path": "src/__tests__/fidelity/cases/journey-official-fence.fidelity.ts",
-        "sha256": "9c30e319db3609da1e98f3566d5c869692d2da8e0b23c8ddff09d96c85e5430e"
-      },
-      {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
-        "sha256": "e2d83a2c83e47fb0d8c0e690bba59df384de88ea54851bde2d7a4847897d8df1"
+        "sha256": "b0c9a9ac480d357471d4f9b6dcc4cf5685e3fe4c0413de0809b4114d81cd5492"
       },
       {
         "path": "src/__tests__/fidelity/cases/pie-duplicate-label.fidelity.ts",
@@ -132,7 +120,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "edb5ff270a528f59272a909be363c85955767edd3bf8c3bc9e9b608c45c1fb82"
+        "sha256": "4b477222fe056e1916f6bc77350ff344b47a3bf40c1c925dd08e2ff1d1aa04af"
       },
       {
         "path": "src/__tests__/fidelity/cases/timeline-direction.fidelity.ts",
@@ -977,161 +965,6 @@
       "issues": []
     },
     {
-      "id": "er.classes.multiple-assignments-and-shorthand",
-      "family": "er",
-      "featureId": "official-doc:er:section:classes",
-      "sourceSha256": "0a5c18b7b093de65460558d47854bb9b213bc22f80be0b9d266485f125f572f6",
-      "upstreamReference": "https://mermaid.ai/open-source/syntax/entityRelationshipDiagram.html#classes",
-      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-      "expected": {
-        "agent": {
-          "applicability": "applicable",
-          "disposition": "native",
-          "diagnosticCodes": []
-        },
-        "render": {
-          "applicability": "applicable",
-          "disposition": "native",
-          "diagnosticCodes": []
-        },
-        "serialize": {
-          "applicability": "applicable",
-          "disposition": "native",
-          "diagnosticCodes": []
-        },
-        "mutate": {
-          "applicability": "applicable",
-          "disposition": "native",
-          "diagnosticCodes": []
-        }
-      },
-      "observations": {
-        "agent": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "entities": [
-              {
-                "className": "vip hot",
-                "id": "A"
-              },
-              {
-                "className": "vip hot",
-                "id": "B"
-              },
-              {
-                "className": "vip hot",
-                "id": "C"
-              }
-            ],
-            "kind": "er"
-          },
-          "disposition": "native"
-        },
-        "render": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "entities": [
-              {
-                "className": "vip hot",
-                "id": "A"
-              },
-              {
-                "className": "vip hot",
-                "id": "B"
-              },
-              {
-                "className": "vip hot",
-                "id": "C"
-              }
-            ],
-            "paint": [
-              {
-                "fill": "#ff8a65",
-                "id": "A",
-                "stroke": "#3b4cca"
-              },
-              {
-                "fill": "#ff8a65",
-                "id": "B",
-                "stroke": "#3b4cca"
-              },
-              {
-                "fill": "#ff8a65",
-                "id": "C",
-                "stroke": "#3b4cca"
-              }
-            ],
-            "renderedPaint": [
-              {
-                "fill": "#ff8a65",
-                "id": "A",
-                "stroke": "#3b4cca"
-              },
-              {
-                "fill": "#ff8a65",
-                "id": "B",
-                "stroke": "#3b4cca"
-              },
-              {
-                "fill": "#ff8a65",
-                "id": "C",
-                "stroke": "#3b4cca"
-              }
-            ]
-          },
-          "disposition": "native"
-        },
-        "serialize": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "entities": [
-              {
-                "className": "vip hot",
-                "id": "A"
-              },
-              {
-                "className": "vip hot",
-                "id": "B"
-              },
-              {
-                "className": "vip hot",
-                "id": "C"
-              }
-            ],
-            "stable": true
-          },
-          "disposition": "native"
-        },
-        "mutate": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "entities": [
-              {
-                "className": "vip hot",
-                "id": "X"
-              },
-              {
-                "className": "vip hot",
-                "id": "B"
-              },
-              {
-                "className": "vip hot",
-                "id": "C"
-              }
-            ],
-            "ok": true
-          },
-          "disposition": "native"
-        }
-      },
-      "passed": true,
-      "issues": []
-    },
-    {
       "id": "er.relationships.word-cardinality-aliases",
       "family": "er",
       "featureId": "official-doc:er:section:relationship-syntax",
@@ -1264,9 +1097,9 @@
     {
       "id": "flowchart.classes.edge-paint-implication",
       "family": "flowchart",
-      "featureId": "official-doc:flowchart:section:attaching-an-id-to-edges",
+      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
       "sourceSha256": "c572b64fac27f9f9b594c60543bee6b77ff703ed494c9498f88ce127e76a5a8a",
-      "upstreamReference": "https://mermaid.ai/open-source/syntax/flowchart.html#attaching-an-id-to-edges",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/flowchart.html#using-classdef-statements-for-animations",
       "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
       "expected": {
         "agent": {
@@ -1276,7 +1109,7 @@
         },
         "render": {
           "applicability": "applicable",
-          "disposition": "native",
+          "disposition": "absent",
           "diagnosticCodes": []
         },
         "serialize": {
@@ -1322,12 +1155,11 @@
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
-            "className": "hot",
             "edgeFound": true,
-            "stroke": "#ff0000",
-            "strokeWidth": "6px"
+            "stroke": "#939395",
+            "strokeWidth": "1"
           },
-          "disposition": "native"
+          "disposition": "absent"
         },
         "serialize": {
           "status": "observed",
@@ -1525,977 +1357,6 @@
             },
             "reserializedSource": "flowchart TD\n  A -->|\" a \"| B\n  B -->|\" b \"| A\n",
             "serializedSource": "flowchart TD\n  A -->|\" a \"| B\n  B -->|\" b \"| A\n"
-          },
-          "disposition": "native"
-        }
-      },
-      "passed": true,
-      "issues": []
-    },
-    {
-      "id": "gitgraph.official.main-branch-duplicate-id-diagnosed",
-      "family": "gitgraph",
-      "featureId": "official-doc:gitgraph:section:customizing-main-branch-name",
-      "sourceSha256": "2ea996869e041ddfc44828a6b284b1d67c52d5470d14746fa975632b7e5af975",
-      "upstreamReference": "https://mermaid.ai/open-source/syntax/gitgraph.html#customizing-main-branch-name",
-      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-      "expected": {
-        "agent": {
-          "applicability": "applicable",
-          "disposition": "source-preserved",
-          "diagnosticCodes": [
-            "RENDER_FAILED",
-            "UNSUPPORTED_SYNTAX"
-          ]
-        },
-        "render": {
-          "applicability": "applicable",
-          "disposition": "diagnosed",
-          "diagnosticCodes": [
-            "GITGRAPH_DUPLICATE_COMMIT_ID"
-          ]
-        },
-        "serialize": {
-          "applicability": "applicable",
-          "disposition": "source-preserved",
-          "diagnosticCodes": []
-        },
-        "mutate": {
-          "applicability": "applicable",
-          "disposition": "diagnosed",
-          "diagnosticCodes": [
-            "INVALID_OP"
-          ]
-        }
-      },
-      "observations": {
-        "agent": {
-          "status": "observed",
-          "diagnosticCodes": [
-            "RENDER_FAILED",
-            "UNSUPPORTED_SYNTAX"
-          ],
-          "semantics": {
-            "bodyKind": "opaque",
-            "duplicateId": "Boston",
-            "remediationNamed": true,
-            "renderFailureNamesDuplicate": true,
-            "sourcePreserved": true,
-            "verifyRejected": true,
-            "warningSyntax": "gitgraph_duplicate_commit_id"
-          },
-          "disposition": "source-preserved"
-        },
-        "render": {
-          "status": "observed",
-          "diagnosticCodes": [
-            "GITGRAPH_DUPLICATE_COMMIT_ID"
-          ],
-          "semantics": {
-            "duplicateId": "Boston",
-            "renderRejected": true
-          },
-          "disposition": "diagnosed"
-        },
-        "serialize": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "exactSource": true
-          },
-          "disposition": "source-preserved"
-        },
-        "mutate": {
-          "status": "observed",
-          "diagnosticCodes": [
-            "INVALID_OP"
-          ],
-          "semantics": {
-            "rejected": true
-          },
-          "disposition": "diagnosed"
-        }
-      },
-      "passed": true,
-      "issues": []
-    },
-    {
-      "id": "journey.official.fence-0",
-      "family": "journey",
-      "featureId": "official-doc:journey:section:user-journey-diagram",
-      "sourceSha256": "8addc31e2a3b63dfa747b2f5b97988d0d7268a2fdda6ebf5795c66fa61b01792",
-      "upstreamReference": "https://mermaid.ai/open-source/syntax/userJourney.html",
-      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-      "expected": {
-        "agent": {
-          "applicability": "applicable",
-          "disposition": "native",
-          "diagnosticCodes": []
-        },
-        "render": {
-          "applicability": "applicable",
-          "disposition": "absent",
-          "diagnosticCodes": []
-        },
-        "serialize": {
-          "applicability": "applicable",
-          "disposition": "native",
-          "diagnosticCodes": []
-        },
-        "mutate": {
-          "applicability": "not-applicable",
-          "rationale": "This case classifies official syntax; Journey set_task_score has a separate semantic receipt."
-        }
-      },
-      "observations": {
-        "agent": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "sections": [
-              {
-                "label": "Go to work",
-                "tasks": [
-                  {
-                    "actors": [
-                      "Me"
-                    ],
-                    "score": 5,
-                    "text": "Make tea"
-                  },
-                  {
-                    "actors": [
-                      "Me"
-                    ],
-                    "score": 3,
-                    "text": "Go upstairs"
-                  },
-                  {
-                    "actors": [
-                      "Me",
-                      "Cat"
-                    ],
-                    "score": 1,
-                    "text": "Do work"
-                  }
-                ]
-              },
-              {
-                "label": "Go home",
-                "tasks": [
-                  {
-                    "actors": [
-                      "Me"
-                    ],
-                    "score": 5,
-                    "text": "Go downstairs"
-                  },
-                  {
-                    "actors": [
-                      "Me"
-                    ],
-                    "score": 5,
-                    "text": "Sit down"
-                  }
-                ]
-              }
-            ],
-            "title": "My working day"
-          },
-          "disposition": "native"
-        },
-        "render": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "default": {
-              "accessibilityTitle": [
-                "journey-1f5nxlm-title",
-                "My working day"
-              ],
-              "actorLegend": [
-                {
-                  "actor": "Me",
-                  "colorIndex": 0,
-                  "x": 37,
-                  "y": 144.4
-                },
-                {
-                  "actor": "Cat",
-                  "colorIndex": 1,
-                  "x": 37,
-                  "y": 166.4
-                }
-              ],
-              "actorLegendText": [
-                {
-                  "text": "Me",
-                  "x": 54,
-                  "y": 144.4
-                },
-                {
-                  "text": "Cat",
-                  "x": 54,
-                  "y": 166.4
-                }
-              ],
-              "actorPaint": [
-                "#34438d",
-                "#8d3f34"
-              ],
-              "ariaLabelledBy": "journey-1f5nxlm-title",
-              "curve": {
-                "controls": [
-                  [
-                    298,
-                    256.3
-                  ],
-                  [
-                    348,
-                    336.3
-                  ],
-                  [
-                    448,
-                    336.3
-                  ],
-                  [
-                    498,
-                    416.3
-                  ],
-                  [
-                    598.6666666666666,
-                    416.3
-                  ],
-                  [
-                    649.3333333333334,
-                    256.3
-                  ],
-                  [
-                    750,
-                    256.3
-                  ],
-                  [
-                    800,
-                    256.3
-                  ]
-                ],
-                "points": [
-                  [
-                    248,
-                    256.3
-                  ],
-                  [
-                    398,
-                    336.3
-                  ],
-                  [
-                    548,
-                    416.3
-                  ],
-                  [
-                    700,
-                    256.3
-                  ],
-                  [
-                    850,
-                    256.3
-                  ]
-                ],
-                "validShape": true
-              },
-              "curvePaint": [
-                "#9a9a9b",
-                "2"
-              ],
-              "facePaint": [
-                "#d7d7d7",
-                "#47474a",
-                "1.2"
-              ],
-              "guideLines": [
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 256.3,
-                  "y2": 256.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 296.3,
-                  "y2": 296.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 336.3,
-                  "y2": 336.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 376.3,
-                  "y2": 376.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 416.3,
-                  "y2": 416.3
-                }
-              ],
-              "guides": [
-                {
-                  "score": 5,
-                  "y": 256.3
-                },
-                {
-                  "score": 4,
-                  "y": 296.3
-                },
-                {
-                  "score": 3,
-                  "y": 336.3
-                },
-                {
-                  "score": 2,
-                  "y": 376.3
-                },
-                {
-                  "score": 1,
-                  "y": 416.3
-                }
-              ],
-              "sectionPaint": [
-                "#f0f0f1",
-                "#ecedf4"
-              ],
-              "sections": [
-                {
-                  "box": {
-                    "height": 36,
-                    "width": 444,
-                    "x": 176,
-                    "y": 73.4
-                  },
-                  "id": "section-0",
-                  "label": "Go to work",
-                  "role": "section",
-                  "text": "Go to work"
-                },
-                {
-                  "box": {
-                    "height": 36,
-                    "width": 294,
-                    "x": 628,
-                    "y": 73.4
-                  },
-                  "id": "section-1",
-                  "label": "Go home",
-                  "role": "section",
-                  "text": "Go home"
-                }
-              ],
-              "taskBoxPaint": [
-                "#f9f9f9",
-                "#d4d4d4",
-                "1"
-              ],
-              "taskTextPaint": "#27272A",
-              "tasks": [
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 248,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 186,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 248,
-                    "y": 256.3
-                  },
-                  "id": "task-0",
-                  "markerScore": 5,
-                  "role": "task",
-                  "score": 5,
-                  "section": "Go to work",
-                  "text": "Make tea",
-                  "textX": 248,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 248,
-                    "x2": 248,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 398,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 336,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 398,
-                    "y": 336.3
-                  },
-                  "id": "task-1",
-                  "markerScore": 3,
-                  "role": "task",
-                  "score": 3,
-                  "section": "Go to work",
-                  "text": "Go upstairs",
-                  "textX": 398,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 398,
-                    "x2": 398,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 540,
-                      "y": 184.3
-                    },
-                    {
-                      "actor": "Cat",
-                      "colorIndex": 1,
-                      "r": 4,
-                      "x": 556,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me, Cat",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 486,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 548,
-                    "y": 416.3
-                  },
-                  "id": "task-2",
-                  "markerScore": 1,
-                  "role": "task",
-                  "score": 1,
-                  "section": "Go to work",
-                  "text": "Do work",
-                  "textX": 548,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 548,
-                    "x2": 548,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 700,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 638,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 700,
-                    "y": 256.3
-                  },
-                  "id": "task-3",
-                  "markerScore": 5,
-                  "role": "task",
-                  "score": 5,
-                  "section": "Go home",
-                  "text": "Go downstairs",
-                  "textX": 700,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 700,
-                    "x2": 700,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 850,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 788,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 850,
-                    "y": 256.3
-                  },
-                  "id": "task-4",
-                  "markerScore": 5,
-                  "role": "task",
-                  "score": 5,
-                  "section": "Go home",
-                  "text": "Sit down",
-                  "textX": 850,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 850,
-                    "x2": 850,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                }
-              ],
-              "title": {
-                "text": "My working day",
-                "x": 491,
-                "y": 39.7
-              },
-              "viewBox": "0 0 982 482.3"
-            },
-            "parityMode": {
-              "accessibilityTitle": [
-                "journey-1f5nxlm-title",
-                "My working day"
-              ],
-              "actorLegend": [
-                {
-                  "actor": "Me",
-                  "colorIndex": 0,
-                  "x": 37,
-                  "y": 144.4
-                },
-                {
-                  "actor": "Cat",
-                  "colorIndex": 1,
-                  "x": 37,
-                  "y": 166.4
-                }
-              ],
-              "actorLegendText": [
-                {
-                  "text": "Me",
-                  "x": 54,
-                  "y": 144.4
-                },
-                {
-                  "text": "Cat",
-                  "x": 54,
-                  "y": 166.4
-                }
-              ],
-              "actorPaint": [
-                "#34438d",
-                "#8d3f34"
-              ],
-              "ariaLabelledBy": "journey-1f5nxlm-title",
-              "curve": null,
-              "curvePaint": null,
-              "facePaint": [
-                "#d7d7d7",
-                "#47474a",
-                "1.2"
-              ],
-              "guideLines": [
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 256.3,
-                  "y2": 256.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 296.3,
-                  "y2": 296.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 336.3,
-                  "y2": 336.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 376.3,
-                  "y2": 376.3
-                },
-                {
-                  "x1": 176,
-                  "x2": 950,
-                  "y1": 416.3,
-                  "y2": 416.3
-                }
-              ],
-              "guides": [
-                {
-                  "score": 5,
-                  "y": 256.3
-                },
-                {
-                  "score": 4,
-                  "y": 296.3
-                },
-                {
-                  "score": 3,
-                  "y": 336.3
-                },
-                {
-                  "score": 2,
-                  "y": 376.3
-                },
-                {
-                  "score": 1,
-                  "y": 416.3
-                }
-              ],
-              "sectionPaint": [
-                "#f0f0f1",
-                "#ecedf4"
-              ],
-              "sections": [
-                {
-                  "box": {
-                    "height": 36,
-                    "width": 444,
-                    "x": 176,
-                    "y": 73.4
-                  },
-                  "id": "section-0",
-                  "label": "Go to work",
-                  "role": "section",
-                  "text": "Go to work"
-                },
-                {
-                  "box": {
-                    "height": 36,
-                    "width": 294,
-                    "x": 628,
-                    "y": 73.4
-                  },
-                  "id": "section-1",
-                  "label": "Go home",
-                  "role": "section",
-                  "text": "Go home"
-                }
-              ],
-              "taskBoxPaint": [
-                "#f9f9f9",
-                "#d4d4d4",
-                "1"
-              ],
-              "taskTextPaint": "#27272A",
-              "tasks": [
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 248,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 186,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 248,
-                    "y": 256.3
-                  },
-                  "id": "task-0",
-                  "markerScore": 5,
-                  "role": "task",
-                  "score": 5,
-                  "section": "Go to work",
-                  "text": "Make tea",
-                  "textX": 248,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 248,
-                    "x2": 248,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 398,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 336,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 398,
-                    "y": 336.3
-                  },
-                  "id": "task-1",
-                  "markerScore": 3,
-                  "role": "task",
-                  "score": 3,
-                  "section": "Go to work",
-                  "text": "Go upstairs",
-                  "textX": 398,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 398,
-                    "x2": 398,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 540,
-                      "y": 184.3
-                    },
-                    {
-                      "actor": "Cat",
-                      "colorIndex": 1,
-                      "r": 4,
-                      "x": 556,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me, Cat",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 486,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 548,
-                    "y": 416.3
-                  },
-                  "id": "task-2",
-                  "markerScore": 1,
-                  "role": "task",
-                  "score": 1,
-                  "section": "Go to work",
-                  "text": "Do work",
-                  "textX": 548,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 548,
-                    "x2": 548,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 700,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 638,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 700,
-                    "y": 256.3
-                  },
-                  "id": "task-3",
-                  "markerScore": 5,
-                  "role": "task",
-                  "score": 5,
-                  "section": "Go home",
-                  "text": "Go downstairs",
-                  "textX": 700,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 700,
-                    "x2": 700,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                },
-                {
-                  "actorDots": [
-                    {
-                      "actor": "Me",
-                      "colorIndex": 0,
-                      "r": 4,
-                      "x": 850,
-                      "y": 184.3
-                    }
-                  ],
-                  "actors": "Me",
-                  "box": {
-                    "height": 60.900000000000006,
-                    "width": 124,
-                    "x": 788,
-                    "y": 139.4
-                  },
-                  "face": {
-                    "r": 16,
-                    "x": 850,
-                    "y": 256.3
-                  },
-                  "id": "task-4",
-                  "markerScore": 5,
-                  "role": "task",
-                  "score": 5,
-                  "section": "Go home",
-                  "text": "Sit down",
-                  "textX": 850,
-                  "textY": 159.85,
-                  "track": {
-                    "x1": 850,
-                    "x2": 850,
-                    "y1": 200.3,
-                    "y2": 448.3
-                  }
-                }
-              ],
-              "title": {
-                "text": "My working day",
-                "x": 491,
-                "y": 39.7
-              },
-              "viewBox": "0 0 982 482.3"
-            }
-          },
-          "disposition": "absent"
-        },
-        "serialize": {
-          "status": "observed",
-          "diagnosticCodes": [],
-          "semantics": {
-            "model": {
-              "sections": [
-                {
-                  "label": "Go to work",
-                  "tasks": [
-                    {
-                      "actors": [
-                        "Me"
-                      ],
-                      "score": 5,
-                      "text": "Make tea"
-                    },
-                    {
-                      "actors": [
-                        "Me"
-                      ],
-                      "score": 3,
-                      "text": "Go upstairs"
-                    },
-                    {
-                      "actors": [
-                        "Me",
-                        "Cat"
-                      ],
-                      "score": 1,
-                      "text": "Do work"
-                    }
-                  ]
-                },
-                {
-                  "label": "Go home",
-                  "tasks": [
-                    {
-                      "actors": [
-                        "Me"
-                      ],
-                      "score": 5,
-                      "text": "Go downstairs"
-                    },
-                    {
-                      "actors": [
-                        "Me"
-                      ],
-                      "score": 5,
-                      "text": "Sit down"
-                    }
-                  ]
-                }
-              ],
-              "title": "My working day"
-            },
-            "stable": true
           },
           "disposition": "native"
         }
@@ -4017,10 +2878,8 @@
         },
         "render": {
           "applicability": "applicable",
-          "disposition": "diagnosed",
-          "diagnosticCodes": [
-            "RENDER_FAILED"
-          ]
+          "disposition": "absent",
+          "diagnosticCodes": []
         },
         "serialize": {
           "applicability": "applicable",
@@ -4050,16 +2909,37 @@
         },
         "render": {
           "status": "observed",
-          "diagnosticCodes": [
-            "RENDER_FAILED"
-          ],
+          "diagnosticCodes": [],
           "semantics": {
-            "bars": [],
-            "errorMessage": "Unrecognized XYChart line: \"frob official-data-lost\"",
-            "texts": [],
-            "verificationOk": false
+            "bars": [
+              {
+                "label": "1",
+                "value": "1"
+              },
+              {
+                "label": "2",
+                "value": "2"
+              }
+            ],
+            "errorMessage": null,
+            "texts": [
+              "1",
+              "2",
+              "0",
+              "0.2",
+              "0.4",
+              "0.6",
+              "0.8",
+              "1",
+              "1.2",
+              "1.4",
+              "1.6",
+              "1.8",
+              "2",
+              "2.2"
+            ]
           },
-          "disposition": "diagnosed"
+          "disposition": "absent"
         },
         "serialize": {
           "status": "observed",
@@ -4087,11 +2967,11 @@
     }
   ],
   "summary": {
-    "caseCount": 34,
-    "passedCaseCount": 34,
+    "caseCount": 31,
+    "passedCaseCount": 31,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 128,
+    "observedSurfaceCount": 117,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 8
+    "notApplicableSurfaceCount": 7
   }
 }

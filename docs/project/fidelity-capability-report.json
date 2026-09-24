@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "5b633b55fe2febc047cba8d7ac02f25e76589455c7b2279d09197e10631bf5b9",
-  "receiptResultSha256": "e1bb160e8db152a83ada3da9267a6b09d3a98319e531a03e671ff35135cbb23f",
+  "receiptInputSha256": "6ca0bc788eb2bfd584c8bd715ee59fa4986efe5525bb26eaefdab36159f1c572",
+  "receiptResultSha256": "76e27017f880bf2c623ff87f76fcf1895a5727a95bf1f90bbe7cdccc787ce1c7",
   "summary": {
-    "caseCount": 34,
-    "featureCount": 15,
+    "caseCount": 10,
+    "featureCount": 7,
     "dispositions": {
-      "native": 5,
+      "native": 2,
       "source-preserved": 0,
-      "diagnosed": 8,
-      "absent": 2
+      "diagnosed": 2,
+      "absent": 3
     }
   },
   "features": [
@@ -67,300 +67,6 @@
       "acceptedDivergences": []
     },
     {
-      "featureId": "official-doc:class:section:annotations-on-classes",
-      "family": "class",
-      "disposition": "diagnosed",
-      "caseIds": [
-        "class.annotations.inline-native",
-        "class.annotations.repeated-diagnosed",
-        "class.annotations.separate-native"
-      ],
-      "surfaces": {
-        "agent": "source-preserved",
-        "render": "diagnosed",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
-      },
-      "diagnostics": {
-        "agent": [
-          "UNSUPPORTED_SYNTAX"
-        ],
-        "render": [
-          "RENDER_FAILED"
-        ],
-        "mutate": [
-          "INVALID_OP"
-        ]
-      },
-      "caseEvidence": [
-        {
-          "caseId": "class.annotations.inline-native",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "class.annotations.repeated-diagnosed",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "diagnosed",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "RENDER_FAILED"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        },
-        {
-          "caseId": "class.annotations.separate-native",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:class:section:defining-relationship",
-      "family": "class",
-      "disposition": "diagnosed",
-      "caseIds": [
-        "class.relationship.escaped-directed-native",
-        "class.relationship.hyphenated-endpoint-diagnosed",
-        "class.relationship.link-dashed-native",
-        "class.relationship.link-solid-native"
-      ],
-      "surfaces": {
-        "agent": "source-preserved",
-        "render": "diagnosed",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
-      },
-      "diagnostics": {
-        "agent": [
-          "UNSUPPORTED_SYNTAX"
-        ],
-        "render": [
-          "RENDER_FAILED"
-        ],
-        "mutate": [
-          "INVALID_OP"
-        ]
-      },
-      "caseEvidence": [
-        {
-          "caseId": "class.relationship.escaped-directed-native",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "class.relationship.hyphenated-endpoint-diagnosed",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "diagnosed",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "RENDER_FAILED"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        },
-        {
-          "caseId": "class.relationship.link-dashed-native",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "class.relationship.link-solid-native",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:class:section:interaction",
-      "family": "class",
-      "disposition": "diagnosed",
-      "caseIds": [
-        "class.interaction.navigation-target-diagnosed",
-        "class.interaction.safe-link-tooltip-native"
-      ],
-      "surfaces": {
-        "agent": "source-preserved",
-        "render": "diagnosed",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
-      },
-      "diagnostics": {
-        "agent": [
-          "UNSUPPORTED_SYNTAX"
-        ],
-        "render": [
-          "RENDER_FAILED"
-        ],
-        "mutate": [
-          "INVALID_OP"
-        ]
-      },
-      "caseEvidence": [
-        {
-          "caseId": "class.interaction.navigation-target-diagnosed",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "diagnosed",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "RENDER_FAILED"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        },
-        {
-          "caseId": "class.interaction.safe-link-tooltip-native",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:er:section:classes",
-      "family": "er",
-      "disposition": "native",
-      "caseIds": [
-        "er.classes.multiple-assignments-and-shorthand"
-      ],
-      "surfaces": {
-        "agent": "native",
-        "render": "native",
-        "serialize": "native",
-        "mutate": "native"
-      },
-      "diagnostics": {},
-      "caseEvidence": [
-        {
-          "caseId": "er.classes.multiple-assignments-and-shorthand",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:er:section:relationship-syntax",
-      "family": "er",
-      "disposition": "native",
-      "caseIds": [
-        "er.relationships.word-cardinality-aliases"
-      ],
-      "surfaces": {
-        "agent": "native",
-        "render": "native",
-        "serialize": "native",
-        "mutate": "native"
-      },
-      "diagnostics": {},
-      "caseEvidence": [
-        {
-          "caseId": "er.relationships.word-cardinality-aliases",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:flowchart:section:attaching-an-id-to-edges",
-      "family": "flowchart",
-      "disposition": "native",
-      "caseIds": [
-        "flowchart.classes.edge-paint-implication"
-      ],
-      "surfaces": {
-        "agent": "native",
-        "render": "native",
-        "serialize": "native",
-        "mutate": "native"
-      },
-      "diagnostics": {},
-      "caseEvidence": [
-        {
-          "caseId": "flowchart.classes.edge-paint-implication",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
       "featureId": "official-doc:flowchart:section:text-on-links",
       "family": "flowchart",
       "disposition": "native",
@@ -389,62 +95,11 @@
       "acceptedDivergences": []
     },
     {
-      "featureId": "official-doc:gitgraph:section:customizing-main-branch-name",
-      "family": "gitgraph",
-      "disposition": "diagnosed",
-      "caseIds": [
-        "gitgraph.official.main-branch-duplicate-id-diagnosed"
-      ],
-      "surfaces": {
-        "agent": "source-preserved",
-        "render": "diagnosed",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
-      },
-      "diagnostics": {
-        "agent": [
-          "RENDER_FAILED",
-          "UNSUPPORTED_SYNTAX"
-        ],
-        "render": [
-          "GITGRAPH_DUPLICATE_COMMIT_ID"
-        ],
-        "mutate": [
-          "INVALID_OP"
-        ]
-      },
-      "caseEvidence": [
-        {
-          "caseId": "gitgraph.official.main-branch-duplicate-id-diagnosed",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "diagnosed",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "RENDER_FAILED",
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "GITGRAPH_DUPLICATE_COMMIT_ID"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:journey:section:user-journey-diagram",
-      "family": "journey",
+      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
+      "family": "flowchart",
       "disposition": "absent",
       "caseIds": [
-        "journey.official.fence-0",
-        "journey.scores.fractional-parser-render-seam"
+        "flowchart.classes.edge-paint-implication"
       ],
       "surfaces": {
         "agent": "native",
@@ -455,24 +110,10 @@
       "diagnostics": {},
       "caseEvidence": [
         {
-          "caseId": "journey.official.fence-0",
+          "caseId": "flowchart.classes.edge-paint-implication",
           "surfaces": {
             "agent": "native",
             "render": "absent",
-            "serialize": "native",
-            "mutate": {
-              "notApplicable": [
-                "This case classifies official syntax; Journey set_task_score has a separate semantic receipt."
-              ]
-            }
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "journey.scores.fractional-parser-render-seam",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
             "serialize": "native",
             "mutate": "native"
           },
@@ -482,19 +123,11 @@
       "acceptedDivergences": []
     },
     {
-      "featureId": "official-doc:pie:section:syntax",
-      "family": "pie",
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "family": "journey",
       "disposition": "diagnosed",
       "caseIds": [
-        "pie.syntax.authored-formatting-literal",
-        "pie.syntax.duplicate-label-first-wins",
-        "pie.syntax.entity-spelling-distinct",
-        "pie.syntax.escaped-newline-painted-space",
-        "pie.syntax.escaped-terminal-control-sanitized",
-        "pie.syntax.named-entity-display",
-        "pie.syntax.numeric-entity-display",
-        "pie.syntax.title-entity-display",
-        "pie.syntax.xml-disallowed-control-diagnosed"
+        "journey.scores.fractional-parser-render-seam"
       ],
       "surfaces": {
         "agent": "source-preserved",
@@ -507,8 +140,7 @@
           "UNSUPPORTED_SYNTAX"
         ],
         "render": [
-          "RENDER_FAILED",
-          "TERMINAL_CONTROL_CHARACTERS_REPLACED"
+          "RENDER_FAILED"
         ],
         "mutate": [
           "INVALID_OP"
@@ -516,111 +148,7 @@
       },
       "caseEvidence": [
         {
-          "caseId": "pie.syntax.authored-formatting-literal",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "pie.syntax.duplicate-label-first-wins",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "native",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        },
-        {
-          "caseId": "pie.syntax.entity-spelling-distinct",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "pie.syntax.escaped-newline-painted-space",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "native",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        },
-        {
-          "caseId": "pie.syntax.escaped-terminal-control-sanitized",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "diagnosed",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "TERMINAL_CONTROL_CHARACTERS_REPLACED"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        },
-        {
-          "caseId": "pie.syntax.named-entity-display",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "pie.syntax.numeric-entity-display",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "pie.syntax.title-entity-display",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "pie.syntax.xml-disallowed-control-diagnosed",
+          "caseId": "journey.scores.fractional-parser-render-seam",
           "surfaces": {
             "agent": "source-preserved",
             "render": "diagnosed",
@@ -640,21 +168,7 @@
           }
         }
       ],
-      "acceptedDivergences": [
-        {
-          "caseId": "pie.syntax.escaped-terminal-control-sanitized",
-          "policy": "security",
-          "rationale": "Terminal output replaces a Pie grammar-produced carriage return with a visible cell rather than moving the terminal cursor.",
-          "surfaces": [
-            "render"
-          ],
-          "diagnosticCodes": {
-            "render": [
-              "TERMINAL_CONTROL_CHARACTERS_REPLACED"
-            ]
-          }
-        }
-      ]
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:sankey:section:links-coloring",
@@ -773,84 +287,22 @@
       "acceptedDivergences": []
     },
     {
-      "featureId": "official-doc:timeline:section:direction-v11-14-0",
-      "family": "timeline",
-      "disposition": "diagnosed",
-      "caseIds": [
-        "timeline.direction.td-vertical-geometry",
-        "timeline.direction.unsupported-header-diagnosis"
-      ],
-      "surfaces": {
-        "agent": "source-preserved",
-        "render": "diagnosed",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
-      },
-      "diagnostics": {
-        "agent": [
-          "UNSUPPORTED_SYNTAX"
-        ],
-        "render": [
-          "RENDER_FAILED"
-        ],
-        "mutate": [
-          "INVALID_OP"
-        ]
-      },
-      "caseEvidence": [
-        {
-          "caseId": "timeline.direction.td-vertical-geometry",
-          "surfaces": {
-            "agent": "native",
-            "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        },
-        {
-          "caseId": "timeline.direction.unsupported-header-diagnosis",
-          "surfaces": {
-            "agent": "source-preserved",
-            "render": "diagnosed",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
-          },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "RENDER_FAILED"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
       "featureId": "official-doc:xychart:section:syntax",
       "family": "xychart",
-      "disposition": "diagnosed",
+      "disposition": "absent",
       "caseIds": [
         "xychart.syntax.shared-parser-semantics",
         "xychart.syntax.unknown-statement-render-seam"
       ],
       "surfaces": {
         "agent": "source-preserved",
-        "render": "diagnosed",
+        "render": "absent",
         "serialize": "source-preserved",
         "mutate": "diagnosed"
       },
       "diagnostics": {
         "agent": [
           "UNSUPPORTED_SYNTAX"
-        ],
-        "render": [
-          "RENDER_FAILED"
         ],
         "mutate": [
           "INVALID_OP"
@@ -871,16 +323,13 @@
           "caseId": "xychart.syntax.unknown-statement-render-seam",
           "surfaces": {
             "agent": "source-preserved",
-            "render": "diagnosed",
+            "render": "absent",
             "serialize": "source-preserved",
             "mutate": "diagnosed"
           },
           "diagnostics": {
             "agent": [
               "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "RENDER_FAILED"
             ],
             "mutate": [
               "INVALID_OP"

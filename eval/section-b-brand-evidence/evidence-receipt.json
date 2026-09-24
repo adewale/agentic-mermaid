@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 280,
-    "treeSha256": "cf0757fedab19d9324791ee30bda50ef9a1ee187d3293a20779a9bb05ba29df7"
+    "count": 283,
+    "treeSha256": "115c9cca9256b139267e3c1482b2cd18af2f767329878e930455e84a245ef95c"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,21 +62,21 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "1325978955dc77ce0b673042605e4403c887fa46da8e0d83124cdd7d5ac56483",
-      "pngSha256": "b9f21d51e40040a4680d4dfbb29186c6831089ec2b667053398d648ce705ed14"
+      "svgSha256": "dd9555ef91699288edbd17091e84e4aa93186e5ff062e163db81244bf620f240",
+      "pngSha256": "415106a30622934aa001d587aa35d283250007bd98794a756e435a59505738b5"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "6fd84e2423d3c592e8ccd9e194c65ae0e746661ec6f656e56fccf807a7c95f80",
-      "pngSha256": "02003fca242f8f36d2fb7fe0ecb79c914feeb515123a3f379ca5b6ddad89e3f6"
+      "svgSha256": "ce4a3d5a4f7f6c0f6638d85abfd963bd1394f585f1e988b333e38a0750d26b61",
+      "pngSha256": "57de27066fd63a9ad078eb7821b2720d88e6ecb2d16d03237a944cf07662b119"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "8f640f7c0c3afcca47310be9cdd279cccfb4847e675b834f0ed65ae2bb69c24b",
-      "pngSha256": "386b5c2c2af51834939b6814edbd0337d48c79ed81a61158de58a2dd4942fae9"
+      "svgSha256": "854b2f13a44c4e96d0a132da3f25a21f7cf3a5915c3cea3c213ac20838cd019a",
+      "pngSha256": "2378e7117d7dd1f8aa55dc85e06e07890f40f269523d5c9ff9789ad9b75b66d0"
     }
   },
-  "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
+  "terminalSha256": "f19a908d866fa17e6e0c7b43e12400f2a67a9e32a381fe265bc67d5b44e7f4f8",
   "baseline": {
     "state": "unsupported-style-fields",
     "commit": "e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8",
@@ -87,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec",
-    "reviewedAt": "2026-09-23",
-    "reviewer": "Claude Code agent, during the Lieflat chart-honesty fixes",
+    "artifactSha256": "062480f15ef92421096ee206425451ebf7d8bf2265987b864ffd5fa519cbc342",
+    "reviewedAt": "2026-09-24",
+    "reviewer": "Claude Code agent, while holding every family to the chart-honesty text contract",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "347fdc9619094449d4d0b250ccd3fe067c132ea3ef97d6f7c3bc7db8b52be1ec"
+      "sha256": "062480f15ef92421096ee206425451ebf7d8bf2265987b864ffd5fa519cbc342"
     }
   ]
 }
