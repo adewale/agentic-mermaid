@@ -2152,7 +2152,8 @@ const mcpServerCard = {
   instructions: 'Use Agentic Mermaid for Mermaid diagram workflows. Prefer verify, describe, render_svg, render_ascii, render_png, mutate, and build for direct work; reserve execute for synchronous Code Mode logic that the declarative tools do not express.',
   capabilities: {
     tools: true,
-    resources: false,
+    resources: true,
+    prompts: true,
   },
   tools: hostedToolCards,
   links: {

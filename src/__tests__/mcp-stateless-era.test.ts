@@ -138,7 +138,11 @@ describe('server/discover', () => {
     expect(result.supportedVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
     expect(result.serverInfo).toBeUndefined()
     expect(result._meta[META_SERVER_INFO]).toEqual({ name: HOSTED_MCP_SERVER_NAME, version: MCP_SERVER_VERSION })
-    expect(result.capabilities).toEqual({ tools: {} })
+    expect(result.capabilities).toEqual({
+      tools: {},
+      resources: { subscribe: false, listChanged: false },
+      prompts: { listChanged: false },
+    })
     expect(typeof result.instructions).toBe('string')
   })
 
@@ -568,9 +572,22 @@ describe('modern results carry the fields this revision requires', () => {
     expect(result.cacheScope).toBeUndefined()
   })
 
-  test.each(['prompts/list', 'resources/list', 'resources/templates/list'])('%s is unadvertised and unimplemented', async method => {
+  test.each(['prompts/list', 'resources/list', 'resources/templates/list'])('%s answers in both eras with modern caching hints', async method => {
     const modernResponse = await handleHostedRequest(modern(method), context())
     const legacyResponse = await handleHostedRequest(legacy(method), context())
+    expect(modernResponse?.error).toBeUndefined()
+    expect(legacyResponse?.error).toBeUndefined()
+    const modernResult = modernResponse?.result as Record<string, unknown>
+    expect(modernResult.resultType).toBe('complete')
+    expect(modernResult.ttlMs).toBeGreaterThan(0)
+    expect(modernResult.cacheScope).toBe('public')
+    const legacyResult = legacyResponse?.result as Record<string, unknown>
+    expect(legacyResult.ttlMs).toBeUndefined()
+  })
+
+  test('resources/subscribe stays unimplemented in both eras', async () => {
+    const modernResponse = await handleHostedRequest(modern('resources/subscribe'), context())
+    const legacyResponse = await handleHostedRequest(legacy('resources/subscribe'), context())
     expect(modernResponse?.error?.code).toBe(-32601)
     expect(legacyResponse?.error?.code).toBe(-32601)
   })

@@ -17,6 +17,8 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { createMcpHandler } from '../../website/src/mcp-handler.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../mcp/hosted-server.ts'
+import { MCP_RESOURCES } from '../mcp/resource-surface.ts'
+import { MCP_PROMPTS } from '../mcp/prompt-surface.ts'
 import { LOCAL_TOOLS, STDIO_PROTOCOL_VERSIONS } from '../mcp/server.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
@@ -83,6 +85,17 @@ describe('hosted /mcp driven by the reference Streamable HTTP client', () => {
       // matches the hosted tool set exactly.
       const { tools } = await client.listTools()
       expect(new Set(tools.map(tool => tool.name))).toEqual(new Set(HOSTED_TOOLS.map(tool => tool.name)))
+
+      // Resources and prompts round-trip through the reference SDK too: the
+      // roster, a read of the embedded skill, and the edit prompt.
+      const { resources } = await client.listResources()
+      expect(new Set(resources.map(resource => resource.uri))).toEqual(new Set(MCP_RESOURCES.map(resource => resource.uri)))
+      const skill = await client.readResource({ uri: 'agentic-mermaid://skill/diagram-workflow' })
+      expect((skill.contents[0] as { text?: string }).text).toContain('parse')
+      const { prompts } = await client.listPrompts()
+      expect(new Set(prompts.map(prompt => prompt.name))).toEqual(new Set(MCP_PROMPTS.map(prompt => prompt.name)))
+      const prompt = await client.getPrompt({ name: 'edit_mermaid_diagram', arguments: { source: FLOW } })
+      expect((prompt.messages[0]?.content as { text?: string }).text).toContain(FLOW)
 
       // A real render round-trips: SDK-framed arguments through the real
       // parse→layout→render pipeline, back out as SDK-validated content.
@@ -161,6 +174,12 @@ describe('local stdio server driven by the reference stdio client', () => {
 
       const { tools } = await client.listTools()
       expect(new Set(tools.map(tool => tool.name))).toEqual(new Set(LOCAL_TOOLS.map(tool => tool.name)))
+
+      // The local server exposes the same shared resource/prompt surface.
+      const { resources } = await client.listResources()
+      expect(new Set(resources.map(resource => resource.uri))).toEqual(new Set(MCP_RESOURCES.map(resource => resource.uri)))
+      const prompt = await client.getPrompt({ name: 'edit_mermaid_diagram', arguments: { source: FLOW } })
+      expect((prompt.messages[0]?.content as { text?: string }).text).toContain(FLOW)
 
       // Code Mode executes in the real node:vm sandbox end to end.
       const executed = await client.callTool({ name: 'execute', arguments: { code: 'return 1 + 41' } })

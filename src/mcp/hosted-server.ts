@@ -35,6 +35,8 @@ import {
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
+import { MCP_RESOURCES, readMcpResource } from './resource-surface.ts'
+import { MCP_PROMPTS, getMcpPrompt } from './prompt-surface.ts'
 import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
@@ -233,6 +235,10 @@ const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   serverName: HOSTED_MCP_SERVER_NAME,
   supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
   tools: HOSTED_TOOLS,
+  resources: MCP_RESOURCES,
+  prompts: MCP_PROMPTS,
+  readResource: readMcpResource,
+  getPrompt: getMcpPrompt,
   instructions: INSTRUCTIONS,
   handleToolCall,
 }

@@ -64,6 +64,10 @@ from `verify.ok` alone.
 
 - `tools/list` exposes a non-empty human-readable `title` and accurate safety
   annotations for every tool.
+- `resources/list` exposes the skill and capabilities resources;
+  `resources/read` serves both; `prompts/list` exposes
+  `edit_mermaid_diagram` and `prompts/get` returns it. All content is an
+  embedded projection of repo sources, drift-guarded in CI.
 - The hosted endpoint returns a successful MCP initialization and tool list.
 - The privacy and support links are public.
 - The root Registry manifest version matches the released package and hosted

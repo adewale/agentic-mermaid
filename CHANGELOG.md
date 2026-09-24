@@ -15,6 +15,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   loading, cancellation, and visible error handling.
 
 ### Added
+- Both MCP servers now publish MCP resources and a prompt: the
+  `agentic-mermaid://skill/diagram-workflow` resource (the embedded
+  authoring/editing doctrine), the `agentic-mermaid://capabilities` resource
+  (the same projection as `am capabilities --json`), and the
+  `edit_mermaid_diagram` prompt that wraps a source in the safe-edit
+  workflow — in both protocol eras, with caching hints on the list methods
+  and drift guards pinning the embedded content to its sources.
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
   explicit `scale` rasterizes the smallest configured text below the new
   portable `minLabelPx` floor (provisional product default 9px; `0` disables;

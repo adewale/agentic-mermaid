@@ -148,9 +148,11 @@ const SHARED_CALLS: Array<{ label: string; request: JsonRpcRequest }> = [
   { label: 'error/malformed-envelope', request: { jsonrpc: '1.0', id: 6, method: 'tools/list' } as unknown as JsonRpcRequest },
   { label: 'error/describe-missing-source', request: { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'describe', arguments: {} } } },
   { label: 'error/describe-unknown-argument', request: { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'describe', arguments: { source: FLOW, nope: 1 } } } },
-  { label: 'error/unadvertised-prompts-list', request: { jsonrpc: '2.0', id: 9, method: 'prompts/list' } },
-  { label: 'error/unadvertised-resources-list', request: { jsonrpc: '2.0', id: 10, method: 'resources/list' } },
-  { label: 'error/unadvertised-resource-templates-list', request: { jsonrpc: '2.0', id: 17, method: 'resources/templates/list' } },
+  { label: 'prompts-list', request: { jsonrpc: '2.0', id: 9, method: 'prompts/list' } },
+  { label: 'resources-list', request: { jsonrpc: '2.0', id: 10, method: 'resources/list' } },
+  { label: 'resource-templates-list', request: { jsonrpc: '2.0', id: 17, method: 'resources/templates/list' } },
+  { label: 'prompts-get/edit-mermaid-diagram', request: { jsonrpc: '2.0', id: 18, method: 'prompts/get', params: { name: 'edit_mermaid_diagram', arguments: { source: FLOW } } } },
+  { label: 'error/resources-read-unknown-uri', request: { jsonrpc: '2.0', id: 19, method: 'resources/read', params: { uri: 'agentic-mermaid://nope' } } },
 ]
 
 // Hosted-only tools (the local server routes these through execute instead).
