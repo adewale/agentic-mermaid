@@ -38,7 +38,7 @@ function renderMermaidUnicodeWithReceipt(text: string, options: AsciiRenderOptio
 
 /** Typed browser/editor boundary. The global bundle installs this exact object;
  * tests can exercise the adapter without inferring parity from bundle shape. */
-export const BROWSER_EDITOR_ADAPTER = Object.freeze({
+export const BROWSER_EDITOR_ADAPTER = {
   renderMermaidSVGAsync,
   renderMermaidSVGWithReceipt,
   SHARED_RENDER_OPTION_FIELDS,
@@ -58,7 +58,7 @@ export const BROWSER_EDITOR_ADAPTER = Object.freeze({
   getSeriesColor,
   CHART_ACCENT_FALLBACK,
   resolveEditorRenderOptions,
-})
+}
 
 if (typeof window !== 'undefined') {
   ;(window as Record<string, unknown>).__mermaid = BROWSER_EDITOR_ADAPTER

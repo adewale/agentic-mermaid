@@ -60,10 +60,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The public fidelity report changes the generated editor document; these
     // ceilings cover the larger of the Linux/x64 and macOS/arm64 recordings
     // while the exact Linux hashes and totals remain pinned in the baseline.
-    // The two-request graph stays fixed.
+    // The browser adapter must stay mutable for the editor's render hooks;
+    // its bundle change raises the editor Brotli total by 152 bytes. The
+    // two-request graph stays fixed.
     maxRawBytes: 3_339_124,
     maxGzipBytes: 983_294,
-    maxBrotliBytes: 772_046,
+    maxBrotliBytes: 772_198,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
