@@ -142,9 +142,19 @@ describe('sankey SVG renderer · config wiring', () => {
     expect(svg).toMatch(/fill="#4e79a7"[^/]*data-label="Coal"/)
   })
 
-  test('labelStyle: outlined adds a paint-order halo to labels', () => {
-    expect(renderMermaidSVG(configured('    labelStyle: outlined'))).toContain('paint-order="stroke fill"')
-    expect(renderMermaidSVG(BASIC)).not.toContain('paint-order="stroke fill"')
+  // Labels sit on the ribbons, so both label styles halo them in the page
+  // color (chart honesty H1); `labelStyle` still chooses the side.
+  test('every label carries a page-colored halo; labelStyle: outlined chooses the label side', () => {
+    const labels = (svg: string) => svg.match(/<text[^>]*class="sankey-node-label"[^>]*>/g) ?? []
+    const legacy = renderMermaidSVG(BASIC)
+    const outlined = renderMermaidSVG(configured('    labelStyle: outlined'))
+    for (const svg of [legacy, outlined]) {
+      const page = svg.match(/--bg:(#[0-9A-Fa-f]{3,8})/)![1]
+      expect(labels(svg)).toHaveLength(5)
+      for (const label of labels(svg)) expect(label).toContain(`stroke="${page}" stroke-width="3" paint-order="stroke fill"`)
+    }
+    const anchors = (svg: string) => labels(svg).map(label => label.match(/text-anchor="(\w+)"/)![1])
+    expect(anchors(outlined)).not.toEqual(anchors(legacy))
   })
 
   test('display values match Mermaid two-decimal rounding while data stays exact', () => {
