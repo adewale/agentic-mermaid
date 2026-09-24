@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "134689a8a405071fc6015141c31c1d36ca4863fdf1d4117c00bf34a8263258a2",
+    "inputSha256": "7b0224022788c43f048793ad5163510b3b21c363ee524b20d6fd036052a93faf",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -85,6 +85,10 @@
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
         "sha256": "e06629fc663a628ac44f1edb8e3942e67e2ccfb6084cb31001e8a0878044ab02"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/class-annotation.fidelity.ts",
+        "sha256": "287c27857e6be6e63bc7f0ca06b495c366ee7412aa6f612594b7e025da6de355"
       },
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
@@ -196,6 +200,158 @@
             "exactBytes": true
           },
           "disposition": "source-preserved"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.annotations.inline-and-separate-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "sourceSha256": "033c51d619d0c4bccc91342d9c34942354fef71c44f60253c6791cb8a18f3a48",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "kind": "class",
+            "relation": "Shape->Other"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "relation": "Shape->Other",
+            "visibleAnnotation": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "ok": true,
+            "relation": "Form->Other"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.annotations.repeated-diagnosed",
+      "family": "class",
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "sourceSha256": "63cd183812565ad9dc8893feeca7d60dd7a48a05a23f2dcb9c9302385ffda980",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "kind": "opaque"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
+          "semantics": {
+            "rejected": true,
+            "verifyRejected": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactSource": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
         }
       },
       "passed": true,
@@ -1484,10 +1640,10 @@
     }
   ],
   "summary": {
-    "caseCount": 13,
-    "passedCaseCount": 13,
+    "caseCount": 15,
+    "passedCaseCount": 15,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 45,
+    "observedSurfaceCount": 53,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

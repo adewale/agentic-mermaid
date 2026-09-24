@@ -3,15 +3,15 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "134689a8a405071fc6015141c31c1d36ca4863fdf1d4117c00bf34a8263258a2",
-  "receiptResultSha256": "bcff8654556d1ab387954e02fb20e1a463341e64e816fc6873283864c3941f13",
+  "receiptInputSha256": "7b0224022788c43f048793ad5163510b3b21c363ee524b20d6fd036052a93faf",
+  "receiptResultSha256": "684273857eb40f383a0d43620bd6a2b521988a2daad02934f41ce067252c72f0",
   "summary": {
-    "caseCount": 13,
-    "featureCount": 9,
+    "caseCount": 15,
+    "featureCount": 10,
     "dispositions": {
       "native": 3,
       "source-preserved": 0,
-      "diagnosed": 3,
+      "diagnosed": 4,
       "absent": 3
     }
   },
@@ -60,6 +60,65 @@
             ],
             "render": [
               "UNSUPPORTED_FAMILY"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "family": "class",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "class.annotations.inline-and-separate-native",
+        "class.annotations.repeated-diagnosed"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.annotations.inline-and-separate-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.annotations.repeated-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
             ]
           }
         }
