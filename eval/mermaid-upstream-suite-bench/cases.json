@@ -8779,7 +8779,7 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 8,
       "groupCount": 0,
       "minNodes": 2,
       "labelsContain": [
