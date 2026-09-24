@@ -409,9 +409,9 @@ function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lin
 /**
  * Render a single class member with syntax highlighting.
  * Uses <tspan> elements to color each part of the member differently:
- *   - visibility symbol (+/-/#/~) → textFaint
+ *   - visibility symbol (+/-/#/~) → textMuted (it carries UML meaning)
  *   - member name (incl. parens for methods) → textSecondary
- *   - colon separator → textFaint
+ *   - colon separator → textFaint (decoration)
  *   - type annotation → textMuted
  */
 function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string): SceneNode {
@@ -422,7 +422,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   const spans: string[] = []
 
   if (member.visibility) {
-    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-faint)'))}">${escapeXml(member.visibility)} </tspan>`)
+    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-muted)'))}">${escapeXml(member.visibility)} </tspan>`)
   }
 
   // Add parentheses for methods to distinguish from attributes, including parameters if present

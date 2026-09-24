@@ -1780,9 +1780,14 @@ function layoutUntitledGraph(
 
   // A group narrower than its title means ELK (INCLUDE_CHILDREN) ignored the
   // compound's minimum width; lay out again with the hierarchy handling that
-  // honors it. Graphs whose titles fit never take this path.
+  // honors it, and keep that layout only when it certifies (the doctrine of the
+  // co-rank fallback below). SEPARATE handling does not route every
+  // cross-hierarchy edge — a nested state's edge to a sibling composite comes
+  // back with no route, which the route contracts reject — so such graphs keep
+  // this layout. Graphs whose titles fit never take this path.
   if (!opts.separateHierarchy && groupsNarrowerThanTitles(positioned.groups, graph, style)) {
-    return layoutUntitledGraph(graph, { ...options, separateHierarchy: true })
+    const separate = separateHierarchyLayout(graph, options)
+    if (separate && hardViolations(assessLayout(graph, separate)).length === 0) return separate
   }
 
   // Co-rank certify-or-fallback (the robustness-doc doctrine). The co-rank
@@ -1813,6 +1818,15 @@ function layoutUntitledGraph(
     }
   }
   return positioned
+}
+
+/** The layout under SEPARATE hierarchy handling, or undefined when it fails. */
+function separateHierarchyLayout(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph | undefined {
+  try {
+    return layoutUntitledGraph(graph, { ...options, separateHierarchy: true })
+  } catch {
+    return undefined
+  }
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {
