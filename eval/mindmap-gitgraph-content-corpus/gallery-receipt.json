@@ -288,7 +288,7 @@
     },
     {
       "path": "src/architecture/config.ts",
-      "sha256": "c1772530a6ad61789300b5b6e1d8ced03bb3bb2493c75271f02b6002357309f2"
+      "sha256": "7c208d97378cbb024e8a23edc838c5102eb7ddd0b39b32cb7bce487bc34151d8"
     },
     {
       "path": "src/architecture/icons.ts",
@@ -300,11 +300,11 @@
     },
     {
       "path": "src/architecture/parser.ts",
-      "sha256": "da99336f6028677c072da238ba03fca55f49932f27a0236e68d66370247f0a15"
+      "sha256": "028b26cd02b2dacb2d6a6c95336beeaf06fff6fba5deccd993b953931d7f165d"
     },
     {
       "path": "src/architecture/renderer.ts",
-      "sha256": "0f70b023c0d7cc2bc6bf6e9370d865e581d595199464be746bc972d94c7f9260"
+      "sha256": "3816c736a2fdc2f013fad9f939c09e4a88593a80eafdf5e7cddc738e8a01ee05"
     },
     {
       "path": "src/architecture/types.ts",
@@ -628,7 +628,7 @@
     },
     {
       "path": "src/layout-engine.ts",
-      "sha256": "203473f6c74380371cefb6a6cfd19da50642e5068aeb1dc09619d5268f45d1ca"
+      "sha256": "de915de401782ecb94cf4564f45115c3dec5f2163435a711052415fb042fbf7b"
     },
     {
       "path": "src/layout-rubric.ts",
@@ -1188,7 +1188,7 @@
     },
     {
       "path": "src/types.ts",
-      "sha256": "1ab9373138afc1af73616720e9c380cd734208d4190ddae4138a4396d4322a43"
+      "sha256": "011a04dc5ad3d214671d0a50a5f7fa2a0629af57c154b4fd6570de05947643f4"
     },
     {
       "path": "src/upstream-family-index.ts",
