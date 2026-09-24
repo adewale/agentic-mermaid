@@ -89,6 +89,8 @@ export interface Block {
   type: 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
   /** Label for the block header */
   label: string
+  /** Source-controlled background paint for a `rect` block. */
+  color?: string
   /** Index of the first message inside this block */
   startIndex: number
   /** Index of the last message inside this block (inclusive) */
@@ -199,6 +201,7 @@ export interface Activation {
 export interface PositionedBlock {
   type: Block['type']
   label: string
+  color?: string
   x: number
   y: number
   width: number

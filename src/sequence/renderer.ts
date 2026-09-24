@@ -109,12 +109,33 @@ export function lowerSequenceScene(
     parts.push(renderBoxGroup(box, style, `box:${boxKey}#${k}`))
   }
 
-  // 1. Block backgrounds (loop/alt/opt rectangles)
+  // 1. Block backgrounds. Completed nested blocks arrive inner-first; paint
+  // their enclosing background first so translucent rects remain visible.
   const blockOccurrence = new Map<string, number>()
+  const blockSceneIds = new Map<PositionedBlock, string>()
+  const hasRect = diagram.blocks.some(block => block.type === 'rect')
   for (const block of diagram.blocks) {
     const k = blockOccurrence.get(block.type) ?? 0
     blockOccurrence.set(block.type, k + 1)
-    parts.push(renderBlock(block, style, `block:${block.type}#${k}`))
+    blockSceneIds.set(block, `block:${block.type}#${k}`)
+  }
+  const backgroundOrder = hasRect
+    ? [...diagram.blocks].reverse().sort((a, b) => b.width * b.height - a.width * a.height)
+    : diagram.blocks
+  for (const block of backgroundOrder) {
+    parts.push(renderBlock(block, style, blockSceneIds.get(block)!, hasRect ? 'background' : 'all'))
+  }
+  // A nested opaque rect must not overpaint its parent's frame or else/and
+  // divider. Keep decorations above every block fill, but below lifelines.
+  // Keep the old single-group lowering for diagrams without rects so their
+  // SVG bytes and Scene grouping stay unchanged.
+  if (hasRect) {
+    for (const block of backgroundOrder) {
+      if (block.type !== 'rect') parts.push(renderBlock(block, style, blockSceneIds.get(block)!, 'frame'))
+    }
+    for (const block of diagram.blocks) {
+      if (block.dividers.length > 0) parts.push(renderBlock(block, style, blockSceneIds.get(block)!, 'dividers'))
+    }
   }
 
   // 2. Lifelines (dashed vertical lines from actor to bottom)
@@ -129,7 +150,7 @@ export function lowerSequenceScene(
   for (const block of diagram.blocks) {
     const k = blockHeaderOccurrence.get(block.type) ?? 0
     blockHeaderOccurrence.set(block.type, k + 1)
-    parts.push(renderBlockHeader(block, style, `block:${block.type}#${k}`))
+    if (block.type !== 'rect') parts.push(renderBlockHeader(block, style, blockSceneIds.get(block)!))
   }
 
   // 3. Activation boxes
@@ -533,34 +554,41 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
  * Render a block background (loop/alt/opt).
  * Wrapped in <g class="block"> with semantic data attributes.
  */
-function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string, part: 'all' | 'background' | 'frame' | 'dividers' = 'all'): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with block metadata
   const labelAttr = block.label ? ` data-label="${escapeAttr(block.label)}"` : ''
-  const open =
-    `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
+  const open = part === 'dividers'
+    ? `<g class="sequence-block-divider-overlay" data-owner="${escapeAttr(sceneId)}">`
+    : part === 'frame'
+      ? `<g class="sequence-block-frame-overlay" data-owner="${escapeAttr(sceneId)}">`
+      : `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
 
   // Outer rectangle
-  const rawFill = style.groupFillColor ?? 'none'
-  const rawStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
-  children.push({
+  const rawFill = block.type === 'rect'
+    ? (block.color ?? style.groupFillColor ?? 'rgba(128, 128, 128, 0.5)')
+    : (style.groupFillColor ?? 'none')
+  const rawStroke = block.type === 'rect' ? 'none' : (style.groupBorderColor ?? 'var(--_node-stroke)')
+  const fill = part === 'frame' ? 'none' : rawFill
+  const stroke = part === 'background' ? 'none' : rawStroke
+  if (part !== 'dividers') children.push({
     indent: 2,
     node: marks.shape({
-      id: `${sceneId}:rect`,
+      id: part === 'frame' ? `${sceneId}:frame` : `${sceneId}:rect`,
       role: 'block',
       geometry: { kind: 'rect', x: block.x, y: block.y, width: block.width, height: block.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
-      paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(style.groupLineWidth) },
+      paint: { fill, stroke, strokeWidth: String(style.groupLineWidth) },
     },
       `<rect x="${block.x}" y="${block.y}" width="${block.width}" height="${block.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.groupLineWidth}" />`),
+      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="${style.groupLineWidth}" />`),
   })
 
   // Divider lines (for alt/else, par/and)
   const rawDividerStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawDividerText = style.edgeTextColor ?? 'var(--_text-muted)'
   let dividerIndex = 0
-  for (const divider of block.dividers) {
+  for (const divider of part === 'background' || part === 'frame' ? [] : block.dividers) {
     const dividerId = `${sceneId}:divider#${dividerIndex}`
     dividerIndex++
     const dividerStrokeWidth = Math.max(0.75, style.lineWidth * 0.75)
@@ -597,7 +625,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
   }
 
   return marks.group({
-    id: sceneId,
+    id: part === 'dividers' ? `${sceneId}:divider-overlay` : part === 'frame' ? `${sceneId}:frame-overlay` : sceneId,
     role: 'block',
     open,
     close: '</g>',

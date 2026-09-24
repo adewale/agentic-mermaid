@@ -8894,8 +8894,7 @@
         "Bob",
         "Bob thinks",
         "Hello Bob, how are you?",
-        "I am good thanks",
-        "rgb(200, 255, 200)"
+        "I am good thanks"
       ]
     }
   },
@@ -9013,9 +9012,7 @@
         "Bob",
         "Bob thinks",
         "Hello Bob, how are you?",
-        "I am good thanks",
-        "rgb(0, 0, 0)",
-        "rgb(200, 255, 200)"
+        "I am good thanks"
       ]
     }
   },
@@ -9073,8 +9070,7 @@
         "Alice",
         "Bob",
         "Hello Bob, are you alright?",
-        "I feel surrounded by darkness",
-        "rgb(0, 0, 0)"
+        "I feel surrounded by darkness"
       ]
     }
   },

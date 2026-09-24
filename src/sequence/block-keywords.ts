@@ -5,9 +5,11 @@ export type SequenceBlockContinuation = 'else' | 'and' | 'option'
 // Mermaid's sequence lexer uses a word boundary after these keywords, not a
 // required space. Labels such as `critical:C` and `option:retry` are valid,
 // while `optional` and `option_retry` are not block keywords.
-const OPEN_RE = /^(loop|alt|opt|par|critical|break|rect|box)\b\s*(.*)$/i
-const CONTINUE_RE = /^(else|and|option)\b\s*(.*)$/i
-const LEGACY_PAR_OVER_RE = /^par_over\b\s*(.*)$/i
+// [\s\S] keeps U+2028/U+2029 inside the argument for explicit validation;
+// dot would silently fail to classify the block opener at that boundary.
+const OPEN_RE = /^(loop|alt|opt|par|critical|break|rect|box)\b\s*([\s\S]*)$/i
+const CONTINUE_RE = /^(else|and|option)\b\s*([\s\S]*)$/i
+const LEGACY_PAR_OVER_RE = /^par_over\b\s*([\s\S]*)$/i
 
 export function parseSequenceBlockOpener(line: string): { type: SequenceBlockOpener; label: string } | null {
   // Preserve the existing par_over rendering disposition until its distinct
