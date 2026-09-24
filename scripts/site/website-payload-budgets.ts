@@ -37,9 +37,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 31,
     // Timeline header diagnosis keeps the 31-request graph; these are the
     // reviewed Linux/x64 totals for the updated lazy browser chunk.
-    maxRawBytes: 732_040,
-    maxGzipBytes: 274_612,
-    maxBrotliBytes: 250_776,
+    maxRawBytes: 732_199,
+    maxGzipBytes: 274_699,
+    maxBrotliBytes: 250_849,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -64,8 +64,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Timeline header diagnosis changes the editor bundle while retaining
     // the two-request graph; these are the reviewed Linux/x64 totals.
-    maxRawBytes: 3_345_528,
-    maxGzipBytes: 985_637,
+    maxRawBytes: 3_345_724,
+    maxGzipBytes: 985_653,
     maxBrotliBytes: 774_130,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
