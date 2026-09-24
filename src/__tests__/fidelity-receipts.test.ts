@@ -296,7 +296,7 @@ describe('issue #248 construct fidelity receipts', () => {
       expect(feature.acceptedDivergences).toEqual([])
       expect(feature.caseEvidence.map(evidence => evidence.caseId)).toEqual([...feature.caseIds])
     }
-    expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
+    expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
@@ -589,7 +589,7 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(() => projectFidelityCapabilityReport(receipt)).toThrow('Cannot project capability report from failing fidelity receipts')
   })
 
-  test('semantic evaluation has teeth when a known absence is mislabeled native', async () => {
+  test('semantic evaluation catches a native claim with a missing rendered edge', async () => {
     const registry = await discoverFidelityRegistry()
     const state = registry.cases.find(fidelityCase => fidelityCase.id === 'state.comments.trailing-transition-loss')!
     const render = state.expected.render
@@ -597,7 +597,17 @@ describe('issue #248 construct fidelity receipts', () => {
     const sabotaged: FidelityCaseDefinition = {
       ...state,
       id: 'state.comments.native-claim-sabotage',
-      expected: { ...state.expected, render: { ...render, disposition: 'native' } },
+      observe: async () => {
+        const evidence = await state.observe()
+        return {
+          ...evidence,
+          render: {
+            status: 'observed',
+            diagnosticCodes: [],
+            semantics: { renderedEdges: ['A->B'] },
+          },
+        }
+      },
     }
     const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
     expect(receipt.cases[0]!.passed).toBe(false)
@@ -715,7 +725,7 @@ describe('issue #248 construct fidelity receipts', () => {
       expected: { ...state.expected, agent: { ...agent, diagnosticCodes: ['WRONG_CODE'] } },
     }
     const diagnosticReceipt = await runFidelityCases([wrongDiagnostic], registry.caseFiles)
-    expect(diagnosticReceipt.cases[0]!.issues).toContain('agent: expected diagnostics ["WRONG_CODE"], observed ["UNSUPPORTED_SYNTAX"]')
+    expect(diagnosticReceipt.cases[0]!.issues).toContain('agent: expected diagnostics ["WRONG_CODE"], observed ["COMMENT_DROPPED"]')
   })
 
   test('diagnosed dispositions require a concrete diagnostic in validation, execution, and projection', async () => {

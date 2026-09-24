@@ -35,14 +35,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // Cached shape-profile validation and point ownership add 308 raw bytes to
-    // the existing shared Timeline route; no request or family is added.
-    maxRawBytes: 729_702,
-    // Unicode identifier validation changes generated fingerprints while
-    // keeping the same request graph and raw total; gzip drops by two bytes.
-    maxGzipBytes: 273_653,
-    // Exact hashes remain enforced on the recorded Linux toolchain.
-    maxBrotliBytes: 249_950,
+    // State comment parsing and its shared browser routing add no request or
+    // family; these are the exact reviewed Linux/x64 route totals.
+    maxRawBytes: 729_955,
+    maxGzipBytes: 273_772,
+    maxBrotliBytes: 250_030,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -63,9 +60,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The browser adapter must stay mutable for the editor's render hooks;
     // its bundle change raises the editor Brotli total by 152 bytes. The
     // two-request graph stays fixed.
-    maxRawBytes: 3_339_124,
-    maxGzipBytes: 983_294,
-    maxBrotliBytes: 772_198,
+    // The State comment route also changes the complete editor bundle without
+    // changing its two-request graph.
+    maxRawBytes: 3_339_636,
+    maxGzipBytes: 983_577,
+    maxBrotliBytes: 772_703,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

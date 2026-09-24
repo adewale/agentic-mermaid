@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "b5d45cc13e5baff14997124b10b322e9f62360cc13256a5239a6e0f6cace2023",
-  "receiptResultSha256": "87460b98e28a35a609addb2eb976217afd0412f431a371edd02b143a190a7426",
+  "receiptInputSha256": "091fda7b798ea954085e2623df156795f3120e957c9f72fdc59dc615cf3b8ede",
+  "receiptResultSha256": "ff825ea5bc38bc819ba1506d161a2171925cd24e3c8db9a9343e2eec4af17ebe",
   "summary": {
     "caseCount": 10,
     "featureCount": 7,
     "dispositions": {
-      "native": 1,
+      "native": 2,
       "source-preserved": 0,
       "diagnosed": 2,
-      "absent": 4
+      "absent": 3
     }
   },
   "features": [
@@ -247,39 +247,39 @@
     {
       "featureId": "official-doc:state:section:comments",
       "family": "state",
-      "disposition": "absent",
+      "disposition": "native",
       "caseIds": [
         "state.comments.trailing-transition-loss"
       ],
       "surfaces": {
-        "agent": "source-preserved",
-        "render": "absent",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
       },
       "diagnostics": {
         "agent": [
-          "UNSUPPORTED_SYNTAX"
+          "COMMENT_DROPPED"
         ],
         "mutate": [
-          "INVALID_OP"
+          "COMMENT_DROPPED"
         ]
       },
       "caseEvidence": [
         {
           "caseId": "state.comments.trailing-transition-loss",
           "surfaces": {
-            "agent": "source-preserved",
-            "render": "absent",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
           },
           "diagnostics": {
             "agent": [
-              "UNSUPPORTED_SYNTAX"
+              "COMMENT_DROPPED"
             ],
             "mutate": [
-              "INVALID_OP"
+              "COMMENT_DROPPED"
             ]
           }
         }

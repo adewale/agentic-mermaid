@@ -4,6 +4,7 @@ import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   isConcurrencySeparator, isStateNodeId, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+  stripStateComment, matchStateClassAssignment,
 } from './state/parse-core.ts'
 import { parseStyleProps } from './shared/style-props.ts'
 export { parseStyleProps } from './shared/style-props.ts'
@@ -35,7 +36,14 @@ import { flowchartTextArrowLabelRanges } from './flowchart-statement-labels.ts'
  * Throws on invalid/unsupported input.
  */
 export function parseMermaid(text: string): MermaidGraph {
-  const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(text.split('\n'))).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
+  const rawLines = text.split('\n')
+  const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
+  // State comments can contain syntax-looking delimiters. Remove them before
+  // the generic Markdown/metadata coalescers and inline-header splitter run.
+  const semanticLines = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
+    ? rawLines.map(stripStateComment)
+    : rawLines
+  const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(semanticLines)).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -557,7 +565,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   }
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
+    const line = stripStateComment(lines[i]!)
+    if (!line) continue
 
     // --- open block note: collect body lines verbatim until `end note` ---
     if (openNote) {
@@ -603,12 +612,11 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- class/cssClass assignment and inline state style ---
-    const stateClassAssignment = line.match(/^(?:class|cssClass)\s+([\w\p{L},-]+)\s+([\w-]+)$/u)
+    const stateClassAssignment = matchStateClassAssignment(line)
     if (stateClassAssignment) {
-      const ids = stateClassAssignment[1]!.split(',').map(id => id.trim()).filter(Boolean)
-      for (const id of ids) {
+      for (const id of stateClassAssignment.ids) {
         ensureStateNode(graph, compositeStack, id)
-        graph.classAssignments.set(id, stateClassAssignment[2]!)
+        graph.classAssignments.set(id, stateClassAssignment.className)
       }
       continue
     }

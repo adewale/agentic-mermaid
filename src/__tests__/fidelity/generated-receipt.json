@@ -56,11 +56,11 @@
     ]
   },
   "freshness": {
-    "inputSha256": "b5d45cc13e5baff14997124b10b322e9f62360cc13256a5239a6e0f6cace2023",
+    "inputSha256": "091fda7b798ea954085e2623df156795f3120e957c9f72fdc59dc615cf3b8ede",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
-        "sha256": "2253bec63ecdd68d92cbb549699b1e389c4e9d82d3972708cea333414b3c10d3"
+        "sha256": "992ea007b58c8586b5c2af0c7e47d748fe43094980f02991ce89ab5750d868c4"
       },
       {
         "path": "eval/mermaid-docs-corpus/README.md",
@@ -92,7 +92,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "1ab5251667598447281a5e54ce334adf6e92fc7cc8860e49824cb7213be3a855"
+        "sha256": "ee4f0751717db2e0642d6f5abf23a6e76322a262446bb7ee2956f4159537042e"
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
@@ -778,32 +778,32 @@
       "id": "state.comments.trailing-transition-loss",
       "family": "state",
       "featureId": "official-doc:state:section:comments",
-      "sourceSha256": "d92e9d4db74f22679fcc697800d8899799883233325a5848e81559add13a0a9c",
+      "sourceSha256": "6c20ac6c1cb40cb56e1b671bb3d1d3399da322dad8f14188f0bb790762ecc2b6",
       "upstreamReference": "https://mermaid.ai/open-source/syntax/stateDiagram.html#comments",
       "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
       "expected": {
         "agent": {
           "applicability": "applicable",
-          "disposition": "source-preserved",
+          "disposition": "native",
           "diagnosticCodes": [
-            "UNSUPPORTED_SYNTAX"
+            "COMMENT_DROPPED"
           ]
         },
         "render": {
           "applicability": "applicable",
-          "disposition": "absent",
+          "disposition": "native",
           "diagnosticCodes": []
         },
         "serialize": {
           "applicability": "applicable",
-          "disposition": "source-preserved",
+          "disposition": "native",
           "diagnosticCodes": []
         },
         "mutate": {
           "applicability": "applicable",
-          "disposition": "diagnosed",
+          "disposition": "native",
           "diagnosticCodes": [
-            "INVALID_OP"
+            "COMMENT_DROPPED"
           ]
         }
       },
@@ -811,42 +811,62 @@
         "agent": {
           "status": "observed",
           "diagnosticCodes": [
-            "UNSUPPORTED_SYNTAX"
+            "COMMENT_DROPPED"
           ],
           "semantics": {
-            "bodyKind": "opaque"
+            "bodyKind": "state",
+            "droppedCommentLines": [
+              1,
+              2
+            ],
+            "transitions": [
+              "A->B",
+              "B->C"
+            ]
           },
-          "disposition": "source-preserved"
+          "disposition": "native"
         },
         "render": {
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
             "renderedEdges": [
+              "A->B",
               "B->C"
             ]
           },
-          "disposition": "absent"
+          "disposition": "native"
         },
         "serialize": {
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
-            "exactBytes": true
+            "commentLossDiagnosed": true,
+            "reparsedTransitions": [
+              "A->B",
+              "B->C"
+            ]
           },
-          "disposition": "source-preserved"
+          "disposition": "native"
         },
         "mutate": {
           "status": "observed",
           "diagnosticCodes": [
-            "INVALID_OP"
+            "COMMENT_DROPPED"
           ],
           "semantics": {
-            "errorCode": "INVALID_OP",
-            "mutationOk": false,
-            "rejectedOpaqueBody": true
+            "droppedCommentLines": [
+              1,
+              2
+            ],
+            "mutationOk": true,
+            "transitions": [
+              "A->B",
+              "B->C",
+              "B->A"
+            ]
           },
-          "disposition": "diagnosed"
+          "disposition": "native"
         }
       },
       "passed": true,
