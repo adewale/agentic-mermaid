@@ -74,11 +74,20 @@ needed by the native parser. They remain source-preserved and diagnosed, not
 counted as native, pending the broader #260 parser/identity work. Hyphenated,
 dotted, and Unicode endpoint IDs also remain in that broader scope.
 
-The official relationship section's aggregate capability remains `absent`:
-escaped IDs with spaces on *marked* arrows still fall opaque in the agent and
-silently disappear from native rendering. A separate executable receipt names
-that gap so these two native bare-link cases do not promote the whole section.
-The broader identity/parser fix remains tracked by #260.
+Marked one-way arrows now also retain backtick IDs with spaces through a
+bounded shared relationship scanner. This closes the previously silent
+`\`class A\` --> B` identity loss across native render, agent, serialization,
+and mutation. The scanner recognizes compact arrows and does not confuse
+arrow bytes inside escaped IDs or quoted cardinalities with an operator.
+Upstream-reserved endpoint spellings (for example unescaped `o` and escaped
+`\`note\``) remain rejected rather than producing a plausible edge.
+
+The official relationship section's aggregate capability is still only
+`diagnosed`, not `native`: upstream-valid unescaped hyphenated, dotted, and
+Unicode endpoint IDs remain opaque to the agent and fail loudly in native
+rendering. A separate executed receipt keeps that gap visible. The broader
+lossless statement authority and remaining identity/source-normalization
+work remain tracked by #260.
 
 ## `:::` class shorthand evidence (2026-07)
 

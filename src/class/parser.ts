@@ -461,11 +461,11 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
     // A malformed relationship cannot be silently omitted from an otherwise
     // plausible diagram. Ignore delimiter-looking text inside IDs/generics.
-    if (isBareClassRelationshipCandidate(line)) {
+    if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line)) {
       throw syntaxError({
         what: `Unrecognized class relationship statement "${line}"`,
-        expectedForm: 'A .. B : label or A -- B : label',
-        example: 'A .. B : linked',
+        expectedForm: 'A .. B, A -- B, or A --> B, optionally with a label',
+        example: 'A --> B : linked',
       })
     }
   }
@@ -557,13 +557,15 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
   const markerless = parseMarkerlessClassRelationship(line)
   if (markerless) return markerless
+  const escapedMarked = parseEscapedMarkedClassRelationship(line)
+  if (escapedMarked) return escapedMarked
 
   // Lollipop interface endpoints are distinct UML semantics, not associations.
-  const lollipop = line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
+  const lollipop = line.match(/^(`[^`]+`|\S+?)\s+(\(\)--|--\(\))\s+(`[^`]+`|\S+?)(?:\s*:\s*(.+))?$/)
   if (lollipop) {
     const fromRef = parseClassReference(lollipop[1]!)
     const toRef = parseClassReference(lollipop[3]!)
-    if (!fromRef || !toRef) return null
+    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, lollipop[1]!) || !supportedRelationEndpoint(toRef.id, lollipop[3]!)) return null
     return {
       from: fromRef.id, to: toRef.id, type: 'lollipop', markerAt: lollipop[2] === '()--' ? 'from' : 'to',
       ...(lollipop[4]?.trim() ? { label: normalizeBrTags(lollipop[4]!.trim()) } : {}),
@@ -572,11 +574,11 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
   }
 
   // Two-ended Mermaid relations: [Relation Type][Link][Relation Type].
-  const twoWay = line.match(/^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/)
+  const twoWay = line.match(/^(`[^`]+`|\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(`[^`]+`|\S+?)(?:\s*:\s*(.+))?$/)
   if (twoWay) {
     const fromRef = parseClassReference(twoWay[1]!)
     const toRef = parseClassReference(twoWay[7]!)
-    if (!fromRef || !toRef) return null
+    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, twoWay[1]!) || !supportedRelationEndpoint(toRef.id, twoWay[7]!)) return null
     const dashed = twoWay[4] === '..'
     const fromType = endpointRelationshipType(twoWay[3]!, dashed)
     const toType = endpointRelationshipType(twoWay[5]!, dashed)
@@ -589,15 +591,19 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
     }
   }
 
+  // Once an escaped one-way arrow has reached the bounded scanner, do not
+  // let the legacy regex re-admit a source that the scanner rejected.
+  if (line.includes('`') && isMarkedClassRelationshipCandidate(line)) return null
+
   // Relationship regex — handles ordinary one-ended arrows.
   const match = line.match(
-    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
+    /^(`[^`]+`|\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(`[^`]+`|\S+?)(?:\s*:\s*(.+))?$/
   )
   if (!match) return null
 
   const fromRef = parseClassReference(match[1]!)
   const toRef = parseClassReference(match[5]!)
-  if (!fromRef || !toRef) return null
+  if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, match[1]!) || !supportedRelationEndpoint(toRef.id, match[5]!)) return null
   const from = fromRef.id
   const rawFromCardinality = match[2]
   const fromCardinality = rawFromCardinality ? normalizeBrTags(rawFromCardinality) : undefined
@@ -614,6 +620,93 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
   return {
     from, to, type: parsed.type, markerAt: parsed.markerAt, label,
     fromCardinality, toCardinality,
+    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+  }
+}
+
+const ESCAPED_MARKED_ARROWS = [
+  '<|--', '<|..', '--|>', '..|>', '<--', '<..', '-->', '..>', '*--', '--*', 'o--', '--o',
+] as const
+
+/** Backtick IDs may contain spaces and delimiter-looking bytes. The legacy
+ * marked-link regex needs whitespace-delimited endpoints, so scan the one-way
+ * operator outside escaped IDs/cardinalities without changing its other
+ * grammar. This path is linear even for a long malformed escaped endpoint. */
+function parseEscapedMarkedClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  if (!line.includes('`')) return null
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let operator = -1
+  let arrow: string | undefined
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    // After the label separator, `%%` is label text rather than a comment.
+    if (char === ':' && operator >= 0) break
+    if (char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
+    const found = ESCAPED_MARKED_ARROWS.find(token => line.startsWith(token, i))
+    if (!found) continue
+    if (operator >= 0) return null
+    operator = i
+    arrow = found
+    i += found.length - 1
+  }
+  if (operator < 0 || !arrow) return null
+
+  let left = line.slice(0, operator).trim()
+  let right = line.slice(operator + arrow.length).trim()
+  let fromCardinality: string | undefined
+  if (left.endsWith('"')) {
+    const start = left.lastIndexOf('"', left.length - 2)
+    if (start >= 0) {
+      fromCardinality = normalizeBrTags(left.slice(start + 1, -1))
+      left = left.slice(0, start).trimEnd()
+    }
+  }
+  let label: string | undefined
+  inBacktick = false
+  inQuote = false
+  inGeneric = false
+  for (let i = 0; i < right.length; i++) {
+    const char = right[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if (char === ':') {
+      const rawLabel = right.slice(i + 1).trim()
+      if (!rawLabel || rawLabel.includes(':') || rawLabel.includes(';')) return null
+      label = normalizeBrTags(rawLabel)
+      right = right.slice(0, i).trimEnd()
+      break
+    }
+  }
+  let toCardinality: string | undefined
+  if (right.startsWith('"')) {
+    const close = right.indexOf('"', 1)
+    if (close < 0) return null
+    toCardinality = normalizeBrTags(right.slice(1, close))
+    right = right.slice(close + 1).trimStart()
+  }
+  if (!left.startsWith('`') && !right.startsWith('`')) return null
+  const fromRef = parseClassReference(left)
+  const toRef = parseClassReference(right)
+  const parsed = parseArrow(arrow)
+  if (!fromRef || !toRef || !parsed || !supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
+  return {
+    from: fromRef.id, to: toRef.id, type: parsed.type, markerAt: parsed.markerAt,
+    ...(label ? { label } : {}),
+    ...(fromCardinality !== undefined ? { fromCardinality } : {}),
+    ...(toCardinality !== undefined ? { toCardinality } : {}),
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }
@@ -695,7 +788,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   }
   const toRef = parseClassReference(right)
   if (!toRef) return null
-  if (!supportedBareEndpoint(fromRef.id, left) || !supportedBareEndpoint(toRef.id, right)) return null
+  if (!supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
   return {
     from: fromRef.id,
     to: toRef.id,
@@ -714,10 +807,9 @@ const BARE_RELATION_RESERVED_IDS = new Set([
 ])
 const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
 
-/** Mermaid's unescaped bare-link endpoint lexer reserves keywords/`o` and
- * rejects dollar signs; backtick IDs have a narrower reserved set. Other
- * unmodeled escaped/compound identities remain outside this slice. */
-function supportedBareEndpoint(id: string, raw: string): boolean {
+/** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
+ * unescaped dollar signs; backtick IDs have a narrower reserved set. */
+export function supportedRelationEndpoint(id: string, raw: string): boolean {
   return raw.startsWith('`')
     ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id)
     : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
@@ -760,6 +852,11 @@ function isMarkedRelationshipOperator(line: string, operator: number): boolean {
 export function isBareClassRelationshipCandidate(line: string): boolean {
   const operator = findMarkerlessRelationshipOperator(line)
   return operator >= 0 && !isMarkedRelationshipOperator(line, operator)
+}
+
+export function isMarkedClassRelationshipCandidate(line: string): boolean {
+  const operator = findMarkerlessRelationshipOperator(line)
+  return operator >= 0 && isMarkedRelationshipOperator(line, operator)
 }
 
 /**

@@ -105,55 +105,103 @@ function markerlessCase(kind: 'link-dashed' | 'link-solid', operator: '..' | '--
   }
 }
 
-// The same official relationship section also permits escaped IDs on marked
-// arrows. That separate #260 gap is deliberately recorded as absent, so the
-// two passing bare-link cases cannot promote the whole section to native.
-const escapedDirectedGap: FidelityCaseDefinition = {
-  id: 'class.relationship.escaped-directed-absent',
+// Marked arrows now retain backtick IDs with spaces on both projections.
+const escapedDirectedNative: FidelityCaseDefinition = {
+  id: 'class.relationship.escaped-directed-native',
   family: 'class', featureId,
   source: 'classDiagram\n`class A` --> B\n', upstreamReference, upstreamRevision,
   expected: {
     agent: {
-      applicability: 'applicable', disposition: 'source-preserved', diagnosticCodes: ['UNSUPPORTED_SYNTAX'],
-      evaluate: evidence => facts(evidence).kind === 'opaque' ? 'source-preserved' : 'absent',
+      applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).kind === 'class'
+        && sameRelation(facts(evidence).relation, { from: 'class A', to: 'B', kind: 'association', markerAt: 'to' }) ? 'native' : 'absent',
     },
     render: {
-      applicability: 'applicable', disposition: 'absent',
-      evaluate: evidence => facts(evidence).visible === false && facts(evidence).edgeCount === 0 ? 'absent' : 'native',
+      applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => {
+        const value = facts(evidence)
+        return sameRelation(value.relation, { from: 'class A', to: 'B', kind: 'association', markerAt: 'to' })
+          && value.visible === true && value.edgeCount === 1 ? 'native' : 'absent'
+      },
     },
     serialize: {
-      applicability: 'applicable', disposition: 'source-preserved',
-      evaluate: evidence => facts(evidence).exactSource === true ? 'source-preserved' : 'absent',
+      applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).stable === true
+        && sameRelation(facts(evidence).relation, { from: 'class A', to: 'B', kind: 'association', markerAt: 'to' }) ? 'native' : 'absent',
     },
     mutate: {
-      applicability: 'applicable', disposition: 'diagnosed', diagnosticCodes: ['INVALID_OP'],
-      evaluate: evidence => facts(evidence).rejected === true ? 'diagnosed' : 'absent',
+      applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).ok === true
+        && sameRelation(facts(evidence).relation, { from: 'class A', to: 'Target', kind: 'association', markerAt: 'to' }) ? 'native' : 'absent',
     },
   },
   observe: () => {
-    const source = escapedDirectedGap.source
+    const source = escapedDirectedNative.source
     const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok) throw new Error('Escaped Class relationship source should remain preserved')
+    if (!parsed.ok) throw new Error('Escaped Class relationship should parse as a structured body')
+    const body = parsed.value.body
+    const agentRelation = body.kind === 'class' ? body.relations[0] : undefined
     const verified = verifyMermaid(parsed.value)
     const svg = renderMermaidSVG(source)
-    const mutation = mutate(parsed.value, { kind: 'rename_class', from: 'class A', to: 'Target' })
+    const serialized = serializeMermaid(parsed.value)
+    const reparsed = parseRegisteredMermaid(serialized)
+    const mutation = mutate(parsed.value, { kind: 'rename_class', from: 'B', to: 'Target' })
     return {
       agent: {
-        status: 'observed', diagnosticCodes: verified.warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX') ? ['UNSUPPORTED_SYNTAX'] : [],
-        semantics: { kind: parsed.value.body.kind },
+        status: 'observed', diagnosticCodes: [],
+        semantics: { kind: body.kind, relation: agentRelation
+          ? { from: agentRelation.from, to: agentRelation.to, kind: agentRelation.kind, markerAt: agentRelation.markerAt ?? null }
+          : null },
       },
       render: {
-        status: 'observed', diagnosticCodes: [],
-        semantics: { visible: svg.includes('class="class-relationship"'), edgeCount: verified.layout?.edges.length ?? 0 },
+        status: 'observed', diagnosticCodes: verified.warnings.map(warning => warning.code),
+        semantics: {
+          relation: nativeFacts(source).relations[0] ?? null,
+          visible: svg.includes('data-from="class A" data-to="B"'),
+          edgeCount: verified.layout?.edges.length ?? 0,
+        },
       },
       serialize: {
         status: 'observed', diagnosticCodes: [],
-        semantics: { exactSource: serializeMermaid(parsed.value) === source },
+        semantics: { stable: reparsed.ok && serializeMermaid(reparsed.value) === serialized, relation: nativeFacts(serialized).relations[0] ?? null },
       },
       mutate: {
         status: 'observed', diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
-        semantics: { rejected: !mutation.ok },
+        semantics: { ok: mutation.ok, relation: mutation.ok ? nativeFacts(serializeMermaid(mutation.value)).relations[0] ?? null : null },
       },
+    }
+  },
+}
+
+// The relationship section still includes unescaped hyphenated endpoints.
+// Until #260 owns that lexer, this upstream-valid form is diagnosed rather
+// than promoted by the new native cases.
+const hyphenatedEndpointGap: FidelityCaseDefinition = {
+  id: 'class.relationship.hyphenated-endpoint-diagnosed', family: 'class', featureId,
+  source: 'classDiagram\nA-B --> C\n', upstreamReference, upstreamRevision,
+  expected: {
+    agent: { applicability: 'applicable', disposition: 'source-preserved', diagnosticCodes: ['UNSUPPORTED_SYNTAX'],
+      evaluate: evidence => facts(evidence).kind === 'opaque' ? 'source-preserved' : 'absent' },
+    render: { applicability: 'applicable', disposition: 'diagnosed', diagnosticCodes: ['RENDER_FAILED'],
+      evaluate: evidence => facts(evidence).rejected === true ? 'diagnosed' : 'absent' },
+    serialize: { applicability: 'applicable', disposition: 'source-preserved',
+      evaluate: evidence => facts(evidence).exactSource === true ? 'source-preserved' : 'absent' },
+    mutate: { applicability: 'applicable', disposition: 'diagnosed', diagnosticCodes: ['INVALID_OP'],
+      evaluate: evidence => facts(evidence).rejected === true ? 'diagnosed' : 'absent' },
+  },
+  observe: () => {
+    const source = hyphenatedEndpointGap.source
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Hyphenated Class source should remain preserved')
+    const verified = verifyMermaid(parsed.value)
+    let rejected = false
+    try { renderMermaidSVG(source) } catch { rejected = true }
+    const mutation = mutate(parsed.value, { kind: 'rename_class', from: 'A-B', to: 'Target' })
+    return {
+      agent: { status: 'observed', diagnosticCodes: verified.warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX').map(warning => warning.code), semantics: { kind: parsed.value.body.kind } },
+      render: { status: 'observed', diagnosticCodes: verified.warnings.filter(warning => warning.code === 'RENDER_FAILED').map(warning => warning.code), semantics: { rejected } },
+      serialize: { status: 'observed', diagnosticCodes: [], semantics: { exactSource: serializeMermaid(parsed.value) === source } },
+      mutate: { status: 'observed', diagnosticCodes: mutation.ok ? [] : [mutation.error.code], semantics: { rejected: !mutation.ok } },
     }
   },
 }
@@ -161,5 +209,6 @@ const escapedDirectedGap: FidelityCaseDefinition = {
 export const fidelityCases = [
   markerlessCase('link-dashed', '..'),
   markerlessCase('link-solid', '--'),
-  escapedDirectedGap,
+  escapedDirectedNative,
+  hyphenatedEndpointGap,
 ]

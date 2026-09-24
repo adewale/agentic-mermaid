@@ -35,7 +35,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -90,7 +90,7 @@ export function parseClassRelationSyntax(line: string): (ClassRelation & { fromG
     if (!m) continue
     const fromRef = parseClassReference(m[1]!)
     const toRef = parseClassReference(m[4]!)
-    if (!fromRef || !toRef) return null
+    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, m[1]!) || !supportedRelationEndpoint(toRef.id, m[4]!)) return null
     const from = fromRef.id
     const fromCardinality = m[2]
     const toCardinality = m[3]
