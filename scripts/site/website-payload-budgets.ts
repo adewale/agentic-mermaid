@@ -35,11 +35,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // The shared Sequence block-keyword classifier keeps the request graph;
-    // these are the reviewed Linux/x64 totals for the critical/option slice.
+    // The Sequence rect slice keeps the 31-request graph and raw total while
+    // slightly reducing compressed bytes in the reviewed Linux/x64 capture.
     maxRawBytes: 731_626,
-    maxGzipBytes: 274_478,
-    maxBrotliBytes: 250_629,
+    maxGzipBytes: 274_473,
+    maxBrotliBytes: 250_619,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -60,11 +60,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The browser adapter must stay mutable for the editor's render hooks;
     // its bundle change raises the editor Brotli total by 152 bytes. The
     // two-request graph stays fixed.
-    // The shared Sequence block-keyword classifier keeps the two-request
-    // graph; these are the reviewed Linux/x64 totals for this slice.
-    maxRawBytes: 3_342_665,
-    maxGzipBytes: 984_528,
-    maxBrotliBytes: 773_190,
+    // The Sequence rect paint/frame code raises the reviewed Linux/x64 editor
+    // bundle by 1,538 raw, 622 gzip, and 388 Brotli bytes without a new request.
+    maxRawBytes: 3_344_203,
+    maxGzipBytes: 985_150,
+    maxBrotliBytes: 773_578,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

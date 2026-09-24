@@ -123,12 +123,6 @@ const report = buildWebsitePayloadReport(PUBLIC, captured, {
   arch: process.arch,
 })
 cleanup()
-// Temporary #248 capture hook. Remove after the Linux report is reviewed.
-if (process.argv.includes('--capture-unreviewed')) {
-  await Bun.write(REPORT, stablePayloadJson(report))
-  console.log(`captured unreviewed ${REPORT}`)
-  process.exit(0)
-}
 const problems = verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)
 if (problems.length) throw new Error(`Website payload budget failures:\n${problems.map(problem => `- ${problem}`).join('\n')}`)
 const current = stablePayloadJson(report)
