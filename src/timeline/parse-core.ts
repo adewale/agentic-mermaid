@@ -2,15 +2,23 @@ import { syntaxError } from '../shared/syntax-error.ts'
 
 /** Shared Timeline line grammar consumed by the renderer and agent parsers. */
 export type TimelineHeader =
-  | { readonly kind: 'supported'; readonly direction?: 'LR' | 'TD' }
+  | { readonly kind: 'supported'; readonly direction?: 'LR' | 'TD'; readonly hasInlineComment: boolean }
   | { readonly kind: 'unsupported'; readonly suffix: string }
 
 export function parseTimelineHeader(line: string): TimelineHeader | null {
-  const match = line.trim().match(/^timeline(?:\s+(.+))?$/i)
+  const match = line.trim().match(/^timeline(?=$|[\s;#%])(.*)$/i)
   if (!match) return null
-  const suffix = match[1]?.trim()
-  if (!suffix) return { kind: 'supported' }
-  if (/^(?:LR|TD)$/i.test(suffix)) return { kind: 'supported', direction: suffix.toUpperCase() as 'LR' | 'TD' }
+  const rest = match[1]!
+  // Pinned Mermaid's Timeline lexer recognizes # and % line comments even
+  // when they touch the header or direction token. %{ is not a comment.
+  const comment = rest.search(/#|%(?!\{)/)
+  const hasInlineComment = comment >= 0
+  const suffix = (comment < 0 ? rest : rest.slice(0, comment)).trim()
+  if (!suffix) return { kind: 'supported', hasInlineComment }
+  // Mermaid's semicolon form starts an inline statement. This renderer does
+  // not model it, so treating it as a bare header would silently drop source.
+  if (suffix.startsWith(';')) return { kind: 'unsupported', suffix }
+  if (/^(?:LR|TD)$/i.test(suffix)) return { kind: 'supported', direction: suffix.toUpperCase() as 'LR' | 'TD', hasInlineComment }
   return { kind: 'unsupported', suffix }
 }
 

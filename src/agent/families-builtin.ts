@@ -17,6 +17,7 @@
 // checks (verify.ts adds the geometric Tier 2 pass via the graph projection).
 // ============================================================================
 
+import { decodeXML } from 'entities'
 import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassReference } from '../class/parser.ts'
 import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax } from '../er/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
@@ -250,12 +251,12 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
 function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
   if (body.kind !== 'opaque' || body.family !== 'timeline') return []
   const lines = body.source.split(/\r?\n/)
-  const index = lines.findIndex(line => /^\s*timeline(?:\s|$)/i.test(line))
-  const header = parseTimelineHeader(lines[index] ?? '')
+  const header = lines.map(line => parseTimelineHeader(decodeXML(line))).find(candidate => candidate !== null)
   if (header?.kind !== 'unsupported') return []
   return [{
     code: 'UNSUPPORTED_SYNTAX',
-    line: index + 1,
+    // The opaque body excludes the authored wrapper, so its relative line
+    // cannot truthfully be reported as an authored-document location.
     syntax: 'timeline_header_direction',
     message: `Unsupported timeline header suffix "${header.suffix}"; only LR and TD are direction tokens. The source is preserved, but rendering is rejected instead of silently using LR.`,
   }]
@@ -266,7 +267,11 @@ const TIMELINE_AGENT_HOOKS = {
   verify: body => verifyOpaqueTimeline(body),
   parse: ({ lines, opaqueSource, meta }) => {
     const header = parseTimelineHeader(lines[0] ?? '')
-    const body = header?.kind === 'supported' ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
+    // Native rendering accepts inline header comments, but the structured
+    // serializer does not retain them. Preserve authored source instead.
+    const body = header?.kind === 'supported' && !header.hasInlineComment
+      ? parseTimelineBody(lines.slice(1), meta.accessibility)
+      : null
     if (body && header?.kind === 'supported' && header.direction) body.direction = header.direction
     return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
   },

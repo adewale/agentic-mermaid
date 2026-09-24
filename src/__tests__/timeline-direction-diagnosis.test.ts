@@ -17,7 +17,7 @@ describe('Timeline header-direction admission', () => {
   })
 
   test('unsupported direction-like and arbitrary suffixes are preserved but diagnosed, never rendered as LR', () => {
-    for (const header of ['timeline TB', 'timeline BT', 'timeline RL', 'timeline EXTRA', 'timeline TD EXTRA']) {
+    for (const header of ['timeline TB', 'timeline BT', 'timeline RL', 'timeline EXTRA', 'timeline TD EXTRA', 'timeline; EXTRA', 'timeline ; EXTRA', 'timeline%{note}']) {
       const input = source(header)
       const parsed = parseRegisteredMermaid(input)
       expect(parsed.ok).toBe(true)
@@ -32,10 +32,51 @@ describe('Timeline header-direction admission', () => {
         expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_header_direction' }),
         expect.objectContaining({ code: 'RENDER_FAILED' }),
       ]))
-      expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED' && warning.reason.includes(header.slice('timeline '.length)))).toBe(true)
+      expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED' && warning.reason.includes('Unsupported timeline header suffix'))).toBe(true)
       expect(verifyMermaid(input).ok).toBe(false)
       expect(() => parseTimelineDiagram(input.split('\n').map(line => line.trim()))).toThrow(/Unsupported timeline header/)
       expect(() => renderMermaidSVG(input)).toThrow(/Unsupported timeline header/)
+    }
+  })
+
+  test('entity-encoded family whitespace gets the same specific diagnosis without a misleading wrapper-relative line', () => {
+    const encoded = source('timeline&#32;TB')
+    const parsed = parseRegisteredMermaid(encoded)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(`${encoded}\n`)
+    const warning = verifyMermaid(encoded).warnings.find(item => item.code === 'UNSUPPORTED_SYNTAX' && item.syntax === 'timeline_header_direction')
+    expect(warning).toBeDefined()
+    expect(warning).not.toHaveProperty('line')
+
+    const wrapped = `---\ntitle: Roadmap\n---\n${source('timeline TB')}`
+    const wrappedWarning = verifyMermaid(wrapped).warnings.find(item => item.code === 'UNSUPPORTED_SYNTAX' && item.syntax === 'timeline_header_direction')
+    expect(wrappedWarning).toBeDefined()
+    expect(wrappedWarning).not.toHaveProperty('line')
+  })
+
+  test('pinned Mermaid inline header comments keep their direction and authored bytes', async () => {
+    mermaid.initialize({ startOnLoad: false })
+    for (const [header, direction] of [
+      ['timeline TD # note', 'TD'], ['timeline TD#note', 'TD'],
+      ['timeline TD %note', 'TD'], ['timeline TD%note', 'TD'],
+      ['timeline TD %% note', 'TD'], ['timeline LR # note', 'LR'],
+      ['timeline#note', 'LR'], ['timeline%note', 'LR'],
+    ] as const) {
+      const input = source(header)
+      const upstream = await mermaid.mermaidAPI.getDiagramFromText(input)
+      expect((upstream.db as unknown as { getDirection(): string }).getDirection()).toBe(direction)
+      expect(parseTimelineDiagram(input.split('\n').map(line => line.trim())).direction ?? 'LR').toBe(direction)
+      expect(renderMermaidSVG(input)).toContain('Launch')
+
+      const parsed = parseRegisteredMermaid(input)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(`${input}\n`)
+      expect(verifyMermaid(parsed.value).ok).toBe(true)
+      expect(verifyMermaid(parsed.value).warnings).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ syntax: 'timeline_header_direction' }),
+      ]))
     }
   })
 

@@ -13,7 +13,7 @@ const CATALOG = Object.freeze([
   return /^statediagram(?:-v2)?\s*$/.test(line);
 } }),
   Object.freeze({ id: "sequence", detect: (line: string) => /^sequencediagram\s*$/.test(line) }),
-  Object.freeze({ id: "timeline", detect: (line: string) => /^timeline(?:\s|$)/.test(line) }),
+  Object.freeze({ id: "timeline", detect: (line: string) => /^timeline(?=$|[\s;#%])/.test(line) }),
   Object.freeze({ id: "class", detect: (line: string) => /^classdiagram\s*$/.test(line) }),
   Object.freeze({ id: "er", detect: (line: string) => /^erdiagram(?:\s+subgraph\b.*)?\s*$/.test(line) }),
   Object.freeze({ id: "journey", detect: (line: string) => /^journey\s*$/.test(line) }),

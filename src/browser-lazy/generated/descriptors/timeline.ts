@@ -210,8 +210,8 @@ const descriptorData = Object.freeze({
   ],
   "example": "timeline\n  title Roadmap\n  2025 : Alpha : Beta\n  2026 : GA"
 } as const),
-  detect: (line: string) => /^timeline(?:\s|$)/.test(line),
-  detectLoose: (line: string) => /^timeline(?:\s|$)/.test(line),
+  detect: (line: string) => /^timeline(?=$|[\s;#%])/.test(line),
+  detectLoose: (line: string) => /^timeline(?=$|[\s;#%])/.test(line),
 })
 
 export default descriptorData
