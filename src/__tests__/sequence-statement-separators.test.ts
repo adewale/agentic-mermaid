@@ -85,4 +85,31 @@ describe('Sequence newline and semicolon statement equivalence', () => {
       '%% comment; not a message', 'rect #ff0000', ' A->>B: hi', ' end', '',
     ])
   })
+
+  test('a comment after a delimiter consumes the rest of its physical line', () => {
+    const source = 'sequenceDiagram\n  A->>B: one; %% comment; B->>A: ghost\n  B->>A: two'
+    expect(parseSequenceDiagram(source.split('\n').map(line => line.trim())).messages.map(message => message.label)).toEqual(['one', 'two'])
+    const agent = parseRegisteredMermaid(source)
+    expect(agent.ok).toBe(true)
+    if (agent.ok) expect(asSequence(agent.value)?.body.messages.map(message => message.text)).toEqual(['one', 'two'])
+  })
+
+  test('multiline accessibility description keeps its literal semicolon', () => {
+    const parsed = parseSequenceDiagram(['sequenceDiagram', 'accTitle: First; second', 'accDescr {', 'first; second', '}', 'A->>B: hi'])
+    expect(parsed.accessibilityTitle).toBe('First; second')
+    expect(parsed.accessibilityDescription).toBe('first; second')
+    expect(parsed.messages.map(message => message.label)).toEqual(['hi'])
+    const oneLine = parseSequenceDiagram(['sequenceDiagram', 'accDescr: First; second', 'A->>B: hi'])
+    expect(oneLine.accessibilityDescription).toBe('First; second')
+  })
+
+  test('participant metadata retains a semicolon inside its JSON-like alias', () => {
+    const source = 'sequenceDiagram\nparticipant A@{ "alias": "A; B" }; A->>B: hi'
+    const native = parseSequenceDiagram(source.split('\n').map(line => line.trim()))
+    expect(native.actors.find(actor => actor.id === 'A')?.label).toBe('A; B')
+    expect(native.messages.map(message => message.label)).toEqual(['hi'])
+    const agent = parseRegisteredMermaid(source)
+    expect(agent.ok).toBe(true)
+    if (agent.ok) expect(asSequence(agent.value)?.body.participants.find(actor => actor.id === 'A')?.label).toBe('A; B')
+  })
 })

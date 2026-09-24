@@ -94,9 +94,8 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
  * directive in the body still takes precedence from its own line on.
  */
 export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean } = {}): SequenceDiagram {
-  lines = splitSequenceStatementLines(lines).map(line => line.trim()).filter(Boolean)
   const accessibility = scanAccessibilityDirectives(lines)
-  lines = accessibility.familyLines
+  lines = splitSequenceStatementLines(accessibility.familyLines).map(line => line.trim()).filter(Boolean)
   const diagram: SequenceDiagram = {
     actors: [],
     messages: [],
