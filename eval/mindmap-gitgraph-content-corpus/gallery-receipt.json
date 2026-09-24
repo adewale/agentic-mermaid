@@ -128,11 +128,11 @@
     },
     {
       "path": "src/agent/families-builtin.ts",
-      "sha256": "2d18509799e380869bbf7d92559bc94c55e18ada12621fd228b0bf022ef29777"
+      "sha256": "5f6a7c66bc9883da679d41721cbaa01b146deac3e0ce39bb30d76c53ae0cce74"
     },
     {
       "path": "src/agent/families.ts",
-      "sha256": "6cd26ec4b8c5442dc82258fa2d9a125866570ca73bdcfad2ce377aac7c125c22"
+      "sha256": "6cb616b8490fedd5c4ec24984651ec9a986ca2e8e77976c77cc21e32a612e4f8"
     },
     {
       "path": "src/agent/family-labels.ts",
@@ -1164,15 +1164,15 @@
     },
     {
       "path": "src/timeline/layout.ts",
-      "sha256": "0fb5ded4af0d754036f161958a4543be8e08070af7df1e587c1afb02b7c67ece"
+      "sha256": "57117f5d722d76ea2a14c72ca1c3126b78949681c3cfdd6218c69cb11c7722ed"
     },
     {
       "path": "src/timeline/parse-core.ts",
-      "sha256": "df149c2ff10e7ea9436078698db9372c366c1130aec09f9af30cb3c10b18fac6"
+      "sha256": "305171ba6f44bd81eacccbd4bf2b760b23570e8955afe5fca22b0015b09a97c4"
     },
     {
       "path": "src/timeline/parser.ts",
-      "sha256": "76d17a413172f778e89b75058b13d9b47c17cd99b5acc68e603486e9ace42dfd"
+      "sha256": "f3071914c9d4305505aef4540b1de7b10709253b73a459b76e4a82bf6c898427"
     },
     {
       "path": "src/timeline/renderer.ts",

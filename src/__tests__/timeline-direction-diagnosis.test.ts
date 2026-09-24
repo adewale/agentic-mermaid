@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import mermaid from 'mermaid'
 import { asTimeline, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -30,6 +31,8 @@ describe('Timeline header-direction admission', () => {
         expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_header_direction' }),
         expect.objectContaining({ code: 'RENDER_FAILED' }),
       ]))
+      expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED' && warning.reason.includes(header.slice('timeline '.length)))).toBe(true)
+      expect(verifyMermaid(input).ok).toBe(false)
       expect(() => parseTimelineDiagram(input.split('\n').map(line => line.trim()))).toThrow(/Unsupported timeline header/)
       expect(() => renderMermaidSVG(input)).toThrow(/Unsupported timeline header/)
     }
@@ -45,5 +48,13 @@ describe('Timeline header-direction admission', () => {
       expect(parseTimelineDiagram(input.split('\n').map(line => line.trim())).direction).toBe(direction)
       expect(renderMermaidSVG(input)).toContain('Launch')
     }
+  })
+
+  test('the reviewed baseline is the old silent horizontal render, not a fabricated after image', () => {
+    const before = readFileSync(new URL('../../docs/pr-assets/issue-248-timeline-direction-before.svg', import.meta.url), 'utf8')
+    expect(before).toContain('Launch')
+    expect(before).toContain('2020')
+    expect(before).not.toContain('TB')
+    expect(() => renderMermaidSVG(source('timeline TB'), { embedFontImport: false })).toThrow(/Unsupported timeline header/)
   })
 })
