@@ -535,16 +535,42 @@ function matchesFlowchartEdges(value: FidelityJson, expected: readonly Readonly<
   )
 }
 
-function matchesRenderedFlowchartEdges(value: FidelityJson, expected: readonly Readonly<Record<string, string>>[]): boolean {
-  return (
-    Array.isArray(value) &&
-    value.length === expected.length &&
-    value.every((edge, index) => {
+function flowchartRenderFacts(rendered: string): FidelityJson {
+  const edges = [...rendered.matchAll(/<(?:path|polyline)\b[^>]*(?:data-from|data-to)="[^"]+"[^>]*>/g)]
+    .map(match => attributes(match[0]!))
+    .filter(edge => edge['data-from'] && edge['data-to'])
+    .map(edge => ({ source: edge['data-from']!, target: edge['data-to']!, label: edge['data-label'] ?? null }))
+  const labelGroups = [...rendered.matchAll(/<g\b[^>]*class="[^"]*\bedge-label\b[^"]*"[^>]*>[\s\S]*?<\/g>/g)].map(match => {
+    const opening = match[0].match(/^<g\b[^>]*>/)?.[0] ?? ''
+    const group = attributes(opening)
+    return {
+      source: group['data-from'] ?? null,
+      target: group['data-to'] ?? null,
+      label: group['data-label'] ?? null,
+      visibleText: textNodes(match[0]).join(''),
+    }
+  })
+  return { edges, labelGroups }
+}
+
+function matchesRenderedFlowchart(value: FidelityJson, expected: readonly Readonly<Record<string, string>>[]): boolean {
+  const rendered = record(value, 'rendered flowchart facts')
+  const edges = rendered.edges
+  const labelGroups = rendered.labelGroups
+  return Array.isArray(edges) &&
+    edges.length === expected.length &&
+    edges.every((edge, index) => {
       const actual = record(edge, `rendered flowchart edge ${index}`)
       const wanted = expected[index]!
-      return actual.source === wanted.source && actual.target === wanted.target
+      return actual.source === wanted.source && actual.target === wanted.target && actual.label === wanted.label
+    }) &&
+    Array.isArray(labelGroups) &&
+    labelGroups.length === expected.length &&
+    labelGroups.every((group, index) => {
+      const actual = record(group, `rendered flowchart label ${index}`)
+      const wanted = expected[index]!
+      return actual.source === wanted.source && actual.target === wanted.target && actual.label === wanted.label && actual.visibleText === wanted.label
     })
-  )
 }
 
 const flowchartBoundaryWhitespaceMutation: FidelityCaseDefinition = {
@@ -556,11 +582,9 @@ const flowchartBoundaryWhitespaceMutation: FidelityCaseDefinition = {
   upstreamRevision: UPSTREAM_REVISION,
   expected: {
     agent: applicable('native', evidence => (matchesFlowchartEdges(facts(evidence).diagram ?? null, [{ source: 'A', target: 'B', label: ' a ' }]) ? 'native' : 'absent')),
-    render: applicable('native', evidence => {
-      const semanticFacts = facts(evidence)
-      const texts = semanticFacts.texts
-      return Array.isArray(texts) && texts.includes(' a ') && matchesRenderedFlowchartEdges(semanticFacts.edges ?? null, [{ source: 'A', target: 'B' }]) ? 'native' : 'absent'
-    }),
+    render: applicable('native', evidence =>
+      matchesRenderedFlowchart(facts(evidence).rendered ?? null, [{ source: 'A', target: 'B', label: ' a ' }]) ? 'native' : 'absent',
+    ),
     serialize: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
       return semanticFacts.serializedSource === flowchartBoundaryWhitespaceSource && semanticFacts.reserializedSource === flowchartBoundaryWhitespaceSource && matchesFlowchartEdges(semanticFacts.reparsedDiagram ?? null, [{ source: 'A', target: 'B', label: ' a ' }]) ? 'native' : 'absent'
@@ -571,20 +595,16 @@ const flowchartBoundaryWhitespaceMutation: FidelityCaseDefinition = {
         { source: 'A', target: 'B', label: ' a ' },
         { source: 'B', target: 'A', label: ' b ' },
       ]
-      const texts = semanticFacts.renderedTexts
       return semanticFacts.mutationOk === true &&
         typeof semanticFacts.serializedSource === 'string' &&
         semanticFacts.serializedSource.includes('B -->|" b "| A') &&
         semanticFacts.reserializedSource === semanticFacts.serializedSource &&
         matchesFlowchartEdges(semanticFacts.mutatedDiagram ?? null, expectedEdges) &&
         matchesFlowchartEdges(semanticFacts.reparsedDiagram ?? null, expectedEdges) &&
-        matchesRenderedFlowchartEdges(semanticFacts.renderedEdges ?? null, [
-          { source: 'A', target: 'B' },
-          { source: 'B', target: 'A' },
-        ]) &&
-        Array.isArray(texts) &&
-        texts.includes(' a ') &&
-        texts.includes(' b ')
+        matchesRenderedFlowchart(semanticFacts.rendered ?? null, [
+          { source: 'A', target: 'B', label: ' a ' },
+          { source: 'B', target: 'A', label: ' b ' },
+        ])
         ? 'native'
         : typeof semanticFacts.errorCode === 'string'
           ? 'diagnosed'
@@ -600,11 +620,6 @@ const flowchartBoundaryWhitespaceMutation: FidelityCaseDefinition = {
     const mutatedSource = mutation.ok ? serializeMermaid(mutation.value) : ''
     const mutatedReparse = mutation.ok ? parsedOrThrow(mutatedSource) : null
     const mutatedSvg = mutatedReparse ? renderMermaidSVG(mutatedSource) : ''
-    const renderedEdges = (rendered: string) =>
-      [...rendered.matchAll(/<(?:path|polyline)\b[^>]*(?:data-from|data-to)="[^"]+"[^>]*>/g)]
-        .map(match => attributes(match[0]!))
-        .filter(edge => edge['data-from'] && edge['data-to'])
-        .map(edge => ({ source: edge['data-from']!, target: edge['data-to']! }))
     return {
       agent: {
         status: 'observed',
@@ -614,7 +629,7 @@ const flowchartBoundaryWhitespaceMutation: FidelityCaseDefinition = {
       render: {
         status: 'observed',
         diagnosticCodes: [],
-        semantics: { edges: renderedEdges(svg), texts: textNodes(svg) },
+        semantics: { rendered: flowchartRenderFacts(svg) },
       },
       serialize: {
         status: 'observed',
@@ -635,8 +650,7 @@ const flowchartBoundaryWhitespaceMutation: FidelityCaseDefinition = {
           reserializedSource: mutatedReparse ? serializeMermaid(mutatedReparse) : '',
           mutatedDiagram: mutation.ok ? flowchartEdgeFacts(mutation.value) : null,
           reparsedDiagram: mutatedReparse ? flowchartEdgeFacts(mutatedReparse) : null,
-          renderedEdges: renderedEdges(mutatedSvg),
-          renderedTexts: textNodes(mutatedSvg),
+          rendered: flowchartRenderFacts(mutatedSvg),
         },
       },
     }

@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "32ec0ae37b35e937288583183275488e8db6343cdfaeedeb3c78b7e02896e56c",
+    "inputSha256": "f09a1f8bee3d9b8665d92694ce0d33a222d4d4d67133fff90d4538304ea9ca10",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -88,7 +88,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
-        "sha256": "8c35020950589cb756f223b24fda48de7dcbde9fc904f18b3810460dc7eaeab7"
+        "sha256": "9b5fdcce6e92a51bd65c90b42e22734375f19b3874ec71a9574b667ca8116e2e"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -343,17 +343,23 @@
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
-            "edges": [
-              {
-                "source": "A",
-                "target": "B"
-              }
-            ],
-            "texts": [
-              " a ",
-              "A",
-              "B"
-            ]
+            "rendered": {
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                }
+              ],
+              "labelGroups": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B",
+                  "visibleText": " a "
+                }
+              ]
+            }
           },
           "disposition": "native"
         },
@@ -397,22 +403,34 @@
               ]
             },
             "mutationOk": true,
-            "renderedEdges": [
-              {
-                "source": "A",
-                "target": "B"
-              },
-              {
-                "source": "B",
-                "target": "A"
-              }
-            ],
-            "renderedTexts": [
-              " a ",
-              " b ",
-              "A",
-              "B"
-            ],
+            "rendered": {
+              "edges": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B"
+                },
+                {
+                  "label": " b ",
+                  "source": "B",
+                  "target": "A"
+                }
+              ],
+              "labelGroups": [
+                {
+                  "label": " a ",
+                  "source": "A",
+                  "target": "B",
+                  "visibleText": " a "
+                },
+                {
+                  "label": " b ",
+                  "source": "B",
+                  "target": "A",
+                  "visibleText": " b "
+                }
+              ]
+            },
             "reparsedDiagram": {
               "bodyKind": "flowchart",
               "edges": [

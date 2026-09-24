@@ -230,17 +230,24 @@ describe('issue #248 construct fidelity receipts', () => {
       {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
         surface: 'render',
-        path: ['edges'],
+        path: ['rendered', 'edges'],
         replacement: [
-          { source: 'A', target: 'B' },
-          { source: 'X', target: 'Y' },
+          { source: 'A', target: 'B', label: ' a ' },
+          { source: 'X', target: 'Y', label: 'ghost' },
         ],
       },
       {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
         surface: 'mutate',
-        path: ['renderedEdges'],
-        replacement: [{ source: 'A', target: 'B' }],
+        path: ['rendered', 'edges'],
+        replacement: [{ source: 'A', target: 'B', label: ' a ' }],
+      },
+      {
+        caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
+        surface: 'mutate',
+        path: ['rendered', 'labelGroups', 0, 'visibleText'],
+        replacement: ' b ',
+        additionalChanges: [{ path: ['rendered', 'labelGroups', 1, 'visibleText'], replacement: ' a ' }],
       },
     ]
 
