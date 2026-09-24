@@ -287,6 +287,20 @@ jobs:
         if: ${{ matrix.suite == 'browser' }}
         run: bun run website:payload:check --require-exact
 
+      # Temporary evidence capture for PR #280; remove after recording the
+      # reviewed Linux/x64 baseline on the pinned CI browser toolchain.
+      - name: Record candidate website payload after verification
+        if: ${{ matrix.suite == 'browser' && always() }}
+        run: bun run website:payload:write
+
+      - name: Upload candidate website payload
+        if: ${{ matrix.suite == 'browser' && always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-website-payload
+          path: eval/website-payload/baseline.json
+          if-no-files-found: error
+
   # Bounded fault-detection check for a small, pure module. This lane is kept
   # because a full run is about one minute and its measured ~97% kill score is
   # stable; broad scheduled mutation was removed because its recurring runner
