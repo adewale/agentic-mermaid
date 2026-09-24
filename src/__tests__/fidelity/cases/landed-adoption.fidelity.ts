@@ -40,6 +40,12 @@ function attributes(tag: string): Record<string, string> {
   return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
 }
 
+function svgNumber(candidate: FidelityJson): number | null {
+  if (typeof candidate !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(candidate)) return null
+  const parsed = Number(candidate)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 function textNodes(svg: string): string[] {
   return [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => match[1]!.replace(/<[^>]+>/g, ''))
 }
@@ -142,13 +148,11 @@ function matchesXychartBars(value: FidelityJson, expectedValues: readonly [strin
   if (!Array.isArray(value) || value.length !== expectedValues.length) return false
   const dimensions = value.map((bar, index) => {
     const actual = record(bar, `xychart rendered bar ${index}`)
-    const width = actual.width
-    const height = actual.height
-    if (actual.label !== (index === 0 ? 'Jan' : 'Feb') || actual.value !== expectedValues[index] || typeof width !== 'string' || typeof height !== 'string') return null
-    const numericWidth = Number(width)
-    const numericHeight = Number(height)
+    if (actual.label !== (index === 0 ? 'Jan' : 'Feb') || actual.value !== expectedValues[index]) return null
+    const numericWidth = svgNumber(actual.width ?? null)
+    const numericHeight = svgNumber(actual.height ?? null)
     const numericValue = Number(expectedValues[index])
-    if (!Number.isFinite(numericWidth) || !Number.isFinite(numericHeight) || !Number.isFinite(numericValue) || numericWidth <= 0 || numericHeight <= 0 || numericValue <= 0 || numericWidth >= numericHeight) return null
+    if (numericWidth === null || numericHeight === null || !Number.isFinite(numericValue) || numericWidth <= 0 || numericHeight <= 0 || numericValue <= 0 || numericWidth >= numericHeight) return null
     return { width: numericWidth, height: numericHeight, value: numericValue }
   })
   if (dimensions.some(dimension => dimension === null)) return false
@@ -218,18 +222,22 @@ const sankeyGradientEndpoints: FidelityCaseDefinition = {
       const targetStop = record(stops[1] ?? null, 'target stop')
       const link = record(links[0] ?? null, 'sankey rendered link')
       const endpoints = record(link.pathEndpoints ?? null, 'sankey link endpoints')
+      const x1 = svgNumber(gradient.x1 ?? null)
+      const y1 = svgNumber(gradient.y1 ?? null)
+      const x2 = svgNumber(gradient.x2 ?? null)
+      const y2 = svgNumber(gradient.y2 ?? null)
       return semanticFacts.gradientCount === 1 &&
         typeof gradient.id === 'string' &&
         gradient.id.length > 0 &&
         gradient.units === 'userSpaceOnUse' &&
-        typeof gradient.x1 === 'string' &&
-        typeof gradient.y1 === 'string' &&
-        typeof gradient.x2 === 'string' &&
-        typeof gradient.y2 === 'string' &&
-        Number(gradient.x1) === endpoints.startX &&
-        Number(gradient.y1) === endpoints.startY &&
-        Number(gradient.x2) === endpoints.endX &&
-        Number(gradient.y2) === endpoints.endY &&
+        x1 !== null &&
+        y1 !== null &&
+        x2 !== null &&
+        y2 !== null &&
+        x1 === endpoints.startX &&
+        y1 === endpoints.startY &&
+        x2 === endpoints.endX &&
+        y2 === endpoints.endY &&
         endpoints.startX !== endpoints.endX &&
         sourceStop.offset === '0%' &&
         sourceStop.color === '#ff0000' &&

@@ -125,6 +125,12 @@ describe('issue #248 construct fidelity receipts', () => {
         replacement: '1',
       },
       {
+        caseId: 'sankey.links.typed-gradient-endpoints',
+        surface: 'render',
+        path: ['gradient', 'x1'],
+        replacement: '0x22',
+      },
+      {
         caseId: 'sankey.links.light-background-multiply',
         surface: 'render',
         path: ['links', 0, 'blendMode'],
@@ -188,6 +194,18 @@ describe('issue #248 construct fidelity receipts', () => {
         caseId: 'xychart.syntax.shared-parser-semantics',
         surface: 'render',
         path: ['bars', 0, 'width'],
+        replacement: '0x10',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'height'],
+        replacement: '0b1000000',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'render',
+        path: ['bars', 0, 'width'],
         replacement: '117.74',
       },
       {
@@ -195,6 +213,12 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'mutate',
         path: ['renderedBars', 0, 'value'],
         replacement: '999',
+      },
+      {
+        caseId: 'xychart.syntax.shared-parser-semantics',
+        surface: 'mutate',
+        path: ['renderedBars', 0, 'width'],
+        replacement: '0x10',
       },
       {
         caseId: 'xychart.syntax.shared-parser-semantics',
