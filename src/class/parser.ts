@@ -421,17 +421,18 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       const rest = inlineAttrMatch[2]!
       if (!rest.match(/<\|--|--|\*--|o--|-->|\.\.>|\.\.\|>/)) {
         const ref = parseClassReference(inlineAttrMatch[1]!)
-        if (!ref) continue
-        const cls = ensureClass(classMap, ref.id, ref.generic)
-        const member = parseMember(rest)
-        if (member) {
-          if (member.isMethod) {
-            cls.methods.push(member.member)
-          } else {
-            cls.attributes.push(member.member)
+        if (ref) {
+          const cls = ensureClass(classMap, ref.id, ref.generic)
+          const member = parseMember(rest)
+          if (member) {
+            if (member.isMethod) {
+              cls.methods.push(member.member)
+            } else {
+              cls.attributes.push(member.member)
+            }
           }
+          continue
         }
-        continue
       }
     }
 
@@ -619,6 +620,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   let commentBacktick = false
   let commentQuote = false
   let commentGeneric = false
+  let inLabel = false
   for (let i = 0; i < line.length - 1; i++) {
     const char = line[i]!
     if (commentBacktick) { if (char === '`') commentBacktick = false; continue }
@@ -627,7 +629,10 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     if (char === '`') { commentBacktick = true; continue }
     if (char === '"') { commentQuote = true; continue }
     if (char === '~') { commentGeneric = true; continue }
-    if (char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
+    // Mermaid treats `%%` after the label separator as label text, not a
+    // comment. Before the separator it is an inert trailing comment.
+    if (char === ':') { inLabel = true; continue }
+    if (!inLabel && char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
   }
 
   let inBacktick = false
@@ -651,10 +656,10 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   let fromRef = parseClassReference(left)
   let fromCardinality: string | undefined
   if (!fromRef && left.endsWith('"')) {
-    const cardStart = left.lastIndexOf(' "')
+    const cardStart = left.lastIndexOf('"', left.length - 2)
     if (cardStart >= 0) {
-      fromRef = parseClassReference(left.slice(0, cardStart))
-      if (fromRef) fromCardinality = normalizeBrTags(left.slice(cardStart + 2, -1))
+      fromRef = parseClassReference(left.slice(0, cardStart).trimEnd())
+      if (fromRef) fromCardinality = normalizeBrTags(left.slice(cardStart + 1, -1))
     }
   }
   if (!fromRef) return null
@@ -675,6 +680,9 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     if (char === '~') { inGeneric = true; continue }
     if (char === ':') {
       label = normalizeBrTags(right.slice(i + 1).trim()) || undefined
+      // Mermaid's Class label token has one separator; a second top-level
+      // colon is not an accepted relationship label (including URL syntax).
+      if (label?.includes(':')) return null
       right = right.slice(0, i).trim()
       break
     }
@@ -683,7 +691,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   let toCardinality: string | undefined
   if (right.startsWith('"')) {
     const close = right.indexOf('"', 1)
-    if (close < 0 || (right[close + 1] && !/\s/.test(right[close + 1]!))) return null
+    if (close < 0) return null
     toCardinality = normalizeBrTags(right.slice(1, close))
     right = right.slice(close + 1).trim()
   }

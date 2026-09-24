@@ -16,6 +16,10 @@ const cases = [
   { statement: 'A--B', kind: 'link-solid', lineType: 0 },
   { statement: 'A .. B %% comment', kind: 'link-dashed', lineType: 1 },
   { statement: 'A -- B %% comment', kind: 'link-solid', lineType: 0 },
+  { statement: 'A .. B : dashed %% note', kind: 'link-dashed', lineType: 1, label: 'dashed %% note' },
+  { statement: 'A"1".."*"B : dashed', kind: 'link-dashed', lineType: 1, label: 'dashed', fromCardinality: '1', toCardinality: '*' },
+  { statement: 'A"1"..B', kind: 'link-dashed', lineType: 1, fromCardinality: '1' },
+  { statement: 'A.."*"B', kind: 'link-dashed', lineType: 1, toCardinality: '*' },
 ] as const
 
 describe('Class markerless link fidelity', () => {
@@ -33,7 +37,7 @@ describe('Class markerless link fidelity', () => {
         const relation = diagram.db.getRelations()[0]
         result.push({ classes: [...diagram.db.getClasses().keys()], from: relation?.id1, to: relation?.id2,
           lineType: relation?.relation.lineType, type1: relation?.relation.type1, type2: relation?.relation.type2,
-          title: relation?.title })
+          title: relation?.title, relationTitle1: relation?.relationTitle1, relationTitle2: relation?.relationTitle2 })
       }
       process.stdout.write(JSON.stringify(result))
     `
@@ -47,6 +51,8 @@ describe('Class markerless link fidelity', () => {
       lineType: item.lineType,
       type1: 'none',
       type2: 'none',
+      relationTitle1: 'fromCardinality' in item ? item.fromCardinality : 'none',
+      relationTitle2: 'toCardinality' in item ? item.toCardinality : 'none',
       ...('label' in item ? { title: item.label } : {}),
     })))
   })
@@ -58,12 +64,20 @@ describe('Class markerless link fidelity', () => {
       const to = item.statement.startsWith('classO') ? 'classP' : 'B'
       const native = parseClassDiagram(source.split('\n'))
       expect(native.classes.map(node => node.id)).toEqual([from, to])
-      expect(native.relationships).toEqual([expect.objectContaining({ from, to, type: item.kind, markerAt: 'none' })])
+      expect(native.relationships).toEqual([expect.objectContaining({
+        from, to, type: item.kind, markerAt: 'none',
+        ...('fromCardinality' in item ? { fromCardinality: item.fromCardinality } : {}),
+        ...('toCardinality' in item ? { toCardinality: item.toCardinality } : {}),
+      })])
 
       const parsed = parseRegisteredMermaid(source)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) continue
-      expect(asClass(parsed.value)?.body.relations).toEqual([expect.objectContaining({ from, to, kind: item.kind })])
+      expect(asClass(parsed.value)?.body.relations).toEqual([expect.objectContaining({
+        from, to, kind: item.kind,
+        ...('fromCardinality' in item ? { fromCardinality: item.fromCardinality } : {}),
+        ...('toCardinality' in item ? { toCardinality: item.toCardinality } : {}),
+      })])
       const verified = verifyMermaid(parsed.value)
       expect(verified.ok).toBe(true)
       expect(verified.layout?.edges).toHaveLength(1)
@@ -124,6 +138,15 @@ describe('Class markerless link fidelity', () => {
     const start = performance.now()
     expect(parseClassRelationship(malformed)).toBeNull()
     expect(performance.now() - start).toBeLessThan(500)
+    const agentStart = performance.now()
+    const parsed = parseRegisteredMermaid(`classDiagram\n${malformed}`)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+    }
+    expect(performance.now() - agentStart).toBeLessThan(500)
+    expect(parseClassRelationship('A .. B : a:b')).toBeNull()
   })
 
   test('before/after visual assets are authentic same-input production output', () => {

@@ -79,6 +79,11 @@ export function parseClassRelationSyntax(line: string): (ClassRelation & { fromG
       ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
     }
   }
+  // The legacy no-space token fallback uses several regexes with ambiguous
+  // endpoint captures. Keep malformed full-size inputs from multiplying that
+  // work; supported long relationships already return through the shared
+  // linear parser above, while unmatched source remains opaque/diagnosed.
+  if (line.length > 2_048) return null
   for (const { pat, kind, markerAt, fromKind, toKind } of RELATION_TOKENS) {
     const m = line.match(new RegExp(`^(\\S+?)(?:\\s+"([^"]+)")?\\s*${pat.source}\\s*(?:"([^"]+)"\\s+)?(\\S+?)(?:\\s*:\\s*(.+))?$`))
     if (!m) continue
