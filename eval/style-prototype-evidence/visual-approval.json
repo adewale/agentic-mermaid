@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-09-23",
-  "reviewer": "Claude Code agent, during the Lieflat chart-honesty fixes",
-  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after visible Flowchart arrow tips were aligned to their route endpoints; reviewed for clean marker contact, readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries. Re-reviewed 2026-09-23 after the peer-category palette gained its separation contract: the Vercel-inspired prototype changes in 98 pixels, all in the \"Line 1\" legend swatch (a sub-perceptual tint shift); the other two prototypes are byte-identical.",
+  "reviewedAt": "2026-09-24",
+  "reviewer": "Claude Code agent, while holding every family to the chart-honesty text contract",
+  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after visible Flowchart arrow tips were aligned to their route endpoints; reviewed for clean marker contact, readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries. Re-reviewed 2026-09-23 after the peer-category palette gained its separation contract: the Vercel-inspired prototype changes in 98 pixels, all in the \"Line 1\" legend swatch (a sub-perceptual tint shift); the other two prototypes are byte-identical. Re-reviewed 2026-09-24 after layouts began measuring text with the style's font: the Vercel-inspired prototype's legend reserves 3 px more, so its plot is 3 px narrower and \"Line 1\" ends 7 px from the right edge instead of 4. 16,408 pixels differ, all antialiasing along the shifted bars, line, ticks, and labels; text ink is unchanged (#ededed on #0a0a0a). The other two prototypes are byte-identical.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
@@ -13,7 +13,7 @@
     {
       "id": "vercel-inspired-prototype",
       "path": "docs/assets/style-cookbook/vercel-inspired-prototype.png",
-      "sha256": "bd3653c7ba2fc7052370dbcde2f41bdb51f2e724bfb9983b805a079a2e9bfaa8"
+      "sha256": "7180d1fee99a69dd21ddcd602d25fc615884df7657f23224990573afda6c16f1"
     },
     {
       "id": "cloudflare-workers-inspired-prototype",
