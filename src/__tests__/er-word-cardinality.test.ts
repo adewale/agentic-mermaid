@@ -110,6 +110,25 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
     expect(db.getRelationships()).toHaveLength(1)
   })
 
+  test('numeric right-hand entity IDs remain endpoints, not cardinality fragments', () => {
+    for (const id of ['1', '12']) {
+      const statement = `a many to 1 ${id}: label`
+      const native = parseNative(statement)
+      expect(native.entities.map(entity => entity.id)).toEqual(['a', id])
+      expect(native.relationships).toMatchObject([{
+        entity1: 'a', entity2: id, cardinality1: 'zero-many', cardinality2: 'one', identifying: true,
+      }])
+      const parsed = parseRegisteredMermaid(`erDiagram\n${statement}`)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      const body = asEr(parsed.value)?.body
+      expect(body?.entities.map(entity => entity.id)).toEqual(['a', id])
+      expect(body?.relations).toMatchObject([{
+        from: 'a', to: id, leftCard: 'zero-or-many', rightCard: 'one-only', dashed: false,
+      }])
+    }
+  })
+
   test('multiword aliases and operators use Mermaid literal single-space lexemes', async () => {
     for (const rejected of [
       'A one  or zero to 0+ B : x',
