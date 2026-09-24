@@ -23,7 +23,7 @@ import { measureRenderedText, pageColorOf, renderedTextReady, requiredContrast, 
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
-const BEFORE_SHA = '4f89036f469ee91ed48003422309a898ce54be87'
+const BEFORE_SHA = 'd59c49a859d48fccc4bc5cd1c764f8ea0b68a6b7'
 const FONT_DIR = join(ROOT, 'assets', 'fonts')
 
 const titled = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`
