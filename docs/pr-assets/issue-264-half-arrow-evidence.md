@@ -4,7 +4,8 @@ Both renders use [the same two-line Mermaid source](issue-264-half-arrow.mmd),
 SHA-256 `28e4667701b0f2c4aaaf9b6335b0d1b5f5c40318418cd7fe1cd524340944d91b`.
 The *before* renderer is base commit
 `9c62f838f26366abd7f1f8e69eab7f8c6951656e`; the *after* renderer is
-candidate commit `6c4d25dcaa599ec3649adf0c0ccad50208db3494`. Each checkout
+renderer implementation commit `6c4d25dcaa599ec3649adf0c0ccad50208db3494`.
+The later PR commits only add and refresh review evidence. Each checkout
 uses its locked dependencies and public native renderer: `renderMermaidSVG(source,
 { embedFontImport: false })` for the linked SVG, and `renderMermaidPNG(source,
 { scale: 1 })` for the raster preview.
