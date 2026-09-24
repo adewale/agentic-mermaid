@@ -924,7 +924,7 @@
     },
     {
       "path": "src/scene/ir.ts",
-      "sha256": "7592ccd810f311acfc7e2468d8c5578a8cb40ddf340b264183d2649dc5793860"
+      "sha256": "43cae7a1f644cc7c326ec12fdc635cc1651a6f94b01153c74948e11f01423fec"
     },
     {
       "path": "src/scene/marker-resources.ts",
@@ -932,7 +932,7 @@
     },
     {
       "path": "src/scene/marks.ts",
-      "sha256": "28f49ab87f0ace64c5e535f81df2e04142b92981d3a7b4222419d16d766da723"
+      "sha256": "621a322a095ed6c6e099eae41405c21fa18d687dc98a90557ccd6ba4da96d3fb"
     },
     {
       "path": "src/scene/role-style-contract.ts",
@@ -944,7 +944,7 @@
     },
     {
       "path": "src/scene/rough-backend.ts",
-      "sha256": "2d1dab3acc9795690dc83e5dddcfae430d67eddabd07efeb37852e70785e99af"
+      "sha256": "ed61634d7f107f10c684d188376d4843075d26ddc49ae9347c83bbda5fae8a48"
     },
     {
       "path": "src/scene/scene-validation.ts",
@@ -1208,7 +1208,7 @@
     },
     {
       "path": "src/xychart/layout.ts",
-      "sha256": "018e076e79d2fabad6477ef1eb3c1e6d437852194a15c97ee2ce1230d7de3189"
+      "sha256": "f3c6946e36c721fa1fa46ffced059c643a62d94726e7db270a1a1e231135be1d"
     },
     {
       "path": "src/xychart/legend.ts",
@@ -1220,7 +1220,7 @@
     },
     {
       "path": "src/xychart/renderer.ts",
-      "sha256": "bf7d6248c326722ae67c5f596be56dab393821b8a2e9d8fdb97ae34f52eda49f"
+      "sha256": "f6e3b20d392fcbc7f99af978a007693d70490178db52b209a3f2307c95f6a287"
     },
     {
       "path": "src/xychart/types.ts",
