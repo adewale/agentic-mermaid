@@ -82,26 +82,20 @@ const stateTrailingComment: FidelityCaseDefinition = {
   upstreamReference: 'https://mermaid.ai/open-source/syntax/stateDiagram.html#comments',
   upstreamRevision: UPSTREAM_REVISION,
   expected: {
-    agent: applicable(
-      'source-preserved',
-      evidence => (facts(evidence).bodyKind === 'opaque' ? 'source-preserved' : 'native'),
-      ['UNSUPPORTED_SYNTAX'],
-    ),
-    render: applicable('absent', evidence => {
+    agent: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.bodyKind === 'state' && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C']) ? 'native' : 'absent'
+    }),
+    render: applicable('native', evidence => {
       const renderedEdges = facts(evidence).renderedEdges
       if (!Array.isArray(renderedEdges) || renderedEdges.some(edge => typeof edge !== 'string')) fail('renderedEdges must be strings')
-      return renderedEdges.includes('A->B') && renderedEdges.includes('B->C') ? 'native' : 'absent'
+      return JSON.stringify(renderedEdges) === JSON.stringify(['A->B', 'B->C']) ? 'native' : 'absent'
     }),
-    serialize: applicable('source-preserved', evidence => (facts(evidence).exactBytes === true ? 'source-preserved' : 'absent')),
-    mutate: applicable(
-      'diagnosed',
-      evidence => {
-        const semanticFacts = facts(evidence)
-        if (semanticFacts.mutationOk === true) return 'native'
-        return semanticFacts.errorCode === 'INVALID_OP' && semanticFacts.rejectedOpaqueBody === true ? 'diagnosed' : 'absent'
-      },
-      ['INVALID_OP'],
-    ),
+    serialize: applicable('native', evidence => (JSON.stringify(facts(evidence).reparsedTransitions) === JSON.stringify(['A->B', 'B->C']) ? 'native' : 'absent')),
+    mutate: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.mutationOk === true && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C', 'B->A']) ? 'native' : 'absent'
+    }),
   },
   observe: () => {
     const parsed = parsedOrThrow(stateTrailingCommentSource)
@@ -109,12 +103,16 @@ const stateTrailingComment: FidelityCaseDefinition = {
     const svg = renderMermaidSVG(stateTrailingCommentSource)
     const renderedEdges = [...svg.matchAll(/<(?:path|polyline)\b[^>]*data-from="([^"]+)"[^>]*data-to="([^"]+)"[^>]*>/g)].map(match => `${match[1]}->${match[2]}`)
     const serialized = serializeMermaid(parsed)
+    const reparsed = parsedOrThrow(serialized)
     const mutation = mutate(parsed, { kind: 'add_transition', from: 'B', to: 'A' })
+    const transitions = (diagram: typeof parsed): string[] => diagram.body.kind === 'state'
+      ? diagram.body.transitions.map(transition => `${transition.from}->${transition.to}`)
+      : []
     return {
       agent: {
         status: 'observed',
         diagnosticCodes: verification.warnings.map(warning => warning.code).filter(code => code === 'UNSUPPORTED_SYNTAX'),
-        semantics: { bodyKind: parsed.body.kind },
+        semantics: { bodyKind: parsed.body.kind, transitions: transitions(parsed) },
       },
       render: {
         status: 'observed',
@@ -124,16 +122,12 @@ const stateTrailingComment: FidelityCaseDefinition = {
       serialize: {
         status: 'observed',
         diagnosticCodes: [],
-        semantics: { exactBytes: serialized === stateTrailingCommentSource },
+        semantics: { reparsedTransitions: transitions(reparsed) },
       },
       mutate: {
         status: 'observed',
         diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
-        semantics: {
-          mutationOk: mutation.ok,
-          errorCode: mutation.ok ? null : mutation.error.code,
-          rejectedOpaqueBody: mutation.ok ? false : mutation.error.message.includes('body kind opaque'),
-        },
+        semantics: { mutationOk: mutation.ok, transitions: mutation.ok ? transitions(mutation.value) : [] },
       },
     }
   },

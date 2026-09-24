@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "b5d45cc13e5baff14997124b10b322e9f62360cc13256a5239a6e0f6cace2023",
-  "receiptResultSha256": "87460b98e28a35a609addb2eb976217afd0412f431a371edd02b143a190a7426",
+  "receiptInputSha256": "7a0cf0fe879bfdd8cff8a92fe7db7f0caab755dc1f27187e1e75d67066dcec78",
+  "receiptResultSha256": "c14b3e3efe57a66d7f6a2200cbe62062dcc3283822d28a2175e0c8701286a44c",
   "summary": {
     "caseCount": 10,
     "featureCount": 7,
     "dispositions": {
-      "native": 1,
+      "native": 2,
       "source-preserved": 0,
       "diagnosed": 2,
-      "absent": 4
+      "absent": 3
     }
   },
   "features": [
@@ -247,41 +247,27 @@
     {
       "featureId": "official-doc:state:section:comments",
       "family": "state",
-      "disposition": "absent",
+      "disposition": "native",
       "caseIds": [
         "state.comments.trailing-transition-loss"
       ],
       "surfaces": {
-        "agent": "source-preserved",
-        "render": "absent",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
       },
-      "diagnostics": {
-        "agent": [
-          "UNSUPPORTED_SYNTAX"
-        ],
-        "mutate": [
-          "INVALID_OP"
-        ]
-      },
+      "diagnostics": {},
       "caseEvidence": [
         {
           "caseId": "state.comments.trailing-transition-loss",
           "surfaces": {
-            "agent": "source-preserved",
-            "render": "absent",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
           },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
+          "diagnostics": {}
         }
       ],
       "acceptedDivergences": []

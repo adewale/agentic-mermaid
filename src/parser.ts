@@ -4,6 +4,7 @@ import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   isConcurrencySeparator, isStateNodeId, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+  stripStateComment, matchStateClassAssignment,
 } from './state/parse-core.ts'
 import { parseStyleProps } from './shared/style-props.ts'
 export { parseStyleProps } from './shared/style-props.ts'
@@ -42,7 +43,7 @@ export function parseMermaid(text: string): MermaidGraph {
   }
 
   // Detect diagram type from header
-  const header = lines[0]!
+  const header = stripStateComment(lines[0]!)
 
   const detection = classifyMermaidFamilyFromFirstLine(header, 'strict')
   const familyId = detection.kind === 'registered'
@@ -557,7 +558,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   }
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
+    const line = stripStateComment(lines[i]!)
+    if (!line) continue
 
     // --- open block note: collect body lines verbatim until `end note` ---
     if (openNote) {
@@ -603,12 +605,11 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- class/cssClass assignment and inline state style ---
-    const stateClassAssignment = line.match(/^(?:class|cssClass)\s+([\w\p{L},-]+)\s+([\w-]+)$/u)
+    const stateClassAssignment = matchStateClassAssignment(line)
     if (stateClassAssignment) {
-      const ids = stateClassAssignment[1]!.split(',').map(id => id.trim()).filter(Boolean)
-      for (const id of ids) {
+      for (const id of stateClassAssignment.ids) {
         ensureStateNode(graph, compositeStack, id)
-        graph.classAssignments.set(id, stateClassAssignment[2]!)
+        graph.classAssignments.set(id, stateClassAssignment.className)
       }
       continue
     }

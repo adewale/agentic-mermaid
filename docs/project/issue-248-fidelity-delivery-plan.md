@@ -45,11 +45,11 @@ As of 2026-09-24:
   #192, #220, and #267 into seven passing receipt cases. Those receipts cover
   the Sankey compositing branches, XYChart unsupported-statement handling, and
   Flowchart shrink mutation without claiming broader family completeness.
-- The public-claim cutover is now the active phase. Until it lands, Section A
-  and citizenship can still infer support from enrollment or descriptor-level
-  evidence rather than current construct receipts.
-- The silent-corruption family fixes, official-example classification, and
-  configuration-effect matrix remain after the cutover.
+- PR #279 has landed the public-claim cutover. Section A and citizenship now
+  fail closed against current construct receipts rather than inferring syntax
+  support from enrollment or descriptor-level evidence.
+- The silent-corruption family fixes are the active phase. Official-example
+  classification and the configuration-effect matrix remain after them.
 
 ## What the evidence must prove
 
@@ -193,7 +193,7 @@ Because PRs #192, #220, and #267 predate this mandatory audit policy, the
 audited adoption PR is their retrospective programme reconciliation record; it
 does not attempt to manufacture per-PR approvals for already-merged trees.
 
-### 3. Cut public claims over to receipts — in progress
+### 3. Cut public claims over to receipts — landed in PR #279
 
 Make capability and citizenship reports consume the receipt-derived summary.
 Add the shared route-conformance checks and fail closed: any native claim without

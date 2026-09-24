@@ -52,6 +52,22 @@ export function isStateNodeId(id: string): boolean {
   return STATE_NODE_ID_RE.test(id)
 }
 
+/** Mermaid State comments consume the remainder of their line, including when
+ * they follow a statement. Normalize once for both render and agent parsers. */
+export function stripStateComment(line: string): string {
+  const marker = line.indexOf('%%')
+  return (marker < 0 ? line : line.slice(0, marker)).trim()
+}
+
+/** `class Moving, Crash movement` (or `cssClass`) allows spaces around commas. */
+export function matchStateClassAssignment(line: string): { ids: string[]; className: string } | null {
+  const match = line.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/u)
+  if (!match) return null
+  const ids = match[1]!.split(',').map(id => id.trim())
+  if (ids.some(id => !isStateNodeId(id))) return null
+  return { ids, className: match[2]! }
+}
+
 /** `note left|right of X : text` — single-line note. */
 export function matchNoteLine(line: string): StateNoteLineMatch | null {
   const m = line.match(NOTE_LINE_RE)

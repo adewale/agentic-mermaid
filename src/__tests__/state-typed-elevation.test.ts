@@ -20,6 +20,31 @@ function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagr
 }
 
 describe('typed State residual elevation (B07)', () => {
+  test('trailing Mermaid comments preserve transition topology in both parsers', () => {
+    const source = `stateDiagram-v2
+      A --> B %% legal trailing comment
+      B --> C`
+    const diagram = state(source)
+    expect(diagram.body.transitions).toEqual([{ from: 'A', to: 'B' }, { from: 'B', to: 'C' }])
+    const graph = parseRenderGraph(source)
+    expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['B', 'C']])
+    expect(state(serializeMermaid(diagram)).body.transitions).toEqual(diagram.body.transitions)
+  })
+
+  test('spaced comma-separated State class targets retain both paint assignments', () => {
+    const source = `stateDiagram-v2
+      Moving --> Crash
+      classDef movement fill:#ff0000
+      class Moving, Crash movement`
+    const diagram = state(source)
+    expect(diagram.body.states.find(item => item.id === 'Moving')?.className).toBe('movement')
+    expect(diagram.body.states.find(item => item.id === 'Crash')?.className).toBe('movement')
+    const graph = parseRenderGraph(source)
+    expect(graph.classAssignments.get('Moving')).toBe('movement')
+    expect(graph.classAssignments.get('Crash')).toBe('movement')
+    expect(parseRenderGraph(serializeMermaid(diagram)).classAssignments).toEqual(graph.classAssignments)
+  })
+
   test('models concurrency regions and lets region-addressed edits round-trip', () => {
     let diagram = state(`stateDiagram-v2
       state parallel-work {
