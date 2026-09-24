@@ -38,7 +38,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Timeline header diagnosis keeps the 31-request graph; these are the
     // reviewed Linux/x64 totals for the updated lazy browser chunk.
     maxRawBytes: 732_199,
-    maxGzipBytes: 274_699,
+    maxGzipBytes: 274_695,
     maxBrotliBytes: 250_849,
     required: Object.freeze([
       '^/demo/$',
