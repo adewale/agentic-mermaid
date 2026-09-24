@@ -24,6 +24,8 @@ describe('Class escaped relationship IDs', () => {
       { statement: 'Foo--|>B', from: 'Foo', to: 'B', kind: 'inheritance' },
       { statement: 'Foo--*B', from: 'Foo', to: 'B', kind: 'composition' },
       { statement: 'Foo--o B', from: 'Foo', to: 'B', kind: 'aggregation' },
+      { statement: 'A o--out', from: 'A', to: 'out', kind: 'aggregation' },
+      { statement: 'A o--oB', from: 'A', to: 'oB', kind: 'aggregation' },
       { statement: 'Ao--B', from: 'Ao', to: 'B', kind: 'link-solid' },
       { statement: 'Foo--oB', from: 'Foo', to: 'oB', kind: 'link-solid' },
     ] as const
@@ -61,11 +63,12 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('576 ordinary endpoint/operator/spacing variants keep pinned identity', () => {
+  test('2,592 ordinary endpoint/operator/asymmetric-spacing variants keep pinned identity', () => {
     const ids = ['A', 'Ao', 'Foo', 'Zoo', 'Oo', 'AB', 'B', 'oB']
     const arrows = ['-->', '--|>', '--*', '--o', 'o--', '*--', '<|--', '<--', '..>', '..|>', '--', '..']
-    const statements = ids.flatMap(from => ['B', 'oB'].flatMap(to => arrows.flatMap(arrow => ['', ' ', '  '].map(space => `${from}${space}${arrow}${space}${to}`))))
-    expect(statements).toHaveLength(576)
+    const spaces = ['', ' ', '  ']
+    const statements = ids.flatMap(from => ['B', 'oB', 'out'].flatMap(to => arrows.flatMap(arrow => spaces.flatMap(before => spaces.map(after => `${from}${before}${arrow}${after}${to}`)))))
+    expect(statements).toHaveLength(2_592)
     const probe = Bun.spawnSync({
       cmd: [process.execPath, '-e', `
         import DOMPurify from 'dompurify'
@@ -230,6 +233,38 @@ describe('Class escaped relationship IDs', () => {
       expect(verifyMermaid(parsed.value).warnings.map(warning => warning.code)).toEqual(expect.arrayContaining([
         'UNSUPPORTED_SYNTAX', 'RENDER_FAILED',
       ]))
+    }
+  })
+
+  test('malformed ordinary marked labels cannot re-enter through legacy fallbacks', () => {
+    const invalid = ['A-->B : x:y', 'Foo--*B : label;', 'Foo--|>B : a:b']
+    const probe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const result = []
+        for (const statement of ${JSON.stringify(invalid)}) {
+          try { await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement); result.push('accepted') }
+          catch { result.push('rejected') }
+        }
+        process.stdout.write(JSON.stringify(result))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(invalid.map(() => 'rejected'))
+    for (const statement of invalid) {
+      const source = `classDiagram\n${statement}`
+      expect(parseClassRelationship(statement)).toBeNull()
+      expect(() => parseClassDiagram(source.split('\n'))).toThrow('Unrecognized class relationship statement')
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(verifyMermaid(parsed.value).ok).toBe(false)
     }
   })
 

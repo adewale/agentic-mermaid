@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "4ea0147ed2a055208d7b3b458beed904652e86daab4e050e4ba19ea6efa653e0"
+      "sha256": "cf34d9c4e242acfa29046d9a77562ab8fa83ce54aff76e2c7560d88b8fbd3700"
     },
     {
       "path": "src/agent/core.ts",
@@ -492,7 +492,7 @@
     },
     {
       "path": "src/class/parser.ts",
-      "sha256": "ec40b9d30b3b27d131fa637902e4c3ff670a4df907031115e12741732d4f2396"
+      "sha256": "120dcf5fd02d0ba8be2b73a62e812e6bddae4f5ecc38baecfccfa1282d6da57e"
     },
     {
       "path": "src/class/renderer.ts",

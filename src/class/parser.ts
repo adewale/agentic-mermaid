@@ -595,9 +595,9 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
     }
   }
 
-  // Once an escaped one-way arrow has reached the bounded scanner, do not
-  // let the legacy regex re-admit a source that the scanner rejected.
-  if (isEscapedMarkedClassRelationshipCandidate(line)) return null
+  // Once a one-way arrow has reached the bounded scanner, do not let the
+  // legacy regex re-admit a malformed label or endpoint it rejected.
+  if (isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) return null
 
   // Relationship regex — handles ordinary one-ended arrows.
   const match = line.match(
@@ -659,8 +659,10 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
     // In `Foo-->B`, the final `o` of Foo overlaps `o--` but the complete
     // suffix arrow starts one byte later. Prefer that arrow. `Ao--B` has no
     // competing suffix arrow; the markerless parser already handles it as a
-    // bare link from `Ao` to `B`, matching Mermaid.
-    if (found === 'o--' && MARKED_SUFFIX_ARROWS.some(token => line.startsWith(token, i + 1))) continue
+    // bare link from `Ao` to `B`, matching Mermaid. A separate `o--` token
+    // after whitespace (as in `A o--out`) must keep its prefix meaning.
+    if (found === 'o--' && /[\w$]/.test(line[i - 1] ?? '')
+      && MARKED_SUFFIX_ARROWS.some(token => line.startsWith(token, i + 1))) continue
     if (operator >= 0) return null
     operator = i
     arrow = found

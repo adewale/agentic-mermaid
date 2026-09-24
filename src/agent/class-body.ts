@@ -35,7 +35,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -79,7 +79,7 @@ export function parseClassRelationSyntax(line: string): (ClassRelation & { fromG
       ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
     }
   }
-  if (isBareClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) return null
+  if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) return null
   // The legacy no-space token fallback uses several regexes with ambiguous
   // endpoint captures. Keep malformed full-size inputs from multiplying that
   // work; supported long relationships already return through the shared
