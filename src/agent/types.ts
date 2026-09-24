@@ -1489,7 +1489,7 @@ export type LayoutWarning =
    * room inside or beyond their bar. `labels` lists exactly what is missing.
    * Advisory: the chart still renders; never flips verify.ok.
    */
-  | { code: 'LABELS_HIDDEN'; target: 'x-axis' | 'data-labels'; labels: string[]; message: string }
+  | { code: 'LABELS_HIDDEN'; target: 'x-axis' | 'data-labels' | 'point-labels'; labels: string[]; message: string }
   /**
    * An authored value-axis range excludes zero on a chart with bar series, so
    * bars start at `baseline` and their lengths are not proportional to their

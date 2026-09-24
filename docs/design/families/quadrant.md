@@ -102,7 +102,13 @@ input → identical placement). Per point, in source order:
    connected to the point by a leader line (`.quadrant-leader`);
 3. **hidden** — when nothing clears, the label hides; earlier source order
    wins. The hidden label stays on the model (`labelHidden`, `data-label`,
-   tooltips) — it is only not drawn.
+   tooltips) — it is only not drawn — and `verify` names it
+   (`LABELS_HIDDEN`, `target: "point-labels"`), so an omission is never
+   silent ([chart honesty](../system/chart-honesty.md), H3).
+
+A drawn label carries a halo in the fill of the quadrant beneath it: a point
+on a divider, the border, or a leader line would otherwise put that line
+through its glyphs.
 
 A slot must clear every already-placed label box, every point circle, every
 quadrant region label, and the canvas bounds. The positioned point exposes

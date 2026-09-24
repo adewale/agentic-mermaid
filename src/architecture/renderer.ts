@@ -7,6 +7,7 @@ import type {
 } from './types.ts'
 import type { ArchitectureVisualConfig } from './config.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
+import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT } from './layout.ts'
 import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock } from '../theme.ts'
 import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
@@ -115,15 +116,15 @@ export function lowerArchitectureScene(
       text: diagram.title.text,
       x: diagram.title.x,
       y: diagram.title.y,
-      fontSize: 18,
+      fontSize: ARCHITECTURE_TITLE_FONT_SIZE,
       anchor: 'middle',
       paint: { fill: 'var(--arch-service-label, var(--_text))' },
     }, renderMultilineText(
       diagram.title.text,
       diagram.title.x,
       diagram.title.y,
-      18,
-      'class="architecture-title" text-anchor="middle" font-size="18" font-weight="600" fill="var(--arch-service-label, var(--_text))"',
+      ARCHITECTURE_TITLE_FONT_SIZE,
+      `class="architecture-title" text-anchor="middle" font-size="${ARCHITECTURE_TITLE_FONT_SIZE}" font-weight="${ARCHITECTURE_TITLE_FONT_WEIGHT}" fill="var(--arch-service-label, var(--_text))"`,
     )))
   }
 

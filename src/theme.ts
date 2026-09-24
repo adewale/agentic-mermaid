@@ -25,7 +25,7 @@ import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
  * from Shiki themes or custom palettes. Each falls back to a color-mix()
  * derivation from bg + fg if not set.
  */
-import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast } from './shared/color-math.ts'
+import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import { requireSafeCssFontFamily } from './shared/css-font.ts'
 import { requireSafeCssPaint } from './shared/css-color.ts'
 
@@ -458,12 +458,15 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
   const { bg, fg } = colors
   const nodeFill = colors.surface ?? mixHex(fg, bg, MIX.nodeFill)
   const groupHdr = mixHex(fg, bg, MIX.groupHeader)
-  let text = ensureContrast(fg, bg, 4.5)
-  text = ensureContrast(text, nodeFill, 4.5)
-  let textSec = ensureContrast(colors.muted ?? mixHex(fg, bg, MIX.textSec), bg, 4.5, text)
-  textSec = ensureContrast(textSec, groupHdr, 4.5, text)
-  const textMuted = ensureContrast(colors.muted ?? mixHex(fg, bg, MIX.textMuted), bg, 4.5, text)
-  const textFaint = ensureContrast(mixHex(fg, bg, MIX.textFaint), bg, 3, text)
+  const keyBadge = mixHex(fg, bg, MIX.keyBadge)
+  // Every text tone is drawn on every one of these surfaces somewhere (member
+  // types on node bodies, group titles on header bands, key names on badges),
+  // so each tone must read at WCAG AA on all of them, not only on the page.
+  const surfaces = [bg, nodeFill, groupHdr, keyBadge]
+  const text = legibleOnEvery(fg, surfaces)
+  const textSec = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textSec), surfaces, text)
+  const textMuted = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textMuted), surfaces, text)
+  const textFaint = legibleOnEvery(mixHex(fg, bg, MIX.textFaint), surfaces, text)
   return {
     bg,
     fg,
@@ -478,8 +481,19 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
     groupFill: bg,
     groupHdr,
     innerStroke: mixHex(fg, bg, MIX.innerStroke),
-    keyBadge: mixHex(fg, bg, MIX.keyBadge),
+    keyBadge,
   }
+}
+
+/** `candidate`, darkened or lightened just enough to reach WCAG AA on every
+ * surface. The surfaces are tints of one page, so repairing against each in
+ * turn converges; a second pass covers a repair that moved off an earlier one. */
+function legibleOnEvery(candidate: string, surfaces: readonly string[], fallback?: string): string {
+  let ink = candidate
+  for (let pass = 0; pass < 2; pass++) {
+    for (const surface of surfaces) ink = ensureContrast(ink, surface, WCAG_AA_TEXT_CONTRAST, fallback)
+  }
+  return ink
 }
 
 /**
@@ -498,12 +512,12 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
  * When bg/fg are not hex colors (e.g. CSS variable strings for live theming),
  * the SVG is returned as-is since resolution isn't possible.
  */
-export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
-  if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return svg
-
+/** The concrete value of every diagram color variable (`--bg`, `--_text`, …),
+ * keyed by name without the leading dashes, or undefined when the palette is
+ * not concrete hex (live CSS theming cannot be resolved ahead of the host). */
+export function diagramColorVariables(colors: DiagramColors): Map<string, string> | undefined {
+  if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return undefined
   const rc = resolveColors(colors)
-
-  // Build mapping of CSS variable names → resolved hex values
   const vars = new Map<string, string>()
   // User-facing variables
   vars.set('bg', rc.bg)
@@ -513,16 +527,6 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   if (colors.muted && isHexColor(colors.muted)) vars.set('muted', colors.muted)
   if (colors.surface && isHexColor(colors.surface)) vars.set('surface', colors.surface)
   if (colors.border && isHexColor(colors.border)) vars.set('border', colors.border)
-
-  // Some family renderers define concrete custom properties on the SVG root
-  // before using them in style-block fallbacks. Learn those up front so
-  // var(--family-token, fallback) prefers the authored token over fallback.
-  const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
-  let initialDefMatch
-  while ((initialDefMatch = cssDefRegex.exec(svgCssText(svg))) !== null) {
-    vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
-  }
-
   // Derived internal variables
   vars.set('_text', rc.text)
   vars.set('_text-sec', rc.textSec)
@@ -536,6 +540,41 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   vars.set('_group-hdr', rc.groupHdr)
   vars.set('_inner-stroke', rc.innerStroke)
   vars.set('_key-badge', rc.keyBadge)
+  return vars
+}
+
+/** One paint (`#hex`, `var(--name)` or `var(--name, #hex)`) as concrete hex,
+ * or undefined when it names something the palette cannot resolve. */
+export function resolvedColorValue(value: string, colors: DiagramColors): string | undefined {
+  if (isHexColor(value)) return value
+  const reference = value.match(/^var\(\s*--([\w-]+)\s*(?:,\s*(#[0-9a-fA-F]{3,8})\s*)?\)$/)
+  if (!reference) return undefined
+  return diagramColorVariables(colors)?.get(reference[1]!) ?? reference[2]
+}
+
+export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
+  const palette = diagramColorVariables(colors)
+  if (!palette) return svg
+  const rc = resolveColors(colors)
+
+  // Build mapping of CSS variable names → resolved hex values
+  const vars = new Map<string, string>()
+  for (const name of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border']) {
+    const value = palette.get(name)
+    if (value !== undefined) vars.set(name, value)
+  }
+
+  // Some family renderers define concrete custom properties on the SVG root
+  // before using them in style-block fallbacks. Learn those up front so
+  // var(--family-token, fallback) prefers the authored token over fallback.
+  const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
+  let initialDefMatch
+  while ((initialDefMatch = cssDefRegex.exec(svgCssText(svg))) !== null) {
+    vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
+  }
+
+  // Derived internal variables
+  for (const [name, value] of palette) if (name.startsWith('_')) vars.set(name, value)
 
   // `--font` is intentionally left as a live CSS variable so consumers can
   // swap the family post-render. Skip it from the color-resolution phase

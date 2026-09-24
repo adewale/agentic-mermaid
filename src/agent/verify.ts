@@ -20,6 +20,7 @@ import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import type { PositionedGraph } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
+import type { PositionedQuadrantChart } from '../quadrant/types.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
@@ -315,6 +316,25 @@ function xychartHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWar
   }
 }
 
+/** Point labels the quadrant layout did not draw because every candidate
+ * position collided with a label placed before it (LABELS_HIDDEN). */
+function quadrantHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const chart = positioned()?.positioned as Partial<PositionedQuadrantChart> | undefined
+    const labels = (chart?.points ?? []).filter(point => point.labelHidden).map(point => point.label)
+    if (labels.length === 0) return []
+    return [{
+      code: 'LABELS_HIDDEN',
+      target: 'point-labels',
+      labels,
+      message: `Quadrant chart does not draw ${labels.length} point ${labels.length === 1 ? 'label' : 'labels'} because ${labels.length === 1 ? 'it collides' : 'they collide'} with labels placed first: ${labels.join(', ')}. Spread the points, shorten the names, or enlarge the chart.`,
+    }]
+  } catch {
+    // Layout failures have their own RENDER_FAILED path.
+    return []
+  }
+}
+
 export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
   if (d.body.kind === 'extension' || d.body.kind === 'preserved') return []
   const builtin = d as ValidDiagram
@@ -408,7 +428,8 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
           })
     const appearanceWarnings = d.body.kind === 'radar'
       ? radarAuthoredContrastWarnings(positioned)
-      : d.body.kind === 'xychart' ? xychartHiddenLabelWarnings(positioned) : []
+      : d.body.kind === 'xychart' ? xychartHiddenLabelWarnings(positioned)
+        : d.body.kind === 'quadrant' ? quadrantHiddenLabelWarnings(positioned) : []
     return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
   }
 

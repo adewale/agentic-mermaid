@@ -142,6 +142,13 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (!actorIds.has(id)) {
         actorIds.add(id)
         diagram.actors.push({ id, label, type })
+      } else if (label !== id) {
+        // As in Mermaid, re-declaring a participant with an alias renames it
+        // (`participant A` in a box, then `participant A as Alice`); a bare
+        // re-declaration changes nothing.
+        const actor = diagram.actors.find(candidate => candidate.id === id)!
+        actor.label = label
+        actor.type = type
       }
       if (openBox && !openBox.actorIds.includes(id)) openBox.actorIds.push(id)
       continue
@@ -153,6 +160,13 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       ensureActor(diagram, actorIds, actorLinks.actorId)
       const actor = diagram.actors.find(candidate => candidate.id === actorLinks.actorId)!
       actor.links = { ...actor.links, ...actorLinks.links }
+      continue
+    }
+
+    // --- title <text> (Mermaid's sequence title statement) ---
+    const titleMatch = line.match(/^title(?:\s*:\s*|\s+)(.+)$/i)
+    if (titleMatch) {
+      diagram.title = normalizeBrTags(titleMatch[1]!.trim())
       continue
     }
 

@@ -1,7 +1,8 @@
 import type { PositionedPieChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue } from '../theme.ts'
+import { isHexColor, legibleInk, mixHex } from '../shared/color-math.ts'
 import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import {
   formatPieValue,
@@ -212,9 +213,14 @@ export function lowerPieScene(
     const label = slice.pctLabel
     if (!label) continue
     const dimmed = anyHighlighted && visual.highlightSlice !== slice.label
-    const fill = visual.sectionTextColor ?? (dimmed
-      ? style.nodeTextColor ?? colors.fg
-      : contrastTextColor(fills[index]!) ?? style.nodeTextColor ?? colors.fg)
+    // The label sits on the wedge as drawn: its fill at the wedge's opacity
+    // over the page. A dimmed wedge keeps foreground ink where that ink reads.
+    const opacity = anyHighlighted && !dimmed ? 1 : dimmed ? (visual.opacity ?? 1) * PIE.dimOpacity : visual.opacity ?? 1
+    const surface = drawnWedge(fills[index]!, opacity, colors)
+    const pageInk = style.nodeTextColor ?? colors.fg
+    const fill = visual.sectionTextColor ?? (surface === undefined
+      ? dimmed ? pageInk : contrastTextColor(fills[index]!) ?? pageInk
+      : dimmed ? legibleInk(resolvedColorValue(pageInk, colors) ?? pageInk, surface) : contrastTextColor(surface)!)
     parts.push(marks.text(
       {
         id: occurrenceId('slice-label', slice.label),
@@ -408,4 +414,11 @@ function letterAttr(value: number): string {
 /** Round to the crisp 2-decimal grid. */
 function rnd(value: number): number {
   return Math.round(value * 100) / 100
+}
+
+/** A wedge's color as drawn: its fill composited over the page at its opacity. */
+function drawnWedge(fill: string, opacity: number, colors: DiagramColors): string | undefined {
+  const page = resolvedColorValue('var(--bg)', colors)
+  if (page === undefined || !isHexColor(fill)) return undefined
+  return opacity >= 1 ? fill : mixHex(fill, page, opacity * 100)
 }

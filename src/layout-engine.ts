@@ -34,7 +34,7 @@ import type {
   DiamondFacet,
   RouteClass,
 } from './types.ts'
-import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
@@ -96,10 +96,16 @@ interface LayoutEngineOptions extends RenderOptions {
   styleFace?: InternalStyleFace
   /** @internal Boundary-projected State metrics; never a public raw option. */
   stateVisual?: ResolvedStateVisualConfig
+  /** @internal Lay compound nodes out separately, which honors their minimum
+   * width; set when a group came back narrower than its title. */
+  separateHierarchy?: boolean
+  /** @internal The diagram's title (frontmatter `title:`), drawn in a band
+   * above the graph. */
+  diagramTitle?: string
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder'> & { stateVisual?: ResolvedStateVisualConfig }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy'> & { stateVisual?: ResolvedStateVisualConfig }
 
 // ============================================================================
 // Layout options
@@ -466,8 +472,9 @@ function mermaidToElk(
     nodeToSubgraphAncestors.get(id) ?? subgraphAncestors.get(id)?.slice(0, -1) ?? []
 
   // Determine if we need SEPARATE hierarchy handling
-  // We use SEPARATE when any subgraph has a direction override
-  const hasDirectionOverride = graph.subgraphs.some(sg => sg.direction !== undefined)
+  // We use SEPARATE when any subgraph has a direction override, or when a
+  // group's title needs a width INCLUDE_CHILDREN would not give it.
+  const hasDirectionOverride = opts.separateHierarchy === true || graph.subgraphs.some(sg => sg.direction !== undefined)
 
   // Classify edges into three categories:
   // 1. Internal edges (both endpoints in same subgraph)
@@ -924,6 +931,14 @@ function crossHierarchyElkEdge(
   return elkEdge
 }
 
+/** The width a titled group needs so its header title stays inside the frame. */
+function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'concurrencyRegion'>, style: ResolvedRenderStyle): number {
+  if (!sg.label || sg.concurrencyRegion) return 0
+  const title = applyTextTransform(sg.label, style.groupTextTransform)
+  const width = measureMultilineText(title, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing).width
+  return Math.ceil(width + 2 * style.groupLabelPaddingX)
+}
+
 /**
  * Convert a MermaidSubgraph to an ELK compound node.
  * Includes internal edges (edges where both endpoints are in this subgraph)
@@ -973,6 +988,16 @@ function subgraphToElk(
   // Apply direction override if specified
   if (sg.direction) {
     layoutOptions['elk.direction'] = directionToElk(sg.direction)
+  }
+
+  // The header title is drawn from the group's left edge, so a group narrower
+  // than its title would push the title past the frame (and off the canvas).
+  // ELK centers the content in a compound node held to this minimum width;
+  // only SEPARATE hierarchy handling honors it (see layoutGraphSync).
+  const titleWidth = groupTitleWidth(sg, style)
+  if (titleWidth > 0) {
+    layoutOptions['elk.nodeSize.constraints'] = 'MINIMUM_SIZE'
+    layoutOptions['elk.nodeSize.minimum'] = `(${titleWidth}, 0)`
   }
 
   const elkNode: ElkGraphNode = {
@@ -1676,6 +1701,37 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
+  const positioned = layoutUntitledGraph(graph, options)
+  const band = diagramTitleBand(options.diagramTitle, resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace))
+  if (!band) return positioned
+  // The title takes a band above everything the layout placed; the graph
+  // moves down beneath it and the canvas widens to a title wider than it.
+  const padding = options.padding ?? DEFAULTS.padding
+  translatePositionedGraph(positioned, band.height)
+  positioned.height += band.height
+  positioned.width = Math.max(positioned.width, band.width + 2 * padding)
+  positioned.title = positionDiagramTitle(band, positioned.width, padding)
+  return positioned
+}
+
+function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
+  const moveGroup = (group: PositionedGroup): void => {
+    group.y += dy
+    for (const child of group.children) moveGroup(child)
+  }
+  for (const node of positioned.nodes) node.y += dy
+  for (const group of positioned.groups) moveGroup(group)
+  for (const edge of positioned.edges) {
+    for (const point of edge.points) point.y += dy
+    if (edge.labelPosition) edge.labelPosition.y += dy
+  }
+  for (const note of positioned.notes ?? []) note.y += dy
+}
+
+function layoutUntitledGraph(
+  graph: MermaidGraph,
+  options: LayoutEngineOptions,
+): PositionedGraph {
   const stateVisual = (options as StateRenderOptions).stateVisual
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults, options.styleFace)
@@ -1722,6 +1778,13 @@ export function layoutGraphSync(
   if (!result) throw lastError
   const positioned = elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, stateVisual?.noteMargin ?? 18)
 
+  // A group narrower than its title means ELK (INCLUDE_CHILDREN) ignored the
+  // compound's minimum width; lay out again with the hierarchy handling that
+  // honors it. Graphs whose titles fit never take this path.
+  if (!opts.separateHierarchy && groupsNarrowerThanTitles(positioned.groups, graph, style)) {
+    return layoutUntitledGraph(graph, { ...options, separateHierarchy: true })
+  }
+
   // Co-rank certify-or-fallback (the robustness-doc doctrine). The co-rank
   // balancing labels re-rank a mixed-label fan-in's sources; on rare graphs
   // (observed in RL/reverse-flow when a co-ranked source also carries an
@@ -1741,7 +1804,7 @@ export function layoutGraphSync(
     const prev = saved?.APL_NO_CORANK_FANIN
     if (saved) saved.APL_NO_CORANK_FANIN = '1'
     try {
-      const fallback = layoutGraphSync(graph, options)
+      const fallback = layoutUntitledGraph(graph, options)
       if (hardViolations(assessLayout(graph, fallback)).length === 0) return fallback
       // Disabled layout is itself not clean (not a co-rank regression): keep the
       // original rather than mask an unrelated pre-existing hard violation.
@@ -1750,6 +1813,14 @@ export function layoutGraphSync(
     }
   }
   return positioned
+}
+
+function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {
+  return groups.some(group => {
+    const subgraph = findSubgraph(graph.subgraphs, group.id)
+    return (subgraph !== undefined && group.width + 0.5 < groupTitleWidth(subgraph, style))
+      || groupsNarrowerThanTitles(group.children, graph, style)
+  })
 }
 
 function containsNonFiniteNumber(value: unknown, seen = new Set<object>()): boolean {

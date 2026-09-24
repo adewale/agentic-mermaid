@@ -38,6 +38,9 @@ export const GANTT_LABEL_WRAP_BUDGET = 220
  *  scheduler's MAX_CALENDAR_STEPS bound). */
 const GANTT_MAX_SHADED_DAYS = 10_000
 
+/** Clearance kept between the canvas edge and axis text that reaches it. */
+const GANTT_EDGE_GAP = 2
+
 export interface GanttLayoutOptions {
   /** Total drawing width; the plot shrinks to fit. */
   width?: number
@@ -122,6 +125,10 @@ export function resolveGanttRenderStyle(
 
 export function ganttTitleFontSize(style: ResolvedRenderStyle): number {
   return Math.max(17, style.groupHeaderFontSize)
+}
+
+export function ganttTitleFontWeight(style: ResolvedRenderStyle): number {
+  return Math.max(style.groupHeaderFontWeight, 600)
 }
 
 export function ganttTitleY(style: ResolvedRenderStyle): number {
@@ -575,16 +582,30 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   }
   labelColumnWidth = Math.ceil(labelColumnWidth) + GL.labelGap
 
-  const width = options.width ?? (GL.padding * 2 + labelColumnWidth + GL.plotWidth)
+  // ---- canvas width -----------------------------------------------------------
+  // Axis labels are centered on their ticks, so a tick at (or near) the end of
+  // the range reaches past the plot by up to half its label; the right margin
+  // grows to hold it. A title wider than the chart widens the canvas.
+  const span = schedule.timeMax - schedule.timeMin
+  const tickLabels = resolveTicks(schedule, model)
+  const tickOverhang = (plotW: number): number => Math.max(0, ...tickLabels.map(tick => {
+    const half = ganttMeasureTextWidth(applyTextTransform(tick.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing) / 2
+    return half - ((schedule.timeMax - tick.time) / span) * plotW
+  }))
   const plotX = GL.padding + labelColumnWidth
-  const plotW = Math.max(120, width - plotX - GL.padding)
+  const naturalWidth = options.width ?? (GL.padding * 2 + labelColumnWidth + GL.plotWidth)
+  const rightPadding = Math.max(GL.padding, Math.ceil(tickOverhang(Math.max(120, naturalWidth - plotX - GL.padding)) + GANTT_EDGE_GAP))
+  const titleWidth = model.title
+    ? ganttMeasureTextWidth(applyTextTransform(model.title, style.groupTextTransform), ganttTitleFontSize(style), ganttTitleFontWeight(style), style.groupLetterSpacing)
+    : 0
+  const width = options.width ?? Math.max(naturalWidth + rightPadding - GL.padding, Math.ceil(titleWidth) + GL.padding * 2)
+  const plotW = Math.max(120, width - plotX - rightPadding)
 
   const titleH = model.title ? ganttTitleHeight(style) : 0
   const axisH = ganttAxisHeight(style)
   const topAxisH = model.topAxis ? axisH : 0
   const plotY = GL.padding + titleH + topAxisH
 
-  const span = schedule.timeMax - schedule.timeMin
   const xOf = (t: EpochMs): number => plotX + ((t - schedule.timeMin) / span) * plotW
 
   // ---- rows + bars (vert tasks never consume a row) --------------------------
@@ -677,7 +698,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   const height = plotY + plotH + axisH + GL.padding
 
   // ---- ticks / markers --------------------------------------------------------
-  const ticks: GanttTick[] = resolveTicks(schedule, model).map(t => ({
+  const ticks: GanttTick[] = tickLabels.map(t => ({
     time: t.time, x: xOf(t.time), label: t.label,
   }))
 

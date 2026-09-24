@@ -20,8 +20,10 @@ import type {
 
 const EDGE_EXIT_GAP = 16
 const GROUP_EDGE_PAD = 18
-const TITLE_FONT_SIZE = 18
-const TITLE_FONT_WEIGHT = 600
+/** The title is drawn at this size and weight in every style (renderer.ts),
+ * so the canvas reserves it at the same metrics. */
+export const ARCHITECTURE_TITLE_FONT_SIZE = 18
+export const ARCHITECTURE_TITLE_FONT_WEIGHT = 600
 const TITLE_Y = 20
 const TITLE_SIDE_PADDING = 40
 
@@ -196,8 +198,8 @@ export function layoutArchitectureDiagram(
     )
   }
   if (titleText) {
-    width = Math.max(width, estimateTextWidth(titleText, metrics?.groupFontSize ?? TITLE_FONT_SIZE, metrics?.groupFontWeight ?? TITLE_FONT_WEIGHT) + TITLE_SIDE_PADDING * 2)
-    height = Math.max(height, TITLE_Y + TITLE_FONT_SIZE + 20)
+    width = Math.max(width, estimateTextWidth(titleText, ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT) + TITLE_SIDE_PADDING * 2)
+    height = Math.max(height, TITLE_Y + ARCHITECTURE_TITLE_FONT_SIZE + 20)
   }
   for (const edge of edges) {
     for (const point of edge.points) {

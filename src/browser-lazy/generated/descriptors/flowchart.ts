@@ -57,6 +57,7 @@ const descriptorData = Object.freeze({
   "semanticChannels": [],
   "semanticRoles": [
     "prelude",
+    "title",
     "defs",
     "chrome",
     "group",
@@ -71,6 +72,15 @@ const descriptorData = Object.freeze({
     {
       "role": "prelude",
       "primitive": "document",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
+      "role": "title",
+      "primitive": "text",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [

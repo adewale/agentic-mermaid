@@ -231,6 +231,9 @@ export function lowerQuadrantScene(
         `data-label="${escapeXml(point.label)}" data-x="${point.nx}" data-y="${point.ny}" />`,
     ))
     if (!point.labelHidden) {
+      // A point may sit on a divider, the border, or a leader: the label's
+      // halo, in the surface beneath it, keeps those lines out of its glyphs.
+      const halo = labelSurface(point, chart, style)
       parts.push(marks.text(
         {
           id: `${pointId}:label`,
@@ -240,7 +243,7 @@ export function lowerQuadrantScene(
           y: point.labelY,
           fontSize: style.nodeLabelFontSize,
           anchor: point.labelAnchor,
-          paint: { fill: style.nodeTextColor ?? 'var(--_text)' },
+          paint: { fill: style.nodeTextColor ?? 'var(--_text)', stroke: halo, strokeWidth: String(POINT_LABEL_HALO_WIDTH), strokeLinejoin: 'round', paintOrder: 'stroke' },
         },
         renderMultilineText(
           point.label,
@@ -248,7 +251,8 @@ export function lowerQuadrantScene(
           point.labelY,
           style.nodeLabelFontSize,
           `class="quadrant-point-label" text-anchor="${point.labelAnchor}" dominant-baseline="middle" ` +
-            `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
+            `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} ` +
+            `stroke="${halo}" stroke-width="${POINT_LABEL_HALO_WIDTH}" stroke-linejoin="round" paint-order="stroke"`,
         ),
       ))
     }
@@ -361,6 +365,19 @@ function openQuadrantSvgTag(
       ...buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'quadrant chart'),
     },
   })
+}
+
+/** Stroke width of the surface-colored outline drawn under point labels. */
+const POINT_LABEL_HALO_WIDTH = 3
+
+/** The surface under a point label's center: its quadrant's fill, or the page
+ *  when the label sits outside the plot. */
+function labelSurface(point: PositionedQuadrantPoint, chart: PositionedQuadrantChart, style: ResolvedRenderStyle): string {
+  const box = point.labelBox
+  const x = box ? (box.x0 + box.x1) / 2 : point.labelX
+  const y = box ? (box.y0 + box.y1) / 2 : point.labelY
+  const region = chart.regions.find(region => x >= region.x && x <= region.x + region.width && y >= region.y && y <= region.y + region.height)
+  return region ? quadrantFill(region.number, style) : 'var(--bg)'
 }
 
 /**

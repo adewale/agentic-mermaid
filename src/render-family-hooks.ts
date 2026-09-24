@@ -17,6 +17,8 @@ import {
   projectXyChartPositioned,
 } from './agent/family-layouts.ts'
 import type { DiagramKind } from './agent/types.ts'
+import { frontmatterTitle, withFrontmatterTitle } from './mermaid-source.ts'
+import { resolveRenderStyle } from './styles.ts'
 import { resolveArchitectureVisualConfig } from './architecture/config.ts'
 import { layoutArchitectureDiagram } from './architecture/layout.ts'
 import { parseArchitectureDiagram } from './architecture/parser.ts'
@@ -118,11 +120,13 @@ function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
         }
       | undefined
   )?.visual
+  const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
   return layoutResult(
     layoutGraphSync(parseMermaid(ctx.source.familyText), {
       ...ctx.renderOptions,
       ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
       ...(stateVisual ? { stateVisual } : {}),
+      ...(diagramTitle ? { diagramTitle } : {}),
     }),
   )
 }
@@ -135,10 +139,12 @@ function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
 function layoutFlowchartWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
   const graph = parseMermaid(ctx.source.familyText)
   applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
+  const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
   return layoutResult(
     layoutGraphSync(graph, {
       ...ctx.renderOptions,
       ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
+      ...(diagramTitle ? { diagramTitle } : {}),
     }),
   )
 }
@@ -184,7 +190,7 @@ function layoutArchitecture(ctx: FamilyLayoutContext): FamilyLayoutResult {
         layout: ReturnType<typeof resolveArchitectureVisualConfig>['layout']
       }
     | undefined
-  const diagram = withAccessibilityFields(parseArchitectureDiagram(ctx.source.familyLines), ctx.source.accessibility)
+  const diagram = withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter)
   return layoutResult(layoutArchitectureDiagram(diagram, ctx.renderOptions, familyConfig?.layout), {
     injectAccessibility: false,
   })
@@ -262,7 +268,7 @@ const SEQUENCE_RENDER_HOOKS = {
             }
           | undefined
       )?.sequence ?? {}
-    const diagram = withAccessibilityFields(parseSequenceDiagram(ctx.source.familyLines, seqConfig), ctx.source.accessibility)
+    const diagram = withFrontmatterTitle(withAccessibilityFields(parseSequenceDiagram(ctx.source.familyLines, seqConfig), ctx.source.accessibility), ctx.source.frontmatter)
     return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig, ctx.styleFace))
   },
   projectPositioned: positionedView(projectSequencePositioned),
@@ -276,7 +282,7 @@ const CLASS_RENDER_HOOKS = {
   }),
   // Wire-or-warn config threading: the typed `class` frontmatter section's
   // nodeSpacing/rankSpacing fold into RenderOptions (explicit options win).
-  layout: ctx => layoutResult(layoutClassDiagram(withAccessibilityFields(parseClassDiagram(ctx.source.familyLines), ctx.source.accessibility), ctx.renderOptions, ctx.styleFace)),
+  layout: ctx => layoutResult(layoutClassDiagram(withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter), ctx.renderOptions, ctx.styleFace)),
   projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),
   renderAscii: ctx => renderClassAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
@@ -290,7 +296,7 @@ const ER_RENDER_HOOKS = {
   // rankSpacing fold into the parsed diagram/options (statement + explicit
   // options win over frontmatter).
   layout: ctx => {
-    const diagram = applyErFrontmatterDirection(withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter)
+    const diagram = withFrontmatterTitle(applyErFrontmatterDirection(withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter), ctx.source.frontmatter)
     return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace))
   },
   projectPositioned: positionedView(projectErPositioned),
@@ -302,7 +308,7 @@ const TIMELINE_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     appearance: { family: { ...resolveTimelineRequestAppearance(ctx.renderOptions) } },
   }),
-  layout: ctx => layoutResult(layoutTimelineDiagram(parseTimelineDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.renderOptions, ctx.styleFace)),
+  layout: ctx => layoutResult(layoutTimelineDiagram(withFrontmatterTitle(parseTimelineDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter), ctx.renderOptions, ctx.styleFace)),
   projectPositioned: positionedView(projectTimelinePositioned),
   lowerScene: scene(lowerTimelineScene),
   renderAscii: ctx => renderTimelineAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
@@ -312,7 +318,7 @@ const JOURNEY_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     appearance: { family: resolveJourneyRequestAppearance(ctx.renderOptions) as unknown as Record<string, unknown> },
   }),
-  layout: ctx => layoutResult(layoutJourneyDiagram(parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility), (ctx.familyAppearance as ReturnType<typeof resolveJourneyRequestAppearance> | undefined) ?? resolveJourneyRequestAppearance(ctx.renderOptions), ctx.renderOptions, ctx.styleFace)),
+  layout: ctx => layoutResult(layoutJourneyDiagram(withFrontmatterTitle(parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter), (ctx.familyAppearance as ReturnType<typeof resolveJourneyRequestAppearance> | undefined) ?? resolveJourneyRequestAppearance(ctx.renderOptions), ctx.renderOptions, ctx.styleFace)),
   projectPositioned: positionedView(projectJourneyPositioned),
   lowerScene: scene(lowerJourneyScene),
   renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth, ctx.styleFace),
@@ -341,7 +347,7 @@ const XYCHART_RENDER_HOOKS = {
           theme: ReturnType<typeof resolveXYChartTheme>
         }
       | undefined
-    const chart = applyResolvedXYChartConfig(withAccessibilityObject(parseXYChart(ctx.source.familyLines), ctx.source.accessibility), familyConfig?.config ?? resolveXYChartConfig({}), familyAppearance?.theme ?? resolveXYChartTheme({}))
+    const chart = applyResolvedXYChartConfig(withFrontmatterTitle(withAccessibilityObject(parseXYChart(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter), familyConfig?.config ?? resolveXYChartConfig({}), familyAppearance?.theme ?? resolveXYChartTheme({}))
     return layoutResult(layoutXYChart(chart, ctx.renderOptions, ctx.styleFace), { injectAccessibility: false })
   },
   projectPositioned: positionedView(projectXyChartPositioned),
@@ -357,7 +363,7 @@ const PIE_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
   }),
-  layout: ctx => layoutResult(layoutPieChart(parsePieChart(ctx.source.familyLines), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual ?? resolvePieVisualConfig(), ctx.styleFace)),
+  layout: ctx => layoutResult(layoutPieChart(withFrontmatterTitle(parsePieChart(ctx.source.familyLines), ctx.source.frontmatter), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual ?? resolvePieVisualConfig(), ctx.styleFace)),
   projectPositioned: positionedView(projectPiePositioned),
   lowerScene: scene(lowerPieScene),
   renderAscii: ctx => renderPieAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual, ctx.styleFace),
@@ -370,7 +376,7 @@ const QUADRANT_RENDER_HOOKS = {
   // The wired quadrantChart config section (chart size, fonts, point radius,
   // border widths, useMaxWidth) resolves from frontmatter/init directives and
   // rides on the positioned chart so layout and renderer read the SAME values.
-  layout: ctx => layoutResult(layoutQuadrantChart(withAccessibilityObject(parseQuadrantChart(ctx.source.familyLines), ctx.source.accessibility), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolveQuadrantVisualConfig> } | undefined)?.visual ?? resolveQuadrantVisualConfig(), ctx.styleFace)),
+  layout: ctx => layoutResult(layoutQuadrantChart(withFrontmatterTitle(withAccessibilityObject(parseQuadrantChart(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolveQuadrantVisualConfig> } | undefined)?.visual ?? resolveQuadrantVisualConfig(), ctx.styleFace)),
   projectPositioned: positionedView(projectQuadrantPositioned),
   lowerScene: scene(lowerQuadrantScene),
   renderAscii: ctx => renderQuadrantAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
@@ -471,7 +477,11 @@ const MINDMAP_RENDER_HOOKS = {
     },
   }),
   layout: ctx =>
-    layoutResult(positionMindmap(withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility), (ctx.familyConfig as { position?: ReturnType<typeof resolveMindmapPositionConfig> } | undefined)?.position ?? resolveMindmapPositionConfig(undefined, undefined)), { injectAccessibility: false }),
+    layoutResult(positionMindmap(
+      withFrontmatterTitle(withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility), ctx.source.frontmatter),
+      (ctx.familyConfig as { position?: ReturnType<typeof resolveMindmapPositionConfig> } | undefined)?.position ?? resolveMindmapPositionConfig(undefined, undefined),
+      resolveRenderStyle(ctx.renderOptions, undefined, ctx.styleFace),
+    ), { injectAccessibility: false }),
   projectPositioned: positionedView(projectMindmapPositioned),
   lowerScene: scene(lowerMindmapScene),
   renderAscii: ctx => renderMindmapAscii(parseMindmap(ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),

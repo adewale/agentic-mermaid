@@ -29,6 +29,9 @@ import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registr
 // chrome (hover targets, tooltip groups) stays raw in this phase.
 // ============================================================================
 
+/** Halo behind bar value labels, in the surface they sit on. */
+const DATA_LABEL_HALO_WIDTH = 3
+
 const CHART_FONT = {
   titleWeight: 500,
   axisTitleWeight: 400,
@@ -284,6 +287,9 @@ export function lowerXYChartScene(
       ? inkOnFill(barFills.get(label.bar))
       : undefined
     const fill = chart.theme.dataLabelColor ?? onBar ?? chartColors.labelColor
+    // A line series can cross a value label; a halo in the label's own surface
+    // (its bar inside, the page outside) knocks the line out behind the glyphs.
+    const halo = label.placement === 'inside' ? barFills.get(label.bar) ?? 'var(--bg)' : 'var(--bg)'
     parts.push(marks.text({
       id: `label:bar:${label.bar.seriesIndex}:${label.bar.label ?? catIndex}`,
       role: 'label',
@@ -292,7 +298,7 @@ export function lowerXYChartScene(
       y: label.y,
       fontSize: label.fontSize,
       anchor: label.anchor,
-      paint: { fill },
+      paint: { fill, stroke: halo, strokeWidth: String(DATA_LABEL_HALO_WIDTH), strokeLinejoin: 'round', paintOrder: 'stroke' },
       // Sketch looks halo text with the page color over hatched or washed
       // bars, so an ink chosen against the bar would sit on the page instead.
       ...(onBar ? { pageFill: chartColors.labelColor } : {}),
@@ -300,7 +306,8 @@ export function lowerXYChartScene(
     },
       `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
       `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
-      `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeXml(fill)}" class="xychart-data-label">${escapeXml(text)}</text>`,
+      `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeXml(fill)}" ` +
+      `stroke="${escapeXml(halo)}" stroke-width="${DATA_LABEL_HALO_WIDTH}" stroke-linejoin="round" paint-order="stroke" class="xychart-data-label">${escapeXml(text)}</text>`,
     ))
   }
 

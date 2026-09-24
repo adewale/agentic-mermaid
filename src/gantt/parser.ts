@@ -257,6 +257,8 @@ export function applyGanttFrontmatterConfig(model: GanttModel, frontmatter: Merm
 
 /** Serializable Gantt config compiled once at the render-request boundary. */
 export interface ResolvedGanttFrontmatterConfig {
+  /** Frontmatter `title:`; a `title` statement in the body wins. */
+  title?: string
   displayMode?: 'compact'
   barHeight?: number
   topAxis?: true
@@ -269,6 +271,8 @@ export function resolveGanttFrontmatterConfig(
 ): ResolvedGanttFrontmatterConfig {
   if (!frontmatter) return {}
   const resolved: ResolvedGanttFrontmatterConfig = {}
+  const title = getFrontmatterScalar<string>(frontmatter, ['title'])
+  if (typeof title === 'string' && title.trim() !== '') resolved.title = title
   const topLevelMode = getFrontmatterScalar<string>(frontmatter, ['displayMode'])
   const ganttMap = getFrontmatterMap(frontmatter, ['gantt'])
   const ganttMode = ganttMap ? getFrontmatterScalar<string>(frontmatter, ['gantt', 'displayMode']) : undefined
@@ -292,6 +296,7 @@ export function applyResolvedGanttFrontmatterConfig(
   model: GanttModel,
   resolved: ResolvedGanttFrontmatterConfig,
 ): GanttModel {
+  if (resolved.title !== undefined && model.title === undefined) model.title = resolved.title
   if (resolved.displayMode) model.displayMode = resolved.displayMode
   if (resolved.barHeight !== undefined) model.barHeight = resolved.barHeight
   if (resolved.topAxis) model.topAxis = true

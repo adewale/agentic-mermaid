@@ -4,16 +4,17 @@ import { applyErFrontmatterDirection, layoutErDiagram, resolveErRenderOptions } 
 import { parseErDiagram } from '../../er/parser.ts'
 import { lowerErScene } from '../../er/renderer.ts'
 import { withAccessibilityFields } from '../../shared/accessibility-directives.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, {
   normalizeRequest: ctx => ({
     renderOptions: resolveErRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
   layout: ctx => {
-    const diagram = applyErFrontmatterDirection(
+    const diagram = withFrontmatterTitle(applyErFrontmatterDirection(
       withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility),
       ctx.source.frontmatter,
-    )
+    ), ctx.source.frontmatter)
     return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace))
   },
   lowerScene: scene(lowerErScene),

@@ -5,6 +5,7 @@ import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { HONESTY_PARTS, HONESTY_SAMPLES, honestyPartition } from './helpers/chart-honesty.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
@@ -32,6 +33,7 @@ const EXPECTED_SURFACES = [
   'mermaidSyntaxParity',
   'domainProperties',
   'familyVisualMetaphor',
+  'chartHonesty',
   'goldensEvidence',
   'generatedSite',
   'distributionPackage',
@@ -439,6 +441,44 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     }
   })
 
+  test('chart honesty: every family is measured as drawn, in every style, and cites where', () => {
+    // The pixel checks run in chart-honesty-text-<part>.test.ts, over the
+    // registry split HONESTY_PARTS ways, and in property-chart-honesty.test.ts
+    // over the fuzz generators. This makes their reach structural: a family
+    // cannot be registered without landing in exactly one partition, bringing
+    // stress samples that include a drawn frontmatter title, and citing the
+    // partition file that checks it.
+    const matrix = loadMatrix()
+    const partitioned = Array.from({ length: HONESTY_PARTS }, (_unused, index) => honestyPartition(index + 1)).flat()
+    expect([...partitioned].sort()).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.id).sort())
+    for (let part = 1; part <= HONESTY_PARTS; part++) {
+      const file = `src/__tests__/chart-honesty-text-${part}.test.ts`
+      expect({ file, exists: repoPathExists(file) }).toEqual({ file, exists: true })
+      expect(readFileSync(join(REPO, file), 'utf8')).toContain(`honestyPartition(${part})`)
+    }
+    for (let part = 1; part <= HONESTY_PARTS; part++) {
+      for (const family of honestyPartition(part)) {
+        const cell = matrix.families[family]!.cells.chartHonesty
+        const evidence = [
+          'docs/design/system/chart-honesty.md',
+          'src/__tests__/helpers/chart-honesty.ts',
+          `src/__tests__/chart-honesty-text-${part}.test.ts`,
+          'src/__tests__/property-chart-honesty.test.ts',
+        ]
+        expect({ family, status: cell.status, evidence: cell.evidence }).toEqual({ family, status: 'satisfied', evidence })
+        const samples = HONESTY_SAMPLES[family]
+        const titled = samples.filter(sample => {
+          const frontmatter = sample.source.match(/^---\n([\s\S]*?)\n---\n/)?.[1]
+          const title = frontmatter?.match(/^title:\s*(.+)$/m)?.[1]?.trim()
+          return title !== undefined && (sample.expectText ?? []).includes(title)
+        })
+        expect({ family, samplesWithExpectedText: samples.filter(sample => sample.expectText?.length).length > 0 }).toEqual({ family, samplesWithExpectedText: true })
+        expect({ family, drawsFrontmatterTitle: titled.length > 0 }).toEqual({ family, drawsFrontmatterTitle: true })
+        expect({ family, fuzzGenerator: Boolean(METAMORPHIC_FAMILIES[family]) }).toEqual({ family, fuzzGenerator: true })
+      }
+    }
+  })
+
   test('reviewer-facing docs link the checklist, matrix, and follow-up ledger', () => {
     const citizenship = readFileSync(join(REPO, 'docs/contributing/diagram-family-citizenship.md'), 'utf8')
     const adding = readFileSync(join(REPO, 'docs/contributing/adding-diagram-types.md'), 'utf8')
@@ -453,6 +493,9 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     expect(citizenship).toContain('mermaidSyntaxParity')
     expect(citizenship).toContain('familyVisualMetaphor')
     expect(citizenship).toContain('mermaid-family-fidelity-audit.md')
+    expect(citizenship).toContain('chartHonesty')
+    expect(citizenship).toContain('chart-honesty.md')
+    expect(adding).toContain('chart-honesty.md')
     expect(docsIndex).toContain('diagram-family-citizenship.md')
   })
 })

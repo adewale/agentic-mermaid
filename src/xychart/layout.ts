@@ -13,7 +13,9 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { applyTextTransform, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { ResolvedRenderStyle } from '../styles.ts'
+import { measureFormattedTextWidth } from '../text-metrics.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { resolveXYChartRenderConfig } from './config.ts'
 import { barBaselineValue, clampToAxisRange, formatBarValue, formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPointSpacing, linearTicks } from './axis-utils.ts'
@@ -54,6 +56,24 @@ export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
   groupLineWidth: STROKE_WIDTHS.outerBox,
 }
 
+/** Measures chart text the way the renderer draws it — the style's case
+ * transform, weight and letter spacing for each kind of text — so a styled
+ * chart reserves room for the text it actually draws. */
+interface XYTextMeasure {
+  /** Axis tick labels: categories and values. */
+  tick(label: string, fontSize: number): number
+  legend(label: string, fontSize: number): number
+  axisTitle(title: string, fontSize: number): number
+}
+
+function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
+  return {
+    tick: (label, fontSize) => measureFormattedTextWidth(applyTextTransform(label, style.edgeTextTransform), fontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing),
+    legend: (label, fontSize) => measureFormattedTextWidth(applyTextTransform(label, style.nodeTextTransform), fontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing),
+    axisTitle: (title, fontSize) => measureFormattedTextWidth(applyTextTransform(title, style.edgeTextTransform), fontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing),
+  }
+}
+
 export function layoutXYChart(
   chart: XYChart,
   options: RenderOptions = {},
@@ -79,11 +99,12 @@ export function layoutXYChart(
     config.xAxis.tickWidth = style.lineWidth
     config.yAxis.tickWidth = style.lineWidth
   }
-  if (chart.horizontal) return layoutHorizontal(chart, config)
-  return layoutVertical(chart, config)
+  const measure = xyTextMeasure(style)
+  if (chart.horizontal) return layoutHorizontal(chart, config, measure)
+  return layoutVertical(chart, config, measure)
 }
 
-function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): PositionedXYChart {
+function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure): PositionedXYChart {
   const totalW = config.width
   const totalH = config.height
   const dataCount = getDataCount(chart)
@@ -104,7 +125,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
   const xAxisConfig = fitHorizontalAxisConfig(config.xAxis, chart.xAxis.title, xTickLabels, remainingTopBottomBudget)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - xAxisConfig.size)
 
-  const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget)
+  const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget, measure)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - yAxisConfig.size)
 
   // Value-axis labels are centered on their ticks, so the end ticks' labels
@@ -113,7 +134,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
   const valueLabelOverhang = yAxisConfig.config.showLabel && yTickLabels.length > 0 ? config.yAxis.labelFontSize / 2 : 0
   const plotTop = Math.max(titleHeight, valueLabelOverhang)
   const plotHeight = Math.max(0, totalH - plotTop - Math.max(xAxisConfig.size, valueLabelOverhang))
-  const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight)
+  const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight, measure)
 
   const plotArea: PlotArea = {
     x: yAxisConfig.size,
@@ -134,13 +155,14 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
   const xTicks = !xAxisConfig.config.showLabel
     ? []
     : chart.xAxis.range && xTickValues && xScaleValue
-      ? buildBottomAxisTicks(xTickValues, xTickLabels, xScaleValue, plotArea, xAxisConfig.config, totalW)
+      ? buildBottomAxisTicks(xTickValues, xTickLabels, xScaleValue, plotArea, xAxisConfig.config, measure, totalW)
       : buildBottomAxisTicks(
         categoryLabels.map((_, index) => index),
         categoryLabels,
         xPoint,
         plotArea,
         xAxisConfig.config,
+        measure,
         totalW,
       )
   const yTicks = yAxisConfig.config.showLabel
@@ -180,7 +202,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
     yAxis: {
       ticks: yTicks,
       line: buildLeftAxisLine(plotArea, yAxisConfig.config),
-      title: buildLeftAxisTitle(chart.yAxis.title, plotArea, yAxisConfig.config, totalH),
+      title: buildLeftAxisTitle(chart.yAxis.title, plotArea, yAxisConfig.config, totalH, measure),
       config: yAxisConfig.config,
     },
     plotArea,
@@ -195,7 +217,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
   }
 }
 
-function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): PositionedXYChart {
+function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure): PositionedXYChart {
   const totalW = config.width
   const totalH = config.height
   const dataCount = getDataCount(chart)
@@ -214,7 +236,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): Positi
   const topAxisConfig = fitTopAxisConfig(config.yAxis, chart.yAxis.title, valueTickLabels, remainingTopBottomBudget)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - topAxisConfig.size)
 
-  const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget)
+  const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget, measure)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - leftAxisConfig.size)
 
   const plotTop = titleHeight + topAxisConfig.size
@@ -226,14 +248,14 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): Positi
   const categoryDescent = leftAxisConfig.config.showLabel ? config.xAxis.labelFontSize * LABEL_BELOW_MIDDLE_EM : 0
   const bottomReserve = Math.min(available, Math.max(0, (categoryDescent - available / (2 * rows)) / (1 - 1 / (2 * rows))))
   const plotHeight = Math.max(0, available - bottomReserve)
-  const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight)
+  const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight, measure)
 
   // Value-axis labels are centered on their ticks, so the end ticks' labels
   // reach half their width beyond the plot. Reserve what the category axis or
   // the legend column does not already cover, so no label leaves the canvas.
   const valueLabelOverhang = topAxisConfig.config.showLabel && valueTickLabels.length > 0
     ? Math.max(...[valueTickLabels[0]!, valueTickLabels[valueTickLabels.length - 1]!]
-      .map(label => estimateTextWidth(label, config.yAxis.labelFontSize, 400) / 2))
+      .map(label => measure.tick(label, config.yAxis.labelFontSize) / 2))
     : 0
   const leftReserve = Math.max(0, valueLabelOverhang - leftAxisConfig.size)
   const rightReserve = Math.max(0, valueLabelOverhang - legend.size)
@@ -283,7 +305,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): Positi
     xAxis: {
       ticks: leftTicks,
       line: buildLeftAxisLine(plotArea, leftAxisConfig.config),
-      title: buildLeftAxisTitle(chart.xAxis.title, plotArea, leftAxisConfig.config, totalH),
+      title: buildLeftAxisTitle(chart.xAxis.title, plotArea, leftAxisConfig.config, totalH, measure),
       config: leftAxisConfig.config,
     },
     yAxis: {
@@ -319,12 +341,13 @@ function fitLegend(
   totalW: number,
   plotTop: number,
   plotHeight: number,
+  measure: XYTextMeasure,
 ): { items: LegendItem[]; size: number } {
   if (!config.showLegend) return { items: [], size: 0 }
   const entries = legendEntries(chart.series)
   if (entries.length === 0) return { items: [], size: 0 }
 
-  const maxLabelWidth = Math.ceil(Math.max(...entries.map(entry => estimateTextWidth(entry.label, config.legendFontSize, 400))))
+  const maxLabelWidth = Math.ceil(Math.max(...entries.map(entry => measure.legend(entry.label, config.legendFontSize))))
   const width = config.legendPadding * 2 + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP + maxLabelWidth
   const rowHeight = Math.max(config.legendFontSize, LEGEND_SWATCH_SIZE) + config.legendPadding
   const height = config.legendPadding + entries.length * rowHeight
@@ -397,6 +420,7 @@ function fitVerticalAxisConfig(
   title: string | undefined,
   labels: string[],
   budget: number,
+  measure: XYTextMeasure,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
   let remaining = budget
   const fitted: ResolvedXYAxisRenderConfig = { ...config, showAxisLine: false, showLabel: false, showTick: false, showTitle: false }
@@ -406,7 +430,7 @@ function fitVerticalAxisConfig(
     remaining -= config.axisLineWidth
   }
   if (config.showLabel && labels.length > 0) {
-    const maxLabelWidth = Math.max(...labels.map(label => estimateTextWidth(label, config.labelFontSize, 400)))
+    const maxLabelWidth = Math.max(...labels.map(label => measure.tick(label, config.labelFontSize)))
     const required = maxLabelWidth + config.labelPadding * 2
     if (required <= remaining) {
       fitted.showLabel = true
@@ -434,6 +458,7 @@ function buildBottomAxisTicks<T extends string | number>(
   scale: (value: T) => number,
   plotArea: PlotArea,
   config: ResolvedXYAxisRenderConfig,
+  measure: XYTextMeasure,
   totalWidth?: number,
 ): AxisTick[] {
   const lineOffset = config.showAxisLine ? config.axisLineWidth : 0
@@ -445,7 +470,7 @@ function buildBottomAxisTicks<T extends string | number>(
   // when the widest label plus a readability gap exceeds the tick spacing
   // (2026-07 overlap audit: 28% of fuzzed charts). Keep every k-th label
   // (tick marks stay); k is measured, not guessed, so short labels never thin.
-  const widths = labels.map(label => estimateTextWidth(label, config.labelFontSize, 400))
+  const widths = labels.map(label => measure.tick(label, config.labelFontSize))
   const maxW = widths.length ? Math.max(...widths) : 0
   const xs = values.map(value => scale(value))
   let minSpacing = Infinity
@@ -570,12 +595,13 @@ function buildLeftAxisTitle(
   plotArea: PlotArea,
   config: ResolvedXYAxisRenderConfig,
   totalHeight: number,
+  measure: XYTextMeasure,
 ) {
   if (!title || !config.showTitle) return undefined
   // Rotated, the title runs vertically, centered on the plot. Clamp that run
   // inside the canvas, as the bottom axis clamps its end labels, when the
   // title is longer than the room below or above the plot's center.
-  const half = estimateTextWidth(title, config.titleFontSize, 400) / 2
+  const half = measure.axisTitle(title, config.titleFontSize) / 2
   const center = plotArea.y + plotArea.height / 2
   return {
     text: title,

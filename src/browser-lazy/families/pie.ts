@@ -1,4 +1,5 @@
 import descriptorData from '../generated/descriptors/pie.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
 import { resolvePieVisualConfig } from '../../pie/config.ts'
 import { layoutPieChart } from '../../pie/layout.ts'
@@ -10,7 +11,7 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutPieChart(
-    parsePieChart(ctx.source.familyLines),
+    withFrontmatterTitle(parsePieChart(ctx.source.familyLines), ctx.source.frontmatter),
     ctx.renderOptions,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual
       ?? resolvePieVisualConfig(),

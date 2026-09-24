@@ -4,10 +4,14 @@
 // These are calibrated for Inter's typical glyph widths.
 //
 // NOTE: Theme/color system has moved to src/theme.ts. This file only
-// contains font metrics, spacing constants, and stroke widths.
+// contains font metrics, spacing constants, stroke widths, render-style
+// resolution, and the shared diagram-title band.
 // ============================================================================
 
-import { measureMonospaceTextWidth, measureTextWidth } from './text-metrics'
+import { escapeAttr, renderMultilineText } from './multiline-utils.ts'
+import type { TextMark } from './scene/ir.ts'
+import * as marks from './scene/marks.ts'
+import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
 
@@ -311,4 +315,64 @@ export function resolveRenderStyle(
     groupLabelPaddingX: explicitGroupPaddingX ?? defaults.groupLabelPaddingX ?? defaults.groupPaddingX,
     groupLineWidth: positiveNumber(defaults.groupLineWidth ?? STROKE_WIDTHS.outerBox, group?.lineWidth),
   }
+}
+
+// ============================================================================
+// Diagram titles for families that have no title statement of their own.
+//
+// A frontmatter `title:` is the diagram's title in Mermaid for every family.
+// Families with a `title` statement (pie, gantt, journey, …) draw it with their
+// own furniture; flowchart, state, class, ER, sequence and mindmap draw it in a
+// band above the content with these shared metrics, so the six agree.
+// ============================================================================
+
+export const DIAGRAM_TITLE_FONT_SIZE = 18
+export const DIAGRAM_TITLE_FONT_WEIGHT = 600
+/** Space between the title and the content below it. */
+export const DIAGRAM_TITLE_GAP = 12
+
+/** A title placed on the canvas: its display text centered at (x, y). */
+export interface PositionedDiagramTitle {
+  text: string
+  x: number
+  y: number
+}
+
+/** The band a title needs above the content: display text, width, and height
+ * including the gap to the content. */
+export interface DiagramTitleBand {
+  text: string
+  width: number
+  height: number
+}
+
+export function diagramTitleBand(
+  title: string | undefined,
+  style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'>,
+): DiagramTitleBand | undefined {
+  if (title === undefined) return undefined
+  const text = applyTextTransform(title, style.groupTextTransform)
+  const metrics = measureMultilineText(text, DIAGRAM_TITLE_FONT_SIZE, DIAGRAM_TITLE_FONT_WEIGHT, style.groupLetterSpacing)
+  return { text, width: metrics.width, height: metrics.height + DIAGRAM_TITLE_GAP }
+}
+
+/** Where a band's title sits on a canvas `width` wide with `top` padding. */
+export function positionDiagramTitle(band: DiagramTitleBand, width: number, top: number): PositionedDiagramTitle {
+  return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2 }
+}
+
+export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
+  const fill = style.groupTextColor ?? 'var(--_text)'
+  const font = style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''
+  const spacing = style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''
+  return marks.text(
+    { id: 'diagram-title', role: 'title', text: title.text, x: title.x, y: title.y, fontSize: DIAGRAM_TITLE_FONT_SIZE, anchor: 'middle', paint: { fill } },
+    renderMultilineText(
+      title.text,
+      title.x,
+      title.y,
+      DIAGRAM_TITLE_FONT_SIZE,
+      `class="diagram-title" text-anchor="middle" font-size="${DIAGRAM_TITLE_FONT_SIZE}" font-weight="${DIAGRAM_TITLE_FONT_WEIGHT}"${font}${spacing} fill="${escapeAttr(fill)}"`,
+    ),
+  )
 }

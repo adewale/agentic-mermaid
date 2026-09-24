@@ -246,6 +246,9 @@ export interface ConnectorStroke {
   paintOrder?: string
   mixBlendMode?: 'normal' | 'multiply'
   nonScaling: boolean
+  /** The width is the data (a sankey flow's quantity), so every backend draws
+   * it exactly as given and never scales it by a look's pen width. */
+  encodesValue?: boolean
 }
 
 export interface ConnectorLabelDescriptor {

@@ -36,6 +36,19 @@ export type MermaidFrontmatterList = MermaidFrontmatterValue[]
 
 export interface MermaidFrontmatterMap extends MermaidConfigMap {}
 
+/** A frontmatter `title:` is the diagram's title, as in Mermaid, which reads
+ * the frontmatter before the body: a `title` statement in the body wins. */
+export function withFrontmatterTitle<T extends { title?: string }>(diagram: T, frontmatter: MermaidFrontmatterMap): T {
+  const title = frontmatterTitle(frontmatter)
+  return diagram.title !== undefined || title === undefined ? diagram : { ...diagram, title }
+}
+
+/** The frontmatter `title:`, when it names one. */
+export function frontmatterTitle(frontmatter: MermaidFrontmatterMap | undefined): string | undefined {
+  const title = frontmatter?.title
+  return typeof title === 'string' && title.trim() !== '' ? title : undefined
+}
+
 export interface MermaidThemeVariables extends MermaidConfigMap {
   fontFamily?: string
 }

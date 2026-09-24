@@ -1,4 +1,6 @@
 import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapEdge, PositionedMindmapNode } from './types.ts'
+import { diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import type { ResolvedRenderStyle } from '../styles.ts'
 import { mindmapHorizontalBoundaryX } from './geometry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
@@ -258,6 +260,27 @@ function finish(
     accessibilityDescription: diagram.accessibilityDescription,
     nodes: [...entries.values()], edges,
   }
+}
+
+/** The diagram's title takes a band above everything the layout placed. */
+export function withMindmapTitle(
+  positioned: PositionedMindmapDiagram,
+  title: string | undefined,
+  style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'>,
+  options: { padding?: number } = {},
+): PositionedMindmapDiagram {
+  const band = diagramTitleBand(title, style)
+  if (!band) return positioned
+  const padding = finite(options.padding, 32)
+  const dy = band.height
+  const nodes = positioned.nodes.map(node => ({ ...node, y: node.y + dy }))
+  const edges = positioned.edges.map(edge => {
+    const points = edge.points.map(point => ({ x: point.x, y: point.y + dy }))
+    const [start, c1, c2, end] = points
+    return { ...edge, points, d: `M ${round(start!.x)} ${round(start!.y)} C ${round(c1!.x)} ${round(c1!.y)} ${round(c2!.x)} ${round(c2!.y)} ${round(end!.x)} ${round(end!.y)}` }
+  })
+  const width = Math.max(positioned.width, band.width + 2 * padding)
+  return { ...positioned, width, height: positioned.height + dy, nodes, edges, title: positionDiagramTitle(band, width, padding) }
 }
 
 function finite(value: number | undefined, fallback: number): number {

@@ -1,4 +1,5 @@
 import descriptorData from '../generated/descriptors/architecture.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
 import { resolveArchitectureVisualConfig } from '../../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../../architecture/layout.ts'
@@ -25,10 +26,10 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     const familyConfig = ctx.familyConfig as {
       layout: ReturnType<typeof resolveArchitectureVisualConfig>['layout']
     } | undefined
-    const diagram = withAccessibilityFields(
+    const diagram = withFrontmatterTitle(withAccessibilityFields(
       parseArchitectureDiagram(ctx.source.familyLines),
       ctx.source.accessibility,
-    )
+    ), ctx.source.frontmatter)
     return layoutResult(layoutArchitectureDiagram(diagram, ctx.renderOptions, familyConfig?.layout), {
       injectAccessibility: false,
     })

@@ -106,6 +106,18 @@ export function ensureContrast(
   return fallback
 }
 
+/** WCAG 2.x AA contrast for text (SC 1.4.3). */
+export const WCAG_AA_TEXT_CONTRAST = 4.5
+/** WCAG 2.x AA contrast for large text: 24px, or 18.66px bold. */
+export const WCAG_AA_LARGE_TEXT_CONTRAST = 3
+
+/** Ink for text drawn on `surface`: `preferred` when it reads at WCAG AA,
+ * otherwise `preferred` moved toward black or white just far enough, so the
+ * family's hue survives wherever it can. Unresolved CSS passes through. */
+export function legibleInk(preferred: string, surface: string, minimum: number = WCAG_AA_TEXT_CONTRAST): string {
+  return ensureContrast(preferred, surface, minimum)
+}
+
 /** Loose CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. */
 export function isHexColor(s: string): boolean {
   return /^#[0-9a-fA-F]{3,8}$/.test(s)

@@ -1,7 +1,7 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
-import { relativeLuminance, tryParseHex } from './shared/color-math.ts'
+import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
-import { DEFAULTS } from './theme.ts'
+import { DEFAULTS, resolvedColorValue } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 import { safeCssPaint } from './shared/css-color.ts'
 
@@ -151,4 +151,26 @@ export function resolveInlineNodeTextColor(
   if (inlineStyle?.color) return inlineStyle.color
   if (inlineStyle?.fill) return contrastTextColor(inlineStyle.fill) ?? fallback
   return fallback
+}
+
+/**
+ * Ink for text a family draws on an author-styled shape (`style X fill:…`).
+ * The author's `color` wins; without one, each theme tone the family would use
+ * (name, secondary, muted) is kept where it reads on the author's fill at WCAG
+ * AA and moved toward black or white just far enough where it does not, so a
+ * dark custom fill never swallows theme-colored text.
+ */
+export function inkOnAuthoredFill(
+  inlineStyle: Record<string, string> | undefined,
+  colors: DiagramColors,
+): (tone: string) => string {
+  const color = inlineStyle?.color
+  if (color) return () => color
+  const composite = inlineStyle?.fill ? compositeCssColor(inlineStyle.fill, resolvedColorValue('var(--bg)', colors) ?? '#ffffff') : null
+  if (!composite) return tone => tone
+  const fill = toHex(...composite)
+  return tone => {
+    const resolved = resolvedColorValue(tone, colors)
+    return resolved ? legibleInk(resolved, fill) : contrastTextColor(fill) ?? tone
+  }
 }

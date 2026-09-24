@@ -5,10 +5,13 @@
 // Class diagrams show UML class relationships, inheritance, composition, etc.
 // ============================================================================
 
+import type { PositionedDiagramTitle } from '../styles.ts'
 import type { PositionedDiagram, Direction } from '../types.ts'
 
 /** Parsed class diagram — logical structure from mermaid text */
 export interface ClassDiagram {
+  /** The diagram's title (frontmatter `title:`). */
+  title?: string
   /** Optional accessibility title (Mermaid accTitle) */
   accessibilityTitle?: string
   /** Optional accessibility description (Mermaid accDescr) */
@@ -124,6 +127,8 @@ export interface ClassNamespace {
 export interface PositionedClassDiagram extends PositionedDiagram {
   width: number
   height: number
+  /** The diagram's title, in its band above the classes. */
+  title?: PositionedDiagramTitle
   accessibilityTitle?: string
   accessibilityDescription?: string
   classes: PositionedClassNode[]
@@ -151,6 +156,9 @@ export interface PositionedClassNamespace {
   height: number
   /** Height of the header band carrying the label. */
   headerHeight: number
+  /** The header text as drawn, wrapped to the namespace's width when the
+   * label would otherwise run past the frame. Absent: `label` fits. */
+  title?: string
 }
 
 export interface PositionedClassNode {

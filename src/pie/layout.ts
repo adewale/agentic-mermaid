@@ -329,6 +329,7 @@ export function layoutPieChart(
       textX: round(legendX + PIE.legendSwatch + PIE.legendSwatchToText),
       textY: round(rowY + row.contentHeight / 2),
       lines: row.lines,
+      textWidth: round(row.textWidth),
     }
     rowY += row.contentHeight + PIE.legendRowGap
     return item

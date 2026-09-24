@@ -5,10 +5,13 @@
 // ER diagrams show database entities, their attributes, and relationships.
 // ============================================================================
 
+import type { PositionedDiagramTitle } from '../styles.ts'
 import type { PositionedDiagram, Direction } from '../types.ts'
 
 /** Parsed ER diagram — logical structure from mermaid text */
 export interface ErDiagram {
+  /** The diagram's title (frontmatter `title:`). */
+  title?: string
   /** Optional accessibility title (Mermaid accTitle) */
   accessibilityTitle?: string
   /** Optional accessibility description (Mermaid accDescr) */
@@ -88,6 +91,8 @@ export interface ErRelationship {
 export interface PositionedErDiagram extends PositionedDiagram {
   width: number
   height: number
+  /** The diagram's title, in its band above the entities. */
+  title?: PositionedDiagramTitle
   accessibilityTitle?: string
   accessibilityDescription?: string
   entities: PositionedErEntity[]
