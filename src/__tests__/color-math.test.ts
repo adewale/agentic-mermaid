@@ -23,6 +23,20 @@ describe('shared color math', () => {
     expect(parseHex('#fff')).toEqual([255, 255, 255])
   })
 
+  test('#RGBA shorthand expands like #RGB, and its alpha is ignored like #RRGGBBAA\'s', () => {
+    expect(parseHex('#abcd')).toEqual([0xaa, 0xbb, 0xcc])
+    expect(parseHex('#aabbccdd')).toEqual([0xaa, 0xbb, 0xcc])
+  })
+
+  test('mixing any loose hex color yields a concrete #rrggbb', () => {
+    const looseHex = fc.constantFrom(3, 4, 6, 8)
+      .chain(length => fc.array(fc.constantFrom(...'0123456789abcdefABCDEF'), { minLength: length, maxLength: length }))
+      .map(digits => `#${digits.join('')}`)
+    fc.assert(fc.property(looseHex, looseHex, fc.integer({ min: 0, max: 100 }), (fg, bg, pct) =>
+      isHexColor(fg) && isHexColor(bg) && /^#[0-9a-f]{6}$/.test(mixHex(fg, bg, pct))
+    ))
+  })
+
   test('mixing a color with itself is the identity at any percentage', () => {
     fc.assert(fc.property(hexColor, fc.integer({ min: 0, max: 100 }), (c, pct) =>
       mixHex(c, c, pct) === c
