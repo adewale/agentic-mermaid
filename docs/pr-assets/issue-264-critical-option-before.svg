@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="290.687" height="374" viewBox="0 0 290.687 374" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="seq-arrow-cross" markerWidth="8" markerHeight="5" refX="4" refY="2.5" orient="auto">
+    <path d="M1 1 L7 4 M1 4 L7 1" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="seq-arrow-half-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 2.5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-half-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 2.5, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-stick-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 0 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="seq-arrow-stick-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 5 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+</defs>
+<g class="block" data-type="opt" data-label="ion Credentials rejected" data-id="block:opt#0" data-role="block">
+  <rect x="30" y="194" width="101.374" height="60" rx="0" ry="0" fill="none" stroke="#d4d4d4" stroke-width="1" data-id="block:opt#0:rect" data-role="block" />
+</g>
+<line class="lifeline" data-actor="Service" x1="80.687" y1="70" x2="80.687" y2="344" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
+<line class="lifeline" data-actor="DB" x1="220.687" y1="70" x2="220.687" y2="344" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
+<g class="sequence-block-header-overlay" pointer-events="none" aria-hidden="true" data-id="block:opt#0:header-overlay" data-role="block">
+<rect x="30" y="194" width="170.14999999999998" height="19" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" data-id="block:opt#0:tab" data-role="block" />
+<text x="36" y="203.5" font-size="11" font-weight="600" fill="#575759" dy="3.8499999999999996" textLength="150.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">opt [ion Credentials rejected]</text>
+</g>
+<g class="message" data-label="connect" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Service-&gt;DB#0" data-role="message">
+  <line x1="80.687" y1="96" x2="220.687" y2="96" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:Service-&gt;DB#0:line" data-role="message" data-from="Service" data-to="DB" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to DB: connect" />
+  <text x="150.687" y="86" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="39.666" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">connect</text>
+</g>
+<g class="message" data-label="log timeout" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="true" data-id="message:Service-&gt;Service#0" data-role="message">
+  <polyline points="80.687,136 110.687,136 110.687,156 80.687,156" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="self" data-id="message:Service-&gt;Service#0:line" data-role="message" data-from="Service" data-to="Service" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to Service: log timeout" />
+  <text x="118.687" y="146" font-size="11" text-anchor="start" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="49.764" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">log timeout</text>
+</g>
+<g class="message" data-label="log rejection" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="true" data-id="message:Service-&gt;Service#1" data-role="message">
+  <polyline points="80.687,234 110.687,234 110.687,254 80.687,254" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="self" data-id="message:Service-&gt;Service#1:line" data-role="message" data-from="Service" data-to="Service" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to Service: log rejection" />
+  <text x="118.687" y="244" font-size="11" text-anchor="start" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="59.268" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">log rejection</text>
+</g>
+<g class="message" data-label="after" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Service-&gt;DB#1" data-role="message">
+  <line x1="80.687" y1="304" x2="220.687" y2="304" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:Service-&gt;DB#1:line" data-role="message" data-from="Service" data-to="DB" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to DB: after" />
+  <text x="150.687" y="294" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="23.034" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">after</text>
+</g>
+<g class="actor" data-id="Service" data-label="Service" data-type="participant" data-role="actor">
+  <rect x="40" y="30" width="81.374" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="actor:Service:box" data-role="actor" />
+  <text x="80.687" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55" textLength="49.374" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Service</text>
+</g>
+<g class="actor" data-id="DB" data-label="DB" data-type="participant" data-role="actor">
+  <rect x="180.687" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="actor:DB:box" data-role="actor" />
+  <text x="220.687" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#27272A" dy="4.55" textLength="19.734" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">DB</text>
+</g>
+</svg>

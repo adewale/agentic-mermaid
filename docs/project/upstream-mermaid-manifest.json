@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "2dcd443885a10d958f8d1260c421851b219bd9d48519736d49baa5325f69c983",
+    "inventorySha256": "dfb641f5259e3fcc4adcf3ca87ea1e96801b6fa7e8e6550a15ec67b0b1e3412a",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "b548d42be7cc29ec02673993c41ecd1751673f0675718ba700befb7f7431bc0a",
+        "sha256": "284a76b3b78736da73ae73a9a72ef6f924657ba26799e0e2054b1d27502e6a0a",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -13748,7 +13748,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "fc67a9f2f24125eb8c818a6b9b5214796dc5558d201e170666ec66d5b8a31793",
+        "fingerprint": "3c6e5463e90d0e30b8ba0c0f8f37876b0b25da9a518b9dbfdef850d0430f7487",
         "sourceSha256": "1fdb51e8b364a74b247f35448e963043ccd9a50a18219c53f81bb9da4ef36321"
       },
       {
