@@ -37,6 +37,7 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
+import { decodeXML } from 'entities'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -209,6 +210,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     if (interaction) {
       const node = upsert(interaction.id, undefined, interaction.generic)
       node.href = interaction.href
+      if (interaction.tooltip !== undefined) node.tooltip = decodeXML(interaction.tooltip)
       claimClass(node)
       continue
     }
@@ -369,7 +371,9 @@ export function renderClass(body: ClassBody): string {
   for (const c of body.classes) {
     if (c.className) lines.push(`  class ${quoteIfNeeded(c.id)} ${c.className}`)
     if (c.style) lines.push(`  style ${quoteIfNeeded(c.id)} ${serializeStyleProps(c.style)}`)
-    if (c.href) lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+    if (c.href) {
+      lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
+    }
   }
   return lines.join('\n') + '\n'
 }
@@ -385,6 +389,7 @@ function cloneClass(body: ClassBody): ClassBody {
       ...(c.className ? { className: c.className } : {}),
       ...(c.style ? { style: { ...c.style } } : {}),
       ...(c.href ? { href: c.href } : {}),
+      ...(c.tooltip !== undefined ? { tooltip: c.tooltip } : {}),
     })),
     relations: body.relations.map(r => ({ ...r })),
     notes: body.notes.map(n => ({ ...n })),

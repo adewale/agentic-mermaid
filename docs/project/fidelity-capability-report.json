@@ -3,15 +3,15 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "265278f729dd7e727841b9e90714396762bdb85902b7ef0c269102c6a887824b",
-  "receiptResultSha256": "e2ad00655a1dd8d9bc58a94427adc4f24da3c4a2d55b7caf29cf115c1e8b5dcb",
+  "receiptInputSha256": "646ac44c3d4f31df7554a8866e49f19ce9f4ca85cb3f65ce8e644d43ec73da65",
+  "receiptResultSha256": "7490bbae25d3f8f98635af5bd31972e205d01b82cbafd80bfc01df091835af5b",
   "summary": {
-    "caseCount": 20,
-    "featureCount": 11,
+    "caseCount": 22,
+    "featureCount": 12,
     "dispositions": {
       "native": 3,
       "source-preserved": 0,
-      "diagnosed": 5,
+      "diagnosed": 6,
       "absent": 3
     }
   },
@@ -206,6 +206,65 @@
         },
         {
           "caseId": "class.relationship.link-solid-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:interaction",
+      "family": "class",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "class.interaction.navigation-target-diagnosed",
+        "class.interaction.safe-link-tooltip-native"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.interaction.navigation-target-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "class.interaction.safe-link-tooltip-native",
           "surfaces": {
             "agent": "native",
             "render": "native",

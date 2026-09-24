@@ -422,7 +422,7 @@ interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[
 // direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
 interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
-interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string }
+interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
 interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }
 interface ClassNote { text: string; for?: string }
@@ -765,7 +765,7 @@ type GanttMutationOp =
 type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
 type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
 interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};sourceLine?:number }
-interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;security:DiagramActionSecurity;executable:false;message?:string }
+interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;tooltip?:string;security:DiagramActionSecurity;executable:false;message?:string }
 interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; regions?: RenderedRegion[]; actions?: DiagramActionRecord[]; bounds: { w: number; h: number } }
 
 type WarningCode =
@@ -787,7 +787,7 @@ interface VerifyResult {
 interface DiagramAnalysis {
   kind: DiagramKind | ExternalFamilyId
   feedbackEdges: Array<{ edgeIndex: number; from: string; to: string; label?: string; routeClass: string }>
-  actions: Array<{ id?: string; regionId?: string; family: DiagramKind; target: string; action: 'href' | 'call' | 'callback'; raw: string; line?: number; href?: string; security: 'safe' | 'unsafe' | 'source-only' | 'unsupported'; executable: false; message?: string }>
+  actions: Array<{ id?: string; regionId?: string; family: DiagramKind; target: string; action: 'href' | 'call' | 'callback'; raw: string; line?: number; href?: string; tooltip?: string; security: 'safe' | 'unsafe' | 'source-only' | 'unsupported'; executable: false; message?: string }>
   gantt?: { criticalPathTaskIds: string[]; slackByTaskId: Record<string, number>; projectStart: number; projectEnd: number; entryTaskIds: string[]; sinkTaskIds: string[] }
 }
 

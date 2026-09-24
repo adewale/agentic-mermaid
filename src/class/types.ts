@@ -45,6 +45,8 @@ export interface ClassNode {
   inlineStyle?: Record<string, string>
   /** Safe inert link metadata; callbacks are never executable. */
   href?: string
+  /** Optional authored hover text for a safe inert link. */
+  tooltip?: string
 }
 
 export interface ClassMember {
@@ -174,6 +176,7 @@ export interface PositionedClassNode {
   className?: string
   inlineStyle?: Record<string, string>
   href?: string
+  tooltip?: string
 }
 
 export interface PositionedClassNote {

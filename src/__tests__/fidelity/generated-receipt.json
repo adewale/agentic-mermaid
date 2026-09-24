@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "265278f729dd7e727841b9e90714396762bdb85902b7ef0c269102c6a887824b",
+    "inputSha256": "646ac44c3d4f31df7554a8866e49f19ce9f4ca85cb3f65ce8e644d43ec73da65",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -93,6 +93,10 @@
       {
         "path": "src/__tests__/fidelity/cases/class-bare-link.fidelity.ts",
         "sha256": "15dcbe0c70dc834cc6769359981174be787414e0ff9fe1af36a203b535e07b12"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/class-safe-link-tooltip.fidelity.ts",
+        "sha256": "4a2743a4866339f2b9e7cfa93538a5d6fbc615d3f331d77eed13a238df8cdfcc"
       },
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
@@ -427,6 +431,157 @@
             "annotation": "interface",
             "ok": true,
             "relation": "Form->Other"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.interaction.navigation-target-diagnosed",
+      "family": "class",
+      "featureId": "official-doc:class:section:interaction",
+      "sourceSha256": "6d6cf9ce98fd3db1a0c9c326914253c8f0472866117705b0e230cd04b7f9233e",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#interaction",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "kind": "opaque"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactSource": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.interaction.safe-link-tooltip-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:interaction",
+      "sourceSha256": "3bafa01433bf9dbeaa5ac4b36661fc788f7b8bc260680ac64ba751854b4edc08",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#interaction",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "href": "https://example.com/docs",
+            "tooltip": "API reference"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "href": "https://example.com/docs",
+            "sidecarTooltip": "API reference",
+            "svgTitle": true,
+            "tooltip": "API reference"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "href": "https://example.com/docs",
+            "stable": true,
+            "tooltip": "API reference"
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "ok": true,
+            "tooltip": "API reference"
           },
           "disposition": "native"
         }
@@ -2080,10 +2235,10 @@
     }
   ],
   "summary": {
-    "caseCount": 20,
-    "passedCaseCount": 20,
+    "caseCount": 22,
+    "passedCaseCount": 22,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 73,
+    "observedSurfaceCount": 81,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

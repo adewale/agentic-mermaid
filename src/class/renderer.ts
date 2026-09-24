@@ -273,6 +273,14 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   const open =
     `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
 
+  if (includeInteraction && cls.href && cls.tooltip !== undefined) {
+    children.push({
+      indent: 2,
+      node: marks.documentContent({ id: `class:${cls.id}:tooltip`, role: 'chrome' },
+        `<title>${escapeXmlUtil(cls.tooltip)}</title>`),
+    })
+  }
+
   // classDef then inline style are merged by layout for backend parity.
   const local = cls.inlineStyle ?? {}
   const boxFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'

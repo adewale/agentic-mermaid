@@ -4,6 +4,7 @@ import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shar
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { isSafeActionHref } from '../output-security.ts'
 
 // ---- Shared namespace grammar ----------------------------------------------
 // One grammar, two consumers: this render parser and the agent body parser
@@ -165,12 +166,37 @@ function applyClassAnnotation(node: ClassNode, annotation: string): void {
 }
 
 /** Shared safe-link grammar for renderer and agent class parsers. */
-export function parseClassInteraction(line: string): { id: string; generic?: string; href: string } | null {
-  const link = line.match(/^(?:click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+export function parseClassInteraction(line: string): { id: string; generic?: string; href: string; tooltip?: string } | null {
+  // First try the complete statement. A bare URL may contain literal %%;
+  // treating that as a comment would silently change a previously accepted
+  // destination. Mermaid also accepts comments directly after a closing
+  // quoted tooltip, including when its final character is a backslash.
+  const grammar = /^(?:click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?(?:"((?:\\.|[^"\\])*)"|((?:https?:\/\/|mailto:)[^\s"\\]+))(?:\s*"(.*)")?\s*$/i
+  const parse = (candidate: string) => {
+    const match = candidate.trim().match(grammar)
+    if (!match) return null
+    const tooltip = match[4]
+    // A decoded &quot; pair inside hover text is content. A second quoted
+    // argument is not: navigation targets remain diagnosed until modeled.
+    if (tooltip !== undefined && (tooltip.match(/"/g)?.length ?? 0) % 2 !== 0) return null
+    if (tooltip !== undefined && /"\s+"|""/.test(tooltip)) return null
+    return match
+  }
+  let link = parse(line)
+  if (!link) {
+    for (let i = line.lastIndexOf('%%'); i >= 0; i = line.lastIndexOf('%%', i - 1)) {
+      if (i > 0 && !/[\s"]/.test(line[i - 1]!)) continue
+      link = parse(line.slice(0, i))
+      if (link) break
+    }
+  }
   if (!link) return null
   const ref = parseClassReference(link[1]!)
   const href = (link[2] ?? link[3] ?? '').replace(/\\(["\\])/g, '$1')
-  return ref && /^(?:https?:|mailto:)/i.test(href) ? { ...ref, href } : null
+  const tooltip = link[4]
+  return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip))
+    ? { id: ref.id, ...(ref.generic ? { generic: ref.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
+    : null
 }
 
 // ============================================================================
@@ -302,7 +328,9 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // --- Safe class links. Callback forms remain inert and unmodeled. ---
     const interaction = parseClassInteraction(line)
     if (interaction) {
-      ensureClass(classMap, interaction.id, interaction.generic).href = interaction.href
+      const cls = ensureClass(classMap, interaction.id, interaction.generic)
+      cls.href = interaction.href
+      if (interaction.tooltip !== undefined) cls.tooltip = interaction.tooltip
       continue
     }
 
@@ -466,6 +494,16 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
         what: `Unrecognized class relationship statement "${line}"`,
         expectedForm: 'A .. B, A -- B, or A --> B, optionally with a label',
         example: 'A --> B : linked',
+      })
+    }
+    // A safe URL followed by unmodeled tooltip/target/trailing syntax must
+    // not be accepted as an invisible statement. Unsafe links and callbacks
+    // remain source-only rather than becoming executable output.
+    if (/^(?:click|link)\s+(?:`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?"?(?:https?:\/\/|mailto:)/i.test(line)) {
+      throw syntaxError({
+        what: `Unrecognized class link statement "${line}"`,
+        expectedForm: 'link Name "https://example.com" "optional tooltip"',
+        example: 'click Name href "https://example.com" "Documentation"',
       })
     }
   }

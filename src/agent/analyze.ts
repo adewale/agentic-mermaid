@@ -16,6 +16,7 @@ import { stateBodyToGraph } from './state-body.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { normalizeMermaidSource, toMermaidLines } from '../mermaid-source.ts'
+import { decodeXML } from 'entities'
 import {
   expandInlineNamespaceStatement,
   parseClassDeclaration,
@@ -95,8 +96,11 @@ export function collectActionRecords(d: ParsedDiagram): DiagramActionRecord[] {
 
 function collectClassActions(source: string): DiagramActionRecord[] {
   const out: DiagramActionRecord[] = []
+  const effectiveTooltips = new Map<string, string>()
   let inClassBody = false
-  for (const sourceLine of actionSourceLines(source)) {
+  // Decode before splitting physical lines, just as the render waist does:
+  // &#10; may introduce an entire interaction statement (or split one).
+  for (const sourceLine of actionSourceLines(decodeXML(source))) {
     for (const text of expandInlineNamespaceStatement(sourceLine.text)) {
       if (inClassBody) {
         if (text.trim() === '}') inClassBody = false
@@ -109,7 +113,12 @@ function collectClassActions(source: string): DiagramActionRecord[] {
       }
       const embedded = parseClassInteraction(text)
       if (embedded) {
-        out.push(actionRecord('class', embedded.id, 'href', embedded.href, sourceLine.line))
+        if (embedded.tooltip !== undefined) effectiveTooltips.set(embedded.id, embedded.tooltip)
+        const effectiveTooltip = effectiveTooltips.get(embedded.id)
+        out.push({
+          ...actionRecord('class', embedded.id, 'href', embedded.href, sourceLine.line, embedded.href),
+          ...(effectiveTooltip !== undefined ? { tooltip: effectiveTooltip } : {}),
+        })
         continue
       }
       const callback = text.match(/^(callback)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(.+)$/i)
@@ -120,6 +129,9 @@ function collectClassActions(source: string): DiagramActionRecord[] {
       }
       const match = text.match(/^(click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(.+)$/i)
       if (!match) continue
+      // A decoded line break inside a quoted tooltip leaves an incomplete
+      // statement. Do not manufacture an action from its first fragment.
+      if ((text.match(/"/g)?.length ?? 0) % 2 !== 0) continue
       const ref = parseClassReference(match[2]!)
       if (!ref) continue
       const rest = match[3]!.trim()
@@ -252,8 +264,9 @@ function actionRecord(
   action: DiagramActionRecord['action'],
   raw: string,
   line?: number,
+  parsedHref?: string,
 ): DiagramActionRecord {
-  const href = action === 'href' ? firstActionToken(raw) : undefined
+  const href = action === 'href' ? parsedHref ?? firstActionToken(raw) : undefined
   const unsafe = href !== undefined && !isSafeHref(href)
   return {
     family,

@@ -345,6 +345,7 @@ function extractClassLayout(
           methodHeight: size.methodHeight,
           ...(cls.className ? { className: cls.className } : {}),
           ...(cls.href ? { href: cls.href } : {}),
+          ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
           ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle ? {
             inlineStyle: { ...(cls.className ? diagram.classDefs.get(cls.className) : {}), ...cls.inlineStyle },
           } : {}),
