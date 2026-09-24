@@ -147,6 +147,12 @@ describe('Class markerless link fidelity', () => {
     }
     expect(performance.now() - agentStart).toBeLessThan(500)
     expect(parseClassRelationship('A .. B : a:b')).toBeNull()
+    const invalidLabel = parseRegisteredMermaid('classDiagram\nA .. B : a:b')
+    expect(invalidLabel.ok).toBe(true)
+    if (invalidLabel.ok) {
+      expect(invalidLabel.value.body.kind).toBe('opaque')
+      expect(verifyMermaid(invalidLabel.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+    }
   })
 
   test('before/after visual assets are authentic same-input production output', () => {

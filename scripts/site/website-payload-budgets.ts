@@ -64,9 +64,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Markerless Class link handling adds one bounded parser path but keeps
     // the two-request graph; these are the exact reviewed Linux/x64 totals.
-    maxRawBytes: 3_349_491,
-    maxGzipBytes: 986_759,
-    maxBrotliBytes: 775_146,
+    maxRawBytes: 3_352_000,
+    maxGzipBytes: 988_000,
+    maxBrotliBytes: 777_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

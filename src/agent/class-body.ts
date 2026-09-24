@@ -56,8 +56,8 @@ const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind; markerAt?: 
   { pat: /<--/, kind: 'association' },
   { pat: /\.\.>/, kind: 'dependency' },
   { pat: /<\.\./, kind: 'dependency' },
-  { pat: /--/,    kind: 'link-solid' },
-  { pat: /\.\./,  kind: 'link-dashed' },
+  // Bare links are exclusively parsed by the shared scanner above. Keeping
+  // them here would re-admit malformed labels after that scanner rejects them.
 ]
 
 const MEMBER_DECL_RE = /^(\S+)\s*:\s*(.+)$/
