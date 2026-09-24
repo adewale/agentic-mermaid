@@ -53,13 +53,16 @@ describe('Sequence rect background color', () => {
     expect(svg).not.toContain('data-label="rgba(0, 0, 255, .1)"')
   })
 
-  test('nested opaque rect cannot cover a parent alt divider and its label', () => {
-    const source = 'sequenceDiagram\nparticipant A\nparticipant B\nalt x\nA->>B: before\nelse y\nrect red\nA->>B: inside\nend\nend'
+  test('nested opaque rect cannot cover a parent alt frame, divider, or label', () => {
+    const source = 'sequenceDiagram\nparticipant A\nparticipant B\nalt x\nA->>B: before\nelse y\nrect red\nA->>B: inside\nend\nA->>B: after\nend'
     const svg = renderMermaidSVG(source)
     const rectPaint = svg.indexOf('fill="red"')
+    const frame = svg.indexOf('data-id="block:alt#0:frame"')
     const divider = svg.indexOf('data-id="block:alt#0:divider#0"')
     expect(rectPaint).toBeGreaterThan(0)
+    expect(frame).toBeGreaterThan(rectPaint)
     expect(divider).toBeGreaterThan(rectPaint)
+    expect(svg).toContain('class="sequence-block-frame-overlay"')
     expect(svg).toContain('[y]')
   })
 
@@ -78,7 +81,7 @@ describe('Sequence rect background color', () => {
   })
 
   test('invalid or fetching paints fail explicitly before entering SVG', () => {
-    for (const paint of ['rgb(1a, 2, 3)', 'rgba(0, 0, 255, 2)', 'constructor', 'url(https://bad.test/a)', 'rgb(1, 2, 3)" onload="alert(1)']) {
+    for (const paint of ['rgb(1a, 2, 3)', 'rgba(0, 0, 255, 2)', 'constructor', 'url(https://bad.test/a)', 'rgb(1, 2, 3)" onload="alert(1)', 'rgb(1,2,3)\u2028onload=alert(1)', 'rgb(1,2,3)\u2029onload=alert(1)']) {
       const source = `sequenceDiagram\nrect ${paint}\nA->>B: inside\nend`
       expect(() => parseSequenceDiagram(source.split('\n'))).toThrow('SEQUENCE_RECT_COLOR_UNSUPPORTED')
       expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_RECT_COLOR_UNSUPPORTED')

@@ -125,10 +125,14 @@ export function lowerSequenceScene(
   for (const block of backgroundOrder) {
     parts.push(renderBlock(block, style, blockSceneIds.get(block)!, hasRect ? 'background' : 'all'))
   }
-  // A nested opaque rect must not overpaint its parent's else/and divider.
+  // A nested opaque rect must not overpaint its parent's frame or else/and
+  // divider. Keep decorations above every block fill, but below lifelines.
   // Keep the old single-group lowering for diagrams without rects so their
   // SVG bytes and Scene grouping stay unchanged.
   if (hasRect) {
+    for (const block of backgroundOrder) {
+      if (block.type !== 'rect') parts.push(renderBlock(block, style, blockSceneIds.get(block)!, 'frame'))
+    }
     for (const block of diagram.blocks) {
       if (block.dividers.length > 0) parts.push(renderBlock(block, style, blockSceneIds.get(block)!, 'dividers'))
     }
@@ -550,37 +554,41 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
  * Render a block background (loop/alt/opt).
  * Wrapped in <g class="block"> with semantic data attributes.
  */
-function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string, part: 'all' | 'background' | 'dividers' = 'all'): SceneNode {
+function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string, part: 'all' | 'background' | 'frame' | 'dividers' = 'all'): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with block metadata
   const labelAttr = block.label ? ` data-label="${escapeAttr(block.label)}"` : ''
   const open = part === 'dividers'
     ? `<g class="sequence-block-divider-overlay" data-owner="${escapeAttr(sceneId)}">`
-    : `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
+    : part === 'frame'
+      ? `<g class="sequence-block-frame-overlay" data-owner="${escapeAttr(sceneId)}">`
+      : `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
 
   // Outer rectangle
   const rawFill = block.type === 'rect'
     ? (block.color ?? style.groupFillColor ?? 'rgba(128, 128, 128, 0.5)')
     : (style.groupFillColor ?? 'none')
   const rawStroke = block.type === 'rect' ? 'none' : (style.groupBorderColor ?? 'var(--_node-stroke)')
+  const fill = part === 'frame' ? 'none' : rawFill
+  const stroke = part === 'background' ? 'none' : rawStroke
   if (part !== 'dividers') children.push({
     indent: 2,
     node: marks.shape({
-      id: `${sceneId}:rect`,
+      id: part === 'frame' ? `${sceneId}:frame` : `${sceneId}:rect`,
       role: 'block',
       geometry: { kind: 'rect', x: block.x, y: block.y, width: block.width, height: block.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
-      paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(style.groupLineWidth) },
+      paint: { fill, stroke, strokeWidth: String(style.groupLineWidth) },
     },
       `<rect x="${block.x}" y="${block.y}" width="${block.width}" height="${block.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.groupLineWidth}" />`),
+      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="${style.groupLineWidth}" />`),
   })
 
   // Divider lines (for alt/else, par/and)
   const rawDividerStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawDividerText = style.edgeTextColor ?? 'var(--_text-muted)'
   let dividerIndex = 0
-  for (const divider of part === 'background' ? [] : block.dividers) {
+  for (const divider of part === 'background' || part === 'frame' ? [] : block.dividers) {
     const dividerId = `${sceneId}:divider#${dividerIndex}`
     dividerIndex++
     const dividerStrokeWidth = Math.max(0.75, style.lineWidth * 0.75)
@@ -617,7 +625,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
   }
 
   return marks.group({
-    id: part === 'dividers' ? `${sceneId}:divider-overlay` : sceneId,
+    id: part === 'dividers' ? `${sceneId}:divider-overlay` : part === 'frame' ? `${sceneId}:frame-overlay` : sceneId,
     role: 'block',
     open,
     close: '</g>',

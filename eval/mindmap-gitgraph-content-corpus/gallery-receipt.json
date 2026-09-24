@@ -976,7 +976,7 @@
     },
     {
       "path": "src/sequence/block-keywords.ts",
-      "sha256": "2742f9de6f6fb4e85a6998bc14616b3094f580df404afea888591fe3774c2f0c"
+      "sha256": "7371032534f6a31b5378ef2ebcc65d6370979e256c3bb6c08cebbe69ff84bfc1"
     },
     {
       "path": "src/sequence/colors.ts",
@@ -996,7 +996,7 @@
     },
     {
       "path": "src/sequence/renderer.ts",
-      "sha256": "883d10b4d598b56d951b78ae6b7268cf808d3ebc302cfa9ed466cbda5831180f"
+      "sha256": "1088a78a166a6464a571b6aec3d6d09b945a825d496cedfdabcab5fd34a17ab0"
     },
     {
       "path": "src/sequence/statements.ts",
