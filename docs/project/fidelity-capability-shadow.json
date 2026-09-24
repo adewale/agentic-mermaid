@@ -3,8 +3,8 @@
   "mode": "shadow",
   "publicClaimsChanged": false,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "07a0ad721e3deb998d9b1e60ef1772961a74464ed3086d4132fe85cc0b85c53b",
-  "receiptResultSha256": "0c76fd47eadc48bccb56002c6d42f91edc130a623499757b41d83b56c9f7bd1e",
+  "receiptInputSha256": "b0c3bf816d0d50d402f4d426773bfadaf131eeaa6c5c04f32cd990a8a0a2d45e",
+  "receiptResultSha256": "5cd081619acced49c2bf44621ef05843267212438f32a9d334a149b0a074a1c1",
   "summary": {
     "caseCount": 4,
     "featureCount": 4,
@@ -45,11 +45,7 @@
         "agent": "native",
         "render": "absent",
         "serialize": "native",
-        "mutate": {
-          "notApplicable": [
-            "The seed isolates class-to-edge paint propagation; class mutation fidelity needs a dedicated operation case."
-          ]
-        }
+        "mutate": "native"
       }
     },
     {
@@ -63,11 +59,7 @@
         "agent": "source-preserved",
         "render": "diagnosed",
         "serialize": "source-preserved",
-        "mutate": {
-          "notApplicable": [
-            "This parser/render seam has no valid structured task to target with a mutation operation."
-          ]
-        }
+        "mutate": "diagnosed"
       }
     },
     {
@@ -81,11 +73,7 @@
         "agent": "source-preserved",
         "render": "absent",
         "serialize": "source-preserved",
-        "mutate": {
-          "notApplicable": [
-            "This construct-loss seed has no mutation operation; mutation fidelity will be covered by operation-specific cases."
-          ]
-        }
+        "mutate": "diagnosed"
       }
     }
   ]

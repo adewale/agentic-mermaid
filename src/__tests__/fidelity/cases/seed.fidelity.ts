@@ -1,5 +1,4 @@
-import { MermaidFamilyDetectionError, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
-import { parseMermaid } from '../../../parser.ts'
+import { MermaidFamilyDetectionError, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import type {
   ApplicableFidelitySurfaceExpectation,
   FidelityCaseDefinition,
@@ -61,14 +60,23 @@ const stateTrailingComment: FidelityCaseDefinition = {
       return renderedEdges.includes('A->B') && renderedEdges.includes('B->C') ? 'native' : 'absent'
     }),
     serialize: applicable('source-preserved', evidence => (facts(evidence).exactBytes === true ? 'source-preserved' : 'absent')),
-    mutate: notApplicable('This construct-loss seed has no mutation operation; mutation fidelity will be covered by operation-specific cases.'),
+    mutate: applicable(
+      'diagnosed',
+      evidence => {
+        const semanticFacts = facts(evidence)
+        if (semanticFacts.mutationOk === true) return 'native'
+        return semanticFacts.errorCode === 'INVALID_OP' && semanticFacts.rejectedOpaqueBody === true ? 'diagnosed' : 'absent'
+      },
+      ['INVALID_OP'],
+    ),
   },
   observe: () => {
     const parsed = parsedOrThrow(stateTrailingCommentSource)
     const verification = verifyMermaid(parsed)
-    const renderedGraph = parseMermaid(stateTrailingCommentSource)
-    const renderedEdges = renderedGraph.edges.map(edge => `${edge.source}->${edge.target}`)
+    const svg = renderMermaidSVG(stateTrailingCommentSource)
+    const renderedEdges = [...svg.matchAll(/<(?:path|polyline)\b[^>]*data-from="([^"]+)"[^>]*data-to="([^"]+)"[^>]*>/g)].map(match => `${match[1]}->${match[2]}`)
     const serialized = serializeMermaid(parsed)
+    const mutation = mutate(parsed, { kind: 'add_transition', from: 'B', to: 'A' })
     return {
       agent: {
         status: 'observed',
@@ -84,6 +92,15 @@ const stateTrailingComment: FidelityCaseDefinition = {
         status: 'observed',
         diagnosticCodes: [],
         semantics: { exactBytes: serialized === stateTrailingCommentSource },
+      },
+      mutate: {
+        status: 'observed',
+        diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
+        semantics: {
+          mutationOk: mutation.ok,
+          errorCode: mutation.ok ? null : mutation.error.code,
+          rejectedOpaqueBody: mutation.ok ? false : mutation.error.message.includes('body kind opaque'),
+        },
       },
     }
   },
@@ -113,7 +130,15 @@ const journeyFractionalScore: FidelityCaseDefinition = {
       ['RENDER_FAILED'],
     ),
     serialize: applicable('source-preserved', evidence => (facts(evidence).exactBytes === true ? 'source-preserved' : 'absent')),
-    mutate: notApplicable('This parser/render seam has no valid structured task to target with a mutation operation.'),
+    mutate: applicable(
+      'diagnosed',
+      evidence => {
+        const semanticFacts = facts(evidence)
+        if (semanticFacts.mutationOk === true) return 'native'
+        return semanticFacts.errorCode === 'INVALID_OP' && semanticFacts.rejectedOpaqueBody === true ? 'diagnosed' : 'absent'
+      },
+      ['INVALID_OP'],
+    ),
   },
   observe: () => {
     const parsed = parsedOrThrow(journeyFractionalScoreSource)
@@ -125,6 +150,7 @@ const journeyFractionalScore: FidelityCaseDefinition = {
       renderError = error instanceof Error ? error.message : String(error)
     }
     const serialized = serializeMermaid(parsed)
+    const mutation = mutate(parsed, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4 })
     const verifierDiagnosedRenderFailure = verification.warnings.some(warning => warning.code === 'RENDER_FAILED')
     return {
       agent: {
@@ -144,6 +170,15 @@ const journeyFractionalScore: FidelityCaseDefinition = {
         status: 'observed',
         diagnosticCodes: [],
         semantics: { exactBytes: serialized === journeyFractionalScoreSource },
+      },
+      mutate: {
+        status: 'observed',
+        diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
+        semantics: {
+          mutationOk: mutation.ok,
+          errorCode: mutation.ok ? null : mutation.error.code,
+          rejectedOpaqueBody: mutation.ok ? false : mutation.error.message.includes('body kind opaque'),
+        },
       },
     }
   },
@@ -166,7 +201,11 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
       return semanticFacts.stroke === '#ff0000' && semanticFacts.strokeWidth === '6' ? 'native' : 'absent'
     }),
     serialize: applicable('native', evidence => (facts(evidence).exactCanonicalBytes === true ? 'native' : 'absent')),
-    mutate: notApplicable('The seed isolates class-to-edge paint propagation; class mutation fidelity needs a dedicated operation case.'),
+    mutate: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      if (semanticFacts.mutationOk === true && semanticFacts.updatedClassDefinition === true) return 'native'
+      return typeof semanticFacts.errorCode === 'string' ? 'diagnosed' : 'absent'
+    }),
   },
   observe: () => {
     const parsed = parsedOrThrow(flowchartEdgeClassSource)
@@ -178,6 +217,8 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
       strokeWidth: edgeTag.match(/\bstroke-width="([^"]+)"/)?.[1] ?? null,
     }
     const serialized = serializeMermaid(parsed)
+    const mutation = mutate(parsed, { kind: 'define_class', name: 'hot', style: 'stroke:#00ff00,stroke-width:4px' })
+    const mutatedSource = mutation.ok ? serializeMermaid(mutation.value) : ''
     return {
       agent: {
         status: 'observed',
@@ -193,6 +234,15 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
         status: 'observed',
         diagnosticCodes: [],
         semantics: { exactCanonicalBytes: serialized === flowchartEdgeClassSource },
+      },
+      mutate: {
+        status: 'observed',
+        diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
+        semantics: {
+          mutationOk: mutation.ok,
+          errorCode: mutation.ok ? null : mutation.error.code,
+          updatedClassDefinition: mutatedSource.includes('classDef hot stroke:#00ff00,stroke-width:4px'),
+        },
       },
     }
   },

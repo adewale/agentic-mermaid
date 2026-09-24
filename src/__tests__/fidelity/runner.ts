@@ -48,9 +48,14 @@ export function canonicalFidelityJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalFidelityJson).join(',')}]`
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new TypeError('fidelity JSON objects must be plain records')
+    }
+    const undefinedKey = Object.keys(record).find(key => record[key] === undefined)
+    if (undefinedKey !== undefined) throw new TypeError(`fidelity JSON property ${JSON.stringify(undefinedKey)} is undefined`)
     return `{${Object.keys(record)
       .sort(compareCodePointStrings)
-      .filter(key => record[key] !== undefined)
       .map(key => `${JSON.stringify(key)}:${canonicalFidelityJson(record[key])}`)
       .join(',')}}`
   }
@@ -197,7 +202,10 @@ function validateExpectation(fidelityCase: FidelityCaseDefinition, surface: Fide
   if (!isDisposition(value.disposition)) issues.push(`${prefix}: invalid disposition ${String(value.disposition)}`)
   if (typeof value.evaluate !== 'function') issues.push(`${prefix}: executable semantic evaluator is required`)
   try {
-    normalizedDiagnosticCodes(value.diagnosticCodes ?? [], prefix)
+    const diagnosticCodes = normalizedDiagnosticCodes(value.diagnosticCodes ?? [], prefix)
+    if (value.disposition === 'diagnosed' && diagnosticCodes.length === 0) {
+      issues.push(`${prefix}: diagnosed disposition requires at least one diagnostic code`)
+    }
   } catch (error) {
     issues.push(error instanceof Error ? error.message : String(error))
   }
@@ -338,6 +346,9 @@ async function runCase(fidelityCase: FidelityCaseDefinition): Promise<FidelityCa
       issues.push(`${surface}: semantic evaluator failed: ${error instanceof Error ? error.message : String(error)}`)
     }
     observations[surface] = { ...observation, disposition }
+    if (disposition === 'diagnosed' && observation.diagnosticCodes.length === 0) {
+      issues.push(`${surface}: diagnosed observation requires at least one diagnostic code`)
+    }
     if (disposition !== expectation.disposition) {
       issues.push(`${surface}: expected ${expectation.disposition}, observed ${disposition}`)
     }

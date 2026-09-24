@@ -85,11 +85,23 @@ export function projectFidelityCapabilityShadow(receipt: FidelityReceiptResult):
       if (expectation.applicability !== 'applicable' || !isDisposition(expectation.disposition)) {
         throw new TypeError(`${result.id}: ${surface} has invalid expected disposition`)
       }
+      if (!Array.isArray(expectation.diagnosticCodes) || expectation.diagnosticCodes.some(code => typeof code !== 'string' || !code.trim())) {
+        throw new TypeError(`${result.id}: ${surface} has invalid expected diagnostics`)
+      }
+      if (expectation.disposition === 'diagnosed' && expectation.diagnosticCodes.length === 0) {
+        throw new TypeError(`${result.id}: ${surface} diagnosed expectation has no diagnostic code`)
+      }
       if (!observation || observation.status !== 'observed') {
         throw new TypeError(`${result.id}: ${surface} lacks classified observed evidence`)
       }
       if (!isDisposition(observation.disposition)) {
         throw new TypeError(`${result.id}: ${surface} has invalid observed disposition`)
+      }
+      if (!Array.isArray(observation.diagnosticCodes) || observation.diagnosticCodes.some(code => typeof code !== 'string' || !code.trim())) {
+        throw new TypeError(`${result.id}: ${surface} has invalid observed diagnostics`)
+      }
+      if (observation.disposition === 'diagnosed' && observation.diagnosticCodes.length === 0) {
+        throw new TypeError(`${result.id}: ${surface} diagnosed observation has no diagnostic code`)
       }
       feature.dispositions[surface] = leastCapable(feature.dispositions[surface], observation.disposition)
     }

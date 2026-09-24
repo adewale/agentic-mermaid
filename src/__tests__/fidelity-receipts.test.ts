@@ -32,13 +32,17 @@ describe('issue #248 construct fidelity receipts', () => {
       caseCount: 4,
       passedCaseCount: 4,
       failedCaseCount: 0,
-      observedSurfaceCount: 12,
+      observedSurfaceCount: 15,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 4,
+      notApplicableSurfaceCount: 1,
     })
-    for (const feature of projectFidelityCapabilityShadow(receipt).features) {
+    const shadow = projectFidelityCapabilityShadow(receipt)
+    for (const feature of shadow.features) {
       expect(Object.keys(feature.surfaces)).toEqual(['agent', 'render', 'serialize', 'mutate'])
     }
+    expect(shadow.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
+    expect(shadow.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
+    expect(shadow.features.find(feature => feature.family === 'flowchart')!.surfaces.mutate).toBe('native')
   })
 
   test('registry validation rejects duplicate/unknown cases and unacknowledged revision splits', async () => {
@@ -211,6 +215,28 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(diagnosticReceipt.cases[0]!.issues).toContain('agent: expected diagnostics ["WRONG_CODE"], observed ["UNSUPPORTED_SYNTAX"]')
   })
 
+  test('diagnosed dispositions require a concrete diagnostic in validation, execution, and projection', async () => {
+    const registry = await discoverFidelityRegistry()
+    const original = registry.cases[0]!
+    const agent = original.expected.agent
+    if (agent.applicability !== 'applicable') throw new Error('block agent must be applicable')
+    const emptyDiagnosis = {
+      ...original,
+      id: 'block.family.empty-diagnosis',
+      expected: { ...original.expected, agent: { ...agent, diagnosticCodes: [] } },
+    } as FidelityCaseDefinition
+    expect(validateFidelityRegistry([emptyDiagnosis])).toContain('block.family.empty-diagnosis: agent: diagnosed disposition requires at least one diagnostic code')
+    await expect(runFidelityCases([emptyDiagnosis], registry.caseFiles)).rejects.toThrow('diagnosed disposition requires at least one diagnostic code')
+
+    const malformedReceipt = readJson<FidelityReceiptResult>(RECEIPT)
+    const expectedAgent = malformedReceipt.cases[0]!.expected.agent
+    const observedAgent = malformedReceipt.cases[0]!.observations.agent
+    if (expectedAgent.applicability !== 'applicable' || !observedAgent || observedAgent.status !== 'observed') throw new Error('block agent fixture must be applicable and observed')
+    ;(expectedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
+    ;(observedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
+    expect(() => projectFidelityCapabilityShadow(malformedReceipt)).toThrow('diagnosed expectation has no diagnostic code')
+  })
+
   test('observer failures and malformed observations fail closed', async () => {
     const registry = await discoverFidelityRegistry()
     const original = registry.cases[0]!
@@ -230,5 +256,27 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt.cases[0]!.passed).toBe(false)
     expect(receipt.cases[0]!.issues[0]).toBe('observer failed: agent: unknown fields disposition')
     expect(receipt.summary.blockedSurfaceCount).toBe(3)
+  })
+
+  test('malformed semantic JSON is rejected instead of normalized away', async () => {
+    const registry = await discoverFidelityRegistry()
+    const original = registry.cases[0]!
+    for (const [id, semantics, message] of [
+      ['undefined-value', { lost: undefined }, 'fidelity JSON property "lost" is undefined'],
+      ['non-plain-object', new Date(0), 'fidelity JSON objects must be plain records'],
+    ] as const) {
+      const malformed: FidelityCaseDefinition = {
+        ...original,
+        id: `block.family.${id}`,
+        observe: async () => {
+          const evidence = await original.observe()
+          const agent = evidence.agent
+          if (!agent || agent.status !== 'observed') throw new Error('block agent evidence must be observed')
+          return { ...evidence, agent: { ...agent, semantics } } as never
+        },
+      }
+      const receipt = await runFidelityCases([malformed], registry.caseFiles)
+      expect(receipt.cases[0]!.issues[0]).toBe(`observer failed: ${message}`)
+    }
   })
 })
