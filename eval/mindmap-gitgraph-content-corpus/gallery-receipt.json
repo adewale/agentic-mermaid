@@ -980,7 +980,7 @@
     },
     {
       "path": "src/sequence/colors.ts",
-      "sha256": "681445812827c8efc6050522861fe014919f168f66c3ea32ae4cae198d3a88a3"
+      "sha256": "eb25ba5493c2f8c584457ee8213ae2614012b994a3b22be214749c26dfeabda7"
     },
     {
       "path": "src/sequence/config.ts",
@@ -996,7 +996,7 @@
     },
     {
       "path": "src/sequence/renderer.ts",
-      "sha256": "d45afe6536b1554f18080b95735c3c1202b4f5f2c06c0497146382ab37f81778"
+      "sha256": "883d10b4d598b56d951b78ae6b7268cf808d3ebc302cfa9ed466cbda5831180f"
     },
     {
       "path": "src/sequence/statements.ts",

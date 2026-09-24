@@ -53,6 +53,16 @@ describe('Sequence rect background color', () => {
     expect(svg).not.toContain('data-label="rgba(0, 0, 255, .1)"')
   })
 
+  test('nested opaque rect cannot cover a parent alt divider and its label', () => {
+    const source = 'sequenceDiagram\nparticipant A\nparticipant B\nalt x\nA->>B: before\nelse y\nrect red\nA->>B: inside\nend\nend'
+    const svg = renderMermaidSVG(source)
+    const rectPaint = svg.indexOf('fill="red"')
+    const divider = svg.indexOf('data-id="block:alt#0:divider#0"')
+    expect(rectPaint).toBeGreaterThan(0)
+    expect(divider).toBeGreaterThan(rectPaint)
+    expect(svg).toContain('[y]')
+  })
+
   test('agent serialization preserves both authored color statements losslessly', () => {
     const parsed = parseRegisteredMermaid(SOURCE)
     expect(parsed.ok).toBe(true)
@@ -68,7 +78,7 @@ describe('Sequence rect background color', () => {
   })
 
   test('invalid or fetching paints fail explicitly before entering SVG', () => {
-    for (const paint of ['rgb(1a, 2, 3)', 'rgba(0, 0, 255, 2)', 'url(https://bad.test/a)', 'rgb(1, 2, 3)" onload="alert(1)']) {
+    for (const paint of ['rgb(1a, 2, 3)', 'rgba(0, 0, 255, 2)', 'constructor', 'url(https://bad.test/a)', 'rgb(1, 2, 3)" onload="alert(1)']) {
       const source = `sequenceDiagram\nrect ${paint}\nA->>B: inside\nend`
       expect(() => parseSequenceDiagram(source.split('\n'))).toThrow('SEQUENCE_RECT_COLOR_UNSUPPORTED')
       expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_RECT_COLOR_UNSUPPORTED')
@@ -97,6 +107,15 @@ describe('Sequence rect background color', () => {
       expect(svg).toContain('fill="rgba(128, 128, 128, 0.5)"')
       expect(svg).not.toContain('>rect [')
     }
+  })
+
+  test('an explicit rect color wins over group style, while bare rect honors that style', () => {
+    const style = { formatVersion: 1 as const, roles: { group: { fillColor: '#ff00ff' } } }
+    const bare = renderMermaidSVG('sequenceDiagram\nrect\nA->>B: inside\nend', { style })
+    const explicit = renderMermaidSVG('sequenceDiagram\nrect rgb(1, 2, 3)\nA->>B: inside\nend', { style })
+    expect(bare).toContain('fill="#ff00ff"')
+    expect(explicit).toContain('fill="rgb(1, 2, 3)"')
+    expect(explicit).not.toContain('fill="#ff00ff"')
   })
 
   test('reviewer-facing after SVG and PNG match the production renderer', () => {

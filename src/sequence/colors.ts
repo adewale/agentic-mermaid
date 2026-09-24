@@ -28,7 +28,7 @@ export function sequenceRectColor(argument: string): string | undefined {
   const color = safeCssColor(argument)
   if (!color) return undefined
   const lower = color.toLowerCase()
-  if (lower === 'transparent' || lower in CSS_NAMED_COLORS) return color
+  if (lower === 'transparent' || Object.hasOwn(CSS_NAMED_COLORS, lower)) return color
 
   const rgb = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i.exec(color)
   if (rgb && rgb.slice(1).every(channel => Number(channel) <= 255)) return color
