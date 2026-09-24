@@ -25,7 +25,7 @@ import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
  * from Shiki themes or custom palettes. Each falls back to a color-mix()
  * derivation from bg + fg if not set.
  */
-import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
+import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import { requireSafeCssFontFamily } from './shared/css-font.ts'
 import { requireSafeCssPaint } from './shared/css-color.ts'
 
@@ -462,11 +462,13 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
   // Every text tone is drawn on every one of these surfaces somewhere (member
   // types on node bodies, group titles on header bands, key names on badges),
   // so each tone must read at WCAG AA on all of them, not only on the page.
+  // The faint tone is for decoration only (separators), which needs the 3:1
+  // of non-text contrast; text a reader must read never uses it.
   const surfaces = [bg, nodeFill, groupHdr, keyBadge]
   const text = legibleOnEvery(fg, surfaces)
   const textSec = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textSec), surfaces, text)
   const textMuted = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textMuted), surfaces, text)
-  const textFaint = legibleOnEvery(mixHex(fg, bg, MIX.textFaint), surfaces, text)
+  const textFaint = legibleOnEvery(mixHex(fg, bg, MIX.textFaint), surfaces, text, WCAG_AA_NON_TEXT_CONTRAST)
   return {
     bg,
     fg,
@@ -485,13 +487,14 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
   }
 }
 
-/** `candidate`, darkened or lightened just enough to reach WCAG AA on every
- * surface. The surfaces are tints of one page, so repairing against each in
- * turn converges; a second pass covers a repair that moved off an earlier one. */
-function legibleOnEvery(candidate: string, surfaces: readonly string[], fallback?: string): string {
+/** `candidate`, darkened or lightened just enough to reach `minimum` (WCAG AA
+ * for text by default) on every surface. The surfaces are tints of one page,
+ * so repairing against each in turn converges; a second pass covers a repair
+ * that moved off an earlier one. */
+function legibleOnEvery(candidate: string, surfaces: readonly string[], fallback?: string, minimum = WCAG_AA_TEXT_CONTRAST): string {
   let ink = candidate
   for (let pass = 0; pass < 2; pass++) {
-    for (const surface of surfaces) ink = ensureContrast(ink, surface, WCAG_AA_TEXT_CONTRAST, fallback)
+    for (const surface of surfaces) ink = ensureContrast(ink, surface, minimum, fallback)
   }
   return ink
 }

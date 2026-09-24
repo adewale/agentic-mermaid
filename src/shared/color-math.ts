@@ -110,6 +110,9 @@ export function ensureContrast(
 export const WCAG_AA_TEXT_CONTRAST = 4.5
 /** WCAG 2.x AA contrast for large text: 24px, or 18.66px bold. */
 export const WCAG_AA_LARGE_TEXT_CONTRAST = 3
+/** WCAG 2.1 AA contrast for non-text graphics (SC 1.4.11), which decoration
+ * such as a separator glyph is held to. */
+export const WCAG_AA_NON_TEXT_CONTRAST = 3
 
 /** Ink for text drawn on `surface`: `preferred` when it reads at WCAG AA,
  * otherwise `preferred` moved toward black or white just far enough, so the

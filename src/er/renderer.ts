@@ -271,7 +271,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
 
   // Empty row placeholder when no attributes
   if (attributes.length === 0) {
-    const emptyColor = ink(style.nodeTextColor ?? 'var(--_text-faint)')
+    const emptyColor = ink(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({
       indent: 2,
       node: marks.text({
