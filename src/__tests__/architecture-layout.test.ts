@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
 import { convertToElkFormat } from '../layout-engine.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
+import { measureMultilineText } from '../text-metrics.ts'
 
 function parse(source: string) {
   return parseArchitectureDiagram(preprocessMermaidSource(source).lines)
@@ -100,6 +102,18 @@ describe('layoutArchitectureDiagram', () => {
     expect(junction.y).toBeGreaterThan(group.y)
     expect(junction.x + junction.width).toBeLessThanOrEqual(groupRight)
     expect(junction.y + junction.height).toBeLessThanOrEqual(groupBottom)
+  })
+
+  // The renderer draws an icon group's title after its icon, so a group widened
+  // for a long title has to hold the icon's offset as well as the title.
+  it('widens an icon group narrower than its title to hold the icon and the title', () => {
+    const title = 'Regional ingestion and replay services'
+    const group = layout(`architecture-beta
+      group g(cloud)[${title}]
+      service s(server)[S] in g`).groups[0]!
+    const visual = DEFAULT_ARCHITECTURE_VISUAL
+    const titleWidth = measureMultilineText(title, visual.groupFontSize, visual.groupFontWeight, visual.groupLetterSpacing).width
+    expect(group.width).toBeGreaterThanOrEqual(ARCHITECTURE_GROUP_ICON_TITLE_OFFSET + titleWidth)
   })
 
   // Property: containment is a structural invariant, not a property of one
