@@ -3,16 +3,16 @@
   "mode": "shadow",
   "publicClaimsChanged": false,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "f1aa58256edf706418faa5aa594dddd971d10dd435ef0d262d6c3979074ddfa3",
-  "receiptResultSha256": "8a03ad0bf684d9dcb9ffff83404b46fa3debb4c14aef82b6335e76da5d0aa04f",
+  "receiptInputSha256": "fae5f3968f64e863165ba5cf4f10baa7aeb24ef1025267ab0a98e853d52d77e2",
+  "receiptResultSha256": "23fc9663f8ee507a9750cde8fcc08cc726d40dce2297d1212651c035a36d51b5",
   "summary": {
-    "caseCount": 4,
-    "featureCount": 4,
+    "caseCount": 10,
+    "featureCount": 7,
     "dispositions": {
-      "native": 0,
+      "native": 1,
       "source-preserved": 0,
       "diagnosed": 2,
-      "absent": 2
+      "absent": 4
     }
   },
   "features": [
@@ -32,6 +32,20 @@
             "Unsupported families expose no structured mutation target by design."
           ]
         }
+      }
+    },
+    {
+      "featureId": "official-doc:flowchart:section:text-on-links",
+      "family": "flowchart",
+      "disposition": "native",
+      "caseIds": [
+        "flowchart.links.boundary-whitespace-mutation-closure"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
       }
     },
     {
@@ -63,11 +77,42 @@
       }
     },
     {
+      "featureId": "official-doc:sankey:section:links-coloring",
+      "family": "sankey",
+      "disposition": "absent",
+      "caseIds": [
+        "sankey.links.dark-background-normal-alpha-divergence",
+        "sankey.links.light-background-multiply",
+        "sankey.links.typed-gradient-endpoints"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": "native"
+      }
+    },
+    {
       "featureId": "official-doc:state:section:comments",
       "family": "state",
       "disposition": "absent",
       "caseIds": [
         "state.comments.trailing-transition-loss"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "absent",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      }
+    },
+    {
+      "featureId": "official-doc:xychart:section:syntax",
+      "family": "xychart",
+      "disposition": "absent",
+      "caseIds": [
+        "xychart.syntax.shared-parser-semantics",
+        "xychart.syntax.unknown-statement-render-seam"
       ],
       "surfaces": {
         "agent": "source-preserved",
