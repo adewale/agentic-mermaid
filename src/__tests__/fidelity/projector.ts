@@ -6,7 +6,7 @@ import {
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
   type FidelityCapabilitySurface,
-  type FidelityDiagnosedCaseEvidence,
+  type FidelityCapabilityCaseEvidence,
   type FidelityDisposition,
   type FidelityReceiptResult,
   type FidelitySurface,
@@ -44,7 +44,7 @@ interface FeatureAccumulator {
   dispositions: Partial<Record<FidelitySurface, FidelityDisposition>>
   diagnostics: Partial<Record<FidelitySurface, string[]>>
   notApplicable: Partial<Record<FidelitySurface, string[]>>
-  diagnosedCaseEvidence: FidelityDiagnosedCaseEvidence[]
+  caseEvidence: FidelityCapabilityCaseEvidence[]
   acceptedDivergences: FidelityAcceptedDivergence[]
 }
 
@@ -74,12 +74,13 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
       dispositions: {},
       diagnostics: {},
       notApplicable: {},
-      diagnosedCaseEvidence: [],
+      caseEvidence: [],
       acceptedDivergences: [],
     }
     feature.caseIds.push(result.id)
 
-    const diagnosedSurfaces: Partial<Record<FidelitySurface, readonly string[]>> = {}
+    const caseSurfaces: Partial<Record<FidelitySurface, FidelityCapabilitySurface>> = {}
+    const caseDiagnostics: Partial<Record<FidelitySurface, readonly string[]>> = {}
     for (const surface of FIDELITY_SURFACES) {
       const expectation = result.expected[surface]
       if (!expectation) throw new TypeError(`${result.id}: ${surface} expectation is undeclared`)
@@ -90,6 +91,7 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
         const rationales = feature.notApplicable[surface] ?? []
         rationales.push(expectation.rationale)
         feature.notApplicable[surface] = rationales
+        caseSurfaces[surface] = { notApplicable: [expectation.rationale] }
         continue
       }
       if (expectation.applicability !== 'applicable' || !isDisposition(expectation.disposition)) {
@@ -113,15 +115,21 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
       if (observation.disposition === 'diagnosed' && observation.diagnosticCodes.length === 0) {
         throw new TypeError(`${result.id}: ${surface} diagnosed observation has no diagnostic code`)
       }
-      if (observation.disposition === 'diagnosed') diagnosedSurfaces[surface] = [...observation.diagnosticCodes]
+      caseSurfaces[surface] = observation.disposition
+      if (observation.diagnosticCodes.length > 0) caseDiagnostics[surface] = [...observation.diagnosticCodes]
       feature.dispositions[surface] = leastCapable(feature.dispositions[surface], observation.disposition)
       const diagnosticCodes = feature.diagnostics[surface] ?? []
       diagnosticCodes.push(...observation.diagnosticCodes)
       feature.diagnostics[surface] = diagnosticCodes
     }
-    if (Object.keys(diagnosedSurfaces).length > 0) {
-      feature.diagnosedCaseEvidence.push({ caseId: result.id, surfaces: diagnosedSurfaces })
+    if (Object.keys(caseSurfaces).length !== FIDELITY_SURFACES.length) {
+      throw new TypeError(`${result.id}: case evidence does not cover every fidelity surface`)
     }
+    feature.caseEvidence.push({
+      caseId: result.id,
+      surfaces: caseSurfaces as Record<FidelitySurface, FidelityCapabilitySurface>,
+      diagnostics: caseDiagnostics,
+    })
     if (result.acceptedDivergence) {
       const diagnosticCodes = Object.fromEntries(result.acceptedDivergence.surfaces.map(surface => {
         const observation = result.observations[surface]
@@ -170,7 +178,7 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
         caseIds: feature.caseIds.sort(compareCodePointStrings),
         surfaces,
         diagnostics,
-        diagnosedCaseEvidence: feature.diagnosedCaseEvidence.sort((a, b) => compareCodePointStrings(a.caseId, b.caseId)),
+        caseEvidence: feature.caseEvidence.sort((a, b) => compareCodePointStrings(a.caseId, b.caseId)),
         acceptedDivergences: feature.acceptedDivergences.sort((a, b) => compareCodePointStrings(a.caseId, b.caseId)),
       }
     })

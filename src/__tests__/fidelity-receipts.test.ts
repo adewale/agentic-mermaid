@@ -16,6 +16,7 @@ import { UPSTREAM_MERMAID_MANIFEST, type UpstreamMermaidManifest } from '../upst
 import {
   FIDELITY_CAPABILITY_REPORT,
   validateFidelityCapabilityReport,
+  type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
 } from '../fidelity-capability-report.ts'
 import { fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
@@ -29,6 +30,13 @@ function readJson<T>(path: string): T {
 
 function clonedManifest(): UpstreamMermaidManifest {
   return JSON.parse(JSON.stringify(UPSTREAM_MERMAID_MANIFEST)) as UpstreamMermaidManifest
+}
+
+function makeSerializeNative(feature: FidelityCapabilityFeature): void {
+  ;(feature.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+  for (const evidence of feature.caseEvidence) {
+    ;(evidence.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+  }
 }
 
 function setJsonPath(value: FidelityJson, path: readonly (number | string)[], replacement: FidelityJson): FidelityJson {
@@ -116,16 +124,22 @@ describe('issue #248 construct fidelity receipts', () => {
         render: ['UNSUPPORTED_FAMILY'],
       },
     }])
-    expect(report.features[0]!.diagnosedCaseEvidence).toEqual([{
+    expect(report.features[0]!.caseEvidence).toEqual([{
       caseId: original.id,
       surfaces: {
+        agent: 'diagnosed',
+        render: 'diagnosed',
+        serialize: 'source-preserved',
+        mutate: { notApplicable: ['Unsupported families expose no structured mutation target by design.'] },
+      },
+      diagnostics: {
         agent: ['UNSUPPORTED_FAMILY'],
         render: ['UNSUPPORTED_FAMILY'],
       },
     }])
     expect(fidelityFeatureSatisfiesSyntaxParity(report.features[0]!)).toBe(false)
     const allOtherSurfacesNative = structuredClone(report.features[0]!)
-    ;(allOtherSurfacesNative.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+    makeSerializeNative(allOtherSurfacesNative)
     expect(fidelityFeatureSatisfiesSyntaxParity(allOtherSurfacesNative)).toBe(true)
 
     const broadPolicy = {
@@ -164,8 +178,8 @@ describe('issue #248 construct fidelity receipts', () => {
     const mixedReport = projectFidelityCapabilityReport(mixedReceipt)
     expect(validateFidelityCapabilityReport(mixedReport)).toEqual([])
     const mixedFeature = structuredClone(mixedReport.features[0]!)
-    ;(mixedFeature.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
-    expect(mixedFeature.diagnosedCaseEvidence.map(evidence => evidence.caseId)).toEqual([
+    makeSerializeNative(mixedFeature)
+    expect(mixedFeature.caseEvidence.map(evidence => evidence.caseId)).toEqual([
       original.id,
       unaccepted.id,
     ])
@@ -178,14 +192,46 @@ describe('issue #248 construct fidelity receipts', () => {
     const fullyAcceptedReport = projectFidelityCapabilityReport(fullyAcceptedReceipt)
     expect(validateFidelityCapabilityReport(fullyAcceptedReport)).toEqual([])
     const fullyAcceptedFeature = structuredClone(fullyAcceptedReport.features[0]!)
-    ;(fullyAcceptedFeature.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+    makeSerializeNative(fullyAcceptedFeature)
     expect(fidelityFeatureSatisfiesSyntaxParity(fullyAcceptedFeature)).toBe(true)
 
-    const missingCaseEvidence = structuredClone(fullyAcceptedReport)
-    ;(missingCaseEvidence.features[0]!.diagnosedCaseEvidence as unknown as unknown[]).pop()
-    expect(validateFidelityCapabilityReport(missingCaseEvidence)).toContain(
-      `${mixedFeature.featureId}/${unaccepted.id}/agent: accepted divergence lacks matching diagnosed evidence`,
+    const omittedUnacceptedCase = structuredClone(mixedReport)
+    ;(omittedUnacceptedCase.features[0]!.caseEvidence as unknown as unknown[]).pop()
+    expect(validateFidelityCapabilityReport(omittedUnacceptedCase)).toContain(
+      `${mixedFeature.featureId}: case evidence does not exactly cover case ids in order`,
     )
+    expect(fidelityFeatureSatisfiesSyntaxParity(omittedUnacceptedCase.features[0]!)).toBe(false)
+    const missingSurface = structuredClone(fullyAcceptedFeature)
+    delete (missingSurface.caseEvidence[0]!.surfaces as Partial<Record<FidelitySurface, unknown>>).render
+    expect(fidelityFeatureSatisfiesSyntaxParity(missingSurface)).toBe(false)
+
+    const sourcePreserved: FidelityCaseDefinition = {
+      ...unaccepted,
+      id: 'block.family.unaccepted-source-preserved',
+      expected: {
+        ...unaccepted.expected,
+        agent: {
+          applicability: 'applicable',
+          disposition: 'source-preserved',
+          diagnosticCodes: ['UNSUPPORTED_FAMILY'],
+          evaluate: () => 'source-preserved',
+        },
+        render: {
+          applicability: 'applicable',
+          disposition: 'source-preserved',
+          diagnosticCodes: ['UNSUPPORTED_FAMILY'],
+          evaluate: () => 'source-preserved',
+        },
+      },
+    }
+    expect(validateFidelityRegistry([accepted, sourcePreserved])).toEqual([])
+    const mixedDispositionReport = projectFidelityCapabilityReport(
+      await runFidelityCases([accepted, sourcePreserved], registry.caseFiles),
+    )
+    expect(validateFidelityCapabilityReport(mixedDispositionReport)).toEqual([])
+    const mixedDispositionFeature = structuredClone(mixedDispositionReport.features[0]!)
+    makeSerializeNative(mixedDispositionFeature)
+    expect(fidelityFeatureSatisfiesSyntaxParity(mixedDispositionFeature)).toBe(false)
   })
 
   test('multi-family features fail closed until receipts can be scoped per family', async () => {
@@ -238,9 +284,7 @@ describe('issue #248 construct fidelity receipts', () => {
     for (const feature of capability.features) {
       expect(Object.keys(feature.surfaces)).toEqual(['agent', 'render', 'serialize', 'mutate'])
       expect(feature.acceptedDivergences).toEqual([])
-      expect(feature.diagnosedCaseEvidence.map(evidence => evidence.caseId)).toEqual(
-        feature.caseIds.filter(caseId => feature.diagnosedCaseEvidence.some(evidence => evidence.caseId === caseId)),
-      )
+      expect(feature.caseEvidence.map(evidence => evidence.caseId)).toEqual([...feature.caseIds])
     }
     expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
     expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')

@@ -7,7 +7,7 @@ import {
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
   type FidelityCapabilitySurface,
-  type FidelityDiagnosedCaseEvidence,
+  type FidelityCapabilityCaseEvidence,
   type FidelityAcceptedDivergencePolicy,
   type FidelityDisposition,
   type FidelitySurface,
@@ -19,6 +19,12 @@ import {
 } from './upstream-mermaid-manifest.ts'
 
 const SHA256_PATTERN = /^[0-9a-f]{64}$/
+const DISPOSITION_RANK: Readonly<Record<FidelityDisposition, number>> = Object.freeze({
+  native: 0,
+  'source-preserved': 1,
+  diagnosed: 2,
+  absent: 3,
+})
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -130,49 +136,76 @@ export function validateFidelityCapabilityReport(
         }
       }
     }
-    const diagnosedEvidenceByCase = new Map<string, Record<string, unknown>>()
-    if (!Array.isArray(rawFeature.diagnosedCaseEvidence)) {
-      issues.push(`${context}: diagnosed case evidence is invalid`)
+    const caseEvidenceByCase = new Map<string, Record<string, unknown>>()
+    if (!Array.isArray(rawFeature.caseEvidence)) {
+      issues.push(`${context}: case evidence is invalid`)
     } else {
-      for (const evidence of rawFeature.diagnosedCaseEvidence) {
-        if (!isRecord(evidence) || typeof evidence.caseId !== 'string' || !isRecord(evidence.surfaces)) {
-          issues.push(`${context}: diagnosed case evidence is invalid`)
+      for (const evidence of rawFeature.caseEvidence) {
+        if (!isRecord(evidence) || typeof evidence.caseId !== 'string'
+          || !isRecord(evidence.surfaces) || !isRecord(evidence.diagnostics)) {
+          issues.push(`${context}: case evidence is invalid`)
           continue
         }
         const evidenceContext = `${context}/${evidence.caseId}`
-        if (diagnosedEvidenceByCase.has(evidence.caseId)) issues.push(`${evidenceContext}: duplicate diagnosed case evidence`)
-        diagnosedEvidenceByCase.set(evidence.caseId, evidence.surfaces)
+        if (caseEvidenceByCase.has(evidence.caseId)) issues.push(`${evidenceContext}: duplicate case evidence`)
+        caseEvidenceByCase.set(evidence.caseId, evidence)
         if (!Array.isArray(rawFeature.caseIds) || !rawFeature.caseIds.includes(evidence.caseId)) {
-          issues.push(`${evidenceContext}: diagnosed evidence case is absent from the feature receipts`)
+          issues.push(`${evidenceContext}: evidence case is absent from the feature receipts`)
         }
-        const diagnosedSurfaces = Object.keys(evidence.surfaces)
-        if (diagnosedSurfaces.length === 0
-          || diagnosedSurfaces.some(surface => !FIDELITY_SURFACES.includes(surface as FidelitySurface))
-          || JSON.stringify(diagnosedSurfaces) !== JSON.stringify(FIDELITY_SURFACES.filter(surface => diagnosedSurfaces.includes(surface)))) {
-          issues.push(`${evidenceContext}: diagnosed evidence surfaces are invalid`)
-          continue
+        if (JSON.stringify(Object.keys(evidence.surfaces)) !== JSON.stringify(FIDELITY_SURFACES)) {
+          issues.push(`${evidenceContext}: case evidence surfaces are incomplete or out of order`)
         }
-        for (const surface of diagnosedSurfaces as FidelitySurface[]) {
-          const codes = evidence.surfaces[surface]
-          if (!Array.isArray(codes) || codes.length === 0
+        const diagnosticKeys = Object.keys(evidence.diagnostics)
+        if (diagnosticKeys.some(key => !FIDELITY_SURFACES.includes(key as FidelitySurface))) {
+          issues.push(`${evidenceContext}: case evidence diagnostics contain an unknown surface`)
+        }
+        for (const surface of FIDELITY_SURFACES) {
+          issues.push(...validateSurface(evidence.surfaces[surface], `${evidenceContext}/${surface}`))
+          const codes = evidence.diagnostics[surface]
+          if (codes !== undefined && (!Array.isArray(codes) || codes.length === 0
             || codes.some(code => typeof code !== 'string' || !code.trim())
             || new Set(codes).size !== codes.length
-            || JSON.stringify(codes) !== JSON.stringify([...codes].sort(compareCodePointStrings))
-            || (surfaces[surface] !== 'diagnosed' && surfaces[surface] !== 'absent')) {
-            issues.push(`${evidenceContext}/${surface}: diagnosed case evidence is invalid`)
+            || JSON.stringify(codes) !== JSON.stringify([...codes].sort(compareCodePointStrings)))) {
+            issues.push(`${evidenceContext}/${surface}: case evidence diagnostic codes are invalid`)
+          }
+          if (evidence.surfaces[surface] === 'diagnosed' && !Array.isArray(codes)) {
+            issues.push(`${evidenceContext}/${surface}: diagnosed case evidence lacks a diagnostic code`)
           }
         }
       }
-      const diagnosedEvidenceCaseIds = rawFeature.diagnosedCaseEvidence
+      const caseEvidenceIds = rawFeature.caseEvidence
         .map(evidence => isRecord(evidence) && typeof evidence.caseId === 'string' ? evidence.caseId : '')
-      if (JSON.stringify(diagnosedEvidenceCaseIds)
-        !== JSON.stringify([...diagnosedEvidenceByCase.keys()].sort(compareCodePointStrings))) {
-        issues.push(`${context}: diagnosed case evidence is out of order`)
+      if (!Array.isArray(rawFeature.caseIds)
+        || JSON.stringify(caseEvidenceIds) !== JSON.stringify(rawFeature.caseIds)) {
+        issues.push(`${context}: case evidence does not exactly cover case ids in order`)
       }
       for (const surface of FIDELITY_SURFACES) {
-        if (surfaces[surface] === 'diagnosed'
-          && ![...diagnosedEvidenceByCase.values()].some(evidence => evidence[surface] !== undefined)) {
-          issues.push(`${context}/${surface}: diagnosed aggregate lacks case-level evidence`)
+        const caseCells = [...caseEvidenceByCase.values()].flatMap(evidence => {
+          const evidenceSurfaces = evidence.surfaces
+          return isRecord(evidenceSurfaces) ? [evidenceSurfaces[surface]] : []
+        })
+        const applicableCells = caseCells.filter(isDisposition)
+        const expectedSurface: unknown = applicableCells.length > 0
+          ? applicableCells.reduce<FidelityDisposition>(
+            (current, disposition) => DISPOSITION_RANK[disposition] > DISPOSITION_RANK[current] ? disposition : current,
+            'native',
+          )
+          : {
+              notApplicable: [...new Set(caseCells.flatMap(cell =>
+                isRecord(cell) && Array.isArray(cell.notApplicable) ? cell.notApplicable : []))]
+                .sort(compareCodePointStrings),
+            }
+        if (JSON.stringify(surfaces[surface]) !== JSON.stringify(expectedSurface)) {
+          issues.push(`${context}/${surface}: aggregate case evidence is stale`)
+        }
+        const expectedCodes = [...new Set([...caseEvidenceByCase.values()].flatMap(evidence => {
+          const caseDiagnostics = evidence.diagnostics
+          const codes = isRecord(caseDiagnostics) ? caseDiagnostics[surface] : undefined
+          return Array.isArray(codes) ? codes : []
+        }))].sort(compareCodePointStrings)
+        const aggregateCodes = isRecord(rawFeature.diagnostics) ? rawFeature.diagnostics[surface] : undefined
+        if (JSON.stringify(aggregateCodes) !== JSON.stringify(expectedCodes.length > 0 ? expectedCodes : undefined)) {
+          issues.push(`${context}/${surface}: aggregate case diagnostics are stale`)
         }
       }
     }
@@ -209,8 +242,11 @@ export function validateFidelityCapabilityReport(
         for (const surface of divergenceSurfaces as FidelitySurface[]) {
           const surfaceCodes = divergence.diagnosticCodes[surface]
           const aggregateCodes = isRecord(rawFeature.diagnostics) ? rawFeature.diagnostics[surface] : undefined
-          const caseCodes = diagnosedEvidenceByCase.get(divergence.caseId)?.[surface]
-          if ((rawFeature.surfaces?.[surface] !== 'diagnosed' && rawFeature.surfaces?.[surface] !== 'absent')
+          const caseEvidence = caseEvidenceByCase.get(divergence.caseId)
+          const caseSurfaces = isRecord(caseEvidence?.surfaces) ? caseEvidence.surfaces : undefined
+          const caseDiagnostics = isRecord(caseEvidence?.diagnostics) ? caseEvidence.diagnostics : undefined
+          const caseCodes = caseDiagnostics?.[surface]
+          if (caseSurfaces?.[surface] !== 'diagnosed'
             || !Array.isArray(surfaceCodes) || surfaceCodes.length === 0
             || surfaceCodes.some(code => typeof code !== 'string' || !code.trim())
             || new Set(surfaceCodes).size !== surfaceCodes.length
@@ -231,9 +267,8 @@ export function validateFidelityCapabilityReport(
       const cell = surfaces[surface]
       return isDisposition(cell) ? [cell] : []
     })
-    const rank: Record<FidelityDisposition, number> = { native: 0, 'source-preserved': 1, diagnosed: 2, absent: 3 }
     const aggregate = applicable.reduce<FidelityDisposition>(
-      (current, disposition) => rank[disposition] > rank[current] ? disposition : current,
+      (current, disposition) => DISPOSITION_RANK[disposition] > DISPOSITION_RANK[current] ? disposition : current,
       'native',
     )
     if (applicable.length === 0 || rawFeature.disposition !== aggregate) issues.push(`${context}: aggregate fidelity disposition is stale`)
@@ -279,7 +314,7 @@ export type {
   FidelityCapabilityFeature,
   FidelityCapabilityReport,
   FidelityCapabilitySurface,
-  FidelityDiagnosedCaseEvidence,
+  FidelityCapabilityCaseEvidence,
   FidelityDisposition,
   FidelitySurface,
   FidelityAcceptedDivergencePolicy,

@@ -14,7 +14,7 @@ export type {
   FidelityCapabilityFeature,
   FidelityCapabilityReport,
   FidelityCapabilitySurface,
-  FidelityDiagnosedCaseEvidence,
+  FidelityCapabilityCaseEvidence,
   FidelityDisposition,
   FidelitySurface,
 } from '../../fidelity-capability-contract.ts'

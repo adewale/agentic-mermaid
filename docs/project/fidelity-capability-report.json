@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "8f6efbac7bee7bed20c9b6d6a663c7b39e7dd200b4bfad7aa86006f85e0e1497",
-  "receiptResultSha256": "9727907e8eb24fca1cdadbff25f9bcc2e2d9dcd78807068fd81878c745442c1d",
+  "receiptInputSha256": "30f1f651ece5c242b65ddcb8713736082d0a78649dddd0e8ec4c84b5e215be72",
+  "receiptResultSha256": "bdb781d9fc761ab00a99df283d32137eea571877ad03fe48d664c6390a3774c7",
   "summary": {
     "caseCount": 10,
     "featureCount": 7,
@@ -41,10 +41,20 @@
           "UNSUPPORTED_FAMILY"
         ]
       },
-      "diagnosedCaseEvidence": [
+      "caseEvidence": [
         {
           "caseId": "block.family.accurately-diagnosed-unsupported",
           "surfaces": {
+            "agent": "diagnosed",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": {
+              "notApplicable": [
+                "Unsupported families expose no structured mutation target by design."
+              ]
+            }
+          },
+          "diagnostics": {
             "agent": [
               "UNSUPPORTED_FAMILY"
             ],
@@ -70,7 +80,18 @@
         "mutate": "native"
       },
       "diagnostics": {},
-      "diagnosedCaseEvidence": [],
+      "caseEvidence": [
+        {
+          "caseId": "flowchart.links.boundary-whitespace-mutation-closure",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
       "acceptedDivergences": []
     },
     {
@@ -87,7 +108,18 @@
         "mutate": "native"
       },
       "diagnostics": {},
-      "diagnosedCaseEvidence": [],
+      "caseEvidence": [
+        {
+          "caseId": "flowchart.classes.edge-paint-implication",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
       "acceptedDivergences": []
     },
     {
@@ -114,10 +146,19 @@
           "INVALID_OP"
         ]
       },
-      "diagnosedCaseEvidence": [
+      "caseEvidence": [
         {
           "caseId": "journey.scores.fractional-parser-render-seam",
           "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
             "render": [
               "RENDER_FAILED"
             ],
@@ -145,7 +186,62 @@
         "mutate": "native"
       },
       "diagnostics": {},
-      "diagnosedCaseEvidence": [],
+      "caseEvidence": [
+        {
+          "caseId": "sankey.links.dark-background-normal-alpha-divergence",
+          "surfaces": {
+            "agent": {
+              "notApplicable": [
+                "Ribbon compositing is a renderer/backend implication, not an agent-domain construct."
+              ]
+            },
+            "render": "absent",
+            "serialize": {
+              "notApplicable": [
+                "Backend compositing does not change or serialize Mermaid source."
+              ]
+            },
+            "mutate": {
+              "notApplicable": [
+                "Backend compositing has no structured mutation operation."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "sankey.links.light-background-multiply",
+          "surfaces": {
+            "agent": {
+              "notApplicable": [
+                "Ribbon compositing is a renderer/backend implication, not an agent-domain construct."
+              ]
+            },
+            "render": "native",
+            "serialize": {
+              "notApplicable": [
+                "Backend compositing does not change or serialize Mermaid source."
+              ]
+            },
+            "mutate": {
+              "notApplicable": [
+                "Backend compositing has no structured mutation operation."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "sankey.links.typed-gradient-endpoints",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
       "acceptedDivergences": []
     },
     {
@@ -169,10 +265,19 @@
           "INVALID_OP"
         ]
       },
-      "diagnosedCaseEvidence": [
+      "caseEvidence": [
         {
           "caseId": "state.comments.trailing-transition-loss",
           "surfaces": {
+            "agent": "source-preserved",
+            "render": "absent",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
             "mutate": [
               "INVALID_OP"
             ]
@@ -203,10 +308,29 @@
           "INVALID_OP"
         ]
       },
-      "diagnosedCaseEvidence": [
+      "caseEvidence": [
+        {
+          "caseId": "xychart.syntax.shared-parser-semantics",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
         {
           "caseId": "xychart.syntax.unknown-statement-render-seam",
           "surfaces": {
+            "agent": "source-preserved",
+            "render": "absent",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
             "mutate": [
               "INVALID_OP"
             ]

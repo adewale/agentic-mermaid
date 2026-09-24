@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "8f6efbac7bee7bed20c9b6d6a663c7b39e7dd200b4bfad7aa86006f85e0e1497",
+    "inputSha256": "30f1f651ece5c242b65ddcb8713736082d0a78649dddd0e8ec4c84b5e215be72",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -96,11 +96,11 @@
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
-        "sha256": "967fe81e1b101605c50a51b31eb8d96da49c2f1e127f0fdfea7dc7766e702120"
+        "sha256": "062c54e58cabc3cb213d5ca90c737b2e14731136a45ddf69046d9f6dbd7380c2"
       },
       {
         "path": "src/__tests__/fidelity/projector.ts",
-        "sha256": "afb86e88ca826752b958627a4d47500b107ea059d2b1f1d1c590265f00996d79"
+        "sha256": "165721000f12a9ddf962316ee3ed904ced302d44a7984df30c54a2e073fc381f"
       },
       {
         "path": "src/__tests__/fidelity/registry.ts",
@@ -116,11 +116,11 @@
       },
       {
         "path": "src/fidelity-capability-contract.ts",
-        "sha256": "c2cc117154fb1bdf617af35357de9fd56ef89753d40895a6ccf2353bcfa2c2f6"
+        "sha256": "d22729c3f4fbcc1189f603a90e642ef696eab1e5ca942bd256e37d4985e5ad3b"
       },
       {
         "path": "src/fidelity-capability-report.ts",
-        "sha256": "5a33c91901d9646d2ddb5a0677698dc38a2ba162cb699ed08344151faa8aff8e"
+        "sha256": "3551c9afd353e343e460ba7c38d9d4a63173601cc4df26fc0213525b13ba2e84"
       }
     ]
   },
