@@ -35,11 +35,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // The ER word-cardinality slice keeps the 31-request graph and raw total;
-    // its content-hashed browser chunks change the reviewed Linux/x64 compression.
-    maxRawBytes: 731_626,
-    maxGzipBytes: 274_478,
-    maxBrotliBytes: 250_655,
+    // Timeline comment parity keeps the 31-request graph; the reviewed
+    // Linux/x64 content-hashed chunks change the exact compressed totals.
+    maxRawBytes: 731_681,
+    maxGzipBytes: 274_505,
+    maxBrotliBytes: 250_674,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -62,9 +62,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    maxRawBytes: 3_344_622,
+    // The single-percent comment boundary adds five raw bytes and raises the
+    // reviewed Linux/x64 Brotli total while keeping the two-request graph.
+    maxRawBytes: 3_344_656,
     maxGzipBytes: 985_308,
-    maxBrotliBytes: 773_839,
+    maxBrotliBytes: 774_074,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

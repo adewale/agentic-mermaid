@@ -128,7 +128,7 @@
     },
     {
       "path": "src/agent/families-builtin.ts",
-      "sha256": "1b38cc1263e4664f146090d54deca145b941c99f16f829ce6205028d169c79b5"
+      "sha256": "2d18509799e380869bbf7d92559bc94c55e18ada12621fd228b0bf022ef29777"
     },
     {
       "path": "src/agent/families.ts",
@@ -264,7 +264,7 @@
     },
     {
       "path": "src/agent/timeline-body.ts",
-      "sha256": "4733cd1b8bfaa42f853ed7eeed85542d41c875259e95d7eb6dedeca1cc1f9586"
+      "sha256": "141a5267084c5f3c590b24215d05d0071c1a057e469754d09eea958024a4e6c4"
     },
     {
       "path": "src/agent/trace-log.ts",
@@ -1168,11 +1168,11 @@
     },
     {
       "path": "src/timeline/parse-core.ts",
-      "sha256": "26f83939d07f06704c90c23fed818d61b44e206916c6353d245fcdd8fc7e0a73"
+      "sha256": "df149c2ff10e7ea9436078698db9372c366c1130aec09f9af30cb3c10b18fac6"
     },
     {
       "path": "src/timeline/parser.ts",
-      "sha256": "a2635cd31ddac7154f2a4b0ad26d7610a9e13e8f5d78642ff757f618c424572b"
+      "sha256": "76d17a413172f778e89b75058b13d9b47c17cd99b5acc68e603486e9ace42dfd"
     },
     {
       "path": "src/timeline/renderer.ts",
