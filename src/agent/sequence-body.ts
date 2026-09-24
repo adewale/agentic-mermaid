@@ -29,6 +29,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -68,7 +69,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   // Align raw (indented) lines with trimmed lines. `rawLines` has the same
   // logical content but keeps indentation/blank lines; we walk it in lockstep
   // by skipping its blank/comment lines, which `trimmedLines` already drops.
-  const raw = rawLines ?? trimmedLines
+  const raw = splitSequenceStatementLines(rawLines ?? trimmedLines)
 
   // NB: do NOT name this `declare` — that's a TypeScript keyword and bun's
   // transpiler misparses `declare(x)` as an ambient declaration.

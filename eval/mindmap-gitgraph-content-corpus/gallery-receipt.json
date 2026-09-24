@@ -128,7 +128,7 @@
     },
     {
       "path": "src/agent/families-builtin.ts",
-      "sha256": "7d5746b585c257a7fbb4f9fa7f2e5c4785a75b40fee8fe62048ffaae39f7afcb"
+      "sha256": "1b38cc1263e4664f146090d54deca145b941c99f16f829ce6205028d169c79b5"
     },
     {
       "path": "src/agent/families.ts",
@@ -244,7 +244,7 @@
     },
     {
       "path": "src/agent/sequence-body.ts",
-      "sha256": "96795ef5ec2068e14c61480f9d30ea34899d1278a22825473caeb66530a98709"
+      "sha256": "367b8300b38499e61a1aa525bd2635c2d99f892a853735fb84e9d224e1473b13"
     },
     {
       "path": "src/agent/serialize.ts",
@@ -988,11 +988,15 @@
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "276b43d21f5b16fcd2cfa44bd18e413ca0d5215351de39eddfea4dcad084e51c"
+      "sha256": "90d58bcae568dfca810689bcb10b3550434157d3734ef5c9b52ee7f42ee10e2a"
     },
     {
       "path": "src/sequence/renderer.ts",
       "sha256": "4d6b98d45930532341259776de48604067ed2e854c59aac87e36bc52e2d7b991"
+    },
+    {
+      "path": "src/sequence/statements.ts",
+      "sha256": "f3c767566e3877fc69a588e46a8aa62088ab4aaa98110074c47ae616d904f206"
     },
     {
       "path": "src/sequence/types.ts",

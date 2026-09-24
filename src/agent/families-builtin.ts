@@ -38,6 +38,7 @@ import { mutateQuadrant, parseQuadrantBody, renderQuadrant, verifyQuadrant } fro
 import { mutateRadar, parseRadarBody, renderRadar, verifyRadar } from './radar-body.ts'
 import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './sankey-body.ts'
 import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
+import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { mutateState, parseStateBody, renderState, verifyState } from './state-body.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
 import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
@@ -196,7 +197,7 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
 const SEQUENCE_AGENT_HOOKS = {
   extractLabels: extractSequenceLabels,
   parse: ({ source, lines, opaqueSource }) => {
-    const expandedLines = expandInlineSequenceStatements(lines)
+    const expandedLines = splitSequenceStatementLines(lines).map(line => line.trim()).filter(Boolean)
     const rawBodyLines = sequenceRawBodyLines(source.familyBody, expandedLines)
     const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
     return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
@@ -211,23 +212,12 @@ const SEQUENCE_AGENT_HOOKS = {
   },
 } satisfies FamilyOperations
 
-function expandInlineSequenceStatements(lines: readonly string[]): string[] {
-  const header = lines[0]?.trim() ?? ''
-  if (!/^sequenceDiagram\s*;/i.test(header)) return [...lines]
-  return [
-    ...header
-      .split(';')
-      .map(part => part.trim())
-      .filter(Boolean),
-    ...lines.slice(1),
-  ]
-}
-
 function sequenceRawBodyLines(opaqueSource: string, expandedLines: string[]): string[] {
   const raw = opaqueSource.split(/\r?\n/)
   const headerAt = raw.findIndex(l => /^sequenceDiagram\b/i.test(l.trim()))
-  if (headerAt >= 0 && raw[headerAt]!.includes(';')) return expandedLines.slice(1)
-  return headerAt >= 0 ? raw.slice(headerAt + 1) : raw.slice(1)
+  return headerAt >= 0
+    ? splitSequenceStatementLines(raw.slice(headerAt)).slice(1)
+    : expandedLines.slice(1)
 }
 
 // ---- Timeline -------------------------------------------------------------
