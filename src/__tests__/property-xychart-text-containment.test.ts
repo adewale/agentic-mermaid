@@ -4,7 +4,9 @@
 // Before value-axis overhang was reserved, an untitled vertical chart drew its
 // top tick label above y = 0 and a horizontal chart drew its rightmost value
 // label past the right edge; before bars clamped their value end, a value
-// beyond an authored range drew its bar off the canvas.
+// beyond an authored range drew its bar off the canvas. The x-axis title's
+// baseline sat on the bottom edge, and in short horizontal charts the last
+// category label's descenders crossed it.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { Resvg } from '@resvg/resvg-js'
@@ -26,7 +28,10 @@ const nameArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ]{0,17}[A-Za-z0-9]$/)
 const chartArb = fc.integer({ min: 1, max: 12 }).chain(count => fc.record({
   horizontal: fc.boolean(),
   title: fc.option(nameArb, { nil: undefined }),
-  categories: fc.uniqueArray(fc.stringMatching(/^[a-z][a-z0-9]{0,11}$/), { minLength: count, maxLength: count }),
+  // Descenders (g, p, q, y) are what cross a bottom edge first.
+  xTitle: fc.option(fc.constantFrom('Quarterly spending', 'Typography', 'gypsy query', 'Q'), { nil: undefined }),
+  yTitle: fc.option(fc.constantFrom('Revenue', 'Throughput (qps)', 'y'), { nil: undefined }),
+  categories: fc.uniqueArray(fc.stringMatching(/^[a-z][a-z0-9]{0,10}[gjpqy]?$/), { minLength: count, maxLength: count }),
   series: fc.array(fc.record({
     kind: fc.constantFrom('bar', 'line'),
     values: fc.array(fc.integer({ min: -100, max: 100 }), { minLength: count, maxLength: count }),
@@ -54,8 +59,10 @@ describe('xychart text stays on the canvas', () => {
           '---',
           chart.horizontal ? 'xychart-beta horizontal' : 'xychart-beta',
           ...(chart.title ? [`  title "${chart.title}"`] : []),
-          `  x-axis [${chart.categories.join(', ')}]`,
-          ...(chart.range ? [`  y-axis ${chart.range[0]! * chart.scale} --> ${chart.range[1]! * chart.scale}`] : []),
+          `  x-axis ${chart.xTitle ? `"${chart.xTitle}" ` : ''}[${chart.categories.join(', ')}]`,
+          ...(chart.range || chart.yTitle
+            ? [`  y-axis ${chart.yTitle ? `"${chart.yTitle}" ` : ''}${chart.range ? `${chart.range[0]! * chart.scale} --> ${chart.range[1]! * chart.scale}` : ''}`.trimEnd()]
+            : []),
           ...chart.series.map((series, index) => `  ${series.kind} "S${index}" [${series.values.map(value => value * chart.scale).join(', ')}]`),
         ].join('\n')
         const svg = renderMermaidSVG(source)
