@@ -13,7 +13,6 @@ const cases = [
   { statement: '`A B` --> `C D`', from: 'A B', to: 'C D', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
   { statement: '`A B`-->C', from: 'A B', to: 'C', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
   { statement: 'A-->`C D`', from: 'A', to: 'C D', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
-  { statement: '`A B` <|--|> `C D`', from: 'A B', to: 'C D', kind: 'inheritance', lineType: 0, type1: 1, type2: 1 },
   { statement: '`A B` "1" --> "*" `C D` : Link', from: 'A B', to: 'C D', kind: 'association', lineType: 0, type1: 'none', type2: 3, fromCardinality: '1', toCardinality: '*', label: 'Link' },
 ] as const
 
@@ -145,7 +144,7 @@ describe('Class escaped relationship IDs', () => {
   })
 
   test('invalid labels are rejected; whitespace-only upstream labels remain diagnosed', () => {
-    for (const statement of ['`A B` --> C : a:b', '`A B` --> C : label;', '`A B` --> C : ']) {
+    for (const statement of ['`A B` --> C : a:b', '`A B` --> C : label;', '`A B` --> C : ', '`A` --> B : a:b', '`A` --> B : label;']) {
       const source = `classDiagram\n${statement}`
       expect(parseClassRelationship(statement)).toBeNull()
       expect(() => parseClassDiagram(source.split('\n'))).toThrow('Unrecognized class relationship statement')
@@ -156,6 +155,84 @@ describe('Class escaped relationship IDs', () => {
       expect(verifyMermaid(parsed.value).warnings.map(warning => warning.code)).toEqual(expect.arrayContaining([
         'UNSUPPORTED_SYNTAX', 'RENDER_FAILED',
       ]))
+    }
+  })
+
+  test('backticks confined to labels or cardinalities do not suppress ordinary links', () => {
+    const valid = [
+      'A --> B : `label`',
+      'A "`one`" --> B',
+      'A --> "`many`" B',
+    ]
+    const probe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const result = []
+        for (const statement of ${JSON.stringify(valid)}) {
+          try { const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
+            result.push({ from: diagram.db.getRelations()[0]?.id1, to: diagram.db.getRelations()[0]?.id2 }) }
+          catch { result.push(null) }
+        }
+        process.stdout.write(JSON.stringify(result))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(valid.map(() => ({ from: 'A', to: 'B' })))
+    for (const statement of valid) {
+      expect(parseClassRelationship(statement)).toEqual(expect.objectContaining({ from: 'A', to: 'B' }))
+      expect(parseClassDiagram(['classDiagram', statement]).relationships).toHaveLength(1)
+      const parsed = parseRegisteredMermaid(`classDiagram\n${statement}`)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(asClass(parsed.value)?.body.relations).toHaveLength(1)
+    }
+  })
+
+  test('escaped two-ended/lollipop and tilde identities remain diagnosed until modeled', () => {
+    const diagnosed = [
+      '`A B` <|--|> `C D`',
+      '`A B` *..* `C D`',
+      '`A B` ()-- C',
+      'A --() `C D`',
+      '`A~B` --> C',
+    ]
+    const probe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const result = []
+        for (const statement of ${JSON.stringify(diagnosed)}) {
+          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
+          const relation = diagram.db.getRelations()[0]
+          result.push({ from: relation?.id1, to: relation?.id2, lineType: relation?.relation.lineType })
+        }
+        process.stdout.write(JSON.stringify(result))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
+      { from: 'A B', to: 'C D', lineType: 0 },
+      { from: 'A B', to: 'C D', lineType: 1 },
+      { from: 'interface0', to: 'C', lineType: 0 },
+      { from: 'A', to: 'interface0', lineType: 0 },
+      { from: 'A', to: 'C', lineType: 0 },
+    ])
+    for (const statement of diagnosed) {
+      expect(parseClassRelationship(statement)).toBeNull()
+      expect(() => parseClassDiagram(['classDiagram', statement])).toThrow('Unrecognized class relationship statement')
+      const parsed = parseRegisteredMermaid(`classDiagram\n${statement}`)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(verifyMermaid(parsed.value).ok).toBe(false)
     }
   })
 

@@ -561,7 +561,9 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
   if (escapedMarked) return escapedMarked
 
   // Lollipop interface endpoints are distinct UML semantics, not associations.
-  const lollipop = line.match(/^(`[^`]+`|\S+?)\s+(\(\)--|--\(\))\s+(`[^`]+`|\S+?)(?:\s*:\s*(.+))?$/)
+  const lollipop = !isEscapedMarkedClassRelationshipCandidate(line)
+    ? line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
+    : null
   if (lollipop) {
     const fromRef = parseClassReference(lollipop[1]!)
     const toRef = parseClassReference(lollipop[3]!)
@@ -574,7 +576,9 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
   }
 
   // Two-ended Mermaid relations: [Relation Type][Link][Relation Type].
-  const twoWay = line.match(/^(`[^`]+`|\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(`[^`]+`|\S+?)(?:\s*:\s*(.+))?$/)
+  const twoWay = !isEscapedMarkedClassRelationshipCandidate(line)
+    ? line.match(/^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/)
+    : null
   if (twoWay) {
     const fromRef = parseClassReference(twoWay[1]!)
     const toRef = parseClassReference(twoWay[7]!)
@@ -593,11 +597,11 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
 
   // Once an escaped one-way arrow has reached the bounded scanner, do not
   // let the legacy regex re-admit a source that the scanner rejected.
-  if (line.includes('`') && isMarkedClassRelationshipCandidate(line)) return null
+  if (isEscapedMarkedClassRelationshipCandidate(line)) return null
 
   // Relationship regex — handles ordinary one-ended arrows.
   const match = line.match(
-    /^(`[^`]+`|\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(`[^`]+`|\S+?)(?:\s*:\s*(.+))?$/
+    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
   )
   if (!match) return null
 
@@ -698,6 +702,10 @@ function parseEscapedMarkedClassRelationship(line: string): (ClassRelationship &
     right = right.slice(close + 1).trimStart()
   }
   if (!left.startsWith('`') && !right.startsWith('`')) return null
+  // Mermaid's relationship lexer interprets `A~B` as a generic reference to
+  // A even inside backticks. Keep that source diagnosed until the full
+  // identity model can express its upstream semantics.
+  if ((left.startsWith('`') && left.includes('~')) || (right.startsWith('`') && right.includes('~'))) return null
   const fromRef = parseClassReference(left)
   const toRef = parseClassReference(right)
   const parsed = parseArrow(arrow)
@@ -857,6 +865,22 @@ export function isBareClassRelationshipCandidate(line: string): boolean {
 export function isMarkedClassRelationshipCandidate(line: string): boolean {
   const operator = findMarkerlessRelationshipOperator(line)
   return operator >= 0 && isMarkedRelationshipOperator(line, operator)
+}
+
+/** An escaped *endpoint* on a marked link, as opposed to a backtick in its
+ * label or quoted cardinality. Failed scanner parses must stay failed in both
+ * the native parser and the agent's legacy regex fallback. Two-ended and
+ * lollipop forms are deliberately diagnosed until their line style/synthetic
+ * interface semantics can be represented faithfully. */
+export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean {
+  if (!line.includes('`')) return false
+  const operator = findMarkerlessRelationshipOperator(line)
+  if (operator < 0 || !isMarkedRelationshipOperator(line, operator)) return false
+  if (line.slice(0, operator).trimStart().startsWith('`')) return true
+  let after = line.slice(operator + 2).trimStart()
+  after = after.replace(/^(?:\|>|[>*o]|\(\))\s*/, '')
+  after = after.replace(/^"[^"]*"\s*/, '')
+  return after.startsWith('`')
 }
 
 /**

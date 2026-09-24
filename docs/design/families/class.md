@@ -81,6 +81,12 @@ and mutation. The scanner recognizes compact arrows and does not confuse
 arrow bytes inside escaped IDs or quoted cardinalities with an operator.
 Upstream-reserved endpoint spellings (for example unescaped `o` and escaped
 `\`note\``) remain rejected rather than producing a plausible edge.
+Escaped IDs containing `~` remain diagnosed because Mermaid treats them as
+generic references with a different stable identity. Escaped two-ended and
+lollipop links also remain diagnosed: the current relationship model cannot
+preserve the dashed style of mixed two-ended markers or Mermaid's synthetic
+`interface0` endpoint for lollipop links. Backticks used only in an ordinary
+link's label or quoted cardinality do not trigger these restrictions.
 
 The official relationship section's aggregate capability is still only
 `diagnosed`, not `native`: upstream-valid unescaped hyphenated, dotted, and
