@@ -287,15 +287,22 @@ jobs:
         if: ${{ matrix.suite == 'browser' }}
         run: bun run website:payload:check --require-exact
 
-      # Temporary evidence capture for PR #280; remove after recording the
-      # reviewed Linux/x64 baseline on the pinned CI browser toolchain.
-      - name: Record candidate website payload after verification
-        if: ${{ matrix.suite == 'browser' && always() }}
-        run: bun run website:payload:write
 
-      - name: Upload candidate website payload
-        if: ${{ matrix.suite == 'browser' && always() }}
-        uses: actions/upload-artifact@v7
+  # Temporary PR #280 evidence capture; remove after the Linux/x64 candidate
+  # has been reviewed. It must not depend on the stale-baseline unit gate.
+  payload-candidate:
+    name: Record candidate website payload
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium --with-deps
+      - run: bun run website:payload:write
+      - uses: actions/upload-artifact@v7
         with:
           name: candidate-website-payload
           path: eval/website-payload/baseline.json
