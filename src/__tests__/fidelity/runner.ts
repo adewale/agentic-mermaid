@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import {
+  FIDELITY_ACCEPTED_DIVERGENCE_POLICIES,
   FIDELITY_DISPOSITIONS,
   FIDELITY_SURFACES,
   type ClassifiedFidelityObservations,
@@ -32,6 +33,8 @@ const INFRASTRUCTURE_FILES = [
   resolve(import.meta.dir, 'revision-compatibility.ts'),
   resolve(import.meta.dir, 'runner.ts'),
   resolve(import.meta.dir, 'projector.ts'),
+  resolve(REPO, 'src', 'fidelity-capability-contract.ts'),
+  resolve(REPO, 'src', 'fidelity-capability-report.ts'),
   resolve(REPO, 'scripts', 'pr-assets', 'generate-fidelity-receipts.ts'),
 ]
 
@@ -212,6 +215,39 @@ function validateExpectation(fidelityCase: FidelityCaseDefinition, surface: Fide
   return issues
 }
 
+function validateAcceptedDivergence(fidelityCase: FidelityCaseDefinition): string[] {
+  const value = fidelityCase.acceptedDivergence
+  if (value === undefined) return []
+  const prefix = `${fidelityCase.id}: accepted divergence`
+  if (!isRecord(value)) return [`${prefix} is invalid`]
+  const issues: string[] = []
+  const unknown = Object.keys(value).filter(key => !['policy', 'rationale', 'surfaces'].includes(key))
+  if (unknown.length > 0) issues.push(`${prefix} has unknown fields ${unknown.sort(compareCodePointStrings).join(', ')}`)
+  if (!FIDELITY_ACCEPTED_DIVERGENCE_POLICIES.includes(value.policy as never)) {
+    issues.push(`${prefix} policy must be security or offline`)
+  }
+  if (typeof value.rationale !== 'string' || !value.rationale.trim()) issues.push(`${prefix} rationale is empty`)
+  if (!Array.isArray(value.surfaces) || value.surfaces.length === 0) {
+    issues.push(`${prefix} surfaces must be nonempty`)
+    return issues
+  }
+  const surfaces = value.surfaces as unknown[]
+  if (new Set(surfaces).size !== surfaces.length) issues.push(`${prefix} surfaces contain duplicates`)
+  if (surfaces.some(surface => !FIDELITY_SURFACES.includes(surface as FidelitySurface))) {
+    issues.push(`${prefix} contains an unknown surface`)
+  }
+  const ordered = FIDELITY_SURFACES.filter(surface => surfaces.includes(surface))
+  if (JSON.stringify(surfaces) !== JSON.stringify(ordered)) issues.push(`${prefix} surfaces are out of order`)
+  for (const surface of ordered) {
+    const expectation = fidelityCase.expected[surface]
+    if (expectation?.applicability !== 'applicable' || expectation.disposition !== 'diagnosed'
+      || (expectation.diagnosticCodes?.length ?? 0) === 0) {
+      issues.push(`${prefix} surface ${surface} must be an applicable diagnosed expectation with a named diagnostic`)
+    }
+  }
+  return issues
+}
+
 export function validateFidelityRegistry(
   cases: readonly FidelityCaseDefinition[],
   manifest: UpstreamMermaidManifest = UPSTREAM_MERMAID_MANIFEST,
@@ -235,6 +271,9 @@ export function validateFidelityRegistry(
     if (!feature) {
       issues.push(`${fidelityCase.id}: unknown feature id ${fidelityCase.featureId}`)
     } else {
+      if (feature.families.length !== 1) {
+        issues.push(`${fidelityCase.id}: multi-family feature ${fidelityCase.featureId} cannot back a receipt until per-family projection is representable`)
+      }
       if (!feature.families.includes(fidelityCase.family)) {
         issues.push(`${fidelityCase.id}: feature ${fidelityCase.featureId} does not belong to family ${fidelityCase.family}`)
       }
@@ -271,6 +310,7 @@ export function validateFidelityRegistry(
       if (unknownSurfaces.length > 0) issues.push(`${fidelityCase.id}: expected map has unknown surfaces ${unknownSurfaces.sort(compareCodePointStrings).join(', ')}`)
       for (const surface of FIDELITY_SURFACES) issues.push(...validateExpectation(fidelityCase, surface, fidelityCase.expected[surface]))
     }
+    issues.push(...validateAcceptedDivergence(fidelityCase))
   }
   return issues.sort(compareCodePointStrings)
 }
@@ -365,6 +405,15 @@ async function runCase(fidelityCase: FidelityCaseDefinition): Promise<FidelityCa
     sourceSha256: sha256(fidelityCase.source),
     upstreamReference: fidelityCase.upstreamReference,
     upstreamRevision: fidelityCase.upstreamRevision,
+    ...(fidelityCase.acceptedDivergence
+      ? {
+          acceptedDivergence: {
+            policy: fidelityCase.acceptedDivergence.policy,
+            rationale: fidelityCase.acceptedDivergence.rationale,
+            surfaces: FIDELITY_SURFACES.filter(surface => fidelityCase.acceptedDivergence!.surfaces.includes(surface)),
+          },
+        }
+      : {}),
     expected: recordedExpected(fidelityCase.expected),
     observations,
     passed: issues.length === 0,
@@ -389,7 +438,7 @@ export async function runFidelityCases(
   }
   const observations = results.flatMap(result => Object.values(result.observations))
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     upstream: {
       package: 'mermaid',
       version: manifest.provenance.version,

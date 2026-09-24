@@ -9,13 +9,20 @@ import type {
   FidelitySurfaceExpectation,
 } from './fidelity/contract.ts'
 import { discoverFidelityRegistry } from './fidelity/registry.ts'
-import { projectFidelityCapabilityShadow } from './fidelity/projector.ts'
+import { projectFidelityCapabilityReport } from './fidelity/projector.ts'
 import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './fidelity/revision-compatibility.ts'
 import { runFidelityCases, validateFidelityRegistry } from './fidelity/runner.ts'
 import { UPSTREAM_MERMAID_MANIFEST, type UpstreamMermaidManifest } from '../upstream-mermaid-manifest.ts'
+import {
+  FIDELITY_CAPABILITY_REPORT,
+  validateFidelityCapabilityReport,
+  type FidelityCapabilityFeature,
+  type FidelityCapabilityReport,
+} from '../fidelity-capability-report.ts'
+import { fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
 
 const RECEIPT = join(import.meta.dir, 'fidelity', 'generated-receipt.json')
-const SHADOW = join(import.meta.dir, '..', '..', 'docs', 'project', 'fidelity-capability-shadow.json')
+const CAPABILITY_REPORT = join(import.meta.dir, '..', '..', 'docs', 'project', 'fidelity-capability-report.json')
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T
@@ -23,6 +30,13 @@ function readJson<T>(path: string): T {
 
 function clonedManifest(): UpstreamMermaidManifest {
   return JSON.parse(JSON.stringify(UPSTREAM_MERMAID_MANIFEST)) as UpstreamMermaidManifest
+}
+
+function makeSerializeNative(feature: FidelityCapabilityFeature): void {
+  ;(feature.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+  for (const evidence of feature.caseEvidence) {
+    ;(evidence.surfaces as Record<FidelitySurface, unknown>).serialize = 'native'
+  }
 }
 
 function setJsonPath(value: FidelityJson, path: readonly (number | string)[], replacement: FidelityJson): FidelityJson {
@@ -51,7 +65,201 @@ function setJsonPath(value: FidelityJson, path: readonly (number | string)[], re
 }
 
 describe('issue #248 construct fidelity receipts', () => {
-  test('the discovered registry executes to the committed fresh result and explicit shadow projection', async () => {
+  test('the public projection rejects stale, forged, and unreceipted native claims', () => {
+    expect(validateFidelityCapabilityReport(FIDELITY_CAPABILITY_REPORT)).toEqual([])
+
+    const forged = JSON.parse(JSON.stringify(FIDELITY_CAPABILITY_REPORT)) as FidelityCapabilityReport
+    const diagnosed = forged.features.find(feature => feature.disposition === 'diagnosed')!
+    ;(diagnosed.diagnostics as Record<string, readonly string[]>).render = []
+    ;(forged.summary as { caseCount: number }).caseCount++
+    ;(forged as { upstreamRevision: string }).upstreamRevision = '0'.repeat(40)
+    expect(validateFidelityCapabilityReport(forged)).toEqual(expect.arrayContaining([
+      'fidelity capability report upstream revision is stale',
+      'fidelity capability case count is stale',
+      `${diagnosed.featureId}/render: fidelity capability diagnostic codes are invalid`,
+    ]))
+
+    const unknown = JSON.parse(JSON.stringify(FIDELITY_CAPABILITY_REPORT)) as FidelityCapabilityReport
+    ;(unknown.features[0] as { featureId: string }).featureId = 'forged:unreceipted-native'
+    expect(validateFidelityCapabilityReport(unknown)).toEqual(expect.arrayContaining([
+      'forged:unreceipted-native: fidelity capability feature is absent from the pinned manifest',
+    ]))
+
+    const forgedDivergence = JSON.parse(JSON.stringify(FIDELITY_CAPABILITY_REPORT)) as FidelityCapabilityReport
+    const divergenceTarget = forgedDivergence.features.find(feature => feature.disposition === 'diagnosed')!
+    ;(divergenceTarget.acceptedDivergences as unknown as unknown[]).push({
+      caseId: divergenceTarget.caseIds[0],
+      policy: 'compatibility',
+      rationale: 'Too broad to be accepted.',
+      surfaces: ['render'],
+      diagnosticCodes: { render: ['UNSUPPORTED_FAMILY'] },
+    })
+    expect(validateFidelityCapabilityReport(forgedDivergence)).toContain(
+      `${divergenceTarget.featureId}/${divergenceTarget.caseIds[0]}: accepted divergence policy is invalid`,
+    )
+
+    const reusedCase = structuredClone(FIDELITY_CAPABILITY_REPORT)
+    const sourceCaseId = reusedCase.features[0]!.caseIds[0]!
+    const reuseTarget = reusedCase.features[1]!
+    ;(reuseTarget.caseIds as unknown as string[])[0] = sourceCaseId
+    ;(reuseTarget.caseEvidence[0] as { caseId: string }).caseId = sourceCaseId
+    expect(validateFidelityCapabilityReport(reusedCase)).toEqual(expect.arrayContaining([
+      `${reuseTarget.featureId}/${sourceCaseId}: fidelity case id is reused across features`,
+      'fidelity capability case count is stale',
+    ]))
+  })
+
+  test('accepted divergences are explicit, diagnostic-backed, and limited to security/offline policy', async () => {
+    const registry = await discoverFidelityRegistry()
+    const original = registry.cases.find(fidelityCase => fidelityCase.id === 'block.family.accurately-diagnosed-unsupported')!
+    const accepted: FidelityCaseDefinition = {
+      ...original,
+      acceptedDivergence: {
+        policy: 'security',
+        rationale: 'Callbacks remain disabled in the offline renderer.',
+        surfaces: ['agent', 'render'],
+      },
+    }
+    expect(validateFidelityRegistry([accepted])).toEqual([])
+    const receipt = await runFidelityCases([accepted], registry.caseFiles)
+    const report = projectFidelityCapabilityReport(receipt)
+    expect(validateFidelityCapabilityReport(report)).toEqual([])
+    expect(report.features[0]!.acceptedDivergences).toEqual([{
+      caseId: original.id,
+      policy: 'security',
+      rationale: 'Callbacks remain disabled in the offline renderer.',
+      surfaces: ['agent', 'render'],
+      diagnosticCodes: {
+        agent: ['UNSUPPORTED_FAMILY'],
+        render: ['UNSUPPORTED_FAMILY'],
+      },
+    }])
+    expect(report.features[0]!.caseEvidence).toEqual([{
+      caseId: original.id,
+      surfaces: {
+        agent: 'diagnosed',
+        render: 'diagnosed',
+        serialize: 'source-preserved',
+        mutate: { notApplicable: ['Unsupported families expose no structured mutation target by design.'] },
+      },
+      diagnostics: {
+        agent: ['UNSUPPORTED_FAMILY'],
+        render: ['UNSUPPORTED_FAMILY'],
+      },
+    }])
+    expect(fidelityFeatureSatisfiesSyntaxParity(report.features[0]!)).toBe(false)
+    const allOtherSurfacesNative = structuredClone(report.features[0]!)
+    makeSerializeNative(allOtherSurfacesNative)
+    expect(fidelityFeatureSatisfiesSyntaxParity(allOtherSurfacesNative)).toBe(true)
+
+    const broadPolicy = {
+      ...accepted,
+      acceptedDivergence: { ...accepted.acceptedDivergence!, policy: 'compatibility' },
+    } as unknown as FidelityCaseDefinition
+    expect(validateFidelityRegistry([broadPolicy])).toContain(
+      `${original.id}: accepted divergence policy must be security or offline`,
+    )
+    const nonDiagnosedSurface: FidelityCaseDefinition = {
+      ...accepted,
+      acceptedDivergence: { ...accepted.acceptedDivergence!, surfaces: ['serialize'] },
+    }
+    expect(validateFidelityRegistry([nonDiagnosedSurface])).toContain(
+      `${original.id}: accepted divergence surface serialize must be an applicable diagnosed expectation with a named diagnostic`,
+    )
+  })
+
+  test('every diagnosed case/surface needs its own accepted divergence before syntax parity is satisfied', async () => {
+    const registry = await discoverFidelityRegistry()
+    const original = registry.cases.find(fidelityCase => fidelityCase.id === 'block.family.accurately-diagnosed-unsupported')!
+    const accepted: FidelityCaseDefinition = {
+      ...original,
+      acceptedDivergence: {
+        policy: 'security',
+        rationale: 'The unsupported family stays disabled on these surfaces.',
+        surfaces: ['agent', 'render'],
+      },
+    }
+    const unaccepted: FidelityCaseDefinition = {
+      ...original,
+      id: 'block.family.unaccepted-same-surface-diagnosis',
+    }
+    expect(validateFidelityRegistry([accepted, unaccepted])).toEqual([])
+    const mixedReceipt = await runFidelityCases([accepted, unaccepted], registry.caseFiles)
+    const mixedReport = projectFidelityCapabilityReport(mixedReceipt)
+    expect(validateFidelityCapabilityReport(mixedReport)).toEqual([])
+    const mixedFeature = structuredClone(mixedReport.features[0]!)
+    makeSerializeNative(mixedFeature)
+    expect(mixedFeature.caseEvidence.map(evidence => evidence.caseId)).toEqual([
+      original.id,
+      unaccepted.id,
+    ])
+    expect(fidelityFeatureSatisfiesSyntaxParity(mixedFeature)).toBe(false)
+
+    const fullyAcceptedReceipt = await runFidelityCases([
+      accepted,
+      { ...unaccepted, acceptedDivergence: accepted.acceptedDivergence },
+    ], registry.caseFiles)
+    const fullyAcceptedReport = projectFidelityCapabilityReport(fullyAcceptedReceipt)
+    expect(validateFidelityCapabilityReport(fullyAcceptedReport)).toEqual([])
+    const fullyAcceptedFeature = structuredClone(fullyAcceptedReport.features[0]!)
+    makeSerializeNative(fullyAcceptedFeature)
+    expect(fidelityFeatureSatisfiesSyntaxParity(fullyAcceptedFeature)).toBe(true)
+
+    const omittedUnacceptedCase = structuredClone(mixedReport)
+    ;(omittedUnacceptedCase.features[0]!.caseEvidence as unknown as unknown[]).pop()
+    expect(validateFidelityCapabilityReport(omittedUnacceptedCase)).toContain(
+      `${mixedFeature.featureId}: case evidence does not exactly cover case ids in order`,
+    )
+    expect(fidelityFeatureSatisfiesSyntaxParity(omittedUnacceptedCase.features[0]!)).toBe(false)
+    const missingSurface = structuredClone(fullyAcceptedFeature)
+    delete (missingSurface.caseEvidence[0]!.surfaces as Partial<Record<FidelitySurface, unknown>>).render
+    expect(fidelityFeatureSatisfiesSyntaxParity(missingSurface)).toBe(false)
+
+    const sourcePreserved: FidelityCaseDefinition = {
+      ...unaccepted,
+      id: 'block.family.unaccepted-source-preserved',
+      expected: {
+        ...unaccepted.expected,
+        agent: {
+          applicability: 'applicable',
+          disposition: 'source-preserved',
+          diagnosticCodes: ['UNSUPPORTED_FAMILY'],
+          evaluate: () => 'source-preserved',
+        },
+        render: {
+          applicability: 'applicable',
+          disposition: 'source-preserved',
+          diagnosticCodes: ['UNSUPPORTED_FAMILY'],
+          evaluate: () => 'source-preserved',
+        },
+      },
+    }
+    expect(validateFidelityRegistry([accepted, sourcePreserved])).toEqual([])
+    const mixedDispositionReport = projectFidelityCapabilityReport(
+      await runFidelityCases([accepted, sourcePreserved], registry.caseFiles),
+    )
+    expect(validateFidelityCapabilityReport(mixedDispositionReport)).toEqual([])
+    const mixedDispositionFeature = structuredClone(mixedDispositionReport.features[0]!)
+    makeSerializeNative(mixedDispositionFeature)
+    expect(fidelityFeatureSatisfiesSyntaxParity(mixedDispositionFeature)).toBe(false)
+  })
+
+  test('multi-family features fail closed until receipts can be scoped per family', async () => {
+    const registry = await discoverFidelityRegistry()
+    const original = registry.cases.find(fidelityCase => fidelityCase.id === 'flowchart.links.boundary-whitespace-mutation-closure')!
+    const manifest = clonedManifest()
+    const feature = manifest.semanticInventory.syntaxFeatures.find(candidate => candidate.id === original.featureId)!
+    ;(feature.families as string[]).push('state')
+    expect(validateFidelityRegistry([original], manifest)).toContain(
+      `${original.id}: multi-family feature ${original.featureId} cannot back a receipt until per-family projection is representable`,
+    )
+    expect(validateFidelityCapabilityReport(FIDELITY_CAPABILITY_REPORT, manifest)).toEqual(expect.arrayContaining([
+      `${original.featureId}: multi-family fidelity capability features are not representable`,
+      `${original.featureId}: fidelity capability family does not match the pinned manifest`,
+    ]))
+  })
+
+  test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
       'fidelity/cases/landed-adoption.fidelity.ts',
@@ -72,7 +280,7 @@ describe('issue #248 construct fidelity receipts', () => {
 
     const receipt = await runFidelityCases(registry.cases, registry.caseFiles)
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
-    expect(projectFidelityCapabilityShadow(receipt)).toEqual(readJson(SHADOW))
+    expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
       caseCount: 10,
       passedCaseCount: 10,
@@ -81,15 +289,18 @@ describe('issue #248 construct fidelity receipts', () => {
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
-    const shadow = projectFidelityCapabilityShadow(receipt)
-    for (const feature of shadow.features) {
+    const capability = projectFidelityCapabilityReport(receipt)
+    expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
+    for (const feature of capability.features) {
       expect(Object.keys(feature.surfaces)).toEqual(['agent', 'render', 'serialize', 'mutate'])
+      expect(feature.acceptedDivergences).toEqual([])
+      expect(feature.caseEvidence.map(evidence => evidence.caseId)).toEqual([...feature.caseIds])
     }
-    expect(shadow.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
-    expect(shadow.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
-    expect(shadow.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
-    expect(shadow.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
-    expect(shadow.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
+    expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
+    expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
       agent: 'source-preserved',
       render: 'absent',
       serialize: 'source-preserved',
@@ -375,7 +586,7 @@ describe('issue #248 construct fidelity receipts', () => {
       notApplicableSurfaceCount: 2,
     })
     expect(receipt.cases[0]!.issues).toEqual(['render: blocked by agent'])
-    expect(() => projectFidelityCapabilityShadow(receipt)).toThrow('Cannot project capability shadow from failing fidelity receipts')
+    expect(() => projectFidelityCapabilityReport(receipt)).toThrow('Cannot project capability report from failing fidelity receipts')
   })
 
   test('semantic evaluation has teeth when a known absence is mislabeled native', async () => {
@@ -447,7 +658,7 @@ describe('issue #248 construct fidelity receipts', () => {
     const observation = malformedReceipt.cases[0]!.observations.agent
     if (!observation || observation.status !== 'observed') throw new Error('fixture agent observation must be observed')
     ;(observation as { disposition: string }).disposition = 'bogus'
-    expect(() => projectFidelityCapabilityShadow(malformedReceipt)).toThrow('invalid observed disposition')
+    expect(() => projectFidelityCapabilityReport(malformedReceipt)).toThrow('invalid observed disposition')
   })
 
   test('every surface needs an applicability decision and every applicable surface needs an evaluator', async () => {
@@ -526,7 +737,7 @@ describe('issue #248 construct fidelity receipts', () => {
     if (expectedAgent.applicability !== 'applicable' || !observedAgent || observedAgent.status !== 'observed') throw new Error('block agent fixture must be applicable and observed')
     ;(expectedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
     ;(observedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
-    expect(() => projectFidelityCapabilityShadow(malformedReceipt)).toThrow('diagnosed expectation has no diagnostic code')
+    expect(() => projectFidelityCapabilityReport(malformedReceipt)).toThrow('diagnosed expectation has no diagnostic code')
   })
 
   test('observer failures and malformed observations fail closed', async () => {

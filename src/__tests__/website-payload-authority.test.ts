@@ -6,8 +6,10 @@ import { brotliCompressSync, constants as zlibConstants, gzipSync } from 'node:z
 import {
   WEBSITE_PAYLOAD_COMPRESSION,
   WEBSITE_PAYLOAD_OBSERVATION_MS,
+  WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN,
   WEBSITE_PAYLOAD_ROUTES,
   assertWebsitePayloadReportCurrent,
+  assertWebsitePayloadRecordingToolchain,
   publicRequestPathToFile,
   verifyWebsitePayloadBudgets,
   websitePayloadCaptureProblems,
@@ -37,9 +39,9 @@ const report = JSON.parse(readFileSync(join(REPO, 'eval', 'website-payload', 'ba
 // whether a delta came from the toolchain or a real regression, so there is no
 // pretend approximation there. Route coverage and budget verification remain
 // platform-independent and keep running everywhere.
-const RECORDED_BUN = report.toolchain.bun
-const RECORDED_PLATFORM = report.toolchain.platform
-const RECORDED_ARCH = report.toolchain.arch
+const RECORDED_BUN = WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.bun
+const RECORDED_PLATFORM = WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.platform
+const RECORDED_ARCH = WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.arch
 const ON_RECORDING_TOOLCHAIN = websitePayloadRecordingToolchainMatches(
   { bun: RECORDED_BUN, platform: RECORDED_PLATFORM, arch: RECORDED_ARCH },
   { bun: Bun.version, platform: process.platform, arch: process.arch },
@@ -60,7 +62,8 @@ describe('deterministic website payload authority', () => {
   test('the recorded report covers every route and matches the ratcheted budgets', () => {
     expect(report.routes.map(route => route.id)).toEqual(WEBSITE_PAYLOAD_ROUTES.map(route => route.id))
     expect(report.capture.observationAfterReadyMs).toBe(WEBSITE_PAYLOAD_OBSERVATION_MS)
-    expect(report.toolchain.bun).not.toBeEmpty()
+    expect({ bun: report.toolchain.bun, platform: report.toolchain.platform, arch: report.toolchain.arch }).toEqual(WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN)
+    expect(() => assertWebsitePayloadRecordingToolchain(report.toolchain)).not.toThrow()
     expect(report.toolchain.playwright).not.toBeEmpty()
     expect(report.toolchain.chromium).not.toBeEmpty()
     expect(report.toolchain.platform).not.toBeEmpty()
@@ -165,6 +168,7 @@ describe('deterministic website payload authority', () => {
     expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, bun: '1.2.4' })).toBe(false)
     expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, platform: 'darwin' })).toBe(false)
     expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, arch: 'arm64' })).toBe(false)
+    expect(() => assertWebsitePayloadRecordingToolchain({ ...WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN, arch: 'arm64' })).toThrow('baseline toolchain must be')
   })
 
   test('independently maps route documents and fails closed on encoded traversal', () => {

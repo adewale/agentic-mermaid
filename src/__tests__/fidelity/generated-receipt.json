@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "upstream": {
     "package": "mermaid",
     "version": "11.16.0",
@@ -56,11 +56,11 @@
     ]
   },
   "freshness": {
-    "inputSha256": "d15c3fa25153fbcebbed9a2dbf1e743e4fc6518bbae0f2be9bc81638e916ad09",
+    "inputSha256": "b5d45cc13e5baff14997124b10b322e9f62360cc13256a5239a6e0f6cace2023",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
-        "sha256": "dfec14208ad202afac2bfa5b4ee5311ff7c1f85657295b31df345cde88d45672"
+        "sha256": "2253bec63ecdd68d92cbb549699b1e389c4e9d82d3972708cea333414b3c10d3"
       },
       {
         "path": "eval/mermaid-docs-corpus/README.md",
@@ -84,7 +84,7 @@
       },
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
-        "sha256": "5865f3ffac7dbbef1b0c1ac78595b728a0682c55f4e4378b05311670b42e14f3"
+        "sha256": "e06629fc663a628ac44f1edb8e3942e67e2ccfb6084cb31001e8a0878044ab02"
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
@@ -96,11 +96,11 @@
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
-        "sha256": "9e07b62ec7c5f17e4f025de1e207ca51829a91029971ab3ec771bbb15b17bd54"
+        "sha256": "062c54e58cabc3cb213d5ca90c737b2e14731136a45ddf69046d9f6dbd7380c2"
       },
       {
         "path": "src/__tests__/fidelity/projector.ts",
-        "sha256": "c300ab556f448b7ee9d3544cbee7225204f78e565d4b1e5182a80ef87980c8c2"
+        "sha256": "165721000f12a9ddf962316ee3ed904ced302d44a7984df30c54a2e073fc381f"
       },
       {
         "path": "src/__tests__/fidelity/registry.ts",
@@ -112,7 +112,15 @@
       },
       {
         "path": "src/__tests__/fidelity/runner.ts",
-        "sha256": "ecc952e10d7d1aff806eb1e4b03fa14a386ee32e6375c1a4f962d328e07d3463"
+        "sha256": "87ffc2850c695c53ebb48bf5dbd94bc421bde85e4d9402324484e08c80b26b0d"
+      },
+      {
+        "path": "src/fidelity-capability-contract.ts",
+        "sha256": "d22729c3f4fbcc1189f603a90e642ef696eab1e5ca942bd256e37d4985e5ad3b"
+      },
+      {
+        "path": "src/fidelity-capability-report.ts",
+        "sha256": "bea8b73b1da1452143d25bb9092ed1d6935ada237bae70a107b5ad93ffd6399a"
       }
     ]
   },

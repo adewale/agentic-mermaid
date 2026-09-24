@@ -1,15 +1,28 @@
 // Construct-level fidelity receipt contract for issue #248.
 //
 // This remains test-only. Public capability reports consume only the compact
-// generated shadow projection, never executable functions or raw observations.
+// generated public projection, never executable functions or raw observations.
 
-export const FIDELITY_DISPOSITIONS = Object.freeze(['native', 'source-preserved', 'diagnosed', 'absent'] as const)
-
-export type FidelityDisposition = (typeof FIDELITY_DISPOSITIONS)[number]
-
-export const FIDELITY_SURFACES = Object.freeze(['agent', 'render', 'serialize', 'mutate'] as const)
-
-export type FidelitySurface = (typeof FIDELITY_SURFACES)[number]
+export {
+  FIDELITY_ACCEPTED_DIVERGENCE_POLICIES,
+  FIDELITY_DISPOSITIONS,
+  FIDELITY_SURFACES,
+} from '../../fidelity-capability-contract.ts'
+export type {
+  FidelityAcceptedDivergence,
+  FidelityAcceptedDivergencePolicy,
+  FidelityCapabilityFeature,
+  FidelityCapabilityReport,
+  FidelityCapabilitySurface,
+  FidelityCapabilityCaseEvidence,
+  FidelityDisposition,
+  FidelitySurface,
+} from '../../fidelity-capability-contract.ts'
+import type {
+  FidelityAcceptedDivergencePolicy,
+  FidelityDisposition,
+  FidelitySurface,
+} from '../../fidelity-capability-contract.ts'
 
 export type FidelityJson = null | boolean | number | string | readonly FidelityJson[] | { readonly [key: string]: FidelityJson }
 
@@ -53,6 +66,12 @@ export type FidelitySurfaceExpectation = ApplicableFidelitySurfaceExpectation | 
 
 export type FidelityExpectations = Record<FidelitySurface, FidelitySurfaceExpectation>
 
+export interface FidelityAcceptedDivergenceDeclaration {
+  policy: FidelityAcceptedDivergencePolicy
+  rationale: string
+  surfaces: readonly FidelitySurface[]
+}
+
 export interface FidelityCase {
   id: string
   family: string
@@ -61,6 +80,7 @@ export interface FidelityCase {
   upstreamReference: string
   upstreamRevision: string
   revisionCompatibility?: FidelityRevisionCompatibility
+  acceptedDivergence?: FidelityAcceptedDivergenceDeclaration
   expected: FidelityExpectations
 }
 
@@ -106,6 +126,7 @@ export interface FidelityCaseResult {
   sourceSha256: string
   upstreamReference: string
   upstreamRevision: string
+  acceptedDivergence?: FidelityAcceptedDivergenceDeclaration
   expected: Record<FidelitySurface, RecordedFidelitySurfaceExpectation>
   observations: ClassifiedFidelityObservations
   passed: boolean
@@ -113,7 +134,7 @@ export interface FidelityCaseResult {
 }
 
 export interface FidelityReceiptResult {
-  schemaVersion: 1
+  schemaVersion: 2
   upstream: {
     package: 'mermaid'
     version: string
@@ -134,29 +155,4 @@ export interface FidelityReceiptResult {
     blockedSurfaceCount: number
     notApplicableSurfaceCount: number
   }
-}
-
-export type FidelityShadowSurface = FidelityDisposition | { notApplicable: readonly string[] }
-
-export interface FidelityShadowFeature {
-  featureId: string
-  family: string
-  disposition: FidelityDisposition
-  caseIds: readonly string[]
-  surfaces: Record<FidelitySurface, FidelityShadowSurface>
-}
-
-export interface FidelityCapabilityShadow {
-  schemaVersion: 1
-  mode: 'shadow'
-  publicClaimsChanged: false
-  upstreamRevision: string
-  receiptInputSha256: string
-  receiptResultSha256: string
-  summary: {
-    caseCount: number
-    featureCount: number
-    dispositions: Readonly<Record<FidelityDisposition, number>>
-  }
-  features: readonly FidelityShadowFeature[]
 }

@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 5,
+  "mode": "public",
+  "publicClaimsChanged": true,
+  "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+  "receiptInputSha256": "b5d45cc13e5baff14997124b10b322e9f62360cc13256a5239a6e0f6cace2023",
+  "receiptResultSha256": "87460b98e28a35a609addb2eb976217afd0412f431a371edd02b143a190a7426",
+  "summary": {
+    "caseCount": 10,
+    "featureCount": 7,
+    "dispositions": {
+      "native": 1,
+      "source-preserved": 0,
+      "diagnosed": 2,
+      "absent": 4
+    }
+  },
+  "features": [
+    {
+      "featureId": "official-doc:block:section:basic-structure",
+      "family": "block",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "block.family.accurately-diagnosed-unsupported"
+      ],
+      "surfaces": {
+        "agent": "diagnosed",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": {
+          "notApplicable": [
+            "Unsupported families expose no structured mutation target by design."
+          ]
+        }
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_FAMILY"
+        ],
+        "render": [
+          "UNSUPPORTED_FAMILY"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "block.family.accurately-diagnosed-unsupported",
+          "surfaces": {
+            "agent": "diagnosed",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": {
+              "notApplicable": [
+                "Unsupported families expose no structured mutation target by design."
+              ]
+            }
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_FAMILY"
+            ],
+            "render": [
+              "UNSUPPORTED_FAMILY"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:flowchart:section:text-on-links",
+      "family": "flowchart",
+      "disposition": "native",
+      "caseIds": [
+        "flowchart.links.boundary-whitespace-mutation-closure"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "flowchart.links.boundary-whitespace-mutation-closure",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
+      "family": "flowchart",
+      "disposition": "absent",
+      "caseIds": [
+        "flowchart.classes.edge-paint-implication"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "flowchart.classes.edge-paint-implication",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "family": "journey",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "journey.scores.fractional-parser-render-seam"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "journey.scores.fractional-parser-render-seam",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:sankey:section:links-coloring",
+      "family": "sankey",
+      "disposition": "absent",
+      "caseIds": [
+        "sankey.links.dark-background-normal-alpha-divergence",
+        "sankey.links.light-background-multiply",
+        "sankey.links.typed-gradient-endpoints"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "sankey.links.dark-background-normal-alpha-divergence",
+          "surfaces": {
+            "agent": {
+              "notApplicable": [
+                "Ribbon compositing is a renderer/backend implication, not an agent-domain construct."
+              ]
+            },
+            "render": "absent",
+            "serialize": {
+              "notApplicable": [
+                "Backend compositing does not change or serialize Mermaid source."
+              ]
+            },
+            "mutate": {
+              "notApplicable": [
+                "Backend compositing has no structured mutation operation."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "sankey.links.light-background-multiply",
+          "surfaces": {
+            "agent": {
+              "notApplicable": [
+                "Ribbon compositing is a renderer/backend implication, not an agent-domain construct."
+              ]
+            },
+            "render": "native",
+            "serialize": {
+              "notApplicable": [
+                "Backend compositing does not change or serialize Mermaid source."
+              ]
+            },
+            "mutate": {
+              "notApplicable": [
+                "Backend compositing has no structured mutation operation."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "sankey.links.typed-gradient-endpoints",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:state:section:comments",
+      "family": "state",
+      "disposition": "absent",
+      "caseIds": [
+        "state.comments.trailing-transition-loss"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "absent",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "state.comments.trailing-transition-loss",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "absent",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:xychart:section:syntax",
+      "family": "xychart",
+      "disposition": "absent",
+      "caseIds": [
+        "xychart.syntax.shared-parser-semantics",
+        "xychart.syntax.unknown-statement-render-seam"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "absent",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "xychart.syntax.shared-parser-semantics",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "xychart.syntax.unknown-statement-render-seam",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "absent",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    }
+  ]
+}

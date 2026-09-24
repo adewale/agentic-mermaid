@@ -56,11 +56,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The editor exercises the complete API. Shared Unicode identifier
     // validation is already in the base. The PNG legibility policy and shared
     // warning builder add 2,393 raw, 746 gzip, and 680 Brotli bytes. The rebased
-    // editor bundle adds 14 raw and 9 gzip bytes while reducing Brotli by 96;
-    // the two-request graph stays fixed.
-    maxRawBytes: 3_339_038,
-    maxGzipBytes: 983_236,
-    maxBrotliBytes: 772_230,
+    // editor bundle adds 14 raw and 9 gzip bytes while reducing Brotli by 96.
+    // The public fidelity report changes the generated editor document; these
+    // ceilings cover the larger of the Linux/x64 and macOS/arm64 recordings
+    // while the exact Linux hashes and totals remain pinned in the baseline.
+    // The browser adapter must stay mutable for the editor's render hooks;
+    // its bundle change raises the editor Brotli total by 152 bytes. The
+    // two-request graph stays fixed.
+    maxRawBytes: 3_339_124,
+    maxGzipBytes: 983_294,
+    maxBrotliBytes: 772_198,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

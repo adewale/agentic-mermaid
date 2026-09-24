@@ -39,21 +39,17 @@ individual constructs and feed the public capability report.
 
 As of 2026-09-24:
 
-- PR #192 has landed Sankey enrollment, typed local gradients, endpoint-stop
-  evidence, Mermaid-compatible multiply compositing on light or unresolved
-  backgrounds, and a deliberate normal-alpha divergence on concrete dark
-  backgrounds where multiply would erase ribbon visibility. The shared
-  construct receipts still need to exercise both compositing paths and make the
-  divergence visible to capability reporting.
-- PR #220 has consolidated XYChart agent parsing onto the strict renderer
-  parser and preserves unsupported syntax opaquely. Final cross-surface
-  disposition and receipt coverage remain open.
-- PR #267 has landed shrinkable Flowchart mutation and whitespace-preservation
-  coverage. It is one family slice, not the programme-wide metamorphic law.
-- PR #252 was reverted by PR #255 and contributes no current evidence.
-- The executable construct-receipt registry, shared runner, revision-closure
-  gate, receipt-derived capability projection, official-fence classification,
-  and config-effect matrix have not landed.
+- PR #277 has landed the executable construct-receipt registry, shared runner,
+  revision-closure gate, freshness binding, and non-public shadow projection.
+- PR #278 has retrospectively adopted representative landed behavior from PRs
+  #192, #220, and #267 into seven passing receipt cases. Those receipts cover
+  the Sankey compositing branches, XYChart unsupported-statement handling, and
+  Flowchart shrink mutation without claiming broader family completeness.
+- The public-claim cutover is now the active phase. Until it lands, Section A
+  and citizenship can still infer support from enrollment or descriptor-level
+  evidence rather than current construct receipts.
+- The silent-corruption family fixes, official-example classification, and
+  configuration-effect matrix remain after the cutover.
 
 ## What the evidence must prove
 
@@ -153,7 +149,7 @@ that changes a construct, and separately assert that unrelated meaning survives.
 
 ## Runner and capability reporting
 
-The first implementation PR should add one command that:
+PR #277 added one command that:
 
 1. discovers the checked-in case registry;
 2. rejects duplicate or unknown case and feature IDs;
@@ -163,9 +159,9 @@ The first implementation PR should add one command that:
    revision split; and
 6. derives a shadow capability summary for comparison with existing reports.
 
-The generated result must be freshness-bound to its cases and projector code so
-stale output cannot be published accidentally. This first PR must not switch
-public claims while it contains only a few seed cases.
+The generated result is freshness-bound to its cases and projector code so
+stale output cannot be published accidentally. PR #277 deliberately did not
+switch public claims while it contained only a few seed cases.
 
 After landed behavior has been adopted into receipts, a separate cutover PR
 should make existing capability and citizenship reports consume the generated
@@ -175,7 +171,7 @@ case; unreceipted claims must become `absent`, not retain their earlier state.
 
 ## Delivery sequence
 
-### 1. Receipt foundation
+### 1. Receipt foundation — landed in PR #277
 
 Land the case type, registry, runner, result format, pinned-revision closure,
 freshness binding, and a shadow capability projection. Prove the design with a
@@ -185,7 +181,7 @@ the first PR. Do not change public capability claims in this PR.
 Good initial cases include one silent statement loss, one parser/render seam,
 one appearance implication, and one accurately diagnosed unsupported behavior.
 
-### 2. Adopt landed behavior
+### 2. Adopt landed behavior — landed in PR #278
 
 Add retrospective receipts for the behavior already landed by PRs #192, #220,
 and #267. Include the known divergence dispositions that affect those cases.
@@ -197,7 +193,7 @@ Because PRs #192, #220, and #267 predate this mandatory audit policy, the
 audited adoption PR is their retrospective programme reconciliation record; it
 does not attempt to manufacture per-PR approvals for already-merged trees.
 
-### 3. Cut public claims over to receipts
+### 3. Cut public claims over to receipts — in progress
 
 Make capability and citizenship reports consume the receipt-derived summary.
 Add the shared route-conformance checks and fail closed: any native claim without

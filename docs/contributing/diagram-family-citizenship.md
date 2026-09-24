@@ -10,7 +10,7 @@ The `FamilyDescriptor` registry in `src/agent/families.ts` is the canonical runt
 
 The version-pinned upstream inventory lives at [`upstream-mermaid-manifest.json`](../project/upstream-mermaid-manifest.json). It records every public Mermaid family/header separately from native Agentic Mermaid support, including unsupported and inventory-only dialects. Every family owns exactly one hashed official syntax page, heading-level feature inventory, deduplicated official example inventory, and explicit introduction/deprecation accounting (`declared` or `not-declared`). Upgrade work must regenerate its provenance/hash and review the machine-readable diff before changing any native claim; an upstream header is never silently treated as Flowchart. Runtime detection imports only the generated compact family index, never the semantic corpus.
 
-The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, these Mermaid/Wikipedia fidelity claims are evidenced, and these remaining gaps are tracked.” The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
+The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, these Mermaid/Wikipedia fidelity claims are evidenced, and these remaining gaps are tracked.” Its `mermaidSyntaxParity` cells are generated from the public [`fidelity-capability-report.json`](../project/fidelity-capability-report.json): a pinned feature without a passing native construct receipt or a named, tested security/offline divergence makes that family an explicit #248 exception. The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
 
 ## Semantic correctness vs. system citizenship
 
@@ -73,7 +73,7 @@ XY chart proves the checklist works for an older family that was promoted after 
 - stable region citizenship is satisfied through `src/__tests__/agent-ascii-meta.test.ts`;
 - upstream-docs harvest/divergence citizenship is satisfied through the regenerated `eval/mermaid-docs-corpus/corpus.json`, executable `divergences.json` ledger, `eval/mermaid-gantt-bench/`, and the fully accounted cross-family parser/DB bench in `eval/mermaid-upstream-suite-bench/`.
 
-This is the intended ratchet shape: historical gaps are either closed or represented by a live checked cell. After the BUILD-22 backfill, the matrix has zero exceptions; if a future family introduces one, it must be tracked before merge.
+This is the intended ratchet shape: historical gaps are either closed or represented by a live checked cell. System-integration surfaces retain the BUILD-22 zero-exception ratchet. Syntax parity now fails closed: the receipt generator marks `mermaidSyntaxParity` as a tracked #248 exception until every pinned feature for that family has a passing native receipt or a named, tested security/offline divergence for every diagnosed case/surface, and automatically restores `satisfied` only when that condition is true.
 
 ## Review workflow
 
@@ -83,6 +83,6 @@ When adding or changing a family:
 2. Add/update parser, renderer, agent body, mutation ops, verify behavior, and examples.
 3. Map the family to exactly one pinned official Mermaid syntax page. The generator accounts for all headings/examples; promote every stable construct claimed native to executable fixtures, and do not count parse-only or opaque preservation as support.
 4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, and commit a generated screenshot with a captioned PR Visual Evidence row.
-5. Update the citizenship matrix row—including `mermaidSyntaxParity`, `familyVisualMetaphor`, and its `fidelity` record—in the same PR. These two surfaces cannot be deferred for a newly registered family.
+5. Update the citizenship matrix row—including `familyVisualMetaphor` and its `fidelity` record—in the same PR, and add construct receipts for the family. `mermaidSyntaxParity` is generated from those receipts and cannot be asserted by editing the matrix manually. These two surfaces cannot be deferred for a newly registered family.
 6. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
 7. For any other matrix exception introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.

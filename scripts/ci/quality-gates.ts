@@ -9,7 +9,7 @@ export interface QualityCheck {
 export const EVIDENCE_CHECKS: readonly QualityCheck[] = [
   {
     id: 'fidelity-receipts',
-    label: 'Issue #248 construct fidelity receipts and shadow projection',
+    label: 'Issue #248 construct fidelity receipts and public capability projection',
     command: ['bun', 'run', 'fidelity:receipts:check'],
   },
   {
