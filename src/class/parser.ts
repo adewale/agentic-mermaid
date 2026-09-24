@@ -461,7 +461,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
     // A malformed relationship cannot be silently omitted from an otherwise
     // plausible diagram. Ignore delimiter-looking text inside IDs/generics.
-    if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line)) {
+    if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) {
       throw syntaxError({
         what: `Unrecognized class relationship statement "${line}"`,
         expectedForm: 'A .. B, A -- B, or A --> B, optionally with a label',
@@ -702,10 +702,6 @@ function parseEscapedMarkedClassRelationship(line: string): (ClassRelationship &
     right = right.slice(close + 1).trimStart()
   }
   if (!left.startsWith('`') && !right.startsWith('`')) return null
-  // Mermaid's relationship lexer interprets `A~B` as a generic reference to
-  // A even inside backticks. Keep that source diagnosed until the full
-  // identity model can express its upstream semantics.
-  if ((left.startsWith('`') && left.includes('~')) || (right.startsWith('`') && right.includes('~'))) return null
   const fromRef = parseClassReference(left)
   const toRef = parseClassReference(right)
   const parsed = parseArrow(arrow)
@@ -816,10 +812,11 @@ const BARE_RELATION_RESERVED_IDS = new Set([
 const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
 
 /** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
- * unescaped dollar signs; backtick IDs have a narrower reserved set. */
+ * unescaped dollar signs. Escaped IDs containing `~` denote a generic base
+ * identity upstream, which this relationship model cannot yet preserve. */
 export function supportedRelationEndpoint(id: string, raw: string): boolean {
   return raw.startsWith('`')
-    ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id)
+    ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~')
     : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
 }
 
@@ -875,7 +872,15 @@ export function isMarkedClassRelationshipCandidate(line: string): boolean {
 export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean {
   if (!line.includes('`')) return false
   const operator = findMarkerlessRelationshipOperator(line)
-  if (operator < 0 || !isMarkedRelationshipOperator(line, operator)) return false
+  if (operator < 0) return false
+  const before = line.slice(0, operator).trimEnd()
+  const afterOperator = line.slice(operator + 2)
+  // The bare-link discriminator predates two-ended dashed diamond/circle
+  // markers. Such escaped links must not fall through to a solid two-way edge.
+  const dashedTwoEnded = line[operator] === '.'
+    && /(?:\*|o)$/.test(before)
+    && /^(?:\*|o|>|\|>|<)/.test(afterOperator)
+  if (!isMarkedRelationshipOperator(line, operator) && !dashedTwoEnded) return false
   if (line.slice(0, operator).trimStart().startsWith('`')) return true
   let after = line.slice(operator + 2).trimStart()
   after = after.replace(/^(?:\|>|[>*o]|\(\))\s*/, '')

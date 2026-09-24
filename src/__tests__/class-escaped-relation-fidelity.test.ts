@@ -196,9 +196,15 @@ describe('Class escaped relationship IDs', () => {
     const diagnosed = [
       '`A B` <|--|> `C D`',
       '`A B` *..* `C D`',
+      'A *..* `B`',
+      'A o..o `B`',
       '`A B` ()-- C',
       'A --() `C D`',
       '`A~B` --> C',
+      '`A~B` -- C',
+      '`A~B` .. C',
+      'A -- `A~B`',
+      'A .. `A~B`',
     ]
     const probe = Bun.spawnSync({
       cmd: [process.execPath, '-e', `
@@ -221,9 +227,15 @@ describe('Class escaped relationship IDs', () => {
     expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
       { from: 'A B', to: 'C D', lineType: 0 },
       { from: 'A B', to: 'C D', lineType: 1 },
+      { from: 'A', to: 'B', lineType: 1 },
+      { from: 'A', to: 'B', lineType: 1 },
       { from: 'interface0', to: 'C', lineType: 0 },
       { from: 'A', to: 'interface0', lineType: 0 },
       { from: 'A', to: 'C', lineType: 0 },
+      { from: 'A', to: 'C', lineType: 0 },
+      { from: 'A', to: 'C', lineType: 1 },
+      { from: 'A', to: 'A', lineType: 0 },
+      { from: 'A', to: 'A', lineType: 1 },
     ])
     for (const statement of diagnosed) {
       expect(parseClassRelationship(statement)).toBeNull()
