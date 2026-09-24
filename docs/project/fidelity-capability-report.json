@@ -3,13 +3,13 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "6ca0bc788eb2bfd584c8bd715ee59fa4986efe5525bb26eaefdab36159f1c572",
-  "receiptResultSha256": "e24ce06801adfb48b0ff5157f8082ed4db1cf43560e63e9ec0346de64551175f",
+  "receiptInputSha256": "b6a647e0880ab21121eb7ee00503d1dc248316b889151d5ef1008bc2b2f317ab",
+  "receiptResultSha256": "0f5efd4f80579665b5f36c0ce1285b29794beb4456eb3ec708dbb2ce18621859",
   "summary": {
-    "caseCount": 10,
-    "featureCount": 7,
+    "caseCount": 11,
+    "featureCount": 8,
     "dispositions": {
-      "native": 2,
+      "native": 3,
       "source-preserved": 0,
       "diagnosed": 2,
       "absent": 3
@@ -62,6 +62,34 @@
               "UNSUPPORTED_FAMILY"
             ]
           }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:er:section:relationship-syntax",
+      "family": "er",
+      "disposition": "native",
+      "caseIds": [
+        "er.relationships.word-cardinality-aliases"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "er.relationships.word-cardinality-aliases",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
         }
       ],
       "acceptedDivergences": []

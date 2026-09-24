@@ -120,7 +120,7 @@
     },
     {
       "path": "src/agent/er-body.ts",
-      "sha256": "6dfda63fe3cb6c6dcf3f5587d4abeddcd42ec06058206df680977043d1bf9d6d"
+      "sha256": "373868de3b24eda819329d6322ca3e719219b9f37e77abde2d2b9963bf81bd63"
     },
     {
       "path": "src/agent/facts.ts",
@@ -520,7 +520,7 @@
     },
     {
       "path": "src/er/parser.ts",
-      "sha256": "25e906d1e14d661a368f28976d079dcd26007f41aecea21a007890fe57af5268"
+      "sha256": "be2623097529b7484f43afdac209399ef623ef0ce015f88d321508fdcf96f2b5"
     },
     {
       "path": "src/er/renderer.ts",

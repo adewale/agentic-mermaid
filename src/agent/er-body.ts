@@ -28,6 +28,7 @@ import {
   parseErEntityReference,
   parseErGroupHeader,
   parseErRelationshipSyntax,
+  parseErCardinality,
 } from '../er/parser.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
@@ -40,15 +41,8 @@ export function erUnsupportedSyntaxWarnings(_canonicalSource: string): LayoutWar
 
 // ---- Parser ---------------------------------------------------------------
 
-const LEFT_CARD: Record<string, ErCardinality> = {
-  '||': 'one-only', '|o': 'zero-or-one', 'o|': 'zero-or-one',
-  '}o': 'zero-or-many', 'o{': 'zero-or-many',
-  '}|': 'one-or-many', '|{': 'one-or-many',
-}
-const RIGHT_CARD: Record<string, ErCardinality> = {
-  '||': 'one-only', '|o': 'zero-or-one', 'o|': 'zero-or-one',
-  'o{': 'zero-or-many', '}o': 'zero-or-many',
-  '|{': 'one-or-many', '}|': 'one-or-many',
+const AGENT_CARDINALITY: Record<NonNullable<ReturnType<typeof parseErCardinality>>, ErCardinality> = {
+  one: 'one-only', 'zero-one': 'zero-or-one', many: 'one-or-many', 'zero-many': 'zero-or-many',
 }
 
 export function parseErBody(lines: string[]): ErBody | null {
@@ -134,9 +128,11 @@ export function parseErBody(lines: string[]): ErBody | null {
 
     const relation = parseErRelationshipSyntax(raw)
     if (relation) {
-      const lc = LEFT_CARD[relation.leftToken]
-      const rc = RIGHT_CARD[relation.rightToken]
-      if (!lc || !rc) return null
+      const left = parseErCardinality(relation.leftToken)
+      const right = parseErCardinality(relation.rightToken)
+      if (!left || !right) return null
+      const lc = AGENT_CARDINALITY[left]
+      const rc = AGENT_CARDINALITY[right]
       const relationIndex = body.relations.length
       body.relations.push({
         from: relation.entity1.id,

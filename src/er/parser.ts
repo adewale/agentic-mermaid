@@ -12,6 +12,15 @@ const ER_QUOTED_ENTITY_ID_SOURCE = String.raw`"(?:\\.|[^"\\])+"`
 const ER_ENTITY_ID_SOURCE = `(?:${ER_QUOTED_ENTITY_ID_SOURCE}|${ER_BARE_ENTITY_ID_SOURCE})`
 const ER_ENTITY_ID_RE = new RegExp(`^${ER_BARE_ENTITY_ID_SOURCE}$`)
 const ER_ENTITY_REFERENCE_SOURCE = `${ER_ENTITY_ID_SOURCE}(?:\\[\\s*(?:"(?:\\\\.|[^"\\\\])*"|[^\\]"\\r\\n]+)\\s*\\])?(?::::[\\w-]+)?`
+// Mermaid 11.16.0 accepts word/numeric aliases for the same four crow's-foot
+// cardinalities. This is the single lexer vocabulary for renderer and agent.
+// Keep the glyph-candidate fallback so malformed crow's-foot tokens still reach
+// parseErCardinality and raise the existing fail-loud error.
+const ER_CARDINALITY_SOURCE = String.raw`(?:one[ \t]+or[ \t]+zero|zero[ \t]+or[ \t]+one|one[ \t]+or[ \t]+more|one[ \t]+or[ \t]+many|zero[ \t]+or[ \t]+more|zero[ \t]+or[ \t]+many|only[ \t]+one|many\(0\)|many\(1\)|1\+|0\+|many|one|1|[|o}{]+)`
+const ER_RELATIONSHIP_RE = new RegExp(
+  `^(${ER_ENTITY_REFERENCE_SOURCE})[ \\t]+(${ER_CARDINALITY_SOURCE})(?:([ \\t]*(?:--|\\.\\.)[ \\t]*)|([ \\t]+(?:optionally[ \\t]+to|to)[ \\t]+))(${ER_CARDINALITY_SOURCE})[ \\t]+(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
+  'i',
+)
 
 export interface ParsedErEntityReference {
   id: string
@@ -286,19 +295,19 @@ export interface ParsedErRelationshipSyntax {
 /** Shared relationship grammar. Alias text may contain spaces; entity styling
  * suffixes normalize to the same stable id instead of becoming phantom ids. */
 export function parseErRelationshipSyntax(line: string): ParsedErRelationshipSyntax | null {
-  const regex = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s+([|o}{]+)(--|\\.\\.)([|o}{]+)\\s+(${ER_ENTITY_REFERENCE_SOURCE})(?:\\s*:\\s*(.*))?$`)
-  const match = line.match(regex)
+  const match = line.match(ER_RELATIONSHIP_RE)
   if (!match) return null
   const entity1 = parseErEntityReference(match[1]!)
-  const entity2 = parseErEntityReference(match[5]!)
+  const entity2 = parseErEntityReference(match[6]!)
   if (!entity1 || !entity2) return null
-  const rawLabel = (match[6] ?? '').trim().replace(/^["']|["']$/g, '')
+  const rawLabel = (match[7] ?? '').trim().replace(/^["']|["']$/g, '')
+  const operator = (match[3] ?? match[4]!).trim().replace(/[ \t]+/g, ' ').toLowerCase()
   return {
     entity1,
     entity2,
     leftToken: match[2]!,
-    rightToken: match[4]!,
-    identifying: match[3] === '--',
+    rightToken: match[5]!,
+    identifying: operator === '--' || operator === 'to',
     label: formatErMarkdown(rawLabel),
   }
 }
@@ -306,13 +315,13 @@ export function parseErRelationshipSyntax(line: string): ParsedErRelationshipSyn
 function parseRelationshipLine(line: string): (ErRelationship & { entity1Label?: string; entity2Label?: string; entity1Class?: string; entity2Class?: string }) | null {
   const syntax = parseErRelationshipSyntax(line)
   if (!syntax) return null
-  const cardinality1 = parseCardinality(syntax.leftToken)
-  const cardinality2 = parseCardinality(syntax.rightToken)
+  const cardinality1 = parseErCardinality(syntax.leftToken)
+  const cardinality2 = parseErCardinality(syntax.rightToken)
 
   if (!cardinality1 || !cardinality2) {
     throw new Error(
       `Invalid ER cardinality "${syntax.leftToken}${syntax.identifying ? '--' : '..'}${syntax.rightToken}" in "${line}" ` +
-      `(valid tokens on either side: ||, |o, o|, }o, o{, }|, |{)`,
+      `(valid tokens include ||, |o, o|, }o, o{, }|, |{ and Mermaid's word/numeric aliases)`,
     )
   }
 
@@ -343,12 +352,12 @@ export function erContainsSubgraphConstruct(lines: string[]): boolean {
 }
 
 /** Parse a cardinality notation string into a Cardinality type */
-function parseCardinality(str: string): Cardinality | null {
-  switch (str) {
-    case '||': return 'one'
-    case '|o': case 'o|': return 'zero-one'
-    case '}|': case '|{': return 'many'
-    case '}o': case 'o{': return 'zero-many'
+export function parseErCardinality(str: string): Cardinality | null {
+  switch (str.toLowerCase().replace(/[ \t]+/g, ' ')) {
+    case '||': case 'only one': case '1': case 'one': return 'one'
+    case '|o': case 'o|': case 'one or zero': case 'zero or one': return 'zero-one'
+    case '}|': case '|{': case 'one or more': case 'one or many': case 'many(1)': case '1+': return 'many'
+    case '}o': case 'o{': case 'zero or more': case 'zero or many': case 'many(0)': case '0+': case 'many': return 'zero-many'
     default: return null
   }
 }

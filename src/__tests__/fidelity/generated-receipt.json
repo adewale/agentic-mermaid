@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "6ca0bc788eb2bfd584c8bd715ee59fa4986efe5525bb26eaefdab36159f1c572",
+    "inputSha256": "b6a647e0880ab21121eb7ee00503d1dc248316b889151d5ef1008bc2b2f317ab",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -85,6 +85,10 @@
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
         "sha256": "e06629fc663a628ac44f1edb8e3942e67e2ccfb6084cb31001e8a0878044ab02"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
+        "sha256": "b80f8c69c05c445cbc4ad8f27308b772381e0489389b93ba0de6f5247dd3d217"
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
@@ -188,6 +192,136 @@
             "exactBytes": true
           },
           "disposition": "source-preserved"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "er.relationships.word-cardinality-aliases",
+      "family": "er",
+      "featureId": "official-doc:er:section:relationship-syntax",
+      "sourceSha256": "3c9268caf92db6ac59155673f002a3c5854cc1433471d1d2135816545a81b3b3",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/entityRelationshipDiagram.html#relationship-syntax",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "kind": "er",
+            "relations": [
+              {
+                "dashed": false,
+                "from": "CAR",
+                "left": "one-only",
+                "right": "zero-or-many",
+                "to": "DRIVER"
+              },
+              {
+                "dashed": true,
+                "from": "DRIVER",
+                "left": "zero-or-many",
+                "right": "zero-or-many",
+                "to": "LICENSE"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relations": [
+              {
+                "from": "CAR",
+                "identifying": true,
+                "left": "one",
+                "right": "zero-many",
+                "to": "DRIVER"
+              },
+              {
+                "from": "DRIVER",
+                "identifying": false,
+                "left": "zero-many",
+                "right": "zero-many",
+                "to": "LICENSE"
+              }
+            ],
+            "visibleEdges": 2
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relations": [
+              {
+                "from": "CAR",
+                "identifying": true,
+                "left": "one",
+                "right": "zero-many",
+                "to": "DRIVER"
+              },
+              {
+                "from": "DRIVER",
+                "identifying": false,
+                "left": "zero-many",
+                "right": "zero-many",
+                "to": "LICENSE"
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "ok": true,
+            "relations": [
+              {
+                "from": "CAR",
+                "identifying": true,
+                "left": "one",
+                "right": "zero-many",
+                "to": "OPERATOR"
+              },
+              {
+                "from": "OPERATOR",
+                "identifying": false,
+                "left": "zero-many",
+                "right": "zero-many",
+                "to": "LICENSE"
+              }
+            ]
+          },
+          "disposition": "native"
         }
       },
       "passed": true,
@@ -1189,10 +1323,10 @@
     }
   ],
   "summary": {
-    "caseCount": 10,
-    "passedCaseCount": 10,
+    "caseCount": 11,
+    "passedCaseCount": 11,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 33,
+    "observedSurfaceCount": 37,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }
