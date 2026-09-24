@@ -427,8 +427,14 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
 // Cartographic halo: knock the text out to the page so glyphs never sit
 // directly on strokes/fills. Injected on every <text> in the chunk; tspans
 // inherit. paint-order draws the stroke behind the glyph.
+// The halo puts glyphs on the page, so text whose ink was chosen against the
+// data mark beneath it (TextMark.pageFill) takes its page ink instead: white
+// on a hatched bar is white on the page.
 function haloText(node: TextMark): string {
-  return sceneNodeSerialization(node).replace(/<text /g, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ')
+  const serialized = node.pageFill === undefined
+    ? sceneNodeSerialization(node)
+    : sceneNodeSerialization(node).replace(/(<text\b[^>]*?\sfill=")[^"]*(")/, `$1${escapeAttr(node.pageFill)}$2`)
+  return serialized.replace(/<text /g, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ')
 }
 
 function backdropFor(style: StyleSpec | undefined, doc: SceneDoc): string {

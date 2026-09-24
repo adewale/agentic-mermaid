@@ -473,6 +473,7 @@ export function text(fields: {
   fontSize: number
   anchor: TextMark['anchor']
   paint: MarkPaint
+  pageFill?: string
   channels?: SemanticChannels
   transform?: SceneTransform
 }, crisp: string): TextMark {

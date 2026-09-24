@@ -180,7 +180,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig): Position
     yAxis: {
       ticks: yTicks,
       line: buildLeftAxisLine(plotArea, yAxisConfig.config),
-      title: buildLeftAxisTitle(chart.yAxis.title, plotArea, yAxisConfig.config),
+      title: buildLeftAxisTitle(chart.yAxis.title, plotArea, yAxisConfig.config, totalH),
       config: yAxisConfig.config,
     },
     plotArea,
@@ -218,7 +218,14 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): Positi
   remainingLeftBudget = Math.max(0, remainingLeftBudget - leftAxisConfig.size)
 
   const plotTop = titleHeight + topAxisConfig.size
-  const plotHeight = Math.max(0, totalH - plotTop)
+  // Category labels are centered on their rows, so when rows are shorter than
+  // a label the last label's descenders reach below the plot, which ends at
+  // the canvas edge. Reserve just that difference; roomy rows reserve nothing.
+  const available = Math.max(0, totalH - plotTop)
+  const rows = Math.max(1, dataCount)
+  const categoryDescent = leftAxisConfig.config.showLabel ? config.xAxis.labelFontSize * LABEL_BELOW_MIDDLE_EM : 0
+  const bottomReserve = Math.min(available, Math.max(0, (categoryDescent - available / (2 * rows)) / (1 - 1 / (2 * rows))))
+  const plotHeight = Math.max(0, available - bottomReserve)
   const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight)
 
   // Value-axis labels are centered on their ticks, so the end ticks' labels
@@ -276,7 +283,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig): Positi
     xAxis: {
       ticks: leftTicks,
       line: buildLeftAxisLine(plotArea, leftAxisConfig.config),
-      title: buildLeftAxisTitle(chart.xAxis.title, plotArea, leftAxisConfig.config),
+      title: buildLeftAxisTitle(chart.xAxis.title, plotArea, leftAxisConfig.config, totalH),
       config: leftAxisConfig.config,
     },
     yAxis: {
@@ -535,10 +542,12 @@ function buildBottomAxisTitle(
   config: ResolvedXYAxisRenderConfig,
 ) {
   if (!title || !config.showTitle) return undefined
+  // The title is drawn centered on y (TEXT_BASELINE_SHIFT), so its line box
+  // sits inside the band the axis reserved rather than on the canvas edge.
   return {
     text: title,
     x: plotArea.x + plotArea.width / 2,
-    y: totalHeight - config.titlePadding,
+    y: totalHeight - config.titlePadding - config.titleFontSize / 2,
   }
 }
 
@@ -560,12 +569,18 @@ function buildLeftAxisTitle(
   title: string | undefined,
   plotArea: PlotArea,
   config: ResolvedXYAxisRenderConfig,
+  totalHeight: number,
 ) {
   if (!title || !config.showTitle) return undefined
+  // Rotated, the title runs vertically, centered on the plot. Clamp that run
+  // inside the canvas, as the bottom axis clamps its end labels, when the
+  // title is longer than the room below or above the plot's center.
+  const half = estimateTextWidth(title, config.titleFontSize, 400) / 2
+  const center = plotArea.y + plotArea.height / 2
   return {
     text: title,
     x: config.titlePadding + config.titleFontSize * 0.8,
-    y: plotArea.y + plotArea.height / 2,
+    y: 2 * half + 4 >= totalHeight ? totalHeight / 2 : Math.min(totalHeight - 2 - half, Math.max(2 + half, center)),
     rotate: -90,
   }
 }
@@ -589,6 +604,11 @@ function hiddenCategoryLabels(
   if (!fitted.showLabel) return drawn.filter(authored)
   return drawn.filter((label, index) => authored(label, index) && ticks[index]?.label === '')
 }
+
+/** Glyph extent below a label's middle line (dominant-baseline middle): half
+ * the x-height plus the descender, about 0.52em in Inter, with room for other
+ * faces. */
+const LABEL_BELOW_MIDDLE_EM = 0.6
 
 const DATA_LABEL_MIN_FONT = 8
 const DATA_LABEL_MAX_FONT = 16

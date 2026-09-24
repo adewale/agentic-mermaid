@@ -280,9 +280,10 @@ export function lowerXYChartScene(
     // Outside labels sit on the page, whose text contrast the palette contract
     // certifies. Inside labels sit on the bar, so their ink is chosen against
     // that bar's own fill.
-    const fill = chart.theme.dataLabelColor
-      ?? (label.placement === 'inside' ? inkOnFill(barFills.get(label.bar)) : undefined)
-      ?? chartColors.labelColor
+    const onBar = chart.theme.dataLabelColor === undefined && label.placement === 'inside'
+      ? inkOnFill(barFills.get(label.bar))
+      : undefined
+    const fill = chart.theme.dataLabelColor ?? onBar ?? chartColors.labelColor
     parts.push(marks.text({
       id: `label:bar:${label.bar.seriesIndex}:${label.bar.label ?? catIndex}`,
       role: 'label',
@@ -292,6 +293,9 @@ export function lowerXYChartScene(
       fontSize: label.fontSize,
       anchor: label.anchor,
       paint: { fill },
+      // Sketch looks halo text with the page color over hatched or washed
+      // bars, so an ink chosen against the bar would sit on the page instead.
+      ...(onBar ? { pageFill: chartColors.labelColor } : {}),
       channels: { category: `bar-${label.bar.seriesIndex}`, value: normalized(label.bar.value) },
     },
       `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +

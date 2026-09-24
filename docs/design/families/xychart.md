@@ -107,11 +107,18 @@ Current SVG rendering decisions:
   `verify` reports (`LABELS_HIDDEN`, `target: "data-labels"`)
 - labels inside a bar use the black or white ink with the higher WCAG contrast
   against that bar's fill (at least 4.58:1 for any opaque fill); labels beyond
-  a bar use the page text color. `themeVariables.xyChart.dataLabelColor`
-  overrides both
+  a bar use the page text color. The sketch looks repaint bars as hatching or
+  washes and halo text with the page color, so there the glyphs sit on the
+  page and every label uses the page text color (`TextMark.pageFill`, applied
+  by the sketch backend). `themeVariables.xyChart.dataLabelColor` overrides
+  all of these
 - value-axis labels are centered on their ticks, so layout reserves the half
   label that the end ticks reach beyond the plot (top of an untitled vertical
-  chart, left and right ends of a horizontal chart's top axis)
+  chart, left and right ends of a horizontal chart's top axis). The same rule
+  keeps the rest of the chart's text on the canvas: a short horizontal chart
+  reserves the last category row's descent, the x-axis title sits inside the
+  band its axis reserved, and a rotated axis title longer than the room beside
+  the plot's center is clamped inside the canvas
 - a vertical chart thins its category tick labels when they would overlap;
   `verify` lists the authored names it does not draw (`LABELS_HIDDEN`,
   `target: "x-axis"`), as it does when a horizontal chart drops a category
