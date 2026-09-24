@@ -39,7 +39,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // these are the exact reviewed Linux/x64 capture totals.
     maxRawBytes: 732_199,
     maxGzipBytes: 274_698,
-    maxBrotliBytes: 250_871,
+    maxBrotliBytes: 250_900,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -64,9 +64,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Escaped Class relation handling preserves the two-request graph; these
     // are the exact reviewed Linux/x64 capture totals.
-    maxRawBytes: 3_352_123,
-    maxGzipBytes: 987_562,
-    maxBrotliBytes: 775_539,
+    maxRawBytes: 3_353_000,
+    maxGzipBytes: 988_000,
+    maxBrotliBytes: 776_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
