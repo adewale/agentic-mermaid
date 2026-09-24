@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "081890f63043ad53abdcfd2a7873d7a40baa3dd55963ef3f5599c2153d4769b6",
-  "receiptResultSha256": "e7e76d9ca8255d6725028b63d219b4aae3cf4705a20853b529acfd3863659b11",
+  "receiptInputSha256": "265278f729dd7e727841b9e90714396762bdb85902b7ef0c269102c6a887824b",
+  "receiptResultSha256": "e2ad00655a1dd8d9bc58a94427adc4f24da3c4a2d55b7caf29cf115c1e8b5dcb",
   "summary": {
-    "caseCount": 19,
+    "caseCount": 20,
     "featureCount": 11,
     "dispositions": {
       "native": 3,
       "source-preserved": 0,
-      "diagnosed": 4,
-      "absent": 4
+      "diagnosed": 5,
+      "absent": 3
     }
   },
   "features": [
@@ -139,15 +139,16 @@
     {
       "featureId": "official-doc:class:section:defining-relationship",
       "family": "class",
-      "disposition": "absent",
+      "disposition": "diagnosed",
       "caseIds": [
-        "class.relationship.escaped-directed-absent",
+        "class.relationship.escaped-directed-native",
+        "class.relationship.hyphenated-endpoint-diagnosed",
         "class.relationship.link-dashed-native",
         "class.relationship.link-solid-native"
       ],
       "surfaces": {
         "agent": "source-preserved",
-        "render": "absent",
+        "render": "diagnosed",
         "serialize": "source-preserved",
         "mutate": "diagnosed"
       },
@@ -155,22 +156,38 @@
         "agent": [
           "UNSUPPORTED_SYNTAX"
         ],
+        "render": [
+          "RENDER_FAILED"
+        ],
         "mutate": [
           "INVALID_OP"
         ]
       },
       "caseEvidence": [
         {
-          "caseId": "class.relationship.escaped-directed-absent",
+          "caseId": "class.relationship.escaped-directed-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.relationship.hyphenated-endpoint-diagnosed",
           "surfaces": {
             "agent": "source-preserved",
-            "render": "absent",
+            "render": "diagnosed",
             "serialize": "source-preserved",
             "mutate": "diagnosed"
           },
           "diagnostics": {
             "agent": [
               "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
             ],
             "mutate": [
               "INVALID_OP"

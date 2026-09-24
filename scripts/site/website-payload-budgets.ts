@@ -35,11 +35,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // Class markerless-link fidelity keeps the 31-request graph and raw total;
-    // these are the exact reviewed Linux/x64 capture totals.
+    // Class relation identity and compact-arrow handling preserve the
+    // 31-request graph and raw total. These are the exact reviewed Linux/x64
+    // capture totals.
     maxRawBytes: 732_199,
-    maxGzipBytes: 274_695,
-    maxBrotliBytes: 250_864,
+    maxGzipBytes: 274_693,
+    maxBrotliBytes: 250_875,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -62,11 +63,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    // Markerless Class link handling adds one bounded parser path but keeps
-    // the two-request graph; these are the exact reviewed Linux/x64 totals.
-    maxRawBytes: 3_350_225,
-    maxGzipBytes: 987_051,
-    maxBrotliBytes: 774_957,
+    // Class relation handling preserves the two-request graph; these are the
+    // exact reviewed Linux/x64 capture totals.
+    maxRawBytes: 3_352_549,
+    maxGzipBytes: 987_743,
+    maxBrotliBytes: 775_584,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

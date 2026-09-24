@@ -274,7 +274,8 @@ describe('issue #248 construct fidelity receipts', () => {
       'class.annotations.inline-native',
       'class.annotations.repeated-diagnosed',
       'class.annotations.separate-native',
-      'class.relationship.escaped-directed-absent',
+      'class.relationship.escaped-directed-native',
+      'class.relationship.hyphenated-endpoint-diagnosed',
       'class.relationship.link-dashed-native',
       'class.relationship.link-solid-native',
       'er.relationships.word-cardinality-aliases',
@@ -295,10 +296,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 19,
-      passedCaseCount: 19,
+      caseCount: 20,
+      passedCaseCount: 20,
       failedCaseCount: 0,
-      observedSurfaceCount: 69,
+      observedSurfaceCount: 73,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
@@ -314,7 +315,7 @@ describe('issue #248 construct fidelity receipts', () => {
       agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
     })
     expect(capability.features.find(feature => feature.featureId === 'official-doc:class:section:defining-relationship')!.surfaces).toEqual({
-      agent: 'source-preserved', render: 'absent', serialize: 'source-preserved', mutate: 'diagnosed',
+      agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
     })
     expect(capability.features.find(feature => feature.featureId === 'official-doc:timeline:section:direction-v11-14-0')!.surfaces).toEqual({
       agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',

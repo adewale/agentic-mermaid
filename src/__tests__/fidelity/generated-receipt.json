@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "081890f63043ad53abdcfd2a7873d7a40baa3dd55963ef3f5599c2153d4769b6",
+    "inputSha256": "265278f729dd7e727841b9e90714396762bdb85902b7ef0c269102c6a887824b",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -92,7 +92,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/class-bare-link.fidelity.ts",
-        "sha256": "8172d901b977d7bec6dd9c9ff79070da170c75b5dbb8f440e627b58333e4364e"
+        "sha256": "15dcbe0c70dc834cc6769359981174be787414e0ff9fe1af36a203b535e07b12"
       },
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
@@ -435,10 +435,101 @@
       "issues": []
     },
     {
-      "id": "class.relationship.escaped-directed-absent",
+      "id": "class.relationship.escaped-directed-native",
       "family": "class",
       "featureId": "official-doc:class:section:defining-relationship",
       "sourceSha256": "5200497d321710956d5290d62d1bf10ca2e057fb001dd4b841acd07faa517a7a",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#defining-relationship",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "kind": "class",
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "B"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 1,
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "B"
+            },
+            "visible": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "B"
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "ok": true,
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "Target"
+            }
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.relationship.hyphenated-endpoint-diagnosed",
+      "family": "class",
+      "featureId": "official-doc:class:section:defining-relationship",
+      "sourceSha256": "86775b8d61a8f66f5fc29010404ea2e4fb86e3704cbd46388448a9b33cdadad9",
       "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#defining-relationship",
       "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
       "expected": {
@@ -451,8 +542,10 @@
         },
         "render": {
           "applicability": "applicable",
-          "disposition": "absent",
-          "diagnosticCodes": []
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
         },
         "serialize": {
           "applicability": "applicable",
@@ -480,12 +573,13 @@
         },
         "render": {
           "status": "observed",
-          "diagnosticCodes": [],
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
           "semantics": {
-            "edgeCount": 0,
-            "visible": false
+            "rejected": true
           },
-          "disposition": "absent"
+          "disposition": "diagnosed"
         },
         "serialize": {
           "status": "observed",
@@ -1986,10 +2080,10 @@
     }
   ],
   "summary": {
-    "caseCount": 19,
-    "passedCaseCount": 19,
+    "caseCount": 20,
+    "passedCaseCount": 20,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 69,
+    "observedSurfaceCount": 73,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }
