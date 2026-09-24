@@ -492,7 +492,7 @@
     },
     {
       "path": "src/class/parser.ts",
-      "sha256": "9d5f75d102a91ec42a5d65ead17162513e665c272355166c944cb8205b48accd"
+      "sha256": "54f1aece3ec4e55ee4530baf8560c35bab38d762368ee4b0d9449564ea846be0"
     },
     {
       "path": "src/class/renderer.ts",

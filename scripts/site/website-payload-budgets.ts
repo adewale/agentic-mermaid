@@ -37,9 +37,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 31,
     // Class markerless-link fidelity keeps the 31-request graph and raw total;
     // these are the exact reviewed Linux/x64 capture totals.
-    maxRawBytes: 734_000,
-    maxGzipBytes: 277_000,
-    maxBrotliBytes: 253_000,
+    maxRawBytes: 732_199,
+    maxGzipBytes: 274_698,
+    maxBrotliBytes: 250_873,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -64,9 +64,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Markerless Class link handling adds one bounded parser path but keeps
     // the two-request graph; these are the exact reviewed Linux/x64 totals.
-    maxRawBytes: 3_352_000,
-    maxGzipBytes: 988_000,
-    maxBrotliBytes: 777_000,
+    maxRawBytes: 3_349_796,
+    maxGzipBytes: 987_160,
+    maxBrotliBytes: 775_375,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
