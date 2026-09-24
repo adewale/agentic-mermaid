@@ -1,6 +1,6 @@
 # Delivery plan for issue #248
 
-Status: proposed.
+Status: in progress.
 
 This document turns [issue #248](https://github.com/adewale/agentic-mermaid/issues/248)
 into an implementation sequence. The issue remains the source of truth for the
@@ -30,11 +30,30 @@ individual constructs and feed the public capability report.
    Test public routes separately for transport and diagnostic consistency.
 4. Generate capability claims from passing cases. Do not maintain another
    handwritten support ledger.
-5. Start from `main`. Most work does not depend on PR #192; only Sankey-specific
-   work and final Sankey closure do.
-6. Use the repository's normal CI and review process. This programme does not
-   require custom audit manifests, locked evidence branches, mandatory agent
-   counts, or a separate maintainer-witness ceremony.
+5. Start every independent implementation from current `main`. PR #192 has
+   landed, so no remaining work is blocked on it.
+6. Require every PR in this programme to complete the audit loop below before
+   merge. The loop supplements normal repository CI; it does not replace it.
+
+## Current state
+
+As of 2026-09-24:
+
+- PR #192 has landed Sankey enrollment, typed local gradients, endpoint-stop
+  evidence, Mermaid-compatible multiply compositing on light or unresolved
+  backgrounds, and a deliberate normal-alpha divergence on concrete dark
+  backgrounds where multiply would erase ribbon visibility. The shared
+  construct receipts still need to exercise both compositing paths and make the
+  divergence visible to capability reporting.
+- PR #220 has consolidated XYChart agent parsing onto the strict renderer
+  parser and preserves unsupported syntax opaquely. Final cross-surface
+  disposition and receipt coverage remain open.
+- PR #267 has landed shrinkable Flowchart mutation and whitespace-preservation
+  coverage. It is one family slice, not the programme-wide metamorphic law.
+- PR #252 was reverted by PR #255 and contributes no current evidence.
+- The executable construct-receipt registry, shared runner, revision-closure
+  gate, receipt-derived capability projection, official-fence classification,
+  and config-effect matrix have not landed.
 
 ## What the evidence must prove
 
@@ -140,26 +159,53 @@ The first implementation PR should add one command that:
 2. rejects duplicate or unknown case and feature IDs;
 3. runs the applicable semantic assertions and diagnostics;
 4. emits a machine-readable result;
-5. derives the compact capability summary consumed by existing reports; and
-6. fails if a claimed native feature has no passing case.
+5. binds the result to the pinned upstream revision and fails any unacknowledged
+   revision split; and
+6. derives a shadow capability summary for comparison with existing reports.
 
 The generated result must be freshness-bound to its cases and projector code so
-stale output cannot be published accidentally. Existing capability and
-citizenship reports should consume this result instead of inferring semantics
-from file presence, family enrollment, or one smoke fixture.
+stale output cannot be published accidentally. This first PR must not switch
+public claims while it contains only a few seed cases.
+
+After landed behavior has been adopted into receipts, a separate cutover PR
+should make existing capability and citizenship reports consume the generated
+result instead of inferring semantics from file presence, family enrollment, or
+one smoke fixture. That PR must fail if a claimed native feature has no passing
+case; unreceipted claims must become `absent`, not retain their earlier state.
 
 ## Delivery sequence
 
-### 1. Foundation
+### 1. Receipt foundation
 
-Land the case type, registry, runner, result format, and capability projection.
-Prove the design with a few existing high-signal failures rather than trying to
-cover every family in the first PR.
+Land the case type, registry, runner, result format, pinned-revision closure,
+freshness binding, and a shadow capability projection. Prove the design with a
+few existing high-signal failures rather than trying to cover every family in
+the first PR. Do not change public capability claims in this PR.
 
 Good initial cases include one silent statement loss, one parser/render seam,
 one appearance implication, and one accurately diagnosed unsupported behavior.
 
-### 2. Silent corruption and identity
+### 2. Adopt landed behavior
+
+Add retrospective receipts for the behavior already landed by PRs #192, #220,
+and #267. Include the known divergence dispositions that affect those cases.
+This validates native paint, source-preserved or diagnosed syntax, and mutation
+semantics before new family fixes depend on the runner. The Sankey receipts must
+exercise multiply compositing on light or unresolved backgrounds and the
+documented normal-alpha divergence on concrete dark backgrounds separately.
+Because PRs #192, #220, and #267 predate this mandatory audit policy, the
+audited adoption PR is their retrospective programme reconciliation record; it
+does not attempt to manufacture per-PR approvals for already-merged trees.
+
+### 3. Cut public claims over to receipts
+
+Make capability and citizenship reports consume the receipt-derived summary.
+Add the shared route-conformance checks and fail closed: any native claim without
+a current passing receipt becomes `absent`. Keep this cutover separate from the
+runner and retrospective-adoption PRs so its public reporting impact is explicit
+and reviewable.
+
+### 4. Silent corruption and identity
 
 Fix the highest-risk findings first, in small family-focused PRs:
 
@@ -172,27 +218,14 @@ Fix the highest-risk findings first, in small family-focused PRs:
 
 Each fix adds a discriminating case that fails when the fix is reverted.
 
-### 3. Remaining semantic implications
+### 5. Remaining semantic implications
 
 Address the confirmed style, configuration, mutation, and identity findings in
 Flowchart, Gantt, Journey, Pie, icons, and the remaining family seams. Split
 shared parser or identity work from family-specific rendering work when that
 keeps review smaller.
 
-### 4. Scene paint, compositing, and Sankey
-
-Land generic typed local gradients from `main`. Model blend/compositing
-separately as typed mark behavior and a backend capability, not as a gradient or
-definition resource. Decide how both concepts are represented and versioned in
-core Scene and External Scene before publishing a native claim. They must remain
-deterministic and must not introduce external references.
-
-Then rebase and narrow PR #192, or replace it with a smaller Sankey enrollment
-PR. Add Sankey semantic cases only after the family implementation is available.
-Sankey closure must prove endpoint gradient stops, overlap compositing, header
-handling, and node identity—not merely a changed stroke color.
-
-### 5. Completeness
+### 6. Completeness
 
 After the confirmed defects are covered:
 
@@ -219,25 +252,53 @@ Every implementation PR should include:
   output, preserve the real prior error or unsupported state as the baseline;
   never manufacture a successful "before" render.
 
-Run the normal repository CI. Additional independent review is welcome for
-cross-family or security-sensitive changes, but it is not a bespoke release
-protocol.
+Run the normal repository CI and the following audit loop for every PR,
+including documentation, infrastructure, adoption, and closure PRs:
+
+1. Complete the scoped implementation and its focused evidence.
+2. Assign at least one distinct review agent, independent of the implementation
+   author for that round, to each required lane: semantic/upstream correctness,
+   architecture and scope, and test strength/sabotage coverage. Add a distinct
+   security auditor whenever the change touches trust boundaries, external
+   resources, parsing limits, or output safety.
+3. Resolve every finding. Either fix it and have the reporting lane recheck the
+   result, or have that auditor explicitly accept it as informational or not
+   actionable with a recorded rationale. No unresolved objection may remain.
+4. Rebase onto the current parent and rerun affected checks and normal CI.
+5. Run the final independent audit round against that exact merge candidate.
+   Each lane must approve the exact head SHA and parent or merge-base SHA with no
+   unresolved objection.
+6. If any audit round, including the final round, reports a finding, return to
+   finding resolution, rebase and rerun checks as applicable, and then run a new
+   complete final audit round. Repeat until every lane approves.
+7. If the head tree, dependency versions, parent, merge base, or conflict
+   resolution changes after approval, rerun affected tests and every audit lane
+   against the new head and parent or merge-base tuple. Merge only when CI and
+   the complete final audit round are clean for the current candidate.
+
+Keep a durable record in the PR discussion identifying each audit round, the
+head and parent or merge-base SHAs, the distinct auditor for each lane, all
+findings and their dispositions or fixing commits, relevant test results, and
+each lane's final clean declaration. Expiring check artifacts may supplement
+but must not replace this record. The record is review evidence, not production
+runtime machinery.
 
 ## Dependency on PR #192
 
-Do not base the general evidence work or non-Sankey fixes on PR #192.
-
-The following can proceed directly from `main`:
+PR #192 has landed. Every independent lane starts from current `main`,
+including:
 
 - the case registry and runner;
 - capability projection;
 - parser and agent/render seam fixes;
 - non-Sankey family fixes;
-- official-example and configuration classification; and
-- generic local Scene resources.
+- official-example and configuration classification;
+- Sankey adoption receipts and final all-family closure; and
+- any follow-up corrections exposed by those receipts.
 
-Only Sankey enrollment, Sankey receipts, and final all-family closure wait for a
-rebased/narrowed #192 or a replacement Sankey PR.
+Genuinely dependent work may target the smallest parent PR rather than waiting
+for `main`. After that parent lands, rebase the child onto current `main` and run
+the final audit against the resulting merge candidate.
 
 ## Completion criteria
 
@@ -253,7 +314,12 @@ Issue #248 is complete when:
 - every harvested official example has a reviewed disposition;
 - every pinned configuration key is effective, diagnosed no-op, or unsupported;
 - public capability reports are generated from current passing cases; and
-- the upstream revision used by cases is pinned and reproducible.
+- the upstream revision used by cases is pinned and reproducible; and
+- every programme PR opened after this policy lands and the final closure
+  candidate have a durable, clean multi-agent audit record for the exact landed
+  or proposed tree; and
+- the audited adoption PR provides the retrospective reconciliation record for
+  pre-policy PRs #192, #220, and #267.
 
 ## Risks
 
