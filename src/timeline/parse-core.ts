@@ -6,6 +6,11 @@ export const TIMELINE_TITLE_RE = /^title\s+(.+)$/i
 export const TIMELINE_SECTION_RE = /^section\s+([^:]+)$/i
 export const TIMELINE_CONTINUATION_RE = /^:\s+(.+)$/
 
+/** Mermaid Timeline ignores full-line `%%` and `#` comments, not inline text. */
+export function isTimelineCommentLine(line: string): boolean {
+  return /^(?:%%|#)/.test(line.trimStart())
+}
+
 /**
  * A period with events. Capture 1 is the period label; capture 2 includes the
  * leading `: ` event separator so the shared splitter can enforce Mermaid's

@@ -22,6 +22,7 @@ import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax }
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
+import { isTimelineCommentLine } from '../timeline/parse-core.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { mutateClass, parseClassBody, parseClassRelationSyntax, renderClass, verifyClass } from './class-body.ts'
 import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
@@ -226,7 +227,7 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
   const lines = source.split(/\r?\n/)
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
+    if (!raw || isTimelineCommentLine(raw)) continue
     let m
     if ((m = raw.match(/^title\s+(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target: `line${i + 1}` })

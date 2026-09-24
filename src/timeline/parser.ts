@@ -13,6 +13,7 @@ import {
   TIMELINE_PERIOD_RE,
   TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
+  isTimelineCommentLine,
   splitTimelineEvents,
 } from './parse-core.ts'
 
@@ -89,7 +90,7 @@ export function parseTimelineDiagram(
     const line = lines[i]!
 
     if (/^timeline\b/i.test(line)) continue
-    if (/^#/.test(line)) continue
+    if (isTimelineCommentLine(line)) continue
 
     const titleMatch = line.match(TIMELINE_TITLE_RE)
     if (titleMatch) {

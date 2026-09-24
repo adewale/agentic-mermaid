@@ -16,6 +16,7 @@ import {
   TIMELINE_PERIOD_RE,
   TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
+  isTimelineCommentLine,
   splitTimelineEvents,
 } from '../timeline/parse-core.ts'
 import { indexedIdAllocator } from './body-utils.ts'
@@ -77,7 +78,7 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!.trim()
     if (!line) continue
-    if (line.startsWith('%%')) continue
+    if (isTimelineCommentLine(line)) continue
 
     const tm = line.match(TIMELINE_TITLE_RE)
     if (tm) {
