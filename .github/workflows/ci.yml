@@ -290,11 +290,11 @@ jobs:
       # Temporary capture for the Sequence grammar PR. Remove after recording
       # the Linux/x64 baseline and before the final multi-agent audit.
       - name: Capture candidate website payload baseline
-        if: ${{ matrix.suite == 'browser' }}
+        if: ${{ always() && matrix.suite == 'browser' }}
         run: bun run website:payload:write
 
       - name: Upload candidate website payload baseline
-        if: ${{ matrix.suite == 'browser' }}
+        if: ${{ always() && matrix.suite == 'browser' }}
         uses: actions/upload-artifact@v7
         with:
           name: sequence-payload-candidate
