@@ -136,6 +136,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   loading, cancellation, and visible error handling.
 
 ### Added
+- The hosted MCP server has a new `preview` tool and its first MCP Apps view.
+  `preview` renders and verifies a diagram in one call and returns
+  `{ ok, family, summary, warnings, svg }`. Hosts that support MCP Apps show
+  the result as a read-only diagram view (`ui://agentic-mermaid/preview`)
+  with the family, the verify verdict and any warnings; other hosts receive
+  the same JSON. The view is one self-contained page that loads nothing from
+  the network, so its declared CSP allows no external origin. The hosted
+  server now advertises the `resources` capability to serve it. The local
+  server is unchanged.
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
   explicit `scale` rasterizes the smallest configured text below the new
   portable `minLabelPx` floor (provisional product default 9px; `0` disables;

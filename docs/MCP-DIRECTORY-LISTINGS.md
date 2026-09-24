@@ -64,6 +64,10 @@ from `verify.ok` alone.
 
 - `tools/list` exposes a non-empty human-readable `title` and accurate safety
   annotations for every tool.
+- `resources/list` exposes the `ui://agentic-mermaid/preview` MCP Apps view,
+  `resources/read` serves it as `text/html;profile=mcp-app` with an empty
+  external-origin CSP, and the `preview` tool links to it through
+  `_meta.ui.resourceUri`.
 - The hosted endpoint returns a successful MCP initialization and tool list.
 - The privacy and support links are public.
 - The root Registry manifest version matches the released package and hosted

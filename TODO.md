@@ -53,13 +53,16 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## Ready build backlog
 
-- [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
-  in-agent diagram UI through MCP Apps: `ui://` resources, correct
-  `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
-  wiring, resource CSP/domain metadata, and tests that the resources are
-  reachable without leaking secrets. Start with a portable, read-only
-  preview/verify view before adding an editable surface; keep tool results useful
-  in MCP hosts that ignore the UI extension.
+- [ ] **BUILD-27 — MCP Apps support** (`todo`). The portable read-only view
+  is in place: the hosted `preview` tool links `ui://agentic-mermaid/preview`
+  (`text/html;profile=mcp-app`, a CSP that allows no external origin) through
+  `_meta.ui.resourceUri` and returns the same JSON to hosts that ignore the UI
+  extension; tests cover the resource roster and, in a real browser, the
+  handshake in a sandboxed frame and that the view never makes a request of
+  its own. Remaining: try the view in real MCP Apps hosts (Claude, ChatGPT
+  developer mode, VS Code) and fix what they surface, then add an editable
+  surface — edits through host-mediated `mutate` calls that keep
+  verify-before-emit — once the read-only view has proven itself.
 - [ ] **BUILD-28 — Experimental page-local WebMCP support** (`todo`). The
   current Web Machine Learning Community Group report is not a W3C Standard or
   Standards Track document. In the browser editor, feature-detect
