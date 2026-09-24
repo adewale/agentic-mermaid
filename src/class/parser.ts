@@ -461,11 +461,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
     // A malformed relationship cannot be silently omitted from an otherwise
     // plausible diagram. Ignore delimiter-looking text inside IDs/generics.
-    const bareOperator = findMarkerlessRelationshipOperator(line)
-    const beforeOperator = bareOperator > 0 ? line[bareOperator - 1] : undefined
-    const afterOperator = bareOperator >= 0 ? line[bareOperator + 2] : undefined
-    if (bareOperator >= 0 && !['<', '|', '*', 'o', ')'].includes(beforeOperator ?? '')
-      && !['>', '|', '*', 'o', '('].includes(afterOperator ?? '')) {
+    if (isBareClassRelationshipCandidate(line)) {
       throw syntaxError({
         what: `Unrecognized class relationship statement "${line}"`,
         expectedForm: 'A .. B : label or A -- B : label',
@@ -595,7 +591,7 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
 
   // Relationship regex — handles ordinary one-ended arrows.
   const match = line.match(
-    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?|--)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
+    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
   )
   if (!match) return null
 
@@ -679,10 +675,12 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     if (char === '"') { inQuote = true; continue }
     if (char === '~') { inGeneric = true; continue }
     if (char === ':') {
-      label = normalizeBrTags(right.slice(i + 1).trim()) || undefined
-      // Mermaid's Class label token has one separator; a second top-level
-      // colon is not an accepted relationship label (including URL syntax).
-      if (label?.includes(':')) return null
+      const rawLabel = right.slice(i + 1).trim()
+      // Mermaid requires non-empty Class label text and rejects a second
+      // colon or semicolon. Numeric entities need separate source-normalizer
+      // work before native/agent rendering can claim them consistently.
+      if (!rawLabel || rawLabel.includes(':') || rawLabel.includes(';')) return null
+      label = normalizeBrTags(rawLabel)
       right = right.slice(0, i).trim()
       break
     }
@@ -697,6 +695,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   }
   const toRef = parseClassReference(right)
   if (!toRef) return null
+  if (!supportedBareEndpoint(fromRef.id, left) || !supportedBareEndpoint(toRef.id, right)) return null
   return {
     from: fromRef.id,
     to: toRef.id,
@@ -708,6 +707,20 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }
+}
+
+const BARE_RELATION_RESERVED_IDS = new Set([
+  'o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass',
+])
+const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
+
+/** Mermaid's unescaped bare-link endpoint lexer reserves keywords/`o` and
+ * rejects dollar signs; backtick IDs have a narrower reserved set. Other
+ * unmodeled escaped/compound identities remain outside this slice. */
+function supportedBareEndpoint(id: string, raw: string): boolean {
+  return raw.startsWith('`')
+    ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id)
+    : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
 }
 
 function findMarkerlessRelationshipOperator(line: string): number {
@@ -725,6 +738,28 @@ function findMarkerlessRelationshipOperator(line: string): number {
     if ((char === '-' || char === '.') && line[i + 1] === char) return i
   }
   return -1
+}
+
+/** Distinguish marked arrows from malformed bare links without confusing an
+ * endpoint ID ending/starting with `o` (for example `Foo--B` or `A--out`). */
+function isMarkedRelationshipOperator(line: string, operator: number): boolean {
+  const before = line.slice(0, operator).trimEnd()
+  const after = line.slice(operator + 2)
+  if (line[operator] === '.') {
+    return /(?:<\||<)$/.test(before) || /^(?:>|\|>)/.test(after)
+  }
+  const spacedPrefixO = before.endsWith('o')
+    && /\s/.test(before[before.length - 2] ?? '')
+    && before.slice(0, -2).trim().length > 0
+  return /(?:<\||<|\*|\(\))$/.test(before) || spacedPrefixO
+    || /^(?:>|\|>|\*|o\s+(?![:%])\S|\(\))/.test(after)
+}
+
+/** Only the shared parser may accept bare links. A failed bare-link parse must
+ * not be reinterpreted by the agent's legacy marked-arrow fallback. */
+export function isBareClassRelationshipCandidate(line: string): boolean {
+  const operator = findMarkerlessRelationshipOperator(line)
+  return operator >= 0 && !isMarkedRelationshipOperator(line, operator)
 }
 
 /**
@@ -755,7 +790,6 @@ function parseArrow(arrow: string): { type: RelationshipType; markerAt: 'from' |
     case '<--':  return { type: 'association',  markerAt: 'from' }
     case '..>':  return { type: 'dependency',   markerAt: 'to' }
     case '<..':  return { type: 'dependency',   markerAt: 'from' }
-    case '--':   return { type: 'association',  markerAt: 'to' }
     default:     return null
   }
 }

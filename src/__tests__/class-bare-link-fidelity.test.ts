@@ -155,8 +155,32 @@ describe('Class markerless link fidelity', () => {
       expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
     }
     expect(performance.now() - agentStart).toBeLessThan(500)
-    expect(parseClassRelationship('A .. B : a:b')).toBeNull()
-    const invalidSource = 'classDiagram\nclass A\nclass B\nA .. B : a:b'
+    const longEndpoint = `${'A'.repeat(60_000)}--B : x:y`
+    const longStart = performance.now()
+    expect(parseRegisteredMermaid(`classDiagram\n${longEndpoint}`).ok).toBe(true)
+    expect(performance.now() - longStart).toBeLessThan(500)
+  })
+
+  test('pinned-invalid bare labels fail loudly without becoming marked arrows', () => {
+    const statements = [
+      'A .. B : a:b',
+      'Foo--B : a:b',
+      'A--out : a:b',
+      'A -- B : a:b',
+      'A .. B :',
+      'A -- B :',
+      'A .. B : label;',
+      'A -- B : label;',
+      'o--B',
+      'A--o',
+      'o .. B',
+      'A .. o',
+      '$A -- B',
+      'A .. A$B',
+      'class -- B',
+      'A .. note',
+      '`note` -- B',
+    ]
     const upstreamReject = Bun.spawnSync({
       cmd: [process.execPath, '-e', `
         import DOMPurify from 'dompurify'
@@ -164,23 +188,95 @@ describe('Class markerless link fidelity', () => {
         DOMPurify.sanitize = text => text
         const { default: mermaid } = await import('mermaid')
         mermaid.initialize({ startOnLoad: false })
-        try { await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(invalidSource)}); process.stdout.write('accepted') }
-        catch { process.stdout.write('rejected') }
+        const results = []
+        for (const statement of ${JSON.stringify(statements)}) {
+          try { await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement); results.push('accepted') }
+          catch { results.push('rejected') }
+        }
+        process.stdout.write(JSON.stringify(results))
       `],
       cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
     })
     expect(upstreamReject.exitCode).toBe(0)
-    expect(new TextDecoder().decode(upstreamReject.stdout)).toBe('rejected')
-    expect(() => parseClassDiagram(invalidSource.split('\n'))).toThrow('Unrecognized class relationship statement')
-    expect(() => renderMermaidSVG(invalidSource)).toThrow('Unrecognized class relationship statement')
-    const invalidLabel = parseRegisteredMermaid(invalidSource)
-    expect(invalidLabel.ok).toBe(true)
-    if (invalidLabel.ok) {
+    expect(JSON.parse(new TextDecoder().decode(upstreamReject.stdout))).toEqual(statements.map(() => 'rejected'))
+    for (const statement of statements) {
+      const invalidSource = `classDiagram\nclass A\nclass B\nclass Foo\nclass out\n${statement}`
+      expect(parseClassRelationship(statement)).toBeNull()
+      expect(() => parseClassDiagram(invalidSource.split('\n'))).toThrow('Unrecognized class relationship statement')
+      expect(() => renderMermaidSVG(invalidSource)).toThrow('Unrecognized class relationship statement')
+      const invalidLabel = parseRegisteredMermaid(invalidSource)
+      expect(invalidLabel.ok).toBe(true)
+      if (!invalidLabel.ok) continue
       expect(invalidLabel.value.body.kind).toBe('opaque')
       const result = verifyMermaid(invalidLabel.value)
       expect(result.ok).toBe(false)
       expect(result.warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
       expect(result.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(true)
+    }
+  })
+
+  test('source-normalizer label gaps remain diagnosed, not falsely native', () => {
+    // Upstream accepts both; the shared source projection currently trims a
+    // whitespace-only suffix and decodes numeric entities before native parse.
+    // Until that seam is repaired under #260, keep them opaque and fail loud.
+    const statements = ['A .. B : ', 'A .. B : a&#58;b']
+    const upstreamProbe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const results = []
+        for (const statement of ${JSON.stringify(statements)}) {
+          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
+          results.push(diagram.db.getRelations().length)
+        }
+        process.stdout.write(JSON.stringify(results))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(upstreamProbe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(upstreamProbe.stdout))).toEqual([1, 1])
+    for (const statement of statements) {
+      const source = `classDiagram\n${statement}`
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('opaque')
+      const result = verifyMermaid(parsed.value)
+      expect(result.ok).toBe(false)
+      expect(result.warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+      expect(result.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(true)
+    }
+  })
+
+  test('accepted endpoint tokens include escaped reserved IDs without overclaiming other ID grammar', () => {
+    const statements = ['`o` .. B', 'A .. `o`', '`class` -- B', '`A$B` .. C', '0 -- B', 'Class -- B']
+    const upstreamProbe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const results = []
+        for (const statement of ${JSON.stringify(statements)}) {
+          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
+          results.push(diagram.db.getRelations().length)
+        }
+        process.stdout.write(JSON.stringify(results))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(upstreamProbe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(upstreamProbe.stdout))).toEqual(statements.map(() => 1))
+    for (const statement of statements) {
+      const source = `classDiagram\n${statement}`
+      expect(parseClassDiagram(source.split('\n')).relationships).toHaveLength(1)
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(asClass(parsed.value)?.body.relations).toHaveLength(1)
     }
   })
 
