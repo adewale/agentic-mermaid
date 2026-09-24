@@ -4,16 +4,20 @@ import { relative, resolve } from 'node:path'
 import {
   FIDELITY_DISPOSITIONS,
   FIDELITY_SURFACES,
+  type ClassifiedFidelityObservations,
   type FidelityCaseDefinition,
   type FidelityCaseResult,
-  type FidelityDiagnosticExpectation,
+  type FidelityDisposition,
+  type FidelityEvidence,
   type FidelityInputFile,
   type FidelityJson,
-  type FidelityObservations,
   type FidelityReceiptResult,
   type FidelityRevisionAcknowledgement,
   type FidelitySurface,
-  type FidelitySurfaceObservation,
+  type FidelitySurfaceEvidence,
+  type FidelitySurfaceExpectation,
+  type ObservedFidelitySurfaceEvidence,
+  type RecordedFidelitySurfaceExpectation,
 } from './contract.ts'
 import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './revision-compatibility.ts'
 import { UPSTREAM_MERMAID_MANIFEST, type UpstreamMermaidManifest } from '../../upstream-mermaid-manifest.ts'
@@ -45,7 +49,7 @@ export function canonicalFidelityJson(value: unknown): string {
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>
     return `{${Object.keys(record)
-      .sort()
+      .sort(compareCodePointStrings)
       .filter(key => record[key] !== undefined)
       .map(key => `${JSON.stringify(key)}:${canonicalFidelityJson(record[key])}`)
       .join(',')}}`
@@ -54,36 +58,72 @@ export function canonicalFidelityJson(value: unknown): string {
 }
 
 function sortedUnique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort()
+  return [...new Set(values)].sort(compareCodePointStrings)
 }
 
-function orderedExpected(expected: FidelityCaseDefinition['expected']): Partial<Record<FidelitySurface, (typeof FIDELITY_DISPOSITIONS)[number]>> {
-  const output: Partial<Record<FidelitySurface, (typeof FIDELITY_DISPOSITIONS)[number]>> = {}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[], context: string): void {
+  const unknown = Object.keys(record).filter(key => !allowed.includes(key)).sort(compareCodePointStrings)
+  if (unknown.length > 0) throw new TypeError(`${context}: unknown fields ${unknown.join(', ')}`)
+}
+
+function normalizedDiagnosticCodes(value: unknown, context: string): string[] {
+  if (!Array.isArray(value) || value.some(code => typeof code !== 'string' || !code.trim())) {
+    throw new TypeError(`${context}: diagnosticCodes must contain nonempty strings`)
+  }
+  if (new Set(value).size !== value.length) throw new TypeError(`${context}: diagnosticCodes contains duplicates`)
+  return sortedUnique(value as string[])
+}
+
+function isDisposition(value: unknown): value is FidelityDisposition {
+  return typeof value === 'string' && FIDELITY_DISPOSITIONS.includes(value as FidelityDisposition)
+}
+
+function normalizeEvidence(value: unknown, context: string): FidelitySurfaceEvidence {
+  if (!isRecord(value)) throw new TypeError(`${context}: observation must be an object`)
+  if (value.status === 'observed') {
+    hasOnlyKeys(value, ['status', 'diagnosticCodes', 'semantics'], context)
+    return {
+      status: 'observed',
+      diagnosticCodes: normalizedDiagnosticCodes(value.diagnosticCodes, context),
+      semantics: JSON.parse(canonicalFidelityJson(value.semantics)) as FidelityJson,
+    }
+  }
+  if (value.status === 'blocked') {
+    hasOnlyKeys(value, ['status', 'blockedBy', 'diagnosticCodes', 'semantics'], context)
+    if (!FIDELITY_SURFACES.includes(value.blockedBy as FidelitySurface)) {
+      throw new TypeError(`${context}: blockedBy is not a fidelity surface`)
+    }
+    return {
+      status: 'blocked',
+      blockedBy: value.blockedBy as FidelitySurface,
+      diagnosticCodes: normalizedDiagnosticCodes(value.diagnosticCodes, context),
+      semantics: JSON.parse(canonicalFidelityJson(value.semantics)) as FidelityJson,
+    }
+  }
+  throw new TypeError(`${context}: status must be observed or blocked`)
+}
+
+function orderedEvidence(value: unknown): FidelityEvidence {
+  if (!isRecord(value)) throw new TypeError('observer result must be an object')
+  const unknownSurfaces = Object.keys(value).filter(key => !FIDELITY_SURFACES.includes(key as FidelitySurface))
+  if (unknownSurfaces.length > 0) throw new TypeError(`observer result has unknown surfaces: ${unknownSurfaces.sort(compareCodePointStrings).join(', ')}`)
+  const output: FidelityEvidence = {}
   for (const surface of FIDELITY_SURFACES) {
-    const disposition = expected[surface]
-    if (disposition) output[surface] = disposition
+    if (value[surface] !== undefined) output[surface] = normalizeEvidence(value[surface], surface)
   }
   return output
 }
 
-function sortedDiagnostics(diagnostics: readonly FidelityDiagnosticExpectation[] = []): FidelityDiagnosticExpectation[] {
-  const surfaceOrder = new Map(FIDELITY_SURFACES.map((surface, index) => [surface, index]))
-  return [...diagnostics].sort((a, b) => surfaceOrder.get(a.surface)! - surfaceOrder.get(b.surface)! || compareCodePointStrings(a.code, b.code))
-}
-
-function normalizeObservation(observation: FidelitySurfaceObservation): FidelitySurfaceObservation {
-  return {
-    ...observation,
-    diagnosticCodes: sortedUnique(observation.diagnosticCodes),
-    semantics: JSON.parse(canonicalFidelityJson(observation.semantics)) as FidelityJson,
-  }
-}
-
-function orderedObservations(observations: FidelityObservations): FidelityObservations {
-  const output: FidelityObservations = {}
-  for (const surface of FIDELITY_SURFACES) {
-    const observation = observations[surface]
-    if (observation) output[surface] = normalizeObservation(observation)
+function acknowledgementByArtifact(acknowledgements: readonly FidelityRevisionAcknowledgement[]): Map<string, FidelityRevisionAcknowledgement> {
+  const output = new Map<string, FidelityRevisionAcknowledgement>()
+  for (const acknowledgement of acknowledgements) {
+    for (const artifactId of acknowledgement.artifactIds) {
+      if (!output.has(artifactId)) output.set(artifactId, acknowledgement)
+    }
   }
   return output
 }
@@ -100,9 +140,10 @@ function validateRevisionAcknowledgements(manifest: UpstreamMermaidManifest, ack
     if (acknowledgement.manifestRevision !== manifest.provenance.commit) {
       issues.push(`${acknowledgement.id}: manifest revision does not match ${manifest.provenance.commit}`)
     }
-    if (!SHA_PATTERN.test(acknowledgement.artifactRevision)) {
-      issues.push(`${acknowledgement.id}: artifact revision is not a full Git SHA`)
+    if (acknowledgement.artifactRevision !== 'unversioned' && !SHA_PATTERN.test(acknowledgement.artifactRevision)) {
+      issues.push(`${acknowledgement.id}: artifact revision is neither a full Git SHA nor unversioned`)
     }
+    if (acknowledgement.usage !== 'historical-only') issues.push(`${acknowledgement.id}: acknowledgement usage must be historical-only`)
     if (!acknowledgement.rationale.trim()) issues.push(`${acknowledgement.id}: rationale is empty`)
     if (acknowledgement.evidence.length === 0) issues.push(`${acknowledgement.id}: evidence is empty`)
     if (acknowledgement.artifactIds.length === 0) issues.push(`${acknowledgement.id}: artifactIds is empty`)
@@ -118,28 +159,61 @@ function validateRevisionAcknowledgements(manifest: UpstreamMermaidManifest, ack
       }
       coveredArtifacts.set(artifactId, acknowledgement.id)
       if (artifact.upstreamRevision === manifest.provenance.commit) {
-        issues.push(`${acknowledgement.id}: ${artifactId} no longer has a revision split`)
+        issues.push(`${acknowledgement.id}: ${artifactId} no longer needs historical quarantine`)
       }
-      if (artifact.upstreamRevision !== acknowledgement.artifactRevision) {
+      if (artifact.upstreamRevision && artifact.upstreamRevision !== acknowledgement.artifactRevision) {
         issues.push(`${acknowledgement.id}: ${artifactId} revision does not match ${acknowledgement.artifactRevision}`)
       }
     }
   }
 
   for (const artifact of manifest.semanticInventory.sourceArtifacts) {
-    if (!artifact.upstreamRevision || artifact.upstreamRevision === manifest.provenance.commit) continue
+    if (artifact.upstreamRevision === manifest.provenance.commit) continue
     if (!coveredArtifacts.has(artifact.id)) {
-      issues.push(`${artifact.id}: unacknowledged revision split ${artifact.upstreamRevision} != ${manifest.provenance.commit}`)
+      issues.push(
+        artifact.upstreamRevision
+          ? `${artifact.id}: unacknowledged revision split ${artifact.upstreamRevision} != ${manifest.provenance.commit}`
+          : `${artifact.id}: missing upstream revision without historical-only acknowledgement`,
+      )
     }
   }
   return issues
 }
 
-export function validateFidelityRegistry(cases: readonly FidelityCaseDefinition[], manifest: UpstreamMermaidManifest = UPSTREAM_MERMAID_MANIFEST, acknowledgements: readonly FidelityRevisionAcknowledgement[] = FIDELITY_REVISION_ACKNOWLEDGEMENTS): string[] {
+function validateExpectation(fidelityCase: FidelityCaseDefinition, surface: FidelitySurface, value: unknown): string[] {
+  const prefix = `${fidelityCase.id}: ${surface}`
+  if (!isRecord(value)) return [`${prefix}: expectation is missing or invalid`]
+  if (value.applicability === 'not-applicable') {
+    const issues: string[] = []
+    const unknown = Object.keys(value).filter(key => !['applicability', 'rationale'].includes(key))
+    if (unknown.length > 0) issues.push(`${prefix}: not-applicable expectation has unknown fields ${unknown.sort(compareCodePointStrings).join(', ')}`)
+    if (typeof value.rationale !== 'string' || !value.rationale.trim()) issues.push(`${prefix}: not-applicable rationale is empty`)
+    return issues
+  }
+  if (value.applicability !== 'applicable') return [`${prefix}: applicability must be applicable or not-applicable`]
+  const issues: string[] = []
+  const unknown = Object.keys(value).filter(key => !['applicability', 'disposition', 'diagnosticCodes', 'evaluate'].includes(key))
+  if (unknown.length > 0) issues.push(`${prefix}: applicable expectation has unknown fields ${unknown.sort(compareCodePointStrings).join(', ')}`)
+  if (!isDisposition(value.disposition)) issues.push(`${prefix}: invalid disposition ${String(value.disposition)}`)
+  if (typeof value.evaluate !== 'function') issues.push(`${prefix}: executable semantic evaluator is required`)
+  try {
+    normalizedDiagnosticCodes(value.diagnosticCodes ?? [], prefix)
+  } catch (error) {
+    issues.push(error instanceof Error ? error.message : String(error))
+  }
+  return issues
+}
+
+export function validateFidelityRegistry(
+  cases: readonly FidelityCaseDefinition[],
+  manifest: UpstreamMermaidManifest = UPSTREAM_MERMAID_MANIFEST,
+  acknowledgements: readonly FidelityRevisionAcknowledgement[] = FIDELITY_REVISION_ACKNOWLEDGEMENTS,
+): string[] {
   const issues = validateRevisionAcknowledgements(manifest, acknowledgements)
   const caseIds = new Set<string>()
   const features = new Map(manifest.semanticInventory.syntaxFeatures.map(feature => [feature.id, feature]))
   const artifacts = new Map(manifest.semanticInventory.sourceArtifacts.map(artifact => [artifact.id, artifact]))
+  const quarantinedArtifacts = acknowledgementByArtifact(acknowledgements)
 
   for (const fidelityCase of cases) {
     if (!CASE_ID_PATTERN.test(fidelityCase.id)) issues.push(`${fidelityCase.id}: invalid case id`)
@@ -156,9 +230,14 @@ export function validateFidelityRegistry(cases: readonly FidelityCaseDefinition[
       if (!feature.families.includes(fidelityCase.family)) {
         issues.push(`${fidelityCase.id}: feature ${fidelityCase.featureId} does not belong to family ${fidelityCase.family}`)
       }
-      const artifactRevision = artifacts.get(feature.artifact)?.upstreamRevision
-      if (artifactRevision && artifactRevision !== fidelityCase.upstreamRevision) {
-        issues.push(`${fidelityCase.id}: case revision ${fidelityCase.upstreamRevision} does not match ${feature.artifact}@${artifactRevision}`)
+      const artifact = artifacts.get(feature.artifact)
+      const quarantine = quarantinedArtifacts.get(feature.artifact)
+      if (quarantine) {
+        issues.push(`${fidelityCase.id}: feature artifact ${feature.artifact} is ${quarantine.usage} and cannot back a current receipt`)
+      } else if (!artifact?.upstreamRevision) {
+        issues.push(`${fidelityCase.id}: feature artifact ${feature.artifact} has no immutable revision`)
+      } else if (artifact.upstreamRevision !== fidelityCase.upstreamRevision) {
+        issues.push(`${fidelityCase.id}: case revision ${fidelityCase.upstreamRevision} does not match ${feature.artifact}@${artifact.upstreamRevision}`)
       }
     }
 
@@ -177,60 +256,67 @@ export function validateFidelityRegistry(cases: readonly FidelityCaseDefinition[
       }
     }
 
-    const expectedSurfaces = FIDELITY_SURFACES.filter(surface => fidelityCase.expected[surface] !== undefined)
-    if (expectedSurfaces.length === 0) issues.push(`${fidelityCase.id}: no applicable surfaces`)
-    for (const diagnostic of fidelityCase.expectedDiagnostics ?? []) {
-      if (!fidelityCase.expected[diagnostic.surface]) {
-        issues.push(`${fidelityCase.id}: diagnostic ${diagnostic.code} targets omitted surface ${diagnostic.surface}`)
-      }
-      if (!diagnostic.code.trim()) issues.push(`${fidelityCase.id}: empty diagnostic code`)
+    if (!isRecord(fidelityCase.expected)) {
+      issues.push(`${fidelityCase.id}: expected surface map is invalid`)
+    } else {
+      const unknownSurfaces = Object.keys(fidelityCase.expected).filter(key => !FIDELITY_SURFACES.includes(key as FidelitySurface))
+      if (unknownSurfaces.length > 0) issues.push(`${fidelityCase.id}: expected map has unknown surfaces ${unknownSurfaces.sort(compareCodePointStrings).join(', ')}`)
+      for (const surface of FIDELITY_SURFACES) issues.push(...validateExpectation(fidelityCase, surface, fidelityCase.expected[surface]))
     }
   }
-  return issues.sort()
+  return issues.sort(compareCodePointStrings)
 }
 
-function freshnessFiles(caseFiles: readonly string[]): FidelityInputFile[] {
-  return sortedUnique([...INFRASTRUCTURE_FILES, ...caseFiles]).map(path => ({
+function freshnessFiles(caseFiles: readonly string[], acknowledgements: readonly FidelityRevisionAcknowledgement[]): FidelityInputFile[] {
+  const acknowledgementEvidence = acknowledgements.flatMap(acknowledgement => acknowledgement.evidence.map(path => resolve(REPO, path)))
+  return sortedUnique([...INFRASTRUCTURE_FILES, ...caseFiles, ...acknowledgementEvidence]).map(path => ({
     path: relative(REPO, path),
     sha256: sha256(readFileSync(path)),
   }))
 }
 
-function expectedDiagnosticCodes(fidelityCase: FidelityCaseDefinition, surface: FidelitySurface): string[] {
-  return sortedUnique((fidelityCase.expectedDiagnostics ?? []).filter(diagnostic => diagnostic.surface === surface).map(diagnostic => diagnostic.code))
+function recordedExpected(expected: Record<FidelitySurface, FidelitySurfaceExpectation>): Record<FidelitySurface, RecordedFidelitySurfaceExpectation> {
+  return Object.fromEntries(
+    FIDELITY_SURFACES.map(surface => {
+      const expectation = expected[surface]
+      return expectation.applicability === 'not-applicable'
+        ? [surface, { applicability: 'not-applicable', rationale: expectation.rationale }]
+        : [surface, { applicability: 'applicable', disposition: expectation.disposition, diagnosticCodes: sortedUnique(expectation.diagnosticCodes ?? []) }]
+    }),
+  ) as Record<FidelitySurface, RecordedFidelitySurfaceExpectation>
 }
 
-function observerFailure(fidelityCase: FidelityCaseDefinition, reason: string): FidelityObservations {
-  const expectedSurfaces = FIDELITY_SURFACES.filter(surface => fidelityCase.expected[surface] !== undefined)
-  const blockedBy = expectedSurfaces[0] ?? 'agent'
-  const observations: FidelityObservations = {}
-  for (const surface of expectedSurfaces) {
-    observations[surface] = {
+function observerFailure(fidelityCase: FidelityCaseDefinition, reason: string): FidelityEvidence {
+  const evidence: FidelityEvidence = {}
+  for (const surface of FIDELITY_SURFACES) {
+    if (fidelityCase.expected[surface].applicability === 'not-applicable') continue
+    evidence[surface] = {
       status: 'blocked',
-      blockedBy,
+      blockedBy: surface,
       diagnosticCodes: ['RECEIPT_OBSERVER_FAILED'],
       semantics: { reason },
     }
   }
-  return observations
+  return evidence
 }
 
 async function runCase(fidelityCase: FidelityCaseDefinition): Promise<FidelityCaseResult> {
   const issues: string[] = []
-  let observations: FidelityObservations
+  let evidence: FidelityEvidence
   try {
-    observations = orderedObservations(await fidelityCase.observe())
+    evidence = orderedEvidence(await fidelityCase.observe())
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
-    observations = observerFailure(fidelityCase, reason)
+    evidence = observerFailure(fidelityCase, reason)
     issues.push(`observer failed: ${reason}`)
   }
 
+  const observations: ClassifiedFidelityObservations = {}
   for (const surface of FIDELITY_SURFACES) {
-    const expected = fidelityCase.expected[surface]
-    const observation = observations[surface]
-    if (!expected) {
-      if (observation) issues.push(`${surface}: observation exists for an omitted surface`)
+    const expectation = fidelityCase.expected[surface]
+    const observation = evidence[surface]
+    if (expectation.applicability === 'not-applicable') {
+      if (observation) issues.push(`${surface}: observation exists for a not-applicable surface`)
       continue
     }
     if (!observation) {
@@ -238,24 +324,26 @@ async function runCase(fidelityCase: FidelityCaseDefinition): Promise<FidelityCa
       continue
     }
     if (observation.status === 'blocked') {
+      observations[surface] = observation
       issues.push(`${surface}: blocked by ${observation.blockedBy}`)
       continue
     }
-    if (observation.disposition !== expected) {
-      issues.push(`${surface}: expected ${expected}, observed ${observation.disposition}`)
-    }
-    const expectedCodes = expectedDiagnosticCodes(fidelityCase, surface)
-    const actualCodes = sortedUnique(observation.diagnosticCodes)
-    if (JSON.stringify(actualCodes) !== JSON.stringify(expectedCodes)) {
-      issues.push(`${surface}: expected diagnostics ${JSON.stringify(expectedCodes)}, observed ${JSON.stringify(actualCodes)}`)
-    }
-  }
 
-  if (fidelityCase.assertSemantics) {
+    let disposition: FidelityDisposition = 'absent'
     try {
-      fidelityCase.assertSemantics(observations)
+      const evaluated = expectation.evaluate(observation, evidence)
+      if (!isDisposition(evaluated)) throw new TypeError(`evaluator returned invalid disposition ${String(evaluated)}`)
+      disposition = evaluated
     } catch (error) {
-      issues.push(`semantic assertion failed: ${error instanceof Error ? error.message : String(error)}`)
+      issues.push(`${surface}: semantic evaluator failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    observations[surface] = { ...observation, disposition }
+    if (disposition !== expectation.disposition) {
+      issues.push(`${surface}: expected ${expectation.disposition}, observed ${disposition}`)
+    }
+    const expectedCodes = sortedUnique(expectation.diagnosticCodes ?? [])
+    if (JSON.stringify(observation.diagnosticCodes) !== JSON.stringify(expectedCodes)) {
+      issues.push(`${surface}: expected diagnostics ${JSON.stringify(expectedCodes)}, observed ${JSON.stringify(observation.diagnosticCodes)}`)
     }
   }
 
@@ -266,20 +354,24 @@ async function runCase(fidelityCase: FidelityCaseDefinition): Promise<FidelityCa
     sourceSha256: sha256(fidelityCase.source),
     upstreamReference: fidelityCase.upstreamReference,
     upstreamRevision: fidelityCase.upstreamRevision,
-    expected: orderedExpected(fidelityCase.expected),
-    expectedDiagnostics: sortedDiagnostics(fidelityCase.expectedDiagnostics),
+    expected: recordedExpected(fidelityCase.expected),
     observations,
     passed: issues.length === 0,
     issues,
   }
 }
 
-export async function runFidelityCases(cases: readonly FidelityCaseDefinition[], caseFiles: readonly string[], manifest: UpstreamMermaidManifest = UPSTREAM_MERMAID_MANIFEST, acknowledgements: readonly FidelityRevisionAcknowledgement[] = FIDELITY_REVISION_ACKNOWLEDGEMENTS): Promise<FidelityReceiptResult> {
+export async function runFidelityCases(
+  cases: readonly FidelityCaseDefinition[],
+  caseFiles: readonly string[],
+  manifest: UpstreamMermaidManifest = UPSTREAM_MERMAID_MANIFEST,
+  acknowledgements: readonly FidelityRevisionAcknowledgement[] = FIDELITY_REVISION_ACKNOWLEDGEMENTS,
+): Promise<FidelityReceiptResult> {
   const validationIssues = validateFidelityRegistry(cases, manifest, acknowledgements)
   if (validationIssues.length > 0) {
     throw new Error(`Invalid fidelity registry:\n${validationIssues.map(issue => `- ${issue}`).join('\n')}`)
   }
-  const files = freshnessFiles(caseFiles)
+  const files = freshnessFiles(caseFiles, acknowledgements)
   const results: FidelityCaseResult[] = []
   for (const fidelityCase of [...cases].sort((a, b) => compareCodePointStrings(a.id, b.id))) {
     results.push(await runCase(fidelityCase))
@@ -295,7 +387,7 @@ export async function runFidelityCases(cases: readonly FidelityCaseDefinition[],
       revisionAcknowledgements: [...acknowledgements]
         .map(acknowledgement => ({
           ...acknowledgement,
-          artifactIds: [...acknowledgement.artifactIds].sort(),
+          artifactIds: [...acknowledgement.artifactIds].sort(compareCodePointStrings),
           evidence: [...acknowledgement.evidence],
         }))
         .sort((a, b) => compareCodePointStrings(a.id, b.id)),
@@ -317,6 +409,7 @@ export async function runFidelityCases(cases: readonly FidelityCaseDefinition[],
       failedCaseCount: results.filter(result => !result.passed).length,
       observedSurfaceCount: observations.filter(observation => observation?.status === 'observed').length,
       blockedSurfaceCount: observations.filter(observation => observation?.status === 'blocked').length,
+      notApplicableSurfaceCount: results.flatMap(result => Object.values(result.expected)).filter(expectation => expectation.applicability === 'not-applicable').length,
     },
   }
 }

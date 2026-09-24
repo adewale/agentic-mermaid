@@ -13,32 +13,14 @@ export type FidelitySurface = (typeof FIDELITY_SURFACES)[number]
 
 export type FidelityJson = null | boolean | number | string | readonly FidelityJson[] | { readonly [key: string]: FidelityJson }
 
-export interface FidelityDiagnosticExpectation {
-  surface: FidelitySurface
-  code: string
-}
-
 export interface FidelityRevisionCompatibility {
   manifestRevision: string
   rationale: string
   evidence: readonly string[]
 }
 
-export interface FidelityCase {
-  id: string
-  family: string
-  featureId: string
-  source: string
-  upstreamReference: string
-  upstreamRevision: string
-  revisionCompatibility?: FidelityRevisionCompatibility
-  expected: Partial<Record<FidelitySurface, FidelityDisposition>>
-  expectedDiagnostics?: readonly FidelityDiagnosticExpectation[]
-}
-
-export interface ObservedFidelitySurface {
+export interface ObservedFidelitySurfaceEvidence {
   status: 'observed'
-  disposition: FidelityDisposition
   diagnosticCodes: readonly string[]
   semantics: FidelityJson
 }
@@ -50,20 +32,48 @@ export interface BlockedFidelitySurface {
   semantics: FidelityJson
 }
 
-export type FidelitySurfaceObservation = ObservedFidelitySurface | BlockedFidelitySurface
+export type FidelitySurfaceEvidence = ObservedFidelitySurfaceEvidence | BlockedFidelitySurface
 
-export type FidelityObservations = Partial<Record<FidelitySurface, FidelitySurfaceObservation>>
+export type FidelityEvidence = Partial<Record<FidelitySurface, FidelitySurfaceEvidence>>
+
+export interface ApplicableFidelitySurfaceExpectation {
+  applicability: 'applicable'
+  disposition: FidelityDisposition
+  diagnosticCodes?: readonly string[]
+  /** Derive the disposition from raw production evidence; throw if its semantic shape is invalid. */
+  evaluate: (evidence: ObservedFidelitySurfaceEvidence, allEvidence: FidelityEvidence) => FidelityDisposition
+}
+
+export interface NotApplicableFidelitySurfaceExpectation {
+  applicability: 'not-applicable'
+  rationale: string
+}
+
+export type FidelitySurfaceExpectation = ApplicableFidelitySurfaceExpectation | NotApplicableFidelitySurfaceExpectation
+
+export type FidelityExpectations = Record<FidelitySurface, FidelitySurfaceExpectation>
+
+export interface FidelityCase {
+  id: string
+  family: string
+  featureId: string
+  source: string
+  upstreamReference: string
+  upstreamRevision: string
+  revisionCompatibility?: FidelityRevisionCompatibility
+  expected: FidelityExpectations
+}
 
 export interface FidelityCaseDefinition extends FidelityCase {
-  observe: () => FidelityObservations | Promise<FidelityObservations>
-  assertSemantics?: (observations: FidelityObservations) => void
+  observe: () => FidelityEvidence | Promise<FidelityEvidence>
 }
 
 export interface FidelityRevisionAcknowledgement {
   id: string
   manifestRevision: string
-  artifactRevision: string
+  artifactRevision: string | 'unversioned'
   artifactIds: readonly string[]
+  usage: 'historical-only'
   rationale: string
   evidence: readonly string[]
 }
@@ -73,6 +83,22 @@ export interface FidelityInputFile {
   sha256: string
 }
 
+export interface ClassifiedObservedFidelitySurface extends ObservedFidelitySurfaceEvidence {
+  disposition: FidelityDisposition
+}
+
+export type ClassifiedFidelitySurfaceObservation = ClassifiedObservedFidelitySurface | BlockedFidelitySurface
+
+export type ClassifiedFidelityObservations = Partial<Record<FidelitySurface, ClassifiedFidelitySurfaceObservation>>
+
+export type RecordedFidelitySurfaceExpectation =
+  | {
+      applicability: 'applicable'
+      disposition: FidelityDisposition
+      diagnosticCodes: readonly string[]
+    }
+  | NotApplicableFidelitySurfaceExpectation
+
 export interface FidelityCaseResult {
   id: string
   family: string
@@ -80,9 +106,8 @@ export interface FidelityCaseResult {
   sourceSha256: string
   upstreamReference: string
   upstreamRevision: string
-  expected: Partial<Record<FidelitySurface, FidelityDisposition>>
-  expectedDiagnostics: readonly FidelityDiagnosticExpectation[]
-  observations: FidelityObservations
+  expected: Record<FidelitySurface, RecordedFidelitySurfaceExpectation>
+  observations: ClassifiedFidelityObservations
   passed: boolean
   issues: readonly string[]
 }
@@ -107,15 +132,18 @@ export interface FidelityReceiptResult {
     failedCaseCount: number
     observedSurfaceCount: number
     blockedSurfaceCount: number
+    notApplicableSurfaceCount: number
   }
 }
+
+export type FidelityShadowSurface = FidelityDisposition | { notApplicable: readonly string[] }
 
 export interface FidelityShadowFeature {
   featureId: string
   family: string
   disposition: FidelityDisposition
   caseIds: readonly string[]
-  surfaces: Partial<Record<FidelitySurface, FidelityDisposition>>
+  surfaces: Record<FidelitySurface, FidelityShadowSurface>
 }
 
 export interface FidelityCapabilityShadow {

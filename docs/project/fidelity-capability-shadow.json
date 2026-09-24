@@ -3,8 +3,8 @@
   "mode": "shadow",
   "publicClaimsChanged": false,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "103a942d50d4baf3b0872ac042060b8528ac7e7ead206b577e11155a8a53de57",
-  "receiptResultSha256": "0ca2d05b2b8699887821765fac66dbbcb65105bb47696fc03df41267673b5f6a",
+  "receiptInputSha256": "07a0ad721e3deb998d9b1e60ef1772961a74464ed3086d4132fe85cc0b85c53b",
+  "receiptResultSha256": "0c76fd47eadc48bccb56002c6d42f91edc130a623499757b41d83b56c9f7bd1e",
   "summary": {
     "caseCount": 4,
     "featureCount": 4,
@@ -26,7 +26,12 @@
       "surfaces": {
         "agent": "diagnosed",
         "render": "diagnosed",
-        "serialize": "source-preserved"
+        "serialize": "source-preserved",
+        "mutate": {
+          "notApplicable": [
+            "Unsupported families expose no structured mutation target by design."
+          ]
+        }
       }
     },
     {
@@ -39,7 +44,12 @@
       "surfaces": {
         "agent": "native",
         "render": "absent",
-        "serialize": "native"
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "The seed isolates class-to-edge paint propagation; class mutation fidelity needs a dedicated operation case."
+          ]
+        }
       }
     },
     {
@@ -52,7 +62,12 @@
       "surfaces": {
         "agent": "source-preserved",
         "render": "diagnosed",
-        "serialize": "source-preserved"
+        "serialize": "source-preserved",
+        "mutate": {
+          "notApplicable": [
+            "This parser/render seam has no valid structured task to target with a mutation operation."
+          ]
+        }
       }
     },
     {
@@ -65,7 +80,12 @@
       "surfaces": {
         "agent": "source-preserved",
         "render": "absent",
-        "serialize": "source-preserved"
+        "serialize": "source-preserved",
+        "mutate": {
+          "notApplicable": [
+            "This construct-loss seed has no mutation operation; mutation fidelity will be covered by operation-specific cases."
+          ]
+        }
       }
     }
   ]
