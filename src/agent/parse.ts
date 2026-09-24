@@ -340,7 +340,9 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
  */
 function markDroppedComments(diagram: ValidDiagram, authoredSource: string): void {
   const comments = diagram.meta.comments
-  if (diagram.body.kind === 'opaque' || comments.length === 0) return
+  // Structured Sequence bodies keep comments as source-preserved segments;
+  // whole-body opaque Sequence and wrapper comments are preserved as before.
+  if (diagram.kind === 'sequence' || diagram.body.kind === 'opaque' || comments.length === 0) return
 
   const sourceLines = authoredSource.split(/\r?\n/).map(line => line.trim())
   const serializedLines = serializeMermaid(diagram).split(/\r?\n/).map(line => line.trim())

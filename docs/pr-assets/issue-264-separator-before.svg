@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" viewBox="0 0 0 0" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="seq-arrow-cross" markerWidth="8" markerHeight="5" refX="4" refY="2.5" orient="auto">
+    <path d="M1 1 L7 4 M1 4 L7 1" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="seq-arrow-half-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 2.5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-half-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 2.5, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-stick-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 0 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="seq-arrow-stick-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 5 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+</defs>
+</svg>

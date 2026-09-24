@@ -299,7 +299,7 @@ describe('comment policy (2C): announced, never silent', () => {
     expect(w).toMatchObject({ code: 'COMMENT_DROPPED', count: 1, lines: [3] })
   })
 
-  test('duplicate comment text is position-matched, so a later preserved opaque-block comment does not mask an earlier dropped comment', () => {
+  test('Sequence comments remain preserved both before and inside opaque blocks', () => {
     const src = `sequenceDiagram
   %% same
   A->>B: hi
@@ -309,9 +309,8 @@ describe('comment policy (2C): announced, never silent', () => {
   end`
     const p = parseMermaid(src)
     if (!p.ok) throw new Error('parse failed')
-    expect(serializeMermaid(p.value)).toContain('%% same')
-    const w = verifyMermaid(p.value).warnings.find(w => w.code === 'COMMENT_DROPPED')
-    expect(w).toMatchObject({ code: 'COMMENT_DROPPED', count: 1, lines: [2] })
+    expect(serializeMermaid(p.value).split('%% same')).toHaveLength(3)
+    expect(verifyMermaid(p.value).warnings.filter(w => w.code === 'COMMENT_DROPPED')).toEqual([])
   })
 
   test('opaque bodies preserve in-body comments and do not warn', () => {

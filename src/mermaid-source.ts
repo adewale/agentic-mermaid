@@ -22,6 +22,7 @@ import {
   scanAccessibilityDirectives,
   type MermaidAccessibility,
 } from './shared/accessibility-directives.ts'
+import { splitSequenceStatementLines } from './sequence/statements.ts'
 
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
@@ -481,7 +482,12 @@ export function normalizeMermaidSource(
   baseConfig: MermaidRuntimeConfig = {},
 ): NormalizedMermaidSource {
   const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
-  const accessibilityScan = scanAccessibilityDirectives(processed.body.split(/\r?\n/))
+  const physicalLines = processed.body.split(/\r?\n/)
+  const sequence = /^sequenceDiagram\b/i.test(processed.lines[0] ?? '')
+  const accessibilityLines = sequence && /;\s*acc(?:Title|Descr)\b/i.test(processed.body)
+    ? splitSequenceStatementLines(physicalLines)
+    : physicalLines
+  const accessibilityScan = scanAccessibilityDirectives(accessibilityLines)
   const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
   const familyBody = accessibilityScan.familyLines.join('\n')
   const familyLines = toMermaidLines(familyBody)
@@ -545,16 +551,25 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   const lines = withoutUniversalConfig.split(/\r?\n/)
   const firstStatement = lines.find(line => line.trim().length > 0 && !COMMENT_LINE_REGEX.test(line))?.trim() ?? ''
   const stateComments = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
+  const sequenceComments = /^sequenceDiagram\b/i.test(firstStatement)
+  const recordPackedSequenceComment = (source: string, physicalLine: number): void => {
+    if (!sequenceComments) return
+    const comment = splitSequenceStatementLines([source])
+      .find(statement => statement.trimStart().startsWith('%%'))
+    if (comment) comments.push({ text: comment.trimStart().slice(2).trim(), line: physicalLine })
+  }
   for (let index = 0; index < lines.length; index++) {
     const accessibility = parseAccessibilityDirective(lines, index)
     if (accessibility === undefined) break
     if (accessibility !== null) {
+      if (accessibility.suffixLine) recordPackedSequenceComment(accessibility.suffixLine, accessibility.endIndex + 1)
       index = accessibility.endIndex
       continue
     }
     const line = lines[index]!
     const comment = line.match(COMMENT_LINE_REGEX)
     if (comment) comments.push({ text: comment[1]!, line: index + 1 })
+    else if (sequenceComments) recordPackedSequenceComment(line, index + 1)
     else if (stateComments) {
       const marker = line.indexOf('%%')
       if (marker >= 0) comments.push({ text: line.slice(marker + 2).trim(), line: index + 1 })

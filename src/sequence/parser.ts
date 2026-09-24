@@ -2,6 +2,7 @@ import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup, Se
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { isCssColorToken } from './colors.ts'
+import { splitSequenceStatementLines } from './statements.ts'
 
 // Mermaid's half-arrow heads have multi-character spellings. Keep complete
 // tokens here, longest first in the regex, so a prefix cannot leak into an
@@ -93,8 +94,8 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
  * directive in the body still takes precedence from its own line on.
  */
 export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean } = {}): SequenceDiagram {
-  const accessibility = scanAccessibilityDirectives(lines)
-  lines = accessibility.familyLines
+  const accessibility = scanAccessibilityDirectives(splitSequenceStatementLines(lines))
+  lines = accessibility.familyLines.map(line => line.trim()).filter(Boolean)
   const diagram: SequenceDiagram = {
     actors: [],
     messages: [],
