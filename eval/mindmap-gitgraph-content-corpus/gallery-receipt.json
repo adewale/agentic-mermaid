@@ -976,7 +976,7 @@
     },
     {
       "path": "src/sequence/block-keywords.ts",
-      "sha256": "7d9ae087f74fc3a1c58bf4f725e72c63957aea319f012eb088e97c44eed08c8d"
+      "sha256": "2742f9de6f6fb4e85a6998bc14616b3094f580df404afea888591fe3774c2f0c"
     },
     {
       "path": "src/sequence/colors.ts",
