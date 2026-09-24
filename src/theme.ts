@@ -450,11 +450,26 @@ export interface ResolvedColors {
   keyBadge: string
 }
 
+/** resolveColors is pure, and families ink text against its tones one label
+ * at a time, so each palette's resolution is kept (a small, bounded cache). */
+const resolvedColorsCache = new Map<string, ResolvedColors>()
+const RESOLVED_COLORS_CACHE_LIMIT = 64
+
 /**
  * Resolve all derived colors from a DiagramColors to concrete hex values.
  * Implements the same logic as the CSS color-mix() derivations in buildStyleBlock().
  */
 export function resolveColors(colors: DiagramColors): ResolvedColors {
+  const key = [colors.bg, colors.fg, colors.line, colors.accent, colors.muted, colors.surface, colors.border].join('\n')
+  const cached = resolvedColorsCache.get(key)
+  if (cached) return cached
+  const resolved = Object.freeze(deriveColors(colors))
+  if (resolvedColorsCache.size >= RESOLVED_COLORS_CACHE_LIMIT) resolvedColorsCache.delete(resolvedColorsCache.keys().next().value!)
+  resolvedColorsCache.set(key, resolved)
+  return resolved
+}
+
+function deriveColors(colors: DiagramColors): ResolvedColors {
   const { bg, fg } = colors
   const nodeFill = colors.surface ?? mixHex(fg, bg, MIX.nodeFill)
   const groupHdr = mixHex(fg, bg, MIX.groupHeader)
@@ -499,22 +514,6 @@ function legibleOnEvery(candidate: string, surfaces: readonly string[], fallback
   return ink
 }
 
-/**
- * Resolve all CSS var() and color-mix() expressions in an SVG string to
- * concrete hex color values. This makes the SVG render correctly in
- * non-browser renderers (resvg, librsvg, etc.) that don't support CSS
- * custom properties or color-mix().
- *
- * Operates via iterative string replacement:
- *   1. Replace var(--name) with known resolved values
- *   2. Replace var(--name, fallback) — use value if known, else fallback
- *   3. Resolve color-mix(in srgb, #hex P%, #hex) to computed hex
- *   4. Extract CSS variable definitions from <style> and resolve remaining refs
- *   5. Repeat until stable
- *
- * When bg/fg are not hex colors (e.g. CSS variable strings for live theming),
- * the SVG is returned as-is since resolution isn't possible.
- */
 /** The concrete value of every diagram color variable (`--bg`, `--_text`, …),
  * keyed by name without the leading dashes, or undefined when the palette is
  * not concrete hex (live CSS theming cannot be resolved ahead of the host). */
@@ -555,6 +554,22 @@ export function resolvedColorValue(value: string, colors: DiagramColors): string
   return diagramColorVariables(colors)?.get(reference[1]!) ?? reference[2]
 }
 
+/**
+ * Resolve all CSS var() and color-mix() expressions in an SVG string to
+ * concrete hex color values. This makes the SVG render correctly in
+ * non-browser renderers (resvg, librsvg, etc.) that don't support CSS
+ * custom properties or color-mix().
+ *
+ * Operates via iterative string replacement:
+ *   1. Replace var(--name) with known resolved values
+ *   2. Replace var(--name, fallback) — use value if known, else fallback
+ *   3. Resolve color-mix(in srgb, #hex P%, #hex) to computed hex
+ *   4. Extract CSS variable definitions from <style> and resolve remaining refs
+ *   5. Repeat until stable
+ *
+ * When bg/fg are not hex colors (e.g. CSS variable strings for live theming),
+ * the SVG is returned as-is since resolution isn't possible.
+ */
 export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
   const palette = diagramColorVariables(colors)
   if (!palette) return svg
