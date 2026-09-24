@@ -9860,7 +9860,7 @@
         "connect",
         "Log error",
         "Log different error",
-        "ion Credentials rejected"
+        "Establish a connection to the DB"
       ]
     }
   },

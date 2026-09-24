@@ -3,6 +3,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { isCssColorToken } from './colors.ts'
 import { splitSequenceStatementLines } from './statements.ts'
+import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from './block-keywords.ts'
 
 // Mermaid's half-arrow heads have multi-character spellings. Keep complete
 // tokens here, longest first in the regex, so a prefix cannot leak into an
@@ -277,11 +278,12 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     }
 
     // --- Block start: loop, alt, opt, par, critical, break, rect ---
-    const blockMatch = line.match(/^(loop|alt|opt|par|critical|break|rect)\s*(.*)$/)
-    if (blockMatch) {
-      const blockType = blockMatch[1] as Block['type']
-      const rawBlockLabel = blockMatch[2]?.trim() ?? ''
-      const label = normalizeBrTags(rawBlockLabel)
+    const opener = parseSequenceBlockOpener(line)
+    if (opener && opener.type !== 'box') {
+      // Keep the pre-existing `par_over` render disposition until that
+      // separate upstream construct receives its own semantic slice.
+      const blockType = opener.type === 'par_over' ? 'par' : opener.type
+      const label = normalizeBrTags(opener.type === 'par_over' ? `_over${opener.label ? ` ${opener.label}` : ''}` : opener.label)
       blockStack.push({
         type: blockType,
         label,
@@ -291,11 +293,11 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       continue
     }
 
-    // --- Block divider: else, and ---
-    const dividerMatch = line.match(/^(else|and)\s*(.*)$/)
-    if (dividerMatch && blockStack.length > 0) {
-      const rawDividerLabel = dividerMatch[2]?.trim() ?? ''
-      const label = normalizeBrTags(rawDividerLabel)
+    // --- Block divider: else, and, option (only on their owning blocks) ---
+    const continuation = parseSequenceBlockContinuation(line)
+    if (continuation && blockStack.length > 0
+      && continuationBelongsToBlock(continuation.type, blockStack[blockStack.length - 1]!.type)) {
+      const label = normalizeBrTags(continuation.label)
       blockStack[blockStack.length - 1]!.dividers.push({
         index: diagram.messages.length,
         label,
