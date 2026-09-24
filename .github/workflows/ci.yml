@@ -283,6 +283,18 @@ jobs:
         # per Bun process, and fails if any contract executes zero positive tests.
         run: bun run test:browser
 
+      - name: Temporarily capture Linux website payload baseline for review
+        if: ${{ matrix.suite == 'browser' }}
+        run: bun run website:payload:write
+
+      - name: Upload temporary Linux website payload baseline
+        if: ${{ matrix.suite == 'browser' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: issue-264-payload-candidate
+          path: eval/website-payload/baseline.json
+          if-no-files-found: error
+
       - name: Verify deterministic website payload request graphs and budgets
         if: ${{ matrix.suite == 'browser' }}
         run: bun run website:payload:check --require-exact
