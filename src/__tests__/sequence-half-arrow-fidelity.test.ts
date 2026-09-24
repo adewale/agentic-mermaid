@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
+import { mutate } from '../agent/mutate.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
 
@@ -49,9 +50,19 @@ describe('Sequence half-arrow lexical fidelity', () => {
       expect(sequence).not.toBeNull()
       if (!sequence) return
       expect(sequence.body.messages[0]).toMatchObject({ from: 'A', to: 'B', arrow })
-      expect(parseSequenceDiagram(serializeMermaid(sequence).trimEnd().split('\n').map(part => part.trim())).messages[0]).toMatchObject({
-        from: 'A', to: 'B', startHead: side === 'start' ? head : 'none', endHead: side === 'end' ? head : 'none',
+      const serialized = serializeMermaid(sequence)
+      expect(serialized).toContain(`A${arrow}B: witness`)
+      const agentReparse = parseRegisteredMermaid(serialized)
+      expect(agentReparse.ok).toBe(true)
+      if (agentReparse.ok) expect(asSequence(agentReparse.value)?.body.messages[0]?.arrow).toBe(arrow)
+      expect(parseSequenceDiagram(serialized.trimEnd().split('\n').map(part => part.trim())).messages[0]).toMatchObject({
+        from: 'A', to: 'B', lineStyle: dashed ? 'dashed' : 'solid',
+        startHead: side === 'start' ? head : 'none', endHead: side === 'end' ? head : 'none',
       })
+
+      const changed = mutate(sequence, { kind: 'set_message_text', index: 0, text: 'edited' })
+      expect(changed.ok).toBe(true)
+      if (changed.ok) expect(serializeMermaid(changed.value)).toContain(`A${arrow}B: edited`)
 
       const svg = renderMermaidSVG(source)
       expect(svg).toContain('data-from="A"')
@@ -74,6 +85,21 @@ describe('Sequence half-arrow lexical fidelity', () => {
       expect(svg).toContain('data-to="B"')
       expect(svg).toContain(`data-${side}-head="${head}"`)
       expect(svg).toContain(`marker-${side}="url(#seq-arrow-${head})"`)
+    }
+  })
+
+  test('solid half heads are filled polygons while stick heads are strokes', () => {
+    const svg = renderMermaidSVG('sequenceDiagram\n  A-|/B: filled\n  A-//B: stick')
+    for (const head of ['half-top', 'half-bottom']) {
+      const marker = svg.match(new RegExp(`<marker id="seq-arrow-${head}"[\\s\\S]*?<\\/marker>`))?.[0]
+      expect(marker).toContain('<polygon ')
+      expect(marker).not.toContain('stroke-width=')
+    }
+    for (const head of ['stick-top', 'stick-bottom']) {
+      const marker = svg.match(new RegExp(`<marker id="seq-arrow-${head}"[\\s\\S]*?<\\/marker>`))?.[0]
+      expect(marker).toContain('<path ')
+      expect(marker).toContain('fill="none"')
+      expect(marker).toContain('stroke-width=')
     }
   })
 })
