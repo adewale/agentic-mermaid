@@ -43,15 +43,25 @@ timeline LR   ← horizontal, the default
 timeline TD   ← vertical
 ```
 
-Agentic Mermaid matches that contract, with two deliberate tolerances:
+Agentic Mermaid matches that contract, with one deliberate tolerance:
 
 - the token is case-insensitive (`timeline td` works — the source router
   already lowercases headers when routing);
-- the `tb`/`bt`/`rl` tokens the router historically tolerated stay
-  accepted-and-ignored (horizontal), so existing sources render unchanged.
 
-Any other header suffix (`timeline EXTRA`) keeps the pre-existing behavior:
-the agent surface preserves it verbatim as an opaque body.
+`timeline TB`, `timeline BT`, `timeline RL`, and arbitrary other suffixes such
+as `timeline EXTRA` are not direction tokens. The agent surface preserves the
+source verbatim as opaque and verification reports a specific unsupported
+header diagnostic; native rendering rejects the source rather than silently
+using horizontal LR geometry. Pinned Mermaid 11.16 treats a token such as
+`TB` as a bare period rather than a direction; this stricter local diagnosis
+is deliberate so callers cannot mistake the authored header for a supported
+orientation.
+
+The same fail-closed policy covers semicolon-delimited inline statements and
+`%{...}` on the header line, which this renderer does not model. In contrast,
+Mermaid-valid inline `#`, `%`, and `%%` header comments render with the
+requested direction. The agent keeps those sources opaque so serialization
+preserves the authored comment instead of silently dropping it.
 
 On the agent surface, `TimelineBody.direction?: 'LR' | 'TD'` captures the
 explicit token (undefined = bare header) and the serializer re-emits it, so

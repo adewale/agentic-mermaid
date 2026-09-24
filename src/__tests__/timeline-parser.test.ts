@@ -183,9 +183,7 @@ describe('parseTimelineDiagram – direction (upstream PR #7270 contract)', () =
     expect(parse('timeline td\n  2020 : A').direction).toBe('TD')
   })
 
-  it('keeps accepting-and-ignoring non-upstream tokens (tb/bt/rl) as horizontal', () => {
-    const d = parse('timeline TB\n  2020 : A')
-    expect(d.direction).toBeUndefined()
-    expect(d.sections[0]!.periods[0]!.label).toBe('2020')
+  it('rejects unsupported direction-like tokens rather than silently using LR', () => {
+    expect(() => parse('timeline TB\n  2020 : A')).toThrow(/Unsupported timeline header suffix "TB"/)
   })
 })

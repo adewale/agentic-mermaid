@@ -9,12 +9,13 @@ import {
 } from '../shared/accessibility-directives.ts'
 import {
   TIMELINE_CONTINUATION_RE,
-  TIMELINE_HEADER_DIRECTION_RE,
   TIMELINE_PERIOD_RE,
   TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
+  parseTimelineHeader,
   splitTimelineEvents,
+  unsupportedTimelineHeaderError,
 } from './parse-core.ts'
 
 // ============================================================================
@@ -32,8 +33,8 @@ import {
 //
 // Direction (upstream PR #7270): the token rides the header line — `timeline
 // TD` flows top-down, `timeline LR` (or a bare header) stays horizontal. The
-// upstream lexer only knows LR/TD; the tb/bt/rl tokens the router tolerates
-// remain accepted-and-ignored (horizontal) so existing sources are unchanged.
+// upstream lexer only knows LR/TD as direction tokens. Any other header
+// suffix is diagnosed rather than silently rendered as the LR default.
 // ============================================================================
 
 /**
@@ -52,10 +53,9 @@ export function parseTimelineDiagram(
     ...accessibilityFields({ ...accessibility, ...scanned.accessibility }),
   }
 
-  const headerDirection = lines[0]?.trim().match(TIMELINE_HEADER_DIRECTION_RE)
-  if (headerDirection) {
-    diagram.direction = headerDirection[1]!.toUpperCase() as TimelineDiagram['direction']
-  }
+  const header = parseTimelineHeader(lines[0] ?? '')
+  if (header?.kind === 'unsupported') throw unsupportedTimelineHeaderError(header.suffix)
+  if (header?.direction) diagram.direction = header.direction
 
   let currentSection: TimelineSection | undefined
   let currentPeriod: TimelinePeriod | undefined
