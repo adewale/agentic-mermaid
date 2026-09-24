@@ -137,6 +137,42 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt.cases[0]!.issues).toContain('render: expected native, observed absent')
   })
 
+  test('native flowchart claims require the edge, class assignment, paint, and unrelated topology', async () => {
+    const registry = await discoverFidelityRegistry()
+    const flowchart = registry.cases.find(fidelityCase => fidelityCase.id === 'flowchart.classes.edge-paint-implication')!
+    const edge = { id: 'e1', source: 'A', target: 'B', style: 'solid' }
+    const sabotaged: FidelityCaseDefinition = {
+      ...flowchart,
+      id: 'flowchart.classes.native-oracle-sabotage',
+      observe: async () => {
+        const evidence = await flowchart.observe()
+        return {
+          ...evidence,
+          agent: {
+            status: 'observed',
+            diagnosticCodes: [],
+            semantics: {
+              bodyKind: 'flowchart',
+              graphFacts: { nodeIds: ['A', 'B'], edges: [edge], hotClass: { stroke: '#ff0000', strokeWidth: '6px' }, e1Class: null },
+            },
+          },
+          mutate: {
+            status: 'observed',
+            diagnosticCodes: [],
+            semantics: {
+              mutationOk: true,
+              errorCode: null,
+              graphFacts: { nodeIds: ['A'], edges: [edge], hotClass: { stroke: '#00ff00', strokeWidth: '4px' }, e1Class: 'hot' },
+            },
+          },
+        }
+      },
+    }
+    const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
+    expect(receipt.cases[0]!.issues).toContain('agent: expected native, observed absent')
+    expect(receipt.cases[0]!.issues).toContain('mutate: expected native, observed absent')
+  })
+
   test('runtime schemas and the projector reject unknown dispositions independently', async () => {
     const registry = await discoverFidelityRegistry()
     const original = registry.cases[0]!

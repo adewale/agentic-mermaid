@@ -39,6 +39,39 @@ function parsedOrThrow(source: string) {
   return parsed.value
 }
 
+function normalizedFlowchartClassFacts(diagram: ReturnType<typeof parsedOrThrow>): FidelityJson {
+  if (diagram.body.kind !== 'flowchart') return null
+  const graph = diagram.body.graph
+  const hot = graph.classDefs.get('hot')
+  return {
+    nodeIds: [...graph.nodes.keys()].sort(),
+    edges: graph.edges
+      .map(edge => ({ id: edge.id ?? null, source: edge.source, target: edge.target, style: edge.style }))
+      .sort((a, b) => String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0),
+    hotClass: {
+      stroke: hot?.stroke ?? null,
+      strokeWidth: hot?.['stroke-width'] ?? null,
+    },
+    e1Class: graph.classAssignments.get('e1') ?? null,
+  }
+}
+
+function matchesFlowchartClassFacts(value: FidelityJson, stroke: string, strokeWidth: string): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const record = value as Readonly<Record<string, FidelityJson>>
+  const nodeIds = record.nodeIds
+  const edges = record.edges
+  const hotClass = record.hotClass
+  if (!Array.isArray(nodeIds) || nodeIds.length !== 2 || nodeIds[0] !== 'A' || nodeIds[1] !== 'B') return false
+  if (!Array.isArray(edges) || edges.length !== 1) return false
+  const edge = edges[0]
+  if (!edge || typeof edge !== 'object' || Array.isArray(edge)) return false
+  if (edge.id !== 'e1' || edge.source !== 'A' || edge.target !== 'B' || edge.style !== 'solid') return false
+  if (!hotClass || typeof hotClass !== 'object' || Array.isArray(hotClass)) return false
+  const hotRecord = hotClass as Readonly<Record<string, FidelityJson>>
+  return hotRecord.stroke === stroke && hotRecord.strokeWidth === strokeWidth && record.e1Class === 'hot'
+}
+
 const stateTrailingCommentSource = `${['stateDiagram-v2', '  A --> B %% legal trailing comment', '  B --> C'].join('\n')}\n`
 
 const stateTrailingComment: FidelityCaseDefinition = {
@@ -194,7 +227,11 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
   upstreamReference: 'https://mermaid.ai/open-source/syntax/flowchart.html#using-classdef-statements-for-animations',
   upstreamRevision: UPSTREAM_REVISION,
   expected: {
-    agent: applicable('native', evidence => (facts(evidence).bodyKind === 'flowchart' ? 'native' : 'source-preserved')),
+    agent: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      if (semanticFacts.bodyKind !== 'flowchart') return 'source-preserved'
+      return matchesFlowchartClassFacts(semanticFacts.graphFacts ?? null, '#ff0000', '6px') ? 'native' : 'absent'
+    }),
     render: applicable('absent', evidence => {
       const semanticFacts = facts(evidence)
       if (typeof semanticFacts.edgeFound !== 'boolean') fail('edgeFound must be boolean')
@@ -203,7 +240,7 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
     serialize: applicable('native', evidence => (facts(evidence).exactCanonicalBytes === true ? 'native' : 'absent')),
     mutate: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
-      if (semanticFacts.mutationOk === true && semanticFacts.updatedClassDefinition === true) return 'native'
+      if (semanticFacts.mutationOk === true && matchesFlowchartClassFacts(semanticFacts.graphFacts ?? null, '#00ff00', '4px')) return 'native'
       return typeof semanticFacts.errorCode === 'string' ? 'diagnosed' : 'absent'
     }),
   },
@@ -218,12 +255,14 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
     }
     const serialized = serializeMermaid(parsed)
     const mutation = mutate(parsed, { kind: 'define_class', name: 'hot', style: 'stroke:#00ff00,stroke-width:4px' })
-    const mutatedSource = mutation.ok ? serializeMermaid(mutation.value) : ''
     return {
       agent: {
         status: 'observed',
         diagnosticCodes: [],
-        semantics: { bodyKind: parsed.body.kind },
+        semantics: {
+          bodyKind: parsed.body.kind,
+          graphFacts: normalizedFlowchartClassFacts(parsed),
+        },
       },
       render: {
         status: 'observed',
@@ -241,7 +280,7 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
         semantics: {
           mutationOk: mutation.ok,
           errorCode: mutation.ok ? null : mutation.error.code,
-          updatedClassDefinition: mutatedSource.includes('classDef hot stroke:#00ff00,stroke-width:4px'),
+          graphFacts: mutation.ok ? normalizedFlowchartClassFacts(mutation.value) : null,
         },
       },
     }

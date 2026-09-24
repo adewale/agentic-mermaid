@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "b0c3bf816d0d50d402f4d426773bfadaf131eeaa6c5c04f32cd990a8a0a2d45e",
+    "inputSha256": "f1aa58256edf706418faa5aa594dddd971d10dd435ef0d262d6c3979074ddfa3",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -88,7 +88,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "408bb507708006475001553630adb52f795cf012b45be76579c97642d37640a7"
+        "sha256": "1ab5251667598447281a5e54ce334adf6e92fc7cc8860e49824cb7213be3a855"
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
@@ -215,7 +215,26 @@
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
-            "bodyKind": "flowchart"
+            "bodyKind": "flowchart",
+            "graphFacts": {
+              "e1Class": "hot",
+              "edges": [
+                {
+                  "id": "e1",
+                  "source": "A",
+                  "style": "solid",
+                  "target": "B"
+                }
+              ],
+              "hotClass": {
+                "stroke": "#ff0000",
+                "strokeWidth": "6px"
+              },
+              "nodeIds": [
+                "A",
+                "B"
+              ]
+            }
           },
           "disposition": "native"
         },
@@ -242,8 +261,26 @@
           "diagnosticCodes": [],
           "semantics": {
             "errorCode": null,
-            "mutationOk": true,
-            "updatedClassDefinition": true
+            "graphFacts": {
+              "e1Class": "hot",
+              "edges": [
+                {
+                  "id": "e1",
+                  "source": "A",
+                  "style": "solid",
+                  "target": "B"
+                }
+              ],
+              "hotClass": {
+                "stroke": "#00ff00",
+                "strokeWidth": "4px"
+              },
+              "nodeIds": [
+                "A",
+                "B"
+              ]
+            },
+            "mutationOk": true
           },
           "disposition": "native"
         }
