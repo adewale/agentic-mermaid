@@ -61,6 +61,11 @@ export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
       expectText: ['Team handoff', 'Dark team', 'Light team', 'Alice', 'hello', 'hi', 'shared note'],
     },
     {
+      name: 'messages on rect backgrounds',
+      source: 'sequenceDiagram\n  participant A as Alice\n  participant B as Bob\n  rect rgb(20, 20, 60)\n    A->>B: inside a dark rect\n    B-->>A: reply from the dark\n  end\n  rect rgba(0, 0, 255, 0.1)\n    A->>B: inside a pale rect\n  end',
+      expectText: ['Alice', 'Bob', 'inside a dark rect', 'reply from the dark', 'inside a pale rect'],
+    },
+    {
       name: 'title and fragments',
       source: 'sequenceDiagram\n  title A long sequence diagram title that should stay on the canvas\n  participant C as Client\n  participant S as Server\n  loop Every minute\n    C->>S: poll\n  end\n  critical Establish a connection\n    S-->>C: ok\n  end',
       expectText: ['A long sequence diagram title that should stay on the canvas', 'Client', 'Server', 'poll', 'ok'],

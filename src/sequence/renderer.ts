@@ -1,7 +1,7 @@
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { boxColorToHex } from './colors.ts'
 import { contrastTextColor } from '../color-resolver.ts'
-import { legibleInk, wcagContrastRatio } from '../shared/color-math.ts'
+import { compositeCssColor, legibleInk, toHex, tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type DiagramColors } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
@@ -101,7 +101,13 @@ export function lowerSequenceScene(
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
-  const inkAt = surfaceInk(diagram.boxes, diagram.blocks, style, colors)
+  // Completed nested blocks arrive inner-first; with a rect among them, paint
+  // enclosing backgrounds first so translucent rects remain visible.
+  const hasRect = diagram.blocks.some(block => block.type === 'rect')
+  const backgroundOrder = hasRect
+    ? [...diagram.blocks].reverse().sort((a, b) => b.width * b.height - a.width * a.height)
+    : diagram.blocks
+  const inkAt = surfaceInk(diagram.boxes, backgroundOrder, style, colors)
 
   // The diagram's title, in the band layout reserved above the participants.
   if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
@@ -115,19 +121,14 @@ export function lowerSequenceScene(
     parts.push(renderBoxGroup(box, style, `box:${boxKey}#${k}`))
   }
 
-  // 1. Block backgrounds. Completed nested blocks arrive inner-first; paint
-  // their enclosing background first so translucent rects remain visible.
+  // 1. Block backgrounds, in backgroundOrder.
   const blockOccurrence = new Map<string, number>()
   const blockSceneIds = new Map<PositionedBlock, string>()
-  const hasRect = diagram.blocks.some(block => block.type === 'rect')
   for (const block of diagram.blocks) {
     const k = blockOccurrence.get(block.type) ?? 0
     blockOccurrence.set(block.type, k + 1)
     blockSceneIds.set(block, `block:${block.type}#${k}`)
   }
-  const backgroundOrder = hasRect
-    ? [...diagram.blocks].reverse().sort((a, b) => b.width * b.height - a.width * a.height)
-    : diagram.blocks
   for (const block of backgroundOrder) {
     parts.push(renderBlock(block, style, blockSceneIds.get(block)!, hasRect ? 'background' : 'all'))
   }
@@ -238,23 +239,34 @@ function labelArea(x: number, y: number, anchor: 'start' | 'middle' | 'end', tex
 
 function surfaceInk(
   boxes: readonly PositionedBoxGroup[],
-  blocks: readonly PositionedBlock[],
+  blocksInPaintOrder: readonly PositionedBlock[],
   style: ResolvedRenderStyle,
   colors: DiagramColors,
 ): SurfaceInk {
-  // Opaque surfaces in paint order: authored box colors, then fragment
-  // rectangles when the look fills them (they are drawn over the boxes).
-  const blockFill = style.groupFillColor === undefined ? undefined : resolvedColorValue(style.groupFillColor, colors)
+  // Surfaces in paint order, each as the color a reader sees: authored box
+  // colors, then block backgrounds (rects, and fragments a look fills),
+  // composited over whatever lies beneath them.
   interface Surface { x: number; y: number; width: number; height: number; hex: string; authored: boolean }
-  const surfaces: Surface[] = [
-    ...boxes.flatMap(box => {
-      const hex = box.color && box.color.toLowerCase() !== 'transparent' ? boxColorToHex(box.color) : undefined
-      return hex ? [{ x: box.x, y: box.y, width: box.width, height: box.height, hex, authored: true }] : []
-    }),
-    ...(blockFill === undefined ? [] : blocks.map(block => ({ x: block.x, y: block.y, width: block.width, height: block.height, hex: blockFill, authored: false }))),
-  ]
   const contains = (surface: Surface, x: number, y: number) =>
     x >= surface.x && x <= surface.x + surface.width && y >= surface.y && y <= surface.y + surface.height
+  const surfaces: Surface[] = boxes.flatMap(box => {
+    const hex = box.color && box.color.toLowerCase() !== 'transparent' ? boxColorToHex(box.color) : undefined
+    return hex ? [{ x: box.x, y: box.y, width: box.width, height: box.height, hex, authored: true }] : []
+  })
+  const page = resolvedColorValue('var(--bg)', colors) ?? '#ffffff'
+  for (const block of blocksInPaintOrder) {
+    const paint = blockBackground(block, style)
+    const concrete = paint === undefined ? undefined : resolvedColorValue(paint, colors) ?? paint
+    const parsed = concrete === undefined ? null : tryParseCssColor(concrete)
+    if (!parsed || parsed[3] === 0) continue
+    const cx = block.x + block.width / 2
+    const cy = block.y + block.height / 2
+    const beneath = surfaces.findLast(surface => contains(surface, cx, cy))?.hex ?? page
+    const rgb = compositeCssColor(concrete!, beneath)
+    if (!rgb) continue
+    // A rect is a colored band whose edge a label can overhang, like a box.
+    surfaces.push({ x: block.x, y: block.y, width: block.width, height: block.height, hex: toHex(...rgb), authored: block.type === 'rect' })
+  }
   const overlaps = (surface: Surface, area: TextArea) =>
     area.x - area.width / 2 < surface.x + surface.width && area.x + area.width / 2 > surface.x
     && area.y - area.height / 2 < surface.y + surface.height && area.y + area.height / 2 > surface.y
@@ -638,6 +650,14 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
   })
 }
 
+/** A block's background paint: a rect's authored color (Mermaid's translucent
+ * gray when it names none), or the fill a look gives every fragment. */
+function blockBackground(block: PositionedBlock, style: ResolvedRenderStyle): string | undefined {
+  return block.type === 'rect'
+    ? (block.color ?? style.groupFillColor ?? 'rgba(128, 128, 128, 0.5)')
+    : style.groupFillColor
+}
+
 /**
  * Render a block background (loop/alt/opt).
  * Wrapped in <g class="block"> with semantic data attributes.
@@ -654,9 +674,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
       : `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
 
   // Outer rectangle
-  const rawFill = block.type === 'rect'
-    ? (block.color ?? style.groupFillColor ?? 'rgba(128, 128, 128, 0.5)')
-    : (style.groupFillColor ?? 'none')
+  const rawFill = blockBackground(block, style) ?? 'none'
   const rawStroke = block.type === 'rect' ? 'none' : (style.groupBorderColor ?? 'var(--_node-stroke)')
   const fill = part === 'frame' ? 'none' : rawFill
   const stroke = part === 'background' ? 'none' : rawStroke

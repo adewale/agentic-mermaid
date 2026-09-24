@@ -112,6 +112,12 @@ Nothing in this contract depends on remembering to add a family to a list:
    checks that the partitions cover the registry exactly, and that every
    family has a sample whose frontmatter title it must draw.
 
+The oracle sees only what a sample draws, so a change that gives text a new
+surface to sit on (a new fill, band, or background) adds a sample that puts
+text on it. Sequence `rect` backgrounds are the example: they arrived without
+one, and the sample added for them failed at 3.21:1 until the sequence
+surfaces learned about rects.
+
 H5–H7 are enforced where the colors, scales, and styles are generated:
 
 - H5: [`property-categorical-palette-contract`](../../../src/__tests__/property-categorical-palette-contract.test.ts)
