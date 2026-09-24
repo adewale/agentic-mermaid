@@ -153,6 +153,8 @@
     "agent-doc-artifacts:check": "bun run scripts/generate-agent-doc-artifacts.ts --check",
     "section-a-report": "bun run scripts/generate-section-a-capability-report.ts",
     "section-a-report:check": "bun run scripts/generate-section-a-capability-report.ts --check",
+    "fidelity:receipts": "bun run scripts/pr-assets/generate-fidelity-receipts.ts",
+    "fidelity:receipts:check": "bun run scripts/pr-assets/generate-fidelity-receipts.ts --check",
     "section-b-report": "bun run scripts/generate-section-b-capability-report.ts",
     "section-b-report:check": "bun run scripts/generate-section-b-capability-report.ts --check",
     "render-options-docs": "bun run scripts/generate-render-options-docs.ts",

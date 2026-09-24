@@ -1,0 +1,459 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "package": "mermaid",
+    "version": "11.16.0",
+    "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+    "inventorySha256": "d9ac79ab6e208196b30cd0d4f0168cad48837ede06a686383f2d463960f3ba91",
+    "revisionAcknowledgements": [
+      {
+        "id": "historical-docs-corpus-a2d968-to-f3dea",
+        "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+        "artifactRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
+        "artifactIds": [
+          "docs-corpus"
+        ],
+        "usage": "historical-only",
+        "rationale": "The original 12-family documentation corpus predates the Mermaid 11.16 manifest pin and is not exhaustive. It remains regression evidence only.",
+        "evidence": [
+          "eval/mermaid-docs-corpus/provenance.json",
+          "eval/mermaid-docs-corpus/README.md",
+          "docs/project/issue-248-fidelity-delivery-plan.md"
+        ]
+      },
+      {
+        "id": "historical-gantt-harvest-unversioned",
+        "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+        "artifactRevision": "unversioned",
+        "artifactIds": [
+          "gantt-cases",
+          "gantt-exclusions"
+        ],
+        "usage": "historical-only",
+        "rationale": "The multi-repository Gantt harvest records a date and source files but no immutable revisions. It is quarantined until every source repository is pinned.",
+        "evidence": [
+          "eval/mermaid-gantt-bench/README.md",
+          "docs/project/issue-248-fidelity-delivery-plan.md"
+        ]
+      },
+      {
+        "id": "historical-suite-harvest-a2d968-to-f3dea",
+        "manifestRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+        "artifactRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
+        "artifactIds": [
+          "suite-accounting",
+          "suite-cases",
+          "suite-exclusions"
+        ],
+        "usage": "historical-only",
+        "rationale": "The cross-family parser/DB harvest predates the Mermaid 11.16 manifest pin. It remains historical accounting evidence only; it cannot satisfy a current receipt or native capability claim.",
+        "evidence": [
+          "eval/mermaid-upstream-suite-bench/manifest.json",
+          "eval/mermaid-upstream-suite-bench/README.md",
+          "docs/project/issue-248-fidelity-delivery-plan.md"
+        ]
+      }
+    ]
+  },
+  "freshness": {
+    "inputSha256": "f1aa58256edf706418faa5aa594dddd971d10dd435ef0d262d6c3979074ddfa3",
+    "files": [
+      {
+        "path": "docs/project/issue-248-fidelity-delivery-plan.md",
+        "sha256": "dfec14208ad202afac2bfa5b4ee5311ff7c1f85657295b31df345cde88d45672"
+      },
+      {
+        "path": "eval/mermaid-docs-corpus/README.md",
+        "sha256": "00ba9170d7a84de575e6db94acf6c73a1686d98c15bbb0d0f9143586999ea857"
+      },
+      {
+        "path": "eval/mermaid-docs-corpus/provenance.json",
+        "sha256": "61fb6e5bb0190d2a434b2c9bc3c7cf002ecc973f025ad2ebcb5f4619ba7c96b8"
+      },
+      {
+        "path": "eval/mermaid-gantt-bench/README.md",
+        "sha256": "0c36d578dd852034d6b94c4bb12defc2afdbf0d53844fde4daf1f470f8411d02"
+      },
+      {
+        "path": "eval/mermaid-upstream-suite-bench/README.md",
+        "sha256": "8b02303705bc3bd97661812d75fe6d832adec854b18bfc43960ce60b619bf0cd"
+      },
+      {
+        "path": "eval/mermaid-upstream-suite-bench/manifest.json",
+        "sha256": "2e72253935fb8ccceadce70a272531b55237bdd479fbf9dd4b8a72239805f1d2"
+      },
+      {
+        "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
+        "sha256": "5865f3ffac7dbbef1b0c1ac78595b728a0682c55f4e4378b05311670b42e14f3"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
+        "sha256": "1ab5251667598447281a5e54ce334adf6e92fc7cc8860e49824cb7213be3a855"
+      },
+      {
+        "path": "src/__tests__/fidelity/contract.ts",
+        "sha256": "9e07b62ec7c5f17e4f025de1e207ca51829a91029971ab3ec771bbb15b17bd54"
+      },
+      {
+        "path": "src/__tests__/fidelity/projector.ts",
+        "sha256": "c300ab556f448b7ee9d3544cbee7225204f78e565d4b1e5182a80ef87980c8c2"
+      },
+      {
+        "path": "src/__tests__/fidelity/registry.ts",
+        "sha256": "9e2672ba430f178a5277701cc091fb17355ce9d9fca722cf1642b9e7ade0fc56"
+      },
+      {
+        "path": "src/__tests__/fidelity/revision-compatibility.ts",
+        "sha256": "985590aff400c3fc900d57962d30da82cc2e36a97a42da5e1579a576b7b37359"
+      },
+      {
+        "path": "src/__tests__/fidelity/runner.ts",
+        "sha256": "ecc952e10d7d1aff806eb1e4b03fa14a386ee32e6375c1a4f962d328e07d3463"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "block.family.accurately-diagnosed-unsupported",
+      "family": "block",
+      "featureId": "official-doc:block:section:basic-structure",
+      "sourceSha256": "ade5278d38b142c7e6c51de3a8ff86da873e20178ee6b12b672a76cfd485e447",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/block.html#basic-structure",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Unsupported families expose no structured mutation target by design."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ],
+          "semantics": {
+            "bodyKind": "preserved",
+            "upstreamFamilyId": "block"
+          },
+          "disposition": "diagnosed"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_FAMILY"
+          ],
+          "semantics": {
+            "errorCode": "UNSUPPORTED_FAMILY",
+            "errorName": "MermaidFamilyDetectionError",
+            "upstreamFamilyId": "block"
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactBytes": true
+          },
+          "disposition": "source-preserved"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "flowchart.classes.edge-paint-implication",
+      "family": "flowchart",
+      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
+      "sourceSha256": "c572b64fac27f9f9b594c60543bee6b77ff703ed494c9498f88ce127e76a5a8a",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/flowchart.html#using-classdef-statements-for-animations",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "bodyKind": "flowchart",
+            "graphFacts": {
+              "e1Class": "hot",
+              "edges": [
+                {
+                  "id": "e1",
+                  "source": "A",
+                  "style": "solid",
+                  "target": "B"
+                }
+              ],
+              "hotClass": {
+                "stroke": "#ff0000",
+                "strokeWidth": "6px"
+              },
+              "nodeIds": [
+                "A",
+                "B"
+              ]
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeFound": true,
+            "stroke": "#939395",
+            "strokeWidth": "1"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactCanonicalBytes": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "errorCode": null,
+            "graphFacts": {
+              "e1Class": "hot",
+              "edges": [
+                {
+                  "id": "e1",
+                  "source": "A",
+                  "style": "solid",
+                  "target": "B"
+                }
+              ],
+              "hotClass": {
+                "stroke": "#00ff00",
+                "strokeWidth": "4px"
+              },
+              "nodeIds": [
+                "A",
+                "B"
+              ]
+            },
+            "mutationOk": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "journey.scores.fractional-parser-render-seam",
+      "family": "journey",
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "sourceSha256": "3d23049d375bea679b176bfe1492d5737b3109321df0c8ec22b8e0d1686f242e",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/userJourney.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "bodyKind": "opaque"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
+          "semantics": {
+            "rejectedFractionalScore": true,
+            "verifierDiagnosedRenderFailure": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactBytes": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "errorCode": "INVALID_OP",
+            "mutationOk": false,
+            "rejectedOpaqueBody": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "state.comments.trailing-transition-loss",
+      "family": "state",
+      "featureId": "official-doc:state:section:comments",
+      "sourceSha256": "d92e9d4db74f22679fcc697800d8899799883233325a5848e81559add13a0a9c",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/stateDiagram.html#comments",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "bodyKind": "opaque"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "renderedEdges": [
+              "B->C"
+            ]
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactBytes": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "errorCode": "INVALID_OP",
+            "mutationOk": false,
+            "rejectedOpaqueBody": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    }
+  ],
+  "summary": {
+    "caseCount": 4,
+    "passedCaseCount": 4,
+    "failedCaseCount": 0,
+    "observedSurfaceCount": 15,
+    "blockedSurfaceCount": 0,
+    "notApplicableSurfaceCount": 1
+  }
+}

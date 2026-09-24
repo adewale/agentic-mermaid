@@ -23,7 +23,7 @@ describe('local/CI quality aggregate', () => {
       const scriptPath = command.match(/(?:^|\s)(scripts\/pr-assets\/[^\s]+\.ts)(?:\s|$)/)?.[1]
       if (!scriptPath) return []
       const source = readFileSync(join(ROOT, scriptPath), 'utf8')
-      return source.includes('evidence-receipt.json') || source.includes('gallery-receipt.json') ? [name] : []
+      return /(?:evidence|gallery|generated)-receipt\.json/.test(source) ? [name] : []
     })
     receiptScripts.push('benchmark:palette:check')
     expect(EVIDENCE_CHECKS.map(check => check.command[2]).sort()).toEqual(receiptScripts.sort())

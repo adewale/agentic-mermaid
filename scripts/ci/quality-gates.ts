@@ -8,6 +8,11 @@ export interface QualityCheck {
 
 export const EVIDENCE_CHECKS: readonly QualityCheck[] = [
   {
+    id: 'fidelity-receipts',
+    label: 'Issue #248 construct fidelity receipts and shadow projection',
+    command: ['bun', 'run', 'fidelity:receipts:check'],
+  },
+  {
     id: 'linkrank-feedback-packing',
     label: 'Issue #87 link-rank visual evidence',
     command: ['bun', 'run', 'gallery:linkrank-feedback-packing:check'],

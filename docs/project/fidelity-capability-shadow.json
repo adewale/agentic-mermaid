@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "mode": "shadow",
+  "publicClaimsChanged": false,
+  "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+  "receiptInputSha256": "f1aa58256edf706418faa5aa594dddd971d10dd435ef0d262d6c3979074ddfa3",
+  "receiptResultSha256": "8a03ad0bf684d9dcb9ffff83404b46fa3debb4c14aef82b6335e76da5d0aa04f",
+  "summary": {
+    "caseCount": 4,
+    "featureCount": 4,
+    "dispositions": {
+      "native": 0,
+      "source-preserved": 0,
+      "diagnosed": 2,
+      "absent": 2
+    }
+  },
+  "features": [
+    {
+      "featureId": "official-doc:block:section:basic-structure",
+      "family": "block",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "block.family.accurately-diagnosed-unsupported"
+      ],
+      "surfaces": {
+        "agent": "diagnosed",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": {
+          "notApplicable": [
+            "Unsupported families expose no structured mutation target by design."
+          ]
+        }
+      }
+    },
+    {
+      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
+      "family": "flowchart",
+      "disposition": "absent",
+      "caseIds": [
+        "flowchart.classes.edge-paint-implication"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": "native"
+      }
+    },
+    {
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "family": "journey",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "journey.scores.fractional-parser-render-seam"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      }
+    },
+    {
+      "featureId": "official-doc:state:section:comments",
+      "family": "state",
+      "disposition": "absent",
+      "caseIds": [
+        "state.comments.trailing-transition-loss"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "absent",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      }
+    }
+  ]
+}
