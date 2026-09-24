@@ -60,7 +60,14 @@ describe('command-specific flag validity', () => {
   test('batch keeps its documented --jsonl mode under command ownership checks', () => {
     const parsed = parseArgs(['batch', '--jsonl'])
     expect(parsed.flags.jsonl).toBe(true)
-    expect(capture(['batch', '--jsonl']).code).toBe(0)
+    expect(COMMAND_FLAGS.batch).toContain('jsonl')
+    // Stop at positional validation instead of entering cmdBatch, whose stdin
+    // is necessarily process-global and may be under the TTY guard test in a
+    // concurrently executing file. Reaching this error proves --jsonl passed
+    // command ownership validation without coupling this registry test to fd 0.
+    const result = capture(['batch', '--jsonl', 'unexpected'])
+    expect(result.code).toBe(2)
+    expect(result.output).toContain('accepts no positional arguments')
   })
 
   test('boolean values and duplicate flags fail closed instead of changing meaning', () => {

@@ -9,13 +9,18 @@ import type {
   FidelitySurfaceExpectation,
 } from './fidelity/contract.ts'
 import { discoverFidelityRegistry } from './fidelity/registry.ts'
-import { projectFidelityCapabilityShadow } from './fidelity/projector.ts'
+import { projectFidelityCapabilityReport } from './fidelity/projector.ts'
 import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './fidelity/revision-compatibility.ts'
 import { runFidelityCases, validateFidelityRegistry } from './fidelity/runner.ts'
 import { UPSTREAM_MERMAID_MANIFEST, type UpstreamMermaidManifest } from '../upstream-mermaid-manifest.ts'
+import {
+  FIDELITY_CAPABILITY_REPORT,
+  validateFidelityCapabilityReport,
+  type FidelityCapabilityReport,
+} from '../fidelity-capability-report.ts'
 
 const RECEIPT = join(import.meta.dir, 'fidelity', 'generated-receipt.json')
-const SHADOW = join(import.meta.dir, '..', '..', 'docs', 'project', 'fidelity-capability-shadow.json')
+const CAPABILITY_REPORT = join(import.meta.dir, '..', '..', 'docs', 'project', 'fidelity-capability-report.json')
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T
@@ -51,7 +56,28 @@ function setJsonPath(value: FidelityJson, path: readonly (number | string)[], re
 }
 
 describe('issue #248 construct fidelity receipts', () => {
-  test('the discovered registry executes to the committed fresh result and explicit shadow projection', async () => {
+  test('the public projection rejects stale, forged, and unreceipted native claims', () => {
+    expect(validateFidelityCapabilityReport(FIDELITY_CAPABILITY_REPORT)).toEqual([])
+
+    const forged = JSON.parse(JSON.stringify(FIDELITY_CAPABILITY_REPORT)) as FidelityCapabilityReport
+    const diagnosed = forged.features.find(feature => feature.disposition === 'diagnosed')!
+    ;(diagnosed.diagnostics as Record<string, readonly string[]>).render = []
+    ;(forged.summary as { caseCount: number }).caseCount++
+    ;(forged as { upstreamRevision: string }).upstreamRevision = '0'.repeat(40)
+    expect(validateFidelityCapabilityReport(forged)).toEqual(expect.arrayContaining([
+      'fidelity capability report upstream revision is stale',
+      'fidelity capability case count is stale',
+      `${diagnosed.featureId}/render: fidelity capability diagnostic codes are invalid`,
+    ]))
+
+    const unknown = JSON.parse(JSON.stringify(FIDELITY_CAPABILITY_REPORT)) as FidelityCapabilityReport
+    ;(unknown.features[0] as { featureId: string }).featureId = 'forged:unreceipted-native'
+    expect(validateFidelityCapabilityReport(unknown)).toEqual(expect.arrayContaining([
+      'forged:unreceipted-native: fidelity capability feature is absent from the pinned manifest',
+    ]))
+  })
+
+  test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
       'fidelity/cases/landed-adoption.fidelity.ts',
@@ -72,7 +98,7 @@ describe('issue #248 construct fidelity receipts', () => {
 
     const receipt = await runFidelityCases(registry.cases, registry.caseFiles)
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
-    expect(projectFidelityCapabilityShadow(receipt)).toEqual(readJson(SHADOW))
+    expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
       caseCount: 10,
       passedCaseCount: 10,
@@ -81,15 +107,16 @@ describe('issue #248 construct fidelity receipts', () => {
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
-    const shadow = projectFidelityCapabilityShadow(receipt)
-    for (const feature of shadow.features) {
+    const capability = projectFidelityCapabilityReport(receipt)
+    expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
+    for (const feature of capability.features) {
       expect(Object.keys(feature.surfaces)).toEqual(['agent', 'render', 'serialize', 'mutate'])
     }
-    expect(shadow.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
-    expect(shadow.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
-    expect(shadow.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
-    expect(shadow.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
-    expect(shadow.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
+    expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('diagnosed')
+    expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
       agent: 'source-preserved',
       render: 'absent',
       serialize: 'source-preserved',
@@ -375,7 +402,7 @@ describe('issue #248 construct fidelity receipts', () => {
       notApplicableSurfaceCount: 2,
     })
     expect(receipt.cases[0]!.issues).toEqual(['render: blocked by agent'])
-    expect(() => projectFidelityCapabilityShadow(receipt)).toThrow('Cannot project capability shadow from failing fidelity receipts')
+    expect(() => projectFidelityCapabilityReport(receipt)).toThrow('Cannot project capability report from failing fidelity receipts')
   })
 
   test('semantic evaluation has teeth when a known absence is mislabeled native', async () => {
@@ -447,7 +474,7 @@ describe('issue #248 construct fidelity receipts', () => {
     const observation = malformedReceipt.cases[0]!.observations.agent
     if (!observation || observation.status !== 'observed') throw new Error('fixture agent observation must be observed')
     ;(observation as { disposition: string }).disposition = 'bogus'
-    expect(() => projectFidelityCapabilityShadow(malformedReceipt)).toThrow('invalid observed disposition')
+    expect(() => projectFidelityCapabilityReport(malformedReceipt)).toThrow('invalid observed disposition')
   })
 
   test('every surface needs an applicability decision and every applicable surface needs an evaluator', async () => {
@@ -526,7 +553,7 @@ describe('issue #248 construct fidelity receipts', () => {
     if (expectedAgent.applicability !== 'applicable' || !observedAgent || observedAgent.status !== 'observed') throw new Error('block agent fixture must be applicable and observed')
     ;(expectedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
     ;(observedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
-    expect(() => projectFidelityCapabilityShadow(malformedReceipt)).toThrow('diagnosed expectation has no diagnostic code')
+    expect(() => projectFidelityCapabilityReport(malformedReceipt)).toThrow('diagnosed expectation has no diagnostic code')
   })
 
   test('observer failures and malformed observations fail closed', async () => {

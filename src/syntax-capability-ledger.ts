@@ -21,6 +21,14 @@ import type {
   UpstreamSyntaxFeature,
   UpstreamSyntaxFeatureStatus,
 } from './upstream-mermaid-manifest.ts'
+import {
+  FIDELITY_CAPABILITY_REPORT,
+  validateFidelityCapabilityReport,
+  type FidelityCapabilityFeature,
+  type FidelityCapabilityReport,
+  type FidelityCapabilitySurface,
+  type FidelitySurface,
+} from './fidelity-capability-report.ts'
 
 export const FAMILY_SYNTAX_STATES = Object.freeze([
   'native',
@@ -71,6 +79,12 @@ export interface SyntaxFeatureCapabilityRow {
   /** Executable/accounting gates. `artifactId` + `fingerprint` is the exact
    * upstream source coordinate, so feature ids are not repeated here. */
   evidence: readonly string[]
+  receipt: {
+    status: 'passed' | 'missing'
+    caseIds: readonly string[]
+    surfaces?: Readonly<Record<FidelitySurface, FidelityCapabilitySurface>>
+    diagnostics?: Partial<Record<FidelitySurface, readonly string[]>>
+  }
   /** Required whenever the row does not make a native claim. */
   diagnostic?: string
 }
@@ -171,63 +185,36 @@ export function classifySyntaxFeatureDimension(feature: UpstreamSyntaxFeature): 
   return { dimensionId: 'grammar', ruleId: 'grammar-default-v1' }
 }
 
-function featureState(
+function receiptFeatureState(
   feature: UpstreamSyntaxFeature,
-  dimensionId: SyntaxCapabilityDimensionId,
+  receipt: FidelityCapabilityFeature | undefined,
 ): { state: FamilySyntaxState; diagnostic?: string } {
-  if (dimensionId === 'evidence' && feature.status === 'documented') return { state: 'native' }
-  switch (feature.status) {
-    case 'executable':
-    case 'portable':
-    case 'error':
-      return { state: 'native' }
-    case 'documented':
-      return {
-        state: 'source-preserved',
-        diagnostic: 'OFFICIAL_DOC_ONLY: inventoried and preserved, but this feature has no executable native claim.',
-      }
-    case 'divergence':
-      return {
-        state: 'diagnosed',
-        diagnostic: `EXECUTABLE_DIVERGENCE: ${feature.reason ?? 'documented-behavior-difference'}.`,
-      }
-    case 'not-portable':
-      return {
-        state: 'not-applicable',
-        diagnostic: `SOURCE_INEXPRESSIBLE: ${feature.reason ?? 'not-portable'}.`,
-      }
-    case 'excluded':
-      if (feature.reason === 'api-internal') {
-        return { state: 'not-applicable', diagnostic: 'SOURCE_INEXPRESSIBLE: upstream API-internal behavior has no authored Mermaid syntax.' }
-      }
-      return {
-        state: 'diagnosed',
-        diagnostic: `ACCOUNTED_EXCLUSION: ${feature.reason ?? 'excluded'}.`,
-      }
+  if (!receipt) {
+    return {
+      state: 'absent',
+      diagnostic: `NO_EXECUTED_RECEIPT: ${feature.id} has pinned upstream inventory but no current passing construct receipt.`,
+    }
+  }
+  if (receipt.disposition === 'native') return { state: 'native' }
+  const codes = Object.values(receipt.diagnostics).flat().join(', ')
+  return {
+    state: receipt.disposition,
+    diagnostic: `RECEIPT_DISPOSITION: ${receipt.caseIds.join(', ')} classifies this feature as ${receipt.disposition}${codes ? ` (${codes})` : ''}.`,
   }
 }
 
-const ARTIFACT_EXECUTION_GATES: Readonly<Record<string, string>> = Object.freeze({
-  'suite-cases': 'src/__tests__/mermaid-upstream-suite-bench.test.ts',
-  'suite-exclusions': 'src/__tests__/mermaid-upstream-suite-bench.test.ts',
-  'gantt-cases': 'src/__tests__/gantt-upstream-bench.test.ts',
-  'gantt-exclusions': 'src/__tests__/gantt-upstream-bench.test.ts',
-  'mindmap-gitgraph-blocks': 'src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts',
-})
-
-function featureRows(manifest: UpstreamMermaidManifest): SyntaxFeatureCapabilityRow[] {
+function featureRows(
+  manifest: UpstreamMermaidManifest,
+  fidelityReport: FidelityCapabilityReport,
+): SyntaxFeatureCapabilityRow[] {
   const artifacts = new Map(manifest.semanticInventory.sourceArtifacts.map(artifact => [artifact.id, artifact]))
+  const receipts = new Map(fidelityReport.features.map(feature => [feature.featureId, feature]))
   return manifest.semanticInventory.syntaxFeatures.map(feature => {
     const classification = classifySyntaxFeatureDimension(feature)
-    const claim = featureState(feature, classification.dimensionId)
+    const receipt = receipts.get(feature.id)
+    const claim = receiptFeatureState(feature, receipt)
     const artifact = artifacts.get(feature.artifact)
     if (!artifact) throw new Error(`Syntax feature ${feature.id} references missing artifact ${feature.artifact}`)
-    const gates = ARTIFACT_EXECUTION_GATES[feature.artifact]
-      ? [ARTIFACT_EXECUTION_GATES[feature.artifact]!]
-      : [
-          'src/__tests__/upstream-family-manifest.test.ts',
-          'src/__tests__/property-all-families-fuzz.test.ts',
-        ]
     return {
       featureId: feature.id,
       familyIds: [...feature.families],
@@ -238,7 +225,17 @@ function featureRows(manifest: UpstreamMermaidManifest): SyntaxFeatureCapability
       artifactId: feature.artifact,
       fingerprint: feature.fingerprint,
       ...(feature.sourceSha256 ? { sourceSha256: feature.sourceSha256 } : {}),
-      evidence: gates,
+      evidence: receipt
+        ? ['docs/project/fidelity-capability-report.json', 'src/__tests__/fidelity/generated-receipt.json']
+        : ['docs/project/fidelity-capability-report.json'],
+      receipt: receipt
+        ? {
+            status: 'passed',
+            caseIds: [...receipt.caseIds],
+            surfaces: { ...receipt.surfaces },
+            diagnostics: { ...receipt.diagnostics },
+          }
+        : { status: 'missing', caseIds: [] },
       ...(claim.diagnostic ? { diagnostic: claim.diagnostic } : {}),
     }
   })
@@ -450,7 +447,7 @@ function familyDimensionRows(
       ? undefined
       : [
           baseline.diagnostic,
-          `FEATURE_STATES: native=${featureStateCounts.native}, source-preserved=${featureStateCounts['source-preserved']}, diagnosed=${featureStateCounts.diagnosed}, not-applicable=${featureStateCounts['not-applicable']}.`,
+          `FEATURE_STATES: native=${featureStateCounts.native}, source-preserved=${featureStateCounts['source-preserved']}, diagnosed=${featureStateCounts.diagnosed}, not-applicable=${featureStateCounts['not-applicable']}, absent=${featureStateCounts.absent}.`,
         ].filter(Boolean).join(' ')
     return {
       familyId: family.id,
@@ -470,8 +467,11 @@ function familyDimensionRows(
 export function createSyntaxCapabilityLedger(
   manifest: UpstreamMermaidManifest,
   descriptors: readonly FamilyDescriptor[],
+  fidelityReport: FidelityCapabilityReport = FIDELITY_CAPABILITY_REPORT,
 ): SyntaxCapabilityLedger {
-  const features = featureRows(manifest)
+  const reportIssues = validateFidelityCapabilityReport(fidelityReport, manifest)
+  if (reportIssues.length > 0) throw new Error(`Invalid fidelity capability report:\n${reportIssues.join('\n')}`)
+  const features = featureRows(manifest, fidelityReport)
   return {
     dimensions: SYNTAX_CAPABILITY_DIMENSIONS.map(dimension => ({ ...dimension })),
     families: familyDimensionRows(manifest, descriptors, features),
@@ -488,8 +488,10 @@ export function validateSyntaxCapabilityLedger(
   ledger: SyntaxCapabilityLedger,
   manifest: UpstreamMermaidManifest,
   expectedFamilyIds: readonly string[],
+  fidelityReport: FidelityCapabilityReport = FIDELITY_CAPABILITY_REPORT,
 ): string[] {
-  const diagnostics: string[] = []
+  const diagnostics: string[] = [...validateFidelityCapabilityReport(fidelityReport, manifest)]
+  const receiptFeatures = new Map(fidelityReport.features.map(feature => [feature.featureId, feature]))
   const expectedDimensionIds = SYNTAX_CAPABILITY_DIMENSIONS.map(dimension => dimension.id)
   const dimensionIds = ledger.dimensions.map(dimension => dimension.id)
   if (JSON.stringify(ledger.dimensions) !== JSON.stringify(SYNTAX_CAPABILITY_DIMENSIONS)
@@ -511,12 +513,10 @@ export function validateSyntaxCapabilityLedger(
   }
   for (const row of ledger.families) {
     if (!FAMILY_SYNTAX_STATES.includes(row.state)) diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} has invalid state`)
-    if (row.state === 'absent') diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} is absent`)
     if (row.evidence.length === 0 || row.evidence.some(evidence => !evidence.source || !evidence.locator)) {
       diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} lacks concrete evidence`)
     }
     if (row.state !== 'native' && !row.diagnostic?.trim()) diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} lacks a diagnostic`)
-    if (row.featureStateCounts.absent !== 0) diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} contains absent feature classifications`)
     if (Object.values(row.featureStateCounts).reduce((sum, count) => sum + count, 0) !== row.featureCount) {
       diagnostics.push(`syntax family ${row.familyId}/${row.dimensionId} feature counts are stale`)
     }
@@ -559,12 +559,12 @@ export function validateSyntaxCapabilityLedger(
     const feature = features.get(row.featureId)
     if (!feature) continue
     const classification = classifySyntaxFeatureDimension(feature)
-    const expectedState = featureState(feature, classification.dimensionId).state
+    const receipt = receiptFeatures.get(feature.id)
+    const expectedState = receiptFeatureState(feature, receipt).state
     if (row.dimensionId !== classification.dimensionId || row.classificationRuleId !== classification.ruleId) {
       diagnostics.push(`syntax feature ${row.featureId} has a stale dimension classification`)
     }
     if (row.state !== expectedState) diagnostics.push(`syntax feature ${row.featureId} has a stale state classification`)
-    if (row.state === 'absent') diagnostics.push(`syntax feature ${row.featureId} is absent`)
     if (!FAMILY_SYNTAX_STATES.includes(row.state)) diagnostics.push(`syntax feature ${row.featureId} has invalid state`)
     if (row.state !== 'native' && !row.diagnostic?.trim()) diagnostics.push(`syntax feature ${row.featureId} lacks a diagnostic`)
     if (JSON.stringify(row.familyIds) !== JSON.stringify(feature.families)
@@ -577,6 +577,20 @@ export function validateSyntaxCapabilityLedger(
     const artifact = artifacts.get(row.artifactId)
     if (!artifact || row.evidence.length === 0 || row.evidence.some(source => !source.trim())) {
       diagnostics.push(`syntax feature ${row.featureId} lacks concrete upstream evidence`)
+    }
+    if (receipt) {
+      if (row.receipt.status !== 'passed'
+        || JSON.stringify(row.receipt.caseIds) !== JSON.stringify(receipt.caseIds)
+        || JSON.stringify(row.receipt.surfaces) !== JSON.stringify(receipt.surfaces)
+        || JSON.stringify(row.receipt.diagnostics) !== JSON.stringify(receipt.diagnostics)) {
+        diagnostics.push(`syntax feature ${row.featureId} does not match its passing construct receipt`)
+      }
+    } else if (row.receipt.status !== 'missing' || row.receipt.caseIds.length !== 0
+      || row.receipt.surfaces !== undefined || row.receipt.diagnostics !== undefined) {
+      diagnostics.push(`syntax feature ${row.featureId} does not fail closed without a construct receipt`)
+    }
+    if (row.state === 'native' && row.receipt.status !== 'passed') {
+      diagnostics.push(`syntax feature ${row.featureId} claims native without a passing construct receipt`)
     }
     if (row.familyIds.some(familyId => !expectedFamilyIds.includes(familyId))) {
       diagnostics.push(`syntax feature ${row.featureId} references an unknown family`)

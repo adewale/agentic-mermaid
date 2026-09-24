@@ -32,6 +32,8 @@ const INFRASTRUCTURE_FILES = [
   resolve(import.meta.dir, 'revision-compatibility.ts'),
   resolve(import.meta.dir, 'runner.ts'),
   resolve(import.meta.dir, 'projector.ts'),
+  resolve(REPO, 'src', 'fidelity-capability-contract.ts'),
+  resolve(REPO, 'src', 'fidelity-capability-report.ts'),
   resolve(REPO, 'scripts', 'pr-assets', 'generate-fidelity-receipts.ts'),
 ]
 

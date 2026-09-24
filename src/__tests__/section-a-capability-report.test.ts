@@ -108,7 +108,20 @@ describe('Section A capability report', () => {
     expect(report.matrices.syntax.dimensions).toHaveLength(11)
     expect(report.matrices.syntax.features).toHaveLength(report.upstream.semanticInventory.syntaxFeatureCount)
     expect(report.matrices.syntax.families).toHaveLength(report.matrices.families.length * 11)
-    expect(report.summary.syntaxAbsentCount).toBe(0)
+    expect(report.summary.syntaxReceiptFeatureCount).toBe(report.fidelity.featureCount)
+    expect(report.summary.syntaxUnreceiptedFeatureCount)
+      .toBe(report.upstream.semanticInventory.syntaxFeatureCount - report.fidelity.featureCount)
+    expect(report.summary.syntaxAbsentCount).toBeGreaterThan(0)
+    expect(report.fidelity).toMatchObject({
+      authority: 'docs/project/fidelity-capability-report.json',
+      caseCount: 10,
+      featureCount: 7,
+      upstreamRevision: report.upstream.commit,
+    })
+    for (const feature of report.matrices.syntax.features) {
+      if (feature.state === 'native') expect(feature.receipt.status).toBe('passed')
+      if (feature.receipt.status === 'missing') expect(feature.state).toBe('absent')
+    }
     for (const id of knownFamilies()) {
       const descriptor = getFamily(id)!
       const registeredRow = report.matrices.families.find(row => row.registrationId === id)!
@@ -279,10 +292,13 @@ describe('Section A capability report', () => {
       'report does not match live contract authorities',
     ]))
 
-    const absentSyntax = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
-    const syntaxRow = absentSyntax.matrices.syntax.features[0]!
-    ;(syntaxRow as { state: string }).state = 'absent'
-    expect(validateSectionACapabilityReport(absentSyntax)).toContain(`syntax feature ${syntaxRow.featureId} is absent`)
+    const unreceiptedNative = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
+    const syntaxRow = unreceiptedNative.matrices.syntax.features.find(row => row.receipt.status === 'missing')!
+    ;(syntaxRow as { state: string }).state = 'native'
+    expect(validateSectionACapabilityReport(unreceiptedNative)).toEqual(expect.arrayContaining([
+      `syntax feature ${syntaxRow.featureId} has a stale state classification`,
+      `syntax feature ${syntaxRow.featureId} claims native without a passing construct receipt`,
+    ]))
 
     const hiddenRegisteredHeader = JSON.parse(JSON.stringify(createSectionACapabilityReport())) as SectionACapabilityReport
     const flowchart = hiddenRegisteredHeader.matrices.families.find(row => row.registrationId === 'flowchart')!

@@ -95,8 +95,13 @@ import {
   validateSyntaxCapabilityLedger,
   type SyntaxCapabilityLedger,
 } from './syntax-capability-ledger.ts'
+import { FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION } from './fidelity-capability-contract.ts'
+import {
+  FIDELITY_CAPABILITY_REPORT,
+  validateFidelityCapabilityReport,
+} from './fidelity-capability-report.ts'
 
-export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 12 as const
+export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 13 as const
 
 export { FAMILY_CAPABILITY_COLUMNS, UNREGISTERED_FAMILY_CAPABILITY_STATES }
 export type FamilyCapabilityColumn = FamilyCapability
@@ -252,6 +257,7 @@ export interface SectionACapabilityReport {
     terminalStyle: number
     resourceManifest: number
     upstreamManifest: number
+    fidelityCapability: number
     familyConformance: number
     familyDescriptorVersions: readonly number[]
   }
@@ -275,6 +281,8 @@ export interface SectionACapabilityReport {
     syntaxDimensionCount: number
     syntaxFamilyDimensionCount: number
     syntaxFeatureClassificationCount: number
+    syntaxReceiptFeatureCount: number
+    syntaxUnreceiptedFeatureCount: number
     syntaxAbsentCount: number
     evidenceSystemCount: number
     retiredAuthorityCount: number
@@ -297,6 +305,15 @@ export interface SectionACapabilityReport {
         upstreamRevision?: string
       }[]
     }
+  }
+  fidelity: {
+    authority: 'docs/project/fidelity-capability-report.json'
+    schemaVersion: typeof FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION
+    upstreamRevision: string
+    receiptInputSha256: string
+    receiptResultSha256: string
+    caseCount: number
+    featureCount: number
   }
   matrices: {
     request: readonly SectionARequestCapabilityRow[]
@@ -364,6 +381,7 @@ export interface SectionACapabilityDiscoverySummary {
   }
   counts: SectionACapabilityReport['summary']
   noAbsentSyntaxCapabilities: boolean
+  fidelity: SectionACapabilityReport['fidelity']
   fullReport: {
     repositoryModule: 'src/section-a-capability-report.ts'
     factory: 'createSectionACapabilityReport'
@@ -729,6 +747,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       terminalStyle: TERMINAL_STYLE_VERSION,
       resourceManifest: RESOURCE_MANIFEST_VERSION,
       upstreamManifest: UPSTREAM_MERMAID_MANIFEST.schemaVersion,
+      fidelityCapability: FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION,
       familyConformance: FAMILY_CONFORMANCE_VERSION,
       familyDescriptorVersions,
     },
@@ -752,8 +771,10 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       syntaxDimensionCount: syntax.dimensions.length,
       syntaxFamilyDimensionCount: syntax.families.length,
       syntaxFeatureClassificationCount: syntax.features.length,
+      syntaxReceiptFeatureCount: FIDELITY_CAPABILITY_REPORT.summary.featureCount,
+      syntaxUnreceiptedFeatureCount: syntax.features.filter(row => row.receipt.status === 'missing').length,
       syntaxAbsentCount,
-      evidenceSystemCount: CHARACTERIZATION.evidenceSystems.length,
+      evidenceSystemCount: CHARACTERIZATION.evidenceSystems.length + 1,
       retiredAuthorityCount: CHARACTERIZATION.retiredAuthorities.length,
     },
     upstream: {
@@ -774,6 +795,15 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
           ...(artifact.upstreamRevision ? { upstreamRevision: artifact.upstreamRevision } : {}),
         })),
       },
+    },
+    fidelity: {
+      authority: 'docs/project/fidelity-capability-report.json',
+      schemaVersion: FIDELITY_CAPABILITY_REPORT.schemaVersion,
+      upstreamRevision: FIDELITY_CAPABILITY_REPORT.upstreamRevision,
+      receiptInputSha256: FIDELITY_CAPABILITY_REPORT.receiptInputSha256,
+      receiptResultSha256: FIDELITY_CAPABILITY_REPORT.receiptResultSha256,
+      caseCount: FIDELITY_CAPABILITY_REPORT.summary.caseCount,
+      featureCount: FIDELITY_CAPABILITY_REPORT.summary.featureCount,
     },
     matrices: {
       request,
@@ -803,7 +833,14 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
         surface,
         [...SHARED_RENDER_OPTION_SURFACE_EVIDENCE[surface]],
       ])) as unknown as Readonly<Record<RenderTransportSurface, readonly string[]>>,
-      systems: CHARACTERIZATION.evidenceSystems.map(system => ({ ...system })),
+      systems: [
+        {
+          id: 'construct-fidelity-receipts',
+          authority: 'docs/project/fidelity-capability-report.json',
+          freshnessGate: 'scripts/pr-assets/generate-fidelity-receipts.ts',
+        },
+        ...CHARACTERIZATION.evidenceSystems.map(system => ({ ...system })),
+      ],
       contracts: CHARACTERIZATION.contracts.map(contract => ({ ...contract, evidence: [...contract.evidence] })),
     },
     retiredAuthorities: CHARACTERIZATION.retiredAuthorities.map(authority => ({
@@ -832,6 +869,7 @@ export function sectionACapabilityDiscoverySummary(
     },
     counts: { ...report.summary },
     noAbsentSyntaxCapabilities: report.summary.syntaxAbsentCount === 0,
+    fidelity: { ...report.fidelity },
     fullReport: {
       repositoryModule: 'src/section-a-capability-report.ts',
       factory: 'createSectionACapabilityReport',
@@ -864,6 +902,7 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
   if (report.schemaVersion !== SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION) diagnostics.push('unsupported report schemaVersion')
   if (report.digest !== renderContractDigest(payload)) diagnostics.push('report digest does not match its payload')
   if (validateUpstreamMermaidManifest().length > 0) diagnostics.push('pinned upstream manifest is invalid')
+  diagnostics.push(...validateFidelityCapabilityReport(FIDELITY_CAPABILITY_REPORT, UPSTREAM_MERMAID_MANIFEST))
   if (validateResourceManifest().length > 0) diagnostics.push('installed resource manifest is invalid')
 
   const { request, outputOptions, backends, outputs, resources, families, syntax, scene } = report.matrices
@@ -1253,6 +1292,8 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
     syntaxDimensionCount: syntax.dimensions.length,
     syntaxFamilyDimensionCount: syntax.families.length,
     syntaxFeatureClassificationCount: syntax.features.length,
+    syntaxReceiptFeatureCount: syntax.features.filter(row => row.receipt.status === 'passed').length,
+    syntaxUnreceiptedFeatureCount: syntax.features.filter(row => row.receipt.status === 'missing').length,
     syntaxAbsentCount: syntax.features.filter(row => row.state === 'absent').length
       + syntax.families.filter(row => row.state === 'absent').length
       + syntax.families.reduce((count, row) => count + (row.processing
@@ -1284,6 +1325,18 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
       ...(artifact.upstreamRevision ? { upstreamRevision: artifact.upstreamRevision } : {}),
     })),
   )) diagnostics.push('upstream semantic source artifacts are stale')
+  const expectedFidelity = {
+    authority: 'docs/project/fidelity-capability-report.json' as const,
+    schemaVersion: FIDELITY_CAPABILITY_REPORT.schemaVersion,
+    upstreamRevision: FIDELITY_CAPABILITY_REPORT.upstreamRevision,
+    receiptInputSha256: FIDELITY_CAPABILITY_REPORT.receiptInputSha256,
+    receiptResultSha256: FIDELITY_CAPABILITY_REPORT.receiptResultSha256,
+    caseCount: FIDELITY_CAPABILITY_REPORT.summary.caseCount,
+    featureCount: FIDELITY_CAPABILITY_REPORT.summary.featureCount,
+  }
+  if (JSON.stringify(report.fidelity) !== JSON.stringify(expectedFidelity)) {
+    diagnostics.push('construct fidelity authority is stale')
+  }
   if (!Object.values(report.forwardCompatibility).every(contract => contract.sourcePreserved)) {
     diagnostics.push('a forward-compatibility diagnostic does not preserve authored source')
   }
@@ -1369,6 +1422,14 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('| Contract | Version |')
   out.push('|---|---|')
   for (const [name, version] of Object.entries(report.contracts)) out.push(`| ${md(name)} | ${md(Array.isArray(version) ? version.join(', ') : version)} |`)
+  out.push('')
+  out.push('## Construct fidelity authority')
+  out.push('')
+  out.push('Public syntax claims fail closed against the generated construct receipts. A pinned upstream feature without a current passing receipt is `absent`; source preservation, a diagnostic, or an intentional divergence remains visible and cannot be promoted to `native`.')
+  out.push('')
+  out.push('| Authority | Schema | Upstream revision | Cases | Receipted features | Receipt input SHA-256 | Receipt result SHA-256 |')
+  out.push('|---|---:|---|---:|---:|---|---|')
+  out.push(`| ${md(report.fidelity.authority)} | ${report.fidelity.schemaVersion} | ${report.fidelity.upstreamRevision} | ${report.fidelity.caseCount} | ${report.fidelity.featureCount} | ${report.fidelity.receiptInputSha256} | ${report.fidelity.receiptResultSha256} |`)
   out.push('')
   out.push('## State vocabularies')
   out.push('')
@@ -1558,7 +1619,7 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('')
   out.push('## Syntax capability ledger')
   out.push('')
-  out.push('Stable feature IDs are projected from the pinned upstream manifest; stable dimension IDs come from the syntax contract. A native feature state is scoped to its one classified dimension and is not a blanket family-parity claim. Official-document-only constructs remain source-preserved until executable evidence promotes them. CI rejects every missing row and every `absent` state.')
+  out.push('Stable feature IDs are projected from the pinned upstream manifest; stable dimension IDs come from the syntax contract. State comes only from current passing construct receipts. A native feature state is scoped to its one classified dimension and is not a blanket family-parity claim. Missing receipts fail closed to `absent`; CI rejects a native claim without a receipt, while the explicit absence remains reportable backlog rather than a report-generation error.')
   out.push('')
   out.push('### Stable syntax dimensions')
   out.push('')
@@ -1574,7 +1635,7 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('|---|---|---|---|---:|---|---|---|---|')
   for (const row of report.matrices.syntax.families) {
     const counts = row.featureStateCounts
-    const stateCounts = `native=${counts.native}, source-preserved=${counts['source-preserved']}, diagnosed=${counts.diagnosed}, not-applicable=${counts['not-applicable']}`
+    const stateCounts = `native=${counts.native}, source-preserved=${counts['source-preserved']}, diagnosed=${counts.diagnosed}, not-applicable=${counts['not-applicable']}, absent=${counts.absent}`
     const processing = row.processing
       ? FAMILY_CAPABILITY_COLUMNS.map(capability => `${capability}=${row.processing![capability]}`).join(', ')
       : '—'
@@ -1584,10 +1645,16 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('')
   out.push('### Pinned syntax-feature classifications')
   out.push('')
-  out.push('| Feature ID | Families | Dimension | State | Upstream status | Artifact | Rule | Evidence | Diagnostic |')
-  out.push('|---|---|---|---|---|---|---|---|---|')
+  out.push('| Feature ID | Families | Dimension | State | Receipt | Cases | Surface dispositions | Diagnostic codes | Upstream status | Artifact | Rule | Evidence | Diagnostic |')
+  out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|')
   for (const row of report.matrices.syntax.features) {
-    out.push(`| ${md(row.featureId)} | ${md(row.familyIds.join(', '))} | ${md(row.dimensionId)} | ${row.state} | ${row.upstreamStatus} | ${md(`${row.artifactId}@${row.fingerprint}`)} | ${md(row.classificationRuleId)} | ${md(row.evidence.join(', '))} | ${md(row.diagnostic ?? '—')} |`)
+    const surfaces = row.receipt.surfaces
+      ? Object.entries(row.receipt.surfaces).map(([surface, state]) => `${surface}=${typeof state === 'string' ? state : 'not-applicable'}`).join(', ')
+      : '—'
+    const diagnosticCodes = row.receipt.diagnostics
+      ? Object.entries(row.receipt.diagnostics).map(([surface, codes]) => `${surface}=${codes?.join('+')}`).join(', ')
+      : '—'
+    out.push(`| ${md(row.featureId)} | ${md(row.familyIds.join(', '))} | ${md(row.dimensionId)} | ${row.state} | ${row.receipt.status} | ${md(row.receipt.caseIds.join(', ') || '—')} | ${md(surfaces)} | ${md(diagnosticCodes)} | ${row.upstreamStatus} | ${md(`${row.artifactId}@${row.fingerprint}`)} | ${md(row.classificationRuleId)} | ${md(row.evidence.join(', '))} | ${md(row.diagnostic ?? '—')} |`)
   }
   out.push('')
   out.push('## Scene declarations')

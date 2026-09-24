@@ -56,11 +56,11 @@
     ]
   },
   "freshness": {
-    "inputSha256": "d15c3fa25153fbcebbed9a2dbf1e743e4fc6518bbae0f2be9bc81638e916ad09",
+    "inputSha256": "3d9260e8d95482d0006cfaf4c60781296004858c3e91a9c1400a28a02738588b",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
-        "sha256": "dfec14208ad202afac2bfa5b4ee5311ff7c1f85657295b31df345cde88d45672"
+        "sha256": "2253bec63ecdd68d92cbb549699b1e389c4e9d82d3972708cea333414b3c10d3"
       },
       {
         "path": "eval/mermaid-docs-corpus/README.md",
@@ -84,7 +84,7 @@
       },
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
-        "sha256": "5865f3ffac7dbbef1b0c1ac78595b728a0682c55f4e4378b05311670b42e14f3"
+        "sha256": "42b4f2ba51193f4120708773ef9e37f13d64fa15c1c1eb6d0829e04eff967388"
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
@@ -96,11 +96,11 @@
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
-        "sha256": "9e07b62ec7c5f17e4f025de1e207ca51829a91029971ab3ec771bbb15b17bd54"
+        "sha256": "86630aba40a08aa857ef8c89b171f4f5a3bf0808001dcc0f24dd602774a6ae8b"
       },
       {
         "path": "src/__tests__/fidelity/projector.ts",
-        "sha256": "c300ab556f448b7ee9d3544cbee7225204f78e565d4b1e5182a80ef87980c8c2"
+        "sha256": "6fbaad532b12acebe9942c99ea60dfba4d9abcd91b73dab71c528d948f0f4c6a"
       },
       {
         "path": "src/__tests__/fidelity/registry.ts",
@@ -112,7 +112,15 @@
       },
       {
         "path": "src/__tests__/fidelity/runner.ts",
-        "sha256": "ecc952e10d7d1aff806eb1e4b03fa14a386ee32e6375c1a4f962d328e07d3463"
+        "sha256": "e8ff68fbefb09d8f8b66f01529fc2566fc8f59751e1a56ce0b34eaa132b536de"
+      },
+      {
+        "path": "src/fidelity-capability-contract.ts",
+        "sha256": "216d4572a875f6835c00993e8da3da42837d3637701e0defe4cfb6be055fef4a"
+      },
+      {
+        "path": "src/fidelity-capability-report.ts",
+        "sha256": "79f74c7ba0b1698ae183f4d6bb9aff5554c1c7f6ccedf98e77947437c9cf27cd"
       }
     ]
   },

@@ -15,6 +15,7 @@ import {
   validateSyntaxCapabilityLedger,
   type SyntaxCapabilityLedger,
 } from '../syntax-capability-ledger.ts'
+import { FIDELITY_CAPABILITY_REPORT } from '../fidelity-capability-report.ts'
 import {
   UPSTREAM_MERMAID_MANIFEST,
   type UpstreamMermaidManifest,
@@ -53,8 +54,13 @@ describe('generated Mermaid syntax capability ledger', () => {
     expect(ledger.families).toHaveLength(familyIds(ledger).length * SYNTAX_CAPABILITY_DIMENSIONS.length)
     expect(new Set(ledger.features.map(row => row.dimensionId)))
       .toEqual(new Set(SYNTAX_CAPABILITY_DIMENSIONS.map(dimension => dimension.id)))
-    expect(ledger.features.some(row => row.state === 'absent')).toBe(false)
-    expect(ledger.families.some(row => row.state === 'absent')).toBe(false)
+    expect(ledger.features.filter(row => row.receipt.status === 'passed').map(row => row.featureId))
+      .toEqual(FIDELITY_CAPABILITY_REPORT.features.map(feature => feature.featureId))
+    expect(ledger.features.filter(row => row.receipt.status === 'missing')).toHaveLength(
+      ledger.features.length - FIDELITY_CAPABILITY_REPORT.features.length,
+    )
+    expect(ledger.features.some(row => row.state === 'absent')).toBe(true)
+    expect(ledger.families.some(row => row.state === 'absent')).toBe(true)
     expect(ledger.families.some(row => Object.values(row.processing ?? {}).includes('absent'))).toBe(false)
     for (const row of ledger.families.filter(row => row.dimensionId === 'processing' && !row.registrationId)) {
       expect(row.processing).toEqual(UNREGISTERED_FAMILY_CAPABILITY_STATES)
@@ -81,7 +87,7 @@ describe('generated Mermaid syntax capability ledger', () => {
     }
   })
 
-  test('rejects missing dimensions, missing features, and every absent state', () => {
+  test('rejects missing dimensions, missing features, and unreceipted native claims', () => {
     const original = createSyntaxCapabilityLedger(UPSTREAM_MERMAID_MANIFEST, descriptors())
     const expectedFamilies = familyIds(original)
 
@@ -105,25 +111,17 @@ describe('generated Mermaid syntax capability ledger', () => {
       expectedFamilies,
     )).toContain('syntax feature classifications are missing: 1')
 
-    const absentFeature = structuredClone(original) as unknown as {
+    const unreceiptedNativeFeature = structuredClone(original) as unknown as {
       features: Array<{ featureId: string; state: string }>
     }
-    absentFeature.features[0]!.state = 'absent'
+    const unreceiptedFeature = unreceiptedNativeFeature.features.find(row =>
+      original.features.find(candidate => candidate.featureId === row.featureId)?.receipt.status === 'missing')!
+    unreceiptedFeature.state = 'native'
     expect(validateSyntaxCapabilityLedger(
-      absentFeature as unknown as SyntaxCapabilityLedger,
+      unreceiptedNativeFeature as unknown as SyntaxCapabilityLedger,
       UPSTREAM_MERMAID_MANIFEST,
       expectedFamilies,
-    )).toContain(`syntax feature ${absentFeature.features[0]!.featureId} is absent`)
-
-    const absentFamily = structuredClone(original) as unknown as {
-      families: Array<{ familyId: string; dimensionId: string; state: string }>
-    }
-    absentFamily.families[0]!.state = 'absent'
-    expect(validateSyntaxCapabilityLedger(
-      absentFamily as unknown as SyntaxCapabilityLedger,
-      UPSTREAM_MERMAID_MANIFEST,
-      expectedFamilies,
-    )).toContain(`syntax family ${absentFamily.families[0]!.familyId}/${absentFamily.families[0]!.dimensionId} is absent`)
+    )).toContain(`syntax feature ${unreceiptedFeature.featureId} claims native without a passing construct receipt`)
 
     const driftedOpenFamily = structuredClone(original) as unknown as {
       families: Array<{
@@ -159,14 +157,16 @@ describe('generated Mermaid syntax capability ledger', () => {
     manifest.semanticInventory.syntaxFeatures.sort((a, b) => compareCodePointStrings(a.id, b.id))
 
     const ledger = createSyntaxCapabilityLedger(manifest, descriptors())
-    expect(ledger.features.find(row => row.featureId === 'official-doc:flowchart:section:future-click-assets'))
-      .toMatchObject({
+    const futureFeature = ledger.features.find(row => row.featureId === 'official-doc:flowchart:section:future-click-assets')
+    expect(futureFeature).toMatchObject({
         familyIds: ['flowchart'],
         dimensionId: 'interaction-assets',
         classificationRuleId: 'interaction-assets-terms-v1',
-        state: 'source-preserved',
+        state: 'absent',
         artifactId: artifact.id,
+        receipt: { status: 'missing', caseIds: [] },
       })
+    expect(futureFeature?.diagnostic).toContain('NO_EXECUTED_RECEIPT')
     expect(validateSyntaxCapabilityLedger(ledger, manifest, familyIds(ledger))).toEqual([])
   })
 

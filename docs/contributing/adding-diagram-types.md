@@ -19,11 +19,11 @@ That is necessary, but not sufficient for this repo. Agentic Mermaid also needs 
 - Verify it is not already represented by a `FamilyDescriptor` in `src/agent/families.ts`.
 - Reconcile the target with the version-pinned [`upstream-mermaid-manifest.json`](../project/upstream-mermaid-manifest.json). Map it to one official syntax page; the generator must account for every page, heading, example, lifecycle declaration, core detector, and first-party external family. Regenerate provenance/hash and review the upgrade diff if the pin changed; presence in this inventory is never a native-support claim.
 - Add a built-in `FamilyDescriptor` seed in `src/agent/families.ts` first. The reviewer-facing `BUILTIN_FAMILY_METADATA` list is a derived compatibility projection with compile-time coverage against the closed `DiagramKind` union. Host extensions instead use a collision-checked `family:<owner/name>` identity and `registerFamily`.
-- Update the [diagram-family citizenship matrix](./diagram-family-citizenship.md) in the same PR: every citizenship surface must be marked `satisfied` with evidence or `exception` with a tracked follow-up.
+- Update the [diagram-family citizenship matrix](./diagram-family-citizenship.md) in the same PR: every manually owned citizenship surface must be marked `satisfied` with evidence or `exception` with a tracked follow-up. Add construct receipts for syntax claims; the generator owns `mermaidSyntaxParity` and fails it closed until all pinned family features are native.
 - Prefer Mermaid's stable header if Mermaid supports both stable and beta forms.
 - Pin the Mermaid version and syntax page being implemented. Inventory every stable documented construct before coding; parser acceptance or source preservation alone does not count as rendered support.
 - Choose a Wikipedia/domain reference for the diagram form and write one sentence naming its recognizable visual hallmark (for example, a Mindmap has a central idea with radiating hierarchy).
-- Record both in [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) and the matrix's `mermaidSyntaxParity` / `familyVisualMetaphor` cells. A missing stable Mermaid construct blocks registration unless it is an unavoidable security/offline divergence with a named diagnostic and executable test.
+- Record both in [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md), executable construct receipts, and the matrix's `familyVisualMetaphor` cell. The receipt generator owns `mermaidSyntaxParity`. A missing stable Mermaid construct blocks registration unless it is an unavoidable security/offline divergence with a named diagnostic and executable test.
 
 ## 2. Start From Mermaid's Own Example
 

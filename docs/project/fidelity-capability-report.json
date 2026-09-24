@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 1,
-  "mode": "shadow",
-  "publicClaimsChanged": false,
+  "schemaVersion": 2,
+  "mode": "public",
+  "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "d15c3fa25153fbcebbed9a2dbf1e743e4fc6518bbae0f2be9bc81638e916ad09",
-  "receiptResultSha256": "a18a1d6d6ed95cb269458633d743fef6e0db901de407dc238caa0ca49e5d8f4c",
+  "receiptInputSha256": "3d9260e8d95482d0006cfaf4c60781296004858c3e91a9c1400a28a02738588b",
+  "receiptResultSha256": "3817186c2566837c7a59f48b5ad4d8be8faed43195d83c281e76d308c6f9e128",
   "summary": {
     "caseCount": 10,
     "featureCount": 7,
@@ -32,6 +32,14 @@
             "Unsupported families expose no structured mutation target by design."
           ]
         }
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_FAMILY"
+        ],
+        "render": [
+          "UNSUPPORTED_FAMILY"
+        ]
       }
     },
     {
@@ -46,7 +54,8 @@
         "render": "native",
         "serialize": "native",
         "mutate": "native"
-      }
+      },
+      "diagnostics": {}
     },
     {
       "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
@@ -60,7 +69,8 @@
         "render": "absent",
         "serialize": "native",
         "mutate": "native"
-      }
+      },
+      "diagnostics": {}
     },
     {
       "featureId": "official-doc:journey:section:user-journey-diagram",
@@ -74,6 +84,17 @@
         "render": "diagnosed",
         "serialize": "source-preserved",
         "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
       }
     },
     {
@@ -90,7 +111,8 @@
         "render": "absent",
         "serialize": "native",
         "mutate": "native"
-      }
+      },
+      "diagnostics": {}
     },
     {
       "featureId": "official-doc:state:section:comments",
@@ -104,6 +126,14 @@
         "render": "absent",
         "serialize": "source-preserved",
         "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
       }
     },
     {
@@ -119,6 +149,14 @@
         "render": "absent",
         "serialize": "source-preserved",
         "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
       }
     }
   ]

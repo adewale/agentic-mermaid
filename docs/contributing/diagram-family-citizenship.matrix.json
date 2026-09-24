@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 2,
-  "updated": "2026-07-18",
+  "schemaVersion": 3,
+  "updated": "2026-09-24",
   "statusValues": [
     "satisfied",
     "exception"
@@ -260,11 +260,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 2/407 features receipted; native=1, source-preserved=0, diagnosed=0, absent-or-unreceipted=406.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -453,11 +455,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 1/121 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=121.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -648,11 +652,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaidseqbench/data.csv"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/179 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=179.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -841,11 +847,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/26 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=26.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -1035,11 +1043,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/176 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=176.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -1229,11 +1239,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/162 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=162.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -1422,11 +1434,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 1/10 features receipted; native=0, source-preserved=0, diagnosed=1, absent-or-unreceipted=9.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -1615,11 +1629,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/49 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=49.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -1809,11 +1825,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 1/87 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=87.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -2002,11 +2020,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/21 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=21.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -2195,11 +2215,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-docs-corpus/corpus.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/48 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=48.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -2392,11 +2414,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-gantt-bench/cases.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/103 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=103.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -2565,13 +2589,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
-            "eval/mindmap-gitgraph-content-corpus/manifest.json",
-            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/44 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=44.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -2746,13 +2770,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
-            "eval/mindmap-gitgraph-content-corpus/manifest.json",
-            "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/105 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=105.",
+          "tracked": [
+            "#248"
           ]
         },
         "familyVisualMetaphor": {
@@ -2900,11 +2924,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-radar-bench/harvest.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 0/34 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=34.",
+          "tracked": [
+            "#248"
           ]
         },
         "domainProperties": {
@@ -3072,11 +3098,13 @@
           ]
         },
         "mermaidSyntaxParity": {
-          "status": "satisfied",
+          "status": "exception",
           "evidence": [
-            "docs/design/mermaid-family-fidelity-audit.md",
-            "src/__tests__/closing-the-gap.test.ts",
-            "eval/mermaid-sankey-bench/harvest.json"
+            "docs/project/fidelity-capability-report.json"
+          ],
+          "note": "Receipt-derived Mermaid 11.16 coverage: 1/21 features receipted; native=0, source-preserved=0, diagnosed=0, absent-or-unreceipted=21.",
+          "tracked": [
+            "#248"
           ]
         },
         "domainProperties": {

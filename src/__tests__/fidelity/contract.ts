@@ -1,15 +1,23 @@
 // Construct-level fidelity receipt contract for issue #248.
 //
 // This remains test-only. Public capability reports consume only the compact
-// generated shadow projection, never executable functions or raw observations.
+// generated public projection, never executable functions or raw observations.
 
-export const FIDELITY_DISPOSITIONS = Object.freeze(['native', 'source-preserved', 'diagnosed', 'absent'] as const)
-
-export type FidelityDisposition = (typeof FIDELITY_DISPOSITIONS)[number]
-
-export const FIDELITY_SURFACES = Object.freeze(['agent', 'render', 'serialize', 'mutate'] as const)
-
-export type FidelitySurface = (typeof FIDELITY_SURFACES)[number]
+export {
+  FIDELITY_DISPOSITIONS,
+  FIDELITY_SURFACES,
+} from '../../fidelity-capability-contract.ts'
+export type {
+  FidelityCapabilityFeature,
+  FidelityCapabilityReport,
+  FidelityCapabilitySurface,
+  FidelityDisposition,
+  FidelitySurface,
+} from '../../fidelity-capability-contract.ts'
+import type {
+  FidelityDisposition,
+  FidelitySurface,
+} from '../../fidelity-capability-contract.ts'
 
 export type FidelityJson = null | boolean | number | string | readonly FidelityJson[] | { readonly [key: string]: FidelityJson }
 
@@ -134,29 +142,4 @@ export interface FidelityReceiptResult {
     blockedSurfaceCount: number
     notApplicableSurfaceCount: number
   }
-}
-
-export type FidelityShadowSurface = FidelityDisposition | { notApplicable: readonly string[] }
-
-export interface FidelityShadowFeature {
-  featureId: string
-  family: string
-  disposition: FidelityDisposition
-  caseIds: readonly string[]
-  surfaces: Record<FidelitySurface, FidelityShadowSurface>
-}
-
-export interface FidelityCapabilityShadow {
-  schemaVersion: 1
-  mode: 'shadow'
-  publicClaimsChanged: false
-  upstreamRevision: string
-  receiptInputSha256: string
-  receiptResultSha256: string
-  summary: {
-    caseCount: number
-    featureCount: number
-    dispositions: Readonly<Record<FidelityDisposition, number>>
-  }
-  features: readonly FidelityShadowFeature[]
 }
