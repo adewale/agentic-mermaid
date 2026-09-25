@@ -2,7 +2,7 @@
 
 Status: implemented — SVG visual metaphor (now with the experience-curve line
 and tiled section spans), shared parse core with typed opaque reasons,
-structured accessibility/literal text parity, semicolon statement parity,
+structured accessibility/literal text parity, diagnosed semicolon extension,
 marker namespacing, ASCII width handling (grapheme-safe), style/palette/config
 coverage with WCAG-guarded section labels, and the Describe/Facts/Verify spec
 below. The elevation PR's description records why the first implementation's
@@ -10,7 +10,7 @@ safeguards missed and what now enforces them.
 This is an as-built evidence record, not an active plan. Root `TODO.md` is the
 sole authority for scheduled work; candidate refinements and alternate-look
 ideas retained below are unscheduled unless promoted there.
-Last reviewed: 2026-07-10
+Last reviewed: 2026-09-25
 Issue: https://github.com/adewale/agentic-mermaid/issues/128
 Origin: https://github.com/adewale/agentic-mermaid/pull/6
 Research: [`journey-usage-research.md`](./journey-usage-research.md)
@@ -102,9 +102,12 @@ Mermaid config compatibility but do not all have meaningful Journey geometry.
 
 Known remaining syntax/parity gaps and caveats:
 
-- Semicolon-separated Journey statements now follow upstream lexer semantics:
-  `;` terminates a statement (so `A: 5: Me; B: 3: Me` is two tasks) while
-  HTML entities such as `&amp;` keep their semicolons as literal label text.
+- Semicolon-separated Journey statements are an Agentic Mermaid extension,
+  not Mermaid 11.16 syntax. We retain the existing two-task interpretation of
+  `A: 5: Me; B: 3: Me` for local compatibility, but verification emits
+  `journey_semicolon_statement_extension` with the authored line number. Use
+  one statement per line for Mermaid portability. HTML entities such as
+  `&amp;` keep their semicolons as literal label text locally.
 - Journey ASCII remains a compact semantic list, not a visual clone of
   Mermaid's SVG Journey chart. It now wraps to `maxWidth` using terminal display
   width, including CJK/emoji text, but it is intentionally not a miniature SVG

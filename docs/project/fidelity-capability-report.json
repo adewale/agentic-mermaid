@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "04c20c725550bb16181be16c6697138614070db35b3c0c846e26caf5829cbda1",
-  "receiptResultSha256": "01ab945f4543fcdea3087b41d6e9f71e16b58509eca1239cba4e2c256114085b",
+  "receiptInputSha256": "3ef3ea886608d1dcbbbe2db8e1c9648aaa6b58e2d4682ce561d082978cdf48f3",
+  "receiptResultSha256": "480f9994c722c8fec11dba1ace0932fc00823e1a36260f706a30cfdfb90a8870",
   "summary": {
-    "caseCount": 22,
+    "caseCount": 23,
     "featureCount": 12,
     "dispositions": {
-      "native": 4,
+      "native": 3,
       "source-preserved": 0,
       "diagnosed": 5,
-      "absent": 3
+      "absent": 4
     }
   },
   "features": [
@@ -363,17 +363,22 @@
     {
       "featureId": "official-doc:journey:section:user-journey-diagram",
       "family": "journey",
-      "disposition": "native",
+      "disposition": "absent",
       "caseIds": [
-        "journey.scores.fractional-parser-render-seam"
+        "journey.scores.fractional-parser-render-seam",
+        "journey.statements.semicolon-extension"
       ],
       "surfaces": {
-        "agent": "native",
-        "render": "native",
+        "agent": "diagnosed",
+        "render": "absent",
         "serialize": "native",
         "mutate": "native"
       },
-      "diagnostics": {},
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ]
+      },
       "caseEvidence": [
         {
           "caseId": "journey.scores.fractional-parser-render-seam",
@@ -384,6 +389,20 @@
             "mutate": "native"
           },
           "diagnostics": {}
+        },
+        {
+          "caseId": "journey.statements.semicolon-extension",
+          "surfaces": {
+            "agent": "diagnosed",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ]
+          }
         }
       ],
       "acceptedDivergences": []
