@@ -200,14 +200,24 @@ export function invalidScoreDetail(text: string, rawScore: string): string {
 }
 
 const HTML_ENTITY_RE = /^&(?:[a-zA-Z][a-zA-Z0-9]{1,31}|#[0-9]{1,7}|#x[0-9a-fA-F]{1,6});$/
+// The longest accepted entity is '&' + a 32-character name + ';'. Bounding
+// the candidate before slicing avoids copying a growing prefix at each ';'.
+const MAX_HTML_ENTITY_LENGTH = 34
+
+function closesHtmlEntity(value: string, amp: number, semicolon: number, start = 0): boolean {
+  return amp >= start
+    && semicolon - amp + 1 <= MAX_HTML_ENTITY_LENGTH
+    && HTML_ENTITY_RE.test(value.slice(amp, semicolon + 1))
+}
 
 /** True when text contains a real Journey statement delimiter. Semicolons
  * closing HTML entities are label text, not delimiters. */
 export function hasJourneyStatementDelimiter(value: string): boolean {
+  let lastAmp = -1
   for (let i = 0; i < value.length; i++) {
+    if (value[i] === '&') lastAmp = i
     if (value[i] !== ';') continue
-    const amp = value.lastIndexOf('&', i)
-    if (amp >= 0 && HTML_ENTITY_RE.test(value.slice(amp, i + 1))) continue
+    if (closesHtmlEntity(value, lastAmp, i)) continue
     return true
   }
   return false
@@ -221,12 +231,14 @@ function splitJourneyStatements(line: string): string[] {
   if (!line.includes(';')) return [line.trim()]
   const parts: string[] = []
   let start = 0
+  let lastAmp = -1
   for (let i = 0; i < line.length; i++) {
+    if (line[i] === '&') lastAmp = i
     if (line[i] !== ';') continue
-    const amp = line.lastIndexOf('&', i)
-    if (amp >= start && HTML_ENTITY_RE.test(line.slice(amp, i + 1))) continue
+    if (closesHtmlEntity(line, lastAmp, i, start)) continue
     parts.push(line.slice(start, i))
     start = i + 1
+    lastAmp = -1
   }
   parts.push(line.slice(start))
   return parts.map(part => part.trim()).filter(part => part && !isJourneyComment(part))
