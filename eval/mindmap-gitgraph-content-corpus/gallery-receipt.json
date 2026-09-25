@@ -72,7 +72,7 @@
     },
     {
       "path": "scripts/pr-assets/mindmap-gitgraph-content-gallery.ts",
-      "sha256": "72cf4f3d0a8dc852ccb1cf709997f6c9b251b66637905986c8eb7bcf0a809f8b"
+      "sha256": "f475381c30f6c878c1fc917b1078baed56257428b8e1ca999b55484f3c2ec2cf"
     },
     {
       "path": "src/agent/accessibility-envelope.ts",
@@ -124,7 +124,7 @@
     },
     {
       "path": "src/agent/facts.ts",
-      "sha256": "a81897e8f7d82c1203ed8721794bce764c44770279adca30c9fc4dcaa497af4e"
+      "sha256": "ed1211b5db5f32b47a591b17c0707fa579edf9cdfb482e1a3cdb5243aecb2678"
     },
     {
       "path": "src/agent/families-builtin.ts",
@@ -620,7 +620,7 @@
     },
     {
       "path": "src/journey/renderer.ts",
-      "sha256": "29c5d0204dc4b391cdc111a7834c1461bef931a5b5c3fd5a31d827d0e91202df"
+      "sha256": "288675f3fc9d2fcf1167deaeee2929d5e85e7ef2465dc44fbb3763ce66736da7"
     },
     {
       "path": "src/journey/types.ts",
@@ -1254,11 +1254,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "8b28dadcc2236e9260dd8560f42f9a9c347dd68323a130ef01d13a9f93f2544f"
+      "sha256": "f35e744dd10e0fc6d6d6727ae46e895dc593c7bd531d52816a50d827f685fc4c"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "2b82b5613f49976066094ec145af2b1b6cedb0251d96ec632650bd0039a13283"
+      "sha256": "51a63281d5a9807edfb48c7ffc0152c243c5b419f20b61a1cca458e3800cfc0b"
     }
   ]
 }

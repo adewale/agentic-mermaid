@@ -90,15 +90,23 @@ describe('Journey fractional score fidelity', () => {
   })
 
   test('fractional face sentiment changes exactly at score 3', () => {
-    const mouth = (score: number): string => {
+    const mouth = (score: number): { kind: 'line' | 'curve'; endpointY: number; controlY?: number } => {
       const svg = renderMermaidSVG(`journey\nTask: ${score}: Me`)
       const path = svg.match(/<path class="journey-face-mouth" d="([^"]+)"/)
       expect(path).not.toBeNull()
-      return path![1]!
+      const d = path![1]!
+      const coordinates = [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map(match => Number(match[0]))
+      return d.includes(' Q')
+        ? { kind: 'curve', endpointY: coordinates[1]!, controlY: coordinates[3]! }
+        : { kind: 'line', endpointY: coordinates[1]! }
     }
-    expect(mouth(2.75)).toContain(' Q')
-    expect(mouth(3)).toContain(' L')
-    expect(mouth(3.25)).toContain(' Q')
-    expect(mouth(2.75)).not.toBe(mouth(3.25))
+    const sad = mouth(2.75)
+    const neutral = mouth(3)
+    const happy = mouth(3.25)
+    expect(sad.kind).toBe('curve')
+    expect(sad.controlY!).toBeLessThan(sad.endpointY)
+    expect(neutral.kind).toBe('line')
+    expect(happy.kind).toBe('curve')
+    expect(happy.controlY!).toBeGreaterThan(happy.endpointY)
   })
 })
