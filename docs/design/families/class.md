@@ -95,6 +95,29 @@ rendering. A separate executed receipt keeps that gap visible. The broader
 lossless statement authority and remaining identity/source-normalization
 work remain tracked by #260.
 
+## Safe link hover text (issue #248)
+
+Pinned Mermaid 11.16 accepts both `link A "https://example.com" "Docs"` and
+`click A href "https://example.com" "Docs"`. The shared Class link grammar
+now preserves the optional tooltip with the safe URL. Structured agent state,
+serialization, mutation, the renderer-neutral action sidecar, and a native SVG
+`<title>` on the linked class keep the same text. The URL remains inert metadata;
+this does not enable callbacks or external fetches. Tooltip text is XML-escaped
+before SVG emission. Malformed trailing text after a safe link fails loudly.
+This slice covers links to declared classes, in the official documented order:
+declare the class before its interaction. Control characters in hover text are
+rejected rather than emitted into XML or trusted action metadata.
+The Class renderer and action sidecar retain the authored interaction line
+through the shared entity-decoding seam, so an entity-encoded quotation mark
+inside a tooltip (including one beside `%%`) remains text, while a raw quoted
+navigation target is still diagnosed.
+
+Mermaid also accepts an optional navigation target such as `_self`. Our inert
+action model does not represent that target, so such a statement remains
+source-preserved in the agent and diagnosed by native rendering. The executed
+receipt keeps the official Interaction section's aggregate claim `diagnosed`;
+it does not promote callbacks or targeted navigation to native support.
+
 ## `:::` class shorthand evidence (2026-07)
 
 **Why:** `Account:::highlight` decorates `Account`; the suffix is not an

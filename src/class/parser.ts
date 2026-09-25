@@ -1,9 +1,11 @@
 import type { ClassDiagram, ClassNode, ClassRelationship, ClassMember, RelationshipType, ClassNamespace } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { isSafeActionHref } from '../output-security.ts'
+import { decodeXML } from 'entities'
 
 // ---- Shared namespace grammar ----------------------------------------------
 // One grammar, two consumers: this render parser and the agent body parser
@@ -31,6 +33,65 @@ export function expandInlineNamespaceStatement(line: string): string[] {
   if (!parseNamespaceHeader(opener)) return [line]
   const body = match[2]!.split(';').map(statement => statement.trim()).filter(Boolean)
   return [opener, ...body, '}']
+}
+
+/** Split entity-created physical lines while retaining every other authored
+ * entity for Class quote-boundary validation. */
+export function splitAuthoredClassLine(line: string): string[] {
+  return line.replace(/&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g, token => {
+    const decoded = decodeXML(token)
+    return /[\r\n]/.test(decoded) ? decoded : token
+  }).split(/\r\n|\r|\n/)
+}
+
+/** Match decoded Class statements to authored bytes one statement at a time.
+ * Entity-created comments/directives and compact namespace expansions must
+ * never shift quote provenance for an unrelated later link. */
+function authoredClassStatements(lines: string[]): Array<string | undefined> {
+  const authored = lines.flatMap(splitAuthoredClassLine).map(line => line.trim())
+    .filter(line => {
+      const semantic = decodeXML(line).trim()
+      return semantic.length > 0 && !semantic.startsWith('%%')
+    })
+  const semantic = authored.map(line => decodeXML(line))
+  const statements: Array<string | undefined> = []
+  const add = (raw: string | undefined, decoded: string): void => {
+    const decodedParts = expandInlineNamespaceStatement(decoded)
+    const rawParts = raw === undefined ? [] : expandInlineNamespaceStatement(raw)
+    if (rawParts.length === decodedParts.length
+      && rawParts.every((part, index) => decodeXML(part) === decodedParts[index])) {
+      statements.push(...rawParts)
+    } else {
+      statements.push(...decodedParts.map(() => undefined))
+    }
+  }
+  for (let index = 0; index < authored.length; index++) {
+    const directive = parseAccessibilityDirective(semantic, index)
+    if (directive === undefined) {
+      for (; index < authored.length; index++) add(authored[index], semantic[index]!)
+      break
+    }
+    if (directive === null) {
+      add(authored[index], semantic[index]!)
+      continue
+    }
+    if (directive.suffixLine) {
+      const rawClosing = authored[directive.endIndex]!
+      const braceTokens = /}|&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g
+      let braceEnd = -1
+      for (const match of rawClosing.matchAll(braceTokens)) {
+        if (decodeXML(match[0]) === '}') {
+          braceEnd = match.index + match[0].length
+          break
+        }
+      }
+      const candidate = braceEnd < 0 ? undefined : rawClosing.slice(braceEnd).trim()
+      add(candidate !== undefined && decodeXML(candidate).trim() === directive.suffixLine.trim()
+        ? candidate : undefined, directive.suffixLine.trim())
+    }
+    index = directive.endIndex
+  }
+  return statements
 }
 
 // Shared class declaration grammar. The structured serializer emits bracket
@@ -165,12 +226,103 @@ function applyClassAnnotation(node: ClassNode, annotation: string): void {
 }
 
 /** Shared safe-link grammar for renderer and agent class parsers. */
-export function parseClassInteraction(line: string): { id: string; generic?: string; href: string } | null {
-  const link = line.match(/^(?:click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+const CLASS_COMMENT_START_RE = /(?:%|&#(?:0*37|x0*25);){2}/iy
+
+function startsClassComment(line: string, index = 0): boolean {
+  CLASS_COMMENT_START_RE.lastIndex = index
+  return CLASS_COMMENT_START_RE.test(line)
+}
+
+export function parseClassInteraction(line: string): { id: string; generic?: string; href: string; tooltip?: string } | null {
+  // Parse the URL once, then scan the optional tooltip/comment tail once.
+  // A bare URL may contain literal %% (a repo-supported extension), while a
+  // Mermaid comment may follow a closing quote without intervening space.
+  const link = line.trimStart().match(/^(?:click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?(?:"((?:\\.|[^"\\])*)"|((?:https?:\/\/|mailto:)[^\s"\\]+))/i)
   if (!link) return null
+  const tail = line.trimStart().slice(link[0].length).trimStart()
+  let tooltip: string | undefined
+  if (tail.startsWith('"')) {
+    // Hover text belongs to the quoted safe-link forms. A bare destination
+    // followed by a quote is not a different, silently shortened URL.
+    if (link[3] !== undefined) return null
+    let close = -1
+    let interiorQuotes = 0
+    for (let i = 1; i < tail.length; i++) {
+      if (tail[i] !== '"') continue
+      let next = i + 1
+      while (next < tail.length && /\s/.test(tail[next]!)) next++
+      if (interiorQuotes % 2 === 0 && (next === tail.length || startsClassComment(tail, next))) {
+        close = i
+        break
+      }
+      interiorQuotes++
+    }
+    if (close < 0) return null
+    tooltip = tail.slice(1, close)
+    // Decoded &quot; pairs within hover text are content. The render waist no
+    // longer knows whether an internal pair was authored raw or as entities,
+    // so only unbalanced quotes can be rejected without losing valid text.
+    if ((tooltip.match(/"/g)?.length ?? 0) % 2 !== 0) return null
+    const suffix = tail.slice(close + 1).trimStart()
+    if (suffix && !startsClassComment(suffix)) return null
+  } else if (tail && !startsClassComment(tail)) return null
   const ref = parseClassReference(link[1]!)
   const href = (link[2] ?? link[3] ?? '').replace(/\\(["\\])/g, '$1')
-  return ref && /^(?:https?:|mailto:)/i.test(href) ? { ...ref, href } : null
+  return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip))
+    ? { id: ref.id, ...(ref.generic ? { generic: ref.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
+    : null
+}
+
+/** Decode authored syntax once while shielding entity-encoded quotes from the
+ * grammar. A raw extra quote remains a delimiter; an entity quote remains
+ * content until after the strict boundary check. */
+export function parseClassInteractionWithAuthored(authoredLine: string): ReturnType<typeof parseClassInteraction> {
+  // Choose a marker absent from the *decoded* input: an entity can itself
+  // represent any private-use code point, so checking authored bytes is not
+  // enough to keep content distinct from protected quote provenance.
+  const occupied = new Set<number>()
+  for (const character of decodeXML(authoredLine)) {
+    const code = character.charCodeAt(0)
+    if (code >= 0xe000 && code <= 0xf8ff) occupied.add(code)
+  }
+  let markerCode = 0xe000
+  while (occupied.has(markerCode)) markerCode++
+  if (markerCode > 0xf8ff) return null
+  const quoteMarker = String.fromCharCode(markerCode)
+  const protectedLine = decodeXML(authoredLine.replace(/&quot;|&#0*34;|&#x0*22;/gi, token =>
+    decodeXML(token) === '"' ? quoteMarker : token))
+  const parseProtected = (line: string): ReturnType<typeof parseClassInteraction> => {
+    const parsed = parseClassInteraction(line)
+    if (!parsed || parsed.tooltip?.includes('"')) return null
+    // A quote entity inside a destination cannot relax the URL token grammar.
+    if (parsed.href.includes(quoteMarker)) return null
+    const href = parsed.href
+    const tooltip = parsed.tooltip?.replaceAll(quoteMarker, '"')
+    if (!isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href)
+      || (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip))) return null
+    return { ...parsed, href, ...(tooltip !== undefined ? { tooltip } : {}) }
+  }
+  const direct = parseProtected(protectedLine)
+  if (direct) return direct
+  const restorePair = (line: string): string | null => {
+    const first = line.indexOf(quoteMarker)
+    const second = first < 0 ? -1 : line.indexOf(quoteMarker, first + 1)
+    if (second < 0) return null
+    return line.slice(0, first) + '"' + line.slice(first + 1, second) + '"' + line.slice(second + 1)
+  }
+  const withOuterQuotes = restorePair(protectedLine)
+  if (!withOuterQuotes) return null
+  const outerParsed = parseProtected(withOuterQuotes)
+  if (outerParsed) return outerParsed
+  // A second encoded pair can delimit the tooltip. More remaining entities
+  // are ambiguous with an encoded target, so do not pair across them.
+  if ([...withOuterQuotes].filter(character => character === quoteMarker).length !== 2) return null
+  const withTooltipQuotes = restorePair(withOuterQuotes)
+  return withTooltipQuotes === null ? null : parseProtected(withTooltipQuotes)
+}
+
+export function parseAuthoredClassInteraction(line: string): ReturnType<typeof parseClassInteraction> {
+  return parseClassInteractionWithAuthored(line)
 }
 
 // ============================================================================
@@ -200,10 +352,11 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
  * Parse a Mermaid class diagram.
  * Expects the first line to be "classDiagram".
  */
-export function parseClassDiagram(lines: string[]): ClassDiagram {
+export function parseClassDiagram(lines: string[], authoredLines?: string[]): ClassDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(accessibility)
   lines = accessibility.familyLines.flatMap(expandInlineNamespaceStatement)
+  const authoredExpanded = authoredLines ? authoredClassStatements(authoredLines) : undefined
   const diagram: ClassDiagram = {
     classes: [],
     classDefs: new Map(),
@@ -300,9 +453,17 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
 
     // --- Safe class links. Callback forms remain inert and unmodeled. ---
-    const interaction = parseClassInteraction(line)
+    const candidate = authoredExpanded?.[i]
+    const authoredLine = candidate !== undefined && decodeXML(candidate).trim() === line
+      ? candidate
+      : undefined
+    const interaction = authoredLine !== undefined
+      ? parseClassInteractionWithAuthored(authoredLine)
+      : authoredLines === undefined ? parseAuthoredClassInteraction(line) : null
     if (interaction) {
-      ensureClass(classMap, interaction.id, interaction.generic).href = interaction.href
+      const cls = ensureClass(classMap, interaction.id, interaction.generic)
+      cls.href = interaction.href
+      if (interaction.tooltip !== undefined) cls.tooltip = interaction.tooltip
       continue
     }
 
@@ -466,6 +627,16 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
         what: `Unrecognized class relationship statement "${line}"`,
         expectedForm: 'A .. B, A -- B, or A --> B, optionally with a label',
         example: 'A --> B : linked',
+      })
+    }
+    // A safe URL followed by unmodeled tooltip/target/trailing syntax must
+    // not be accepted as an invisible statement. Unsafe links and callbacks
+    // remain source-only rather than becoming executable output.
+    if (/^(?:click|link)\s+(?:`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?"?(?:https?:\/\/|mailto:)/i.test(line)) {
+      throw syntaxError({
+        what: `Unrecognized class link statement "${line}"`,
+        expectedForm: 'link Name "https://example.com" "optional tooltip"',
+        example: 'click Name href "https://example.com" "Documentation"',
       })
     }
   }

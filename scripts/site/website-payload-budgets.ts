@@ -23,7 +23,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // graph; these are the reviewed Linux/x64 totals.
     maxRawBytes: 391_535,
     maxGzipBytes: 68_606,
-    maxBrotliBytes: 54_406,
+    maxBrotliBytes: 54_396,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -35,12 +35,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // Class relation identity and compact-arrow handling preserve the
-    // 31-request graph and raw total. These are the exact reviewed Linux/x64
-    // capture totals.
-    maxRawBytes: 732_199,
-    maxGzipBytes: 274_693,
-    maxBrotliBytes: 250_875,
+    // Class tooltip support changes a shared chunk without adding a request.
+    // These are the exact reviewed Linux/x64 capture totals.
+    maxRawBytes: 732_417,
+    maxGzipBytes: 274_783,
+    maxBrotliBytes: 250_956,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -63,11 +62,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    // Class relation handling preserves the two-request graph; these are the
+    // Class tooltip support preserves the two-request graph; these are the
     // exact reviewed Linux/x64 capture totals.
-    maxRawBytes: 3_352_549,
-    maxGzipBytes: 987_743,
-    maxBrotliBytes: 775_584,
+    maxRawBytes: 3_356_355,
+    maxGzipBytes: 989_330,
+    maxBrotliBytes: 776_875,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

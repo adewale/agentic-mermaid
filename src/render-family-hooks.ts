@@ -43,6 +43,7 @@ import { renderXYChartAscii } from './ascii/xychart.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from './class/layout.ts'
 import { parseClassDiagram } from './class/parser.ts'
 import { lowerClassScene } from './class/renderer.ts'
+import { normalizeMermaidSource } from './mermaid-source.ts'
 import { applyErFrontmatterDirection, layoutErDiagram, resolveErRenderOptions } from './er/layout.ts'
 import { parseErDiagram } from './er/parser.ts'
 import { lowerErScene } from './er/renderer.ts'
@@ -276,10 +277,16 @@ const CLASS_RENDER_HOOKS = {
   }),
   // Wire-or-warn config threading: the typed `class` frontmatter section's
   // nodeSpacing/rankSpacing fold into RenderOptions (explicit options win).
-  layout: ctx => layoutResult(layoutClassDiagram(withAccessibilityFields(parseClassDiagram(ctx.source.familyLines), ctx.source.accessibility), ctx.renderOptions, ctx.styleFace)),
+  layout: ctx => layoutResult(layoutClassDiagram(withAccessibilityFields(parseClassDiagram(
+    ctx.source.familyLines,
+    normalizeMermaidSource(ctx.source.originalText).familyLines,
+  ), ctx.source.accessibility), ctx.renderOptions, ctx.styleFace)),
   projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),
-  renderAscii: ctx => renderClassAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: ctx => renderClassAscii(
+    ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth,
+    normalizeMermaidSource(ctx.source.originalText).familyText,
+  ),
 } satisfies BuiltinRenderHooks
 
 const ER_RENDER_HOOKS = {

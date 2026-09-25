@@ -15,6 +15,7 @@
 //   A "card" <|-- "card" B : label               (cardinalities + label)
 //   note for A "text"
 //   note "text"
+//   link A "https://example.com" "optional tooltip"
 //   title T
 //   namespace X { class A ... }                  (repo #118: nesting, dot
 //   namespace A.B.C { ... }                       paths, and ["Label"] via
@@ -24,7 +25,7 @@
 // Unmodeled (forces opaque):
 //   - direction TB (wired at layout, unmodeled here); repeated class
 //     annotations stay opaque because the renderer has one annotation slot.
-//   - cssClass / link / callback / click handlers
+//   - cssClass / callbacks / unsupported click forms
 //   - styled / classDef
 // ============================================================================
 
@@ -35,7 +36,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassInteractionWithAuthored, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -205,10 +206,11 @@ export function parseClassBody(lines: string[]): ClassBody | null {
       continue
     }
 
-    const interaction = parseClassInteraction(raw)
+    const interaction = parseClassInteractionWithAuthored(raw)
     if (interaction) {
       const node = upsert(interaction.id, undefined, interaction.generic)
       node.href = interaction.href
+      if (interaction.tooltip !== undefined) node.tooltip = interaction.tooltip
       claimClass(node)
       continue
     }
@@ -369,7 +371,9 @@ export function renderClass(body: ClassBody): string {
   for (const c of body.classes) {
     if (c.className) lines.push(`  class ${quoteIfNeeded(c.id)} ${c.className}`)
     if (c.style) lines.push(`  style ${quoteIfNeeded(c.id)} ${serializeStyleProps(c.style)}`)
-    if (c.href) lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+    if (c.href) {
+      lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
+    }
   }
   return lines.join('\n') + '\n'
 }
@@ -385,6 +389,7 @@ function cloneClass(body: ClassBody): ClassBody {
       ...(c.className ? { className: c.className } : {}),
       ...(c.style ? { style: { ...c.style } } : {}),
       ...(c.href ? { href: c.href } : {}),
+      ...(c.tooltip !== undefined ? { tooltip: c.tooltip } : {}),
     })),
     relations: body.relations.map(r => ({ ...r })),
     notes: body.notes.map(n => ({ ...n })),

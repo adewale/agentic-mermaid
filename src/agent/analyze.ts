@@ -16,11 +16,13 @@ import { stateBodyToGraph } from './state-body.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { normalizeMermaidSource, toMermaidLines } from '../mermaid-source.ts'
+import { decodeXML } from 'entities'
 import {
   expandInlineNamespaceStatement,
   parseClassDeclaration,
-  parseClassInteraction,
+  parseClassInteractionWithAuthored,
   parseClassReference,
+  splitAuthoredClassLine,
 } from '../class/parser.ts'
 import type { MermaidGraph } from '../types.ts'
 import { isSafeActionHref } from '../output-security.ts'
@@ -95,9 +97,20 @@ export function collectActionRecords(d: ParsedDiagram): DiagramActionRecord[] {
 
 function collectClassActions(source: string): DiagramActionRecord[] {
   const out: DiagramActionRecord[] = []
+  const effectiveTooltips = new Map<string, string>()
   let inClassBody = false
-  for (const sourceLine of actionSourceLines(source)) {
-    for (const text of expandInlineNamespaceStatement(sourceLine.text)) {
+  // Decode before splitting physical lines, just as the render waist does:
+  // &#10; may introduce an entire interaction statement (or split one).
+  // Retain the authored physical line for each decoded segment in sidecars.
+  const physicalLines = source.split(/\r?\n/)
+  const authoredSegments = physicalLines.flatMap((line, index) =>
+    splitAuthoredClassLine(line).map(text => ({ text, line: index + 1 })))
+  for (const sourceLine of actionSourceLines(decodeXML(source))) {
+    const authoredSegment = authoredSegments[sourceLine.line - 1]
+    const authoredLine = authoredSegment?.line ?? sourceLine.line
+    const semanticStatements = expandInlineNamespaceStatement(sourceLine.text)
+    const authoredStatements = expandInlineNamespaceStatement(authoredSegment?.text.trim() ?? '')
+    for (const [index, text] of semanticStatements.entries()) {
       if (inClassBody) {
         if (text.trim() === '}') inClassBody = false
         continue
@@ -107,26 +120,39 @@ function collectClassActions(source: string): DiagramActionRecord[] {
         inClassBody = true
         continue
       }
-      const embedded = parseClassInteraction(text)
+      const authoredText = authoredStatements.length === semanticStatements.length
+        && decodeXML(authoredStatements[index]!) === text ? authoredStatements[index] : undefined
+      const embedded = authoredText === undefined ? null : parseClassInteractionWithAuthored(authoredText)
       if (embedded) {
-        out.push(actionRecord('class', embedded.id, 'href', embedded.href, sourceLine.line))
+        if (embedded.tooltip !== undefined) effectiveTooltips.set(embedded.id, embedded.tooltip)
+        const effectiveTooltip = effectiveTooltips.get(embedded.id)
+        out.push({
+          ...actionRecord('class', embedded.id, 'href', embedded.href, authoredLine, embedded.href),
+          ...(effectiveTooltip !== undefined ? { tooltip: effectiveTooltip } : {}),
+        })
         continue
       }
+      // Unknown Class interaction syntax remains source-only. Do not export
+      // raw terminal controls from a rejected tooltip into action metadata.
+      if (/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/.test(text)) continue
       const callback = text.match(/^(callback)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(.+)$/i)
       if (callback) {
         const ref = parseClassReference(callback[2]!)
-        if (ref) out.push(actionRecord('class', ref.id, 'callback', callback[3]!, sourceLine.line))
+        if (ref) out.push(actionRecord('class', ref.id, 'callback', callback[3]!, authoredLine))
         continue
       }
       const match = text.match(/^(click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(.+)$/i)
       if (!match) continue
+      // A decoded line break inside a quoted tooltip leaves an incomplete
+      // statement. Do not manufacture an action from its first fragment.
+      if ((text.match(/"/g)?.length ?? 0) % 2 !== 0) continue
       const ref = parseClassReference(match[2]!)
       if (!ref) continue
       const rest = match[3]!.trim()
       const explicit = rest.match(/^(href|call|callback)\s+(.+)$/i)
       const kind = explicit?.[1]?.toLowerCase()
       if (kind === 'call' || kind === 'callback') {
-        out.push(actionRecord('class', ref.id, kind, explicit![2]!, sourceLine.line))
+        out.push(actionRecord('class', ref.id, kind, explicit![2]!, authoredLine))
       } else {
         const raw = kind === 'href' ? explicit![2]! : rest
         out.push(actionRecord(
@@ -134,7 +160,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
           ref.id,
           match[1]!.toLowerCase() === 'link' || looksLikeHref(raw) ? 'href' : 'callback',
           raw,
-          sourceLine.line,
+          authoredLine,
         ))
       }
     }
@@ -252,8 +278,9 @@ function actionRecord(
   action: DiagramActionRecord['action'],
   raw: string,
   line?: number,
+  parsedHref?: string,
 ): DiagramActionRecord {
-  const href = action === 'href' ? firstActionToken(raw) : undefined
+  const href = action === 'href' ? parsedHref ?? firstActionToken(raw) : undefined
   const unsafe = href !== undefined && !isSafeHref(href)
   return {
     family,

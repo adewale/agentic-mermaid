@@ -80,7 +80,7 @@
     },
     {
       "path": "src/agent/analyze.ts",
-      "sha256": "95d84e72dde77bdf0a4a5804fe29f4ff3ed7fc0bb2d5c853a51a2ceeb9d4af39"
+      "sha256": "4cbdac4d7eeae5617bb2d5edcbd202ffab17bc951be67f64ebf5799ef168afb7"
     },
     {
       "path": "src/agent/apply.ts",
@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "cf34d9c4e242acfa29046d9a77562ab8fa83ce54aff76e2c7560d88b8fbd3700"
+      "sha256": "765d7b5d14a42745cdda8ad966d182531dc43a39960a5c5a1fb3f67ad68e41dd"
     },
     {
       "path": "src/agent/core.ts",
@@ -272,7 +272,7 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "f1463951a726c3dfdf8c439ab93b15486652c717e5ca54786200bd9d00f1c05c"
+      "sha256": "53822a131eaa1e44131daa5e9143132239ab6d86b86896eede4c5f8681097256"
     },
     {
       "path": "src/agent/verify.ts",
@@ -324,7 +324,7 @@
     },
     {
       "path": "src/ascii/class-diagram.ts",
-      "sha256": "f75f7a1f1b9c48ecccf252f4d4fc33b2c18446a63df7cdada30917b875259f18"
+      "sha256": "38c568bd5b0a0b489497e81d4c0985bf7fe121025a1a0dbb4a568b730946c1bc"
     },
     {
       "path": "src/ascii/converter.ts",
@@ -488,19 +488,19 @@
     },
     {
       "path": "src/class/layout.ts",
-      "sha256": "262973de4d6ba583e2afdd13bcac77b4cf266104412f2394d76f61c72cb555b5"
+      "sha256": "16a1c3069e8511b1616c80623828a7e575e1d58bf5aeeac5861dff6ce88c181e"
     },
     {
       "path": "src/class/parser.ts",
-      "sha256": "120dcf5fd02d0ba8be2b73a62e812e6bddae4f5ecc38baecfccfa1282d6da57e"
+      "sha256": "044470255887b1b5eb4a71454bcaa22f044c7c92a6f93f765cbd0373ca17b743"
     },
     {
       "path": "src/class/renderer.ts",
-      "sha256": "d1bb1150dd0a7c5a28e36e772a1d2cc9b669987906ccaca9cb09f558e1c2759f"
+      "sha256": "721f093cff65711372e87d96f2fd2326b5579873f8bf9502afaa3084d9026692"
     },
     {
       "path": "src/class/types.ts",
-      "sha256": "641a19efcc3fc5240f4af0189054076690caf08bac354256cffaea3ae831c984"
+      "sha256": "bce015fdf7761731b5a4a81fe506aebafcabdcdc78838e5441a021ba2df6e475"
     },
     {
       "path": "src/color-resolver.ts",
@@ -804,7 +804,7 @@
     },
     {
       "path": "src/render-family-hooks.ts",
-      "sha256": "916b36732136792afe06b17a90a568be6bf48f7a82404c883518ff27345483cf"
+      "sha256": "2bd5267bc37db935fba803420cf0c9ac82ae2722a0f6ea9c4b8533f4022ff08a"
     },
     {
       "path": "src/render-outputs.ts",

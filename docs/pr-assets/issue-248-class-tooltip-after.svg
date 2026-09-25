@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="197.8" viewBox="0 0 200 197.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
+    <polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-composition" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#47474a" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="cls-aggregation" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse" viewBox="0 0 14 14" overflow="hidden">
+    <circle cx="7" cy="7" r="5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+</defs>
+<g class="class-node" data-id="A" data-label="A" data-href="https://example.com/docs" role="link" tabindex="0" data-role="class-box">
+  <title>API reference</title>
+  <rect x="40" y="40" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:A:box" data-role="class-box" />
+  <path d="M40,40 H160 V72.9 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="100" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55" textLength="11.31" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
+  <line x1="40" y1="72.9" x2="160" y2="72.9" stroke="#d4d4d4" stroke-width="0.75" />
+  <line x1="40" y1="80.9" x2="160" y2="80.9" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+<g class="class-node" data-id="B" data-label="B" data-role="class-box">
+  <rect x="40" y="108.9" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:B:box" data-role="class-box" />
+  <path d="M40,108.9 H160 V141.8 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="100" y="125.35000000000001" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55" textLength="11.31" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
+  <line x1="40" y1="141.8" x2="160" y2="141.8" stroke="#d4d4d4" stroke-width="0.75" />
+  <line x1="40" y1="149.8" x2="160" y2="149.8" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+</svg>
