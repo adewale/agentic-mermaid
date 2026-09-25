@@ -222,6 +222,91 @@ const journeyFractionalScore: FidelityCaseDefinition = {
   },
 }
 
+const journeySemicolonExtensionSource = 'journey\n  A: 5: Me; B: 3: Me\n'
+
+const journeySemicolonExtension: FidelityCaseDefinition = {
+  id: 'journey.statements.semicolon-extension',
+  family: 'journey',
+  featureId: 'official-doc:journey:section:user-journey-diagram',
+  source: journeySemicolonExtensionSource,
+  upstreamReference: 'https://mermaid.ai/open-source/syntax/userJourney.html',
+  upstreamRevision: UPSTREAM_REVISION,
+  expected: {
+    agent: applicable('diagnosed', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.bodyKind === 'journey'
+        && JSON.stringify(semanticFacts.tasks) === JSON.stringify(['A:5', 'B:3'])
+        && semanticFacts.extensionLine === 2 ? 'diagnosed' : 'absent'
+    }, ['UNSUPPORTED_SYNTAX']),
+    // The direct SVG API has no diagnostic channel. Its two rendered tasks
+    // are a local extension, not evidence of Mermaid-native syntax support.
+    render: applicable('absent', evidence => {
+      const semanticFacts = facts(evidence)
+      return JSON.stringify(semanticFacts.markerScores) === JSON.stringify([5, 3])
+        && semanticFacts.taskLabelsVisible === true ? 'absent' : 'native'
+    }),
+    serialize: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.portableNewlines === true
+        && JSON.stringify(semanticFacts.reparsedTasks) === JSON.stringify(['A:5', 'B:3'])
+        && semanticFacts.extensionWarningCleared === true ? 'native' : 'absent'
+    }),
+    mutate: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.mutationOk === true
+        && JSON.stringify(semanticFacts.reparsedTasks) === JSON.stringify(['A:5', 'B:4']) ? 'native' : 'absent'
+    }),
+  },
+  observe: () => {
+    const parsed = parsedOrThrow(journeySemicolonExtensionSource)
+    const tasks = (diagram: typeof parsed): string[] => diagram.body.kind === 'journey'
+      ? diagram.body.sections.flatMap(section => section.tasks.map(task => `${task.text}:${task.score}`))
+      : []
+    const warning = verifyMermaid(parsed).warnings.find(item => item.code === 'UNSUPPORTED_SYNTAX'
+      && item.syntax === 'journey_semicolon_statement_extension')
+    const svg = renderMermaidSVG(journeySemicolonExtensionSource)
+    const markerScores = [...svg.matchAll(/<g class="journey-score-marker" data-score="([^"]+)">/g)]
+      .map(match => Number(match[1]))
+    const serialized = serializeMermaid(parsed)
+    const reparsed = parsedOrThrow(serialized)
+    const mutation = mutate(parsed, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 1, score: 4 })
+    const reparsedMutation = mutation.ok ? parsedOrThrow(serializeMermaid(mutation.value)) : null
+    return {
+      agent: {
+        status: 'observed',
+        diagnosticCodes: warning ? [warning.code] : [],
+        semantics: { bodyKind: parsed.body.kind, tasks: tasks(parsed), extensionLine: warning && 'line' in warning ? warning.line ?? null : null },
+      },
+      render: {
+        status: 'observed',
+        diagnosticCodes: [],
+        semantics: {
+          markerScores,
+          taskLabelsVisible: svg.includes('>A</text>') && svg.includes('>B</text>'),
+        },
+      },
+      serialize: {
+        status: 'observed',
+        diagnosticCodes: [],
+        semantics: {
+          portableNewlines: serialized.includes('A: 5: Me\n    B: 3: Me'),
+          reparsedTasks: tasks(reparsed),
+          extensionWarningCleared: !verifyMermaid(reparsed).warnings.some(item => item.code === 'UNSUPPORTED_SYNTAX'
+            && item.syntax === 'journey_semicolon_statement_extension'),
+        },
+      },
+      mutate: {
+        status: 'observed',
+        diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
+        semantics: {
+          mutationOk: mutation.ok,
+          reparsedTasks: reparsedMutation ? tasks(reparsedMutation) : [],
+        },
+      },
+    }
+  },
+}
+
 const flowchartEdgeClassSource = `${['flowchart LR', '  A e1@--> B', '  classDef hot stroke:#ff0000,stroke-width:6px', '  class e1 hot'].join('\n')}\n`
 
 const flowchartEdgeClass: FidelityCaseDefinition = {
@@ -359,4 +444,4 @@ const unsupportedBlock: FidelityCaseDefinition = {
   },
 }
 
-export const fidelityCases: readonly FidelityCaseDefinition[] = Object.freeze([stateTrailingComment, journeyFractionalScore, flowchartEdgeClass, unsupportedBlock])
+export const fidelityCases: readonly FidelityCaseDefinition[] = Object.freeze([stateTrailingComment, journeyFractionalScore, journeySemicolonExtension, flowchartEdgeClass, unsupportedBlock])

@@ -8,11 +8,12 @@ import { parseAccessibilityDirective } from '../shared/accessibility-directives.
 // source text cannot produce different labels — or different accept/reject
 // decisions — depending on which surface parsed it.
 //
-// Upstream lexer parity (journey.jison):
-//   - taskName is [^#:\n;]+ and taskData is ":"[^#\n;]+ — a ';' terminates
-//     the token and starts the next statement, so non-accessibility lines are
-//     split on ';' before classification (semicolon-joined tasks are separate
-//     tasks; a trailing ';' is a terminator, not actor text).
+// Deliberate Agentic extension (not Mermaid 11.16 parity):
+//   - Semicolons split non-accessibility lines into statements, retaining
+//     historical semicolon-joined Journey tasks. Pinned Mermaid 11.16 rejects
+//     those lines, so verification names the extension for portability.
+//     Entity terminators such as &amp; are not statement boundaries.
+// Other pinned lexer behavior:
 //   - '#' mid-line stays literal: upstream truncates there today but tracks
 //     that as a bug (mermaid-js/mermaid#7105); the research docs pin
 //     literal-text preservation for titles and accessibility text.
@@ -92,6 +93,8 @@ export interface JourneyWalkEvents {
   accDescr?(text: string, lineIndex: number): void
   section?(label: string, lineIndex: number): void
   task?(text: string, score: number, actors: string[], lineIndex: number): void
+  /** A real `;` statement boundary, not an HTML-entity terminator. */
+  statementDelimiter?(lineIndex: number): void
   /** Return 'stop' to abort the walk (first-issue mode); return void to keep scanning. */
   issue?(issue: JourneyParseIssue): void | 'stop'
 }
@@ -123,6 +126,7 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
     if (accessibility?.form === 'block') {
       events.accDescr?.(normalizeJourneyText(accessibility.value), i)
       i = accessibility.endIndex
+      if (hasJourneyStatementDelimiter(accessibility.suffixLine ?? '')) events.statementDelimiter?.(i)
       for (const statement of splitJourneyStatements(accessibility.suffixLine ?? '')) {
         const outcome = classifyStatement(statement, accessibility.endIndex, events)
         if (outcome === 'stop') return
@@ -130,6 +134,7 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
       continue
     }
 
+    if (hasJourneyStatementDelimiter(line)) events.statementDelimiter?.(i)
     for (const statement of splitJourneyStatements(line)) {
       const outcome = classifyStatement(statement, i, events)
       if (outcome === 'stop') return

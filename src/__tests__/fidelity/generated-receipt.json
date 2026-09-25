@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "04c20c725550bb16181be16c6697138614070db35b3c0c846e26caf5829cbda1",
+    "inputSha256": "3ef3ea886608d1dcbbbe2db8e1c9648aaa6b58e2d4682ce561d082978cdf48f3",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -108,7 +108,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "4b477222fe056e1916f6bc77350ff344b47a3bf40c1c925dd08e2ff1d1aa04af"
+        "sha256": "92ad95b628c417f38e487d80ebd3799a423669d21d56a0540d093cfe39a6f9b9"
       },
       {
         "path": "src/__tests__/fidelity/cases/timeline-direction.fidelity.ts",
@@ -1424,6 +1424,94 @@
       "issues": []
     },
     {
+      "id": "journey.statements.semicolon-extension",
+      "family": "journey",
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "sourceSha256": "7fb364dcbc3b004bd11c2b0817aa0fd392293bc4733f01e26186de9eed8382f2",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/userJourney.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "bodyKind": "journey",
+            "extensionLine": 2,
+            "tasks": [
+              "A:5",
+              "B:3"
+            ]
+          },
+          "disposition": "diagnosed"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "markerScores": [
+              5,
+              3
+            ],
+            "taskLabelsVisible": true
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "extensionWarningCleared": true,
+            "portableNewlines": true,
+            "reparsedTasks": [
+              "A:5",
+              "B:3"
+            ]
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "mutationOk": true,
+            "reparsedTasks": [
+              "A:5",
+              "B:4"
+            ]
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
       "id": "sankey.links.dark-background-normal-alpha-divergence",
       "family": "sankey",
       "featureId": "official-doc:sankey:section:links-coloring",
@@ -2225,10 +2313,10 @@
     }
   ],
   "summary": {
-    "caseCount": 22,
-    "passedCaseCount": 22,
+    "caseCount": 23,
+    "passedCaseCount": 23,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 81,
+    "observedSurfaceCount": 85,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

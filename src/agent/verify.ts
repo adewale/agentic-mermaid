@@ -12,6 +12,7 @@ import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
 import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 import { isSequenceCommentLine } from '../sequence/statements.ts'
@@ -244,6 +245,25 @@ function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+/** Agentic Mermaid retains semicolon-separated Journey statements for
+ * backwards compatibility, but Mermaid 11.16 rejects that spelling. Diagnose
+ * the authored boundary rather than claiming its rendered tasks are native. */
+function journeySemicolonExtensionWarnings(source: string): LayoutWarning[] {
+  const lines = source.split(/\r?\n/)
+  const headerIndex = lines.findIndex(line => /^\s*journey\b/i.test(line))
+  if (headerIndex < 0) return []
+  const lineNumbers = new Set<number>()
+  walkJourneyLines(lines, headerIndex + 1, {
+    statementDelimiter: lineIndex => { lineNumbers.add(lineIndex + 1) },
+  })
+  return [...lineNumbers].sort((a, b) => a - b).map(line => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'journey_semicolon_statement_extension',
+    line,
+    message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; Mermaid 11.16 rejects this source. Put each statement on its own line for upstream portability.',
+  }))
+}
+
 /** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
  * contrast after request resolution. This consumes the same frozen visual
  * config and background as rendering, so verification never guesses from raw
@@ -307,7 +327,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   }
 
   const d = parsed as ValidDiagram
-  const sourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : []
+  const sourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d.canonicalSource) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const configWarnings = configWarningsForDiagram(d)
   let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings)

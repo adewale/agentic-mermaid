@@ -31,9 +31,14 @@ Supported Mermaid constructs:
 - `accDescr: ...`
 - multiline `accDescr { ... }`
 - Mermaid comments, frontmatter, and init directives before the header
-- `;`-separated statements (upstream lexer parity: a semicolon terminates a
-  statement, so `A: 5: Me; B: 3: Me` is two tasks — while HTML entities like
-  `&amp;` keep their semicolons as literal label text)
+
+Agentic Mermaid also retains `;`-separated Journey statements as an extension:
+`A: 5: Me; B: 3: Me` becomes two tasks locally, but pinned Mermaid 11.16
+rejects that source. `verifyMermaid` emits
+`UNSUPPORTED_SYNTAX` / `journey_semicolon_statement_extension` with the
+authored line number. Write one statement per line for portable Mermaid.
+HTML entities like `&amp;` retain their semicolons as literal label text in
+Agentic Mermaid.
 
 Quoted labels are normalized the same way other Agentic Mermaid diagram
 parsers normalize Mermaid labels. `<br>` is converted to multi-line text for
