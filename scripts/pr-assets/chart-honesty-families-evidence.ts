@@ -6,9 +6,11 @@
  * (main, in a detached worktree) and at the current tree, then measures each
  * row's text with the pixel oracle the tests use
  * (src/__tests__/helpers/rendered-text.ts), so every caption metric is read
- * from the rasterized output. Each panel shows the whole diagram and, when the
- * text is drawn, a 3× crop around it; the quadrant row that changes what
- * verify reports prints the warnings at each revision.
+ * from the rasterized output. Every registered family has at least one row, in
+ * registry order. Each panel shows the whole diagram and, when the text is
+ * drawn, a 3× crop around it; the quadrant row that changes what verify
+ * reports prints the warnings at each revision. The script ends by printing
+ * one Markdown table line per row, for the pull request.
  *
  *   bun run scripts/pr-assets/chart-honesty-families-evidence.ts
  */
@@ -20,6 +22,8 @@ import { Resvg } from '@resvg/resvg-js'
 import { chromium } from 'playwright'
 import sharp from 'sharp'
 import { measureRenderedText, pageColorOf, renderedTextReady, requiredContrast, type RenderedText } from '../../src/__tests__/helpers/rendered-text.ts'
+import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
+import type { DiagramKind } from '../../src/agent/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
@@ -32,6 +36,8 @@ type Check = 'legible' | 'on-canvas' | 'drawn'
 
 interface Row {
   id: string
+  /** The registered family the row stands for; every family has a row. */
+  kind: DiagramKind
   principle: string
   family: string
   title: string
@@ -48,69 +54,132 @@ interface Row {
 
 const ROWS: readonly Row[] = [
   {
-    id: 'er-fill', principle: 'H1 legible', family: 'ER', title: 'Entity text on an authored dark fill',
+    id: 'er-fill', kind: 'er', principle: 'H1 legible', family: 'ER', title: 'Entity text on an authored dark fill',
     claim: '`style CUSTOMER fill:#1f2937`, default style. The entity name used the page ink whatever the fill.',
     source: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  CUSTOMER {\n    string id PK\n    string email\n  }\n  style CUSTOMER fill:#1f2937',
     text: 'CUSTOMER', check: 'legible',
     inspect: 'the name and attributes on the dark entity read in light ink; ORDER, on the page fill, keeps its ink.',
   },
   {
-    id: 'sankey-ribbon', principle: 'H1 legible', family: 'Sankey', title: 'Node labels over the ribbons',
+    id: 'sankey-ribbon', kind: 'sankey', principle: 'H1 legible', family: 'Sankey', title: 'Node labels over the ribbons',
     claim: 'The registry example in solarized-dark. Labels sit on top of the flows they name.',
     source: 'sankey-beta\n  Solar,Grid,40\n  Wind,Grid,30\n  Grid,Homes,50\n  Grid,Industry,20',
     style: 'solarized-dark', text: 'Homes 50', check: 'legible',
     inspect: 'each label carries a halo in the page color, so the ribbon behind it no longer shows through its glyphs.',
   },
   {
-    id: 'sequence-box', principle: 'H1 legible', family: 'Sequence', title: 'Message labels inside an authored box color',
+    id: 'sequence-box', kind: 'sequence', principle: 'H1 legible', family: 'Sequence', title: 'Message labels inside an authored box color',
     claim: '`box Aqua Team`, tufte-dark. Message labels kept the dark look\'s muted tone, meant for its dark page, on the light box.',
     source: 'sequenceDiagram\n  box Aqua Team\n    participant A as Alice\n    participant B as Bob\n  end\n  A->>B: hello\n  B-->>A: hi',
     style: 'tufte-dark', text: 'hello', check: 'legible',
     inspect: 'the message labels on the aqua box read in a darker tone with an aqua halo; the participant names keep their light ink on their own dark boxes.',
   },
   {
-    id: 'quadrant-divider', principle: 'H1 legible', family: 'Quadrant', title: 'A point label on the midline',
+    id: 'quadrant-divider', kind: 'quadrant', principle: 'H1 legible', family: 'Quadrant', title: 'A point label on the midline',
     claim: 'A point at y = 0.5, tokyo-night: its label sits on the horizontal divider. Found by the random-title property.',
     source: 'quadrantChart\n  x-axis Low --> High\n  y-axis Bad --> Good\n  n0: [0.1, 0.4]\n  n1: [0.2, 0.5]',
     style: 'tokyo-night', text: 'n1', check: 'legible',
     inspect: 'the divider stops at the label: a halo in the quadrant fill keeps the line out of the glyphs.',
   },
   {
-    id: 'gantt-title', principle: 'H2 on the canvas', family: 'Gantt', title: 'A title wider than the chart',
+    id: 'gantt-title', kind: 'gantt', principle: 'H2 on the canvas', family: 'Gantt', title: 'A title wider than the chart',
     claim: 'A long `title` in architectural-plan, which uppercases and letter-spaces titles. Found by the random-title property.',
     source: 'gantt\n  title Quarterly roadmap for the whole platform engineering organization\n  dateFormat YYYY-MM-DD\n  section Plan\n  Scope :s1, 2026-02-01, 2d',
     style: 'architectural-plan', text: 'QUARTERLY ROADMAP FOR THE WHOLE PLATFORM ENGINEERING ORGANIZATION', check: 'on-canvas',
     inspect: 'the canvas widens to the title as the style draws it; before, both ends were cut off.',
   },
   {
-    id: 'class-namespace', principle: 'H2 on the canvas', family: 'Class', title: 'A namespace title longer than its one class',
+    id: 'class-namespace', kind: 'class', principle: 'H2 on the canvas', family: 'Class', title: 'A namespace title longer than its one class',
     claim: 'An unbreakable namespace name over a narrow class, default style.',
     source: 'classDiagram\n  namespace A_namespace_title_longer_than_its_class {\n    class X\n  }',
     text: 'A_namespace_title_longer_than_its_class', check: 'on-canvas',
     inspect: 'the title wraps inside the namespace frame instead of running past it and off the canvas.',
   },
   {
-    id: 'flowchart-title', principle: 'H3 drawn', family: 'Flowchart', title: 'The frontmatter title, and a label given after first use',
+    id: 'flowchart-title', kind: 'flowchart', principle: 'H3 drawn', family: 'Flowchart', title: 'The frontmatter title, and a label given after first use',
     claim: 'Mermaid draws a frontmatter `title:` for every family and lets a later `b[Label B]` label an existing node.',
     source: titled('Checkout flow', 'flowchart LR\n  a[Cart] --> b\n  b[Label B]'),
     text: 'Checkout flow', also: ['Label B'], check: 'drawn',
     inspect: 'the title band above the graph, and "Label B" instead of the bare id "b".',
   },
   {
-    id: 'er-comment', principle: 'H3 drawn', family: 'ER', title: 'Attribute comments',
+    id: 'er-comment', kind: 'er', principle: 'H3 drawn', family: 'ER', title: 'Attribute comments',
     claim: '`string id PK "identifier"`: the quoted comment is part of the attribute.',
     source: 'erDiagram\n  CUSTOMER {\n    string id PK "identifier"\n    string email UK "login address"\n  }',
     text: 'identifier', check: 'drawn',
     inspect: 'a comment column after the key column.',
   },
   {
-    id: 'state-description', principle: 'H3 drawn', family: 'State', title: 'A description added to a declared state',
+    id: 'state-description', kind: 'state', principle: 'H3 drawn', family: 'State', title: 'A description added to a declared state',
     claim: '`Done : Order complete` after `Done` was already used in a transition.',
     source: 'stateDiagram-v2\n  [*] --> Done\n  Done : Order complete',
     text: 'Order complete', check: 'drawn',
     inspect: 'the description is drawn under the state name.',
   },
+  {
+    id: 'timeline-band', kind: 'timeline', principle: 'H1 legible', family: 'Timeline', title: 'Event text on the section band',
+    claim: 'The Section B census fixture in dracula. Event text on the section band missed AA.',
+    source: 'timeline\n  title Launch\n  section Alpha\n    2026 Q1 : Design : Build\n  section Beta\n    2026 Q2 : Ship',
+    style: 'dracula', text: 'Build', check: 'legible',
+    inspect: 'the event text clears AA on the band, because the theme tones are chosen against every surface the theme paints.',
+  },
+  {
+    id: 'journey-title', kind: 'journey', principle: 'H2 on the canvas', family: 'Journey', title: 'A title wider than the chart',
+    claim: 'A long `title` over a single task, default style.',
+    source: 'journey\n  title A very long journey title that is much wider than the single task below it\n  section Try\n    Sign up: 3: Me',
+    text: 'A very long journey title that is much wider than the single task below it', check: 'on-canvas',
+    inspect: 'the canvas grows to hold the title.',
+  },
+  {
+    id: 'architecture-title', kind: 'architecture', principle: 'H2 on the canvas', family: 'Architecture', title: 'A title wider than the diagram',
+    claim: 'A long `title` and a long group label over one service, default style.',
+    source: 'architecture-beta\n  title An architecture title far longer than the one service in this diagram\n  group g(cloud)[A group label longer than its only service]\n  service s(server)[S] in g',
+    text: 'An architecture title far longer than the one service in this diagram', check: 'on-canvas',
+    inspect: 'the canvas grows to hold the title, and the group widens to hold its icon and label.',
+  },
+  {
+    id: 'xychart-legend', kind: 'xychart', principle: 'H2 on the canvas', family: 'XY chart', title: 'A legend label in an uppercase style',
+    claim: 'The census fixture in ops-schematic, which uppercases and letter-spaces labels. The legend was measured as authored, not as drawn.',
+    source: '---\nconfig:\n  xyChart:\n    showDataLabel: true\n---\nxychart-beta\n  title Revenue\n  x-axis [Q1, Q2, Q3]\n  y-axis USD 0 --> 100\n  bar Online [30, 55, 80]\n  line Forecast [25, 60, 75]',
+    style: 'ops-schematic', text: 'FORECAST', check: 'on-canvas',
+    inspect: 'the legend is measured as the style draws it, so the canvas holds "FORECAST".',
+  },
+  {
+    id: 'pie-hatched', kind: 'pie', principle: 'H1 legible', family: 'Pie', title: 'Slice percentages inside their own halo',
+    claim: 'The census fixture in excalidraw, which hatches slices and halos text in the page color. The percentages were inked white for the slice fill, inside a white halo.',
+    source: '---\nconfig:\n  pie:\n    highlightSlice: Pro\n---\npie showData\n  title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10',
+    style: 'excalidraw', text: '30%', check: 'legible',
+    inspect: 'the percentages are inked against the halo they carry, so they read over the hatching.',
+  },
+  {
+    id: 'mindmap-root', kind: 'mindmap', principle: 'H1 legible', family: 'Mindmap', title: 'The root label inside its own halo',
+    claim: 'The census fixture in architectural-plan, which halos text in the page color. The root label was inked in that same color, so its letters ran together.',
+    source: 'mindmap\n  root((Product))\n    Research\n      ::icon(fa fa-book)\n      Interviews\n      Evidence\n    Delivery\n      ::icon(acme:unknown)\n      Launch',
+    style: 'architectural-plan', text: 'Product', check: 'legible',
+    inspect: 'the label is inked against the halo it carries: dark letters inside the light halo.',
+  },
+  {
+    id: 'gitgraph-branch', kind: 'gitgraph', principle: 'H1 legible', family: 'GitGraph', title: 'A branch label in blueprint',
+    claim: 'Branches, tags and a title in blueprint. The hotfix branch label was just under AA.',
+    source: titled('Release train', 'gitGraph\n  commit id:"init"\n  branch develop\n  commit id:"feature work" tag:"v0.1"\n  branch hotfix\n  commit id:"patch"\n  checkout main\n  merge develop\n  merge hotfix'),
+    style: 'blueprint', text: 'hotfix', check: 'legible',
+    inspect: 'a small change: the label\'s tone moves just far enough to clear AA.',
+  },
+  {
+    id: 'radar-legend', kind: 'radar', principle: 'H1 legible', family: 'Radar', title: 'The one family that already passed',
+    claim: 'Radar had no violation on main. Its closest text, the legend in solarized-light, is shown at both revisions.',
+    source: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5',
+    style: 'solarized-light', text: 'Current', check: 'legible',
+    inspect: 'both revisions pass; the legend\'s tone moves with the theme\'s text tones.',
+  },
 ]
+
+/** Rows in registry order. Every registered family, a new one included, needs
+ * at least one row, so the sheet always covers what the contract covers. */
+const FAMILY_ORDER: readonly DiagramKind[] = BUILTIN_FAMILY_METADATA.map(family => family.id)
+const UNCOVERED = FAMILY_ORDER.filter(kind => !ROWS.some(row => row.kind === kind))
+if (UNCOVERED.length > 0) throw new Error(`No evidence row for ${UNCOVERED.join(', ')}; every registered family needs one`)
+const ORDERED_ROWS = [...ROWS].sort((a, b) => FAMILY_ORDER.indexOf(a.kind) - FAMILY_ORDER.indexOf(b.kind))
 
 /** The quadrant row that changes what verify reports, not pixels. */
 const CROWDED = 'quadrantChart\n  title Crowded points\n  x-axis Low --> High\n  y-axis Low --> High\n  Alpha: [0.30, 0.60]\n  Beta: [0.31, 0.61]\n  Referrals: [0.32, 0.62]\n  Retention: [0.33, 0.60]\n  Churn: [0.31, 0.59]'
@@ -181,7 +250,7 @@ function metric(svg: string, row: Row): string {
   if (!text) return `"${row.text}" is not drawn`
   if (row.check === 'on-canvas') {
     return text.offCanvasPixels > 0
-      ? `${text.offCanvasPixels} of ${text.pixels} glyph pixels of the title fall off the canvas`
+      ? `${text.offCanvasPixels} of ${text.pixels} glyph pixels fall off the canvas`
       : `all ${text.pixels} glyph pixels are on the canvas`
   }
   return `"${text.content}" ${text.ink} on ${text.surround}: ${text.contrast!.toFixed(2)}:1 (needs ${requiredContrast(text)}:1)`
@@ -268,7 +337,7 @@ function sheetHtml(sections: string[], headSha: string): string {
     .inspect { margin: 12px 0 0; font-size: 14px; color: #3f3f46; }
   </style></head><body><main>
     <h1>Chart honesty across families: before / after</h1>
-    <p>Same named inputs through the production renderer at ${BEFORE_SHA.slice(0, 12)} (main, before) and ${headSha.slice(0, 12)} (after). Metrics come from the pixel oracle the tests use (resvg with the bundled fonts). Source: scripts/pr-assets/chart-honesty-families-evidence.ts.</p>
+    <p>Same named inputs through the production renderer at ${BEFORE_SHA.slice(0, 12)} (main, before) and ${headSha.slice(0, 12)} (after), with at least one row for each of the ${FAMILY_ORDER.length} registered families, in registry order. Metrics come from the pixel oracle the tests use (resvg with the bundled fonts). Source: scripts/pr-assets/chart-honesty-families-evidence.ts.</p>
     ${sections.join('\n')}
   </main></body></html>`
 }
@@ -291,34 +360,42 @@ await renderedTextReady()
 const before = renderBefore()
 const after = runProbe(ROOT)
 
-const sections: string[] = []
-for (const row of ROWS) {
+const sections = new Map<string, string>()
+const summary = ['| Family | Principle | Row | Before | After |', '|---|---|---|---|---|']
+for (const row of ORDERED_ROWS) {
   const panel = async (svg: string): Promise<Panel> => ({ whole: rasterize(svg, 1.5), zoom: await zoomOn(svg, row), metric: metric(svg, row) })
-  sections.push(sectionHtml(row, await panel(before.svgs[row.id]!), await panel(after.svgs[row.id]!), HEAD_SHA))
-}
-sections.push(sectionHtml(
-  {
+  const [was, now] = [await panel(before.svgs[row.id]!), await panel(after.svgs[row.id]!)]
+  sections.set(row.id, sectionHtml(row, was, now, HEAD_SHA))
+  summary.push(`| ${row.family} | ${row.principle} | ${row.title} | ${was.metric} | ${now.metric} |`)
+  if (row.id !== 'quadrant-divider') continue
+  // The quadrant row that changes what verify reports sits with its family.
+  const crowded = {
     principle: 'H3 reported', family: 'Quadrant', title: 'verify names the point labels crowding hides',
     claim: 'Five points within 0.02 of each other; placement hides the labels it cannot fit at both revisions.',
     inspect: 'the chart is unchanged; LABELS_HIDDEN (target "point-labels") is new, so the omission is no longer silent.',
-  },
-  { lines: before.crowdedWarnings, metric: before.crowdedWarnings.length ? 'verify reports the hidden labels' : 'verify is silent' },
-  { lines: after.crowdedWarnings, metric: after.crowdedWarnings.length ? 'LABELS_HIDDEN lists the undrawn point labels' : 'verify is silent' },
-  HEAD_SHA,
-))
+  }
+  const reported = (warnings: string[]) => warnings.length ? 'LABELS_HIDDEN lists the undrawn point labels' : 'verify is silent'
+  sections.set('quadrant-crowding', sectionHtml(
+    crowded,
+    { lines: before.crowdedWarnings, metric: reported(before.crowdedWarnings) },
+    { lines: after.crowdedWarnings, metric: reported(after.crowdedWarnings) },
+    HEAD_SHA,
+  ))
+  summary.push(`| ${crowded.family} | ${crowded.principle} | ${crowded.title} | ${reported(before.crowdedWarnings)} | ${reported(after.crowdedWarnings)} |`)
+}
 
 mkdirSync(OUT_DIR, { recursive: true })
 const chromePath = [process.env.AM_CHROMIUM, '/opt/pw-browsers/chromium'].find(path => path && existsSync(path))
 const browser = await chromium.launch({ headless: true, args: ['--disable-gpu'], ...(chromePath ? { executablePath: chromePath } : {}) })
 try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1200 }, deviceScaleFactor: 1 })
-  await page.setContent(sheetHtml(sections, HEAD_SHA), { waitUntil: 'load' })
+  await page.setContent(sheetHtml([...sections.values()], HEAD_SHA), { waitUntil: 'load' })
   const sheet = join(OUT_DIR, 'chart-honesty-families-before-after.png')
   await page.locator('main').screenshot({ path: sheet, animations: 'disabled' })
   console.log(`wrote docs/pr-assets/chart-honesty-families-before-after.png (${Math.round(statSync(sheet).size / 1024)} KB)`)
   // A legibility row and a containment row as separate panels, for the PR.
-  for (const [index, slug] of [[0, 'er-fill'], [4, 'gantt-title']] as const) {
-    await page.setContent(sheetHtml([sections[index]!], HEAD_SHA), { waitUntil: 'load' })
+  for (const slug of ['er-fill', 'gantt-title'] as const) {
+    await page.setContent(sheetHtml([sections.get(slug)!], HEAD_SHA), { waitUntil: 'load' })
     for (const kind of ['before', 'after'] as const) {
       const path = join(OUT_DIR, `chart-honesty-${slug}-${kind}.png`)
       await page.locator(`.panel.${kind}`).screenshot({ path, animations: 'disabled' })
@@ -329,3 +406,4 @@ try {
 } finally {
   await browser.close()
 }
+console.log(summary.join('\n'))
