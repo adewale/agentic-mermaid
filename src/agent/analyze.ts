@@ -123,7 +123,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
         && decodeXML(authoredStatements[index]!) === text ? authoredStatements[index] : undefined
       const embedded = authoredText === undefined
         ? parseClassInteraction(text)
-        : parseClassInteractionWithAuthored(text, authoredText)
+        : parseClassInteractionWithAuthored(authoredText)
       if (embedded) {
         if (embedded.tooltip !== undefined) effectiveTooltips.set(embedded.id, embedded.tooltip)
         const effectiveTooltip = effectiveTooltips.get(embedded.id)

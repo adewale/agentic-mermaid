@@ -306,6 +306,17 @@ describe('Class safe-link tooltip fidelity', () => {
     expect(rawParsed.ok).toBe(true)
     if (rawParsed.ok) expect(rawParsed.value.body.kind).toBe('opaque')
     expect(() => renderMermaidSVG(raw)).toThrow()
+
+    const encodedUrl = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; "tip"'
+    expect(renderMermaidSVG(encodedUrl)).toContain('<title>tip</title>')
+    const encodedUrlWithRawTarget = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; "tip" _self ""'
+    expect(() => renderMermaidSVG(encodedUrlWithRawTarget)).toThrow()
+    const rejected = parseRegisteredMermaid(encodedUrlWithRawTarget)
+    expect(rejected.ok).toBe(true)
+    if (rejected.ok) {
+      expect(rejected.value.body.kind).toBe('opaque')
+      expect(collectActionRecords(rejected.value)[0]?.tooltip).toBeUndefined()
+    }
   })
 
   test('malformed comment-rich tooltip parsing remains linear-sized', () => {

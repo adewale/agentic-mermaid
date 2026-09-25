@@ -216,12 +216,31 @@ export function parseAuthoredClassInteraction(line: string): ReturnType<typeof p
   return { id: authored.id, ...(authored.generic ? { generic: authored.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
 }
 
-/** An encoded opening URL quote needs the semantic grammar, whereas a raw
- * quoted link must be interpreted using its authored boundaries. */
-export function parseClassInteractionWithAuthored(semanticLine: string, authoredLine: string): ReturnType<typeof parseClassInteraction> {
+/** Restore entity-encoded outer delimiters without decoding authored hover
+ * text, so raw extra targets cannot masquerade as tooltip content. */
+export function parseClassInteractionWithAuthored(authoredLine: string): ReturnType<typeof parseClassInteraction> {
   const authored = parseAuthoredClassInteraction(authoredLine)
-  return authored ?? (/(?:&quot;|&#34;|&#x22;)(?:https?:\/\/|mailto:)/i.test(authoredLine)
-    ? parseClassInteraction(semanticLine) : null)
+  if (authored) return authored
+  if (!/(?:&quot;|&#34;|&#x22;)(?:https?:\/\/|mailto:)/i.test(authoredLine)) return null
+  // Some hosts encode the URL's outer quotes as entities too. Restore only
+  // that delimiter pair, then apply the strict authored tooltip grammar;
+  // decoding the entire line here would lose quote provenance again.
+  let restored = 0
+  const withUrlQuotes = authoredLine.replace(/&quot;|&#34;|&#x22;/gi, token => restored++ < 2 ? '"' : token)
+  if (restored < 2) return null
+  const parsed = parseAuthoredClassInteraction(withUrlQuotes)
+  if (parsed) return parsed
+  const urlOpen = withUrlQuotes.indexOf('"')
+  const urlClose = withUrlQuotes.indexOf('"', urlOpen + 1)
+  if (urlClose < 0 || !/^(?:&quot;|&#34;|&#x22;)/i.test(withUrlQuotes.slice(urlClose + 1).trimStart())) return null
+  const quoteTokens = [...withUrlQuotes.matchAll(/&quot;|&#34;|&#x22;/gi)]
+  if (quoteTokens.length < 2) return null
+  const first = quoteTokens[0]!
+  const last = quoteTokens[quoteTokens.length - 1]!
+  const withTooltipQuotes = withUrlQuotes.slice(0, first.index) + '"'
+    + withUrlQuotes.slice(first.index + first[0].length, last.index) + '"'
+    + withUrlQuotes.slice(last.index + last[0].length)
+  return parseAuthoredClassInteraction(withTooltipQuotes)
 }
 
 // ============================================================================
@@ -358,7 +377,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       ? authoredExpanded[i]
       : undefined
     const interaction = authoredLine !== undefined
-      ? parseClassInteractionWithAuthored(line, authoredLine)
+      ? parseClassInteractionWithAuthored(authoredLine)
       : authoredLines === undefined ? parseAuthoredClassInteraction(line) : parseClassInteraction(line)
     if (interaction) {
       const cls = ensureClass(classMap, interaction.id, interaction.generic)
