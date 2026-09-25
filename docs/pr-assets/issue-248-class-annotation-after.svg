@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="144.9" viewBox="0 0 200 144.9" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="144.9" viewBox="0 0 200 144.9" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-6ws1q0">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg {
+  .am-6ws1q0 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .am-6ws1q0 .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-6ws1q0 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -38,7 +38,7 @@
 <g class="class-node" data-id="Shape" data-label="Shape" data-annotation="interface" data-role="class-box">
   <rect x="40" y="40" width="120" height="64.9" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:Shape:box" data-role="class-box" />
   <path d="M40,40 H160 V88.9 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
-  <text x="100" y="52" text-anchor="middle" dy="0.35em" font-size="10" font-weight="500" font-style="italic" fill="#707072" textLength="64.2" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;interface&gt;&gt;</text>
+  <text x="100" y="52" text-anchor="middle" dy="0.35em" font-size="10" font-weight="500" font-style="italic" fill="#69696c" textLength="64.2" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;interface&gt;&gt;</text>
   <text x="100" y="70.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55" textLength="42.51" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Shape</text>
   <line x1="40" y1="88.9" x2="160" y2="88.9" stroke="#d4d4d4" stroke-width="0.75" />
   <line x1="40" y1="96.9" x2="160" y2="96.9" stroke="#d4d4d4" stroke-width="0.75" />
