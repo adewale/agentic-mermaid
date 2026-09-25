@@ -5,6 +5,7 @@ import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { isSafeActionHref } from '../output-security.ts'
+import { decodeXML } from 'entities'
 
 // ---- Shared namespace grammar ----------------------------------------------
 // One grammar, two consumers: this render parser and the agent body parser
@@ -189,9 +190,10 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
     }
     if (close < 0) return null
     tooltip = tail.slice(1, close)
-    // Decoded &quot; pairs within hover text are content. A second quoted
-    // argument after whitespace is not: do not swallow navigation targets.
-    if ((tooltip.match(/"/g)?.length ?? 0) % 2 !== 0 || /"\s+[^"\s][^"]*\s+"|"\s+"|""/.test(tooltip)) return null
+    // Decoded &quot; pairs within hover text are content. The render waist no
+    // longer knows whether an internal pair was authored raw or as entities,
+    // so only unbalanced quotes can be rejected without losing valid text.
+    if ((tooltip.match(/"/g)?.length ?? 0) % 2 !== 0) return null
     const suffix = tail.slice(close + 1).trimStart()
     if (suffix && !suffix.startsWith('%%')) return null
   } else if (tail && !tail.startsWith('%%')) return null
@@ -200,6 +202,26 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
   return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip))
     ? { id: ref.id, ...(ref.generic ? { generic: ref.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
     : null
+}
+
+/** Decode only after finding authored tooltip boundaries. This preserves the
+ * distinction between a literal extra quote and &quot; inside hover text. */
+export function parseAuthoredClassInteraction(line: string): ReturnType<typeof parseClassInteraction> {
+  const authored = parseClassInteraction(line)
+  if (!authored || authored.tooltip?.includes('"')) return null
+  const href = decodeXML(authored.href)
+  const tooltip = authored.tooltip === undefined ? undefined : decodeXML(authored.tooltip)
+  if (!/^(?:https?:|mailto:)/i.test(href) || !isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href)) return null
+  if (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip)) return null
+  return { id: authored.id, ...(authored.generic ? { generic: authored.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
+}
+
+/** An encoded opening URL quote needs the semantic grammar, whereas a raw
+ * quoted link must be interpreted using its authored boundaries. */
+export function parseClassInteractionWithAuthored(semanticLine: string, authoredLine: string): ReturnType<typeof parseClassInteraction> {
+  const authored = parseAuthoredClassInteraction(authoredLine)
+  return authored ?? (/(?:&quot;|&#34;|&#x22;)(?:https?:\/\/|mailto:)/i.test(authoredLine)
+    ? parseClassInteraction(semanticLine) : null)
 }
 
 // ============================================================================
@@ -229,10 +251,13 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
  * Parse a Mermaid class diagram.
  * Expects the first line to be "classDiagram".
  */
-export function parseClassDiagram(lines: string[]): ClassDiagram {
+export function parseClassDiagram(lines: string[], authoredLines?: string[]): ClassDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(accessibility)
   lines = accessibility.familyLines.flatMap(expandInlineNamespaceStatement)
+  const authoredExpanded = authoredLines
+    ? scanAccessibilityDirectives(authoredLines).familyLines.flatMap(expandInlineNamespaceStatement)
+    : undefined
   const diagram: ClassDiagram = {
     classes: [],
     classDefs: new Map(),
@@ -329,7 +354,12 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
 
     // --- Safe class links. Callback forms remain inert and unmodeled. ---
-    const interaction = parseClassInteraction(line)
+    const authoredLine = authoredExpanded?.length === lines.length && decodeXML(authoredExpanded[i]!) === line
+      ? authoredExpanded[i]
+      : undefined
+    const interaction = authoredLine !== undefined
+      ? parseClassInteractionWithAuthored(line, authoredLine)
+      : authoredLines === undefined ? parseAuthoredClassInteraction(line) : parseClassInteraction(line)
     if (interaction) {
       const cls = ensureClass(classMap, interaction.id, interaction.generic)
       cls.href = interaction.href

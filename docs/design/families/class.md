@@ -107,6 +107,10 @@ before SVG emission. Malformed trailing text after a safe link fails loudly.
 This slice covers links to declared classes, in the official documented order:
 declare the class before its interaction. Control characters in hover text are
 rejected rather than emitted into XML or trusted action metadata.
+The Class renderer and action sidecar retain the authored interaction line
+through the shared entity-decoding seam, so an entity-encoded quotation mark
+inside a tooltip (including one beside `%%`) remains text, while a raw quoted
+navigation target is still diagnosed.
 
 Mermaid also accepts an optional navigation target such as `_self`. Our inert
 action model does not represent that target, so such a statement remains

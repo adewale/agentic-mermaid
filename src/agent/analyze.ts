@@ -21,6 +21,7 @@ import {
   expandInlineNamespaceStatement,
   parseClassDeclaration,
   parseClassInteraction,
+  parseClassInteractionWithAuthored,
   parseClassReference,
 } from '../class/parser.ts'
 import type { MermaidGraph } from '../types.ts'
@@ -101,11 +102,14 @@ function collectClassActions(source: string): DiagramActionRecord[] {
   // Decode before splitting physical lines, just as the render waist does:
   // &#10; may introduce an entire interaction statement (or split one).
   // Retain the authored physical line for each decoded segment in sidecars.
-  const authoredLineByDecodedLine = source.split(/\r?\n/).flatMap((line, index) =>
+  const physicalLines = source.split(/\r?\n/)
+  const authoredLineByDecodedLine = physicalLines.flatMap((line, index) =>
     decodeXML(line).split(/\r?\n/).map(() => index + 1))
   for (const sourceLine of actionSourceLines(decodeXML(source))) {
     const authoredLine = authoredLineByDecodedLine[sourceLine.line - 1] ?? sourceLine.line
-    for (const text of expandInlineNamespaceStatement(sourceLine.text)) {
+    const semanticStatements = expandInlineNamespaceStatement(sourceLine.text)
+    const authoredStatements = expandInlineNamespaceStatement(physicalLines[authoredLine - 1]?.trim() ?? '')
+    for (const [index, text] of semanticStatements.entries()) {
       if (inClassBody) {
         if (text.trim() === '}') inClassBody = false
         continue
@@ -115,7 +119,11 @@ function collectClassActions(source: string): DiagramActionRecord[] {
         inClassBody = true
         continue
       }
-      const embedded = parseClassInteraction(text)
+      const authoredText = authoredStatements.length === semanticStatements.length
+        && decodeXML(authoredStatements[index]!) === text ? authoredStatements[index] : undefined
+      const embedded = authoredText === undefined
+        ? parseClassInteraction(text)
+        : parseClassInteractionWithAuthored(text, authoredText)
       if (embedded) {
         if (embedded.tooltip !== undefined) effectiveTooltips.set(embedded.id, embedded.tooltip)
         const effectiveTooltip = effectiveTooltips.get(embedded.id)

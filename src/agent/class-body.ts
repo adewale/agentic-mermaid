@@ -35,9 +35,8 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseAuthoredClassInteraction, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
-import { decodeXML } from 'entities'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -206,17 +205,11 @@ export function parseClassBody(lines: string[]): ClassBody | null {
       continue
     }
 
-    const interaction = parseClassInteraction(raw)
+    const interaction = parseAuthoredClassInteraction(raw)
     if (interaction) {
-      // The render waist decodes entities before Class parsing. Validate that
-      // same semantic statement before storing a typed node: encoded controls
-      // or targeted-navigation tokens must stay opaque, never serialized as
-      // trusted tooltip text.
-      const semantic = parseClassInteraction(decodeXML(raw))
-      if (!semantic || semantic.id !== interaction.id) return null
-      const node = upsert(semantic.id, undefined, semantic.generic)
-      node.href = semantic.href
-      if (semantic.tooltip !== undefined) node.tooltip = semantic.tooltip
+      const node = upsert(interaction.id, undefined, interaction.generic)
+      node.href = interaction.href
+      if (interaction.tooltip !== undefined) node.tooltip = interaction.tooltip
       claimClass(node)
       continue
     }

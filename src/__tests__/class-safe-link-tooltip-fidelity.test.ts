@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { asClass, mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid } from '../agent/index.ts'
 import { collectActionRecords } from '../agent/analyze.ts'
-import { parseClassDiagram, parseClassInteraction } from '../class/parser.ts'
+import { parseAuthoredClassInteraction, parseClassDiagram, parseClassInteraction } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 const links = [
@@ -81,10 +81,9 @@ describe('Class safe-link tooltip fidelity', () => {
       ['A B', 'link `A B` "https://example.com/docs" "API reference" _self'],
       ['A B', 'click `A B` href "https://example.com/docs" "API reference" garbage'],
       ['A', 'link A~long generic~ "https://example.com/docs" "API reference" garbage'],
-      ['A', 'link A "https://example.com/docs" "API reference" garbage "extra"'],
     ] as const) {
       const source = `classDiagram\nclass \`${id}\`\n${statement}`
-      expect(parseClassInteraction(statement)).toBeNull()
+      expect(parseAuthoredClassInteraction(statement)).toBeNull()
       expect(() => parseClassDiagram(source.split('\n'))).toThrow()
       const parsed = parseRegisteredMermaid(source)
       expect(parsed.ok).toBe(true)
@@ -213,6 +212,39 @@ describe('Class safe-link tooltip fidelity', () => {
     const percentSource = 'classDiagram\nclass A\nlink A "https://example.com" "A &quot;quote&quot; %% literal" %% trailing'
     expect(renderMermaidSVG(percentSource)).toContain('<title>A &quot;quote&quot; %% literal</title>')
     expect(renderMermaidWithActions(percentSource, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('A "quote" %% literal')
+
+    const spacedEntity = 'classDiagram\nclass A\nlink A "https://example.com" "A &quot; hello &quot;!"'
+    expect(renderMermaidSVG(spacedEntity)).toContain('<title>A &quot; hello &quot;!</title>')
+    const spacedParsed = parseRegisteredMermaid(spacedEntity)
+    expect(spacedParsed.ok).toBe(true)
+    if (spacedParsed.ok) expect(asClass(spacedParsed.value)?.body.classes[0]?.tooltip).toBe('A " hello "!')
+    const percentEntity = 'classDiagram\nclass A\nlink A "https://example.com" "A &quot; %% text &quot; after"'
+    expect(renderMermaidSVG(percentEntity)).toContain('<title>A &quot; %% text &quot; after</title>')
+    const percentParsed = parseRegisteredMermaid(percentEntity)
+    expect(percentParsed.ok).toBe(true)
+    if (percentParsed.ok) expect(asClass(percentParsed.value)?.body.classes[0]?.tooltip).toBe('A " %% text " after')
+    expect(renderMermaidWithActions(percentEntity, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('A " %% text " after')
+    expect(renderMermaidWithActions(percentEntity, { format: 'ascii', options: { colorMode: 'none' } }).actionSurface.actions[0]?.tooltip).toBe('A " %% text " after')
+    const upstream = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const sources = ${JSON.stringify([spacedEntity, percentEntity])}
+        const tooltips = []
+        for (const source of sources) {
+          const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
+          tooltips.push(diagram.db.getClasses().get('A')?.tooltip)
+        }
+        process.stdout.write(JSON.stringify(tooltips))
+      `], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(upstream.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(upstream.stdout))).toEqual([
+      'A &quot; hello &quot;!', 'A &quot; %% text &quot; after',
+    ])
   })
 
   test('entity newlines split Class actions at the same boundary as rendering', () => {
@@ -246,7 +278,7 @@ describe('Class safe-link tooltip fidelity', () => {
     }
   })
 
-  test('encoded controls and navigation targets cannot bypass semantic Class validation', () => {
+  test('encoded controls cannot bypass semantic Class validation', () => {
     const encodedControl = 'classDiagram\nclass A\nlink A "https://example.com" "x&#27;y"'
     const controlParsed = parseRegisteredMermaid(encodedControl)
     expect(controlParsed.ok).toBe(true)
@@ -258,11 +290,22 @@ describe('Class safe-link tooltip fidelity', () => {
     }
     expect(() => renderMermaidSVG(encodedControl)).toThrow()
 
-    const encodedTarget = 'classDiagram\nclass A\nlink A "https://example.com" "tip&quot; _self &quot;"'
-    const targetParsed = parseRegisteredMermaid(encodedTarget)
-    expect(targetParsed.ok).toBe(true)
-    if (targetParsed.ok) expect(targetParsed.value.body.kind).toBe('opaque')
-    expect(() => renderMermaidSVG(encodedTarget)).toThrow()
+  })
+
+  test('authored quote provenance separates encoded tooltip text from a raw navigation target', () => {
+    const encoded = 'classDiagram\nclass A\nlink A "https://example.com" "tip&quot; _self &quot;"'
+    const raw = 'classDiagram\nclass A\nlink A "https://example.com" "tip" _self ""'
+    const encodedParsed = parseRegisteredMermaid(encoded)
+    expect(encodedParsed.ok).toBe(true)
+    if (encodedParsed.ok) expect(asClass(encodedParsed.value)?.body.classes[0]?.tooltip).toBe('tip" _self "')
+    expect(renderMermaidSVG(encoded)).toContain('<title>tip&quot; _self &quot;</title>')
+    expect(renderMermaidWithActions(encoded, { format: 'svg' }).actionSurface.actions[0]).toEqual(expect.objectContaining({
+      href: 'https://example.com', tooltip: 'tip" _self "', executable: false,
+    }))
+    const rawParsed = parseRegisteredMermaid(raw)
+    expect(rawParsed.ok).toBe(true)
+    if (rawParsed.ok) expect(rawParsed.value.body.kind).toBe('opaque')
+    expect(() => renderMermaidSVG(raw)).toThrow()
   })
 
   test('malformed comment-rich tooltip parsing remains linear-sized', () => {

@@ -4,13 +4,17 @@ import { layoutClassDiagram, resolveClassRenderOptions } from '../../class/layou
 import { parseClassDiagram } from '../../class/parser.ts'
 import { lowerClassScene } from '../../class/renderer.ts'
 import { withAccessibilityFields } from '../../shared/accessibility-directives.ts'
+import { normalizeMermaidSource } from '../../mermaid-source.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, {
   normalizeRequest: ctx => ({
     renderOptions: resolveClassRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
   layout: ctx => layoutResult(layoutClassDiagram(
-    withAccessibilityFields(parseClassDiagram(ctx.source.familyLines), ctx.source.accessibility),
+    withAccessibilityFields(parseClassDiagram(
+      ctx.source.familyLines,
+      normalizeMermaidSource(ctx.source.originalText).familyLines,
+    ), ctx.source.accessibility),
     ctx.renderOptions,
     ctx.styleFace,
   )),

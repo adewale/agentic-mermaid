@@ -80,7 +80,7 @@
     },
     {
       "path": "src/agent/analyze.ts",
-      "sha256": "98c434238d6ba51e206e2799fa8aaaac47fca70bed71f41fca92a54c9c797203"
+      "sha256": "df5e64dcb9398327e9a7f49202d2cf1b14a7fd04ecdb3cb8bf2cc8f632ada261"
     },
     {
       "path": "src/agent/apply.ts",
@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "26821fab275842bac242b5881307bb20fb79075b492bd2c51f585358ccbb14fb"
+      "sha256": "49d39d05debdc7d75981dff308d4e57c32d9d93e30392b333e6d38245094f960"
     },
     {
       "path": "src/agent/core.ts",
@@ -324,7 +324,7 @@
     },
     {
       "path": "src/ascii/class-diagram.ts",
-      "sha256": "f75f7a1f1b9c48ecccf252f4d4fc33b2c18446a63df7cdada30917b875259f18"
+      "sha256": "38c568bd5b0a0b489497e81d4c0985bf7fe121025a1a0dbb4a568b730946c1bc"
     },
     {
       "path": "src/ascii/converter.ts",
@@ -492,7 +492,7 @@
     },
     {
       "path": "src/class/parser.ts",
-      "sha256": "c161946ff2f4057a6c0138df4da2d910739f8df6a2211ec9e1637f26ad05dad9"
+      "sha256": "8b0617e2ca460badffc64675b916d8d7b81a10a8a4ccddb98605d306abb86f46"
     },
     {
       "path": "src/class/renderer.ts",
@@ -804,7 +804,7 @@
     },
     {
       "path": "src/render-family-hooks.ts",
-      "sha256": "916b36732136792afe06b17a90a568be6bf48f7a82404c883518ff27345483cf"
+      "sha256": "2bd5267bc37db935fba803420cf0c9ac82ae2722a0f6ea9c4b8533f4022ff08a"
     },
     {
       "path": "src/render-outputs.ts",
