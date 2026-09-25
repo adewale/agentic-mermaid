@@ -81,4 +81,24 @@ describe('Journey fractional score fidelity', () => {
       }
     }
   })
+
+  test('facts preserve all representable score digits', () => {
+    const precise = parseRegisteredMermaid('journey\nPrecise: 3.123456789012345: Me')
+    expect(precise.ok).toBe(true)
+    if (!precise.ok) return
+    expect(describeMermaidFacts(precise.value)).toContain('journey task Precise score 3.123456789012345 actors Me')
+  })
+
+  test('fractional face sentiment changes exactly at score 3', () => {
+    const mouth = (score: number): string => {
+      const svg = renderMermaidSVG(`journey\nTask: ${score}: Me`)
+      const path = svg.match(/<path class="journey-face-mouth" d="([^"]+)"/)
+      expect(path).not.toBeNull()
+      return path![1]!
+    }
+    expect(mouth(2.75)).toContain(' Q')
+    expect(mouth(3)).toContain(' L')
+    expect(mouth(3.25)).toContain(' Q')
+    expect(mouth(2.75)).not.toBe(mouth(3.25))
+  })
 })

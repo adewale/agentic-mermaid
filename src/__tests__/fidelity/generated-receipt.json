@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "1394bdb747ef4cb28f8727dd78805184a631f601a4342b262cd17a88ce88784f",
+    "inputSha256": "9d17cc2db9db2740d72be63c1fb164b08864d35aa71a187131aaa5c0f53c5cb0",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -108,7 +108,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "12075d0deedefb333ae031d9aa1963c90fd454f580bb550c4c2a434844e7daf5"
+        "sha256": "3149652a31cb13e5332782c895518a84f37f8a4fdd476acdba982c010af2d06b"
       },
       {
         "path": "src/__tests__/fidelity/cases/timeline-direction.fidelity.ts",

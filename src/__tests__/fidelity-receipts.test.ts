@@ -344,6 +344,30 @@ describe('issue #248 construct fidelity receipts', () => {
       additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
     }> = [
       {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'agent',
+        path: ['score'],
+        replacement: 3,
+      },
+      {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'render',
+        path: ['midpointY'],
+        replacement: false,
+      },
+      {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'serialize',
+        path: ['reparsedScore'],
+        replacement: 3,
+      },
+      {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'mutate',
+        path: ['mutatedScore'],
+        replacement: 4,
+      },
+      {
         caseId: 'sankey.links.typed-gradient-endpoints',
         surface: 'render',
         path: ['gradient', 'stops', 0, 'color'],

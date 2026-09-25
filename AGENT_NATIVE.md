@@ -322,7 +322,7 @@ Two contracts:
 | `add_task`           | `sectionIndex`, `text`, `score` (+ optional `actors`, insert `index`) | `remove_task(sectionIndex, taskIndex)` |
 | `remove_task`        | `sectionIndex`, `taskIndex`                               | `add_task(...)` |
 | `set_task_text`      | `sectionIndex`, `taskIndex`, `text`                       | `set_task_text(... prev_text)` |
-| `set_task_score`     | `sectionIndex`, `taskIndex`, `score` (integer 1..5)       | `set_task_score(... prev_score)` |
+| `set_task_score`     | `sectionIndex`, `taskIndex`, `score` (finite number 1..5) | `set_task_score(... prev_score)` |
 | `set_task_actors`    | `sectionIndex`, `taskIndex`, `actors: string[]`           | `set_task_actors(... prev_actors)` |
 | `rename_actor`       | `from`, `to`                                              | `rename_actor(to, from)` |
 | `move_task`          | `fromSection`, `fromIndex`, `toSection`, `toIndex`        | `move_task(toSection, toIndex, fromSection, fromIndex)` |

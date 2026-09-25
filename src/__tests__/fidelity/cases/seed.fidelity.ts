@@ -1,5 +1,4 @@
 import { MermaidFamilyDetectionError, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
-import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../../../journey/layout.ts'
 import { parseJourneyDiagram } from '../../../journey/parser.ts'
 import type {
   ApplicableFidelitySurfaceExpectation,
@@ -175,12 +174,13 @@ const journeyFractionalScore: FidelityCaseDefinition = {
   observe: () => {
     const parsed = parsedOrThrow(journeyFractionalScoreSource)
     const native = parseJourneyDiagram(journeyFractionalScoreSource.trimEnd().split('\n'))
-    const positioned = layoutJourneyDiagram(native, resolveJourneyRequestAppearance())
     const nativeScore = native.sections[0]?.tasks[0]?.score
-    const markerY = positioned.sections[0]?.tasks[0]?.marker.cy
-    const tick3Y = positioned.scoreGuide.ticks.find(tick => tick.score === 3)?.y
-    const tick4Y = positioned.scoreGuide.ticks.find(tick => tick.score === 4)?.y
     const svg = renderMermaidSVG(journeyFractionalScoreSource)
+    const markerY = Number(svg.match(/<g class="journey-score-marker" data-score="3\.5">\s*<circle[^>]*\bcy="([^"]+)"/)?.[1])
+    const guideY = new Map([...svg.matchAll(/<line class="journey-guide"[^>]*\by1="([^"]+)"[^>]*\/>\s*<text[^>]*class="journey-score-label"[^>]*>([1-5])<\/text>/g)]
+      .map(match => [Number(match[2]), Number(match[1])]))
+    const tick3Y = guideY.get(3)
+    const tick4Y = guideY.get(4)
     const serialized = serializeMermaid(parsed)
     const reparsed = parsedOrThrow(serialized)
     const mutation = mutate(parsed, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4.25 })
@@ -196,7 +196,7 @@ const journeyFractionalScore: FidelityCaseDefinition = {
         semantics: {
           nativeScore: nativeScore ?? null,
           exactSvgScore: svg.includes('class="journey-score-marker" data-score="3.5"'),
-          midpointY: markerY !== undefined && tick3Y !== undefined && tick4Y !== undefined && markerY === (tick3Y + tick4Y) / 2,
+          midpointY: Number.isFinite(markerY) && tick3Y !== undefined && tick4Y !== undefined && markerY === (tick3Y + tick4Y) / 2,
           finiteSvg: !/NaN|Infinity|undefined/.test(svg),
         },
       },
