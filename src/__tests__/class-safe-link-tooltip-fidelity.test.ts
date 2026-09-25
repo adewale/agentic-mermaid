@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { asClass, mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid } from '../agent/index.ts'
 import { collectActionRecords } from '../agent/analyze.ts'
+import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseAuthoredClassInteraction, parseClassDiagram, parseClassInteraction } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
@@ -72,6 +73,17 @@ describe('Class safe-link tooltip fidelity', () => {
     const parsed = parseRegisteredMermaid(`classDiagram\nclass A\n${statement}`)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
+  })
+
+  test('lazy browser Class SVG preserves tooltip syntax and rejects a raw navigation target', async () => {
+    const source = 'classDiagram\nclass A\nlink A "https://example.com/docs" "A &quot;hello&quot;"'
+    const expected = renderMermaidSVG(source)
+    expect(expected).toContain('<title>A &quot;hello&quot;</title>')
+    expect(await renderMermaidSVGAsync(source)).toBe(expected)
+
+    const unsupportedTarget = `${source} _self`
+    expect(() => renderMermaidSVG(unsupportedTarget)).toThrow()
+    await expect(renderMermaidSVGAsync(unsupportedTarget)).rejects.toThrow()
   })
 
   test('Mermaid-valid navigation targets remain diagnosed, not silently omitted', () => {
