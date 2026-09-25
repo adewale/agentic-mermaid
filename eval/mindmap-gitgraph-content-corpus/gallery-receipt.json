@@ -124,7 +124,7 @@
     },
     {
       "path": "src/agent/facts.ts",
-      "sha256": "a81897e8f7d82c1203ed8721794bce764c44770279adca30c9fc4dcaa497af4e"
+      "sha256": "ed1211b5db5f32b47a591b17c0707fa579edf9cdfb482e1a3cdb5243aecb2678"
     },
     {
       "path": "src/agent/families-builtin.ts",
@@ -180,7 +180,7 @@
     },
     {
       "path": "src/agent/journey-body.ts",
-      "sha256": "6f545b3d985893b7eaa4bec8808ab7ee97e5bcbcba6bbe6942e40ea683a332a4"
+      "sha256": "a6bff37207fd95ca754aab229b65f92bf315ab6a0c41311131f72021e9fdb3d3"
     },
     {
       "path": "src/agent/label-metrics.ts",
@@ -204,7 +204,7 @@
     },
     {
       "path": "src/agent/op-schema.ts",
-      "sha256": "41bb8002718572fe69102d5087f611e6f1182c6a3e548997a1cf1cc17ccef44d"
+      "sha256": "6290bd367f172ded1859472d0d379a5cc66194a40abacd6727596936ff053f7e"
     },
     {
       "path": "src/agent/opaque-segments.ts",
@@ -272,7 +272,7 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "53822a131eaa1e44131daa5e9143132239ab6d86b86896eede4c5f8681097256"
+      "sha256": "522e15dd3b792f16b63f507cb85330435c8fae81fbf1fcbd844fe5364023fc0e"
     },
     {
       "path": "src/agent/verify.ts",
@@ -364,7 +364,7 @@
     },
     {
       "path": "src/ascii/journey.ts",
-      "sha256": "c2c1112419b5d087c87ae7697be618f3fb4eb7a7e97e1734be3cc4a793ffad0a"
+      "sha256": "243a109c44b6c1b26cfb6239d9809f5074809c9db78d65d444a6e7f692173afb"
     },
     {
       "path": "src/ascii/meta.ts",
@@ -612,7 +612,7 @@
     },
     {
       "path": "src/journey/parse-core.ts",
-      "sha256": "0e7e494d79ab62cac87e11a32b508836342c3dccecac4f9771561797c6c4b7c4"
+      "sha256": "d1d158358749a0682871863176240c4a10e5e01cc79d4d0a088a6cf1ed7e6da4"
     },
     {
       "path": "src/journey/parser.ts",
@@ -620,11 +620,11 @@
     },
     {
       "path": "src/journey/renderer.ts",
-      "sha256": "2395e3e4afdcf4011f9add10de630cd7c4ccd4d4353f74a8a3bcb833aa8a2663"
+      "sha256": "288675f3fc9d2fcf1167deaeee2929d5e85e7ef2465dc44fbb3763ce66736da7"
     },
     {
       "path": "src/journey/types.ts",
-      "sha256": "a9bd5fc10b8dc24218c81530de650442294c0191aa2628a28e83e8fed1bd1f51"
+      "sha256": "13c2a9262ce6472eaa5b0b5de72a039b2d9f6e2d61a71c7a602e567cfc4225b4"
     },
     {
       "path": "src/layout-engine.ts",
@@ -1254,11 +1254,11 @@
   "outputs": [
     {
       "path": "docs/design/families/gitgraph-content-gallery.png",
-      "sha256": "8b28dadcc2236e9260dd8560f42f9a9c347dd68323a130ef01d13a9f93f2544f"
+      "sha256": "f35e744dd10e0fc6d6d6727ae46e895dc593c7bd531d52816a50d827f685fc4c"
     },
     {
       "path": "docs/design/families/mindmap-content-gallery.png",
-      "sha256": "2b82b5613f49976066094ec145af2b1b6cedb0251d96ec632650bd0039a13283"
+      "sha256": "51a63281d5a9807edfb48c7ffc0152c243c5b419f20b61a1cca458e3800cfc0b"
     }
   ]
 }

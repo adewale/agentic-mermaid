@@ -14,8 +14,8 @@ describe('op field notes (mutator-enforced constraints + omit-defaults)', () => 
     describeOps(family)[op]?.find(f => f.name === field)?.note
 
   test('journey score is annotated 1..5', () => {
-    expect(noteOf('journey', 'add_task', 'score')).toBe('integer 1..5')
-    expect(noteOf('journey', 'set_task_score', 'score')).toBe('integer 1..5')
+    expect(noteOf('journey', 'add_task', 'score')).toBe('finite number 1..5')
+    expect(noteOf('journey', 'set_task_score', 'score')).toBe('finite number 1..5')
   })
   test('quadrant point coordinates are annotated 0..1', () => {
     expect(noteOf('quadrant', 'add_point', 'x')).toBe('0..1')
@@ -42,7 +42,7 @@ describe('op field notes (mutator-enforced constraints + omit-defaults)', () => 
     const cap = buildCapabilities()
     const journey = cap.families.find(f => f.id === 'journey')!
     const score = (journey.opFields?.add_task ?? []).find(f => f.name === 'score')
-    expect(score?.note).toBe('integer 1..5')
+    expect(score?.note).toBe('finite number 1..5')
   })
 })
 

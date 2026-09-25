@@ -43,7 +43,7 @@ Know which constraints apply before you author:
   emits 80 renders as if it carried 100, hiding the missing 20. Verification
   names the unaccounted amount (`FLOW_IMBALANCE`); balance the links or add an
   explicit remainder sink.
-- **Values have domains.** Journey scores are integers 1–5, quadrant
+- **Values have domains.** Journey scores are finite numbers 1–5, quadrant
   coordinates live in `[0, 1]`, pie values are positive, radar curves carry
   one value per axis. Out-of-domain input falls back to a lossless opaque body
   instead of a wrong render.

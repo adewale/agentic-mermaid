@@ -79,9 +79,10 @@ renderer parser and the structured agent parser:
   text;
 - title/accessibility-only Journey header furniture.
 
-Mermaid's official docs define the score as an integer from 1 through 5. The
-parser enforces that range rather than accepting Mermaid's currently buggy
-out-of-range face placement behavior.
+Mermaid's official docs define the score as a number from 1 through 5. The
+parser accepts finite fractional scores in that range, matching pinned
+Mermaid 11.16, but rejects out-of-range and non-finite values rather than
+accepting Mermaid's currently buggy out-of-range face placement behavior.
 
 The implementation also accepts the current Mermaid `JourneyDiagramConfig`
 shape:
@@ -120,8 +121,8 @@ Known remaining syntax/parity gaps and caveats:
   emotional-lifecycle canvases, or swimlane workflow modeling in this issue.
 - Do not make Journey a flowchart variant.
 - Do not rely on embedding Mermaid's renderer as a black box.
-- Do not change the meaning of Mermaid Journey scores. Scores remain integers
-  from 1 through 5.
+- Do not change the meaning of Mermaid Journey scores. Scores remain finite
+  numbers from 1 through 5, including fractions.
 
 ## Historical failure analysis and residual evidence
 

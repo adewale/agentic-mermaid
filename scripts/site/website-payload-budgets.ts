@@ -35,11 +35,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 31,
-    // Class tooltip support changes a shared chunk without adding a request.
-    // These are the exact reviewed Linux/x64 capture totals.
+    // Journey fractional scores change generated demo entry/inline assets
+    // without adding a request. These are the final audited Linux/x64 totals.
     maxRawBytes: 732_417,
-    maxGzipBytes: 274_783,
-    maxBrotliBytes: 250_956,
+    maxGzipBytes: 274_786,
+    maxBrotliBytes: 250_947,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -62,11 +62,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    // Class tooltip support preserves the two-request graph; these are the
-    // exact reviewed Linux/x64 capture totals.
-    maxRawBytes: 3_356_355,
-    maxGzipBytes: 989_330,
-    maxBrotliBytes: 776_875,
+    // Journey fractional-score support preserves the two-request graph;
+    // these are the final audited Linux/x64 capture totals.
+    maxRawBytes: 3_356_628,
+    maxGzipBytes: 989_428,
+    maxBrotliBytes: 777_108,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

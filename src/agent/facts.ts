@@ -287,8 +287,8 @@ function factsJourney(out: string[], body: JourneyBody): void {
     if (s.label) add(out, `section ${clean(s.label)}`)
     s.tasks.forEach((t, ti) => {
       const actors = t.actors.length ? ` actors ${t.actors.map(clean).join(', ')}` : ''
-      add(out, `journey task ${clean(t.text)} score ${num(t.score)}${actors}`)
-      add(out, `journey task#${si}.${ti} ${clean(t.text)} score ${num(t.score)}${actors}`)
+      add(out, `journey task ${clean(t.text)} score ${String(t.score)}${actors}`)
+      add(out, `journey task#${si}.${ti} ${clean(t.text)} score ${String(t.score)}${actors}`)
       if (s.label) add(out, `journey task ${clean(t.text)} section ${clean(s.label)}`)
     })
   })
@@ -310,8 +310,8 @@ function factsJourney(out: string[], body: JourneyBody): void {
     add(out, `journey score range ${min}..${max}`)
     add(out, `journey average score ${num(average)}`)
     for (const t of tasks) {
-      if (t.score === min) add(out, `journey lowest task ${clean(t.text)} score ${num(t.score)}`)
-      if (t.score === max) add(out, `journey highest task ${clean(t.text)} score ${num(t.score)}`)
+      if (t.score === min) add(out, `journey lowest task ${clean(t.text)} score ${String(t.score)}`)
+      if (t.score === max) add(out, `journey highest task ${clean(t.text)} score ${String(t.score)}`)
     }
   }
   for (const [actor, count] of participation) add(out, `journey actor ${clean(actor)} tasks ${count}`)

@@ -146,7 +146,7 @@ export interface JourneyTask {
   /** Stable within one parse; recomputed each parse. Not a durable identifier. */
   id: string
   text: string
-  /** Satisfaction score, integer 1..5 (Mermaid journey convention). */
+  /** Satisfaction score, finite number 1..5 (Mermaid journey convention). */
   score: number
   actors: string[]
 }
