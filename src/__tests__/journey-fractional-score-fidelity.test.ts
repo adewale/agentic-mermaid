@@ -39,7 +39,14 @@ describe('Journey fractional score fidelity', () => {
     if (reparsed.ok) expect(asJourney(reparsed.value)?.body.sections[0]?.tasks.map(task => task.score)).toEqual([3, 3.5, 4])
     const mutated = mutate(parsed.value, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 1, score: 4.25 })
     expect(mutated.ok).toBe(true)
-    if (mutated.ok) expect(asJourney(mutated.value)?.body.sections[0]?.tasks[1]?.score).toBe(4.25)
+    if (mutated.ok) {
+      expect(asJourney(mutated.value)?.body.sections[0]?.tasks[1]?.score).toBe(4.25)
+      const mutatedSource = serializeMermaid(mutated.value)
+      expect(mutatedSource).toContain('Review: 4.25: Me')
+      const reparsedMutation = parseRegisteredMermaid(mutatedSource)
+      expect(reparsedMutation.ok).toBe(true)
+      if (reparsedMutation.ok) expect(asJourney(reparsedMutation.value)?.body.sections[0]?.tasks[1]?.score).toBe(4.25)
+    }
     const invalidMutation = mutate(parsed.value, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 1, score: Number.POSITIVE_INFINITY })
     expect(invalidMutation.ok).toBe(false)
     if (!invalidMutation.ok) expect(invalidMutation.error.code).toBe('INVALID_OP')
@@ -51,6 +58,8 @@ describe('Journey fractional score fidelity', () => {
     const markerYs = [...svg.matchAll(/<g class="journey-score-marker" data-score="([34](?:\.5)?)">\s*<circle[^>]* cy="([^"]+)"/g)]
     const positions = new Map(markerYs.map(match => [Number(match[1]), Number(match[2])]))
     expect(positions.size).toBe(3)
+    expect(positions.get(4)!).toBeLessThan(positions.get(3.5)!)
+    expect(positions.get(3.5)!).toBeLessThan(positions.get(3)!)
     expect(positions.get(3.5)).toBe((positions.get(3)! + positions.get(4)!) / 2)
 
     const unicode = renderMermaidASCII(source, { colorMode: 'none' })

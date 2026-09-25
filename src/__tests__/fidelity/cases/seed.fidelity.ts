@@ -169,7 +169,10 @@ const journeyFractionalScore: FidelityCaseDefinition = {
         && semanticFacts.finiteSvg === true ? 'native' : 'absent'
     }),
     serialize: applicable('native', evidence => facts(evidence).reparsedScore === 3.5 ? 'native' : 'absent'),
-    mutate: applicable('native', evidence => facts(evidence).mutatedScore === 4.25 ? 'native' : 'absent'),
+    mutate: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.mutatedScore === 4.25 && semanticFacts.reparsedMutatedScore === 4.25 ? 'native' : 'absent'
+    }),
   },
   observe: () => {
     const parsed = parsedOrThrow(journeyFractionalScoreSource)
@@ -184,6 +187,7 @@ const journeyFractionalScore: FidelityCaseDefinition = {
     const serialized = serializeMermaid(parsed)
     const reparsed = parsedOrThrow(serialized)
     const mutation = mutate(parsed, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4.25 })
+    const reparsedMutation = mutation.ok ? parsedOrThrow(serializeMermaid(mutation.value)) : null
     return {
       agent: {
         status: 'observed',
@@ -196,7 +200,8 @@ const journeyFractionalScore: FidelityCaseDefinition = {
         semantics: {
           nativeScore: nativeScore ?? null,
           exactSvgScore: svg.includes('class="journey-score-marker" data-score="3.5"'),
-          midpointY: Number.isFinite(markerY) && tick3Y !== undefined && tick4Y !== undefined && markerY === (tick3Y + tick4Y) / 2,
+          midpointY: Number.isFinite(markerY) && tick3Y !== undefined && tick4Y !== undefined
+            && tick4Y < markerY && markerY < tick3Y && markerY === (tick3Y + tick4Y) / 2,
           finiteSvg: !/NaN|Infinity|undefined/.test(svg),
         },
       },
@@ -208,7 +213,10 @@ const journeyFractionalScore: FidelityCaseDefinition = {
       mutate: {
         status: 'observed',
         diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
-        semantics: { mutatedScore: mutation.ok && mutation.value.body.kind === 'journey' ? mutation.value.body.sections[0]?.tasks[0]?.score ?? null : null },
+        semantics: {
+          mutatedScore: mutation.ok && mutation.value.body.kind === 'journey' ? mutation.value.body.sections[0]?.tasks[0]?.score ?? null : null,
+          reparsedMutatedScore: reparsedMutation?.body.kind === 'journey' ? reparsedMutation.body.sections[0]?.tasks[0]?.score ?? null : null,
+        },
       },
     }
   },
