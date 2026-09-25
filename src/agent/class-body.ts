@@ -372,7 +372,7 @@ export function renderClass(body: ClassBody): string {
     if (c.className) lines.push(`  class ${quoteIfNeeded(c.id)} ${c.className}`)
     if (c.style) lines.push(`  style ${quoteIfNeeded(c.id)} ${serializeStyleProps(c.style)}`)
     if (c.href) {
-      lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
+      lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
     }
   }
   return lines.join('\n') + '\n'

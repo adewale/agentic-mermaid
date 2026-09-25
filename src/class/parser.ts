@@ -1,6 +1,6 @@
 import type { ClassDiagram, ClassNode, ClassRelationship, ClassMember, RelationshipType, ClassNamespace } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
@@ -42,6 +42,56 @@ export function splitAuthoredClassLine(line: string): string[] {
     const decoded = decodeXML(token)
     return /[\r\n]/.test(decoded) ? decoded : token
   }).split(/\r\n|\r|\n/)
+}
+
+/** Match decoded Class statements to authored bytes one statement at a time.
+ * Entity-created comments/directives and compact namespace expansions must
+ * never shift quote provenance for an unrelated later link. */
+function authoredClassStatements(lines: string[]): Array<string | undefined> {
+  const authored = lines.flatMap(splitAuthoredClassLine).map(line => line.trim())
+    .filter(line => {
+      const semantic = decodeXML(line).trim()
+      return semantic.length > 0 && !semantic.startsWith('%%')
+    })
+  const semantic = authored.map(line => decodeXML(line))
+  const statements: Array<string | undefined> = []
+  const add = (raw: string | undefined, decoded: string): void => {
+    const decodedParts = expandInlineNamespaceStatement(decoded)
+    const rawParts = raw === undefined ? [] : expandInlineNamespaceStatement(raw)
+    if (rawParts.length === decodedParts.length
+      && rawParts.every((part, index) => decodeXML(part) === decodedParts[index])) {
+      statements.push(...rawParts)
+    } else {
+      statements.push(...decodedParts.map(() => undefined))
+    }
+  }
+  for (let index = 0; index < authored.length; index++) {
+    const directive = parseAccessibilityDirective(semantic, index)
+    if (directive === undefined) {
+      for (; index < authored.length; index++) add(authored[index], semantic[index]!)
+      break
+    }
+    if (directive === null) {
+      add(authored[index], semantic[index]!)
+      continue
+    }
+    if (directive.suffixLine) {
+      const rawClosing = authored[directive.endIndex]!
+      const braceTokens = /}|&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g
+      let braceEnd = -1
+      for (const match of rawClosing.matchAll(braceTokens)) {
+        if (decodeXML(match[0]) === '}') {
+          braceEnd = match.index + match[0].length
+          break
+        }
+      }
+      const candidate = braceEnd < 0 ? undefined : rawClosing.slice(braceEnd).trim()
+      add(candidate !== undefined && decodeXML(candidate).trim() === directive.suffixLine.trim()
+        ? candidate : undefined, directive.suffixLine.trim())
+    }
+    index = directive.endIndex
+  }
+  return statements
 }
 
 // Shared class declaration grammar. The structured serializer emits bracket
@@ -176,6 +226,13 @@ function applyClassAnnotation(node: ClassNode, annotation: string): void {
 }
 
 /** Shared safe-link grammar for renderer and agent class parsers. */
+const CLASS_COMMENT_START_RE = /(?:%|&#(?:0*37|x0*25);){2}/iy
+
+function startsClassComment(line: string, index = 0): boolean {
+  CLASS_COMMENT_START_RE.lastIndex = index
+  return CLASS_COMMENT_START_RE.test(line)
+}
+
 export function parseClassInteraction(line: string): { id: string; generic?: string; href: string; tooltip?: string } | null {
   // Parse the URL once, then scan the optional tooltip/comment tail once.
   // A bare URL may contain literal %% (a repo-supported extension), while a
@@ -185,13 +242,16 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
   const tail = line.trimStart().slice(link[0].length).trimStart()
   let tooltip: string | undefined
   if (tail.startsWith('"')) {
+    // Hover text belongs to the quoted safe-link forms. A bare destination
+    // followed by a quote is not a different, silently shortened URL.
+    if (link[3] !== undefined) return null
     let close = -1
     let interiorQuotes = 0
     for (let i = 1; i < tail.length; i++) {
       if (tail[i] !== '"') continue
       let next = i + 1
       while (next < tail.length && /\s/.test(tail[next]!)) next++
-      if (interiorQuotes % 2 === 0 && (next === tail.length || (tail[next] === '%' && tail[next + 1] === '%'))) {
+      if (interiorQuotes % 2 === 0 && (next === tail.length || startsClassComment(tail, next))) {
         close = i
         break
       }
@@ -204,8 +264,8 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
     // so only unbalanced quotes can be rejected without losing valid text.
     if ((tooltip.match(/"/g)?.length ?? 0) % 2 !== 0) return null
     const suffix = tail.slice(close + 1).trimStart()
-    if (suffix && !suffix.startsWith('%%')) return null
-  } else if (tail && !tail.startsWith('%%')) return null
+    if (suffix && !startsClassComment(suffix)) return null
+  } else if (tail && !startsClassComment(tail)) return null
   const ref = parseClassReference(link[1]!)
   const href = (link[2] ?? link[3] ?? '').replace(/\\(["\\])/g, '$1')
   return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip))
@@ -213,45 +273,56 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
     : null
 }
 
-/** Decode only after finding authored tooltip boundaries. This preserves the
- * distinction between a literal extra quote and &quot; inside hover text. */
-export function parseAuthoredClassInteraction(line: string): ReturnType<typeof parseClassInteraction> {
-  const authored = parseClassInteraction(line)
-  if (!authored || authored.tooltip?.includes('"')) return null
-  const href = decodeXML(authored.href)
-  const tooltip = authored.tooltip === undefined ? undefined : decodeXML(authored.tooltip)
-  if (!/^(?:https?:|mailto:)/i.test(href) || !isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href)) return null
-  if (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip)) return null
-  return { id: authored.id, ...(authored.generic ? { generic: authored.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
+/** Decode authored syntax once while shielding entity-encoded quotes from the
+ * grammar. A raw extra quote remains a delimiter; an entity quote remains
+ * content until after the strict boundary check. */
+export function parseClassInteractionWithAuthored(authoredLine: string): ReturnType<typeof parseClassInteraction> {
+  // Choose a marker absent from the *decoded* input: an entity can itself
+  // represent any private-use code point, so checking authored bytes is not
+  // enough to keep content distinct from protected quote provenance.
+  const occupied = new Set<number>()
+  for (const character of decodeXML(authoredLine)) {
+    const code = character.charCodeAt(0)
+    if (code >= 0xe000 && code <= 0xf8ff) occupied.add(code)
+  }
+  let markerCode = 0xe000
+  while (occupied.has(markerCode)) markerCode++
+  if (markerCode > 0xf8ff) return null
+  const quoteMarker = String.fromCharCode(markerCode)
+  const protectedLine = decodeXML(authoredLine.replace(/&quot;|&#0*34;|&#x0*22;/gi, token =>
+    decodeXML(token) === '"' ? quoteMarker : token))
+  const parseProtected = (line: string): ReturnType<typeof parseClassInteraction> => {
+    const parsed = parseClassInteraction(line)
+    if (!parsed || parsed.tooltip?.includes('"')) return null
+    // A quote entity inside a destination cannot relax the URL token grammar.
+    if (parsed.href.includes(quoteMarker)) return null
+    const href = parsed.href
+    const tooltip = parsed.tooltip?.replaceAll(quoteMarker, '"')
+    if (!isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href)
+      || (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip))) return null
+    return { ...parsed, href, ...(tooltip !== undefined ? { tooltip } : {}) }
+  }
+  const direct = parseProtected(protectedLine)
+  if (direct) return direct
+  const restorePair = (line: string): string | null => {
+    const first = line.indexOf(quoteMarker)
+    const second = first < 0 ? -1 : line.indexOf(quoteMarker, first + 1)
+    if (second < 0) return null
+    return line.slice(0, first) + '"' + line.slice(first + 1, second) + '"' + line.slice(second + 1)
+  }
+  const withOuterQuotes = restorePair(protectedLine)
+  if (!withOuterQuotes) return null
+  const outerParsed = parseProtected(withOuterQuotes)
+  if (outerParsed) return outerParsed
+  // A second encoded pair can delimit the tooltip. More remaining entities
+  // are ambiguous with an encoded target, so do not pair across them.
+  if ([...withOuterQuotes].filter(character => character === quoteMarker).length !== 2) return null
+  const withTooltipQuotes = restorePair(withOuterQuotes)
+  return withTooltipQuotes === null ? null : parseProtected(withTooltipQuotes)
 }
 
-/** Restore entity-encoded outer delimiters without decoding authored hover
- * text, so raw extra targets cannot masquerade as tooltip content. */
-export function parseClassInteractionWithAuthored(authoredLine: string): ReturnType<typeof parseClassInteraction> {
-  const authored = parseAuthoredClassInteraction(authoredLine)
-  if (authored) return authored
-  if (!/(?:&quot;|&#34;|&#x22;)(?:https?:\/\/|mailto:)/i.test(authoredLine)) return null
-  // Some hosts encode the URL's outer quotes as entities too. Restore only
-  // that delimiter pair, then apply the strict authored tooltip grammar;
-  // decoding the entire line here would lose quote provenance again.
-  let restored = 0
-  const withUrlQuotes = authoredLine.replace(/&quot;|&#34;|&#x22;/gi, token => restored++ < 2 ? '"' : token)
-  if (restored < 2) return null
-  const parsed = parseAuthoredClassInteraction(withUrlQuotes)
-  if (parsed) return parsed
-  const urlOpen = withUrlQuotes.indexOf('"')
-  const urlClose = withUrlQuotes.indexOf('"', urlOpen + 1)
-  if (urlClose < 0 || !/^(?:&quot;|&#34;|&#x22;)/i.test(withUrlQuotes.slice(urlClose + 1).trimStart())) return null
-  const quoteTokens = [...withUrlQuotes.matchAll(/&quot;|&#34;|&#x22;/gi)]
-  // More than one encoded pair is ambiguous with an encoded navigation target.
-  // Fail closed instead of selecting a distant quote across unmodeled syntax.
-  if (quoteTokens.length !== 2) return null
-  const first = quoteTokens[0]!
-  const last = quoteTokens[quoteTokens.length - 1]!
-  const withTooltipQuotes = withUrlQuotes.slice(0, first.index) + '"'
-    + withUrlQuotes.slice(first.index + first[0].length, last.index) + '"'
-    + withUrlQuotes.slice(last.index + last[0].length)
-  return parseAuthoredClassInteraction(withTooltipQuotes)
+export function parseAuthoredClassInteraction(line: string): ReturnType<typeof parseClassInteraction> {
+  return parseClassInteractionWithAuthored(line)
 }
 
 // ============================================================================
@@ -285,11 +356,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
   const accessibility = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(accessibility)
   lines = accessibility.familyLines.flatMap(expandInlineNamespaceStatement)
-  const authoredExpanded = authoredLines
-    ? scanAccessibilityDirectives(authoredLines.flatMap(splitAuthoredClassLine)
-      .map(line => line.trim()).filter(line => line && !line.startsWith('%%')))
-      .familyLines.flatMap(expandInlineNamespaceStatement)
-    : undefined
+  const authoredExpanded = authoredLines ? authoredClassStatements(authoredLines) : undefined
   const diagram: ClassDiagram = {
     classes: [],
     classDefs: new Map(),
@@ -386,8 +453,9 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     }
 
     // --- Safe class links. Callback forms remain inert and unmodeled. ---
-    const authoredLine = authoredExpanded?.length === lines.length && decodeXML(authoredExpanded[i]!) === line
-      ? authoredExpanded[i]
+    const candidate = authoredExpanded?.[i]
+    const authoredLine = candidate !== undefined && decodeXML(candidate).trim() === line
+      ? candidate
       : undefined
     const interaction = authoredLine !== undefined
       ? parseClassInteractionWithAuthored(authoredLine)

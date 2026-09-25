@@ -270,6 +270,75 @@ describe('Class safe-link tooltip fidelity', () => {
     if (parsed.ok) expect(collectActionRecords(parsed.value)).toEqual([])
   })
 
+  test('encoded comments, blank lines, and accessibility directives do not shift link provenance', () => {
+    const prefixes = [
+      '&#37;&#37; encoded comment',
+      '&#32;',
+      'accTitle&#58; Diagram',
+      'accDescr&#58; Description',
+    ]
+    for (const prefix of prefixes) {
+      const source = `classDiagram\nclass A\n${prefix}\nlink A "https://example.com" "tip"`
+      expect(renderMermaidSVG(source)).toContain('<title>tip</title>')
+      expect(renderMermaidWithActions(source, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('tip')
+    }
+    const trailing = 'classDiagram\nclass A\nlink A "https://example.com" "tip" &#37;&#37; trailing'
+    expect(renderMermaidSVG(trailing)).toContain('<title>tip</title>')
+    expect(renderMermaidWithActions(trailing, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('tip')
+    const encodedBrace = 'classDiagram\nclass A\naccDescr {\nhello\n&#125; link A "https://example.com" "tip"'
+    expect(renderMermaidSVG(encodedBrace)).toContain('<title>tip</title>')
+    const notAComment = 'classDiagram\nclass A\nlink A "https://example.com" "tip" &percnt;&percnt; trailing'
+    expect(() => renderMermaidSVG(notAComment)).toThrow()
+  })
+
+  test('authored quote boundaries survive entities used in otherwise valid link syntax', () => {
+    const statements = [
+      'link A "https&#58;//example.com" "tip"',
+      'link&#32;A "https://example.com" "tip"',
+      'link A&#32;"https://example.com" "tip"',
+      'link A "https://example.com"&#32;"tip"',
+      '&#32;link A "https://example.com" "tip"',
+      'link A "https://example.com" "tip"&#32;',
+    ]
+    for (const statement of statements) {
+      const source = `classDiagram\nclass A\n${statement}`
+      expect(renderMermaidSVG(source)).toContain('<title>tip</title>')
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(asClass(parsed.value)?.body.classes[0]?.tooltip).toBe('tip')
+    }
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink&#32;A "https://example.com" "tip" _self ""')).toThrow()
+    expect(renderMermaidSVG('classDiagram\nclass A\nlink A https&#58;//example.com')).toContain('data-href="https://example.com"')
+  })
+
+  test('structured Class URL entities survive serialize and reparse', () => {
+    const source = 'classDiagram\nclass A\nlink A "https://example.com/?q=&amp;quot;" "tip"'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(asClass(parsed.value)?.body.classes[0]?.href).toBe('https://example.com/?q=&quot;')
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toContain('https://example.com/?q=&amp;quot;')
+    const reparsed = parseRegisteredMermaid(serialized)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(asClass(reparsed.value)?.body.classes[0]?.href).toBe('https://example.com/?q=&quot;')
+    expect(renderMermaidSVG(serialized)).toContain('data-href="https://example.com/?q=&amp;quot;"')
+  })
+
+  test('an entity for a private-use character remains tooltip and URL content', () => {
+    const source = 'classDiagram\nclass A\nlink A "https://example.com/x&#57344;y" "x&#57344;y"'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(asClass(parsed.value)?.body.classes[0]?.href).toBe('https://example.com/x\uE000y')
+      expect(asClass(parsed.value)?.body.classes[0]?.tooltip).toBe('x\uE000y')
+    }
+    expect(renderMermaidSVG(source)).toContain('<title>x\uE000y</title>')
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com&#34;tail')).toThrow()
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com"tail"')).toThrow()
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com "tail"')).toThrow()
+  })
+
   test('literal percent pairs in an unquoted URL preserve the pre-existing destination', () => {
     const statement = 'link A https://example.com/foo%%bar'
     expect(parseClassInteraction(statement)?.href).toBe('https://example.com/foo%%bar')
