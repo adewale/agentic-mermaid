@@ -20,9 +20,9 @@ import { decodeXML } from 'entities'
 import {
   expandInlineNamespaceStatement,
   parseClassDeclaration,
-  parseClassInteraction,
   parseClassInteractionWithAuthored,
   parseClassReference,
+  splitAuthoredClassLine,
 } from '../class/parser.ts'
 import type { MermaidGraph } from '../types.ts'
 import { isSafeActionHref } from '../output-security.ts'
@@ -103,12 +103,13 @@ function collectClassActions(source: string): DiagramActionRecord[] {
   // &#10; may introduce an entire interaction statement (or split one).
   // Retain the authored physical line for each decoded segment in sidecars.
   const physicalLines = source.split(/\r?\n/)
-  const authoredLineByDecodedLine = physicalLines.flatMap((line, index) =>
-    decodeXML(line).split(/\r?\n/).map(() => index + 1))
+  const authoredSegments = physicalLines.flatMap((line, index) =>
+    splitAuthoredClassLine(line).map(text => ({ text, line: index + 1 })))
   for (const sourceLine of actionSourceLines(decodeXML(source))) {
-    const authoredLine = authoredLineByDecodedLine[sourceLine.line - 1] ?? sourceLine.line
+    const authoredSegment = authoredSegments[sourceLine.line - 1]
+    const authoredLine = authoredSegment?.line ?? sourceLine.line
     const semanticStatements = expandInlineNamespaceStatement(sourceLine.text)
-    const authoredStatements = expandInlineNamespaceStatement(physicalLines[authoredLine - 1]?.trim() ?? '')
+    const authoredStatements = expandInlineNamespaceStatement(authoredSegment?.text.trim() ?? '')
     for (const [index, text] of semanticStatements.entries()) {
       if (inClassBody) {
         if (text.trim() === '}') inClassBody = false
@@ -121,9 +122,7 @@ function collectClassActions(source: string): DiagramActionRecord[] {
       }
       const authoredText = authoredStatements.length === semanticStatements.length
         && decodeXML(authoredStatements[index]!) === text ? authoredStatements[index] : undefined
-      const embedded = authoredText === undefined
-        ? parseClassInteraction(text)
-        : parseClassInteractionWithAuthored(authoredText)
+      const embedded = authoredText === undefined ? null : parseClassInteractionWithAuthored(authoredText)
       if (embedded) {
         if (embedded.tooltip !== undefined) effectiveTooltips.set(embedded.id, embedded.tooltip)
         const effectiveTooltip = effectiveTooltips.get(embedded.id)

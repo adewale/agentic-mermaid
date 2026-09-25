@@ -253,6 +253,16 @@ describe('Class safe-link tooltip fidelity', () => {
     expect(renderMermaidWithActions(introduced, { format: 'svg' }).actionSurface.actions).toEqual([
       expect.objectContaining({ href: 'https://example.com', tooltip: 'Tip', security: 'safe', line: 2 }),
     ])
+    const unrelated = 'classDiagram\nclass A&#10;class B\nlink A "https://example.com" "Tip" _self ""'
+    expect(() => renderMermaidSVG(unrelated)).toThrow()
+    const unrelatedParsed = parseRegisteredMermaid(unrelated)
+    expect(unrelatedParsed.ok).toBe(true)
+    if (unrelatedParsed.ok) {
+      expect(unrelatedParsed.value.body.kind).toBe('opaque')
+      expect(collectActionRecords(unrelatedParsed.value)[0]?.tooltip).toBeUndefined()
+    }
+    const sameLine = 'classDiagram\nclass A&#10;link A "https://example.com" "Tip" _self ""'
+    expect(() => renderMermaidSVG(sameLine)).toThrow()
     const splitTooltip = 'classDiagram\nclass A\nlink A "https://example.com" "First&#10;Second"'
     expect(() => renderMermaidSVG(splitTooltip)).toThrow()
     const parsed = parseRegisteredMermaid(splitTooltip)
@@ -309,6 +319,9 @@ describe('Class safe-link tooltip fidelity', () => {
 
     const encodedUrl = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; "tip"'
     expect(renderMermaidSVG(encodedUrl)).toContain('<title>tip</title>')
+    const typedEncoded = parseRegisteredMermaid('classDiagram\nclass A\nlink A &quot;https://example.com&quot; &quot;tip&quot;')
+    expect(typedEncoded.ok).toBe(true)
+    if (typedEncoded.ok) expect(asClass(typedEncoded.value)?.body.classes[0]?.tooltip).toBe('tip')
     const encodedUrlWithRawTarget = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; "tip" _self ""'
     expect(() => renderMermaidSVG(encodedUrlWithRawTarget)).toThrow()
     const rejected = parseRegisteredMermaid(encodedUrlWithRawTarget)
@@ -316,6 +329,14 @@ describe('Class safe-link tooltip fidelity', () => {
     if (rejected.ok) {
       expect(rejected.value.body.kind).toBe('opaque')
       expect(collectActionRecords(rejected.value)[0]?.tooltip).toBeUndefined()
+    }
+    const fullyEncodedTarget = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; &quot;tip&quot; _self &quot;&quot;'
+    expect(() => renderMermaidSVG(fullyEncodedTarget)).toThrow()
+    const encodedRejected = parseRegisteredMermaid(fullyEncodedTarget)
+    expect(encodedRejected.ok).toBe(true)
+    if (encodedRejected.ok) {
+      expect(encodedRejected.value.body.kind).toBe('opaque')
+      expect(collectActionRecords(encodedRejected.value)[0]?.tooltip).toBeUndefined()
     }
   })
 

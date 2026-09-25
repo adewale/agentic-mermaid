@@ -35,6 +35,15 @@ export function expandInlineNamespaceStatement(line: string): string[] {
   return [opener, ...body, '}']
 }
 
+/** Split entity-created physical lines while retaining every other authored
+ * entity for Class quote-boundary validation. */
+export function splitAuthoredClassLine(line: string): string[] {
+  return line.replace(/&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g, token => {
+    const decoded = decodeXML(token)
+    return /[\r\n]/.test(decoded) ? decoded : token
+  }).split(/\r\n|\r|\n/)
+}
+
 // Shared class declaration grammar. The structured serializer emits bracket
 // labels, so the renderer and agent parser must resolve them to the same
 // logical ID instead of treating `A["Label"]` as an identifier.
@@ -234,7 +243,9 @@ export function parseClassInteractionWithAuthored(authoredLine: string): ReturnT
   const urlClose = withUrlQuotes.indexOf('"', urlOpen + 1)
   if (urlClose < 0 || !/^(?:&quot;|&#34;|&#x22;)/i.test(withUrlQuotes.slice(urlClose + 1).trimStart())) return null
   const quoteTokens = [...withUrlQuotes.matchAll(/&quot;|&#34;|&#x22;/gi)]
-  if (quoteTokens.length < 2) return null
+  // More than one encoded pair is ambiguous with an encoded navigation target.
+  // Fail closed instead of selecting a distant quote across unmodeled syntax.
+  if (quoteTokens.length !== 2) return null
   const first = quoteTokens[0]!
   const last = quoteTokens[quoteTokens.length - 1]!
   const withTooltipQuotes = withUrlQuotes.slice(0, first.index) + '"'
@@ -275,7 +286,9 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
   requireClosedAccessibility(accessibility)
   lines = accessibility.familyLines.flatMap(expandInlineNamespaceStatement)
   const authoredExpanded = authoredLines
-    ? scanAccessibilityDirectives(authoredLines).familyLines.flatMap(expandInlineNamespaceStatement)
+    ? scanAccessibilityDirectives(authoredLines.flatMap(splitAuthoredClassLine)
+      .map(line => line.trim()).filter(line => line && !line.startsWith('%%')))
+      .familyLines.flatMap(expandInlineNamespaceStatement)
     : undefined
   const diagram: ClassDiagram = {
     classes: [],
@@ -378,7 +391,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       : undefined
     const interaction = authoredLine !== undefined
       ? parseClassInteractionWithAuthored(authoredLine)
-      : authoredLines === undefined ? parseAuthoredClassInteraction(line) : parseClassInteraction(line)
+      : authoredLines === undefined ? parseAuthoredClassInteraction(line) : null
     if (interaction) {
       const cls = ensureClass(classMap, interaction.id, interaction.generic)
       cls.href = interaction.href
