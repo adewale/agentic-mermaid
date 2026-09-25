@@ -28,8 +28,11 @@ export const JOURNEY_SECTION_RE = /^section\s+(.+)$/i
 // Mermaid 11.16 accepts numeric task scores, including decimals and exponent
 // notation. Keep the documented 1..5 range/finite check below as our bounded
 // rendering contract, but do not silently coerce a fractional score to int.
-export const JOURNEY_TASK_RE = /^([^:]+?)\s*:\s*([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)\s*(?::\s*(.*))?$/
-const TASK_LIKE_RE = /^([^:]+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/
+// Delimiter-anchored captures avoid overlapping lazy text / whitespace
+// quantifiers. normalizeJourneyText and rawScore.trim() strip authored spacing
+// after capture; malformed long lines must not trigger quadratic backtracking.
+export const JOURNEY_TASK_RE = /^([^:]+):\s*([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)\s*(?::\s*(.*))?$/
+const TASK_LIKE_RE = /^([^:]+):\s*([^:]+)(?::\s*(.*))?$/
 
 /** Inline markup normalization shared by every Journey text surface. */
 export function normalizeJourneyLabel(label: string): string {

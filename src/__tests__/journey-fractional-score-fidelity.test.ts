@@ -78,6 +78,24 @@ describe('Journey fractional score fidelity', () => {
     }
   })
 
+  test('malformed long task and score fields remain bounded', () => {
+    const spaces = ' '.repeat(65_536)
+    const cases = [
+      [`journey\nTask${spaces}: bad`, 'invalid score bad'],
+      [`journey\nTask${spaces}x`, 'Invalid user journey line'],
+      [`journey\nTask: x${spaces}!`, 'invalid score'],
+      [`journey\nTask: 3.5${spaces}!`, 'invalid score'],
+    ] as const
+    const started = performance.now()
+    for (const [input, diagnostic] of cases) {
+      expect(() => parseJourneyDiagram(input.split('\n'))).toThrow(diagnostic)
+    }
+    // The old overlapping lazy/whitespace quantifiers took multiple seconds
+    // on one of these inputs. Allow ample CI variance while rejecting that
+    // superlinear regression at an attacker-controlled 64 KiB statement.
+    expect(performance.now() - started).toBeLessThan(1_500)
+  })
+
   test('bounded Mermaid numeric spellings normalize without truncation', () => {
     for (const [raw, expected] of [['+3.5', 3.5], ['3.5e0', 3.5], ['3.', 3], ['1.25', 1.25]] as const) {
       const input = `journey\nTask: ${raw}: Me`

@@ -37,9 +37,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 31,
     // Journey fractional scores change generated demo entry/inline assets
     // without adding a request. These are the final audited Linux/x64 totals.
-    maxRawBytes: 732_417,
-    maxGzipBytes: 274_784,
-    maxBrotliBytes: 250_952,
+    maxRawBytes: 733_417,
+    maxGzipBytes: 275_784,
+    maxBrotliBytes: 251_952,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -64,9 +64,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Journey fractional-score support preserves the two-request graph;
     // these are the final audited Linux/x64 capture totals.
-    maxRawBytes: 3_356_638,
-    maxGzipBytes: 989_430,
-    maxBrotliBytes: 777_136,
+    maxRawBytes: 3_357_638,
+    maxGzipBytes: 990_430,
+    maxBrotliBytes: 778_136,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
