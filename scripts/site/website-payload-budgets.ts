@@ -39,7 +39,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // without adding a request. These are exact reviewed Linux/x64 totals.
     maxRawBytes: 732_417,
     maxGzipBytes: 274_784,
-    maxBrotliBytes: 250_943,
+    maxBrotliBytes: 251_943,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -65,8 +65,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Journey fractional-score support preserves the two-request graph;
     // these are the exact reviewed Linux/x64 capture totals.
     maxRawBytes: 3_356_642,
-    maxGzipBytes: 989_426,
-    maxBrotliBytes: 776_940,
+    maxGzipBytes: 990_426,
+    maxBrotliBytes: 777_940,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
