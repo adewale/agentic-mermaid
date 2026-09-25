@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="237.8" viewBox="0 0 200 237.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="237.8" viewBox="0 0 200 237.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1ftwfnj">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg {
+  .am-1ftwfnj text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .am-1ftwfnj .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-1ftwfnj {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
