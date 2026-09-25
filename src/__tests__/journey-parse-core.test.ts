@@ -13,6 +13,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asJourney } from '../agent/types.ts'
+import { hasJourneyStatementDelimiter } from '../journey/parse-core.ts'
 
 function rendererParse(text: string) {
   return parseJourneyDiagram(preprocessMermaidLines(text))
@@ -80,6 +81,27 @@ describe('semicolon statement separation (Mermaid lexer parity)', () => {
     const j = asJourney(agentBody('journey\n  Sit down: 5: Me;'))
     expect(j).not.toBeNull()
     expect(j!.body.sections[0]!.tasks[0]!.actors).toEqual(['Me'])
+  })
+
+  test('large semicolon-heavy malformed input stays bounded through the public parser', () => {
+    const source = 'journey\nTask: 3: &' + 'a;'.repeat(64_000)
+    const started = performance.now()
+    expect(() => rendererParse(source)).toThrow()
+    expect(performance.now() - started).toBeLessThan(500)
+  })
+
+  test('entity semicolons and real delimiters agree with mutation validation', () => {
+    expect(hasJourneyStatementDelimiter('Review &amp; revise &#59; sign &#x3B;')).toBe(false)
+    expect(hasJourneyStatementDelimiter('Review &amp; revise; next')).toBe(true)
+    expect(hasJourneyStatementDelimiter(`Review &${'a'.repeat(32)};`)).toBe(false)
+    expect(hasJourneyStatementDelimiter(`Review &${'a'.repeat(33)};`)).toBe(true)
+    const parsed = rendererParse('journey\n  A &amp; B &#59; C &#x3B; D: 3: Me; Next: 4: You')
+    expect(parsed.sections[0]!.tasks.map(task => task.text)).toEqual([
+      'A &amp; B &#59; C &#x3B; D',
+      'Next',
+    ])
+    const agent = asJourney(agentBody('journey\n  A &amp; B &#59; C &#x3B; D: 3: Me; Next: 4: You'))
+    expect(agent?.body.sections[0]!.tasks.map(task => task.text)).toEqual(parsed.sections[0]!.tasks.map(task => task.text))
   })
 })
 
