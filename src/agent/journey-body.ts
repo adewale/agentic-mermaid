@@ -8,7 +8,7 @@
 //   accDescr: <text>
 //   accDescr { <multiline text> }
 //   section <label>
-//   <task text>: <score 1..5>[: <actor>[, <actor>…]]
+//   <task text>: <finite score 1..5>[: <actor>[, <actor>…]]
 //
 // Structured-or-opaque with a typed reason: any line the grammar rejects
 // yields the JourneyParseIssue that triggered opacity, so the caller can fall
@@ -41,7 +41,7 @@ function formatJourneyInline(value: string): string {
 /**
  * Parse journey body lines (header excluded). Returns a structured body only
  * if EVERY non-blank, non-comment statement is modeled grammar with a valid
- * 1..5 integer score. Otherwise returns the first JourneyParseIssue so the
+ * finite 1..5 score. Otherwise returns the first JourneyParseIssue so the
  * opaque fallback can carry its reason.
  */
 export function parseJourneyBody(lines: string[], accessibility: import('./types.ts').Accessibility = {}): JourneyBodyParse {
@@ -235,7 +235,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.sectionIndex}` })
       const text = normalizeOpText(op.text, 'task text')
       if (!text.ok) return text
-      if (!isValidJourneyScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be an integer 1..5, got ${op.score}` })
+      if (!isValidJourneyScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be a finite number 1..5, got ${op.score}` })
       const actors = normalizeActors(op.actors)
       if (!actors.ok) return actors
       const index = resolveInsertIndex(op.index, s.tasks.length)
@@ -262,7 +262,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'set_task_score': {
       const t = getTask(op.sectionIndex, op.taskIndex)
       if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
-      if (!isValidJourneyScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be an integer 1..5, got ${op.score}` })
+      if (!isValidJourneyScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be a finite number 1..5, got ${op.score}` })
       t.score = op.score
       break
     }

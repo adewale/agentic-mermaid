@@ -819,7 +819,7 @@ ${SDK_MUTATE_METHOD_DECLARATIONS}
 ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // Op discovery — look up exact op shapes at runtime instead of guessing.
   // describeOps returns every op's field names, required-ness, inlined enum
-  // values, and constraint/default notes (e.g. score "integer 1..5", shape
+  // values, and constraint/default notes (e.g. score "finite number 1..5", shape
   // "default: rectangle"); opSignatures returns compact one-liners like
   // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>

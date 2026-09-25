@@ -1,0 +1,84 @@
+import { describe, expect, test } from 'bun:test'
+import { renderMermaidASCII } from '../ascii/index.ts'
+import { asJourney, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { parseJourneyDiagram } from '../journey/parser.ts'
+
+const source = 'journey\n  section Work\n  First: 3: Me\n  Review: 3.5: Me\n  Last: 4: Me'
+
+describe('Journey fractional score fidelity', () => {
+  test('pinned Mermaid 11.16 assigns exact fractional task scores', () => {
+    const probe = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `
+        import DOMPurify from 'dompurify'
+        DOMPurify.addHook = () => {}
+        DOMPurify.sanitize = text => text
+        const { default: mermaid } = await import('mermaid')
+        mermaid.initialize({ startOnLoad: false })
+        const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
+        process.stdout.write(JSON.stringify(diagram.db.getTasks().map(task => task.score)))
+      `],
+      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
+    })
+    expect(probe.exitCode).toBe(0)
+    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([3, 3.5, 4])
+  })
+
+  test('native and agent models retain 3.5 through serialize and mutation', () => {
+    expect(parseJourneyDiagram(source.split('\n')).sections[0]?.tasks.map(task => task.score)).toEqual([3, 3.5, 4])
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(asJourney(parsed.value)?.body.sections[0]?.tasks.map(task => task.score)).toEqual([3, 3.5, 4])
+    expect(verifyMermaid(parsed.value).ok).toBe(true)
+    expect(describeMermaidFacts(parsed.value)).toContain('journey task Review score 3.5 actors Me')
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toContain('Review: 3.5: Me')
+    const reparsed = parseRegisteredMermaid(serialized)
+    expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(asJourney(reparsed.value)?.body.sections[0]?.tasks.map(task => task.score)).toEqual([3, 3.5, 4])
+    const mutated = mutate(parsed.value, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 1, score: 4.25 })
+    expect(mutated.ok).toBe(true)
+    if (mutated.ok) expect(asJourney(mutated.value)?.body.sections[0]?.tasks[1]?.score).toBe(4.25)
+    const invalidMutation = mutate(parsed.value, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 1, score: Number.POSITIVE_INFINITY })
+    expect(invalidMutation.ok).toBe(false)
+    if (!invalidMutation.ok) expect(invalidMutation.error.code).toBe('INVALID_OP')
+  })
+
+  test('SVG positions the score between neighboring ticks and terminal output remains exact', () => {
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('data-score="3.5"')
+    const markerYs = [...svg.matchAll(/<g class="journey-score-marker" data-score="([34](?:\.5)?)">\s*<circle[^>]* cy="([^"]+)"/g)]
+    const positions = new Map(markerYs.map(match => [Number(match[1]), Number(match[2])]))
+    expect(positions.size).toBe(3)
+    expect(positions.get(3.5)).toBe((positions.get(3)! + positions.get(4)!) / 2)
+
+    const unicode = renderMermaidASCII(source, { colorMode: 'none' })
+    expect(unicode).toContain('●●●◐○ Review (score 3.5)')
+    const ascii = renderMermaidASCII(source, { colorMode: 'none', useAscii: true })
+    expect(ascii).toContain('###+. Review (score 3.5)')
+    expect(ascii).toContain('scores: 3 3.5 4')
+  })
+
+  test('out-of-range, malformed, and non-finite scores remain rejected', () => {
+    for (const score of ['0.5', '5.1', '3.5oops', '1e999', 'NaN', 'Infinity']) {
+      expect(() => parseJourneyDiagram(`journey\nTask: ${score}: Me`.split('\n'))).toThrow()
+      const parsed = parseRegisteredMermaid(`journey\nTask: ${score}: Me`)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
+    }
+  })
+
+  test('bounded Mermaid numeric spellings normalize without truncation', () => {
+    for (const [raw, expected] of [['+3.5', 3.5], ['3.5e0', 3.5], ['3.', 3], ['1.25', 1.25]] as const) {
+      const input = `journey\nTask: ${raw}: Me`
+      expect(parseJourneyDiagram(input.split('\n')).sections[0]?.tasks[0]?.score).toBe(expected)
+      const parsed = parseRegisteredMermaid(input)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) {
+        expect(asJourney(parsed.value)?.body.sections[0]?.tasks[0]?.score).toBe(expected)
+        expect(serializeMermaid(parsed.value)).toContain(`Task: ${expected}: Me`)
+      }
+    }
+  })
+})

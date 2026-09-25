@@ -31,6 +31,12 @@ const currentReceipt = () => ({
   outputSha256: sha256File(OUTPUT),
 })
 
+if (process.argv.includes('--receipt-only')) {
+  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
+  console.log('Refreshed Mermaid-doc showcase receipt without rewriting reviewed pixels')
+  process.exit(0)
+}
+
 if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
   if (JSON.stringify(recorded) !== JSON.stringify(currentReceipt())) {

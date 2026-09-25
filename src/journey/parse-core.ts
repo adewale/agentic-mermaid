@@ -25,7 +25,10 @@ export const JOURNEY_ACTOR_COLOR_LIMIT = 256
 
 export const JOURNEY_TITLE_RE = /^title\s+(.+)$/i
 export const JOURNEY_SECTION_RE = /^section\s+(.+)$/i
-export const JOURNEY_TASK_RE = /^([^:]+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/
+// Mermaid 11.16 accepts numeric task scores, including decimals and exponent
+// notation. Keep the documented 1..5 range/finite check below as our bounded
+// rendering contract, but do not silently coerce a fractional score to int.
+export const JOURNEY_TASK_RE = /^([^:]+?)\s*:\s*([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)\s*(?::\s*(.*))?$/
 const TASK_LIKE_RE = /^([^:]+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/
 
 /** Inline markup normalization shared by every Journey text surface. */
@@ -58,7 +61,7 @@ export function isJourneyComment(line: string): boolean {
 }
 
 export function isValidJourneyScore(score: number): boolean {
-  return Number.isInteger(score) && score >= JOURNEY_MIN_SCORE && score <= JOURNEY_MAX_SCORE
+  return Number.isFinite(score) && score >= JOURNEY_MIN_SCORE && score <= JOURNEY_MAX_SCORE
 }
 
 export type JourneyIssueCode =
@@ -166,7 +169,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
     const text = normalizeJourneyText(taskMatch[1]!)
     if (!text) return issue('empty_task_text', `Journey task text is empty: "${statement}"`)
     const rawScore = taskMatch[2]!
-    const score = Number.parseInt(rawScore, 10)
+    const score = Number(rawScore)
     if (!isValidJourneyScore(score)) return issue('invalid_score', invalidScoreDetail(text, rawScore))
     const actors = (taskMatch[3] ?? '')
       .split(',')
@@ -190,7 +193,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 }
 
 export function invalidScoreDetail(text: string, rawScore: string): string {
-  return `Journey task "${text}" has invalid score ${rawScore}. Expected an integer from ${JOURNEY_MIN_SCORE} through ${JOURNEY_MAX_SCORE}`
+  return `Journey task "${text}" has invalid score ${rawScore}. Expected a finite number from ${JOURNEY_MIN_SCORE} through ${JOURNEY_MAX_SCORE}`
 }
 
 const HTML_ENTITY_RE = /^&(?:[a-zA-Z][a-zA-Z0-9]{1,31}|#[0-9]{1,7}|#x[0-9a-fA-F]{1,6});$/

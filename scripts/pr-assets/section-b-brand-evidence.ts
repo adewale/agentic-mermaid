@@ -305,7 +305,10 @@ export const buildSectionBBrandEvidenceReceipt = () => {
   }
 }
 
-if (process.argv.includes('--check')) {
+if (process.argv.includes('--receipt-only')) {
+  writeFileSync(RECEIPT, `${JSON.stringify(buildSectionBBrandEvidenceReceipt(), null, 2)}\n`)
+  process.stdout.write('Refreshed Section B receipt without rewriting approved visual output.\n')
+} else if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
   if (JSON.stringify(recorded) !== JSON.stringify(buildSectionBBrandEvidenceReceipt())) throw new Error('Section B visual evidence is stale; run bun run gallery:section-b')
   process.stdout.write('Section B visual evidence is synchronized.\n')

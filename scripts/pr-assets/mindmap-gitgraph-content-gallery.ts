@@ -33,6 +33,12 @@ const receiptForCurrentFiles = () => ({
   outputs: fileReceiptEntries(ROOT, outputPaths()),
 })
 
+if (process.argv.includes('--receipt-only')) {
+  writeFileSync(RECEIPT, `${JSON.stringify(receiptForCurrentFiles(), null, 2)}\n`)
+  console.log('Refreshed Mindmap/GitGraph gallery receipt without rewriting reviewed pixels')
+  process.exit(0)
+}
+
 if (process.argv.includes('--check')) {
   const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
   const current = receiptForCurrentFiles()
