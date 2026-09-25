@@ -34,12 +34,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
-    maxRequests: 99,
+    maxRequests: 31,
     // Class tooltip support changes a shared chunk without adding a request.
     // These are the exact reviewed Linux/x64 capture totals.
-    maxRawBytes: 9_999_999,
-    maxGzipBytes: 9_999_999,
-    maxBrotliBytes: 9_999_999,
+    maxRawBytes: 732_417,
+    maxGzipBytes: 274_782,
+    maxBrotliBytes: 250_953,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -49,7 +49,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     forbidden: Object.freeze(['/examples/fragments/', '/editor/editor-', '^/demo/browser-[a-f0-9]{12}\\.js$']),
   }),
   'editor-empty': Object.freeze({
-    maxRequests: 99,
+    maxRequests: 2,
     // The editor exercises the complete API. Shared Unicode identifier
     // validation is already in the base. The PNG legibility policy and shared
     // warning builder add 2,393 raw, 746 gzip, and 680 Brotli bytes. The rebased
@@ -64,9 +64,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Class tooltip support preserves the two-request graph; these are the
     // exact reviewed Linux/x64 capture totals.
-    maxRawBytes: 9_999_999,
-    maxGzipBytes: 9_999_999,
-    maxBrotliBytes: 9_999_999,
+    maxRawBytes: 3_355_420,
+    maxGzipBytes: 988_987,
+    maxBrotliBytes: 776_727,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
