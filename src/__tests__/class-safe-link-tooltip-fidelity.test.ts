@@ -280,13 +280,22 @@ describe('Class safe-link tooltip fidelity', () => {
     for (const prefix of prefixes) {
       const source = `classDiagram\nclass A\n${prefix}\nlink A "https://example.com" "tip"`
       expect(renderMermaidSVG(source)).toContain('<title>tip</title>')
-      expect(renderMermaidWithActions(source, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('tip')
+      expect(renderMermaidWithActions(source, { format: 'svg' }).actionSurface.actions).toEqual([
+        expect.objectContaining({ target: 'A', href: 'https://example.com', tooltip: 'tip', security: 'safe', line: 4 }),
+      ])
     }
     const trailing = 'classDiagram\nclass A\nlink A "https://example.com" "tip" &#37;&#37; trailing'
     expect(renderMermaidSVG(trailing)).toContain('<title>tip</title>')
-    expect(renderMermaidWithActions(trailing, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('tip')
+    expect(renderMermaidWithActions(trailing, { format: 'svg' }).actionSurface.actions).toEqual([
+      expect.objectContaining({ target: 'A', href: 'https://example.com', tooltip: 'tip', security: 'safe', line: 3 }),
+    ])
     const encodedBrace = 'classDiagram\nclass A\naccDescr {\nhello\n&#125; link A "https://example.com" "tip"'
     expect(renderMermaidSVG(encodedBrace)).toContain('<title>tip</title>')
+    // The action scanner retains authored physical provenance here; the agent
+    // tooltip gap for an entity-created accDescr closer is tracked separately.
+    expect(renderMermaidWithActions(encodedBrace, { format: 'svg' }).actionSurface.actions).toEqual([
+      expect.objectContaining({ target: 'A', href: 'https://example.com', security: 'safe', line: 5 }),
+    ])
     const notAComment = 'classDiagram\nclass A\nlink A "https://example.com" "tip" &percnt;&percnt; trailing'
     expect(() => renderMermaidSVG(notAComment)).toThrow()
   })
