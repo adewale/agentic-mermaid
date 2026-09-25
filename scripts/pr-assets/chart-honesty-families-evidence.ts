@@ -27,7 +27,7 @@ import type { DiagramKind } from '../../src/agent/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const OUT_DIR = join(ROOT, 'docs', 'pr-assets')
-const BEFORE_SHA = 'd59c49a859d48fccc4bc5cd1c764f8ea0b68a6b7'
+const BEFORE_SHA = '2ee45b1f6803381db81d9402d3a4fa622895c576'
 const FONT_DIR = join(ROOT, 'assets', 'fonts')
 
 const titled = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`
