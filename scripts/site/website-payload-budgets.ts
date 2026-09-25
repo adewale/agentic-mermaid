@@ -39,7 +39,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // a request. These ceilings cover the reviewed Linux/x64 capture.
     maxRawBytes: 732_417,
     maxGzipBytes: 274_785,
-    maxBrotliBytes: 250_963,
+    maxBrotliBytes: 250_957,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
