@@ -15,6 +15,7 @@
 //   A "card" <|-- "card" B : label               (cardinalities + label)
 //   note for A "text"
 //   note "text"
+//   link A "https://example.com" "optional tooltip"
 //   title T
 //   namespace X { class A ... }                  (repo #118: nesting, dot
 //   namespace A.B.C { ... }                       paths, and ["Label"] via
@@ -24,7 +25,7 @@
 // Unmodeled (forces opaque):
 //   - direction TB (wired at layout, unmodeled here); repeated class
 //     annotations stay opaque because the renderer has one annotation slot.
-//   - cssClass / link / callback / click handlers
+//   - cssClass / callbacks / unsupported click forms
 //   - styled / classDef
 // ============================================================================
 
