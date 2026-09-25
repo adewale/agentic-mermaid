@@ -38,7 +38,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Journey delimiter hardening changes generated demo bytes without adding
     // a request. These ceilings cover the reviewed Linux/x64 capture.
     maxRawBytes: 732_417,
-    maxGzipBytes: 274_786,
+    maxGzipBytes: 274_785,
     maxBrotliBytes: 250_963,
     required: Object.freeze([
       '^/demo/$',
@@ -66,7 +66,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the reviewed Linux/x64 capture ceilings.
     maxRawBytes: 3_356_672,
     maxGzipBytes: 989_438,
-    maxBrotliBytes: 777_108,
+    maxBrotliBytes: 776_682,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
