@@ -22,10 +22,8 @@
 //                                                 namespace grammar)
 //
 // Unmodeled (forces opaque):
-//   - direction TB (wired at layout, unmodeled here) / annotations like
-//     <<enum>> embedded after `class X` (we DO accept them
-//     as `members` of X via the `class X { <<interface>> }` form). The
-//     standalone `class X <<...>>` form falls back to opaque.
+//   - direction TB (wired at layout, unmodeled here); repeated class
+//     annotations stay opaque because the renderer has one annotation slot.
 //   - cssClass / link / callback / click handlers
 //   - styled / classDef
 // ============================================================================
@@ -37,7 +35,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader } from '../class/parser.ts'
+import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassInteraction, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -58,8 +56,8 @@ const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind; markerAt?: 
   { pat: /<--/, kind: 'association' },
   { pat: /\.\.>/, kind: 'dependency' },
   { pat: /<\.\./, kind: 'dependency' },
-  { pat: /--/,    kind: 'link-solid' },
-  { pat: /\.\./,  kind: 'link-dashed' },
+  // Bare links are exclusively parsed by the shared scanner above. Keeping
+  // them here would re-admit malformed labels after that scanner rejects them.
 ]
 
 const MEMBER_DECL_RE = /^(\S+)\s*:\s*(.+)$/
@@ -81,12 +79,18 @@ export function parseClassRelationSyntax(line: string): (ClassRelation & { fromG
       ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
     }
   }
+  if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) return null
+  // The legacy no-space token fallback uses several regexes with ambiguous
+  // endpoint captures. Keep malformed full-size inputs from multiplying that
+  // work; supported long relationships already return through the shared
+  // linear parser above, while unmatched source remains opaque/diagnosed.
+  if (line.length > 2_048) return null
   for (const { pat, kind, markerAt, fromKind, toKind } of RELATION_TOKENS) {
     const m = line.match(new RegExp(`^(\\S+?)(?:\\s+"([^"]+)")?\\s*${pat.source}\\s*(?:"([^"]+)"\\s+)?(\\S+?)(?:\\s*:\\s*(.+))?$`))
     if (!m) continue
     const fromRef = parseClassReference(m[1]!)
     const toRef = parseClassReference(m[4]!)
-    if (!fromRef || !toRef) return null
+    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, m[1]!) || !supportedRelationEndpoint(toRef.id, m[4]!)) return null
     const from = fromRef.id
     const fromCardinality = m[2]
     const toCardinality = m[3]
@@ -209,6 +213,18 @@ export function parseClassBody(lines: string[]): ClassBody | null {
       continue
     }
 
+    // The official inline and separate annotation forms project to the
+    // existing class-body member representation, which serializes as a block.
+    const annotation = parseClassAnnotationStatement(raw)
+    if (annotation) {
+      if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return null
+      const node = upsert(annotation.id, annotation.label, annotation.generic)
+      if (node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
+      node.members.push(`<<${annotation.annotation}>>`)
+      claimClass(node)
+      continue
+    }
+
     // Class declaration (with or without open brace)
     const declaration = parseClassDeclaration(raw)
     if (declaration) {
@@ -221,6 +237,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           i++
           if (!ml || ml.startsWith('%%')) continue
           if (ml === '}') break
+          if (parseClassBodyAnnotationToken(ml) !== null && node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
           node.members.push(ml)
         }
       }

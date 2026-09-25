@@ -22,6 +22,79 @@ Supported today:
 - accessibility directives (`accTitle` / `accDescr`)
 - SVG, PNG, and spatial ASCII/Unicode output, including nested namespace frames
 
+## Annotation fidelity (issue #248)
+
+The official `class Shape <<interface>>`, `<<interface>> Shape`, and
+`class Shape { <<interface>> }` / multiline-body forms share one annotation
+grammar between the native and agent parsers. The native class node owns the
+annotation and renders it in the header; the agent stores it as an annotation
+member and serializes a canonical class body, preserving class identity and
+unrelated relations through mutation. The pinned parser also accepts the
+no-space `class Shape<<interface>>` / `<<interface>>Shape` spellings and an
+inline annotation after a bracket label. A separate annotation requires the
+class to have already been introduced; annotation names use Mermaid's
+word-token grammar for inline/separate placement. Class-body annotations are
+broader and preserve their interior text, including whitespace, punctuation,
+and an empty annotation. Unsupported forms produce a diagnostic rather than a
+plausible partial diagram.
+An annotation after a quoted bracket label, generic, or backtick class ID is
+recognized outside that declaration content. Angle-bearing generic labels and
+backtick IDs still hit the existing Scene validation boundary even without an
+annotation; verification reports `RENDER_FAILED` until the broader #260 work.
+
+Pinned Mermaid 11.16 also permits multiple annotations on one class. The
+current native class model has one annotation slot, so that case is explicitly
+diagnosed instead of rendering only the last annotation. Its agent body stays
+opaque and source-preserved. The construct receipt therefore keeps the
+feature-wide capability claim `diagnosed`, while separate executable inline
+and standalone-annotation cases prove native behavior. Broader Class
+statement/event consolidation remains
+tracked by #260.
+
+## Markerless relationship fidelity (issue #248)
+
+Mermaid 11.16 treats `A -- B` and `A .. B` as distinct solid and dashed
+links with no endpoint marker. Both create endpoint classes, including when
+spaces around the operator are omitted. The native and agent parsers now share
+that distinction as `link-solid` / `link-dashed` with `markerAt: none`;
+serialization, mutation, SVG/Scene, and terminal output preserve the line
+style without adding an arrowhead. Cardinalities and relation labels survive
+on bare dashed links. Trailing `%%` before a label stays inert; after `:` it
+belongs to the label, matching Mermaid. A
+bounded scanner locates the operator and comment boundary outside backtick IDs,
+generic parameters, and quoted cardinalities.
+
+The bare-link parser rejects Mermaid-reserved unescaped endpoint tokens (`o`,
+relation keywords, and dollar-bearing IDs) instead of manufacturing native
+edges. Malformed bare labels and incomplete links now fail loudly rather than
+leaving a plausible partial diagram. Upstream-valid whitespace-only labels
+(`A .. B : `) and numeric-entity labels (`a&#58;b`) still cross a shared
+source-normalization seam: trimming or entity decoding erases the distinction
+needed by the native parser. They remain source-preserved and diagnosed, not
+counted as native, pending the broader #260 parser/identity work. Hyphenated,
+dotted, and Unicode endpoint IDs also remain in that broader scope.
+
+Marked one-way arrows now also retain backtick IDs with spaces through a
+bounded shared relationship scanner. This closes the previously silent
+`\`class A\` --> B` identity loss across native render, agent, serialization,
+and mutation. The scanner recognizes compact arrows and does not confuse
+arrow bytes inside escaped IDs or quoted cardinalities with an operator.
+Upstream-reserved endpoint spellings (for example unescaped `o` and escaped
+`\`note\``) remain rejected rather than producing a plausible edge.
+Escaped IDs containing `~` remain diagnosed because Mermaid treats them as
+generic references with a different stable identity. Escaped two-ended and
+lollipop links also remain diagnosed: the current relationship model cannot
+preserve the dashed style of mixed two-ended markers or Mermaid's synthetic
+`interface0` endpoint for lollipop links. Backticks used only in an ordinary
+link's label or quoted cardinality do not trigger these restrictions.
+
+The official relationship section's aggregate capability is still only
+`diagnosed`, not `native`: upstream-valid unescaped hyphenated, dotted, and
+Unicode endpoint IDs remain opaque to the agent and fail loudly in native
+rendering. A separate executed receipt keeps that gap visible. The broader
+lossless statement authority and remaining identity/source-normalization
+work remain tracked by #260.
+
 ## `:::` class shorthand evidence (2026-07)
 
 **Why:** `Account:::highlight` decorates `Account`; the suffix is not an

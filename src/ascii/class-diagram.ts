@@ -72,7 +72,7 @@ interface RelMarker {
   /** Relationship type (determines marker shape) */
   type: RelationshipType
   /** Which end the marker is placed at */
-  markerAt: 'from' | 'to'
+  markerAt: 'from' | 'to' | 'none'
   /** Whether the line is dashed */
   dashed: boolean
 }
@@ -81,8 +81,8 @@ interface RelMarker {
  * Build the marker metadata for a relationship.
  * The actual marker character will be determined at placement time based on line direction.
  */
-function getRelMarker(type: RelationshipType, markerAt: 'from' | 'to' | 'both'): RelMarker {
-  const dashed = type === 'dependency' || type === 'realization'
+function getRelMarker(type: RelationshipType, markerAt: 'from' | 'to' | 'both' | 'none'): RelMarker {
+  const dashed = type === 'dependency' || type === 'realization' || type === 'link-dashed'
   return { type, markerAt: markerAt === 'both' ? 'from' : markerAt, dashed }
 }
 
@@ -135,6 +135,9 @@ function getMarkerShape(
         // Default to right (or when direction not specified)
         return useAscii ? '>' : '▶'
       }
+    case 'link-solid':
+    case 'link-dashed':
+      return ''
   }
 }
 

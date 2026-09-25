@@ -424,7 +424,7 @@ interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: stri
 
 interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
-interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }
+interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }
 interface ClassNote { text: string; for?: string }
 // namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
 // compound boxes and serialize to "namespace path { ... }" blocks.

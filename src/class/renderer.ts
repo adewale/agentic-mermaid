@@ -271,7 +271,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   // data-id: class identifier
   // data-label: class name
   // data-annotation: stereotype (interface, abstract, etc.)
-  const annotationAttr = cls.annotation ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
+  const annotationAttr = cls.annotation !== undefined ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
   const classAttr = cls.className ? ` ${escapeAttr(cls.className)}` : ''
   const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
   const interaction = includeInteraction && cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
@@ -315,7 +315,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
   let nameY = y + headerHeight / 2
-  if (cls.annotation) {
+  if (cls.annotation !== undefined) {
     const annotY = y + 12
     const annotColor = ink(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({
@@ -508,7 +508,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   }
 
   const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
-  const isDashed = rel.type === 'dependency' || rel.type === 'realization'
+  const isDashed = rel.type === 'dependency' || rel.type === 'realization' || rel.type === 'link-dashed'
   const dashArray = isDashed ? ' stroke-dasharray="6 4"' : ''
   const lineStyle = isDashed ? 'dashed' : 'solid'
 
@@ -630,9 +630,9 @@ function renderRelationshipMarkerOverlay(
  *   - 'from' → marker-start (prefix arrows like `<|--`, `*--`, `o--`)
  *   - 'to'   → marker-end   (suffix arrows like `..|>`, `-->`, `--*`)
  */
-function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to' | 'both'): string {
+function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to' | 'both' | 'none'): string {
   const markerId = getMarkerDefId(type)
-  if (!markerId) return ''
+  if (!markerId || markerAt === 'none') return ''
 
   if (markerAt === 'from') return ` marker-start="url(#${markerId})"`
   if (markerAt === 'both') return ` marker-start="url(#${markerId})" marker-end="url(#${markerId})"`

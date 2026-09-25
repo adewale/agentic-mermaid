@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "134689a8a405071fc6015141c31c1d36ca4863fdf1d4117c00bf34a8263258a2",
+    "inputSha256": "265278f729dd7e727841b9e90714396762bdb85902b7ef0c269102c6a887824b",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -85,6 +85,14 @@
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
         "sha256": "e06629fc663a628ac44f1edb8e3942e67e2ccfb6084cb31001e8a0878044ab02"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/class-annotation.fidelity.ts",
+        "sha256": "5b86727ac2f11c05780ca134f86ce54d6f34e664d924c16f3571e816e45a00e2"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/class-bare-link.fidelity.ts",
+        "sha256": "15dcbe0c70dc834cc6769359981174be787414e0ff9fe1af36a203b535e07b12"
       },
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
@@ -196,6 +204,594 @@
             "exactBytes": true
           },
           "disposition": "source-preserved"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.annotations.inline-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "sourceSha256": "033c51d619d0c4bccc91342d9c34942354fef71c44f60253c6791cb8a18f3a48",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "kind": "class",
+            "relation": "Shape->Other"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "relation": "Shape->Other",
+            "visibleAnnotation": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "ok": true,
+            "relation": "Form->Other"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.annotations.repeated-diagnosed",
+      "family": "class",
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "sourceSha256": "63cd183812565ad9dc8893feeca7d60dd7a48a05a23f2dcb9c9302385ffda980",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "kind": "opaque"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
+          "semantics": {
+            "rejected": true,
+            "verifyRejected": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactSource": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.annotations.separate-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "sourceSha256": "8f1e97d4a1b64984e0da6550352ef9d8e81a305ce7f5e48ab0a8d1b8c13bb5e2",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "kind": "class",
+            "relation": "Shape->Other"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "relation": "Shape->Other",
+            "visibleAnnotation": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "annotation": "interface",
+            "ok": true,
+            "relation": "Form->Other"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.relationship.escaped-directed-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:defining-relationship",
+      "sourceSha256": "5200497d321710956d5290d62d1bf10ca2e057fb001dd4b841acd07faa517a7a",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#defining-relationship",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "kind": "class",
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "B"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 1,
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "B"
+            },
+            "visible": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "B"
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "ok": true,
+            "relation": {
+              "from": "class A",
+              "kind": "association",
+              "markerAt": "to",
+              "to": "Target"
+            }
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.relationship.hyphenated-endpoint-diagnosed",
+      "family": "class",
+      "featureId": "official-doc:class:section:defining-relationship",
+      "sourceSha256": "86775b8d61a8f66f5fc29010404ea2e4fb86e3704cbd46388448a9b33cdadad9",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#defining-relationship",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "kind": "opaque"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactSource": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.relationship.link-dashed-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:defining-relationship",
+      "sourceSha256": "7c8b265a8f9f5a06e06f8fa02ec1e2c233ae56bfea64ec15958f9db237d9bb0a",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#defining-relationship",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "kind": "class",
+            "relation": {
+              "from": "A",
+              "kind": "link-dashed",
+              "markerAt": "none",
+              "to": "B"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "classIds": [
+              "A",
+              "B"
+            ],
+            "dashed": true,
+            "edgeCount": 1,
+            "markerless": true,
+            "relation": {
+              "from": "A",
+              "kind": "link-dashed",
+              "markerAt": "none",
+              "to": "B"
+            },
+            "visible": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relation": {
+              "from": "A",
+              "kind": "link-dashed",
+              "markerAt": "none",
+              "to": "B"
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "ok": true,
+            "relation": {
+              "from": "A",
+              "kind": "link-dashed",
+              "markerAt": "none",
+              "to": "Target"
+            }
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "class.relationship.link-solid-native",
+      "family": "class",
+      "featureId": "official-doc:class:section:defining-relationship",
+      "sourceSha256": "1bdb3b392ba7a82a7f7c89659b0e52b5f980312e1c70cfa15853a75ff0de245c",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/classDiagram.html#defining-relationship",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "kind": "class",
+            "relation": {
+              "from": "A",
+              "kind": "link-solid",
+              "markerAt": "none",
+              "to": "B"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "classIds": [
+              "A",
+              "B"
+            ],
+            "dashed": false,
+            "edgeCount": 1,
+            "markerless": true,
+            "relation": {
+              "from": "A",
+              "kind": "link-solid",
+              "markerAt": "none",
+              "to": "B"
+            },
+            "visible": true
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "relation": {
+              "from": "A",
+              "kind": "link-solid",
+              "markerAt": "none",
+              "to": "B"
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "ok": true,
+            "relation": {
+              "from": "A",
+              "kind": "link-solid",
+              "markerAt": "none",
+              "to": "Target"
+            }
+          },
+          "disposition": "native"
         }
       },
       "passed": true,
@@ -1483,10 +2079,10 @@
     }
   ],
   "summary": {
-    "caseCount": 13,
-    "passedCaseCount": 13,
+    "caseCount": 20,
+    "passedCaseCount": 20,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 45,
+    "observedSurfaceCount": 73,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

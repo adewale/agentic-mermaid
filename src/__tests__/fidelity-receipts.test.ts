@@ -262,6 +262,8 @@ describe('issue #248 construct fidelity receipts', () => {
   test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
+      'fidelity/cases/class-annotation.fidelity.ts',
+      'fidelity/cases/class-bare-link.fidelity.ts',
       'fidelity/cases/er-word-cardinality.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
@@ -269,6 +271,13 @@ describe('issue #248 construct fidelity receipts', () => {
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
       'block.family.accurately-diagnosed-unsupported',
+      'class.annotations.inline-native',
+      'class.annotations.repeated-diagnosed',
+      'class.annotations.separate-native',
+      'class.relationship.escaped-directed-native',
+      'class.relationship.hyphenated-endpoint-diagnosed',
+      'class.relationship.link-dashed-native',
+      'class.relationship.link-solid-native',
       'er.relationships.word-cardinality-aliases',
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
@@ -287,10 +296,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 13,
-      passedCaseCount: 13,
+      caseCount: 20,
+      passedCaseCount: 20,
       failedCaseCount: 0,
-      observedSurfaceCount: 45,
+      observedSurfaceCount: 73,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
@@ -302,6 +311,12 @@ describe('issue #248 construct fidelity receipts', () => {
       expect(feature.caseEvidence.map(evidence => evidence.caseId)).toEqual([...feature.caseIds])
     }
     expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('native')
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:class:section:annotations-on-classes')!.surfaces).toEqual({
+      agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
+    })
+    expect(capability.features.find(feature => feature.featureId === 'official-doc:class:section:defining-relationship')!.surfaces).toEqual({
+      agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
+    })
     expect(capability.features.find(feature => feature.featureId === 'official-doc:timeline:section:direction-v11-14-0')!.surfaces).toEqual({
       agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
     })

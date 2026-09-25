@@ -3,15 +3,15 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "134689a8a405071fc6015141c31c1d36ca4863fdf1d4117c00bf34a8263258a2",
-  "receiptResultSha256": "6d566ee8f0f713cc5540287c7f03f92aab6d7d2a86e241f83c799247f0f576a4",
+  "receiptInputSha256": "265278f729dd7e727841b9e90714396762bdb85902b7ef0c269102c6a887824b",
+  "receiptResultSha256": "caaf8b1e16dda3324e5a4704556f7c250e56da75529b20447373020d9302d660",
   "summary": {
-    "caseCount": 13,
-    "featureCount": 9,
+    "caseCount": 20,
+    "featureCount": 11,
     "dispositions": {
       "native": 3,
       "source-preserved": 0,
-      "diagnosed": 3,
+      "diagnosed": 5,
       "absent": 3
     }
   },
@@ -62,6 +62,157 @@
               "UNSUPPORTED_FAMILY"
             ]
           }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "family": "class",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "class.annotations.inline-native",
+        "class.annotations.repeated-diagnosed",
+        "class.annotations.separate-native"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.annotations.inline-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.annotations.repeated-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "class.annotations.separate-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:defining-relationship",
+      "family": "class",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "class.relationship.escaped-directed-native",
+        "class.relationship.hyphenated-endpoint-diagnosed",
+        "class.relationship.link-dashed-native",
+        "class.relationship.link-solid-native"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.relationship.escaped-directed-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.relationship.hyphenated-endpoint-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "class.relationship.link-dashed-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.relationship.link-solid-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
         }
       ],
       "acceptedDivergences": []

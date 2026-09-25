@@ -3,6 +3,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
 
 // ---- Shared namespace grammar ----------------------------------------------
 // One grammar, two consumers: this render parser and the agent body parser
@@ -69,6 +70,100 @@ export function parseClassReference(token: string): { id: string; generic?: stri
   }
 }
 
+/** Inline and separate annotations use Mermaid's word-token lexer. */
+export function parseClassAnnotationToken(token: string): string | null {
+  const match = token.trim().match(/^<<[ \t]*(\w+)[ \t]*>>$/)
+  return match?.[1] ?? null
+}
+
+/** Class-body annotations accept any interior text, including an empty
+ * string and additional angle brackets, and retain its authored bytes. */
+export function parseClassBodyAnnotationToken(token: string): string | null {
+  const text = token.trim()
+  return text.startsWith('<<') && text.endsWith('>>') ? text.slice(2, -2) : null
+}
+
+export interface ParsedClassAnnotationStatement {
+  id: string
+  generic?: string
+  label?: string
+  annotation: string
+  placement: 'inline' | 'separate' | 'body-inline'
+}
+
+/** A class ID, generic, or quoted label may itself contain `<<...>>`.
+ * Find the annotation opener only after leaving those declaration contexts.
+ * One pass bounds work even for a full-size hostile source line. */
+function findClassAnnotationStart(text: string): number {
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let bracketDepth = 0
+  for (let i = 0; i < text.length - 1; i++) {
+    const char = text[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~' && bracketDepth === 0) { inGeneric = true; continue }
+    if (char === '[') { bracketDepth++; continue }
+    if (char === ']') { bracketDepth = Math.max(0, bracketDepth - 1); continue }
+    if (bracketDepth === 0 && char === '<' && text[i + 1] === '<') return i
+  }
+  return -1
+}
+
+/** Split once at the annotation delimiters, then reuse the declaration and
+ * reference grammars. Avoid overlapping unbounded captures on hostile input. */
+export function parseClassAnnotationStatement(line: string): ParsedClassAnnotationStatement | null {
+  const text = line.trim()
+  if (text.startsWith('<<')) {
+    const close = text.indexOf('>>', 2)
+    if (close < 0) return null
+    const annotation = parseClassAnnotationToken(text.slice(0, close + 2))
+    const ref = parseClassReference(text.slice(close + 2))
+    return annotation && ref ? { ...ref, annotation, placement: 'separate' } : null
+  }
+
+  const prefix = text.match(/^class\s+/)
+  if (!prefix) return null
+  const declarationAndAnnotation = text.slice(prefix[0].length)
+  const start = findClassAnnotationStart(declarationAndAnnotation)
+  if (start < 0) return null
+  let declarationText = declarationAndAnnotation.slice(0, start).trim()
+  let annotationText = declarationAndAnnotation.slice(start).trim()
+  const bodyInline = declarationText.endsWith('{') && annotationText.endsWith('}')
+  if (bodyInline) {
+    declarationText = declarationText.slice(0, -1).trim()
+    annotationText = annotationText.slice(0, -1).trim()
+  }
+  const declaration = parseClassDeclaration(`class ${declarationText}`)
+  const annotation = bodyInline
+    ? parseClassBodyAnnotationToken(annotationText)
+    : parseClassAnnotationToken(annotationText)
+  return declaration && !declaration.opensBody && annotation !== null
+    ? {
+        id: declaration.id,
+        ...(declaration.generic ? { generic: declaration.generic } : {}),
+        ...(declaration.label !== undefined ? { label: declaration.label } : {}),
+        annotation,
+        placement: bodyInline ? 'body-inline' : 'inline',
+      }
+    : null
+}
+
+function applyClassAnnotation(node: ClassNode, annotation: string): void {
+  if (node.annotation !== undefined) {
+    throw syntaxError({
+      what: `Multiple annotations for class "${node.id}" are not modeled without losing identity`,
+      expectedForm: 'one annotation per class',
+      example: `class ${node.id} <<${annotation}>>`,
+    })
+  }
+  node.annotation = annotation
+}
+
 /** Shared safe-link grammar for renderer and agent class parsers. */
 export function parseClassInteraction(line: string): { id: string; generic?: string; href: string } | null {
   const link = line.match(/^(?:click|link)\s+(`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
@@ -92,6 +187,7 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
 //   A --> B                   (association)
 //   A ..> B                   (dependency)
 //   A ..|> B                  (realization)
+//   A -- B / A .. B           (markerless solid/dashed links)
 //   A "1" --> "*" B : label   (with cardinality + label)
 //   Animal : +String name     (inline attribute)
 //   namespace MyNamespace { class A { } }
@@ -172,6 +268,7 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+    if (!line || line.startsWith('%%')) continue
 
     // --- Inside a class body block ---
     if (currentClass && braceDepth > 0) {
@@ -184,9 +281,9 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       }
 
       // Check for annotation like <<interface>>
-      const annotMatch = line.match(/^<<(\w+)>>$/)
-      if (annotMatch) {
-        currentClass.annotation = annotMatch[1]!
+      const annotation = parseClassBodyAnnotationToken(line)
+      if (annotation !== null) {
+        applyClassAnnotation(currentClass, annotation)
         continue
       }
 
@@ -274,6 +371,23 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       }
     }
 
+    // --- Class annotation, in either official placement or a one-line body. ---
+    const annotationStatement = parseClassAnnotationStatement(line)
+    if (annotationStatement) {
+      if (annotationStatement.placement === 'separate' && !classMap.has(annotationStatement.id)) {
+        throw syntaxError({
+          what: `Annotation targets undeclared class "${annotationStatement.id}"`,
+          expectedForm: 'declare the class before a separate annotation',
+          example: `class ${annotationStatement.id}\n<<${annotationStatement.annotation}>> ${annotationStatement.id}`,
+        })
+      }
+      const cls = ensureClass(classMap, annotationStatement.id, annotationStatement.generic)
+      if (annotationStatement.label !== undefined) cls.label = normalizeBrTags(annotationStatement.label)
+      applyClassAnnotation(cls, annotationStatement.annotation)
+      claimClass(cls.id)
+      continue
+    }
+
     // --- Class declaration (standalone or opening a member block) ---
     const declaration = parseClassDeclaration(line)
     if (declaration) {
@@ -284,17 +398,6 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
         braceDepth = 1
       }
       claimClass(declaration.id)
-      continue
-    }
-
-    // --- Inline annotation: `class ClassName { <<interface>> }` (single line) ---
-    const inlineAnnotMatch = line.match(/^class\s+(\S+?)\s*\{\s*<<(\w+)>>\s*\}$/)
-    if (inlineAnnotMatch) {
-      const ref = parseClassReference(inlineAnnotMatch[1]!)
-      if (!ref) continue
-      const cls = ensureClass(classMap, ref.id, ref.generic)
-      cls.annotation = inlineAnnotMatch[2]!
-      claimClass(cls.id)
       continue
     }
 
@@ -314,11 +417,12 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     // --- Inline attribute: `ClassName : +String name` ---
     const inlineAttrMatch = line.match(/^(\S+?)\s*:\s*(.+)$/)
     if (inlineAttrMatch) {
-      // Make sure this isn't a relationship line (those have arrows)
       const rest = inlineAttrMatch[2]!
-      if (!rest.match(/<\|--|--|\*--|o--|-->|\.\.>|\.\.\|>/)) {
-        const ref = parseClassReference(inlineAttrMatch[1]!)
-        if (!ref) continue
+      // A valid class reference before ':' makes this an inline member even
+      // when its text contains link-looking punctuation. A relationship has
+      // both endpoints before ':', so its prefix cannot parse as one ref.
+      const ref = parseClassReference(inlineAttrMatch[1]!)
+      if (ref) {
         const cls = ensureClass(classMap, ref.id, ref.generic)
         const member = parseMember(rest)
         if (member) {
@@ -344,6 +448,25 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...relationship } = rel
       diagram.relationships.push(relationship)
       continue
+    }
+
+    // An annotation-like statement that misses the shared grammar must not
+    // disappear from an otherwise plausible class diagram.
+    if (line.includes('<<') || line.includes('>>')) {
+      throw syntaxError({
+        what: `Unrecognized class annotation statement "${line}"`,
+        expectedForm: 'class Name <<annotation>> or <<annotation>> Name',
+        example: 'class Shape <<interface>>',
+      })
+    }
+    // A malformed relationship cannot be silently omitted from an otherwise
+    // plausible diagram. Ignore delimiter-looking text inside IDs/generics.
+    if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) {
+      throw syntaxError({
+        what: `Unrecognized class relationship statement "${line}"`,
+        expectedForm: 'A .. B, A -- B, or A --> B, optionally with a label',
+        example: 'A --> B : linked',
+      })
     }
   }
 
@@ -432,12 +555,19 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 
 /** Parse a relationship line into a ClassRelationship */
 export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  const markerless = parseMarkerlessClassRelationship(line)
+  if (markerless) return markerless
+  const marked = parseMarkedClassRelationship(line)
+  if (marked) return marked
+
   // Lollipop interface endpoints are distinct UML semantics, not associations.
-  const lollipop = line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
+  const lollipop = !isEscapedMarkedClassRelationshipCandidate(line)
+    ? line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
+    : null
   if (lollipop) {
     const fromRef = parseClassReference(lollipop[1]!)
     const toRef = parseClassReference(lollipop[3]!)
-    if (!fromRef || !toRef) return null
+    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, lollipop[1]!) || !supportedRelationEndpoint(toRef.id, lollipop[3]!)) return null
     return {
       from: fromRef.id, to: toRef.id, type: 'lollipop', markerAt: lollipop[2] === '()--' ? 'from' : 'to',
       ...(lollipop[4]?.trim() ? { label: normalizeBrTags(lollipop[4]!.trim()) } : {}),
@@ -446,11 +576,13 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
   }
 
   // Two-ended Mermaid relations: [Relation Type][Link][Relation Type].
-  const twoWay = line.match(/^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/)
+  const twoWay = !isEscapedMarkedClassRelationshipCandidate(line)
+    ? line.match(/^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/)
+    : null
   if (twoWay) {
     const fromRef = parseClassReference(twoWay[1]!)
     const toRef = parseClassReference(twoWay[7]!)
-    if (!fromRef || !toRef) return null
+    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, twoWay[1]!) || !supportedRelationEndpoint(toRef.id, twoWay[7]!)) return null
     const dashed = twoWay[4] === '..'
     const fromType = endpointRelationshipType(twoWay[3]!, dashed)
     const toType = endpointRelationshipType(twoWay[5]!, dashed)
@@ -463,15 +595,19 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
     }
   }
 
+  // Once a one-way arrow has reached the bounded scanner, do not let the
+  // legacy regex re-admit a malformed label or endpoint it rejected.
+  if (isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) return null
+
   // Relationship regex — handles ordinary one-ended arrows.
   const match = line.match(
-    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?|--)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
+    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
   )
   if (!match) return null
 
   const fromRef = parseClassReference(match[1]!)
   const toRef = parseClassReference(match[5]!)
-  if (!fromRef || !toRef) return null
+  if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, match[1]!) || !supportedRelationEndpoint(toRef.id, match[5]!)) return null
   const from = fromRef.id
   const rawFromCardinality = match[2]
   const fromCardinality = rawFromCardinality ? normalizeBrTags(rawFromCardinality) : undefined
@@ -491,6 +627,270 @@ export function parseClassRelationship(line: string): (ClassRelationship & { fro
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }
+}
+
+const MARKED_ONE_WAY_ARROWS = [
+  '<|--', '<|..', '--|>', '..|>', '<--', '<..', '-->', '..>', '*--', '--*', 'o--', '--o',
+] as const
+const MARKED_SUFFIX_ARROWS = ['--|>', '-->', '--*', '--o'] as const
+
+/** The legacy marked-link regex needs whitespace-delimited endpoints. Scan
+ * the one-way operator outside escaped IDs/cardinalities so compact ordinary
+ * links and space-bearing backtick IDs use the same bounded grammar. */
+function parseMarkedClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let operator = -1
+  let arrow: string | undefined
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    // After the label separator, `%%` is label text rather than a comment.
+    if (char === ':' && operator >= 0) break
+    if (char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
+    const found = MARKED_ONE_WAY_ARROWS.find(token => line.startsWith(token, i))
+    if (!found) continue
+    // In `Foo-->B`, the final `o` of Foo overlaps `o--` but the complete
+    // suffix arrow starts one byte later. Prefer that arrow. `Ao--B` has no
+    // competing suffix arrow; the markerless parser already handles it as a
+    // bare link from `Ao` to `B`, matching Mermaid. A separate `o--` token
+    // after whitespace (as in `A o--out`) must keep its prefix meaning.
+    if (found === 'o--' && /[\w$]/.test(line[i - 1] ?? '')
+      && MARKED_SUFFIX_ARROWS.some(token => line.startsWith(token, i + 1))) continue
+    if (operator >= 0) return null
+    operator = i
+    arrow = found
+    i += found.length - 1
+  }
+  if (operator < 0 || !arrow) return null
+
+  let left = line.slice(0, operator).trim()
+  let right = line.slice(operator + arrow.length).trim()
+  let fromCardinality: string | undefined
+  if (left.endsWith('"')) {
+    const start = left.lastIndexOf('"', left.length - 2)
+    if (start >= 0) {
+      fromCardinality = normalizeBrTags(left.slice(start + 1, -1))
+      left = left.slice(0, start).trimEnd()
+    }
+  }
+  let label: string | undefined
+  inBacktick = false
+  inQuote = false
+  inGeneric = false
+  for (let i = 0; i < right.length; i++) {
+    const char = right[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if (char === ':') {
+      const rawLabel = right.slice(i + 1).trim()
+      if (!rawLabel || rawLabel.includes(':') || rawLabel.includes(';')) return null
+      label = normalizeBrTags(rawLabel)
+      right = right.slice(0, i).trimEnd()
+      break
+    }
+  }
+  let toCardinality: string | undefined
+  if (right.startsWith('"')) {
+    const close = right.indexOf('"', 1)
+    if (close < 0) return null
+    toCardinality = normalizeBrTags(right.slice(1, close))
+    right = right.slice(close + 1).trimStart()
+  }
+  const fromRef = parseClassReference(left)
+  const toRef = parseClassReference(right)
+  const parsed = parseArrow(arrow)
+  if (!fromRef || !toRef || !parsed || !supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
+  return {
+    from: fromRef.id, to: toRef.id, type: parsed.type, markerAt: parsed.markerAt,
+    ...(label ? { label } : {}),
+    ...(fromCardinality !== undefined ? { fromCardinality } : {}),
+    ...(toCardinality !== undefined ? { toCardinality } : {}),
+    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+  }
+}
+
+/** Mermaid permits spaces to be omitted around bare `--` and `..` links.
+ * Locate one operator outside IDs/cardinalities in linear time; the existing
+ * arrow grammar below remains responsible for marked relationships. */
+function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  // Class inline `%%` comments are legal after a relationship. Do not let the
+  // comment become part of an endpoint or label; a quoted cardinality, generic,
+  // or escaped ID can contain the same bytes without starting a comment.
+  let commentBacktick = false
+  let commentQuote = false
+  let commentGeneric = false
+  let inLabel = false
+  for (let i = 0; i < line.length - 1; i++) {
+    const char = line[i]!
+    if (commentBacktick) { if (char === '`') commentBacktick = false; continue }
+    if (commentQuote) { if (char === '"') commentQuote = false; continue }
+    if (commentGeneric) { if (char === '~') commentGeneric = false; continue }
+    if (char === '`') { commentBacktick = true; continue }
+    if (char === '"') { commentQuote = true; continue }
+    if (char === '~') { commentGeneric = true; continue }
+    // Mermaid treats `%%` after the label separator as label text, not a
+    // comment. Before the separator it is an inert trailing comment.
+    if (char === ':') { inLabel = true; continue }
+    if (!inLabel && char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
+  }
+
+  const operator = findMarkerlessRelationshipOperator(line)
+  if (operator < 0) return null
+
+  const left = line.slice(0, operator).trim()
+  let right = line.slice(operator + 2).trim()
+  let fromRef = parseClassReference(left)
+  let fromCardinality: string | undefined
+  if (!fromRef && left.endsWith('"')) {
+    const cardStart = left.lastIndexOf('"', left.length - 2)
+    if (cardStart >= 0) {
+      fromRef = parseClassReference(left.slice(0, cardStart).trimEnd())
+      if (fromRef) fromCardinality = normalizeBrTags(left.slice(cardStart + 1, -1))
+    }
+  }
+  if (!fromRef) return null
+
+  // The first top-level colon separates a label; colons inside backtick IDs,
+  // generic parameters, and cardinalities belong to those tokens instead.
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  let label: string | undefined
+  for (let i = 0; i < right.length; i++) {
+    const char = right[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if (char === ':') {
+      const rawLabel = right.slice(i + 1).trim()
+      // Mermaid requires non-empty Class label text and rejects a second
+      // colon or semicolon. Numeric entities need separate source-normalizer
+      // work before native/agent rendering can claim them consistently.
+      if (!rawLabel || rawLabel.includes(':') || rawLabel.includes(';')) return null
+      label = normalizeBrTags(rawLabel)
+      right = right.slice(0, i).trim()
+      break
+    }
+  }
+
+  let toCardinality: string | undefined
+  if (right.startsWith('"')) {
+    const close = right.indexOf('"', 1)
+    if (close < 0) return null
+    toCardinality = normalizeBrTags(right.slice(1, close))
+    right = right.slice(close + 1).trim()
+  }
+  const toRef = parseClassReference(right)
+  if (!toRef) return null
+  if (!supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
+  return {
+    from: fromRef.id,
+    to: toRef.id,
+    type: line[operator] === '.' ? 'link-dashed' : 'link-solid',
+    markerAt: 'none',
+    ...(label ? { label } : {}),
+    ...(fromCardinality !== undefined ? { fromCardinality } : {}),
+    ...(toCardinality !== undefined ? { toCardinality } : {}),
+    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
+    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+  }
+}
+
+const BARE_RELATION_RESERVED_IDS = new Set([
+  'o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass',
+])
+const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
+
+/** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
+ * unescaped dollar signs. Escaped IDs containing `~` denote a generic base
+ * identity upstream, which this relationship model cannot yet preserve. */
+export function supportedRelationEndpoint(id: string, raw: string): boolean {
+  return raw.startsWith('`')
+    ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~')
+    : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
+}
+
+function findMarkerlessRelationshipOperator(line: string): number {
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
+  for (let i = 0; i < line.length - 1; i++) {
+    const char = line[i]!
+    if (inBacktick) { if (char === '`') inBacktick = false; continue }
+    if (inQuote) { if (char === '"') inQuote = false; continue }
+    if (inGeneric) { if (char === '~') inGeneric = false; continue }
+    if (char === '`') { inBacktick = true; continue }
+    if (char === '"') { inQuote = true; continue }
+    if (char === '~') { inGeneric = true; continue }
+    if ((char === '-' || char === '.') && line[i + 1] === char) return i
+  }
+  return -1
+}
+
+/** Distinguish marked arrows from malformed bare links without confusing an
+ * endpoint ID ending/starting with `o` (for example `Foo--B` or `A--out`). */
+function isMarkedRelationshipOperator(line: string, operator: number): boolean {
+  const before = line.slice(0, operator).trimEnd()
+  const after = line.slice(operator + 2)
+  if (line[operator] === '.') {
+    return /(?:<\||<)$/.test(before) || /^(?:>|\|>)/.test(after)
+  }
+  const spacedPrefixO = before.endsWith('o')
+    && /\s/.test(before[before.length - 2] ?? '')
+    && before.slice(0, -2).trim().length > 0
+  return /(?:<\||<|\*|\(\))$/.test(before) || spacedPrefixO
+    || /^(?:>|\|>|\*|o\s+(?![:%])\S|\(\))/.test(after)
+}
+
+/** Only the shared parser may accept bare links. A failed bare-link parse must
+ * not be reinterpreted by the agent's legacy marked-arrow fallback. */
+export function isBareClassRelationshipCandidate(line: string): boolean {
+  const operator = findMarkerlessRelationshipOperator(line)
+  return operator >= 0 && !isMarkedRelationshipOperator(line, operator)
+}
+
+export function isMarkedClassRelationshipCandidate(line: string): boolean {
+  const operator = findMarkerlessRelationshipOperator(line)
+  return operator >= 0 && isMarkedRelationshipOperator(line, operator)
+}
+
+/** An escaped *endpoint* on a marked link, as opposed to a backtick in its
+ * label or quoted cardinality. Failed scanner parses must stay failed in both
+ * the native parser and the agent's legacy regex fallback. Two-ended and
+ * lollipop forms are deliberately diagnosed until their line style/synthetic
+ * interface semantics can be represented faithfully. */
+export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean {
+  if (!line.includes('`')) return false
+  const operator = findMarkerlessRelationshipOperator(line)
+  if (operator < 0) return false
+  const before = line.slice(0, operator).trimEnd()
+  const afterOperator = line.slice(operator + 2)
+  // The bare-link discriminator predates two-ended dashed diamond/circle
+  // markers. Such escaped links must not fall through to a solid two-way edge.
+  const dashedTwoEnded = line[operator] === '.'
+    && /(?:\*|o)$/.test(before)
+    && /^(?:\*|o|>|\|>|<)/.test(afterOperator)
+  if (!isMarkedRelationshipOperator(line, operator) && !dashedTwoEnded) return false
+  if (line.slice(0, operator).trimStart().startsWith('`')) return true
+  let after = line.slice(operator + 2).trimStart()
+  after = after.replace(/^(?:\|>|[>*o]|\(\))\s*/, '')
+  after = after.replace(/^"[^"]*"\s*/, '')
+  return after.startsWith('`')
 }
 
 /**
@@ -521,7 +921,6 @@ function parseArrow(arrow: string): { type: RelationshipType; markerAt: 'from' |
     case '<--':  return { type: 'association',  markerAt: 'from' }
     case '..>':  return { type: 'dependency',   markerAt: 'to' }
     case '<..':  return { type: 'dependency',   markerAt: 'from' }
-    case '--':   return { type: 'association',  markerAt: 'to' }
     default:     return null
   }
 }

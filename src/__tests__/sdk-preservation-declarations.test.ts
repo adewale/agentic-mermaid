@@ -30,6 +30,7 @@ describe('Code Mode preservation declarations', () => {
     }
     expect(SDK_DECLARATION).toContain('wrapperSource?: string')
     expect(SDK_DECLARATION).toContain('droppedComments?: { text: string; line: number }[]')
+    expect(SDK_DECLARATION).toContain("markerAt?: 'from' | 'to' | 'both' | 'none'")
   })
 
   test('keeps parser-populated mindmap and gitgraph read-back fields recursively visible', () => {

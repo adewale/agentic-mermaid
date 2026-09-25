@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="215.80200000000002" height="318.1" viewBox="0 0 215.80200000000002 318.1" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
+    <polygon points="0 0, 12 5, 0 10" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-composition" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#47474a" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="cls-aggregation" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse" viewBox="0 0 14 14" overflow="hidden">
+    <circle cx="7" cy="7" r="5" fill="#FFFFFF" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+</defs>
+<polyline class="class-relationship" data-from="classO" data-to="classP" data-type="link-dashed" data-relation-type="link-dashed" data-marker-at="none" data-label="Link(Dashed)" points="115.80200000000002,88.9 115.80200000000002,229.20000000000002" fill="none" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" data-relationship="link-dashed" data-direction="undirected" data-id="rel:classO-&gt;classP#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="classO to classP: Link(Dashed)" />
+<g class="class-node" data-id="classO" data-label="classO" data-role="class-box">
+  <rect x="55.80200000000002" y="40" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:classO:box" data-role="class-box" />
+  <path d="M55.80200000000002,40 H175.80200000000002 V72.9 H55.80200000000002 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="115.80200000000002" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55" textLength="45.63" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">classO</text>
+  <line x1="55.80200000000002" y1="72.9" x2="175.80200000000002" y2="72.9" stroke="#d4d4d4" stroke-width="0.75" />
+  <line x1="55.80200000000002" y1="80.9" x2="175.80200000000002" y2="80.9" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+<g class="class-node" data-id="classP" data-label="classP" data-role="class-box">
+  <rect x="55.80200000000002" y="229.20000000000002" width="120" height="48.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="class:classP:box" data-role="class-box" />
+  <path d="M55.80200000000002,229.20000000000002 H175.80200000000002 V262.1 H55.80200000000002 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
+  <text x="115.80200000000002" y="245.65000000000003" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55" textLength="45.63" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">classP</text>
+  <line x1="55.80200000000002" y1="262.1" x2="175.80200000000002" y2="262.1" stroke="#d4d4d4" stroke-width="0.75" />
+  <line x1="55.80200000000002" y1="270.1" x2="175.80200000000002" y2="270.1" stroke="#d4d4d4" stroke-width="0.75" />
+</g>
+
+<text x="76.90100000000001" y="151.05" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="65.802" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Link(Dashed)</text>
+</svg>
