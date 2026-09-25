@@ -171,9 +171,10 @@ interface PlacedNamespace {
  *
  * Pipeline: parse → build boxes → level-based layout → draw boxes → draw relationships → string.
  */
-export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): string {
+export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
-  const diagram = parseClassDiagram(lines)
+  const authoredLines = authoredText?.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const diagram = parseClassDiagram(lines, authoredLines)
 
   if (diagram.classes.length === 0) return ''
 

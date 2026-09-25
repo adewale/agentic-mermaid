@@ -89,7 +89,7 @@ type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagra
 type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
 type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
 interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};sourceLine?:number }
-interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;security:DiagramActionSecurity;executable:false;message?:string }
+interface DiagramActionRecord { id?:string;regionId?:string;family:DiagramKind;target:string;action:'href'|'call'|'callback';raw:string;line?:number;href?:string;tooltip?:string;security:DiagramActionSecurity;executable:false;message?:string }
 interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; bounds: { w: number; h: number }; nodes: unknown[]; edges: unknown[]; groups: unknown[]; regions?: RenderedRegion[]; actions?: DiagramActionRecord[] }
 interface VerifyResult { ok: boolean; warnings: unknown[]; layout: RenderedLayout }
 type CheckMermaidSpec = string[] | { include?: string[]; exclude?: string[]; exact?: boolean }

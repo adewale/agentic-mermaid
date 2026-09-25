@@ -41,15 +41,14 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 28,
-    // Class relation identity and compact-arrow handling preserve the
-    // 31-request graph and raw total. These are the exact reviewed Linux/x64
-    // capture totals.
-    // The chart-honesty text contract adds 4,983 raw, 1,645 gzip, and 1,138
+    // Class tooltip support changes a shared chunk without adding a request.
+    // These are the exact reviewed Linux/x64 capture totals.
+    // The chart-honesty text contract adds 4,983 raw, 1,622 gzip, and 1,086
     // Brotli bytes to the shared chunks, and its module moves regroup six small
     // shared chunks into three, so the graph drops to 28 requests.
-    maxRawBytes: 737_182,
-    maxGzipBytes: 276_338,
-    maxBrotliBytes: 252_013,
+    maxRawBytes: 737_400,
+    maxGzipBytes: 276_405,
+    maxBrotliBytes: 252_042,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -72,16 +71,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    // Class relation handling preserves the two-request graph; these are the
+    // Class tooltip support preserves the two-request graph; these are the
     // exact reviewed Linux/x64 capture totals.
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
-    // family's text tones, halos, titles, and containment) adds 21,213 raw,
-    // 7,952 gzip, and 6,033 Brotli bytes without a new request.
-    maxRawBytes: 3_373_762,
-    maxGzipBytes: 995_695,
-    maxBrotliBytes: 781_617,
+    // family's text tones, halos, titles, and containment) adds 21,231 raw,
+    // 7,778 gzip, and 5,628 Brotli bytes without a new request.
+    maxRawBytes: 3_377_586,
+    maxGzipBytes: 997_108,
+    maxBrotliBytes: 782_503,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

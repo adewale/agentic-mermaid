@@ -18,6 +18,6 @@
     "mindmap": { "requests": 26, "raw": 557000, "gzip": 174000, "brotli": 154000 },
     "gitgraph": { "requests": 25, "raw": 562000, "gzip": 175000, "brotli": 154000 },
     "radar": { "requests": 27, "raw": 568000, "gzip": 177000, "brotli": 157000 },
-    "sankey": { "requests": 26, "raw": 555000, "gzip": 174000, "brotli": 153000 }
+    "sankey": { "requests": 26, "raw": 556000, "gzip": 174000, "brotli": 153000 }
   }
 }

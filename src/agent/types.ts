@@ -202,6 +202,8 @@ export interface ClassNode {
   style?: Record<string, string>
   /** Sanitized inert class interaction URL. */
   href?: string
+  /** Optional authored hover text for a safe inert class link. */
+  tooltip?: string
 }
 
 /** A declared namespace: dot path + optional display label (`namespace X["L"]`). */
@@ -765,6 +767,7 @@ export interface DiagramActionRecord {
   raw: string
   line?: number
   href?: string
+  tooltip?: string
   security: DiagramActionSecurity
   executable: false
   message?: string
