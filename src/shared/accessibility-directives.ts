@@ -28,8 +28,7 @@ export interface AccessibilityScan {
 }
 
 const ACC_TITLE_RE = /^\s*accTitle(?:\s*:\s*|\s+)(.+)$/i
-const ACC_DESCR_INLINE_RE = /^\s*accDescr(?:\s*:\s*|\s+)(.+)$/i
-const ACC_DESCR_BLOCK_RE = /^\s*accDescr\s*:?\s*\{(.*)$/i
+const ACC_DESCR_PREFIX_RE = /^\s*accDescr(?=\s|:|\{|$)/i
 /**
  * Parse one universal accessibility directive. `null` means the line is not
  * a directive; `undefined` means it opens an unclosed description block and
@@ -43,11 +42,20 @@ export function parseAccessibilityDirective(
   const line = lines[startIndex]
   if (line === undefined) return null
 
-  const block = line.match(ACC_DESCR_BLOCK_RE)
-  if (block) {
+  const descriptionPrefix = line.match(ACC_DESCR_PREFIX_RE)
+  if (descriptionPrefix) {
+    // Consume whitespace and the optional colon once. Two overlapping \s*
+    // spans in the former block regex backtracked quadratically when a long
+    // whitespace-only line had no opening brace.
+    let description = line.slice(descriptionPrefix[0].length).trimStart()
+    if (description.startsWith(':')) description = description.slice(1).trimStart()
+    if (!description.startsWith('{')) {
+      const value = description.trim()
+      return value ? { title: false, form: 'inline', value, endIndex: startIndex } : null
+    }
     const parts: string[] = []
     for (let index = startIndex; index < lines.length; index++) {
-      const content = index === startIndex ? block[1]! : lines[index]!
+      const content = index === startIndex ? description.slice(1) : lines[index]!
       const closing = content.indexOf('}')
       if (closing < 0) {
         if (content.trim()) parts.push(content.trim())
@@ -70,8 +78,6 @@ export function parseAccessibilityDirective(
 
   const title = line.match(ACC_TITLE_RE)
   if (title) return { title: true, form: 'inline', value: title[1]!.trim(), endIndex: startIndex }
-  const description = line.match(ACC_DESCR_INLINE_RE)
-  if (description) return { title: false, form: 'inline', value: description[1]!.trim(), endIndex: startIndex }
   return null
 }
 
