@@ -4,6 +4,7 @@ import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, resolvedColorValue } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 import { safeCssPaint } from './shared/css-color.ts'
+import { checkedAuthoredStyle } from './shared/style-props.ts'
 
 const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   default: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
@@ -88,11 +89,11 @@ export function resolveNodeInlineStyle(
 
   const className = graph.classAssignments.get(nodeId)
   if (className) {
-    const classDef = graph.classDefs.get(className)
+    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
     if (classDef) result = { ...classDef }
   }
 
-  const nodeStyle = graph.nodeStyles.get(nodeId)
+  const nodeStyle = checkedAuthoredStyle(graph.nodeStyles.get(nodeId), `style ${nodeId}`)
   if (nodeStyle) result = result ? { ...result, ...nodeStyle } : { ...nodeStyle }
 
   return result
@@ -108,10 +109,10 @@ export function resolveEdgeInlineStyle(
 ): Record<string, string> | undefined {
   let result: Record<string, string> | undefined
 
-  const defaultStyle = graph.linkStyles.get('default')
+  const defaultStyle = checkedAuthoredStyle(graph.linkStyles.get('default'), 'linkStyle default')
   if (defaultStyle) result = { ...defaultStyle }
 
-  const indexStyle = graph.linkStyles.get(edgeIndex)
+  const indexStyle = checkedAuthoredStyle(graph.linkStyles.get(edgeIndex), `linkStyle ${edgeIndex}`)
   if (indexStyle) result = result ? { ...result, ...indexStyle } : { ...indexStyle }
 
   return result

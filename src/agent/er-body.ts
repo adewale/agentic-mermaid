@@ -31,7 +31,7 @@ import {
   parseErCardinality,
 } from '../er/parser.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
-import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
+import { parseMutableStyleProps, parseStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 
 /** ER subgraphs are rendered natively; ordered opaque segments keep their
  * exact source on the mutation surface until group-specific operations exist. */
@@ -449,7 +449,9 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
         code: 'INVALID_OP',
         message: style.reason === 'MULTILINE'
           ? 'ER classDef style must be a single-line CSS-like property list'
-          : 'ER classDef style must contain at least one property:value pair',
+          : style.reason === 'UNSAFE_PAINT'
+            ? unsafeStylePaintError(`define_class ${op.name}`, style.paint).message
+            : 'ER classDef style must contain at least one property:value pair',
       })
       if (!b.classDefs) b.classDefs = {}
       b.classDefs[op.name] = style.value
@@ -475,7 +477,9 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
           code: 'INVALID_OP',
           message: style.reason === 'MULTILINE'
             ? 'ER entity style must be a single-line CSS-like property list'
-            : 'ER entity style must contain at least one property:value pair',
+            : style.reason === 'UNSAFE_PAINT'
+              ? unsafeStylePaintError(`set_entity_style ${op.entity}`, style.paint).message
+              : 'ER entity style must contain at least one property:value pair',
         })
         entity.style = style.value
       }

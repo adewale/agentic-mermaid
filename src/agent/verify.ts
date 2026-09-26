@@ -893,10 +893,12 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   // content-less diagrams keep the explicit, ok-flipping EMPTY_DIAGRAM their
   // verify paths already push. Callers whose empty layout means "unmodeled,
   // preserved" rather than "renders nothing" (opaque bodies) opt out via
-  // guardEmptyLayout=false.
+  // guardEmptyLayout=false. A RENDER_FAILED already says why the layout is
+  // empty; announcing unsupported syntax beside it would point at the wrong fix.
   if (
     guardEmptyLayout &&
     !suppress.has('UNSUPPORTED_SYNTAX') &&
+    !kept.some(w => w.code === 'RENDER_FAILED') &&
     layout.nodes.length === 0 &&
     layout.edges.length === 0 &&
     layout.groups.length === 0 &&

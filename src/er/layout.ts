@@ -17,6 +17,7 @@ import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
+import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
 import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
@@ -222,7 +223,7 @@ function extractErLayout(
         rowHeight: ER.rowHeight,
         ...(entity.className ? { className: entity.className } : {}),
         ...((entity.className && diagram.classDefs.get(entity.className)) || entity.inlineStyle ? {
-          inlineStyle: { ...(entity.className ? diagram.classDefs.get(entity.className) : {}), ...entity.inlineStyle },
+          inlineStyle: { ...(entity.className ? checkedAuthoredStyle(diagram.classDefs.get(entity.className), `classDef ${entity.className}`) : {}), ...checkedAuthoredStyle(entity.inlineStyle, `style ${entity.id}`) },
         } : {}),
         ...(entity.groupId ? { groupId: entity.groupId } : {}),
       })

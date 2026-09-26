@@ -28,6 +28,7 @@ import { LINE_HEIGHT_RATIO, measureMultilineText } from '../text-metrics.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
+import { checkedAuthoredStyle } from '../shared/style-props.ts'
 
 /** Layout constants for class diagrams */
 export const CLS = {
@@ -356,7 +357,7 @@ function extractClassLayout(
           ...(cls.href ? { href: cls.href } : {}),
           ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
           ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle ? {
-            inlineStyle: { ...(cls.className ? diagram.classDefs.get(cls.className) : {}), ...cls.inlineStyle },
+            inlineStyle: { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) },
           } : {}),
         })
       }
