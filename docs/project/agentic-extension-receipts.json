@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "extensions": [
+    {
+      "schemaVersion": 1,
+      "id": "agentic-extension:journey:semicolon-statements",
+      "classification": "agentic-extension",
+      "upstreamFeatureId": null,
+      "capabilityProjection": "excluded-from-mermaid-native-features",
+      "upstream": {
+        "version": "11.16.0",
+        "revision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+        "acceptsSource": false,
+        "parseError": true
+      },
+      "source": "journey\n  A: 5: Me; B: 3: Me\n",
+      "surfaces": {
+        "agent": {
+          "disposition": "diagnosed-extension",
+          "tasks": [
+            "A:5",
+            "B:3"
+          ],
+          "warningCode": "UNSUPPORTED_SYNTAX",
+          "warningLine": 2
+        },
+        "render": {
+          "disposition": "rendered-extension",
+          "markerScores": [
+            5,
+            3
+          ],
+          "taskLabelsVisible": true
+        },
+        "serialize": {
+          "disposition": "portable-newline-output",
+          "source": "journey\n    A: 5: Me\n    B: 3: Me\n",
+          "tasks": [
+            "A:5",
+            "B:3"
+          ],
+          "extensionWarningCleared": true
+        },
+        "mutate": {
+          "disposition": "portable-newline-output",
+          "source": "journey\n    A: 5: Me\n    B: 4: Me\n",
+          "tasks": [
+            "A:5",
+            "B:4"
+          ]
+        }
+      }
+    }
+  ]
+}

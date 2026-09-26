@@ -400,6 +400,10 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
   }
   const spans: SourceMapSpans = {
     preserved,
+    canonicalToAuthoredLine: new Map([...lines].map(([canonicalLine, authoredLine]) => [
+      canonicalLine,
+      point(lineStarts, authoredLine.start).line,
+    ])),
     nodes: mapStatementSpans(sourceMap.nodes, lineStarts, lines, canonicalLines, analysisFor),
     edges: mapStatementSpans(sourceMap.edges, lineStarts, lines, canonicalLines, analysisFor),
     groups: mapStatementSpans(sourceMap.groups, lineStarts, lines, canonicalLines, analysisFor),

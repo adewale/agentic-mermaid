@@ -133,6 +133,12 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
       }
       continue
     }
+    if (accessibility?.form === 'inline') {
+      const text = normalizeJourneyText(accessibility.value)
+      if (accessibility.title) events.accTitle?.(text, i)
+      else events.accDescr?.(text, i)
+      continue
+    }
 
     if (hasJourneyStatementDelimiter(line)) events.statementDelimiter?.(i)
     for (const statement of splitJourneyStatements(line)) {

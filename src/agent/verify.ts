@@ -248,7 +248,8 @@ function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
 /** Agentic Mermaid retains semicolon-separated Journey statements for
  * backwards compatibility, but Mermaid 11.16 rejects that spelling. Diagnose
  * the authored boundary rather than claiming its rendered tasks are native. */
-function journeySemicolonExtensionWarnings(source: string): LayoutWarning[] {
+function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
+  const source = d.canonicalSource
   const lines = source.split(/\r?\n/)
   const headerIndex = lines.findIndex(line => /^\s*journey\b/i.test(line))
   if (headerIndex < 0) return []
@@ -256,10 +257,10 @@ function journeySemicolonExtensionWarnings(source: string): LayoutWarning[] {
   walkJourneyLines(lines, headerIndex + 1, {
     statementDelimiter: lineIndex => { lineNumbers.add(lineIndex + 1) },
   })
-  return [...lineNumbers].sort((a, b) => a - b).map(line => ({
+  return [...lineNumbers].sort((a, b) => a - b).map(canonicalLine => ({
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'journey_semicolon_statement_extension',
-    line,
+    line: d.source.spans?.canonicalToAuthoredLine.get(canonicalLine) ?? canonicalLine,
     message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; Mermaid 11.16 rejects this source. Put each statement on its own line for upstream portability.',
   }))
 }
@@ -327,7 +328,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   }
 
   const d = parsed as ValidDiagram
-  const sourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d.canonicalSource) : []
+  const sourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const configWarnings = configWarningsForDiagram(d)
   let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings)

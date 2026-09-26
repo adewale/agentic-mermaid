@@ -285,7 +285,6 @@ describe('issue #248 construct fidelity receipts', () => {
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
       'journey.scores.fractional-parser-render-seam',
-      'journey.statements.semicolon-extension',
       'sankey.links.dark-background-normal-alpha-divergence',
       'sankey.links.light-background-multiply',
       'sankey.links.typed-gradient-endpoints',
@@ -300,10 +299,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 23,
-      passedCaseCount: 23,
+      caseCount: 22,
+      passedCaseCount: 22,
       failedCaseCount: 0,
-      observedSurfaceCount: 85,
+      observedSurfaceCount: 81,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
@@ -325,7 +324,7 @@ describe('issue #248 construct fidelity receipts', () => {
       agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
     })
     expect(capability.features.find(feature => feature.family === 'journey')!.surfaces).toEqual({
-      agent: 'diagnosed', render: 'absent', serialize: 'native', mutate: 'native',
+      agent: 'native', render: 'native', serialize: 'native', mutate: 'native',
     })
     expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
@@ -369,30 +368,6 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'mutate',
         path: ['mutatedScore'],
         replacement: 4,
-      },
-      {
-        caseId: 'journey.statements.semicolon-extension',
-        surface: 'agent',
-        path: ['extensionLine'],
-        replacement: 3,
-      },
-      {
-        caseId: 'journey.statements.semicolon-extension',
-        surface: 'render',
-        path: ['taskLabelsVisible'],
-        replacement: false,
-      },
-      {
-        caseId: 'journey.statements.semicolon-extension',
-        surface: 'serialize',
-        path: ['portableNewlines'],
-        replacement: false,
-      },
-      {
-        caseId: 'journey.statements.semicolon-extension',
-        surface: 'mutate',
-        path: ['reparsedTasks'],
-        replacement: ['A:5', 'B:3'],
       },
       {
         caseId: 'sankey.links.typed-gradient-endpoints',

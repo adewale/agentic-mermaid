@@ -107,7 +107,10 @@ Known remaining syntax/parity gaps and caveats:
   `A: 5: Me; B: 3: Me` for local compatibility, but verification emits
   `journey_semicolon_statement_extension` with the authored line number. Use
   one statement per line for Mermaid portability. HTML entities such as
-  `&amp;` keep their semicolons as literal label text locally.
+  `&amp;` keep their semicolons as literal label text locally. Semicolons in
+  inline accessibility directives are literal text, not this extension. Its
+  cross-surface receipt is separate from official upstream feature coverage
+  (`docs/project/agentic-extension-receipts.json`).
 - Journey ASCII remains a compact semantic list, not a visual clone of
   Mermaid's SVG Journey chart. It now wraps to `maxWidth` using terminal display
   width, including CJK/emoji text, but it is intentionally not a miniature SVG
