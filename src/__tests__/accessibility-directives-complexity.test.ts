@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { sourcePreservationSpans } from '../family-detection.ts'
+import { maskAccessibilityDirectivesForSourceMap, sourcePreservationSpans } from '../family-detection.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 test('whitespace-only accDescr is not an empty directive and stays bounded through the public parser', () => {
@@ -37,4 +37,13 @@ test('valid inline and block accDescr directives retain their text and suffix', 
     value: 'text',
     suffixLine: 'Task: 3: Me',
   })
+})
+
+test('repeated unclosed accDescr blocks do not rescan the remaining source', () => {
+  const source = `journey\n${'accDescr: {\n'.repeat(12_000)}Task: 3: Me\n`
+  const started = performance.now()
+  expect(sourcePreservationSpans(source, 'journey').accessibilityDirectives).toBeUndefined()
+  expect(maskAccessibilityDirectivesForSourceMap(source)).toBe(source)
+  expect(parseRegisteredMermaid(source).ok).toBe(true)
+  expect(performance.now() - started).toBeLessThan(1_000)
 })

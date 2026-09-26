@@ -105,7 +105,10 @@ function accessibilityDirectiveSpans(
   const spans: SourceSpan[] = []
   for (let index = 0; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
-    if (!directive) continue
+    // An unclosed block consumes the remainder of the source. Continuing
+    // would rescan that suffix for every later opener (quadratic work).
+    if (directive === undefined) break
+    if (directive === null) continue
     const start = offsets[index]!
     let end: number
     if (directive.form === 'block') {
