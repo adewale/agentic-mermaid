@@ -49,10 +49,10 @@ describe('renderer/agent parser convergence', () => {
   })
 })
 
-describe('semicolon statement separation (Mermaid lexer parity)', () => {
-  // Upstream journey.jison terminates taskName/taskData/title/section tokens
-  // at ';', so a semicolon starts a new statement. Previously both parsers
-  // silently misparsed "a: 5: Me; b: 1: Me" into ONE task with a bogus actor.
+describe('semicolon statement separation (diagnosed Agentic extension)', () => {
+  // The shared splitter retains historical local support. Pinned Mermaid
+  // 11.16 rejects this source, so verify diagnoses the extension. Previously
+  // both local parsers misparsed two tasks as one task with a bogus actor.
   test('renderer splits semicolon-joined tasks into separate tasks', () => {
     const diagram = rendererParse(`journey
       section S

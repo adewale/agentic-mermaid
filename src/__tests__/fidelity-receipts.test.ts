@@ -323,7 +323,9 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(capability.features.find(feature => feature.featureId === 'official-doc:timeline:section:direction-v11-14-0')!.surfaces).toEqual({
       agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
     })
-    expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('native')
+    expect(capability.features.find(feature => feature.family === 'journey')!.surfaces).toEqual({
+      agent: 'native', render: 'native', serialize: 'native', mutate: 'native',
+    })
     expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
