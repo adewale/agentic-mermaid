@@ -532,7 +532,7 @@
     },
     {
       "path": "src/family-detection.ts",
-      "sha256": "e1c53cbd4478086b8207d911eceeb3021f24dbb6b323ca6aca7a4624e5aa5ec2"
+      "sha256": "646d74fde77158cd07f541f1c5365eeaefa782f9743045ee954304ea772083ec"
     },
     {
       "path": "src/flowchart-config.ts",
@@ -1016,7 +1016,7 @@
     },
     {
       "path": "src/shared/accessibility-directives.ts",
-      "sha256": "b11d29c7e1af84ee8af2115f72466d41cb8ca7bf534fd83c2116393ecb7db3a4"
+      "sha256": "b3e90ace0d6f17c096a8890652589bd6cf3f70639a4593cbc767efc9dbc5dae9"
     },
     {
       "path": "src/shared/categorical-palette.ts",
