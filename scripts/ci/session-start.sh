@@ -4,11 +4,16 @@
 # this repository requires (src/mcp/bun-version.ts): older Bun mishandles
 # node:vm timeouts, so the MCP server refuses to start and the suite fails.
 # Upgrade to the CI pin when the image's Bun is too old, then install the locked
-# dependencies. Local sessions are left alone. Stdout becomes session context,
-# so only the upgrade notice goes there; tool output goes to stderr.
+# dependencies. Local sessions are left alone.
+#
+# It runs async: the session starts at once while this finishes in the
+# background (a few seconds), so the first commands of a session can still see
+# the old Bun. Stdout carries only the async declaration; the rest goes to stderr.
 set -euo pipefail
 
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
+
+echo '{"async": true, "asyncTimeout": 300000}'
 
 # src/__tests__/bun-version.test.ts keeps these equal to MIN_BUN_VERSION and to
 # the Bun every workflow pins.
@@ -27,7 +32,7 @@ if ! meets_minimum "$found"; then
   if [ -n "${CLAUDE_ENV_FILE:-}" ]; then echo "export PATH=\"$BUN_INSTALL/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"; fi
   installed="$(bun --version)"
   meets_minimum "$installed" || { echo "Bun $installed is still below $MIN_BUN after upgrading" >&2; exit 1; }
-  echo "Upgraded Bun $found to $installed: this repository needs Bun $MIN_BUN or later."
+  echo "Upgraded Bun $found to $installed: this repository needs Bun $MIN_BUN or later." >&2
 fi
 
 bun install --frozen-lockfile >&2

@@ -14,7 +14,8 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 - `bun install` — install dependencies. Requires Bun 1.4.0 or later (CI pins 1.4.2);
   older Bun mishandles `node:vm` timeouts and the MCP server refuses to start. In
   cloud sessions the SessionStart hook (`scripts/ci/session-start.sh`) upgrades an
-  older Bun and runs `bun install` for you.
+  older Bun and runs `bun install` for you, in the background: if `bun --version`
+  is still below 1.4.0 right after a session starts, wait a few seconds.
 - `bun run test` — run the full covered unit suite with the canonical timeout (the CI gate). fast-check
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
