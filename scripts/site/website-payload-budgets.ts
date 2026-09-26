@@ -40,15 +40,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
-    maxRequests: 28,
+    maxRequests: 29,
     // Journey delimiter hardening changes generated demo bytes without adding
     // a request. These ceilings cover the reviewed Linux/x64 capture.
-    // The chart-honesty text contract adds 5,081 raw, 1,646 gzip, and 1,055
-    // Brotli bytes to the shared chunks, and its module moves regroup six small
-    // shared chunks into three, so the graph drops to 28 requests.
-    maxRawBytes: 737_498,
-    maxGzipBytes: 276_431,
-    maxBrotliBytes: 252_018,
+    // The chart-honesty text contract, with its checks that name an invalid
+    // authored color, adds 6,240 raw, 2,324 gzip, and 1,644 Brotli bytes to the
+    // shared chunks, and its module moves regroup the small shared chunks, so
+    // the graph drops from 31 to 29 requests.
+    maxRawBytes: 738_657,
+    maxGzipBytes: 277_109,
+    maxBrotliBytes: 252_607,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -76,11 +77,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
-    // family's text tones, halos, titles, and containment) adds 21,323 raw,
-    // 7,800 gzip, and 5,921 Brotli bytes without a new request.
-    maxRawBytes: 3_377_995,
-    maxGzipBytes: 997_238,
-    maxBrotliBytes: 782_603,
+    // family's text tones, halos, titles, and containment, and the checks that
+    // name an invalid authored color) adds 22,538 raw, 8,230 gzip, and 6,383
+    // Brotli bytes without a new request.
+    maxRawBytes: 3_379_210,
+    maxGzipBytes: 997_668,
+    maxBrotliBytes: 783_065,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

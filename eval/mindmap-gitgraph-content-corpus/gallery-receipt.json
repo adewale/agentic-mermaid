@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "765d7b5d14a42745cdda8ad966d182531dc43a39960a5c5a1fb3f67ad68e41dd"
+      "sha256": "445d0f2c9ef7762cac7e3b604eaa15f96e9abf13e99a09c852b031c2e492a687"
     },
     {
       "path": "src/agent/core.ts",
@@ -120,7 +120,7 @@
     },
     {
       "path": "src/agent/er-body.ts",
-      "sha256": "373868de3b24eda819329d6322ca3e719219b9f37e77abde2d2b9963bf81bd63"
+      "sha256": "86f0a67a32f0e1e2cd7fd9e07776a8b79fb3f4d816c89072bd66a554e6421c81"
     },
     {
       "path": "src/agent/facts.ts",
@@ -152,7 +152,7 @@
     },
     {
       "path": "src/agent/flowchart-body.ts",
-      "sha256": "8d0e042000db6cf62b0d68be54765ae10f30f655b8e024c1a74888717b875515"
+      "sha256": "8aaf687a9684affc1c20c5b81172fc0d8ca1ce5009fe548cb913b89cb521f76b"
     },
     {
       "path": "src/agent/flowchart-unsupported.ts",
@@ -256,7 +256,7 @@
     },
     {
       "path": "src/agent/state-body.ts",
-      "sha256": "7e0b3f0c8454be59e765236ec47f976e57333221be51bab7131c87640a92ba93"
+      "sha256": "5fcfcf3a1814a76db59c9a3f253ec118bbaf978b73f63ca44581bc3501aeb3c0"
     },
     {
       "path": "src/agent/structural-count.ts",
@@ -276,7 +276,7 @@
     },
     {
       "path": "src/agent/verify.ts",
-      "sha256": "41f8c4eafe95bde98739c6703cc637ff1b2e32238f60a8d5404a3e0edd8400eb"
+      "sha256": "a168fdd018bfbc3134fa984a16174e736a243d435ba02371018cb2b4a53d5376"
     },
     {
       "path": "src/agent/xychart-body.ts",
@@ -488,7 +488,7 @@
     },
     {
       "path": "src/class/layout.ts",
-      "sha256": "bc68b4cd753924dfc740cc27db020e3d47ce429bc2c9542d6c11c134f4a9aefb"
+      "sha256": "6a2e9d30a8f74cedcf0aea10aec4da4d55d56d0246cd48a0d0e8c08b7f216dfb"
     },
     {
       "path": "src/class/parser.ts",
@@ -504,7 +504,7 @@
     },
     {
       "path": "src/color-resolver.ts",
-      "sha256": "f8beb8e557a505acdf4cbcc917b30bcddcd0e368c953bafd7dc4f5b0846d29ff"
+      "sha256": "a3ae3e304face1f306d93922ac521336cd6044353c7fd13e8afb133403dae8fd"
     },
     {
       "path": "src/custom-font-geometry.ts",
@@ -516,7 +516,7 @@
     },
     {
       "path": "src/er/layout.ts",
-      "sha256": "ec29e2bac9a2f8b0a864aff5d42999b901304b2341fd8d97a11ccbf36ba5633e"
+      "sha256": "e5ef264440ea5590c761283ce373953426051af7d678168d7801f80ad813df12"
     },
     {
       "path": "src/er/parser.ts",
@@ -1092,7 +1092,7 @@
     },
     {
       "path": "src/shared/style-props.ts",
-      "sha256": "d310f6d79b3a9858399fba73a6401045719b44d583fb87fdffd993f19f6cd726"
+      "sha256": "f27dde230330b68258cb81048dad9ee273d3c0429d7b4aafa90fdd2ae19a9d25"
     },
     {
       "path": "src/shared/svg-a11y.ts",
