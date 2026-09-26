@@ -8,12 +8,15 @@
 // crash the render, and `box #12345 Team` fail scene validation over a word
 // Mermaid reads as a comment. End to end, an authored color in any
 // color-bearing syntax renders or, when it is not a safe CSS paint, is refused
-// with a typed error. It never throws anything else and never draws NaN or an
-// unreadable hex. Seed pinned globally (fc-seed.preload.ts).
+// with an error that names the value, so an agent can correct it from the
+// message; a typed style op refuses the same colors when the diagram is built.
+// It never throws anything else and never draws NaN or an unreadable hex.
+// Seed pinned globally (fc-seed.preload.ts).
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 
 import { renderMermaidSVG } from '../index.ts'
+import { buildMermaid, serializeMermaid } from '../agent/index.ts'
 import type { RenderOptions } from '../types.ts'
 import { compositeCssColor, isHexColor, isSixDigitHex, parseHex, relativeLuminance, tryParseCssColor, tryParseHex } from '../shared/color-math.ts'
 import { safeCssPaint } from '../shared/css-color.ts'
@@ -120,10 +123,11 @@ const PLACEMENTS: Record<string, (color: string) => readonly [source: string, op
   'option accent': color => [FLOWCHART, { accent: color }],
 }
 // Agentic Mermaid fails closed on a color that is not a safe CSS paint, where a
-// browser would ignore it: RenderOptions admission or the scene's paint check
-// refuses the render. A sequence rect, whose argument is background paint with
-// no label to fall back to, also refuses colors that are not concrete.
-const PAINT_REFUSAL = /^(?:Invalid RenderOptions: |Scene validation failed: .*must be a safe non-fetching CSS paint)/
+// browser would ignore it. RenderOptions admission names the option; a style,
+// classDef or linkStyle directive names itself, the property and the value. A
+// sequence rect, whose argument is background paint with no label to fall back
+// to, also refuses colors that are not concrete.
+const OPTION_REFUSAL = /^Invalid RenderOptions: render option "(?:bg|fg|accent)" must be a safe, non-fetching CSS paint/
 const RECT_REFUSAL = /^SEQUENCE_RECT_COLOR_UNSUPPORTED: /
 const HEX_PAINT_ATTRIBUTE = /\s(?:fill|stroke|color|stop-color|flood-color)="(#[^"]*)"/g
 const HEX_CUSTOM_PROPERTY = /--[\w-]+\s*:\s*(#[^\s;"}]*)/g
@@ -138,8 +142,9 @@ describe('an authored color renders, or is refused because it is not a safe pain
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         if (placement === 'sequence rect' && RECT_REFUSAL.test(message)) return
-        expect(message).toMatch(PAINT_REFUSAL)
         expect(safeCssPaint(color)).toBeUndefined()
+        if (placement.startsWith('option ')) expect(message).toMatch(OPTION_REFUSAL)
+        else expect(message).toContain(`${JSON.stringify(color)} is not a CSS color — expected `)
         return
       }
       expect(svg).not.toContain('NaN')
@@ -157,5 +162,34 @@ describe('an authored color renders, or is refused because it is not a safe pain
         ['pie theme color', '#abcd'],
       ],
     })
+  }, 120_000)
+})
+
+// Each family's typed style ops, building a diagram whose one style carries
+// the generated paint.
+const STYLE_OPS: Record<string, (style: string) => readonly [family: string, ops: readonly object[]]> = {
+  'flowchart define_class': style => ['flowchart', [{ kind: 'add_node', id: 'A', label: 'A' }, { kind: 'define_class', name: 'hot', style }, { kind: 'set_node_class', id: 'A', className: 'hot' }]],
+  'flowchart set_node_style': style => ['flowchart', [{ kind: 'add_node', id: 'A', label: 'A' }, { kind: 'set_node_style', id: 'A', style }]],
+  'state set_state_style': style => ['state', [{ kind: 'add_state', id: 'A' }, { kind: 'set_state_style', id: 'A', style }]],
+  'class set_class_style': style => ['class', [{ kind: 'add_class', id: 'Account' }, { kind: 'set_class_style', class: 'Account', style }]],
+  'er set_entity_style': style => ['er', [{ kind: 'add_entity', id: 'CUSTOMER' }, { kind: 'set_entity_style', entity: 'CUSTOMER', style }]],
+}
+
+describe('a typed style op accepts a color exactly when the scene can paint it', () => {
+  test('and a diagram built from accepted ops renders', () => {
+    fc.assert(fc.property(fc.constantFrom(...Object.keys(STYLE_OPS)), fc.constantFrom('fill', 'stroke', 'color'), colorishArb, (op, property, color) => {
+      const [family, ops] = STYLE_OPS[op]!(`${property}:${color}`)
+      const built = buildMermaid(family as never, ops as never)
+      if (safeCssPaint(color) === undefined) {
+        expect(built.ok).toBe(false)
+        if (!built.ok) {
+          expect(built.error.code).toBe('INVALID_OP')
+          expect(built.error.message).toContain(`${property} ${JSON.stringify(color)} is not a CSS color — expected `)
+        }
+        return
+      }
+      expect(built.ok).toBe(true)
+      if (built.ok) expect(() => renderMermaidSVG(serializeMermaid(built.value))).not.toThrow()
+    }), { numRuns: RENDER_RUNS })
   }, 120_000)
 })
