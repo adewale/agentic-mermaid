@@ -40,7 +40,7 @@ test('valid inline and block accDescr directives retain their text and suffix', 
 })
 
 test('repeated unclosed accDescr blocks do not rescan the remaining source', () => {
-  const source = `journey\n${'accDescr: {\n'.repeat(12_000)}Task: 3: Me\n`
+  const source = `journey\n${'accDescr: {\n'.repeat(12_000)}accTitle: hidden\nTask: 3: Me\n`
   const started = performance.now()
   expect(sourcePreservationSpans(source, 'journey').accessibilityDirectives).toBeUndefined()
   expect(maskAccessibilityDirectivesForSourceMap(source)).toBe(source)

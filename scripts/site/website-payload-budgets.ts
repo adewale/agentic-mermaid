@@ -36,10 +36,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     maxRequests: 30,
     // The shared accDescr scanner removes one lazy chunk without changing
-    // rendered pixels. These are the reviewed Linux/x64 and macOS/arm64 totals.
-    maxRawBytes: 732_232,
-    maxGzipBytes: 274_647,
-    maxBrotliBytes: 250_742,
+    // rendered pixels; the unclosed-block guard adds a few bytes. These are
+    // the reviewed Linux/x64 and macOS/arm64 totals.
+    maxRawBytes: 732_258,
+    maxGzipBytes: 274_655,
+    maxBrotliBytes: 250_813,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -64,10 +65,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // The Journey extension audit fixes retain authored line provenance and
     // move extension evidence outside the upstream capability projection.
-    // The shared accDescr scanner leaves the two-request graph unchanged.
+    // The shared accDescr scanner and unclosed-block guard leave the
+    // two-request graph unchanged.
     // These are the reviewed Linux/x64 and macOS/arm64 totals.
-    maxRawBytes: 3_357_530,
-    maxGzipBytes: 989_752,
+    maxRawBytes: 3_357_556,
+    maxGzipBytes: 989_758,
     maxBrotliBytes: 777_290,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
