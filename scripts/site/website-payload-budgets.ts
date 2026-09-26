@@ -62,11 +62,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    // The Journey semicolon-extension diagnosis preserves the two-request
-    // graph; these are the reviewed Linux/x64 capture ceilings.
-    maxRawBytes: 3_357_267,
-    maxGzipBytes: 989_660,
-    maxBrotliBytes: 777_243,
+    // The Journey extension audit fixes retain authored line provenance and
+    // move extension evidence outside the upstream capability projection.
+    // The two-request graph is unchanged; these are the Linux/x64 measurements.
+    maxRawBytes: 3_357_495,
+    maxGzipBytes: 989_747,
+    maxBrotliBytes: 777_437,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
