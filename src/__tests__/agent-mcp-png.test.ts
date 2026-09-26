@@ -178,4 +178,31 @@ describe('MCP — render_png tool', () => {
     expect(payload.ok).toBe(true)
     expect(Buffer.from(payload.png_base64!, 'base64').length).toBeGreaterThan(100)
   }, STDIO_RENDER_REGRESSION_TIMEOUT_MS)
+
+  // Regression (#298): Bun leaves a sandbox call's node:vm watchdog armed
+  // until the next macrotask turn, with the last vm call's 50ms deadline. A
+  // render_png sent beside execute used to render in that window, was
+  // terminated mid-call, and left the server spinning without answering. This
+  // render takes far longer than 50ms, so the old server hangs on every run;
+  // the spawn timeout kills it (SIGKILL: the wedged JS never runs a handler).
+  test('stdio server answers a render_png sent beside execute', async () => {
+    const edges = Array.from({ length: 40 }, (_, i) => `  N${i}[Step ${i}] --> N${(i * 7 + 3) % 40}[Step ${(i * 7 + 3) % 40}]`)
+    const proc = Bun.spawn(['bun', 'run', join(REPO, 'bin/agentic-mermaid-mcp.ts')], {
+      cwd: REPO, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
+      timeout: STDIO_RENDER_REGRESSION_TIMEOUT_MS / 2, killSignal: 'SIGKILL',
+    })
+    const requests = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'png-test', version: '0' } } },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return 1' } } },
+      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'render_png', arguments: { source: `flowchart TD\n${edges.join('\n')}`, output: 'base64' } } },
+    ]
+    proc.stdin.write(requests.map(r => JSON.stringify(r)).join('\n') + '\n')
+    await proc.stdin.end()
+    const stdout = await new Response(proc.stdout).text()
+    expect(await proc.exited).toBe(0)
+    const responses = stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as { id: number; result?: { content: Array<{ text: string }> } })
+    expect(responses.map(r => r.id).sort()).toEqual([1, 2, 3])
+    const payload = JSON.parse(responses.find(r => r.id === 3)!.result!.content[0]!.text) as { ok: boolean }
+    expect(payload.ok).toBe(true)
+  }, STDIO_RENDER_REGRESSION_TIMEOUT_MS)
 })

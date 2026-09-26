@@ -11,6 +11,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   identifiers instead of silently treating them as labels.
 - Canonicalized IPv6 MCP origins, recognized loopback literals, and corrected
   package-runner quickstarts to invoke the published package and `mcp` command.
+- Fixed the local MCP server hanging at 100% CPU when a client sent
+  `render_png` alongside Code Mode `execute`; other tools now wait until Bun
+  has disarmed the sandbox's `node:vm` watchdog before they run.
 - Updated React browser recipes to use the lazy browser entry, with asynchronous
   loading, cancellation, and visible error handling.
 

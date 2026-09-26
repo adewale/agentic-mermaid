@@ -5,7 +5,7 @@ import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { runCli } from '../cli/index.ts'
 import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
-import { executeInSandbox } from '../mcp/sandbox.ts'
+import { executeInSandbox, whenSandboxWatchdogDisarmed } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 
 describe('sandbox — happy', () => {
@@ -457,6 +457,15 @@ describe('sandbox — isolation + sad paths', () => {
     const r = await executeInSandbox(`while (true) {}`, { timeoutMs: 200 })
     expect(r.ok).toBe(false)
     expect(r.error).toMatch(/timed out|timeout/i)
+  })
+  test('host work queued beside a sandbox call waits for the turn that disarms its watchdog', async () => {
+    let hostRan = false
+    const executed = executeInSandbox('return 1')
+    const host = whenSandboxWatchdogDisarmed(() => { hostRan = true; return 'host' })
+    for (let i = 0; i < 20; i++) await Promise.resolve()
+    expect(hostRan).toBe(false)
+    expect(await host).toBe('host')
+    expect(await executed).toMatchObject({ ok: true, value: 1 })
   })
 })
 
