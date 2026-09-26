@@ -184,7 +184,7 @@ describe('MCP — render_png tool', () => {
   // render_png sent beside execute used to render in that window, was
   // terminated mid-call, and left the server spinning without answering. This
   // render takes far longer than 50ms, so the old server hangs on every run;
-  // the spawn timeout kills it (SIGKILL: the wedged JS never runs a handler).
+  // the spawn timeout kills it rather than leaving it spinning after the test.
   test('stdio server answers a render_png sent beside execute', async () => {
     const edges = Array.from({ length: 40 }, (_, i) => `  N${i}[Step ${i}] --> N${(i * 7 + 3) % 40}[Step ${(i * 7 + 3) % 40}]`)
     const proc = Bun.spawn(['bun', 'run', join(REPO, 'bin/agentic-mermaid-mcp.ts')], {

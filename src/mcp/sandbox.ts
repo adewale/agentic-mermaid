@@ -31,8 +31,10 @@ const SAFE_GLOBALS = {}
 // disarms it; microtasks (`await Promise.resolve()`) do not. Keep the
 // `timeout` option itself — it is a security boundary.
 //
-// The deadline left armed is the last vm call's — readLogs' 50ms, not the
-// execute budget — so even a short render can overrun it. The turn therefore
+// The deadline left armed is the last vm call's — 50ms of CPU time from
+// readLogs, not the execute budget — so even a short render can overrun it.
+// Once terminated, Bun runs no more JS: the process spins and never exits
+// (Bun 1.3.11 panics instead). Node is unaffected. The turn therefore
 // has to hold back concurrent host work too: an MCP client that sends
 // `render_png` beside `execute` otherwise renders in the same microtask
 // checkpoint, is terminated mid-render, and leaves the stdio server spinning
