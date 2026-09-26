@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="482.3" viewBox="0 0 680 482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="journey-3n8xh-title" aria-roledescription="user journey" role="img">
+<title id="journey-3n8xh-title">Fractional Journey scores</title>
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="journey-3n8xh-arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+    <path d="M0,0 L10,4 L0,8 Z" fill="#47474a" />
+  </marker>
+</defs>
+<style>
+  .journey-title { fill: #27272A; }
+  .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
+  .journey-section-label-band { fill: #e5e5e6; stroke: none; }
+  .journey-section-band-0 { fill: #e5e5e6; }
+  .journey-section-label { fill: #27272A; }
+  .journey-section-label-0 { fill: #27272A; }
+  .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .journey-task-text { fill: #27272A; }
+  .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
+  .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
+  .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
+  .journey-score-label { fill: #575759; }
+  .journey-baseline { stroke: #47474a; stroke-width: 2; }
+  .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
+  .journey-face-eye { fill: #27272A; }
+  .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
+  .journey-actor-legend-title { fill: #575759; }
+  .journey-actor-legend-text { fill: #575759; }
+  .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
+  .journey-actor-0 { fill: #34438d; }
+</style>
+<g class="journey-score-guide" data-score-min="1" data-score-max="5">
+  <line class="journey-guide" x1="176" y1="256.3" x2="648" y2="256.3" data-relationship="grid" data-direction="undirected" />
+  <text x="164" y="256.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</text>
+  <line class="journey-guide" x1="176" y1="296.3" x2="648" y2="296.3" data-relationship="grid" data-direction="undirected" />
+  <text x="164" y="296.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">4</text>
+  <line class="journey-guide" x1="176" y1="336.3" x2="648" y2="336.3" data-relationship="grid" data-direction="undirected" />
+  <text x="164" y="336.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">3</text>
+  <line class="journey-guide" x1="176" y1="376.3" x2="648" y2="376.3" data-relationship="grid" data-direction="undirected" />
+  <text x="164" y="376.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="8.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">2</text>
+  <line class="journey-guide" x1="176" y1="416.3" x2="648" y2="416.3" data-relationship="grid" data-direction="undirected" />
+  <text x="164" y="416.3" class="journey-score-label" text-anchor="end" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="4.29" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">1</text>
+  <line class="journey-baseline" x1="176" y1="448.3" x2="648" y2="448.3" marker-end="url(#journey-3n8xh-arrowhead)" data-relationship="rail" data-direction="forward" />
+</g>
+<g class="journey-actor-legend">
+  <text x="32" y="118.4" class="journey-actor-legend-title" text-anchor="start" font-size="12" font-weight="600" dy="4.199999999999999" textLength="40.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Actors</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="37" cy="144.4" r="5" data-id="actor-legend-dot:Me" data-role="actor" />
+  <text x="54" y="144.4" class="journey-actor-legend-text" text-anchor="start" font-size="11" font-weight="600" dy="3.8499999999999996" textLength="18.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Me</text>
+</g>
+<g class="journey-section" data-id="section-0" data-label="Work" data-role="section">
+  <rect class="journey-section-bg journey-section-0" x="176" y="73.4" width="444" height="36" rx="6" ry="6" data-id="section-bg:section-0" data-role="section" />
+  <rect class="journey-section-label-band journey-section-band-0" x="182" y="80.4" width="432" height="22" rx="6" ry="6" />
+  <text x="398" y="91.4" class="journey-section-label journey-section-label-0" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999" textLength="32.76" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Work</text>
+</g>
+<path class="journey-curve" d="M248,336.3 C298,336.3 348,316.3 398,316.3 C448,316.3 498,296.3 548,296.3" data-relationship="series" data-direction="undirected" data-id="experience-curve" data-role="series" />
+<g class="journey-task" data-id="task-0" data-score="3" data-section="Work" data-actors="Me" data-role="task">
+  <line class="journey-track" x1="248" y1="200.3" x2="248" y2="448.3" data-relationship="marker-line" data-direction="undirected" />
+  <rect class="journey-task-box" x="186" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-0" data-role="task" />
+  <text x="248" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55" textLength="30.108" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">First</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="248" cy="184.3" r="4" data-id="actor-dot:task-0:Me" data-role="actor" />
+  <g class="journey-score-marker" data-score="3">
+    <circle class="journey-score-face" cx="248" cy="336.3" r="16" />
+    <circle class="journey-face-eye" cx="242.5" cy="331.8" r="2" />
+    <circle class="journey-face-eye" cx="253.5" cy="331.8" r="2" />
+    <path class="journey-face-mouth" d="M240,342.3 L256,342.3" />
+  </g>
+</g>
+<g class="journey-task" data-id="task-1" data-score="3.5" data-section="Work" data-actors="Me" data-role="task">
+  <line class="journey-track" x1="398" y1="200.3" x2="398" y2="448.3" data-relationship="marker-line" data-direction="undirected" />
+  <rect class="journey-task-box" x="336" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-1" data-role="task" />
+  <text x="398" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55" textLength="44.928" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Review</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="398" cy="184.3" r="4" data-id="actor-dot:task-1:Me" data-role="actor" />
+  <g class="journey-score-marker" data-score="3.5">
+    <circle class="journey-score-face" cx="398" cy="316.3" r="16" />
+    <circle class="journey-face-eye" cx="392.5" cy="311.8" r="2" />
+    <circle class="journey-face-eye" cx="403.5" cy="311.8" r="2" />
+    <path class="journey-face-mouth" d="M390,321.3 Q398,327.3 406,321.3" />
+  </g>
+</g>
+<g class="journey-task" data-id="task-2" data-score="4" data-section="Work" data-actors="Me" data-role="task">
+  <line class="journey-track" x1="548" y1="200.3" x2="548" y2="448.3" data-relationship="marker-line" data-direction="undirected" />
+  <rect class="journey-task-box" x="486" y="139.4" width="124" height="60.900000000000006" rx="5" ry="5" data-id="task-box:task-2" data-role="task" />
+  <text x="548" y="159.85" class="journey-task-text" text-anchor="middle" font-size="13" font-weight="500" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Last</text>
+  <circle class="journey-actor-dot journey-actor-0" data-actor="Me" cx="548" cy="184.3" r="4" data-id="actor-dot:task-2:Me" data-role="actor" />
+  <g class="journey-score-marker" data-score="4">
+    <circle class="journey-score-face" cx="548" cy="296.3" r="16" />
+    <circle class="journey-face-eye" cx="542.5" cy="291.8" r="2" />
+    <circle class="journey-face-eye" cx="553.5" cy="291.8" r="2" />
+    <path class="journey-face-mouth" d="M540,301.3 Q548,307.3 556,301.3" />
+  </g>
+</g>
+<text x="340" y="39.7" class="journey-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title" textLength="235.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Fractional Journey scores</text>
+</svg>

@@ -323,7 +323,7 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(capability.features.find(feature => feature.featureId === 'official-doc:timeline:section:direction-v11-14-0')!.surfaces).toEqual({
       agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
     })
-    expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('diagnosed')
+    expect(capability.features.find(feature => feature.family === 'journey')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
@@ -343,6 +343,30 @@ describe('issue #248 construct fidelity receipts', () => {
       replacement: FidelityJson
       additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
     }> = [
+      {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'agent',
+        path: ['score'],
+        replacement: 3,
+      },
+      {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'render',
+        path: ['midpointY'],
+        replacement: false,
+      },
+      {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'serialize',
+        path: ['reparsedScore'],
+        replacement: 3,
+      },
+      {
+        caseId: 'journey.scores.fractional-parser-render-seam',
+        surface: 'mutate',
+        path: ['mutatedScore'],
+        replacement: 4,
+      },
       {
         caseId: 'sankey.links.typed-gradient-endpoints',
         surface: 'render',

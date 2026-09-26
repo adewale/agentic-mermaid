@@ -1,4 +1,5 @@
 import { MermaidFamilyDetectionError, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseJourneyDiagram } from '../../../journey/parser.ts'
 import type {
   ApplicableFidelitySurfaceExpectation,
   FidelityCaseDefinition,
@@ -156,68 +157,65 @@ const journeyFractionalScore: FidelityCaseDefinition = {
   upstreamReference: 'https://mermaid.ai/open-source/syntax/userJourney.html',
   upstreamRevision: UPSTREAM_REVISION,
   expected: {
-    agent: applicable(
-      'source-preserved',
-      evidence => (facts(evidence).bodyKind === 'opaque' ? 'source-preserved' : 'native'),
-      ['UNSUPPORTED_SYNTAX'],
-    ),
-    render: applicable(
-      'diagnosed',
-      evidence => {
-        const semanticFacts = facts(evidence)
-        return semanticFacts.rejectedFractionalScore === true && semanticFacts.verifierDiagnosedRenderFailure === true ? 'diagnosed' : 'absent'
-      },
-      ['RENDER_FAILED'],
-    ),
-    serialize: applicable('source-preserved', evidence => (facts(evidence).exactBytes === true ? 'source-preserved' : 'absent')),
-    mutate: applicable(
-      'diagnosed',
-      evidence => {
-        const semanticFacts = facts(evidence)
-        if (semanticFacts.mutationOk === true) return 'native'
-        return semanticFacts.errorCode === 'INVALID_OP' && semanticFacts.rejectedOpaqueBody === true ? 'diagnosed' : 'absent'
-      },
-      ['INVALID_OP'],
-    ),
+    agent: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.bodyKind === 'journey' && semanticFacts.score === 3.5 ? 'native' : 'absent'
+    }),
+    render: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.nativeScore === 3.5
+        && semanticFacts.exactSvgScore === true
+        && semanticFacts.midpointY === true
+        && semanticFacts.finiteSvg === true ? 'native' : 'absent'
+    }),
+    serialize: applicable('native', evidence => facts(evidence).reparsedScore === 3.5 ? 'native' : 'absent'),
+    mutate: applicable('native', evidence => {
+      const semanticFacts = facts(evidence)
+      return semanticFacts.mutatedScore === 4.25 && semanticFacts.reparsedMutatedScore === 4.25 ? 'native' : 'absent'
+    }),
   },
   observe: () => {
     const parsed = parsedOrThrow(journeyFractionalScoreSource)
-    const verification = verifyMermaid(parsed)
-    let renderError = ''
-    try {
-      renderMermaidSVG(journeyFractionalScoreSource)
-    } catch (error) {
-      renderError = error instanceof Error ? error.message : String(error)
-    }
+    const native = parseJourneyDiagram(journeyFractionalScoreSource.trimEnd().split('\n'))
+    const nativeScore = native.sections[0]?.tasks[0]?.score
+    const svg = renderMermaidSVG(journeyFractionalScoreSource)
+    const markerY = Number(svg.match(/<g class="journey-score-marker" data-score="3\.5">\s*<circle[^>]*\bcy="([^"]+)"/)?.[1])
+    const guideY = new Map([...svg.matchAll(/<line class="journey-guide"[^>]*\by1="([^"]+)"[^>]*\/>\s*<text[^>]*class="journey-score-label"[^>]*>([1-5])<\/text>/g)]
+      .map(match => [Number(match[2]), Number(match[1])]))
+    const tick3Y = guideY.get(3)
+    const tick4Y = guideY.get(4)
     const serialized = serializeMermaid(parsed)
-    const mutation = mutate(parsed, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4 })
-    const verifierDiagnosedRenderFailure = verification.warnings.some(warning => warning.code === 'RENDER_FAILED')
+    const reparsed = parsedOrThrow(serialized)
+    const mutation = mutate(parsed, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4.25 })
+    const reparsedMutation = mutation.ok ? parsedOrThrow(serializeMermaid(mutation.value)) : null
     return {
       agent: {
         status: 'observed',
-        diagnosticCodes: verification.warnings.map(warning => warning.code).filter(code => code === 'UNSUPPORTED_SYNTAX'),
-        semantics: { bodyKind: parsed.body.kind },
+        diagnosticCodes: [],
+        semantics: { bodyKind: parsed.body.kind, score: parsed.body.kind === 'journey' ? parsed.body.sections[0]?.tasks[0]?.score ?? null : null },
       },
       render: {
         status: 'observed',
-        diagnosticCodes: verifierDiagnosedRenderFailure ? ['RENDER_FAILED'] : [],
+        diagnosticCodes: [],
         semantics: {
-          rejectedFractionalScore: renderError.includes('invalid score 3.5'),
-          verifierDiagnosedRenderFailure,
+          nativeScore: nativeScore ?? null,
+          exactSvgScore: svg.includes('class="journey-score-marker" data-score="3.5"'),
+          midpointY: Number.isFinite(markerY) && tick3Y !== undefined && tick4Y !== undefined
+            && tick4Y < markerY && markerY < tick3Y && markerY === (tick3Y + tick4Y) / 2,
+          finiteSvg: !/NaN|Infinity|undefined/.test(svg),
         },
       },
       serialize: {
         status: 'observed',
         diagnosticCodes: [],
-        semantics: { exactBytes: serialized === journeyFractionalScoreSource },
+        semantics: { reparsedScore: reparsed.body.kind === 'journey' ? reparsed.body.sections[0]?.tasks[0]?.score ?? null : null },
       },
       mutate: {
         status: 'observed',
         diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
         semantics: {
-          mutationOk: mutation.ok,
-          errorCode: mutation.ok ? null : mutation.error.code,
-          rejectedOpaqueBody: mutation.ok ? false : mutation.error.message.includes('body kind opaque'),
+          mutatedScore: mutation.ok && mutation.value.body.kind === 'journey' ? mutation.value.body.sections[0]?.tasks[0]?.score ?? null : null,
+          reparsedMutatedScore: reparsedMutation?.body.kind === 'journey' ? reparsedMutation.body.sections[0]?.tasks[0]?.score ?? null : null,
         },
       },
     }

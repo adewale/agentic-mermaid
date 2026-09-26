@@ -558,7 +558,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect((r!.result as any).isError).toBe(false)
     const payload = JSON.parse((r!.result as any).content[0].text)
     expect(payload).toEqual(expect.objectContaining({ ok: true, family: 'journey', detail: 'fields' }))
-    expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'integer 1..5' }))
+    expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'finite number 1..5' }))
   })
   test('transport maximum caps execute even when the request omits timeoutMs', async () => {
     const started = performance.now()

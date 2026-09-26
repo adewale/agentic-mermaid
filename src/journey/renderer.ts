@@ -786,10 +786,12 @@ function mouthPath(marker: PositionedJourneyScoreMarker): string {
   const cx = marker.cx
   const cy = marker.cy
 
-  if (marker.score >= 5) return `M${cx - 8},${cy + 4} Q${cx},${cy + 13} ${cx + 8},${cy + 4}`
-  if (marker.score >= 4) return `M${cx - 8},${cy + 5} Q${cx},${cy + 11} ${cx + 8},${cy + 5}`
+  // Keep Mermaid's sentiment boundary at exactly 3 for fractional scores.
+  // Marker position and data-score retain the exact value.
+  if (marker.score >= 4.5) return `M${cx - 8},${cy + 4} Q${cx},${cy + 13} ${cx + 8},${cy + 4}`
+  if (marker.score > 3) return `M${cx - 8},${cy + 5} Q${cx},${cy + 11} ${cx + 8},${cy + 5}`
   if (marker.score === 3) return `M${cx - 8},${cy + 6} L${cx + 8},${cy + 6}`
-  if (marker.score === 2) return `M${cx - 8},${cy + 10} Q${cx},${cy + 2} ${cx + 8},${cy + 10}`
+  if (marker.score >= 1.5) return `M${cx - 8},${cy + 10} Q${cx},${cy + 2} ${cx + 8},${cy + 10}`
   return `M${cx - 9},${cy + 11} Q${cx},${cy} ${cx + 9},${cy + 11}`
 }
 

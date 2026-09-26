@@ -49,7 +49,7 @@ Know which constraints apply before you author:
   names do not all fit under a vertical chart; verification lists the ones the
   axis does not draw (`LABELS_HIDDEN`), and a horizontal chart lists them down
   the side.
-- **Values have domains.** Journey scores are integers 1–5, quadrant
+- **Values have domains.** Journey scores are finite numbers 1–5, quadrant
   coordinates live in `[0, 1]`, pie values are positive, radar curves carry
   one value per axis. Out-of-domain input falls back to a lossless opaque body
   instead of a wrong render.

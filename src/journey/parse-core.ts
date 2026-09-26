@@ -25,8 +25,14 @@ export const JOURNEY_ACTOR_COLOR_LIMIT = 256
 
 export const JOURNEY_TITLE_RE = /^title\s+(.+)$/i
 export const JOURNEY_SECTION_RE = /^section\s+(.+)$/i
-export const JOURNEY_TASK_RE = /^([^:]+?)\s*:\s*([0-9]+)\s*(?::\s*(.*))?$/
-const TASK_LIKE_RE = /^([^:]+?)\s*:\s*([^:]+?)(?:\s*:\s*.*)?$/
+// Mermaid 11.16 accepts numeric task scores, including decimals and exponent
+// notation. Keep the documented 1..5 range/finite check below as our bounded
+// rendering contract, but do not silently coerce a fractional score to int.
+// Delimiter-anchored captures avoid overlapping lazy text / whitespace
+// quantifiers. normalizeJourneyText and rawScore.trim() strip authored spacing
+// after capture; malformed long lines must not trigger quadratic backtracking.
+export const JOURNEY_TASK_RE = /^([^:]+):\s*([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)\s*(?::\s*(.*))?$/
+const TASK_LIKE_RE = /^([^:]+):\s*([^:]+)(?::\s*(.*))?$/
 
 /** Inline markup normalization shared by every Journey text surface. */
 export function normalizeJourneyLabel(label: string): string {
@@ -58,7 +64,7 @@ export function isJourneyComment(line: string): boolean {
 }
 
 export function isValidJourneyScore(score: number): boolean {
-  return Number.isInteger(score) && score >= JOURNEY_MIN_SCORE && score <= JOURNEY_MAX_SCORE
+  return Number.isFinite(score) && score >= JOURNEY_MIN_SCORE && score <= JOURNEY_MAX_SCORE
 }
 
 export type JourneyIssueCode =
@@ -166,7 +172,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
     const text = normalizeJourneyText(taskMatch[1]!)
     if (!text) return issue('empty_task_text', `Journey task text is empty: "${statement}"`)
     const rawScore = taskMatch[2]!
-    const score = Number.parseInt(rawScore, 10)
+    const score = Number(rawScore)
     if (!isValidJourneyScore(score)) return issue('invalid_score', invalidScoreDetail(text, rawScore))
     const actors = (taskMatch[3] ?? '')
       .split(',')
@@ -190,18 +196,28 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 }
 
 export function invalidScoreDetail(text: string, rawScore: string): string {
-  return `Journey task "${text}" has invalid score ${rawScore}. Expected an integer from ${JOURNEY_MIN_SCORE} through ${JOURNEY_MAX_SCORE}`
+  return `Journey task "${text}" has invalid score ${rawScore}. Expected a finite number from ${JOURNEY_MIN_SCORE} through ${JOURNEY_MAX_SCORE}`
 }
 
 const HTML_ENTITY_RE = /^&(?:[a-zA-Z][a-zA-Z0-9]{1,31}|#[0-9]{1,7}|#x[0-9a-fA-F]{1,6});$/
+// The longest accepted entity is '&' + a 32-character name + ';'. Bounding
+// the candidate before slicing avoids copying a growing prefix at each ';'.
+const MAX_HTML_ENTITY_LENGTH = 34
+
+function closesHtmlEntity(value: string, amp: number, semicolon: number, start = 0): boolean {
+  return amp >= start
+    && semicolon - amp + 1 <= MAX_HTML_ENTITY_LENGTH
+    && HTML_ENTITY_RE.test(value.slice(amp, semicolon + 1))
+}
 
 /** True when text contains a real Journey statement delimiter. Semicolons
  * closing HTML entities are label text, not delimiters. */
 export function hasJourneyStatementDelimiter(value: string): boolean {
+  let lastAmp = -1
   for (let i = 0; i < value.length; i++) {
+    if (value[i] === '&') lastAmp = i
     if (value[i] !== ';') continue
-    const amp = value.lastIndexOf('&', i)
-    if (amp >= 0 && HTML_ENTITY_RE.test(value.slice(amp, i + 1))) continue
+    if (closesHtmlEntity(value, lastAmp, i)) continue
     return true
   }
   return false
@@ -215,12 +231,14 @@ function splitJourneyStatements(line: string): string[] {
   if (!line.includes(';')) return [line.trim()]
   const parts: string[] = []
   let start = 0
+  let lastAmp = -1
   for (let i = 0; i < line.length; i++) {
+    if (line[i] === '&') lastAmp = i
     if (line[i] !== ';') continue
-    const amp = line.lastIndexOf('&', i)
-    if (amp >= start && HTML_ENTITY_RE.test(line.slice(amp, i + 1))) continue
+    if (closesHtmlEntity(line, lastAmp, i, start)) continue
     parts.push(line.slice(start, i))
     start = i + 1
+    lastAmp = -1
   }
   parts.push(line.slice(start))
   return parts.map(part => part.trim()).filter(part => part && !isJourneyComment(part))

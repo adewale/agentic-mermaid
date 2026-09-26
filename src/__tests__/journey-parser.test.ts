@@ -149,8 +149,8 @@ describe('parseJourneyDiagram', () => {
       Do work: 6: Me`)).toThrow('invalid score 6')
   })
 
-  it('throws targeted errors for non-integer Journey scores', () => {
-    for (const rawScore of ['0', '3.5', '-1', 'high']) {
+  it('throws targeted errors for out-of-range or non-numeric Journey scores', () => {
+    for (const rawScore of ['0', '0.5', '5.1', '-1', 'high']) {
       expect(() => parse(`journey
         section Work
         Do work: ${rawScore}: Me`)).toThrow(`invalid score ${rawScore}`)

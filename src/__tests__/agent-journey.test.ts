@@ -150,7 +150,7 @@ describe('journey structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
     ['unclosed accDescr block', 'journey\n  accDescr {\n    Accessible\n  Wake: 3: Me'],
     ['out-of-range score', 'journey\n  Wake: 9: Me'],
-    ['non-integer score line', 'journey\n  Wake: high: Me'],
+    ['non-numeric score line', 'journey\n  Wake: high: Me'],
     ['header suffix', 'journey EXTRA\n  Alpha: 3: Me'],
     ['no modeled content', 'journey\n  %% comment only'],
     ['unknown colonless body line', 'journey\n  section S\n  nonsense\n  Task: 3: Me'],

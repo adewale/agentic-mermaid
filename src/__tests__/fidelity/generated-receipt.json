@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "646ac44c3d4f31df7554a8866e49f19ce9f4ca85cb3f65ce8e644d43ec73da65",
+    "inputSha256": "04c20c725550bb16181be16c6697138614070db35b3c0c846e26caf5829cbda1",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -108,7 +108,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "ee4f0751717db2e0642d6f5abf23a6e76322a262446bb7ee2956f4159537042e"
+        "sha256": "4b477222fe056e1916f6bc77350ff344b47a3bf40c1c925dd08e2ff1d1aa04af"
       },
       {
         "path": "src/__tests__/fidelity/cases/timeline-direction.fidelity.ts",
@@ -1362,72 +1362,62 @@
       "expected": {
         "agent": {
           "applicability": "applicable",
-          "disposition": "source-preserved",
-          "diagnosticCodes": [
-            "UNSUPPORTED_SYNTAX"
-          ]
+          "disposition": "native",
+          "diagnosticCodes": []
         },
         "render": {
           "applicability": "applicable",
-          "disposition": "diagnosed",
-          "diagnosticCodes": [
-            "RENDER_FAILED"
-          ]
+          "disposition": "native",
+          "diagnosticCodes": []
         },
         "serialize": {
           "applicability": "applicable",
-          "disposition": "source-preserved",
+          "disposition": "native",
           "diagnosticCodes": []
         },
         "mutate": {
           "applicability": "applicable",
-          "disposition": "diagnosed",
-          "diagnosticCodes": [
-            "INVALID_OP"
-          ]
+          "disposition": "native",
+          "diagnosticCodes": []
         }
       },
       "observations": {
         "agent": {
           "status": "observed",
-          "diagnosticCodes": [
-            "UNSUPPORTED_SYNTAX"
-          ],
+          "diagnosticCodes": [],
           "semantics": {
-            "bodyKind": "opaque"
+            "bodyKind": "journey",
+            "score": 3.5
           },
-          "disposition": "source-preserved"
+          "disposition": "native"
         },
         "render": {
           "status": "observed",
-          "diagnosticCodes": [
-            "RENDER_FAILED"
-          ],
+          "diagnosticCodes": [],
           "semantics": {
-            "rejectedFractionalScore": true,
-            "verifierDiagnosedRenderFailure": true
+            "exactSvgScore": true,
+            "finiteSvg": true,
+            "midpointY": true,
+            "nativeScore": 3.5
           },
-          "disposition": "diagnosed"
+          "disposition": "native"
         },
         "serialize": {
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
-            "exactBytes": true
+            "reparsedScore": 3.5
           },
-          "disposition": "source-preserved"
+          "disposition": "native"
         },
         "mutate": {
           "status": "observed",
-          "diagnosticCodes": [
-            "INVALID_OP"
-          ],
+          "diagnosticCodes": [],
           "semantics": {
-            "errorCode": "INVALID_OP",
-            "mutationOk": false,
-            "rejectedOpaqueBody": true
+            "mutatedScore": 4.25,
+            "reparsedMutatedScore": 4.25
           },
-          "disposition": "diagnosed"
+          "disposition": "native"
         }
       },
       "passed": true,

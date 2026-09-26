@@ -29,7 +29,7 @@ export interface JourneySection {
 export interface JourneyTask {
   id: string
   text: string
-  /** Satisfaction score on a 1..5 scale */
+  /** Finite satisfaction score on a 1..5 scale, including fractions. */
   score: number
   /** Optional actors attached to the task */
   actors: string[]

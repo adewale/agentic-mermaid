@@ -41,10 +41,13 @@ function renderStyledLine(
 function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] {
   const filled = useAscii ? '#' : '●'
   const empty = useAscii ? '.' : '○'
+  const whole = Math.floor(score)
+  const hasFraction = !Number.isInteger(score)
 
   const segments: StyledSegment[] = [
-    { text: filled.repeat(score), role: 'arrow' },
-    { text: empty.repeat(5 - score), role: 'border' },
+    { text: filled.repeat(whole), role: 'arrow' },
+    ...(hasFraction ? [{ text: useAscii ? '+' : '◐', role: 'arrow' as const }] : []),
+    { text: empty.repeat(5 - whole - Number(hasFraction)), role: 'border' },
   ]
   return segments.filter(segment => segment.text.length > 0)
 }
@@ -56,13 +59,18 @@ const SCORE_BLOCKS = ['▁', '▂', '▄', '▆', '█'] as const
  * Score trajectory strip — one glyph per task in source order, a single
  * space between sections. Mirrors the SVG renderer's experience curve so
  * terminal output conveys the trajectory too. ASCII mode uses the score
- * digits themselves. Scores are parser-validated to the 1..5 range.
+ * digits themselves. Fractional scores are separated in ASCII mode to avoid
+ * concatenation ambiguity; the per-task label also carries the exact value.
+ * Scores are parser-validated to the finite 1..5 range.
  */
 function renderScoreStrip(diagram: JourneyDiagram, useAscii: boolean): string {
   return diagram.sections
-    .map(section => section.tasks
-      .map(task => useAscii ? String(task.score) : SCORE_BLOCKS[task.score - 1]!)
-      .join(''))
+    .map(section => {
+      const hasFraction = section.tasks.some(task => !Number.isInteger(task.score))
+      return section.tasks
+        .map(task => useAscii ? String(task.score) : SCORE_BLOCKS[Math.round(task.score) - 1]!)
+        .join(useAscii && hasFraction ? ' ' : '')
+    })
     .filter(group => group.length > 0)
     .join(' ')
 }
@@ -140,7 +148,8 @@ export function renderJourneyAscii(
       const scoreSegments = renderScoreSegments(task.score, useAscii)
       const scoreWidth = 5
       const taskPrefixWidth = scoreWidth + 1
-      const taskLines = wrapText(stripFormattingTags(task.text), maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
+      const exactScore = Number.isInteger(task.score) ? '' : ` (score ${task.score})`
+      const taskLines = wrapText(stripFormattingTags(task.text) + exactScore, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
 
       pushLine([
         ...scoreSegments,

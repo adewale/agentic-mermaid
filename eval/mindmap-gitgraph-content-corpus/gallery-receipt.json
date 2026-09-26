@@ -124,7 +124,7 @@
     },
     {
       "path": "src/agent/facts.ts",
-      "sha256": "a81897e8f7d82c1203ed8721794bce764c44770279adca30c9fc4dcaa497af4e"
+      "sha256": "ed1211b5db5f32b47a591b17c0707fa579edf9cdfb482e1a3cdb5243aecb2678"
     },
     {
       "path": "src/agent/families-builtin.ts",
@@ -180,7 +180,7 @@
     },
     {
       "path": "src/agent/journey-body.ts",
-      "sha256": "6f545b3d985893b7eaa4bec8808ab7ee97e5bcbcba6bbe6942e40ea683a332a4"
+      "sha256": "a6bff37207fd95ca754aab229b65f92bf315ab6a0c41311131f72021e9fdb3d3"
     },
     {
       "path": "src/agent/label-metrics.ts",
@@ -204,7 +204,7 @@
     },
     {
       "path": "src/agent/op-schema.ts",
-      "sha256": "41bb8002718572fe69102d5087f611e6f1182c6a3e548997a1cf1cc17ccef44d"
+      "sha256": "6290bd367f172ded1859472d0d379a5cc66194a40abacd6727596936ff053f7e"
     },
     {
       "path": "src/agent/opaque-segments.ts",
@@ -272,7 +272,7 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "4672e1e044b3ffd21a90ec480eeceb83558d1ebcfb4b6359caf1c1bcdb539a5e"
+      "sha256": "09120ef5b5d5cb5668db6fd2dbb0410c16455ede2e523280a5325ec9fd0dc8a8"
     },
     {
       "path": "src/agent/verify.ts",
@@ -364,7 +364,7 @@
     },
     {
       "path": "src/ascii/journey.ts",
-      "sha256": "c2c1112419b5d087c87ae7697be618f3fb4eb7a7e97e1734be3cc4a793ffad0a"
+      "sha256": "243a109c44b6c1b26cfb6239d9809f5074809c9db78d65d444a6e7f692173afb"
     },
     {
       "path": "src/ascii/meta.ts",
@@ -612,7 +612,7 @@
     },
     {
       "path": "src/journey/parse-core.ts",
-      "sha256": "0e7e494d79ab62cac87e11a32b508836342c3dccecac4f9771561797c6c4b7c4"
+      "sha256": "c5abcdbaf206962558cc9ac4e8c0a0fa136a1eee7dbe52a4d9437fc5ed5677f2"
     },
     {
       "path": "src/journey/parser.ts",
@@ -620,11 +620,11 @@
     },
     {
       "path": "src/journey/renderer.ts",
-      "sha256": "e7528c58e4214ef7e5e2f26f1b01f90c45e65dcd74fa43d38fcb1f092ac9cd37"
+      "sha256": "ebd31330b91b0b4c3cf0658242d919a5a9e1e85e41302439c209b2d7c5d58db2"
     },
     {
       "path": "src/journey/types.ts",
-      "sha256": "a9bd5fc10b8dc24218c81530de650442294c0191aa2628a28e83e8fed1bd1f51"
+      "sha256": "13c2a9262ce6472eaa5b0b5de72a039b2d9f6e2d61a71c7a602e567cfc4225b4"
     },
     {
       "path": "src/layout-engine.ts",
@@ -728,7 +728,7 @@
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "efdf99dd07601e95bcc7be43242ff808ce38c4cfee687a8d65c8838ef7a62b91"
+      "sha256": "ed160ae225d8a103d4efc88625777a35eb667d608ef464f29fca6f76a5fd8ccd"
     },
     {
       "path": "src/pie/types.ts",
@@ -980,7 +980,7 @@
     },
     {
       "path": "src/sequence/colors.ts",
-      "sha256": "eb25ba5493c2f8c584457ee8213ae2614012b994a3b22be214749c26dfeabda7"
+      "sha256": "6ae932e6c9d15a5af8de17c0c95413ad486f652e31b45d42aff1bba9acca25d6"
     },
     {
       "path": "src/sequence/config.ts",
@@ -992,7 +992,7 @@
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "048087bfc631bf12905a3ee19e7e322e61492686b11680bd03ad4dea4b1a3e30"
+      "sha256": "d46805de81cbc93cdf7455a46535e47f0262d7371540402da20dc8b5b545910b"
     },
     {
       "path": "src/sequence/renderer.ts",
@@ -1000,7 +1000,7 @@
     },
     {
       "path": "src/sequence/statements.ts",
-      "sha256": "c408f84d5a70fd9a1de5a30d69f5300db704817a912db7c48091c8de5c03139d"
+      "sha256": "3fec6f4bf6e0f804494f748c58f0ed1e7a0d74ac979f5ee4185d4ce1c0fbee47"
     },
     {
       "path": "src/sequence/types.ts",
@@ -1024,7 +1024,7 @@
     },
     {
       "path": "src/shared/color-math.ts",
-      "sha256": "9b962250666056106236285debdda7f7e913d3f154d4c7ca75c27b6bb48ab18c"
+      "sha256": "ce24d6b27e27ea1918c0cd1db750184e9362cc3a0756c3b311479a5cf9cc5a8b"
     },
     {
       "path": "src/shared/config-wire-or-warn.ts",
@@ -1040,7 +1040,7 @@
     },
     {
       "path": "src/shared/css-named-colors.ts",
-      "sha256": "c969e1d92981766731171dcaa645a0c8e1efadfe48cd6b22e8e3a47532fe6df2"
+      "sha256": "8a1fa9e04009325ea44a0b67a6793f7eafdedc43cb5fb394817302bb6a7fa33c"
     },
     {
       "path": "src/shared/deterministic-order.ts",
