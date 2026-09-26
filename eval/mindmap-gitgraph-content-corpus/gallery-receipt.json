@@ -252,7 +252,7 @@
     },
     {
       "path": "src/agent/source-map-spans.ts",
-      "sha256": "690cda17ff12430a4027247b1e3498d3424c37f8bb43929cb5b53a5e04c9c511"
+      "sha256": "a32415eed217b6f5f74f7a53b6685aeee881ac25cb990514be702abd6b6f7775"
     },
     {
       "path": "src/agent/state-body.ts",
@@ -272,11 +272,11 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "dc58331a1abdaa825ad593f456609e332d49dd90af014745f4f382de8d154e30"
+      "sha256": "522e15dd3b792f16b63f507cb85330435c8fae81fbf1fcbd844fe5364023fc0e"
     },
     {
       "path": "src/agent/verify.ts",
-      "sha256": "511e4605282f126bc4658746bb85ab2c9fe442cef0bd2e1b5104c7f426c723e1"
+      "sha256": "a65c85f36484fd71245ece4044d2cd21b8281abbd39202e764e8285f1e605861"
     },
     {
       "path": "src/agent/xychart-body.ts",
@@ -612,7 +612,7 @@
     },
     {
       "path": "src/journey/parse-core.ts",
-      "sha256": "a0d33cbb1b5fa37d6bde4b77f4be1aba7dc0c8d695b52b559ad96dd161518c4e"
+      "sha256": "2a820dbd8d2979abc7f89dcb6b908d54dde1df963cd04f006df3c5fa7be37981"
     },
     {
       "path": "src/journey/parser.ts",

@@ -38,7 +38,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Journey delimiter hardening changes generated demo bytes without adding
     // a request. These ceilings cover the reviewed Linux/x64 capture.
     maxRawBytes: 732_417,
-    maxGzipBytes: 274_900,
+    maxGzipBytes: 274_787,
     maxBrotliBytes: 250_957,
     required: Object.freeze([
       '^/demo/$',
@@ -64,11 +64,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // The Journey extension audit fixes retain authored line provenance and
     // move extension evidence outside the upstream capability projection.
-    // The two-request graph is unchanged. The temporary capture ceilings
-    // below will be ratcheted to the fresh Linux/x64 and macOS/arm64 readings.
-    maxRawBytes: 3_358_000,
-    maxGzipBytes: 990_000,
-    maxBrotliBytes: 778_000,
+    // The two-request graph is unchanged. Raw and gzip limits equal the
+    // refreshed Linux/x64 and macOS/arm64 readings; Brotli covers the larger
+    // macOS recording while Linux's exact total is pinned in the baseline.
+    maxRawBytes: 3_357_622,
+    maxGzipBytes: 989_750,
+    maxBrotliBytes: 777_437,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
