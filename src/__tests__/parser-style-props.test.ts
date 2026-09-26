@@ -64,6 +64,15 @@ describe('an authored paint the renderer cannot draw', () => {
     }
   })
 
+  test('is refused even where the element never draws it', () => {
+    // An edge draws only its stroke, but a bad fill or label color is still the author's mistake.
+    for (const property of ['fill', 'color']) {
+      expect(() => renderMermaidSVG(`flowchart TD\n  A --> B\n  linkStyle 0 ${property}:#12345`)).toThrow(
+        `linkStyle 0: ${property} "#12345" is not a CSS color — expected`,
+      )
+    }
+  })
+
   test('verify reports that message alone', () => {
     const verified = verifyMermaid('flowchart TD\n  A --> B\n  style A fill:#12345')
     expect(verified.ok).toBe(false)
