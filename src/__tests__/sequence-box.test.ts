@@ -139,6 +139,29 @@ describe('parseSequenceDiagram – box groups', () => {
     expect(d.boxes![0]!.label).toBe('Backend Services')
   })
 
+  it('keeps a first word that only looks like a color in the label', () => {
+    for (const header of ['rgb(x) Team', 'rgb(1, 2) Team', 'constructor Team']) {
+      const d = parse(`sequenceDiagram
+        box ${header}
+          participant A
+        end
+        A->>A: ping`)
+      expect(d.boxes![0]!.color).toBeUndefined()
+      expect(d.boxes![0]!.label).toBe(header)
+    }
+  })
+
+  it('reads a # word that is not a hex color as a comment, as Mermaid does', () => {
+    const d = parse(`sequenceDiagram
+      box #12345 Team
+        participant A
+      end
+      A->>A: ping`)
+    expect(d.boxes![0]!.color).toBeUndefined()
+    expect(d.boxes![0]!.label).toBeUndefined()
+    expect(d.boxes![0]!.actorIds).toEqual(['A'])
+  })
+
   it('box end does not interfere with block end', () => {
     const d = parse(`sequenceDiagram
       box Team
