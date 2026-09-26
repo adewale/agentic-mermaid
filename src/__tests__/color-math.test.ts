@@ -63,14 +63,19 @@ describe('shared color math', () => {
     expect(tryParseHex('#3b82f6')).toEqual([0x3b, 0x82, 0xf6])
     expect(tryParseHex('#abc')).toEqual([0xaa, 0xbb, 0xcc])
     expect(tryParseHex('#3b82f6ff')).toEqual([0x3b, 0x82, 0xf6])
+    expect(tryParseHex('#3b82')).toEqual([0x33, 0xbb, 0x88])
     expect(tryParseHex('3b82f6')).toBeNull()
-    expect(tryParseHex('#3b82')).toBeNull()
+    expect(tryParseHex('#3b82f')).toBeNull()
+    expect(tryParseHex('#3b82f6f')).toBeNull()
     expect(tryParseHex('#xyzxyz')).toBeNull()
   })
 
   test('validators: every strict hex is also a loose hex', () => {
     fc.assert(fc.property(hexColor, c => isSixDigitHex(c) && isHexColor(c)))
     expect(isHexColor('#abc')).toBe(true)
+    expect(isHexColor('#abcd')).toBe(true)
+    expect(isHexColor('#12345')).toBe(false)
+    expect(isHexColor('#1234567')).toBe(false)
     expect(isSixDigitHex('#abc')).toBe(false)
   })
 

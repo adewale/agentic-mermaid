@@ -229,7 +229,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // that look like colors.
       const fnColor = rest.match(/^((?:rgb|rgba|hsl|hsla)\([^)]*\))\s*(.*)$/i)
       let label = rest
-      if (fnColor) {
+      if (fnColor && isCssColorToken(fnColor[1]!)) {
         box.color = fnColor[1]!
         label = fnColor[2]?.trim() ?? ''
       } else {

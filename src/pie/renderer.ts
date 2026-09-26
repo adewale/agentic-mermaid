@@ -220,7 +220,7 @@ export function lowerPieScene(
     const pageInk = style.nodeTextColor ?? colors.fg
     const fill = visual.sectionTextColor ?? (surface === undefined
       ? dimmed ? pageInk : contrastTextColor(fills[index]!) ?? pageInk
-      : dimmed ? legibleInk(resolvedColorValue(pageInk, colors) ?? pageInk, surface) : contrastTextColor(surface)!)
+      : dimmed ? legibleInk(resolvedColorValue(pageInk, colors) ?? pageInk, surface) : contrastTextColor(surface) ?? pageInk)
     parts.push(marks.text(
       {
         id: occurrenceId('slice-label', slice.label),

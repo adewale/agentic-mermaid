@@ -29,9 +29,10 @@ export function parseHex(hex: string): [number, number, number] {
   ]
 }
 
-/** Validating parse: [r, g, b] for #RGB/#RRGGBB/#RRGGBBAA, else null. */
+/** Validating parse: [r, g, b] for exactly the forms `isHexColor` admits
+ * (#RGB, #RGBA, #RRGGBB, #RRGGBBAA; alpha ignored), else null. */
 export function tryParseHex(hex: string): [number, number, number] | null {
-  if (!/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(hex)) return null
+  if (!isHexColor(hex)) return null
   return parseHex(hex)
 }
 
@@ -121,9 +122,10 @@ export function legibleInk(preferred: string, surface: string, minimum: number =
   return ensureContrast(preferred, surface, minimum)
 }
 
-/** Loose CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. */
+/** Loose CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. Five and seven
+ * digits are not CSS colors, so they are not admitted either. */
 export function isHexColor(s: string): boolean {
-  return /^#[0-9a-fA-F]{3,8}$/.test(s)
+  return /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(s)
 }
 
 /** Strict 6-digit hex form (#RRGGBB) — what the chart palettes require. */
