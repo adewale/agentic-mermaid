@@ -34,13 +34,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
-    maxRequests: 31,
-    // Journey delimiter hardening changes generated demo bytes without adding
-    // a request. These ceilings cover the reviewed Linux/x64 capture.
-    // Temporary capture ceilings; ratchet to fresh Linux and macOS totals.
-    maxRawBytes: 733_000,
-    maxGzipBytes: 275_000,
-    maxBrotliBytes: 251_500,
+    maxRequests: 30,
+    // The shared accDescr scanner removes one lazy chunk without changing
+    // rendered pixels. These are the reviewed Linux/x64 and macOS/arm64 totals.
+    maxRawBytes: 732_232,
+    maxGzipBytes: 274_647,
+    maxBrotliBytes: 250_742,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -65,13 +64,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // The Journey extension audit fixes retain authored line provenance and
     // move extension evidence outside the upstream capability projection.
-    // The two-request graph is unchanged. Raw and gzip limits equal the
-    // refreshed Linux/x64 and macOS/arm64 readings; Brotli covers the larger
-    // macOS recording while Linux's exact total is pinned in the baseline.
-    // Temporary capture ceilings; ratchet to fresh Linux and macOS totals.
-    maxRawBytes: 3_358_000,
-    maxGzipBytes: 990_000,
-    maxBrotliBytes: 778_000,
+    // The shared accDescr scanner leaves the two-request graph unchanged.
+    // These are the reviewed Linux/x64 and macOS/arm64 totals.
+    maxRawBytes: 3_357_530,
+    maxGzipBytes: 989_752,
+    maxBrotliBytes: 777_290,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
