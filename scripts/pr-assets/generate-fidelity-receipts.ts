@@ -8,11 +8,13 @@ import {
 import { projectFidelityCapabilityReport } from '../../src/__tests__/fidelity/projector.ts'
 import { discoverFidelityRegistry } from '../../src/__tests__/fidelity/registry.ts'
 import { runFidelityCases } from '../../src/__tests__/fidelity/runner.ts'
+import { observeJourneyExtensionReceipt } from '../../src/__tests__/journey-extension-receipt.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../src/upstream-mermaid-manifest.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const RECEIPT_OUTPUT = join(ROOT, 'src', '__tests__', 'fidelity', 'generated-receipt.json')
 const CAPABILITY_OUTPUT = join(ROOT, 'docs', 'project', 'fidelity-capability-report.json')
+const EXTENSION_OUTPUT = join(ROOT, 'docs', 'project', 'agentic-extension-receipts.json')
 const CITIZENSHIP_OUTPUT = join(ROOT, 'docs', 'contributing', 'diagram-family-citizenship.matrix.json')
 
 function json(value: unknown): string {
@@ -91,6 +93,7 @@ async function generatedArtifacts(): Promise<readonly [string, string][]> {
   return [
     [RECEIPT_OUTPUT, json(receipt)],
     [CAPABILITY_OUTPUT, json(capability)],
+    [EXTENSION_OUTPUT, json({ schemaVersion: 1, extensions: [observeJourneyExtensionReceipt()] })],
     [CITIZENSHIP_OUTPUT, projectFidelityCitizenship(readFileSync(CITIZENSHIP_OUTPUT, 'utf8'), capability)],
   ]
 }

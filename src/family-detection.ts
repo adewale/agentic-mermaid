@@ -13,6 +13,7 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
+import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =
   | { kind: 'registered'; familyId: FamilyId }
@@ -93,41 +94,34 @@ function accessibilityDirectiveSpans(
   bodyStart: number,
   lineStarts = sourceLineStarts(source),
 ): readonly SourceSpan[] {
-  const body = source.slice(bodyStart)
-  const blocks = matchingSpans(
-    body,
-    // Stop at the closing brace. A family statement may legally follow that
-    // brace on the same physical line and must remain visible to source maps.
-    /^[ \t]*accDescr\s*:?\s*\{[\s\S]*?\}/gmi,
-    bodyStart,
-    lineStarts,
-  )
-  const lines = matchingSpans(
-    body,
-    /^[ \t]*(?:accTitle(?:\s*:\s*|\s+).*|accDescr(?!\s*:?\s*\{)(?:\s*:\s*|\s+).*)(?:\r?\n|$)/gmi,
-    bodyStart,
-    lineStarts,
-  )
-  let blockIndex = 0
-  const uncoveredLines: SourceSpan[] = []
-  for (const line of lines) {
-    while (blocks[blockIndex] && blocks[blockIndex]!.end.offset <= line.start.offset) blockIndex++
-    const block = blocks[blockIndex]
-    if (block && line.start.offset >= block.start.offset && line.end.offset <= block.end.offset) continue
-    uncoveredLines.push(line)
+  const physicalLines = source.slice(bodyStart).split('\n')
+  const lines = physicalLines.map(line => line.endsWith('\r') ? line.slice(0, -1) : line)
+  const offsets: number[] = []
+  let offset = bodyStart
+  for (const line of physicalLines) {
+    offsets.push(offset)
+    offset += line.length + 1
   }
-  const merged: SourceSpan[] = []
-  let blockCursor = 0
-  let lineCursor = 0
-  while (blockCursor < blocks.length || lineCursor < uncoveredLines.length) {
-    if (lineCursor >= uncoveredLines.length
-      || (blockCursor < blocks.length && blocks[blockCursor]!.start.offset <= uncoveredLines[lineCursor]!.start.offset)) {
-      merged.push(blocks[blockCursor++]!)
+  const spans: SourceSpan[] = []
+  for (let index = 0; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    // An unclosed block consumes the remainder of the source. Continuing
+    // would rescan that suffix for every later opener (quadratic work).
+    if (directive === undefined) break
+    if (directive === null) continue
+    const start = offsets[index]!
+    let end: number
+    if (directive.form === 'block') {
+      // Stop at the first closing brace. A family statement after it stays
+      // visible to source maps, exactly as it does to source normalization.
+      end = offsets[directive.endIndex]! + lines[directive.endIndex]!.indexOf('}') + 1
     } else {
-      merged.push(uncoveredLines[lineCursor++]!)
+      end = start + physicalLines[index]!.length + (index < lines.length - 1 ? 1 : 0)
     }
+    spans.push(sourceSpan(lineStarts, start, end))
+    index = directive.endIndex
   }
-  return Object.freeze(merged)
+  return Object.freeze(spans)
 }
 
 function universalDirectiveSpans(
