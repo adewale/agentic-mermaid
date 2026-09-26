@@ -953,13 +953,15 @@ describe('skill eval manifest coverage', () => {
 
 describe('shipped distribution artifacts present', () => {
   test('skill bundle + workflow + examples', () => {
-    // No committed Claude hooks/settings or bundled agents/worktrees may ship.
+    // .claude may track ONLY the shared SessionStart hook registration
+    // (.claude/settings.json, which runs scripts/ci/session-start.sh in cloud
+    // sessions). No personal settings, bundled agents or worktrees may ship.
     // Check what Git TRACKS, not what sits on disk: agent harnesses drop
     // untracked session files (settings.local.json, task locks) into .claude/
     // and a disk-based check fails on developer machines for files that could
     // never ship.
     const trackedClaude = spawnSync('git', ['ls-files', '.claude'], { cwd: REPO, encoding: 'utf8' })
-    expect((trackedClaude.stdout ?? '').trim()).toBe('')
+    expect((trackedClaude.stdout ?? '').trim()).toBe('.claude/settings.json')
     const trackedAgents = spawnSync('git', ['ls-files', '.agents'], { cwd: REPO, encoding: 'utf8' })
     expect((trackedAgents.stdout ?? '').trim()).toBe('')
     expect(existsSync(join(REPO, 'skills/README.md'))).toBe(true)

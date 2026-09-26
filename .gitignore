@@ -54,7 +54,8 @@ dist/am
 
 # Claude Code agent worktrees + personal settings (session-transient, never ship).
 # Exception: the shared SessionStart hook (.claude/settings.json) IS committed so
-# fresh web/CI sessions run `bun install` before the suite (testing-tools #1).
+# cloud sessions get Bun 1.4.0+ and run `bun install` before the suite
+# (scripts/ci/session-start.sh).
 .claude/*
 !.claude/settings.json
 
