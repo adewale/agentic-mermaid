@@ -10,7 +10,7 @@
     "observationAfterReadyMs": 1500
   },
   "toolchain": {
-    "bun": "1.3.13",
+    "bun": "1.4.2",
     "playwright": "1.58.2",
     "chromium": "145.0.7632.6",
     "platform": "linux",
@@ -444,25 +444,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "4b9d24cb259f51cda5e51d4d5453609420cd252a43ff88fc788c01195a35d397",
+          "sha256": "e5871d2c1735d28f9125030872e3e26d343d57d270ce7b3bc58c9d94833a4a44",
           "rawBytes": 102590,
           "gzipBytes": 18090,
-          "brotliBytes": 15365
+          "brotliBytes": 15351
         },
         {
-          "path": "/editor/editor-db74fa79ff42.js",
+          "path": "/editor/editor-63474770b393.js",
           "count": 1,
-          "sha256": "950a3adc46d022d1fcd522964922669d08dc73d920f121058b3a693ac6b06619",
-          "rawBytes": 3254082,
-          "gzipBytes": 971348,
-          "brotliBytes": 761317
+          "sha256": "271e416d88060a86a48bacfcd2ac4a6be09fe1883db18bdb3d1a75fae131a268",
+          "rawBytes": 3249312,
+          "gzipBytes": 966868,
+          "brotliBytes": 759354
         }
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3356672,
-        "gzipBytes": 989438,
-        "brotliBytes": 776682
+        "rawBytes": 3351902,
+        "gzipBytes": 984958,
+        "brotliBytes": 774705
       }
     }
   ]

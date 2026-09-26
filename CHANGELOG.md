@@ -11,9 +11,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   identifiers instead of silently treating them as labels.
 - Canonicalized IPv6 MCP origins, recognized loopback literals, and corrected
   package-runner quickstarts to invoke the published package and `mcp` command.
-- Fixed the local MCP server hanging at 100% CPU when a client sent
-  `render_png` alongside Code Mode `execute`; other tools now wait until Bun
-  has disarmed the sandbox's `node:vm` watchdog before they run.
+- Fixed the local MCP server hanging at 100% CPU, or crashing, when a client
+  sent `render_png` alongside Code Mode `execute`. Bun releases before 1.4.0
+  left a `node:vm` `timeout` armed after the call returned, and it killed the
+  host code that ran next. On Bun, the MCP server now requires 1.4.0 or later
+  and exits with an explanation on older releases, and `execute` refuses to
+  run on them. The startup PNG warm-up, which only masked the same defect, is
+  removed.
 - Updated React browser recipes to use the lazy browser entry, with asynchronous
   loading, cancellation, and visible error handling.
 
@@ -40,6 +44,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   GHSA-4cwx-7wf7-3272.
 - Pinned transitive `ip-address` to 10.3.1 for
   GHSA-mwp4-54f8-5fhr.
+- CI, release, and deploy now run on Bun 1.4.2 (was 1.3.13), and
+  `package.json` declares `engines.bun` `>=1.4.0`. The website payload
+  baseline was re-recorded on Bun 1.4.2; only the editor bundle changed
+  (4,770 raw bytes smaller).
 
 ## 0.4.0 — 2026-07-28
 

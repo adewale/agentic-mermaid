@@ -1,6 +1,7 @@
 // Code Mode sandbox: run agent-supplied JavaScript in a node:vm context.
 
 import vm from 'node:vm'
+import { unsupportedBunReason } from './bun-version.ts'
 import { createTracingMermaid, expressionFirstWraps, unsupportedCodeReason, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
 import {
   DEFAULT_EXECUTE_TIMEOUT_MS,
@@ -24,42 +25,8 @@ const MIN_BUN_SDK_TIMEOUT_MS = 1_000
 // only the hardened mermaid facade and a logging console.
 const SAFE_GLOBALS = {}
 
-// Bun defect (verified on 1.3.13/1.3.14): the node:vm `timeout` watchdog is
-// NOT disarmed when the script completes — at its original deadline it
-// uncatchably terminates whatever host JS is running, which killed CPU-heavy
-// synchronous work that followed a sandbox call. One macrotask turn fully
-// disarms it; microtasks (`await Promise.resolve()`) do not. Keep the
-// `timeout` option itself — it is a security boundary.
-//
-// The deadline left armed is the last vm call's — 50ms of CPU time from
-// readLogs, not the execute budget — so even a short render can overrun it.
-// Once terminated, Bun runs no more JS: the process spins and never exits
-// (Bun 1.3.11 panics instead). Node is unaffected. The turn therefore
-// has to hold back concurrent host work too: an MCP client that sends
-// `render_png` beside `execute` otherwise renders in the same microtask
-// checkpoint, is terminated mid-render, and leaves the stdio server spinning
-// without answering.
-let pendingWatchdogTurn: Promise<void> | null = null
-
-/** Run `work` once no sandbox call is waiting for the turn that disarms its watchdog. */
-export async function whenSandboxWatchdogDisarmed<T>(work: () => T | Promise<T>): Promise<T> {
-  // A later sandbox call can arm a new turn while this one waits, so re-check;
-  // `work` starts in the same synchronous step as the final check.
-  while (pendingWatchdogTurn) await pendingWatchdogTurn
-  return work()
-}
-
 export async function executeInSandbox(code: string, opts: ExecuteOptions = {}): Promise<ExecuteResult> {
-  return whenSandboxWatchdogDisarmed(async () => {
-    try {
-      return runInSandbox(code, opts)
-    } finally {
-      const turn = new Promise<void>(resolve => setTimeout(resolve, 0))
-      pendingWatchdogTurn = turn
-      await turn
-      if (pendingWatchdogTurn === turn) pendingWatchdogTurn = null
-    }
-  })
+  return runInSandbox(code, opts)
 }
 
 function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
@@ -69,7 +36,9 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   const remainingBudgetMs = () => Math.floor(timeoutMs - (performance.now() - startedAt))
   const trace: ExecutionTraceCall[] = []
   const early = (error: string): ExecuteResult => opts.trace ? { ok: false, error, logs: [], trace } : { ok: false, error, logs: [] }
-  const unsupported = unsupportedCodeReason(code)
+  // The `timeout` option below is a security boundary, and only Bun 1.4.0+
+  // honors it without outliving the call (see bun-version.ts).
+  const unsupported = unsupportedBunReason() ?? unsupportedCodeReason(code)
   if (unsupported) return early(unsupported)
   const sandbox: Record<string, unknown> = {
     ...SAFE_GLOBALS,

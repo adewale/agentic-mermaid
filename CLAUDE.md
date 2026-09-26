@@ -11,7 +11,8 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 
 ## Commands
 
-- `bun install` — install dependencies.
+- `bun install` — install dependencies. Requires Bun 1.4.0 or later (CI pins 1.4.2);
+  older Bun mishandles `node:vm` timeouts and the MCP server refuses to start.
 - `bun run test` — run the full covered unit suite with the canonical timeout (the CI gate). fast-check
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).

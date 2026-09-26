@@ -150,9 +150,9 @@ describe('MCP — render_png tool', () => {
   })
 
   // Regression: a real client session that runs Code Mode `execute` (a node:vm
-  // sandbox) and then `render_png` must not crash the server. On Bun, loading
-  // the native resvg addon for the first time after a vm context has run panics
-  // the process; runStdio warms the renderer at startup to prevent it. This runs
+  // sandbox) and then `render_png` must not crash the server. Bun before 1.4.0
+  // left the sandbox's vm `timeout` armed after the call returned and killed
+  // the render that followed (#298); bun-version.ts refuses those releases. This runs
   // the actual shipped stdio bin out-of-process so a crash would surface as a
   // non-zero exit / missing response rather than killing the test runner.
   test('stdio server survives execute then render_png in one session', async () => {
@@ -168,8 +168,8 @@ describe('MCP — render_png tool', () => {
     await proc.stdin.end()
     const stdout = await new Response(proc.stdout).text()
     const exit = await proc.exited
-    // Without the warm-up the process dies with SIGILL (exit 132) after the vm
-    // run, so the render_png response never arrives.
+    // On Bun 1.2.19-1.3.12 that kill is a crash (SIGILL, exit 132), so the
+    // render_png response never arrives.
     expect(exit).toBe(0)
     const responses = stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as { id: number; result?: { content: Array<{ text: string }> } })
     const pngResponse = responses.find(r => r.id === 3)
@@ -179,12 +179,12 @@ describe('MCP — render_png tool', () => {
     expect(Buffer.from(payload.png_base64!, 'base64').length).toBeGreaterThan(100)
   }, STDIO_RENDER_REGRESSION_TIMEOUT_MS)
 
-  // Regression (#298): Bun leaves a sandbox call's node:vm watchdog armed
-  // until the next macrotask turn, with the last vm call's 50ms deadline. A
-  // render_png sent beside execute used to render in that window, was
+  // Regression (#298): Bun 1.2.15-1.3.14 left a sandbox call's node:vm
+  // watchdog armed until the next macrotask turn, with the last vm call's 50ms
+  // deadline. A render_png sent beside execute rendered in that window, was
   // terminated mid-call, and left the server spinning without answering. This
-  // render takes far longer than 50ms, so the old server hangs on every run;
-  // the spawn timeout kills it rather than leaving it spinning after the test.
+  // render takes far longer than 50ms, so on those Bun releases it hangs on
+  // every run; the spawn timeout kills it rather than leaving it spinning.
   test('stdio server answers a render_png sent beside execute', async () => {
     const edges = Array.from({ length: 40 }, (_, i) => `  N${i}[Step ${i}] --> N${(i * 7 + 3) % 40}[Step ${(i * 7 + 3) % 40}]`)
     const proc = Bun.spawn(['bun', 'run', join(REPO, 'bin/agentic-mermaid-mcp.ts')], {

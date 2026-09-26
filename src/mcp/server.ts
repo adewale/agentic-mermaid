@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { URL } from 'node:url'
-import { executeInSandbox, whenSandboxWatchdogDisarmed } from './sandbox.ts'
+import { executeInSandbox } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
@@ -23,7 +23,7 @@ import {
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { mcpDescribePayload } from './describe-payload.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
-import { renderMermaidPNG, renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { configWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
@@ -144,28 +144,6 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   const p = params as { name?: string; arguments?: Record<string, unknown> } | undefined
   const name = p?.name
   const args = p?.arguments ?? {}
-  if (name === 'execute') return handleExecute(id, args, context)
-  // Every other tool renders or lays out synchronously on the host; start it
-  // outside a sandbox call's armed watchdog window (see sandbox.ts).
-  return whenSandboxWatchdogDisarmed(() => handleHostToolCall(id, name, args, context))
-}
-
-async function handleExecute(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): Promise<JsonRpcResponse> {
-  const code = (args as { code?: string }).code
-  const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
-  if (requestedTimeoutMs !== undefined && !isValidExecuteTimeout(requestedTimeoutMs)) {
-    return error(id, -32602, EXECUTE_TIMEOUT_ERROR)
-  }
-  const timeoutMs = Math.min(
-    requestedTimeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS,
-    context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS,
-  )
-  if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
-  const r = await executeInSandbox(code, { timeoutMs })
-  return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
-}
-
-function handleHostToolCall(id: number | string | null, name: string | undefined, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {
   if (name === 'describe_sdk') {
     try {
       const payload = describeSdkPayload(args)
@@ -173,6 +151,20 @@ function handleHostToolCall(id: number | string | null, name: string | undefined
     } catch (e) {
       return error(id, -32602, e instanceof Error ? e.message : String(e))
     }
+  }
+  if (name === 'execute') {
+    const code = (args as { code?: string }).code
+    const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
+    if (requestedTimeoutMs !== undefined && !isValidExecuteTimeout(requestedTimeoutMs)) {
+      return error(id, -32602, EXECUTE_TIMEOUT_ERROR)
+    }
+    const timeoutMs = Math.min(
+      requestedTimeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS,
+      context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS,
+    )
+    if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
+    const r = await executeInSandbox(code, { timeoutMs })
+    return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
   }
   if (name === 'render_png') return handleRenderPng(id, args, context)
   if (name === 'describe') {
@@ -237,22 +229,6 @@ function getDefaultArtifactStore(): ArtifactStore {
     process.once('exit', () => defaultArtifactStore?.close())
   }
   return defaultArtifactStore
-}
-
-// Force the native resvg (`@resvg/resvg-js`) addon to load NOW, before the
-// server starts handling requests. On Bun, the addon's first `dlopen` — which
-// is deferred until the first `new Resvg()` — panics the runtime
-// (`panic: unreachable`) if it happens *after* a `node:vm` context has run.
-// Code Mode `execute` runs agent code in exactly such a sandbox, so a normal
-// `execute` then `render_png` session would otherwise crash the whole process.
-// Warming here lands the dlopen up front. Guarded so a host without the binding
-// still boots (render_png then reports the failure per-call instead of at start).
-function warmUpPngRenderer(): void {
-  try {
-    renderMermaidPNG('flowchart LR\n  A --> B')
-  } catch {
-    // Binding unavailable in this environment; render_png will surface the error.
-  }
 }
 
 type StdioDispatch = (
@@ -423,7 +399,6 @@ export function createStdioMessageProcessor(
 }
 
 export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; maxArtifactTotalBytes?: number; maxArtifacts?: number; artifactTtlMs?: number; maxSandboxTimeoutMs?: number } = {}): Promise<void> {
-  warmUpPngRenderer()
   const artifactStore = createArtifactStore({
     dir: options.artifactDir,
     maxBytes: options.maxArtifactBytes,
@@ -459,7 +434,6 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
 }
 
 export async function startHttpServer(options: HttpMcpOptions = {}): Promise<HttpMcpServer> {
-  warmUpPngRenderer()
   const host = options.host ?? '127.0.0.1'
   const port = options.port ?? 3000
   if (!isLoopbackHost(host) && !options.authToken) throw new Error('HTTP MCP remote bind requires --auth-token')
