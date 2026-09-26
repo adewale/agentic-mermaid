@@ -71,7 +71,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are pinned in the baseline.
     maxRawBytes: 3_357_564,
     maxGzipBytes: 989_761,
-    maxBrotliBytes: 777_196,
+    maxBrotliBytes: 777_170,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
