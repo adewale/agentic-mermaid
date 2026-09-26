@@ -40,15 +40,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
-    maxRequests: 28,
-    // The Sequence rect slice keeps the 31-request graph and raw total while
-    // slightly reducing compressed bytes in the reviewed Linux/x64 capture.
-    // The chart-honesty text contract adds 4,983 raw, 1,645 gzip, and 1,138
-    // Brotli bytes to the shared chunks, and its module moves regroup six small
-    // shared chunks into three, so the graph drops to 28 requests.
-    maxRawBytes: 736_609,
-    maxGzipBytes: 276_118,
-    maxBrotliBytes: 251_757,
+    maxRequests: 29,
+    // Journey delimiter hardening changes generated demo bytes without adding
+    // a request. These ceilings cover the reviewed Linux/x64 capture.
+    // The chart-honesty text contract, with its checks that name an invalid
+    // authored color, adds 6,240 raw, 2,324 gzip, and 1,644 Brotli bytes to the
+    // shared chunks, and its module moves regroup the small shared chunks, so
+    // the graph drops from 31 to 29 requests.
+    maxRawBytes: 738_657,
+    maxGzipBytes: 277_109,
+    maxBrotliBytes: 252_607,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -69,16 +70,19 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The browser adapter must stay mutable for the editor's render hooks;
     // its bundle change raises the editor Brotli total by 152 bytes. The
     // two-request graph stays fixed.
-    // The Sequence rect paint/frame code raises the reviewed Linux/x64 editor
-    // bundle by 1,538 raw, 622 gzip, and 388 Brotli bytes without a new request.
+    // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
+    // raw, 158 gzip, and 261 Brotli bytes without a new request.
+    // Journey delimiter hardening preserves the two-request graph; these are
+    // the reviewed Linux/x64 capture ceilings.
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
-    // family's text tones, halos, titles, and containment) adds 21,201 raw,
-    // 7,850 gzip, and 6,035 Brotli bytes without a new request.
-    maxRawBytes: 3_365_404,
-    maxGzipBytes: 993_000,
-    maxBrotliBytes: 779_613,
+    // family's text tones, halos, titles, and containment, and the checks that
+    // name an invalid authored color) adds 22,538 raw, 8,230 gzip, and 6,383
+    // Brotli bytes without a new request.
+    maxRawBytes: 3_379_210,
+    maxGzipBytes: 997_668,
+    maxBrotliBytes: 783_065,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
