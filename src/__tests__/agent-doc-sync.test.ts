@@ -996,8 +996,9 @@ describe('shipped distribution artifacts present', () => {
   test('agent improvement example assesses, mutates, reassesses, and writes render files', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'am-example-test-'))
     try {
-      // No --test-png-placeholder: exercise the real out-of-process PNG render.
-      // This is the documented `bun run examples/...` invocation end-to-end.
+      // No --test-png-placeholder: exercise the real PNG render, in the same
+      // process right after Code Mode's execute (the #298 sequence). This is
+      // the documented `bun run examples/...` invocation end-to-end.
       const r = await runBunExample(join(REPO, 'examples/agent-improve-auth-flow.ts'), ['--out-dir', outDir], 120_000)
       expect({ status: r.status, timedOut: r.timedOut, stderr: r.stderr }).toEqual({ status: 0, timedOut: false, stderr: '' })
       const payload = JSON.parse(r.stdout)
