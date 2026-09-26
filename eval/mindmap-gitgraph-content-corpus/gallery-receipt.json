@@ -532,7 +532,7 @@
     },
     {
       "path": "src/family-detection.ts",
-      "sha256": "b7ee98ccfa297b6776cf2a2871ec1ffa2fc73662e7096f46f9dec33d139e3653"
+      "sha256": "646d74fde77158cd07f541f1c5365eeaefa782f9743045ee954304ea772083ec"
     },
     {
       "path": "src/flowchart-config.ts",
