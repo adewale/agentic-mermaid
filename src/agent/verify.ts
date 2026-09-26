@@ -28,6 +28,7 @@ import { labelOverflowWarning } from './label-metrics.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessages } from './sequence-body.ts'
+import { authoredLineForCanonical } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
@@ -260,7 +261,7 @@ function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
   return [...lineNumbers].sort((a, b) => a - b).map(canonicalLine => ({
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'journey_semicolon_statement_extension',
-    line: d.source.spans?.canonicalToAuthoredLine.get(canonicalLine) ?? canonicalLine,
+    line: authoredLineForCanonical(d.source, canonicalLine),
     message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; Mermaid 11.16 rejects this source. Put each statement on its own line for upstream portability.',
   }))
 }

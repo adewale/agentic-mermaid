@@ -126,8 +126,16 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
     if (accessibility?.form === 'block') {
       events.accDescr?.(normalizeJourneyText(accessibility.value), i)
       i = accessibility.endIndex
-      if (hasJourneyStatementDelimiter(accessibility.suffixLine ?? '')) events.statementDelimiter?.(i)
-      for (const statement of splitJourneyStatements(accessibility.suffixLine ?? '')) {
+      const suffix = accessibility.suffixLine ?? ''
+      const inlineSuffix = parseAccessibilityDirective([suffix], 0)
+      if (inlineSuffix?.form === 'inline') {
+        const text = normalizeJourneyText(inlineSuffix.value)
+        if (inlineSuffix.title) events.accTitle?.(text, i)
+        else events.accDescr?.(text, i)
+        continue
+      }
+      if (hasJourneyStatementDelimiter(suffix)) events.statementDelimiter?.(i)
+      for (const statement of splitJourneyStatements(suffix)) {
         const outcome = classifyStatement(statement, accessibility.endIndex, events)
         if (outcome === 'stop') return
       }

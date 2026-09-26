@@ -731,8 +731,6 @@ export interface SourceLocation {
 export interface SourceMapSpans {
   /** Exact authored document spans, including wrapper/config directives. */
   preserved: PreservedSourceSpans
-  /** Physical authored line for each retained canonical grammar line (1-based). */
-  canonicalToAuthoredLine: Map<number, number>
   /** Exact authored statement spans keyed like the corresponding location map. */
   nodes: Map<string, SourceSpan>
   edges: Map<string, SourceSpan>

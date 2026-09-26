@@ -6,6 +6,13 @@ interface PhysicalLine {
   start: number
 }
 
+const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, number>>()
+
+/** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
+export function authoredLineForCanonical(sourceMap: SourceMap, canonicalLine: number): number {
+  return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine) ?? canonicalLine
+}
+
 function physicalLines(source: string): PhysicalLine[] {
   const lines: PhysicalLine[] = []
   let start = 0
@@ -400,15 +407,15 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
   }
   const spans: SourceMapSpans = {
     preserved,
-    canonicalToAuthoredLine: new Map([...lines].map(([canonicalLine, authoredLine]) => [
-      canonicalLine,
-      point(lineStarts, authoredLine.start).line,
-    ])),
     nodes: mapStatementSpans(sourceMap.nodes, lineStarts, lines, canonicalLines, analysisFor),
     edges: mapStatementSpans(sourceMap.edges, lineStarts, lines, canonicalLines, analysisFor),
     groups: mapStatementSpans(sourceMap.groups, lineStarts, lines, canonicalLines, analysisFor),
     labels,
   }
   sourceMap.spans = spans
+  authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [
+    canonicalLine,
+    point(lineStarts, authoredLine.start).line,
+  ])))
   return sourceMap
 }

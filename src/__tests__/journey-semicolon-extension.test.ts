@@ -97,6 +97,27 @@ describe('Journey semicolon statements are a diagnosed Agentic extension', () =>
   })
 
   test.each([
+    ['same-line', 'accDescr {hello}'],
+    ['closing-line', 'accDescr {\n    hello\n  }'],
+  ])('semicolon inside %s block suffix is portable text', (_placement, block) => {
+    const input = `journey\n  ${block} accTitle: A; B\n  Task: 3: Me`
+    expect(upstreamProbe(input).exitCode).toBe(0)
+    expect(verifyMermaid(input).warnings).not.toContainEqual(expect.objectContaining({
+      syntax: 'journey_semicolon_statement_extension',
+    }))
+    expect(parseJourneyDiagram(input.split('\n')).sections[0]!.tasks.map(task => task.text)).toEqual(['Task'])
+  })
+
+  test('semicolon inside an inline accDescr block suffix is portable text', () => {
+    const input = 'journey\n  accDescr {hello} accDescr: A; B\n  Task: 3: Me'
+    expect(upstreamProbe(input).exitCode).toBe(0)
+    expect(verifyMermaid(input).warnings).not.toContainEqual(expect.objectContaining({
+      syntax: 'journey_semicolon_statement_extension',
+    }))
+    expect(parseJourneyDiagram(input.split('\n')).sections[0]!.tasks.map(task => task.text)).toEqual(['Task'])
+  })
+
+  test.each([
     ['leading comment', '%% hi\njourney\n  A: 5: Me; B: 3: Me', 3],
     ['init directive', '%%{init: {"theme":"default"}}%%\njourney\n  A: 5: Me; B: 3: Me', 3],
     ['frontmatter', '---\ntitle: Example\n---\njourney\n  A: 5: Me; B: 3: Me', 5],
