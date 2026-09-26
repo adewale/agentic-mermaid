@@ -83,9 +83,9 @@ describe('linkStyle – SVG integration', () => {
     expect(svg).toContain('marker-end="url(#arrowhead-23ff0000)"')
   })
 
-  it('rejects XSS injection in stroke value', () => {
+  it('rejects XSS injection in stroke value, naming the directive and the value', () => {
     expect(() => renderMermaidSVG('graph TD\n  A --> B\n  linkStyle 0 stroke:red" onmouseover="alert(1)'))
-      .toThrow(/safe non-fetching CSS paint/)
+      .toThrow('linkStyle 0: stroke "red\\" onmouseover=\\"alert(1)" is not a CSS color — expected')
   })
 
   it('trailing semicolons do not leak into SVG attributes', () => {

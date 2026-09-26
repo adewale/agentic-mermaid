@@ -38,6 +38,8 @@ import { graphicalBackendCapabilityClaims } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { escapeAttr } from '../multiline-utils.ts'
+import { contrastRatio, WCAG_AA_LARGE_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from '../shared/color-math.ts'
+import { resolvedColorValue, type DiagramColors } from '../theme.ts'
 
 const gen = new RoughGenerator()
 
@@ -93,6 +95,8 @@ interface Walk {
   ctx: StyleBackendContext
   p: RoughParams
   sketcher?: GeometrySketcher
+  /** The document palette, which resolves the page a text halo paints. */
+  colors?: DiagramColors
 }
 
 function paramsOf(style: StyleSpec | undefined): RoughParams {
@@ -355,7 +359,9 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
   const stroke = node.stroke.color
   const widthRatio = strokeWidthRatio(node.stroke.width)
   if (widthRatio <= 0) return serialized
-  const width = walk.p.strokeWidth * widthRatio
+  // A look's pen width restyles a line, but a width that encodes a quantity
+  // (a sankey flow) is data and is drawn exactly.
+  const width = node.stroke.encodesValue ? widthRatio : walk.p.strokeWidth * widthRatio
   const seed = nodeSeed(walk.ctx.seed, node.id, 'stroke') || 1
   const dash = node.stroke.dash
     ? typeof node.stroke.dash.array === 'string' ? node.stroke.dash.array : node.stroke.dash.array.join(' ')
@@ -427,8 +433,43 @@ function sketchConnector(node: ConnectorMark, walk: Walk): string {
 // Cartographic halo: knock the text out to the page so glyphs never sit
 // directly on strokes/fills. Injected on every <text> in the chunk; tspans
 // inherit. paint-order draws the stroke behind the glyph.
-function haloText(node: TextMark): string {
-  return sceneNodeSerialization(node).replace(/<text /g, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ')
+// The halo puts glyphs on the page, so text whose ink was chosen against the
+// mark beneath it takes page ink instead: the family's own page ink
+// (TextMark.pageFill) when it names one, else the page text color whenever the
+// ink would not read on the page (white on a hatched bar is white on paper).
+function haloText(node: TextMark, walk: Walk): string {
+  const serialized = node.pageFill !== undefined
+    ? withTextFill(sceneNodeSerialization(node), node.pageFill)
+    : legibleOnPage(sceneNodeSerialization(node), node, walk)
+  // A family's own halo (a sankey label's outline) gives way to this one
+  // rather than duplicating its attributes.
+  return serialized.replace(/<text\b[^>]*>/g, tag => tag
+    .replace(/\s(?:paint-order|stroke|stroke-width|stroke-linejoin|stroke-linecap)="[^"]*"/g, '')
+    .replace(/^<text/, '<text paint-order="stroke" stroke="var(--bg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"'))
+}
+
+/** Re-ink the text, and any tspan painted separately, that would not read on
+ * the page; inks that already read keep their tone. */
+function legibleOnPage(serialized: string, node: TextMark, walk: Walk): string {
+  const colors = walk.colors
+  const page = colors === undefined ? undefined : resolvedColorValue('var(--bg)', colors)
+  if (colors === undefined || page === undefined) return serialized
+  const minimum = node.fontSize >= 24 ? WCAG_AA_LARGE_TEXT_CONTRAST : WCAG_AA_TEXT_CONTRAST
+  const fails = (fill: string): boolean => {
+    const ink = resolvedColorValue(fill, colors)
+    return ink !== undefined && (contrastRatio(ink, page) ?? minimum) < minimum
+  }
+  const text = node.paint.fill !== undefined && fails(node.paint.fill)
+    ? withTextFill(serialized, 'var(--_text)')
+    : serialized
+  return text.replace(/(<tspan\b[^>]*?\sfill=")([^"]*)(")/g, (match, open: string, fill: string, close: string) =>
+    fails(fill) ? `${open}var(--_text)${close}` : match)
+}
+
+function withTextFill(serialized: string, fill: string): string {
+  return /<text\b[^>]*?\sfill="/.test(serialized)
+    ? serialized.replace(/(<text\b[^>]*?\sfill=")[^"]*(")/, `$1${escapeAttr(fill)}$2`)
+    : serialized.replace(/<text /, `<text fill="${escapeAttr(fill)}" `)
 }
 
 function backdropFor(style: StyleSpec | undefined, doc: SceneDoc): string {
@@ -460,7 +501,7 @@ function drawNodeStyled(node: SceneNode, walk: Walk): string {
     case 'connector':
       return sceneRoleTraits(node.role).sketch === 'connector' ? sketchConnector(node, walk) : sceneNodeSerialization(node)
     case 'text':
-      return sceneRoleTraits(node.role).textHalo ? haloText(node) : sceneNodeSerialization(node)
+      return sceneRoleTraits(node.role).textHalo ? haloText(node, walk) : sceneNodeSerialization(node)
     case 'group':
       return composeGroup(
         node.open,
@@ -480,7 +521,7 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
     },
     render(doc: SceneDoc, ctx: StyleBackendContext): string {
       const admitted = admitBackendSceneDocument(doc)
-      const walk: Walk = { ctx, p: paramsOf(ctx.style), sketcher }
+      const walk: Walk = { ctx, p: paramsOf(ctx.style), sketcher, colors: admitted.colors }
       const out: string[] = []
       for (let i = 0; i < admitted.parts.length; i++) {
         const part = admitted.parts[i]!

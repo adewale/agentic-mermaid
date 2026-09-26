@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="982" height="482.3" viewBox="0 0 982 482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="journey-ynv8jk-title" aria-roledescription="user journey" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="982" height="482.3" viewBox="0 0 982 482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="journey-ynv8jk-title" aria-roledescription="user journey" role="img" class="am-zasofu">
 <title id="journey-ynv8jk-title">My working day</title>
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-zasofu text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-zasofu {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -24,31 +24,31 @@
   </marker>
 </defs>
 <style>
-  .journey-title { fill: #27272A; }
-  .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
-  .journey-section-1 { fill: #ecedf4; stroke: #adb2d3; }
-  .journey-section-label-band { fill: #e5e5e6; stroke: none; }
-  .journey-section-band-0 { fill: #e5e5e6; }
-  .journey-section-band-1 { fill: #dddfec; }
-  .journey-section-label { fill: #27272A; }
-  .journey-section-label-0 { fill: #27272A; }
-  .journey-section-label-1 { fill: #27272A; }
-  .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-task-text { fill: #27272A; }
-  .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
-  .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
-  .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
-  .journey-score-label { fill: #575759; }
-  .journey-baseline { stroke: #47474a; stroke-width: 2; }
-  .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
-  .journey-face-eye { fill: #27272A; }
-  .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
-  .journey-actor-legend-title { fill: #575759; }
-  .journey-actor-legend-text { fill: #575759; }
-  .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
-  .journey-actor-0 { fill: #34438d; }
-  .journey-actor-1 { fill: #8d3f34; }
+  .am-zasofu .journey-title { fill: #27272A; }
+  .am-zasofu .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .am-zasofu .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
+  .am-zasofu .journey-section-1 { fill: #ecedf4; stroke: #adb2d3; }
+  .am-zasofu .journey-section-label-band { fill: #e5e5e6; stroke: none; }
+  .am-zasofu .journey-section-band-0 { fill: #e5e5e6; }
+  .am-zasofu .journey-section-band-1 { fill: #dddfec; }
+  .am-zasofu .journey-section-label { fill: #27272A; }
+  .am-zasofu .journey-section-label-0 { fill: #27272A; }
+  .am-zasofu .journey-section-label-1 { fill: #27272A; }
+  .am-zasofu .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .am-zasofu .journey-task-text { fill: #27272A; }
+  .am-zasofu .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
+  .am-zasofu .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
+  .am-zasofu .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
+  .am-zasofu .journey-score-label { fill: #575759; }
+  .am-zasofu .journey-baseline { stroke: #47474a; stroke-width: 2; }
+  .am-zasofu .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
+  .am-zasofu .journey-face-eye { fill: #27272A; }
+  .am-zasofu .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
+  .am-zasofu .journey-actor-legend-title { fill: #575759; }
+  .am-zasofu .journey-actor-legend-text { fill: #575759; }
+  .am-zasofu .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
+  .am-zasofu .journey-actor-0 { fill: #34438d; }
+  .am-zasofu .journey-actor-1 { fill: #8d3f34; }
 </style>
 <g class="journey-score-guide" data-score-min="1" data-score-max="5">
   <line class="journey-guide" x1="176" y1="256.3" x2="950" y2="256.3" data-relationship="grid" data-direction="undirected" />

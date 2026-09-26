@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="380" height="286.6" viewBox="0 0 380 286.6" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-timeline-tl-1p1dpwc-title" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="286.6" viewBox="0 0 380 286.6" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-timeline-tl-1p1dpwc-title" role="img" class="am-3tj2jp">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-3tj2jp text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-3tj2jp {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -18,18 +18,18 @@
   }
 </style>
 <style>
-  .timeline-title { fill: #27272A; }
-  .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
-  .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-section-label { fill: #575759; }
-  .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
-  .timeline-marker-core { fill: #47474a; }
-  .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
-  .timeline-period-text { fill: #27272A; }
-  .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-event-text { fill: #707072; }
+  .am-3tj2jp .timeline-title { fill: #27272A; }
+  .am-3tj2jp .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
+  .am-3tj2jp .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
+  .am-3tj2jp .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .am-3tj2jp .timeline-section-label { fill: #575759; }
+  .am-3tj2jp .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
+  .am-3tj2jp .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
+  .am-3tj2jp .timeline-marker-core { fill: #47474a; }
+  .am-3tj2jp .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
+  .am-3tj2jp .timeline-period-text { fill: #27272A; }
+  .am-3tj2jp .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .am-3tj2jp .timeline-event-text { fill: #69696c; }
 </style>
 <title id="char-timeline-tl-1p1dpwc-title">Release Plan</title>
 <g class="timeline-section" data-id="section-0" data-label="Build" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="section">

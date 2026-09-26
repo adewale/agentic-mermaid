@@ -132,12 +132,17 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
   // Auto-derive y-axis range from data if not specified
   if (!yAxis.range && series.length > 0) {
     const allValues = series.flatMap(s => s.data)
-    let min = Math.min(...allValues)
-    let max = Math.max(...allValues)
+    // A bar's length is its value, so a chart with bars always spans zero and
+    // is padded only on the side away from the zero baseline.
+    const hasBars = series.some(s => s.type === 'bar')
+    let min = hasBars ? Math.min(0, ...allValues) : Math.min(...allValues)
+    let max = hasBars ? Math.max(0, ...allValues) : Math.max(...allValues)
     const span = max - min || 1
     // Add 10% padding
-    min = min - span * 0.1
-    max = max + span * 0.1
+    const minAtZeroBaseline = hasBars && min === 0
+    const maxAtZeroBaseline = hasBars && max === 0 && min < 0
+    if (!minAtZeroBaseline) min = min - span * 0.1
+    if (!maxAtZeroBaseline) max = max + span * 0.1
     // Floor to 0 if all values are positive and min is close to 0
     if (min > 0 && min < span * 0.5) min = 0
     yAxis.range = { min, max }
@@ -445,6 +450,7 @@ export function resolveXYChartConfig(frontmatter: MermaidFrontmatterMap): XYChar
       : undefined,
     plotReservedSpacePercent: getPositiveNumber(root, ['plotReservedSpacePercent']),
     showDataLabel: getBoolean(root, ['showDataLabel']),
+    showDataLabelOutsideBar: getBoolean(root, ['showDataLabelOutsideBar']),
     showTitle: getBoolean(root, ['showTitle']),
     showLegend: getBoolean(root, ['showLegend']),
     legendFontSize: getPositiveNumber(root, ['legendFontSize']),
@@ -472,6 +478,7 @@ export function resolveXYChartTheme(frontmatter: MermaidFrontmatterMap): XYChart
     yAxisLineColor: getString(root, ['yAxisLineColor']),
     yAxisTitleColor: getString(root, ['yAxisTitleColor']),
     legendTextColor: getString(root, ['legendTextColor']),
+    dataLabelColor: getString(root, ['dataLabelColor']),
     plotColorPalette: getPalette(root, ['plotColorPalette']),
   }
 }

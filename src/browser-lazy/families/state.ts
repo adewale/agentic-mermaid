@@ -4,6 +4,7 @@ import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts
 import { layoutGraphSync } from '../../layout-engine.ts'
 import { parseMermaid } from '../../parser.ts'
 import { lowerGraphScene } from '../../renderer.ts'
+import { frontmatterTitle } from '../../mermaid-source.ts'
 import { resolveStateRenderOptions } from '../../state/config.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, {
@@ -17,10 +18,12 @@ export default createBrowserFamilyDescriptor(descriptorData, {
   },
   layout: ctx => {
     const stateVisual = (ctx.familyAppearance as { visual?: ResolvedStateVisualConfig } | undefined)?.visual
+    const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
     return layoutResult(layoutGraphSync(parseMermaid(ctx.source.familyText), {
       ...ctx.renderOptions,
       ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
       ...(stateVisual ? { stateVisual } : {}),
+      ...(diagramTitle ? { diagramTitle } : {}),
     }))
   },
   lowerScene: scene(lowerGraphScene),

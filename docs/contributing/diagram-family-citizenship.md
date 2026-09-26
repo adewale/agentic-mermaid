@@ -48,6 +48,7 @@ The matrix has one cell per family for each surface below. A cell is either `sat
 | `mermaidSyntaxParity` | The pinned Mermaid docs inventory is complete; every stable construct is natively semantic or a named, tested security/offline divergence. Parser acceptance alone does not satisfy this cell. |
 | `domainProperties` | Family-specific invariants/properties exist beyond “renders without throwing.” |
 | `familyVisualMetaphor` | Mermaid plus a Wikipedia/domain reference define a hallmark protected by independent geometry/semantic tests and a reviewer-visible artifact. |
+| `chartHonesty` | Every text the family draws, in every registered style, passes the pixel oracle in [`chart-honesty.md`](../design/system/chart-honesty.md): legible against its surround, on the canvas, drawn or reported by `verify`, and read the same in every style. The cell cites the `chart-honesty-text-<part>.test.ts` partition that checks the family, which the citizenship test derives from the registry. |
 | `goldensEvidence` | Text/SVG/visual evidence exists where reviewer judgment needs artifacts. |
 | `generatedSite` | Site samples/gallery/generated docs include the family or have explicit exceptions. |
 | `distributionPackage` | Package exports/files/consumer init artifacts include the public family surface. |
@@ -84,5 +85,6 @@ When adding or changing a family:
 3. Map the family to exactly one pinned official Mermaid syntax page. The generator accounts for all headings/examples; promote every stable construct claimed native to executable fixtures, and do not count parse-only or opaque preservation as support.
 4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, and commit a generated screenshot with a captioned PR Visual Evidence row.
 5. Update the citizenship matrix row—including `familyVisualMetaphor` and its `fidelity` record—in the same PR, and add construct receipts for the family. `mermaidSyntaxParity` is generated from those receipts and cannot be asserted by editing the matrix manually. These two surfaces cannot be deferred for a newly registered family.
-6. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
-7. For any other matrix exception introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.
+6. Add the family's `HONESTY_SAMPLES` and cite its chart-honesty partition in the `chartHonesty` cell. Fix a violation with the shared mechanisms in [`chart-honesty.md`](../design/system/chart-honesty.md), not by exempting the family.
+7. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
+8. For any other matrix exception introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.

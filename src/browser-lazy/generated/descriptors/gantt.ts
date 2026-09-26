@@ -26,12 +26,16 @@ const descriptorData = Object.freeze({
       "sectionFontSize",
       "numberSectionStyles",
       "todayMarker",
-      "weekday"
+      "weekday",
+      "rightPadding",
+      "titleTopMargin"
     ],
     "noopKeys": [
       "barGap",
       "topPadding",
       "leftPadding",
+      "rightPadding",
+      "titleTopMargin",
       "gridLineStartPadding",
       "fontSize",
       "sectionFontSize",

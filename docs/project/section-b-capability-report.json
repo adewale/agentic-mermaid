@@ -516,6 +516,7 @@
       "id": "flowchart",
       "semanticRoles": [
         "prelude",
+        "title",
         "defs",
         "chrome",
         "group",
@@ -562,6 +563,19 @@
           "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/flowchart/scene-role/prelude",
           "styleWitnessId": "section-b/flowchart/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/flowchart/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/flowchart/scene-role/title",
+          "styleWitnessId": "section-b/flowchart/style/title/fallback-only",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/flowchart/terminal/no-color"
         },
@@ -695,6 +709,7 @@
       "id": "state",
       "semanticRoles": [
         "prelude",
+        "title",
         "defs",
         "chrome",
         "group",
@@ -743,6 +758,19 @@
           "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/state/scene-role/prelude",
           "styleWitnessId": "section-b/state/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/state/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/state/scene-role/title",
+          "styleWitnessId": "section-b/state/style/title/fallback-only",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/state/terminal/no-color"
         },
@@ -894,6 +922,7 @@
       "id": "sequence",
       "semanticRoles": [
         "prelude",
+        "title",
         "defs",
         "chrome",
         "actor",
@@ -948,6 +977,19 @@
           "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/sequence/scene-role/prelude",
           "styleWitnessId": "section-b/sequence/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/sequence/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/sequence/scene-role/title",
+          "styleWitnessId": "section-b/sequence/style/title/fallback-only",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/sequence/terminal/no-color"
         },
@@ -1341,6 +1383,7 @@
       "id": "class",
       "semanticRoles": [
         "prelude",
+        "title",
         "defs",
         "chrome",
         "group",
@@ -1388,6 +1431,19 @@
           "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/class/scene-role/prelude",
           "styleWitnessId": "section-b/class/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/class/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/class/scene-role/title",
+          "styleWitnessId": "section-b/class/style/title/fallback-only",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/class/terminal/no-color"
         },
@@ -1534,6 +1590,7 @@
       "id": "er",
       "semanticRoles": [
         "prelude",
+        "title",
         "defs",
         "chrome",
         "group",
@@ -1586,6 +1643,19 @@
           "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/er/scene-role/prelude",
           "styleWitnessId": "section-b/er/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/er/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/er/scene-role/title",
+          "styleWitnessId": "section-b/er/style/title/fallback-only",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/er/terminal/no-color"
         },
@@ -2190,7 +2260,7 @@
       "terminalProjection": {
         "state": "native-lossy",
         "witnessId": "section-b/architecture/terminal/no-color",
-        "outputDigest": "sha256:71ef37c02c94b6c77068bb52f18cc8c6c6b53001712b5dfbf7a41341366b37b2"
+        "outputDigest": "sha256:0849d5d49876946bd8aad7ec56b54436766b487d13aca3a00690d8e8ef218d9d"
       },
       "roleWitnesses": [
         {
@@ -2571,10 +2641,10 @@
               "bar-0"
             ]
           },
-          "publicMigrationTarget": "label",
-          "styleProjection": "exact",
+          "publicMigrationTarget": "none",
+          "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/xychart/scene-role/label",
-          "styleWitnessId": "section-b/xychart/style/label/exact",
+          "styleWitnessId": "section-b/xychart/style/label/not-applicable",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/xychart/terminal/no-color"
         }
@@ -3342,6 +3412,7 @@
       "id": "mindmap",
       "semanticRoles": [
         "prelude",
+        "title",
         "chrome",
         "edge",
         "node",
@@ -3387,6 +3458,19 @@
           "styleProjection": "not-applicable",
           "graphicalWitnessId": "section-b/mindmap/scene-role/prelude",
           "styleWitnessId": "section-b/mindmap/style/prelude/not-applicable",
+          "terminalProjection": "family-level-only",
+          "terminalWitnessId": "section-b/mindmap/terminal/no-color"
+        },
+        {
+          "role": "title",
+          "observedKinds": [
+            "text"
+          ],
+          "emittedChannelValues": {},
+          "publicMigrationTarget": "label",
+          "styleProjection": "fallback-only",
+          "graphicalWitnessId": "section-b/mindmap/scene-role/title",
+          "styleWitnessId": "section-b/mindmap/style/title/fallback-only",
           "terminalProjection": "family-level-only",
           "terminalWitnessId": "section-b/mindmap/terminal/no-color"
         },
@@ -4501,5 +4585,5 @@
       ]
     }
   ],
-  "digest": "sha256:f5515b4851f078573d327f52a85da0f818c3fa1e82677adab4d0995eddcb9ace"
+  "digest": "sha256:5422884a7b00498de62bd5a8c2e447e79c68ed9245bb6ae8912c5ebe9a518ee9"
 }

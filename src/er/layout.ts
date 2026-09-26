@@ -7,16 +7,17 @@
  */
 
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
-import type { ErDiagram, ErEntity, PositionedErDiagram, PositionedErEntity, PositionedErRelationship } from './types.ts'
+import type { ErAttribute, ErDiagram, ErEntity, PositionedErDiagram, PositionedErEntity, PositionedErRelationship } from './types.ts'
 import type { RenderOptions, Point, Direction } from '../types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
-import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
-import type { RenderStyleDefaults } from '../styles.ts'
+import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
+import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
 import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
@@ -118,6 +119,22 @@ export function erIneffectiveConfigFields(configs: unknown[]): string[] {
 
 type EntitySizeMap = Map<string, { width: number; height: number; headerHeight: number }>
 
+/** Space between an attribute's name and its comment. */
+export const ER_COMMENT_GAP = 12
+
+/** Width of an entity's comment column (0 when no attribute has a comment):
+ * Mermaid draws each attribute's comment in a column after its name. */
+export function erCommentColumnWidth(attributes: readonly ErAttribute[]): number {
+  const widths = attributes.map(attr => attr.comment ? estimateTextWidth(erCommentText(attr.comment), ER.attrFontSize, 400) : 0)
+  const widest = Math.max(0, ...widths)
+  return widest > 0 ? widest + ER_COMMENT_GAP : 0
+}
+
+/** An attribute comment as drawn on its row: line breaks become spaces. */
+export function erCommentText(comment: string): string {
+  return comment.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim()
+}
+
 /** Build ELK graph and size map from an ER diagram. */
 function buildErElkGraph(
   diagram: ErDiagram,
@@ -131,9 +148,10 @@ function buildErElkGraph(
     const label = applyTextTransform(entity.label, style.nodeTextTransform)
     const headerTextW = estimateTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
     let maxAttrW = 0
+    const commentColumn = erCommentColumnWidth(entity.attributes)
     for (const attr of entity.attributes) {
       const attrText = `${attr.type}  ${attr.name}${attr.keys.length > 0 ? '  ' + attr.keys.join(',') : ''}`
-      const w = estimateMonoTextWidth(attrText, ER.attrFontSize)
+      const w = estimateMonoTextWidth(attrText, ER.attrFontSize) + commentColumn
       if (w > maxAttrW) maxAttrW = w
     }
     const width = Math.max(ER.minWidth, headerTextW + style.nodePaddingX * 2, maxAttrW + style.nodePaddingX * 2)
@@ -205,7 +223,7 @@ function extractErLayout(
         rowHeight: ER.rowHeight,
         ...(entity.className ? { className: entity.className } : {}),
         ...((entity.className && diagram.classDefs.get(entity.className)) || entity.inlineStyle ? {
-          inlineStyle: { ...(entity.className ? diagram.classDefs.get(entity.className) : {}), ...entity.inlineStyle },
+          inlineStyle: { ...(entity.className ? checkedAuthoredStyle(diagram.classDefs.get(entity.className), `classDef ${entity.className}`) : {}), ...checkedAuthoredStyle(entity.inlineStyle, `style ${entity.id}`) },
         } : {}),
         ...(entity.groupId ? { groupId: entity.groupId } : {}),
       })
@@ -406,5 +424,17 @@ export function layoutErDiagram(
 
   const { elkGraph, entitySizes } = buildErElkGraph(diagram, options, styleFace)
   const result = elkLayoutSync(elkGraph)
-  return extractErLayout(result, diagram, entitySizes)
+  return withErTitle(extractErLayout(result, diagram, entitySizes), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+}
+
+/** The diagram's title takes a band above everything the layout placed. */
+function withErTitle(positioned: PositionedErDiagram, title: string | undefined, style: ResolvedRenderStyle): PositionedErDiagram {
+  const band = diagramTitleBand(title, style)
+  if (!band) return positioned
+  const dy = band.height
+  for (const entity of positioned.entities) entity.y += dy
+  for (const group of positioned.groups) group.y += dy
+  for (const rel of positioned.relationships) for (const point of rel.points) point.y += dy
+  const width = Math.max(positioned.width, band.width + 2 * ER.padding)
+  return { ...positioned, width, height: positioned.height + dy, title: positionDiagramTitle(band, width, ER.padding) }
 }

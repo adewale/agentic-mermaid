@@ -86,6 +86,8 @@ export interface PositionedPieLegendItem {
    * measures each line so multiline rows size and clear correctly.
    */
   lines: string[]
+  /** Measured width of the widest line, as the layout reserved it. */
+  textWidth: number
 }
 
 export interface PositionedPieChart extends PositionedDiagram {

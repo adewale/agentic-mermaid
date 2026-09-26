@@ -23,6 +23,7 @@ const descriptorData = Object.freeze({
       "chartOrientation",
       "plotReservedSpacePercent",
       "showDataLabel",
+      "showDataLabelOutsideBar",
       "showTitle",
       "showLegend",
       "legendFontSize",

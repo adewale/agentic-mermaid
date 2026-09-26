@@ -137,7 +137,7 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     width: positive, height: positive, useMaxWidth: boolean, useWidth: positive,
     titleFontSize: positive, titlePadding: nonNegative,
     chartOrientation: oneOf('vertical', 'horizontal'), plotReservedSpacePercent: range(0, 100, false),
-    showDataLabel: boolean, showTitle: boolean, showLegend: boolean,
+    showDataLabel: boolean, showDataLabelOutsideBar: boolean, showTitle: boolean, showLegend: boolean,
     legendFontSize: positive, legendPadding: nonNegative,
     xAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
     yAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
@@ -166,6 +166,9 @@ const XY_AXIS_VALUE_RULES: Record<string, ValueRule> = {
   showTick: boolean, tickLength: nonNegative, tickWidth: positive,
   showAxisLine: boolean, axisLineWidth: positive,
 }
+
+/** Official upstream axis fields this renderer accepts but does not draw. */
+const XY_AXIS_NOOP_KEYS = new Set(['labelRotation'])
 
 function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
   const themeVariables = section(root, 'themeVariables')
@@ -228,7 +231,12 @@ export function familyConfigValueDiagnostics(
       const axisConfig = value as Record<string, unknown>
       for (const key of Object.keys(axisConfig).sort()) {
         const valueRule = XY_AXIS_VALUE_RULES[key]
-        if (!valueRule) warn(`xyChart.${axis}.${key}`, 'a documented axis-config field')
+        if (XY_AXIS_NOOP_KEYS.has(key)) diagnostics.push({
+          code: 'INEFFECTIVE_CONFIG',
+          field: `xyChart.${axis}.${key}`,
+          message: `xychart axis field "${key}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
+        })
+        else if (!valueRule) warn(`xyChart.${axis}.${key}`, 'a documented axis-config field')
         else if (!valueRule.valid(axisConfig[key])) warn(`xyChart.${axis}.${key}`, valueRule.expected)
       }
     }

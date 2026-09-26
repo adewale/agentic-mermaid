@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="739.848" height="231" viewBox="0 0 739.848 231" style="--bg:#0b1120;--fg:#1f2937;--line:#f59e0b;--accent:#38bdf8;--muted:#6b7280;--surface:#38bdf8;--border:#7dd3fc;--font:IBM Plex Sans;background:#0b1120;--arch-group-fill:#111827;--arch-group-stroke:#38bdf8;--arch-service-fill:#0f172a;--arch-service-stroke:#7dd3fc">
+<svg xmlns="http://www.w3.org/2000/svg" width="739.848" height="231" viewBox="0 0 739.848 231" style="--bg:#0b1120;--fg:#1f2937;--line:#f59e0b;--accent:#38bdf8;--muted:#6b7280;--surface:#38bdf8;--border:#7dd3fc;--font:IBM Plex Sans;background:#0b1120;--arch-group-fill:#111827;--arch-group-stroke:#38bdf8;--arch-service-fill:#0f172a;--arch-service-stroke:#7dd3fc" class="am-14dpc21">
 <style>
-  text { font-family: var(--font, 'IBM Plex Sans'), system-ui, sans-serif; }
-  svg {
+  .am-14dpc21 text { font-family: var(--font, 'IBM Plex Sans'), system-ui, sans-serif; }
+  svg.am-14dpc21 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #1f2937;
     --_text-sec:      #6b7280;
@@ -18,20 +18,20 @@
   }
 </style>
 <style>
-  .architecture-group-frame { fill: #111827; stroke: none; }
-  .architecture-group-band { fill: #132031; stroke: none; }
-  .architecture-group-outline { fill: none; stroke: #38bdf8; stroke-width: 1; }
-  .architecture-group-label { fill: #767d8a; }
-  .architecture-service-card { fill: #0f172a; stroke: none; }
-  .architecture-service-outline { fill: none; stroke: #7dd3fc; stroke-width: 1; }
-  .architecture-service-label { fill: #414549; }
-  .architecture-edge { fill: none; stroke: #f59e0b; stroke-width: 1; stroke-linejoin: round; }
-  .architecture-edge-label-bg { fill: #0b1120; stroke: #352a1c; stroke-width: 0.75; }
-  .architecture-edge-label-text { fill: #767d8a; }
-  .architecture-junction-ring { fill: #0b1120; stroke: #38bdf8; stroke-width: 1.25; }
-  .architecture-junction-core { fill: #163a54; stroke: #38bdf8; stroke-width: 0.75; }
-  .architecture-icon-mark { fill: none; stroke: #38bdf8; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
-  .architecture-icon-glyph { fill: #38bdf8; }
+  .am-14dpc21 .architecture-group-frame { fill: #111827; stroke: none; }
+  .am-14dpc21 .architecture-group-band { fill: #132031; stroke: none; }
+  .am-14dpc21 .architecture-group-outline { fill: none; stroke: #38bdf8; stroke-width: 1; }
+  .am-14dpc21 .architecture-group-label { fill: #7c7e7e; }
+  .am-14dpc21 .architecture-service-card { fill: #0f172a; stroke: none; }
+  .am-14dpc21 .architecture-service-outline { fill: none; stroke: #7dd3fc; stroke-width: 1; }
+  .am-14dpc21 .architecture-service-label { fill: #7c7e7e; }
+  .am-14dpc21 .architecture-edge { fill: none; stroke: #f59e0b; stroke-width: 1; stroke-linejoin: round; }
+  .am-14dpc21 .architecture-edge-label-bg { fill: #0b1120; stroke: #352a1c; stroke-width: 0.75; }
+  .am-14dpc21 .architecture-edge-label-text { fill: #7c7e7e; }
+  .am-14dpc21 .architecture-junction-ring { fill: #0b1120; stroke: #38bdf8; stroke-width: 1.25; }
+  .am-14dpc21 .architecture-junction-core { fill: #163a54; stroke: #38bdf8; stroke-width: 0.75; }
+  .am-14dpc21 .architecture-icon-mark { fill: none; stroke: #38bdf8; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .am-14dpc21 .architecture-icon-glyph { fill: #38bdf8; }
 </style>
 <defs>
   <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">

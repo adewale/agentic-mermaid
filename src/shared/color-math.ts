@@ -13,13 +13,13 @@ import { CSS_NAMED_COLORS } from './css-named-colors.ts'
 export type RgbaColor = [red: number, green: number, blue: number, alpha: number]
 
 /**
- * Parse a hex color to [r, g, b]. Accepts #RGB and #RRGGBB (a longer string
- * such as #RRGGBBAA is read as its first six digits; alpha is ignored).
- * Assumes a syntactically valid color — use tryParseHex when unsure.
+ * Parse a hex color to [r, g, b]. Accepts #RGB, #RGBA, #RRGGBB, and #RRGGBBAA;
+ * alpha is ignored, so #RGBA reads as #RGB and #RRGGBBAA as its first six
+ * digits. Assumes a syntactically valid color — use tryParseHex when unsure.
  */
 export function parseHex(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
-  const full = h.length === 3
+  const full = h.length === 3 || h.length === 4
     ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]!
     : h
   return [
@@ -29,9 +29,10 @@ export function parseHex(hex: string): [number, number, number] {
   ]
 }
 
-/** Validating parse: [r, g, b] for #RGB/#RRGGBB/#RRGGBBAA, else null. */
+/** Validating parse: [r, g, b] for exactly the forms `isHexColor` admits
+ * (#RGB, #RGBA, #RRGGBB, #RRGGBBAA; alpha ignored), else null. */
 export function tryParseHex(hex: string): [number, number, number] | null {
-  if (!/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(hex)) return null
+  if (!isHexColor(hex)) return null
   return parseHex(hex)
 }
 
@@ -106,9 +107,25 @@ export function ensureContrast(
   return fallback
 }
 
-/** Loose CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. */
+/** WCAG 2.x AA contrast for text (SC 1.4.3). */
+export const WCAG_AA_TEXT_CONTRAST = 4.5
+/** WCAG 2.x AA contrast for large text: 24px, or 18.66px bold. */
+export const WCAG_AA_LARGE_TEXT_CONTRAST = 3
+/** WCAG 2.1 AA contrast for non-text graphics (SC 1.4.11), which decoration
+ * such as a separator glyph is held to. */
+export const WCAG_AA_NON_TEXT_CONTRAST = 3
+
+/** Ink for text drawn on `surface`: `preferred` when it reads at WCAG AA,
+ * otherwise `preferred` moved toward black or white just far enough, so the
+ * family's hue survives wherever it can. Unresolved CSS passes through. */
+export function legibleInk(preferred: string, surface: string, minimum: number = WCAG_AA_TEXT_CONTRAST): string {
+  return ensureContrast(preferred, surface, minimum)
+}
+
+/** Loose CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. Five and seven
+ * digits are not CSS colors, so they are not admitted either. */
 export function isHexColor(s: string): boolean {
-  return /^#[0-9a-fA-F]{3,8}$/.test(s)
+  return /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(s)
 }
 
 /** Strict 6-digit hex form (#RRGGBB) — what the chart palettes require. */

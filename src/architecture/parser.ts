@@ -3,6 +3,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
+import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } from './config.ts'
 import type { ArchitectureAlignment } from './align.ts'
 import type {
   ArchitectureChildRef,
@@ -384,6 +385,7 @@ function buildMermaidSubgraphs(groups: ArchitectureGroup[]): MermaidSubgraph[] {
       label: group.label,
       nodeIds,
       children,
+      ...(group.icon ? { titleOffset: ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } : {}),
     }
   }
 

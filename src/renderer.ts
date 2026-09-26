@@ -1,6 +1,6 @@
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
@@ -106,6 +106,9 @@ export function lowerGraphScene(
   defsParts.splice(1, 0, serializeMarkerResources(markerResources))
   defsParts.push('</defs>')
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
+
+  // 0. The diagram's frontmatter title, in the band layout reserved above.
+  if (graph.title) parts.push(diagramTitleMark(graph.title, style))
 
   // 1. Subgraph backgrounds (group rectangles with header bands)
   for (const group of graph.groups) {

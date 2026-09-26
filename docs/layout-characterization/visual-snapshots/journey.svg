@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="530" height="482.3" viewBox="0 0 530 482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-journey-journey-4ni3mk-title" aria-roledescription="user journey" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="530" height="482.3" viewBox="0 0 530 482.3" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-journey-journey-4ni3mk-title" aria-roledescription="user journey" role="img" class="am-lcrr98">
 <title id="char-journey-journey-4ni3mk-title">Checkout</title>
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-lcrr98 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-lcrr98 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -24,27 +24,27 @@
   </marker>
 </defs>
 <style>
-  .journey-title { fill: #27272A; }
-  .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
-  .journey-section-label-band { fill: #e5e5e6; stroke: none; }
-  .journey-section-band-0 { fill: #e5e5e6; }
-  .journey-section-label { fill: #27272A; }
-  .journey-section-label-0 { fill: #27272A; }
-  .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .journey-task-text { fill: #27272A; }
-  .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
-  .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
-  .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
-  .journey-score-label { fill: #575759; }
-  .journey-baseline { stroke: #47474a; stroke-width: 2; }
-  .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
-  .journey-face-eye { fill: #27272A; }
-  .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
-  .journey-actor-legend-title { fill: #575759; }
-  .journey-actor-legend-text { fill: #575759; }
-  .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
-  .journey-actor-0 { fill: #34438d; }
+  .am-lcrr98 .journey-title { fill: #27272A; }
+  .am-lcrr98 .journey-section-bg { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .am-lcrr98 .journey-section-0 { fill: #f0f0f1; stroke: #b2b2b3; }
+  .am-lcrr98 .journey-section-label-band { fill: #e5e5e6; stroke: none; }
+  .am-lcrr98 .journey-section-band-0 { fill: #e5e5e6; }
+  .am-lcrr98 .journey-section-label { fill: #27272A; }
+  .am-lcrr98 .journey-section-label-0 { fill: #27272A; }
+  .am-lcrr98 .journey-task-box { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .am-lcrr98 .journey-task-text { fill: #27272A; }
+  .am-lcrr98 .journey-track { stroke: #dddddd; stroke-width: 1; stroke-dasharray: 4 7; }
+  .am-lcrr98 .journey-curve { fill: none; stroke: #9a9a9b; stroke-width: 2; stroke-linecap: round; }
+  .am-lcrr98 .journey-guide { stroke: #e4e4e4; stroke-width: 1; }
+  .am-lcrr98 .journey-score-label { fill: #575759; }
+  .am-lcrr98 .journey-baseline { stroke: #47474a; stroke-width: 2; }
+  .am-lcrr98 .journey-score-face { fill: #d7d7d7; stroke: #47474a; stroke-width: 1.2; }
+  .am-lcrr98 .journey-face-eye { fill: #27272A; }
+  .am-lcrr98 .journey-face-mouth { fill: none; stroke: #27272A; stroke-width: 1.6; stroke-linecap: round; }
+  .am-lcrr98 .journey-actor-legend-title { fill: #575759; }
+  .am-lcrr98 .journey-actor-legend-text { fill: #575759; }
+  .am-lcrr98 .journey-actor-dot { stroke: #FFFFFF; stroke-width: 1; }
+  .am-lcrr98 .journey-actor-0 { fill: #34438d; }
 </style>
 <g class="journey-score-guide" data-score-min="1" data-score-max="5">
   <line class="journey-guide" x1="176" y1="256.3" x2="498" y2="256.3" data-relationship="grid" data-direction="undirected" />

@@ -1,9 +1,10 @@
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
+import { inkOnAuthoredFill } from '../color-resolver.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { ER_STYLE_DEFAULTS } from './layout.ts'
+import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
@@ -105,6 +106,9 @@ export function lowerErScene(
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
+  // The diagram's frontmatter title, in the band layout reserved above.
+  if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
+
   // 0. ER subgraph frames, parent-first and behind relationships/entities.
   for (const group of diagram.groups) parts.push(renderErGroup(group, style))
 
@@ -119,7 +123,7 @@ export function lowerErScene(
 
   // 2. Entity boxes
   for (const entity of diagram.entities) {
-    parts.push(renderEntityBox(entity, style))
+    parts.push(renderEntityBox(entity, style, colors))
   }
 
   // 3. Cardinality markers at relationship endpoints
@@ -173,7 +177,7 @@ function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): Sc
  * Render an entity box with header and attribute rows.
  * Wrapped in <g class="entity"> with semantic data attributes.
  */
-function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle): SceneNode {
+function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle, colors: DiagramColors): SceneNode {
   const { id, x, y, width, height, headerHeight, rowHeight, label, attributes } = entity
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -184,6 +188,8 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
 
   // classDef then inline style are merged by layout for backend parity.
   const local = entity.inlineStyle ?? {}
+  // Name and attribute text sit on the author's fill when there is one.
+  const ink = inkOnAuthoredFill(entity.inlineStyle, colors)
   const rectFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
   const rectStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
@@ -216,7 +222,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
   })
 
   // Entity name (supports multi-line via <br> tags)
-  const nameColor = local.color ?? style.nodeTextColor ?? 'var(--_text)'
+  const nameColor = ink(style.nodeTextColor ?? 'var(--_text)')
   const displayLabel = applyTextTransform(label, style.nodeTextTransform)
   children.push({
     indent: 2,
@@ -254,17 +260,18 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
   })
 
   // Attribute rows
+  const commentColumn = erCommentColumnWidth(attributes)
   for (let i = 0; i < attributes.length; i++) {
     const attr = attributes[i]!
     const rowY = attrTop + i * rowHeight + rowHeight / 2
-    for (const node of renderAttribute(attr, id, x, rowY, width, style)) {
+    for (const node of renderAttribute(attr, id, x, rowY, width, style, ink, commentColumn)) {
       children.push({ indent: 2, node })
     }
   }
 
   // Empty row placeholder when no attributes
   if (attributes.length === 0) {
-    const emptyColor = style.nodeTextColor ?? 'var(--_text-faint)'
+    const emptyColor = ink(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({
       indent: 2,
       node: marks.text({
@@ -302,11 +309,22 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle)
  * Returns the row's scene nodes; when the attribute has a comment they are
  * wrapped in a single <g><title>…</title> group mark for tooltip support.
  */
-function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: number, boxWidth: number, style: ResolvedRenderStyle): SceneNode[] {
+function renderAttribute(
+  attr: ErAttribute,
+  entityId: string,
+  boxX: number,
+  y: number,
+  boxWidth: number,
+  style: ResolvedRenderStyle,
+  ink: (tone: string) => string,
+  commentColumn: number,
+): SceneNode[] {
   const rowNodes: SceneNode[] = []
   const attrId = `attr:${entityId}:${attr.name}`
-  const attrTextColor = style.nodeTextColor ?? 'var(--_text-sec)'
-  const attrTypeColor = style.nodeTextColor ?? 'var(--_text-muted)'
+  // Key text sits on its theme-tinted badge; type and name sit on the entity fill.
+  const keyTextColor = style.nodeTextColor ?? 'var(--_text-sec)'
+  const attrTextColor = ink(keyTextColor)
+  const attrTypeColor = ink(style.nodeTextColor ?? 'var(--_text-muted)')
 
   // Key badges on the left (keep proportional font — they're visual tags, not code)
   let keyWidth = 0
@@ -330,10 +348,10 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
       y,
       fontSize: ER_FONT.keySize,
       anchor: 'middle',
-      paint: { fill: attrTextColor },
+      paint: { fill: keyTextColor },
     },
       `<text x="${badgeX + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="${escapeAttr(attrTextColor)}">${attr.keys.join(',')}</text>`))
+      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="${escapeAttr(keyTextColor)}">${attr.keys.join(',')}</text>`))
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
@@ -352,8 +370,10 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
     `<tspan fill="${escapeAttr(attrTypeColor)}">${escapeXml(attr.type)}</tspan></text>`))
 
-  // Name (right-aligned, monospace with syntax highlighting)
-  const nameX = boxX + boxWidth - Math.max(8, style.nodePaddingX / 2)
+  // Name (right-aligned, monospace with syntax highlighting), left of the
+  // entity's comment column when any attribute carries a comment.
+  const rightEdge = boxX + boxWidth - Math.max(8, style.nodePaddingX / 2)
+  const nameX = rightEdge - commentColumn
   rowNodes.push(marks.text({
     id: attrId,
     role: 'attribute',
@@ -367,6 +387,23 @@ function renderAttribute(attr: ErAttribute, entityId: string, boxX: number, y: n
     `<text x="${nameX}" y="${y}" class="mono" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
     `<tspan fill="${escapeAttr(attrTextColor)}">${escapeXml(attr.name)}</tspan></text>`))
+
+  // Comment (right-aligned in its column, as Mermaid draws it after the name)
+  if (attr.comment) {
+    const comment = erCommentText(attr.comment)
+    rowNodes.push(marks.text({
+      id: `${attrId}:comment`,
+      role: 'attribute',
+      text: comment,
+      x: rightEdge,
+      y,
+      fontSize: ER_FONT.attrSize,
+      anchor: 'end',
+      paint: { fill: attrTypeColor },
+    },
+      `<text x="${rightEdge}" y="${y}" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
+      `font-size="${ER_FONT.attrSize}" fill="${escapeAttr(attrTypeColor)}">${escapeXml(comment)}</text>`))
+  }
 
   // Wrap in a group if there's a comment (for tooltip support)
   const hasComment = attr.comment && attr.comment.length > 0

@@ -1,4 +1,5 @@
 import type { RenderContext } from '../types.ts'
+import { resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
 import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -61,6 +62,8 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   const title = diagram.accessibilityTitle ?? diagram.nodes[0]?.label
   if (title) parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: title }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
+  // The diagram's frontmatter title, in the band layout reserved above.
+  if (diagram.title) parts.push(diagramTitleMark(diagram.title, resolveRenderStyle(options, undefined, resolved.styleFace)))
 
   for (const edge of diagram.edges) {
     const stroke = branchPaint(edge.to)

@@ -19,6 +19,9 @@ import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import type { PositionedGraph } from '../types.ts'
+import { formatBarValue } from '../xychart/axis-utils.ts'
+import type { PositionedXYChart } from '../xychart/types.ts'
+import type { PositionedQuadrantChart } from '../quadrant/types.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
@@ -277,6 +280,62 @@ function radarAuthoredContrastWarnings(positioned: VerificationArtifact): Layout
   }
 }
 
+/** Chart text the XY layout left out because it did not fit (LABELS_HIDDEN).
+ * The layout records what it omitted, so this reports it without re-deriving
+ * the fitting rules. */
+function xychartHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const chart = positioned()?.positioned as Partial<PositionedXYChart> | undefined
+    if (!chart) return []
+    const warnings: LayoutWarning[] = []
+    const categories = chart.hiddenCategoryLabels ?? []
+    if (categories.length > 0) {
+      const remedy = chart.horizontal
+        ? 'Shorten the category names, widen the chart, or lower xyChart.plotReservedSpacePercent.'
+        : 'Shorten the category names, or call set_orientation {horizontal: true} to list categories down the side.'
+      warnings.push({
+        code: 'LABELS_HIDDEN',
+        target: 'x-axis',
+        labels: categories,
+        message: `XY chart does not draw ${categories.length} x-axis category ${categories.length === 1 ? 'name' : 'names'} because ${categories.length === 1 ? 'it does' : 'they do'} not fit: ${categories.join(', ')}. ${remedy}`,
+      })
+    }
+    const bars = chart.unlabeledBars ?? []
+    if (bars.length > 0) {
+      const labels = bars.map(bar => `${bar.label ?? ''} = ${formatBarValue(bar.value)}`.trim())
+      warnings.push({
+        code: 'LABELS_HIDDEN',
+        target: 'data-labels',
+        labels,
+        message: `XY chart does not draw ${bars.length} bar value ${bars.length === 1 ? 'label' : 'labels'} because neither the bar nor the plot beyond it has room: ${labels.join(', ')}. Widen the value range or enlarge the chart.`,
+      })
+    }
+    return warnings
+  } catch {
+    // Layout failures have their own RENDER_FAILED path.
+    return []
+  }
+}
+
+/** Point labels the quadrant layout did not draw because every candidate
+ * position collided with a label placed before it (LABELS_HIDDEN). */
+function quadrantHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const chart = positioned()?.positioned as Partial<PositionedQuadrantChart> | undefined
+    const labels = (chart?.points ?? []).filter(point => point.labelHidden).map(point => point.label)
+    if (labels.length === 0) return []
+    return [{
+      code: 'LABELS_HIDDEN',
+      target: 'point-labels',
+      labels,
+      message: `Quadrant chart does not draw ${labels.length} point ${labels.length === 1 ? 'label' : 'labels'} because ${labels.length === 1 ? 'it collides' : 'they collide'} with labels placed first: ${labels.join(', ')}. Spread the points, shorten the names, or enlarge the chart.`,
+    }]
+  } catch {
+    // Layout failures have their own RENDER_FAILED path.
+    return []
+  }
+}
+
 export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
   if (d.body.kind === 'extension' || d.body.kind === 'preserved') return []
   const builtin = d as ValidDiagram
@@ -368,7 +427,10 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
             // so a task laid outside its section band is a reportable breach.
             groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant' ? 'center' : d.body.kind === 'journey',
           })
-    const appearanceWarnings = d.body.kind === 'radar' ? radarAuthoredContrastWarnings(positioned) : []
+    const appearanceWarnings = d.body.kind === 'radar'
+      ? radarAuthoredContrastWarnings(positioned)
+      : d.body.kind === 'xychart' ? xychartHiddenLabelWarnings(positioned)
+        : d.body.kind === 'quadrant' ? quadrantHiddenLabelWarnings(positioned) : []
     return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
   }
 
@@ -831,10 +893,12 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   // content-less diagrams keep the explicit, ok-flipping EMPTY_DIAGRAM their
   // verify paths already push. Callers whose empty layout means "unmodeled,
   // preserved" rather than "renders nothing" (opaque bodies) opt out via
-  // guardEmptyLayout=false.
+  // guardEmptyLayout=false. A RENDER_FAILED already says why the layout is
+  // empty; announcing unsupported syntax beside it would point at the wrong fix.
   if (
     guardEmptyLayout &&
     !suppress.has('UNSUPPORTED_SYNTAX') &&
+    !kept.some(w => w.code === 'RENDER_FAILED') &&
     layout.nodes.length === 0 &&
     layout.edges.length === 0 &&
     layout.groups.length === 0 &&

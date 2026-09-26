@@ -281,9 +281,15 @@ This is where we approximate aesthetics deterministically:
   metric without a reviewed `baseline.json` update in the same change.
 - **route-contract tripwires** — `ROUTE_*` codes that must stay 0; any hit
   means the layout pipeline regressed, not the diagram.
+- **chart-honesty pixel oracle** (`chart-honesty-text-*.test.ts`,
+  `property-chart-honesty.test.ts`) — every text of every family, in every
+  registered style, rasterized by resvg: WCAG contrast against the pixels
+  around its glyphs, glyphs on the canvas, authored text drawn or reported by
+  `verify`, and the same reading in every style
+  ([`design/system/chart-honesty.md`](design/system/chart-honesty.md)).
 
-**Runs:** `measureQuality`, ugly-detector, the layout rubric, and the
-heuristic-tracker ratchet all gate per PR.
+**Runs:** `measureQuality`, ugly-detector, the layout rubric, the
+heuristic-tracker ratchet, and the chart-honesty oracle all gate per PR.
 **Bound provenance (Move 6):** each `QualityBounds` band now carries an
 explicit basis — `edgeCrossings` is `evidence` (the one aesthetic with strong
 human-subject support: Purchase 1997/2002), `labelLegibility` is `derived`

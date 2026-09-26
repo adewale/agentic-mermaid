@@ -1,4 +1,5 @@
 import descriptorData from '../generated/descriptors/timeline.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
 import { layoutTimelineDiagram } from '../../timeline/layout.ts'
 import { parseTimelineDiagram } from '../../timeline/parser.ts'
@@ -9,7 +10,7 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     appearance: { family: { ...resolveTimelineRequestAppearance(ctx.renderOptions) } },
   }),
   layout: ctx => layoutResult(layoutTimelineDiagram(
-    parseTimelineDiagram(ctx.source.familyLines, ctx.source.accessibility),
+    withFrontmatterTitle(parseTimelineDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter),
     ctx.renderOptions,
     ctx.styleFace,
   )),

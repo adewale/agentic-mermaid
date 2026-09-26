@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="460.98" height="344.25" viewBox="0 0 460.98 344.25" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-radar-radar-17nf6lt-title" aria-roledescription="radar chart" id="char-radar-radar-17nf6lt" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="460.98" height="344.25" viewBox="0 0 460.98 344.25" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-radar-radar-17nf6lt-title" aria-roledescription="radar chart" id="char-radar-radar-17nf6lt" role="img" class="am-2ze2y9">
 <title id="char-radar-radar-17nf6lt-title">Skills</title>
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-2ze2y9 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-2ze2y9 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -19,18 +19,18 @@
   }
 </style>
 <style>
-  .radar-ring { stroke: #939395; stroke-width: 1; stroke-opacity: 0.7; fill: none; }
-  .radar-ring-outer { stroke-width: 1.4; stroke-opacity: 0.7; }
-  .radar-axis-line { stroke: #939395; stroke-width: 1; }
-  .radar-leader { stroke: #939395; stroke-width: 1; stroke-opacity: 0.5; }
-  .radar-area { stroke-width: 2.2; fill-opacity: 0.5; stroke-linejoin: round; }
-  .radar-dot { stroke: #FFFFFF; stroke-width: 1.2; }
-  .radar-axis-label { fill: #27272A; }
-  .radar-tick-box { fill: #FFFFFF; stroke: #939395; stroke-opacity: 0.35; stroke-width: 0.75; }
-  .radar-tick-label { fill: #27272A; }
-  .radar-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
-  .radar-legend-text { fill: #27272A; }
-  .radar-title { fill: #27272A; }
+  .am-2ze2y9 .radar-ring { stroke: #939395; stroke-width: 1; stroke-opacity: 0.7; fill: none; }
+  .am-2ze2y9 .radar-ring-outer { stroke-width: 1.4; stroke-opacity: 0.7; }
+  .am-2ze2y9 .radar-axis-line { stroke: #939395; stroke-width: 1; }
+  .am-2ze2y9 .radar-leader { stroke: #939395; stroke-width: 1; stroke-opacity: 0.5; }
+  .am-2ze2y9 .radar-area { stroke-width: 2.2; fill-opacity: 0.5; stroke-linejoin: round; }
+  .am-2ze2y9 .radar-dot { stroke: #FFFFFF; stroke-width: 1.2; }
+  .am-2ze2y9 .radar-axis-label { fill: #27272A; }
+  .am-2ze2y9 .radar-tick-box { fill: #FFFFFF; stroke: #939395; stroke-opacity: 0.35; stroke-width: 0.75; }
+  .am-2ze2y9 .radar-tick-label { fill: #27272A; }
+  .am-2ze2y9 .radar-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .am-2ze2y9 .radar-legend-text { fill: #27272A; }
+  .am-2ze2y9 .radar-title { fill: #27272A; }
 </style>
 <circle class="radar-ring" cx="180.54" cy="202.25" r="24" fill="none" />
 <circle class="radar-ring" cx="180.54" cy="202.25" r="48" fill="none" />

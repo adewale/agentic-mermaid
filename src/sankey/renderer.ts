@@ -37,7 +37,7 @@ import type { PositionedSankeyChart } from './types.ts'
 /** Link ribbon opacity — flows overlap, so full opacity would occlude. */
 const SANKEY_LINK_OPACITY = 0.5
 
-/** Halo width for `labelStyle: outlined` labels. */
+/** Halo width for node labels. */
 const SANKEY_LABEL_HALO_WIDTH = 3
 
 /**
@@ -167,7 +167,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
             strokeWidth,
             opacity: String(SANKEY_LINK_OPACITY),
           },
-          stroke: { mixBlendMode: linkBlendMode },
+          stroke: { mixBlendMode: linkBlendMode, encodesValue: true },
           identity: { id: link.id, from: link.source, to: link.target },
           endpoints: { from: link.sourceId, to: link.targetId },
           relationship: { kind: 'flow', direction: 'forward' },
@@ -211,10 +211,12 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
     )
   }
 
-  // Node labels (value line included by layout when `showValues`).
+  // Node labels (value line included by layout when `showValues`). Labels sit
+  // on the ribbons leaving or entering their node, so every label carries a
+  // page-colored halo that knocks the ribbon out behind its glyphs; Mermaid
+  // draws legacy labels without one. `labelStyle` only chooses placement.
   const labelFill = style.nodeTextColor ?? 'var(--_text)'
-  const outlined = visual.labelStyle === 'outlined'
-  const haloAttrs = outlined ? ` stroke="var(--bg)" stroke-width="${SANKEY_LABEL_HALO_WIDTH}" paint-order="stroke fill"` : ''
+  const haloAttrs = ` stroke="var(--bg)" stroke-width="${SANKEY_LABEL_HALO_WIDTH}" paint-order="stroke fill"`
   for (const node of chart.nodes) {
     const text = node.labelLines.join('\n')
     parts.push(
@@ -229,13 +231,9 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           anchor: node.labelAnchor,
           paint: {
             fill: labelFill,
-            ...(outlined
-              ? {
-                  stroke: 'var(--bg)',
-                  strokeWidth: String(SANKEY_LABEL_HALO_WIDTH),
-                  paintOrder: 'stroke fill',
-                }
-              : {}),
+            stroke: 'var(--bg)',
+            strokeWidth: String(SANKEY_LABEL_HALO_WIDTH),
+            paintOrder: 'stroke fill',
           },
           channels: { category: node.label, value: node.value },
         },

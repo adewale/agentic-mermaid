@@ -8,17 +8,20 @@
 // WCAG-guarded against explicit fills (journey precedent).
 // ============================================================================
 
-import { tryParseHex, toHex } from '../shared/color-math.ts'
+import { tryParseCssColor, tryParseHex, toHex } from '../shared/color-math.ts'
 import { safeCssColor } from '../shared/css-color.ts'
 import { CSS_NAMED_COLORS } from '../shared/css-named-colors.ts'
 
 /** True when `word` is a CSS color a `box` header can start with: a named
- *  keyword, `transparent`, #hex, or an rgb()/rgba()/hsl()/hsla() function. */
+ *  keyword, `transparent`, #hex, or an rgb()/rgba()/hsl()/hsla() function.
+ *  Like Mermaid's `CSS.supports` check, a word that only looks like a color
+ *  (`#12345`, `rgb(x)`) is not one, so it stays part of the title. Unlike a
+ *  browser, out-of-range channels (`rgb(300,0,0)`) are not clamped into one. */
 export function isCssColorToken(word: string): boolean {
   const w = word.toLowerCase()
   if (w === 'transparent' || w in CSS_NAMED_COLORS) return true
-  if (/^#[0-9a-fA-F]{3,8}$/.test(word)) return true
-  return /^(?:rgb|rgba|hsl|hsla)\([^)]*\)$/i.test(word)
+  if (!/^(?:#|(?:rgb|rgba|hsl|hsla)\()/i.test(word)) return false
+  return tryParseCssColor(word) !== null
 }
 
 /** Rect arguments become SVG background paint, never fragment labels. Admit

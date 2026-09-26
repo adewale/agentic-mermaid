@@ -5,11 +5,15 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 682_645,
+    maxRawBytes: 684_338,
     // The marker-reference change updates generated homepage SVG bytes without
     // adding a request; gzip is unchanged and the other exact totals are pinned.
-    maxGzipBytes: 406_565,
-    maxBrotliBytes: 387_996,
+    // Holding every family's text to the chart-honesty contract (root-scoped
+    // SVG styles, text tones that clear AA on every surface, and label halos)
+    // adds 1,693 raw, 296 gzip, and 138 Brotli bytes to the prerendered
+    // homepage SVGs; the request graph is unchanged.
+    maxGzipBytes: 406_861,
+    maxBrotliBytes: 388_134,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -21,9 +25,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // Sequence half-arrow examples add bytes without changing the six-request
     // graph; these are the reviewed Linux/x64 totals.
-    maxRawBytes: 391_535,
-    maxGzipBytes: 68_606,
-    maxBrotliBytes: 54_396,
+    // The chart-honesty text contract adds 2,731 raw, 423 gzip, and 346 Brotli
+    // bytes to the prerendered examples page without adding a request.
+    maxRawBytes: 394_266,
+    maxGzipBytes: 69_029,
+    maxBrotliBytes: 54_742,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -34,12 +40,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
-    maxRequests: 31,
+    maxRequests: 29,
     // Journey delimiter hardening changes generated demo bytes without adding
     // a request. These ceilings cover the reviewed Linux/x64 capture.
-    maxRawBytes: 732_417,
-    maxGzipBytes: 274_785,
-    maxBrotliBytes: 250_963,
+    // The chart-honesty text contract, with its checks that name an invalid
+    // authored color, adds 6,240 raw, 2,324 gzip, and 1,644 Brotli bytes to the
+    // shared chunks, and its module moves regroup the small shared chunks, so
+    // the graph drops from 31 to 29 requests.
+    maxRawBytes: 738_657,
+    maxGzipBytes: 277_109,
+    maxBrotliBytes: 252_607,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -64,9 +74,15 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
     // Journey delimiter hardening preserves the two-request graph; these are
     // the reviewed Linux/x64 capture ceilings.
-    maxRawBytes: 3_356_672,
-    maxGzipBytes: 989_438,
-    maxBrotliBytes: 776_682,
+    // The chart-honesty contract (SVG style scoping, per-bar data labels,
+    // contrast ink, palette repair, the LABELS_HIDDEN and
+    // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
+    // family's text tones, halos, titles, and containment, and the checks that
+    // name an invalid authored color) adds 22,538 raw, 8,230 gzip, and 6,383
+    // Brotli bytes without a new request.
+    maxRawBytes: 3_379_210,
+    maxGzipBytes: 997_668,
+    maxBrotliBytes: 783_065,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

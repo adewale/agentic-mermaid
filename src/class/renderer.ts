@@ -1,7 +1,8 @@
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
 import type { RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
+import { inkOnAuthoredFill } from '../color-resolver.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -98,6 +99,9 @@ export function lowerClassScene(
     parts.push(marks.documentContent({ id: 'desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
+  // The diagram's frontmatter title, in the band layout reserved above.
+  if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
+
   // 0. Namespace boxes (behind everything, parent-first so children draw on
   // top). Only namespaced diagrams add marks here, so namespace-free output
   // stays byte-identical to previous releases.
@@ -116,7 +120,7 @@ export function lowerClassScene(
 
   // 2. Class boxes
   for (const cls of diagram.classes) {
-    parts.push(renderClassBox(cls, style, options.security !== 'strict'))
+    parts.push(renderClassBox(cls, style, options.security !== 'strict', colors))
   }
 
   // 2b. Endpoint markers must sit above class surfaces. SVG paints a marker
@@ -218,8 +222,9 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
       `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
   })
 
-  // Header label (display label when given, else the segment name)
-  const headerText = applyTextTransform(ns.label, style.groupTextTransform)
+  // Header label (display label when given, else the segment name), wrapped
+  // by layout when it is wider than the namespace.
+  const headerText = ns.title ?? applyTextTransform(ns.label, style.groupTextTransform)
   const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
   children.push({
     indent: 2,
@@ -258,7 +263,7 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
  * Render a class box with 3 compartments: header, attributes, methods.
  * Wrapped in <g class="class-node"> with semantic data attributes.
  */
-function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean): SceneNode {
+function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors): SceneNode {
   const { x, y, width, height, headerHeight, attrHeight } = cls
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -283,6 +288,8 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
 
   // classDef then inline style are merged by layout for backend parity.
   const local = cls.inlineStyle ?? {}
+  // Every text in the box sits on the author's fill when there is one.
+  const ink = inkOnAuthoredFill(cls.inlineStyle, colors)
   const boxFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
   const boxStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
@@ -318,7 +325,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   let nameY = y + headerHeight / 2
   if (cls.annotation !== undefined) {
     const annotY = y + 12
-    const annotColor = local.color ?? style.nodeTextColor ?? 'var(--_text-muted)'
+    const annotColor = ink(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({
       indent: 2,
       node: marks.text({
@@ -339,7 +346,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   }
 
   // Class name (supports multi-line via <br> tags)
-  const nameColor = local.color ?? style.nodeTextColor ?? 'var(--_text)'
+  const nameColor = ink(style.nodeTextColor ?? 'var(--_text)')
   const label = applyTextTransform(cls.label, style.nodeTextTransform)
   children.push({
     indent: 2,
@@ -370,7 +377,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   for (let i = 0; i < cls.attributes.length; i++) {
     const member = cls.attributes[i]!
     const memberY = attrTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`) })
+    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink) })
   }
 
   // Divider line between attributes and methods
@@ -381,7 +388,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   for (let i = 0; i < cls.methods.length; i++) {
     const member = cls.methods[i]!
     const memberY = methodTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`) })
+    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink) })
   }
 
   return marks.group({
@@ -410,12 +417,12 @@ function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lin
 /**
  * Render a single class member with syntax highlighting.
  * Uses <tspan> elements to color each part of the member differently:
- *   - visibility symbol (+/-/#/~) → textFaint
+ *   - visibility symbol (+/-/#/~) → textMuted (it carries UML meaning)
  *   - member name (incl. parens for methods) → textSecondary
- *   - colon separator → textFaint
+ *   - colon separator → textFaint (decoration)
  *   - type annotation → textMuted
  */
-function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string): SceneNode {
   const fontStyle = member.isAbstract ? ' font-style="italic"' : ''
   const decoration = member.isStatic ? ' text-decoration="underline"' : ''
 
@@ -423,18 +430,19 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   const spans: string[] = []
 
   if (member.visibility) {
-    spans.push(`<tspan fill="var(--_text-faint)">${escapeXml(member.visibility)} </tspan>`)
+    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-muted)'))}">${escapeXml(member.visibility)} </tspan>`)
   }
 
   // Add parentheses for methods to distinguish from attributes, including parameters if present
   const displayName = member.isMethod
     ? `${member.name}(${member.params || ''})`
     : member.name
-  spans.push(`<tspan fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-sec)')}">${escapeXml(displayName)}</tspan>`)
+  const nameInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
+  spans.push(`<tspan fill="${escapeAttr(nameInk)}">${escapeXml(displayName)}</tspan>`)
 
   if (member.type) {
-    spans.push(`<tspan fill="var(--_text-faint)">: </tspan>`)
-    spans.push(`<tspan fill="var(--_text-muted)">${escapeXml(member.type)}</tspan>`)
+    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-faint)'))}">: </tspan>`)
+    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-muted)'))}">${escapeXml(member.type)}</tspan>`)
   }
 
   // Plain signature string (the tspan structure lives in the crisp)
@@ -449,7 +457,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     y,
     fontSize: CLS_FONT.memberSize,
     anchor: 'start',
-    paint: { fill: style.nodeTextColor ?? 'var(--_text-sec)' },
+    paint: { fill: nameInk },
   },
     `<text x="${x}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
     `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}>` +
@@ -669,8 +677,13 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
 
   const out: SceneNode[] = []
   const textColor = style.edgeTextColor ?? 'var(--_text-muted)'
+  // Labels and cardinalities sit beside their edge and can touch it (or a
+  // neighbor's) where routes bend; a page-colored halo keeps the line off the
+  // glyphs.
   const textAttrs =
-    `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(textColor)}"`
+    `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(textColor)}" ` +
+    `stroke="var(--bg)" stroke-width="${RELATION_LABEL_HALO_WIDTH}" stroke-linejoin="round" paint-order="stroke"`
+  const paint = { fill: textColor, stroke: 'var(--bg)', strokeWidth: String(RELATION_LABEL_HALO_WIDTH), strokeLinejoin: 'round' as const, paintOrder: 'stroke' }
 
   // Label — prefer layout-computed position (collision-aware), fall back to midpoint
   if (rel.label) {
@@ -684,7 +697,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
       y: pos.y - 8,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
-      paint: { fill: textColor },
+      paint,
     }, renderMultilineText(label, pos.x, pos.y - 8, style.edgeLabelFontSize, textAttrs)))
   }
 
@@ -702,7 +715,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
       y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
-      paint: { fill: textColor },
+      paint,
     }, renderMultilineText(rel.fromCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
@@ -720,12 +733,15 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
       y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
-      paint: { fill: textColor },
+      paint,
     }, renderMultilineText(rel.toCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   return out
 }
+
+/** Halo behind relationship labels and cardinalities. */
+const RELATION_LABEL_HALO_WIDTH = 3
 
 /** Get the midpoint of a point array */
 function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: number } {

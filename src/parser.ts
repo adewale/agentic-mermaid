@@ -777,6 +777,13 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (stateDescMatch) {
       const id = stateDescMatch[1]!
       const label = normalizeBrTags(stateDescMatch[2]!.trim())
+      // A description also describes a state a transition already created
+      // (Mermaid adds it either way): it replaces the id-only label, and a
+      // second description stacks under the first rather than being dropped.
+      const existing = graph.nodes.get(id)
+      if (existing && existing.shape === 'rounded') {
+        graph.nodes.set(id, { ...existing, label: existing.label === id ? label : `${existing.label}\n${label}` })
+      }
       registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
       continue
     }
@@ -1357,7 +1364,7 @@ function consumeQuotedShapeNode(
     if (quoteEnd < 0 || !suffix.startsWith(spec.close, quoteEnd + 1)) continue
     const raw = suffix.slice(quoteStart + 1, quoteEnd).replace(/\\(["\\])/g, '$1')
     const parsed = parseLabelText(raw, true)
-    registerNode(graph, subgraphStack, {
+    defineNode(graph, subgraphStack, {
       id: identifier.id,
       label: parsed.text,
       shape: spec.shape,
@@ -1414,7 +1421,7 @@ function consumeNode(
       if (nodePatternSwallowedArrow(text, match[1]!.length)) continue
       id = match[1]!
       const { text: label, markdown } = parseLabelText(match[2]!)
-      registerNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}) })
+      defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}) })
       remaining = text.slice(match[0].length)
       break
     }
@@ -1448,6 +1455,24 @@ function consumeNode(
   }
 
   return { id, remaining }
+}
+
+/** Register a node from a shaped definition (`b[Label]`, `b(("Label"))`). A
+ * node already referenced takes the definition's label and shape, as Mermaid
+ * does: `a --> b` then `b[Label B]` draws "Label B", not "b". */
+function defineNode(
+  graph: MermaidGraph,
+  subgraphStack: MermaidSubgraph[],
+  node: MermaidNode,
+): void {
+  const existing = graph.nodes.get(node.id)
+  if (!existing) {
+    registerNode(graph, subgraphStack, node)
+    return
+  }
+  const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, ...kept } = existing
+  graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.markdownLabel ? { markdownLabel: true as const } : {}) })
+  trackInSubgraph(subgraphStack, node.id)
 }
 
 /** Register a node in the graph and track it in the current subgraph */

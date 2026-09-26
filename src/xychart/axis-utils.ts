@@ -30,6 +30,26 @@ export function getPointSpacing(values: number[], scale: (value: number) => numb
   return Number.isFinite(minSpacing) && minSpacing > 0 ? minSpacing : fallback
 }
 
+/** A value clamped into an axis range authored in either direction. */
+export function clampToAxisRange(range: { min: number; max: number }, value: number): number {
+  const lo = Math.min(range.min, range.max)
+  const hi = Math.max(range.min, range.max)
+  return Math.min(hi, Math.max(lo, value))
+}
+
+/** Bars measure from zero. When an axis range excludes zero, the nearest range
+ * edge is the reference that remains, so zero is clamped into the range. Both
+ * the SVG layout and the terminal renderer use this one rule. */
+export function barBaselineValue(range: { min: number; max: number }): number {
+  return clampToAxisRange(range, 0)
+}
+
+/** Display text for a bar's value, shared by data labels and tooltips. */
+export function formatBarValue(value: number): string {
+  if (Number.isInteger(value)) return String(value)
+  return value.toFixed(Math.abs(value) < 10 ? 1 : 0)
+}
+
 export function linearTicks(min: number, max: number, count = 10): number[] {
   if (!(count > 0)) return []
   if (min === max) return [min]

@@ -1,9 +1,10 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
-import { tryParseHex, luma255 } from './shared/color-math.ts'
+import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
-import { DEFAULTS } from './theme.ts'
+import { DEFAULTS, resolvedColorValue } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 import { safeCssPaint } from './shared/css-color.ts'
+import { checkedAuthoredStyle } from './shared/style-props.ts'
 
 const MERMAID_THEME_COLORS: Record<string, DiagramColors> = {
   default: { bg: DEFAULTS.bg, fg: DEFAULTS.fg },
@@ -88,11 +89,11 @@ export function resolveNodeInlineStyle(
 
   const className = graph.classAssignments.get(nodeId)
   if (className) {
-    const classDef = graph.classDefs.get(className)
+    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
     if (classDef) result = { ...classDef }
   }
 
-  const nodeStyle = graph.nodeStyles.get(nodeId)
+  const nodeStyle = checkedAuthoredStyle(graph.nodeStyles.get(nodeId), `style ${nodeId}`)
   if (nodeStyle) result = result ? { ...result, ...nodeStyle } : { ...nodeStyle }
 
   return result
@@ -108,10 +109,10 @@ export function resolveEdgeInlineStyle(
 ): Record<string, string> | undefined {
   let result: Record<string, string> | undefined
 
-  const defaultStyle = graph.linkStyles.get('default')
+  const defaultStyle = checkedAuthoredStyle(graph.linkStyles.get('default'), 'linkStyle default')
   if (defaultStyle) result = { ...defaultStyle }
 
-  const indexStyle = graph.linkStyles.get(edgeIndex)
+  const indexStyle = checkedAuthoredStyle(graph.linkStyles.get(edgeIndex), `linkStyle ${edgeIndex}`)
   if (indexStyle) result = result ? { ...result, ...indexStyle } : { ...indexStyle }
 
   return result
@@ -133,11 +134,15 @@ function parseRgbFunction(color: string): { r: number; g: number; b: number } | 
   return Object.values(rgb).every(v => v >= 0 && v <= 255) ? rgb : null
 }
 
+/** Ink for text drawn on an opaque fill: whichever of black and white has the
+ * higher WCAG contrast. The better of the two is at least 4.58:1 against any
+ * opaque color, so text on a data mark always clears WCAG AA; a brightness
+ * threshold picks the weaker ink for mid-tone fills. */
 export function contrastTextColor(fill: string): string | undefined {
   const rgb = parseHexToRgb(fill) ?? parseRgbFunction(fill)
   if (!rgb) return undefined
-  const brightness = luma255(rgb.r, rgb.g, rgb.b)
-  return brightness > 140 ? '#000000' : '#FFFFFF'
+  const luminance = relativeLuminance(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)!
+  return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? '#000000' : '#FFFFFF'
 }
 
 export function resolveInlineNodeTextColor(
@@ -147,4 +152,26 @@ export function resolveInlineNodeTextColor(
   if (inlineStyle?.color) return inlineStyle.color
   if (inlineStyle?.fill) return contrastTextColor(inlineStyle.fill) ?? fallback
   return fallback
+}
+
+/**
+ * Ink for text a family draws on an author-styled shape (`style X fill:…`).
+ * The author's `color` wins; without one, each theme tone the family would use
+ * (name, secondary, muted) is kept where it reads on the author's fill at WCAG
+ * AA and moved toward black or white just far enough where it does not, so a
+ * dark custom fill never swallows theme-colored text.
+ */
+export function inkOnAuthoredFill(
+  inlineStyle: Record<string, string> | undefined,
+  colors: DiagramColors,
+): (tone: string) => string {
+  const color = inlineStyle?.color
+  if (color) return () => color
+  const composite = inlineStyle?.fill ? compositeCssColor(inlineStyle.fill, resolvedColorValue('var(--bg)', colors) ?? '#ffffff') : null
+  if (!composite) return tone => tone
+  const fill = toHex(...composite)
+  return tone => {
+    const resolved = resolvedColorValue(tone, colors)
+    return resolved ? legibleInk(resolved, fill) : contrastTextColor(fill) ?? tone
+  }
 }

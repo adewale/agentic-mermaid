@@ -6,6 +6,8 @@
  * `#59;` and the other documented Mermaid hash entities carry a terminator
  * semicolon inside text. Comments consume the physical line, while actor
  * `@{...}` metadata and accessibility text keep their embedded semicolons.
+ * A CSS hex color right after `box` or `rect` is that block's argument; any
+ * other `#` word there (`#12345`) starts a comment, as in Mermaid.
  * Preserve each segment's own whitespace; consumers decide normalization.
  */
 export function isSequenceCommentLine(line: string): boolean {
@@ -52,7 +54,7 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
           index = closing
           continue
         }
-        if (/^(?:rect|box)\s+#[0-9a-f]{3,8};/i.test(remainder)
+        if (/^(?:rect|box)\s+#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8});/i.test(remainder)
           || isSequenceCommentLine(remainder)
           || /^(?:accTitle|accDescr)(?:\s*:|\s+)/i.test(remainder)) {
           pushStatement(line.slice(start))
@@ -80,7 +82,7 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
       if (char === '#' && firstHashIndex < 0) firstHashIndex = index
       if (char === '#' && !hasHashEntityAt(line, index)
         && !(/^\s*(?:rect|box)\s*$/i.test(line.slice(start, index))
-          && /^#[0-9a-f]{3,8}(?=\s|;|$)/i.test(line.slice(index)))) {
+          && /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})(?=\s|;|$)/i.test(line.slice(index)))) {
         pushStatement(line.slice(start, index))
         pushStatement(line.slice(index))
         finished = true
@@ -105,7 +107,7 @@ function isHashEntityTerminator(line: string, statementStart: number, semicolonI
   if (!hasHashEntityAt(line, hashIndex)) return false
   // CSS hex colors are authored as block arguments, not HTML entities.
   if (firstHashIndex === hashIndex
-    && /^\s*(?:rect|box)\s+#[0-9a-f]{3,8}$/i.test(line.slice(statementStart, semicolonIndex))) return false
+    && /^\s*(?:rect|box)\s+#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(line.slice(statementStart, semicolonIndex))) return false
   return true
 }
 

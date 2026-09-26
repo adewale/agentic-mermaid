@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#f8fafc;--fg:#27272A;--font:Inter;background:#f8fafc;max-width:700px" aria-describedby="chart-desc-mermaid-kaeiwt" aria-labelledby="chart-title-mermaid-kaeiwt" aria-roledescription="xychart" class="xychart" data-xychart-colors="1" id="mermaid-kaeiwt" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#f8fafc;--fg:#27272A;--font:Inter;background:#f8fafc;max-width:700px" aria-describedby="chart-desc-mermaid-kaeiwt" aria-labelledby="chart-title-mermaid-kaeiwt" aria-roledescription="xychart" class="xychart am-16zzkx9" data-xychart-colors="1" id="mermaid-kaeiwt" role="img">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-16zzkx9 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-16zzkx9 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #555558;
@@ -18,35 +18,35 @@
   }
 </style>
 <style>
-  .xychart-grid { stroke: #dbdcdf; stroke-width: 1; }
-  .xychart-axis-line { fill: none; }
-  .xychart-tick { fill: none; }
-  .xychart-x-axis-line { stroke: #555558; }
-  .xychart-y-axis-line { stroke: #555558; }
-  .xychart-x-tick { stroke: #555558; }
-  .xychart-y-tick { stroke: #555558; }
-  .xychart-bar { stroke: none; }
-  .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-  .xychart-dot { stroke: #f8fafc; stroke-width: 2; }
-  .xychart-label { fill: #27272A; }
-  .xychart-x-label { fill: #27272A; }
-  .xychart-y-label { fill: #27272A; }
-  .xychart-axis-title { fill: #27272A; }
-  .xychart-x-axis-title { fill: #27272A; }
-  .xychart-y-axis-title { fill: #27272A; }
-  .xychart-title { fill: #123456; }
-  .xychart-data-label { fill: #27272A; pointer-events: none; }
-  .xychart-legend-label { fill: #27272A; }
-  svg {
+  .am-16zzkx9 .xychart-grid { stroke: #dbdcdf; stroke-width: 1; }
+  .am-16zzkx9 .xychart-axis-line { fill: none; }
+  .am-16zzkx9 .xychart-tick { fill: none; }
+  .am-16zzkx9 .xychart-x-axis-line { stroke: #555558; }
+  .am-16zzkx9 .xychart-y-axis-line { stroke: #555558; }
+  .am-16zzkx9 .xychart-x-tick { stroke: #555558; }
+  .am-16zzkx9 .xychart-y-tick { stroke: #555558; }
+  .am-16zzkx9 .xychart-bar { stroke: none; }
+  .am-16zzkx9 .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .am-16zzkx9 .xychart-dot { stroke: #f8fafc; stroke-width: 2; }
+  .am-16zzkx9 .xychart-label { fill: #27272A; }
+  .am-16zzkx9 .xychart-x-label { fill: #27272A; }
+  .am-16zzkx9 .xychart-y-label { fill: #27272A; }
+  .am-16zzkx9 .xychart-axis-title { fill: #27272A; }
+  .am-16zzkx9 .xychart-x-axis-title { fill: #27272A; }
+  .am-16zzkx9 .xychart-y-axis-title { fill: #27272A; }
+  .am-16zzkx9 .xychart-title { fill: #123456; }
+  .am-16zzkx9 .xychart-data-label { pointer-events: none; }
+  .am-16zzkx9 .xychart-legend-label { fill: #27272A; }
+  svg.am-16zzkx9 {
     --xychart-color-0: #ff6b6b;
     --xychart-color-1: #0ea5e9;
   }
-  .xychart-bar.xychart-color-0 { fill: #ff6b6b; }
-  path.xychart-color-0, line.xychart-color-0 { stroke: #ff6b6b; }
-  circle.xychart-color-0 { fill: #ff6b6b; }
-  .xychart-bar.xychart-color-1 { fill: #0ea5e9; }
-  path.xychart-color-1, line.xychart-color-1 { stroke: #0ea5e9; }
-  circle.xychart-color-1 { fill: #0ea5e9; }
+  .am-16zzkx9 .xychart-bar.xychart-color-0 { fill: #ff6b6b; }
+  .am-16zzkx9 path.xychart-color-0, .am-16zzkx9 line.xychart-color-0 { stroke: #ff6b6b; }
+  .am-16zzkx9 circle.xychart-color-0 { fill: #ff6b6b; }
+  .am-16zzkx9 .xychart-bar.xychart-color-1 { fill: #0ea5e9; }
+  .am-16zzkx9 path.xychart-color-1, .am-16zzkx9 line.xychart-color-1 { stroke: #0ea5e9; }
+  .am-16zzkx9 circle.xychart-color-1 { fill: #0ea5e9; }
 </style>
 <title id="chart-title-mermaid-kaeiwt">Revenue by quarter</title>
 <desc id="chart-desc-mermaid-kaeiwt">Quarterly revenue and forecast
@@ -82,9 +82,9 @@ across two regions.</desc>
 <rect x="259.28" y="211.6" width="181.69" height="257.4" class="xychart-bar xychart-color-0" data-value="60" data-label="Q2 Growth" data-id="bar:0:Q2 Growth" data-role="bar" />
 <rect x="450.53" y="275.95" width="181.69" height="193.05" class="xychart-bar xychart-color-0" data-value="45" data-label="Q3" data-id="bar:0:Q3" data-role="bar" />
 <path d="M158.87,361.75 L350.12,233.05 L541.37,254.5" class="xychart-line xychart-color-1" data-relationship="series" data-direction="undirected" data-id="series:line-0" data-role="series" />
-<text x="158.87" y="348.3" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">30</text>
-<text x="350.12" y="219.6" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">60</text>
-<text x="541.37" y="283.95" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">45</text>
+<text x="158.87" y="348.3" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" fill="#000000" stroke="#ff6b6b" stroke-width="3" stroke-linejoin="round" paint-order="stroke" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">30</text>
+<text x="350.12" y="219.6" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" fill="#000000" stroke="#ff6b6b" stroke-width="3" stroke-linejoin="round" paint-order="stroke" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">60</text>
+<text x="541.37" y="283.95" text-anchor="middle" dominant-baseline="hanging" font-size="16" font-weight="400" fill="#000000" stroke="#ff6b6b" stroke-width="3" stroke-linejoin="round" paint-order="stroke" class="xychart-data-label" textLength="19.68" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">45</text>
 <text x="158.87" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="14.196" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Q1</text>
 <text x="350.122" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="63.336" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Q2 Growth</text>
 <text x="541.374" y="486.6" text-anchor="middle" font-size="14" font-weight="400" dy="0.35em" class="xychart-label xychart-x-label" textLength="18.732" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Q3</text>

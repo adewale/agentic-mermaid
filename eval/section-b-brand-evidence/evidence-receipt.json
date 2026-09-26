@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 282,
-    "treeSha256": "6a464e775b1aed74cabb0955a80cf798cf1a86f97e75bba7606b6f742b059891"
+    "count": 283,
+    "treeSha256": "eed8d9fcd5b70de58dfa89ad2f2b050053db5f32ddd88be5f6d1fba6143c480f"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,21 +62,21 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "324c1d058f4706f0eff0f2a07a9d403aac355aec338b7967c4cdfcc91943bb59",
-      "pngSha256": "99555fa073f4c80647d3a46f2ed799483917d2fb605790282e613c0de6bd3173"
+      "svgSha256": "dd9555ef91699288edbd17091e84e4aa93186e5ff062e163db81244bf620f240",
+      "pngSha256": "415106a30622934aa001d587aa35d283250007bd98794a756e435a59505738b5"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "e7b95e2ef2cfb971d6a9e81f357ee1e9d895faa96ab4ac627f812cea0fa42c6e",
-      "pngSha256": "4ddcc7fae698bf6b8b0fec596520831df29f304a3fb585a5e46d72cc976ee3f6"
+      "svgSha256": "ce4a3d5a4f7f6c0f6638d85abfd963bd1394f585f1e988b333e38a0750d26b61",
+      "pngSha256": "57de27066fd63a9ad078eb7821b2720d88e6ecb2d16d03237a944cf07662b119"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "fbdb896bb30a8ef377a9a3bdf9d66fa9a29bce2c39c9432c2967673579b0a344",
-      "pngSha256": "5d700bc6bca928f9dd0c913ceac0d6ac2119095235826471702f898691d5f344"
+      "svgSha256": "854b2f13a44c4e96d0a132da3f25a21f7cf3a5915c3cea3c213ac20838cd019a",
+      "pngSha256": "2378e7117d7dd1f8aa55dc85e06e07890f40f269523d5c9ff9789ad9b75b66d0"
     }
   },
-  "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
+  "terminalSha256": "f19a908d866fa17e6e0c7b43e12400f2a67a9e32a381fe265bc67d5b44e7f4f8",
   "baseline": {
     "state": "unsupported-style-fields",
     "commit": "e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8",
@@ -87,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9",
-    "reviewedAt": "2026-08-21",
-    "reviewer": "Codex coding agent, during the PR #220 rebase verification",
+    "artifactSha256": "062480f15ef92421096ee206425451ebf7d8bf2265987b864ffd5fa519cbc342",
+    "reviewedAt": "2026-09-24",
+    "reviewer": "Claude Code agent, while holding every family to the chart-honesty text contract",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9"
+      "sha256": "062480f15ef92421096ee206425451ebf7d8bf2265987b864ffd5fa519cbc342"
     }
   ]
 }

@@ -21,12 +21,14 @@ import type { RenderOptions, Point } from '../types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
-import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { measureMultilineText } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureMultilineText } from '../text-metrics.ts'
+import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
+import { checkedAuthoredStyle } from '../shared/style-props.ts'
 
 /** Layout constants for class diagrams */
 export const CLS = {
@@ -135,10 +137,17 @@ function flattenNamespaces(namespaces: ClassNamespace[], parentPath?: string, hi
 }
 
 /** Build ELK graph and size map from a class diagram. */
+/** A namespace header band tall enough for `title`'s lines. */
+function namespaceHeaderHeight(style: ResolvedRenderStyle, title: string | undefined): number {
+  const lines = title === undefined ? 1 : title.split('\n').length
+  return style.groupHeaderFontSize + 16 + (lines - 1) * style.groupHeaderFontSize * LINE_HEIGHT_RATIO
+}
+
 function buildClassElkGraph(
   diagram: ClassDiagram,
   options: RenderOptions,
   styleFace?: Readonly<InternalStyleFace>,
+  titles: ReadonlyMap<string, string> = new Map(),
 ): { elkGraph: ElkNode; classSizes: ClassSizeMap } {
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   const classSizes: ClassSizeMap = new Map()
@@ -210,8 +219,8 @@ function buildClassElkGraph(
   // Compound nodes for namespaces, parent-first so parents exist when
   // children attach.
   const elkByPath = new Map<string, ElkNode>()
-  const headerHeight = style.groupHeaderFontSize + 16
   for (const info of namespaces) {
+    const headerHeight = namespaceHeaderHeight(style, titles.get(info.path))
     const compound: ElkNode = {
       id: NS_PREFIX + info.path,
       layoutOptions: {
@@ -274,11 +283,11 @@ function extractClassLayout(
   classSizes: ClassSizeMap,
   style: ResolvedRenderStyle,
   hierarchicalNamespaces: boolean,
+  titles: ReadonlyMap<string, string> = new Map(),
 ): PositionedClassDiagram {
   const classLookup = new Map<string, ClassNode>()
   for (const cls of diagram.classes) classLookup.set(cls.id, cls)
   const namespaceInfoByPath = new Map(flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces).map(info => [info.path, info]))
-  const headerHeight = style.groupHeaderFontSize + 16
 
   const positionedClasses: PositionedClassNode[] = []
   const positionedNamespaces: PositionedClassNamespace[] = []
@@ -322,7 +331,8 @@ function extractClassLayout(
           y,
           width: child.width ?? 0,
           height: child.height ?? 0,
-          headerHeight,
+          headerHeight: namespaceHeaderHeight(style, titles.get(path)),
+          ...(titles.has(path) ? { title: titles.get(path)! } : {}),
         })
         walk(child, x, y)
         continue
@@ -347,7 +357,7 @@ function extractClassLayout(
           ...(cls.href ? { href: cls.href } : {}),
           ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
           ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle ? {
-            inlineStyle: { ...(cls.className ? diagram.classDefs.get(cls.className) : {}), ...cls.inlineStyle },
+            inlineStyle: { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) },
           } : {}),
         })
       }
@@ -529,15 +539,56 @@ export function layoutClassDiagram(
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }
   }
 
-  const { elkGraph, classSizes } = buildClassElkGraph(diagram, options, styleFace)
-  const result = elkLayoutSync(elkGraph)
-  return extractClassLayout(
-    result,
-    diagram,
-    classSizes,
-    resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace),
-    options.class?.hierarchicalNamespaces !== false,
-  )
+  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
+  const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
+  // A namespace is as wide as its classes, and its header title is drawn from
+  // its left edge; a title wider than that wraps, and the layout runs again
+  // with a header band tall enough for the lines. Titles that fit never wrap,
+  // so most diagrams lay out once.
+  let titles: Map<string, string> = new Map()
+  let positioned: PositionedClassDiagram | undefined
+  for (let pass = 0; pass < 3; pass++) {
+    const { elkGraph, classSizes } = buildClassElkGraph(diagram, options, styleFace, titles)
+    positioned = extractClassLayout(elkLayoutSync(elkGraph), diagram, classSizes, style, hierarchicalNamespaces, titles)
+    const wrapped = wrappedNamespaceTitles(positioned.namespaces, style)
+    if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title)) break
+    titles = wrapped
+  }
+  return withClassTitle(positioned!, diagram.title, style)
+}
+
+/** The diagram's title takes a band above everything the layout placed. */
+function withClassTitle(positioned: PositionedClassDiagram, title: string | undefined, style: ResolvedRenderStyle): PositionedClassDiagram {
+  const band = diagramTitleBand(title, style)
+  if (!band) return positioned
+  const dy = band.height
+  for (const cls of positioned.classes) cls.y += dy
+  for (const ns of positioned.namespaces) ns.y += dy
+  for (const note of positioned.notes) {
+    note.y += dy
+    if (note.targetY !== undefined) note.targetY += dy
+    if (note.noteY !== undefined) note.noteY += dy
+  }
+  for (const rel of positioned.relationships) {
+    for (const point of rel.points) point.y += dy
+    for (const position of [rel.labelPosition, rel.fromCardinalityPosition, rel.toCardinalityPosition]) {
+      if (position) position.y += dy
+    }
+  }
+  const width = Math.max(positioned.width, band.width + 2 * CLS.padding)
+  return { ...positioned, width, height: positioned.height + dy, title: positionDiagramTitle(band, width, CLS.padding) }
+}
+
+/** Titles of the namespaces whose header text does not fit their width, wrapped to fit. */
+function wrappedNamespaceTitles(namespaces: readonly PositionedClassNamespace[], style: ResolvedRenderStyle): Map<string, string> {
+  const titles = new Map<string, string>()
+  for (const ns of namespaces) {
+    const text = applyTextTransform(ns.label, style.groupTextTransform)
+    const room = ns.width - 2 * style.groupLabelPaddingX
+    const wrapped = wrapLabelToWidth(text, room, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
+    if (wrapped !== text) titles.set(ns.id, wrapped)
+  }
+  return titles
 }
 
 /** Calculate the max width of a list of class members (uses mono metrics) */

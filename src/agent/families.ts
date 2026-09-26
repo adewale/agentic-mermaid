@@ -472,7 +472,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     aliases: ['swimlane'],
     semanticChannels: [],
     detect: detectsFlowchartFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text')],
     example: 'flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]',
     editorExample: `flowchart TD
   A[Start] --> B{Decision?}
@@ -485,7 +485,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['status'],
     detect: detectsStateFamily,
     detectLoose: detectsStateFamilyLoose,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
     example: 'stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve',
     editorExample: `stateDiagram-v2
   [*] --> Idle
@@ -495,11 +495,11 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   Failed --> Idle: retry
   Complete --> [*]` },
   { id: 'sequence', upstreamId: 'sequence', maturity: 'stable', label: 'Sequence', headers: ['sequenceDiagram'], narrower: 'asSequence', editorDiagramType: 'Sequence', editorLabel: 'Sequence', editorDescription: 'Request/response messages between participants.', editorExampleId: 'sequence-basic', editorGlyph: 'Q',
-    config: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight', 'useMaxWidth', 'useWidth'], noopKeys: ['actorFontFamily', 'actorFontSize', 'actorFontWeight', 'arrowMarkerAbsolute', 'bottomMarginAdj', 'boxMargin', 'boxTextMargin', 'forceMenus', 'hideUnusedParticipants', 'labelBoxHeight', 'labelBoxWidth', 'messageAlign', 'messageFontFamily', 'messageFontSize', 'messageFontWeight', 'mirrorActors', 'noteAlign', 'noteFontFamily', 'noteFontSize', 'noteFontWeight', 'rightAngles', 'useMaxWidth', 'useWidth', 'wrap', 'wrapPadding'] },
+    config: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight', 'actorFont', 'noteFont', 'messageFont', 'useMaxWidth', 'useWidth'], noopKeys: ['actorFont', 'actorFontFamily', 'actorFontSize', 'actorFontWeight', 'arrowMarkerAbsolute', 'bottomMarginAdj', 'boxMargin', 'boxTextMargin', 'forceMenus', 'hideUnusedParticipants', 'labelBoxHeight', 'labelBoxWidth', 'messageAlign', 'messageFont', 'messageFontFamily', 'messageFontSize', 'messageFontWeight', 'mirrorActors', 'noteAlign', 'noteFont', 'noteFontFamily', 'noteFontSize', 'noteFontWeight', 'rightAngles', 'useMaxWidth', 'useWidth', 'wrap', 'wrapPadding'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^sequencediagram\s*$/.test(line),
     detectLoose: (line: string) => /^sequencediagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'connector'), nativeSceneRole('activation', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text', 'shape')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'connector'), nativeSceneRole('activation', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text', 'shape')],
     example: 'sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response',
     editorExample: `sequenceDiagram
   participant User
@@ -529,7 +529,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: [],
     detect: (line: string) => /^classdiagram\s*$/.test(line),
     detectLoose: (line: string) => /^classdiagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('class-box', 'container', 'shape'), nativeSceneRole('member', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'text'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('class-box', 'container', 'shape'), nativeSceneRole('member', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'text'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
     example: 'classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account "1" o-- "*" Transaction : logs',
     editorExample: `classDiagram
   class Renderer {
@@ -549,7 +549,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['category'],
     detect: (line: string) => /^erdiagram(?:\s+subgraph\b.*)?\s*$/.test(line),
     detectLoose: (line: string) => /^erdiagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('entity', 'container', 'shape'), nativeSceneRole('attribute', 'container', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('entity', 'container', 'shape'), nativeSceneRole('attribute', 'container', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'shape'), nativeSceneRole('label', 'text')],
     example: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER {\n    string id\n  }',
     editorExample: `erDiagram
   CUSTOMER {
@@ -597,7 +597,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   web:R --> L:api
   api:R --> L:db` },
   { id: 'xychart', upstreamId: 'xychart', maturity: 'stable', label: 'XY chart', headers: ['xychart', 'xychart-beta'], narrower: 'asXyChart', editorDiagramType: 'XY Chart', editorLabel: 'XY chart', editorDescription: 'Bar and line series using xychart syntax.', editorExampleId: 'xychart-basic', editorGlyph: 'XY',
-    config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
+    config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showDataLabelOutsideBar', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^xychart(?:-beta)?(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
@@ -640,7 +640,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   MCP setup: [0.62, 0.72]
   Palette polish: [0.35, 0.24]` },
   { id: 'gantt', upstreamId: 'gantt', maturity: 'stable', label: 'Gantt', headers: ['gantt'], narrower: 'asGantt', editorDiagramType: 'Gantt', editorLabel: 'Gantt chart', editorDescription: 'Sections, dependencies, status tags, and a milestone.', editorExampleId: 'gantt-basic', editorGlyph: 'G',
-    config: { section: 'gantt', keys: ['displayMode', 'barHeight', 'topAxis', 'tickInterval', 'axisFormat', 'barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'], noopKeys: ['barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'] },
+    config: { section: 'gantt', keys: ['displayMode', 'barHeight', 'topAxis', 'tickInterval', 'axisFormat', 'barGap', 'topPadding', 'leftPadding', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday', 'rightPadding', 'titleTopMargin'], noopKeys: ['barGap', 'topPadding', 'leftPadding', 'rightPadding', 'titleTopMargin', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'] },
     semanticChannels: ['status', 'progress', 'emphasis', 'category'],
     detect: (line: string) => /^gantt\s*$/.test(line),
     detectLoose: (line: string) => /^gantt(?:\s|$)/.test(line),
@@ -658,11 +658,11 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     Crit review    :crit, rev1, after des3, 2d
     Release        :milestone, m1, after rev1, 0d` },
   { id: 'mindmap', upstreamId: 'mindmap', maturity: 'stable', label: 'Mindmap', headers: ['mindmap'], narrower: 'asMindmap', editorDiagramType: 'Mindmap', editorLabel: 'Mindmap', editorDescription: 'A centered, bilateral hierarchy with shapes, Markdown, Unicode, accessibility, and deep quality branches.', editorExampleId: 'mindmap-basic', editorGlyph: 'M',
-    config: { section: 'mindmap', keys: ['padding', 'maxNodeWidth'] },
+    config: { section: 'mindmap', keys: ['padding', 'maxNodeWidth', 'layoutAlgorithm'], noopKeys: ['layoutAlgorithm'] },
     semanticChannels: ['importance', 'category'],
     detect: (line: string) => /^mindmap\s*$/.test(line),
     detectLoose: (line: string) => /^mindmap(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('icon', 'document', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('icon', 'document', 'text'), nativeSceneRole('label', 'text')],
     example: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch',
     editorExample: `mindmap
   root((Agent-native release))
@@ -685,7 +685,7 @@ interviews, benchmarks, and Unicode naïve café\`"]
       Mermaid parity
       Terminal tools` },
   { id: 'gitgraph', upstreamId: 'gitGraph', maturity: 'stable', label: 'GitGraph', headers: ['gitGraph'], narrower: 'asGitGraph', editorDiagramType: 'GitGraph', editorLabel: 'GitGraph', editorDescription: 'Ordered branches, commit types, tags, a semantic merge, and a merge-parent backport.', editorExampleId: 'gitgraph-basic', editorGlyph: 'Git',
-    config: { section: 'gitGraph', keys: ['showBranches', 'showCommitLabel', 'mainBranchName', 'mainBranchOrder', 'parallelCommits', 'rotateCommitLabel'] },
+    config: { section: 'gitGraph', keys: ['showBranches', 'showCommitLabel', 'mainBranchName', 'mainBranchOrder', 'parallelCommits', 'rotateCommitLabel', 'arrowMarkerAbsolute', 'diagramPadding', 'nodeLabel', 'titleTopMargin'], noopKeys: ['arrowMarkerAbsolute', 'diagramPadding', 'nodeLabel', 'titleTopMargin'] },
     semanticChannels: ['status', 'category'],
     detect: (line: string) => /^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line),
     detectLoose: (line: string) => /^gitgraph(?:\s|:|$)/.test(line),

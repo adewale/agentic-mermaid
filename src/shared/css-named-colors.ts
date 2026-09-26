@@ -1,5 +1,7 @@
-/** CSS Color Module Level 4 named colors (lowercase keyword → #rrggbb). */
-export const CSS_NAMED_COLORS: Readonly<Record<string, string>> = {
+/** CSS Color Module Level 4 named colors (lowercase keyword → #rrggbb). The
+ *  table has no prototype, so an authored `constructor` or `__proto__` is an
+ *  unknown word like any other instead of resolving to an Object member. */
+export const CSS_NAMED_COLORS: Readonly<Record<string, string>> = Object.assign(Object.create(null) as Record<string, string>, {
   aliceblue: '#f0f8ff', antiquewhite: '#faebd7', aqua: '#00ffff', aquamarine: '#7fffd4',
   azure: '#f0ffff', beige: '#f5f5dc', bisque: '#ffe4c4', black: '#000000',
   blanchedalmond: '#ffebcd', blue: '#0000ff', blueviolet: '#8a2be2', brown: '#a52a2a',
@@ -37,4 +39,4 @@ export const CSS_NAMED_COLORS: Readonly<Record<string, string>> = {
   steelblue: '#4682b4', tan: '#d2b48c', teal: '#008080', thistle: '#d8bfd8',
   tomato: '#ff6347', turquoise: '#40e0d0', violet: '#ee82ee', wheat: '#f5deb3',
   white: '#ffffff', whitesmoke: '#f5f5f5', yellow: '#ffff00', yellowgreen: '#9acd32',
-}
+})

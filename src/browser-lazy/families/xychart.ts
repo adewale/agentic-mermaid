@@ -1,4 +1,5 @@
 import descriptorData from '../generated/descriptors/xychart.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
 import { layoutXYChart } from '../../xychart/layout.ts'
 import {
@@ -28,7 +29,7 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     const familyConfig = ctx.familyConfig as { config: ReturnType<typeof resolveXYChartConfig> } | undefined
     const familyAppearance = ctx.familyAppearance as { theme: ReturnType<typeof resolveXYChartTheme> } | undefined
     const chart = applyResolvedXYChartConfig(
-      withAccessibilityObject(parseXYChart(ctx.source.familyLines), ctx.source.accessibility),
+      withFrontmatterTitle(withAccessibilityObject(parseXYChart(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter),
       familyConfig?.config ?? resolveXYChartConfig({}),
       familyAppearance?.theme ?? resolveXYChartTheme({}),
     )

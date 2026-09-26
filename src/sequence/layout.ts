@@ -1,8 +1,8 @@
 import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { displayMessageLabel } from './parser.ts'
 import type { RenderOptions } from '../types.ts'
-import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
-import type { RenderStyleDefaults } from '../styles.ts'
+import { applyTextTransform, estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import type { ResolvedSequenceConfig } from './config.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -605,7 +605,7 @@ export function layoutSequenceDiagram(
   const diagramWidth = globalMaxX + shiftX + padX
   const diagramHeight = diagramBottom
 
-  return {
+  return withSequenceTitle({
     width: Math.max(diagramWidth, 200),
     height: Math.max(diagramHeight, 100),
     accessibilityTitle: diagram.accessibilityTitle,
@@ -618,5 +618,29 @@ export function layoutSequenceDiagram(
     notes,
     boxes,
     destructions,
+  }, diagram.title, style, padX, padY)
+}
+
+/** The diagram's title takes a band above everything the layout placed. */
+function withSequenceTitle(
+  positioned: PositionedSequenceDiagram,
+  title: string | undefined,
+  style: ResolvedRenderStyle,
+  padX: number,
+  padY: number,
+): PositionedSequenceDiagram {
+  const band = diagramTitleBand(title, style)
+  if (!band) return positioned
+  const dy = band.height
+  for (const item of [...positioned.actors, ...positioned.messages, ...positioned.notes, ...positioned.boxes, ...positioned.destructions]) item.y += dy
+  for (const item of [...positioned.lifelines, ...positioned.activations]) {
+    item.topY += dy
+    item.bottomY += dy
   }
+  for (const block of positioned.blocks) {
+    block.y += dy
+    for (const divider of block.dividers) divider.y += dy
+  }
+  const width = Math.max(positioned.width, band.width + 2 * padX)
+  return { ...positioned, width, height: positioned.height + dy, title: positionDiagramTitle(band, width, padY) }
 }

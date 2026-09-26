@@ -1,7 +1,7 @@
 import type { LayoutWarning } from '../agent/types.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
-import { toHex, wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
-import { MIX } from '../theme.ts'
+import { isHexColor, toHex, wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
+import { MIX, resolveColors } from '../theme.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { STYLE_OWNED_PAINT_VARIABLES, type BrandConstraint } from './style-spec.ts'
 import { BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_WARNING_POLICY } from './brand-constraint-contract.ts'
@@ -33,7 +33,23 @@ function resolvedPaint(value: string | undefined, request: ResolvedRenderRequest
   if (!value) return undefined
   const colors = request.appearance.colors
   const mixed = (percent: number): string | undefined => mixOpaqueCss(colors.fg, colors.bg, percent)
-  const derived = {
+  // Hex palettes are inlined through resolveColors, whose text tones carry the
+  // contrast repair; measure those, not the unrepaired mixes.
+  const inlined = isHexColor(colors.bg) && isHexColor(colors.fg) ? resolveColors(colors) : undefined
+  const derived = inlined ? {
+    text: inlined.text,
+    textSec: inlined.textSec,
+    textMuted: inlined.textMuted,
+    textFaint: inlined.textFaint,
+    line: inlined.line,
+    arrow: inlined.arrow,
+    nodeFill: inlined.nodeFill,
+    nodeStroke: inlined.nodeStroke,
+    groupHdr: inlined.groupHdr,
+    innerStroke: inlined.innerStroke,
+    keyBadge: inlined.keyBadge,
+  } : {
+    text: colors.fg,
     textSec: colors.muted ?? mixed(MIX.textSec),
     textMuted: colors.muted ?? mixed(MIX.textMuted),
     textFaint: mixed(MIX.textFaint),
@@ -48,7 +64,7 @@ function resolvedPaint(value: string | undefined, request: ResolvedRenderRequest
   const styleOwnedToken = {
     '--bg': colors.bg,
     '--fg': colors.fg,
-    '--_text': colors.fg,
+    '--_text': derived.text,
     '--_text-sec': derived.textSec,
     '--_text-muted': derived.textMuted,
     '--_text-faint': derived.textFaint,

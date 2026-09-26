@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="300" height="382" viewBox="0 0 300 382" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="382" viewBox="0 0 300 382" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-82xazh">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-82xazh text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-82xazh {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -50,23 +50,23 @@
 <line class="lifeline" data-actor="John" x1="220" y1="70" x2="220" y2="352" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
 <g class="message" data-label="Before" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Alice-&gt;John#0" data-role="message">
   <line x1="80" y1="96" x2="220" y2="96" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:Alice-&gt;John#0:line" data-role="message" data-from="Alice" data-to="John" role="graphics-symbol" aria-roledescription="relation" aria-label="Alice to John: Before" />
-  <text x="150" y="86" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="33.726" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Before</text>
+  <text x="150" y="86" font-size="11" text-anchor="middle" font-weight="400" fill="#69696c" dy="3.8499999999999996" textLength="33.726" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Before</text>
 </g>
 <g class="message" data-label="Outer" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Alice-&gt;John#1" data-role="message">
   <line x1="80" y1="164" x2="220" y2="164" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:Alice-&gt;John#1:line" data-role="message" data-from="Alice" data-to="John" role="graphics-symbol" aria-roledescription="relation" aria-label="Alice to John: Outer" />
-  <text x="150" y="154" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="27.786" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Outer</text>
+  <text x="150" y="154" font-size="11" text-anchor="middle" font-weight="400" fill="#606063" stroke="#bfdfff" stroke-width="3" stroke-linejoin="round" paint-order="stroke" dy="3.8499999999999996" textLength="27.786" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Outer</text>
 </g>
 <g class="message" data-label="Inner" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:John-&gt;Alice#0" data-role="message">
   <line x1="220" y1="232" x2="80" y2="232" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:John-&gt;Alice#0:line" data-role="message" data-from="John" data-to="Alice" role="graphics-symbol" aria-roledescription="relation" aria-label="John to Alice: Inner" />
-  <text x="150" y="222" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="26.598" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Inner</text>
+  <text x="150" y="222" font-size="11" text-anchor="middle" font-weight="400" fill="#545457" stroke="#acc9ff" stroke-width="3" stroke-linejoin="round" paint-order="stroke" dy="3.8499999999999996" textLength="26.598" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Inner</text>
 </g>
 <g class="message" data-label="Outer again" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:John-&gt;Alice#1" data-role="message">
   <line x1="220" y1="272" x2="80" y2="272" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:John-&gt;Alice#1:line" data-role="message" data-from="John" data-to="Alice" role="graphics-symbol" aria-roledescription="relation" aria-label="John to Alice: Outer again" />
-  <text x="150" y="262" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="55.704" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Outer again</text>
+  <text x="150" y="262" font-size="11" text-anchor="middle" font-weight="400" fill="#606063" stroke="#bfdfff" stroke-width="3" stroke-linejoin="round" paint-order="stroke" dy="3.8499999999999996" textLength="55.704" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Outer again</text>
 </g>
 <g class="message" data-label="After" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Alice-&gt;John#2" data-role="message">
   <line x1="80" y1="312" x2="220" y2="312" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:Alice-&gt;John#2:line" data-role="message" data-from="Alice" data-to="John" role="graphics-symbol" aria-roledescription="relation" aria-label="Alice to John: After" />
-  <text x="150" y="302" font-size="11" text-anchor="middle" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="24.222" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">After</text>
+  <text x="150" y="302" font-size="11" text-anchor="middle" font-weight="400" fill="#69696c" dy="3.8499999999999996" textLength="24.222" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">After</text>
 </g>
 <g class="actor" data-id="Alice" data-label="Alice" data-type="participant" data-role="actor">
   <rect x="40" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="actor:Alice:box" data-role="actor" />

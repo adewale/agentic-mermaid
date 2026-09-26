@@ -3,6 +3,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { verifyMermaid } from '../agent/index.ts'
 
 function nodeStyle(line: string, id = 'A'): Record<string, string> | undefined {
   return parseMermaid(`flowchart TD\n  A\n  ${line}`).nodeStyles.get(id)
@@ -43,5 +45,37 @@ describe('M4 style props — comma-aware splitting', () => {
   test('style statements without key/value properties are ignored', () => {
     const g = parseMermaid('flowchart TD\n  A --> B\n  style e red')
     expect(g.nodeStyles.has('e')).toBe(false)
+  })
+})
+
+describe('an authored paint the renderer cannot draw', () => {
+  test('fails the render with the directive, the property, the value and a fix', () => {
+    expect(() => renderMermaidSVG('flowchart TD\n  A --> B\n  style A fill:#12345')).toThrow(
+      'style A: fill "#12345" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla() or var(--name), e.g. style A fill:#f96',
+    )
+    for (const [source, named] of [
+      ['flowchart TD\n  A:::hot --> B\n  classDef hot fill:#f96,stroke:url(#a)', 'classDef hot: stroke "url(#a)"'],
+      ['flowchart TD\n  A --> B\n  linkStyle default color:#1234567', 'linkStyle default: color "#1234567"'],
+      ['stateDiagram-v2\n  A --> B\n  classDef hot fill:#12345\n  class A hot', 'classDef hot: fill "#12345"'],
+      ['classDiagram\n  class Account\n  style Account color:#12345', 'style Account: color "#12345"'],
+      ['erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  style CUSTOMER fill:#12345', 'style CUSTOMER: fill "#12345"'],
+    ] as const) {
+      expect(() => renderMermaidSVG(source), source).toThrow(`${named} is not a CSS color — expected`)
+    }
+  })
+
+  test('is refused even where the element never draws it', () => {
+    // An edge draws only its stroke, but a bad fill or label color is still the author's mistake.
+    for (const property of ['fill', 'color']) {
+      expect(() => renderMermaidSVG(`flowchart TD\n  A --> B\n  linkStyle 0 ${property}:#12345`)).toThrow(
+        `linkStyle 0: ${property} "#12345" is not a CSS color — expected`,
+      )
+    }
+  })
+
+  test('verify reports that message alone', () => {
+    const verified = verifyMermaid('flowchart TD\n  A --> B\n  style A fill:#12345')
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings).toEqual([{ code: 'RENDER_FAILED', reason: expect.stringContaining('style A: fill "#12345" is not a CSS color — expected') }])
   })
 })

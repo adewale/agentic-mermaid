@@ -25,7 +25,7 @@ import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
  * from Shiki themes or custom palettes. Each falls back to a color-mix()
  * derivation from bg + fg if not set.
  */
-import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast } from './shared/color-math.ts'
+import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import { requireSafeCssFontFamily } from './shared/css-font.ts'
 import { requireSafeCssPaint } from './shared/css-color.ts'
 
@@ -450,20 +450,40 @@ export interface ResolvedColors {
   keyBadge: string
 }
 
+/** resolveColors is pure, and families ink text against its tones one label
+ * at a time, so each palette's resolution is kept (a small, bounded cache). */
+const resolvedColorsCache = new Map<string, ResolvedColors>()
+const RESOLVED_COLORS_CACHE_LIMIT = 64
+
 /**
  * Resolve all derived colors from a DiagramColors to concrete hex values.
  * Implements the same logic as the CSS color-mix() derivations in buildStyleBlock().
  */
 export function resolveColors(colors: DiagramColors): ResolvedColors {
+  const key = [colors.bg, colors.fg, colors.line, colors.accent, colors.muted, colors.surface, colors.border].join('\n')
+  const cached = resolvedColorsCache.get(key)
+  if (cached) return cached
+  const resolved = Object.freeze(deriveColors(colors))
+  if (resolvedColorsCache.size >= RESOLVED_COLORS_CACHE_LIMIT) resolvedColorsCache.delete(resolvedColorsCache.keys().next().value!)
+  resolvedColorsCache.set(key, resolved)
+  return resolved
+}
+
+function deriveColors(colors: DiagramColors): ResolvedColors {
   const { bg, fg } = colors
   const nodeFill = colors.surface ?? mixHex(fg, bg, MIX.nodeFill)
   const groupHdr = mixHex(fg, bg, MIX.groupHeader)
-  let text = ensureContrast(fg, bg, 4.5)
-  text = ensureContrast(text, nodeFill, 4.5)
-  let textSec = ensureContrast(colors.muted ?? mixHex(fg, bg, MIX.textSec), bg, 4.5, text)
-  textSec = ensureContrast(textSec, groupHdr, 4.5, text)
-  const textMuted = ensureContrast(colors.muted ?? mixHex(fg, bg, MIX.textMuted), bg, 4.5, text)
-  const textFaint = ensureContrast(mixHex(fg, bg, MIX.textFaint), bg, 3, text)
+  const keyBadge = mixHex(fg, bg, MIX.keyBadge)
+  // Every text tone is drawn on every one of these surfaces somewhere (member
+  // types on node bodies, group titles on header bands, key names on badges),
+  // so each tone must read at WCAG AA on all of them, not only on the page.
+  // The faint tone is for decoration only (separators), which needs the 3:1
+  // of non-text contrast; text a reader must read never uses it.
+  const surfaces = [bg, nodeFill, groupHdr, keyBadge]
+  const text = legibleOnEvery(fg, surfaces)
+  const textSec = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textSec), surfaces, text)
+  const textMuted = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textMuted), surfaces, text)
+  const textFaint = legibleOnEvery(mixHex(fg, bg, MIX.textFaint), surfaces, text, WCAG_AA_NON_TEXT_CONTRAST)
   return {
     bg,
     fg,
@@ -478,8 +498,60 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
     groupFill: bg,
     groupHdr,
     innerStroke: mixHex(fg, bg, MIX.innerStroke),
-    keyBadge: mixHex(fg, bg, MIX.keyBadge),
+    keyBadge,
   }
+}
+
+/** `candidate`, darkened or lightened just enough to reach `minimum` (WCAG AA
+ * for text by default) on every surface. The surfaces are tints of one page,
+ * so repairing against each in turn converges; a second pass covers a repair
+ * that moved off an earlier one. */
+function legibleOnEvery(candidate: string, surfaces: readonly string[], fallback?: string, minimum = WCAG_AA_TEXT_CONTRAST): string {
+  let ink = candidate
+  for (let pass = 0; pass < 2; pass++) {
+    for (const surface of surfaces) ink = ensureContrast(ink, surface, minimum, fallback)
+  }
+  return ink
+}
+
+/** The concrete value of every diagram color variable (`--bg`, `--_text`, …),
+ * keyed by name without the leading dashes, or undefined when the palette is
+ * not concrete hex (live CSS theming cannot be resolved ahead of the host). */
+export function diagramColorVariables(colors: DiagramColors): Map<string, string> | undefined {
+  if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return undefined
+  const rc = resolveColors(colors)
+  const vars = new Map<string, string>()
+  // User-facing variables
+  vars.set('bg', rc.bg)
+  vars.set('fg', rc.fg)
+  if (colors.line && isHexColor(colors.line)) vars.set('line', colors.line)
+  if (colors.accent && isHexColor(colors.accent)) vars.set('accent', colors.accent)
+  if (colors.muted && isHexColor(colors.muted)) vars.set('muted', colors.muted)
+  if (colors.surface && isHexColor(colors.surface)) vars.set('surface', colors.surface)
+  if (colors.border && isHexColor(colors.border)) vars.set('border', colors.border)
+  // Derived internal variables
+  vars.set('_text', rc.text)
+  vars.set('_text-sec', rc.textSec)
+  vars.set('_text-muted', rc.textMuted)
+  vars.set('_text-faint', rc.textFaint)
+  vars.set('_line', rc.line)
+  vars.set('_arrow', rc.arrow)
+  vars.set('_node-fill', rc.nodeFill)
+  vars.set('_node-stroke', rc.nodeStroke)
+  vars.set('_group-fill', rc.groupFill)
+  vars.set('_group-hdr', rc.groupHdr)
+  vars.set('_inner-stroke', rc.innerStroke)
+  vars.set('_key-badge', rc.keyBadge)
+  return vars
+}
+
+/** One paint (`#hex`, `var(--name)` or `var(--name, #hex)`) as concrete hex,
+ * or undefined when it names something the palette cannot resolve. */
+export function resolvedColorValue(value: string, colors: DiagramColors): string | undefined {
+  if (isHexColor(value)) return value
+  const reference = value.match(/^var\(\s*--([\w-]+)\s*(?:,\s*(#[0-9a-fA-F]{3,8})\s*)?\)$/)
+  if (!reference) return undefined
+  return diagramColorVariables(colors)?.get(reference[1]!) ?? reference[2]
 }
 
 /**
@@ -499,20 +571,16 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
  * the SVG is returned as-is since resolution isn't possible.
  */
 export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
-  if (!isHexColor(colors.bg) || !isHexColor(colors.fg)) return svg
-
+  const palette = diagramColorVariables(colors)
+  if (!palette) return svg
   const rc = resolveColors(colors)
 
   // Build mapping of CSS variable names → resolved hex values
   const vars = new Map<string, string>()
-  // User-facing variables
-  vars.set('bg', rc.bg)
-  vars.set('fg', rc.fg)
-  if (colors.line && isHexColor(colors.line)) vars.set('line', colors.line)
-  if (colors.accent && isHexColor(colors.accent)) vars.set('accent', colors.accent)
-  if (colors.muted && isHexColor(colors.muted)) vars.set('muted', colors.muted)
-  if (colors.surface && isHexColor(colors.surface)) vars.set('surface', colors.surface)
-  if (colors.border && isHexColor(colors.border)) vars.set('border', colors.border)
+  for (const name of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border']) {
+    const value = palette.get(name)
+    if (value !== undefined) vars.set(name, value)
+  }
 
   // Some family renderers define concrete custom properties on the SVG root
   // before using them in style-block fallbacks. Learn those up front so
@@ -524,18 +592,7 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   }
 
   // Derived internal variables
-  vars.set('_text', rc.text)
-  vars.set('_text-sec', rc.textSec)
-  vars.set('_text-muted', rc.textMuted)
-  vars.set('_text-faint', rc.textFaint)
-  vars.set('_line', rc.line)
-  vars.set('_arrow', rc.arrow)
-  vars.set('_node-fill', rc.nodeFill)
-  vars.set('_node-stroke', rc.nodeStroke)
-  vars.set('_group-fill', rc.groupFill)
-  vars.set('_group-hdr', rc.groupHdr)
-  vars.set('_inner-stroke', rc.innerStroke)
-  vars.set('_key-badge', rc.keyBadge)
+  for (const [name, value] of palette) if (name.startsWith('_')) vars.set(name, value)
 
   // `--font` is intentionally left as a live CSS variable so consumers can
   // swap the family post-render. Skip it from the color-resolution phase

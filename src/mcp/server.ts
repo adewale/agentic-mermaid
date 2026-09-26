@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { URL } from 'node:url'
-import { executeInSandbox } from './sandbox.ts'
+import { executeInSandbox, whenSandboxWatchdogDisarmed } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
@@ -144,6 +144,28 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   const p = params as { name?: string; arguments?: Record<string, unknown> } | undefined
   const name = p?.name
   const args = p?.arguments ?? {}
+  if (name === 'execute') return handleExecute(id, args, context)
+  // Every other tool renders or lays out synchronously on the host; start it
+  // outside a sandbox call's armed watchdog window (see sandbox.ts).
+  return whenSandboxWatchdogDisarmed(() => handleHostToolCall(id, name, args, context))
+}
+
+async function handleExecute(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): Promise<JsonRpcResponse> {
+  const code = (args as { code?: string }).code
+  const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
+  if (requestedTimeoutMs !== undefined && !isValidExecuteTimeout(requestedTimeoutMs)) {
+    return error(id, -32602, EXECUTE_TIMEOUT_ERROR)
+  }
+  const timeoutMs = Math.min(
+    requestedTimeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS,
+    context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS,
+  )
+  if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
+  const r = await executeInSandbox(code, { timeoutMs })
+  return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
+}
+
+function handleHostToolCall(id: number | string | null, name: string | undefined, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {
   if (name === 'describe_sdk') {
     try {
       const payload = describeSdkPayload(args)
@@ -151,20 +173,6 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     } catch (e) {
       return error(id, -32602, e instanceof Error ? e.message : String(e))
     }
-  }
-  if (name === 'execute') {
-    const code = (args as { code?: string }).code
-    const requestedTimeoutMs = (args as { timeoutMs?: number }).timeoutMs
-    if (requestedTimeoutMs !== undefined && !isValidExecuteTimeout(requestedTimeoutMs)) {
-      return error(id, -32602, EXECUTE_TIMEOUT_ERROR)
-    }
-    const timeoutMs = Math.min(
-      requestedTimeoutMs ?? DEFAULT_EXECUTE_TIMEOUT_MS,
-      context.maxSandboxTimeoutMs ?? MAX_SANDBOX_TIMEOUT_MS,
-    )
-    if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
-    const r = await executeInSandbox(code, { timeoutMs })
-    return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
   }
   if (name === 'render_png') return handleRenderPng(id, args, context)
   if (name === 'describe') {

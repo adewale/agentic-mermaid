@@ -37,7 +37,7 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassInteractionWithAuthored, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
-import { parseMutableStyleProps, parseStyleProps, serializeStyleProps } from '../shared/style-props.ts'
+import { parseMutableStyleProps, parseStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -462,7 +462,9 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
         code: 'INVALID_OP',
         message: style.reason === 'MULTILINE'
           ? 'classDef style must be a single-line CSS-like property list'
-          : 'classDef style must contain at least one property:value pair',
+          : style.reason === 'UNSAFE_PAINT'
+            ? unsafeStylePaintError(`define_class ${op.name}`, style.paint).message
+            : 'classDef style must contain at least one property:value pair',
       })
       if (!b.classDefs) b.classDefs = {}
       b.classDefs[op.name] = style.value
@@ -488,7 +490,9 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
           code: 'INVALID_OP',
           message: style.reason === 'MULTILINE'
             ? 'Class style must be a single-line CSS-like property list'
-            : 'Class style must contain at least one property:value pair',
+            : style.reason === 'UNSAFE_PAINT'
+              ? unsafeStylePaintError(`set_class_style ${op.class}`, style.paint).message
+              : 'Class style must contain at least one property:value pair',
         })
         c.style = style.value
       }
