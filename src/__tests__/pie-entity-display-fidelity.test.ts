@@ -92,6 +92,9 @@ test('Pie title metadata covers entity-produced leading and trailing whitespace 
     ['X#32;', 'X '],
     ['#32;X#32;', ' X '],
     ['#160;X', '\u00a0X'],
+    ['#32;', ' '],
+    ['#32;#32;', '  '],
+    ['#160;', '\u00a0'],
   ] as const) {
     const source = `pie title ${sourceTitle}\n  "Y" : 1\n`
     for (const colorMode of ['none', 'html'] as const) {

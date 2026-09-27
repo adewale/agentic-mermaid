@@ -166,7 +166,7 @@ interface Candidate { id: string; label: string; sourceLine?: number; kind?: Reg
 
 function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node', preserveEntitySpelling = false): void {
   const normalized = preserveEntitySpelling ? label : label?.trim()
-  if (!normalized?.trim()) return
+  if (!normalized || (!normalized.trim() && !(preserveEntitySpelling && id === 'title'))) return
   out.push({ id, label: normalized, sourceLine, kind, ...(preserveEntitySpelling ? { preserveEntitySpelling: true } : {}) })
 }
 
