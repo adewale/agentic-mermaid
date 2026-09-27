@@ -85,7 +85,7 @@ export function parseErClassAssignment(line: string): { ids: string[]; className
 
 export function recordErClassNames(byEntity: Map<string, string[]>, id: string, names: readonly string[]): void {
   const existing = byEntity.get(id)
-  if (existing) existing.push(...names)
+  if (existing) for (const name of names) existing.push(name)
   else byEntity.set(id, [...names])
 }
 

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import mermaid from 'mermaid'
@@ -174,6 +175,25 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
     const native = parseErDiagram(lines)
     expect(native.entities[0]?.className?.split(' ')).toHaveLength(200_000)
     expect(performance.now() - started).toBeLessThan(1_500)
+  })
+
+  test('a large second class list avoids the JavaScript argument-count ceiling', () => {
+    const classes = `${'hot,'.repeat(200_000)}hot`
+    const native = parseErDiagram(['erDiagram', 'A ||--o{ B : x', 'class A vip', `class A ${classes}`])
+    expect(native.entities[0]?.className?.split(' ')).toHaveLength(200_002)
+    const parsed = parseRegisteredMermaid(`erDiagram\nA ||--o{ B : x\nclass A vip\nclass A ${classes}`)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(asEr(parsed.value)?.body.entities[0]?.className?.split(' ')).toHaveLength(200_002)
+
+    // Bun permits larger call-argument lists than Node; exercise the shared
+    // parser in the supported Node runtime as well.
+    const parserUrl = new URL('../er/parser.ts', import.meta.url).href
+    const script = `import { parseErDiagram } from ${JSON.stringify(parserUrl)};
+      const classes = 'hot,'.repeat(200000) + 'hot';
+      const chart = parseErDiagram(['erDiagram', 'A ||--o{ B : x', 'class A vip', 'class A ' + classes]);
+      if (chart.entities[0]?.className?.split(' ').length !== 200002) process.exit(1);`
+    const node = spawnSync('node', ['--input-type=module', '-e', script], { encoding: 'utf8' })
+    expect(node.status).toBe(0)
   })
 
   test('reviewer-facing before/after images are same-source production artifacts', () => {
