@@ -216,7 +216,7 @@
     },
     {
       "path": "src/agent/pie-body.ts",
-      "sha256": "d8b02e2d69e256cfd06dfd4fa0d1bb04bc396252f81f01f89164fedebe3ac22b"
+      "sha256": "350834cafed61b142d313676513ef8f470132dd8d53eb06a1baeed684eff1d15"
     },
     {
       "path": "src/agent/png.ts",
@@ -360,7 +360,7 @@
     },
     {
       "path": "src/ascii/index.ts",
-      "sha256": "707954f50405cd3001c044f6488c61c5db6273ea07748cb014883736a9691115"
+      "sha256": "10777a684f5d3583c86a697585145fd722e86b9743d9717796e8034696aaeaa9"
     },
     {
       "path": "src/ascii/journey.ts",
@@ -368,7 +368,7 @@
     },
     {
       "path": "src/ascii/meta.ts",
-      "sha256": "d1908cad585bb46689e8a83b9d8dda978bdb8645b5fbb33be3f53a30b386f3dd"
+      "sha256": "b59f676ac0b5dfbcd0667a278039c334fd3fae5a10343395ff8ca5a208541896"
     },
     {
       "path": "src/ascii/mindmap.ts",
@@ -384,7 +384,7 @@
     },
     {
       "path": "src/ascii/pie.ts",
-      "sha256": "5c2c50e4f1f51b102ed3fffe5d51081cb8ee8ba4203a2bf2314b5975528e87a5"
+      "sha256": "154fe48424e610de101efacf91913a2c87e5fdbfc6bc36d82a949f3e5e681389"
     },
     {
       "path": "src/ascii/quadrant.ts",
@@ -684,7 +684,7 @@
     },
     {
       "path": "src/multiline-utils.ts",
-      "sha256": "c80f9ed37dc892a6f4ac62d0f1f266b95fa2796b3e340d18b1c383b19b544d16"
+      "sha256": "bc5a7df8a485a0fe06f77d508f613d00ffb80e8aff554dc57e67d68a67a343eb"
     },
     {
       "path": "src/node-resource-resolver.ts",
@@ -716,7 +716,7 @@
     },
     {
       "path": "src/pie/layout.ts",
-      "sha256": "99759bb79bc846adb74d05745723b96dc7def78ad86be18aa0e153d55e8a980c"
+      "sha256": "0233505b1bb76a579388e2c1bfc03389cd1877b8b12c237a0c21712109d1e793"
     },
     {
       "path": "src/pie/palette.ts",
@@ -724,15 +724,15 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "8f358a9fd5d9a5191dfbfb6cfb6f1061b0eca9d784b2ff0480cd4abc7f5073b5"
+      "sha256": "124743007b18112acee2720cd8dc4d0cc6428e40eba7c6d0ff99fdfc2d4baea7"
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "ed160ae225d8a103d4efc88625777a35eb667d608ef464f29fca6f76a5fd8ccd"
+      "sha256": "b18a524ea691d97bd5745cbf089df35566ce0d0f7aca38f7c288a671fa006939"
     },
     {
       "path": "src/pie/types.ts",
-      "sha256": "85091bb46428a7439b2ce517d61dab8d91642921bc3ecccc09623548dd022e86"
+      "sha256": "f03afae287b4578d271da43d0f2202a6d860497f2bf80391a64958bdce15647e"
     },
     {
       "path": "src/png-contract.ts",
@@ -904,7 +904,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "e42414955db8389955c1fa7287d4ac924137920c35697005ed54f4e44813732c"
+      "sha256": "c14cb49155282501847a26184443180ce2245e3279cd40f6d0c54fefd555563f"
     },
     {
       "path": "src/scene/gradient-resources.ts",

@@ -3,10 +3,10 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "25cb0afdda8d44fb72bc602556658bac152bf40c5d3007a58526e06282969122",
-  "receiptResultSha256": "b27e977db1e373b29ab39c95884558a125c368dcf48aa5b575e3160cf84720bb",
+  "receiptInputSha256": "f9ca23fe806bde754a4c33a5bd65e64fc820557a0dbc0f667e9a2124f3819c22",
+  "receiptResultSha256": "df6e69916ba6869b1aa1846d1d7cc46bed916feb300b0ea6f75361fe9428d39d",
   "summary": {
-    "caseCount": 25,
+    "caseCount": 27,
     "featureCount": 13,
     "dispositions": {
       "native": 4,
@@ -395,6 +395,8 @@
       "caseIds": [
         "pie.syntax.duplicate-label-first-wins",
         "pie.syntax.entity-spelling-distinct",
+        "pie.syntax.escaped-terminal-control-sanitized",
+        "pie.syntax.numeric-entity-display",
         "pie.syntax.xml-disallowed-control-diagnosed"
       ],
       "surfaces": {
@@ -408,7 +410,8 @@
           "UNSUPPORTED_SYNTAX"
         ],
         "render": [
-          "RENDER_FAILED"
+          "RENDER_FAILED",
+          "TERMINAL_CONTROL_CHARACTERS_REPLACED"
         ],
         "mutate": [
           "INVALID_OP"
@@ -443,6 +446,36 @@
           "diagnostics": {}
         },
         {
+          "caseId": "pie.syntax.escaped-terminal-control-sanitized",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "TERMINAL_CONTROL_CHARACTERS_REPLACED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "pie.syntax.numeric-entity-display",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
           "caseId": "pie.syntax.xml-disallowed-control-diagnosed",
           "surfaces": {
             "agent": "source-preserved",
@@ -463,7 +496,21 @@
           }
         }
       ],
-      "acceptedDivergences": []
+      "acceptedDivergences": [
+        {
+          "caseId": "pie.syntax.escaped-terminal-control-sanitized",
+          "policy": "security",
+          "rationale": "Terminal output replaces a Pie grammar-produced carriage return with a visible cell rather than moving the terminal cursor.",
+          "surfaces": [
+            "render"
+          ],
+          "diagnosticCodes": {
+            "render": [
+              "TERMINAL_CONTROL_CHARACTERS_REPLACED"
+            ]
+          }
+        }
+      ]
     },
     {
       "featureId": "official-doc:sankey:section:links-coloring",
