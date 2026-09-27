@@ -62,7 +62,7 @@ export class AuthoredStyleColorError extends Error {
   ) {
     super(syntaxError({
       what: `${subject}: ${property} ${JSON.stringify(value)} is not a CSS color`,
-      expectedForm: 'a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla() or var(--name)',
+      expectedForm: `a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor${property === 'color' ? '' : ', none'}, or var(--name)`,
       example: `${directive ? `${directive} ` : ''}${property}:#f96`,
     }).message)
     this.name = 'AuthoredStyleColorError'

@@ -152,14 +152,15 @@ export function tryParseCssColor(color: string): RgbaColor | null {
     if (slash.length > 2 || (slash.length === 2 && body.includes(','))) return null
     const components = (body.includes(',') ? body.split(',') : slash[0]!.split(/\s+/)).map(part => part.trim())
     let alphaToken = slash[1]
-    if (components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
+    if (body.includes(',') && components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
     if (components.length !== 3) return null
+    if (body.includes(',') && components.some(token => token.endsWith('%')) && !components.every(token => token.endsWith('%'))) return null
     const channel = (token: string): number | null => {
       const percent = token.endsWith('%')
       const number = parseCssNumber(token, percent)
       if (number === null) return null
       const resolved = percent ? number * 2.55 : number
-      return resolved >= 0 && resolved <= 255 ? resolved : null
+      return Math.max(0, Math.min(255, resolved))
     }
     const channels = components.map(channel)
     if (channels.some(component => component === null)) return null
@@ -175,21 +176,28 @@ export function tryParseCssColor(color: string): RgbaColor | null {
     if (slash.length > 2 || (slash.length === 2 && body.includes(','))) return null
     const components = (body.includes(',') ? body.split(',') : slash[0]!.split(/\s+/)).map(part => part.trim())
     let alphaToken = slash[1]
-    if (components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
-    if (components.length !== 3 || !components[1]!.endsWith('%') || !components[2]!.endsWith('%')) return null
+    if (body.includes(',') && components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
+    if (components.length !== 3 || (body.includes(',') && (!components[1]!.endsWith('%') || !components[2]!.endsWith('%')))) return null
     const hue = parseCssHue(components[0]!)
-    const saturation = parseCssNumber(components[1]!, true)
-    const lightness = parseCssNumber(components[2]!, true)
+    const saturation = parseCssNumber(components[1]!, components[1]!.endsWith('%'))
+    const lightness = parseCssNumber(components[2]!, components[2]!.endsWith('%'))
     const alpha = parseAlpha(alphaToken)
-    if (hue === null || saturation === null || lightness === null || saturation < 0 || saturation > 100 || lightness < 0 || lightness > 100 || alpha === null) return null
-    const s = saturation / 100
+    if (hue === null || saturation === null || lightness === null || alpha === null) return null
+    const s = Math.max(0, saturation) / 100
     const l = lightness / 100
     const chroma = (1 - Math.abs(2 * l - 1)) * s
     const h = ((hue % 360) + 360) % 360 / 60
     const x = chroma * (1 - Math.abs(h % 2 - 1))
     const [r1, g1, b1] = h < 1 ? [chroma, x, 0] : h < 2 ? [x, chroma, 0] : h < 3 ? [0, chroma, x] : h < 4 ? [0, x, chroma] : h < 5 ? [x, 0, chroma] : [chroma, 0, x]
     const m = l - chroma / 2
-    return [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255, alpha]
+    const channels = [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255]
+    if (channels.some(channel => !Number.isFinite(channel))) return null
+    return [
+      Math.max(0, Math.min(255, channels[0]!)),
+      Math.max(0, Math.min(255, channels[1]!)),
+      Math.max(0, Math.min(255, channels[2]!)),
+      alpha,
+    ]
   }
 
   return null
@@ -218,7 +226,7 @@ function parseAlpha(token: string | undefined): number | null {
   const value = parseCssNumber(token, percent)
   if (value === null) return null
   const alpha = percent ? value / 100 : value
-  return alpha >= 0 && alpha <= 1 ? alpha : null
+  return Math.max(0, Math.min(1, alpha))
 }
 
 function parseCssNumber(token: string, percent: boolean): number | null {

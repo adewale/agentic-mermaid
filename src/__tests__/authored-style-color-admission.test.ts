@@ -13,6 +13,8 @@ const INVALID = [
   'notacolor', 'constructor', '__proto__', 'rgb(x)', 'rgb(1oops,2,3)',
   'rgba(1,2,3,0.5junk)', 'hsl(120,50%oops,50%)', '#12345',
   'rgb(1 2 3 / .5 / junk)', 'hsl(120 50% 50% / .5 / junk)',
+  'rgb(1 2 3 .5)', 'hsl(120 50% 50% .5)',
+  'rgb(1,20%,3)', 'rgba(1,20%,3,.5)',
   'rgb(1, 2, 3 / .5)', 'hsl(120, 50%, 50% / .5)',
   'hsl(1e308turn,50%,50%)',
   'hwb(120 0% 0%)', 'color-mix(in srgb, red, blue)', 'url(#a)',
@@ -30,8 +32,14 @@ const SOURCES = [
 describe('authored style color admission (#303, source/typed slice)', () => {
   test('distinguishes real colors from safe-looking words and malformed functions', () => {
     for (const value of INVALID) expect(drawableAuthoredCssPaint(value), value).toBeUndefined()
-    for (const value of ['red', '#f96', '#3b82', '#112233', '#11223380', 'rgb(1,2,3)', 'rgba(1,2,3,.5)', 'hsl(120,50%,50%)', 'transparent', 'currentColor', 'var(--brand)']) {
+    for (const value of ['red', '#f96', '#3b82', '#112233', '#11223380', 'rgb(1,2,3)', 'rgba(1,2,3,.5)', 'rgb(300,0,0)', 'rgb(-1 0 0)', 'rgba(255,0,0,2)', 'hsl(120,50%,50%)', 'hsl(120 100 50)', 'hsl(120 150% 50%)', 'hsl(120 100% 150%)', 'transparent', 'currentColor', 'var(--brand)']) {
       expect(drawableAuthoredCssPaint(value), value).toBe(value)
+    }
+    expect(tryParseCssColor('rgb(300,0,0)')).toEqual([255, 0, 0, 1])
+    expect(tryParseCssColor('rgba(255,0,0,2)')).toEqual([255, 0, 0, 1])
+    expect(tryParseCssColor('hsl(120 100 50)')).toEqual([0, 255, 0, 1])
+    for (const value of ['rgb(300,0,0)', 'rgba(255,0,0,2)', 'hsl(120 100 50)', 'hsl(120 150% 50%)']) {
+      expect(() => renderMermaidSVG(SOURCES[0]!.make(value)), value).not.toThrow()
     }
     expect(drawableAuthoredCssPaint('none', true)).toBe('none')
     expect(drawableAuthoredCssPaint('none', false)).toBeUndefined()
@@ -40,6 +48,7 @@ describe('authored style color admission (#303, source/typed slice)', () => {
     expect(tryParseCssColor('rgb(1 2 3 / .5 / junk)')).toBeNull()
     expect(tryParseCssColor('hsl(120 50% 50% / .5 / junk)')).toBeNull()
     expect(tryParseCssColor('hsl(1e308turn,50%,50%)')).toBeNull()
+    expect(tryParseCssColor('rgb(1,20%,3)')).toBeNull()
     expect(tryParseCssColor('#3b82')).toEqual([0x33, 0xbb, 0x88, 0x22 / 255])
   })
 
@@ -103,14 +112,17 @@ describe('authored style color admission (#303, source/typed slice)', () => {
         { kind: 'add_class', id: 'A' },
         { kind: 'set_class_style', class: 'A', style: 'fill:notacolor' },
       ]),
+      buildMermaid('class', [{ kind: 'define_class', name: 'hot', style: 'fill:notacolor' }]),
       buildMermaid('er', [
         { kind: 'add_entity', id: 'A' },
         { kind: 'set_entity_style', entity: 'A', style: 'fill:notacolor' },
       ]),
+      buildMermaid('er', [{ kind: 'define_class', name: 'hot', style: 'fill:notacolor' }]),
       buildMermaid('state', [
         { kind: 'add_state', id: 'A' },
         { kind: 'set_state_style', id: 'A', style: 'fill:notacolor' },
       ]),
+      buildMermaid('state', [{ kind: 'define_class', name: 'hot', style: 'fill:notacolor' }]),
       buildMermaid('state', [
         { kind: 'add_state', id: 'A' },
         { kind: 'add_state', id: 'B' },
@@ -118,10 +130,12 @@ describe('authored style color admission (#303, source/typed slice)', () => {
         { kind: 'set_transition_style', index: 0, style: 'stroke:notacolor' },
       ]),
     ]
-    for (const result of results) {
+    const contexts = ['set_class_style A', 'define_class hot', 'set_entity_style A', 'define_class hot', 'State inline style', 'State class style', 'State transition style']
+    for (const [index, result] of results.entries()) {
       expect(result.ok).toBe(false)
       if (!result.ok) {
         expect(result.error.code).toBe('INVALID_OP')
+        expect(result.error.message).toContain(contexts[index]!)
         expect(result.error.message).toContain('"notacolor" is not a CSS color')
       }
     }
