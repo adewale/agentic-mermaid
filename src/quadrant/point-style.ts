@@ -99,9 +99,9 @@ function splitTopLevelEntries(value: string): string[] | null {
 /**
  * Parse a comma-separated `key: value` style tail (the text after a point's
  * coordinates, or after a classDef's name). An empty tail is valid and yields
- * no style. Unknown keys and malformed values return an error message — the
- * caller decides whether to throw (renderer parser) or fall back to opaque
- * (agent body).
+ * no style. Malformed non-paint values return an error message; non-drawable
+ * paint throws a nominal color error so render routes can preserve its named
+ * diagnostic. The agent body catches either failure and falls back to opaque.
  */
 export function parsePointStyleEntries(tail: string, subject = 'quadrant point style'): StyleParseResult {
   const trimmed = tail.trim()
