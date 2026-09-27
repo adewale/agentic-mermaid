@@ -65,6 +65,7 @@ export function parsePieChart(lines: string[]): PieChart {
   const entries: PieEntry[] = []
   const seenSourceLabels = new Set<string>()
   let hasDuplicateSourceLabels = false
+  let hasEscapedControlLabels = false
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!.trim()
@@ -85,6 +86,7 @@ export function parsePieChart(lines: string[]): PieChart {
     const entryMatch = line.match(ENTRY_RE)
     if (entryMatch) {
       const sourceLabel = decodeEscapes(entryMatch[1]!)
+      if (/[\u0000-\u001f]/.test(sourceLabel)) hasEscapedControlLabels = true
       const label = normalizeBrTags(sourceLabel)
       const rawValue = entryMatch[2]!.trim()
       if (!NUMBER_RE.test(rawValue)) {
@@ -135,9 +137,19 @@ export function parsePieChart(lines: string[]): PieChart {
     throw new Error('Pie chart must include at least one "label" : value entry')
   }
 
-  return { title, showData, entries, ...(hasDuplicateSourceLabels ? { hasDuplicateSourceLabels: true } : {}) }
+  return {
+    title, showData, entries,
+    ...(hasDuplicateSourceLabels ? { hasDuplicateSourceLabels: true } : {}),
+    ...(hasEscapedControlLabels ? { hasEscapedControlLabels: true } : {}),
+  }
 }
 
 function decodeEscapes(raw: string): string {
-  return raw.replace(/\\(["\\])/g, '$1')
+  // Mermaid's Pie STRING converter uses JS-style single-letter control
+  // escapes; for all other characters it simply consumes the escape slash.
+  // Identity must use that same decoded key before first-wins deduplication.
+  const controls: Record<string, string> = {
+    n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', v: '\v', '0': '\0',
+  }
+  return raw.replace(/\\(.)/g, (_, escaped: string) => controls[escaped] ?? escaped)
 }

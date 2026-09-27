@@ -64,6 +64,36 @@ test('Pie label identity is case-sensitive and uses authored spelling before dis
   if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque') // normalized labels collide for typed label-based mutation
 })
 
+test('pinned Mermaid consumes escapes before arbitrary label characters for first-wins identity', () => {
+  const duplicate = `pie showData\n  "A\\B" : 1\n  "AB" : 2`
+  expect(upstreamSections(duplicate)).toEqual([['AB', 1]])
+  expect(parsePieChart(duplicate.split('\n'))).toMatchObject({
+    entries: [{ label: 'AB', value: 1 }], hasDuplicateSourceLabels: true,
+  })
+  expect(drawnSlices(duplicate)).toEqual([['AB', 1]])
+  const parsed = parseRegisteredMermaid(duplicate)
+  expect(parsed.ok).toBe(true)
+  if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
+
+  const distinct = `pie\n  "A\\\\B" : 1\n  "A\\B" : 2`
+  expect(upstreamSections(distinct)).toEqual([['A\\B', 1], ['AB', 2]])
+  const chart = parsePieChart(distinct.split('\n'))
+  expect(chart.entries).toEqual([{ label: 'A\\B', value: 1 }, { label: 'AB', value: 2 }])
+  expect(chart.hasDuplicateSourceLabels).toBeUndefined()
+})
+
+test('pinned Mermaid converts escaped controls before Pie label identity while agent source stays lossless', () => {
+  const escaped = `pie\n  "A\\nB" : 1\n`
+  expect(upstreamSections(escaped)).toEqual([['A\nB', 1]])
+  expect(parsePieChart(escaped.split('\n')).entries).toEqual([{ label: 'A\nB', value: 1 }])
+  const parsed = parseRegisteredMermaid(escaped)
+  expect(parsed.ok).toBe(true)
+  if (parsed.ok) {
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(escaped)
+  }
+})
+
 test('invalid duplicate values still fail before first-wins suppression', () => {
   expect(() => parsePieChart(['pie', '"A" : 1', '"A" : -1'])).toThrow(/invalid value/)
 })

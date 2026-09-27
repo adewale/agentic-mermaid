@@ -79,6 +79,9 @@ export function parsePieBody(lines: string[], header: { showData: boolean; title
     // canonical serialization would silently erase it. Preserve the source
     // as opaque until Pie has an occurrence-aware mutation model.
     if (parsed.hasDuplicateSourceLabels || new Set(parsed.entries.map(entry => entry.label)).size !== parsed.entries.length) return null
+    // A canonical typed label would rewrite an escaped control character (or
+    // put it across physical source lines). Keep those sources lossless.
+    if (parsed.hasEscapedControlLabels) return null
     // Typed mutation keeps the existing positive-value floor even though the
     // rendering grammar also admits zero-width slices.
     if (parsed.entries.some(entry => !isPositiveFinite(entry.value))) return null

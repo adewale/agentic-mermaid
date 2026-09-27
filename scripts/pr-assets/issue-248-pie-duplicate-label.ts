@@ -20,6 +20,10 @@ const revision = Bun.spawnSync({ cmd: ['git', 'rev-parse', 'HEAD'], cwd: base, s
 if (revision.exitCode !== 0 || new TextDecoder().decode(revision.stdout).trim() !== BASE_SHA) {
   throw new Error(`Expected an independent base checkout at ${BASE_SHA}`)
 }
+for (const args of [['diff', '--quiet'], ['diff', '--cached', '--quiet']]) {
+  const clean = Bun.spawnSync({ cmd: ['git', ...args], cwd: base, stdout: 'pipe', stderr: 'pipe' })
+  if (clean.exitCode !== 0) throw new Error('Baseline checkout has tracked changes; authentic before evidence requires a clean base')
+}
 function baselineRender(exportName: 'renderMermaidSVG' | 'renderMermaidPNG'): Uint8Array {
   const importPath = exportName === 'renderMermaidSVG' ? './src/index.ts' : './src/agent/png.ts'
   const script = `import { ${exportName} } from '${importPath}'; process.stdout.write(${exportName}(${JSON.stringify(SOURCE)}))`
