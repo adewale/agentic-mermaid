@@ -116,18 +116,17 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed and both ceilings retain under 0.01% slack.
     // The shared Scene literal-text guard measures 3,395,922 raw and
     // 1,009,850 gzip bytes with the same two editor requests.
-    // The same validation adds no editor request; Linux/x64 measured
-    // 3,396,365 raw / 1,010,031 gzip bytes.
-    maxRawBytes: 3_396_550,
+    // Timeline title parity and the single-line mutation guard stay in the
+    // same two-request editor graph; Linux/x64 measured 3,396,710 raw bytes.
+    maxRawBytes: 3_396_900,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
     maxGzipBytes: 1_010_150,
     // Pie's escaped-LF painted-text projection stays in the existing two
-    // requests. The tab-aware linear scanner measured 3,393,328 raw /
-    // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
-    // cross-platform ceiling.
-    maxBrotliBytes: 797_200,
+    // requests. Timeline title parity and its boundary guard reach 797,353
+    // Brotli bytes on Linux/x64, still in the same two-request graph.
+    maxBrotliBytes: 797_500,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
