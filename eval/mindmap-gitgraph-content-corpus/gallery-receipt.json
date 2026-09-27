@@ -100,7 +100,7 @@
     },
     {
       "path": "src/agent/class-body.ts",
-      "sha256": "765d7b5d14a42745cdda8ad966d182531dc43a39960a5c5a1fb3f67ad68e41dd"
+      "sha256": "445d0f2c9ef7762cac7e3b604eaa15f96e9abf13e99a09c852b031c2e492a687"
     },
     {
       "path": "src/agent/core.ts",
@@ -120,7 +120,7 @@
     },
     {
       "path": "src/agent/er-body.ts",
-      "sha256": "ac35a72adaf8d6a266a995bad6b891f965a9b48e0058fc66935a0e014535c6c9"
+      "sha256": "740d50597dc2e53dd584511023c5986f8f381aad7f42ca98e351a0760dc4b977"
     },
     {
       "path": "src/agent/facts.ts",
@@ -152,7 +152,7 @@
     },
     {
       "path": "src/agent/flowchart-body.ts",
-      "sha256": "8d0e042000db6cf62b0d68be54765ae10f30f655b8e024c1a74888717b875515"
+      "sha256": "8aaf687a9684affc1c20c5b81172fc0d8ca1ce5009fe548cb913b89cb521f76b"
     },
     {
       "path": "src/agent/flowchart-unsupported.ts",
@@ -256,7 +256,7 @@
     },
     {
       "path": "src/agent/state-body.ts",
-      "sha256": "7e0b3f0c8454be59e765236ec47f976e57333221be51bab7131c87640a92ba93"
+      "sha256": "5fcfcf3a1814a76db59c9a3f253ec118bbaf978b73f63ca44581bc3501aeb3c0"
     },
     {
       "path": "src/agent/structural-count.ts",
@@ -276,7 +276,7 @@
     },
     {
       "path": "src/agent/verify.ts",
-      "sha256": "a65c85f36484fd71245ece4044d2cd21b8281abbd39202e764e8285f1e605861"
+      "sha256": "78143d7bd19d1e98d10620936d916fc546d5606a1cd0153664a40ef8abd4c07e"
     },
     {
       "path": "src/agent/xychart-body.ts",
@@ -488,7 +488,7 @@
     },
     {
       "path": "src/class/layout.ts",
-      "sha256": "3ed864c980c7421738897414e752f99e7ba1e821475c697f0699a37405205bf0"
+      "sha256": "17bb22741b189a3522871af20dd9de6f4c3cc27b82dd25e0d4a6720d8d078eb1"
     },
     {
       "path": "src/class/parser.ts",
@@ -504,7 +504,7 @@
     },
     {
       "path": "src/color-resolver.ts",
-      "sha256": "f3ae62e45687bc82e1f800a42a6f13b7c569bca7cdd6c5c830cdfaf808473174"
+      "sha256": "635c8f6f86c5cb249006a52286c85c949a530848db108b00442758d03630ed41"
     },
     {
       "path": "src/custom-font-geometry.ts",
@@ -516,7 +516,7 @@
     },
     {
       "path": "src/er/layout.ts",
-      "sha256": "7ef8c8482fa3299b1fe23507520375d46d91dbf8ee1c79bdcebe72fef6704b45"
+      "sha256": "b67786b97d2b5bf7cd0f0f04958040841c89363c246ef3fc826e9011cb76b2d6"
     },
     {
       "path": "src/er/parser.ts",
@@ -1028,7 +1028,7 @@
     },
     {
       "path": "src/shared/color-math.ts",
-      "sha256": "494c7a4b91dba1df7766d1a45551b5ec283170741d39310ea813d6e58ca2a257"
+      "sha256": "3c71dfec9519a48d18c2abf70b7f93b8cf0eb124049522e5e4b7dfc5fce1a415"
     },
     {
       "path": "src/shared/config-wire-or-warn.ts",
@@ -1036,7 +1036,7 @@
     },
     {
       "path": "src/shared/css-color.ts",
-      "sha256": "f86436efcbb6dec76636b591dea5bff256e7f422f0bbe0ba83e4826bc98b5b91"
+      "sha256": "c306e2e3134259a3030305157210467925fe36120fef808d3f365c3dd804aec0"
     },
     {
       "path": "src/shared/css-font.ts",
@@ -1044,7 +1044,7 @@
     },
     {
       "path": "src/shared/css-named-colors.ts",
-      "sha256": "c969e1d92981766731171dcaa645a0c8e1efadfe48cd6b22e8e3a47532fe6df2"
+      "sha256": "8107b47fadcbc419120d5720fd741d5ed70683b4b53e62776ab792d0da88a336"
     },
     {
       "path": "src/shared/deterministic-order.ts",
@@ -1096,7 +1096,7 @@
     },
     {
       "path": "src/shared/style-props.ts",
-      "sha256": "d310f6d79b3a9858399fba73a6401045719b44d583fb87fdffd993f19f6cd726"
+      "sha256": "99ec18f5a2dd1ca6c0acd7fa79c741d9489edda413f5a66382982f43cc71ba73"
     },
     {
       "path": "src/shared/svg-a11y.ts",
