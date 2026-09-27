@@ -61,8 +61,9 @@ bounded before canvas arithmetic.
 Safe `themeVariables.radar.*` fields are also wired and diagnosed: axis/graticule colors
 and stroke widths, axis/legend font sizes, curve/graticule opacity, curve stroke width,
 and legend box size. Global `themeVariables.fontSize`, `themeVariables.titleColor`, and
-`cScale0..11` control the measured title and curve palette. Unknown, invalid, or
-out-of-budget values produce `INEFFECTIVE_CONFIG` rather than silently vanishing.
+`cScale0..11` control the measured title and curve palette. Invalid color values
+produce a named `INVALID_THEME_COLOR` error before rendering; unknown or
+out-of-budget non-color fields produce `INEFFECTIVE_CONFIG` rather than silently vanishing.
 An explicit `themeVariables.radar.axisColor` remains authoritative for spokes and labels;
 when its concrete contrast against an opaque resolved page is below 4.5:1, verification
 emits advisory `LOW_CONTRAST` with the measured pair instead of silently repainting it.

@@ -27,7 +27,7 @@
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
-import { safeCssColor } from '../shared/css-color.ts'
+import { drawableAuthoredCssPaint } from '../shared/css-color.ts'
 
 /** Resolved radarChart config section. Undefined field = not configured. */
 export interface RadarVisualConfig {
@@ -156,10 +156,10 @@ export function resolveRadarVisualConfig(
     if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1) config[field] = value
   }
   for (const field of ['axisColor', 'graticuleColor'] as const) {
-    const color = safeCssColor(getFrontmatterScalar<string>(radarTheme, [field]))
+    const color = drawableAuthoredCssPaint(getFrontmatterScalar<string>(radarTheme, [field]), field === 'graticuleColor')
     if (color) config[field] = color
   }
-  const titleColor = safeCssColor(getFrontmatterScalar<string>(frontmatter, ['themeVariables', 'titleColor']))
+  const titleColor = drawableAuthoredCssPaint(getFrontmatterScalar<string>(frontmatter, ['themeVariables', 'titleColor']))
   if (titleColor) config.titleColor = titleColor
   const rawTitleFontSize = getFrontmatterScalar<string | number>(frontmatter, ['themeVariables', 'fontSize'])
   const titleFontSize = typeof rawTitleFontSize === 'number'
@@ -175,7 +175,7 @@ export function resolveRadarVisualConfig(
   const overrides: Array<string | undefined> = []
   let sawOverride = false
   for (let i = 0; i < 12; i++) {
-    const c = safeCssColor(getFrontmatterScalar<string>(frontmatter, ['themeVariables', `cScale${i}`]))
+    const c = drawableAuthoredCssPaint(getFrontmatterScalar<string>(frontmatter, ['themeVariables', `cScale${i}`]))
     if (c) { overrides[i] = c; sawOverride = true }
   }
   if (sawOverride) config.paletteOverrides = overrides

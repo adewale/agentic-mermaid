@@ -13,6 +13,7 @@ const FLOW = 'flowchart TD\n  A --> B'
 const PIE = 'pie\n  "A" : 3\n  "B" : 2'
 const GITGRAPH = 'gitGraph\n  commit id:"A" type:HIGHLIGHT'
 const TIMELINE = 'timeline\n  2020 : Start\n  2021 : End'
+const RADAR = 'radar-beta\n  title Skills\n  axis a, b, c\n  curve x{1,2,3}\n  max 5'
 const invalid = ['notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'url(#a)'] as const
 
 function init(source: string, key: string, value: unknown): string {
@@ -218,5 +219,94 @@ describe('theme color admission (#303, Timeline layer)', () => {
 
   test('Timeline-private keys do not change unrelated families', () => {
     expect(() => renderMermaidSVG(init(FLOW, 'cScale0', 'notacolor'))).not.toThrow()
+  })
+})
+
+describe('theme color admission (#303, Radar layer)', () => {
+  const radarColors = [
+    'titleColor',
+    ...Array.from({ length: 12 }, (_, index) => `cScale${index}`),
+  ]
+
+  test('every indexed curve and title paint refuses invalid values', () => {
+    for (const key of radarColors) {
+      for (const value of invalid) {
+        const source = init(RADAR, key, value)
+        expect(() => renderMermaidSVG(source), `${key} ${value}`)
+          .toThrow(`themeVariables.${key}: ${JSON.stringify(value)} is not a CSS color`)
+        expect(() => renderMermaidASCII(source), `${key} ${value}`)
+          .toThrow(`themeVariables.${key}: ${JSON.stringify(value)} is not a CSS color`)
+      }
+    }
+  })
+
+  test('nested axis and graticule paints refuse invalid values', () => {
+    for (const key of ['axisColor', 'graticuleColor']) {
+      for (const value of [...invalid, 123]) {
+        const source = init(RADAR, 'radar', { [key]: value })
+        expect(() => renderMermaidSVG(source), `${key} ${value}`)
+          .toThrow(`themeVariables.radar.${key}: ${JSON.stringify(String(value))} is not a CSS color`)
+      }
+    }
+  })
+
+  test('none is allowed for grid stroke but not paints reused as text ink', () => {
+    expect(() => renderMermaidSVG(init(RADAR, 'radar', { graticuleColor: 'none' }))).not.toThrow()
+    expect(() => renderMermaidSVG(init(RADAR, 'cScale0', 'none')))
+      .toThrow('themeVariables.cScale0: "none" is not a CSS color')
+    expect(() => renderMermaidASCII(init(RADAR, 'cScale0', 'none'), { colorMode: 'html' }))
+      .toThrow('themeVariables.cScale0: "none" is not a CSS color')
+    expect(() => renderMermaidSVG(init(RADAR, 'titleColor', 'none')))
+      .toThrow('themeVariables.titleColor: "none" is not a CSS color')
+    expect(() => renderMermaidSVG(init(RADAR, 'radar', { axisColor: 'none' })))
+      .toThrow('themeVariables.radar.axisColor: "none" is not a CSS color')
+  })
+
+  test('admitted custom properties survive every Radar paint sink', () => {
+    const source = `%%{init: ${JSON.stringify({ themeVariables: {
+      titleColor: 'var(--title)', cScale0: 'var(--curve)',
+      radar: { axisColor: 'var(--axis)', graticuleColor: 'var(--grid)' },
+    } })}}%%\n${RADAR}`
+    const svg = renderMermaidSVG(source)
+    for (const variable of ['title', 'curve', 'axis', 'grid']) expect(svg).toContain(`var(--${variable})`)
+    expect(renderMermaidASCII(source, { colorMode: 'html' })).toContain('style="color:var(--curve)"')
+    expect(verifyMermaid(source).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+  })
+
+  test('Radar refusal agrees across verify, PNG, browser-lazy and CLI', async () => {
+    const source = init(RADAR, 'radar', { axisColor: 'url(#unsafe)' })
+    const named = 'themeVariables.radar.axisColor: "url(#unsafe)" is not a CSS color'
+    expect(() => renderMermaidPNG(source)).toThrow(named)
+    expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+    await expect(renderMermaidSVGAsync(source)).rejects.toThrow(named)
+    const result = runBatchLine(JSON.stringify({ op: 'render', format: 'svg', source }), 0)
+    expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'radar.axisColor', value: 'url(#unsafe)' } })
+    const response = await handleHostedRequest(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source } } },
+      {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('not used') },
+      },
+    )
+    const payload = JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+    expect(payload).toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'radar.axisColor', value: 'url(#unsafe)' } })
+  })
+
+  test('frontmatter and render options reject nested colors before normalizing them away', () => {
+    const yaml = '---\nconfig:\n  themeVariables:\n    radar:\n      graticuleColor: "#12345"\n---\n' + RADAR
+    expect(() => renderMermaidSVG(yaml))
+      .toThrow('themeVariables.radar.graticuleColor: "#12345" is not a CSS color')
+    const options = { mermaidConfig: { themeVariables: { radar: { axisColor: 'url(#bad)' } } } }
+    expect(() => renderMermaidSVG(RADAR, options))
+      .toThrow('themeVariables.radar.axisColor: "url(#bad)" is not a CSS color')
+    for (const bad of [null, 123, [], { nested: 'red' }]) {
+      expect(() => renderMermaidSVG(init(RADAR, 'radar', { axisColor: bad })), String(bad))
+        .toThrow('themeVariables.radar.axisColor:')
+    }
+  })
+
+  test('Radar-private colors do not change unrelated families', () => {
+    expect(() => renderMermaidSVG(init(FLOW, 'titleColor', 'notacolor'))).not.toThrow()
+    expect(() => renderMermaidSVG(init(FLOW, 'radar', { axisColor: 'notacolor' }))).not.toThrow()
   })
 })
