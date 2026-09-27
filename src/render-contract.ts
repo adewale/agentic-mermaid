@@ -15,6 +15,7 @@ import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
+import { checkThemeVariableColors } from './theme-color-admission.ts'
 import {
   inferBackend,
   isStyledSpec,
@@ -1918,6 +1919,7 @@ export function resolveRenderRequestForExecution(
   }
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
   if (themeCssProblem) throw new TypeError(themeCssProblem)
+  checkThemeVariableColors(source.config.themeVariables, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
   const resolutionDiagnostics = renderOptionApplicabilityDiagnostics(family, explicitOptionFields)
   const resolvedContext = resolveAppearance({
