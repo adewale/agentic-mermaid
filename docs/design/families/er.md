@@ -116,9 +116,11 @@ per its `convert-to-case` target.
 ## Styling, ordered preservation, and terminal clearance
 
 Entity `:::class` suffixes no longer alter semantic identity or create phantom
-entities. `classDef`, class assignment, and inline `style` use the shared
+entities. `:::vip,hot` shorthand and `class A,B vip,hot` assignments retain
+both class identities; paint merges in applied class-name order, with later
+properties winning. `classDef`, class assignment, and inline `style` use the shared
 `src/shared/style-props.ts` grammar; paint resolves before rendering and is
-editable through `define_class`, `set_entity_class`, and `set_entity_style`.
+editable through `define_class`, single-class `set_entity_class`, and `set_entity_style`.
 Aliases and comma-separated composite keys remain fully structured;
 `set_entity_label` edits display labels without renaming ids.
 

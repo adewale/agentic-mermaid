@@ -3,13 +3,13 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "3f8ab115ffb678311702515ed80340027de78ad8cf33b78a9254bd0e7ffdb108",
-  "receiptResultSha256": "f50309f83d41154cacd54038d98b7711e4c1953e42136ba1691d59456dd9a2ad",
+  "receiptInputSha256": "10eeebad1923203147cb2bb0cac767b55dfa0352d6eb38e68c34c5feee3716f8",
+  "receiptResultSha256": "b4fe61ed2d86755d74f114b8a8e7f6b259fe4298ef2c837b9271bd2d9e9f2acf",
   "summary": {
-    "caseCount": 31,
-    "featureCount": 13,
+    "caseCount": 32,
+    "featureCount": 14,
     "dispositions": {
-      "native": 4,
+      "native": 5,
       "source-preserved": 0,
       "diagnosed": 6,
       "absent": 3
@@ -265,6 +265,34 @@
         },
         {
           "caseId": "class.interaction.safe-link-tooltip-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:er:section:classes",
+      "family": "er",
+      "disposition": "native",
+      "caseIds": [
+        "er.classes.multiple-assignments-and-shorthand"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "er.classes.multiple-assignments-and-shorthand",
           "surfaces": {
             "agent": "native",
             "render": "native",
