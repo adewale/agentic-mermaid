@@ -37,6 +37,16 @@ const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
   .join('|')
 const SEQUENCE_MESSAGE_PREFIX_RE = new RegExp(String.raw`^(\S+?)(\(\))?\s*(${arrowAlternatives})`)
 const SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE = new RegExp(String.raw`^(\S+?)\s+(\(\))\s*(${arrowAlternatives})`)
+const SEQUENCE_SPACED_CENTRAL_ACTOR_RE = /^[\p{L}\p{N}_.$@]+$/u
+const SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS = new Set([
+  'participant', 'actor', 'note', 'alt', 'else', 'loop', 'rect', 'opt',
+  'par', 'and', 'end', 'activate', 'deactivate', 'autonumber', 'box',
+  'create', 'destroy', 'link', 'links', 'critical', 'break', 'option', 'title',
+  'over', 'off', 'properties', 'details', 'sequencediagram', 'par_over',
+])
+const SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS = new Set([
+  ...SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS, 'acctitle', 'accdescr',
+])
 
 export interface ParsedSequenceMessageLine {
   from: string
@@ -50,9 +60,18 @@ export interface ParsedSequenceMessageLine {
 
 /** One message-line grammar shared by renderer and agent parsers. */
 export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLine | null {
-  const match = line.match(SEQUENCE_MESSAGE_PREFIX_RE)
-    ?? line.match(SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE)
+  const adjacentMatch = line.match(SEQUENCE_MESSAGE_PREFIX_RE)
+  const spacedMatch = adjacentMatch ? null : line.match(SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE)
+  const match = adjacentMatch ?? spacedMatch
   if (!match || !isMessageArrow(match[3]!)) return null
+  // Mermaid interprets punctuation-bearing sender prefixes differently here
+  // (or rejects them). Admit only IDs confirmed by the pinned oracle for this
+  // narrow whitespace form; broader Sequence identity grammar belongs to #264.
+  if (spacedMatch && (
+    !SEQUENCE_SPACED_CENTRAL_ACTOR_RE.test(match[1]!)
+    || /^(?:[0-9]+(?:\.[0-9]{1,2})?|\.[0-9]{1,2})$/.test(match[1]!)
+    || SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(match[1]!.toLowerCase())
+  )) return null
   // A single scan after the arrow admits optional spaces around Mermaid's
   // central-connection and activation markers. Avoid adjacent optional \s*
   // regex groups, which can backtrack quadratically on a long malformed line.
@@ -60,12 +79,21 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   const centralEnd = tail.startsWith('()')
   if (centralEnd) tail = tail.slice(2).trimStart()
   const activationMark = tail[0] === '+' || tail[0] === '-' ? tail[0] : undefined
+  // The sender-spaced central grammar does not combine with an activation
+  // marker. Mermaid rejects this shape, so do not silently promote it to a
+  // verified native message.
+  if (spacedMatch && activationMark) return null
   if (activationMark) tail = tail.slice(1).trimStart()
   const colon = tail.indexOf(':')
   if (colon < 1) return null
   const to = tail.slice(0, colon).trimEnd()
   const label = tail.slice(colon + 1).trimStart()
   if (!to || /\s/.test(to) || !label) return null
+  if (spacedMatch && (
+    /[+<>]/.test(to)
+    || to.includes('()')
+    || SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS.has(to.toLowerCase())
+  )) return null
   return {
     from: match[1]!, arrow: match[3]!, activationMark,
     to, label, centralStart: Boolean(match[2]), centralEnd,
