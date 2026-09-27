@@ -98,16 +98,29 @@ describe('fidelity oracle checks text x/y/anchor', () => {
   })
 
   it('compares complete escaped Timeline literals without mistaking them for markup', () => {
-    const make = (crispText: string) => marks.text(
-      { id: 'event', role: 'label', text: 'A<BR>B', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+    const make = (semantic: string, crispText: string) => marks.text(
+      { id: 'event', role: 'label', text: semantic, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
       `<text x="10" y="20" font-size="12" class="timeline-event-text">${crispText}</text>`,
     )
     const faithful: string[] = []
-    nodeProblems(make('A&lt;BR&gt;B'), 'p', faithful)
+    nodeProblems(make('A<BR>B', 'A&lt;BR&gt;B'), 'p', faithful)
     expect(faithful).toEqual([])
-    const missing: string[] = []
-    nodeProblems(make('A&lt;BR&gt;'), 'p', missing)
-    expect(missing.join('\n')).toContain('literal text')
+    const multiline: string[] = []
+    nodeProblems(make('A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12">B</tspan>'), 'p', multiline)
+    expect(multiline).toEqual([])
+    for (const [semantic, crisp] of [
+      ['A<BR>B', 'A&lt;BR&gt;'],
+      ['A<BR>**B**', 'A&lt;BR&gt;B'],
+      ['A<BR>B', 'A&lt;BR&gt;B<script/>'],
+      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<script/>'],
+      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan><script/>'],
+      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan>'],
+      ['A**B**', 'AB'],
+    ] as const) {
+      const problems: string[] = []
+      nodeProblems(make(semantic, crisp), 'p', problems)
+      expect(problems.join('\n')).toMatch(/literal text|unexpected markup|unexpected styled/)
+    }
   })
 })
 

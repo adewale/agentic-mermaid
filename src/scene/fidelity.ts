@@ -217,17 +217,25 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // Preserve those owned literal projections; other families keep their
       // established formatting normalization and diagnostics.
       const hasStyledTspan = /<tspan\b[^>]*(?:font-weight="bold"|font-style="italic"|text-decoration=)/.test(serialized)
+      const timelineTextMark = /class="timeline-(?:title|section-label|period-text|event-text)"/.test(serialized)
+      if (timelineTextMark) {
+        const ownedTags = serialized.match(/<[^>]*>/g) ?? []
+        if (ownedTags.some(tag => !/^<\/?(?:text|tspan)(?:\s[^<>]*)?>$/.test(tag))) {
+          problems.push(`${path}(text:${node.id}): unexpected markup in Timeline crisp`)
+          return
+        }
+        if (hasStyledTspan && !/<\/?(?:b|strong|i|em|u|s|del)\b/i.test(node.text)) {
+          problems.push(`${path}(text:${node.id}): unexpected styled Timeline tspan`)
+          return
+        }
+      }
       const literalPieText = !hasStyledTspan && (
         (node.role === 'legend' && serialized.includes('class="pie-legend-text"'))
         || (node.role === 'title' && serialized.includes('class="pie-title"')
           && /&lt;|&gt;/.test(serialized))
       )
-      const literalTimelineText = !hasStyledTspan
-        && /class="timeline-(?:title|section-label|period-text|event-text)"/.test(serialized)
-        && /&lt;|&gt;/.test(serialized)
-      const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml((literalTimelineText
-        ? s.replace(/<\/tspan>\s*<tspan\b[^>]*>/g, ' ')
-        : s)
+      const literalTimelineText = timelineTextMark && !hasStyledTspan
+      const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml(s
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
       ) : literalPieText || literalTimelineText ? s : s.replace(/<[^>]+>/g, ''))
@@ -246,9 +254,19 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
           problems.push(`${path}(text:${node.id}): member text "${wantText.slice(0, 40)}" not found in crisp`)
         }
       } else if (literalTimelineText) {
-        const wantText = normalize(node.text, false)
-        if (normalize(serialized, true) !== wantText) {
-          problems.push(`${path}(text:${node.id}): literal text "${wantText.slice(0, 40)}" not found in crisp`)
+        // This path is literal authored text, not HTML formatting. Only the
+        // owned <text>/<tspan> wrappers may occur; compare the complete
+        // decoded contents, including punctuation and semantic line breaks.
+        const textMatch = serialized.match(/^<text\b[^>]*>([\s\S]*)<\/text>$/)
+        if (!textMatch) {
+          problems.push(`${path}(text:${node.id}): unexpected markup in literal Timeline crisp`)
+        } else {
+          const visible = unescapeXml(textMatch[1]!
+            .replace(/<\/tspan>\s*<tspan\b[^>]*>/g, '\n')
+            .replace(/<\/?tspan\b[^>]*>/g, ''))
+          if (visible !== node.text) {
+            problems.push(`${path}(text:${node.id}): literal text "${node.text.slice(0, 40)}" not found in crisp`)
+          }
         }
       } else {
         const wantText = normalize(node.text, false)

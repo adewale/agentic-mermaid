@@ -908,7 +908,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "7b683f4f205310328f559f91892feea874d094adeefdd442608b7fc0536beb16"
+      "sha256": "da131bf4949bcba54e9f83b617306519ded737299868fd6d756c1a2859271d14"
     },
     {
       "path": "src/scene/gradient-resources.ts",
