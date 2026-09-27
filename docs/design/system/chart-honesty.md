@@ -128,7 +128,8 @@ H5–H7 are enforced where the colors, scales, and styles are generated:
   holds bars to a shared zero baseline in SVG and ASCII.
   [`property-xychart-verify-lints`](../../../src/__tests__/property-xychart-verify-lints.test.ts)
   holds `BAR_RANGE_EXCLUDES_ZERO` to fire exactly when an authored range
-  excludes zero. Value-encoding strokes (`ConnectorStroke.encodesValue`, the
+  excludes zero, and `VALUES_OUTSIDE_RANGE` to name exactly the values an
+  authored range leaves outside it. Value-encoding strokes (`ConnectorStroke.encodesValue`, the
   sankey ribbons) keep their width in the sketch looks.
 - H7: [`property-svg-style-scope`](../../../src/__tests__/property-svg-style-scope.test.ts)
   scopes every family's CSS in every style.

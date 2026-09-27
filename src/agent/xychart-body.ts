@@ -386,5 +386,27 @@ export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWar
       })
     }
   }
+  // Every mark is read against the authored range. A bar value outside it is
+  // drawn stopped at the range edge and a line point is drawn past the plot, so
+  // the chart misstates the value either way; the range is kept, and said so.
+  if (range) {
+    const lo = Math.min(range.min, range.max)
+    const hi = Math.max(range.min, range.max)
+    for (const s of body.series) {
+      const outside = s.values.filter(value => value < lo || value > hi)
+      if (outside.length === 0) continue
+      const shown = outside.length <= 5 ? outside.join(', ') : `${outside.slice(0, 5).join(', ')} and ${outside.length - 5} more`
+      const effect = s.kind === 'bar'
+        ? `its bars stop at the edge of the range, so their lengths understate ${outside.length === 1 ? 'that value' : 'those values'}`
+        : 'its line is drawn past the plot there, beyond the axis it is read against'
+      warnings.push({
+        code: 'VALUES_OUTSIDE_RANGE',
+        series: s.id,
+        values: outside,
+        range: { min: range.min, max: range.max },
+        message: `XY chart ${s.kind} series ${s.id} has ${outside.length === 1 ? 'value' : 'values'} ${shown} outside the y-axis range ${range.min} --> ${range.max}: ${effect}. Widen the range (set_y_axis) or remove it so the axis fits the data.`,
+      })
+    }
+  }
   return warnings
 }

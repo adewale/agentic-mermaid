@@ -1420,7 +1420,7 @@ export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITC
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
+export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO' | 'VALUES_OUTSIDE_RANGE' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
@@ -1502,6 +1502,13 @@ export type LayoutWarning =
    * values. Advisory: the authored range is kept; never flips verify.ok.
    */
   | { code: 'BAR_RANGE_EXCLUDES_ZERO'; range: { min: number; max: number }; baseline: number; message: string }
+  /**
+   * A series has values outside the authored value-axis range. A bar stops at
+   * the edge of the range, so its length understates the value; a line point
+   * is drawn past the plot. `values` lists every such value of the series.
+   * Advisory: the authored range is kept; never flips verify.ok.
+   */
+  | { code: 'VALUES_OUTSIDE_RANGE'; series: string; values: number[]; range: { min: number; max: number }; message: string }
   | {
       code: BrandConstraintWarningCode
       constraint: BrandConstraintKind
@@ -1547,6 +1554,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   LOW_CONTRAST: 'warning',
   LABELS_HIDDEN: 'warning',
   BAR_RANGE_EXCLUDES_ZERO: 'warning',
+  VALUES_OUTSIDE_RANGE: 'warning',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.severity,
 }
 
@@ -1580,6 +1588,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   LOW_CONTRAST: 'lint',
   LABELS_HIDDEN: 'lint',
   BAR_RANGE_EXCLUDES_ZERO: 'lint',
+  VALUES_OUTSIDE_RANGE: 'lint',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.tier,
 }
 

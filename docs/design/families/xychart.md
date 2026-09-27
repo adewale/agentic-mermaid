@@ -127,7 +127,9 @@ Current SVG rendering decisions:
   `verify` lists the authored names it does not draw (`LABELS_HIDDEN`,
   `target: "x-axis"`), as it does when a horizontal chart drops a category
   axis whose widest name does not fit. `BAR_RANGE_EXCLUDES_ZERO` flags an
-  authored bar range that excludes zero
+  authored bar range that excludes zero, and `VALUES_OUTSIDE_RANGE` names the
+  values an authored range leaves outside it (bars stop at its edge; line
+  points are drawn past the plot)
 - `useMaxWidth` / `useWidth` control responsive root SVG sizing
 - `themeCSS` remains accounted for by the parser but is diagnosed at the public
   render boundary; raw selectors can escape an imported SVG, so authors use a
