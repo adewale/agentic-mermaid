@@ -105,7 +105,14 @@ export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, opts: 
         opts.onProjectionDiagnostic?.(diagnostic)
       },
     })
-    const regions = addSemanticContainerRegions(ascii, source, deriveRegions(ascii, source))
+    // HTML output contains escaped text and styling markup, so scanning it
+    // directly confuses both label identity and terminal-cell coordinates.
+    // The unstyled projection has the same visible grid and is the source of
+    // truth for regions; retain the requested HTML in the returned payload.
+    const regionCanvas = opts.colorMode === 'html'
+      ? renderMermaidASCII(input, { ...opts, colorMode: 'none', onProjectionDiagnostic: undefined })
+      : ascii
+    const regions = addSemanticContainerRegions(regionCanvas, source, deriveRegions(regionCanvas, source))
     const projectionWarnings: AsciiWarning[] = projection.map(diagnostic => ({
       code: diagnostic.code,
       severity: 'degraded',
@@ -152,12 +159,12 @@ function deriveWarnings(source: string, regions: AsciiRegion[]): AsciiWarning[] 
   return []
 }
 
-interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind }
+interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind; preserveEntitySpelling?: true }
 
-function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node'): void {
+function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node', preserveEntitySpelling = false): void {
   const normalized = label?.trim()
   if (!normalized) return
-  out.push({ id, label: normalized, sourceLine, kind })
+  out.push({ id, label: normalized, sourceLine, kind, ...(preserveEntitySpelling ? { preserveEntitySpelling: true } : {}) })
 }
 
 function addCandidateWithFallback(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node'): void {
@@ -178,7 +185,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
   for (const c of sorted) {
     const candidateKey = `${c.kind ?? 'node'}\u0000${c.id}`
     if (used.has(candidateKey)) continue
-    const match = matchProjectedLabel(lines, c.label, occupied, (c.kind ?? 'node') === 'node')
+    const match = matchProjectedLabel(lines, c.label, occupied, (c.kind ?? 'node') === 'node', c.preserveEntitySpelling === true)
     if (!match) continue
     out.push({
       kind: c.kind ?? 'node',
@@ -188,7 +195,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
       canvasColStart: match.colStart,
       canvasColEnd: match.colEnd,
       ...(match.rowSpan > 1 ? { rowSpan: match.rowSpan } : {}),
-      projectedText: projectedLabelText(c.label),
+      projectedText: projectedLabelText(c.label, c.preserveEntitySpelling !== true),
       authoredTextCells: match.authoredTextCells,
     })
     used.add(candidateKey)
@@ -268,8 +275,9 @@ function preferredOccurrences(
     || a.colStart - b.colStart)
 }
 
-function projectedLabelText(label: string): string {
-  return sanitizeTerminalText(decodeXML(plainTextFromInlineFormatting(normalizeBrTags(label))), true)
+function projectedLabelText(label: string, decodeEntities = true): string {
+  const formatted = plainTextFromInlineFormatting(normalizeBrTags(label))
+  return sanitizeTerminalText(decodeEntities ? decodeXML(formatted) : formatted, true)
     .replace(/^[`]|[`]$/g, '')
     .trim()
 }
@@ -311,8 +319,9 @@ function matchProjectedLabel(
   label: string,
   occupied: Map<number, Array<readonly [number, number]>>,
   preferNodeTextBand: boolean,
+  preserveEntitySpelling = false,
 ): ProjectedLabelMatch | undefined {
-  const projected = projectedLabelText(label)
+  const projected = projectedLabelText(label, !preserveEntitySpelling)
   for (const text of new Set([label, projected])) {
     const occurrence = preferredOccurrences(lines, occurrencesOf(lines, text, occupied), preferNodeTextBand)[0]
     if (occurrence) return claimOccurrences([occurrence], occupied)
@@ -759,7 +768,7 @@ function candidatesForDiagram(source: string): Candidate[] {
   if (d.body.kind === 'pie') {
     const out: Candidate[] = []
     addCandidate(out, 'title', d.body.title)
-    for (const s of d.body.slices) addCandidate(out, s.id, s.label)
+    for (const s of d.body.slices) addCandidate(out, s.id, s.label, undefined, 'node', true)
     return out
   }
   if (d.body.kind === 'quadrant') {

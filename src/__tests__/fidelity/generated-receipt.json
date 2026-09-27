@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "175a6fffedbb655151c832eedcea6ccaffeb8076c98fd6bb0a095d0b8fa63b4e",
+    "inputSha256": "25cb0afdda8d44fb72bc602556658bac152bf40c5d3007a58526e06282969122",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -108,7 +108,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/pie-duplicate-label.fidelity.ts",
-        "sha256": "6212acabfcd5d4ffaf2735a843ea413ec072df76dfba737d89052a8624e8a4ed"
+        "sha256": "c6dcfdb2bf8b6c599476c6b7f91cc66aa653f773c64980d0da2f445b13242f1a"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -1573,7 +1573,8 @@
                 "A&B",
                 2
               ]
-            ]
+            ],
+            "terminalIdentity": true
           },
           "disposition": "native"
         },

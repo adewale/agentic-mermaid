@@ -2,8 +2,9 @@ import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { decodeXML } from 'entities'
-import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
 
 const source = `pie showData
@@ -110,6 +111,46 @@ test('entity spelling remains part of the upstream Pie key through public render
   const changed = mutate(parsed.value, { kind: 'set_slice_value', label: 'A&B', value: 3 })
   expect(changed.ok).toBe(true)
   if (changed.ok) expect(drawnSlices(serializeMermaid(changed.value))).toEqual([['A&amp;B', 1], ['A&B', 3]])
+})
+
+test('Pie terminal, width, HTML and metadata projections keep entity-distinct rows', () => {
+  const encoded = `pie showData\n  "A&amp;B" : 1\n  "A&B" : 2\n`
+  for (const options of [{ colorMode: 'none' as const },
+    { colorMode: 'none' as const, useAscii: true },
+    { colorMode: 'none' as const, targetWidth: 60 }]) {
+    const rows = renderMermaidASCII(encoded, options).split('\n')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toStartWith('A&amp;B  ')
+    expect(rows[1]).toStartWith('A&B  ')
+    expect(rows[0]).toContain('33.3%  [1]')
+    expect(rows[1]).toContain('66.7%  [2]')
+  }
+  const htmlRows = renderMermaidASCII(encoded, { colorMode: 'html' }).split('\n')
+  expect(htmlRows[0]).toStartWith('A&amp;amp;B  ')
+  expect(htmlRows[1]).toStartWith('A&amp;B  ')
+  const meta = renderMermaidASCIIWithMeta(encoded, { colorMode: 'none' })
+  expect(meta.regions.map(region => [region.id, region.projectedText, region.canvasRow]))
+    .toEqual([['slice-0', 'A&amp;B', 0], ['slice-1', 'A&B', 1]])
+  const htmlMeta = renderMermaidASCIIWithMeta(encoded, { colorMode: 'html' })
+  expect(htmlMeta.ascii).toBe(htmlRows.join('\n'))
+  expect(htmlMeta.regions.map(region => [region.id, region.projectedText, region.canvasRow]))
+    .toEqual([['slice-0', 'A&amp;B', 0], ['slice-1', 'A&B', 1]])
+  const withActions = renderMermaidWithActions(encoded, { format: 'ascii', options: { colorMode: 'none' } })
+  expect(typeof withActions.output).toBe('string')
+  if (typeof withActions.output === 'string') expect(withActions.output.split('\n')).toHaveLength(2)
+})
+
+test('Pie grammar entities remain decoded while section-label entity spelling remains authored', () => {
+  for (const encoded of ['pie&#32;showData\n  "A" : 1', 'pie\n  "A" &#58; 1', 'pie\n  "A" : &#49;']) {
+    expect(drawnSlices(encoded)).toEqual([['A', 1]])
+    expect(renderMermaidASCII(encoded, { colorMode: 'none' })).toContain('A  ')
+  }
+  for (const label of ['A&quot;B']) {
+    const encoded = `pie\n  "${label}" : 1`
+    expect(upstreamSections(encoded)).toEqual([[label, 1]])
+    expect(drawnSlices(encoded)).toEqual([[label, 1]])
+    expect(renderMermaidASCII(encoded, { colorMode: 'none' })).toStartWith(`${label}  `)
+  }
 })
 
 test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene validation', () => {

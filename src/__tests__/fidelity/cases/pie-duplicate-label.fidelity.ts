@@ -1,6 +1,6 @@
 import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { decodeXML } from 'entities'
-import { renderMermaidSVG } from '../../../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../../../index.ts'
 import { parsePieChart } from '../../../pie/parser.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
@@ -97,7 +97,8 @@ const entitySpellingDistinct: FidelityCaseDefinition = {
     agent: { applicability: 'applicable', disposition: 'native',
       evaluate: evidence => facts(evidence).kind === 'pie' && JSON.stringify(facts(evidence).slices) === JSON.stringify(entityLabels) ? 'native' : 'absent' },
     render: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => JSON.stringify(facts(evidence).slices) === JSON.stringify(entityLabels) ? 'native' : 'absent' },
+      evaluate: evidence => JSON.stringify(facts(evidence).slices) === JSON.stringify(entityLabels)
+        && facts(evidence).terminalIdentity === true ? 'native' : 'absent' },
     serialize: { applicability: 'applicable', disposition: 'native',
       evaluate: evidence => JSON.stringify(facts(evidence).slices) === JSON.stringify(entityLabels) ? 'native' : 'absent' },
     mutate: { applicability: 'applicable', disposition: 'native',
@@ -113,9 +114,14 @@ const entitySpellingDistinct: FidelityCaseDefinition = {
     const serialized = serializeMermaid(parsed.value)
     const reparsed = parsePieChart(serialized.trim().split('\n'))
     const mutation = mutate(parsed.value, { kind: 'set_slice_value', label: 'A&B', value: 3 })
+    const terminalRows = renderMermaidASCII(entitySource, { colorMode: 'none' }).split('\n')
     return {
       agent: { status: 'observed', diagnosticCodes: [], semantics: { kind: parsed.value.body.kind, slices } },
-      render: { status: 'observed', diagnosticCodes: [], semantics: { slices: svgSlices(renderMermaidSVG(entitySource)) } },
+      render: { status: 'observed', diagnosticCodes: [], semantics: {
+        slices: svgSlices(renderMermaidSVG(entitySource)),
+        terminalIdentity: terminalRows.length === 2 && terminalRows[0]!.startsWith('A&amp;B  ')
+          && terminalRows[1]!.startsWith('A&B  '),
+      } },
       serialize: { status: 'observed', diagnosticCodes: [], semantics: { slices: reparsed.entries.map(entry => [entry.label, entry.value]) } },
       mutate: { status: 'observed', diagnosticCodes: mutation.ok ? [] : [mutation.error.code],
         semantics: { slices: mutation.ok ? svgSlices(renderMermaidSVG(serializeMermaid(mutation.value))) : [] } },

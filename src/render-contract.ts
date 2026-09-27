@@ -1196,6 +1196,18 @@ function capturedRequestFamily(
   )
 }
 
+/** Decode Pie grammar while keeping the exact authored quoted section key. */
+function pieLinesWithAuthoredLabels(authored: NormalizedMermaidSource): string[] {
+  const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
+  const hybrid = authored.familyLines.map(line => {
+    const label = quotedLabel.exec(line)?.[0]
+    return label === undefined ? decodeXML(line) : label + decodeXML(line.slice(label.length))
+  }).join('\n')
+  // Reapply normal comment/line normalization after decoding; an entity may
+  // itself spell a comment opener or a grammar newline outside a label.
+  return normalizeMermaidSource(hybrid).familyLines
+}
+
 function assertFamilyGeometryOptions(
   family: FamilyDescriptor,
   before: RenderOptions,
@@ -1890,12 +1902,11 @@ export function resolveRenderRequestForExecution(
   // lowering for the lifetime of this request.
   const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, authoredEnvelope)
   // Mermaid Pie keys sections by the label as authored, including entity
-  // spelling. Decoding the whole document first would merge distinct labels
-  // ("A&amp;B" and "A&B") before Pie's first-wins Map sees them. Keep the
-  // shared decoded envelope/config, but give Pie grammars authored lines.
+  // spelling. Decode grammar (header, separators, values) as before, but put
+  // authored label tokens back before Pie's first-wins Map sees them.
   const source: NormalizedMermaidSource = family.id === 'pie' && decodedText !== text
-    ? Object.freeze({ ...detectedSource, familyBody: authoredEnvelope.familyBody,
-      familyText: authoredEnvelope.familyText, familyLines: authoredEnvelope.familyLines })
+    ? Object.freeze({ ...detectedSource,
+      authoredPieFamilyLines: Object.freeze(pieLinesWithAuthoredLabels(authoredEnvelope)) as unknown as string[] })
     : detectedSource
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
     throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)

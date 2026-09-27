@@ -10,7 +10,7 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutPieChart(
-    parsePieChart(ctx.source.familyLines),
+    parsePieChart(ctx.source.authoredPieFamilyLines ?? ctx.source.familyLines),
     ctx.renderOptions,
     (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual
       ?? resolvePieVisualConfig(),

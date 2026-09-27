@@ -198,6 +198,8 @@ export function renderMermaidASCIIWithReceipt(
     expectedFamilyId: preparedInput.expectedFamilyId,
   })
   emitResolvedConfigDiagnostics(request)
+  const executionPlan = resolvedRenderExecutionPlanOf(request)
+  const family = executionPlan.family
   // Sanitize user-derived text before layout, cell measurement, or trusted
   // ANSI/HTML wrappers are introduced. A visible one-cell replacement keeps
   // renderer geometry and emitted geometry coherent.
@@ -207,11 +209,12 @@ export function renderMermaidASCIIWithReceipt(
   // merge frontmatter/init config a second time and historically lost nested
   // config on width-bounded renders. Keep the authored source and its resolved
   // config in the shared receipt.
-  const normalizedSource = widthBudget
+  // Pie already wraps its legend labels in terminal cells. Rewriting its
+  // authored grammar body through the decoded envelope would merge distinct
+  // entity-spelled source keys before first-wins section parsing.
+  const normalizedSource = widthBudget && family.id !== 'pie'
     ? projectLabelsInNormalizedSource(terminalSource.source, widthBudget, outputPolicy.targetWidth !== undefined)
     : terminalSource.source
-  const executionPlan = resolvedRenderExecutionPlanOf(request)
-  const family = executionPlan.family
   const familyContext = resolvedFamilyRenderContextOf(request)
   const diagramType = family.id
   let connectorScene: SceneDoc | null = null
@@ -333,6 +336,9 @@ function projectTerminalSafeSource(source: Readonly<NormalizedMermaidSource>): T
     familyBody: projected.familyBody,
     familyText: projected.familyText,
     familyLines: Object.freeze(projected.familyLines) as unknown as string[],
+    ...(source.authoredPieFamilyLines === undefined ? {} : {
+      authoredPieFamilyLines: Object.freeze(source.authoredPieFamilyLines.map(sanitizeStructural)) as unknown as string[],
+    }),
     firstLine: lines[0]?.toLowerCase() ?? '',
     config: sanitizeValue(source.config),
     frontmatter: sanitizeValue(source.frontmatter),

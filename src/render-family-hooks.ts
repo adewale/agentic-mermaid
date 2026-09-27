@@ -364,10 +364,10 @@ const PIE_RENDER_HOOKS = {
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
   }),
-  layout: ctx => layoutResult(layoutPieChart(parsePieChart(ctx.source.familyLines), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual ?? resolvePieVisualConfig(), ctx.styleFace)),
+  layout: ctx => layoutResult(layoutPieChart(parsePieChart(ctx.source.authoredPieFamilyLines ?? ctx.source.familyLines), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual ?? resolvePieVisualConfig(), ctx.styleFace)),
   projectPositioned: positionedView(projectPiePositioned),
   lowerScene: scene(lowerPieScene),
-  renderAscii: ctx => renderPieAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual, ctx.styleFace),
+  renderAscii: ctx => renderPieAscii(ctx.source.authoredPieFamilyLines ?? ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual, ctx.styleFace),
 } satisfies BuiltinRenderHooks
 
 const QUADRANT_RENDER_HOOKS = {
