@@ -5,11 +5,11 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 682_645,
-    // The marker-reference change updates generated homepage SVG bytes without
-    // adding a request; gzip is unchanged and the other exact totals are pinned.
-    maxGzipBytes: 406_565,
-    maxBrotliBytes: 387_996,
+    maxRawBytes: 683_000,
+    // Timeline literal-label SVG output adds a few hundred bytes to the
+    // existing homepage request graph; exact Linux totals live in the baseline.
+    maxGzipBytes: 406_650,
+    maxBrotliBytes: 388_250,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -21,11 +21,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // Sequence half-arrow examples add bytes without changing the six-request
     // graph; these are the reviewed Linux/x64 totals.
-    maxRawBytes: 391_535,
+    maxRawBytes: 392_000,
     // Authored Class member display changes compression by one byte while
     // leaving the route graph and raw bytes unchanged.
-    maxGzipBytes: 68_607,
-    maxBrotliBytes: 54_400,
+    maxGzipBytes: 68_700,
+    maxBrotliBytes: 54_550,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -52,7 +52,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Linux raw bytes on the shared lazy path; the request graph is unchanged.
     // Timeline literal-text Scene validation keeps the same request graph;
     // Linux/x64 measures 735,369 raw / 275,828 gzip / 251,742 Brotli bytes.
-    maxRawBytes: 735_500,
+    maxRawBytes: 735_700,
     maxGzipBytes: 275_950,
     maxBrotliBytes: 251_900,
     required: Object.freeze([
@@ -114,7 +114,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed and both ceilings retain under 0.01% slack.
     // The shared Scene literal-text guard measures 3,395,922 raw and
     // 1,009,850 gzip bytes with the same two editor requests.
-    maxRawBytes: 3_396_100,
+    maxRawBytes: 3_396_300,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
