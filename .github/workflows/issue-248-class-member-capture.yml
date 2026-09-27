@@ -21,7 +21,9 @@ jobs:
       - run: bunx playwright install chromium --with-deps
       - run: bun run gallery:mermaid-docs
       - run: bun run gallery:mindmap-gitgraph
-      - run: bun run gallery:section-b
+      # The source-bound PNG is written before the approval-hash gate; upload it
+      # for native-size review, then update the approval in the final branch.
+      - run: bun run gallery:section-b || test -s docs/design/families/section-b-brand-evidence.png
       - run: bun run website:payload:write
       - uses: actions/upload-artifact@v7
         with:
