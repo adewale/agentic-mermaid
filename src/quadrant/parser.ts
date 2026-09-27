@@ -111,7 +111,7 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
       const { label: rawLabel, className } = splitPointClassSuffix(m[1]!.trim())
       const label = normalizeBrTags(rawLabel)
       const styleTail = m[4]!.trim()
-      const parsedStyle = parsePointStyleEntries(styleTail)
+      const parsedStyle = parsePointStyleEntries(styleTail, `quadrant point ${label}`)
       if (!parsedStyle.ok) {
         throw new Error(
           `Unsupported quadrant point style metadata: "${styleTail}" — ${parsedStyle.error}. ` +
