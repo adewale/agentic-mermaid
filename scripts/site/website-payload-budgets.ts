@@ -50,7 +50,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
     maxRawBytes: 734_000,
     maxGzipBytes: 275_300,
-    maxBrotliBytes: 251_300,
+    maxBrotliBytes: 251_500,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -91,11 +91,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // editor bundle while retaining the fixed two-request graph.
     // Pie's terminal projection and source-aware title display add a small
     // shared-editor import; the complete two-request graph stays fixed.
-    // Final Linux/x64 title-directive capture: 3,360,225 raw / 988,115 gzip
-    // editor bytes and 275,227 gzip / 251,244 Brotli demo bytes.
-    maxRawBytes: 3_360_350,
-    maxGzipBytes: 988_200,
-    maxBrotliBytes: 777_000,
+    // Linux/x64 title-directive capture after the leading-space fix:
+    // 3,360,477 raw / 988,202 gzip / 777,029 Brotli editor bytes. The
+    // two-request graph is unchanged and all caps remain within 0.1%.
+    maxRawBytes: 3_361_000,
+    maxGzipBytes: 988_500,
+    maxBrotliBytes: 777_300,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
