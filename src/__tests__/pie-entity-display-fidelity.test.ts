@@ -251,6 +251,16 @@ test('reviewed Pie named-reference visuals use the same production source', () =
   expect(asset('after')).toContain('>A®B [1] (33.3%)</text>')
 })
 
+test('reviewed Pie authored-formatting visuals use the same production source', () => {
+  const source = 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n  "C" : 2\n'
+  const asset = (which: 'before' | 'after') => readFileSync(
+    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-authored-formatting-${which}.svg`), 'utf8')
+  expect(asset('before')).toContain('<tspan')
+  expect(asset('after')).toBe(renderMermaidSVG(source))
+  expect(asset('after')).toContain('>A&lt;br&gt;B [1] (33.3%)</text>')
+  expect(asset('after')).toContain('>T&lt;b&gt;itle&lt;/b&gt;</text>')
+})
+
 test('Pie inline showData title keeps authored entity spelling and an entity-created tag stays literal', () => {
   const inline = 'pie showData title A#65;B\n  "X" : 1\n'
   const parsed = parseRegisteredMermaid(inline)
