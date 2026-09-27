@@ -7,6 +7,7 @@ import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { measureTextWidth } from '../text-metrics.ts'
 
 const cases = [
   { sourceLabel: 'A&#35;B', display: 'A&#B', xml: 'A&amp;#B' },
@@ -104,6 +105,18 @@ test('pinned Mermaid Pie DB retains authored markup-like title and section strin
   expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(
     pairs.map(([label, title]) => ({ title, sections: [[label, 1]] })),
   )
+})
+
+test('literal Pie title and legend reserve uncompressed painted advance', () => {
+  const source = 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n'
+  const svg = renderMermaidSVG(source)
+  const title = svg.match(/<text\b([^>]*class="pie-title"[^>]*)>T&lt;b&gt;itle&lt;\/b&gt;<\/text>/)?.[1]
+  const legend = svg.match(/<text\b([^>]*class="pie-legend-text"[^>]*)>A&lt;br&gt;B \[1\] \(100\.0%\)<\/text>/)?.[1]
+  expect(title).toContain('data-literal-text="true"')
+  expect(legend).toContain('data-literal-text="true"')
+  const advance = (attrs: string | undefined) => Number(attrs?.match(/textLength="([0-9.]+)"/)?.[1])
+  expect(advance(title)).toBeCloseTo(measureTextWidth('T<b>itle</b>', 18, 600), 3)
+  expect(advance(legend)).toBeCloseTo(measureTextWidth('A<br>B [1] (100.0%)', 13, 500), 3)
 })
 
 test('Pie title entities follow pinned Mermaid visible text while source and agent title stay authored', async () => {

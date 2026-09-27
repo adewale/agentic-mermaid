@@ -52,6 +52,10 @@ const PIE = {
   dimOpacity: 0.4,
 } as const
 
+// The deterministic SVG font pass must not re-interpret an already-literal
+// Pie text node as formatting. Plain entity display needs no extra marker.
+const needsLiteralFontMetrics = (text: string): boolean => /[<>*~]/.test(text)
+
 /**
  * Render a positioned pie chart as an SVG string.
  */
@@ -288,7 +292,7 @@ export function lowerPieScene(
         item.textX,
         item.textY,
         visual.legendTextSize ?? style.nodeLabelFontSize,
-        `class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="${visual.legendTextSize ?? style.nodeLabelFontSize}" font-weight="${legWeight}"${letterAttr(style.nodeLetterSpacing)}`,
+        `class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="${visual.legendTextSize ?? style.nodeLabelFontSize}" font-weight="${legWeight}"${letterAttr(style.nodeLetterSpacing)}${item.literalText === true && needsLiteralFontMetrics(text) ? ' data-literal-text="true"' : ''}`,
         0.35,
         item.literalText === true,
       ),
@@ -315,7 +319,7 @@ export function lowerPieScene(
         chart.title.x,
         chart.title.y,
         visual.titleTextSize ?? style.groupHeaderFontSize,
-        `class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="${visual.titleTextSize ?? style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)}`,
+        `class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="${visual.titleTextSize ?? style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)}${chart.title.literalText === true && needsLiteralFontMetrics(title) ? ' data-literal-text="true"' : ''}`,
         0.35,
         chart.title.literalText === true,
       ),

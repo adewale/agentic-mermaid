@@ -32,8 +32,8 @@
 <text x="180.7" y="121.38" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">33%</text>
 <text x="57.3" y="192.63" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">67%</text>
 <rect class="pie-legend-swatch" x="246" y="139" width="14" height="14" rx="2" ry="2" fill="#3b82f6" />
-<text x="268" y="146" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55" textLength="104.208" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A&lt;br&gt;B [1] (33.3%)</text>
+<text x="268" y="146" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" data-literal-text="true" dy="4.55" textLength="104.208" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A&lt;br&gt;B [1] (33.3%)</text>
 <rect class="pie-legend-swatch" x="246" y="161" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" />
 <text x="268" y="168" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55" textLength="71.604" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">C [2] (66.7%)</text>
-<text x="198.1" y="33" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">T&lt;b&gt;itle&lt;/b&gt;</text>
+<text x="198.1" y="33" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" data-literal-text="true" dy="6.3" data-id="title" data-role="title" textLength="109.62" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">T&lt;b&gt;itle&lt;/b&gt;</text>
 </svg>

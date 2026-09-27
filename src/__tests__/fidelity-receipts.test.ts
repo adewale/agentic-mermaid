@@ -288,6 +288,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
       'journey.scores.fractional-parser-render-seam',
+      'pie.syntax.authored-formatting-literal',
       'pie.syntax.duplicate-label-first-wins',
       'pie.syntax.entity-spelling-distinct',
       'pie.syntax.escaped-terminal-control-sanitized',
@@ -309,10 +310,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 29,
-      passedCaseCount: 29,
+      caseCount: 30,
+      passedCaseCount: 30,
       failedCaseCount: 0,
-      observedSurfaceCount: 109,
+      observedSurfaceCount: 113,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
