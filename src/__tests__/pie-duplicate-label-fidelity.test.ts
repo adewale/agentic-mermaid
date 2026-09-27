@@ -5,6 +5,7 @@ import { decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parsePieChart } from '../pie/parser.ts'
 
 const source = `pie showData
@@ -111,6 +112,19 @@ test('entity spelling remains part of the upstream Pie key through public render
   const changed = mutate(parsed.value, { kind: 'set_slice_value', label: 'A&B', value: 3 })
   expect(changed.ok).toBe(true)
   if (changed.ok) expect(drawnSlices(serializeMermaid(changed.value))).toEqual([['A&amp;B', 1], ['A&B', 3]])
+})
+
+test('browser-lazy Pie SVG keeps first-wins and entity-distinct identity', async () => {
+  const encoded = 'pie showData\n  "A&amp;B" : 1\n  "A&B" : 2\n'
+  const cases: Array<[string, Array<[string, number]>]> = [
+    [encoded, [['A&amp;B', 1], ['A&B', 2]]],
+    [source, [['Alpha', 10], ['Beta', 20]]],
+  ]
+  for (const [input, expected] of cases) {
+    const lazy = await renderMermaidSVGAsync(input)
+    expect(lazy).toBe(renderMermaidSVG(input))
+    expect(slicesInSvg(lazy)).toEqual(expected)
+  }
 })
 
 test('Pie terminal, width, HTML and metadata projections keep entity-distinct rows', () => {

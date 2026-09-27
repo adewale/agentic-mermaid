@@ -180,10 +180,10 @@
         {
           "path": "/demo/",
           "count": 1,
-          "sha256": "b871c4efb201ac2bd73eb75560ad3b2f0d3d8f7e02fd950ced3dd446c31e1902",
+          "sha256": "cb50823612e75d3556fa5df471446cb3cae3e97991a39af4318de280a0a23f44",
           "rawBytes": 10184,
-          "gzipBytes": 3575,
-          "brotliBytes": 2806
+          "gzipBytes": 3574,
+          "brotliBytes": 2820
         },
         {
           "path": "/demo/browser-lazy/chunks/chunk-5JK2LC7L.js",
@@ -346,12 +346,12 @@
           "brotliBytes": 44758
         },
         {
-          "path": "/demo/browser-lazy/chunks/render-core-HTVXJ4CR.js",
+          "path": "/demo/browser-lazy/chunks/render-core-4EUMWUTY.js",
           "count": 1,
-          "sha256": "cbc9a43d8446da5c4a6571b063f68c9b6314f83c946bafb6f309a3b39876fe30",
-          "rawBytes": 102716,
-          "gzipBytes": 31970,
-          "brotliBytes": 28507
+          "sha256": "68a055e23cc7880444bf3730c086922cd2ba089ff4e6ba1732aa863e47a6162c",
+          "rawBytes": 102861,
+          "gzipBytes": 32045,
+          "brotliBytes": 28579
         },
         {
           "path": "/demo/browser-lazy/chunks/timeline-E3EL6PRI.js",
@@ -362,12 +362,12 @@
           "brotliBytes": 6506
         },
         {
-          "path": "/demo/browser-lazy/index-bb100e0ed592.js",
+          "path": "/demo/browser-lazy/index-7f35f7d460b7.js",
           "count": 1,
-          "sha256": "bb100e0ed5922ef5aa75c58fe61602d4136487209e39e1c2156c96a8ba61de6b",
+          "sha256": "7f35f7d460b7b07d54667c5c67858264f6fe1607bfa22ae8ea5176f485aeead4",
           "rawBytes": 3104,
-          "gzipBytes": 1158,
-          "brotliBytes": 1010
+          "gzipBytes": 1159,
+          "brotliBytes": 1008
         },
         {
           "path": "/fonts/Inter-Regular.subset-f99ced08c3ad.woff2",
@@ -386,12 +386,12 @@
           "brotliBytes": 40120
         },
         {
-          "path": "/generated/inline-f20270675bf8.js",
+          "path": "/generated/inline-63fc014cfce3.js",
           "count": 1,
-          "sha256": "f20270675bf8cada6f2eef35eea87ad4a64a3613362033f02e3bac256ded87b8",
+          "sha256": "63fc014cfce33b558501699ed6be7632ceff10e343e3d1e210f97f4fd0420581",
           "rawBytes": 1187,
-          "gzipBytes": 541,
-          "brotliBytes": 431
+          "gzipBytes": 543,
+          "brotliBytes": 422
         },
         {
           "path": "/shader-mark.js",
@@ -420,9 +420,9 @@
       ],
       "totals": {
         "requests": 30,
-        "rawBytes": 732667,
-        "gzipBytes": 274778,
-        "brotliBytes": 250828
+        "rawBytes": 732812,
+        "gzipBytes": 274855,
+        "brotliBytes": 250903
       }
     },
     {
@@ -436,25 +436,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "dc8072437a18e7b237ea676f7d7ee1e9d759b4f4cceb8319888db48546490eef",
+          "sha256": "1178b04f490d847220d40095471295febc231ff271bc377885a3a4d5bc56b0cc",
           "rawBytes": 102590,
-          "gzipBytes": 18090,
-          "brotliBytes": 15342
+          "gzipBytes": 18089,
+          "brotliBytes": 15339
         },
         {
-          "path": "/editor/editor-d16b37cf9a14.js",
+          "path": "/editor/editor-4d522615a5e3.js",
           "count": 1,
-          "sha256": "ba6477b1ff584005c314c9cb05523d11145e77696a045efd2b24f12a92cc4b42",
-          "rawBytes": 3253371,
-          "gzipBytes": 968317,
-          "brotliBytes": 760333
+          "sha256": "3f9d7bc1a6f80aa9ac49ad80e19f503d405458459ba5ac454b35bba023f415f5",
+          "rawBytes": 3254343,
+          "gzipBytes": 968747,
+          "brotliBytes": 760544
         }
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3355961,
-        "gzipBytes": 986407,
-        "brotliBytes": 775675
+        "rawBytes": 3356933,
+        "gzipBytes": 986836,
+        "brotliBytes": 775883
       }
     }
   ]
