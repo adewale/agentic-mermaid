@@ -111,7 +111,7 @@ export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, opts: 
     // extension families, whose hooks may depend on color mode or have effects.
     const pieSource = parseMermaid(source)
     const regionCanvas = opts.colorMode === 'html' && pieSource.ok && pieSource.value.body.kind === 'pie'
-      ? renderMermaidASCII(input, { ...opts, colorMode: 'none', onProjectionDiagnostic: undefined, onConfigDiagnostic: undefined })
+      ? renderMermaidASCII(input, { ...opts, colorMode: 'none', onProjectionDiagnostic: undefined, onConfigDiagnostic: () => {} })
       : ascii
     const regions = addSemanticContainerRegions(regionCanvas, source, deriveRegions(regionCanvas, source))
     const projectionWarnings: AsciiWarning[] = projection.map(diagnostic => ({
