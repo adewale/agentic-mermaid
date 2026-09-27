@@ -48,9 +48,10 @@ describe('shared color math', () => {
   test('tryParseHex accepts exactly the documented forms', () => {
     expect(tryParseHex('#3b82f6')).toEqual([0x3b, 0x82, 0xf6])
     expect(tryParseHex('#abc')).toEqual([0xaa, 0xbb, 0xcc])
+    expect(tryParseHex('#3b82')).toEqual([0x33, 0xbb, 0x88])
     expect(tryParseHex('#3b82f6ff')).toEqual([0x3b, 0x82, 0xf6])
     expect(tryParseHex('3b82f6')).toBeNull()
-    expect(tryParseHex('#3b82')).toBeNull()
+    expect(tryParseHex('#3b82f')).toBeNull()
     expect(tryParseHex('#xyzxyz')).toBeNull()
   })
 

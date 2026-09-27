@@ -17,7 +17,7 @@
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
-import { parseMutableStyleProps } from '../shared/style-props.ts'
+import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
@@ -925,9 +925,9 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     }
     case 'define_class': {
       if (!/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
-      const props = parseStylePropsForOp(op.style)
-      if (!props) return err({ code: 'INVALID_OP', message: `Style "${op.style}" parses to no properties — expected CSS-like pairs such as "fill:#f96,stroke:#333"` })
-      graph.classDefs.set(op.name, props)
+      const props = parseStylePropsForOp(op.style, `define_class ${op.name}`, 'fill:#f96,stroke:#333')
+      if ('message' in props) return err({ code: 'INVALID_OP', message: props.message })
+      graph.classDefs.set(op.name, props.value)
       return done()
     }
     case 'set_node_class': {
@@ -942,9 +942,9 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     case 'set_node_style': {
       if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
       if (op.style === null) { graph.nodeStyles.delete(op.id); return done() }
-      const props = parseStylePropsForOp(op.style)
-      if (!props) return err({ code: 'INVALID_OP', message: `Style "${op.style}" parses to no properties — expected CSS-like pairs such as "fill:#bbf,stroke-width:2px"` })
-      graph.nodeStyles.set(op.id, props)
+      const props = parseStylePropsForOp(op.style, `set_node_style ${op.id}`, 'fill:#bbf,stroke-width:2px')
+      if ('message' in props) return err({ code: 'INVALID_OP', message: props.message })
+      graph.nodeStyles.set(op.id, props.value)
       return done()
     }
     default: {
@@ -983,11 +983,14 @@ function resolveShapeValue(shape: string): ResolvedShapeValue | null {
 }
 
 /** Style strings parse through the parser's OWN parseStyleProps (one style
- *  grammar, two consumers); null when nothing parses — the op is rejected
- *  prescriptively instead of writing an empty directive. */
-function parseStylePropsForOp(style: string): Record<string, string> | null {
+ *  grammar, two consumers). A style that parses to nothing, or that paints with
+ *  something other than a CSS color, is rejected prescriptively instead of
+ *  writing a directive the renderer would refuse. */
+function parseStylePropsForOp(style: string, subject: string, example: string): { value: Record<string, string> } | { message: string } {
   const parsed = parseMutableStyleProps(style)
-  return parsed.ok ? parsed.value : null
+  if (parsed.ok) return { value: parsed.value }
+  if (parsed.reason === 'UNSAFE_PAINT') return { message: unsafeStylePaintError(subject, parsed.paint).message }
+  return { message: `Style "${style}" parses to no properties — expected CSS-like pairs such as "${example}"` }
 }
 
 function locateSubgraph(graph: MermaidGraph, id: string): { list: MermaidSubgraph[]; index: number } | null {

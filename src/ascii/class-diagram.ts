@@ -19,6 +19,7 @@ import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { splitLines } from './multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 
 /** Classify a character from a box drawing as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -175,6 +176,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const authoredLines = authoredText?.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const diagram = parseClassDiagram(lines, authoredLines)
+  checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
 
   if (diagram.classes.length === 0) return ''
 

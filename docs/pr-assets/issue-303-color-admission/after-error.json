@@ -1,0 +1,1 @@
+{"ok":false,"error":{"code":"INVALID_STYLE_COLOR","message":"style A: fill \"notacolor\" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla() or var(--name), e.g. style A fill:#f96","subject":"style A","property":"fill","value":"notacolor"}}

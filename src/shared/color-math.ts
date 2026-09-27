@@ -13,13 +13,13 @@ import { CSS_NAMED_COLORS } from './css-named-colors.ts'
 export type RgbaColor = [red: number, green: number, blue: number, alpha: number]
 
 /**
- * Parse a hex color to [r, g, b]. Accepts #RGB and #RRGGBB (a longer string
- * such as #RRGGBBAA is read as its first six digits; alpha is ignored).
+ * Parse a hex color to [r, g, b]. Accepts #RGB, #RGBA, #RRGGBB and #RRGGBBAA;
+ * alpha is ignored.
  * Assumes a syntactically valid color — use tryParseHex when unsure.
  */
 export function parseHex(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
-  const full = h.length === 3
+  const full = h.length === 3 || h.length === 4
     ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]!
     : h
   return [
@@ -29,9 +29,9 @@ export function parseHex(hex: string): [number, number, number] {
   ]
 }
 
-/** Validating parse: [r, g, b] for #RGB/#RRGGBB/#RRGGBBAA, else null. */
+/** Validating parse: [r, g, b] for the four CSS hex lengths, else null. */
 export function tryParseHex(hex: string): [number, number, number] | null {
-  if (!/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(hex)) return null
+  if (!isHexColor(hex)) return null
   return parseHex(hex)
 }
 
@@ -106,9 +106,9 @@ export function ensureContrast(
   return fallback
 }
 
-/** Loose CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. */
+/** CSS hex form: #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. */
 export function isHexColor(s: string): boolean {
-  return /^#[0-9a-fA-F]{3,8}$/.test(s)
+  return /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(s)
 }
 
 /** Strict 6-digit hex form (#RRGGBB) — what the chart palettes require. */
@@ -127,7 +127,7 @@ export function luma255(r: number, g: number, b: number): number {
 /** Parse concrete CSS colors used by Mermaid config into RGBA. */
 export function tryParseCssColor(color: string): RgbaColor | null {
   const value = color.trim().toLowerCase()
-  const named = CSS_NAMED_COLORS[value]
+  const named = Object.hasOwn(CSS_NAMED_COLORS, value) ? CSS_NAMED_COLORS[value] : undefined
   if (named) {
     const rgb = parseHex(named)
     return [rgb[0], rgb[1], rgb[2], 1]
@@ -149,16 +149,18 @@ export function tryParseCssColor(color: string): RgbaColor | null {
   if (rgb) {
     const body = rgb[1]!.trim()
     const slash = body.split('/').map(part => part.trim())
+    if (slash.length > 2 || (slash.length === 2 && body.includes(','))) return null
     const components = (body.includes(',') ? body.split(',') : slash[0]!.split(/\s+/)).map(part => part.trim())
     let alphaToken = slash[1]
-    if (components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
+    if (body.includes(',') && components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
     if (components.length !== 3) return null
+    if (body.includes(',') && components.some(token => token.endsWith('%')) && !components.every(token => token.endsWith('%'))) return null
     const channel = (token: string): number | null => {
       const percent = token.endsWith('%')
-      const number = Number.parseFloat(token)
-      if (!Number.isFinite(number)) return null
+      const number = parseCssNumber(token, percent)
+      if (number === null) return null
       const resolved = percent ? number * 2.55 : number
-      return resolved >= 0 && resolved <= 255 ? resolved : null
+      return Math.max(0, Math.min(255, resolved))
     }
     const channels = components.map(channel)
     if (channels.some(component => component === null)) return null
@@ -171,23 +173,31 @@ export function tryParseCssColor(color: string): RgbaColor | null {
   if (hsl) {
     const body = hsl[1]!.trim()
     const slash = body.split('/').map(part => part.trim())
+    if (slash.length > 2 || (slash.length === 2 && body.includes(','))) return null
     const components = (body.includes(',') ? body.split(',') : slash[0]!.split(/\s+/)).map(part => part.trim())
     let alphaToken = slash[1]
-    if (components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
-    if (components.length !== 3 || !components[1]!.endsWith('%') || !components[2]!.endsWith('%')) return null
+    if (body.includes(',') && components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
+    if (components.length !== 3 || (body.includes(',') && (!components[1]!.endsWith('%') || !components[2]!.endsWith('%')))) return null
     const hue = parseCssHue(components[0]!)
-    const saturation = Number.parseFloat(components[1]!)
-    const lightness = Number.parseFloat(components[2]!)
+    const saturation = parseCssNumber(components[1]!, components[1]!.endsWith('%'))
+    const lightness = parseCssNumber(components[2]!, components[2]!.endsWith('%'))
     const alpha = parseAlpha(alphaToken)
-    if (hue === null || ![saturation, lightness].every(Number.isFinite) || saturation < 0 || saturation > 100 || lightness < 0 || lightness > 100 || alpha === null) return null
-    const s = saturation / 100
+    if (hue === null || saturation === null || lightness === null || alpha === null) return null
+    const s = Math.max(0, saturation) / 100
     const l = lightness / 100
     const chroma = (1 - Math.abs(2 * l - 1)) * s
     const h = ((hue % 360) + 360) % 360 / 60
     const x = chroma * (1 - Math.abs(h % 2 - 1))
     const [r1, g1, b1] = h < 1 ? [chroma, x, 0] : h < 2 ? [x, chroma, 0] : h < 3 ? [0, chroma, x] : h < 4 ? [0, x, chroma] : h < 5 ? [x, 0, chroma] : [chroma, 0, x]
     const m = l - chroma / 2
-    return [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255, alpha]
+    const channels = [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255]
+    if (channels.some(channel => !Number.isFinite(channel))) return null
+    return [
+      Math.max(0, Math.min(255, channels[0]!)),
+      Math.max(0, Math.min(255, channels[1]!)),
+      Math.max(0, Math.min(255, channels[2]!)),
+      alpha,
+    ]
   }
 
   return null
@@ -197,25 +207,35 @@ export function tryParseCssColor(color: string): RgbaColor | null {
  * units follow CSS Color 4. Reject trailing junk instead of parseFloat's
  * dangerous partial parse (for example, treating `0.5turn` as 0.5 degrees). */
 function parseCssHue(token: string): number | null {
-  const match = token.trim().match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(deg|grad|rad|turn)?$/i)
+  const match = token.trim().match(/^([+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?)(deg|grad|rad|turn)?$/i)
   if (!match) return null
   const value = Number(match[1])
   if (!Number.isFinite(value)) return null
+  let degrees = value
   switch (match[2]?.toLowerCase()) {
-    case 'grad': return value * 0.9
-    case 'rad': return value * 180 / Math.PI
-    case 'turn': return value * 360
-    default: return value
+    case 'grad': degrees *= 0.9; break
+    case 'rad': degrees *= 180 / Math.PI; break
+    case 'turn': degrees *= 360; break
   }
+  return Number.isFinite(degrees) ? degrees : null
 }
 
 function parseAlpha(token: string | undefined): number | null {
   if (token === undefined) return 1
   const percent = token.endsWith('%')
-  const value = Number.parseFloat(token)
-  if (!Number.isFinite(value)) return null
+  const value = parseCssNumber(token, percent)
+  if (value === null) return null
   const alpha = percent ? value / 100 : value
-  return alpha >= 0 && alpha <= 1 ? alpha : null
+  return Math.max(0, Math.min(1, alpha))
+}
+
+function parseCssNumber(token: string, percent: boolean): number | null {
+  const pattern = percent
+    ? /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?%$/i
+    : /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i
+  if (!pattern.test(token)) return null
+  const value = Number(percent ? token.slice(0, -1) : token)
+  return Number.isFinite(value) ? value : null
 }
 
 /** Composite a concrete CSS color over a concrete background. */

@@ -4,6 +4,7 @@ import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../.
 import { layoutGraphSync } from '../../layout-engine.ts'
 import { parseMermaid } from '../../parser.ts'
 import { lowerGraphScene } from '../../renderer.ts'
+import { checkAllGraphAuthoredStyles } from '../../shared/style-props.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, {
   normalizeRequest: ctx => ({
@@ -11,6 +12,7 @@ export default createBrowserFamilyDescriptor(descriptorData, {
   }),
   layout: ctx => {
     const graph = parseMermaid(ctx.source.familyText)
+    checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
     return layoutResult(layoutGraphSync(graph, {
       ...ctx.renderOptions,
