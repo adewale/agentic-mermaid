@@ -8,7 +8,7 @@ export const WEBSITE_PAYLOAD_SCHEMA_VERSION = 1
 export const WEBSITE_PAYLOAD_AUTHORITY = 'deterministic-route-request-graph-v1'
 export const WEBSITE_PAYLOAD_OBSERVATION_MS = 1_500
 export const WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN = Object.freeze({
-  bun: '1.3.13',
+  bun: '1.4.2',
   platform: 'linux' as const,
   arch: 'x64' as const,
 })

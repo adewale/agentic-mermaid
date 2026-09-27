@@ -1,6 +1,7 @@
 // Code Mode sandbox: run agent-supplied JavaScript in a node:vm context.
 
 import vm from 'node:vm'
+import { unsupportedBunReason } from './bun-version.ts'
 import { createTracingMermaid, expressionFirstWraps, unsupportedCodeReason, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
 import {
   DEFAULT_EXECUTE_TIMEOUT_MS,
@@ -25,17 +26,7 @@ const MIN_BUN_SDK_TIMEOUT_MS = 1_000
 const SAFE_GLOBALS = {}
 
 export async function executeInSandbox(code: string, opts: ExecuteOptions = {}): Promise<ExecuteResult> {
-  try {
-    return runInSandbox(code, opts)
-  } finally {
-    // Bun defect (verified on 1.3.13/1.3.14): the node:vm `timeout` watchdog
-    // is NOT disarmed when the script completes — at its original deadline it
-    // uncatchably terminates whatever host JS is running, which killed
-    // CPU-heavy synchronous work that followed a sandbox call. One macrotask
-    // turn fully disarms it; microtasks (`await Promise.resolve()`) do not.
-    // Keep the `timeout` option itself — it is a security boundary.
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  return runInSandbox(code, opts)
 }
 
 function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
@@ -45,7 +36,9 @@ function runInSandbox(code: string, opts: ExecuteOptions = {}): ExecuteResult {
   const remainingBudgetMs = () => Math.floor(timeoutMs - (performance.now() - startedAt))
   const trace: ExecutionTraceCall[] = []
   const early = (error: string): ExecuteResult => opts.trace ? { ok: false, error, logs: [], trace } : { ok: false, error, logs: [] }
-  const unsupported = unsupportedCodeReason(code)
+  // The `timeout` option below is a security boundary, and only Bun 1.4.0+
+  // honors it without outliving the call (see bun-version.ts).
+  const unsupported = unsupportedBunReason() ?? unsupportedCodeReason(code)
   if (unsupported) return early(unsupported)
   const sandbox: Record<string, unknown> = {
     ...SAFE_GLOBALS,

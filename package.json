@@ -40,7 +40,8 @@
     "agentic-mermaid-mcp": "dist/agentic-mermaid-mcp.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "bun": ">=1.4.0"
   },
   "publishConfig": {
     "access": "public",

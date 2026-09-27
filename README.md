@@ -48,7 +48,8 @@ npx --no-install agentic-mermaid --help
 npx --no-install agentic-mermaid mcp
 ```
 
-For repository development, install from source and run the Bun entrypoints:
+For repository development, install from source and run the Bun entrypoints
+(Bun 1.4.0 or later; `bun upgrade` if `bun --version` is older):
 
 ```bash
 git clone https://github.com/adewale/agentic-mermaid
