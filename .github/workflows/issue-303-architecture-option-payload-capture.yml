@@ -19,13 +19,19 @@ jobs:
       - run: bun run website:payload:write
       - uses: actions/upload-artifact@v7
         with:
-          name: issue-303-architecture-option-linux-payload-v2
+          name: issue-303-architecture-option-linux-payload-v3
           path: eval/website-payload/baseline.json
           if-no-files-found: error
       - run: bun run build
-      - run: npm pack --dry-run --json --ignore-scripts > /tmp/am336-pack-v2.json
+      - run: bun run scripts/build/browser-lazy-report.ts --json > /tmp/am336-lazy-v3.json
       - uses: actions/upload-artifact@v7
         with:
-          name: issue-303-architecture-option-linux-pack-v2
-          path: /tmp/am336-pack-v2.json
+          name: issue-303-architecture-option-linux-lazy-v3
+          path: /tmp/am336-lazy-v3.json
+          if-no-files-found: error
+      - run: npm pack --dry-run --json --ignore-scripts > /tmp/am336-pack-v3.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: issue-303-architecture-option-linux-pack-v3
+          path: /tmp/am336-pack-v3.json
           if-no-files-found: error
