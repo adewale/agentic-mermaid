@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="456" height="492" viewBox="0 0 456 492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-quadrant-quadrant-2kbvr6-title" aria-roledescription="quadrant chart" id="char-quadrant-quadrant-2kbvr6" role="img" class="am-obrvve">
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="492" viewBox="0 0 456 492" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="char-quadrant-quadrant-2kbvr6-title" aria-roledescription="quadrant chart" id="char-quadrant-quadrant-2kbvr6" role="img" class="am-0x1apz916v87bo">
 <title id="char-quadrant-quadrant-2kbvr6-title">Priorities</title>
 <style>
-  .am-obrvve text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-obrvve {
+  .am-0x1apz916v87bo text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0x1apz916v87bo {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -19,14 +19,14 @@
   }
 </style>
 <style>
-  .am-obrvve .quadrant-region { stroke: none; }
-  .am-obrvve .quadrant-divider { stroke: #939395; stroke-width: 1; }
-  .am-obrvve .quadrant-border { stroke: #d4d4d4; stroke-width: 2; }
-  .am-obrvve .quadrant-label { fill: #575759; }
-  .am-obrvve .quadrant-point { fill: #47474a; stroke: #FFFFFF; stroke-width: 1; }
-  .am-obrvve .quadrant-point-label { fill: #27272A; }
-  .am-obrvve .quadrant-axis-label { fill: #69696c; }
-  .am-obrvve .quadrant-title { fill: #27272A; }
+  .am-0x1apz916v87bo .quadrant-region { stroke: none; }
+  .am-0x1apz916v87bo .quadrant-divider { stroke: #939395; stroke-width: 1; }
+  .am-0x1apz916v87bo .quadrant-border { stroke: #d4d4d4; stroke-width: 2; }
+  .am-0x1apz916v87bo .quadrant-label { fill: #575759; }
+  .am-0x1apz916v87bo .quadrant-point { fill: #47474a; stroke: #FFFFFF; stroke-width: 1; }
+  .am-0x1apz916v87bo .quadrant-point-label { fill: #27272A; }
+  .am-0x1apz916v87bo .quadrant-axis-label { fill: #69696c; }
+  .am-0x1apz916v87bo .quadrant-title { fill: #27272A; }
 </style>
 <rect class="quadrant-region" x="52" y="60" width="190" height="190" fill="#f6f6f6" data-quadrant="2" data-id="plate:2" data-role="plate" />
 <rect class="quadrant-region" x="242" y="60" width="190" height="190" fill="#ededed" data-quadrant="1" data-id="plate:1" data-role="plate" />

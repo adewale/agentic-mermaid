@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="136" viewBox="0 0 951.768 136" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-u7o9r0">
+<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="136" viewBox="0 0 951.768 136" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0q84uhu0ou2kam">
 <style>
-  .am-u7o9r0 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  .am-u7o9r0 .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg.am-u7o9r0 {
+  .am-0q84uhu0ou2kam text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .am-0q84uhu0ou2kam .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-0q84uhu0ou2kam {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;

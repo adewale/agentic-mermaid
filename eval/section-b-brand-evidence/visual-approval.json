@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "062480f15ef92421096ee206425451ebf7d8bf2265987b864ffd5fa519cbc342",
-  "reviewedAt": "2026-09-24",
-  "reviewer": "Claude Code agent, while holding every family to the chart-honesty text contract",
-  "scope": "All 64 family-by-variant cells were compared with the previous approved sheet at native size through a per-pixel difference mask (27,226 of 14,763,840 pixels differ). Only text ink changes: the theme text tones now clear WCAG AA on every surface the theme paints, so muted labels (axis ticks, legend titles, edge and message labels) are slightly darker where the old tone missed AA on a tinted surface, and labels drawn over lines or data carry a halo in the surface beneath them. Geometry, typography, containment, endpoints, peer-category paint, and authored emphasis are unchanged in every cell.",
+  "artifactSha256": "bacf986e3aa8a4364e037eb0b23fce71e8b26701f6b4ec6ee938eb8a94329c53",
+  "reviewedAt": "2026-09-27",
+  "reviewer": "Claude Code agent, while rebasing the chart-honesty branch onto main's PR #306",
+  "scope": "The 1560×9464 sheet, all 64 family-by-variant cells, was compared with this branch's previous approved sheet at native size through a per-pixel difference mask: 715 of 14,763,840 pixels differ, all in the Class column (x=720–765) across the four style variants (y=589–7693). They are main's PR #306 Class member text (\"+id: string\" in authored order instead of \"+ string: id:\"), drawn with this branch's text tones. Every other cell is identical at the pixel level; geometry, containment, endpoints, peer-category paint, and authored emphasis are unchanged.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

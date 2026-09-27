@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#f8fafc;--fg:#27272A;--font:Inter;background:#f8fafc;max-width:700px" aria-describedby="chart-desc-mermaid-kaeiwt" aria-labelledby="chart-title-mermaid-kaeiwt" aria-roledescription="xychart" class="xychart am-16zzkx9" data-xychart-colors="1" id="mermaid-kaeiwt" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#f8fafc;--fg:#27272A;--font:Inter;background:#f8fafc;max-width:700px" aria-describedby="chart-desc-mermaid-kaeiwt" aria-labelledby="chart-title-mermaid-kaeiwt" aria-roledescription="xychart" class="xychart am-0n8a0lu15y4gx7" data-xychart-colors="1" id="mermaid-kaeiwt" role="img">
 <style>
-  .am-16zzkx9 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-16zzkx9 {
+  .am-0n8a0lu15y4gx7 text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0n8a0lu15y4gx7 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #555558;
@@ -18,35 +18,35 @@
   }
 </style>
 <style>
-  .am-16zzkx9 .xychart-grid { stroke: #dbdcdf; stroke-width: 1; }
-  .am-16zzkx9 .xychart-axis-line { fill: none; }
-  .am-16zzkx9 .xychart-tick { fill: none; }
-  .am-16zzkx9 .xychart-x-axis-line { stroke: #555558; }
-  .am-16zzkx9 .xychart-y-axis-line { stroke: #555558; }
-  .am-16zzkx9 .xychart-x-tick { stroke: #555558; }
-  .am-16zzkx9 .xychart-y-tick { stroke: #555558; }
-  .am-16zzkx9 .xychart-bar { stroke: none; }
-  .am-16zzkx9 .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-  .am-16zzkx9 .xychart-dot { stroke: #f8fafc; stroke-width: 2; }
-  .am-16zzkx9 .xychart-label { fill: #27272A; }
-  .am-16zzkx9 .xychart-x-label { fill: #27272A; }
-  .am-16zzkx9 .xychart-y-label { fill: #27272A; }
-  .am-16zzkx9 .xychart-axis-title { fill: #27272A; }
-  .am-16zzkx9 .xychart-x-axis-title { fill: #27272A; }
-  .am-16zzkx9 .xychart-y-axis-title { fill: #27272A; }
-  .am-16zzkx9 .xychart-title { fill: #123456; }
-  .am-16zzkx9 .xychart-data-label { pointer-events: none; }
-  .am-16zzkx9 .xychart-legend-label { fill: #27272A; }
-  svg.am-16zzkx9 {
+  .am-0n8a0lu15y4gx7 .xychart-grid { stroke: #dbdcdf; stroke-width: 1; }
+  .am-0n8a0lu15y4gx7 .xychart-axis-line { fill: none; }
+  .am-0n8a0lu15y4gx7 .xychart-tick { fill: none; }
+  .am-0n8a0lu15y4gx7 .xychart-x-axis-line { stroke: #555558; }
+  .am-0n8a0lu15y4gx7 .xychart-y-axis-line { stroke: #555558; }
+  .am-0n8a0lu15y4gx7 .xychart-x-tick { stroke: #555558; }
+  .am-0n8a0lu15y4gx7 .xychart-y-tick { stroke: #555558; }
+  .am-0n8a0lu15y4gx7 .xychart-bar { stroke: none; }
+  .am-0n8a0lu15y4gx7 .xychart-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .am-0n8a0lu15y4gx7 .xychart-dot { stroke: #f8fafc; stroke-width: 2; }
+  .am-0n8a0lu15y4gx7 .xychart-label { fill: #27272A; }
+  .am-0n8a0lu15y4gx7 .xychart-x-label { fill: #27272A; }
+  .am-0n8a0lu15y4gx7 .xychart-y-label { fill: #27272A; }
+  .am-0n8a0lu15y4gx7 .xychart-axis-title { fill: #27272A; }
+  .am-0n8a0lu15y4gx7 .xychart-x-axis-title { fill: #27272A; }
+  .am-0n8a0lu15y4gx7 .xychart-y-axis-title { fill: #27272A; }
+  .am-0n8a0lu15y4gx7 .xychart-title { fill: #123456; }
+  .am-0n8a0lu15y4gx7 .xychart-data-label { pointer-events: none; }
+  .am-0n8a0lu15y4gx7 .xychart-legend-label { fill: #27272A; }
+  svg.am-0n8a0lu15y4gx7 {
     --xychart-color-0: #ff6b6b;
     --xychart-color-1: #0ea5e9;
   }
-  .am-16zzkx9 .xychart-bar.xychart-color-0 { fill: #ff6b6b; }
-  .am-16zzkx9 path.xychart-color-0, .am-16zzkx9 line.xychart-color-0 { stroke: #ff6b6b; }
-  .am-16zzkx9 circle.xychart-color-0 { fill: #ff6b6b; }
-  .am-16zzkx9 .xychart-bar.xychart-color-1 { fill: #0ea5e9; }
-  .am-16zzkx9 path.xychart-color-1, .am-16zzkx9 line.xychart-color-1 { stroke: #0ea5e9; }
-  .am-16zzkx9 circle.xychart-color-1 { fill: #0ea5e9; }
+  .am-0n8a0lu15y4gx7 .xychart-bar.xychart-color-0 { fill: #ff6b6b; }
+  .am-0n8a0lu15y4gx7 path.xychart-color-0, .am-0n8a0lu15y4gx7 line.xychart-color-0 { stroke: #ff6b6b; }
+  .am-0n8a0lu15y4gx7 circle.xychart-color-0 { fill: #ff6b6b; }
+  .am-0n8a0lu15y4gx7 .xychart-bar.xychart-color-1 { fill: #0ea5e9; }
+  .am-0n8a0lu15y4gx7 path.xychart-color-1, .am-0n8a0lu15y4gx7 line.xychart-color-1 { stroke: #0ea5e9; }
+  .am-0n8a0lu15y4gx7 circle.xychart-color-1 { fill: #0ea5e9; }
 </style>
 <title id="chart-title-mermaid-kaeiwt">Revenue by quarter</title>
 <desc id="chart-desc-mermaid-kaeiwt">Quarterly revenue and forecast

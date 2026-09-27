@@ -3,7 +3,7 @@
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
     "count": 283,
-    "treeSha256": "2798468b2ae941a91353c243a27052f0e110adaa3bf479d545862691a32780df"
+    "treeSha256": "5dab6899a7c540c01f10f9afc4157e620bf7efb8deafcf0b9f78d795eeb7831d"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,18 +62,18 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "dd9555ef91699288edbd17091e84e4aa93186e5ff062e163db81244bf620f240",
-      "pngSha256": "415106a30622934aa001d587aa35d283250007bd98794a756e435a59505738b5"
+      "svgSha256": "4ab009e24525109290626ded4453ae1455c8e1ee61cf9b59d591dba66ce8dffa",
+      "pngSha256": "c2a1ec2eddc2f027ffee2c75973490decb70c38a23271197b5aa945ea58dfbff"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "ce4a3d5a4f7f6c0f6638d85abfd963bd1394f585f1e988b333e38a0750d26b61",
-      "pngSha256": "57de27066fd63a9ad078eb7821b2720d88e6ecb2d16d03237a944cf07662b119"
+      "svgSha256": "a578325c859753f4ee954f341a604fcac1919a4309d5287b12476b5cd71ed4ee",
+      "pngSha256": "d159406a3e99ec0e031d537c3d6f63941c8f7c9b78e24deaa55510ad97189d10"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "854b2f13a44c4e96d0a132da3f25a21f7cf3a5915c3cea3c213ac20838cd019a",
-      "pngSha256": "2378e7117d7dd1f8aa55dc85e06e07890f40f269523d5c9ff9789ad9b75b66d0"
+      "svgSha256": "b19aa96c885528be112edaccd7b8fda4adf51ecaba8557587e7e08863445ce7a",
+      "pngSha256": "3af5b8c91976a188f6dbba8d8a9f4e30c984c29a4c2b27755ae2eb663e2b5faf"
     }
   },
   "terminalSha256": "f19a908d866fa17e6e0c7b43e12400f2a67a9e32a381fe265bc67d5b44e7f4f8",
@@ -87,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "062480f15ef92421096ee206425451ebf7d8bf2265987b864ffd5fa519cbc342",
-    "reviewedAt": "2026-09-24",
-    "reviewer": "Claude Code agent, while holding every family to the chart-honesty text contract",
+    "artifactSha256": "bacf986e3aa8a4364e037eb0b23fce71e8b26701f6b4ec6ee938eb8a94329c53",
+    "reviewedAt": "2026-09-27",
+    "reviewer": "Claude Code agent, while rebasing the chart-honesty branch onto main's PR #306",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "062480f15ef92421096ee206425451ebf7d8bf2265987b864ffd5fa519cbc342"
+      "sha256": "bacf986e3aa8a4364e037eb0b23fce71e8b26701f6b4ec6ee938eb8a94329c53"
     }
   ]
 }
