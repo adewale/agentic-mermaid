@@ -75,8 +75,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Authored Class member text and complete literal Scene fidelity raise the
     // complete Bun 1.4.2 editor bundle without changing its two-request graph.
     // The shared Sequence marker-spacing parser raises the reviewed ceilings by
-    // 198 raw and 32 gzip bytes; the measured Linux totals rise 229/72, still
-    // with no additional requests.
+    // 198 raw and 32 gzip bytes. The measured Linux total rises 229 raw bytes
+    // with no additional requests; gzip remains under its reviewed ceiling.
     maxRawBytes: 3_354_514,
     maxGzipBytes: 985_826,
     maxBrotliBytes: 775_349,
