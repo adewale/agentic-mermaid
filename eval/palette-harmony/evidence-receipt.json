@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/palette-harmony-experiment.ts",
   "inputCount": 9,
-  "inputTreeSha256": "6f06a22d44ab2b46b85d2d9477b632302914f90d397a098e14e3e1a8a14ee2f2",
+  "inputTreeSha256": "1784d46c9640fa22b67e29d8713dd1e910443cbc0d928a302a8bd911b05c285a",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [

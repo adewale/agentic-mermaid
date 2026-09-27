@@ -1028,7 +1028,7 @@
     },
     {
       "path": "src/shared/color-math.ts",
-      "sha256": "92d9652adf96502d9e1d42a884d7b8195bca1e75f8f849c9284c146916c3c2e9"
+      "sha256": "4f69d04642b21cae8890e2e9ad3e4dc8668120c758e46df1288f978ef0521560"
     },
     {
       "path": "src/shared/config-wire-or-warn.ts",
