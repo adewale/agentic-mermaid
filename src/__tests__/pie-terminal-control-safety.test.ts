@@ -82,6 +82,16 @@ test('Pie escaped newline collapses adjacent authored whitespace like browser SV
   }
 })
 
+test('Pie escaped newline paint normalization stays bounded after a long whitespace prefix', () => {
+  const prefix = ' '.repeat(40_000)
+  const source = `pie\n  "${prefix}X\\nY" : 1\n`
+  const started = performance.now()
+  const entry = parsePieChart(source.trim().split('\n')).entries[0]!
+  expect(entry.label).toBe(`${prefix}X\nY`)
+  expect(entry.displayLabel).toBe('X Y')
+  expect(performance.now() - started).toBeLessThan(250)
+})
+
 test('all-zero Pie output does not claim a control replacement that never rendered', () => {
   const source = 'pie\n  "A\\rB" : 0\n'
   const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
