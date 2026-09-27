@@ -5,6 +5,7 @@ import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseRegisteredMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { runBatchLine } from '../cli/index.ts'
+import { CHANNEL_THEME_KEYS } from '../color-resolver.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 
@@ -12,13 +13,13 @@ const FLOW = 'flowchart TD\n  A --> B'
 const PIE = 'pie\n  "A" : 3\n  "B" : 2'
 const invalid = ['notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'url(#a)'] as const
 
-function init(source: string, key: string, value: string): string {
+function init(source: string, key: string, value: unknown): string {
   return `%%{init: ${JSON.stringify({ themeVariables: { [key]: value } })}}%%\n${source}`
 }
 
 describe('theme color admission (#303, shared/Pie layer)', () => {
   test('shared color keys refuse malformed paint in graphical and terminal outputs', () => {
-    for (const key of ['primaryColor', 'background', 'lineColor', 'primaryTextColor']) {
+    for (const key of new Set(Object.values(CHANNEL_THEME_KEYS).flat())) {
       for (const value of invalid) {
         const source = init(FLOW, key, value)
         const named = `themeVariables.${key}: ${JSON.stringify(value)} is not a CSS color`
@@ -30,7 +31,12 @@ describe('theme color admission (#303, shared/Pie layer)', () => {
   })
 
   test('Pie-specific slice, border and ink colors are named instead of silently dropped', () => {
-    for (const key of ['pie1', 'pie12', 'pieStrokeColor', 'pieOuterStrokeColor', 'pieSectionTextColor', 'pieTitleTextColor', 'pieLegendTextColor']) {
+    const pieKeys = [
+      ...Array.from({ length: 12 }, (_, index) => `pie${index + 1}`),
+      'pieStrokeColor', 'pieOuterStrokeColor',
+      'pieSectionTextColor', 'pieTitleTextColor', 'pieLegendTextColor',
+    ]
+    for (const key of pieKeys) {
       for (const value of invalid) {
         const source = init(PIE, key, value)
         const named = `themeVariables.${key}: ${JSON.stringify(value)} is not a CSS color`
@@ -90,7 +96,17 @@ describe('theme color admission (#303, shared/Pie layer)', () => {
       expect(() => renderMermaidSVG(init(PIE, 'pie1', value)), value).not.toThrow()
     }
     expect(() => renderMermaidSVG(init(FLOW, 'lineColor', 'none'))).not.toThrow()
-    expect(() => renderMermaidSVG(init(FLOW, 'primaryTextColor', 'none')))
-      .toThrow('themeVariables.primaryTextColor: "none" is not a CSS color')
+    for (const key of ['primaryTextColor', 'textColor', 'nodeTextColor', 'secondaryTextColor', 'tertiaryTextColor']) {
+      expect(() => renderMermaidSVG(init(FLOW, key, 'none')))
+        .toThrow(`themeVariables.${key}: "none" is not a CSS color`)
+    }
+    for (const key of ['pieSectionTextColor', 'pieTitleTextColor', 'pieLegendTextColor']) {
+      expect(() => renderMermaidSVG(init(PIE, key, 'none')))
+        .toThrow(`themeVariables.${key}: "none" is not a CSS color`)
+    }
+    for (const [source, key] of [[FLOW, 'primaryColor'], [PIE, 'pie1']] as const) {
+      expect(() => renderMermaidSVG(init(source, key, 123)))
+        .toThrow(`themeVariables.${key}: "123" is not a CSS color`)
+    }
   })
 })

@@ -1,0 +1,36 @@
+name: Issue 248 theme baseline capture
+
+on:
+  push:
+    branches: [codex/248-theme-colors]
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Capture reviewed package paths
+        run: |
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = "11.18.0"
+          mkdir capture
+          node -e 'const cp=require("node:child_process"),fs=require("node:fs");const packed=JSON.parse(cp.execFileSync("npm",["pack","--dry-run","--ignore-scripts","--json"],{encoding:"utf8"}));const files=packed[0].files.map(file=>file.path).sort();fs.writeFileSync("capture/publish-package-files.json",JSON.stringify({schemaVersion:1,files},null,2)+"\n")'
+      - run: bunx playwright install chromium --with-deps
+      - name: Capture website payload if current budgets permit
+        continue-on-error: true
+        run: bun run website:payload:write && cp eval/website-payload/baseline.json capture/website-baseline.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: issue-248-theme-baselines-${{ github.sha }}
+          path: capture/
+          if-no-files-found: error
