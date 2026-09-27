@@ -1,7 +1,8 @@
 import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { decodeXML } from 'entities'
+import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parsePieChart } from '../pie/parser.ts'
 
@@ -28,7 +29,7 @@ function upstreamSections(sourceText: string): Array<[string, number]> {
 
 function slicesInSvg(svg: string): Array<[string, number]> {
   return [...svg.matchAll(/data-label="([^"]+)" data-value="([^"]+)"/g)]
-    .map(match => [match[1]!, Number(match[2])])
+    .map(match => [decodeXML(match[1]!), Number(match[2])])
 }
 
 function drawnSlices(sourceText: string): Array<[string, number]> {
@@ -91,6 +92,38 @@ test('pinned Mermaid converts escaped controls before Pie label identity while a
   if (parsed.ok) {
     expect(parsed.value.body.kind).toBe('opaque')
     expect(serializeMermaid(parsed.value)).toBe(escaped)
+  }
+})
+
+test('entity spelling remains part of the upstream Pie key through public render and typed mutation', () => {
+  const encoded = `pie showData\n  "A&amp;B" : 1\n  "A&B" : 2\n`
+  const sections: Array<[string, number]> = [['A&amp;B', 1], ['A&B', 2]]
+  expect(upstreamSections(encoded)).toEqual(sections)
+  expect(parsePieChart(encoded.trim().split('\n')).entries).toEqual(sections.map(([label, value]) => ({ label, value })))
+  expect(drawnSlices(encoded)).toEqual(sections)
+  const parsed = parseRegisteredMermaid(encoded)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  expect(parsed.value.body.kind).toBe('pie')
+  expect(parsePieChart(serializeMermaid(parsed.value).trim().split('\n')).entries)
+    .toEqual(sections.map(([label, value]) => ({ label, value })))
+  const changed = mutate(parsed.value, { kind: 'set_slice_value', label: 'A&B', value: 3 })
+  expect(changed.ok).toBe(true)
+  if (changed.ok) expect(drawnSlices(serializeMermaid(changed.value))).toEqual([['A&amp;B', 1], ['A&B', 3]])
+})
+
+test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene validation', () => {
+  for (const control of ['0', 'b', 'f', 'v']) {
+    const input = `pie\n  "A\\${control}B" : 1\n`
+    expect(upstreamSections(input)).toHaveLength(1)
+    expect(() => parsePieChart(input.trim().split('\n'))).toThrow(/Pie slice label contains an XML-disallowed control character/)
+    expect(() => renderMermaidSVG(input)).toThrow(/Pie slice label contains an XML-disallowed control character/)
+    const parsed = parseRegisteredMermaid(input)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) continue
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(input)
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
   }
 })
 

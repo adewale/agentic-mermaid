@@ -1884,11 +1884,19 @@ export function resolveRenderRequestForExecution(
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
-  const source: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
+  const detectedSource: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
-  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(source, authoredEnvelope)
+  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, authoredEnvelope)
+  // Mermaid Pie keys sections by the label as authored, including entity
+  // spelling. Decoding the whole document first would merge distinct labels
+  // ("A&amp;B" and "A&B") before Pie's first-wins Map sees them. Keep the
+  // shared decoded envelope/config, but give Pie grammars authored lines.
+  const source: NormalizedMermaidSource = family.id === 'pie' && decodedText !== text
+    ? Object.freeze({ ...detectedSource, familyBody: authoredEnvelope.familyBody,
+      familyText: authoredEnvelope.familyText, familyLines: authoredEnvelope.familyLines })
+    : detectedSource
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
     throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)
   }

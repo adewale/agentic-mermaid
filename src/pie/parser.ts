@@ -23,6 +23,8 @@ import { syntaxError } from '../shared/syntax-error.ts'
 const ENTRY_RE = /^"((?:[^"\\]|\\.)*)"\s*:\s*(.+)$/
 /** Mermaid pie values: positive numbers, up to two decimal places. */
 const NUMBER_RE = /^\+?(?:\d+(?:\.\d+)?|\.\d+)$/
+/** These decoded characters cannot be represented in XML/Scene text or IDs. */
+const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
 
 /**
  * Parse a Mermaid pie chart from preprocessed lines (trimmed, comment-stripped).
@@ -104,6 +106,13 @@ export function parsePieChart(lines: string[]): PieChart {
           `Pie slice "${label}" has invalid value "${rawValue}". ` +
             'Values must be non-negative numbers.',
         )
+      }
+      if (XML_DISALLOWED_CONTROL_RE.test(sourceLabel)) {
+        throw syntaxError({
+          what: 'Pie slice label contains an XML-disallowed control character',
+          expectedForm: 'a label without XML-disallowed control characters',
+          example: '"Alpha" : 10',
+        })
       }
       // Mermaid's Pie DB is a first-wins Map keyed by the authored label.
       // Check after validating the value: even a duplicate invalid entry must
