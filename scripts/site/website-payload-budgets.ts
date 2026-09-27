@@ -97,11 +97,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Authored Pie literal-metrics metadata adds 439 raw bytes on Linux/x64;
     // the two-request editor graph is unchanged and the raw ceiling retains
     // less than 0.01% headroom above the measured 3,393,082 bytes.
-    // ER multi-class lexing/paint adds no request. Bun 1.4.2 Linux/x64
-    // measured 3,393,976 raw / 1,009,056 gzip / 796,796 Brotli; the exact
+    // ER multi-class lexing/paint adds no request. The audited linear class
+    // accumulator measured 3,394,044 raw / 1,009,117 gzip on Linux/x64; exact
     // request hashes and totals are pinned in the generated baseline.
-    maxRawBytes: 3_394_000,
-    maxGzipBytes: 1_009_100,
+    maxRawBytes: 3_394_100,
+    maxGzipBytes: 1_009_200,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. The tab-aware linear scanner measured 3,393,328 raw /
     // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
