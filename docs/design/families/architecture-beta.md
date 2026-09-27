@@ -105,12 +105,16 @@ Shadowed fallbacks may still use `none`; for example, `defaultLinkColor:none`
 is ignored when `lineColor` is set. Shared border keys remain direct strokes
 and may use `none`.
 
-The same derived-paint rule applies to explicit Architecture render colors:
-`bg`, `surface`, `line`, and `accent` cannot be `none` (including case and
-surrounding-whitespace variants), because those channels can feed
-`color-mix()` paints. Direct `border:none` remains available. The rule is
-Architecture-only and produces `INVALID_RENDER_COLOR` through graphical,
-terminal, CLI, and MCP routes before output.
+The same derived-paint rule applies to selected explicit Architecture render
+colors: `bg`, `surface`, `line`, and `accent` cannot be `none` (including case
+and surrounding-whitespace variants) when they feed `color-mix()` paints.
+Resolved visual overrides can shadow a fallback: a concrete
+`architecture.visual.edgeStroke` shadows `line` and `accent`, while a concrete
+group surface or header can make `surface` a direct paint only. A selected
+`edgeStroke:none` or `groupSurface:none` is refused when it feeds a mix.
+Direct `border:none` remains available. The rule is Architecture-only and
+produces `INVALID_RENDER_COLOR` through graphical, terminal, CLI, and MCP
+routes before output.
 
 ## Completed elevation contracts
 
