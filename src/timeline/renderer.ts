@@ -180,6 +180,8 @@ export function lowerTimelineScene(
         diagram.title.y,
         TL.titleFontSize,
         `class="timeline-title" text-anchor="middle" font-size="${TL.titleFontSize}" font-weight="${TL.titleFontWeight}"`,
+        0.35,
+        true,
       ),
     ))
   }
@@ -311,6 +313,8 @@ function lowerSectionFrame(
             section.y + section.headerHeight / 2,
             style.groupHeaderFontSize,
             `class="timeline-section-label" text-anchor="start" font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)}`,
+            0.35,
+            true,
           ),
         ),
       })
@@ -385,6 +389,8 @@ function lowerPeriod(
         period.pillY + period.pillHeight / 2,
         style.edgeLabelFontSize,
         `class="timeline-period-text" text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}`,
+        0.35,
+        true,
       ),
     ),
   })
@@ -470,6 +476,8 @@ function lowerEvent(
       event.y + event.height / 2,
       style.nodeLabelFontSize,
       `class="timeline-event-text" text-anchor="start" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
+      0.35,
+      true,
     ),
   )
 

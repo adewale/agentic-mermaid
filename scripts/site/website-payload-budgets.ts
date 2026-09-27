@@ -115,8 +115,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared Scene literal-text guard measures 3,395,922 raw and
     // 1,009,850 gzip bytes with the same two editor requests.
     maxRawBytes: 3_396_100,
-    // Timeline semantic line-break normalization measures 1,009,565 gzip
-    // bytes on Linux/x64; retain 85 bytes of headroom with no new requests.
+    // Timeline semantic line-break normalization previously measured 1,009,565
+    // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
+    // on Linux/x64; retain 150 bytes of headroom with no new requests.
     maxGzipBytes: 1_010_000,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. The tab-aware linear scanner measured 3,393,328 raw /

@@ -908,7 +908,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "da131bf4949bcba54e9f83b617306519ded737299868fd6d756c1a2859271d14"
+      "sha256": "1b7cbe393e56a17ea3fc680eabd1dc46c293d334258f93043f5dc9b85a19beab"
     },
     {
       "path": "src/scene/gradient-resources.ts",
@@ -1168,7 +1168,7 @@
     },
     {
       "path": "src/timeline/layout.ts",
-      "sha256": "57117f5d722d76ea2a14c72ca1c3126b78949681c3cfdd6218c69cb11c7722ed"
+      "sha256": "4be291783671399196878337a31364ffabb3579d3117d0a3e326b8084d05d526"
     },
     {
       "path": "src/timeline/parse-core.ts",
@@ -1180,7 +1180,7 @@
     },
     {
       "path": "src/timeline/renderer.ts",
-      "sha256": "79d2b241a842c36ef910ccbd203bc92661674ad8561db6fb0e1538f99c12d635"
+      "sha256": "c0d97235afd3bd097331184a7ae39e1adeff079c49a0dadebf2021d37a6bae6b"
     },
     {
       "path": "src/timeline/types.ts",

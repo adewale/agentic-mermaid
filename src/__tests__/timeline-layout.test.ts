@@ -12,6 +12,13 @@ function layout(source: string) {
 }
 
 describe('timeline layout', () => {
+  it('measures formatting-looking Timeline tags as visible literal glyphs', () => {
+    const literal = layout('timeline\n  2024 : AAAA<b>BBBBBBBBBBBB').sections[0]!.periods[0]!.events[0]!
+    const withoutTags = layout('timeline\n  2024 : AAAABBBBBBBBBBBB').sections[0]!.periods[0]!.events[0]!
+    expect(literal.text).toBe('AAAA<b>BBBBBBBBBBBB')
+    expect(literal.width).toBeGreaterThan(withoutTags.width)
+  })
+
   it('extends the rail beyond a single period marker and keeps the event below it', () => {
     const diagram = layout(`timeline
       2024 : Launch`)

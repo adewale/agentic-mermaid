@@ -224,7 +224,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
           problems.push(`${path}(text:${node.id}): unexpected markup in Timeline crisp`)
           return
         }
-        if (hasStyledTspan && !/<\/?(?:b|strong|i|em|u|s|del)\b/i.test(node.text)) {
+        if (hasStyledTspan) {
           problems.push(`${path}(text:${node.id}): unexpected styled Timeline tspan`)
           return
         }
@@ -234,7 +234,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
         || (node.role === 'title' && serialized.includes('class="pie-title"')
           && /&lt;|&gt;/.test(serialized))
       )
-      const literalTimelineText = timelineTextMark && !hasStyledTspan
+      const literalTimelineText = timelineTextMark
       const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml(s
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')

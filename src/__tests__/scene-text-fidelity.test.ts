@@ -104,6 +104,7 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     )
     const faithful: string[] = []
     nodeProblems(make('A<BR>B', 'A&lt;BR&gt;B'), 'p', faithful)
+    nodeProblems(make('A<b>B', 'A&lt;b&gt;B'), 'p', faithful)
     expect(faithful).toEqual([])
     const multiline: string[] = []
     nodeProblems(make('A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12">B</tspan>'), 'p', multiline)
@@ -116,6 +117,7 @@ describe('fidelity oracle checks text x/y/anchor', () => {
       ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan><script/>'],
       ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan>'],
       ['A**B**', 'AB'],
+      ['A<b>B', 'A<tspan font-weight="bold">B</tspan>'],
     ] as const) {
       const problems: string[] = []
       nodeProblems(make(semantic, crisp), 'p', problems)

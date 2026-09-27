@@ -92,8 +92,8 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('launch')
   })
 
-  it('renders noncanonical break spellings as literal text in every Timeline slot', () => {
-    for (const tag of ['<BR>', '<br/>', '<br />']) {
+  it('renders noncanonical breaks and formatting-looking tags literally in every Timeline slot', () => {
+    for (const tag of ['<BR>', '<br/>', '<br />', '<b>', '<i>', '<u>', '<s>']) {
       const text = `A${tag}B`
       const escaped = `A${tag.replace('<', '&lt;').replace('>', '&gt;')}B`
       for (const source of [
@@ -105,8 +105,12 @@ describe('renderMermaidSVG – timeline diagrams', () => {
         const svg = render(source)
         expect(svg, source).toContain(escaped)
         expect(svg, source).not.toContain('NaN')
+        expect(svg, source).not.toContain('<tspan font-weight="bold">')
       }
     }
+    const complete = render('timeline\n  2024 : A<b>Bold</b>Z')
+    expect(complete).toContain('A&lt;b&gt;Bold&lt;/b&gt;Z')
+    expect(complete).not.toContain('<tspan font-weight="bold">')
   })
 
   it('supports dark themes and CSS variable colors without NaN output', () => {

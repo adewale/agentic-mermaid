@@ -51,7 +51,7 @@ describe('timeline parsing — structured', () => {
     expect(project(parseTimelineDiagram(normalizeMermaidSource(canonical).lines))).toEqual(expected)
   })
   test('preserves literal Timeline text that generic label normalization would rewrite', () => {
-    for (const raw of ['A\\nB', '"Quoted"', '**Bold**', '~~Strike~~', '<BR>Upper', '<br/>Slash', '<br />Spaced']) {
+    for (const raw of ['A\\nB', '"Quoted"', '**Bold**', '~~Strike~~', '<BR>Upper', '<br/>Slash', '<br />Spaced', 'A<b>Bold</b>']) {
       const source = `timeline\n  title ${raw}\n  section ${raw}\n  ${raw} : ${raw}`
       const projections = [
         timeline(source).body,
