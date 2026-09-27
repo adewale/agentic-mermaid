@@ -99,8 +99,8 @@ export function resolveNodeInlineStyle(
 }
 
 /**
- * Resolve inline edge styles from Mermaid linkStyle directives. Default link
- * style is applied first; edge-index-specific style overrides it.
+ * Resolve inline edge styles from an authored edge-ID class and linkStyle
+ * directives. Link styles retain their existing default/index precedence.
  */
 export function resolveEdgeInlineStyle(
   edgeIndex: number,
@@ -108,8 +108,13 @@ export function resolveEdgeInlineStyle(
 ): Record<string, string> | undefined {
   let result: Record<string, string> | undefined
 
+  const edgeId = graph.edges[edgeIndex]?.id
+  const className = edgeId ? graph.classAssignments.get(edgeId) : undefined
+  const classDef = className ? graph.classDefs.get(className) : undefined
+  if (classDef) result = { ...classDef }
+
   const defaultStyle = graph.linkStyles.get('default')
-  if (defaultStyle) result = { ...defaultStyle }
+  if (defaultStyle) result = result ? { ...result, ...defaultStyle } : { ...defaultStyle }
 
   const indexStyle = graph.linkStyles.get(edgeIndex)
   if (indexStyle) result = result ? { ...result, ...indexStyle } : { ...indexStyle }

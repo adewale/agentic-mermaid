@@ -17,6 +17,8 @@ import { describe, it, expect } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { lowerGraphScene } from '../renderer.ts'
 import { asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 const SOURCE = 'flowchart LR\n  A e1@--> B\n'
@@ -79,6 +81,72 @@ describe('flowchart edge IDs — SVG identity (X4)', () => {
     const svg = renderMermaidSVG('flowchart LR\n  A --> B')
     expect(svg).toMatch(/<polyline[^>]*data-id="edge:A-&gt;B#0"/)
     expect(svg).toMatch(/<polyline[^>]*data-role="edge"/)
+  })
+})
+
+describe('flowchart edge classes — authored edge paint', () => {
+  it('applies classDef stroke and width to only the assigned edge', () => {
+    const source = [
+      'flowchart LR',
+      '  A e1@--> B',
+      '  B e2@--> C',
+      '  classDef hot stroke:#ff0000,stroke-width:6px',
+      '  class e1 hot',
+    ].join('\n')
+    const graph = parseGraph(source)
+    expect(graph.classAssignments.get('e1')).toBe('hot')
+    const svg = renderMermaidSVG(source)
+    const assigned = svg.match(/<(?:polyline|path)\b[^>]*data-id="e1"[^>]*>/)?.[0]
+    const unrelated = svg.match(/<(?:polyline|path)\b[^>]*data-id="e2"[^>]*>/)?.[0]
+    expect(assigned).toContain('class="edge hot"')
+    expect(assigned).toContain('stroke="#ff0000"')
+    expect(assigned).toContain('stroke-width="6px"')
+    expect(assigned).toMatch(/marker-end="url\(#arrowhead-[^)]*\)"/)
+    const markerId = assigned?.match(/marker-end="url\(#([^)]*)\)"/)?.[1]
+    expect(markerId).toBeDefined()
+    const marker = svg.match(new RegExp(`<marker\\b[^>]*id="${markerId}"[^>]*>`))?.[0]
+    expect(marker).toContain('markerUnits="userSpaceOnUse"')
+    expect(marker).toContain('markerWidth="8"')
+    expect(marker).toContain('markerHeight="8"')
+    expect(unrelated).toContain('class="edge"')
+    expect(unrelated).not.toContain('stroke="#ff0000"')
+    expect(unrelated).not.toContain('stroke-width="6px"')
+  })
+
+  it('keeps the authored class in typed Scene connector identity', () => {
+    const source = 'flowchart LR\n  A e1@--> B\n  classDef hot stroke:#ff0000\n  class e1 hot'
+    const positioned = layoutGraphSync(parseGraph(source))
+    const scene = lowerGraphScene({
+      positioned,
+      colors: { bg: '#fff', fg: '#111' },
+      resolved: { renderOptions: {} },
+    })
+    const edge = scene.parts.find(part => part.kind === 'connector' && part.identity?.id === 'e1')
+    expect(edge?.kind).toBe('connector')
+    if (edge?.kind !== 'connector') return
+    expect(edge.identity?.classNames).toEqual(['hot'])
+    expect(renderMermaidSVG(source)).toContain('class="edge hot"')
+  })
+
+  it('uses fixed-size endpoints when class paint changes width without a color', () => {
+    const svg = renderMermaidSVG('flowchart LR\n  A e1@--> B\n  classDef wide stroke-width:6px\n  class e1 wide')
+    const edge = svg.match(/<(?:polyline|path)\b[^>]*data-id="e1"[^>]*>/)?.[0]
+    expect(edge).toContain('marker-end="url(#arrowhead-fixed)"')
+    expect(svg).toMatch(/<marker\b[^>]*id="arrowhead-fixed"[^>]*markerUnits="userSpaceOnUse"/)
+  })
+
+  it('retains explicit linkStyle precedence over edge-class paint', () => {
+    const source = [
+      'flowchart LR',
+      '  A e1@--> B',
+      '  classDef hot stroke:#ff0000,stroke-width:6px',
+      '  class e1 hot',
+      '  linkStyle 0 stroke:#00ff00,stroke-width:3px',
+    ].join('\n')
+    const edge = renderMermaidSVG(source).match(/<(?:polyline|path)\b[^>]*data-id="e1"[^>]*>/)?.[0]
+    expect(edge).toContain('class="edge hot"')
+    expect(edge).toContain('stroke="#00ff00"')
+    expect(edge).toContain('stroke-width="3px"')
   })
 })
 

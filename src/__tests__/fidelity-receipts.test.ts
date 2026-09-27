@@ -538,6 +538,18 @@ describe('issue #248 construct fidelity receipts', () => {
         replacement: 'b',
       },
       {
+        caseId: 'flowchart.classes.edge-paint-implication',
+        surface: 'render',
+        path: ['stroke'],
+        replacement: '#939395',
+      },
+      {
+        caseId: 'flowchart.classes.edge-paint-implication',
+        surface: 'render',
+        path: ['className'],
+        replacement: null,
+      },
+      {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
         surface: 'render',
         path: ['rendered', 'edges'],

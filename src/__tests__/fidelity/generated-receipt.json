@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "d8d3fc174ce1cdcc8c3d283367350ed32281efe17e72e2acf33d77908fc09d4a",
+    "inputSha256": "1224342e1dfd4960d3144079bf78fe91b708361242de6ce9644422930336079e",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -124,7 +124,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
-        "sha256": "4b477222fe056e1916f6bc77350ff344b47a3bf40c1c925dd08e2ff1d1aa04af"
+        "sha256": "edb5ff270a528f59272a909be363c85955767edd3bf8c3bc9e9b608c45c1fb82"
       },
       {
         "path": "src/__tests__/fidelity/cases/timeline-direction.fidelity.ts",
@@ -1256,9 +1256,9 @@
     {
       "id": "flowchart.classes.edge-paint-implication",
       "family": "flowchart",
-      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
+      "featureId": "official-doc:flowchart:section:attaching-an-id-to-edges",
       "sourceSha256": "c572b64fac27f9f9b594c60543bee6b77ff703ed494c9498f88ce127e76a5a8a",
-      "upstreamReference": "https://mermaid.ai/open-source/syntax/flowchart.html#using-classdef-statements-for-animations",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/flowchart.html#attaching-an-id-to-edges",
       "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
       "expected": {
         "agent": {
@@ -1268,7 +1268,7 @@
         },
         "render": {
           "applicability": "applicable",
-          "disposition": "absent",
+          "disposition": "native",
           "diagnosticCodes": []
         },
         "serialize": {
@@ -1314,11 +1314,12 @@
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
+            "className": "hot",
             "edgeFound": true,
-            "stroke": "#939395",
-            "strokeWidth": "1"
+            "stroke": "#ff0000",
+            "strokeWidth": "6px"
           },
-          "disposition": "absent"
+          "disposition": "native"
         },
         "serialize": {
           "status": "observed",

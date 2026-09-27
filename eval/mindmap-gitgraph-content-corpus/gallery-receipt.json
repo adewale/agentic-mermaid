@@ -504,7 +504,7 @@
     },
     {
       "path": "src/color-resolver.ts",
-      "sha256": "fd7df47f62becdce6351db584b1f5695d20d73b1ea7344ef1f9f2a93d2aa0f18"
+      "sha256": "f3ae62e45687bc82e1f800a42a6f13b7c569bca7cdd6c5c830cdfaf808473174"
     },
     {
       "path": "src/custom-font-geometry.ts",
@@ -644,7 +644,7 @@
     },
     {
       "path": "src/layout/passes/index.ts",
-      "sha256": "cb2cdf6cbd922baf2a7b4780ce3e1b49ebbc43d300186b15b84b6125cc15b053"
+      "sha256": "11cd7133a2397dc837a98da4c64f2aef0c6a2bd26981db39f4d029b7fbb38116"
     },
     {
       "path": "src/layout/passes/translation.ts",
@@ -820,7 +820,7 @@
     },
     {
       "path": "src/renderer.ts",
-      "sha256": "b75bcb43b9e7e8cea589a60da2dbd1776330ba0c9bc447b35b04afb1af56322e"
+      "sha256": "ee4649d459c13b811958b7e77f340a298faf1627c0705c253bacfe0f7a088ba1"
     },
     {
       "path": "src/resource-manifest.ts",
@@ -1188,7 +1188,7 @@
     },
     {
       "path": "src/types.ts",
-      "sha256": "d1028f3d4ff15ecf08b14c3e45cc440793c3e388b5113882f7dcd704d5155fc9"
+      "sha256": "6165d5317538e57891e077d9ad1dff936628cbd7f44f68231e5028664ad87703"
     },
     {
       "path": "src/upstream-family-index.ts",

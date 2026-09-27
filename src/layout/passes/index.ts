@@ -2455,6 +2455,9 @@ export function extractEdgesRecursively(
       points: orthogonalPoints,
       labelPosition,
       inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph),
+      ...(originalEdge.id && graph.classAssignments.has(originalEdge.id)
+        ? { classNames: graph.classAssignments.get(originalEdge.id)!.split(/\s+/).filter(Boolean) }
+        : {}),
       edgeIndex,
     })
   }
