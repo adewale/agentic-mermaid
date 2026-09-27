@@ -267,6 +267,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/class-safe-link-tooltip.fidelity.ts',
       'fidelity/cases/er-multi-class.fidelity.ts',
       'fidelity/cases/er-word-cardinality.fidelity.ts',
+      'fidelity/cases/gitgraph-duplicate-official.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
       'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/pie-entity-display.fidelity.ts',
@@ -289,6 +290,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'er.relationships.word-cardinality-aliases',
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
+      'gitgraph.official.main-branch-duplicate-id-diagnosed',
       'journey.scores.fractional-parser-render-seam',
       'pie.syntax.authored-formatting-literal',
       'pie.syntax.duplicate-label-first-wins',
@@ -313,10 +315,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 32,
-      passedCaseCount: 32,
+      caseCount: 33,
+      passedCaseCount: 33,
       failedCaseCount: 0,
-      observedSurfaceCount: 121,
+      observedSurfaceCount: 125,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })

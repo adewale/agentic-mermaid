@@ -122,15 +122,19 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // same two-request editor graph; Linux/x64 measured 3,396,710 raw bytes.
     // Source-admission guards measure 3,397,027 raw / 1,010,222 gzip on the
     // same two-request graph; ceilings retain less than 0.01% slack.
-    maxRawBytes: 3_397_150,
+    // The official GitGraph duplicate-ID disposition adds a narrow agent
+    // diagnostic and preserves its authored frontmatter through verification.
+    // Linux/Bun 1.4.2 measures 3,397,755 raw / 1,010,948 gzip / 798,156
+    // Brotli bytes. Keep roughly 0.01% headroom on the same two-request graph.
+    maxRawBytes: 3_397_850,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_010_350,
+    maxGzipBytes: 1_011_050,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.
-    maxBrotliBytes: 797_500,
+    maxBrotliBytes: 798_250,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

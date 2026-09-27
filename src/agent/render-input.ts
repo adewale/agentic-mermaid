@@ -23,6 +23,12 @@ const BODY_OWNED_RENDER_FAMILIES: ReadonlySet<FamilyId> = new Set(['state', 'seq
  * body-owned families serialize so caller-created stale source cannot win. */
 export function renderSourceForParsedDiagram(input: ParsedDiagram): string {
   const bodyOwned = input.body.kind === 'extension' || BODY_OWNED_RENDER_FAMILIES.has(input.kind)
+  // A diagnosed opaque GitGraph body still needs its authored wrapper:
+  // canonicalSource omits frontmatter, including mainBranchName. Without it,
+  // verification can report a false checkout error before the real duplicate.
+  if (input.body.kind === 'opaque' && input.kind === 'gitgraph' && input.body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID') {
+    return serializeMermaid(input)
+  }
   return input.body.kind !== 'opaque' && bodyOwned ? serializeMermaid(input) : input.canonicalSource
 }
 

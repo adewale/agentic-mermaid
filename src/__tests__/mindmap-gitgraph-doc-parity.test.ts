@@ -6,7 +6,7 @@ import {
   renderMermaidASCII, renderMermaidSVG, serializeMindmap,
 } from '../index.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
-import { verifyMermaid } from '../agent/index.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { MindmapNode } from '../mindmap/types.ts'
 
 function* walkMindmap(node: MindmapNode): Generator<MindmapNode> {
@@ -97,6 +97,51 @@ describe('Mindmap documentation parity and grammar closure', () => {
 })
 
 describe('GitGraph documentation parity and identity closure', () => {
+  test('preserves and diagnoses the official duplicate-Boston fence without offering ambiguous mutation', () => {
+    const markdown = readFileSync(join(import.meta.dir, '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/gitgraph.md'), 'utf8')
+    const source = [...markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)]
+      .map(match => match[1]!.trim())
+      .find(fence => (fence.match(/commit id:"Boston"/g) ?? []).length === 2)
+    expect(source).toBeDefined()
+    const parsed = parseRegisteredMermaid(source!)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body).toMatchObject({ kind: 'opaque', family: 'gitgraph',
+      diagnostic: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID', id: 'Boston' } })
+    expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+    const verification = verifyMermaid(parsed.value)
+    expect(verification.ok).toBe(false)
+    expect(verification.warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'gitgraph_duplicate_commit_id',
+      message: expect.stringContaining('Rename one duplicate ID'),
+    }))
+    expect(verification.warnings).toContainEqual(expect.objectContaining({
+      code: 'RENDER_FAILED', reason: expect.stringContaining("Duplicate gitGraph commit id 'Boston'"),
+    }))
+    expect(mutate(parsed.value, { kind: 'append_commit', id: 'next' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(() => renderMermaidSVG(source!)).toThrow('Duplicate gitGraph commit id')
+  })
+
+  test('duplicate-ID preservation does not promote ordinary or other malformed GitGraph input', () => {
+    const unique = parseRegisteredMermaid('gitGraph\n  commit id:"A"\n  commit id:"B"\n')
+    expect(unique.ok).toBe(true)
+    if (unique.ok) expect(unique.value.body.kind).toBe('gitgraph')
+
+    const malformedFirst = parseRegisteredMermaid('gitGraph\n  not-a-statement\n  commit id:"A"\n  commit id:"A"\n')
+    expect(malformedFirst).toMatchObject({ ok: false, error: [{ code: 'PARSE_FAILED' }] })
+
+    const wrappedDuplicate = '---\nconfig:\n  gitGraph:\n    mainBranchName: MetroLine1\n---\ngitGraph\n  commit id:"A"\n  commit id:"A"\n'
+    const wrapped = parseRegisteredMermaid(wrappedDuplicate)
+    expect(wrapped.ok).toBe(true)
+    if (wrapped.ok) {
+      expect(wrapped.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(wrapped.value)).toBe(wrappedDuplicate)
+      expect(verifyMermaid(wrapped.value).warnings).toContainEqual(expect.objectContaining({
+        code: 'RENDER_FAILED', reason: expect.stringContaining("Duplicate gitGraph commit id 'A'"),
+      }))
+    }
+  })
+
   test('the official merge cherry-pick fence has valid Scene and SVG geometry', () => {
     const markdown = readFileSync(join(import.meta.dir, '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/gitgraph.md'), 'utf8')
     const source = [...markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)]
