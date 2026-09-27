@@ -166,7 +166,10 @@ function mermaidPieEntityPrepass(line: string): string {
   // The upstream greedy regex backtracks catastrophically on repeated
   // keyword/hash text. Its effect on one physical line is simply to strip
   // the last semicolon if a qualifying keyword/colon/hash chain exists.
-  return stripEntityPrepassSemicolon(stripEntityPrepassSemicolon(line, 'style'), 'classDef')
+  // JavaScript's `.` stops at all four line terminators, including U+2028
+  // and U+2029 that can appear inside a quoted label without a physical LF.
+  return line.replace(/[^\r\n\u2028\u2029]+/g, segment =>
+    stripEntityPrepassSemicolon(stripEntityPrepassSemicolon(segment, 'style'), 'classDef'))
 }
 
 function stripEntityPrepassSemicolon(line: string, keyword: string): string {

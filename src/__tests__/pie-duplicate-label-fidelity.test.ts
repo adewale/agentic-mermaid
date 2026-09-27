@@ -182,6 +182,12 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
   expect(upstreamSections(prepass)).toEqual([['styleX:#35', 1]])
   expect(parsePieChart(prepass.trim().split('\n'))).toMatchObject({ hasDuplicateSourceLabels: true })
   expect(drawnSlices(prepass)).toHaveLength(1)
+  const separated = 'pie\n  "style:x#;\u2028classDef:x#;" : 1\n  "style:x#\u2028classDef:x#" : 2\n'
+  expect(upstreamSections(separated)).toEqual([['style:x#\u2028classDef:x#', 1]])
+  expect(parsePieChart(separated.trim().split('\n'))).toMatchObject({
+    entries: [{ label: 'style:x#;\u2028classDef:x#;', value: 1 }],
+    hasDuplicateSourceLabels: true,
+  })
 })
 
 test('Pie entity prepass stays bounded on repeated style/hash candidates', () => {
