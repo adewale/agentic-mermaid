@@ -123,6 +123,7 @@ describe('timeline fidelity fallback', () => {
   test('upstream-invalid event separators stay opaque and fail verification', () => {
     for (const source of [
       'timeline\n  2020 : A :',
+      'timeline\n  2020 : A:',
       'timeline\n  2020 : A:\n  2021 : B',
       'timeline\n  2020 : A: : B',
       'timeline\n  2020 :',
@@ -133,6 +134,22 @@ describe('timeline fidelity fallback', () => {
       const verified = verifyMermaid(parsed)
       expect(verified.ok, source).toBe(false)
       expect(verified.warnings.map(warning => warning.code), source).toContain('RENDER_FAILED')
+    }
+  })
+
+  test('valid colon-ending events keep their following separator on the same line', () => {
+    for (const { source, events } of [
+      { source: 'timeline\n  2020 : A:: B\n  2021 : C', events: ['A:', 'B'] },
+      { source: 'timeline\n  2020 : A:: B:: C', events: ['A:', 'B:', 'C'] },
+      { source: 'timeline\n  2020 : A :: B', events: ['A :', 'B'] },
+    ]) {
+      const parsed = timeline(source)
+      expect(parsed.body.sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
+      const canonical = serializeMermaid(parsed)
+      expect(canonical).toContain(`2020 : ${source.split('2020 : ')[1]!.split('\n')[0]}`)
+      expect(timeline(canonical).body.sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
+      expect(parseTimelineDiagram(normalizeMermaidSource(canonical).lines).sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
+      expect(verifyMermaid(timeline(canonical)).ok).toBe(true)
     }
   })
 })

@@ -178,8 +178,20 @@ export function renderTimeline(body: TimelineBody): string {
         lines.push(`  ${serializeTimelineText(period.label)}`)
         continue
       }
-      lines.push(`  ${serializeTimelineText(period.label)} : ${serializeTimelineText(period.events[0]!.text)}`)
-      for (const e of period.events.slice(1)) lines.push(`       : ${serializeTimelineText(e.text)}`)
+      let line = `  ${serializeTimelineText(period.label)} : ${serializeTimelineText(period.events[0]!.text)}`
+      for (let i = 1; i < period.events.length; i++) {
+        const text = serializeTimelineText(period.events[i]!.text)
+        if (period.events[i - 1]!.text.endsWith(':')) {
+          // A trailing colon remains authored event text only when the next
+          // separator follows on this line (`A:: B`). A newline before that
+          // separator would make pinned Mermaid reject or misparse the period.
+          line += `: ${text}`
+        } else {
+          lines.push(line)
+          line = `       : ${text}`
+        }
+      }
+      lines.push(line)
     }
   }
   return lines.join('\n') + '\n'

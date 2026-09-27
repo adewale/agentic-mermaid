@@ -20,6 +20,9 @@ when followed by whitespace, so `10:30` remains text on both surfaces.
 An event list with an empty segment or final colon is rejected rather than
 silently dropped or accepted when pinned Mermaid 11.16 rejects or reinterprets
 it.
+When an event's text itself ends in `:`, serialization keeps the next event
+separator on the same line (`A:: B`); moving it to a continuation line would
+change Mermaid's parsed events.
 Authored exact `<br>` text is normalized to semantic line breaks in section,
 period, and event labels on both surfaces; structured serialization writes
 those breaks back as `<br>`. Pinned Mermaid draws titles as raw text, so even
