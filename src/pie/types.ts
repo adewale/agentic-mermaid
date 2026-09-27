@@ -30,6 +30,8 @@ export interface PieEntry {
 export interface PieChart {
   /** Optional diagram title (`title <text>`). */
   title?: string
+  /** Visible title after Mermaid's source entity preprocessor; authored title remains unchanged. */
+  displayTitle?: string
   /** When true (`pie showData`), render the numeric value after each label. */
   showData: boolean
   /** Slices in source order. Pie slices are drawn clockwise in this order. */
@@ -101,7 +103,7 @@ export interface PositionedPieLegendItem {
 export interface PositionedPieChart extends PositionedDiagram {
   width: number
   height: number
-  title?: { text: string; x: number; y: number }
+  title?: { text: string; x: number; y: number; literalText?: true }
   /** Pie circle center + radius. */
   cx: number
   cy: number

@@ -316,6 +316,8 @@ export function lowerPieScene(
         chart.title.y,
         visual.titleTextSize ?? style.groupHeaderFontSize,
         `class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="${visual.titleTextSize ?? style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)}`,
+        0.35,
+        chart.title.literalText === true,
       ),
     ))
   }

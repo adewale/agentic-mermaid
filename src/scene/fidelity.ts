@@ -217,13 +217,15 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // that one literal projection; other families keep their established
       // formatting normalization and diagnostics.
       const hasStyledTspan = /<tspan\b[^>]*(?:font-weight="bold"|font-style="italic"|text-decoration=)/.test(serialized)
-      const literalPieLegend = node.role === 'legend'
-        && serialized.includes('class="pie-legend-text"')
-        && !hasStyledTspan
+      const literalPieText = !hasStyledTspan && (
+        (node.role === 'legend' && serialized.includes('class="pie-legend-text"'))
+        || (node.role === 'title' && serialized.includes('class="pie-title"')
+          && /&lt;|&gt;/.test(serialized))
+      )
       const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml(s
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
-      ) : literalPieLegend ? s : s.replace(/<[^>]+>/g, ''))
+      ) : literalPieText ? s : s.replace(/<[^>]+>/g, ''))
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()

@@ -51,6 +51,7 @@ export function parsePieChart(lines: string[]): PieChart {
   // Header tail may carry `showData` and/or an inline `title <text>`.
   let showData = false
   let title: string | undefined
+  let displayTitle: string | undefined
   let tail = headerMatch[1]!.trim()
   const showDataMatch = tail.match(/^showData\b\s*(.*)$/i)
   if (showDataMatch) {
@@ -59,7 +60,9 @@ export function parsePieChart(lines: string[]): PieChart {
   }
   const inlineTitle = tail.match(/^title\s+(.+)$/i)
   if (inlineTitle) {
-    title = normalizeBrTags(inlineTitle[1]!.trim())
+    const authoredTitle = inlineTitle[1]!.trim()
+    title = normalizeBrTags(authoredTitle)
+    displayTitle = projectPieTitleDisplay(authoredTitle)
   } else if (tail.length > 0) {
     throw new Error(`Unexpected text after pie header: "${tail}"`)
   }
@@ -81,7 +84,9 @@ export function parsePieChart(lines: string[]): PieChart {
 
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
-      title = normalizeBrTags(titleMatch[1]!.trim())
+      const authoredTitle = titleMatch[1]!.trim()
+      title = normalizeBrTags(authoredTitle)
+      displayTitle = projectPieTitleDisplay(authoredTitle)
       continue
     }
 
@@ -175,9 +180,27 @@ export function parsePieChart(lines: string[]): PieChart {
 
   return {
     title, showData, entries,
+    ...(displayTitle !== title ? { displayTitle } : {}),
     ...(hasDuplicateSourceLabels ? { hasDuplicateSourceLabels: true } : {}),
     ...(hasEscapedControlLabels ? { hasEscapedControlLabels: true } : {}),
   }
+}
+
+function projectPieTitleDisplay(authoredTitle: string): string {
+  // Mermaid's entity prepass runs before Pie grammar, but title source text
+  // must remain available to the agent and serializer unchanged. Expand only
+  // the renderer-facing title after authored <br> normalization so an entity
+  // that produces markup-looking text is not reinterpreted as formatting.
+  const normalized = normalizeBrTags(mermaidPieEntityPrepass(authoredTitle))
+  const display = projectPieEntityDisplay(mermaidPieSourceKey(normalized))
+  if (XML_DISALLOWED_CONTROL_RE.test(display)) {
+    throw syntaxError({
+      what: 'Pie title display contains an XML-disallowed control character',
+      expectedForm: 'a title without XML-disallowed control characters',
+      example: 'title Safe chart',
+    })
+  }
+  return display
 }
 
 function mermaidPieEntityPrepass(line: string): string {

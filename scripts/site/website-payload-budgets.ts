@@ -46,9 +46,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the shared render waist without changing the request graph.
     // Pie's bounded numeric-entity key prepass adds a small shared parser
     // chunk; the exact Linux totals remain pinned in the generated baseline.
-    maxRawBytes: 733_350,
-    maxGzipBytes: 275_150,
-    maxBrotliBytes: 251_150,
+    // The title-directive bridge reached 733,574 raw demo bytes on Linux/x64;
+    // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
+    maxRawBytes: 734_000,
+    maxGzipBytes: 275_600,
+    maxBrotliBytes: 251_500,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -87,11 +89,14 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the current Linux totals, which are pinned exactly in the baseline.
     // Pie's source-aware entity projection adds under 0.1% to the complete
     // editor bundle while retaining the fixed two-request graph.
-    // Pie's terminal-only post-grammar control projection adds a small
+    // Pie's terminal projection and source-aware title display add a small
     // shared-editor import; the complete two-request graph stays fixed.
-    maxRawBytes: 3_359_300,
-    maxGzipBytes: 988_000,
-    maxBrotliBytes: 777_000,
+    // Linux/x64 title-directive capture after the leading-space fix:
+    // 3,360,477 raw / 988,202 gzip / 777,029 Brotli editor bytes. The
+    // two-request graph is unchanged and all caps remain within 0.1%.
+    maxRawBytes: 3_361_000,
+    maxGzipBytes: 988_500,
+    maxBrotliBytes: 777_300,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

@@ -225,7 +225,8 @@ export function renderMermaidASCIIWithReceipt(
     // The Pie terminal renderer emits no rows (including the title) when the
     // total is zero, so no output control is replaced in that case.
     if (chart.entries.reduce((sum, entry) => sum + entry.value, 0) <= 0) return false
-    return (chart.title !== undefined && safePieTerminalText(chart.title) !== chart.title)
+    const visibleTitle = chart.displayTitle ?? chart.title
+    return (visibleTitle !== undefined && safePieTerminalText(visibleTitle) !== visibleTitle)
       || chart.entries.some(entry => {
         const visible = entry.displayLabel ?? entry.label
         return safePieTerminalText(visible) !== visible
