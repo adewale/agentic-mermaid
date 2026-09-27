@@ -98,8 +98,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the two-request editor graph is unchanged and the raw ceiling retains
     // less than 0.01% headroom above the measured 3,393,082 bytes.
     // ER multi-class lexing/paint adds no request. The audited linear class
-    // accumulator measured 3,394,044 raw / 1,009,117 gzip on Linux/x64; exact
-    // request hashes and totals are pinned in the generated baseline.
+    // accumulator measured 3,394,044 raw / 1,009,117 gzip / 796,846 Brotli
+    // on Linux/x64; exact hashes and totals are pinned in the baseline.
     maxRawBytes: 3_394_100,
     maxGzipBytes: 1_009_200,
     // Pie's escaped-LF painted-text projection stays in the existing two
