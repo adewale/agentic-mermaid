@@ -52,8 +52,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Linux raw bytes on the shared lazy path; the request graph is unchanged.
     // Timeline literal-text Scene validation keeps the same request graph;
     // Linux/x64 measures 735,369 raw / 275,828 gzip / 251,742 Brotli bytes.
-    maxRawBytes: 735_700,
-    maxGzipBytes: 275_950,
+    // The bounded Timeline Scene wrapper check and width loop remain in the
+    // existing lazy graph; Linux/x64 measured 735,792 raw / 275,963 gzip.
+    maxRawBytes: 735_950,
+    maxGzipBytes: 276_050,
     maxBrotliBytes: 251_900,
     required: Object.freeze([
       '^/demo/$',
@@ -114,11 +116,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed and both ceilings retain under 0.01% slack.
     // The shared Scene literal-text guard measures 3,395,922 raw and
     // 1,009,850 gzip bytes with the same two editor requests.
-    maxRawBytes: 3_396_300,
+    // The same validation adds no editor request; Linux/x64 measured
+    // 3,396,365 raw / 1,010,031 gzip bytes.
+    maxRawBytes: 3_396_550,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_010_000,
+    maxGzipBytes: 1_010_150,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. The tab-aware linear scanner measured 3,393,328 raw /
     // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
