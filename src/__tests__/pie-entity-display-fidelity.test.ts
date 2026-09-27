@@ -274,6 +274,16 @@ test('reviewed Pie authored-formatting visuals use the same production source', 
   expect(asset('after')).toContain('>T&lt;b&gt;itle&lt;/b&gt;</text>')
 })
 
+test('reviewed Pie escaped-newline visuals use the same production source', () => {
+  const source = 'pie showData\n  title Escaped newline\n  "A\\nB" : 1\n  "Control" : 2\n'
+  const asset = (which: 'before' | 'after') => readFileSync(
+    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-escaped-newline-${which}.svg`), 'utf8')
+  expect(asset('before')).toContain('<tspan')
+  expect(asset('after')).toBe(renderMermaidSVG(source))
+  expect(asset('after')).toContain('>A B [1] (33.3%)</text>')
+  expect(asset('after')).not.toContain('<tspan')
+})
+
 test('Pie inline showData title keeps authored entity spelling and an entity-created tag stays literal', () => {
   const inline = 'pie showData title A#65;B\n  "X" : 1\n'
   const parsed = parseRegisteredMermaid(inline)
@@ -452,7 +462,7 @@ test('a pre-existing authored escape remains accepted beside printable entity te
   const source = 'pie\n  "A\\nB&#35;" : 1\n'
   const entry = parsePieChart(source.trim().split('\n')).entries[0]!
   expect(entry.label).toBe('A\nB&#35;')
-  expect(entry.displayLabel).toBe('A\nB&#')
+  expect(entry.displayLabel).toBe('A B&#')
 })
 
 test('projected Pie entity text remains escaped in SVG and HTML terminal output', () => {

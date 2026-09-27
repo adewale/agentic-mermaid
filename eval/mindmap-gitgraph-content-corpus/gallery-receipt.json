@@ -724,7 +724,7 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "5be4e8a9922b17a69311507b18d9a5292d3bb77a04d61ad1994b0db5cbb596d3"
+      "sha256": "175b89605f252b5e2aa7304ff9db1aad87e9e1bcb4590cb0fbe9872254196aae"
     },
     {
       "path": "src/pie/renderer.ts",
@@ -736,7 +736,7 @@
     },
     {
       "path": "src/pie/types.ts",
-      "sha256": "aa3a23a555e89c1e90900962bfb91fbeb51279d838c99b41ca63eda3d1baa278"
+      "sha256": "8391ba90a3f260a93b7ee96b9b8f2840386f8e02a3d63060e580f7e6d7760f6b"
     },
     {
       "path": "src/png-contract.ts",
