@@ -32,6 +32,10 @@ export interface PieChart {
   showData: boolean
   /** Slices in source order. Pie slices are drawn clockwise in this order. */
   entries: PieEntry[]
+  /** Source repeated a label; Mermaid renders only its first occurrence. */
+  hasDuplicateSourceLabels?: true
+  /** Decoded source label contains an escaped control that typed emission cannot preserve. */
+  hasEscapedControlLabels?: true
 }
 
 // ============================================================================

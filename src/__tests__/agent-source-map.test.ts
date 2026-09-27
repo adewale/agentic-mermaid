@@ -302,8 +302,12 @@ accDescr: {
     const pieParsed = parseMermaid(pie)
     expect(pieParsed.ok).toBe(true)
     if (pieParsed.ok) {
-      expect(pieParsed.value.source.spans!.labels.get('pie:slice#0')!.start.line).toBe(2)
-      expect(pieParsed.value.source.spans!.labels.get('pie:slice#1')!.start.line).toBe(3)
+      // A repeated Pie label now falls back to a lossless opaque body: there
+      // are no addressable typed slices, but both authored rows remain in the
+      // preserved source span.
+      expect(pieParsed.value.body.kind).toBe('opaque')
+      expect(pieParsed.value.source.spans!.labels.size).toBe(0)
+      expect(textAt(pie, pieParsed.value.source.spans!.preserved.body)).toBe(' "Same": 1\n "Same": 2')
     }
 
     const piePrefix = 'pie\n "AA": 1\n "A": 2'

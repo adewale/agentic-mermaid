@@ -3,15 +3,15 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "84729567b7841571b45c9ed781efaba8f6867e7fc4dc5ff28cc43ae02d8a95df",
-  "receiptResultSha256": "f8ec809fa75622355b3198bf07dd6b96c5f6cc07fd2e76c086c34bfe0e6cdd77",
+  "receiptInputSha256": "25cb0afdda8d44fb72bc602556658bac152bf40c5d3007a58526e06282969122",
+  "receiptResultSha256": "57128c2318f671c63d895dcb15fd8935371b177dc0c95097676346f52ebe9ffa",
   "summary": {
-    "caseCount": 22,
-    "featureCount": 12,
+    "caseCount": 25,
+    "featureCount": 13,
     "dispositions": {
       "native": 4,
       "source-preserved": 0,
-      "diagnosed": 5,
+      "diagnosed": 6,
       "absent": 3
     }
   },
@@ -384,6 +384,83 @@
             "mutate": "native"
           },
           "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:pie:section:syntax",
+      "family": "pie",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "pie.syntax.duplicate-label-first-wins",
+        "pie.syntax.entity-spelling-distinct",
+        "pie.syntax.xml-disallowed-control-diagnosed"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "pie.syntax.duplicate-label-first-wins",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "native",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "pie.syntax.entity-spelling-distinct",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "pie.syntax.xml-disallowed-control-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
         }
       ],
       "acceptedDivergences": []

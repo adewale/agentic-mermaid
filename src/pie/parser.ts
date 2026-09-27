@@ -23,6 +23,8 @@ import { syntaxError } from '../shared/syntax-error.ts'
 const ENTRY_RE = /^"((?:[^"\\]|\\.)*)"\s*:\s*(.+)$/
 /** Mermaid pie values: positive numbers, up to two decimal places. */
 const NUMBER_RE = /^\+?(?:\d+(?:\.\d+)?|\.\d+)$/
+/** These decoded characters cannot be represented in XML/Scene text or IDs. */
+const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
 
 /**
  * Parse a Mermaid pie chart from preprocessed lines (trimmed, comment-stripped).
@@ -63,6 +65,9 @@ export function parsePieChart(lines: string[]): PieChart {
   }
 
   const entries: PieEntry[] = []
+  const seenSourceLabels = new Set<string>()
+  let hasDuplicateSourceLabels = false
+  let hasEscapedControlLabels = false
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!.trim()
@@ -82,7 +87,9 @@ export function parsePieChart(lines: string[]): PieChart {
 
     const entryMatch = line.match(ENTRY_RE)
     if (entryMatch) {
-      const label = normalizeBrTags(decodeEscapes(entryMatch[1]!))
+      const sourceLabel = decodeEscapes(entryMatch[1]!)
+      if (/[\u0000-\u001f]/.test(sourceLabel)) hasEscapedControlLabels = true
+      const label = normalizeBrTags(sourceLabel)
       const rawValue = entryMatch[2]!.trim()
       if (!NUMBER_RE.test(rawValue)) {
         throw new Error(
@@ -100,7 +107,28 @@ export function parsePieChart(lines: string[]): PieChart {
             'Values must be non-negative numbers.',
         )
       }
-      entries.push({ label, value })
+      if (XML_DISALLOWED_CONTROL_RE.test(sourceLabel)) {
+        throw syntaxError({
+          what: 'Pie slice label contains an XML-disallowed control character',
+          expectedForm: 'a label without XML-disallowed control characters',
+          example: '"Alpha" : 10',
+        })
+      }
+      // Mermaid's Pie DB is a first-wins Map keyed by the authored label.
+      // Check after validating the value: even a duplicate invalid entry must
+      // still fail, as it does upstream. Use the pre-display label so two
+      // distinct <br> spellings do not collapse into one source identity.
+      // Mermaid runs encodeEntities over source before the Pie grammar and
+      // keys its DB with that preprocessed STRING. Decimal entity spellings
+      // therefore collide with their literal internal-marker spelling.
+      const preprocessedLine = mermaidPieEntityPrepass(line)
+      const preprocessedLabel = ENTRY_RE.exec(preprocessedLine)?.[1] ?? entryMatch[1]!
+      const sourceKey = decodeEscapes(mermaidPieSourceKey(preprocessedLabel))
+      if (seenSourceLabels.has(sourceKey)) hasDuplicateSourceLabels = true
+      else {
+        seenSourceLabels.add(sourceKey)
+        entries.push({ label, value })
+      }
       continue
     }
 
@@ -124,9 +152,60 @@ export function parsePieChart(lines: string[]): PieChart {
     throw new Error('Pie chart must include at least one "label" : value entry')
   }
 
-  return { title, showData, entries }
+  return {
+    title, showData, entries,
+    ...(hasDuplicateSourceLabels ? { hasDuplicateSourceLabels: true } : {}),
+    ...(hasEscapedControlLabels ? { hasEscapedControlLabels: true } : {}),
+  }
+}
+
+function mermaidPieEntityPrepass(line: string): string {
+  // These two substitutions precede encodeEntities in pinned Mermaid. They
+  // can occur inside an otherwise valid quoted Pie label, so identity must
+  // observe them even though the source/display spelling remains authored.
+  // The upstream greedy regex backtracks catastrophically on repeated
+  // keyword/hash text. Its effect on one physical line is simply to strip
+  // the last semicolon if a qualifying keyword/colon/hash chain exists.
+  // JavaScript's `.` stops at all four line terminators, including U+2028
+  // and U+2029 that can appear inside a quoted label without a physical LF.
+  return line.replace(/[^\r\n\u2028\u2029]+/g, segment =>
+    stripEntityPrepassSemicolon(stripEntityPrepassSemicolon(segment, 'style'), 'classDef'))
+}
+
+function stripEntityPrepassSemicolon(line: string, keyword: string): string {
+  const lastSemicolon = line.lastIndexOf(';')
+  if (lastSemicolon < 0 || !line.includes(keyword)) return line
+  const viableFrom = new Uint8Array(line.length + 1)
+  let nextHash = -1
+  let viable = false
+  for (let i = line.length - 1; i >= 0; i--) {
+    const character = line[i]!
+    if (/\s/.test(character)) nextHash = -1
+    else if (character === '#') nextHash = i
+    if (character === ':' && nextHash >= 0 && nextHash < lastSemicolon) viable = true
+    viableFrom[i] = viable ? 1 : 0
+  }
+  for (let start = line.indexOf(keyword); start >= 0; start = line.indexOf(keyword, start + keyword.length)) {
+    if (viableFrom[start + keyword.length] === 1) {
+      return line.slice(0, lastSemicolon) + line.slice(lastSemicolon + 1)
+    }
+  }
+  return line
+}
+
+function mermaidPieSourceKey(label: string): string {
+  return label.replace(/#\w+;/g, token => {
+    const inner = token.slice(1, -1)
+    return /^\+?\d+$/.test(inner) ? `ﬂ°°${inner}¶ß` : `ﬂ°${inner}¶ß`
+  })
 }
 
 function decodeEscapes(raw: string): string {
-  return raw.replace(/\\(["\\])/g, '$1')
+  // Mermaid's Pie STRING converter uses JS-style single-letter control
+  // escapes; for all other characters it simply consumes the escape slash.
+  // Identity must use that same decoded key before first-wins deduplication.
+  const controls: Record<string, string> = {
+    n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', v: '\v', '0': '\0',
+  }
+  return raw.replace(/\\(.)/g, (_, escaped: string) => controls[escaped] ?? escaped)
 }
