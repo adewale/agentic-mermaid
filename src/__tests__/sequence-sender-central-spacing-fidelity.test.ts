@@ -1,0 +1,185 @@
+import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
+
+const source = `sequenceDiagram
+  participant Alice
+  participant Bob
+  Alice ()-->> Bob: Reverse
+  Alice ()->>() Bob: Dual
+`
+
+function texts(svg: string): string[] {
+  return [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+    .map(match => match[1]!.replace(/<[^>]+>/g, '').trim())
+    .filter(Boolean)
+}
+
+test('pinned Mermaid 11.16 treats sender-spaced central markers as messages', () => {
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
+    process.stdout.write(JSON.stringify(diagram.db.getMessages()
+      .filter(message => message.to)
+      .map(message => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) }))))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
+    { from: 'Alice', to: 'Bob', text: 'Reverse', central: true },
+    { from: 'Alice', to: 'Bob', text: 'Dual', central: true },
+  ])
+})
+
+test('native and agent retain sender-spaced central messages and exactly two actors', () => {
+  const native = parseSequenceDiagram(source.trim().split('\n'))
+  expect(native.actors.map(actor => actor.id)).toEqual(['Alice', 'Bob'])
+  expect(native.messages.map(message => [message.from, message.to, message.label, message.centralStart, message.centralEnd])).toEqual([
+    ['Alice', 'Bob', 'Reverse', true, false],
+    ['Alice', 'Bob', 'Dual', true, true],
+  ])
+  expect(texts(renderMermaidSVG(source))).toEqual(['Reverse', 'Dual', 'Alice', 'Bob'])
+
+  const parsed = parseRegisteredMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  expect(parsed.value.body.kind).toBe('sequence')
+  if (parsed.value.body.kind !== 'sequence') return
+  expect(parsed.value.body.participants.map(participant => participant.id)).toEqual(['Alice', 'Bob'])
+  expect(parsed.value.body.messages.map(message => [message.from, message.to, message.text, message.centralStart, message.centralEnd])).toEqual([
+    ['Alice', 'Bob', 'Reverse', true, undefined],
+    ['Alice', 'Bob', 'Dual', true, true],
+  ])
+  expect(verifyMermaid(parsed.value).ok).toBe(true)
+  expect(texts(renderMermaidSVG(serializeMermaid(parsed.value)))).toEqual(['Reverse', 'Dual', 'Alice', 'Bob'])
+})
+
+test('spaced central-start parsing stays bounded on malformed long tails', () => {
+  const started = performance.now()
+  expect(parseSequenceMessageLine(`Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`)).toBeNull()
+  expect(performance.now() - started).toBeLessThan(500)
+})
+
+test('sender-spaced central fallback does not accept forms Mermaid rejects', () => {
+  const rejected = [
+    'Alice ()->>+Bob: Invalid activation',
+    'Alice ()->>-Bob: Invalid deactivation',
+    'Alice ()->>()+Bob: Invalid dual activation',
+    'Alice() ()->> Bob: Invalid duplicate sender marker',
+    'A+B ()->> Bob: Invalid plus in sender',
+    'A<B ()->> Bob: Invalid angle in sender',
+    'A>B ()->> Bob: Invalid angle in sender',
+    'participant ()->> Bob: Invalid directive sender',
+    'Note ()->> Bob: Invalid note sender',
+    'over ()->> Bob: Invalid reserved sender',
+    'properties ()->> Bob: Invalid reserved sender',
+    '1 ()->> Bob: Invalid numeric sender',
+    '1.1 ()->> Bob: Invalid decimal sender',
+    'Alice ()->> B+B: Invalid plus in receiver',
+    'Alice ()->> B<B: Invalid angle in receiver',
+    'Alice ()->> B>B: Invalid angle in receiver',
+    'Alice ()->> B(): Invalid central-looking receiver',
+    'Alice ()->> participant: Invalid directive receiver',
+    'Alice ()->> accDescr: Invalid accessibility receiver',
+  ]
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const lines = ${JSON.stringify(rejected)}
+    const accepted = []
+    for (const line of lines) {
+      try {
+        await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  participant Alice\\n  participant Bob\\n  ' + line)
+        accepted.push(true)
+      } catch {
+        accepted.push(false)
+      }
+    }
+    process.stdout.write(JSON.stringify(accepted))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(rejected.map(() => false))
+  for (const line of rejected) expect(parseSequenceMessageLine(line)).toBeNull()
+})
+
+test('a title-like line is not promoted to a central message', () => {
+  const line = 'title ()->> Bob: A title, not a message'
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const diagram = await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  ' + ${JSON.stringify(line)})
+    process.stdout.write(JSON.stringify(diagram.db.getMessages().filter(message => message.to).length))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toBe(0)
+  expect(parseSequenceMessageLine(line)).toBeNull()
+})
+
+test('ambiguous punctuation senders do not gain a false central-connection claim', () => {
+  const senders = ['A-B', 'A/B', 'A(B)']
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const senders = ${JSON.stringify(senders)}
+    const messages = []
+    for (const sender of senders) {
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  ' + sender + ' ()->> Bob: x')
+      const message = diagram.db.getMessages().find(candidate => candidate.to)
+      messages.push({ from: message.from, central: Boolean(message.centralConnection) })
+    }
+    process.stdout.write(JSON.stringify(messages))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(senders.map(from => ({ from: `${from} ()`, central: false })))
+  for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toBeNull()
+})
+
+test('non-numeric punctuation and alphanumeric senders retain upstream central meaning', () => {
+  const senders = ['.', '1.', '..', '1..', '1A', 'A_B', 'é']
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const senders = ${JSON.stringify(senders)}
+    const messages = []
+    for (const sender of senders) {
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  ' + sender + ' ()->> Bob: x')
+      const message = diagram.db.getMessages().find(candidate => candidate.to)
+      messages.push({ from: message.from, central: Boolean(message.centralConnection) })
+    }
+    process.stdout.write(JSON.stringify(messages))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(senders.map(from => ({ from, central: true })))
+  for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toMatchObject({ from: sender, centralStart: true })
+})
+
+test('reviewer-facing before and after SVGs match the missing and recovered messages', () => {
+  const asset = (which: 'before' | 'after') => readFileSync(
+    join(import.meta.dir, `../../docs/pr-assets/issue-248-sequence-sender-central-spacing-${which}.svg`), 'utf8')
+  expect(texts(asset('before'))).toEqual(['Alice', 'Bob'])
+  expect(asset('after')).toBe(renderMermaidSVG(source))
+  expect(texts(asset('after'))).toEqual(['Reverse', 'Dual', 'Alice', 'Bob'])
+})

@@ -8817,12 +8817,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Bob",
-        "Alice"
+        "Alice",
+        "hey?"
       ]
     }
   },
@@ -9805,12 +9807,15 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 2,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 2,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Cross message",
+        "Dotted cross message"
       ]
     }
   },
@@ -10300,13 +10305,17 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 3,
-      "edgeCount": 0,
+      "edgeCount": 3,
       "groupCount": 0,
       "minNodes": 3,
+      "minEdges": 3,
       "labelsContain": [
         "Alice",
         "Bob",
-        "Charlie"
+        "Charlie",
+        "Message 1",
+        "Message 2",
+        "Message 3"
       ]
     }
   },
@@ -11609,12 +11618,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11634,12 +11645,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11659,12 +11672,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11684,12 +11699,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11709,12 +11726,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11734,12 +11753,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },

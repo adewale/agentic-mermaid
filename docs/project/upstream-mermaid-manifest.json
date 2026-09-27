@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "b17b82564348ecc2a254fc8caab6dd4022b09cb8141eb38b29f2dde989ffd9c6",
+    "inventorySha256": "ac3565f9628a4477306fb19c12172b6e9ce595fd581f57b0b6f4ad480700ac6f",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "5ed08329065ebfde0799376b66137d8ad09eb3d24cadf299f72f9ddd49000178",
+        "sha256": "095b2509100aabdce8ec898f711690cccefd625034fcd8152011d85109b4f127",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -13378,7 +13378,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "59b1ecbed8d71e842334fb0ee4e04616c52ae986e566670fb130561ddf8ab7a1",
+        "fingerprint": "73a44c836ec8435ce38d75ef6917b7d0f06a4ed2a1fa9b39e96024ed38fc7397",
         "sourceSha256": "303dc9694178a92874b2058dfacd294be6f33d243f591bee0b2cea7411890215"
       },
       {
@@ -13728,7 +13728,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "82628aae3cba2ac5b15a69334bd7a57478f2025428da66c920ec82da8c4fa7fb",
+        "fingerprint": "4dcabc873fbcfc3be095a6a9d9b33f33bf4e3a84519ede490f1f6ced68352f14",
         "sourceSha256": "cb353427eaaef864fc5241e7e078a9e6c221d4dba58790283a29e1f587d10abc"
       },
       {
@@ -13908,7 +13908,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "d5016a3e6e80c0ff68b8de72b2c13ab7779a7ff9ec51936178962c3e1b094370",
+        "fingerprint": "7e113829d8a6ee42bac03ac2319b702819e06aa7940a1751207e50930336ca9e",
         "sourceSha256": "f087449a5dbd552759e616243664811ac67f66229cf7bf059024e279d7a99e0b"
       },
       {
@@ -14368,7 +14368,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "abc9a776df5edb15b78bcc249a2aad21cd4e3b6f018c20d3f7c2350110717e92",
+        "fingerprint": "f7a26c699f8663f227472e64989117e3276228ef23f99ea6417d27e2c7edc9f6",
         "sourceSha256": "8931efd1ea4a296f278fa6c5c64f6e10cee1a78bcfb6edc621464d702b8708c1"
       },
       {
@@ -14378,7 +14378,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "0141d4025e9b8e7690b8cc93400746bd2fad3dcb05881494890796287a72ab32",
+        "fingerprint": "cd5d066b6ee9ed68ac47f72c7a9be685965a202356d950801b6d03e3a04d37ef",
         "sourceSha256": "eb40fb14bceb76ec66f95080297fa1a8022fdfebf2247e1a821dcd16f2b807bf"
       },
       {
@@ -14388,7 +14388,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "09ba47e010b12270c4b77f7a14fcaebf1b599084dc100c511671928ee2c84c65",
+        "fingerprint": "7aac223a70344ea4140b4000d8bdfcc1e0b4f031b26c142f256d373fbc6fbd5a",
         "sourceSha256": "9e522d38c5a4a420af0e4e32be090abd10ef20f47e669919ecfe654663c64d1f"
       },
       {
@@ -14398,7 +14398,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "13c707ea02291dea536d24d4c3344ace17518dc12ccc89b18d0ca8cb74db0fb4",
+        "fingerprint": "f6d68777f85085b24f61639d3d9c55fa5fbd2cb1ede6d656141fff7f36cd24e6",
         "sourceSha256": "f5677450b9c9045188958aee78342e446a22a7ba59edc0f79929f98d0111f0b1"
       },
       {
@@ -14408,7 +14408,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "49d79f4e42ffdccc34120f4796f9b9543f58a65a7aeb486625d02ae2773b5ffb",
+        "fingerprint": "1a525e2d1fef9152931b7ae2366ac56e55bf26300c4a50533464766d024ce31b",
         "sourceSha256": "08bb4ec3b802cce113435d92dd92062652306e24e9c74a990fb3e3caaf1cca17"
       },
       {
@@ -14418,7 +14418,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "d9ee1d7b8c80b7b783fe853b361920d02364006d99b944fa6bb4d9275405af12",
+        "fingerprint": "97ae6817c5face1d084ef55ba51e26d35c2efaf51b6352cc357eef0a0bf8632e",
         "sourceSha256": "e0e6c6be61374c4332b2989494600ef1dcfcfe9b6993ef67eb20b707336961d2"
       },
       {
