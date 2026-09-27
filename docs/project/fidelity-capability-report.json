@@ -3,10 +3,10 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "229390381d4af33efde4e1c8601befd2866a06bf79f973acf8c5173252cacc74",
-  "receiptResultSha256": "f3ea1744a43b1ffa8d91b1affa59c893d77f83930e347043332d9da62f0ba9ed",
+  "receiptInputSha256": "107b8af7589b4274641e8822cf948fef0194dd5609902f8dd65338967b48a954",
+  "receiptResultSha256": "bd00d14b77056543363f87e68938071338292b4f4e566636c2a445bbe6663473",
   "summary": {
-    "caseCount": 28,
+    "caseCount": 30,
     "featureCount": 13,
     "dispositions": {
       "native": 4,
@@ -393,9 +393,11 @@
       "family": "pie",
       "disposition": "diagnosed",
       "caseIds": [
+        "pie.syntax.authored-formatting-literal",
         "pie.syntax.duplicate-label-first-wins",
         "pie.syntax.entity-spelling-distinct",
         "pie.syntax.escaped-terminal-control-sanitized",
+        "pie.syntax.named-entity-display",
         "pie.syntax.numeric-entity-display",
         "pie.syntax.title-entity-display",
         "pie.syntax.xml-disallowed-control-diagnosed"
@@ -419,6 +421,16 @@
         ]
       },
       "caseEvidence": [
+        {
+          "caseId": "pie.syntax.authored-formatting-literal",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
         {
           "caseId": "pie.syntax.duplicate-label-first-wins",
           "surfaces": {
@@ -465,6 +477,16 @@
               "INVALID_OP"
             ]
           }
+        },
+        {
+          "caseId": "pie.syntax.named-entity-display",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
         },
         {
           "caseId": "pie.syntax.numeric-entity-display",

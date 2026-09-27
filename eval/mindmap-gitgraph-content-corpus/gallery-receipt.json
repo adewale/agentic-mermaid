@@ -508,7 +508,7 @@
     },
     {
       "path": "src/custom-font-geometry.ts",
-      "sha256": "4f5c198c72dc718d6e3adb44b377659e380b6db22ea4ea98689e6a3257980217"
+      "sha256": "41a4fea0e9450615c1991a8ed954dbafab490c0dacf16daa801f42aad51c4f46"
     },
     {
       "path": "src/elk-instance.ts",
@@ -716,7 +716,7 @@
     },
     {
       "path": "src/pie/layout.ts",
-      "sha256": "a5907de72937c225480c402a0c76597fba7f05f7f37c4614854577d04c146256"
+      "sha256": "b2740e938d0e17b2c2feec39d10fa5ef8b05e9b911423d41939beb83d690ac0f"
     },
     {
       "path": "src/pie/palette.ts",
@@ -724,11 +724,11 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "affa7acd5c944669db2aac2e7b745e3dbed424094d6f3aa8bdc5d391550d974f"
+      "sha256": "5be4e8a9922b17a69311507b18d9a5292d3bb77a04d61ad1994b0db5cbb596d3"
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "fbf456e0a75d1a4ed76a3da044ef85e0796d997aa640a6c4581c740d8fc12ab6"
+      "sha256": "d322a9f7a97300382941c0fa6beac6b872654222430a5157b731b4fff9e5f233"
     },
     {
       "path": "src/pie/source-title.ts",
@@ -736,7 +736,7 @@
     },
     {
       "path": "src/pie/types.ts",
-      "sha256": "a751ff5bed1875772ad0e2927a3441e60aff0cd04e3aca25e917e42277e3afa4"
+      "sha256": "2b17033a17345707a0e1e2f98924a70918eba54f1b2929facc76faca225a56b4"
     },
     {
       "path": "src/png-contract.ts",
