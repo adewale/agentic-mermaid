@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { buildMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
+import { runBatchLine } from '../cli/index.ts'
+import { handleHostedRequest } from '../mcp/hosted-server.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { drawableAuthoredCssPaint } from '../shared/css-color.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 
@@ -38,7 +41,10 @@ describe('authored style color admission (#303, source/typed slice)', () => {
   test('every affected graphical source placement refuses the offending value by directive and property', () => {
     fc.assert(fc.property(fc.constantFrom(...SOURCES), fc.constantFrom(...INVALID), ({ directive, make }, value) => {
       const source = make(value)
-      expect(() => renderMermaidSVG(source)).toThrow(`${directive}: ${directive.startsWith('linkStyle') ? 'stroke' : 'fill'} ${JSON.stringify(value)} is not a CSS color`)
+      const named = `${directive}: ${directive.startsWith('linkStyle') ? 'stroke' : 'fill'} ${JSON.stringify(value)} is not a CSS color`
+      expect(() => renderMermaidSVG(source)).toThrow(named)
+      expect(() => renderMermaidASCII(source, { useAscii: true })).toThrow(named)
+      expect(() => renderMermaidASCII(source, { useAscii: false })).toThrow(named)
     }), { numRuns: 100 })
   })
 
@@ -48,6 +54,25 @@ describe('authored style color admission (#303, source/typed slice)', () => {
       { code: 'RENDER_FAILED', reason: expect.stringContaining('style A: fill "notacolor" is not a CSS color') },
     ])
     expect(() => renderMermaidPNG(source)).toThrow('style A: fill "notacolor" is not a CSS color')
+    for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
+      expect(() => renderMermaidASCII(source, { colorMode })).toThrow('style A: fill "notacolor" is not a CSS color')
+    }
+  })
+
+  test('unused declarations cannot hide invalid colors from render or verify', () => {
+    for (const [source, named] of [
+      ['flowchart TD\n  A --> B\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
+      ['flowchart TD\n  A --> B\n  style Z fill:notacolor', 'style Z: fill "notacolor"'],
+      ['flowchart TD\n  A --> B\n  linkStyle 99 stroke:notacolor', 'linkStyle 99: stroke "notacolor"'],
+      ['classDiagram\n  class A\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
+      ['erDiagram\n  A ||--o{ B : has\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
+    ] as const) {
+      expect(() => renderMermaidSVG(source), source).toThrow(named)
+      expect(() => renderMermaidASCII(source, { useAscii: true }), source).toThrow(named)
+      const result = verifyMermaid(source)
+      expect(result.ok, source).toBe(false)
+      expect(result.warnings.some(warning => warning.code === 'RENDER_FAILED' && warning.reason?.includes(named)), source).toBe(true)
+    }
   })
 
   test('typed style mutations refuse the same unknown and malformed colors at build time', () => {
@@ -62,5 +87,28 @@ describe('authored style color admission (#303, source/typed slice)', () => {
         expect(result.error.message).toContain(`fill ${JSON.stringify(value)} is not a CSS color`)
       }
     }), { numRuns: 100 })
+  })
+
+  test('CLI and MCP SVG transport preserve only the nominal, named diagnostic', async () => {
+    const source = SOURCES[0]!.make('notacolor')
+    for (const format of ['svg', 'ascii', 'unicode'] as const) {
+      const batch = runBatchLine(JSON.stringify({ op: 'render', format, source }), 0) as { ok: boolean; error: { code: string; message: string; property: string; value: string } }
+      expect(batch.ok).toBe(false)
+      expect(batch.error).toMatchObject({ code: 'INVALID_STYLE_COLOR', property: 'fill', value: 'notacolor', message: expect.stringContaining('style A: fill "notacolor"') })
+    }
+
+    const response = await handleHostedRequest(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source } } },
+      {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('not used by render_svg') },
+      },
+    )
+    const text = (response?.result as { content: Array<{ text: string }> }).content[0]!.text
+    const payload = JSON.parse(text) as { ok: boolean; error: { code: string; property: string; value: string } }
+    expect(payload).toMatchObject({ ok: false, error: { code: 'INVALID_STYLE_COLOR', property: 'fill', value: 'notacolor' } })
+
+    expect(projectRenderErrorDiagnostic({ code: 'INVALID_STYLE_COLOR', message: 'forged', property: 'fill', value: 'notacolor' }))
+      .toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
   })
 })

@@ -51,12 +51,26 @@ export function unsafeStylePaint(style: Readonly<Record<string, string>>): Style
 /** Name the paint, the colors that are accepted and a corrected example, so an
  *  agent can fix the style from the message alone. `directive` prefixes the
  *  example when the style came from source, e.g. `style A`. */
-export function unsafeStylePaintError(subject: string, paint: StylePaint, directive?: string): Error {
-  return syntaxError({
-    what: `${subject}: ${paint.property} ${JSON.stringify(paint.value)} is not a CSS color`,
-    expectedForm: 'a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla() or var(--name)',
-    example: `${directive ? `${directive} ` : ''}${paint.property}:#f96`,
-  })
+export class AuthoredStyleColorError extends Error {
+  readonly code = 'INVALID_STYLE_COLOR' as const
+
+  constructor(
+    readonly subject: string,
+    readonly property: string,
+    readonly value: string,
+    directive?: string,
+  ) {
+    super(syntaxError({
+      what: `${subject}: ${property} ${JSON.stringify(value)} is not a CSS color`,
+      expectedForm: 'a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla() or var(--name)',
+      example: `${directive ? `${directive} ` : ''}${property}:#f96`,
+    }).message)
+    this.name = 'AuthoredStyleColorError'
+  }
+}
+
+export function unsafeStylePaintError(subject: string, paint: StylePaint, directive?: string): AuthoredStyleColorError {
+  return new AuthoredStyleColorError(subject, paint.property, paint.value, directive)
 }
 
 /** An authored `style`, `classDef` or `linkStyle` record on its way to layout,
@@ -67,6 +81,27 @@ export function checkedAuthoredStyle<T extends Readonly<Record<string, string>> 
   const paint = style && unsafeStylePaint(style)
   if (paint) throw unsafeStylePaintError(directive, paint, directive)
   return style
+}
+
+/** Check every recorded directive, including an unused classDef, a style for
+ * an undeclared node, or an out-of-range linkStyle. Checking only paint that
+ * reaches a Scene would silently accept those authored mistakes. */
+export function checkAllGraphAuthoredStyles(graph: {
+  classDefs: ReadonlyMap<string, Readonly<Record<string, string>>>
+  nodeStyles: ReadonlyMap<string, Readonly<Record<string, string>>>
+  linkStyles: ReadonlyMap<number | 'default', Readonly<Record<string, string>>>
+}): void {
+  for (const [name, style] of graph.classDefs) checkedAuthoredStyle(style, `classDef ${name}`)
+  for (const [id, style] of graph.nodeStyles) checkedAuthoredStyle(style, `style ${id}`)
+  for (const [target, style] of graph.linkStyles) checkedAuthoredStyle(style, `linkStyle ${target}`)
+}
+
+export function checkAllClassLikeAuthoredStyles(
+  classDefs: ReadonlyMap<string, Readonly<Record<string, string>>>,
+  nodes: readonly { id: string; inlineStyle?: Readonly<Record<string, string>> }[],
+): void {
+  for (const [name, style] of classDefs) checkedAuthoredStyle(style, `classDef ${name}`)
+  for (const node of nodes) checkedAuthoredStyle(node.inlineStyle, `style ${node.id}`)
 }
 
 export type MutableStyleParseResult =

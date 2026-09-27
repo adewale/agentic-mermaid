@@ -17,6 +17,7 @@ import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { splitLines } from './multiline-utils.ts'
+import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 
 /** Classify a character from a box drawing as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -161,6 +162,7 @@ function findConnectedComponents(diagram: ErDiagram): Set<string>[] {
 export function renderErAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): string {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const diagram = parseErDiagram(lines)
+  checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
 
   if (diagram.entities.length === 0) return ''
 

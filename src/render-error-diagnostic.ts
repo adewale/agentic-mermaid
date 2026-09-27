@@ -3,6 +3,7 @@ import {
   MermaidFamilyDetectionError,
   type FamilyDetectionDiagnostic,
 } from './family-detection.ts'
+import { AuthoredStyleColorError } from './shared/style-props.ts'
 
 export type AsciiWidthErrorDiagnostic = Readonly<{
   code: AsciiWidthError['code']
@@ -13,7 +14,15 @@ export type AsciiWidthErrorDiagnostic = Readonly<{
   reason: AsciiWidthError['reason']
 }>
 
-export type KnownRenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic
+export type AuthoredStyleColorDiagnostic = Readonly<{
+  code: 'INVALID_STYLE_COLOR'
+  message: string
+  subject: string
+  property: string
+  value: string
+}>
+
+export type KnownRenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic | AuthoredStyleColorDiagnostic
 export type RenderErrorDiagnostic = KnownRenderErrorDiagnostic
   | Readonly<{ code: 'RENDER_FAILED'; message: 'Rendering failed' }>
 
@@ -42,6 +51,15 @@ export function projectKnownRenderErrorDiagnostic(error: unknown): KnownRenderEr
       requiredWidth: error.requiredWidth,
       family: error.family,
       reason: error.reason,
+    }
+  }
+  if (error instanceof AuthoredStyleColorError) {
+    return {
+      code: error.code,
+      message: error.message,
+      subject: error.subject,
+      property: error.property,
+      value: error.value,
     }
   }
   return undefined

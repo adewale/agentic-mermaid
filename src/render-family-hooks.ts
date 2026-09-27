@@ -85,6 +85,7 @@ import { layoutSequenceDiagram } from './sequence/layout.ts'
 import { parseSequenceDiagram } from './sequence/parser.ts'
 import { lowerSequenceScene } from './sequence/renderer.ts'
 import { withAccessibilityFields, withAccessibilityObject } from './shared/accessibility-directives.ts'
+import { checkAllClassLikeAuthoredStyles, checkAllGraphAuthoredStyles } from './shared/style-props.ts'
 import { type ResolvedStateVisualConfig, resolveStateRenderOptions } from './state/config.ts'
 import { layoutTimelineDiagram } from './timeline/layout.ts'
 import { parseTimelineDiagram } from './timeline/parser.ts'
@@ -119,8 +120,10 @@ function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
         }
       | undefined
   )?.visual
+  const graph = parseMermaid(ctx.source.familyText)
+  checkAllGraphAuthoredStyles(graph)
   return layoutResult(
-    layoutGraphSync(parseMermaid(ctx.source.familyText), {
+    layoutGraphSync(graph, {
       ...ctx.renderOptions,
       ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
       ...(stateVisual ? { stateVisual } : {}),
@@ -135,6 +138,7 @@ function layoutStateWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
 // ELK sizing so layout, renderer, and SVG see the same lines.
 function layoutFlowchartWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult {
   const graph = parseMermaid(ctx.source.familyText)
+  checkAllGraphAuthoredStyles(graph)
   applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
   return layoutResult(
     layoutGraphSync(graph, {
@@ -146,6 +150,7 @@ function layoutFlowchartWithConfig(ctx: FamilyLayoutContext): FamilyLayoutResult
 
 function renderFlowchartAscii(ctx: AsciiContext): string {
   const parsed = parseMermaid(ctx.source.familyText)
+  checkAllGraphAuthoredStyles(parsed)
   const config = { ...ctx.config }
 
   if (parsed.direction === 'LR' || parsed.direction === 'RL') {
@@ -173,6 +178,7 @@ function renderFlowchartAscii(ctx: AsciiContext): string {
 
 function renderStateAsciiWithContext(ctx: AsciiContext): string {
   const parsed = parseMermaid(ctx.source.familyText)
+  checkAllGraphAuthoredStyles(parsed)
   const config = { ...ctx.config }
   config.graphDirection = parsed.direction === 'LR' || parsed.direction === 'RL' ? 'LR' : 'TD'
   config.reverseDirection = parsed.direction === 'RL'
@@ -277,10 +283,14 @@ const CLASS_RENDER_HOOKS = {
   }),
   // Wire-or-warn config threading: the typed `class` frontmatter section's
   // nodeSpacing/rankSpacing fold into RenderOptions (explicit options win).
-  layout: ctx => layoutResult(layoutClassDiagram(withAccessibilityFields(parseClassDiagram(
-    ctx.source.familyLines,
-    normalizeMermaidSource(ctx.source.originalText).familyLines,
-  ), ctx.source.accessibility), ctx.renderOptions, ctx.styleFace)),
+  layout: ctx => {
+    const diagram = withAccessibilityFields(parseClassDiagram(
+      ctx.source.familyLines,
+      normalizeMermaidSource(ctx.source.originalText).familyLines,
+    ), ctx.source.accessibility)
+    checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
+    return layoutResult(layoutClassDiagram(diagram, ctx.renderOptions, ctx.styleFace))
+  },
   projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),
   renderAscii: ctx => renderClassAscii(
@@ -298,6 +308,7 @@ const ER_RENDER_HOOKS = {
   // options win over frontmatter).
   layout: ctx => {
     const diagram = applyErFrontmatterDirection(withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter)
+    checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
     return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace))
   },
   projectPositioned: positionedView(projectErPositioned),
