@@ -16,6 +16,8 @@ const cases = [
   { sourceLabel: 'A#copy;B', display: 'A©B', xml: 'A©B' },
   { sourceLabel: 'A#nbsp;B', display: 'A\u00a0B', xml: 'A\u00a0B' },
   { sourceLabel: 'A#unknown;B', display: 'A&unknown;B', xml: 'A&amp;unknown;B' },
+  { sourceLabel: 'A#constructor;B', display: 'A&constructor;B', xml: 'A&amp;constructor;B' },
+  { sourceLabel: 'A#__proto__;B', display: 'A&__proto__;B', xml: 'A&amp;__proto__;B' },
 ] as const
 
 function legendXml(source: string): string {

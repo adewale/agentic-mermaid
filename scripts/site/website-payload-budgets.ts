@@ -85,8 +85,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // keep the two-request graph fixed. The guarded parser adds 581 raw editor
     // bytes versus the earlier capture. These ceilings remain within 0.1% of
     // the current Linux totals, which are pinned exactly in the baseline.
-    maxRawBytes: 3_358_100,
-    maxGzipBytes: 987_050,
+    // Pie's source-aware entity projection adds under 0.1% to the complete
+    // editor bundle while retaining the fixed two-request graph.
+    maxRawBytes: 3_359_000,
+    maxGzipBytes: 988_000,
     maxBrotliBytes: 776_500,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),

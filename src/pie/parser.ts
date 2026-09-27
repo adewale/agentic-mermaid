@@ -215,9 +215,10 @@ function mermaidPieSourceKey(label: string): string {
  * parsing resolves valid HTML references within those markers while the
  * source's leading ampersand remains literal. Keep display separate from
  * the authored label used for IDs, mutation, and source provenance. */
-const namedMarkerDisplay: Readonly<Record<string, string>> = {
-  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", copy: '©', nbsp: '\u00a0',
-}
+const namedMarkerDisplay = new Map<string, string>([
+  ['amp', '&'], ['lt', '<'], ['gt', '>'], ['quot', '"'], ['apos', "'"],
+  ['copy', '©'], ['nbsp', '\u00a0'],
+])
 const windows1252 = new TextDecoder('windows-1252')
 const PROJECTED_TERMINAL_CONTROL_RE = /[\u0000-\u001f\u007f-\u009f]/
 
@@ -233,7 +234,7 @@ function projectPieEntityDisplay(label: string): string {
           ? windows1252.decode(Uint8Array.of(codePoint))
           : String.fromCodePoint(codePoint)
     } else {
-      decoded = namedMarkerDisplay[inner] ?? `&${inner};`
+      decoded = namedMarkerDisplay.get(inner) ?? `&${inner};`
     }
     if (PROJECTED_TERMINAL_CONTROL_RE.test(decoded)) {
       throw syntaxError({

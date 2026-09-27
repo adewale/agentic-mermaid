@@ -271,6 +271,8 @@ describe('browser: live editor integration', () => {
         'pie\n  "A#copy;B" : 1',
         'pie\n  "A#nbsp;B" : 1',
         'pie\n  "A#unknown;B" : 1',
+        'pie\n  "A#constructor;B" : 1',
+        'pie\n  "A#__proto__;B" : 1',
         'pie\n  "styleX:#35;" : 1',
         'pie\n  "classDefX:#35;" : 1',
       ]
