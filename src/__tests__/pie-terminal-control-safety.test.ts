@@ -15,7 +15,7 @@ test('Pie terminal output replaces controls produced by authored escapes after s
     expect(agent.ok).toBe(true)
     if (agent.ok) expect(serializeMermaid(agent.value)).toBe(source)
 
-    for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+    for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
       const result = renderMermaidASCIIWithReceipt(source, { colorMode })
       expect(result.text).toStartWith(`${visible}  `)
       const withoutAnsi = result.text.replace(/\u001b\[[0-9;]*m/g, '')
@@ -55,7 +55,7 @@ test('all-zero Pie output does not claim a control replacement that never render
 
 test('metadata keeps the Pie title and safe slice hit region when the agent body is opaque', () => {
   const source = 'pie\n  title Safe chart\n  "A\\rB" : 1\n'
-  for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+  for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
     const meta = renderMermaidASCIIWithMeta(source, { colorMode })
     expect(meta.regions.map(region => [region.id, region.projectedText, region.canvasRow, region.canvasColStart, region.canvasColEnd]))
       .toEqual([
