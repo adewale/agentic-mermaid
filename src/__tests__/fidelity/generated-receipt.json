@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "3f8ab115ffb678311702515ed80340027de78ad8cf33b78a9254bd0e7ffdb108",
+    "inputSha256": "ace31a4f6ef8a8ae38f0e2766f7c7d507a009d4ef2536c3a54bf385b03b1102b",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -97,6 +97,10 @@
       {
         "path": "src/__tests__/fidelity/cases/class-safe-link-tooltip.fidelity.ts",
         "sha256": "4a2743a4866339f2b9e7cfa93538a5d6fbc615d3f331d77eed13a238df8cdfcc"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/er-multi-class.fidelity.ts",
+        "sha256": "9808a7493cf63af3d7af1aba0978bfd22afaf7f3ac24594a1ad988d1f8ecc5c3"
       },
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
@@ -957,6 +961,145 @@
               "markerAt": "none",
               "to": "Target"
             }
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "er.classes.multiple-assignments-and-shorthand",
+      "family": "er",
+      "featureId": "official-doc:er:section:classes",
+      "sourceSha256": "0a5c18b7b093de65460558d47854bb9b213bc22f80be0b9d266485f125f572f6",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/entityRelationshipDiagram.html#classes",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "entities": [
+              {
+                "className": "vip hot",
+                "id": "A"
+              },
+              {
+                "className": "vip hot",
+                "id": "B"
+              },
+              {
+                "className": "vip hot",
+                "id": "C"
+              }
+            ],
+            "kind": "er"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "entities": [
+              {
+                "className": "vip hot",
+                "id": "A"
+              },
+              {
+                "className": "vip hot",
+                "id": "B"
+              },
+              {
+                "className": "vip hot",
+                "id": "C"
+              }
+            ],
+            "paint": [
+              {
+                "fill": "#ff8a65",
+                "id": "A",
+                "stroke": "#3b4cca"
+              },
+              {
+                "fill": "#ff8a65",
+                "id": "B",
+                "stroke": "#3b4cca"
+              },
+              {
+                "fill": "#ff8a65",
+                "id": "C",
+                "stroke": "#3b4cca"
+              }
+            ],
+            "visibleStyledEntities": 3
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "entities": [
+              {
+                "className": "vip hot",
+                "id": "A"
+              },
+              {
+                "className": "vip hot",
+                "id": "B"
+              },
+              {
+                "className": "vip hot",
+                "id": "C"
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "entities": [
+              {
+                "className": "vip hot",
+                "id": "X"
+              },
+              {
+                "className": "vip hot",
+                "id": "B"
+              },
+              {
+                "className": "vip hot",
+                "id": "C"
+              }
+            ],
+            "ok": true
           },
           "disposition": "native"
         }
@@ -2968,10 +3111,10 @@
     }
   ],
   "summary": {
-    "caseCount": 31,
-    "passedCaseCount": 31,
+    "caseCount": 32,
+    "passedCaseCount": 32,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 117,
+    "observedSurfaceCount": 121,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

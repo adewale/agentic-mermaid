@@ -26,6 +26,8 @@ import {
   parseErAttribute,
   parseErEntityId,
   parseErEntityReference,
+  parseErClassAssignment,
+  appendErClassNames,
   parseErGroupHeader,
   parseErRelationshipSyntax,
   parseErCardinality,
@@ -107,11 +109,12 @@ export function parseErBody(lines: string[]): ErBody | null {
       for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) body.classDefs[name] = { ...props }
       continue
     }
-    const classAssignment = raw.match(/^class\s+(.+?)\s+([\w-]+)$/i)
+    const classAssignment = parseErClassAssignment(raw)
     if (classAssignment) {
-      const ids = classAssignment[1]!.split(',').map(value => parseErEntityReference(value.trim())?.id).filter((value): value is string => value !== undefined)
-      if (ids.length === 0) return null
-      for (const id of ids) upsert(id).className = classAssignment[2]!
+      for (const id of classAssignment.ids) {
+        const entity = upsert(id)
+        entity.className = appendErClassNames(entity.className, classAssignment.classNames)
+      }
       continue
     }
     const inlineStyle = raw.match(/^style\s+(.+?)\s+(.+)$/i)
@@ -270,7 +273,7 @@ export function renderEr(body: ErBody): string {
 
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const entity of body.entities) {
-    if (entity.className) lines.push(`  class ${renderErEntityReference({ ...entity, label: undefined })} ${entity.className}`)
+    if (entity.className) lines.push(`  class ${renderErEntityReference({ ...entity, label: undefined })} ${entity.className.trim().split(/[ \t]+/).join(',')}`)
     if (entity.style) lines.push(`  style ${renderErEntityReference({ ...entity, label: undefined })} ${serializeStyleProps(entity.style)}`)
   }
   return lines.join('\n') + '\n'

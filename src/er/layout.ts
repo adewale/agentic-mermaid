@@ -193,6 +193,8 @@ function extractErLayout(
   for (const child of result.children ?? []) {
     const entity = entityLookup.get(child.id)
     if (entity) {
+      const classStyle: Record<string, string> = {}
+      for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, diagram.classDefs.get(name))
       positionedEntities.push({
         id: entity.id,
         label: entity.label,
@@ -204,8 +206,8 @@ function extractErLayout(
         headerHeight: entitySizes.get(entity.id)!.headerHeight,
         rowHeight: ER.rowHeight,
         ...(entity.className ? { className: entity.className } : {}),
-        ...((entity.className && diagram.classDefs.get(entity.className)) || entity.inlineStyle ? {
-          inlineStyle: { ...(entity.className ? diagram.classDefs.get(entity.className) : {}), ...entity.inlineStyle },
+        ...(Object.keys(classStyle).length > 0 || entity.inlineStyle ? {
+          inlineStyle: { ...classStyle, ...entity.inlineStyle },
         } : {}),
         ...(entity.groupId ? { groupId: entity.groupId } : {}),
       })

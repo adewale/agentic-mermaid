@@ -43,6 +43,7 @@ export interface ErEntity {
   label: string
   /** Entity attributes (columns) */
   attributes: ErAttribute[]
+  /** Applied CSS class names in source order, separated by spaces. */
   className?: string
   inlineStyle?: Record<string, string>
   groupId?: string

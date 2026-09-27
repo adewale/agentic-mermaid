@@ -11,7 +11,7 @@ const ER_BARE_ENTITY_ID_SOURCE = String.raw`[A-Za-z0-9_][\w.-]*`
 const ER_QUOTED_ENTITY_ID_SOURCE = String.raw`"(?:\\.|[^"\\])+"`
 const ER_ENTITY_ID_SOURCE = `(?:${ER_QUOTED_ENTITY_ID_SOURCE}|${ER_BARE_ENTITY_ID_SOURCE})`
 const ER_ENTITY_ID_RE = new RegExp(`^${ER_BARE_ENTITY_ID_SOURCE}$`)
-const ER_ENTITY_REFERENCE_SOURCE = `${ER_ENTITY_ID_SOURCE}(?:\\[\\s*(?:"(?:\\\\.|[^"\\\\])*"|[^\\]"\\r\\n]+)\\s*\\])?(?::::[\\w-]+)?`
+const ER_ENTITY_REFERENCE_SOURCE = `${ER_ENTITY_ID_SOURCE}(?:\\[\\s*(?:"(?:\\\\.|[^"\\\\])*"|[^\\]"\\r\\n]+)\\s*\\])?(?::::[\\w-]+(?:,[\\w-]+)*)?`
 // Mermaid 11.16.0 accepts word/numeric aliases for the same four crow's-foot
 // cardinalities. This is the single lexer vocabulary for renderer and agent.
 // Keep the glyph-candidate fallback so malformed crow's-foot tokens still reach
@@ -25,13 +25,13 @@ const ER_RELATIONSHIP_RE = new RegExp(
 export interface ParsedErEntityReference {
   id: string
   label?: string
-  /** Mermaid `:::class` styling is render-tolerated but not agent-modeled. */
+  /** Mermaid `:::class1,class2` styling in source order, space-separated. */
   className?: string
 }
 
 /** Shared renderer/agent grammar for bare and aliased ER entity references. */
 export function parseErEntityReference(value: string): ParsedErEntityReference | null {
-  const regex = new RegExp(`^(${ER_ENTITY_ID_SOURCE})(?:\\[\\s*(?:"((?:\\\\.|[^"\\\\])*)"|([^\\]"\\r\\n]+))\\s*\\])?(?::::([\\w-]+))?$`)
+  const regex = new RegExp(`^(${ER_ENTITY_ID_SOURCE})(?:\\[\\s*(?:"((?:\\\\.|[^"\\\\])*)"|([^\\]"\\r\\n]+))\\s*\\])?(?::::([\\w-]+(?:,[\\w-]+)*))?$`)
   const match = value.trim().match(regex)
   if (!match) return null
   const quotedId = match[1]!.startsWith('"')
@@ -44,7 +44,7 @@ export function parseErEntityReference(value: string): ParsedErEntityReference |
     ...(alias !== undefined
       ? { label: formatErMarkdown(alias) }
       : quotedId ? { label: formatErMarkdown(id) } : {}),
-    ...(match[4] ? { className: match[4] } : {}),
+    ...(match[4] ? { className: match[4].replaceAll(',', ' ') } : {}),
   }
 }
 
@@ -52,6 +52,39 @@ export function parseErEntityReference(value: string): ParsedErEntityReference |
 export function parseErEntityId(value: string): string | null {
   const id = value.trim()
   return ER_ENTITY_ID_RE.test(id) ? id : null
+}
+
+/** Mermaid's `class id,id name,name` lists share one bounded lexer on both paths. */
+export function parseErClassAssignment(line: string): { ids: string[]; classNames: string[] } | null {
+  const prefix = /^class[ \t]+/i.exec(line)
+  if (!prefix) return null
+  const content = line.slice(prefix[0].length).trimEnd()
+  let cursor = content.length
+  const reversedNames: string[] = []
+  const isNameChar = (char: string): boolean => /[A-Za-z0-9_-]/.test(char)
+  while (cursor > 0) {
+    const end = cursor
+    while (cursor > 0 && isNameChar(content[cursor - 1]!)) cursor--
+    if (cursor === end) return null
+    reversedNames.push(content.slice(cursor, end))
+
+    const afterName = cursor
+    while (cursor > 0 && (content[cursor - 1] === ' ' || content[cursor - 1] === '\t')) cursor--
+    if (content[cursor - 1] === ',') {
+      cursor--
+      while (cursor > 0 && (content[cursor - 1] === ' ' || content[cursor - 1] === '\t')) cursor--
+      continue
+    }
+    if (cursor === afterName || cursor === 0) return null
+    const refs = content.slice(0, cursor).split(',').map(value => parseErEntityReference(value.trim()))
+    if (refs.length === 0 || refs.some(value => value === null)) return null
+    return { ids: refs.map(value => value!.id), classNames: reversedNames.reverse() }
+  }
+  return null
+}
+
+export function appendErClassNames(existing: string | undefined, names: readonly string[]): string {
+  return [existing, ...names].filter(Boolean).join(' ')
 }
 
 // ============================================================================
@@ -172,12 +205,15 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) diagram.classDefs.set(name, { ...props })
       continue
     }
-    const classAssignment = line.match(/^class\s+(.+?)\s+([\w-]+)$/i)
+    const classAssignment = parseErClassAssignment(line)
     if (classAssignment) {
-      const ids = classAssignment[1]!.split(',').map(value => parseErEntityReference(value.trim())?.id).filter((value): value is string => value !== undefined)
-      for (const id of ids) ensureEntity(entityMap, id).className = classAssignment[2]!
+      for (const id of classAssignment.ids) {
+        const entity = ensureEntity(entityMap, id)
+        entity.className = appendErClassNames(entity.className, classAssignment.classNames)
+      }
       continue
     }
+    if (/^class(?:[ \t]|$)/i.test(line)) throw new Error(`Invalid ER class assignment: ${line}`)
     const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/i)
     if (inlineStyle) {
       const ids = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim())?.id).filter((value): value is string => value !== undefined)
