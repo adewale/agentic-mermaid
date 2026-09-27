@@ -5,6 +5,6 @@
   "artifactSha256": "2ab154227c65f7a418eb4133c2589d43251a904cbb8f47ecf5667ac9026e1d3b",
   "reviewedAt": "2026-09-27",
   "reviewer": "Codex coding agent, PR #306 Class member review",
-  "scope": "The 1560×9464 full sheet and the source-bound before/after Class member assets were reviewed. RGB comparison with the prior approved sheet found 673 changed pixels, confined to x=725–765 in the Class column across the four style variants (y=589–7693); all other family cells are byte-identical at the pixel level. The Class member text now preserves authored order without clipping or disturbing connectors, compartments, or labels.",
+  "scope": "The 1560×9464 full sheet, all 64 family-by-variant cells, and the source-bound before/after Class member assets were reviewed. RGB comparison with the prior approved sheet found 673 changed pixels, confined to x=725–765 in the Class column across the four style variants (y=589–7693); all other family cells are byte-identical at the pixel level. The Class member text now preserves authored order without clipping or disturbing connectors, compartments, or labels.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }
