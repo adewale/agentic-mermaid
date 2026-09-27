@@ -17,6 +17,8 @@ Pipeline:
 The renderer parser and agent body share `src/timeline/parse-core.ts` for
 header/content directives and event splitting. A colon starts a new event only
 when followed by whitespace, so `10:30` remains text on both surfaces.
+Authored `<br>` and `\n` text is normalized to semantic line breaks on both
+surfaces; structured serialization writes those breaks back as `<br>`.
 Event-less periods are modeled and serialize in the bare form (`2020`) accepted
 by the renderer; a dangling `2020 :` remains losslessly opaque instead of
 producing canonical source the renderer would reject.

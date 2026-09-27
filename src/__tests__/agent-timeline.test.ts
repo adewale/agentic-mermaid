@@ -20,6 +20,22 @@ function timeline(src: string): TimelineValidDiagram {
 }
 
 describe('timeline parsing — structured', () => {
+  test('normalizes authored br tags into the same semantic text as native rendering', () => {
+    const source = 'timeline\n  title Product<br>history\n  section Platform<br>work\n  2024<br>Q1 : Soft<br>launch'
+    const parsed = timeline(source)
+    const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
+    expect(parsed.body.title).toBe('Product\nhistory')
+    expect(parsed.body.sections[0]!.label).toBe('Platform\nwork')
+    expect(parsed.body.sections[0]!.periods[0]!.label).toBe('2024\nQ1')
+    expect(parsed.body.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+    expect(parsed.body.title).toBe(native.title)
+    expect(parsed.body.sections[0]!.label).toBe(native.sections[0]!.label)
+    expect(parsed.body.sections[0]!.periods[0]!.label).toBe(native.sections[0]!.periods[0]!.label)
+    expect(parsed.body.sections[0]!.periods[0]!.events[0]!.text).toBe(native.sections[0]!.periods[0]!.events[0]!.text)
+    const canonical = serializeMermaid(parsed)
+    expect(canonical).toContain('Product<br>history')
+    expect(timeline(canonical).body.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+  })
   test('title + sections + periods → structured body', () => {
     const d = parse('timeline\n  title History\n  section Phase 1\n  2020 : First\n  2021 : Second\n  section Phase 2\n  2022 : Third')
     expect(d.body.kind).toBe('timeline')
@@ -191,6 +207,19 @@ describe('timeline mutate — all 10 ops', () => {
       const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
       expect(project(native.sections), `${op.kind} native reparse`).toEqual(expected)
     }
+  })
+
+  test('event mutation serializes semantic line breaks as br tags', () => {
+    const result = mutate(timeline(SRC), {
+      kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'Soft\nlaunch',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.body.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+    const source = serializeMermaid(result.value)
+    expect(source).toContain('2020 : Soft<br>launch')
+    expect(timeline(source).body.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+    expect(parseTimelineDiagram(normalizeMermaidSource(source).lines).sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
   })
 
   test('normalizes padded mutation text and updates canonicalSource', () => {

@@ -21,6 +21,7 @@ import {
 } from '../timeline/parse-core.ts'
 import { indexedIdAllocator } from './body-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { normalizeBrTags } from '../multiline-utils.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -34,7 +35,11 @@ import { scanAccessibilityDirectives } from '../shared/accessibility-directives.
  * Mirrors the legacy parser's accepted syntax (src/timeline/parser.ts).
  */
 function normalizeTimelineText(value: string): string {
-  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
+  return normalizeBrTags(value.trim()).trim()
+}
+
+function serializeTimelineText(value: string): string {
+  return value.replace(/\n/g, '<br>')
 }
 
 function validTimelineText(value: string, opts: { allowColon: boolean }): boolean {
@@ -148,7 +153,7 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
 
 export function renderTimeline(body: TimelineBody): string {
   const lines: string[] = [body.direction ? `timeline ${body.direction}` : 'timeline']
-  if (body.title) lines.push(`  title ${body.title}`)
+  if (body.title) lines.push(`  title ${serializeTimelineText(body.title)}`)
   if (body.accessibilityTitle) lines.push(`  accTitle: ${body.accessibilityTitle}`)
   if (body.accessibilityDescription) {
     if (body.accessibilityDescription.includes('\n')) {
@@ -162,16 +167,16 @@ export function renderTimeline(body: TimelineBody): string {
     }
   }
   for (const section of body.sections) {
-    if (section.label !== undefined) lines.push(`  section ${section.label}`)
+    if (section.label !== undefined) lines.push(`  section ${serializeTimelineText(section.label)}`)
     for (const period of section.periods) {
       // First event on the same line as the period label; extra events on
       // continuation lines (`: text`). Matches Mermaid timeline syntax.
       if (period.events.length === 0) {
-        lines.push(`  ${period.label}`)
+        lines.push(`  ${serializeTimelineText(period.label)}`)
         continue
       }
-      lines.push(`  ${period.label} : ${period.events[0]!.text}`)
-      for (const e of period.events.slice(1)) lines.push(`       : ${e.text}`)
+      lines.push(`  ${serializeTimelineText(period.label)} : ${serializeTimelineText(period.events[0]!.text)}`)
+      for (const e of period.events.slice(1)) lines.push(`       : ${serializeTimelineText(e.text)}`)
     }
   }
   return lines.join('\n') + '\n'
