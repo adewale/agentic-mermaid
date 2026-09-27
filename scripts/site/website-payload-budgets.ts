@@ -66,6 +66,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // measures 740,029 raw / 277,672 gzip / 253,383 Brotli on 31 requests.
     // Timeline's 36 indexed theme-color guards keep the same 31-request graph.
     // Linux/Bun 1.4.2 measures 740,173 raw / 277,714 gzip / 253,465 Brotli.
+    // Timeline/Journey config-color admission keeps the same 31 requests;
+    // Linux/Bun 1.4.2 measures 741,560 raw / 278,015 gzip / 253,714 Brotli.
     maxRawBytes: 760_000,
     maxGzipBytes: 285_000,
     maxBrotliBytes: 260_000,
@@ -143,6 +145,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The same shared gate measures 3,402,280 raw / 1,012,359 gzip /
     // 798,560 Brotli on the unchanged two-request editor graph.
     // The two-request editor measures 3,402,427 raw bytes with Timeline admission.
+    // The two-request editor measures 3,403,876 raw with this shared gate.
     maxRawBytes: 3_420_000,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850

@@ -104,7 +104,11 @@ export function checkFamilyConfigColors(frontmatter: MermaidFrontmatterMap, fami
     if (!config) return
     checkConfigColorList(config, 'timeline', 'sectionFills', false)
     checkConfigColorList(config, 'timeline', 'sectionColours', false)
-    checkConfigColorList(config, 'timeline', 'sectionColors', false)
+    // The American spelling is a fallback only when the canonical list is
+    // empty; do not reject an alias the renderer never selects.
+    if (config.sectionColours === undefined || (Array.isArray(config.sectionColours) && config.sectionColours.length === 0)) {
+      checkConfigColorList(config, 'timeline', 'sectionColors', false)
+    }
   } else if (familyId === 'journey') {
     const config = configMap(frontmatter.journey)
     if (!config) return

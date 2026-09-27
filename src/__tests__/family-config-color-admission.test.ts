@@ -70,7 +70,22 @@ describe('family config color admission (#303, Timeline/Journey)', () => {
       if (family === 'timeline') expect(svg).toContain('rebeccapurple')
       expect(verifyMermaid(input).ok).toBe(true)
     }
-    expect(() => renderMermaidSVG(source('journey', { actorColours: ['rgb(255 0 0)'], titleColor: 'currentColor' }))).not.toThrow()
+    const journeySvg = renderMermaidSVG(source('journey', { actorColours: ['rgb(255 0 0)'], titleColor: 'currentColor' }))
+    expect(journeySvg).toContain('.journey-actor-0 { fill: rgb(255 0 0); }')
+    expect(journeySvg).toContain('.journey-title { fill: currentColor; }')
+    expect(renderMermaidSVG(source('timeline', { sectionColors: ['#abc'] }))).toContain('.timeline-section-label { fill: #abc; }')
+  })
+
+  test('Timeline alias follows canonical precedence and explicit options replace source config', () => {
+    expect(() => renderMermaidSVG(source('timeline', {
+      sectionColours: ['#fff'], sectionColors: ['notacolor'],
+    }))).not.toThrow()
+    expect(() => renderMermaidSVG(source('timeline', {
+      sectionColours: ['notacolor'], sectionColors: ['#fff'],
+    }))).toThrow('timeline.sectionColours[0]: "notacolor" is not a CSS color')
+    expect(() => renderMermaidSVG(source('timeline', { sectionFills: ['notacolor'] }), {
+      mermaidConfig: { timeline: { sectionFills: ['#abc'] } },
+    })).not.toThrow()
   })
 
   test('merged frontmatter/options and every public output route preserve named refusal', async () => {
