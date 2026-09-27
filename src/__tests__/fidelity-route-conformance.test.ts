@@ -44,12 +44,16 @@ function hostedContext(): HostedMcpContext {
 }
 
 function diagnosticFrom(callable: () => unknown): ReturnType<typeof projectRenderErrorDiagnostic> {
+  let thrown: unknown
+  let didThrow = false
   try {
     callable()
-    throw new Error('Expected the route to reject the diagnosed fidelity case')
   } catch (error) {
-    return projectRenderErrorDiagnostic(error)
+    thrown = error
+    didThrow = true
   }
+  if (!didThrow) throw new Error('Expected the route to reject the diagnosed fidelity case')
+  return projectRenderErrorDiagnostic(thrown)
 }
 
 async function svgArtifacts(source: string): Promise<Record<string, { svg: string; receipt: unknown }>> {
@@ -70,6 +74,10 @@ async function svgArtifacts(source: string): Promise<Record<string, { svg: strin
 }
 
 describe('issue #248 fidelity route conformance', () => {
+  test('diagnostic comparison rejects a route that returns an artifact', () => {
+    expect(() => diagnosticFrom(() => ({ svg: '<svg />' }))).toThrow('Expected the route to reject')
+  })
+
   test('a native construct crosses library, CLI, browser/editor, website, and hosted MCP unchanged', async () => {
     const registry = await discoverFidelityRegistry()
     const fidelityCase = registry.cases.find(candidate => candidate.id === 'flowchart.links.boundary-whitespace-mutation-closure')!

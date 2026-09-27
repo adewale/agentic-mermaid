@@ -106,7 +106,7 @@ xychart-beta
   line [50, 180, 420]
 ```
 
-The modeled title, axes, orientation, and bar/line series are structurally mutable through `asXyChart`; use `describeOps('xychart')` for the exact schema. Unknown statements fall back losslessly at the agent layer, but verification and rendering reject them by name instead of silently dropping them. See [`design/families/xychart.md`](./design/families/xychart.md) for compatibility details and layout notes.
+The modeled title, axes, orientation, and bar/line series are structurally mutable through `asXyChart`; use `describeOps('xychart')` for the exact schema. Unknown statements fall back losslessly at the agent layer, but verification and rendering reject them instead of silently dropping them. Direct library errors name the statement; CLI and hosted routes project a generic render diagnostic. See [`design/families/xychart.md`](./design/families/xychart.md) for compatibility details and layout notes.
 
 ## Pie
 
