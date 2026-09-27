@@ -60,6 +60,37 @@ export class ThemeVariableColorError extends Error {
   }
 }
 
+/** A direct render color may be a valid SVG paint but an invalid operand for
+ * Architecture's derived color-mix() paints. Refuse it before any output. */
+export class RenderOptionColorError extends Error {
+  readonly code = 'INVALID_RENDER_COLOR' as const
+  readonly field: string
+  readonly value: string
+
+  constructor(field: string, value: string) {
+    super(syntaxError({
+      what: `render option "${field}": ${JSON.stringify(value)} is not a CSS color for Architecture derived paint`,
+      expectedForm: 'a drawable CSS color or var(--name)',
+      example: `${field}:#f96`,
+    }).message)
+    this.name = 'RenderOptionColorError'
+    this.field = field
+    this.value = value
+  }
+}
+
+/** `none` is safe as a direct fill/stroke but cannot be mixed into Architecture
+ * backgrounds, surfaces, connectors, or header/junction accent paint. */
+export function checkArchitectureRenderOptionColors(options: RenderOptions | undefined, familyId: string): void {
+  if (familyId !== 'architecture' || !options) return
+  for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+    const value = options[field]
+    if (typeof value === 'string' && value.trim().toLowerCase() === 'none') {
+      throw new RenderOptionColorError(field, value)
+    }
+  }
+}
+
 /** A family config paint rejected before the normalizer can silently filter
  * malformed array entries or a renderer can emit a non-color into CSS. */
 export class FamilyConfigColorError extends Error {

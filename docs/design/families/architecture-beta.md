@@ -105,6 +105,13 @@ Shadowed fallbacks may still use `none`; for example, `defaultLinkColor:none`
 is ignored when `lineColor` is set. Shared border keys remain direct strokes
 and may use `none`.
 
+The same derived-paint rule applies to explicit Architecture render colors:
+`bg`, `surface`, `line`, and `accent` cannot be `none` (including case and
+surrounding-whitespace variants), because those channels can feed
+`color-mix()` paints. Direct `border:none` remains available. The rule is
+Architecture-only and produces `INVALID_RENDER_COLOR` through graphical,
+terminal, CLI, and MCP routes before output.
+
 ## Completed elevation contracts
 
 - **Typed editing:** services, junctions, groups, group labels, accessibility,

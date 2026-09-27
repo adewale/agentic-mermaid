@@ -466,3 +466,50 @@ describe('theme color admission (#303, Architecture layer)', () => {
     }
   })
 })
+
+describe('render option color admission (#303, Architecture derived paint)', () => {
+  test('none is refused for each Architecture color-mix channel, including trimmed case variants', () => {
+    for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+      for (const value of ['none', ' NONE ']) {
+        const options = { [field]: value }
+        const named = `render option "${field}": ${JSON.stringify(value)} is not a CSS color for Architecture derived paint`
+        expect(() => renderMermaidSVG(ARCHITECTURE, options), `${field} ${value}`).toThrow(named)
+        expect(() => renderMermaidASCII(ARCHITECTURE, options), `${field} ${value}`).toThrow(named)
+        expect(verifyMermaid(ARCHITECTURE, { renderOptions: options }).warnings).toContainEqual({
+          code: 'RENDER_FAILED', reason: expect.stringContaining(named),
+        })
+      }
+    }
+  })
+
+  test('direct none paint and other-family options remain available', () => {
+    for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+      expect(() => renderMermaidSVG(FLOW, { [field]: 'none' }), field).not.toThrow()
+    }
+    expect(() => renderMermaidSVG(ARCHITECTURE, { border: 'none' })).not.toThrow()
+    for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+      expect(() => renderMermaidSVG(ARCHITECTURE, { [field]: 'var(--paint)' }), field).not.toThrow()
+    }
+  })
+
+  test('named refusal agrees across PNG, browser-lazy, CLI, and MCP', async () => {
+    const named = 'render option "bg": "none" is not a CSS color for Architecture derived paint'
+    expect(() => renderMermaidPNG(ARCHITECTURE, { bg: 'none' })).toThrow(named)
+    await expect(renderMermaidSVGAsync(ARCHITECTURE, { bg: 'none' })).rejects.toThrow(named)
+    for (const format of ['svg', 'ascii', 'unicode'] as const) {
+      const result = runBatchLine(JSON.stringify({ op: 'render', source: ARCHITECTURE, options: { format, bg: 'none' } }), 0)
+      expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_RENDER_COLOR', field: 'bg', value: 'none' } })
+    }
+    const response = await handleHostedRequest(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source: ARCHITECTURE, options: { bg: 'none' } } } },
+      {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('not used') },
+      },
+    )
+    const payload = JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+    expect(payload).toMatchObject({ ok: false, error: { code: 'INVALID_RENDER_COLOR', field: 'bg', value: 'none' } })
+    expect(projectRenderErrorDiagnostic({ code: 'INVALID_RENDER_COLOR', field: 'bg', value: 'none', message: 'forged' }))
+      .toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+  })
+})
