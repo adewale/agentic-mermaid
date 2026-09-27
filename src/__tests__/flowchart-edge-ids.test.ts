@@ -82,6 +82,44 @@ describe('flowchart edge IDs — SVG identity (X4)', () => {
   })
 })
 
+describe('flowchart edge classes — authored edge paint', () => {
+  it('applies classDef stroke and width to only the assigned edge', () => {
+    const source = [
+      'flowchart LR',
+      '  A e1@--> B',
+      '  B e2@--> C',
+      '  classDef hot stroke:#ff0000,stroke-width:6px',
+      '  class e1 hot',
+    ].join('\n')
+    const graph = parseGraph(source)
+    expect(graph.classAssignments.get('e1')).toBe('hot')
+    const svg = renderMermaidSVG(source)
+    const assigned = svg.match(/<(?:polyline|path)\b[^>]*data-id="e1"[^>]*>/)?.[0]
+    const unrelated = svg.match(/<(?:polyline|path)\b[^>]*data-id="e2"[^>]*>/)?.[0]
+    expect(assigned).toContain('class="edge hot"')
+    expect(assigned).toContain('stroke="#ff0000"')
+    expect(assigned).toContain('stroke-width="6px"')
+    expect(assigned).toMatch(/marker-end="url\(#arrowhead-[^)]*\)"/)
+    expect(unrelated).toContain('class="edge"')
+    expect(unrelated).not.toContain('stroke="#ff0000"')
+    expect(unrelated).not.toContain('stroke-width="6px"')
+  })
+
+  it('retains explicit linkStyle precedence over edge-class paint', () => {
+    const source = [
+      'flowchart LR',
+      '  A e1@--> B',
+      '  classDef hot stroke:#ff0000,stroke-width:6px',
+      '  class e1 hot',
+      '  linkStyle 0 stroke:#00ff00,stroke-width:3px',
+    ].join('\n')
+    const edge = renderMermaidSVG(source).match(/<(?:polyline|path)\b[^>]*data-id="e1"[^>]*>/)?.[0]
+    expect(edge).toContain('class="edge hot"')
+    expect(edge).toContain('stroke="#00ff00"')
+    expect(edge).toContain('stroke-width="3px"')
+  })
+})
+
 describe('flowchart edge IDs — op targeting', () => {
   it('remove_edge accepts the authored ID', () => {
     const d = asFlowchart(parseAgent(SOURCE))!

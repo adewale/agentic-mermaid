@@ -227,8 +227,10 @@ export interface PositionedEdge {
   points: Point[]
   /** Layout-computed label center position (avoids label-label collisions) */
   labelPosition?: Point
-  /** Inline styles resolved from `linkStyle` directives — override theme defaults */
+  /** Inline styles resolved from edge-ID classDef and `linkStyle` directives — override theme defaults */
   inlineStyle?: Record<string, string>
+  /** Authored edge-ID classes for external CSS targeting. */
+  classNames?: string[]
   /** Index into MermaidGraph.edges this positioned edge was extracted from */
   edgeIndex?: number
   /** Authored edge presentation metadata. */

@@ -227,9 +227,9 @@ const flowchartEdgeClassSource = `${['flowchart LR', '  A e1@--> B', '  classDef
 const flowchartEdgeClass: FidelityCaseDefinition = {
   id: 'flowchart.classes.edge-paint-implication',
   family: 'flowchart',
-  featureId: 'official-doc:flowchart:section:using-classdef-statements-for-animations',
+  featureId: 'official-doc:flowchart:section:attaching-an-id-to-edges',
   source: flowchartEdgeClassSource,
-  upstreamReference: 'https://mermaid.ai/open-source/syntax/flowchart.html#using-classdef-statements-for-animations',
+  upstreamReference: 'https://mermaid.ai/open-source/syntax/flowchart.html#attaching-an-id-to-edges',
   upstreamRevision: UPSTREAM_REVISION,
   expected: {
     agent: applicable('native', evidence => {
@@ -237,10 +237,12 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
       if (semanticFacts.bodyKind !== 'flowchart') return 'source-preserved'
       return matchesFlowchartClassFacts(semanticFacts.graphFacts ?? null, '#ff0000', '6px') ? 'native' : 'absent'
     }),
-    render: applicable('absent', evidence => {
+    render: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
       if (typeof semanticFacts.edgeFound !== 'boolean') fail('edgeFound must be boolean')
-      return semanticFacts.stroke === '#ff0000' && semanticFacts.strokeWidth === '6' ? 'native' : 'absent'
+      return semanticFacts.edgeFound === true && semanticFacts.className === 'hot'
+        && semanticFacts.stroke === '#ff0000' && semanticFacts.strokeWidth === '6px'
+        ? 'native' : 'absent'
     }),
     serialize: applicable('native', evidence => (facts(evidence).exactCanonicalBytes === true ? 'native' : 'absent')),
     mutate: applicable('native', evidence => {
@@ -255,6 +257,7 @@ const flowchartEdgeClass: FidelityCaseDefinition = {
     const edgeTag = svg.match(/<polyline\b[^>]*data-id="e1"[^>]*>/)?.[0] ?? ''
     const semanticPaint = {
       edgeFound: edgeTag.length > 0,
+      className: edgeTag.match(/\bclass="edge ([^"]+)"/)?.[1] ?? null,
       stroke: edgeTag.match(/\bstroke="([^"]+)"/)?.[1] ?? null,
       strokeWidth: edgeTag.match(/\bstroke-width="([^"]+)"/)?.[1] ?? null,
     }

@@ -521,7 +521,7 @@ function renderEdge(
   // - data-arrow-start/end: arrow presence flags
   // - data-label: edge label if present (for quick lookup without traversing DOM)
   const dataAttrs = [
-    'class="edge"',
+    `class="${['edge', ...(edge.classNames ?? []).map(name => name.replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean)].join(' ')}"`,
     ...(edge.id ? [`data-id="${escapeAttr(edge.id)}"`] : []),
     `data-from="${escapeAttr(edge.source)}"`,
     `data-to="${escapeAttr(edge.target)}"`,

@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "d8d3fc174ce1cdcc8c3d283367350ed32281efe17e72e2acf33d77908fc09d4a",
-  "receiptResultSha256": "29aaeb45ba2c726ea5f5fb17e3cd70ca3958bb44ea837733d434cd130239dbbe",
+  "receiptInputSha256": "1224342e1dfd4960d3144079bf78fe91b708361242de6ce9644422930336079e",
+  "receiptResultSha256": "4b7bba89d6cfced1314d44163edec548de915002d4a2f5c6918fd5a6a5c8442d",
   "summary": {
     "caseCount": 32,
     "featureCount": 14,
     "dispositions": {
-      "native": 5,
+      "native": 6,
       "source-preserved": 0,
       "diagnosed": 7,
-      "absent": 2
+      "absent": 1
     }
   },
   "features": [
@@ -333,6 +333,34 @@
       "acceptedDivergences": []
     },
     {
+      "featureId": "official-doc:flowchart:section:attaching-an-id-to-edges",
+      "family": "flowchart",
+      "disposition": "native",
+      "caseIds": [
+        "flowchart.classes.edge-paint-implication"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "flowchart.classes.edge-paint-implication",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
       "featureId": "official-doc:flowchart:section:text-on-links",
       "family": "flowchart",
       "disposition": "native",
@@ -352,34 +380,6 @@
           "surfaces": {
             "agent": "native",
             "render": "native",
-            "serialize": "native",
-            "mutate": "native"
-          },
-          "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
-      "family": "flowchart",
-      "disposition": "absent",
-      "caseIds": [
-        "flowchart.classes.edge-paint-implication"
-      ],
-      "surfaces": {
-        "agent": "native",
-        "render": "absent",
-        "serialize": "native",
-        "mutate": "native"
-      },
-      "diagnostics": {},
-      "caseEvidence": [
-        {
-          "caseId": "flowchart.classes.edge-paint-implication",
-          "surfaces": {
-            "agent": "native",
-            "render": "absent",
             "serialize": "native",
             "mutate": "native"
           },

@@ -78,6 +78,10 @@ Upstream schema verified 2026-07-10
   `data-animation` plus a deterministic dashed stroke; active SVG animation is
   never emitted because every output-security mode rejects active content.
   Unknown edge-metadata keys remain source-preserved and warned.
+- `class e1 hot` now applies the matching `classDef` stroke/width to the edge
+  line and its marker, and emits `hot` as a static SVG class. `linkStyle`
+  default/index values still override the class paint. Active animation
+  declarations inside `classDef` remain outside this static paint claim.
 
 ## v11.3+ typed shapes (`@{ shape: ... }`) — repo #44
 
