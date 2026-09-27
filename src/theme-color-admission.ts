@@ -30,6 +30,12 @@ const RADAR_COLOR_KEYS = new Set([
   'titleColor',
 ])
 const ARCHITECTURE_COLOR_KEYS = new Set(['clusterBkg', 'clusterBorder'])
+// Architecture feeds these shared channels into derived color-mix() paints.
+// `none` is a valid direct fill/stroke, but not a color-mix operand.
+const ARCHITECTURE_MIXED_SHARED_COLOR_KEYS = new Set([
+  'background', 'mainBkg', 'primaryColor', 'nodeBkg',
+  'lineColor', 'defaultLinkColor', 'arrowheadColor',
+])
 // Timeline mixes both cScale fills and cScaleInv lines into derived
 // color-mix() paints; `none` invalidates those colors. Labels require ink.
 
@@ -143,7 +149,7 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
       || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
       || (familyId === 'radar' && RADAR_COLOR_KEYS.has(key))
-      || (familyId === 'architecture' && key === 'clusterBkg')
+      || (familyId === 'architecture' && (key === 'clusterBkg' || ARCHITECTURE_MIXED_SHARED_COLOR_KEYS.has(key)))
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
     }

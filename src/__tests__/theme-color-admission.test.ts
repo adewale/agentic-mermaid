@@ -313,6 +313,52 @@ describe('theme color admission (#303, Radar layer)', () => {
 })
 
 describe('theme color admission (#303, Architecture layer)', () => {
+  test('shared inputs to Architecture color mixes refuse none before output', () => {
+    for (const key of [
+      'background', 'mainBkg', 'primaryColor', 'nodeBkg',
+      'lineColor', 'defaultLinkColor', 'arrowheadColor',
+    ]) {
+      const source = init(ARCHITECTURE, key, 'none')
+      const named = `themeVariables.${key}: "none" is not a CSS color`
+      expect(() => renderMermaidSVG(source), key).toThrow(named)
+      expect(() => renderMermaidASCII(source), key).toThrow(named)
+      expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+    }
+  })
+
+  test('Architecture-only derived-paint rule preserves direct none elsewhere', () => {
+    for (const key of ['background', 'mainBkg', 'primaryColor', 'nodeBkg', 'lineColor', 'defaultLinkColor', 'arrowheadColor']) {
+      expect(() => renderMermaidSVG(init(FLOW, key, 'none')), key).not.toThrow()
+    }
+    for (const key of ['clusterBorder', 'primaryBorderColor', 'secondaryBorderColor', 'secondaryColor']) {
+      expect(() => renderMermaidSVG(init(ARCHITECTURE, key, 'none')), key).not.toThrow()
+    }
+  })
+
+  test('mainBkg none is named across public routes and input forms', async () => {
+    const source = init(ARCHITECTURE, 'mainBkg', 'none')
+    const named = 'themeVariables.mainBkg: "none" is not a CSS color'
+    expect(() => renderMermaidPNG(source)).toThrow(named)
+    await expect(renderMermaidSVGAsync(source)).rejects.toThrow(named)
+    for (const format of ['svg', 'ascii', 'unicode'] as const) {
+      expect(runBatchLine(JSON.stringify({ op: 'render', format, source }), 0))
+        .toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'mainBkg', value: 'none' } })
+    }
+    const response = await handleHostedRequest(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source } } },
+      {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('not used') },
+      },
+    )
+    const payload = JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+    expect(payload).toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'mainBkg', value: 'none' } })
+    const yaml = '---\nconfig:\n  themeVariables:\n    mainBkg: none\n---\n' + ARCHITECTURE
+    expect(() => renderMermaidSVG(yaml)).toThrow(named)
+    expect(() => renderMermaidSVG(ARCHITECTURE, { mermaidConfig: { themeVariables: { mainBkg: 'none' } } }))
+      .toThrow(named)
+  })
+
   test('group fills and borders and fallback service fill reject malformed paint', () => {
     for (const key of ['clusterBkg', 'clusterBorder', 'secondaryColor']) {
       for (const value of [...invalid, 123]) {
