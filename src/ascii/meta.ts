@@ -109,8 +109,8 @@ export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, opts: 
     // bind a slice to the wrong row. Its built-in renderer has the same grid
     // without styling; use that for region coordinates. Do not re-render
     // extension families, whose hooks may depend on color mode or have effects.
-    const pieSource = parseMermaid(source)
-    const regionCanvas = opts.colorMode === 'html' && pieSource.ok && pieSource.value.body.kind === 'pie'
+    const pieSource = opts.colorMode === 'html' ? parseMermaid(source) : null
+    const regionCanvas = pieSource?.ok && pieSource.value.body.kind === 'pie'
       ? renderMermaidASCII(input, { ...opts, colorMode: 'none', onProjectionDiagnostic: undefined, onConfigDiagnostic: () => {} })
       : ascii
     const regions = addSemanticContainerRegions(regionCanvas, source, deriveRegions(regionCanvas, source))

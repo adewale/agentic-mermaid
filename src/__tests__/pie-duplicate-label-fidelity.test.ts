@@ -184,6 +184,14 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
   expect(drawnSlices(prepass)).toHaveLength(1)
 })
 
+test('Pie entity prepass stays bounded on repeated style/hash candidates', () => {
+  for (const label of ['style:foo#'.repeat(1500), `style:foo#;${'style:foo#'.repeat(1500)}`]) {
+    const started = performance.now()
+    expect(parsePieChart(['pie', `"${label}" : 1`]).entries).toHaveLength(1)
+    expect(performance.now() - started).toBeLessThan(250)
+  }
+})
+
 test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene validation', () => {
   for (const control of ['0', 'b', 'f', 'v']) {
     const input = `pie\n  "A\\${control}B" : 1\n`

@@ -163,9 +163,31 @@ function mermaidPieEntityPrepass(line: string): string {
   // These two substitutions precede encodeEntities in pinned Mermaid. They
   // can occur inside an otherwise valid quoted Pie label, so identity must
   // observe them even though the source/display spelling remains authored.
+  // The upstream greedy regex backtracks catastrophically on repeated
+  // keyword/hash text. Its effect on one physical line is simply to strip
+  // the last semicolon if a qualifying keyword/colon/hash chain exists.
+  return stripEntityPrepassSemicolon(stripEntityPrepassSemicolon(line, 'style'), 'classDef')
+}
+
+function stripEntityPrepassSemicolon(line: string, keyword: string): string {
+  const lastSemicolon = line.lastIndexOf(';')
+  if (lastSemicolon < 0 || !line.includes(keyword)) return line
+  const viableFrom = new Uint8Array(line.length + 1)
+  let nextHash = -1
+  let viable = false
+  for (let i = line.length - 1; i >= 0; i--) {
+    const character = line[i]!
+    if (/\s/.test(character)) nextHash = -1
+    else if (character === '#') nextHash = i
+    if (character === ':' && nextHash >= 0 && nextHash < lastSemicolon) viable = true
+    viableFrom[i] = viable ? 1 : 0
+  }
+  for (let start = line.indexOf(keyword); start >= 0; start = line.indexOf(keyword, start + keyword.length)) {
+    if (viableFrom[start + keyword.length] === 1) {
+      return line.slice(0, lastSemicolon) + line.slice(lastSemicolon + 1)
+    }
+  }
   return line
-    .replace(/style.*:\S*#.*;/g, match => match.slice(0, -1))
-    .replace(/classDef.*:\S*#.*;/g, match => match.slice(0, -1))
 }
 
 function mermaidPieSourceKey(label: string): string {
