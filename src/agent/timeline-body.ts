@@ -35,7 +35,9 @@ import { normalizeBrTags } from '../multiline-utils.ts'
  * Mirrors the legacy parser's accepted syntax (src/timeline/parser.ts).
  */
 function normalizeTimelineText(value: string): string {
-  return normalizeBrTags(value.trim()).trim()
+  // Match the native parser's trim-before-<br> order so authored boundary
+  // breaks survive, while canonicalizing mutation CRLF/CR before serialization.
+  return normalizeBrTags(value.trim().replace(/\r\n?/g, '\n'))
 }
 
 function serializeTimelineText(value: string): string {
