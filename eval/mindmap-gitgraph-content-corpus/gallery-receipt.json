@@ -216,7 +216,7 @@
     },
     {
       "path": "src/agent/pie-body.ts",
-      "sha256": "2190ece181f4c697015c52fbf48300e4f1d35bb61b388e0f62d041cb03d1d476"
+      "sha256": "9b8f5fb96f248feb7e54eec953b963abed31314d8a8f98dee1e47e5fc79d5781"
     },
     {
       "path": "src/agent/png.ts",
@@ -724,7 +724,7 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "76b15574c100d9297e37ae7e4181a3a1f4d98c72da18ea2b008d777a2b8c164b"
+      "sha256": "7aeb5e6647ed1318b3a5829fcba8aa8b843502157d58fd93efe72c1eb7525474"
     },
     {
       "path": "src/pie/renderer.ts",
@@ -732,7 +732,7 @@
     },
     {
       "path": "src/pie/types.ts",
-      "sha256": "1039a4f4647d011cba9ba453c13c71f73bf2f4a4c845f292f84b21cf9d30a4a9"
+      "sha256": "0b5e1d8b0140f0d080d34ef97a824d6d4bb5a29d1b4eb7130e8fb1c0d8c0c146"
     },
     {
       "path": "src/png-contract.ts",
