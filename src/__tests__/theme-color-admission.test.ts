@@ -12,6 +12,7 @@ import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 const FLOW = 'flowchart TD\n  A --> B'
 const PIE = 'pie\n  "A" : 3\n  "B" : 2'
 const GITGRAPH = 'gitGraph\n  commit id:"A" type:HIGHLIGHT'
+const TIMELINE = 'timeline\n  2020 : Start\n  2021 : End'
 const invalid = ['notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'url(#a)'] as const
 
 function init(source: string, key: string, value: unknown): string {
@@ -166,5 +167,57 @@ describe('theme color admission (#303, GitGraph layer)', () => {
   test('family-private keys remain scoped to GitGraph', () => {
     expect(() => renderMermaidSVG(init(FLOW, 'git0', 'notacolor'))).not.toThrow()
     expect(() => renderMermaidSVG(init(PIE, 'commitLabelColor', 'notacolor'))).not.toThrow()
+  })
+})
+
+describe('theme color admission (#303, Timeline layer)', () => {
+  const timelineColorKeys = Array.from({ length: 12 }, (_, index) => [
+    `cScale${index}`, `cScaleLabel${index}`, `cScaleInv${index}`,
+  ]).flat()
+
+  test('every indexed Timeline fill, label and line refuses invalid paint', () => {
+    for (const key of timelineColorKeys) {
+      for (const value of invalid) {
+        const source = init(TIMELINE, key, value)
+        const named = `themeVariables.${key}: ${JSON.stringify(value)} is not a CSS color`
+        expect(() => renderMermaidSVG(source), `${key} ${value}`).toThrow(named)
+        expect(() => renderMermaidASCII(source), `${key} ${value}`).toThrow(named)
+      }
+    }
+  })
+
+  test('Timeline label ink and mixed fills refuse none; direct line paint permits it', () => {
+    for (let index = 0; index < 12; index++) {
+      for (const key of [`cScaleLabel${index}`, `cScale${index}`]) {
+        expect(() => renderMermaidSVG(init(TIMELINE, key, 'none')))
+          .toThrow(`themeVariables.${key}: "none" is not a CSS color`)
+      }
+    }
+    expect(() => renderMermaidSVG(init(TIMELINE, 'cScaleInv0', 'none'))).not.toThrow()
+    expect(() => renderMermaidSVG(init(TIMELINE, 'cScale0', 123)))
+      .toThrow('themeVariables.cScale0: "123" is not a CSS color')
+  })
+
+  test('admitted Timeline custom-property paints remain in family CSS', () => {
+    const source = `%%{init: ${JSON.stringify({ themeVariables: {
+      cScale0: 'var(--fill)', cScaleLabel0: 'var(--ink)', cScaleInv0: 'var(--line)',
+    } })}}%%\n${TIMELINE}`
+    const svg = renderMermaidSVG(source)
+    for (const variable of ['fill', 'ink', 'line']) expect(svg).toContain(`var(--${variable})`)
+    expect(verifyMermaid(source).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+  })
+
+  test('Timeline refusal agrees across verify, PNG, browser-lazy and CLI', async () => {
+    const source = init(TIMELINE, 'cScale11', 'url(#unsafe)')
+    const named = 'themeVariables.cScale11: "url(#unsafe)" is not a CSS color'
+    expect(() => renderMermaidPNG(source)).toThrow(named)
+    expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+    await expect(renderMermaidSVGAsync(source)).rejects.toThrow(named)
+    const result = runBatchLine(JSON.stringify({ op: 'render', format: 'svg', source }), 0)
+    expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'cScale11', value: 'url(#unsafe)' } })
+  })
+
+  test('Timeline-private keys do not change unrelated families', () => {
+    expect(() => renderMermaidSVG(init(FLOW, 'cScale0', 'notacolor'))).not.toThrow()
   })
 })
