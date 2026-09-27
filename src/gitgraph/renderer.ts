@@ -9,7 +9,7 @@ import type { DiagramColors } from '../theme.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticNamespacedId, semanticRelationId } from '../scene/identity.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
-import { safeCssColor } from '../shared/css-color.ts'
+import { safeCssPaint } from '../shared/css-color.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
@@ -26,12 +26,12 @@ export function resolveGitGraphThemeProjection(raw: unknown): GitGraphThemeProje
   }
   for (let index = 0; index < 8; index++) {
     for (const key of [`git${index}`, `gitBranchLabel${index}`, `gitInv${index}`]) {
-      const color = safeCssColor(vars[key])
+      const color = safeCssPaint(vars[key])
       if (color !== undefined) projected[key] = color
     }
   }
   for (const key of ['commitLabelColor', 'commitLabelBackground'] as const) {
-    const color = safeCssColor(vars[key])
+    const color = safeCssPaint(vars[key])
     if (color !== undefined) projected[key] = color
   }
   return projected
@@ -202,9 +202,9 @@ function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors
   const branches = new Map<string, GitGraphBranchPaint>()
   diagram.branches.forEach((branch, index) => {
     const paletteIndex = index % 8
-    const line = safeCssColor(vars[`git${paletteIndex}`]) ?? derivedPalette[index]!
-    const rawLabel = safeCssColor(vars[`gitBranchLabel${paletteIndex}`]) ?? line
-    const highlight = safeCssColor(vars[`gitInv${paletteIndex}`]) ?? line
+    const line = safeCssPaint(vars[`git${paletteIndex}`]) ?? derivedPalette[index]!
+    const rawLabel = safeCssPaint(vars[`gitBranchLabel${paletteIndex}`]) ?? line
+    const highlight = safeCssPaint(vars[`gitInv${paletteIndex}`]) ?? line
     const normalFill = isHexColor(line) && isHexColor(bg) ? mixHex(line, bg, 18) : 'var(--_node-fill)'
     const labelBackground = isHexColor(line) && isHexColor(bg) ? mixHex(line, bg, 9) : 'var(--bg)'
     const label = ensureContrast(rawLabel, labelBackground, 4.5, colors.fg)
@@ -213,8 +213,8 @@ function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors
   const commitLabelFontSize = resolveGitGraphCommitLabelFontSize(vars)
   return {
     branches,
-    commitLabelColor: safeCssColor(vars.commitLabelColor) ?? 'var(--_text-sec)',
-    commitLabelBackground: safeCssColor(vars.commitLabelBackground) ?? (isHexColor(bg) ? bg : 'var(--bg)'),
+    commitLabelColor: safeCssPaint(vars.commitLabelColor) ?? 'var(--_text-sec)',
+    commitLabelBackground: safeCssPaint(vars.commitLabelBackground) ?? (isHexColor(bg) ? bg : 'var(--bg)'),
     commitLabelFontSize,
   }
 }

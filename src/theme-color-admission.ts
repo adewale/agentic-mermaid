@@ -14,6 +14,14 @@ const PIE_COLOR_KEYS = new Set([
   'pieTitleTextColor', 'pieLegendTextColor',
 ])
 const PIE_INK_KEYS = new Set(['pieSectionTextColor', 'pieTitleTextColor', 'pieLegendTextColor'])
+const GITGRAPH_COLOR_KEYS = new Set([
+  ...Array.from({ length: 8 }, (_, index) => [`git${index}`, `gitBranchLabel${index}`, `gitInv${index}`]).flat(),
+  'commitLabelColor', 'commitLabelBackground',
+])
+const GITGRAPH_INK_KEYS = new Set([
+  ...Array.from({ length: 8 }, (_, index) => `gitBranchLabel${index}`),
+  'commitLabelColor',
+])
 
 /** A named failure at the shared request waist, before any output can silently
  * drop a configured color or paint a browser/resvg-specific fallback. */
@@ -35,19 +43,20 @@ export class ThemeVariableColorError extends Error {
   }
 }
 
-/** This first theme layer covers the shared diagram channels and Pie-specific
- * colors. Other families' private theme keys are admitted in later #303 PRs. */
+/** Admit only the keys that a family actually paints. Other families' private
+ * theme keys are added in separately reviewed #303 slices. */
 export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined, familyId: string): void {
   if (!vars) return
-  const colorKeys = familyId === 'pie'
-    ? new Set([...SHARED_COLOR_KEYS, ...PIE_COLOR_KEYS])
-    : SHARED_COLOR_KEYS
+  const privateColorKeys = familyId === 'pie' ? PIE_COLOR_KEYS
+    : familyId === 'gitgraph' ? GITGRAPH_COLOR_KEYS
+    : undefined
+  const colorKeys = privateColorKeys ? new Set([...SHARED_COLOR_KEYS, ...privateColorKeys]) : SHARED_COLOR_KEYS
   for (const key of colorKeys) {
     if (!Object.hasOwn(vars, key)) continue
     const raw = vars[key]
     if (raw === undefined) continue
     const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
-    const isInk = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
+    const isInk = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key) || GITGRAPH_INK_KEYS.has(key)
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !isInk) === undefined) {
       throw new ThemeVariableColorError(key, value, !isInk)
     }
