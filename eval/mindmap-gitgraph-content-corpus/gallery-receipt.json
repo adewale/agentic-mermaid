@@ -324,7 +324,7 @@
     },
     {
       "path": "src/ascii/class-diagram.ts",
-      "sha256": "38c568bd5b0a0b489497e81d4c0985bf7fe121025a1a0dbb4a568b730946c1bc"
+      "sha256": "843620c624cf83c774ab2e27c8a51e17215f9383cd825156d23de4b7c3a1395e"
     },
     {
       "path": "src/ascii/converter.ts",
@@ -344,7 +344,7 @@
     },
     {
       "path": "src/ascii/er-diagram.ts",
-      "sha256": "d1a617a7cbf485bc73fdf9c314e36ca28a7a15adfaf81c7e90f606503cd6e766"
+      "sha256": "aaa1a42affad9af639524b5605a521c157c335a37f03ff2f265c6e82f44c48ac"
     },
     {
       "path": "src/ascii/gantt.ts",
@@ -808,7 +808,7 @@
     },
     {
       "path": "src/render-family-hooks.ts",
-      "sha256": "0b14331fa6932168cb02c45fbad1ffc8c9711a6edfc5cae4f97ebd62722dc43b"
+      "sha256": "087798cae9bf32534e75f8fafdd2b53c6809472b63d5c8c15f611458c8cff89d"
     },
     {
       "path": "src/render-outputs.ts",
@@ -1096,7 +1096,7 @@
     },
     {
       "path": "src/shared/style-props.ts",
-      "sha256": "99ec18f5a2dd1ca6c0acd7fa79c741d9489edda413f5a66382982f43cc71ba73"
+      "sha256": "ba405ed27a9d6ca1758bb3ce5933264ed0903d11c41f5eb2186fd3967fc8d2d2"
     },
     {
       "path": "src/shared/svg-a11y.ts",
