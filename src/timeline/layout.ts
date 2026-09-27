@@ -6,11 +6,11 @@ import type {
   PositionedTimelineEvent,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureTextWidth } from '../text-metrics.ts'
+import type { MultilineMetrics } from '../text-metrics.ts'
 import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { stripFormattingTags } from '../multiline-utils.ts'
 
 // ============================================================================
 // Timeline diagram layout engine
@@ -154,7 +154,7 @@ export function layoutTimelineDiagram(
     : undefined
 
   const titleMetrics = titleText
-    ? measureMultilineText(titleText, TL.titleFontSize, TL.titleFontWeight)
+    ? measureTimelineText(titleText, TL.titleFontSize, TL.titleFontWeight)
     : undefined
 
   let metrics = computeSectionMetrics(diagram, style, DEFAULT_WRAP_CAPS, vertical)
@@ -342,13 +342,13 @@ function computeSectionMetrics(
       : undefined
     const periodMetrics: PeriodMetric[] = section.periods.map(period => {
       const wrappedPeriodLabel = wrapTimelineText(applyTextTransform(period.label, style.edgeTextTransform), caps.pill, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-      const pillText = measureMultilineText(wrappedPeriodLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const pillText = measureTimelineText(wrappedPeriodLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight)
       const pillWidth = Math.max(caps.pillMinWidth, pillText.width + style.nodePaddingX * 2)
       const pillHeight = pillText.height + style.nodePaddingY * 2
 
       const eventMetrics = period.events.map(event => {
         const wrappedEventText = wrapTimelineText(applyTextTransform(event.text, style.nodeTextTransform), caps.event, style.nodeLabelFontSize, style.nodeLabelFontWeight)
-        const text = measureMultilineText(wrappedEventText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+        const text = measureTimelineText(wrappedEventText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
         return {
           text: wrappedEventText,
           width: Math.max(caps.eventMinWidth, text.width + style.nodePaddingX * 2),
@@ -376,7 +376,7 @@ function computeSectionMetrics(
     }, 0)
 
     const headerWidth = wrappedSectionLabel
-      ? measureMultilineText(wrappedSectionLabel, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
+      ? measureTimelineText(wrappedSectionLabel, style.groupHeaderFontSize, style.groupHeaderFontWeight).width + style.groupLabelPaddingX * 2
       : 0
 
     // In LR the header text rides the main axis, so it can widen the frame
@@ -404,6 +404,21 @@ function projectedMainEnd(metrics: SectionMetric[], sectionPadX: number, showSec
   return cursor + TL.paddingX
 }
 
+/** Timeline's authored text is literal except exact <br> (already a newline).
+ * Generic formatted-text metrics would strip visible <b>/<i> characters. */
+function measureTimelineText(text: string, fontSize: number, fontWeight: number): MultilineMetrics {
+  const lines = text.split('\n')
+  const lineHeight = fontSize * LINE_HEIGHT_RATIO
+  let width = 0
+  for (const line of lines) width = Math.max(width, measureTextWidth(line, fontSize, fontWeight))
+  return {
+    width,
+    height: lines.length * lineHeight,
+    lines,
+    lineHeight,
+  }
+}
+
 function wrapTimelineText(
   text: string,
   maxWidth: number,
@@ -422,8 +437,7 @@ function wrapTimelineLine(
   fontSize: number,
   fontWeight: number,
 ): string[] {
-  const plainLine = stripFormattingTags(line)
-  if (measureTextWidth(plainLine, fontSize, fontWeight) <= maxWidth) {
+  if (measureTextWidth(line, fontSize, fontWeight) <= maxWidth) {
     return [line]
   }
 
@@ -437,7 +451,7 @@ function wrapTimelineLine(
 
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word
-    const candidateWidth = measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight)
+    const candidateWidth = measureTextWidth(candidate, fontSize, fontWeight)
 
     if (candidateWidth <= maxWidth) {
       current = candidate
@@ -449,7 +463,7 @@ function wrapTimelineLine(
       current = ''
     }
 
-    if (measureTextWidth(stripFormattingTags(word), fontSize, fontWeight) > maxWidth) {
+    if (measureTextWidth(word, fontSize, fontWeight) > maxWidth) {
       wrapped.push(...breakLongToken(word, maxWidth, fontSize, fontWeight))
     } else {
       current = word
@@ -471,7 +485,7 @@ function breakLongToken(
 
   for (const char of token) {
     const candidate = current + char
-    if (current && measureTextWidth(stripFormattingTags(candidate), fontSize, fontWeight) > maxWidth) {
+    if (current && measureTextWidth(candidate, fontSize, fontWeight) > maxWidth) {
       chunks.push(current)
       current = char
       continue

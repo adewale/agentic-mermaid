@@ -17,6 +17,7 @@ import {
   TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
+  normalizeTimelineBreaks,
   splitTimelineEvents,
 } from '../timeline/parse-core.ts'
 import { indexedIdAllocator } from './body-utils.ts'
@@ -34,7 +35,13 @@ import { scanAccessibilityDirectives } from '../shared/accessibility-directives.
  * Mirrors the legacy parser's accepted syntax (src/timeline/parser.ts).
  */
 function normalizeTimelineText(value: string): string {
-  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
+  // Match the native parser's trim-before-<br> order so authored boundary
+  // breaks survive, while canonicalizing mutation CRLF/CR before serialization.
+  return normalizeTimelineBreaks(value.trim().replace(/\r\n?/g, '\n'))
+}
+
+function serializeTimelineText(value: string): string {
+  return value.replace(/\n/g, '<br>')
 }
 
 function validTimelineText(value: string, opts: { allowColon: boolean }): boolean {
@@ -82,7 +89,8 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
 
     const tm = line.match(TIMELINE_TITLE_RE)
     if (tm) {
-      const title = normalizeTimelineText(tm[1]!)
+      // Unlike section/period/event labels, pinned Mermaid draws titles raw.
+      const title = tm[1]!.trim()
       if (!validTimelineText(title, { allowColon: true })) return null
       body.title = title
       continue
@@ -162,16 +170,16 @@ export function renderTimeline(body: TimelineBody): string {
     }
   }
   for (const section of body.sections) {
-    if (section.label !== undefined) lines.push(`  section ${section.label}`)
+    if (section.label !== undefined) lines.push(`  section ${serializeTimelineText(section.label)}`)
     for (const period of section.periods) {
       // First event on the same line as the period label; extra events on
       // continuation lines (`: text`). Matches Mermaid timeline syntax.
       if (period.events.length === 0) {
-        lines.push(`  ${period.label}`)
+        lines.push(`  ${serializeTimelineText(period.label)}`)
         continue
       }
-      lines.push(`  ${period.label} : ${period.events[0]!.text}`)
-      for (const e of period.events.slice(1)) lines.push(`       : ${e.text}`)
+      lines.push(`  ${serializeTimelineText(period.label)} : ${serializeTimelineText(period.events[0]!.text)}`)
+      for (const e of period.events.slice(1)) lines.push(`       : ${serializeTimelineText(e.text)}`)
     }
   }
   return lines.join('\n') + '\n'
@@ -213,6 +221,18 @@ function normalizeTimelineOpText(value: string, opts: { field: string; allowColo
     return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty${opts.allowColon === false ? ' and must not contain :' : ''}` })
   }
   return ok(normalized)
+}
+
+function normalizeTimelineTitleOpText(value: string): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Timeline title must be a string' })
+  if (/[\r\n\u2028\u2029]/.test(value)) {
+    return err({ code: 'INVALID_OP', message: 'Timeline title must be single-line; pinned Mermaid renders <br> literally in titles' })
+  }
+  const title = value.trim()
+  if (!title) {
+    return err({ code: 'INVALID_OP', message: 'Timeline title must be non-empty' })
+  }
+  return ok(title)
 }
 
 /** Use the same separator grammar as the render/agent parsers. Colons in
@@ -289,7 +309,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_title': {
       if (op.title === null) delete body.title
       else {
-        const title = normalizeTimelineOpText(op.title, { field: 'title' })
+        const title = normalizeTimelineTitleOpText(op.title)
         if (!title.ok) return title
         body.title = title.value
       }

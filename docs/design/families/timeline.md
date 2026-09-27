@@ -17,6 +17,14 @@ Pipeline:
 The renderer parser and agent body share `src/timeline/parse-core.ts` for
 header/content directives and event splitting. A colon starts a new event only
 when followed by whitespace, so `10:30` remains text on both surfaces.
+Authored exact `<br>` text is normalized to semantic line breaks in section,
+period, and event labels on both surfaces; structured serialization writes
+those breaks back as `<br>`. Pinned Mermaid draws titles as raw text, so even
+exact `<br>` stays literal there and title mutation rejects semantic newlines
+that cannot survive rendering. Literal `\n`, quotes, Markdown,
+formatting-looking tags such as `<b>`, and other break-tag spellings stay
+literal through parsing, layout, and rendering, matching pinned Mermaid
+Timeline rather than generic text normalization.
 Event-less periods are modeled and serialize in the bare form (`2020`) accepted
 by the renderer; a dangling `2020 :` remains losslessly opaque instead of
 producing canonical source the renderer would reject.

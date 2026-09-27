@@ -5,11 +5,11 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 682_645,
-    // The marker-reference change updates generated homepage SVG bytes without
-    // adding a request; gzip is unchanged and the other exact totals are pinned.
-    maxGzipBytes: 406_565,
-    maxBrotliBytes: 387_996,
+    maxRawBytes: 683_000,
+    // Timeline literal-label SVG output adds a few hundred bytes to the
+    // existing homepage request graph; exact Linux totals live in the baseline.
+    maxGzipBytes: 406_650,
+    maxBrotliBytes: 388_250,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -21,11 +21,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // Sequence half-arrow examples add bytes without changing the six-request
     // graph; these are the reviewed Linux/x64 totals.
-    maxRawBytes: 391_535,
+    maxRawBytes: 392_000,
     // Authored Class member display changes compression by one byte while
     // leaving the route graph and raw bytes unchanged.
-    maxGzipBytes: 68_607,
-    maxBrotliBytes: 54_400,
+    maxGzipBytes: 68_700,
+    maxBrotliBytes: 54_550,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -50,9 +50,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
     // Flowchart edge-class paint plus bounded fixed-size markers reach 734,628
     // Linux raw bytes on the shared lazy path; the request graph is unchanged.
-    maxRawBytes: 734_750,
-    maxGzipBytes: 275_600,
-    maxBrotliBytes: 251_600,
+    // Timeline literal-text Scene validation keeps the same request graph;
+    // Linux/x64 measures 735,369 raw / 275,828 gzip / 251,742 Brotli bytes.
+    // The bounded Timeline Scene wrapper check and width loop remain in the
+    // existing lazy graph; Linux/x64 measured 735,792 raw / 275,963 gzip.
+    maxRawBytes: 735_950,
+    maxGzipBytes: 276_050,
+    maxBrotliBytes: 251_900,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -110,13 +114,19 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Timeline's shared event-separator validation and upstream trailing-colon
     // guard measure 3,395,107 raw / 1,009,488 gzip bytes on Linux/x64. The
     // two-request graph stays fixed and both ceilings retain under 0.01% slack.
-    maxRawBytes: 3_395_200,
-    maxGzipBytes: 1_009_550,
+    // The shared Scene literal-text guard measures 3,395,922 raw and
+    // 1,009,850 gzip bytes with the same two editor requests.
+    // Timeline title parity and the single-line mutation guard stay in the
+    // same two-request editor graph; Linux/x64 measured 3,396,710 raw bytes.
+    maxRawBytes: 3_396_900,
+    // Timeline semantic line-break normalization previously measured 1,009,565
+    // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
+    // on Linux/x64; retain 150 bytes of headroom with no new requests.
+    maxGzipBytes: 1_010_150,
     // Pie's escaped-LF painted-text projection stays in the existing two
-    // requests. The tab-aware linear scanner measured 3,393,328 raw /
-    // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
-    // cross-platform ceiling.
-    maxBrotliBytes: 797_200,
+    // requests. Timeline title parity and its boundary guard reach 797,353
+    // Brotli bytes on Linux/x64, still in the same two-request graph.
+    maxBrotliBytes: 797_500,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

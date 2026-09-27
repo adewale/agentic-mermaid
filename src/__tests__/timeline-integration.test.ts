@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import type { RenderOptions } from '../types.ts'
+import { measureTextWidth } from '../text-metrics.ts'
 
 function render(text: string, options: RenderOptions = {}): string {
   return renderMermaidSVG(text, options)
@@ -90,6 +91,54 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('history')
     expect(svg).toContain('Soft')
     expect(svg).toContain('launch')
+  })
+
+  it('renders exact <br> in Timeline titles literally, unlike node labels', () => {
+    const svg = render('timeline\n  title Product<br>history\n  section Team<br>work\n  2024 : Launch')
+    const title = svg.match(/<text\b[^>]*class="timeline-title"[^>]*>[\s\S]*?<\/text>/)?.[0]
+    const section = svg.match(/<text\b[^>]*class="timeline-section-label"[^>]*>[\s\S]*?<\/text>/)?.[0]
+    expect(title).toContain('Product&lt;br&gt;history')
+    expect(title).not.toContain('<tspan')
+    expect(Number(title?.match(/textLength="([^"]+)"/)?.[1])).toBeCloseTo(measureTextWidth('Product<br>history', 18, 600), 3)
+    expect(section).toContain('<tspan')
+  })
+
+  it('renders noncanonical breaks and formatting-looking tags literally in every Timeline slot', () => {
+    for (const tag of ['<BR>', '<br/>', '<br />', '<b>', '<i>', '<u>', '<s>']) {
+      const text = `A${tag}B`
+      const escaped = `A${tag.replace('<', '&lt;').replace('>', '&gt;')}B`
+      for (const source of [
+        `timeline\n  title ${text}\n  2024 : Event`,
+        `timeline\n  section ${text}\n  2024 : Event`,
+        `timeline\n  ${text} : Event`,
+        `timeline\n  2024 : ${text}`,
+      ]) {
+        const svg = render(source)
+        expect(svg, source).toContain(escaped)
+        expect(svg, source).not.toContain('NaN')
+        expect(svg, source).not.toContain('<tspan font-weight="bold">')
+      }
+    }
+    const complete = render('timeline\n  2024 : A<b>Bold</b>Z')
+    expect(complete).toContain('A&lt;b&gt;Bold&lt;/b&gt;Z')
+    expect(complete).not.toContain('<tspan font-weight="bold">')
+  })
+
+  it('measures markup-looking Timeline text literally in all four slots', () => {
+    const label = 'A<b>B'
+    const svg = render(`timeline\n  title ${label}\n  section ${label}\n  ${label} : ${label}`)
+    for (const [className, size, weight] of [
+      ['timeline-title', 18, 600],
+      ['timeline-section-label', 12, 600],
+      ['timeline-period-text', 12, 600],
+      ['timeline-event-text', 12, 400],
+    ] as const) {
+      const attrs = svg.match(new RegExp(`<text\\b[^>]*class="${className}"[^>]*>`))?.[0]
+      expect(attrs, className).toBeDefined()
+      expect(attrs, className).toContain('data-literal-text="true"')
+      const width = Number(attrs?.match(/textLength="([^"]+)"/)?.[1])
+      expect(width, className).toBeCloseTo(measureTextWidth(label, size, weight), 3)
+    }
   })
 
   it('supports dark themes and CSS variable colors without NaN output', () => {

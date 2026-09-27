@@ -20,6 +20,53 @@ function timeline(src: string): TimelineValidDiagram {
 }
 
 describe('timeline parsing — structured', () => {
+  test('normalizes node-label br tags while preserving raw title text like pinned Mermaid', () => {
+    const source = 'timeline\n  title <br>Product<br>history<br>\n  section <br>Platform<br>work<br>\n  2024<br>Q1 : <br>Soft<br>launch<br>\n  : Follow<br>up\n  2025<br>Q2'
+    const parsed = timeline(source)
+    const expected = {
+      title: '<br>Product<br>history<br>',
+      sections: [{
+        label: '\nPlatform\nwork\n',
+        periods: [
+          { label: '2024\nQ1', events: ['\nSoft\nlaunch\n', 'Follow\nup'] },
+          { label: '2025\nQ2', events: [] },
+        ],
+      }],
+    }
+    const project = (diagram: { title?: string; sections: { label?: string; periods: { label: string; events: { text: string }[] }[] }[] }) => ({
+      title: diagram.title,
+      sections: diagram.sections.map(section => ({
+        label: section.label,
+        periods: section.periods.map(period => ({ label: period.label, events: period.events.map(event => event.text) })),
+      })),
+    })
+    expect(project(parsed.body)).toEqual(expected)
+    expect(project(parseTimelineDiagram(normalizeMermaidSource(source).lines))).toEqual(expected)
+    const canonical = serializeMermaid(parsed)
+    expect(canonical).toContain('title <br>Product<br>history<br>')
+    expect(canonical).toContain('section <br>Platform<br>work<br>')
+    expect(canonical).toContain('2024<br>Q1 : <br>Soft<br>launch<br>')
+    expect(canonical).toContain('2025<br>Q2')
+    expect(project(timeline(canonical).body)).toEqual(expected)
+    expect(project(parseTimelineDiagram(normalizeMermaidSource(canonical).lines))).toEqual(expected)
+  })
+  test('preserves literal Timeline text that generic label normalization would rewrite', () => {
+    for (const raw of ['A\\nB', '"Quoted"', '**Bold**', '~~Strike~~', '<BR>Upper', '<br/>Slash', '<br />Spaced', 'A<b>Bold</b>']) {
+      const source = `timeline\n  title ${raw}\n  section ${raw}\n  ${raw} : ${raw}`
+      const projections = [
+        timeline(source).body,
+        parseTimelineDiagram(normalizeMermaidSource(source).lines),
+        timeline(serializeMermaid(timeline(source))).body,
+        parseTimelineDiagram(normalizeMermaidSource(serializeMermaid(timeline(source))).lines),
+      ]
+      for (const body of projections) {
+        expect(body.title, raw).toBe(raw)
+        expect(body.sections[0]!.label, raw).toBe(raw)
+        expect(body.sections[0]!.periods[0]!.label, raw).toBe(raw)
+        expect(body.sections[0]!.periods[0]!.events[0]!.text, raw).toBe(raw)
+      }
+    }
+  })
   test('title + sections + periods → structured body', () => {
     const d = parse('timeline\n  title History\n  section Phase 1\n  2020 : First\n  2021 : Second\n  section Phase 2\n  2022 : Third')
     expect(d.body.kind).toBe('timeline')
@@ -190,6 +237,62 @@ describe('timeline mutate — all 10 ops', () => {
       expect(project(reparsed.body.sections), `${op.kind} agent reparse`).toEqual(expected)
       const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
       expect(project(native.sections), `${op.kind} native reparse`).toEqual(expected)
+    }
+  })
+
+  test('event mutation serializes semantic line breaks as br tags', () => {
+    const result = mutate(timeline(SRC), {
+      kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'Soft\r\nlaunch',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.body.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+    const source = serializeMermaid(result.value)
+    expect(source).toContain('2020 : Soft<br>launch')
+    expect(timeline(source).body.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+    expect(parseTimelineDiagram(normalizeMermaidSource(source).lines).sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')
+  })
+
+  test('Timeline node-text mutation paths round-trip semantic line breaks', () => {
+    type TextBody = { title?: string; sections: { label?: string; periods: { label: string; events: { text: string }[] }[] }[] }
+    const text = 'Soft\nlaunch'
+    const cases: { op: TimelineMutationOp; canonical: string; read: (body: TextBody) => unknown; expected: unknown }[] = [
+      { op: { kind: 'set_section_label', index: 0, label: text }, canonical: 'section Soft<br>launch', read: body => body.sections[0]!.label, expected: text },
+      { op: { kind: 'add_section', label: text }, canonical: 'section Soft<br>launch', read: body => body.sections[2]!.label, expected: text },
+      { op: { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: text }, canonical: 'Soft<br>launch : A', read: body => body.sections[0]!.periods[0]!.label, expected: text },
+      { op: { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text }, canonical: ': Soft<br>launch', read: body => body.sections[0]!.periods[0]!.events[1]!.text, expected: text },
+      {
+        op: { kind: 'add_period', sectionIndex: 0, label: text, events: ['Next\rstep'] },
+        canonical: 'Soft<br>launch : Next<br>step',
+        read: body => [body.sections[0]!.periods[2]!.label, body.sections[0]!.periods[2]!.events[0]!.text],
+        expected: [text, 'Next\nstep'],
+      },
+    ]
+    for (const { op, canonical, read, expected } of cases) {
+      const result = mutate(timeline(SRC), op)
+      expect(result.ok, op.kind).toBe(true)
+      if (!result.ok) continue
+      const source = serializeMermaid(result.value)
+      expect(source, op.kind).toContain(canonical)
+      expect(read(result.value.body), `${op.kind} mutation`).toEqual(expected)
+      expect(read(timeline(source).body), `${op.kind} agent reparse`).toEqual(expected)
+      expect(read(parseTimelineDiagram(normalizeMermaidSource(source).lines)), `${op.kind} native reparse`).toEqual(expected)
+    }
+  })
+
+  test('title mutation preserves literal <br> and rejects semantic newlines that upstream cannot draw', () => {
+    const literal = mutate(timeline(SRC), { kind: 'set_title', title: 'Soft<br>launch' })
+    expect(literal.ok).toBe(true)
+    if (literal.ok) {
+      const source = serializeMermaid(literal.value)
+      expect(source).toContain('title Soft<br>launch')
+      expect(timeline(source).body.title).toBe('Soft<br>launch')
+      expect(parseTimelineDiagram(normalizeMermaidSource(source).lines).title).toBe('Soft<br>launch')
+    }
+    for (const title of ['Soft\nlaunch', 'Soft\r\nlaunch', 'Soft\rlaunch', '\nSoft', 'Soft\n', '\rSoft', 'Soft\r', ' \n Soft ', 'Soft\u2028launch', 'Soft\u2029launch']) {
+      const result = mutate(timeline(SRC), { kind: 'set_title', title })
+      expect(result.ok, title).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
     }
   })
 

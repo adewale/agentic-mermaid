@@ -96,6 +96,44 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     nodeProblems(make('A&lt;script&gt;'), 'p', missing)
     expect(missing.join('\n')).toContain('not found in crisp')
   })
+
+  it('compares complete escaped Timeline literals without mistaking them for markup', () => {
+    const make = (semantic: string, crispText: string) => marks.text(
+      { id: 'event', role: 'label', text: semantic, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+      `<text x="10" y="20" font-size="12" class="timeline-event-text">${crispText}</text>`,
+    )
+    const faithful: string[] = []
+    nodeProblems(make('A<BR>B', 'A&lt;BR&gt;B'), 'p', faithful)
+    nodeProblems(make('A<b>B', 'A&lt;b&gt;B'), 'p', faithful)
+    expect(faithful).toEqual([])
+    const multiline: string[] = []
+    nodeProblems(make('A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12">B</tspan>'), 'p', multiline)
+    expect(multiline).toEqual([])
+    for (const [semantic, crisp] of [
+      ['A<BR>B', 'A&lt;BR&gt;'],
+      ['A<BR>**B**', 'A&lt;BR&gt;B'],
+      ['A<BR>B', 'A&lt;BR&gt;B<script/>'],
+      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<script/>'],
+      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan><script/>'],
+      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan>'],
+      ['A**B**', 'AB'],
+      ['A<b>B', 'A<tspan font-weight="bold">B</tspan>'],
+      ['AB', 'A<tspan onclick="alert(1)"></tspan>B'],
+      ['AB', 'A<tspan style="filter:url(javascript:alert(1))"></tspan>B'],
+      ['AB', 'A</text><text x="10">B'],
+      ['A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12" onclick="alert(1)">B</tspan>'],
+    ] as const) {
+      const problems: string[] = []
+      nodeProblems(make(semantic, crisp), 'p', problems)
+      expect(problems.join('\n')).toMatch(/literal text|unexpected markup|unexpected styled/)
+    }
+    const rootHandler: string[] = []
+    nodeProblems(marks.text(
+      { id: 'event', role: 'label', text: 'AB', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+      '<text x="10" y="20" font-size="12" class="timeline-event-text" onclick="alert(1)">AB</text>',
+    ), 'p', rootHandler)
+    expect(rootHandler.join('\n')).toContain('unexpected markup')
+  })
 })
 
 describe('quadrant lowering is text-faithful', () => {
