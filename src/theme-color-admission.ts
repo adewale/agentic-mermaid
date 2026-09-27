@@ -1,4 +1,5 @@
 import type { MermaidFrontmatterMap, MermaidThemeVariables } from './mermaid-source.ts'
+import type { RenderOptions } from './types.ts'
 import { CHANNEL_THEME_KEYS } from './color-resolver.ts'
 import { drawableAuthoredCssPaint } from './shared/css-color.ts'
 import { syntaxError } from './shared/syntax-error.ts'
@@ -33,8 +34,8 @@ const ARCHITECTURE_COLOR_KEYS = new Set(['clusterBkg', 'clusterBorder'])
 // Architecture feeds the selected source key from each shared channel into
 // derived color-mix() paints. Shadowed fallbacks do not reach those sinks.
 const ARCHITECTURE_MIXED_CHANNELS = [
-  CHANNEL_THEME_KEYS.bg, CHANNEL_THEME_KEYS.surface,
-  CHANNEL_THEME_KEYS.line, CHANNEL_THEME_KEYS.accent,
+  ['bg', CHANNEL_THEME_KEYS.bg], ['surface', CHANNEL_THEME_KEYS.surface],
+  ['line', CHANNEL_THEME_KEYS.line], ['accent', CHANNEL_THEME_KEYS.accent],
 ] as const
 // Timeline mixes both cScale fills and cScaleInv lines into derived
 // color-mix() paints; `none` invalidates those colors. Labels require ink.
@@ -139,7 +140,11 @@ export function checkFamilyConfigColors(frontmatter: MermaidFrontmatterMap, fami
 
 /** Admit only the keys that a family actually paints. Other families' private
  * theme keys are added in separately reviewed #303 slices. */
-export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined, familyId: string): void {
+export function checkThemeVariableColors(
+  vars: MermaidThemeVariables | undefined,
+  familyId: string,
+  renderOptions?: Pick<RenderOptions, 'bg' | 'surface' | 'line' | 'accent'>,
+): void {
   if (!vars) return
   const privateColorKeys = familyId === 'pie' ? PIE_COLOR_KEYS
     : familyId === 'gitgraph' ? GITGRAPH_COLOR_KEYS
@@ -149,7 +154,9 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     : undefined
   const colorKeys = privateColorKeys ? new Set([...SHARED_COLOR_KEYS, ...privateColorKeys]) : SHARED_COLOR_KEYS
   const architectureMixedKeys = familyId === 'architecture'
-    ? new Set(ARCHITECTURE_MIXED_CHANNELS.flatMap(keys => selectedThemeColorKey(vars, keys) ?? []))
+    ? new Set(ARCHITECTURE_MIXED_CHANNELS.flatMap(([channel, keys]) => {
+      return renderOptions?.[channel] !== undefined ? [] : (selectedThemeColorKey(vars, keys) ?? [])
+    }))
     : undefined
   for (const key of colorKeys) {
     if (!Object.hasOwn(vars, key)) continue

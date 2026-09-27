@@ -358,6 +358,23 @@ describe('theme color admission (#303, Architecture layer)', () => {
     }
   })
 
+  test('explicit render colors override theme sources at the same admission boundary', () => {
+    for (const [key, colors] of [
+      ['background', { bg: '#fff' }],
+      ['lineColor', { line: '#f00' }],
+      ['arrowheadColor', { accent: '#00f' }],
+      ['nodeBkg', { surface: '#0f0' }],
+      ['primaryColor', { surface: '#0f0', accent: '#00f' }],
+      ['mainBkg', { bg: '#fff', surface: '#0f0' }],
+    ] as const) {
+      const source = init(ARCHITECTURE, key, 'none')
+      const svg = renderMermaidSVG(source, colors)
+      expect(svg, key).toContain('<svg')
+      expect(verifyMermaid(source, { renderOptions: colors }).warnings, key)
+        .not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+    }
+  })
+
   test('mainBkg none is named across public routes and input forms', async () => {
     const source = init(ARCHITECTURE, 'mainBkg', 'none')
     const named = 'themeVariables.mainBkg: "none" is not a CSS color'

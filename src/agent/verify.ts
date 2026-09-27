@@ -106,7 +106,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   try {
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
-    checkThemeVariableColors(source.config.themeVariables, parsed.value.kind)
+    checkThemeVariableColors(source.config.themeVariables, parsed.value.kind, opts.renderOptions)
     checkFamilyConfigColors(source.frontmatter, parsed.value.kind)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)

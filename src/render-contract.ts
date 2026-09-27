@@ -1919,7 +1919,7 @@ export function resolveRenderRequestForExecution(
   }
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
   if (themeCssProblem) throw new TypeError(themeCssProblem)
-  checkThemeVariableColors(source.config.themeVariables, family.id)
+  checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions)
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
   const resolutionDiagnostics = renderOptionApplicabilityDiagnostics(family, explicitOptionFields)
