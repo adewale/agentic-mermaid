@@ -216,7 +216,7 @@
     },
     {
       "path": "src/agent/pie-body.ts",
-      "sha256": "2190ece181f4c697015c52fbf48300e4f1d35bb61b388e0f62d041cb03d1d476"
+      "sha256": "d8b02e2d69e256cfd06dfd4fa0d1bb04bc396252f81f01f89164fedebe3ac22b"
     },
     {
       "path": "src/agent/png.ts",
@@ -360,7 +360,7 @@
     },
     {
       "path": "src/ascii/index.ts",
-      "sha256": "d83eb18064874bed45cb6c503e2496661b69b1ab39ae3192c9ad3d7ddc20e99f"
+      "sha256": "707954f50405cd3001c044f6488c61c5db6273ea07748cb014883736a9691115"
     },
     {
       "path": "src/ascii/journey.ts",
@@ -368,7 +368,7 @@
     },
     {
       "path": "src/ascii/meta.ts",
-      "sha256": "f51aa81e41c769524a8fef682617d32abebd8ed8abfb02e1b5575a72864c3c22"
+      "sha256": "d1908cad585bb46689e8a83b9d8dda978bdb8645b5fbb33be3f53a30b386f3dd"
     },
     {
       "path": "src/ascii/mindmap.ts",
@@ -652,7 +652,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "ddfcb4119fc8379cc28759ab8dddce5a87120bb364451f7fa56189e332b4307d"
+      "sha256": "da0c325949799ebc4ebfa54dbb266c35c151b4f6c96496835dbbd9f7690ea66f"
     },
     {
       "path": "src/mindmap/geometry.ts",
@@ -724,7 +724,7 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "76b15574c100d9297e37ae7e4181a3a1f4d98c72da18ea2b008d777a2b8c164b"
+      "sha256": "8f358a9fd5d9a5191dfbfb6cfb6f1061b0eca9d784b2ff0480cd4abc7f5073b5"
     },
     {
       "path": "src/pie/renderer.ts",
@@ -732,7 +732,7 @@
     },
     {
       "path": "src/pie/types.ts",
-      "sha256": "5085417a75d133235b34a440b98c001eae17b66f77be332591796eab749a574f"
+      "sha256": "85091bb46428a7439b2ce517d61dab8d91642921bc3ecccc09623548dd022e86"
     },
     {
       "path": "src/png-contract.ts",
@@ -800,11 +800,11 @@
     },
     {
       "path": "src/render-contract.ts",
-      "sha256": "88eb99d581ce9527d2ff1a53c32e6c4b96989ea12abe2b400ad4167faf4fc1b6"
+      "sha256": "3956b1d7f39404ad7e73d4357026bd464c10fad708729775e053347862349774"
     },
     {
       "path": "src/render-family-hooks.ts",
-      "sha256": "0cb6a3da140c9b8eac16d51d9b9616e83a405519e25b5ae10ef6acb6ae1b3007"
+      "sha256": "4584472797a083ed7aae916a59559f10e39ab2017d3e3f9ff968f521f09c0935"
     },
     {
       "path": "src/render-outputs.ts",
@@ -904,7 +904,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "a8a5fbb0ceb501b0282a3f5776a8d8bcb5f99f70f17ee03fb74251fce29d6a46"
+      "sha256": "e42414955db8389955c1fa7287d4ac924137920c35697005ed54f4e44813732c"
     },
     {
       "path": "src/scene/gradient-resources.ts",
