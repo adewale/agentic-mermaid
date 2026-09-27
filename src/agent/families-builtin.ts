@@ -20,6 +20,7 @@
 import { decodeXML } from 'entities'
 import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassReference } from '../class/parser.ts'
 import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax } from '../er/parser.ts'
+import { GitGraphDuplicateCommitError } from '../gitgraph/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
@@ -1275,7 +1276,7 @@ const MINDMAP_AGENT_HOOKS = {
 // ---- GitGraph --------------------------------------------------------------
 const GITGRAPH_AGENT_HOOKS = {
   extractLabels: extractLabelsGeneric,
-  parse: ({ source, meta }) => {
+  parse: ({ source, meta, opaqueSource }) => {
     try {
       const merged: Record<string, unknown> = {
         ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
@@ -1292,6 +1293,13 @@ const GITGRAPH_AGENT_HOOKS = {
         }),
       )
     } catch (error) {
+      // Mermaid 11.16 accepts duplicate custom IDs with a warning, but our
+      // deterministic identity model cannot safely mutate the ambiguous graph.
+      // Keep the authored source losslessly while native rendering rejects it.
+      if (error instanceof GitGraphDuplicateCommitError) {
+        return ok({ kind: 'opaque', family: 'gitgraph', source: opaqueSource,
+          diagnostic: { code: error.code, id: error.id } })
+      }
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
   },
@@ -1300,7 +1308,17 @@ const GITGRAPH_AGENT_HOOKS = {
     return renderGitGraphBody(body)
   },
   mutate: (body, op) => (body.kind === 'gitgraph' ? mutateGitGraph(body, op as never) : err({ code: 'INVALID_OP', message: `gitgraph mutator received body kind ${body.kind}` })),
-  verify: (body, opts) => (body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : []),
+  verify: (body, opts): LayoutWarning[] => {
+    if (body.kind === 'gitgraph') return verifyGitGraph(body, opts)
+    if (body.kind === 'opaque' && body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID') {
+      return [{
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'gitgraph_duplicate_commit_id',
+        message: 'Mermaid 11.16 warns and continues on duplicate GitGraph commit IDs, but Agentic Mermaid requires unique IDs for deterministic identity. The source is preserved; native rendering and typed mutation are unavailable. Rename one duplicate ID to render or mutate it.',
+      }]
+    }
+    return []
+  },
 } satisfies FamilyOperations
 
 // ---- Radar -----------------------------------------------------------------

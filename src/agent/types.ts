@@ -821,7 +821,7 @@ export type DiagramBody =
    * serializer can re-emit byte-for-byte. Distinct from `ValidDiagram.canonicalSource`,
    * which for structured bodies is the rebuilt canonical form.
    */
-  | { kind: 'opaque'; family: DiagramKind; source: string }
+  | { kind: 'opaque'; family: DiagramKind; source: string; diagnostic?: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID'; id: string } }
 
 /** Open, source-preserving body envelope owned by a namespaced family. */
 export interface ExtensionDiagramBody {
@@ -1686,5 +1686,5 @@ export interface ValidDiagramPayload {
     | RadarBody
     | SankeyBody
     | ExtensionDiagramBody
-    | { kind: 'opaque'; family: DiagramKind; source: string }
+    | { kind: 'opaque'; family: DiagramKind; source: string; diagnostic?: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID'; id: string } }
 }

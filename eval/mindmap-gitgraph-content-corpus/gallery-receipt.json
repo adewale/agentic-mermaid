@@ -128,7 +128,7 @@
     },
     {
       "path": "src/agent/families-builtin.ts",
-      "sha256": "8b420351185394d7f1e238639173f0c3f226298e21c2b3b2b0e229c4ef7de183"
+      "sha256": "693d278d3a81458ac003034fac47912b561db8b982f9b05073b9bcfbc99a5a55"
     },
     {
       "path": "src/agent/families.ts",
@@ -236,7 +236,7 @@
     },
     {
       "path": "src/agent/render-input.ts",
-      "sha256": "fb566e577a9a6f45c75a44fba63563742996d2c84435e6246f30ff586d93d8ee"
+      "sha256": "61e7617461b24a86cb9110b8e1d8dbff2f7a199ab7a653a16ac31a035143daab"
     },
     {
       "path": "src/agent/sankey-body.ts",
@@ -272,7 +272,7 @@
     },
     {
       "path": "src/agent/types.ts",
-      "sha256": "522e15dd3b792f16b63f507cb85330435c8fae81fbf1fcbd844fe5364023fc0e"
+      "sha256": "d86a33f0547c6fc3bb5aef7ed4d2cb7c74a1960f3cdc54d5cf205402519da9a3"
     },
     {
       "path": "src/agent/verify.ts",

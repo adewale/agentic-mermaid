@@ -3,15 +3,15 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "1224342e1dfd4960d3144079bf78fe91b708361242de6ce9644422930336079e",
-  "receiptResultSha256": "4b7bba89d6cfced1314d44163edec548de915002d4a2f5c6918fd5a6a5c8442d",
+  "receiptInputSha256": "a2f1a72607960adf89e4cd4762e33cd7a5e5b0fbdce3d41c0fadeae744f1cb3c",
+  "receiptResultSha256": "7268160b62748ad1322ce178b270374f6b6fabc5c3f36ff162b9fe6cd63fc419",
   "summary": {
-    "caseCount": 32,
-    "featureCount": 14,
+    "caseCount": 33,
+    "featureCount": 15,
     "dispositions": {
       "native": 6,
       "source-preserved": 0,
-      "diagnosed": 7,
+      "diagnosed": 8,
       "absent": 1
     }
   },
@@ -384,6 +384,56 @@
             "mutate": "native"
           },
           "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:gitgraph:section:customizing-main-branch-name",
+      "family": "gitgraph",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "gitgraph.official.main-branch-duplicate-id-diagnosed"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "RENDER_FAILED",
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "GITGRAPH_DUPLICATE_COMMIT_ID"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "gitgraph.official.main-branch-duplicate-id-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "RENDER_FAILED",
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "GITGRAPH_DUPLICATE_COMMIT_ID"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
         }
       ],
       "acceptedDivergences": []

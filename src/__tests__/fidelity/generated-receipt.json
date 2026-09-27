@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "1224342e1dfd4960d3144079bf78fe91b708361242de6ce9644422930336079e",
+    "inputSha256": "a2f1a72607960adf89e4cd4762e33cd7a5e5b0fbdce3d41c0fadeae744f1cb3c",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -105,6 +105,10 @@
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
         "sha256": "b80f8c69c05c445cbc4ad8f27308b772381e0489389b93ba0de6f5247dd3d217"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/gitgraph-duplicate-official.fidelity.ts",
+        "sha256": "43997b963ed7b697af374730b9a4dea0ee1f880fb02abcb9ddb41b39bfe9e57c"
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
@@ -1519,6 +1523,93 @@
             "serializedSource": "flowchart TD\n  A -->|\" a \"| B\n  B -->|\" b \"| A\n"
           },
           "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "gitgraph.official.main-branch-duplicate-id-diagnosed",
+      "family": "gitgraph",
+      "featureId": "official-doc:gitgraph:section:customizing-main-branch-name",
+      "sourceSha256": "2ea996869e041ddfc44828a6b284b1d67c52d5470d14746fa975632b7e5af975",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/gitgraph.html#customizing-main-branch-name",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "RENDER_FAILED",
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "GITGRAPH_DUPLICATE_COMMIT_ID"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "RENDER_FAILED",
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "bodyKind": "opaque",
+            "duplicateId": "Boston",
+            "remediationNamed": true,
+            "renderFailureNamesDuplicate": true,
+            "sourcePreserved": true,
+            "verifyRejected": true,
+            "warningSyntax": "gitgraph_duplicate_commit_id"
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "GITGRAPH_DUPLICATE_COMMIT_ID"
+          ],
+          "semantics": {
+            "duplicateId": "Boston",
+            "renderRejected": true
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "exactSource": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
         }
       },
       "passed": true,
@@ -3108,10 +3199,10 @@
     }
   ],
   "summary": {
-    "caseCount": 32,
-    "passedCaseCount": 32,
+    "caseCount": 33,
+    "passedCaseCount": 33,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 121,
+    "observedSurfaceCount": 125,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }
