@@ -91,12 +91,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // editor bundle while retaining the fixed two-request graph.
     // Pie's terminal projection and source-aware title display add a small
     // shared-editor import; the complete two-request graph stays fixed.
-    // Linux/x64 title-directive capture after the leading-space fix:
-    // 3,360,477 raw / 988,202 gzip / 777,029 Brotli editor bytes. The
-    // two-request graph is unchanged and all caps remain within 0.1%.
-    maxRawBytes: 3_361_000,
-    maxGzipBytes: 988_500,
-    maxBrotliBytes: 777_300,
+    // The complete HTML5 named-reference table for Pie raises the all-family
+    // editor bundle, but does not add a request or affect the lazy demo path.
+    // Linux/x64 captured 3,392,643 raw / 1,008,476 gzip / 796,046 Brotli;
+    // these three ceilings retain less than 0.1% headroom.
+    maxRawBytes: 3_393_000,
+    maxGzipBytes: 1_008_800,
+    maxBrotliBytes: 796_400,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

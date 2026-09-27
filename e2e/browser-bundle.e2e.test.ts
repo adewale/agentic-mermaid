@@ -278,6 +278,23 @@ describe('async family-loaded browser renderer', () => {
     }
   }, BUILD_TIMEOUT_MS)
 
+  test('the emitted Pie family decodes full named references in a real browser', async () => {
+    const source = 'pie\n  "A#NotEqualTilde;B" : 1\n  "C#notit;D" : 2\n'
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/blank.html`)
+      const svg = await page.evaluate(async ([entryUrl, pieSource]) => {
+        const api = await import(entryUrl)
+        return api.renderMermaidSVGAsync(pieSource, { security: 'strict' })
+      }, [`${base}/dist/browser-lazy/index.js`, source] as const)
+      expect(svg).toBe(renderMermaidSVG(source, { security: 'strict' }))
+      expect(svg).toContain('A≂̸B')
+      expect(svg).toContain('C¬it;D')
+    } finally {
+      await page.close()
+    }
+  }, BUILD_TIMEOUT_MS)
+
   test('a non-ELK family fetches no ELK code', async () => {
     const page = await browser.newPage()
     const requests: string[] = []

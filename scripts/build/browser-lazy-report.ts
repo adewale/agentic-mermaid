@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   brotliCompressSync,
   constants as zlibConstants,
@@ -119,6 +120,26 @@ const familyFiles = Object.fromEntries(BROWSER_BUILTIN_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
+
+// Pie alone needs the complete HTML5 named-reference table. Keep that data
+// out of initial download and every other family's transfer closure.
+const htmlEntityOutputs = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input =>
+    input.includes('entities/dist/') && input.endsWith('/generated/decode-data-html.js')))
+if (htmlEntityOutputs.length !== 1 || !familyFiles.pie.includes(htmlEntityOutputs[0]!)
+  || initialFiles.includes(htmlEntityOutputs[0]!)
+  || BROWSER_BUILTIN_FAMILY_IDS.some(id => id !== 'pie' && familyFiles[id].includes(htmlEntityOutputs[0]!))) {
+  throw new Error('HTML5 named-reference table must load with Pie only')
+}
+// Source-level tests do not exercise the build-only CJS alias. Execute the
+// emitted ESM entry so a broken split decoder fails this mandatory build gate.
+const { renderMermaidSVGAsync } = await import(pathToFileURL(join(ROOT, 'dist/browser-lazy/index.js')).href)
+for (const [name, displayed] of [['NotEqualTilde', '≂̸'], ['notit', '¬it;']] as const) {
+  const svg = await renderMermaidSVGAsync(`pie\n  "A#${name};B" : 1\n`)
+  if (!svg.includes(`>A${displayed}B (100.0%)</text>`)) {
+    throw new Error(`Built Pie lazy decoder failed HTML5 named reference #${name};`)
+  }
+}
 
 const observedElkFamilies = BROWSER_BUILTIN_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (JSON.stringify(observedElkFamilies) !== JSON.stringify(budgets.elkFamilies)) {
