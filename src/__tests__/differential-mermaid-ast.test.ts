@@ -70,7 +70,9 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
     // presentation metadata that this project now promotes to typed structure.
     // A change here means our counting moved relative to an independent
     // implementation — investigate before re-pinning.
-    const BASELINE: Record<string, number> = { flowchart: 5, sequence: 6, er: 5 }
+    // Sequence docs case 30 now agrees after restoring its two spaced-marker
+    // messages, reducing the genuine divergence count from six to five.
+    const BASELINE: Record<string, number> = { flowchart: 5, sequence: 5, er: 5 }
     const byFamily: Record<string, number> = {}
     let checked = 0
     for (const e of corpus) {
