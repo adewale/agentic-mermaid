@@ -83,6 +83,19 @@ describe('fidelity oracle checks text x/y/anchor', () => {
       expect(problems.join('\n')).toContain('not found in crisp')
     }
   })
+
+  it('keeps entity-produced Pie title tags literal without hiding missing text', () => {
+    const make = (crispText: string) => marks.text(
+      { id: 'title', role: 'title', text: 'A<script>B', x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} },
+      `<text x="10" y="20" text-anchor="middle" font-size="12" class="pie-title">${crispText}</text>`,
+    )
+    const faithful: string[] = []
+    nodeProblems(make('A&lt;script&gt;B'), 'p', faithful)
+    expect(faithful).toEqual([])
+    const missing: string[] = []
+    nodeProblems(make('A&lt;script&gt;'), 'p', missing)
+    expect(missing.join('\n')).toContain('not found in crisp')
+  })
 })
 
 describe('quadrant lowering is text-faithful', () => {

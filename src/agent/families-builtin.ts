@@ -23,6 +23,7 @@ import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax }
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
+import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { mutateClass, parseClassBody, parseClassRelationSyntax, renderClass, verifyClass } from './class-body.ts'
@@ -1041,7 +1042,11 @@ const PIE_AGENT_HOOKS = {
   buildSourceMap: buildChartSourceMap,
   parse: ({ lines, opaqueSource }) => {
     const header = parsePieHeader(lines[0]?.trim() ?? '')
-    const body = header ? parsePieBody(lines.slice(1), header) : null
+    const bodyLines = lines.slice(1).map(line => {
+      const title = splitAuthoredPieTitleLine(line, 'body')
+      return title ? title.decodedPrefix + title.authoredTitle : line
+    })
+    const body = header ? parsePieBody(bodyLines, header) : null
     return ok(body ?? { kind: 'opaque', family: 'pie', source: opaqueSource })
   },
   serialize: body => {

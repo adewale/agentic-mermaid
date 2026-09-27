@@ -9,6 +9,7 @@
 
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { stripStateComment } from '../state/comment.ts'
+import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { decodeXML } from 'entities'
 import {
   classifyMermaidFamilyDescriptorFromFirstLine,
@@ -121,8 +122,11 @@ function semanticFamilyLineSource(
   // Mermaid accepts a family declaration followed by a semicolon-delimited
   // statement on the same physical line. Only the declaration is the header;
   // the suffix belongs to the preserved body and the family grammar.
+  // Pinned Pie treats every semicolon after an inline `title` as title text,
+  // including ordinary punctuation and #entity; markers.
+  const pieInlineTitle = splitAuthoredPieTitleLine(authoredLine, 'header')
   let semicolon = -1
-  for (let index = 0; index < authoredLine.length; index++) {
+  for (let index = 0; !pieInlineTitle && index < authoredLine.length; index++) {
     if (authoredLine.charCodeAt(index) !== 59) continue
     const ampersand = authoredLine.lastIndexOf('&', index)
     if (ampersand >= 0 && /^#?(?:x[0-9a-f]+|\d+|[a-z][a-z0-9]+)$/i.test(authoredLine.slice(ampersand + 1, index))) continue
@@ -134,12 +138,10 @@ function semanticFamilyLineSource(
   const relativeStart = line.indexOf(authoredHeader)
   const headerStart = lineStart + relativeStart
   const headerEnd = headerStart + authoredHeader.length
-  // Pie permits an inline title in its header. That suffix is authored text,
-  // not route grammar: decoding it here would make the typed title and
-  // canonical serializer lose its original entity spelling.
-  const pieInlineTitle = authoredHeader.match(/^(\s*pie\b(?:\s+showData\b)?\s+title\s+)(.+)$/i)
+  // Pie permits an inline title in its header. Decode only the grammar
+  // prefix, even when XML references spell its whitespace or letters.
   const semanticHeader = pieInlineTitle
-    ? `${decodeXML(pieInlineTitle[1]!)}${pieInlineTitle[2]!}`
+    ? `${pieInlineTitle.decodedPrefix}${pieInlineTitle.authoredTitle}`
     : decodeXML(authoredHeader)
   return {
     source: semanticHeader === authoredHeader

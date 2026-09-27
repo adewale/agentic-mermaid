@@ -1,5 +1,7 @@
 import { expect, test } from 'bun:test'
-import { decodeXML } from 'entities'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { decodeHTML, decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
@@ -75,11 +77,70 @@ test('Pie title entity projection cannot inject markup or terminal controls', ()
   expect(parsePieChart(source.trim().split('\n')).displayTitle).toBe('A<script>B')
   expect(titleXml(source)).toBe('A&lt;script&gt;B')
   expect(renderMermaidASCII(source, { colorMode: 'html' })).not.toContain('<script>')
-  for (const code of ['7', '9', '10', '13', '127']) {
+  for (const code of ['7', '9', '10', '13', '27', '127', '129']) {
     const bad = `pie\n  title A#${code};B\n  "X" : 1\n`
     expect(() => renderMermaidSVG(bad)).toThrow(/Pie entity projects a terminal control character/)
-    expect(() => renderMermaidASCII(bad)).toThrow(/Pie entity projects a terminal control character/)
+    for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
+      expect(() => renderMermaidASCII(bad, { colorMode })).toThrow(/Pie entity projects a terminal control character/)
+    }
   }
+})
+
+test('entity-encoded Pie directive grammar does not consume authored title entities or split inline title spans', () => {
+  for (const [source, authoredTitle, visible] of [
+    ['pie title A#65;B\n  "X" : 1\n', 'A#65;B', 'AAB'],
+    ['pie title A;B\n  "X" : 1\n', 'A;B', 'A;B'],
+    ['pie&#32;title A&#65;B\n  "X" : 1\n', 'A&#65;B', 'A&AB'],
+    ['pie\n  t&#105;tle A&#65;B\n  "X" : 1\n', 'A&#65;B', 'A&AB'],
+  ] as const) {
+    const agent = parseRegisteredMermaid(source)
+    expect(agent.ok).toBe(true)
+    if (!agent.ok) continue
+    expect(agent.value.body.kind).toBe('pie')
+    if (agent.value.body.kind === 'pie') expect(agent.value.body.title).toBe(authoredTitle)
+    expect(serializeMermaid(agent.value)).toContain(`title ${authoredTitle}`)
+    expect(decodeXML(titleXml(source))).toBe(visible)
+    const firstLineLength = source.indexOf('\n')
+    if (source.startsWith('pie title') || source.startsWith('pie&#32;title')) {
+      expect(agent.value.source.spans?.preserved.header.end.offset).toBe(firstLineLength)
+      expect(agent.value.source.spans?.preserved.body.start.offset).toBe(firstLineLength + 1)
+    }
+  }
+})
+
+test('pinned Mermaid Pie DB and SVG entity cleanup witness title display independently', () => {
+  for (const [sourceTitle, expectedMarker, expectedDisplay] of [
+    ['A#65;B', 'Aﬂ°°65¶ßB', 'AAB'],
+    ['A&#65;B', 'A&ﬂ°°65¶ßB', 'A&AB'],
+    ['A#copy;B', 'Aﬂ°copy¶ßB', 'A©B'],
+  ] as const) {
+    const source = `pie\n  title ${sourceTitle}\n  "X" : 1\n`
+    const script = `
+      import DOMPurify from 'dompurify'
+      DOMPurify.addHook = () => {}
+      DOMPurify.sanitize = text => text
+      const { default: mermaid } = await import('mermaid')
+      mermaid.initialize({ startOnLoad: false })
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
+      process.stdout.write(JSON.stringify(diagram.db.getDiagramTitle()))
+    `
+    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+    expect(probe.exitCode).toBe(0)
+    const marker = JSON.parse(new TextDecoder().decode(probe.stdout)) as string
+    expect(marker).toBe(expectedMarker)
+    const finalReference = marker.replaceAll('ﬂ°°', '&#').replaceAll('ﬂ°', '&').replaceAll('¶ß', ';')
+    expect(decodeHTML(finalReference)).toBe(expectedDisplay)
+    expect(decodeXML(titleXml(source))).toBe(expectedDisplay)
+  }
+})
+
+test('reviewed Pie title before/after visuals use the same production source', () => {
+  const source = 'pie showData\n  title A#65;B\n  "X" : 1\n  "Y" : 2\n'
+  const asset = (which: 'before' | 'after') => readFileSync(
+    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-title-entity-${which}.svg`), 'utf8')
+  expect(asset('before')).toContain('>A#65;B</text>')
+  expect(asset('after')).toBe(renderMermaidSVG(source))
+  expect(asset('after')).toContain('>AAB</text>')
 })
 
 test('Pie inline showData title keeps authored entity spelling and an entity-created tag stays literal', () => {
@@ -96,6 +157,9 @@ test('Pie inline showData title keeps authored entity spelling and an entity-cre
   expect(titleXml(markup)).toBe('A&lt;br&gt;B')
   expect(renderMermaidASCII(markup, { colorMode: 'none' })).toStartWith('A<br>B\n')
   expect(renderMermaidASCIIWithMeta(markup, { colorMode: 'none' }).regions[0]?.projectedText).toBe('A<br>B')
+  const mixed = 'pie\n  title A#65;<b>B</b>\n  "X" : 1\n'
+  expect(titleXml(mixed)).toBe('AA&lt;b&gt;B&lt;/b&gt;')
+  expect(renderMermaidASCII(mixed, { colorMode: 'none' })).toStartWith('AA<b>B</b>\n')
 })
 
 test('Pie entity display matches pinned Mermaid browser text while preserving authored section identity', async () => {
