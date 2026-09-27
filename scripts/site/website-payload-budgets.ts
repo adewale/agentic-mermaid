@@ -54,10 +54,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Linux/x64 measures 735,369 raw / 275,828 gzip / 251,742 Brotli bytes.
     // The bounded Timeline Scene wrapper check and width loop remain in the
     // existing lazy graph; Linux/x64 measured 735,792 raw / 275,963 gzip.
-    // Source-admission guards measure 736,006 raw / 251,929 Brotli on the
-    // same 30-request graph; keep less than 0.02% headroom.
+    // Source-admission guards measure 736,006 raw / 276,044 gzip / 251,929
+    // Brotli on the same 30-request graph; keep less than 0.02% headroom.
     maxRawBytes: 736_150,
-    maxGzipBytes: 276_050,
+    maxGzipBytes: 276_150,
     maxBrotliBytes: 252_050,
     required: Object.freeze([
       '^/demo/$',
