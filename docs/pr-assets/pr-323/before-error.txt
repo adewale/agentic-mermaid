@@ -1,5 +1,6 @@
 Base: 5878093795f803e71ddbf0de24a8252768225927 (PR #322 head)
-Source: gitgraph-official-cherry-pick.mmd, copied from the pinned Mermaid 11.16 GitGraph syntax page.
+Source: gitgraph-official-cherry-pick.mmd, the pinned Mermaid 11.16 GitGraph
+syntax example with indentation normalized and statements unchanged.
 Public CLI command on the base: bun run bin/am.ts render <absolute path to this PR's gitgraph-official-cherry-pick.mmd> --format svg
 Observed result before the fix: exit 2, `Error: RENDER_FAILED: Rendering failed`, no SVG.
 
