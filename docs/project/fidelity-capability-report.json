@@ -3,15 +3,15 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "6ca0bc788eb2bfd584c8bd715ee59fa4986efe5525bb26eaefdab36159f1c572",
-  "receiptResultSha256": "76e27017f880bf2c623ff87f76fcf1895a5727a95bf1f90bbe7cdccc787ce1c7",
+  "receiptInputSha256": "4ce4e99456844af0f61d4a848749b36f696e93a60a61dabcadfdd9b4632c2f41",
+  "receiptResultSha256": "21969509b00cf2aa6a907026b0d747e364d4b7ff62a558909a84615254f0ac7d",
   "summary": {
-    "caseCount": 10,
-    "featureCount": 7,
+    "caseCount": 22,
+    "featureCount": 12,
     "dispositions": {
-      "native": 2,
+      "native": 4,
       "source-preserved": 0,
-      "diagnosed": 2,
+      "diagnosed": 5,
       "absent": 3
     }
   },
@@ -62,6 +62,244 @@
               "UNSUPPORTED_FAMILY"
             ]
           }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:annotations-on-classes",
+      "family": "class",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "class.annotations.inline-native",
+        "class.annotations.repeated-diagnosed",
+        "class.annotations.separate-native"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.annotations.inline-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.annotations.repeated-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "class.annotations.separate-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:defining-relationship",
+      "family": "class",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "class.relationship.escaped-directed-native",
+        "class.relationship.hyphenated-endpoint-diagnosed",
+        "class.relationship.link-dashed-native",
+        "class.relationship.link-solid-native"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.relationship.escaped-directed-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.relationship.hyphenated-endpoint-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "class.relationship.link-dashed-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "class.relationship.link-solid-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:class:section:interaction",
+      "family": "class",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "class.interaction.navigation-target-diagnosed",
+        "class.interaction.safe-link-tooltip-native"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "class.interaction.navigation-target-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        },
+        {
+          "caseId": "class.interaction.safe-link-tooltip-native",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:er:section:relationship-syntax",
+      "family": "er",
+      "disposition": "native",
+      "caseIds": [
+        "er.relationships.word-cardinality-aliases"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "er.relationships.word-cardinality-aliases",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
         }
       ],
       "acceptedDivergences": []
@@ -125,47 +363,27 @@
     {
       "featureId": "official-doc:journey:section:user-journey-diagram",
       "family": "journey",
-      "disposition": "diagnosed",
+      "disposition": "native",
       "caseIds": [
         "journey.scores.fractional-parser-render-seam"
       ],
       "surfaces": {
-        "agent": "source-preserved",
-        "render": "diagnosed",
-        "serialize": "source-preserved",
-        "mutate": "diagnosed"
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
       },
-      "diagnostics": {
-        "agent": [
-          "UNSUPPORTED_SYNTAX"
-        ],
-        "render": [
-          "RENDER_FAILED"
-        ],
-        "mutate": [
-          "INVALID_OP"
-        ]
-      },
+      "diagnostics": {},
       "caseEvidence": [
         {
           "caseId": "journey.scores.fractional-parser-render-seam",
           "surfaces": {
-            "agent": "source-preserved",
-            "render": "diagnosed",
-            "serialize": "source-preserved",
-            "mutate": "diagnosed"
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
           },
-          "diagnostics": {
-            "agent": [
-              "UNSUPPORTED_SYNTAX"
-            ],
-            "render": [
-              "RENDER_FAILED"
-            ],
-            "mutate": [
-              "INVALID_OP"
-            ]
-          }
+          "diagnostics": {}
         }
       ],
       "acceptedDivergences": []
@@ -280,6 +498,65 @@
             ],
             "mutate": [
               "COMMENT_DROPPED"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:timeline:section:direction-v11-14-0",
+      "family": "timeline",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "timeline.direction.td-vertical-geometry",
+        "timeline.direction.unsupported-header-diagnosis"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "timeline.direction.td-vertical-geometry",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "timeline.direction.unsupported-header-diagnosis",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
+            ],
+            "mutate": [
+              "INVALID_OP"
             ]
           }
         }

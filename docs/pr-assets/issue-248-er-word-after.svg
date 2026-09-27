@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="579.35" height="136" viewBox="0 0 579.35 136" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="579.35" height="136" viewBox="0 0 579.35 136" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-x8aryv">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg {
+  .am-x8aryv text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .am-x8aryv .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-x8aryv {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -26,14 +26,14 @@
   <path d="M40,40 H180 V74 H40 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
   <text x="110" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55" textLength="30.03" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CAR</text>
   <line x1="40" y1="74" x2="180" y2="74" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="110" y="85" text-anchor="middle" dy="0.35em" font-size="11" fill="#8a8a8c" font-style="italic" data-id="entity-empty:CAR" data-role="attribute" textLength="65.208" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">(no attributes)</text>
+  <text x="110" y="85" text-anchor="middle" dy="0.35em" font-size="11" fill="#69696c" font-style="italic" data-id="entity-empty:CAR" data-role="attribute" textLength="65.208" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">(no attributes)</text>
 </g>
 <g class="entity" data-id="DRIVER" data-label="DRIVER" data-role="entity">
   <rect x="399.35" y="40" width="140" height="56" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="1" data-id="entity-rect:DRIVER" data-role="entity" />
   <path d="M399.35,40 H539.35 V74 H399.35 Z" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="1" />
   <text x="469.35" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" dy="4.55" textLength="51.87" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">DRIVER</text>
   <line x1="399.35" y1="74" x2="539.35" y2="74" stroke="#d4d4d4" stroke-width="0.75" />
-  <text x="469.35" y="85" text-anchor="middle" dy="0.35em" font-size="11" fill="#8a8a8c" font-style="italic" data-id="entity-empty:DRIVER" data-role="attribute" textLength="65.208" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">(no attributes)</text>
+  <text x="469.35" y="85" text-anchor="middle" dy="0.35em" font-size="11" fill="#69696c" font-style="italic" data-id="entity-empty:DRIVER" data-role="attribute" textLength="65.208" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">(no attributes)</text>
 </g>
 <line x1="184" y1="62" x2="184" y2="74" stroke="#939395" stroke-width="1.25" data-id="card:CAR-DRIVER#0:1" data-role="cardinality" />
 <line x1="188" y1="62" x2="188" y2="74" stroke="#939395" stroke-width="1.25" />
@@ -42,5 +42,5 @@
 <line x1="395.35" y1="61" x2="383.35" y2="68" stroke="#939395" stroke-width="1.25" />
 <circle cx="379.35" cy="68" r="4" fill="#FFFFFF" stroke="#939395" stroke-width="1.25" />
 <rect x="270" y="57.85" width="39.35" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" />
-<text x="289.675" y="68" text-anchor="middle" font-size="11" font-weight="400" fill="#707072" dy="3.8499999999999996" textLength="31.35" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">allows</text>
+<text x="289.675" y="68" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" dy="3.8499999999999996" textLength="31.35" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">allows</text>
 </svg>

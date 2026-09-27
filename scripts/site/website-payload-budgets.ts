@@ -41,15 +41,17 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
     maxRequests: 29,
-    // Journey delimiter hardening changes generated demo bytes without adding
-    // a request. These ceilings cover the reviewed Linux/x64 capture.
+    // The shared accDescr scanner removes one lazy chunk without changing
+    // rendered pixels; the unclosed-block guard and inline-empty-Class-body
+    // recognition add a few bytes. These are measured Linux/x64 and
+    // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
     // The chart-honesty text contract, with its checks that name an invalid
-    // authored color, adds 6,240 raw, 2,324 gzip, and 1,644 Brotli bytes to the
+    // authored color, adds 6,353 raw, 2,466 gzip, and 1,848 Brotli bytes to the
     // shared chunks, and its module moves regroup the small shared chunks, so
-    // the graph drops from 31 to 29 requests.
-    maxRawBytes: 738_657,
-    maxGzipBytes: 277_109,
-    maxBrotliBytes: 252_607,
+    // the graph drops from 30 to 29 requests.
+    maxRawBytes: 738_611,
+    maxGzipBytes: 277_122,
+    maxBrotliBytes: 252_558,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -72,17 +74,24 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // two-request graph stays fixed.
     // The ER alias parser raises the reviewed Linux/x64 editor bundle by 419
     // raw, 158 gzip, and 261 Brotli bytes without a new request.
-    // Journey delimiter hardening preserves the two-request graph; these are
-    // the reviewed Linux/x64 capture ceilings.
+    // The Journey extension audit fixes retain authored line provenance and
+    // move extension evidence outside the upstream capability projection.
+    // The shared accDescr scanner, unclosed-block guard, and inline-empty-Class
+    // recognition leave the two-request graph unchanged. Exact Linux totals
+    // are pinned in the baseline.
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
     // family's text tones, halos, titles, and containment, and the checks that
-    // name an invalid authored color) adds 22,538 raw, 8,230 gzip, and 6,383
-    // Brotli bytes without a new request.
-    maxRawBytes: 3_379_210,
-    maxGzipBytes: 997_668,
-    maxBrotliBytes: 783_065,
+    // name an invalid authored color) adds 22,525 raw, 8,341 gzip, and 5,946
+    // Brotli bytes to the Linux/x64 editor bundle without a new request. Each
+    // ceiling keeps main's allowance above the Linux total for the macOS
+    // recording.
+    maxRawBytes: 3_380_089,
+    // The ratcheted upstream inventory changes the generated editor bundle's
+    // compression without adding requests; the final Linux capture pins bytes.
+    maxGzipBytes: 998_106,
+    maxBrotliBytes: 783_638,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

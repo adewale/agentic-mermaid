@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="344" height="195.2" viewBox="0 0 344 195.2" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<svg xmlns="http://www.w3.org/2000/svg" width="344" height="195.2" viewBox="0 0 344 195.2" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1e31h6e">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-1e31h6e text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1e31h6e {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -18,18 +18,18 @@
   }
 </style>
 <style>
-  .timeline-title { fill: #27272A; }
-  .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
-  .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-section-label { fill: #575759; }
-  .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
-  .timeline-marker-core { fill: #47474a; }
-  .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
-  .timeline-period-text { fill: #27272A; }
-  .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
-  .timeline-event-text { fill: #707072; }
+  .am-1e31h6e .timeline-title { fill: #27272A; }
+  .am-1e31h6e .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
+  .am-1e31h6e .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
+  .am-1e31h6e .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .am-1e31h6e .timeline-section-label { fill: #575759; }
+  .am-1e31h6e .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
+  .am-1e31h6e .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
+  .am-1e31h6e .timeline-marker-core { fill: #47474a; }
+  .am-1e31h6e .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
+  .am-1e31h6e .timeline-period-text { fill: #27272A; }
+  .am-1e31h6e .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .am-1e31h6e .timeline-event-text { fill: #69696c; }
 </style>
 <line class="timeline-rail" x1="96" y1="85.6" x2="248" y2="85.6" />
 <g class="timeline-period" data-id="period-0" data-label="2020" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="period">
