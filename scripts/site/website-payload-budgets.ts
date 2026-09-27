@@ -74,11 +74,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Architecture's three family theme-color guards retain 31 requests.
     // Linux/Bun 1.4.2 measures 742,416 raw / 278,248 gzip / 253,877 Brotli.
     // Architecture's shared derived-paint admission keeps 31 requests. The
-    // exact Linux/Bun 1.4.2 capture measures 742,539 raw / 278,285 gzip /
-    // 253,919 Brotli bytes; these ceilings keep less than 0.06% headroom.
-    maxRawBytes: 1_000_000,
-    maxGzipBytes: 400_000,
-    maxBrotliBytes: 350_000,
+    // exact Linux/Bun 1.4.2 capture measures 742,619 raw / 278,318 gzip /
+    // 253,921 Brotli bytes; these ceilings keep less than 0.06% headroom.
+    maxRawBytes: 742_650,
+    maxGzipBytes: 278_400,
+    maxBrotliBytes: 254_050,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -158,17 +158,17 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 798,966 Brotli bytes in the unchanged two-request editor graph.
     // The same gate measures 3,404,740 raw / 1,012,842 gzip / 799,370
     // Brotli bytes in the unchanged two-request editor graph.
-    // The complete editor bundle measures 3,404,865 raw / 1,012,878 gzip /
-    // 799,373 Brotli bytes in the same exact Linux capture.
-    maxRawBytes: 4_000_000,
+    // The complete editor bundle measures 3,404,952 raw / 1,012,894 gzip /
+    // 799,200 Brotli bytes in the same exact Linux capture.
+    maxRawBytes: 3_405_000,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_500_000,
+    maxGzipBytes: 1_013_000,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.
-    maxBrotliBytes: 1_200_000,
+    maxBrotliBytes: 799_500,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
