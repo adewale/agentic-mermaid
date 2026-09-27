@@ -1,0 +1,1 @@
+{"ok":false,"error":{"code":"INVALID_THEME_COLOR","message":"themeVariables.primaryColor: \"notacolor\" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor, none, or var(--name), e.g. themeVariables.primaryColor:#f96","key":"primaryColor","value":"notacolor"}}
