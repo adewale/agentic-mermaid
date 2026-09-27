@@ -1,6 +1,6 @@
 import { decodeXML } from 'entities'
 import { graphemes } from './shared/graphemes.ts'
-import { measureFormattedTextWidth, measureMonospaceTextWidth } from './text-metrics.ts'
+import { measureFormattedTextWidth, measureMonospaceTextWidth, measureTextWidth } from './text-metrics.ts'
 
 function presentationAttribute(attrs: string, name: string): string | undefined {
   return attrs.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, 'i'))?.[2]
@@ -180,7 +180,7 @@ function collectRuns(
   return { runs, blocked }
 }
 
-function measuredAdvance(runs: readonly MeasuredRun[]): number | null {
+function measuredAdvance(runs: readonly MeasuredRun[], literalText = false): number | null {
   const painted = runs.filter(run => run.text.length > 0)
   if (painted.length === 0 || painted.every(run => run.text.trim().length === 0)) return null
   let width = 0
@@ -192,7 +192,10 @@ function measuredAdvance(runs: readonly MeasuredRun[]): number | null {
     if (previousClusters > 0 && clusters > 0) width += previousSpacing
     width += run.metrics.mono
       ? measureMonospaceTextWidth(run.text, run.metrics.size, run.metrics.letterSpacing)
-      : measureFormattedTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.letterSpacing)
+      : literalText
+        ? measureTextWidth(run.text, run.metrics.size, run.metrics.weight) +
+          Math.max(0, clusters - 1) * run.metrics.letterSpacing
+        : measureFormattedTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.letterSpacing)
     previousClusters = clusters
     previousSpacing = run.metrics.letterSpacing
   }
@@ -216,8 +219,9 @@ export function fitUncalibratedSvgText(svg: string, _fontStack: string): string 
   const edits: SourceEdit[] = []
   const base: InheritedTextMetrics = { size: 0, weight: 400, letterSpacing: 0, mono: false }
 
-  const visitTextTree = (element: XmlElement, inherited: InheritedTextMetrics, insideText: boolean) => {
+  const visitTextTree = (element: XmlElement, inherited: InheritedTextMetrics, insideText: boolean, inheritedLiteral = false) => {
     const metrics = resolveMetrics(inherited, element)
+    const literalText = inheritedLiteral || hasAttribute(element.attrs, 'data-literal-text')
     const isTextRoot = element.name === 'text' && !insideText
     const isOwner = isTextRoot || (insideText && startsPositionedAdvance(element))
     const emitterOwned = isOwner && hasAttribute(element.attrs, 'textLength')
@@ -227,7 +231,7 @@ export function fitUncalibratedSvgText(svg: string, _fontStack: string): string 
     // one continuous parent-owned advance.
     if (isOwner && !(isTextRoot && hasPositionedDescendant(element))) {
       const collected = collectRuns(element, inherited)
-      const width = collected.blocked ? null : measuredAdvance(collected.runs)
+      const width = collected.blocked ? null : measuredAdvance(collected.runs, literalText)
       if (width !== null) {
         edits.push({
           offset: element.openEnd - 1,
@@ -236,7 +240,7 @@ export function fitUncalibratedSvgText(svg: string, _fontStack: string): string 
       }
     }
     const nextInside = insideText || isTextRoot
-    for (const child of childElements(element)) visitTextTree(child, metrics, nextInside)
+    for (const child of childElements(element)) visitTextTree(child, metrics, nextInside, literalText)
   }
   for (const root of roots) visitTextTree(root, base, false)
 

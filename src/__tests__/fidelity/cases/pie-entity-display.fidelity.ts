@@ -151,4 +151,57 @@ const titleEntityDisplay: FidelityCaseDefinition = {
   },
 }
 
-export const fidelityCases = [numericEntityDisplay, namedEntityDisplay, titleEntityDisplay] as const satisfies readonly FidelityCaseDefinition[]
+const authoredFormattingSource = 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n  "A<br/>B" : 2\n'
+
+const authoredFormattingLiteral: FidelityCaseDefinition = {
+  id: 'pie.syntax.authored-formatting-literal', family: 'pie',
+  featureId: 'official-doc:pie:section:syntax', source: authoredFormattingSource,
+  upstreamReference: 'https://mermaid.ai/open-source/syntax/pie.html#syntax',
+  upstreamRevision: 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc',
+  expected: {
+    agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
+      const f = facts(evidence)
+      return f.kind === 'pie' && f.authoredTitle === 'T<b>itle</b>'
+        && JSON.stringify(f.labels) === JSON.stringify(['A<br>B', 'A<br/>B']) ? 'native' : 'absent'
+    } },
+    render: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
+      const f = facts(evidence)
+      return f.svgTitle === 'T&lt;b&gt;itle&lt;/b&gt;'
+        && JSON.stringify(f.svgLegends) === JSON.stringify(['A&lt;br&gt;B [1] (33.3%)', 'A&lt;br/&gt;B [2] (66.7%)'])
+        && f.terminalTitle === 'T<b>itle</b>' ? 'native' : 'absent'
+    } },
+    serialize: { applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).sourceExact === true ? 'native' : 'absent' },
+    mutate: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
+      const f = facts(evidence)
+      return JSON.stringify(f.values) === JSON.stringify([1, 3])
+        && JSON.stringify(f.labels) === JSON.stringify(['A<br>B', 'A<br/>B']) ? 'native' : 'absent'
+    } },
+  },
+  observe: () => {
+    const parsed = parseRegisteredMermaid(authoredFormattingSource)
+    if (!parsed.ok || parsed.value.body.kind !== 'pie') throw new Error('Authored Pie formatting must remain typed')
+    const body = parsed.value.body
+    const svg = renderMermaidSVG(authoredFormattingSource)
+    const svgTitle = svg.match(/class="pie-title"[^>]*>([^<]*)<\/text>/)?.[1] ?? null
+    const svgLegends = [...svg.matchAll(/class="pie-legend-text"[^>]*>([^<]*)<\/text>/g)].map(match => match[1]!)
+    const terminalTitle = renderMermaidASCII(authoredFormattingSource, { colorMode: 'none' }).split('\n')[0] ?? null
+    const changed = mutate(parsed.value, { kind: 'set_slice_value', label: 'A<br/>B', value: 3 })
+    const changedBody = changed.ok && changed.value.body.kind === 'pie' ? changed.value.body : undefined
+    return {
+      agent: { status: 'observed', diagnosticCodes: [], semantics: {
+        kind: body.kind, authoredTitle: body.title ?? null, labels: body.slices.map(slice => slice.label),
+      } },
+      render: { status: 'observed', diagnosticCodes: [], semantics: { svgTitle, svgLegends, terminalTitle } },
+      serialize: { status: 'observed', diagnosticCodes: [], semantics: {
+        sourceExact: serializeMermaid(parsed.value) === authoredFormattingSource,
+      } },
+      mutate: { status: 'observed', diagnosticCodes: changed.ok ? [] : [changed.error.code], semantics: {
+        values: changedBody?.slices.map(slice => slice.value) ?? null,
+        labels: changedBody?.slices.map(slice => slice.label) ?? null,
+      } },
+    }
+  },
+}
+
+export const fidelityCases = [numericEntityDisplay, namedEntityDisplay, titleEntityDisplay, authoredFormattingLiteral] as const satisfies readonly FidelityCaseDefinition[]

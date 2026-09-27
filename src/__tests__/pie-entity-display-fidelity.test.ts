@@ -7,6 +7,7 @@ import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { measureTextWidth } from '../text-metrics.ts'
 
 const cases = [
   { sourceLabel: 'A&#35;B', display: 'A&#B', xml: 'A&amp;#B' },
@@ -45,6 +46,78 @@ function titleXml(source: string): string {
   if (!match) throw new Error('Pie title was not rendered')
   return match[1]!
 }
+
+test('Pie authored formatting-looking text remains literal across SVG, terminal, agent, and async render', async () => {
+  for (const [label, title] of [
+    ['A<br>B', 'T<br>itle'],
+    ['A<br/>B', 'T<br/>itle'],
+    ['A<b>B</b>', 'T<b>itle</b>'],
+    ['A**B**', 'T**itle**'],
+    ['A~~B~~', 'T~~itle~~'],
+  ] as const) {
+    const source = `pie showData\n  title ${title}\n  "${label}" : 1\n`
+    const chart = parsePieChart(source.trim().split('\n'))
+    expect(chart.title).toBe(title)
+    expect(chart.displayTitle).toBe(title)
+    expect(chart.entries[0]!.label).toBe(label)
+    expect(chart.entries[0]!.displayLabel).toBe(label)
+    expect(decodeXML(titleXml(source))).toBe(title)
+    expect(decodeXML(legendXml(source))).toStartWith(`${label} [1]`)
+    expect(renderMermaidSVG(source)).not.toContain('<tspan')
+    expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(`${title}\n${label}`)
+    const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
+    expect(meta.regions.map(region => region.projectedText)).toEqual([title, label])
+    expect(await renderMermaidSVGAsync(source)).toBe(renderMermaidSVG(source))
+    const agent = parseRegisteredMermaid(source)
+    expect(agent.ok).toBe(true)
+    if (!agent.ok) continue
+    expect(agent.value.body.kind).toBe('pie')
+    expect(serializeMermaid(agent.value)).toBe(source)
+    const changed = mutate(agent.value, { kind: 'set_slice_value', label, value: 2 })
+    expect(changed.ok).toBe(true)
+    if (changed.ok) expect(decodeXML(legendXml(serializeMermaid(changed.value)))).toStartWith(`${label} [2]`)
+  }
+})
+
+test('pinned Mermaid Pie DB retains authored markup-like title and section strings', () => {
+  const pairs = [
+    ['A<br>B', 'T<br>itle'],
+    ['A<br/>B', 'T<br/>itle'],
+    ['A<b>B</b>', 'T<b>itle</b>'],
+    ['A**B**', 'T**itle**'],
+  ] as const
+  const sources = pairs.map(([label, title]) => `pie showData\n  title ${title}\n  "${label}" : 1\n`)
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const results = []
+    for (const source of ${JSON.stringify(sources)}) {
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
+      results.push({ title: diagram.db.getDiagramTitle(), sections: [...diagram.db.getSections()] })
+    }
+    process.stdout.write(JSON.stringify(results))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(
+    pairs.map(([label, title]) => ({ title, sections: [[label, 1]] })),
+  )
+})
+
+test('literal Pie title and legend reserve uncompressed painted advance', () => {
+  const source = 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n'
+  const svg = renderMermaidSVG(source)
+  const title = svg.match(/<text\b([^>]*class="pie-title"[^>]*)>T&lt;b&gt;itle&lt;\/b&gt;<\/text>/)?.[1]
+  const legend = svg.match(/<text\b([^>]*class="pie-legend-text"[^>]*)>A&lt;br&gt;B \[1\] \(100\.0%\)<\/text>/)?.[1]
+  expect(title).toContain('data-literal-text="true"')
+  expect(legend).toContain('data-literal-text="true"')
+  const advance = (attrs: string | undefined) => Number(attrs?.match(/textLength="([0-9.]+)"/)?.[1])
+  expect(advance(title)).toBeCloseTo(measureTextWidth('T<b>itle</b>', 18, 600), 3)
+  expect(advance(legend)).toBeCloseTo(measureTextWidth('A<br>B [1] (100.0%)', 13, 500), 3)
+})
 
 test('Pie title entities follow pinned Mermaid visible text while source and agent title stay authored', async () => {
   for (const { sourceTitle, display, xml } of [
@@ -189,6 +262,16 @@ test('reviewed Pie named-reference visuals use the same production source', () =
   expect(asset('before')).toContain('>A&amp;reg;B [1] (33.3%)</text>')
   expect(asset('after')).toBe(renderMermaidSVG(source))
   expect(asset('after')).toContain('>A®B [1] (33.3%)</text>')
+})
+
+test('reviewed Pie authored-formatting visuals use the same production source', () => {
+  const source = 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n  "C" : 2\n'
+  const asset = (which: 'before' | 'after') => readFileSync(
+    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-authored-formatting-${which}.svg`), 'utf8')
+  expect(asset('before')).toContain('<tspan')
+  expect(asset('after')).toBe(renderMermaidSVG(source))
+  expect(asset('after')).toContain('>A&lt;br&gt;B [1] (33.3%)</text>')
+  expect(asset('after')).toContain('>T&lt;b&gt;itle&lt;/b&gt;</text>')
 })
 
 test('Pie inline showData title keeps authored entity spelling and an entity-created tag stays literal', () => {

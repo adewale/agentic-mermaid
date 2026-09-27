@@ -3,10 +3,10 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "7310f3cb9e1bea3ec5efd45d2f0b31ef475a09e5fa809f32d7d3fe6afc658fd9",
-  "receiptResultSha256": "a1917b53605647bd0f9189ecda15e86ace7cbbeaafb547432815211ba922cb1d",
+  "receiptInputSha256": "107b8af7589b4274641e8822cf948fef0194dd5609902f8dd65338967b48a954",
+  "receiptResultSha256": "d15e54beb934216100b49554cf7d134dec250dc9103637c2429287105507984a",
   "summary": {
-    "caseCount": 29,
+    "caseCount": 30,
     "featureCount": 13,
     "dispositions": {
       "native": 4,
@@ -393,6 +393,7 @@
       "family": "pie",
       "disposition": "diagnosed",
       "caseIds": [
+        "pie.syntax.authored-formatting-literal",
         "pie.syntax.duplicate-label-first-wins",
         "pie.syntax.entity-spelling-distinct",
         "pie.syntax.escaped-terminal-control-sanitized",
@@ -420,6 +421,16 @@
         ]
       },
       "caseEvidence": [
+        {
+          "caseId": "pie.syntax.authored-formatting-literal",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
         {
           "caseId": "pie.syntax.duplicate-label-first-wins",
           "surfaces": {

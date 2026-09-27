@@ -1,6 +1,5 @@
 import type { PieChart, PieEntry } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { decodeHTML } from 'entities/decode'
 
@@ -62,7 +61,7 @@ export function parsePieChart(lines: string[]): PieChart {
   const inlineTitle = tail.match(/^title\s+(.+)$/i)
   if (inlineTitle) {
     const authoredTitle = inlineTitle[1]!.trim()
-    title = normalizeBrTags(authoredTitle)
+    title = authoredTitle
     displayTitle = projectPieTitleDisplay(authoredTitle)
   } else if (tail.length > 0) {
     throw new Error(`Unexpected text after pie header: "${tail}"`)
@@ -86,7 +85,7 @@ export function parsePieChart(lines: string[]): PieChart {
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
       const authoredTitle = titleMatch[1]!.trim()
-      title = normalizeBrTags(authoredTitle)
+      title = authoredTitle
       displayTitle = projectPieTitleDisplay(authoredTitle)
       continue
     }
@@ -95,7 +94,7 @@ export function parsePieChart(lines: string[]): PieChart {
     if (entryMatch) {
       const sourceLabel = decodeEscapes(entryMatch[1]!)
       if (/[\u0000-\u001f]/.test(sourceLabel)) hasEscapedControlLabels = true
-      const label = normalizeBrTags(sourceLabel)
+      const label = sourceLabel
       const rawValue = entryMatch[2]!.trim()
       if (!NUMBER_RE.test(rawValue)) {
         throw new Error(
@@ -130,13 +129,10 @@ export function parsePieChart(lines: string[]): PieChart {
       const preprocessedLine = mermaidPieEntityPrepass(line)
       const preprocessedLabel = ENTRY_RE.exec(preprocessedLine)?.[1] ?? entryMatch[1]!
       const sourceKey = decodeEscapes(mermaidPieSourceKey(preprocessedLabel))
-      // Normalize authored formatting before expanding entity markers. A
-      // marker that produces `<br>` or `<b>` is literal visible Pie text, not
-      // an authored formatting instruction.
       // Mermaid's grammar consumes source escapes while entity markers are
       // still opaque tokens. Expand those markers only afterward: a backslash
       // produced by #92; is visible text, not a new source escape.
-      const displayLabel = projectPieEntityDisplay(decodeEscapes(mermaidPieSourceKey(normalizeBrTags(preprocessedLabel))))
+      const displayLabel = projectPieEntityDisplay(decodeEscapes(mermaidPieSourceKey(preprocessedLabel)))
       if (hasNewTerminalControl(label, displayLabel)) {
         throw syntaxError({
           what: 'Pie entity projection creates a terminal control character after escape decoding',
@@ -154,7 +150,7 @@ export function parsePieChart(lines: string[]): PieChart {
       if (seenSourceLabels.has(sourceKey)) hasDuplicateSourceLabels = true
       else {
         seenSourceLabels.add(sourceKey)
-        entries.push({ label, value, ...(displayLabel === label ? {} : { displayLabel }) })
+        entries.push({ label, value, ...(displayLabel === label && !needsPieLiteralText(label) ? {} : { displayLabel }) })
       }
       continue
     }
@@ -181,19 +177,25 @@ export function parsePieChart(lines: string[]): PieChart {
 
   return {
     title, showData, entries,
-    ...(displayTitle !== title ? { displayTitle } : {}),
+    ...(displayTitle !== title || (title !== undefined && needsPieLiteralText(title)) ? { displayTitle } : {}),
     ...(hasDuplicateSourceLabels ? { hasDuplicateSourceLabels: true } : {}),
     ...(hasEscapedControlLabels ? { hasEscapedControlLabels: true } : {}),
   }
 }
 
+function needsPieLiteralText(text: string): boolean {
+  // Pie writes its label/title into an SVG text node. Shared formatting tags
+  // and Markdown markers belong to other families; Pie shows them literally.
+  return /[<>*~]/.test(text)
+}
+
 function projectPieTitleDisplay(authoredTitle: string): string {
   // Mermaid's entity prepass runs before Pie grammar, but title source text
   // must remain available to the agent and serializer unchanged. Expand only
-  // the renderer-facing title after authored <br> normalization so an entity
-  // that produces markup-looking text is not reinterpreted as formatting.
-  const normalized = normalizeBrTags(mermaidPieEntityPrepass(authoredTitle))
-  const display = projectPieEntityDisplay(mermaidPieSourceKey(normalized))
+  // the renderer-facing title after the source prepass. Authored markup-like
+  // text is literal in Pie too; do not apply other families' <br>/Markdown
+  // normalization before or after expanding entity markers.
+  const display = projectPieEntityDisplay(mermaidPieSourceKey(mermaidPieEntityPrepass(authoredTitle)))
   if (XML_DISALLOWED_CONTROL_RE.test(display)) {
     throw syntaxError({
       what: 'Pie title display contains an XML-disallowed control character',

@@ -3,7 +3,7 @@ import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { fitUncalibratedSvgText } from '../custom-font-geometry.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
-import { measureFormattedTextWidth, measureMonospaceTextWidth } from '../text-metrics.ts'
+import { measureFormattedTextWidth, measureMonospaceTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { decodePng, inkColumns } from './helpers/png-pixels.ts'
 
 const BUNDLED_FONT_FAMILIES = [...new Set(HOSTED_FONT_RESOURCES.map(resource => resource.family))]
@@ -54,6 +54,18 @@ describe('deterministic custom-font geometry', () => {
     ) * 1000) / 1000
     expect(fitted).toContain(`<text font-size="13" font-weight="500" textLength="${expected}"`)
     expect(fitted).toContain('plain <tspan font-weight="bold">bold</tspan> tail')
+    expect(fitUncalibratedSvgText(fitted, 'Acme Wide')).toBe(fitted)
+  })
+
+  test('literal Pie text fits the authored glyphs instead of reparsing markup-like characters', () => {
+    const literal = 'T<b>itle</b>'
+    const fitted = fitUncalibratedSvgText(
+      `<svg><text font-size="18" font-weight="600" data-literal-text="true">T&lt;b&gt;itle&lt;/b&gt;</text></svg>`,
+      'Acme Wide',
+    )
+    const width = Math.round(measureTextWidth(literal, 18, 600) * 1000) / 1000
+    expect(fitted).toContain(`textLength="${width}"`)
+    expect(width).toBeGreaterThan(measureFormattedTextWidth(literal, 18, 600))
     expect(fitUncalibratedSvgText(fitted, 'Acme Wide')).toBe(fitted)
   })
 

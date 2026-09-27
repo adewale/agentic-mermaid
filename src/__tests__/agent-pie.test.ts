@@ -73,10 +73,10 @@ describe('pie structured parse', () => {
     expect(serializeMermaid(d2)).toBe(out)
   })
 
-  test('serializes parser-normalized line breaks as one Mermaid statement', () => {
+  test('serializes Pie-authored br tags as literal one-line text', () => {
     const d = pie('pie\n  title Road<br/>map\n  "A<br/>B" : 1')
-    expect(d.body.title).toBe('Road\nmap')
-    expect(d.body.slices[0]!.label).toBe('A\nB')
+    expect(d.body.title).toBe('Road<br/>map')
+    expect(d.body.slices[0]!.label).toBe('A<br/>B')
     const out = serializeMermaid(d)
     expect(out).toContain('title Road<br/>map')
     expect(out).toContain('"A<br/>B" : 1')

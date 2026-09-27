@@ -85,8 +85,9 @@ so the only behavioral change vs. the old `toFixed(1)` is the floor.
 - **Canvas sizing.** Upstream translates legend groups and can clip
   (its own `legendPosition: center`/`top` variants overhang); our layout
   sizes the canvas from measured extents so no legend row, slice label, or
-  title can clip at any position. Multiline (`<br/>`) legend rows get taller
-  rows and per-line measurement instead of colliding.
+  title can clip at any position. An actual newline code point in a label gets
+  a taller row with per-line measurement; authored `<br/>` remains literal,
+  matching Mermaid's Pie text behavior.
 - **No outer circle / no 0.7 opacity by default.** Upstream always draws a
   2px black outer circle and 0.7-opacity slices; the crisp look keeps
   borderless opaque slices unless the theme variables ask otherwise.

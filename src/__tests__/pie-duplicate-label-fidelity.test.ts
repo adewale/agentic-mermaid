@@ -55,7 +55,7 @@ test('duplicate source remains verbatim and diagnosed instead of mutating an amb
   expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'pie_opaque' }))
 })
 
-test('Pie label identity is case-sensitive and uses authored spelling before display normalization', () => {
+test('Pie label identity is case-sensitive and preserves distinct literal br spellings', () => {
   const distinct = `pie\n  "A" : 1\n  "a" : 2\n  "A<br>B" : 3\n  "A<br/>B" : 4`
   expect(upstreamSections(distinct)).toEqual([['A', 1], ['a', 2], ['A<br>B', 3], ['A<br/>B', 4]])
   const chart = parsePieChart(distinct.split('\n'))
@@ -64,7 +64,13 @@ test('Pie label identity is case-sensitive and uses authored spelling before dis
   expect(drawnSlices(distinct).map(entry => entry[1])).toEqual([1, 2, 3, 4])
   const parsed = parseRegisteredMermaid(distinct)
   expect(parsed.ok).toBe(true)
-  if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque') // normalized labels collide for typed label-based mutation
+  if (!parsed.ok) return
+  expect(parsed.value.body.kind).toBe('pie')
+  const changed = mutate(parsed.value, { kind: 'set_slice_value', label: 'A<br/>B', value: 5 })
+  expect(changed.ok).toBe(true)
+  if (changed.ok) expect(drawnSlices(serializeMermaid(changed.value))).toEqual([
+    ['A', 1], ['a', 2], ['A<br>B', 3], ['A<br/>B', 5],
+  ])
 })
 
 test('pinned Mermaid consumes escapes before arbitrary label characters for first-wins identity', () => {

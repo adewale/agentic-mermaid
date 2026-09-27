@@ -211,13 +211,16 @@ export function layoutPieChart(
   const titleHeight = renderedTitle ? titleFontSize + PIE.titleGap : 0
   const titleWidth = renderedTitle
     ? Math.max(...renderedTitle.split('\n').map(line =>
-      measureSafeStyledTextWidth(line, titleFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)))
+      chart.displayTitle === undefined
+        ? measureSafeStyledTextWidth(line, titleFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
+        : measureSystemFontSafeTextWidth(line, titleFontSize, style.groupHeaderFontWeight) +
+          Math.max(0, graphemes(line).length - 1) * style.groupLetterSpacing))
     : 0
   const staticHighlight = visual.highlightSlice === 'hover' ? undefined : visual.highlightSlice
 
-  // Legend metrics — one row per entry; `<br/>` labels span multiple lines
-  // (value/percent suffix rides on the last line), measured per line so a
-  // multiline row can neither overprint its neighbor nor inflate the column.
+  // Legend metrics — one row per entry. Only actual newline characters span
+  // multiple lines; authored `<br/>` is literal Pie text. The value/percent
+  // suffix rides on the last line, and each line is measured independently.
   const rows: LegendRowMetrics[] = chart.entries.map(e => {
     const fraction = total > 0 ? e.value / total : 0
     const valuePart = chart.showData ? ` [${formatPieValue(e.value)}]` : ''

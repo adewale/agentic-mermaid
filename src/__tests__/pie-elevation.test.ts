@@ -330,11 +330,11 @@ describe('pie legend position', () => {
 })
 
 // ---------------------------------------------------------------------------
-// <br/> legend rows (multiline labels must not collide — pie-br probe)
+// Authored <br/> is literal Pie text, not a multiline legend instruction.
 // ---------------------------------------------------------------------------
 
-describe('pie multiline legend rows', () => {
-  it('rows with <br/> labels get taller rows instead of overprinting neighbors', () => {
+describe('pie literal br legend rows', () => {
+  it('keeps literal <br/> labels in distinct rows without overprinting neighbors', () => {
     const p = layout('pie\n  "Alpha<br/>very long second line of text" : 30\n  "Beta" : 20\n  "Gamma<br/>row" : 10')
     const boxes = legendBoxes(p)
     for (let i = 0; i + 1 < boxes.length; i++) {
@@ -342,13 +342,10 @@ describe('pie multiline legend rows', () => {
     }
   })
 
-  it('measures multiline rows by their longest LINE, not the concatenated string', () => {
+  it('measures the whole literal <br/> label rather than treating it as two lines', () => {
     const oneLine = layout('pie\n  "aaaaaaaaaaaa" : 1')
     const twoLine = layout('pie\n  "aaaaaaaaaaaa<br/>bb" : 1')
-    // The two-line label's longest line is the same as the one-line label
-    // (percent rides on the last, shorter line), so the canvas must not be
-    // wider than the single-line chart's canvas plus rounding slack.
-    expect(twoLine.width).toBeLessThanOrEqual(oneLine.width + 1)
+    expect(twoLine.width).toBeGreaterThan(oneLine.width)
   })
 })
 
