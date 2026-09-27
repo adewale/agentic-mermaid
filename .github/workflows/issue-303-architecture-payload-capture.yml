@@ -1,0 +1,24 @@
+name: Temporary issue 303 Architecture payload capture
+
+on:
+  push:
+    branches:
+      - codex/248-architecture-theme-colors
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium
+      - run: bun run website:payload:write
+      - uses: actions/upload-artifact@v7
+        with:
+          name: issue-303-architecture-linux-payload
+          path: eval/website-payload/baseline.json
+          if-no-files-found: error
