@@ -3,10 +3,10 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "25cb0afdda8d44fb72bc602556658bac152bf40c5d3007a58526e06282969122",
-  "receiptResultSha256": "57128c2318f671c63d895dcb15fd8935371b177dc0c95097676346f52ebe9ffa",
+  "receiptInputSha256": "3d275626c8c5470b3837401dffe1fb745331157f132c9f30746ab96574e3f6bb",
+  "receiptResultSha256": "f99fae3c5492dfa2bc8d992a4c78aa8f938c9e787db7c8eb676bf9e9e40aec9c",
   "summary": {
-    "caseCount": 25,
+    "caseCount": 26,
     "featureCount": 13,
     "dispositions": {
       "native": 4,
@@ -395,6 +395,7 @@
       "caseIds": [
         "pie.syntax.duplicate-label-first-wins",
         "pie.syntax.entity-spelling-distinct",
+        "pie.syntax.numeric-entity-display",
         "pie.syntax.xml-disallowed-control-diagnosed"
       ],
       "surfaces": {
@@ -434,6 +435,16 @@
         },
         {
           "caseId": "pie.syntax.entity-spelling-distinct",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "pie.syntax.numeric-entity-display",
           "surfaces": {
             "agent": "native",
             "render": "native",

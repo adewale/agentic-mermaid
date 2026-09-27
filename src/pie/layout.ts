@@ -12,6 +12,7 @@ import { measureFormattedTextWidth, measureSystemFontSafeTextWidth, measureTextW
 import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { graphemes } from '../shared/graphemes.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -221,7 +222,7 @@ export function layoutPieChart(
     const fraction = total > 0 ? e.value / total : 0
     const valuePart = chart.showData ? ` [${formatPieValue(e.value)}]` : ''
     const suffix = `${valuePart} (${formatPiePercent(fraction)})`
-    const labelLines = e.label.split('\n')
+    const labelLines = (e.displayLabel ?? e.label).split('\n')
     const lines = labelLines.map((line, k) => applyTextTransform(
       k === labelLines.length - 1 ? `${line}${suffix}` : line,
       style.nodeTextTransform,
@@ -230,7 +231,10 @@ export function layoutPieChart(
       ? PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       : style.nodeLabelFontWeight
     const measuredTextWidth = Math.max(...lines.map(line =>
-      measureSafeStyledTextWidth(line, legendFontSize, fontWeight, style.nodeLetterSpacing)))
+      e.displayLabel === undefined
+        ? measureSafeStyledTextWidth(line, legendFontSize, fontWeight, style.nodeLetterSpacing)
+        : measureSystemFontSafeTextWidth(line, legendFontSize, fontWeight) +
+          Math.max(0, graphemes(line).length - 1) * style.nodeLetterSpacing))
     const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       ? measuredTextWidth * PIE.legendHighlightWidthScale
       : measuredTextWidth
@@ -305,6 +309,7 @@ export function layoutPieChart(
     angle = endAngle
     slices.push({
       label: entry.label,
+      ...(entry.displayLabel === undefined ? {} : { displayLabel: entry.displayLabel }),
       value: entry.value,
       fraction,
       startAngle,
@@ -321,6 +326,7 @@ export function layoutPieChart(
     const entry = chart.entries[i]!
     const item: PositionedPieLegendItem = {
       label: entry.label,
+      ...(entry.displayLabel === undefined ? {} : { literalText: true as const }),
       value: entry.value,
       fraction: row.fraction,
       x: round(legendX),

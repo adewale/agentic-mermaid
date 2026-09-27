@@ -257,6 +257,46 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe('browser: live editor integration', () => {
+  it('matches pinned Mermaid 11.16 browser-visible Pie entity labels', async () => {
+    const oraclePage = await browser.newPage()
+    try {
+      await oraclePage.setContent('<div id="oracle"></div>')
+      await oraclePage.addScriptTag({ path: join(ROOT, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js') })
+      const sources = [
+        ...['&#35;', '&#65;', '&#128;', '&#x23;', '&#amp;', '&amp;'].map(ref => `pie\n  "A${ref}B" : 1`),
+        'pie\n  "A#60;br#62;B" : 1',
+        'pie\n  "A#60;b#62;X#60;/b#62;B" : 1',
+        'pie\n  "A&#60;b>B" : 1',
+        'pie\n  "A#\\35;B" : 1',
+        'pie\n  "A#copy;B" : 1',
+        'pie\n  "A#nbsp;B" : 1',
+        'pie\n  "A#unknown;B" : 1',
+        'pie\n  "styleX:#35;" : 1',
+        'pie\n  "classDefX:#35;" : 1',
+      ]
+      for (const [index, source] of sources.entries()) {
+        const upstream = await oraclePage.evaluate(async ({ source, id }) => {
+          const mermaid = (globalThis as typeof globalThis & {
+            mermaid: { initialize(config: object): void; render(id: string, source: string): Promise<{ svg: string }> }
+          }).mermaid
+          mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })
+          const wrapper = document.createElement('div')
+          wrapper.innerHTML = (await mermaid.render(id, source)).svg
+          return [...wrapper.querySelectorAll('text')].at(-1)?.textContent
+        }, { source, id: `pie-entity-${index}` })
+        const agentic = await oraclePage.evaluate(svg => {
+          const wrapper = document.createElement('div')
+          wrapper.innerHTML = svg
+          return wrapper.querySelector('.pie-legend-text')?.textContent
+        }, renderMermaidSVG(source))
+        if (upstream === undefined || upstream === null) throw new Error('Mermaid did not render a Pie legend')
+        expect(agentic?.startsWith(upstream)).toBe(true)
+      }
+    } finally {
+      await oraclePage.close()
+    }
+  })
+
   it('contains long regular and highlighted pie legend rows across fallback fonts', async () => {
     const label = 'W'.repeat(48)
     const cases = [

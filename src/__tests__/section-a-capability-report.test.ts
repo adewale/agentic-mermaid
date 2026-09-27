@@ -119,7 +119,7 @@ describe('Section A capability report', () => {
     expect(report.summary.syntaxAbsentCount).toBeGreaterThan(0)
     expect(report.fidelity).toMatchObject({
       authority: 'docs/project/fidelity-capability-report.json',
-      caseCount: 25,
+      caseCount: 26,
       featureCount: 13,
       upstreamRevision: report.upstream.commit,
     })

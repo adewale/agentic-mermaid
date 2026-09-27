@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "25cb0afdda8d44fb72bc602556658bac152bf40c5d3007a58526e06282969122",
+    "inputSha256": "3d275626c8c5470b3837401dffe1fb745331157f132c9f30746ab96574e3f6bb",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -109,6 +109,10 @@
       {
         "path": "src/__tests__/fidelity/cases/pie-duplicate-label.fidelity.ts",
         "sha256": "c6dcfdb2bf8b6c599476c6b7f91cc66aa653f773c64980d0da2f445b13242f1a"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/pie-entity-display.fidelity.ts",
+        "sha256": "98cc5075867bf0d7bc00a572e3948604544797d797ad07e42e698b7d03a566da"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -1617,6 +1621,77 @@
       "issues": []
     },
     {
+      "id": "pie.syntax.numeric-entity-display",
+      "family": "pie",
+      "featureId": "official-doc:pie:section:syntax",
+      "sourceSha256": "1cd8e80d46f3c7697eefebc10316d46ecbd78fb59e59f5c505f9f3ce493f31dd",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/pie.html#syntax",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "authoredLabel": "A&#35;B",
+            "kind": "pie"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "sourceKey": "A&#35;B",
+            "svgLegend": "A&amp;#B (100.0%)",
+            "terminalLabel": "A&#B"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "sourceExact": true
+          },
+          "disposition": "native"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "authoredLabel": "A&#35;B",
+            "svgLegend": "A&amp;#B (100.0%)",
+            "updatedValue": 2
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
       "id": "pie.syntax.xml-disallowed-control-diagnosed",
       "family": "pie",
       "featureId": "official-doc:pie:section:syntax",
@@ -2498,10 +2573,10 @@
     }
   ],
   "summary": {
-    "caseCount": 25,
-    "passedCaseCount": 25,
+    "caseCount": 26,
+    "passedCaseCount": 26,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 93,
+    "observedSurfaceCount": 97,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }
