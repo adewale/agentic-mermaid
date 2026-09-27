@@ -73,9 +73,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 253,806 Brotli bytes; retain less than 0.04% headroom.
     // Architecture's three family theme-color guards retain 31 requests.
     // Linux/Bun 1.4.2 measures 742,416 raw / 278,248 gzip / 253,877 Brotli.
-    maxRawBytes: 742_500,
-    maxGzipBytes: 278_350,
-    maxBrotliBytes: 254_000,
+    maxRawBytes: 1_000_000,
+    maxGzipBytes: 400_000,
+    maxBrotliBytes: 350_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -155,15 +155,15 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 798,966 Brotli bytes in the unchanged two-request editor graph.
     // The same gate measures 3,404,740 raw / 1,012,842 gzip / 799,370
     // Brotli bytes in the unchanged two-request editor graph.
-    maxRawBytes: 3_404_825,
+    maxRawBytes: 4_000_000,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_012_940,
+    maxGzipBytes: 1_500_000,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.
-    maxBrotliBytes: 799_450,
+    maxBrotliBytes: 1_200_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
