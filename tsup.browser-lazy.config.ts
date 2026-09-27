@@ -1,4 +1,7 @@
 import { defineConfig } from 'tsup'
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
 
 // Framework-neutral ESM renderer. The entry contains source normalization and
 // the generated family catalog; family implementations and the shared SVG
@@ -23,5 +26,13 @@ export default defineConfig({
   esbuildOptions(options) {
     options.chunkNames = 'browser-lazy/chunks/[name]-[hash]'
     options.assetNames = 'browser-lazy/assets/[name]-[hash]'
+    // Keep the Pie-only HTML5 table out of the XML decoder that is shared
+    // by the initial loader and every other family. The package's CJS and ESM
+    // builds are equivalent but distinct bundler modules, so only Pie loads
+    // the full named-reference table in this split browser artifact.
+    options.alias = {
+      ...options.alias,
+      'entities/decode': require.resolve('entities/decode'),
+    }
   },
 })

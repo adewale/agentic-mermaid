@@ -20,6 +20,14 @@ const cases = [
   { sourceLabel: 'A#92;#35;B', display: 'A\\#B', xml: 'A\\#B' },
   { sourceLabel: 'A#92;XB', display: 'A\\XB', xml: 'A\\XB' },
   { sourceLabel: 'A#nbsp;B', display: 'A\u00a0B', xml: 'A\u00a0B' },
+  { sourceLabel: 'A#reg;B', display: 'A®B', xml: 'A®B' },
+  { sourceLabel: 'A#euro;B', display: 'A€B', xml: 'A€B' },
+  { sourceLabel: 'A#trade;B', display: 'A™B', xml: 'A™B' },
+  { sourceLabel: 'A#frac12;B', display: 'A½B', xml: 'A½B' },
+  { sourceLabel: 'A#NotEqualTilde;B', display: 'A≂̸B', xml: 'A≂̸B' },
+  { sourceLabel: 'A#notit;B', display: 'A¬it;B', xml: 'A¬it;B' },
+  { sourceLabel: 'A#REG;B', display: 'A®B', xml: 'A®B' },
+  { sourceLabel: 'A#Euro;B', display: 'A&Euro;B', xml: 'A&amp;Euro;B' },
   { sourceLabel: 'A#unknown;B', display: 'A&unknown;B', xml: 'A&amp;unknown;B' },
   { sourceLabel: 'A#constructor;B', display: 'A&constructor;B', xml: 'A&amp;constructor;B' },
   { sourceLabel: 'A#__proto__;B', display: 'A&__proto__;B', xml: 'A&amp;__proto__;B' },
@@ -42,6 +50,8 @@ test('Pie title entities follow pinned Mermaid visible text while source and age
   for (const { sourceTitle, display, xml } of [
     { sourceTitle: 'A#65;B', display: 'AAB', xml: 'AAB' },
     { sourceTitle: 'A#copy;B', display: 'A©B', xml: 'A©B' },
+    { sourceTitle: 'A#reg;B', display: 'A®B', xml: 'A®B' },
+    { sourceTitle: 'A#euro;B', display: 'A€B', xml: 'A€B' },
     { sourceTitle: 'A&#65;B', display: 'A&AB', xml: 'A&amp;AB' },
     { sourceTitle: 'A#92;rB', display: 'A\\rB', xml: 'A\\rB' },
   ] as const) {
@@ -139,6 +149,8 @@ test('pinned Mermaid Pie DB and SVG entity cleanup witness title display indepen
     ['A#65;B', 'Aﬂ°°65¶ßB', 'AAB'],
     ['A&#65;B', 'A&ﬂ°°65¶ßB', 'A&AB'],
     ['A#copy;B', 'Aﬂ°copy¶ßB', 'A©B'],
+    ['A#reg;B', 'Aﬂ°reg¶ßB', 'A®B'],
+    ['A#euro;B', 'Aﬂ°euro¶ßB', 'A€B'],
     ['&#32;X', '&ﬂ°°32¶ßX', '& X'],
   ] as const) {
     const source = `pie\n  title ${sourceTitle}\n  "X" : 1\n`
@@ -168,6 +180,15 @@ test('reviewed Pie title before/after visuals use the same production source', (
   expect(asset('before')).toContain('>A#65;B</text>')
   expect(asset('after')).toBe(renderMermaidSVG(source))
   expect(asset('after')).toContain('>AAB</text>')
+})
+
+test('reviewed Pie named-reference visuals use the same production source', () => {
+  const source = 'pie showData\n  title Named references\n  "A#reg;B" : 1\n  "C" : 2\n'
+  const asset = (which: 'before' | 'after') => readFileSync(
+    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-named-entity-${which}.svg`), 'utf8')
+  expect(asset('before')).toContain('>A&amp;reg;B [1] (33.3%)</text>')
+  expect(asset('after')).toBe(renderMermaidSVG(source))
+  expect(asset('after')).toContain('>A®B [1] (33.3%)</text>')
 })
 
 test('Pie inline showData title keeps authored entity spelling and an entity-created tag stays literal', () => {
@@ -251,6 +272,55 @@ test('projected terminal controls are diagnosed before SVG or terminal output', 
       expect(() => renderMermaidASCII(source, { colorMode })).toThrow(diagnostic)
     }
   }
+})
+
+test('full named HTML references follow pinned Pie marker cleanup and reject named controls', () => {
+  // The first six outcomes were observed from pinned Mermaid 11.16 in a
+  // strict-security browser render. `notit` exercises HTML's legacy prefix
+  // rule, which a small hand-written name map cannot reproduce.
+  const browserVisible = [
+    ['reg', '®'], ['euro', '€'], ['trade', '™'],
+    ['frac12', '½'], ['NotEqualTilde', '≂̸'], ['notit', '¬it;'],
+    ['REG', '®'], ['Euro', '&Euro;'], ['unknown', '&unknown;'],
+  ] as const
+  for (const [name, visible] of browserVisible) {
+    const source = `pie\n  "A#${name};B" : 1\n`
+    const chart = parsePieChart(source.trim().split('\n'))
+    expect(chart.entries[0]?.label).toBe(`A#${name};B`)
+    expect(chart.entries[0]?.displayLabel).toBe(`A${visible}B`)
+    expect(decodeXML(legendXml(source))).toStartWith(`A${visible}B`)
+    expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(`A${visible}B`)
+  }
+  for (const name of ['Tab', 'NewLine'] as const) {
+    const source = `pie\n  "A#${name};B" : 1\n`
+    expect(() => renderMermaidSVG(source)).toThrow(/Pie entity projects a terminal control character/)
+    for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
+      expect(() => renderMermaidASCII(source, { colorMode })).toThrow(/Pie entity projects a terminal control character/)
+    }
+  }
+})
+
+test('pinned Mermaid Pie parser retains named-reference markers before browser cleanup', () => {
+  const names = ['reg', 'euro', 'trade', 'frac12', 'NotEqualTilde', 'notit', 'REG', 'Euro', 'unknown']
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const out = []
+    for (const name of ${JSON.stringify(names)}) {
+      const source = 'pie\\n  "A#' + name + ';B" : 1\\n'
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
+      await diagram.parser.parse(diagram.text)
+      out.push([...diagram.db.getSections().keys()][0])
+    }
+    process.stdout.write(JSON.stringify(out))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  const markers = JSON.parse(new TextDecoder().decode(probe.stdout)) as string[]
+  expect(markers).toEqual(names.map(name => `Aﬂ°${name}¶ßB`))
 })
 
 test('entity-created backslashes remain printable after the source escape pass', () => {

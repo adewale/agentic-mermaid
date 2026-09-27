@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": "scripts/pr-assets/mermaid-doc-showcase-gallery.ts",
   "inputCount": 271,
-  "inputTreeSha256": "9b03832b37dcad25bee6de0faa5b43cf57c2c09a9cb164ffb9b683eb3a0db87d",
+  "inputTreeSha256": "bc6b8106e42ba0b0c0a3beae74fff0010b8924b8130a3843fd0148f0b8596024",
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
     "roots": [
@@ -19,5 +19,5 @@
     "sha256": "5fd39251bad0e08c71f67982911005e1b075389488088c8809e609859b3817b3"
   },
   "output": "docs/design/families/mermaid-doc-examples-all-families.png",
-  "outputSha256": "72ba47040488afede48053243864e4c02aa46103ce247af9230e30465ae2c698"
+  "outputSha256": "1438555de51121f18fdc3649c29fe3b5e4690d9fc0d32e57849ad21013d5b0aa"
 }

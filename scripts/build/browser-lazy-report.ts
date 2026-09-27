@@ -120,6 +120,17 @@ const familyFiles = Object.fromEntries(BROWSER_BUILTIN_FAMILY_IDS.map(id => [
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 
+// Pie alone needs the complete HTML5 named-reference table. Keep that data
+// out of initial download and every other family's transfer closure.
+const htmlEntityOutputs = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input =>
+    input.includes('entities/dist/') && input.endsWith('/generated/decode-data-html.js')))
+if (htmlEntityOutputs.length !== 1 || !familyFiles.pie.includes(htmlEntityOutputs[0]!)
+  || initialFiles.includes(htmlEntityOutputs[0]!)
+  || BROWSER_BUILTIN_FAMILY_IDS.some(id => id !== 'pie' && familyFiles[id].includes(htmlEntityOutputs[0]!))) {
+  throw new Error('HTML5 named-reference table must load with Pie only')
+}
+
 const observedElkFamilies = BROWSER_BUILTIN_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (JSON.stringify(observedElkFamilies) !== JSON.stringify(budgets.elkFamilies)) {
   throw new Error(`ELK family graph drifted: expected ${budgets.elkFamilies.join(', ')}, observed ${observedElkFamilies.join(', ')}`)

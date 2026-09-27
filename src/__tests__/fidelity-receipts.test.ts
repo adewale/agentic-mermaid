@@ -291,6 +291,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'pie.syntax.duplicate-label-first-wins',
       'pie.syntax.entity-spelling-distinct',
       'pie.syntax.escaped-terminal-control-sanitized',
+      'pie.syntax.named-entity-display',
       'pie.syntax.numeric-entity-display',
       'pie.syntax.title-entity-display',
       'pie.syntax.xml-disallowed-control-diagnosed',
@@ -308,10 +309,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 28,
-      passedCaseCount: 28,
+      caseCount: 29,
+      passedCaseCount: 29,
       failedCaseCount: 0,
-      observedSurfaceCount: 105,
+      observedSurfaceCount: 109,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })

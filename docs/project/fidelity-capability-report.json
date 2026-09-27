@@ -3,10 +3,10 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "229390381d4af33efde4e1c8601befd2866a06bf79f973acf8c5173252cacc74",
-  "receiptResultSha256": "a0ddef971f472a7910e4dc13666344787babf2b2e7cb3ee17efd54b645e2b19b",
+  "receiptInputSha256": "7310f3cb9e1bea3ec5efd45d2f0b31ef475a09e5fa809f32d7d3fe6afc658fd9",
+  "receiptResultSha256": "a1917b53605647bd0f9189ecda15e86ace7cbbeaafb547432815211ba922cb1d",
   "summary": {
-    "caseCount": 28,
+    "caseCount": 29,
     "featureCount": 13,
     "dispositions": {
       "native": 4,
@@ -396,6 +396,7 @@
         "pie.syntax.duplicate-label-first-wins",
         "pie.syntax.entity-spelling-distinct",
         "pie.syntax.escaped-terminal-control-sanitized",
+        "pie.syntax.named-entity-display",
         "pie.syntax.numeric-entity-display",
         "pie.syntax.title-entity-display",
         "pie.syntax.xml-disallowed-control-diagnosed"
@@ -465,6 +466,16 @@
               "INVALID_OP"
             ]
           }
+        },
+        {
+          "caseId": "pie.syntax.named-entity-display",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
         },
         {
           "caseId": "pie.syntax.numeric-entity-display",
