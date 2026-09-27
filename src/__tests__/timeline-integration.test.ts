@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import type { RenderOptions } from '../types.ts'
+import { measureTextWidth } from '../text-metrics.ts'
 
 function render(text: string, options: RenderOptions = {}): string {
   return renderMermaidSVG(text, options)
@@ -111,6 +112,23 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     const complete = render('timeline\n  2024 : A<b>Bold</b>Z')
     expect(complete).toContain('A&lt;b&gt;Bold&lt;/b&gt;Z')
     expect(complete).not.toContain('<tspan font-weight="bold">')
+  })
+
+  it('measures markup-looking Timeline text literally in all four slots', () => {
+    const label = 'A<b>B'
+    const svg = render(`timeline\n  title ${label}\n  section ${label}\n  ${label} : ${label}`)
+    for (const [className, size, weight] of [
+      ['timeline-title', 18, 600],
+      ['timeline-section-label', 12, 600],
+      ['timeline-period-text', 12, 600],
+      ['timeline-event-text', 12, 400],
+    ] as const) {
+      const attrs = svg.match(new RegExp(`<text\\b[^>]*class="${className}"[^>]*>`))?.[0]
+      expect(attrs, className).toBeDefined()
+      expect(attrs, className).toContain('data-literal-text="true"')
+      const width = Number(attrs?.match(/textLength="([^"]+)"/)?.[1])
+      expect(width, className).toBeCloseTo(measureTextWidth(label, size, weight), 3)
+    }
   })
 
   it('supports dark themes and CSS variable colors without NaN output', () => {

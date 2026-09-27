@@ -1180,7 +1180,7 @@
     },
     {
       "path": "src/timeline/renderer.ts",
-      "sha256": "c0d97235afd3bd097331184a7ae39e1adeff079c49a0dadebf2021d37a6bae6b"
+      "sha256": "4c8cd77325d30acca89b52985a7ef26e57f515ebe08819810061ecd4ce77bbd7"
     },
     {
       "path": "src/timeline/types.ts",
