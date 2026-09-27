@@ -111,7 +111,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // guard measure 3,395,107 raw / 1,009,488 gzip bytes on Linux/x64. The
     // two-request graph stays fixed and both ceilings retain under 0.01% slack.
     maxRawBytes: 3_395_200,
-    maxGzipBytes: 1_009_550,
+    // Timeline semantic line-break normalization measures 1,009,565 gzip
+    // bytes on Linux/x64; retain 85 bytes of headroom with no new requests.
+    maxGzipBytes: 1_009_650,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. The tab-aware linear scanner measured 3,393,328 raw /
     // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
