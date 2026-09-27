@@ -52,14 +52,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the shared render waist without changing the request graph.
     // Pie's bounded numeric-entity key prepass adds a small shared parser
     // chunk; the exact Linux totals remain pinned in the generated baseline.
+    // The title-directive bridge reached 733,574 raw demo bytes on Linux/x64;
+    // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
     // The chart-honesty text contract, with its checks that name an invalid
-    // authored color, adds 7,861 raw, 3,088 gzip, and 2,417 Brotli bytes to the
+    // authored color, adds 7,860 raw, 3,081 gzip, and 2,642 Brotli bytes to the
     // shared chunks, and its module moves regroup the small shared chunks, so
     // the graph drops from 30 to 29 requests. Each ceiling keeps main's
     // allowance above the Linux total for the macOS recording.
-    maxRawBytes: 741_211,
-    maxGzipBytes: 278_238,
-    maxBrotliBytes: 253_567,
+    maxRawBytes: 741_860,
+    maxGzipBytes: 278_681,
+    maxBrotliBytes: 254_142,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -98,19 +100,22 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the current Linux totals, which are pinned exactly in the baseline.
     // Pie's source-aware entity projection adds under 0.1% to the complete
     // editor bundle while retaining the fixed two-request graph.
-    // Pie's terminal-only post-grammar control projection adds a small
+    // Pie's terminal projection and source-aware title display add a small
     // shared-editor import; the complete two-request graph stays fixed.
+    // Linux/x64 title-directive capture after the leading-space fix:
+    // 3,360,477 raw / 988,202 gzip / 777,029 Brotli editor bytes. The
+    // two-request graph is unchanged and all caps remain within 0.1%.
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
     // family's text tones, halos, titles, and containment, and the checks that
     // name an invalid authored color, the node-fill ink, and the
-    // VALUES_OUTSIDE_RANGE lint) adds 25,400 raw, 9,275 gzip, and 7,095 Brotli
+    // VALUES_OUTSIDE_RANGE lint) adds 25,406 raw, 9,240 gzip, and 6,679 Brotli
     // bytes to the Linux/x64 editor bundle without a new request. Each ceiling
     // keeps main's allowance above the Linux total.
-    maxRawBytes: 3_384_700,
-    maxGzipBytes: 997_275,
-    maxBrotliBytes: 784_095,
+    maxRawBytes: 3_386_406,
+    maxGzipBytes: 997_740,
+    maxBrotliBytes: 783_979,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
