@@ -40,3 +40,20 @@ jobs:
           name: issue-303-quadrant-final-linux-pack
           path: /tmp/am337-final-pack.json
           if-no-files-found: error
+      - run: bun run scripts/pr-assets/linkrank-feedback-packing-evidence.ts --receipt-only
+      - run: bun run scripts/pr-assets/mermaid-doc-showcase-gallery.ts --receipt-only
+      - run: bun run scripts/pr-assets/mindmap-gitgraph-content-gallery.ts --receipt-only
+      - run: bun run scripts/pr-assets/palette-rollout-evidence.ts --receipt-only
+      - run: bun run scripts/pr-assets/pie-highlightslice-evidence.ts --receipt-only
+      - run: bun run scripts/pr-assets/section-b-brand-evidence.ts --receipt-only
+      - uses: actions/upload-artifact@v7
+        with:
+          name: issue-303-quadrant-final-linux-receipts
+          path: |
+            eval/linkrank-feedback-packing/evidence-receipt.json
+            eval/mermaid-doc-showcase/gallery-receipt.json
+            eval/mindmap-gitgraph-content-corpus/gallery-receipt.json
+            eval/palette-rollout/evidence-receipt.json
+            eval/pie-highlightslice/evidence-receipt.json
+            eval/section-b-brand-evidence/evidence-receipt.json
+          if-no-files-found: error
