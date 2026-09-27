@@ -568,14 +568,20 @@ export function memberToString(m: ClassMember): string {
 function formatGenericMemberText(input: string): string {
   const sets = input.split(/(,)/)
   const output: string[] = []
-  for (let i = 0; i < sets.length; i++) {
+  // Pair comma-separated generic arguments before formatting. In particular,
+  // never pop a formatted output segment based on a raw input index: after one
+  // pair is consumed those indexes no longer refer to the same output entry.
+  for (let i = 0; i < sets.length; i += 2) {
     let set = sets[i]!
-    if (set === ',' && i > 0 && i + 1 < sets.length && countTildes(sets[i - 1]!) === 1 && countTildes(sets[i + 1]!) === 1) {
-      set = `${sets[i - 1]}${set}${sets[i + 1]}`
-      output.pop()
-      i++
+    let tildes = countTildes(set)
+    while (tildes % 2 !== 0 && i + 2 < sets.length) {
+      const next = sets[i + 2]!
+      set += `,${next}`
+      tildes += countTildes(next)
+      i += 2
     }
     output.push(formatGenericSet(set))
+    if (i + 1 < sets.length) output.push(',')
   }
   return output.join('')
 }

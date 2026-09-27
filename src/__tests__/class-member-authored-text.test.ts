@@ -45,6 +45,21 @@ test('nested and comma-separated Mermaid generic members render without losing t
   expect(drawnTexts(serializeMermaid(parsed.value))).toEqual(['Box', '+List<List<int>> data', '+Map<string,int> index'])
 })
 
+test('repeated and mixed nested/comma generics retain every authored member fragment', () => {
+  const cases = [
+    ['+Map~string,int~ first,Map~str,bool~ second', '+Map<string,int> first,Map<str,bool> second'],
+    ['+Map~string,List~int~~ field', '+Map<string,List<int>> field'],
+  ] as const
+  for (const [authored, displayed] of cases) {
+    const source = `classDiagram\n  class Box {\n    ${authored}\n  }\n`
+    expect(drawnTexts(source)).toEqual(['Box', displayed])
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) continue
+    expect(drawnTexts(serializeMermaid(parsed.value))).toEqual(['Box', displayed])
+  }
+})
+
 test('authored member display keeps UML modifiers and SVG escaping', () => {
   const source = 'classDiagram\n  class Safe {\n    +int count$\n    +name: <script>evil</script>\n  }\n'
   const svg = renderMermaidSVG(source)

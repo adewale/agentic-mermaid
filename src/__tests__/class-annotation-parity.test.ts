@@ -181,9 +181,9 @@ describe('Class official annotation forms', () => {
 
   test('annotation delimiter is outside quoted labels, generics, and backtick IDs', () => {
     const cases = [
-      { source: 'classDiagram\nclass Shape["<<Vector>>"] <<interface>>', id: 'Shape', label: '<<Vector>>', renders: true },
-      { source: 'classDiagram\nclass Box~List<<T>>~ <<interface>>', id: 'Box', label: 'Box', renders: false },
-      { source: 'classDiagram\nclass `A<<B>>` <<interface>>', id: 'A<<B>>', label: 'A<<B>>', renders: false },
+      { source: 'classDiagram\nclass Shape["<<Vector>>"] <<interface>>', id: 'Shape', label: '<<Vector>>' },
+      { source: 'classDiagram\nclass Box~List<<T>>~ <<interface>>', id: 'Box', label: 'Box' },
+      { source: 'classDiagram\nclass `A<<B>>` <<interface>>', id: 'A<<B>>', label: 'A<<B>>' },
     ] as const
     const script = `
       import DOMPurify from 'dompurify'
@@ -206,7 +206,7 @@ describe('Class official annotation forms', () => {
       id: entry.id, label: entry.label, annotations: ['interface'],
     })))
 
-    for (const { source, id, renders } of cases) {
+    for (const { source, id } of cases) {
       const native = parseClassDiagram(source.split('\n'))
       expect(native.classes.find(node => node.id === id)?.annotation).toBe('interface')
       const parsed = parseRegisteredMermaid(source)
@@ -214,16 +214,8 @@ describe('Class official annotation forms', () => {
       if (!parsed.ok) continue
       expect(asClass(parsed.value)?.body.classes.find(node => node.id === id)?.members).toContain('<<interface>>')
       const verified = verifyMermaid(parsed.value)
-      if (renders) {
-        expect(verified.ok).toBe(true)
-        expect(renderMermaidSVG(source)).toContain('data-annotation="interface"')
-      } else {
-        // These angle-bearing class labels already hit Scene validation on
-        // the base without annotations; preserve a public diagnostic here.
-        expect(verified.ok).toBe(false)
-        expect(verified.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]))
-        expect(() => renderMermaidSVG(source)).toThrow(/Scene validation failed/)
-      }
+      expect(verified.ok).toBe(true)
+      expect(renderMermaidSVG(source)).toContain('data-annotation="interface"')
       const serialized = serializeMermaid(parsed.value)
       expect(parseClassDiagram(serialized.trim().split('\n').map(line => line.trim())).classes.find(node => node.id === id)?.annotation).toBe('interface')
     }
