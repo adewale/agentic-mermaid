@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asXyChart } from '../agent/types.ts'
@@ -25,8 +26,10 @@ function expectClosed(source: string): void {
 }
 
 describe('XYChart shared grammar authority', () => {
-  test('an unknown nonblank statement fails native rendering instead of losing authored data', () => {
+  test('an unknown nonblank statement fails native rendering instead of losing authored data', async () => {
     const source = 'xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n'
+    mermaid.initialize({ startOnLoad: false })
+    await expect(mermaid.mermaidAPI.getDiagramFromText(source)).rejects.toThrow()
     expect(() => parseXYChart(source.trim().split('\n').map(line => line.trim()))).toThrow('Unrecognized XYChart line')
     expect(() => renderMermaidSVG(source)).toThrow('Unrecognized XYChart line')
     const parsed = parseRegisteredMermaid(source)
