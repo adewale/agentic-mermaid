@@ -77,9 +77,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared Sequence marker-spacing parser raises the reviewed ceilings by
     // 198 raw and 32 gzip bytes. The measured Linux total rises 229 raw bytes
     // with no additional requests; gzip remains under its reviewed ceiling.
-    maxRawBytes: 3_354_514,
-    maxGzipBytes: 985_826,
-    maxBrotliBytes: 775_349,
+    // Sender-side central-marker support keeps the same two-request graph;
+    // the reviewed Linux editor total is 3,354,584 raw / 985,844 gzip /
+    // 775,425 Brotli bytes.
+    maxRawBytes: 3_354_584,
+    maxGzipBytes: 985_844,
+    maxBrotliBytes: 775_425,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
