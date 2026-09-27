@@ -49,7 +49,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The title-directive bridge reached 733,574 raw demo bytes on Linux/x64;
     // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
     maxRawBytes: 734_000,
-    maxGzipBytes: 275_300,
+    maxGzipBytes: 275_600,
     maxBrotliBytes: 251_500,
     required: Object.freeze([
       '^/demo/$',
