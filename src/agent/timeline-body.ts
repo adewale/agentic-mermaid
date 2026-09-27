@@ -215,6 +215,24 @@ function normalizeTimelineOpText(value: string, opts: { field: string; allowColo
   return ok(normalized)
 }
 
+/** Use the same separator grammar as the render/agent parsers. Colons in
+ * clock times and URLs are text; a colon followed by whitespace starts a new
+ * event and would change the structure after serialization. */
+function normalizeTimelineEventOpText(value: string): Result<string, MutationError> {
+  const normalized = normalizeTimelineOpText(value, { field: 'event text' })
+  if (!normalized.ok) return normalized
+  // renderTimeline always appends a newline. Pinned Mermaid treats a trailing
+  // colon before that newline as a separator, rejecting or swallowing the next
+  // period even though the local splitter sees it as ordinary text.
+  if (normalized.value.endsWith(':')) {
+    return err({ code: 'INVALID_OP', message: 'Timeline event text must not end with : (upstream event separator)' })
+  }
+  try {
+    if (splitTimelineEvents(`: ${normalized.value}`).length === 1) return normalized
+  } catch { /* malformed event separator is an invalid mutation */ }
+  return err({ code: 'INVALID_OP', message: 'Timeline event text must not contain a colon followed by whitespace (event separator)' })
+}
+
 /** Accessibility text is line-oriented free text, but `{`/`}` delimit the
  *  accDescr block form and `;` is a statement separator in wrapper contexts —
  *  text carrying them would not survive serialize → re-parse. null clears.
@@ -319,7 +337,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       if (!label.ok) return label
       const events: TimelinePeriod['events'] = []
       for (const raw of op.events ?? []) {
-        const text = normalizeTimelineOpText(raw, { field: 'event text', allowColon: false })
+        const text = normalizeTimelineEventOpText(raw)
         if (!text.ok) return text
         events.push({ id: nextTimelineId('event'), text: text.value })
       }
@@ -352,7 +370,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'add_event': {
       const p = getPeriod(op.sectionIndex, op.periodIndex)
       if (!p) return periodNotFound(op.sectionIndex, op.periodIndex)
-      const text = normalizeTimelineOpText(op.text, { field: 'event text', allowColon: false })
+      const text = normalizeTimelineEventOpText(op.text)
       if (!text.ok) return text
       const index = resolveTimelineInsertIndex(op.index, p.events.length)
       if (!index.ok) return index
@@ -371,7 +389,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       if (!p) return periodNotFound(op.sectionIndex, op.periodIndex)
       const e = p.events[op.eventIndex]
       if (!e) return err({ code: 'EVENT_NOT_FOUND', message: `No event at index ${op.eventIndex} ${indexRangeHint(p.events.length)}` })
-      const text = normalizeTimelineOpText(op.text, { field: 'event text', allowColon: false })
+      const text = normalizeTimelineEventOpText(op.text)
       if (!text.ok) return text
       e.text = text.value
       break
