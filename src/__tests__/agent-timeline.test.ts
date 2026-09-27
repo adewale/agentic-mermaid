@@ -120,10 +120,9 @@ describe('timeline fidelity fallback', () => {
     expect(serializeMermaid(d)).toContain('timeline EXTRA')
   })
 
-  test('upstream-invalid event separators stay opaque and fail verification', () => {
+  test('invalid or reinterpretation-prone event separators stay opaque and fail verification', () => {
     for (const source of [
       'timeline\n  2020 : A :',
-      'timeline\n  2020 : A:',
       'timeline\n  2020 : A:\n  2021 : B',
       'timeline\n  2020 : A: : B',
       'timeline\n  2020 :',
@@ -135,6 +134,31 @@ describe('timeline fidelity fallback', () => {
       expect(verified.ok, source).toBe(false)
       expect(verified.warnings.map(warning => warning.code), source).toContain('RENDER_FAILED')
     }
+  })
+
+  test('diagnoses the upstream-valid final-colon-at-EOF form rather than silently canonicalizing it', () => {
+    const source = 'timeline\n  2020 : A:'
+    const parsed = parse(source)
+    expect(parsed.body.kind).toBe('opaque')
+    if (parsed.body.kind !== 'opaque') return
+    expect(parsed.body.source).toBe(source)
+    // Pinned Mermaid 11.16 accepts this exact EOF form as event "A:", but
+    // the shared canonical serializer appends a newline, which it rejects.
+    expect(serializeMermaid(parsed)).toBe(`${source}\n`)
+    const verified = verifyMermaid(parsed)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
+  })
+
+  test('diagnoses an upstream-valid whitespace-only middle event instead of dropping it', () => {
+    const source = 'timeline\n  2020 : A:  : B\n'
+    // Pinned Mermaid 11.16 parses this as ["A", " ", "B"]. The local typed
+    // model cannot round-trip the whitespace-only event, so it fails closed.
+    const parsed = parse(source)
+    expect(parsed.body.kind).toBe('opaque')
+    const verified = verifyMermaid(parsed)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
   })
 
   test('valid colon-ending events keep their following separator on the same line', () => {

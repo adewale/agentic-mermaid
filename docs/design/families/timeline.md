@@ -17,9 +17,12 @@ Pipeline:
 The renderer parser and agent body share `src/timeline/parse-core.ts` for
 header/content directives and event splitting. A colon starts a new event only
 when followed by whitespace, so `10:30` remains text on both surfaces.
-An event list with an empty segment or final colon is rejected rather than
-silently dropped or accepted when pinned Mermaid 11.16 rejects or reinterprets
-it.
+An event list with a zero-content segment (`A: : B`) or final colon is rejected
+rather than silently dropped or accepted when pinned Mermaid 11.16 rejects or
+reinterprets it. Two narrow upstream-valid forms remain diagnosed rather than
+modeled: `2020 : A:` at exact EOF with no newline (our serializers append a
+newline, changing its meaning), and `A:  : B` with a whitespace-only middle
+event. These are compatibility limitations, not upstream-invalid syntax claims.
 When an event's text itself ends in `:`, serialization keeps the next event
 separator on the same line (`A:: B`); moving it to a continuation line would
 change Mermaid's parsed events.
