@@ -78,11 +78,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 198 raw and 32 gzip bytes. The measured Linux total rises 229 raw bytes
     // with no additional requests; gzip remains under its reviewed ceiling.
     // Sender-side central-marker support and its Mermaid-invalid-form guards
-    // keep the two-request graph fixed. The exact Linux totals are pinned in
-    // the payload baseline.
-    maxRawBytes: 3_354_584,
-    maxGzipBytes: 986_047,
-    maxBrotliBytes: 775_548,
+    // keep the two-request graph fixed. Two Linux captures of the same browser
+    // code differed by 581 raw bytes; retain a sub-0.1% ceiling margin while
+    // the exact final Linux totals remain pinned in the payload baseline.
+    maxRawBytes: 3_356_000,
+    maxGzipBytes: 986_500,
+    maxBrotliBytes: 776_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
