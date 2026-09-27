@@ -11,7 +11,7 @@ export const SOURCE = `pie showData
   "A<br>B" : 1
   "C" : 2
 `
-const BASE_SHA = '11b53c279a085d84c750ce9a35e638bd40c2b919'
+const BASE_SHA = '4832661d7a118d45c04cc175ec0b81da88144eb5'
 const baseDirectory = process.argv[2]
 if (!baseDirectory) throw new Error('Usage: bun run scripts/pr-assets/issue-248-pie-authored-formatting.ts <base-checkout> [--check]')
 
