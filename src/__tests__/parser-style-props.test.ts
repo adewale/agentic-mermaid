@@ -51,7 +51,7 @@ describe('M4 style props — comma-aware splitting', () => {
 describe('an authored paint the renderer cannot draw', () => {
   test('fails the render with the directive, the property, the value and a fix', () => {
     expect(() => renderMermaidSVG('flowchart TD\n  A --> B\n  style A fill:#12345')).toThrow(
-      'style A: fill "#12345" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla() or var(--name), e.g. style A fill:#f96',
+      'style A: fill "#12345" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor, none, or var(--name), e.g. style A fill:#f96',
     )
     for (const [source, named] of [
       ['flowchart TD\n  A:::hot --> B\n  classDef hot fill:#f96,stroke:url(#a)', 'classDef hot: stroke "url(#a)"'],

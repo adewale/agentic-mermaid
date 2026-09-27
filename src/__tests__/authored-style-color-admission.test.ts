@@ -16,6 +16,7 @@ const INVALID = [
   'rgb(1 2 3 / .5 / junk)', 'hsl(120 50% 50% / .5 / junk)',
   'rgb(1 2 3 .5)', 'hsl(120 50% 50% .5)',
   'rgb(1,20%,3)', 'rgba(1,20%,3,.5)',
+  'rgb(1. 2 3)', 'rgb(1.e2 2 3)', 'hsl(120. 50% 50%)',
   'rgb(1, 2, 3 / .5)', 'hsl(120, 50%, 50% / .5)',
   'hsl(1e308turn,50%,50%)',
   'hwb(120 0% 0%)', 'color-mix(in srgb, red, blue)', 'url(#a)',
@@ -97,6 +98,15 @@ describe('authored style color admission (#303, source/typed slice)', () => {
     for (const { directive, make } of SOURCES) {
       const source = make('notacolor')
       const named = `${directive}: ${directive.startsWith('linkStyle') ? 'stroke' : 'fill'} "notacolor" is not a CSS color`
+      await expect(renderMermaidSVGAsync(source), source).rejects.toThrow(named)
+    }
+    for (const [source, named] of [
+      ['flowchart TD\n  A --> B\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
+      ['flowchart TD\n  A --> B\n  linkStyle 99 stroke:notacolor', 'linkStyle 99: stroke "notacolor"'],
+      ['stateDiagram-v2\n  A --> B\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
+      ['classDiagram\n  class A\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
+      ['erDiagram\n  A ||--o{ B : has\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
+    ] as const) {
       await expect(renderMermaidSVGAsync(source), source).rejects.toThrow(named)
     }
   })

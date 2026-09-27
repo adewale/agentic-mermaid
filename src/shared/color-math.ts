@@ -207,7 +207,7 @@ export function tryParseCssColor(color: string): RgbaColor | null {
  * units follow CSS Color 4. Reject trailing junk instead of parseFloat's
  * dangerous partial parse (for example, treating `0.5turn` as 0.5 degrees). */
 function parseCssHue(token: string): number | null {
-  const match = token.trim().match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(deg|grad|rad|turn)?$/i)
+  const match = token.trim().match(/^([+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?)(deg|grad|rad|turn)?$/i)
   if (!match) return null
   const value = Number(match[1])
   if (!Number.isFinite(value)) return null
@@ -231,8 +231,8 @@ function parseAlpha(token: string | undefined): number | null {
 
 function parseCssNumber(token: string, percent: boolean): number | null {
   const pattern = percent
-    ? /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%$/i
-    : /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i
+    ? /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?%$/i
+    : /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i
   if (!pattern.test(token)) return null
   const value = Number(percent ? token.slice(0, -1) : token)
   return Number.isFinite(value) ? value : null
