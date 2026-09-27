@@ -136,14 +136,15 @@ describe('timeline fidelity fallback', () => {
     }
   })
 
-  test('diagnoses the upstream-valid final-colon-at-EOF form rather than silently canonicalizing it', () => {
+  test('diagnoses the grammar-accepted final-colon-at-EOF form rather than silently canonicalizing it', () => {
     const source = 'timeline\n  2020 : A:'
     const parsed = parse(source)
     expect(parsed.body.kind).toBe('opaque')
     if (parsed.body.kind !== 'opaque') return
     expect(parsed.body.source).toBe(source)
-    // Pinned Mermaid 11.16 accepts this exact EOF form as event "A:", but
-    // the shared canonical serializer appends a newline, which it rejects.
+    // Pinned Mermaid 11.16's grammar accepts this exact EOF form as event
+    // "A:", but its public render API rejects it and our canonical serializer
+    // appends a newline, which the grammar also rejects.
     expect(serializeMermaid(parsed)).toBe(`${source}\n`)
     const verified = verifyMermaid(parsed)
     expect(verified.ok).toBe(false)
