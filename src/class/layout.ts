@@ -556,10 +556,46 @@ function maxMemberWidth(members: ClassMember[]): number {
 export function memberToString(m: ClassMember): string {
   if (!m.isMethod && m.sourceText) {
     const visibility = m.visibility && m.sourceText.startsWith(m.visibility) ? m.visibility : ''
-    return visibility + m.sourceText.slice(visibility.length).replace(/~([^~]+)~/g, '<$1>')
+    return visibility + formatGenericMemberText(m.sourceText.slice(visibility.length))
   }
   const vis = m.visibility ? `${m.visibility} ` : ''
   const name = m.isMethod ? `${m.name}(${m.params || ''})` : m.name
   const type = m.type ? `: ${m.type}` : ''
   return `${vis}${name}${type}`
+}
+
+/** Match Mermaid's outside-in tilde pairing, including nested generic types. */
+function formatGenericMemberText(input: string): string {
+  const sets = input.split(/(,)/)
+  const output: string[] = []
+  for (let i = 0; i < sets.length; i++) {
+    let set = sets[i]!
+    if (set === ',' && i > 0 && i + 1 < sets.length && countTildes(sets[i - 1]!) === 1 && countTildes(sets[i + 1]!) === 1) {
+      set = `${sets[i - 1]}${set}${sets[i + 1]}`
+      output.pop()
+      i++
+    }
+    output.push(formatGenericSet(set))
+  }
+  return output.join('')
+}
+
+function countTildes(input: string): number {
+  let count = 0
+  for (const char of input) if (char === '~') count++
+  return count
+}
+
+function formatGenericSet(input: string): string {
+  const chars = [...input]
+  const tildes: number[] = []
+  for (let i = 0; i < chars.length; i++) if (chars[i] === '~') tildes.push(i)
+  if (tildes.length <= 1) return input
+  // A leading odd tilde is UML's private visibility marker, not a bracket.
+  const first = tildes.length % 2 !== 0 && chars[0] === '~' ? 1 : 0
+  for (let left = first, right = tildes.length - 1; left < right; left++, right--) {
+    chars[tildes[left]!] = '<'
+    chars[tildes[right]!] = '>'
+  }
+  return chars.join('')
 }

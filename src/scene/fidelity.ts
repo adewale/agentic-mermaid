@@ -212,15 +212,17 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // normalized the way the text emitter normalizes labels (markdown
       // backticks, <b>/<i>/<u>/<s> emphasis tags, whitespace), so formatted
       // labels don't false-positive.
-      const normalize = (s: string) => unescapeXml(s
+      const normalize = (s: string, crisp: boolean) => unescapeXml(s
         .replace(/<br\s*\/?>/gi, ' ')
-        .replace(/<[^>]+>/g, '')
+        // Semantic text may contain literal generic brackets. Only its known
+        // emphasis markup is removable; the serialized SVG has actual tags.
+        .replace(crisp ? /<[^>]+>/g : /<\/?(?:b|i|u|s)>/gi, '')
       )
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
-      const wantText = normalize(node.text)
-      if (wantText && !normalize(serialized).includes(wantText.split(' ')[0]!)) {
+      const wantText = normalize(node.text, false)
+      if (wantText && !normalize(serialized, true).includes(wantText.split(' ')[0]!)) {
         problems.push(`${path}(text:${node.id}): text "${wantText.slice(0, 40)}" not found in crisp`)
       }
       return

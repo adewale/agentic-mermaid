@@ -36,6 +36,15 @@ test('inline class attributes use the same authored display contract', () => {
   expect(drawnTexts(inline)).toEqual(['Account', '+id: string', '+List<int> position'])
 })
 
+test('nested and comma-separated Mermaid generic members render without losing text', () => {
+  const nested = 'classDiagram\n  class Box {\n    +List~List~int~~ data\n    +Map~string,int~ index\n  }\n'
+  expect(drawnTexts(nested)).toEqual(['Box', '+List<List<int>> data', '+Map<string,int> index'])
+  const parsed = parseRegisteredMermaid(nested)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  expect(drawnTexts(serializeMermaid(parsed.value))).toEqual(['Box', '+List<List<int>> data', '+Map<string,int> index'])
+})
+
 test('authored member display keeps UML modifiers and SVG escaping', () => {
   const source = 'classDiagram\n  class Safe {\n    +int count$\n    +name: <script>evil</script>\n  }\n'
   const svg = renderMermaidSVG(source)

@@ -488,7 +488,7 @@
     },
     {
       "path": "src/class/layout.ts",
-      "sha256": "6a519c0476b24e37ed4a915fd3ace7d81c1a5c129c5d83c8c45014cfaeb8a953"
+      "sha256": "2332de61e83efbea2fa654b3b136afbfbf425b882fa13b891cc0e35d548b52ef"
     },
     {
       "path": "src/class/parser.ts",
@@ -904,7 +904,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "fe9e6edc2737ed62fc60082b265e798c6140ce0412ee4fca1bb84aec6e74f314"
+      "sha256": "a4484634137b4267e85f17292181bc9dac3fd59845f1f2856db2d2249fd4b395"
     },
     {
       "path": "src/scene/gradient-resources.ts",

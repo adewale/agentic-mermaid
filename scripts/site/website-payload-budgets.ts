@@ -41,9 +41,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // rendered pixels; the unclosed-block guard and inline-empty-Class-body
     // recognition add a few bytes. These are measured Linux/x64 and
     // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
-    maxRawBytes: 732_258,
-    maxGzipBytes: 274_660,
-    maxBrotliBytes: 250_718,
+    maxRawBytes: 732_291,
+    maxGzipBytes: 274_686,
+    maxBrotliBytes: 250_802,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -71,11 +71,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared accDescr scanner, unclosed-block guard, and inline-empty-Class
     // recognition leave the two-request graph unchanged. Exact Linux totals
     // are pinned in the baseline.
-    // Authored Class member text raises the complete Bun 1.4.2 editor bundle
-    // without changing its two-request graph. Pin the Linux/x64 totals.
-    maxRawBytes: 3_353_575,
-    maxGzipBytes: 985_477,
-    maxBrotliBytes: 775_166,
+    // Authored Class member text and nested-generic Scene fidelity raise the
+    // complete Bun 1.4.2 editor bundle without changing its two-request graph.
+    maxRawBytes: 3_354_087,
+    maxGzipBytes: 985_717,
+    maxBrotliBytes: 775_349,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
