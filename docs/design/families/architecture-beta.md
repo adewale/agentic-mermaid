@@ -99,8 +99,10 @@ derives a `color-mix()` from it; `clusterBorder:none` and the direct
 `secondaryColor:none` fill are allowed. Architecture also refuses `none` for
 the shared `background`, `mainBkg`, `primaryColor`, `nodeBkg`, `lineColor`,
 `defaultLinkColor`, and `arrowheadColor` channels: each can feed a derived
-`color-mix()` paint. Shared border keys remain direct strokes and may use
-`none`.
+`color-mix()` paint when it is the selected source key for its channel.
+Shadowed fallbacks may still use `none`; for example, `defaultLinkColor:none`
+is ignored when `lineColor` is set. Shared border keys remain direct strokes
+and may use `none`.
 
 ## Completed elevation contracts
 

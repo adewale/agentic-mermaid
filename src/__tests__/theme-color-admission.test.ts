@@ -335,6 +335,29 @@ describe('theme color admission (#303, Architecture layer)', () => {
     }
   })
 
+  test('shadowed shared fallbacks do not receive the Architecture color-mix restriction', () => {
+    for (const [leading, shadowed] of [
+      ['lineColor', 'defaultLinkColor'],
+      ['primaryColor', 'nodeBkg'],
+    ] as const) {
+      const leadingOnly = init(ARCHITECTURE, leading, '#f00')
+      const withShadowedNone = `%%{init: ${JSON.stringify({ themeVariables: { [leading]: '#f00', [shadowed]: 'none' } })}}%%\n${ARCHITECTURE}`
+      expect(renderMermaidSVG(withShadowedNone), shadowed).toBe(renderMermaidSVG(leadingOnly))
+    }
+    const directServiceNone = `%%{init: ${JSON.stringify({ themeVariables: {
+      background: '#fff', primaryColor: '#f00', mainBkg: 'none',
+    } })}}%%\n${ARCHITECTURE}`
+    expect(renderMermaidSVG(directServiceNone)).toContain('--arch-service-fill:none')
+    for (const vars of [
+      { lineColor: 'none', defaultLinkColor: '#f00' },
+      { background: 'none', mainBkg: '#f00' },
+      { arrowheadColor: '#f00', primaryColor: 'none' },
+    ]) {
+      const source = `%%{init: ${JSON.stringify({ themeVariables: vars })}}%%\n${ARCHITECTURE}`
+      expect(() => renderMermaidSVG(source)).toThrow('is not a CSS color')
+    }
+  })
+
   test('mainBkg none is named across public routes and input forms', async () => {
     const source = init(ARCHITECTURE, 'mainBkg', 'none')
     const named = 'themeVariables.mainBkg: "none" is not a CSS color'
