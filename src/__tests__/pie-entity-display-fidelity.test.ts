@@ -92,6 +92,8 @@ test('entity-encoded Pie directive grammar does not consume authored title entit
     ['pie title A;B\n  "X" : 1\n', 'A;B', 'A;B'],
     ['pie&#32;title A&#65;B\n  "X" : 1\n', 'A&#65;B', 'A&AB'],
     ['pie\n  t&#105;tle A&#65;B\n  "X" : 1\n', 'A&#65;B', 'A&AB'],
+    ['pie title &#32;X\n  "X" : 1\n', '&#32;X', '& X'],
+    ['pie\n  title &#32;X\n  "X" : 1\n', '&#32;X', '& X'],
   ] as const) {
     const agent = parseRegisteredMermaid(source)
     expect(agent.ok).toBe(true)
@@ -113,6 +115,7 @@ test('pinned Mermaid Pie DB and SVG entity cleanup witness title display indepen
     ['A#65;B', 'Aﬂ°°65¶ßB', 'AAB'],
     ['A&#65;B', 'A&ﬂ°°65¶ßB', 'A&AB'],
     ['A#copy;B', 'Aﬂ°copy¶ßB', 'A©B'],
+    ['&#32;X', '&ﬂ°°32¶ßX', '& X'],
   ] as const) {
     const source = `pie\n  title ${sourceTitle}\n  "X" : 1\n`
     const script = `
