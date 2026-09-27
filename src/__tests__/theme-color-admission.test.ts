@@ -14,6 +14,7 @@ const PIE = 'pie\n  "A" : 3\n  "B" : 2'
 const GITGRAPH = 'gitGraph\n  commit id:"A" type:HIGHLIGHT'
 const TIMELINE = 'timeline\n  2020 : Start\n  2021 : End'
 const RADAR = 'radar-beta\n  title Skills\n  axis a, b, c\n  curve x{1,2,3}\n  max 5'
+const ARCHITECTURE = 'architecture-beta\n  group app(cloud)[App]\n  service api(server)[API] in app'
 const invalid = ['notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'url(#a)'] as const
 
 function init(source: string, key: string, value: unknown): string {
@@ -308,5 +309,74 @@ describe('theme color admission (#303, Radar layer)', () => {
   test('Radar-private colors do not change unrelated families', () => {
     expect(() => renderMermaidSVG(init(FLOW, 'titleColor', 'notacolor'))).not.toThrow()
     expect(() => renderMermaidSVG(init(FLOW, 'radar', { axisColor: 'notacolor' }))).not.toThrow()
+  })
+})
+
+describe('theme color admission (#303, Architecture layer)', () => {
+  test('group fills and borders and fallback service fill reject malformed paint', () => {
+    for (const key of ['clusterBkg', 'clusterBorder', 'secondaryColor']) {
+      for (const value of [...invalid, 123]) {
+        const source = init(ARCHITECTURE, key, value)
+        const named = `themeVariables.${key}: ${JSON.stringify(String(value))} is not a CSS color`
+        expect(() => renderMermaidSVG(source), `${key} ${value}`).toThrow(named)
+        expect(() => renderMermaidASCII(source), `${key} ${value}`).toThrow(named)
+      }
+    }
+  })
+
+  test('group fill refuses none because it feeds a derived header color', () => {
+    expect(() => renderMermaidSVG(init(ARCHITECTURE, 'clusterBkg', 'none')))
+      .toThrow('themeVariables.clusterBkg: "none" is not a CSS color')
+    for (const key of ['clusterBorder', 'secondaryColor']) {
+      expect(() => renderMermaidSVG(init(ARCHITECTURE, key, 'none'))).not.toThrow()
+    }
+  })
+
+  test('secondaryColor is a fallback only when mainBkg is absent', () => {
+    const source = `%%{init: ${JSON.stringify({ themeVariables: { mainBkg: '#123456', secondaryColor: 'notacolor' } })}}%%\n${ARCHITECTURE}`
+    expect(() => renderMermaidSVG(source)).not.toThrow()
+    expect(renderMermaidSVG(source)).not.toContain('--arch-service-fill:notacolor')
+  })
+
+  test('accepted custom-property paints reach Architecture SVG variables', () => {
+    const source = `%%{init: ${JSON.stringify({ themeVariables: {
+      clusterBkg: 'var(--group-fill)', clusterBorder: 'var(--group-line)', secondaryColor: 'var(--service-fill)',
+    } })}}%%\n${ARCHITECTURE}`
+    const svg = renderMermaidSVG(source)
+    for (const [name, variable] of [
+      ['--arch-group-fill', 'group-fill'],
+      ['--arch-group-stroke', 'group-line'],
+      ['--arch-service-fill', 'service-fill'],
+    ]) expect(svg).toContain(`${name}:var(--${variable})`)
+    expect(verifyMermaid(source).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+  })
+
+  test('named refusal agrees across verify, PNG, browser-lazy, CLI and MCP', async () => {
+    const source = init(ARCHITECTURE, 'clusterBkg', 'url(#unsafe)')
+    const named = 'themeVariables.clusterBkg: "url(#unsafe)" is not a CSS color'
+    expect(() => renderMermaidPNG(source)).toThrow(named)
+    expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+    await expect(renderMermaidSVGAsync(source)).rejects.toThrow(named)
+    const result = runBatchLine(JSON.stringify({ op: 'render', format: 'svg', source }), 0)
+    expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'clusterBkg', value: 'url(#unsafe)' } })
+    const response = await handleHostedRequest(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source } } },
+      {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('not used') },
+      },
+    )
+    const payload = JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+    expect(payload).toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'clusterBkg', value: 'url(#unsafe)' } })
+  })
+
+  test('frontmatter and options agree, and Architecture-private keys do not affect Flowchart', () => {
+    const yaml = '---\nconfig:\n  themeVariables:\n    clusterBorder: "#12345"\n---\n' + ARCHITECTURE
+    expect(() => renderMermaidSVG(yaml)).toThrow('themeVariables.clusterBorder: "#12345" is not a CSS color')
+    expect(() => renderMermaidSVG(ARCHITECTURE, { mermaidConfig: { themeVariables: { clusterBkg: 'notacolor' } } }))
+      .toThrow('themeVariables.clusterBkg: "notacolor" is not a CSS color')
+    for (const key of ['clusterBkg', 'clusterBorder', 'secondaryColor']) {
+      expect(() => renderMermaidSVG(init(FLOW, key, 'notacolor'))).not.toThrow()
+    }
   })
 })

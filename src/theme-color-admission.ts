@@ -29,6 +29,7 @@ const RADAR_COLOR_KEYS = new Set([
   ...Array.from({ length: 12 }, (_, index) => `cScale${index}`),
   'titleColor',
 ])
+const ARCHITECTURE_COLOR_KEYS = new Set(['clusterBkg', 'clusterBorder'])
 // Timeline mixes both cScale fills and cScaleInv lines into derived
 // color-mix() paints; `none` invalidates those colors. Labels require ink.
 
@@ -131,6 +132,7 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     : familyId === 'gitgraph' ? GITGRAPH_COLOR_KEYS
     : familyId === 'timeline' ? TIMELINE_COLOR_KEYS
     : familyId === 'radar' ? RADAR_COLOR_KEYS
+    : familyId === 'architecture' ? ARCHITECTURE_COLOR_KEYS
     : undefined
   const colorKeys = privateColorKeys ? new Set([...SHARED_COLOR_KEYS, ...privateColorKeys]) : SHARED_COLOR_KEYS
   for (const key of colorKeys) {
@@ -141,6 +143,7 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
       || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
       || (familyId === 'radar' && RADAR_COLOR_KEYS.has(key))
+      || (familyId === 'architecture' && key === 'clusterBkg')
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
     }
@@ -155,6 +158,15 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
       const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
       if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, allowNone) === undefined) {
         throw new ThemeVariableColorError(`radar.${key}`, value, allowNone)
+      }
+    }
+  }
+  if (familyId === 'architecture' && (typeof vars.mainBkg !== 'string' || vars.mainBkg.length === 0)) {
+    const raw = vars.secondaryColor
+    if (raw !== undefined) {
+      const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
+      if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, true) === undefined) {
+        throw new ThemeVariableColorError('secondaryColor', value, true)
       }
     }
   }
