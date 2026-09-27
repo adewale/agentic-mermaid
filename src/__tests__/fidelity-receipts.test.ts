@@ -528,8 +528,8 @@ describe('issue #248 construct fidelity receipts', () => {
       {
         caseId: 'xychart.syntax.unknown-statement-render-seam',
         surface: 'render',
-        path: ['bars', 1, 'value'],
-        replacement: '999',
+        path: ['errorMessage'],
+        replacement: 'Unrecognized XYChart line: "different"',
       },
       {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',

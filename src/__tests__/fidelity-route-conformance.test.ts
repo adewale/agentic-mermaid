@@ -84,19 +84,28 @@ describe('issue #248 fidelity route conformance', () => {
     }
   })
 
-  test('an absent construct stays absent even when every rendering adapter agrees on the partial artifact', async () => {
+  test('an unknown XYChart statement has the same diagnosed rejection at every adapter boundary', async () => {
     const registry = await discoverFidelityRegistry()
     const fidelityCase = registry.cases.find(candidate => candidate.id === 'xychart.syntax.unknown-statement-render-seam')!
     const capability = FIDELITY_CAPABILITY_REPORT.features.find(feature => feature.featureId === fidelityCase.featureId)!
-    expect(capability.disposition).toBe('absent')
-    expect(capability.surfaces.render).toBe('absent')
+    expect(capability.disposition).toBe('diagnosed')
+    expect(capability.surfaces.render).toBe('diagnosed')
+    expect(capability.diagnostics.render).toEqual(['RENDER_FAILED'])
 
-    const artifacts = await svgArtifacts(fidelityCase.source)
-    const authority = artifacts.library!
-    for (const [surface, artifact] of Object.entries(artifacts)) {
-      expect(artifact.svg, surface).toBe(authority.svg)
-      expect(artifact.receipt, surface).toEqual(authority.receipt)
+    const authority = diagnosticFrom(() => renderMermaidSVGWithReceipt(fidelityCase.source, OPTIONS))
+    expect(authority).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+    const direct = {
+      cli: diagnosticFrom(() => renderSourceToFormatWithReceipt(fidelityCase.source, 'svg', OPTIONS)),
+      browserEditor: diagnosticFrom(() => BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(fidelityCase.source, OPTIONS)),
+      website: diagnosticFrom(() => renderWebsiteSVGWithReceipt(fidelityCase.source, OPTIONS)),
     }
+    for (const [surface, diagnostic] of Object.entries(direct)) expect(diagnostic, surface).toEqual(authority)
+
+    const hosted = payloadOf(await handleHostedRequest(
+      call('render_svg', { source: fidelityCase.source, options: OPTIONS }),
+      hostedContext(),
+    ))
+    expect(hosted).toMatchObject({ ok: false, isError: true, error: authority })
   })
 
   test('a diagnosed unsupported construct preserves the same typed diagnostic at every adapter boundary', async () => {

@@ -27,9 +27,11 @@ function expectClosed(source: string): void {
 
 describe('XYChart shared grammar authority', () => {
   test('an unknown nonblank statement fails native rendering instead of losing authored data', async () => {
-    const source = 'xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n'
+    const validSource = 'xychart-beta\n  bar [1, 2]\n'
+    const source = `${validSource}  frob official-data-lost\n`
     mermaid.initialize({ startOnLoad: false })
-    await expect(mermaid.mermaidAPI.getDiagramFromText(source)).rejects.toThrow()
+    await expect(mermaid.mermaidAPI.getDiagramFromText(validSource)).resolves.toBeDefined()
+    await expect(mermaid.mermaidAPI.getDiagramFromText(source)).rejects.toThrow(/Parse error/i)
     expect(() => parseXYChart(source.trim().split('\n').map(line => line.trim()))).toThrow('Unrecognized XYChart line')
     expect(() => renderMermaidSVG(source)).toThrow('Unrecognized XYChart line')
     const parsed = parseRegisteredMermaid(source)
