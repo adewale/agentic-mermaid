@@ -36,6 +36,7 @@ const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
   .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   .join('|')
 const SEQUENCE_MESSAGE_PREFIX_RE = new RegExp(String.raw`^(\S+?)(\(\))?\s*(${arrowAlternatives})`)
+const SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE = new RegExp(String.raw`^(\S+?)\s+(\(\))\s*(${arrowAlternatives})`)
 
 export interface ParsedSequenceMessageLine {
   from: string
@@ -50,6 +51,7 @@ export interface ParsedSequenceMessageLine {
 /** One message-line grammar shared by renderer and agent parsers. */
 export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLine | null {
   const match = line.match(SEQUENCE_MESSAGE_PREFIX_RE)
+    ?? line.match(SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE)
   if (!match || !isMessageArrow(match[3]!)) return null
   // A single scan after the arrow admits optional spaces around Mermaid's
   // central-connection and activation markers. Avoid adjacent optional \s*

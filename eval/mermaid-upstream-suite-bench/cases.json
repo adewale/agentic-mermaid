@@ -11609,12 +11609,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11634,12 +11636,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11659,12 +11663,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11684,12 +11690,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11709,12 +11717,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
@@ -11734,12 +11744,14 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 0,
+      "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
+      "minEdges": 1,
       "labelsContain": [
         "Alice",
-        "Bob"
+        "Bob",
+        "Hello Bob, how are you?"
       ]
     }
   },
