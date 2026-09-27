@@ -76,11 +76,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Architecture's shared derived-paint admission keeps 31 requests. The
     // exact Linux/Bun 1.4.2 capture measures 742,685 raw / 278,345 gzip /
     // 253,985 Brotli bytes; these ceilings keep less than 0.06% headroom.
-    // Architecture direct render-option admission keeps the 31-request graph.
-    // Linux/Bun 1.4.2 measures 743,212 raw / 278,475 gzip / 254,060 Brotli.
-    maxRawBytes: 760_000,
-    maxGzipBytes: 290_000,
-    maxBrotliBytes: 265_000,
+    // Architecture direct render-option admission, including resolved visual
+    // precedence, keeps the 31-request graph. Linux/Bun 1.4.2 measures
+    // 743,707 raw / 278,589 gzip / 254,162 Brotli bytes.
+    maxRawBytes: 743_825,
+    maxGzipBytes: 278_725,
+    maxBrotliBytes: 254_280,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -162,17 +163,17 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Brotli bytes in the unchanged two-request editor graph.
     // The complete editor bundle measures 3,405,034 raw / 1,012,944 gzip /
     // 799,359 Brotli bytes in the same exact Linux capture.
-    // The complete two-request editor graph measures 3,405,599 raw /
-    // 1,013,056 gzip / 799,185 Brotli in the same Linux capture.
-    maxRawBytes: 3_430_000,
+    // The complete two-request editor graph measures 3,406,103 raw /
+    // 1,013,217 gzip / 799,595 Brotli in the same Linux capture.
+    maxRawBytes: 3_406_230,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_025_000,
+    maxGzipBytes: 1_013_350,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.
-    maxBrotliBytes: 810_000,
+    maxBrotliBytes: 799_725,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
