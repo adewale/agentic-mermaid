@@ -358,6 +358,32 @@ describe('theme color admission (#303, Architecture layer)', () => {
     }
   })
 
+  test('resolved visual paint shadows theme fallbacks only when every mixed use is covered', () => {
+    for (const key of ['lineColor', 'arrowheadColor']) {
+      const source = init(ARCHITECTURE, key, 'none')
+      const options = { architecture: { visual: { edgeStroke: '#f00' } } }
+      expect(() => renderMermaidSVG(source, options), key).not.toThrow()
+      expect(verifyMermaid(source, { renderOptions: options }).ok).toBe(true)
+    }
+    const group = init(ARCHITECTURE, 'clusterBkg', 'none')
+    for (const visual of [{ groupSurface: '#eee' }, { groupHeaderSurface: '#eee' }]) {
+      const options = { architecture: { visual } }
+      expect(() => renderMermaidSVG(group, options)).not.toThrow()
+      expect(verifyMermaid(group, { renderOptions: options }).ok).toBe(true)
+    }
+    const sharedSurface = init(ARCHITECTURE, 'nodeBkg', 'none')
+    const surfaceOptions = { architecture: { visual: { groupSurface: '#eee' } } }
+    expect(() => renderMermaidSVG(sharedSurface, surfaceOptions)).not.toThrow()
+    expect(verifyMermaid(sharedSurface, { renderOptions: surfaceOptions }).ok).toBe(true)
+    const dualChannel = init(ARCHITECTURE, 'primaryColor', 'none')
+    expect(() => renderMermaidSVG(dualChannel, surfaceOptions)).toThrow('themeVariables.primaryColor: "none"')
+    const fullyShadowed = { architecture: { visual: { groupSurface: '#eee', edgeStroke: '#f00' } } }
+    expect(() => renderMermaidSVG(dualChannel, fullyShadowed)).not.toThrow()
+    expect(verifyMermaid(dualChannel, { renderOptions: fullyShadowed }).ok).toBe(true)
+    expect(() => renderMermaidSVG(init(ARCHITECTURE, 'background', 'none'), fullyShadowed))
+      .toThrow('themeVariables.background: "none"')
+  })
+
   test('explicit render colors override theme sources at the same admission boundary', () => {
     for (const [key, colors] of [
       ['background', { bg: '#fff' }],

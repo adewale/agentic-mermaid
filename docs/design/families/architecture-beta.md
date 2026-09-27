@@ -112,6 +112,9 @@ Resolved visual overrides can shadow a fallback: a concrete
 `architecture.visual.edgeStroke` shadows `line` and `accent`, while a concrete
 group surface or header can make `surface` a direct paint only. A selected
 `edgeStroke:none` or `groupSurface:none` is refused when it feeds a mix.
+The same resolved precedence applies to theme-variable fallbacks, including
+`lineColor`, `arrowheadColor`, `nodeBkg`, and `clusterBkg`; an unused fallback
+does not produce a false color error.
 Direct `border:none` remains available. The rule is Architecture-only and
 produces `INVALID_RENDER_COLOR` through graphical, terminal, CLI, and MCP
 routes before output.

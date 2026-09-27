@@ -12,7 +12,8 @@ import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
 import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
-import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError } from '../theme-color-admission.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
 import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
@@ -106,7 +107,11 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   try {
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
-    checkThemeVariableColors(source.config.themeVariables, parsed.value.kind, opts.renderOptions)
+    // The structured Architecture body may omit its authored theme envelope.
+    // Resolve the authored request here so verify sees the same selected
+    // visual/theme precedence as the render waist, before structural tiers.
+    if (parsed.value.kind === 'architecture') resolveRenderRequest(authored, opts.renderOptions ?? {}, 'svg')
+    else checkThemeVariableColors(source.config.themeVariables, parsed.value.kind, opts.renderOptions)
     checkFamilyConfigColors(source.frontmatter, parsed.value.kind)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
@@ -117,7 +122,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     const structured = verifyStructure(parsed.value, opts, positioned)
     return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
-    if (!(error instanceof FamilyLayoutError || error instanceof RenderOptionColorError)) throw error
+    if (!(error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError)) throw error
     return finalize([{ code: 'RENDER_FAILED', reason: error.message }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
 }

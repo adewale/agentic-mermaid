@@ -193,6 +193,7 @@ export function checkThemeVariableColors(
   vars: MermaidThemeVariables | undefined,
   familyId: string,
   renderOptions?: Pick<RenderOptions, 'bg' | 'surface' | 'line' | 'accent'>,
+  architectureVisual?: Readonly<ArchitectureVisualConfig>,
 ): void {
   if (!vars) return
   const privateColorKeys = familyId === 'pie' ? PIE_COLOR_KEYS
@@ -204,7 +205,13 @@ export function checkThemeVariableColors(
   const colorKeys = privateColorKeys ? new Set([...SHARED_COLOR_KEYS, ...privateColorKeys]) : SHARED_COLOR_KEYS
   const architectureMixedKeys = familyId === 'architecture'
     ? new Set(ARCHITECTURE_MIXED_CHANNELS.flatMap(([channel, keys]) => {
-      return renderOptions?.[channel] !== undefined ? [] : (selectedThemeColorKey(vars, keys) ?? [])
+      if (renderOptions?.[channel] !== undefined) return []
+      if (channel === 'surface' && architectureVisual && (
+        architectureVisual?.groupHeaderSurface
+        || architectureVisual?.groupSurface?.trim().toLowerCase() !== 'none'
+      )) return []
+      if ((channel === 'line' || channel === 'accent') && architectureVisual?.edgeStroke) return []
+      return selectedThemeColorKey(vars, keys) ?? []
     }))
     : undefined
   for (const key of colorKeys) {
@@ -215,7 +222,13 @@ export function checkThemeVariableColors(
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
       || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
       || (familyId === 'radar' && RADAR_COLOR_KEYS.has(key))
-      || (familyId === 'architecture' && (key === 'clusterBkg' || architectureMixedKeys?.has(key)))
+      || (familyId === 'architecture' && (
+        (key === 'clusterBkg' && (!architectureVisual || (
+          !architectureVisual.groupHeaderSurface
+          && architectureVisual.groupSurface?.trim().toLowerCase() === 'none'
+        )))
+        || architectureMixedKeys?.has(key)
+      ))
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
     }
