@@ -22,8 +22,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Sequence half-arrow examples add bytes without changing the six-request
     // graph; these are the reviewed Linux/x64 totals.
     maxRawBytes: 391_535,
-    maxGzipBytes: 68_610,
-    maxBrotliBytes: 54_396,
+    // Authored Class member display changes compression by one byte while
+    // leaving the route graph and raw bytes unchanged.
+    maxGzipBytes: 68_607,
+    maxBrotliBytes: 54_393,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -40,8 +42,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // recognition add a few bytes. These are measured Linux/x64 and
     // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
     maxRawBytes: 732_258,
-    maxGzipBytes: 274_656,
-    maxBrotliBytes: 250_710,
+    maxGzipBytes: 274_655,
+    maxBrotliBytes: 250_812,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -69,9 +71,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared accDescr scanner, unclosed-block guard, and inline-empty-Class
     // recognition leave the two-request graph unchanged. Exact Linux totals
     // are pinned in the baseline.
-    maxRawBytes: 3_360_000,
-    maxGzipBytes: 991_000,
-    maxBrotliBytes: 779_000,
+    // Authored Class member text raises the complete editor bundle by 781 raw
+    // and 140 gzip bytes but lowers Brotli by 70, with the same two requests.
+    maxRawBytes: 3_358_345,
+    maxGzipBytes: 989_901,
+    maxBrotliBytes: 777_100,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

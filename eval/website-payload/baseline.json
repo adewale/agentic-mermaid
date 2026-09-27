@@ -132,10 +132,10 @@
         {
           "path": "/examples/",
           "count": 1,
-          "sha256": "dc24b2657c404777b1e73611c60ae0addaa8dddf3d824486b4fe17d177810d21",
+          "sha256": "07be47d6ffd1fed481b8557dc712b38c2ffc1fe772fc8c6760850ca6b85a4f5b",
           "rawBytes": 283583,
-          "gzipBytes": 40729,
-          "brotliBytes": 30697
+          "gzipBytes": 40730,
+          "brotliBytes": 30694
         },
         {
           "path": "/shader-mark.js",
@@ -165,8 +165,8 @@
       "totals": {
         "requests": 6,
         "rawBytes": 391535,
-        "gzipBytes": 68606,
-        "brotliBytes": 54396
+        "gzipBytes": 68607,
+        "brotliBytes": 54393
       }
     },
     {

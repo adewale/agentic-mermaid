@@ -488,19 +488,19 @@
     },
     {
       "path": "src/class/layout.ts",
-      "sha256": "16a1c3069e8511b1616c80623828a7e575e1d58bf5aeeac5861dff6ce88c181e"
+      "sha256": "6a519c0476b24e37ed4a915fd3ace7d81c1a5c129c5d83c8c45014cfaeb8a953"
     },
     {
       "path": "src/class/parser.ts",
-      "sha256": "6b738fad5103cf354f7846f987833edc3eebf70602ef12345b33a85c0d94e66a"
+      "sha256": "c1f3edc4159c346a4e7ed5e2c543f77aa7b62290000ca420e61160f4d64326b3"
     },
     {
       "path": "src/class/renderer.ts",
-      "sha256": "721f093cff65711372e87d96f2fd2326b5579873f8bf9502afaa3084d9026692"
+      "sha256": "ea1f4d999b5ea4699d53d19a550195c5010cd8f3aa653d1de35afd89f92579d9"
     },
     {
       "path": "src/class/types.ts",
-      "sha256": "bce015fdf7761731b5a4a81fe506aebafcabdcdc78838e5441a021ba2df6e475"
+      "sha256": "d095f3d20eb3dc86b00f76e021a588f727aaa918a4b42961788b914afb479b12"
     },
     {
       "path": "src/color-resolver.ts",

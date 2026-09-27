@@ -35,3 +35,12 @@ test('inline class attributes use the same authored display contract', () => {
   const inline = 'classDiagram\n  Account : +id: string\n  Account : +List~int~ position\n'
   expect(drawnTexts(inline)).toEqual(['Account', '+id: string', '+List<int> position'])
 })
+
+test('authored member display keeps UML modifiers and SVG escaping', () => {
+  const source = 'classDiagram\n  class Safe {\n    +int count$\n    +name: <script>evil</script>\n  }\n'
+  const svg = renderMermaidSVG(source)
+  expect(drawnTexts(source)).toEqual(['Safe', '+int count', '+name: <script>evil</script>'])
+  expect(svg).toContain('text-decoration="underline"')
+  expect(svg).toContain('&lt;script&gt;')
+  expect(svg).not.toContain('<script>')
+})
