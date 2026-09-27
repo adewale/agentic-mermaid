@@ -50,6 +50,23 @@ describe('timeline parsing — structured', () => {
     expect(project(timeline(canonical).body)).toEqual(expected)
     expect(project(parseTimelineDiagram(normalizeMermaidSource(canonical).lines))).toEqual(expected)
   })
+  test('preserves literal Timeline text that generic label normalization would rewrite', () => {
+    for (const raw of ['A\\nB', '"Quoted"', '**Bold**', '~~Strike~~', '<BR>Upper', '<br/>Slash', '<br />Spaced']) {
+      const source = `timeline\n  title ${raw}\n  section ${raw}\n  ${raw} : ${raw}`
+      const projections = [
+        timeline(source).body,
+        parseTimelineDiagram(normalizeMermaidSource(source).lines),
+        timeline(serializeMermaid(timeline(source))).body,
+        parseTimelineDiagram(normalizeMermaidSource(serializeMermaid(timeline(source))).lines),
+      ]
+      for (const body of projections) {
+        expect(body.title, raw).toBe(raw)
+        expect(body.sections[0]!.label, raw).toBe(raw)
+        expect(body.sections[0]!.periods[0]!.label, raw).toBe(raw)
+        expect(body.sections[0]!.periods[0]!.events[0]!.text, raw).toBe(raw)
+      }
+    }
+  })
   test('title + sections + periods → structured body', () => {
     const d = parse('timeline\n  title History\n  section Phase 1\n  2020 : First\n  2021 : Second\n  section Phase 2\n  2022 : Third')
     expect(d.body.kind).toBe('timeline')

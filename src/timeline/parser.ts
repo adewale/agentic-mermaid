@@ -1,5 +1,4 @@
 import type { TimelineDiagram, TimelineSection, TimelinePeriod, TimelineEvent } from './types.ts'
-import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
 import {
@@ -13,6 +12,7 @@ import {
   TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
+  normalizeTimelineBreaks,
   parseTimelineHeader,
   splitTimelineEvents,
   unsupportedTimelineHeaderError,
@@ -75,7 +75,7 @@ export function parseTimelineDiagram(
 
   const pushEvents = (period: TimelinePeriod, rawEvents: string[]): void => {
     for (const rawEvent of rawEvents) {
-      const normalized = normalizeBrTags(rawEvent.trim())
+      const normalized = normalizeTimelineBreaks(rawEvent.trim())
       if (!normalized) continue
 
       const event: TimelineEvent = {
@@ -94,7 +94,7 @@ export function parseTimelineDiagram(
 
     const titleMatch = line.match(TIMELINE_TITLE_RE)
     if (titleMatch) {
-      diagram.title = normalizeBrTags(titleMatch[1]!.trim())
+      diagram.title = normalizeTimelineBreaks(titleMatch[1]!.trim())
       continue
     }
 
@@ -102,7 +102,7 @@ export function parseTimelineDiagram(
     if (sectionMatch) {
       currentSection = {
         id: `section-${sectionIndex++}`,
-        label: normalizeBrTags(sectionMatch[1]!.trim()),
+        label: normalizeTimelineBreaks(sectionMatch[1]!.trim()),
         periods: [],
       }
       diagram.sections.push(currentSection)
@@ -121,7 +121,7 @@ export function parseTimelineDiagram(
 
     const periodMatch = line.match(TIMELINE_PERIOD_RE)
     if (periodMatch) {
-      const periodLabel = normalizeBrTags(periodMatch[1]!.trim())
+      const periodLabel = normalizeTimelineBreaks(periodMatch[1]!.trim())
       const events = splitTimelineEvents(periodMatch[2]!)
 
       if (!periodLabel) {
@@ -155,7 +155,7 @@ export function parseTimelineDiagram(
     if (!line.includes(':') && line.trim().length > 0) {
       const period: TimelinePeriod = {
         id: `period-${periodIndex++}`,
-        label: normalizeBrTags(line.trim()),
+        label: normalizeTimelineBreaks(line.trim()),
         events: [],
       }
       ensureSection().periods.push(period)

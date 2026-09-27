@@ -17,11 +17,11 @@ import {
   TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
+  normalizeTimelineBreaks,
   splitTimelineEvents,
 } from '../timeline/parse-core.ts'
 import { indexedIdAllocator } from './body-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { normalizeBrTags } from '../multiline-utils.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -37,7 +37,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 function normalizeTimelineText(value: string): string {
   // Match the native parser's trim-before-<br> order so authored boundary
   // breaks survive, while canonicalizing mutation CRLF/CR before serialization.
-  return normalizeBrTags(value.trim().replace(/\r\n?/g, '\n'))
+  return normalizeTimelineBreaks(value.trim().replace(/\r\n?/g, '\n'))
 }
 
 function serializeTimelineText(value: string): string {
