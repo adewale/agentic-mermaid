@@ -8,7 +8,7 @@ import { renderMermaidSVG } from '../../src/index.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
 
 const SOURCE = 'classDiagram\n  class EmptyClass {}\n'
-const BASE_SHA = '8013285d4ac887c9d0a99788cbd711a4f9349611'
+const BASE_SHA = 'fe19f49580c42d85c1ebd76fd0ca4d7269666efd'
 const baseDirectory = process.argv[2]
 if (!baseDirectory) throw new Error('Usage: bun run scripts/pr-assets/issue-248-class-empty-body.ts <base-checkout>')
 
