@@ -66,7 +66,7 @@ export function renderPieAscii(
   const valueWidths = chart.entries.map(entry => chart.showData ? visualWidth(`  [${formatPieValue(entry.value)}]`) : 0)
   const fixedWidth = 2 + MAX_BAR + 2 + 6 + Math.max(0, ...valueWidths)
   const labelBudget = targetWidth ? Math.max(1, targetWidth - fixedWidth) : undefined
-  const labelLines = chart.entries.map(entry => wrapText(entry.label, labelBudget))
+  const labelLines = chart.entries.map(entry => wrapText(entry.displayLabel ?? entry.label, labelBudget))
   const labelWidth = Math.max(...labelLines.flat().map(visualWidth))
 
   const out: string[] = []

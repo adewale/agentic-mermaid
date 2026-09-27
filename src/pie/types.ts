@@ -20,6 +20,8 @@ import type { PieVisualConfig } from './config.ts'
 export interface PieEntry {
   /** The slice label (contents of the `"..."` quotes). */
   label: string
+  /** Visible legend/tooltip projection after Mermaid's entity preprocessor. */
+  displayLabel?: string
   /** The slice value — a positive number (supported to two decimal places). */
   value: number
 }
@@ -55,6 +57,8 @@ export interface PieSliceLabel {
 export interface PositionedPieSlice {
   /** The original entry label. */
   label: string
+  /** Visible tooltip label when Mermaid's entity projection changes text. */
+  displayLabel?: string
   /** The original entry value. */
   value: number
   /** value / total, in [0, 1]. */
@@ -75,6 +79,8 @@ export interface PositionedPieSlice {
 
 export interface PositionedPieLegendItem {
   label: string
+  /** Entity-projected text is literal, even if it resembles inline markup. */
+  literalText?: true
   value: number
   fraction: number
   /** Top-left of the swatch. */

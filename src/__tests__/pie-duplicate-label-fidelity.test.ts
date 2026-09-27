@@ -189,9 +189,12 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
   const escaped = 'pie\n  "A#\\35;B" : 1\n  "Aﬂ°°35¶ßB" : 2\n'
   expect(upstreamSections(escaped)).toEqual([['A#35;B', 1], ['Aﬂ°°35¶ßB', 2]])
   expect(parsePieChart(escaped.trim().split('\n')).entries).toEqual([
-    { label: 'A#35;B', value: 1 }, { label: 'Aﬂ°°35¶ßB', value: 2 },
+    { label: 'A#35;B', value: 1 }, { label: 'Aﬂ°°35¶ßB', displayLabel: 'A#B', value: 2 },
   ])
   expect(drawnSlices(escaped)).toEqual([['A#35;B', 1], ['Aﬂ°°35¶ßB', 2]])
+  expect(renderMermaidASCII(escaped, { colorMode: 'none' })).toContain('A#B  ')
+  expect(renderMermaidASCIIWithMeta(escaped, { colorMode: 'none' }).regions.map(region => region.projectedText))
+    .toEqual(['A#35;B', 'A#B'])
   const prepass = 'pie\n  "styleX:#35;" : 1\n  "styleX:#35" : 2\n'
   expect(upstreamSections(prepass)).toEqual([['styleX:#35', 1]])
   expect(parsePieChart(prepass.trim().split('\n'))).toMatchObject({ hasDuplicateSourceLabels: true })

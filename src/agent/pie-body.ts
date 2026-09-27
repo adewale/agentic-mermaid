@@ -89,7 +89,7 @@ export function parsePieBody(lines: string[], header: { showData: boolean; title
       kind: 'pie',
       ...(parsed.title === undefined ? {} : { title: parsed.title }),
       showData: parsed.showData,
-      slices: parsed.entries.map((entry, index) => ({ id: `slice-${index}`, ...entry })),
+      slices: parsed.entries.map((entry, index) => ({ id: `slice-${index}`, label: entry.label, value: entry.value })),
     }
   } catch {
     return null

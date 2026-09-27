@@ -289,6 +289,8 @@ export function lowerPieScene(
         item.textY,
         visual.legendTextSize ?? style.nodeLabelFontSize,
         `class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="${visual.legendTextSize ?? style.nodeLabelFontSize}" font-weight="${legWeight}"${letterAttr(style.nodeLetterSpacing)}`,
+        0.35,
+        item.literalText === true,
       ),
     ))
   }
@@ -328,7 +330,7 @@ export function lowerPieScene(
       const mid = (slice.startAngle + slice.endAngle) / 2
       const anchorX = rnd(chart.cx + labelRadius * Math.sin(mid))
       const anchorY = rnd(chart.cy - labelRadius * Math.cos(mid))
-      const tipText = `${slice.label.replace(/\n/g, ' ')}: ${formatPieValue(slice.value)} (${formatPiePercent(slice.fraction)})`
+      const tipText = `${(slice.displayLabel ?? slice.label).replace(/\n/g, ' ')}: ${formatPieValue(slice.value)} (${formatPiePercent(slice.fraction)})`
       const hoverTargetAttrs = hoverHighlight
         ? ` class="pie-slice-hover-target" stroke="transparent" stroke-width="${hoverEmphasisStrokeWidth}"`
         : ''

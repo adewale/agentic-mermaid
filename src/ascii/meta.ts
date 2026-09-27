@@ -46,6 +46,7 @@ import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import { decodeXML } from 'entities'
+import { parsePieChart } from '../pie/parser.ts'
 import type { MermaidGraph } from '../types.ts'
 
 export type RegionKind = Exclude<RenderedRegionKind, 'canvas' | 'group'> | 'group' | 'subgraph'
@@ -277,7 +278,9 @@ function preferredOccurrences(
 }
 
 function projectedLabelText(label: string, decodeEntities = true): string {
-  const formatted = plainTextFromInlineFormatting(normalizeBrTags(label))
+  // Pie passes a final visible projection. Entity-produced tag lookalikes
+  // are literal text and must not be stripped as authored formatting.
+  const formatted = decodeEntities ? plainTextFromInlineFormatting(normalizeBrTags(label)) : label
   return sanitizeTerminalText(decodeEntities ? decodeXML(formatted) : formatted, true)
     .replace(/^[`]|[`]$/g, '')
     .trim()
@@ -769,7 +772,14 @@ function candidatesForDiagram(source: string): Candidate[] {
   if (d.body.kind === 'pie') {
     const out: Candidate[] = []
     addCandidate(out, 'title', d.body.title)
-    for (const s of d.body.slices) addCandidate(out, s.id, s.label, undefined, 'node', true)
+    // The typed agent label has already consumed escapes. Re-projecting it
+    // would mistake an escaped `#\35;` for an authored entity marker. Reuse
+    // the native parser's source-aware visible projection instead.
+    const entries = parsePieChart(d.canonicalSource.split('\n')).entries
+    for (const [index, entry] of entries.entries()) {
+      const slice = d.body.slices[index]
+      if (slice) addCandidate(out, slice.id, entry.displayLabel ?? entry.label, undefined, 'node', true)
+    }
     return out
   }
   if (d.body.kind === 'quadrant') {

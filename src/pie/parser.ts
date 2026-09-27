@@ -124,10 +124,31 @@ export function parsePieChart(lines: string[]): PieChart {
       const preprocessedLine = mermaidPieEntityPrepass(line)
       const preprocessedLabel = ENTRY_RE.exec(preprocessedLine)?.[1] ?? entryMatch[1]!
       const sourceKey = decodeEscapes(mermaidPieSourceKey(preprocessedLabel))
+      // Normalize authored formatting before expanding entity markers. A
+      // marker that produces `<br>` or `<b>` is literal visible Pie text, not
+      // an authored formatting instruction.
+      // Mermaid's grammar consumes source escapes while entity markers are
+      // still opaque tokens. Expand those markers only afterward: a backslash
+      // produced by #92; is visible text, not a new source escape.
+      const displayLabel = projectPieEntityDisplay(decodeEscapes(mermaidPieSourceKey(normalizeBrTags(preprocessedLabel))))
+      if (hasNewTerminalControl(label, displayLabel)) {
+        throw syntaxError({
+          what: 'Pie entity projection creates a terminal control character after escape decoding',
+          expectedForm: 'an entity that displays printable text',
+          example: '"Alpha&#35;" : 10',
+        })
+      }
+      if (XML_DISALLOWED_CONTROL_RE.test(displayLabel)) {
+        throw syntaxError({
+          what: 'Pie slice display label contains an XML-disallowed control character',
+          expectedForm: 'a label without XML-disallowed control characters',
+          example: '"Alpha" : 10',
+        })
+      }
       if (seenSourceLabels.has(sourceKey)) hasDuplicateSourceLabels = true
       else {
         seenSourceLabels.add(sourceKey)
-        entries.push({ label, value })
+        entries.push({ label, value, ...(displayLabel === label ? {} : { displayLabel }) })
       }
       continue
     }
@@ -197,6 +218,60 @@ function mermaidPieSourceKey(label: string): string {
   return label.replace(/#\w+;/g, token => {
     const inner = token.slice(1, -1)
     return /^\+?\d+$/.test(inner) ? `ﬂ°°${inner}¶ß` : `ﬂ°${inner}¶ß`
+  })
+}
+
+/** Pinned Mermaid expands the Pie preprocessor's markers in final SVG. DOM
+ * parsing resolves valid HTML references within those markers while the
+ * source's leading ampersand remains literal. Keep display separate from
+ * the authored label used for IDs, mutation, and source provenance. */
+const namedMarkerDisplay = new Map<string, string>([
+  ['amp', '&'], ['lt', '<'], ['gt', '>'], ['quot', '"'], ['apos', "'"],
+  ['copy', '©'], ['nbsp', '\u00a0'],
+])
+const windows1252 = new TextDecoder('windows-1252')
+const PROJECTED_TERMINAL_CONTROL_RE = /[\u0000-\u001f\u007f-\u009f]/
+
+function hasNewTerminalControl(authoredLabel: string, displayLabel: string): boolean {
+  if (!PROJECTED_TERMINAL_CONTROL_RE.test(displayLabel)) return false
+  const authoredCounts = new Uint32Array(160)
+  for (const character of authoredLabel) {
+    const code = character.charCodeAt(0)
+    if (code < 160 && PROJECTED_TERMINAL_CONTROL_RE.test(character)) {
+      authoredCounts[code] = authoredCounts[code]! + 1
+    }
+  }
+  for (const character of displayLabel) {
+    const code = character.charCodeAt(0)
+    if (code >= 160 || !PROJECTED_TERMINAL_CONTROL_RE.test(character)) continue
+    if (authoredCounts[code] === 0) return true
+    authoredCounts[code] = authoredCounts[code]! - 1
+  }
+  return false
+}
+
+function projectPieEntityDisplay(label: string): string {
+  return label.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_token, numeric: string | undefined, named: string | undefined) => {
+    const inner = numeric ?? named!
+    let decoded: string
+    if (numeric !== undefined) {
+      const codePoint = Number(inner)
+      decoded = codePoint === 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+        ? '\ufffd'
+        : codePoint >= 0x80 && codePoint <= 0x9f
+          ? windows1252.decode(Uint8Array.of(codePoint))
+          : String.fromCodePoint(codePoint)
+    } else {
+      decoded = namedMarkerDisplay.get(inner) ?? `&${inner};`
+    }
+    if (PROJECTED_TERMINAL_CONTROL_RE.test(decoded)) {
+      throw syntaxError({
+        what: 'Pie entity projects a terminal control character',
+        expectedForm: 'an entity that displays printable text',
+        example: '"Alpha&#35;" : 10',
+      })
+    }
+    return decoded
   })
 }
 

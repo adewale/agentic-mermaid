@@ -117,14 +117,16 @@ export function renderMultilineText(
   cy: number,
   fontSize: number,
   attrs: string,
-  baselineShift: number = 0.35
+  baselineShift: number = 0.35,
+  literalText = false,
 ): string {
   const lines = text.split('\n')
+  const renderLine = literalText ? escapeXml : renderLineContent
 
   // Single line — simple text element
   if (lines.length === 1) {
     const dy = fontSize * baselineShift
-    return `<text x="${cx}" y="${cy}" ${attrs} dy="${dy}">${renderLineContent(text)}</text>`
+    return `<text x="${cx}" y="${cy}" ${attrs} dy="${dy}">${renderLine(text)}</text>`
   }
 
   // Multi-line — use tspan elements with vertical centering
@@ -134,7 +136,7 @@ export function renderMultilineText(
 
   const tspans = lines.map((line, i) => {
     const dy = i === 0 ? firstDy : lineHeight
-    return `<tspan x="${cx}" dy="${dy}">${renderLineContent(line)}</tspan>`
+    return `<tspan x="${cx}" dy="${dy}">${renderLine(line)}</tspan>`
   }).join('')
 
   return `<text x="${cx}" y="${cy}" ${attrs}>${tspans}</text>`
