@@ -1,5 +1,6 @@
 import type { MermaidFrontmatterMap, MermaidThemeVariables } from './mermaid-source.ts'
 import type { RenderOptions } from './types.ts'
+import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import { CHANNEL_THEME_KEYS } from './color-resolver.ts'
 import { drawableAuthoredCssPaint } from './shared/css-color.ts'
 import { syntaxError } from './shared/syntax-error.ts'
@@ -68,26 +69,39 @@ export class RenderOptionColorError extends Error {
   readonly value: string
 
   constructor(field: string, value: string) {
+    const reportedValue = value.length > 256 ? `${value.slice(0, 256)}…` : value
     super(syntaxError({
-      what: `render option "${field}": ${JSON.stringify(value)} is not a CSS color for Architecture derived paint`,
+      what: `render option "${field}": ${JSON.stringify(reportedValue)} is not a CSS color for Architecture derived paint`,
       expectedForm: 'a drawable CSS color or var(--name)',
       example: `${field}:#f96`,
     }).message)
     this.name = 'RenderOptionColorError'
     this.field = field
-    this.value = value
+    this.value = reportedValue
   }
 }
 
 /** `none` is safe as a direct fill/stroke but cannot be mixed into Architecture
- * backgrounds, surfaces, connectors, or header/junction accent paint. */
-export function checkArchitectureRenderOptionColors(options: RenderOptions | undefined, familyId: string): void {
+ * backgrounds, surfaces, connectors, or header/junction accent paint. Judge
+ * selected values after Architecture has resolved its visual overrides: an
+ * explicit edge stroke shadows both line and accent fallback channels. */
+export function checkArchitectureRenderOptionColors(
+  options: RenderOptions | undefined,
+  familyId: string,
+  visual?: Readonly<ArchitectureVisualConfig>,
+): void {
   if (familyId !== 'architecture' || !options) return
+  const edgeStroke = visual?.edgeStroke
+  if (typeof edgeStroke === 'string' && edgeStroke.trim().toLowerCase() === 'none') {
+    throw new RenderOptionColorError('architecture.visual.edgeStroke', edgeStroke)
+  }
   for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
     const value = options[field]
-    if (typeof value === 'string' && value.trim().toLowerCase() === 'none') {
-      throw new RenderOptionColorError(field, value)
-    }
+    if (typeof value !== 'string' || value.trim().toLowerCase() !== 'none') continue
+    if (field === 'surface' && visual?.groupSurface?.trim().toLowerCase() !== 'none') continue
+    if (field === 'surface' && visual?.groupHeaderSurface) continue
+    if ((field === 'line' || field === 'accent') && edgeStroke) continue
+    throw new RenderOptionColorError(field, value)
   }
 }
 

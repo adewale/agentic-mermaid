@@ -1919,7 +1919,6 @@ export function resolveRenderRequestForExecution(
   }
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
   if (themeCssProblem) throw new TypeError(themeCssProblem)
-  checkArchitectureRenderOptionColors(admittedOptions, family.id)
   checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions)
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
@@ -1932,6 +1931,11 @@ export function resolveRenderRequestForExecution(
     ...(face ? { styleFace: face } : {}),
   })
   const { appearance, renderOptions, familyConfig } = resolvedContext
+  checkArchitectureRenderOptionColors(
+    admittedOptions,
+    family.id,
+    appearance.family?.visual as ArchitectureVisualConfig | undefined,
+  )
 
   const executionPlan = resolveExecutionPlan(
     family,

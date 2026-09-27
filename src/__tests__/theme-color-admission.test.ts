@@ -492,6 +492,29 @@ describe('render option color admission (#303, Architecture derived paint)', () 
     }
   })
 
+  test('resolved Architecture visuals shadow unused line, accent, and surface fallbacks', () => {
+    const edge = { architecture: { visual: { edgeStroke: '#f00' } }, line: 'none', accent: 'none' }
+    expect(() => renderMermaidSVG(ARCHITECTURE, edge)).not.toThrow()
+    expect(verifyMermaid(ARCHITECTURE, { renderOptions: edge }).ok).toBe(true)
+    const group = { architecture: { visual: { groupSurface: '#eee' } }, surface: 'none' }
+    expect(() => renderMermaidSVG(ARCHITECTURE, group)).not.toThrow()
+    expect(verifyMermaid(ARCHITECTURE, { renderOptions: group }).ok).toBe(true)
+    const band = { architecture: { visual: { groupHeaderSurface: '#eee' } }, surface: 'none' }
+    expect(() => renderMermaidSVG(ARCHITECTURE, band)).not.toThrow()
+    expect(verifyMermaid(ARCHITECTURE, { renderOptions: band }).ok).toBe(true)
+    expect(() => renderMermaidSVG(ARCHITECTURE, { architecture: { visual: { edgeStroke: 'none' } } }))
+      .toThrow('render option "architecture.visual.edgeStroke": "none" is not a CSS color')
+  })
+
+  test('padded none cannot amplify a verify diagnostic', () => {
+    const value = `${' '.repeat(10_000)}none`
+    const result = verifyMermaid(ARCHITECTURE, { renderOptions: { bg: value } })
+    expect(result.ok).toBe(false)
+    const reason = result.warnings.find(warning => warning.code === 'RENDER_FAILED')?.reason ?? ''
+    expect(reason).toContain('render option "bg"')
+    expect(reason.length).toBeLessThan(500)
+  })
+
   test('named refusal agrees across PNG, browser-lazy, CLI, and MCP', async () => {
     const named = 'render option "bg": "none" is not a CSS color for Architecture derived paint'
     expect(() => renderMermaidPNG(ARCHITECTURE, { bg: 'none' })).toThrow(named)
