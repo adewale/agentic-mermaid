@@ -253,7 +253,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml(s
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
-      ) : literalPieText || literalTimelineText ? s : s.replace(/<[^>]+>/g, ''))
+      ) : literalPieText || literalTimelineText ? s : s.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
