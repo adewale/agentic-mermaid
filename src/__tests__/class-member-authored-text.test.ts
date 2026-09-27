@@ -48,7 +48,9 @@ test('nested and comma-separated Mermaid generic members render without losing t
 test('repeated and mixed nested/comma generics retain every authored member fragment', () => {
   const cases = [
     ['+Map~string,int~ first,Map~str,bool~ second', '+Map<string,int> first,Map<str,bool> second'],
+    ['+Map~a,b~ first, Map~c,d~ second', '+Map<a,b> first, Map<c,d> second'],
     ['+Map~string,List~int~~ field', '+Map<string,List<int>> field'],
+    ['+Map~List~int~,str~ values', '+Map<List<int>,str> values'],
   ] as const
   for (const [authored, displayed] of cases) {
     const source = `classDiagram\n  class Box {\n    ${authored}\n  }\n`
