@@ -128,6 +128,13 @@ describe('flowchart edge classes — authored edge paint', () => {
     expect(renderMermaidSVG(source)).toContain('class="edge hot"')
   })
 
+  it('uses fixed-size endpoints when class paint changes width without a color', () => {
+    const svg = renderMermaidSVG('flowchart LR\n  A e1@--> B\n  classDef wide stroke-width:6px\n  class e1 wide')
+    const edge = svg.match(/<(?:polyline|path)\b[^>]*data-id="e1"[^>]*>/)?.[0]
+    expect(edge).toContain('marker-end="url(#arrowhead-fixed)"')
+    expect(svg).toMatch(/<marker\b[^>]*id="arrowhead-fixed"[^>]*markerUnits="userSpaceOnUse"/)
+  })
+
   it('retains explicit linkStyle precedence over edge-class paint', () => {
     const source = [
       'flowchart LR',
