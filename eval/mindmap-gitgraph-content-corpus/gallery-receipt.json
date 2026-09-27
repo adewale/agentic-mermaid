@@ -592,7 +592,7 @@
     },
     {
       "path": "src/gitgraph/renderer.ts",
-      "sha256": "4a6a47c1375f703d9df96e678b93cc92f62f2c65ad47d4a598203be733138a23"
+      "sha256": "22241b6da922513cb9ab733551746c3f64c4462635b99d430c4df7448e4d9d62"
     },
     {
       "path": "src/gitgraph/types.ts",
@@ -1164,7 +1164,7 @@
     },
     {
       "path": "src/theme-color-admission.ts",
-      "sha256": "c068b5a69b38b05641dbae563f4dde3c060e1343b5b3f83983f8ef1caa7f0c1f"
+      "sha256": "e31d8976908cc67f256f350948d43c91a7b03eb9b0e78e7576c1bd2b94f02903"
     },
     {
       "path": "src/theme.ts",

@@ -1,0 +1,6 @@
+{
+  "code": "INVALID_THEME_COLOR",
+  "key": "git0",
+  "value": "notacolor",
+  "message": "themeVariables.git0: \"notacolor\" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor, none, or var(--name), e.g. themeVariables.git0:#f96"
+}

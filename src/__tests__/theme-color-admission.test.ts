@@ -11,6 +11,7 @@ import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 
 const FLOW = 'flowchart TD\n  A --> B'
 const PIE = 'pie\n  "A" : 3\n  "B" : 2'
+const GITGRAPH = 'gitGraph\n  commit id:"A" type:HIGHLIGHT'
 const invalid = ['notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'url(#a)'] as const
 
 function init(source: string, key: string, value: unknown): string {
@@ -108,5 +109,62 @@ describe('theme color admission (#303, shared/Pie layer)', () => {
       expect(() => renderMermaidSVG(init(source, key, 123)))
         .toThrow(`themeVariables.${key}: "123" is not a CSS color`)
     }
+  })
+})
+
+describe('theme color admission (#303, GitGraph layer)', () => {
+  const gitGraphColorKeys = [
+    ...Array.from({ length: 8 }, (_, index) => [`git${index}`, `gitBranchLabel${index}`, `gitInv${index}`]).flat(),
+    'commitLabelColor', 'commitLabelBackground',
+  ]
+
+  test('every indexed branch, label, highlight and commit-label paint refuses invalid values', () => {
+    for (const key of gitGraphColorKeys) {
+      for (const value of invalid) {
+        const source = init(GITGRAPH, key, value)
+        const named = `themeVariables.${key}: ${JSON.stringify(value)} is not a CSS color`
+        expect(() => renderMermaidSVG(source), `${key} ${value}`).toThrow(named)
+        expect(() => renderMermaidASCII(source), `${key} ${value}`).toThrow(named)
+      }
+    }
+  })
+
+  test('GitGraph ink refuses none, while fills and strokes may use it', () => {
+    for (const key of [...Array.from({ length: 8 }, (_, index) => `gitBranchLabel${index}`), 'commitLabelColor']) {
+      expect(() => renderMermaidSVG(init(GITGRAPH, key, 'none')))
+        .toThrow(`themeVariables.${key}: "none" is not a CSS color`)
+    }
+    for (const key of ['git0', 'gitInv0', 'commitLabelBackground']) {
+      expect(() => renderMermaidSVG(init(GITGRAPH, key, 'none'))).not.toThrow()
+    }
+    expect(() => renderMermaidSVG(init(GITGRAPH, 'git0', 123)))
+      .toThrow('themeVariables.git0: "123" is not a CSS color')
+  })
+
+  test('admitted custom properties survive every GitGraph SVG paint sink', () => {
+    const source = `%%{init: ${JSON.stringify({ themeVariables: {
+      git0: 'var(--branch)', gitInv0: 'var(--highlight)', gitBranchLabel0: 'var(--label)',
+      commitLabelColor: 'var(--ink)', commitLabelBackground: 'var(--pill)',
+    } })}}%%\n${GITGRAPH}`
+    const svg = renderMermaidSVG(source)
+    for (const variable of ['branch', 'highlight', 'label', 'ink', 'pill']) {
+      expect(svg).toContain(`var(--${variable})`)
+    }
+    expect(verifyMermaid(source).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+  })
+
+  test('GitGraph rejection agrees across verify, PNG, browser-lazy and CLI', async () => {
+    const source = init(GITGRAPH, 'git7', 'url(#unsafe)')
+    const named = 'themeVariables.git7: "url(#unsafe)" is not a CSS color'
+    expect(() => renderMermaidPNG(source)).toThrow(named)
+    expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+    await expect(renderMermaidSVGAsync(source)).rejects.toThrow(named)
+    const result = runBatchLine(JSON.stringify({ op: 'render', format: 'svg', source }), 0)
+    expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_THEME_COLOR', key: 'git7', value: 'url(#unsafe)' } })
+  })
+
+  test('family-private keys remain scoped to GitGraph', () => {
+    expect(() => renderMermaidSVG(init(FLOW, 'git0', 'notacolor'))).not.toThrow()
+    expect(() => renderMermaidSVG(init(PIE, 'commitLabelColor', 'notacolor'))).not.toThrow()
   })
 })
