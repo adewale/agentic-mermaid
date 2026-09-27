@@ -12,7 +12,7 @@ import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
 import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
-import { checkThemeVariableColors } from '../theme-color-admission.ts'
+import { checkFamilyConfigColors, checkThemeVariableColors } from '../theme-color-admission.ts'
 import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
@@ -107,6 +107,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
     checkThemeVariableColors(source.config.themeVariables, parsed.value.kind)
+    checkFamilyConfigColors(source.frontmatter, parsed.value.kind)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     return finalize([{ code: 'RENDER_FAILED', reason }], emptyRenderedLayout(parsed.value.kind), opts, false)
