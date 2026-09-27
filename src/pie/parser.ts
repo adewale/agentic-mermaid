@@ -197,15 +197,15 @@ function needsPieLiteralText(text: string): boolean {
 
 function collapsePieEscapedNewlines(text: string): string {
   if (!text.includes('\n')) return text
-  // The SVG browser paint collapses LF and its adjacent spaces. Split once
+  // The SVG browser paint collapses LF and its adjacent spaces or tabs. Split once
   // and trim each segment with index walks: a whitespace-prefix regex can
   // retry from every space before a non-whitespace character and go quadratic.
   const visible: string[] = []
   for (const line of text.split('\n')) {
     let start = 0
     let end = line.length
-    while (start < end && line[start] === ' ') start++
-    while (end > start && line[end - 1] === ' ') end--
+    while (start < end && (line[start] === ' ' || line[start] === '\t')) start++
+    while (end > start && (line[end - 1] === ' ' || line[end - 1] === '\t')) end--
     if (start < end) visible.push(line.slice(start, end))
   }
   return visible.join(' ')

@@ -71,19 +71,29 @@ test('Pie escaped newline collapses adjacent authored whitespace like browser SV
   for (const [raw, expected] of [
     ['A\\n\\nB', 'A B'],
     ['A  \\n  B', 'A B'],
+    ['A\\t\\nB', 'A B'],
+    ['A\\n\\tB', 'A B'],
+    ['A\\t\\n\\tB', 'A B'],
+    ['A \\t\\n\\t B', 'A B'],
     ['\\nA', 'A'],
     ['A\\n', 'A'],
   ] as const) {
     const source = `pie\n  "${raw}" : 1\n`
     const entry = parsePieChart(source.trim().split('\n')).entries[0]!
     expect(entry.displayLabel).toBe(expected)
+    if (raw === 'A\\t\\n\\tB') {
+      expect(entry.label).toBe('A\t\n\tB')
+      const agent = parseRegisteredMermaid(source)
+      expect(agent.ok).toBe(true)
+      if (agent.ok) expect(serializeMermaid(agent.value)).toBe(source)
+    }
     expect(renderMermaidSVG(source)).toContain(`>${expected} (100.0%)</text>`)
     expect(renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).regions[0]?.projectedText).toBe(expected)
   }
 })
 
 test('Pie escaped newline paint normalization stays bounded after a long whitespace prefix', () => {
-  const prefix = ' '.repeat(40_000)
+  const prefix = ' \t'.repeat(20_000)
   const source = `pie\n  "${prefix}X\\nY" : 1\n`
   const started = performance.now()
   const entry = parsePieChart(source.trim().split('\n')).entries[0]!
