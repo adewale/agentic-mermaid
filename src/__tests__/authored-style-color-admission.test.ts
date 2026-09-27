@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { buildMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { runBatchLine } from '../cli/index.ts'
@@ -89,6 +90,14 @@ describe('authored style color admission (#303, source/typed slice)', () => {
       const result = verifyMermaid(source)
       expect(result.ok, source).toBe(false)
       expect(result.warnings.some(warning => warning.code === 'RENDER_FAILED' && warning.reason?.includes(named)), source).toBe(true)
+    }
+  })
+
+  test('async browser SVG refuses invalid paint in every affected family', async () => {
+    for (const { directive, make } of SOURCES) {
+      const source = make('notacolor')
+      const named = `${directive}: ${directive.startsWith('linkStyle') ? 'stroke' : 'fill'} "notacolor" is not a CSS color`
+      await expect(renderMermaidSVGAsync(source), source).rejects.toThrow(named)
     }
   })
 

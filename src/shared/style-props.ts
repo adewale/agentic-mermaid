@@ -53,11 +53,14 @@ export function unsafeStylePaint(style: Readonly<Record<string, string>>): Style
  *  example when the style came from source, e.g. `style A`. */
 export class AuthoredStyleColorError extends Error {
   readonly code = 'INVALID_STYLE_COLOR' as const
+  readonly subject: string
+  readonly property: string
+  readonly value: string
 
   constructor(
-    readonly subject: string,
-    readonly property: string,
-    readonly value: string,
+    subject: string,
+    property: string,
+    value: string,
     directive?: string,
   ) {
     super(syntaxError({
@@ -66,6 +69,9 @@ export class AuthoredStyleColorError extends Error {
       example: `${directive ? `${directive} ` : ''}${property}:#f96`,
     }).message)
     this.name = 'AuthoredStyleColorError'
+    this.subject = subject
+    this.property = property
+    this.value = value
   }
 }
 
