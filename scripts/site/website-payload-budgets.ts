@@ -78,8 +78,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 198 raw and 32 gzip bytes. The measured Linux total rises 229 raw bytes
     // with no additional requests; gzip remains under its reviewed ceiling.
     // Sender-side central-marker support keeps the same two-request graph;
-    // the reviewed Linux editor total is 3,354,584 raw / 985,844 gzip /
-    // 775,425 Brotli bytes.
+    // the exact reviewed Linux totals are pinned in the payload baseline.
     maxRawBytes: 3_354_584,
     maxGzipBytes: 985_844,
     maxBrotliBytes: 775_425,
