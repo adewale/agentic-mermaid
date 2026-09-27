@@ -165,8 +165,8 @@ function deriveWarnings(source: string, regions: AsciiRegion[]): AsciiWarning[] 
 interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind; preserveEntitySpelling?: true }
 
 function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node', preserveEntitySpelling = false): void {
-  const normalized = label?.trim()
-  if (!normalized) return
+  const normalized = preserveEntitySpelling ? label : label?.trim()
+  if (!normalized?.trim()) return
   out.push({ id, label: normalized, sourceLine, kind, ...(preserveEntitySpelling ? { preserveEntitySpelling: true } : {}) })
 }
 
@@ -282,9 +282,8 @@ function projectedLabelText(label: string, decodeEntities = true): string {
   // Pie passes a final visible projection. Entity-produced tag lookalikes
   // are literal text and must not be stripped as authored formatting.
   const formatted = decodeEntities ? plainTextFromInlineFormatting(normalizeBrTags(label)) : label
-  return sanitizeTerminalText(decodeEntities ? decodeXML(formatted) : formatted, true)
-    .replace(/^[`]|[`]$/g, '')
-    .trim()
+  const safe = sanitizeTerminalText(decodeEntities ? decodeXML(formatted) : formatted, true)
+  return decodeEntities ? safe.replace(/^[`]|[`]$/g, '').trim() : safe
 }
 
 function claimOccurrences(

@@ -86,6 +86,27 @@ test('Pie title entity projection cannot inject markup or terminal controls', ()
   }
 })
 
+test('Pie title metadata covers entity-produced leading and trailing whitespace cells', () => {
+  for (const [sourceTitle, visible] of [
+    ['#32;X', ' X'],
+    ['X#32;', 'X '],
+    ['#32;X#32;', ' X '],
+    ['#160;X', '\u00a0X'],
+  ] as const) {
+    const source = `pie title ${sourceTitle}\n  "Y" : 1\n`
+    for (const colorMode of ['none', 'html'] as const) {
+      const meta = renderMermaidASCIIWithMeta(source, { colorMode })
+      const title = meta.regions.find(region => region.id === 'title')
+      expect(title?.projectedText).toBe(visible)
+      expect(title?.canvasRow).toBe(0)
+      expect(title?.canvasColStart).toBe(0)
+      expect(title?.canvasColEnd).toBe(visible.length)
+      expect(title?.authoredTextCells?.map(cell => cell.glyph).join('')).toBe(visible)
+      expect(meta.ascii).toStartWith(visible)
+    }
+  }
+})
+
 test('entity-encoded Pie directive grammar does not consume authored title entities or split inline title spans', () => {
   for (const [source, authoredTitle, visible] of [
     ['pie title A#65;B\n  "X" : 1\n', 'A#65;B', 'AAB'],
