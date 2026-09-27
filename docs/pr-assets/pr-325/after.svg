@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="434.17999999999995" height="116.9" viewBox="0 0 434.17999999999995 116.9" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="node" data-id="State1" data-label="State1" data-shape="rounded" data-role="node">
+  <rect x="40" y="40" width="74.554" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:State1" data-role="node" />
+  <text x="77.277" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" dy="4.55" textLength="34.554" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">State1</text>
+</g>
+<g class="state-note" data-id="note#0" data-target="State1" data-side="right" data-role="note">
+  <rect x="132.554" y="43.300000000000004" width="261.626" height="30.3" rx="4" ry="4" fill="#f4f4f4" stroke="#d4d4d4" stroke-width="0.75" data-id="state-note:note#0:rect" data-role="note" />
+  <text x="263.36699999999996" y="58.45" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" dy="3.8499999999999996" textLength="241.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Line1&lt;br&gt;Line2&lt;br/&gt;Line3&lt;br /&gt;Line4&lt;br	/&gt;Line5</text>
+</g>
+</svg>
