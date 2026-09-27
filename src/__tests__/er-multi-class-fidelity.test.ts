@@ -44,8 +44,11 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
     const svg = renderMermaidSVG(source)
     expect(svg).toContain('class="entity vip hot" data-id="CUSTOMER"')
     expect(svg).toContain('class="entity vip hot" data-id="ORDER"')
-    expect(svg).toContain('fill="#ff8a65"')
-    expect(svg).toContain('stroke="#3b4cca"')
+    for (const id of ['CUSTOMER', 'ORDER']) {
+      const rect = svg.match(new RegExp(`<rect\\b[^>]*data-id="entity-rect:${id}"[^>]*\\/>`))?.[0]
+      expect(rect).toContain('fill="#ff8a65"')
+      expect(rect).toContain('stroke="#3b4cca"')
+    }
   })
 
   test('a typed rename preserves both classes and the unrelated entity', () => {
@@ -79,6 +82,44 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
     const svg = renderMermaidSVG(repeated)
     expect(svg).toContain('class="entity first second" data-id="A"')
     expect(svg).toContain('fill="#0000ff"')
+  })
+
+  test('later shorthand appends to statement and shorthand classes on an existing entity', async () => {
+    const mixed = `erDiagram
+      A ||--o{ B : x
+      class A first,second
+      A:::third
+      A:::fourth,fifth
+    `
+    const upstream = await mermaid.mermaidAPI.getDiagramFromText(mixed)
+    const upstreamA = (upstream.db as unknown as { getEntities(): Map<string, { cssClasses: string }> }).getEntities().get('A')
+    expect(upstreamA?.cssClasses).toBe('default first second third fourth fifth')
+    const native = parseErDiagram(mixed.trim().split('\n').map(line => line.trim()))
+    expect(native.entities[0]?.className).toBe('first second third fourth fifth')
+    const parsed = parseRegisteredMermaid(mixed)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(asEr(parsed.value)?.body.entities[0]?.className).toBe('first second third fourth fifth')
+    const serialized = serializeMermaid(parsed.value)
+    expect(parseErDiagram(serialized.trim().split('\n').map(line => line.trim())).entities[0]?.className).toBe('first second third fourth fifth')
+  })
+
+  test('class directives before an entity exists do not mint or style it', async () => {
+    const ordered = `erDiagram
+      class GHOST vip
+      class A vip
+      A ||--o{ B : x
+      class A hot
+    `
+    const upstream = await mermaid.mermaidAPI.getDiagramFromText(ordered)
+    const entities = (upstream.db as unknown as { getEntities(): Map<string, { cssClasses: string }> }).getEntities()
+    expect([...entities.keys()]).toEqual(['A', 'B'])
+    expect(entities.get('A')?.cssClasses).toBe('default hot')
+    const native = parseErDiagram(ordered.trim().split('\n').map(line => line.trim()))
+    expect(native.entities.map(entity => [entity.id, entity.className])).toEqual([['A', 'hot'], ['B', undefined]])
+    const parsed = parseRegisteredMermaid(ordered)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(asEr(parsed.value)?.body.entities.map(entity => [entity.id, entity.className])).toEqual([['A', 'hot'], ['B', undefined]])
   })
 
   test('official ::: shorthand applies multiple classes on declarations and relationship endpoints', async () => {
@@ -125,6 +166,14 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
     const native = parseErDiagram(['erDiagram', 'A ||--o{ B : x', `class A ${classes}`])
     expect(native.entities[0]?.className?.split(' ')).toHaveLength(20_001)
     expect(performance.now() - started).toBeLessThan(250)
+  })
+
+  test('repeated valid class directives do not copy the entire prior assignment', () => {
+    const lines = ['erDiagram', 'A ||--o{ B : x', ...Array(200_000).fill('class A hot')]
+    const started = performance.now()
+    const native = parseErDiagram(lines)
+    expect(native.entities[0]?.className?.split(' ')).toHaveLength(200_000)
+    expect(performance.now() - started).toBeLessThan(1_500)
   })
 
   test('reviewer-facing before/after images are same-source production artifacts', () => {

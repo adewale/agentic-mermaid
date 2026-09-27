@@ -83,8 +83,10 @@ export function parseErClassAssignment(line: string): { ids: string[]; className
   return null
 }
 
-export function appendErClassNames(existing: string | undefined, names: readonly string[]): string {
-  return [existing, ...names].filter(Boolean).join(' ')
+export function recordErClassNames(byEntity: Map<string, string[]>, id: string, names: readonly string[]): void {
+  const existing = byEntity.get(id)
+  if (existing) existing.push(...names)
+  else byEntity.set(id, [...names])
 }
 
 // ============================================================================
@@ -151,6 +153,13 @@ export function parseErDiagram(lines: string[]): ErDiagram {
 
   // Track entities by ID for deduplication
   const entityMap = new Map<string, ErEntity>()
+  // Keep repeated assignments linear; materialize the public string once.
+  const classNamesByEntity = new Map<string, string[]>()
+  const ensureStyledEntity = (id: string, label?: string, className?: string, groupId?: string): ErEntity => {
+    const entity = ensureEntity(entityMap, id, label, groupId)
+    if (className) recordErClassNames(classNamesByEntity, id, className.split(' '))
+    return entity
+  }
   // Track entity body parsing and typed nested subgraph ownership.
   let currentEntity: ErEntity | null = null
   const groupStack: string[] = []
@@ -208,8 +217,8 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     const classAssignment = parseErClassAssignment(line)
     if (classAssignment) {
       for (const id of classAssignment.ids) {
-        const entity = ensureEntity(entityMap, id)
-        entity.className = appendErClassNames(entity.className, classAssignment.classNames)
+        // Mermaid only applies `class` to entities that already exist.
+        if (entityMap.has(id)) recordErClassNames(classNamesByEntity, id, classAssignment.classNames)
       }
       continue
     }
@@ -230,7 +239,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     if (entityBlockMatch) {
       const reference = parseErEntityReference(entityBlockMatch[1]!)
       if (!reference) continue
-      const entity = ensureEntity(entityMap, reference.id, reference.label, reference.className, currentGroup())
+      const entity = ensureStyledEntity(reference.id, reference.label, reference.className, currentGroup())
       if (currentGroup()) groupById.get(currentGroup()!)?.entityIds.push(reference.id)
       currentEntity = entity
       continue
@@ -240,8 +249,8 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     const rel = parseRelationshipLine(line)
     if (rel) {
       // Group endpoints retain group identity instead of minting phantom entities.
-      if (!groupById.has(rel.entity1)) ensureEntity(entityMap, rel.entity1, rel.entity1Label, rel.entity1Class, currentGroup())
-      if (!groupById.has(rel.entity2)) ensureEntity(entityMap, rel.entity2, rel.entity2Label, rel.entity2Class, currentGroup())
+      if (!groupById.has(rel.entity1)) ensureStyledEntity(rel.entity1, rel.entity1Label, rel.entity1Class, currentGroup())
+      if (!groupById.has(rel.entity2)) ensureStyledEntity(rel.entity2, rel.entity2Label, rel.entity2Class, currentGroup())
       diagram.relationships.push(rel)
       continue
     }
@@ -251,24 +260,24 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     // branch cannot mint phantom `end` or direction entities.
     const bareEntity = parseErEntityReference(line)
     if (bareEntity) {
-      ensureEntity(entityMap, bareEntity.id, bareEntity.label, bareEntity.className, currentGroup())
+      ensureStyledEntity(bareEntity.id, bareEntity.label, bareEntity.className, currentGroup())
       if (currentGroup()) groupById.get(currentGroup()!)?.entityIds.push(bareEntity.id)
     }
   }
 
+  for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
   diagram.entities = [...entityMap.values()]
   return diagram
 }
 
 /** Ensure an entity exists in the map */
-function ensureEntity(entityMap: Map<string, ErEntity>, id: string, label?: string, className?: string, groupId?: string): ErEntity {
+function ensureEntity(entityMap: Map<string, ErEntity>, id: string, label?: string, groupId?: string): ErEntity {
   let entity = entityMap.get(id)
   if (!entity) {
-    entity = { id, label: label ?? id, attributes: [], ...(className ? { className } : {}), ...(groupId ? { groupId } : {}) }
+    entity = { id, label: label ?? id, attributes: [], ...(groupId ? { groupId } : {}) }
     entityMap.set(id, entity)
   } else {
     if (label !== undefined) entity.label = label
-    if (className !== undefined) entity.className = className
     if (groupId !== undefined && entity.groupId === undefined) entity.groupId = groupId
   }
   return entity

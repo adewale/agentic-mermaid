@@ -49,6 +49,14 @@ function nativeFacts(input: string) {
   }
 }
 
+function renderedPaint(svg: string) {
+  return [...svg.matchAll(/<rect\b[^>]*data-id="entity-rect:([^"]+)"[^>]*\/>/g)].map(match => ({
+    id: match[1]!,
+    fill: match[0].match(/\bfill="([^"]+)"/)?.[1] ?? null,
+    stroke: match[0].match(/\bstroke="([^"]+)"/)?.[1] ?? null,
+  }))
+}
+
 function parsedOrThrow(input: string) {
   const parsed = parseRegisteredMermaid(input)
   if (!parsed.ok) throw new Error(`ER multi-class agent parse failed: ${parsed.error.map(error => error.code).join(', ')}`)
@@ -75,7 +83,7 @@ const erMultiClass: FidelityCaseDefinition = {
       evaluate: evidence => {
         const observed = facts(evidence)
         return matchesEntities(observed.entities ?? null, expected) &&
-          matchesPaint(observed.paint ?? null) && observed.visibleStyledEntities === 3 ? 'native' : 'absent'
+          matchesPaint(observed.paint ?? null) && matchesPaint(observed.renderedPaint ?? null) ? 'native' : 'absent'
       },
     },
     serialize: {
@@ -110,7 +118,7 @@ const erMultiClass: FidelityCaseDefinition = {
       },
       render: {
         status: 'observed', diagnosticCodes: [],
-        semantics: { ...nativeFacts(source), visibleStyledEntities: [...svg.matchAll(/class="entity vip hot"/g)].length },
+        semantics: { ...nativeFacts(source), renderedPaint: renderedPaint(svg) },
       },
       serialize: {
         status: 'observed', diagnosticCodes: [],

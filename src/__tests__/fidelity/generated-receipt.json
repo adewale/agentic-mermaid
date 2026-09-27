@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "ace31a4f6ef8a8ae38f0e2766f7c7d507a009d4ef2536c3a54bf385b03b1102b",
+    "inputSha256": "10eeebad1923203147cb2bb0cac767b55dfa0352d6eb38e68c34c5feee3716f8",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -100,7 +100,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/er-multi-class.fidelity.ts",
-        "sha256": "9808a7493cf63af3d7af1aba0978bfd22afaf7f3ac24594a1ad988d1f8ecc5c3"
+        "sha256": "cc02cc9da620421bebee8d6c7ecd9421f1860e86c7146ff3b3feed908980db58"
       },
       {
         "path": "src/__tests__/fidelity/cases/er-word-cardinality.fidelity.ts",
@@ -1055,7 +1055,23 @@
                 "stroke": "#3b4cca"
               }
             ],
-            "visibleStyledEntities": 3
+            "renderedPaint": [
+              {
+                "fill": "#ff8a65",
+                "id": "A",
+                "stroke": "#3b4cca"
+              },
+              {
+                "fill": "#ff8a65",
+                "id": "B",
+                "stroke": "#3b4cca"
+              },
+              {
+                "fill": "#ff8a65",
+                "id": "C",
+                "stroke": "#3b4cca"
+              }
+            ]
           },
           "disposition": "native"
         },

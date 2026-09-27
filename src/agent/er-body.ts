@@ -27,7 +27,7 @@ import {
   parseErEntityId,
   parseErEntityReference,
   parseErClassAssignment,
-  appendErClassNames,
+  recordErClassNames,
   parseErGroupHeader,
   parseErRelationshipSyntax,
   parseErCardinality,
@@ -51,16 +51,17 @@ export function parseErBody(lines: string[]): ErBody | null {
   const statements: ErStatement[] = []
   const body: ErBody = { kind: 'er', entities: [], relations: [], groups: [], statements }
   const entityMap = new Map<string, ErEntity>()
+  const classNamesByEntity = new Map<string, string[]>()
   const upsert = (id: string, label?: string, className?: string): ErEntity => {
     let e = entityMap.get(id)
     if (!e) {
-      e = { id, ...(label !== undefined ? { label } : {}), attributes: [], ...(className ? { className } : {}) }
+      e = { id, ...(label !== undefined ? { label } : {}), attributes: [] }
       entityMap.set(id, e)
       body.entities.push(e)
     } else {
       if (label !== undefined) e.label = label
-      if (className !== undefined) e.className = className
     }
+    if (className) recordErClassNames(classNamesByEntity, id, className.split(' '))
     return e
   }
   const declaredEntities = new Set<string>()
@@ -112,8 +113,8 @@ export function parseErBody(lines: string[]): ErBody | null {
     const classAssignment = parseErClassAssignment(raw)
     if (classAssignment) {
       for (const id of classAssignment.ids) {
-        const entity = upsert(id)
-        entity.className = appendErClassNames(entity.className, classAssignment.classNames)
+        // Upstream ignores class assignments before an entity exists.
+        if (entityMap.has(id)) recordErClassNames(classNamesByEntity, id, classAssignment.classNames)
       }
       continue
     }
@@ -191,6 +192,7 @@ export function parseErBody(lines: string[]): ErBody | null {
   }
 
   if (groupStack.length > 0) return null
+  for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
   return body
 }
 

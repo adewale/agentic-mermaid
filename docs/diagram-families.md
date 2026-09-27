@@ -78,7 +78,7 @@ erDiagram
 Structured ops cover entities, attributes, relation add/remove, and renames.
 ER `class` directives accept comma-separated entity and class-name lists, such
 as `class CUSTOMER, ORDER vip, hot`; `CUSTOMER:::vip,hot` also works in
-declarations and relationship endpoints. Class definitions paint in authored
+declarations and relationship endpoints. Class names paint in applied
 order (later properties win); the agent preserves the class list through
 serialization and unrelated typed mutations.
 
