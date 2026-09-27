@@ -15,7 +15,7 @@ import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
-import { checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
+import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
 import {
   inferBackend,
   isStyledSpec,
@@ -1919,7 +1919,7 @@ export function resolveRenderRequestForExecution(
   }
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
   if (themeCssProblem) throw new TypeError(themeCssProblem)
-  checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions)
+  if (family.id !== 'architecture') checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions)
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
   const resolutionDiagnostics = renderOptionApplicabilityDiagnostics(family, explicitOptionFields)
@@ -1931,6 +1931,15 @@ export function resolveRenderRequestForExecution(
     ...(face ? { styleFace: face } : {}),
   })
   const { appearance, renderOptions, familyConfig } = resolvedContext
+  const architectureVisual = appearance.family?.visual as ArchitectureVisualConfig | undefined
+  if (family.id === 'architecture') {
+    checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions, architectureVisual)
+  }
+  checkArchitectureRenderOptionColors(
+    admittedOptions,
+    family.id,
+    architectureVisual,
+  )
 
   const executionPlan = resolveExecutionPlan(
     family,

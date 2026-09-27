@@ -358,6 +358,32 @@ describe('theme color admission (#303, Architecture layer)', () => {
     }
   })
 
+  test('resolved visual paint shadows theme fallbacks only when every mixed use is covered', () => {
+    for (const key of ['lineColor', 'arrowheadColor']) {
+      const source = init(ARCHITECTURE, key, 'none')
+      const options = { architecture: { visual: { edgeStroke: '#f00' } } }
+      expect(() => renderMermaidSVG(source, options), key).not.toThrow()
+      expect(verifyMermaid(source, { renderOptions: options }).ok).toBe(true)
+    }
+    const group = init(ARCHITECTURE, 'clusterBkg', 'none')
+    for (const visual of [{ groupSurface: '#eee' }, { groupHeaderSurface: '#eee' }]) {
+      const options = { architecture: { visual } }
+      expect(() => renderMermaidSVG(group, options)).not.toThrow()
+      expect(verifyMermaid(group, { renderOptions: options }).ok).toBe(true)
+    }
+    const sharedSurface = init(ARCHITECTURE, 'nodeBkg', 'none')
+    const surfaceOptions = { architecture: { visual: { groupSurface: '#eee' } } }
+    expect(() => renderMermaidSVG(sharedSurface, surfaceOptions)).not.toThrow()
+    expect(verifyMermaid(sharedSurface, { renderOptions: surfaceOptions }).ok).toBe(true)
+    const dualChannel = init(ARCHITECTURE, 'primaryColor', 'none')
+    expect(() => renderMermaidSVG(dualChannel, surfaceOptions)).toThrow('themeVariables.primaryColor: "none"')
+    const fullyShadowed = { architecture: { visual: { groupSurface: '#eee', edgeStroke: '#f00' } } }
+    expect(() => renderMermaidSVG(dualChannel, fullyShadowed)).not.toThrow()
+    expect(verifyMermaid(dualChannel, { renderOptions: fullyShadowed }).ok).toBe(true)
+    expect(() => renderMermaidSVG(init(ARCHITECTURE, 'background', 'none'), fullyShadowed))
+      .toThrow('themeVariables.background: "none"')
+  })
+
   test('explicit render colors override theme sources at the same admission boundary', () => {
     for (const [key, colors] of [
       ['background', { bg: '#fff' }],
@@ -464,5 +490,79 @@ describe('theme color admission (#303, Architecture layer)', () => {
     for (const key of ['clusterBkg', 'clusterBorder', 'secondaryColor']) {
       expect(() => renderMermaidSVG(init(FLOW, key, 'notacolor'))).not.toThrow()
     }
+  })
+})
+
+describe('render option color admission (#303, Architecture derived paint)', () => {
+  test('none is refused for each Architecture color-mix channel, including trimmed case variants', () => {
+    for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+      for (const value of ['none', ' NONE ']) {
+        const options = { [field]: value }
+        const named = `render option "${field}": ${JSON.stringify(value)} is not a CSS color for Architecture derived paint`
+        expect(() => renderMermaidSVG(ARCHITECTURE, options), `${field} ${value}`).toThrow(named)
+        expect(() => renderMermaidASCII(ARCHITECTURE, options), `${field} ${value}`).toThrow(named)
+        expect(verifyMermaid(ARCHITECTURE, { renderOptions: options }).warnings).toContainEqual({
+          code: 'RENDER_FAILED', reason: expect.stringContaining(named),
+        })
+      }
+    }
+  })
+
+  test('direct none paint and other-family options remain available', () => {
+    for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+      expect(() => renderMermaidSVG(FLOW, { [field]: 'none' }), field).not.toThrow()
+    }
+    expect(() => renderMermaidSVG(ARCHITECTURE, { border: 'none' })).not.toThrow()
+    for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+      expect(() => renderMermaidSVG(ARCHITECTURE, { [field]: 'var(--paint)' }), field).not.toThrow()
+    }
+  })
+
+  test('resolved Architecture visuals shadow unused line, accent, and surface fallbacks', () => {
+    const edge = { architecture: { visual: { edgeStroke: '#f00' } }, line: 'none', accent: 'none' }
+    expect(() => renderMermaidSVG(ARCHITECTURE, edge)).not.toThrow()
+    expect(verifyMermaid(ARCHITECTURE, { renderOptions: edge }).ok).toBe(true)
+    const group = { architecture: { visual: { groupSurface: '#eee' } }, surface: 'none' }
+    expect(() => renderMermaidSVG(ARCHITECTURE, group)).not.toThrow()
+    expect(verifyMermaid(ARCHITECTURE, { renderOptions: group }).ok).toBe(true)
+    const band = { architecture: { visual: { groupHeaderSurface: '#eee' } }, surface: 'none' }
+    expect(() => renderMermaidSVG(ARCHITECTURE, band)).not.toThrow()
+    expect(verifyMermaid(ARCHITECTURE, { renderOptions: band }).ok).toBe(true)
+    expect(() => renderMermaidSVG(ARCHITECTURE, { architecture: { visual: { edgeStroke: 'none' } } }))
+      .toThrow('render option "architecture.visual.edgeStroke": "none" is not a CSS color')
+    expect(() => renderMermaidSVG(ARCHITECTURE, { architecture: { visual: { groupSurface: 'none' } } }))
+      .toThrow('render option "architecture.visual.groupSurface": "none" is not a CSS color')
+    expect(() => renderMermaidSVG(ARCHITECTURE, { architecture: { visual: { groupSurface: 'none', groupHeaderSurface: '#eee' } } }))
+      .not.toThrow()
+  })
+
+  test('padded none cannot amplify a verify diagnostic', () => {
+    const value = `${' '.repeat(10_000)}none`
+    const result = verifyMermaid(ARCHITECTURE, { renderOptions: { bg: value } })
+    expect(result.ok).toBe(false)
+    const reason = result.warnings.find(warning => warning.code === 'RENDER_FAILED')?.reason ?? ''
+    expect(reason).toContain('render option "bg"')
+    expect(reason.length).toBeLessThan(500)
+  })
+
+  test('named refusal agrees across PNG, browser-lazy, CLI, and MCP', async () => {
+    const named = 'render option "bg": "none" is not a CSS color for Architecture derived paint'
+    expect(() => renderMermaidPNG(ARCHITECTURE, { bg: 'none' })).toThrow(named)
+    await expect(renderMermaidSVGAsync(ARCHITECTURE, { bg: 'none' })).rejects.toThrow(named)
+    for (const format of ['svg', 'ascii', 'unicode'] as const) {
+      const result = runBatchLine(JSON.stringify({ op: 'render', source: ARCHITECTURE, options: { format, bg: 'none' } }), 0)
+      expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_RENDER_COLOR', field: 'bg', value: 'none' } })
+    }
+    const response = await handleHostedRequest(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source: ARCHITECTURE, options: { bg: 'none' } } } },
+      {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('not used') },
+      },
+    )
+    const payload = JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+    expect(payload).toMatchObject({ ok: false, error: { code: 'INVALID_RENDER_COLOR', field: 'bg', value: 'none' } })
+    expect(projectRenderErrorDiagnostic({ code: 'INVALID_RENDER_COLOR', field: 'bg', value: 'none', message: 'forged' }))
+      .toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
   })
 })

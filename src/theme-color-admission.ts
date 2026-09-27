@@ -1,5 +1,6 @@
 import type { MermaidFrontmatterMap, MermaidThemeVariables } from './mermaid-source.ts'
 import type { RenderOptions } from './types.ts'
+import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import { CHANNEL_THEME_KEYS } from './color-resolver.ts'
 import { drawableAuthoredCssPaint } from './shared/css-color.ts'
 import { syntaxError } from './shared/syntax-error.ts'
@@ -57,6 +58,54 @@ export class ThemeVariableColorError extends Error {
     this.name = 'ThemeVariableColorError'
     this.key = key
     this.value = reportedValue
+  }
+}
+
+/** A direct render color may be a valid SVG paint but an invalid operand for
+ * Architecture's derived color-mix() paints. Refuse it before any output. */
+export class RenderOptionColorError extends Error {
+  readonly code = 'INVALID_RENDER_COLOR' as const
+  readonly field: string
+  readonly value: string
+
+  constructor(field: string, value: string) {
+    const reportedValue = value.length > 256 ? `${value.slice(0, 256)}…` : value
+    super(syntaxError({
+      what: `render option "${field}": ${JSON.stringify(reportedValue)} is not a CSS color for Architecture derived paint`,
+      expectedForm: 'a drawable CSS color or var(--name)',
+      example: `${field}:#f96`,
+    }).message)
+    this.name = 'RenderOptionColorError'
+    this.field = field
+    this.value = reportedValue
+  }
+}
+
+/** `none` is safe as a direct fill/stroke but cannot be mixed into Architecture
+ * backgrounds, surfaces, connectors, or header/junction accent paint. Judge
+ * selected values after Architecture has resolved its visual overrides: an
+ * explicit edge stroke shadows both line and accent fallback channels. */
+export function checkArchitectureRenderOptionColors(
+  options: RenderOptions | undefined,
+  familyId: string,
+  visual?: Readonly<ArchitectureVisualConfig>,
+): void {
+  if (familyId !== 'architecture' || !options) return
+  const edgeStroke = visual?.edgeStroke
+  if (typeof edgeStroke === 'string' && edgeStroke.trim().toLowerCase() === 'none') {
+    throw new RenderOptionColorError('architecture.visual.edgeStroke', edgeStroke)
+  }
+  for (const field of ['bg', 'surface', 'line', 'accent'] as const) {
+    const value = options[field]
+    if (typeof value !== 'string' || value.trim().toLowerCase() !== 'none') continue
+    if (field === 'surface' && visual?.groupSurface?.trim().toLowerCase() !== 'none') continue
+    if (field === 'surface' && visual?.groupHeaderSurface) continue
+    if ((field === 'line' || field === 'accent') && edgeStroke) continue
+    throw new RenderOptionColorError(field, value)
+  }
+  const groupSurface = visual?.groupSurface
+  if (!visual?.groupHeaderSurface && typeof groupSurface === 'string' && groupSurface.trim().toLowerCase() === 'none') {
+    throw new RenderOptionColorError('architecture.visual.groupSurface', groupSurface)
   }
 }
 
@@ -144,6 +193,7 @@ export function checkThemeVariableColors(
   vars: MermaidThemeVariables | undefined,
   familyId: string,
   renderOptions?: Pick<RenderOptions, 'bg' | 'surface' | 'line' | 'accent'>,
+  architectureVisual?: Readonly<ArchitectureVisualConfig>,
 ): void {
   if (!vars) return
   const privateColorKeys = familyId === 'pie' ? PIE_COLOR_KEYS
@@ -155,7 +205,13 @@ export function checkThemeVariableColors(
   const colorKeys = privateColorKeys ? new Set([...SHARED_COLOR_KEYS, ...privateColorKeys]) : SHARED_COLOR_KEYS
   const architectureMixedKeys = familyId === 'architecture'
     ? new Set(ARCHITECTURE_MIXED_CHANNELS.flatMap(([channel, keys]) => {
-      return renderOptions?.[channel] !== undefined ? [] : (selectedThemeColorKey(vars, keys) ?? [])
+      if (renderOptions?.[channel] !== undefined) return []
+      if (channel === 'surface' && architectureVisual && (
+        architectureVisual?.groupHeaderSurface
+        || architectureVisual?.groupSurface?.trim().toLowerCase() !== 'none'
+      )) return []
+      if ((channel === 'line' || channel === 'accent') && architectureVisual?.edgeStroke) return []
+      return selectedThemeColorKey(vars, keys) ?? []
     }))
     : undefined
   for (const key of colorKeys) {
@@ -166,7 +222,13 @@ export function checkThemeVariableColors(
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
       || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
       || (familyId === 'radar' && RADAR_COLOR_KEYS.has(key))
-      || (familyId === 'architecture' && (key === 'clusterBkg' || architectureMixedKeys?.has(key)))
+      || (familyId === 'architecture' && (
+        (key === 'clusterBkg' && (!architectureVisual || (
+          !architectureVisual.groupHeaderSurface
+          && architectureVisual.groupSurface?.trim().toLowerCase() === 'none'
+        )))
+        || architectureMixedKeys?.has(key)
+      ))
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
     }
