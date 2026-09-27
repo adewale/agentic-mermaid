@@ -289,7 +289,7 @@ describe('timeline mutate — all 10 ops', () => {
       expect(timeline(source).body.title).toBe('Soft<br>launch')
       expect(parseTimelineDiagram(normalizeMermaidSource(source).lines).title).toBe('Soft<br>launch')
     }
-    for (const title of ['Soft\nlaunch', 'Soft\r\nlaunch', 'Soft\rlaunch', '\nSoft', 'Soft\n', '\rSoft', 'Soft\r', ' \n Soft ']) {
+    for (const title of ['Soft\nlaunch', 'Soft\r\nlaunch', 'Soft\rlaunch', '\nSoft', 'Soft\n', '\rSoft', 'Soft\r', ' \n Soft ', 'Soft\u2028launch', 'Soft\u2029launch']) {
       const result = mutate(timeline(SRC), { kind: 'set_title', title })
       expect(result.ok, title).toBe(false)
       if (!result.ok) expect(result.error.code).toBe('INVALID_OP')

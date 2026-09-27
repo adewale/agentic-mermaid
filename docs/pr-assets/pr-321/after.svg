@@ -31,7 +31,7 @@
   .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
   .timeline-event-text { fill: #707072; }
 </style>
-<title id="tl-ydlp5i-title">Product&lt;BR&gt;history</title>
+<title id="tl-ydlp5i-title">Product&lt;br&gt;history</title>
 <line class="timeline-rail" x1="54" y1="133" x2="138" y2="133" />
 <g class="timeline-period" data-id="period-0" data-label="2024" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="period">
   <line class="timeline-stem" x1="96" y1="141" x2="96" y2="151" data-id="period-stem:period-0" data-role="period" />
@@ -48,5 +48,5 @@
   <text x="46" y="224.4" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" data-literal-text="true" dy="4.199999999999999" textLength="59.472" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A&lt;b&gt;B&lt;/b&gt;</text>
 </g>
 </g>
-<text x="96" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" data-literal-text="true" dy="6.3" data-id="title" data-role="title" textLength="179.82" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product&lt;BR&gt;history</text>
+<text x="96" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" data-literal-text="true" dy="6.3" data-id="title" data-role="title" textLength="173.34" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product&lt;br&gt;history</text>
 </svg>

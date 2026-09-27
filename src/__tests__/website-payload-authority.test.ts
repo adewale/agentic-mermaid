@@ -116,7 +116,13 @@ describe('deterministic website payload authority', () => {
     for (const field of ['requests', 'rawBytes', 'gzipBytes', 'brotliBytes'] as const) {
       const grown = structuredClone(report)
       const home = grown.routes[0]!
-      const limit = home.totals[field]
+      const budgetField = {
+        requests: 'maxRequests',
+        rawBytes: 'maxRawBytes',
+        gzipBytes: 'maxGzipBytes',
+        brotliBytes: 'maxBrotliBytes',
+      } as const
+      const limit = WEBSITE_PAYLOAD_BUDGETS.home![budgetField[field]]
       home.totals[field] = limit + 1
       expect(verifyWebsitePayloadBudgets(grown, WEBSITE_PAYLOAD_BUDGETS), field).toContain(
         'home: ' + field + ' ' + (limit + 1) + ' exceeds ' + limit,
