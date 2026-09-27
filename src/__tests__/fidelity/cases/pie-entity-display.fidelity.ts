@@ -22,7 +22,7 @@ const numericEntityDisplay: FidelityCaseDefinition = {
         ? 'native' : 'absent' },
     render: { applicability: 'applicable', disposition: 'native',
       evaluate: evidence => facts(evidence).svgLegend === 'A&amp;#B (100.0%)'
-        && facts(evidence).terminalLabel === 'A&#B' && facts(evidence).sourceKey === 'A&#35;B'
+        && facts(evidence).terminalLabel === 'A&#B' && facts(evidence).authoredLabel === 'A&#35;B'
         ? 'native' : 'absent' },
     serialize: { applicability: 'applicable', disposition: 'native',
       evaluate: evidence => facts(evidence).sourceExact === true ? 'native' : 'absent' },
@@ -45,7 +45,7 @@ const numericEntityDisplay: FidelityCaseDefinition = {
     return {
       agent: { status: 'observed', diagnosticCodes: [], semantics: { kind: parsed.value.body.kind, authoredLabel } },
       render: { status: 'observed', diagnosticCodes: [], semantics: {
-        svgLegend: svgLegend(source) ?? null, terminalLabel, sourceKey: authoredLabel,
+        svgLegend: svgLegend(source) ?? null, terminalLabel, authoredLabel,
       } },
       serialize: { status: 'observed', diagnosticCodes: [], semantics: { sourceExact: serialized === source } },
       mutate: { status: 'observed', diagnosticCodes: changed.ok ? [] : [changed.error.code], semantics: {

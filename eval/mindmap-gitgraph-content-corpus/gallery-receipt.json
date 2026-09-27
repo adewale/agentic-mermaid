@@ -216,7 +216,7 @@
     },
     {
       "path": "src/agent/pie-body.ts",
-      "sha256": "d8b02e2d69e256cfd06dfd4fa0d1bb04bc396252f81f01f89164fedebe3ac22b"
+      "sha256": "350834cafed61b142d313676513ef8f470132dd8d53eb06a1baeed684eff1d15"
     },
     {
       "path": "src/agent/png.ts",
@@ -368,7 +368,7 @@
     },
     {
       "path": "src/ascii/meta.ts",
-      "sha256": "d1908cad585bb46689e8a83b9d8dda978bdb8645b5fbb33be3f53a30b386f3dd"
+      "sha256": "d884cef986796bfc4bde946280255a3222394913d73f01f1ba240d4201ed0ee1"
     },
     {
       "path": "src/ascii/mindmap.ts",
@@ -384,7 +384,7 @@
     },
     {
       "path": "src/ascii/pie.ts",
-      "sha256": "5c2c50e4f1f51b102ed3fffe5d51081cb8ee8ba4203a2bf2314b5975528e87a5"
+      "sha256": "d7197945f1025f6c566376628c3b8220055730d008052d545d23af111775d405"
     },
     {
       "path": "src/ascii/quadrant.ts",
@@ -684,7 +684,7 @@
     },
     {
       "path": "src/multiline-utils.ts",
-      "sha256": "c80f9ed37dc892a6f4ac62d0f1f266b95fa2796b3e340d18b1c383b19b544d16"
+      "sha256": "bc5a7df8a485a0fe06f77d508f613d00ffb80e8aff554dc57e67d68a67a343eb"
     },
     {
       "path": "src/node-resource-resolver.ts",
@@ -716,7 +716,7 @@
     },
     {
       "path": "src/pie/layout.ts",
-      "sha256": "fe4004fff955d7ce7fcc17c942957e08b4d6f722c9b87e707bbf7f1a4d3cb87e"
+      "sha256": "02ecbc33d0c115f5bb8257d54594c9dafff022ad15fce420ac6fa0c38f07cd20"
     },
     {
       "path": "src/pie/palette.ts",
@@ -724,15 +724,15 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "8f358a9fd5d9a5191dfbfb6cfb6f1061b0eca9d784b2ff0480cd4abc7f5073b5"
+      "sha256": "0e1b8ba6c57cd03ad330305e91d04a197c848f5cb85e94194d6692dde96a5495"
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "f60de94d7db53456372c8e8fc28a00b3a4cdd17153cfed8fe33b42b226e0a2f5"
+      "sha256": "98ba67572ecf3394d546c6053cc39a18f8c8ebe77ffbf47157daff493295685a"
     },
     {
       "path": "src/pie/types.ts",
-      "sha256": "7d6bff36509ab6271aa137aeb75f08f24295a89db0917f1e36728f808505a337"
+      "sha256": "3ebe365b33fbedb2e6683021831528cc8a4eb80c0cc54be0ad576330c9b73ec3"
     },
     {
       "path": "src/png-contract.ts",
@@ -904,7 +904,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "e42414955db8389955c1fa7287d4ac924137920c35697005ed54f4e44813732c"
+      "sha256": "72467869c0da97aa692a1ccc61a2fab10a841ebb44691cbbd89b8b28b6d3b4a5"
     },
     {
       "path": "src/scene/gradient-resources.ts",

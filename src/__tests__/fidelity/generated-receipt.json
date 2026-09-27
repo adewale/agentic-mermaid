@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "3d275626c8c5470b3837401dffe1fb745331157f132c9f30746ab96574e3f6bb",
+    "inputSha256": "c7da1995f15dd4808ecc86c5e0c292036098744ac7f0c61df28e2ea1fe84525c",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -112,7 +112,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/pie-entity-display.fidelity.ts",
-        "sha256": "98cc5075867bf0d7bc00a572e3948604544797d797ad07e42e698b7d03a566da"
+        "sha256": "91fea36cc87f4ebda72130bc8461bab91a2f30fcedfad0328e881ff3235e10c4"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -1663,7 +1663,7 @@
           "status": "observed",
           "diagnosticCodes": [],
           "semantics": {
-            "sourceKey": "A&#35;B",
+            "authoredLabel": "A&#35;B",
             "svgLegend": "A&amp;#B (100.0%)",
             "terminalLabel": "A&#B"
           },
