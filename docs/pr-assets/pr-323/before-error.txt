@@ -1,0 +1,12 @@
+Base: 5878093795f803e71ddbf0de24a8252768225927 (PR #322 head)
+Source: gitgraph-official-cherry-pick.mmd, the pinned Mermaid 11.16 GitGraph
+syntax example with indentation normalized and statements unchanged.
+Public CLI command on the base: bun run bin/am.ts render <absolute path to this PR's gitgraph-official-cherry-pick.mmd> --format svg
+Observed result before the fix: exit 2, `Error: RENDER_FAILED: Rendering failed`, no SVG.
+
+Direct `renderMermaidSVG(source, { embedFontImport: false })` probe on the
+same base and source threw the underlying error:
+
+SceneValidationError: Scene validation failed: scene: parts[21]/0(shape:c6:shape).points:
+semantic "833.395,248.04000000000002 843.395,258.04 833.395,268.04 823"
+!= crisp "833.395,248.04 843.395,258.04 833.395,268.04 823.395,258.04"

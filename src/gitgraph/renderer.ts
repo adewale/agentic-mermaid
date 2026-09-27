@@ -170,9 +170,12 @@ function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGr
 
 function commitGeometry(commit: PositionedGitGraphCommit): SerializableShapeGeometry {
   const type = commit.customType ?? commit.type
-  if (type === 'HIGHLIGHT') return { kind: 'rect', x: commit.x - 9, y: commit.y - 9, width: 18, height: 18, rx: 2, ry: 2 }
-  if (type === 'CHERRY_PICK') return { kind: 'polygon', points: [{ x: commit.x, y: commit.y - 10 }, { x: commit.x + 10, y: commit.y }, { x: commit.x, y: commit.y + 10 }, { x: commit.x - 10, y: commit.y }] }
-  return { kind: 'circle', cx: commit.x, cy: commit.y, r: type === 'MERGE' ? 10 : 8 }
+  // Scene geometry and the crisp SVG serializer must describe the same points.
+  // Layout can produce binary float tails (for example 248.04000000000002)
+  // that SVG rounds to three decimals; normalize at the shared shape boundary.
+  if (type === 'HIGHLIGHT') return { kind: 'rect', x: r(commit.x - 9), y: r(commit.y - 9), width: 18, height: 18, rx: 2, ry: 2 }
+  if (type === 'CHERRY_PICK') return { kind: 'polygon', points: [{ x: r(commit.x), y: r(commit.y - 10) }, { x: r(commit.x + 10), y: r(commit.y) }, { x: r(commit.x), y: r(commit.y + 10) }, { x: r(commit.x - 10), y: r(commit.y) }] }
+  return { kind: 'circle', cx: r(commit.x), cy: r(commit.y), r: type === 'MERGE' ? 10 : 8 }
 }
 
 interface GitGraphBranchPaint { line: string; label: string; highlight: string; normalFill: string; labelBackground: string }
