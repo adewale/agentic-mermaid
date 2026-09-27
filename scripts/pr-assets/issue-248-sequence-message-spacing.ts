@@ -13,7 +13,7 @@ const SOURCE = `sequenceDiagram
   Bob-->>- Alice: Hi
   Alice ->>() Bob: Center
 `
-const BASE_SHA = '589fff9116f71a37d4915513256213322b4fad32'
+const BASE_SHA = '8b84079f94a257024b2a7aa9897580a5428aad57'
 const baseDirectory = process.argv[2]
 if (!baseDirectory) throw new Error('Usage: bun run scripts/pr-assets/issue-248-sequence-message-spacing.ts <base-checkout>')
 
