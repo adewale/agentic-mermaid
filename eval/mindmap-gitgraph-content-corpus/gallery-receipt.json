@@ -128,7 +128,7 @@
     },
     {
       "path": "src/agent/families-builtin.ts",
-      "sha256": "7582d39431cea09be85559cb3a34c0666124d3568c5e164bdb831be79a51d068"
+      "sha256": "8b420351185394d7f1e238639173f0c3f226298e21c2b3b2b0e229c4ef7de183"
     },
     {
       "path": "src/agent/families.ts",
@@ -212,7 +212,7 @@
     },
     {
       "path": "src/agent/parse.ts",
-      "sha256": "d70cd45781239ede2e3fdc54d9812e8e767bc421e51f618122bfc839594d4818"
+      "sha256": "80ba4e2301cf8f9ec7fdfae785723b2f61a317e405ba63f9c806e8aa031ef7ee"
     },
     {
       "path": "src/agent/pie-body.ts",
@@ -360,7 +360,7 @@
     },
     {
       "path": "src/ascii/index.ts",
-      "sha256": "10777a684f5d3583c86a697585145fd722e86b9743d9717796e8034696aaeaa9"
+      "sha256": "82fe9e65e24c5a31dc6d904b89d2a6fedf7b93a6c951d5e20b0d427cea815e29"
     },
     {
       "path": "src/ascii/journey.ts",
@@ -368,7 +368,7 @@
     },
     {
       "path": "src/ascii/meta.ts",
-      "sha256": "b59f676ac0b5dfbcd0667a278039c334fd3fae5a10343395ff8ca5a208541896"
+      "sha256": "32f9fb80c19967d84a1b8a9280a1c4024823db8963d3cd3a12509100f3a512da"
     },
     {
       "path": "src/ascii/mindmap.ts",
@@ -384,7 +384,7 @@
     },
     {
       "path": "src/ascii/pie.ts",
-      "sha256": "154fe48424e610de101efacf91913a2c87e5fdbfc6bc36d82a949f3e5e681389"
+      "sha256": "17c5a2ef8fcd62252a9b7d5d9a79e05c56b61ff84ec62981729f03b44a000345"
     },
     {
       "path": "src/ascii/quadrant.ts",
@@ -652,7 +652,7 @@
     },
     {
       "path": "src/mermaid-source.ts",
-      "sha256": "5c5e684d39e47934361e7c39c1d9b2809f7aaa7131c9fbb6b4022ff53e59bb77"
+      "sha256": "e7d700aff41da566bddecb908946eb0b7999d936a639386621e0d536bd349ec3"
     },
     {
       "path": "src/mindmap/geometry.ts",
@@ -716,7 +716,7 @@
     },
     {
       "path": "src/pie/layout.ts",
-      "sha256": "02ecbc33d0c115f5bb8257d54594c9dafff022ad15fce420ac6fa0c38f07cd20"
+      "sha256": "44465094eb929a23184857710503dd4f6459427da1e10f393a64bcd6fbaf2b03"
     },
     {
       "path": "src/pie/palette.ts",
@@ -724,15 +724,19 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "124743007b18112acee2720cd8dc4d0cc6428e40eba7c6d0ff99fdfc2d4baea7"
+      "sha256": "affa7acd5c944669db2aac2e7b745e3dbed424094d6f3aa8bdc5d391550d974f"
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "98ba67572ecf3394d546c6053cc39a18f8c8ebe77ffbf47157daff493295685a"
+      "sha256": "8c551ecafd75c66dfced6799521798031f8966dd9b3412a180b2668896a10fd7"
+    },
+    {
+      "path": "src/pie/source-title.ts",
+      "sha256": "efa7f6614c746df968f2fe862ff1500027abfb99185b30e81e41686861129a9b"
     },
     {
       "path": "src/pie/types.ts",
-      "sha256": "3ebe365b33fbedb2e6683021831528cc8a4eb80c0cc54be0ad576330c9b73ec3"
+      "sha256": "086018ffb0a6c24a125ace4586f3dbe74b6fc6fe46d7274005e6f25c407609ec"
     },
     {
       "path": "src/png-contract.ts",
@@ -800,7 +804,7 @@
     },
     {
       "path": "src/render-contract.ts",
-      "sha256": "3956b1d7f39404ad7e73d4357026bd464c10fad708729775e053347862349774"
+      "sha256": "4797ba526b519c989b060672e1f161f49fa47ddeb705442cb80fff909116bb5e"
     },
     {
       "path": "src/render-family-hooks.ts",
@@ -904,7 +908,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "c14cb49155282501847a26184443180ce2245e3279cd40f6d0c54fefd555563f"
+      "sha256": "f5b58d7c5bec280411a72d01a54a70fc48de795ff45a8a2a7a8e0655822899e0"
     },
     {
       "path": "src/scene/gradient-resources.ts",
