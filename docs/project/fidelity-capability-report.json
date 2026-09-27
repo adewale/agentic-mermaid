@@ -3,10 +3,10 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "107b8af7589b4274641e8822cf948fef0194dd5609902f8dd65338967b48a954",
-  "receiptResultSha256": "bd00d14b77056543363f87e68938071338292b4f4e566636c2a445bbe6663473",
+  "receiptInputSha256": "3f8ab115ffb678311702515ed80340027de78ad8cf33b78a9254bd0e7ffdb108",
+  "receiptResultSha256": "3ff000331b1a648609120f88c5cd01693949abd11820252aa8ac381a3c159fce",
   "summary": {
-    "caseCount": 30,
+    "caseCount": 31,
     "featureCount": 13,
     "dispositions": {
       "native": 4,
@@ -396,6 +396,7 @@
         "pie.syntax.authored-formatting-literal",
         "pie.syntax.duplicate-label-first-wins",
         "pie.syntax.entity-spelling-distinct",
+        "pie.syntax.escaped-newline-painted-space",
         "pie.syntax.escaped-terminal-control-sanitized",
         "pie.syntax.named-entity-display",
         "pie.syntax.numeric-entity-display",
@@ -457,6 +458,23 @@
             "mutate": "native"
           },
           "diagnostics": {}
+        },
+        {
+          "caseId": "pie.syntax.escaped-newline-painted-space",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "native",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
         },
         {
           "caseId": "pie.syntax.escaped-terminal-control-sanitized",

@@ -55,13 +55,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The title-directive bridge reached 733,574 raw demo bytes on Linux/x64;
     // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
     // The chart-honesty text contract, with its checks that name an invalid
-    // authored color, adds 7,858 raw, 3,079 gzip, and 2,596 Brotli bytes to the
+    // authored color, adds 7,858 raw, 3,078 gzip, and 2,573 Brotli bytes to the
     // shared chunks, and its module moves regroup the small shared chunks, so
     // the graph drops from 30 to 29 requests. Each ceiling keeps main's
     // allowance above the Linux total for the macOS recording.
     maxRawBytes: 741_858,
-    maxGzipBytes: 278_679,
-    maxBrotliBytes: 254_096,
+    maxGzipBytes: 278_678,
+    maxBrotliBytes: 254_073,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -108,17 +108,21 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Authored Pie literal-metrics metadata adds 439 raw bytes on Linux/x64;
     // the two-request editor graph is unchanged and the raw ceiling retains
     // less than 0.01% headroom above the measured 3,393,082 bytes.
+    // Pie's escaped-LF painted-text projection stays in the existing two
+    // requests. The tab-aware linear scanner measured 3,393,328 raw /
+    // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
+    // cross-platform ceiling.
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
     // family's text tones, halos, titles, and containment, and the checks that
     // name an invalid authored color, the node-fill ink, and the
-    // VALUES_OUTSIDE_RANGE lint) adds 25,406 raw, 9,312 gzip, and 7,160 Brotli
+    // VALUES_OUTSIDE_RANGE lint) adds 25,405 raw, 9,326 gzip, and 6,897 Brotli
     // bytes to the Linux/x64 editor bundle without a new request. Each ceiling
     // keeps main's allowance above the Linux total.
-    maxRawBytes: 3_418_806,
-    maxGzipBytes: 1_018_112,
-    maxBrotliBytes: 803_560,
+    maxRawBytes: 3_418_805,
+    maxGzipBytes: 1_018_126,
+    maxBrotliBytes: 803_697,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
