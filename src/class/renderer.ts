@@ -1,7 +1,7 @@
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
-import { inkOnAuthoredFill } from '../color-resolver.ts'
+import { inkOnNodeFill } from '../color-resolver.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS, CLASS_STYLE_DEFAULTS, memberToString } from './layout.ts'
@@ -288,8 +288,12 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
 
   // classDef then inline style are merged by layout for backend parity.
   const local = cls.inlineStyle ?? {}
-  // Every text in the box sits on the author's fill when there is one.
-  const ink = inkOnAuthoredFill(cls.inlineStyle, colors)
+  // Every text in the box sits on its fill: the author's, or else the header
+  // band's (annotation, name) or the node fill (members). A Style that sets the
+  // text color owns it on its own fills.
+  const styleText = style.nodeTextColor !== undefined
+  const headerInk = inkOnNodeFill(cls.inlineStyle, colors, styleText ? undefined : style.groupHeaderFillColor ?? 'var(--_group-hdr)')
+  const ink = inkOnNodeFill(cls.inlineStyle, colors, styleText ? undefined : style.nodeFillColor ?? 'var(--_node-fill)')
   const boxFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
   const boxStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
@@ -325,7 +329,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   let nameY = y + headerHeight / 2
   if (cls.annotation !== undefined) {
     const annotY = y + 12
-    const annotColor = ink(style.nodeTextColor ?? 'var(--_text-muted)')
+    const annotColor = headerInk(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({
       indent: 2,
       node: marks.text({
@@ -346,7 +350,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   }
 
   // Class name (supports multi-line via <br> tags)
-  const nameColor = ink(style.nodeTextColor ?? 'var(--_text)')
+  const nameColor = headerInk(style.nodeTextColor ?? 'var(--_text)')
   const label = applyTextTransform(cls.label, style.nodeTextTransform)
   children.push({
     indent: 2,
@@ -428,10 +432,11 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
 
   if (!member.isMethod && member.sourceText) {
     const plain = memberToString(member)
+    const textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
     const visible = member.visibility && plain.startsWith(member.visibility)
-      ? `<tspan fill="var(--_text-faint)">${escapeXml(member.visibility)}</tspan>` +
-        `<tspan fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-sec)')}">${escapeXml(plain.slice(1))}</tspan>`
-      : `<tspan fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-sec)')}">${escapeXml(plain)}</tspan>`
+      ? `<tspan fill="${escapeAttr(ink('var(--_text-faint)'))}">${escapeXml(member.visibility)}</tspan>` +
+        `<tspan fill="${escapeAttr(textInk)}">${escapeXml(plain.slice(1))}</tspan>`
+      : `<tspan fill="${escapeAttr(textInk)}">${escapeXml(plain)}</tspan>`
     return marks.text({
       id: sceneId,
       role: 'member',
@@ -440,7 +445,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
       y,
       fontSize: CLS_FONT.memberSize,
       anchor: 'start',
-      paint: { fill: style.nodeTextColor ?? 'var(--_text-sec)' },
+      paint: { fill: textInk },
     },
       `<text x="${x}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
       `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}>` +

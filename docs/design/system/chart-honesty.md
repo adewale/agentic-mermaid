@@ -61,13 +61,16 @@ patches. A new family should use them:
 - **Theme tones legible on every surface the theme paints.** `resolveColors`
   ([`src/theme.ts`](../../../src/theme.ts)) derives text, secondary text, and
   muted text that clear WCAG AA on the page, node fill, group header, and key
-  badge together.
+  badge together, or on the page and its tints alone when a custom node
+  surface leaves no tone that reads on both.
 - **Ink chosen against the fill it sits on.** `legibleInk`
-  ([`src/shared/color-math.ts`](../../../src/shared/color-math.ts)) and
-  `inkOnAuthoredFill` ([`src/color-resolver.ts`](../../../src/color-resolver.ts))
-  re-ink text on authored and data fills, composited over the page. An
-  authored text color always wins; `verify` reports it as `LOW_CONTRAST` when
-  it fails.
+  ([`src/shared/color-math.ts`](../../../src/shared/color-math.ts)),
+  `inkOnNodeFill` and `toneOnFill` ([`src/color-resolver.ts`](../../../src/color-resolver.ts))
+  re-ink text on authored, data, and node fills, composited over the page,
+  so a node's text reads on the node's own fill even when a custom surface
+  puts it far from the page (black nodes on a white page). An authored text
+  color, or a Style's own, always wins; `verify` reports it as `LOW_CONTRAST`
+  when it fails.
 - **Halos for text over lines, bands, and data.** A label that crosses other
   marks carries a halo in the surface beneath it. Examples: sankey labels over
   ribbons, XY data labels, quadrant point labels on the dividers, sequence

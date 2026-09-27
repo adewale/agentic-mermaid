@@ -9,7 +9,9 @@ import type { ArchitectureVisualConfig } from './config.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
 import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT } from './layout.ts'
 import type { Point, RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, resolvedColorValue, type DiagramColors } from '../theme.ts'
+import { toneOnFill } from '../color-resolver.ts'
+import { mixHex } from '../shared/color-math.ts'
 import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { applyTextTransform } from '../styles.ts'
@@ -66,6 +68,7 @@ export function lowerArchitectureScene(
     visual.edgeStroke ? `--arch-edge-stroke:${visual.edgeStroke}` : '',
     visual.edgeText ? `--arch-edge-label:${visual.edgeText}` : '',
   ].filter(Boolean).join(';')
+  const labels = labelPaints(visual, colors)
 
   const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text
   const hasTitle = Boolean(accessibleTitle)
@@ -83,7 +86,7 @@ export function lowerArchitectureScene(
 
   // Document shell: SVG open tag, accessibility elements, shared style block,
   // and architecture CSS in canonical order.
-  const archCss = architectureStyles(visual)
+  const archCss = architectureStyles(visual, labels)
   const preludeParts: string[] = []
   preludeParts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, {
     style: archVars,
@@ -129,7 +132,7 @@ export function lowerArchitectureScene(
   }
 
   for (const group of diagram.groups) {
-    parts.push(lowerGroup(group, visual))
+    parts.push(lowerGroup(group, visual, labels))
   }
 
   const edgeOccurrence = new Map<string, number>()
@@ -158,7 +161,7 @@ export function lowerArchitectureScene(
   }
 
   for (const service of diagram.services) {
-    parts.push(lowerService(service, visual))
+    parts.push(lowerService(service, visual, labels))
   }
 
   parts.push(marks.documentClose())
@@ -166,15 +169,35 @@ export function lowerArchitectureScene(
   return { family: 'architecture', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
-function architectureStyles(visual: ArchitectureVisualConfig): string {
+interface ArchitectureLabelPaints { group: string; service: string }
+
+/** Paints for group and service labels. A label color set through the
+ *  visual config (`--arch-group-label`, `--arch-service-label`) wins; the
+ *  theme tone it falls back to is inked against the band or card the label
+ *  sits on, whose fill a custom surface can put far from the page the tones
+ *  are repaired against. The fills mirror architectureStyles(). */
+function labelPaints(visual: ArchitectureVisualConfig, colors: DiagramColors): ArchitectureLabelPaints {
+  const page = resolvedColorValue('var(--bg)', colors)
+  const nodeFill = resolvedColorValue('var(--_node-fill)', colors)
+  const groupFill = page ? resolvedColorValue(visual.groupSurface ?? page, colors) : undefined
+  const edge = resolvedColorValue(visual.edgeStroke ?? 'var(--_arrow)', colors)
+  const band = visual.groupHeaderSurface ?? (groupFill && edge ? mixHex(edge, groupFill, 5) : undefined)
+  const card = visual.serviceSurface ?? (page && nodeFill ? mixHex(nodeFill, page, 92) : undefined)
+  return {
+    group: `var(--arch-group-label, ${band ? toneOnFill('var(--_text-sec)', band, colors) : 'var(--_text-sec)'})`,
+    service: `var(--arch-service-label, ${card ? toneOnFill('var(--_text)', card, colors) : 'var(--_text)'})`,
+  }
+}
+
+function architectureStyles(visual: ArchitectureVisualConfig, labels: ArchitectureLabelPaints): string {
   return `<style>
   .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
   .architecture-group-band { fill: var(--arch-group-band, color-mix(in srgb, var(--arch-edge-stroke, var(--_arrow)) 5%, var(--arch-group-fill, var(--bg)))); stroke: none; }
   .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: ${visual.groupLineWidth}; }
-  .architecture-group-label { fill: var(--arch-group-label, var(--_text-sec)); }
+  .architecture-group-label { fill: ${labels.group}; }
   .architecture-service-card { fill: var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg))); stroke: none; }
   .architecture-service-outline { fill: none; stroke: var(--arch-service-stroke, var(--_node-stroke)); stroke-width: ${visual.serviceLineWidth}; }
-  .architecture-service-label { fill: var(--arch-service-label, var(--_text)); }
+  .architecture-service-label { fill: ${labels.service}; }
   .architecture-edge { fill: none; stroke: var(--arch-edge-stroke, var(--_line)); stroke-width: ${visual.edgeLineWidth}; stroke-linejoin: round; }
   .architecture-edge-label-bg { fill: color-mix(in srgb, var(--bg) 90%, var(--_group-hdr)); stroke: color-mix(in srgb, var(--arch-edge-stroke, var(--_line)) 18%, var(--bg)); stroke-width: 0.75; }
   .architecture-edge-label-text { fill: var(--arch-edge-label, var(--_text-muted)); }
@@ -185,7 +208,7 @@ function architectureStyles(visual: ArchitectureVisualConfig): string {
 </style>`
 }
 
-function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisualConfig): SceneNode {
+function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisualConfig, labels: ArchitectureLabelPaints): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
   const open =
     `<g class="architecture-group" data-id="${escapeAttr(group.id)}" data-label="${escapeAttr(group.label)}">`
@@ -251,7 +274,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
       y: labelY,
       fontSize: visual.groupFontSize,
       anchor: 'start',
-      paint: { fill: 'var(--arch-group-label, var(--_text-sec))' },
+      paint: { fill: labels.group },
     }, renderMultilineText(
       labelText,
       labelX,
@@ -262,7 +285,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
   })
 
   for (const child of group.children) {
-    children.push({ indent: 0, node: lowerGroup(child, visual) })
+    children.push({ indent: 0, node: lowerGroup(child, visual, labels) })
   }
 
   return marks.group({
@@ -274,7 +297,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
   })
 }
 
-function lowerService(service: PositionedArchitectureService, visual: ArchitectureVisualConfig): SceneNode {
+function lowerService(service: PositionedArchitectureService, visual: ArchitectureVisualConfig, labels: ArchitectureLabelPaints): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
   const hasIcon = Boolean(service.icon)
   const iconX = service.x + visual.servicePaddingX
@@ -331,7 +354,7 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
       y: labelY,
       fontSize: visual.serviceFontSize,
       anchor: 'start',
-      paint: { fill: 'var(--arch-service-label, var(--_text))' },
+      paint: { fill: labels.service },
     }, renderMultilineText(
       labelText,
       labelX,

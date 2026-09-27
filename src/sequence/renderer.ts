@@ -1,6 +1,6 @@
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { boxColorToHex } from './colors.ts'
-import { contrastTextColor } from '../color-resolver.ts'
+import { contrastTextColor, toneOnFill } from '../color-resolver.ts'
 import { compositeCssColor, legibleInk, toHex, tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type DiagramColors } from '../theme.ts'
@@ -150,22 +150,23 @@ export function lowerSequenceScene(
     parts.push(renderLifeline(lifeline, style))
   }
 
-  // 2b. Paint fragment header tabs above lifelines. The outer fragment and
-  // dividers remain behind lifelines, while the opaque tab protects its label
-  // from a dashed actor line passing through the text.
-  const blockHeaderOccurrence = new Map<string, number>()
-  for (const block of diagram.blocks) {
-    const k = blockHeaderOccurrence.get(block.type) ?? 0
-    blockHeaderOccurrence.set(block.type, k + 1)
-    if (block.type !== 'rect') parts.push(renderBlockHeader(block, style, blockSceneIds.get(block)!))
-  }
-
   // 3. Activation boxes
   const activationOccurrence = new Map<string, number>()
   for (const activation of diagram.activations) {
     const k = activationOccurrence.get(activation.actorId) ?? 0
     activationOccurrence.set(activation.actorId, k + 1)
     parts.push(renderActivation(activation, style, `activation:${activation.actorId}#${k}`))
+  }
+
+  // 3a. Paint fragment header tabs above lifelines and activation bars. The
+  // outer fragment and dividers remain behind lifelines, while the opaque tab
+  // protects its label from a dashed actor line or an activation bar passing
+  // through the text.
+  const blockHeaderOccurrence = new Map<string, number>()
+  for (const block of diagram.blocks) {
+    const k = blockHeaderOccurrence.get(block.type) ?? 0
+    blockHeaderOccurrence.set(block.type, k + 1)
+    if (block.type !== 'rect') parts.push(renderBlockHeader(block, style, blockSceneIds.get(block)!))
   }
 
   // 3b. Fragment section labels, above the lifelines and activation bars that
@@ -192,7 +193,7 @@ export function lowerSequenceScene(
     const noteKey = `${(note.actors ?? []).join(',')}@${note.position ?? 'over'}`
     const k = noteOccurrence.get(noteKey) ?? 0
     noteOccurrence.set(noteKey, k + 1)
-    parts.push(renderNote(note, style, `note:${noteKey}#${k}`))
+    parts.push(renderNote(note, style, colors, `note:${noteKey}#${k}`))
   }
 
   // 5b. Destroy crosses (X where a destroyed lifeline ends) — drawn above
@@ -203,7 +204,7 @@ export function lowerSequenceScene(
 
   // 6. Actor boxes at top (rendered last so they're on top)
   for (const actor of diagram.actors) {
-    parts.push(renderActor(actor, style, resolved.styleFace, options.security !== 'strict', inkAt))
+    parts.push(renderActor(actor, style, colors, resolved.styleFace, options.security !== 'strict', inkAt))
   }
 
   parts.push(marks.documentClose())
@@ -332,6 +333,7 @@ function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['
 function renderActor(
   actor: PositionedActor,
   style: ResolvedRenderStyle,
+  colors: DiagramColors,
   styleFace: Readonly<InternalStyleFace> | undefined,
   includeInteraction: boolean,
   inkAt: SurfaceInk,
@@ -347,6 +349,9 @@ function renderActor(
   const rawFillColor = roleStyle?.fillColor ?? style.nodeFillColor ?? 'var(--_node-fill)'
   const rawBorderColor = roleStyle?.borderColor ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const rawTextColor = roleStyle?.textColor ?? style.nodeTextColor ?? 'var(--_text)'
+  // A participant's label sits on its box, whose fill a custom surface can put
+  // far from the page the theme tones are repaired against.
+  const boxTextColor = roleStyle?.textColor ?? style.nodeTextColor ?? toneOnFill('var(--_text)', rawFillColor, colors)
 
   // Semantic wrapper with actor metadata
   const menu = includeInteraction && actor.links
@@ -357,7 +362,7 @@ function renderActor(
 
   const displayLabel = applyTextTransform(label, textTransform)
   const labelAttrs =
-    `font-size="${fontSize}" text-anchor="middle" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(rawTextColor)}"`
+    `font-size="${fontSize}" text-anchor="middle" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(boxTextColor)}"`
   // Icon participants label below the glyph, on whatever the column shows.
   const below = inkAt(labelArea(x, y + height + 14, 'middle', displayLabel, fontSize, fontWeight), rawTextColor)
   const belowAttrs =
@@ -457,16 +462,17 @@ function renderActor(
         y: y + height / 2,
         fontSize,
         anchor: 'middle',
-        paint: { fill: rawTextColor },
+        paint: { fill: boxTextColor },
         channels: { category: id },
       }, renderMultilineText(displayLabel, x, y + height / 2, fontSize, labelAttrs)),
     })
   }
 
+  const menuColor = type === 'participant' ? boxTextColor : rawTextColor
   if (actor.links) children.push({ indent: 2, node: marks.text({
     id: `actor:${id}:menu`, role: 'icon', text: '⋯', x: x + width / 2 - 7, y: y + 10,
-    fontSize: 10, anchor: 'middle', paint: { fill: rawTextColor }, channels: { category: id },
-  }, `<text class="sequence-actor-menu" x="${x + width / 2 - 7}" y="${y + 10}" text-anchor="middle" font-size="10" fill="${escapeAttr(rawTextColor)}">⋯</text>`) })
+    fontSize: 10, anchor: 'middle', paint: { fill: menuColor }, channels: { category: id },
+  }, `<text class="sequence-actor-menu" x="${x + width / 2 - 7}" y="${y + 10}" text-anchor="middle" font-size="10" fill="${escapeAttr(menuColor)}">⋯</text>`) })
 
   return marks.group({
     id: `actor:${id}`,
@@ -903,7 +909,7 @@ function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): S
  * Render a note box.
  * Wrapped in <g class="note"> with semantic data attributes.
  */
-function renderNote(note: PositionedNote, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: DiagramColors, sceneId: string): SceneNode {
   const { x, y, width: w, height: h } = note
 
   const actorsAttr = note.actors && note.actors.length > 0
@@ -913,7 +919,7 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, sceneId: s
 
   const rawFill = style.nodeFillColor ?? 'var(--bg)'
   const rawStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
-  const rawTextColor = style.nodeTextColor ?? 'var(--_text-muted)'
+  const rawTextColor = style.nodeTextColor ?? toneOnFill('var(--_text-muted)', rawFill, colors)
   const radius = style.cornerRadius ?? 0
   const displayText = applyTextTransform(note.text, style.nodeTextTransform)
 

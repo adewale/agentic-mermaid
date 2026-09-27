@@ -1,7 +1,7 @@
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
-import { inkOnAuthoredFill } from '../color-resolver.ts'
+import { inkOnNodeFill } from '../color-resolver.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
@@ -188,8 +188,12 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
 
   // classDef then inline style are merged by layout for backend parity.
   const local = entity.inlineStyle ?? {}
-  // Name and attribute text sit on the author's fill when there is one.
-  const ink = inkOnAuthoredFill(entity.inlineStyle, colors)
+  // Name and attribute text sit on the box's fill: the author's, or else the
+  // header band's (name) or the node fill (attributes). A Style that sets the
+  // text color owns it on its own fills.
+  const styleText = style.nodeTextColor !== undefined
+  const headerInk = inkOnNodeFill(entity.inlineStyle, colors, styleText ? undefined : style.groupHeaderFillColor ?? 'var(--_group-hdr)')
+  const ink = inkOnNodeFill(entity.inlineStyle, colors, styleText ? undefined : style.nodeFillColor ?? 'var(--_node-fill)')
   const rectFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
   const rectStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
@@ -222,7 +226,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
   })
 
   // Entity name (supports multi-line via <br> tags)
-  const nameColor = ink(style.nodeTextColor ?? 'var(--_text)')
+  const nameColor = headerInk(style.nodeTextColor ?? 'var(--_text)')
   const displayLabel = applyTextTransform(label, style.nodeTextTransform)
   children.push({
     indent: 2,

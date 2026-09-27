@@ -25,7 +25,7 @@ import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
  * from Shiki themes or custom palettes. Each falls back to a color-mix()
  * derivation from bg + fg if not set.
  */
-import { parseHex, toHex, mixHex, isHexColor, luma255, ensureContrast, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
+import { parseHex, toHex, mixHex, isHexColor, luma255, contrastRatio, ensureContrast, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import { requireSafeCssFontFamily } from './shared/css-font.ts'
 import { requireSafeCssPaint } from './shared/css-color.ts'
 
@@ -478,12 +478,13 @@ function deriveColors(colors: DiagramColors): ResolvedColors {
   // types on node bodies, group titles on header bands, key names on badges),
   // so each tone must read at WCAG AA on all of them, not only on the page.
   // The faint tone is for decoration only (separators), which needs the 3:1
-  // of non-text contrast; text a reader must read never uses it.
-  const surfaces = [bg, nodeFill, groupHdr, keyBadge]
-  const text = legibleOnEvery(fg, surfaces)
-  const textSec = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textSec), surfaces, text)
-  const textMuted = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textMuted), surfaces, text)
-  const textFaint = legibleOnEvery(mixHex(fg, bg, MIX.textFaint), surfaces, text, WCAG_AA_NON_TEXT_CONTRAST)
+  // of non-text contrast; text a reader must read never uses it. A custom
+  // surface far from the page (black nodes on a white page) leaves no tone
+  // that reads on both, and a compromise between them reads on neither; the
+  // tones are then repaired against the page and its tints alone, and text on
+  // a node is inked against the node's fill (inkOnNodeFill, toneOnFill).
+  const everySurface = textTones(colors, [bg, nodeFill, groupHdr, keyBadge])
+  const { text, textSec, textMuted, textFaint } = everySurface.legible ? everySurface : textTones(colors, [bg, groupHdr, keyBadge])
   return {
     bg,
     fg,
@@ -500,6 +501,20 @@ function deriveColors(colors: DiagramColors): ResolvedColors {
     innerStroke: mixHex(fg, bg, MIX.innerStroke),
     keyBadge,
   }
+}
+
+/** The text tones repaired against `surfaces`, and whether every tone then
+ * reaches its minimum on every one of them. A contrast that cannot be measured
+ * (a palette that is not concrete) is not counted as a failure. */
+function textTones(colors: DiagramColors, surfaces: readonly string[]) {
+  const { bg, fg } = colors
+  const text = legibleOnEvery(fg, surfaces)
+  const textSec = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textSec), surfaces, text)
+  const textMuted = legibleOnEvery(colors.muted ?? mixHex(fg, bg, MIX.textMuted), surfaces, text)
+  const textFaint = legibleOnEvery(mixHex(fg, bg, MIX.textFaint), surfaces, text, WCAG_AA_NON_TEXT_CONTRAST)
+  const reads = (tone: string, minimum: number) => surfaces.every(surface => (contrastRatio(tone, surface) ?? Infinity) >= minimum)
+  const legible = [text, textSec, textMuted].every(tone => reads(tone, WCAG_AA_TEXT_CONTRAST)) && reads(textFaint, WCAG_AA_NON_TEXT_CONTRAST)
+  return { text, textSec, textMuted, textFaint, legible }
 }
 
 /** `candidate`, darkened or lightened just enough to reach `minimum` (WCAG AA

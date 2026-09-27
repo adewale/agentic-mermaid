@@ -11,6 +11,7 @@ import type {
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors, resolvedColorValue } from '../theme.ts'
+import { toneOnFill } from '../color-resolver.ts'
 import type { JourneyRequestAppearance, JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
@@ -65,6 +66,8 @@ interface JourneyPaints {
   arrow: string
   nodeFill: string
   nodeStroke: string
+  /** Task text, inked against the task box fill it sits on. */
+  taskText: string
   groupFill: string
   groupStroke: string
   groupText: string
@@ -280,7 +283,7 @@ ${sectionBandPalette}
   .journey-section-label { fill: ${paints.sectionTextColors[0] ?? 'var(--_text)'}; }
 ${sectionLabelPalette}
   .journey-task-box { fill: ${paints.nodeFill}; stroke: ${paints.nodeStroke}; stroke-width: ${style.nodeLineWidth}; }
-  .journey-task-text { fill: ${style.nodeTextColor ?? 'var(--_text)'};${visual.taskFontFamily ? ` font-family: ${visual.taskFontFamily};` : ''} }
+  .journey-task-text { fill: ${paints.taskText};${visual.taskFontFamily ? ` font-family: ${visual.taskFontFamily};` : ''} }
   .journey-track { stroke: color-mix(in srgb, ${paints.nodeStroke} 78%, var(--bg)); stroke-width: ${style.lineWidth}; stroke-dasharray: 4 7; }${drawCurve ? `
   .journey-curve { fill: none; stroke: color-mix(in srgb, ${paints.arrow} 55%, var(--bg)); stroke-width: ${Math.max(2, style.lineWidth * 2)}; stroke-linecap: round; }` : ''}
   .journey-guide { stroke: color-mix(in srgb, ${paints.nodeStroke} 62%, var(--bg)); stroke-width: 1; }
@@ -623,7 +626,7 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
   const children: Array<{ node: SceneNode; indent: number }> = [
     { indent: 2, node: renderTrack(task.track, task, style, paints) },
     { indent: 2, node: renderTaskBox(task, style, paints, channels) },
-    { indent: 2, node: renderTaskLabel(task, style, channels) },
+    { indent: 2, node: renderTaskLabel(task, style, paints, channels) },
   ]
 
   for (const dot of task.actorDots) {
@@ -677,7 +680,7 @@ function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, 
   )
 }
 
-function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle, channels: SemanticChannels): SceneNode {
+function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
   return marks.text(
     {
       id: `task-label:${task.id}`,
@@ -687,7 +690,7 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
       y: task.textY,
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
-      paint: { fill: style.nodeTextColor ?? 'var(--_text)' },
+      paint: { fill: paints.taskText },
       channels,
     },
     renderMultilineText(
@@ -862,6 +865,9 @@ function journeyPaints(
     arrow,
     nodeFill,
     nodeStroke,
+    // A custom surface can put the task box far from the page the theme tones
+    // are repaired against.
+    taskText: style.nodeTextColor ?? toneOnFill('var(--_text)', nodeFill, colors),
     groupFill,
     groupStroke,
     groupText,

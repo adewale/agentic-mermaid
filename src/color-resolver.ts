@@ -1,5 +1,5 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
-import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex } from './shared/color-math.ts'
+import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, resolvedColorValue } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
@@ -159,20 +159,51 @@ export function resolveInlineNodeTextColor(
   return fallback
 }
 
+/** The theme's own text tones: the only paints toneOnFill moves. */
+const THEME_TEXT_TONES: ReadonlySet<string> = new Set(['var(--_text)', 'var(--_text-sec)', 'var(--_text-muted)', 'var(--_text-faint)'])
+
 /**
- * Ink for text a family draws on an author-styled shape (`style X fill:…`).
- * The author's `color` wins; without one, each theme tone the family would use
- * (name, secondary, muted) is kept where it reads on the author's fill at WCAG
- * AA and moved toward black or white just far enough where it does not, so a
- * dark custom fill never swallows theme-colored text.
+ * A theme tone inked for a fill the author did not choose: a node's own fill,
+ * or a tint of it. The tones are repaired against the page, and a custom
+ * `surface` can put the node fill far from it (black nodes on a white page),
+ * so the tone is kept where it reads on the fill at WCAG AA and moved toward
+ * black or white just far enough where it does not. The faint tone is
+ * decoration (separators), held to the 3:1 of non-text contrast as the theme
+ * holds it. Any other paint is returned as it is, and so is a tone or fill
+ * that is not concrete: its color is only known at runtime. Callers pass a
+ * Style's own text color around this, not through it: the Style chose it for
+ * its own fill, and verify reports it when it fails.
  */
-export function inkOnAuthoredFill(
+export function toneOnFill(tone: string, fill: string, colors: DiagramColors): string {
+  if (!THEME_TEXT_TONES.has(tone)) return tone
+  const resolvedTone = resolvedColorValue(tone, colors)
+  const resolvedFill = resolvedColorValue(fill, colors)
+  const composite = resolvedTone && resolvedFill ? compositeCssColor(resolvedFill, resolvedColorValue('var(--bg)', colors) ?? '#ffffff') : null
+  if (!composite) return tone
+  const minimum = tone === 'var(--_text-faint)' ? WCAG_AA_NON_TEXT_CONTRAST : WCAG_AA_TEXT_CONTRAST
+  const ink = legibleInk(resolvedTone!, toHex(...composite), minimum)
+  return ink === resolvedTone ? tone : ink
+}
+
+/**
+ * Ink for text a family draws on a node. The author's `color` wins. On an
+ * author-styled shape (`style X fill:…`) each tone the family would use (name,
+ * secondary, muted) is kept where it reads on the author's fill at WCAG AA and
+ * moved toward black or white just far enough where it does not. On an
+ * unstyled one the theme tones are inked for `nodeFill`, the Style's or the
+ * theme's node fill (toneOnFill); it is omitted when the Style sets the text
+ * color, which then owns the text on its own fills. Either way a dark fill the
+ * author chose never swallows theme-colored text.
+ */
+export function inkOnNodeFill(
   inlineStyle: Record<string, string> | undefined,
   colors: DiagramColors,
+  nodeFill?: string,
 ): (tone: string) => string {
   const color = inlineStyle?.color
   if (color) return () => color
-  const composite = inlineStyle?.fill ? compositeCssColor(inlineStyle.fill, resolvedColorValue('var(--bg)', colors) ?? '#ffffff') : null
+  if (!inlineStyle?.fill) return nodeFill === undefined ? tone => tone : tone => toneOnFill(tone, nodeFill, colors)
+  const composite = compositeCssColor(inlineStyle.fill, resolvedColorValue('var(--bg)', colors) ?? '#ffffff')
   if (!composite) return tone => tone
   const fill = toHex(...composite)
   return tone => {
