@@ -50,9 +50,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
     // Flowchart edge-class paint plus bounded fixed-size markers reach 734,628
     // Linux raw bytes on the shared lazy path; the request graph is unchanged.
-    maxRawBytes: 734_750,
-    maxGzipBytes: 275_600,
-    maxBrotliBytes: 251_600,
+    // Timeline literal-text Scene validation keeps the same request graph;
+    // Linux/x64 measures 735,369 raw / 275,828 gzip / 251,742 Brotli bytes.
+    maxRawBytes: 735_500,
+    maxGzipBytes: 275_950,
+    maxBrotliBytes: 251_900,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -110,10 +112,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Timeline's shared event-separator validation and upstream trailing-colon
     // guard measure 3,395,107 raw / 1,009,488 gzip bytes on Linux/x64. The
     // two-request graph stays fixed and both ceilings retain under 0.01% slack.
-    maxRawBytes: 3_395_300,
+    // The shared Scene literal-text guard measures 3,395,922 raw and
+    // 1,009,850 gzip bytes with the same two editor requests.
+    maxRawBytes: 3_396_100,
     // Timeline semantic line-break normalization measures 1,009,565 gzip
     // bytes on Linux/x64; retain 85 bytes of headroom with no new requests.
-    maxGzipBytes: 1_009_650,
+    maxGzipBytes: 1_010_000,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. The tab-aware linear scanner measured 3,393,328 raw /
     // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
