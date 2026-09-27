@@ -13,7 +13,7 @@
     "architecture": { "requests": 25, "raw": 2289000, "gzip": 698000, "brotli": 559000 },
     "xychart": { "requests": 25, "raw": 581050, "gzip": 179600, "brotli": 158700 },
     "pie": { "requests": 26, "raw": 602050, "gzip": 198350, "brotli": 176225 },
-    "quadrant": { "requests": 26, "raw": 560000, "gzip": 174500, "brotli": 154500 },
+    "quadrant": { "requests": 26, "raw": 558060, "gzip": 173625, "brotli": 153475 },
     "gantt": { "requests": 25, "raw": 609000, "gzip": 189000, "brotli": 167000 },
     "mindmap": { "requests": 27, "raw": 557000, "gzip": 174350, "brotli": 154100 },
     "gitgraph": { "requests": 26, "raw": 562000, "gzip": 175325, "brotli": 154850 },
