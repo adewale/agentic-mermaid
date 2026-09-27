@@ -144,6 +144,27 @@ describe('timeline mutate — all 10 ops', () => {
     expect(r.ok && r.value.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A-revised')
   })
 
+  test('event mutations preserve clock and URL colons accepted by both parsers', () => {
+    const text = 'Standup at 10:30 https://example.test/a:b'
+    const cases: TimelineMutationOp[] = [
+      { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text },
+      { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text },
+      { kind: 'add_period', sectionIndex: 0, label: '2023', events: [text] },
+    ]
+    for (const op of cases) {
+      const result = mutate(timeline(SRC), op)
+      expect(result.ok, op.kind).toBe(true)
+      if (!result.ok) continue
+      const source = serializeMermaid(result.value)
+      const reparsed = parse(source)
+      expect(reparsed.body.kind, op.kind).toBe('timeline')
+      if (reparsed.body.kind !== 'timeline') continue
+      expect(reparsed.body.sections.flatMap(section => section.periods.flatMap(period => period.events.map(event => event.text))), op.kind).toContain(text)
+      const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
+      expect(native.sections.flatMap(section => section.periods.flatMap(period => period.events.map(event => event.text))), op.kind).toContain(text)
+    }
+  })
+
   test('normalizes padded mutation text and updates canonicalSource', () => {
     const r = mutate(timeline(SRC), { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: '  A revised  ' })
     expect(r.ok).toBe(true)
@@ -158,9 +179,11 @@ describe('timeline mutate — all 10 ops', () => {
 
   test('rejects mutation text that would change timeline structure on reparse', () => {
     const event = mutate(timeline(SRC), { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'A: B' })
+    const tabSeparator = mutate(timeline(SRC), { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'A:\tB' })
     const period = mutate(timeline(SRC), { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: '2020:Q1' })
     const title = mutate(timeline(SRC), { kind: 'set_title', title: '   ' })
     expect(!event.ok && event.error.code).toBe('INVALID_OP')
+    expect(!tabSeparator.ok && tabSeparator.error.code).toBe('INVALID_OP')
     expect(!period.ok && period.error.code).toBe('INVALID_OP')
     expect(!title.ok && title.error.code).toBe('INVALID_OP')
   })
