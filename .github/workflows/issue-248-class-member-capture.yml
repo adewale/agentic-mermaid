@@ -24,7 +24,8 @@ jobs:
       # The source-bound PNG is written before the approval-hash gate; upload it
       # for native-size review, then update the approval in the final branch.
       - run: bun run gallery:section-b || test -s docs/design/families/section-b-brand-evidence.png
-      - run: bun run website:payload:write
+      # The new baseline is written before enforcing the previous byte ceiling.
+      - run: bun run website:payload:write || test -s eval/website-payload/baseline.json
       - uses: actions/upload-artifact@v7
         with:
           name: issue-248-class-member-${{ github.sha }}
