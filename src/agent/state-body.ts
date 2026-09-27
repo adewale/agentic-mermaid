@@ -499,7 +499,7 @@ export function renderState(body: StateBody): string {
 // projection — the exact graph the renderer would lay out.
 
 import { parseMermaid as parseLegacy, parseStyleProps } from '../parser.ts'
-import { parseMutableStyleProps } from '../shared/style-props.ts'
+import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import type { MermaidGraph } from '../types.ts'
 
 export function stateBodyToGraph(body: StateBody): MermaidGraph {
@@ -651,7 +651,9 @@ function parseStateStyle(style: string, field: string): Result<Record<string, st
       ? `${field} must be a CSS-like style string`
       : parsed.reason === 'MULTILINE'
         ? `${field} must be a single-line CSS-like style string`
-        : `${field} must contain at least one property:value pair`
+        : parsed.reason === 'UNSAFE_PAINT'
+          ? unsafeStylePaintError(field, parsed.paint).message
+          : `${field} must contain at least one property:value pair`
     return err({ code: 'INVALID_OP', message })
   }
   return ok(parsed.value)

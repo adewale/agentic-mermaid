@@ -1,4 +1,6 @@
 // ============================================================================
+
+import { tryParseCssColor } from './color-math.ts'
 // Runtime-neutral CSS color token validation.
 //
 // Color values are interpolated into SVG presentation attributes and, for a
@@ -66,6 +68,22 @@ export function safeCssColor(value: unknown): string | undefined {
 
 export function isSafeCssColor(value: string): boolean {
   return safeCssColor(value) !== undefined
+}
+
+/**
+ * The deliberately smaller authored style-color vocabulary that we can
+ * validate as an actual paint, not merely as injection-safe text. Unresolved
+ * simple custom properties are explicit pass-throughs; modern color functions
+ * are rejected until a parser and contrast policy support them. `none` only
+ * has paint meaning for fills and strokes, never text ink.
+ */
+export function drawableAuthoredCssPaint(value: unknown, allowNone = false): string | undefined {
+  const paint = safeCssPaint(value)
+  if (paint === undefined) return undefined
+  const lower = paint.toLowerCase()
+  if (lower === 'currentcolor' || (allowNone && lower === 'none')) return paint
+  if (/^var\(--[a-z_][a-z0-9_-]*\)$/i.test(paint)) return paint
+  return tryParseCssColor(paint) !== null ? paint : undefined
 }
 
 /**

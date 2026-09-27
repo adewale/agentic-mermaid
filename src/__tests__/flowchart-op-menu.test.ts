@@ -190,6 +190,17 @@ describe('style ops', () => {
     if (!bad.ok) expect(bad.error.message).toContain('fill:')
   })
 
+  it('paint mutations reject a color the renderer could not draw, naming it', () => {
+    for (const [op, named] of [
+      [{ kind: 'define_class', name: 'hot', style: 'fill:#f96,stroke:#12345' }, 'define_class hot: stroke "#12345"'],
+      [{ kind: 'set_node_style', id: 'A', style: 'color:url(#a)' }, 'set_node_style A: color "url(#a)"'],
+    ] as const) {
+      const result = mutate(flowchart(BASE), op as FlowchartMutationOp)
+      expect(result.ok, op.kind).toBe(false)
+      if (!result.ok) expect(result.error).toMatchObject({ code: 'INVALID_OP', message: expect.stringContaining(`${named} is not a CSS color — expected`) })
+    }
+  })
+
   it('paint mutations reject line breaks that would create nodes', () => {
     for (const op of [
       { kind: 'define_class', name: 'hot', style: 'fill:#f00\nInjected' },

@@ -17,6 +17,7 @@ import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
+import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
 import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
@@ -194,7 +195,7 @@ function extractErLayout(
     const entity = entityLookup.get(child.id)
     if (entity) {
       const classStyle: Record<string, string> = {}
-      for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, diagram.classDefs.get(name))
+      for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`))
       positionedEntities.push({
         id: entity.id,
         label: entity.label,
@@ -207,7 +208,7 @@ function extractErLayout(
         rowHeight: ER.rowHeight,
         ...(entity.className ? { className: entity.className } : {}),
         ...(Object.keys(classStyle).length > 0 || entity.inlineStyle ? {
-          inlineStyle: { ...classStyle, ...entity.inlineStyle },
+          inlineStyle: { ...classStyle, ...checkedAuthoredStyle(entity.inlineStyle, `style ${entity.id}`) },
         } : {}),
         ...(entity.groupId ? { groupId: entity.groupId } : {}),
       })
