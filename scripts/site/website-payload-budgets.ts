@@ -42,8 +42,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // recognition, and literal Class-member Scene fidelity add a few bytes.
     // These are measured Linux/x64 and
     // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
-    maxRawBytes: 732_513,
-    maxGzipBytes: 274_751,
+    // Pie's authored-label identity bridge adds 154 raw / 27 gzip bytes to
+    // the shared render waist without changing the request graph.
+    maxRawBytes: 732_800,
+    maxGzipBytes: 274_850,
     maxBrotliBytes: 250_839,
     required: Object.freeze([
       '^/demo/$',
