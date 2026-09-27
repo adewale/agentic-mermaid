@@ -4,7 +4,7 @@ import {
   type FamilyDetectionDiagnostic,
 } from './family-detection.ts'
 import { AuthoredStyleColorError } from './shared/style-props.ts'
-import { ThemeVariableColorError } from './theme-color-admission.ts'
+import { FamilyConfigColorError, ThemeVariableColorError } from './theme-color-admission.ts'
 
 export type AsciiWidthErrorDiagnostic = Readonly<{
   code: AsciiWidthError['code']
@@ -30,7 +30,14 @@ export type ThemeVariableColorDiagnostic = Readonly<{
   value: string
 }>
 
-export type KnownRenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic | AuthoredStyleColorDiagnostic | ThemeVariableColorDiagnostic
+export type FamilyConfigColorDiagnostic = Readonly<{
+  code: 'INVALID_CONFIG_COLOR'
+  message: string
+  path: string
+  value: string
+}>
+
+export type KnownRenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic | AuthoredStyleColorDiagnostic | ThemeVariableColorDiagnostic | FamilyConfigColorDiagnostic
 export type RenderErrorDiagnostic = KnownRenderErrorDiagnostic
   | Readonly<{ code: 'RENDER_FAILED'; message: 'Rendering failed' }>
 
@@ -75,6 +82,14 @@ export function projectKnownRenderErrorDiagnostic(error: unknown): KnownRenderEr
       code: error.code,
       message: error.message,
       key: error.key,
+      value: error.value,
+    }
+  }
+  if (error instanceof FamilyConfigColorError) {
+    return {
+      code: error.code,
+      message: error.message,
+      path: error.path,
       value: error.value,
     }
   }
