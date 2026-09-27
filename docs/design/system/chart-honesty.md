@@ -153,7 +153,7 @@ prints its fast-check seed; `AM_FC_SEED=<seed>` reproduces it (see
 
 These were measured and are tracked in [`TODO.md`](../../../TODO.md):
 
-- **H5 as drawn (BUILD-30).** A census keyed by scene categories, over every
+- **H5 as drawn (BUILD-34).** A census keyed by scene categories, over every
   family's honesty corpus in every style, found three cases where drawn
   colors compress below the palette's separation:
   - The watercolor wash glazes pie slices at 30%, which leaves ΔE_OK 0.03
@@ -165,7 +165,7 @@ These were measured and are tracked in [`TODO.md`](../../../TODO.md):
 
   The next step is an as-drawn oracle keyed by legend categories: keys must
   be distinguishable, and each key must match the marks it names.
-- **H6 for radar (BUILD-31).** An authored `min` above zero draws radii
+- **H6 for radar (BUILD-35).** An authored `min` above zero draws radii
   proportional to `value − min`, and out-of-range values are clamped, with no
   report.
 - **Edges over group titles.** Edges are drawn above groups, so an edge can

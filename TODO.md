@@ -119,7 +119,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   already owns the recognition floor: official and unknown headers are
   preserved or diagnosed and never fall through to Flowchart. Maturity comes
   from manifest data rather than a `-beta` spelling heuristic.
-- [ ] **BUILD-30 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
+- [ ] **BUILD-34 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
   Palettes separate peers where colors are generated (`categoricalPalette`,
   ΔE_OK ≥ 0.10), but a scene-keyed census of every family's honesty corpus in
   every style found three cases where the drawn colors compress: the
@@ -131,7 +131,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   (keys distinguishable; each key matches the marks it names), then decide the
   look policy for keyed marks. See
   [`docs/design/system/chart-honesty.md`](docs/design/system/chart-honesty.md).
-- [ ] **BUILD-31 — Report radar scales that exclude zero (chart honesty H6)**
+- [ ] **BUILD-35 — Report radar scales that exclude zero (chart honesty H6)**
   (`todo`). An authored radar `min` above zero draws radii proportional to
   `value − min` (`radarValueRatio`), and values outside `[min, max]` are
   clamped, so a curve can misstate its values with no report. XY charts report
