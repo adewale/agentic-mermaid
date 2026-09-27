@@ -24,6 +24,8 @@ test('Pie terminal output replaces controls produced by authored escapes after s
       const meta = renderMermaidASCIIWithMeta(source, { colorMode })
       expect(meta.ascii).toBe(result.text)
       expect(meta.warnings.map(item => item.code)).toContain(diagnostic)
+      expect(meta.regions.map(region => [region.id, region.projectedText, region.canvasRow, region.canvasColStart, region.canvasColEnd]))
+        .toEqual([['slice-0', visible, 0, 0, 3]])
     }
     const bounded = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', targetWidth: 45 })
     expect(bounded.text).toStartWith(`${visible}  `)
@@ -38,5 +40,27 @@ test('Pie authored newlines and entity-generated backslashes remain distinct fro
     const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
     expect(result.text).toStartWith(visible)
     expect(result.terminalStyle.diagnostics.map(item => item.code)).not.toContain(diagnostic)
+  }
+})
+
+test('all-zero Pie output does not claim a control replacement that never rendered', () => {
+  const source = 'pie\n  "A\\rB" : 0\n'
+  const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
+  expect(result.text).toBe('')
+  expect(result.terminalStyle.diagnostics.map(item => item.code)).not.toContain(diagnostic)
+  const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
+  expect(meta.regions).toEqual([])
+  expect(meta.warnings.map(item => item.code)).not.toContain(diagnostic)
+})
+
+test('metadata keeps the Pie title and safe slice hit region when the agent body is opaque', () => {
+  const source = 'pie\n  title Safe chart\n  "A\\rB" : 1\n'
+  for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+    const meta = renderMermaidASCIIWithMeta(source, { colorMode })
+    expect(meta.regions.map(region => [region.id, region.projectedText, region.canvasRow, region.canvasColStart, region.canvasColEnd]))
+      .toEqual([
+        ['title', 'Safe chart', 0, 0, 10],
+        ['slice-0', 'A?B', 1, 0, 3],
+      ])
   }
 })

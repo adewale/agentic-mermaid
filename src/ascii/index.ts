@@ -222,6 +222,9 @@ export function renderMermaidASCIIWithReceipt(
   // projection in the shared receipt and public diagnostics as well.
   const pieControlsReplaced = family.id === 'pie' && (() => {
     const chart = parsePieChart(normalizedSource.authoredPieFamilyLines ?? normalizedSource.familyLines)
+    // The Pie terminal renderer emits no rows (including the title) when the
+    // total is zero, so no output control is replaced in that case.
+    if (chart.entries.reduce((sum, entry) => sum + entry.value, 0) <= 0) return false
     return (chart.title !== undefined && safePieTerminalText(chart.title) !== chart.title)
       || chart.entries.some(entry => {
         const visible = entry.displayLabel ?? entry.label

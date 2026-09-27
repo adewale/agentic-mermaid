@@ -47,6 +47,7 @@ import { graphemes } from '../shared/graphemes.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import { decodeXML } from 'entities'
 import { parsePieChart } from '../pie/parser.ts'
+import { safePieTerminalText } from './pie.ts'
 import type { MermaidGraph } from '../types.ts'
 
 export type RegionKind = Exclude<RenderedRegionKind, 'canvas' | 'group'> | 'group' | 'subgraph'
@@ -688,6 +689,21 @@ function candidatesForDiagram(source: string): Candidate[] {
     visit(graphBody.subgraphs)
     return out
   }
+  if (d.kind === 'pie' && d.body.kind === 'opaque') {
+    // Escaped terminal controls make the typed agent body opaque, while the
+    // family renderer still owns a valid Pie chart. Derive hit regions from
+    // that same native parser and terminal projection, not the opaque body.
+    try {
+      const out: Candidate[] = []
+      const chart = parsePieChart(d.canonicalSource.split('\n'))
+      addCandidate(out, 'title', chart.title === undefined ? undefined : safePieTerminalText(chart.title))
+      chart.entries.forEach((entry, index) =>
+        addCandidate(out, `slice-${index}`, safePieTerminalText(entry.displayLabel ?? entry.label), undefined, 'node', true))
+      return out
+    } catch {
+      return []
+    }
+  }
   if (d.body.kind === 'state') {
     const out: Candidate[] = []
     const topLevel = [...d.body.states]
@@ -778,7 +794,7 @@ function candidatesForDiagram(source: string): Candidate[] {
     const entries = parsePieChart(d.canonicalSource.split('\n')).entries
     for (const [index, entry] of entries.entries()) {
       const slice = d.body.slices[index]
-      if (slice) addCandidate(out, slice.id, entry.displayLabel ?? entry.label, undefined, 'node', true)
+      if (slice) addCandidate(out, slice.id, safePieTerminalText(entry.displayLabel ?? entry.label), undefined, 'node', true)
     }
     return out
   }
