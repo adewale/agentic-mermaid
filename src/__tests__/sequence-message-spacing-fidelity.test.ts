@@ -1,4 +1,6 @@
 import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
@@ -12,12 +14,20 @@ const centralSource = `sequenceDiagram
   participant Bob
   Alice ->>() Bob: Hello
 `
+const gallerySource = `sequenceDiagram
+  participant Alice
+  participant Bob
+  Alice-->>+Bob: Hello
+  Bob-->>- Alice: Hi
+  Alice ->>() Bob: Center
+`
 
-function drawnTexts(source: string): string[] {
-  return [...renderMermaidSVG(source).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+function svgTexts(svg: string): string[] {
+  return [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => match[1]!.replace(/<[^>]+>/g, '').trim())
     .filter(Boolean)
 }
+const drawnTexts = (source: string): string[] => svgTexts(renderMermaidSVG(source))
 
 test('pinned Mermaid 11.16 accepts spaced activation and central-connection messages', () => {
   const script = `
@@ -93,4 +103,12 @@ test('a long malformed whitespace tail is rejected without marker backtracking',
   const start = performance.now()
   expect(parseSequenceMessageLine(`Alice->>${' '.repeat(64_000)}:missing`)).toBeNull()
   expect(performance.now() - start).toBeLessThan(500)
+})
+
+test('the reviewer-facing after SVG is current output and the before SVG shows both dropped messages', () => {
+  const asset = (which: 'before' | 'after') => readFileSync(
+    join(import.meta.dir, `../../docs/pr-assets/issue-248-sequence-message-spacing-${which}.svg`), 'utf8')
+  expect(asset('after')).toBe(renderMermaidSVG(gallerySource))
+  expect(svgTexts(asset('before'))).toEqual(['Hello', 'Alice', 'Bob'])
+  expect(svgTexts(asset('after'))).toEqual(['Hello', 'Hi', 'Center', 'Alice', 'Bob'])
 })
