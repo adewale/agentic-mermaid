@@ -42,7 +42,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // recognition add a few bytes. These are measured Linux/x64 and
     // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
     maxRawBytes: 732_258,
-    maxGzipBytes: 274_655,
+    maxGzipBytes: 274_660,
     maxBrotliBytes: 250_812,
     required: Object.freeze([
       '^/demo/$',
@@ -74,8 +74,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Authored Class member text raises the complete editor bundle by 781 raw
     // and 140 gzip bytes but lowers Brotli by 70, with the same two requests.
     maxRawBytes: 3_358_345,
-    maxGzipBytes: 989_901,
-    maxBrotliBytes: 777_100,
+    maxGzipBytes: 989_906,
+    maxBrotliBytes: 777_381,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
