@@ -55,12 +55,12 @@ describe('terminal projection color security', () => {
   })
 
   test('rejects hostile Mermaid theme variables and the direct per-series sink', () => {
-    const rendered = renderMermaidASCIIWithReceipt(SOURCE, {
-      colorMode: 'html',
-      mermaidConfig: { themeVariables: { primaryTextColor: HOSTILE, lineColor: HOSTILE } },
-    })
-    assertInertHtml(rendered.text)
-    expect(rendered.terminalStyle.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_UNSAFE_COLOR_REJECTED').length).toBeGreaterThanOrEqual(2)
+    for (const field of ['primaryTextColor', 'lineColor']) {
+      expect(() => renderMermaidASCIIWithReceipt(SOURCE, {
+        colorMode: 'html',
+        mermaidConfig: { themeVariables: { [field]: HOSTILE } },
+      })).toThrow(`themeVariables.${field}: ${JSON.stringify(HOSTILE)} is not a CSS color`)
+    }
     assertInertHtml(colorizeText('<unsafe>', HOSTILE, 'html'))
     expect(colorizeText('plain', HOSTILE, 'truecolor')).toBe('plain')
   })

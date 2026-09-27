@@ -46,9 +46,13 @@ describe('#7645/#7695 strict security mode', () => {
   })
 
   test('strict mode strips external refs from user theme/config values', () => {
-    const flow = renderMermaidSVG('flowchart TD\n A --> B', {
+    expect(() => renderMermaidSVG('flowchart TD\n A --> B', {
       security: 'strict',
       mermaidConfig: { themeVariables: { primaryColor: 'url(https://evil.example/fill.svg)', secondaryColor: 'url(javascript:alert(1))' } } as any,
+    })).toThrow('themeVariables.primaryColor: "url(https://evil.example/fill.svg)" is not a CSS color')
+    const flow = renderMermaidSVG('flowchart TD\n A --> B', {
+      security: 'strict',
+      mermaidConfig: { themeVariables: { secondaryColor: 'url(javascript:alert(1))' } } as any,
     })
     expect(flow).not.toContain('https://evil.example')
     expect(flow).not.toMatch(/javascript\s*:/i)
