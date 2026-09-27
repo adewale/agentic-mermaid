@@ -3,7 +3,7 @@
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
     "count": 282,
-    "treeSha256": "8fd727950d7201a3249fb796d2bcab62edb73589b0e42c6625b07858d5933b33"
+    "treeSha256": "c6f347972bc1a584846758615f8174afb762111401a631140e3449f927052be4"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",

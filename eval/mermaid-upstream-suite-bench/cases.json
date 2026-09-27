@@ -468,8 +468,8 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
+      "expectStructured": true,
+      "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
     }

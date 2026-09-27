@@ -97,7 +97,7 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
 // Shared class declaration grammar. The structured serializer emits bracket
 // labels, so the renderer and agent parser must resolve them to the same
 // logical ID instead of treating `A["Label"]` as an identifier.
-const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?\s*(\{)?\s*$/
+const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?\s*(\{\s*\}|\{)?\s*$/
 
 export interface ParsedClassDeclaration {
   id: string
