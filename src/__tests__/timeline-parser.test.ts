@@ -75,13 +75,13 @@ describe('parseTimelineDiagram', () => {
     ])
   })
 
-  it('normalizes <br> tags in title, section labels, periods, and events', () => {
+  it('keeps title <br> literal but normalizes section, period, and event breaks', () => {
     const diagram = parse(`timeline
       title Platform<br>History
       section Product<br>Work
       2024<br>Q1 : Soft<br>launch`)
 
-    expect(diagram.title).toBe('Platform\nHistory')
+    expect(diagram.title).toBe('Platform<br>History')
     expect(diagram.sections[0]!.label).toBe('Product\nWork')
     expect(diagram.sections[0]!.periods[0]!.label).toBe('2024\nQ1')
     expect(diagram.sections[0]!.periods[0]!.events[0]!.text).toBe('Soft\nlaunch')

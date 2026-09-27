@@ -89,7 +89,8 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
 
     const tm = line.match(TIMELINE_TITLE_RE)
     if (tm) {
-      const title = normalizeTimelineText(tm[1]!)
+      // Unlike section/period/event labels, pinned Mermaid draws titles raw.
+      const title = tm[1]!.trim()
       if (!validTimelineText(title, { allowColon: true })) return null
       body.title = title
       continue
@@ -155,7 +156,7 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
 
 export function renderTimeline(body: TimelineBody): string {
   const lines: string[] = [body.direction ? `timeline ${body.direction}` : 'timeline']
-  if (body.title) lines.push(`  title ${serializeTimelineText(body.title)}`)
+  if (body.title) lines.push(`  title ${body.title}`)
   if (body.accessibilityTitle) lines.push(`  accTitle: ${body.accessibilityTitle}`)
   if (body.accessibilityDescription) {
     if (body.accessibilityDescription.includes('\n')) {
@@ -220,6 +221,15 @@ function normalizeTimelineOpText(value: string, opts: { field: string; allowColo
     return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty${opts.allowColon === false ? ' and must not contain :' : ''}` })
   }
   return ok(normalized)
+}
+
+function normalizeTimelineTitleOpText(value: string): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Timeline title must be a string' })
+  const title = value.trim()
+  if (!title || /[\r\n]/.test(title)) {
+    return err({ code: 'INVALID_OP', message: 'Timeline title must be non-empty and single-line; pinned Mermaid renders <br> literally in titles' })
+  }
+  return ok(title)
 }
 
 /** Use the same separator grammar as the render/agent parsers. Colons in
@@ -296,7 +306,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_title': {
       if (op.title === null) delete body.title
       else {
-        const title = normalizeTimelineOpText(op.title, { field: 'title' })
+        const title = normalizeTimelineTitleOpText(op.title)
         if (!title.ok) return title
         body.title = title.value
       }

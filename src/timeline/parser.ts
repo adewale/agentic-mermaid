@@ -94,7 +94,9 @@ export function parseTimelineDiagram(
 
     const titleMatch = line.match(TIMELINE_TITLE_RE)
     if (titleMatch) {
-      diagram.title = normalizeTimelineBreaks(titleMatch[1]!.trim())
+      // Pinned Mermaid draws Timeline titles as raw text; unlike node labels,
+      // exact <br> is visible text rather than a line break here.
+      diagram.title = titleMatch[1]!.trim()
       continue
     }
 

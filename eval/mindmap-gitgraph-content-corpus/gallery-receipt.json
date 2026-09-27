@@ -264,7 +264,7 @@
     },
     {
       "path": "src/agent/timeline-body.ts",
-      "sha256": "9374f886b671de8d6cf615c5e358f5816e27422e71c336c63b9297b932858b54"
+      "sha256": "30ad2536bdc836f20418b5189e2238215fbe2586b98b80bb2b17f5ea7d7bb9fa"
     },
     {
       "path": "src/agent/trace-log.ts",
@@ -1176,7 +1176,7 @@
     },
     {
       "path": "src/timeline/parser.ts",
-      "sha256": "efa580dd89ac7096b60e4fa8d228c4fcc809c3d3d21b068a228daef438deaf6e"
+      "sha256": "a30aba3388dbe6288484d623fe1a175b3bd3b4d1a5043bf960f43438bed00d0c"
     },
     {
       "path": "src/timeline/renderer.ts",

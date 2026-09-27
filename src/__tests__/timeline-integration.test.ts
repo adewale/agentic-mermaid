@@ -93,6 +93,16 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('launch')
   })
 
+  it('renders exact <br> in Timeline titles literally, unlike node labels', () => {
+    const svg = render('timeline\n  title Product<br>history\n  section Team<br>work\n  2024 : Launch')
+    const title = svg.match(/<text\b[^>]*class="timeline-title"[^>]*>[\s\S]*?<\/text>/)?.[0]
+    const section = svg.match(/<text\b[^>]*class="timeline-section-label"[^>]*>[\s\S]*?<\/text>/)?.[0]
+    expect(title).toContain('Product&lt;br&gt;history')
+    expect(title).not.toContain('<tspan')
+    expect(Number(title?.match(/textLength="([^"]+)"/)?.[1])).toBeCloseTo(measureTextWidth('Product<br>history', 18, 600), 3)
+    expect(section).toContain('<tspan')
+  })
+
   it('renders noncanonical breaks and formatting-looking tags literally in every Timeline slot', () => {
     for (const tag of ['<BR>', '<br/>', '<br />', '<b>', '<i>', '<u>', '<s>']) {
       const text = `A${tag}B`
