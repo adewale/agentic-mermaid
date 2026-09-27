@@ -103,6 +103,10 @@ export function checkArchitectureRenderOptionColors(
     if ((field === 'line' || field === 'accent') && edgeStroke) continue
     throw new RenderOptionColorError(field, value)
   }
+  const groupSurface = visual?.groupSurface
+  if (!visual?.groupHeaderSurface && typeof groupSurface === 'string' && groupSurface.trim().toLowerCase() === 'none') {
+    throw new RenderOptionColorError('architecture.visual.groupSurface', groupSurface)
+  }
 }
 
 /** A family config paint rejected before the normalizer can silently filter

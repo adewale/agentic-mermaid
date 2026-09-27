@@ -1164,7 +1164,7 @@
     },
     {
       "path": "src/theme-color-admission.ts",
-      "sha256": "03168982a016a6288596cd624b52c4c855c7c601cc065fec922c0770727e968c"
+      "sha256": "f75b45da960fe367c4fd570ea33c3242f70d490d1f9629be5b5dc3e9e1444c65"
     },
     {
       "path": "src/theme.ts",

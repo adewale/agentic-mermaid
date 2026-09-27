@@ -504,6 +504,10 @@ describe('render option color admission (#303, Architecture derived paint)', () 
     expect(verifyMermaid(ARCHITECTURE, { renderOptions: band }).ok).toBe(true)
     expect(() => renderMermaidSVG(ARCHITECTURE, { architecture: { visual: { edgeStroke: 'none' } } }))
       .toThrow('render option "architecture.visual.edgeStroke": "none" is not a CSS color')
+    expect(() => renderMermaidSVG(ARCHITECTURE, { architecture: { visual: { groupSurface: 'none' } } }))
+      .toThrow('render option "architecture.visual.groupSurface": "none" is not a CSS color')
+    expect(() => renderMermaidSVG(ARCHITECTURE, { architecture: { visual: { groupSurface: 'none', groupHeaderSurface: '#eee' } } }))
+      .not.toThrow()
   })
 
   test('padded none cannot amplify a verify diagnostic', () => {
