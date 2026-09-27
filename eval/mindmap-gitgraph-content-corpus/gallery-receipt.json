@@ -1228,7 +1228,7 @@
     },
     {
       "path": "src/xychart/parser.ts",
-      "sha256": "3c135f1aa8921825251e1cb66a063b2dda3612c17fa26baf84fff5c61fb1a456"
+      "sha256": "e33491f8b2be5b37f6e9da9b1692072cbb3c548c262f074711c5ca87d38c61ec"
     },
     {
       "path": "src/xychart/renderer.ts",

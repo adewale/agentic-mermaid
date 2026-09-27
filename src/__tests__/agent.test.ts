@@ -416,7 +416,10 @@ describe('opaque-fallback round-trip (journey/xychart/architecture promoted by B
       expect(d.kind).toBe(family)
       expect(d.body.kind).toBe('opaque')
       expect(serializeMermaid(d).trimEnd()).toBe(src)
-      expect(verifyMermaid(d).ok).toBe(true)
+      const verification = verifyMermaid(d)
+      expect(verification.ok).toBe(false)
+      expect(verification.warnings.map(warning => warning.code)).toContain('UNSUPPORTED_SYNTAX')
+      expect(verification.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
     })
   }
 

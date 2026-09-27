@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asXyChart } from '../agent/types.ts'
 import { parseXYChart } from '../xychart/parser.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 function structured(source: string) {
   const parsed = parseRegisteredMermaid(source)
@@ -24,6 +26,22 @@ function expectClosed(source: string): void {
 }
 
 describe('XYChart shared grammar authority', () => {
+  test('an unknown nonblank statement fails native rendering instead of losing authored data', async () => {
+    const validSource = 'xychart-beta\n  bar [1, 2]\n'
+    const source = `${validSource}  frob official-data-lost\n`
+    mermaid.initialize({ startOnLoad: false })
+    await expect(mermaid.mermaidAPI.getDiagramFromText(validSource)).resolves.toBeDefined()
+    await expect(mermaid.mermaidAPI.getDiagramFromText(source)).rejects.toThrow(/Parse error/i)
+    expect(() => parseXYChart(source.trim().split('\n').map(line => line.trim()))).toThrow('Unrecognized XYChart line')
+    expect(() => renderMermaidSVG(source)).toThrow('Unrecognized XYChart line')
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source)
+    }
+  })
+
   test('preserves semicolon-authored axes instead of inferring authorship from physical lines', () => {
     const chart = structured('xychart-beta\n  title T; y-axis 0 --> 100; bar [20, 40]')
     expect(chart.body.yAxis).toEqual({ range: { min: 0, max: 100 } })

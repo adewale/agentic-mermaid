@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "10eeebad1923203147cb2bb0cac767b55dfa0352d6eb38e68c34c5feee3716f8",
-  "receiptResultSha256": "b4fe61ed2d86755d74f114b8a8e7f6b259fe4298ef2c837b9271bd2d9e9f2acf",
+  "receiptInputSha256": "d8d3fc174ce1cdcc8c3d283367350ed32281efe17e72e2acf33d77908fc09d4a",
+  "receiptResultSha256": "29aaeb45ba2c726ea5f5fb17e3cd70ca3958bb44ea837733d434cd130239dbbe",
   "summary": {
     "caseCount": 32,
     "featureCount": 14,
     "dispositions": {
       "native": 5,
       "source-preserved": 0,
-      "diagnosed": 6,
-      "absent": 3
+      "diagnosed": 7,
+      "absent": 2
     }
   },
   "features": [
@@ -769,20 +769,23 @@
     {
       "featureId": "official-doc:xychart:section:syntax",
       "family": "xychart",
-      "disposition": "absent",
+      "disposition": "diagnosed",
       "caseIds": [
         "xychart.syntax.shared-parser-semantics",
         "xychart.syntax.unknown-statement-render-seam"
       ],
       "surfaces": {
         "agent": "source-preserved",
-        "render": "absent",
+        "render": "diagnosed",
         "serialize": "source-preserved",
         "mutate": "diagnosed"
       },
       "diagnostics": {
         "agent": [
           "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
         ],
         "mutate": [
           "INVALID_OP"
@@ -803,13 +806,16 @@
           "caseId": "xychart.syntax.unknown-statement-render-seam",
           "surfaces": {
             "agent": "source-preserved",
-            "render": "absent",
+            "render": "diagnosed",
             "serialize": "source-preserved",
             "mutate": "diagnosed"
           },
           "diagnostics": {
             "agent": [
               "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
             ],
             "mutate": [
               "INVALID_OP"

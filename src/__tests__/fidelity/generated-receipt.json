@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "10eeebad1923203147cb2bb0cac767b55dfa0352d6eb38e68c34c5feee3716f8",
+    "inputSha256": "d8d3fc174ce1cdcc8c3d283367350ed32281efe17e72e2acf33d77908fc09d4a",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -108,7 +108,7 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
-        "sha256": "b0c9a9ac480d357471d4f9b6dcc4cf5685e3fe4c0413de0809b4114d81cd5492"
+        "sha256": "e2d83a2c83e47fb0d8c0e690bba59df384de88ea54851bde2d7a4847897d8df1"
       },
       {
         "path": "src/__tests__/fidelity/cases/pie-duplicate-label.fidelity.ts",
@@ -3037,8 +3037,10 @@
         },
         "render": {
           "applicability": "applicable",
-          "disposition": "absent",
-          "diagnosticCodes": []
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ]
         },
         "serialize": {
           "applicability": "applicable",
@@ -3068,38 +3070,16 @@
         },
         "render": {
           "status": "observed",
-          "diagnosticCodes": [],
+          "diagnosticCodes": [
+            "RENDER_FAILED"
+          ],
           "semantics": {
-            "bars": [
-              {
-                "label": "1",
-                "value": "1"
-              },
-              {
-                "label": "2",
-                "value": "2"
-              }
-            ],
-            "errorMessage": null,
-            "texts": [
-              "1",
-              "2",
-              "0.9",
-              "1",
-              "1.1",
-              "1.2",
-              "1.3",
-              "1.4",
-              "1.5",
-              "1.6",
-              "1.7",
-              "1.8",
-              "1.9",
-              "2",
-              "2.1"
-            ]
+            "bars": [],
+            "errorMessage": "Unrecognized XYChart line: \"frob official-data-lost\"",
+            "texts": [],
+            "verificationOk": false
           },
-          "disposition": "absent"
+          "disposition": "diagnosed"
         },
         "serialize": {
           "status": "observed",

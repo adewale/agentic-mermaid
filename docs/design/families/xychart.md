@@ -37,6 +37,10 @@ The preprocessing layer now intentionally lives in one shared place so future Me
 - Mermaid frontmatter/directives for the current chart, responsive sizing, accessibility, and theme overrides
 
 The parser keeps unknown Mermaid config fields out of the typed result instead of trying to guess their meaning.
+Unknown nonblank chart statements are a different case: the agent preserves
+their source opaquely, while render and verify reject them instead of drawing a
+plausible chart with missing data. Direct library errors name the statement;
+CLI and hosted routes project a generic render diagnostic.
 
 ### Layout
 

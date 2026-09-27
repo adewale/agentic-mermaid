@@ -353,7 +353,7 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
       agent: 'source-preserved',
-      render: 'absent',
+      render: 'diagnosed',
       serialize: 'source-preserved',
       mutate: 'diagnosed',
     })
@@ -528,8 +528,8 @@ describe('issue #248 construct fidelity receipts', () => {
       {
         caseId: 'xychart.syntax.unknown-statement-render-seam',
         surface: 'render',
-        path: ['bars', 1, 'value'],
-        replacement: '999',
+        path: ['errorMessage'],
+        replacement: 'Unrecognized XYChart line: "different"',
       },
       {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',

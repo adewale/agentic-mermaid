@@ -100,6 +100,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // ER multi-class lexing/paint adds no request. The audited linear class
     // accumulator measured 3,394,056 raw / 1,009,119 gzip / 796,614 Brotli
     // on Linux/x64; exact hashes and totals are pinned in the baseline.
+    // XYChart's fail-loud unknown-statement guard remains in these two
+    // requests; Linux/x64 measured 3,394,044 raw / 1,009,119 gzip /
+    // 796,674 Brotli, within the existing narrow ceilings.
     maxRawBytes: 3_394_100,
     maxGzipBytes: 1_009_200,
     // Pie's escaped-LF painted-text projection stays in the existing two
