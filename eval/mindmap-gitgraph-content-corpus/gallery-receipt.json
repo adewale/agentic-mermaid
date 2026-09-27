@@ -592,7 +592,7 @@
     },
     {
       "path": "src/gitgraph/renderer.ts",
-      "sha256": "4c4f886adb59f21f71528d306fe2d45b198b822be793fbb7962a95eea37e0936"
+      "sha256": "4a6a47c1375f703d9df96e678b93cc92f62f2c65ad47d4a598203be733138a23"
     },
     {
       "path": "src/gitgraph/types.ts",
