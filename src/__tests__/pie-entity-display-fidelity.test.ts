@@ -30,6 +30,74 @@ function legendXml(source: string): string {
   return match[1]!
 }
 
+function titleXml(source: string): string {
+  const match = renderMermaidSVG(source).match(/class="pie-title"[^>]*>([^<]*)<\/text>/)
+  if (!match) throw new Error('Pie title was not rendered')
+  return match[1]!
+}
+
+test('Pie title entities follow pinned Mermaid visible text while source and agent title stay authored', async () => {
+  for (const { sourceTitle, display, xml } of [
+    { sourceTitle: 'A#65;B', display: 'AAB', xml: 'AAB' },
+    { sourceTitle: 'A#copy;B', display: 'A©B', xml: 'A©B' },
+    { sourceTitle: 'A&#65;B', display: 'A&AB', xml: 'A&amp;AB' },
+    { sourceTitle: 'A#92;rB', display: 'A\\rB', xml: 'A\\rB' },
+  ] as const) {
+    for (const inline of [false, true]) {
+      const source = inline
+        ? `pie title ${sourceTitle}\n  "X" : 1\n`
+        : `pie\n  title ${sourceTitle}\n  "X" : 1\n`
+      const chart = parsePieChart(source.trim().split('\n'))
+      expect(chart.title).toBe(sourceTitle)
+      expect(chart.displayTitle).toBe(display)
+      expect(titleXml(source)).toBe(xml)
+      expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(`${display}\n`)
+      for (const colorMode of ['none', 'html'] as const) {
+        const meta = renderMermaidASCIIWithMeta(source, { colorMode })
+        expect(meta.regions.find(region => region.id === 'title')?.projectedText).toBe(display)
+      }
+      expect(await renderMermaidSVGAsync(source)).toBe(renderMermaidSVG(source))
+      const agent = parseRegisteredMermaid(source)
+      expect(agent.ok).toBe(true)
+      if (!agent.ok) continue
+      const serialized = serializeMermaid(agent.value)
+      expect(serialized).toContain(`title ${sourceTitle}`)
+      if (!inline) expect(serialized).toBe(source)
+      const changed = mutate(agent.value, { kind: 'set_slice_value', label: 'X', value: 2 })
+      expect(changed.ok).toBe(true)
+      if (changed.ok) expect(decodeXML(titleXml(serializeMermaid(changed.value)))).toBe(display)
+    }
+  }
+})
+
+test('Pie title entity projection cannot inject markup or terminal controls', () => {
+  const source = 'pie\n  title A#60;script#62;B\n  "X" : 1\n'
+  expect(parsePieChart(source.trim().split('\n')).displayTitle).toBe('A<script>B')
+  expect(titleXml(source)).toBe('A&lt;script&gt;B')
+  expect(renderMermaidASCII(source, { colorMode: 'html' })).not.toContain('<script>')
+  for (const code of ['7', '9', '10', '13', '127']) {
+    const bad = `pie\n  title A#${code};B\n  "X" : 1\n`
+    expect(() => renderMermaidSVG(bad)).toThrow(/Pie entity projects a terminal control character/)
+    expect(() => renderMermaidASCII(bad)).toThrow(/Pie entity projects a terminal control character/)
+  }
+})
+
+test('Pie inline showData title keeps authored entity spelling and an entity-created tag stays literal', () => {
+  const inline = 'pie showData title A#65;B\n  "X" : 1\n'
+  const parsed = parseRegisteredMermaid(inline)
+  expect(parsed.ok).toBe(true)
+  if (parsed.ok && parsed.value.body.kind === 'pie') {
+    expect(parsed.value.body.title).toBe('A#65;B')
+    expect(serializeMermaid(parsed.value)).toContain('title A#65;B')
+  }
+  expect(titleXml(inline)).toBe('AAB')
+  const markup = 'pie\n  title A#60;br#62;B\n  "X" : 1\n'
+  expect(parsePieChart(markup.trim().split('\n')).displayTitle).toBe('A<br>B')
+  expect(titleXml(markup)).toBe('A&lt;br&gt;B')
+  expect(renderMermaidASCII(markup, { colorMode: 'none' })).toStartWith('A<br>B\n')
+  expect(renderMermaidASCIIWithMeta(markup, { colorMode: 'none' }).regions[0]?.projectedText).toBe('A<br>B')
+})
+
 test('Pie entity display matches pinned Mermaid browser text while preserving authored section identity', async () => {
   for (const { sourceLabel, display, xml } of cases) {
     const source = `pie\n  "${sourceLabel}" : 1\n`

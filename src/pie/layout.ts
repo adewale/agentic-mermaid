@@ -207,7 +207,7 @@ export function layoutPieChart(
   const titleFontSize = visual.titleTextSize ?? style.groupHeaderFontSize
   const legendFontSize = visual.legendTextSize ?? style.nodeLabelFontSize
   const legendLineHeight = legendFontSize * 1.3
-  const renderedTitle = chart.title ? applyTextTransform(chart.title, style.groupTextTransform) : undefined
+  const renderedTitle = chart.title ? applyTextTransform(chart.displayTitle ?? chart.title, style.groupTextTransform) : undefined
   const titleHeight = renderedTitle ? titleFontSize + PIE.titleGap : 0
   const titleWidth = renderedTitle
     ? Math.max(...renderedTitle.split('\n').map(line =>
@@ -344,7 +344,10 @@ export function layoutPieChart(
     width: round(width),
     height: round(height),
     title: chart.title
-      ? { text: renderedTitle!, x: round(width / 2), y: PIE.paddingY + titleFontSize / 2 }
+      ? {
+        text: renderedTitle!, x: round(width / 2), y: PIE.paddingY + titleFontSize / 2,
+        ...(chart.displayTitle === undefined ? {} : { literalText: true as const }),
+      }
       : undefined,
     cx: round(cx),
     cy: round(cy),

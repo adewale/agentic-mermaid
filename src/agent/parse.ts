@@ -134,7 +134,13 @@ function semanticFamilyLineSource(
   const relativeStart = line.indexOf(authoredHeader)
   const headerStart = lineStart + relativeStart
   const headerEnd = headerStart + authoredHeader.length
-  const semanticHeader = decodeXML(authoredHeader)
+  // Pie permits an inline title in its header. That suffix is authored text,
+  // not route grammar: decoding it here would make the typed title and
+  // canonical serializer lose its original entity spelling.
+  const pieInlineTitle = authoredHeader.match(/^(\s*pie\b(?:\s+showData\b)?\s+title\s+)(.+)$/i)
+  const semanticHeader = pieInlineTitle
+    ? `${decodeXML(pieInlineTitle[1]!)}${pieInlineTitle[2]!}`
+    : decodeXML(authoredHeader)
   return {
     source: semanticHeader === authoredHeader
       ? routedSource

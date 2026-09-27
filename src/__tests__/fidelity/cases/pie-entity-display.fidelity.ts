@@ -57,4 +57,51 @@ const numericEntityDisplay: FidelityCaseDefinition = {
   },
 }
 
-export const fidelityCases = [numericEntityDisplay] as const satisfies readonly FidelityCaseDefinition[]
+const titleSource = 'pie\n  title A#65;B\n  "X" : 1\n'
+
+const titleEntityDisplay: FidelityCaseDefinition = {
+  id: 'pie.syntax.title-entity-display', family: 'pie',
+  featureId: 'official-doc:pie:section:syntax', source: titleSource,
+  upstreamReference: 'https://mermaid.ai/open-source/syntax/pie.html#syntax',
+  upstreamRevision: 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc',
+  expected: {
+    agent: { applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).kind === 'pie' && facts(evidence).authoredTitle === 'A#65;B'
+        ? 'native' : 'absent' },
+    render: { applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).svgTitle === 'AAB'
+        && facts(evidence).terminalTitle === 'AAB' && facts(evidence).authoredTitle === 'A#65;B'
+        ? 'native' : 'absent' },
+    serialize: { applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).sourceExact === true ? 'native' : 'absent' },
+    mutate: { applicability: 'applicable', disposition: 'native',
+      evaluate: evidence => facts(evidence).authoredTitle === 'A#65;B'
+        && facts(evidence).svgTitle === 'AAB' && facts(evidence).updatedValue === 2
+        ? 'native' : 'absent' },
+  },
+  observe: () => {
+    const parsed = parseRegisteredMermaid(titleSource)
+    if (!parsed.ok || parsed.value.body.kind !== 'pie') throw new Error('Pie title entity should remain typed')
+    const authoredTitle = parsed.value.body.title ?? null
+    const svgTitle = (text: string) => renderMermaidSVG(text).match(/class="pie-title"[^>]*>([^<]*)<\/text>/)?.[1] ?? null
+    const terminalTitle = renderMermaidASCII(titleSource, { colorMode: 'none' }).split('\n')[0] ?? null
+    const serialized = serializeMermaid(parsed.value)
+    const changed = mutate(parsed.value, { kind: 'set_slice_value', label: 'X', value: 2 })
+    const changedSource = changed.ok ? serializeMermaid(changed.value) : ''
+    const changedBody = changed.ok && changed.value.body.kind === 'pie' ? changed.value.body : undefined
+    return {
+      agent: { status: 'observed', diagnosticCodes: [], semantics: { kind: parsed.value.body.kind, authoredTitle } },
+      render: { status: 'observed', diagnosticCodes: [], semantics: {
+        svgTitle: svgTitle(titleSource), terminalTitle, authoredTitle,
+      } },
+      serialize: { status: 'observed', diagnosticCodes: [], semantics: { sourceExact: serialized === titleSource } },
+      mutate: { status: 'observed', diagnosticCodes: changed.ok ? [] : [changed.error.code], semantics: {
+        authoredTitle: changedBody?.title ?? null,
+        svgTitle: changed.ok ? svgTitle(changedSource) : null,
+        updatedValue: changedBody?.slices[0]?.value ?? null,
+      } },
+    }
+  },
+}
+
+export const fidelityCases = [numericEntityDisplay, titleEntityDisplay] as const satisfies readonly FidelityCaseDefinition[]

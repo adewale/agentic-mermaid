@@ -77,7 +77,7 @@ export function renderPieAscii(
   const labelWidth = Math.max(...labelLines.flat().map(visualWidth))
 
   const out: string[] = []
-  if (chart.title) out.push(...wrapText(safePieTerminalText(chart.title), targetWidth))
+  if (chart.title) out.push(...wrapText(safePieTerminalText(chart.displayTitle ?? chart.title), targetWidth))
 
   chart.entries.forEach((entry, index) => {
     const fraction = entry.value / total

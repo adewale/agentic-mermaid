@@ -696,7 +696,7 @@ function candidatesForDiagram(source: string): Candidate[] {
     try {
       const out: Candidate[] = []
       const chart = parsePieChart(d.canonicalSource.split('\n'))
-      addCandidate(out, 'title', chart.title === undefined ? undefined : safePieTerminalText(chart.title))
+      addCandidate(out, 'title', chart.title === undefined ? undefined : safePieTerminalText(chart.displayTitle ?? chart.title), undefined, 'node', chart.displayTitle !== undefined)
       chart.entries.forEach((entry, index) =>
         addCandidate(out, `slice-${index}`, safePieTerminalText(entry.displayLabel ?? entry.label), undefined, 'node', true))
       return out
@@ -787,12 +787,12 @@ function candidatesForDiagram(source: string): Candidate[] {
   }
   if (d.body.kind === 'pie') {
     const out: Candidate[] = []
-    addCandidate(out, 'title', d.body.title)
     // The typed agent label has already consumed escapes. Re-projecting it
     // would mistake an escaped `#\35;` for an authored entity marker. Reuse
     // the native parser's source-aware visible projection instead.
-    const entries = parsePieChart(d.canonicalSource.split('\n')).entries
-    for (const [index, entry] of entries.entries()) {
+    const chart = parsePieChart(d.canonicalSource.split('\n'))
+    addCandidate(out, 'title', chart.title === undefined ? undefined : safePieTerminalText(chart.displayTitle ?? chart.title), undefined, 'node', chart.displayTitle !== undefined)
+    for (const [index, entry] of chart.entries.entries()) {
       const slice = d.body.slices[index]
       if (slice) addCandidate(out, slice.id, safePieTerminalText(entry.displayLabel ?? entry.label), undefined, 'node', true)
     }
