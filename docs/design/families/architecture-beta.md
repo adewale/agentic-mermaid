@@ -96,8 +96,14 @@ stroke), and `secondaryColor` (service fill only when `mainBkg` is absent).
 Malformed authored values fail by name with `INVALID_THEME_COLOR` before SVG,
 PNG, ASCII, CLI or MCP output. `clusterBkg:none` is invalid because the header
 derives a `color-mix()` from it; `clusterBorder:none` and the direct
-`secondaryColor:none` fill are allowed. Shared `mainBkg` and
-`primaryBorderColor` are admitted by the shared theme gate.
+`secondaryColor:none` fill are allowed. Architecture also refuses `none` for
+the shared `background`, `mainBkg`, `primaryColor`, `nodeBkg`, `lineColor`,
+`defaultLinkColor`, and `arrowheadColor` channels: each can feed a derived
+`color-mix()` paint when it is the selected source key for its channel and no
+explicit render color overrides that channel.
+Shadowed fallbacks may still use `none`; for example, `defaultLinkColor:none`
+is ignored when `lineColor` is set. Shared border keys remain direct strokes
+and may use `none`.
 
 ## Completed elevation contracts
 

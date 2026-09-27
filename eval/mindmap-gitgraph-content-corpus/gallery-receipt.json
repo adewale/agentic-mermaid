@@ -276,7 +276,7 @@
     },
     {
       "path": "src/agent/verify.ts",
-      "sha256": "67a814011920a6a978f69893a26245434d4131f1ade1534a148c0fc244aa5325"
+      "sha256": "ccb63888f5e7040838e0a366b78e170a4f14dffeb6da972c9c9e9ae8abefb7ea"
     },
     {
       "path": "src/agent/xychart-body.ts",
@@ -804,7 +804,7 @@
     },
     {
       "path": "src/render-contract.ts",
-      "sha256": "a15235b28ce94061d031a02126003acd5eeb03f27b1e140352aaddcd3142d5f7"
+      "sha256": "379a7a7f2c78ff32c77ac32379068657a8cc8dc6dab563ba78e75daab9492c7e"
     },
     {
       "path": "src/render-family-hooks.ts",
@@ -1164,7 +1164,7 @@
     },
     {
       "path": "src/theme-color-admission.ts",
-      "sha256": "157af0425a28f35d23c48be0b3381da66e1e1af89a2a0285576fb0856002df0f"
+      "sha256": "1699625adddd86b6ff75c94c3367f6cf60aecb56b36b61598d72a1cf79d438a0"
     },
     {
       "path": "src/theme.ts",

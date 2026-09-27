@@ -1,4 +1,5 @@
 import type { MermaidFrontmatterMap, MermaidThemeVariables } from './mermaid-source.ts'
+import type { RenderOptions } from './types.ts'
 import { CHANNEL_THEME_KEYS } from './color-resolver.ts'
 import { drawableAuthoredCssPaint } from './shared/css-color.ts'
 import { syntaxError } from './shared/syntax-error.ts'
@@ -30,6 +31,12 @@ const RADAR_COLOR_KEYS = new Set([
   'titleColor',
 ])
 const ARCHITECTURE_COLOR_KEYS = new Set(['clusterBkg', 'clusterBorder'])
+// Architecture feeds the selected source key from each shared channel into
+// derived color-mix() paints. Shadowed fallbacks do not reach those sinks.
+const ARCHITECTURE_MIXED_CHANNELS = [
+  ['bg', CHANNEL_THEME_KEYS.bg], ['surface', CHANNEL_THEME_KEYS.surface],
+  ['line', CHANNEL_THEME_KEYS.line], ['accent', CHANNEL_THEME_KEYS.accent],
+] as const
 // Timeline mixes both cScale fills and cScaleInv lines into derived
 // color-mix() paints; `none` invalidates those colors. Labels require ink.
 
@@ -81,6 +88,13 @@ function configMap(value: unknown): Record<string, unknown> | undefined {
     ? value as Record<string, unknown> : undefined
 }
 
+function selectedThemeColorKey(vars: MermaidThemeVariables, keys: readonly string[]): string | undefined {
+  return keys.find(key => {
+    const value = vars[key]
+    return typeof value === 'string' && value.length > 0
+  })
+}
+
 function checkConfigColor(config: Record<string, unknown>, path: string, key: string, allowNone: boolean): void {
   const value = config[key]
   if (value === undefined) return
@@ -126,7 +140,11 @@ export function checkFamilyConfigColors(frontmatter: MermaidFrontmatterMap, fami
 
 /** Admit only the keys that a family actually paints. Other families' private
  * theme keys are added in separately reviewed #303 slices. */
-export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined, familyId: string): void {
+export function checkThemeVariableColors(
+  vars: MermaidThemeVariables | undefined,
+  familyId: string,
+  renderOptions?: Pick<RenderOptions, 'bg' | 'surface' | 'line' | 'accent'>,
+): void {
   if (!vars) return
   const privateColorKeys = familyId === 'pie' ? PIE_COLOR_KEYS
     : familyId === 'gitgraph' ? GITGRAPH_COLOR_KEYS
@@ -135,6 +153,11 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     : familyId === 'architecture' ? ARCHITECTURE_COLOR_KEYS
     : undefined
   const colorKeys = privateColorKeys ? new Set([...SHARED_COLOR_KEYS, ...privateColorKeys]) : SHARED_COLOR_KEYS
+  const architectureMixedKeys = familyId === 'architecture'
+    ? new Set(ARCHITECTURE_MIXED_CHANNELS.flatMap(([channel, keys]) => {
+      return renderOptions?.[channel] !== undefined ? [] : (selectedThemeColorKey(vars, keys) ?? [])
+    }))
+    : undefined
   for (const key of colorKeys) {
     if (!Object.hasOwn(vars, key)) continue
     const raw = vars[key]
@@ -143,7 +166,7 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
       || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
       || (familyId === 'radar' && RADAR_COLOR_KEYS.has(key))
-      || (familyId === 'architecture' && key === 'clusterBkg')
+      || (familyId === 'architecture' && (key === 'clusterBkg' || architectureMixedKeys?.has(key)))
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
     }
