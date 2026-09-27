@@ -5,19 +5,19 @@
   "families": {
     "flowchart": { "requests": 26, "raw": 2275000, "gzip": 694000, "brotli": 556000 },
     "state": { "requests": 25, "raw": 2272000, "gzip": 693000, "brotli": 555000 },
-    "sequence": { "requests": 24, "raw": 572800, "gzip": 176100, "brotli": 155700 },
-    "timeline": { "requests": 24, "raw": 556000, "gzip": 171050, "brotli": 151000 },
+    "sequence": { "requests": 24, "raw": 574000, "gzip": 177000, "brotli": 157000 },
+    "timeline": { "requests": 24, "raw": 558000, "gzip": 172000, "brotli": 152000 },
     "class": { "requests": 28, "raw": 2276000, "gzip": 695000, "brotli": 557000 },
     "er": { "requests": 27, "raw": 2279000, "gzip": 697000, "brotli": 559000 },
-    "journey": { "requests": 26, "raw": 576000, "gzip": 178150, "brotli": 157550 },
+    "journey": { "requests": 26, "raw": 577000, "gzip": 179500, "brotli": 158500 },
     "architecture": { "requests": 25, "raw": 2289000, "gzip": 698000, "brotli": 559000 },
-    "xychart": { "requests": 25, "raw": 580750, "gzip": 179400, "brotli": 158600 },
-    "pie": { "requests": 26, "raw": 601750, "gzip": 198150, "brotli": 176200 },
-    "quadrant": { "requests": 26, "raw": 559000, "gzip": 173275, "brotli": 153125 },
-    "gantt": { "requests": 25, "raw": 609000, "gzip": 189000, "brotli": 167000 },
-    "mindmap": { "requests": 27, "raw": 557000, "gzip": 174150, "brotli": 154000 },
-    "gitgraph": { "requests": 26, "raw": 562000, "gzip": 175225, "brotli": 154750 },
-    "radar": { "requests": 27, "raw": 568000, "gzip": 177500, "brotli": 157000 },
-    "sankey": { "requests": 26, "raw": 560900, "gzip": 175100, "brotli": 154850 }
+    "xychart": { "requests": 25, "raw": 582000, "gzip": 181000, "brotli": 160000 },
+    "pie": { "requests": 26, "raw": 603000, "gzip": 199500, "brotli": 177500 },
+    "quadrant": { "requests": 26, "raw": 560000, "gzip": 174500, "brotli": 154500 },
+    "gantt": { "requests": 25, "raw": 610000, "gzip": 190000, "brotli": 168000 },
+    "mindmap": { "requests": 27, "raw": 558000, "gzip": 175500, "brotli": 155500 },
+    "gitgraph": { "requests": 26, "raw": 563000, "gzip": 176500, "brotli": 156000 },
+    "radar": { "requests": 27, "raw": 569000, "gzip": 178750, "brotli": 158500 },
+    "sankey": { "requests": 26, "raw": 562000, "gzip": 176500, "brotli": 156000 }
   }
 }
