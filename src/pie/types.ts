@@ -93,7 +93,7 @@ export interface PositionedPieLegendItem {
   textX: number
   textY: number
   /**
-   * Display lines of the row (label lines from `<br/>`, with the value/percent
+   * Display lines of the row (split only at actual newlines, with the value/percent
    * suffix riding on the last line). The renderer joins with '\n'; layout
    * measures each line so multiline rows size and clear correctly.
    */
