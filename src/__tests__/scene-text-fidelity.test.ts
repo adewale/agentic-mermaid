@@ -96,6 +96,19 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     nodeProblems(make('A&lt;script&gt;'), 'p', missing)
     expect(missing.join('\n')).toContain('not found in crisp')
   })
+
+  it('compares complete escaped Timeline literals without mistaking them for markup', () => {
+    const make = (crispText: string) => marks.text(
+      { id: 'event', role: 'label', text: 'A<BR>B', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+      `<text x="10" y="20" font-size="12" class="timeline-event-text">${crispText}</text>`,
+    )
+    const faithful: string[] = []
+    nodeProblems(make('A&lt;BR&gt;B'), 'p', faithful)
+    expect(faithful).toEqual([])
+    const missing: string[] = []
+    nodeProblems(make('A&lt;BR&gt;'), 'p', missing)
+    expect(missing.join('\n')).toContain('literal text')
+  })
 })
 
 describe('quadrant lowering is text-faithful', () => {

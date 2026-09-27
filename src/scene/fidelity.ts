@@ -212,20 +212,25 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // normalized the way the text emitter normalizes labels (markdown
       // backticks, <b>/<i>/<u>/<s> emphasis tags, whitespace), so formatted
       // labels don't false-positive.
-      // Crisp contains owned SVG tags, while a projected Pie legend may
-      // contain a literal angle-bracket sequence from an entity. Preserve
-      // that one literal projection; other families keep their established
-      // formatting normalization and diagnostics.
+      // Crisp contains owned SVG tags, while Pie and Timeline may contain
+      // literal angle-bracket text that the emitter escapes as entities.
+      // Preserve those owned literal projections; other families keep their
+      // established formatting normalization and diagnostics.
       const hasStyledTspan = /<tspan\b[^>]*(?:font-weight="bold"|font-style="italic"|text-decoration=)/.test(serialized)
       const literalPieText = !hasStyledTspan && (
         (node.role === 'legend' && serialized.includes('class="pie-legend-text"'))
         || (node.role === 'title' && serialized.includes('class="pie-title"')
           && /&lt;|&gt;/.test(serialized))
       )
-      const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml(s
+      const literalTimelineText = !hasStyledTspan
+        && /class="timeline-(?:title|section-label|period-text|event-text)"/.test(serialized)
+        && /&lt;|&gt;/.test(serialized)
+      const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml((literalTimelineText
+        ? s.replace(/<\/tspan>\s*<tspan\b[^>]*>/g, ' ')
+        : s)
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
-      ) : literalPieText ? s : s.replace(/<[^>]+>/g, ''))
+      ) : literalPieText || literalTimelineText ? s : s.replace(/<[^>]+>/g, ''))
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
@@ -239,6 +244,11 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
         const wantText = node.text.replace(/\s+/g, ' ').trim()
         if (memberText(serialized) !== wantText) {
           problems.push(`${path}(text:${node.id}): member text "${wantText.slice(0, 40)}" not found in crisp`)
+        }
+      } else if (literalTimelineText) {
+        const wantText = normalize(node.text, false)
+        if (normalize(serialized, true) !== wantText) {
+          problems.push(`${path}(text:${node.id}): literal text "${wantText.slice(0, 40)}" not found in crisp`)
         }
       } else {
         const wantText = normalize(node.text, false)

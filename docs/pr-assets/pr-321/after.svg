@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="242.6" viewBox="0 0 192 242.6" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="tl-18hw348-title" role="img">
+<style>
+  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .timeline-title { fill: #27272A; }
+  .timeline-rail { stroke: #939395; stroke-width: 1.5; stroke-linecap: round; }
+  .timeline-section-bg { fill: #fafafa; stroke: #d4d4d4; stroke-width: 1; }
+  .timeline-section-band { fill: #f0f0f1; stroke: #d4d4d4; stroke-width: 1; }
+  .timeline-section-label { fill: #575759; }
+  .timeline-stem { stroke: #7b7b7d; stroke-width: 1.125; stroke-dasharray: 3 4; }
+  .timeline-marker-ring { fill: #FFFFFF; stroke: #47474a; stroke-width: 1.5; }
+  .timeline-marker-core { fill: #47474a; }
+  .timeline-period-pill { fill: #f2f2f2; stroke: #dadadb; stroke-width: 1; }
+  .timeline-period-text { fill: #27272A; }
+  .timeline-event-card { fill: #f9f9f9; stroke: #d4d4d4; stroke-width: 1; }
+  .timeline-event-text { fill: #707072; }
+</style>
+<title id="tl-18hw348-title">Product&lt;BR&gt;history</title>
+<line class="timeline-rail" x1="54" y1="133" x2="138" y2="133" />
+<g class="timeline-period" data-id="period-0" data-label="2024" data-family="0" style="--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9" data-role="period">
+  <line class="timeline-stem" x1="96" y1="141" x2="96" y2="151" data-id="period-stem:period-0" data-role="period" />
+  <rect class="timeline-period-pill" x="60" y="75.4" width="72" height="35.6" rx="0" ry="0" data-id="period-pill:period-0" data-role="period" />
+  <text x="96" y="93.2" class="timeline-period-text" text-anchor="middle" font-size="12" font-weight="600" dy="4.199999999999999" textLength="30.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">2024</text>
+  <circle class="timeline-marker-ring" cx="96" cy="133" r="8" data-id="period-marker-ring:period-0" data-role="period" />
+  <circle class="timeline-marker-core" cx="96" cy="133" r="4.5" data-id="period-marker-core:period-0" data-role="period" />
+<g class="timeline-event" data-id="event-0" data-period="2024" data-family="0" data-role="event">
+  <rect class="timeline-event-card" x="32" y="161" width="128" height="35.6" rx="0" ry="0" data-id="event:event-0" data-role="event" />
+  <text x="46" y="178.8" class="timeline-event-text" text-anchor="start" font-size="12" font-weight="400" dy="4.199999999999999" textLength="97.704" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Launch&lt;BR&gt;track</text>
+</g>
+</g>
+<text x="96" y="39.7" class="timeline-title" text-anchor="middle" font-size="18" font-weight="600" dy="6.3" data-id="title" data-role="title" textLength="179.82" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product&lt;BR&gt;history</text>
+</svg>
