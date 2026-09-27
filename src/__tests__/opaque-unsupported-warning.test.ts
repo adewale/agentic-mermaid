@@ -27,9 +27,10 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
 }
 
 // These fixtures are valid Mermaid syntax that the public renderer supports;
-// the remaining fixtures deliberately exercise malformed/header-tolerance
+// XYChart's unknown statement is preserved opaquely but now fails rendering.
+// The remaining fixtures deliberately exercise malformed/header-tolerance
 // preservation and therefore are not required to render as their loose family.
-const RENDERABLE_OPAQUE_FAMILIES = new Set(['class', 'xychart', 'architecture'])
+const RENDERABLE_OPAQUE_FAMILIES = new Set(['class', 'architecture'])
 const FULLY_MODELED_OR_SPECIFIC_WARNING = ['flowchart', 'state', 'er', 'quadrant', 'mindmap', 'gitgraph']
 
 describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', () => {
@@ -58,12 +59,18 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
       expect(serializeMermaid(reparsed.value)).toBe(canonical)
       if (RENDERABLE_OPAQUE_FAMILIES.has(family)) {
         expect(() => renderMermaidSVG(canonical)).not.toThrow()
+      } else if (family === 'xychart') {
+        expect(() => renderMermaidSVG(canonical)).toThrow('Unrecognized XYChart line: "curve basis"')
       }
 
       const v = verifyMermaid(p.value)
       const unsupported = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
       expect(unsupported.length).toBeGreaterThanOrEqual(1)
       expect(unsupported.some(w => 'syntax' in w && w.syntax === (family === 'timeline' ? 'timeline_header_direction' : `${family}_opaque`))).toBe(true)
+      if (family === 'xychart') {
+        expect(v.ok).toBe(false)
+        expect(v.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
+      }
     })
   }
 
