@@ -267,6 +267,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/class-safe-link-tooltip.fidelity.ts',
       'fidelity/cases/er-word-cardinality.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
+      'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
       'fidelity/cases/timeline-direction.fidelity.ts',
     ])
@@ -285,6 +286,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
       'journey.scores.fractional-parser-render-seam',
+      'pie.syntax.duplicate-label-first-wins',
       'sankey.links.dark-background-normal-alpha-divergence',
       'sankey.links.light-background-multiply',
       'sankey.links.typed-gradient-endpoints',
@@ -299,10 +301,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 22,
-      passedCaseCount: 22,
+      caseCount: 23,
+      passedCaseCount: 23,
       failedCaseCount: 0,
-      observedSurfaceCount: 81,
+      observedSurfaceCount: 85,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })

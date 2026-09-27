@@ -3,15 +3,15 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "84729567b7841571b45c9ed781efaba8f6867e7fc4dc5ff28cc43ae02d8a95df",
-  "receiptResultSha256": "f8ec809fa75622355b3198bf07dd6b96c5f6cc07fd2e76c086c34bfe0e6cdd77",
+  "receiptInputSha256": "97edd03ba2b79f2a8496ba74c367006fa5f4fc616d52732370ab418992f907dd",
+  "receiptResultSha256": "819a7d4af3c2d3d553b4fdb9a39df115a23db2b66655a55e3c3c9b6b5e10924b",
   "summary": {
-    "caseCount": 22,
-    "featureCount": 12,
+    "caseCount": 23,
+    "featureCount": 13,
     "dispositions": {
       "native": 4,
       "source-preserved": 0,
-      "diagnosed": 5,
+      "diagnosed": 6,
       "absent": 3
     }
   },
@@ -384,6 +384,48 @@
             "mutate": "native"
           },
           "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:pie:section:syntax",
+      "family": "pie",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "pie.syntax.duplicate-label-first-wins"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "native",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "pie.syntax.duplicate-label-first-wins",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "native",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
         }
       ],
       "acceptedDivergences": []

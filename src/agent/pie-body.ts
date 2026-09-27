@@ -74,6 +74,11 @@ export function parsePieBody(lines: string[], header: { showData: boolean; title
   const tail = `${header.showData ? ' showData' : ''}${header.title === undefined ? '' : ` title ${header.title}`}`
   try {
     const parsed = parsePieChart([`pie${tail}`, ...lines])
+    // The native picture follows Mermaid's first-wins duplicate-label rule,
+    // but typed label-based mutation cannot address a later occurrence and
+    // canonical serialization would silently erase it. Preserve the source
+    // as opaque until Pie has an occurrence-aware mutation model.
+    if (parsed.hasDuplicateSourceLabels || new Set(parsed.entries.map(entry => entry.label)).size !== parsed.entries.length) return null
     // Typed mutation keeps the existing positive-value floor even though the
     // rendering grammar also admits zero-width slices.
     if (parsed.entries.some(entry => !isPositiveFinite(entry.value))) return null

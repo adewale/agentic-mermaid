@@ -63,6 +63,8 @@ export function parsePieChart(lines: string[]): PieChart {
   }
 
   const entries: PieEntry[] = []
+  const seenSourceLabels = new Set<string>()
+  let hasDuplicateSourceLabels = false
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!.trim()
@@ -82,7 +84,8 @@ export function parsePieChart(lines: string[]): PieChart {
 
     const entryMatch = line.match(ENTRY_RE)
     if (entryMatch) {
-      const label = normalizeBrTags(decodeEscapes(entryMatch[1]!))
+      const sourceLabel = decodeEscapes(entryMatch[1]!)
+      const label = normalizeBrTags(sourceLabel)
       const rawValue = entryMatch[2]!.trim()
       if (!NUMBER_RE.test(rawValue)) {
         throw new Error(
@@ -100,7 +103,15 @@ export function parsePieChart(lines: string[]): PieChart {
             'Values must be non-negative numbers.',
         )
       }
-      entries.push({ label, value })
+      // Mermaid's Pie DB is a first-wins Map keyed by the authored label.
+      // Check after validating the value: even a duplicate invalid entry must
+      // still fail, as it does upstream. Use the pre-display label so two
+      // distinct <br> spellings do not collapse into one source identity.
+      if (seenSourceLabels.has(sourceLabel)) hasDuplicateSourceLabels = true
+      else {
+        seenSourceLabels.add(sourceLabel)
+        entries.push({ label, value })
+      }
       continue
     }
 
@@ -124,7 +135,7 @@ export function parsePieChart(lines: string[]): PieChart {
     throw new Error('Pie chart must include at least one "label" : value entry')
   }
 
-  return { title, showData, entries }
+  return { title, showData, entries, ...(hasDuplicateSourceLabels ? { hasDuplicateSourceLabels: true } : {}) }
 }
 
 function decodeEscapes(raw: string): string {

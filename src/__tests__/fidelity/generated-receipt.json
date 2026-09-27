@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "84729567b7841571b45c9ed781efaba8f6867e7fc4dc5ff28cc43ae02d8a95df",
+    "inputSha256": "97edd03ba2b79f2a8496ba74c367006fa5f4fc616d52732370ab418992f907dd",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -105,6 +105,10 @@
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
         "sha256": "b0c9a9ac480d357471d4f9b6dcc4cf5685e3fe4c0413de0809b4114d81cd5492"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/pie-duplicate-label.fidelity.ts",
+        "sha256": "4cf5d02d6fcb7961851ee8b2326b527365f9ce443e7fc2bb6e4f17dc4650ab59"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -1424,6 +1428,91 @@
       "issues": []
     },
     {
+      "id": "pie.syntax.duplicate-label-first-wins",
+      "family": "pie",
+      "featureId": "official-doc:pie:section:syntax",
+      "sourceSha256": "58f5f455708c474067b3f7f5f13122b1d55dfdf9f49c1ac1136a5b11ce042527",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/pie.html#syntax",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "kind": "opaque",
+            "sourceExact": true
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "duplicateSeen": true,
+            "slices": [
+              [
+                "Alpha",
+                10
+              ],
+              [
+                "Beta",
+                20
+              ]
+            ]
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "sourceExact": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
       "id": "sankey.links.dark-background-normal-alpha-divergence",
       "family": "sankey",
       "featureId": "official-doc:sankey:section:links-coloring",
@@ -2225,10 +2314,10 @@
     }
   ],
   "summary": {
-    "caseCount": 22,
-    "passedCaseCount": 22,
+    "caseCount": 23,
+    "passedCaseCount": 23,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 81,
+    "observedSurfaceCount": 85,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }
