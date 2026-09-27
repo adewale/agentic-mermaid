@@ -128,6 +128,13 @@ export function parsePieChart(lines: string[]): PieChart {
       // marker that produces `<br>` or `<b>` is literal visible Pie text, not
       // an authored formatting instruction.
       const displayLabel = decodeEscapes(projectPieEntityDisplay(normalizeBrTags(preprocessedLabel)))
+      if (hasNewTerminalControl(label, displayLabel)) {
+        throw syntaxError({
+          what: 'Pie entity projection creates a terminal control character after escape decoding',
+          expectedForm: 'an entity that displays printable text',
+          example: '"Alpha&#35;" : 10',
+        })
+      }
       if (XML_DISALLOWED_CONTROL_RE.test(displayLabel)) {
         throw syntaxError({
           what: 'Pie slice display label contains an XML-disallowed control character',
@@ -221,6 +228,24 @@ const namedMarkerDisplay = new Map<string, string>([
 ])
 const windows1252 = new TextDecoder('windows-1252')
 const PROJECTED_TERMINAL_CONTROL_RE = /[\u0000-\u001f\u007f-\u009f]/
+
+function hasNewTerminalControl(authoredLabel: string, displayLabel: string): boolean {
+  if (!PROJECTED_TERMINAL_CONTROL_RE.test(displayLabel)) return false
+  const authoredCounts = new Uint32Array(160)
+  for (const character of authoredLabel) {
+    const code = character.charCodeAt(0)
+    if (code < 160 && PROJECTED_TERMINAL_CONTROL_RE.test(character)) {
+      authoredCounts[code] = authoredCounts[code]! + 1
+    }
+  }
+  for (const character of displayLabel) {
+    const code = character.charCodeAt(0)
+    if (code >= 160 || !PROJECTED_TERMINAL_CONTROL_RE.test(character)) continue
+    if (authoredCounts[code] === 0) return true
+    authoredCounts[code] = authoredCounts[code]! - 1
+  }
+  return false
+}
 
 function projectPieEntityDisplay(label: string): string {
   return label.replace(/#\w+;/g, token => {

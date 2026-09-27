@@ -79,11 +79,15 @@ test('Pie style/classDef prepass changes visible text only where pinned Mermaid 
 })
 
 test('projected terminal controls are diagnosed before SVG or terminal output', () => {
-  for (const ref of ['#7;', '#9;', '#10;', '#13;', '#127;', '#129;']) {
-    const source = `pie\n  "A${ref}B" : 1\n`
-    expect(() => renderMermaidSVG(source)).toThrow(/Pie entity projects a terminal control character/)
+  for (const sourceLabel of [
+    'A#7;B', 'A#9;B', 'A#10;B', 'A#13;B', 'A#127;B', 'A#129;B',
+    'A#92;rB', 'A#92;tB', 'A#92;nB', 'A#92;#114;B',
+  ]) {
+    const source = `pie\n  "${sourceLabel}" : 1\n`
+    const diagnostic = /Pie entity (?:projects|projection creates) a terminal control character/
+    expect(() => renderMermaidSVG(source)).toThrow(diagnostic)
     for (const colorMode of ['none', 'ansi16', 'html'] as const) {
-      expect(() => renderMermaidASCII(source, { colorMode })).toThrow(/Pie entity projects a terminal control character/)
+      expect(() => renderMermaidASCII(source, { colorMode })).toThrow(diagnostic)
     }
   }
 })
@@ -109,6 +113,13 @@ test('an escaped marker is source text, not a newly authored entity', () => {
   expect(entry).toEqual({ label: 'A#35;B', value: 1 })
   expect(decodeXML(legendXml(source))).toStartWith('A#35;B')
   expect(renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).regions[0]?.projectedText).toBe('A#35;B')
+})
+
+test('a pre-existing authored escape remains accepted beside printable entity text', () => {
+  const source = 'pie\n  "A\\nB&#35;" : 1\n'
+  const entry = parsePieChart(source.trim().split('\n')).entries[0]!
+  expect(entry.label).toBe('A\nB&#35;')
+  expect(entry.displayLabel).toBe('A\nB&#')
 })
 
 test('projected Pie entity text remains escaped in SVG and HTML terminal output', () => {
