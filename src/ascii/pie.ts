@@ -27,9 +27,16 @@ import { colorizeText } from './ansi.ts'
 import { padEndToVisualWidth, visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
+import { sanitizeTerminalText } from '../terminal-security.ts'
 
 /** Maximum bar length in characters (the largest slice fills this). */
 const MAX_BAR = 30
+
+/** Keep authored line breaks, but never let a decoded Pie escape move the
+ * terminal cursor or alter a cell after source admission has completed. */
+export function safePieTerminalText(value: string): string {
+  return sanitizeTerminalText(value, true).replace(/\r/g, '?')
+}
 
 export function renderPieAscii(
   lines: string[],
@@ -66,11 +73,11 @@ export function renderPieAscii(
   const valueWidths = chart.entries.map(entry => chart.showData ? visualWidth(`  [${formatPieValue(entry.value)}]`) : 0)
   const fixedWidth = 2 + MAX_BAR + 2 + 6 + Math.max(0, ...valueWidths)
   const labelBudget = targetWidth ? Math.max(1, targetWidth - fixedWidth) : undefined
-  const labelLines = chart.entries.map(entry => wrapText(entry.displayLabel ?? entry.label, labelBudget))
+  const labelLines = chart.entries.map(entry => wrapText(safePieTerminalText(entry.displayLabel ?? entry.label), labelBudget))
   const labelWidth = Math.max(...labelLines.flat().map(visualWidth))
 
   const out: string[] = []
-  if (chart.title) out.push(...wrapText(chart.title, targetWidth))
+  if (chart.title) out.push(...wrapText(safePieTerminalText(chart.title), targetWidth))
 
   chart.entries.forEach((entry, index) => {
     const fraction = entry.value / total

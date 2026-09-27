@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "c7da1995f15dd4808ecc86c5e0c292036098744ac7f0c61df28e2ea1fe84525c",
+    "inputSha256": "f9ca23fe806bde754a4c33a5bd65e64fc820557a0dbc0f667e9a2124f3819c22",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -113,6 +113,10 @@
       {
         "path": "src/__tests__/fidelity/cases/pie-entity-display.fidelity.ts",
         "sha256": "91fea36cc87f4ebda72130bc8461bab91a2f30fcedfad0328e881ff3235e10c4"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/pie-terminal-control.fidelity.ts",
+        "sha256": "94a1dbb97d8032586f8085c9cd402f9cb71fb9aa7632c9b6da7475788335c679"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -1621,6 +1625,94 @@
       "issues": []
     },
     {
+      "id": "pie.syntax.escaped-terminal-control-sanitized",
+      "family": "pie",
+      "featureId": "official-doc:pie:section:syntax",
+      "sourceSha256": "1d0f8f11b4f548dca9576dc3abcea4933736743ed5a3f9d2e8a4c50f68674d76",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/pie.html#syntax",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "acceptedDivergence": {
+        "policy": "security",
+        "rationale": "Terminal output replaces a Pie grammar-produced carriage return with a visible cell rather than moving the terminal cursor.",
+        "surfaces": [
+          "render"
+        ]
+      },
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "TERMINAL_CONTROL_CHARACTERS_REPLACED"
+          ]
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "source-preserved",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ]
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "UNSUPPORTED_SYNTAX"
+          ],
+          "semantics": {
+            "kind": "opaque",
+            "sourceExact": true
+          },
+          "disposition": "source-preserved"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "TERMINAL_CONTROL_CHARACTERS_REPLACED"
+          ],
+          "semantics": {
+            "decodedCr": true,
+            "safeText": true,
+            "terminalText": "A?B  "
+          },
+          "disposition": "diagnosed"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "sourceExact": true
+          },
+          "disposition": "source-preserved"
+        },
+        "mutate": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INVALID_OP"
+          ],
+          "semantics": {
+            "rejected": true
+          },
+          "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
       "id": "pie.syntax.numeric-entity-display",
       "family": "pie",
       "featureId": "official-doc:pie:section:syntax",
@@ -2573,10 +2665,10 @@
     }
   ],
   "summary": {
-    "caseCount": 26,
-    "passedCaseCount": 26,
+    "caseCount": 27,
+    "passedCaseCount": 27,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 97,
+    "observedSurfaceCount": 101,
     "blockedSurfaceCount": 0,
     "notApplicableSurfaceCount": 7
   }

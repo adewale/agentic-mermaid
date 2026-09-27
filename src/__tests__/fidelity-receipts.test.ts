@@ -269,6 +269,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/landed-adoption.fidelity.ts',
       'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/pie-entity-display.fidelity.ts',
+      'fidelity/cases/pie-terminal-control.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
       'fidelity/cases/timeline-direction.fidelity.ts',
     ])
@@ -289,6 +290,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'journey.scores.fractional-parser-render-seam',
       'pie.syntax.duplicate-label-first-wins',
       'pie.syntax.entity-spelling-distinct',
+      'pie.syntax.escaped-terminal-control-sanitized',
       'pie.syntax.numeric-entity-display',
       'pie.syntax.xml-disallowed-control-diagnosed',
       'sankey.links.dark-background-normal-alpha-divergence',
@@ -305,10 +307,10 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 26,
-      passedCaseCount: 26,
+      caseCount: 27,
+      passedCaseCount: 27,
       failedCaseCount: 0,
-      observedSurfaceCount: 97,
+      observedSurfaceCount: 101,
       blockedSurfaceCount: 0,
       notApplicableSurfaceCount: 7,
     })
@@ -316,7 +318,16 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
     for (const feature of capability.features) {
       expect(Object.keys(feature.surfaces)).toEqual(['agent', 'render', 'serialize', 'mutate'])
-      expect(feature.acceptedDivergences).toEqual([])
+      if (feature.featureId === 'official-doc:pie:section:syntax') {
+        expect(feature.acceptedDivergences).toEqual([expect.objectContaining({
+          caseId: 'pie.syntax.escaped-terminal-control-sanitized',
+          policy: 'security',
+          surfaces: ['render'],
+          diagnosticCodes: { render: ['TERMINAL_CONTROL_CHARACTERS_REPLACED'] },
+        })])
+      } else {
+        expect(feature.acceptedDivergences).toEqual([])
+      }
       expect(feature.caseEvidence.map(evidence => evidence.caseId)).toEqual([...feature.caseIds])
     }
     expect(capability.features.find(feature => feature.family === 'state')!.surfaces.mutate).toBe('native')

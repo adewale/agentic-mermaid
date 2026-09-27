@@ -87,7 +87,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the current Linux totals, which are pinned exactly in the baseline.
     // Pie's source-aware entity projection adds under 0.1% to the complete
     // editor bundle while retaining the fixed two-request graph.
-    maxRawBytes: 3_359_000,
+    // Pie's terminal-only post-grammar control projection adds a small
+    // shared-editor import; the complete two-request graph stays fixed.
+    maxRawBytes: 3_359_300,
     maxGzipBytes: 988_000,
     maxBrotliBytes: 777_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
