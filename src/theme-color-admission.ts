@@ -25,11 +25,8 @@ const GITGRAPH_INK_KEYS = new Set([
 const TIMELINE_COLOR_KEYS = new Set(
   Array.from({ length: 12 }, (_, index) => [`cScale${index}`, `cScaleLabel${index}`, `cScaleInv${index}`]).flat(),
 )
-// cScale is a fill but also feeds derived color-mix() paints; `none` would
-// invalidate those derived paints. Labels likewise require text ink.
-const TIMELINE_NO_NONE_KEYS = new Set(
-  Array.from({ length: 12 }, (_, index) => [`cScale${index}`, `cScaleLabel${index}`]).flat(),
-)
+// Timeline mixes both cScale fills and cScaleInv lines into derived
+// color-mix() paints; `none` invalidates those colors. Labels require ink.
 
 /** A named failure at the shared request waist, before any output can silently
  * drop a configured color or paint a browser/resvg-specific fallback. */
@@ -66,7 +63,7 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     if (raw === undefined) continue
     const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
-      || GITGRAPH_INK_KEYS.has(key) || TIMELINE_NO_NONE_KEYS.has(key)
+      || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
     }

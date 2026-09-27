@@ -186,14 +186,13 @@ describe('theme color admission (#303, Timeline layer)', () => {
     }
   })
 
-  test('Timeline label ink and mixed fills refuse none; direct line paint permits it', () => {
+  test('Timeline labels and derived fill/line paints refuse none', () => {
     for (let index = 0; index < 12; index++) {
-      for (const key of [`cScaleLabel${index}`, `cScale${index}`]) {
+      for (const key of [`cScaleLabel${index}`, `cScale${index}`, `cScaleInv${index}`]) {
         expect(() => renderMermaidSVG(init(TIMELINE, key, 'none')))
           .toThrow(`themeVariables.${key}: "none" is not a CSS color`)
       }
     }
-    expect(() => renderMermaidSVG(init(TIMELINE, 'cScaleInv0', 'none'))).not.toThrow()
     expect(() => renderMermaidSVG(init(TIMELINE, 'cScale0', 123)))
       .toThrow('themeVariables.cScale0: "123" is not a CSS color')
   })
