@@ -126,7 +126,10 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
       continue
     }
 
-    if (options.strict) throw new Error(`Unrecognized XYChart line: "${line}"`)
+    // A closed grammar must not produce a plausible partial chart after
+    // silently dropping an authored statement. Agent mode still preserves the
+    // full source opaquely when this error reaches its strict projection.
+    throw new Error(`Unrecognized XYChart line: "${line}"`)
   }
 
   // Auto-derive y-axis range from data if not specified

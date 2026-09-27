@@ -353,7 +353,7 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:xychart:section:syntax')!.surfaces).toEqual({
       agent: 'source-preserved',
-      render: 'absent',
+      render: 'diagnosed',
       serialize: 'source-preserved',
       mutate: 'diagnosed',
     })

@@ -451,9 +451,12 @@ const xychartUnknownStatementSeam: FidelityCaseDefinition = {
       },
       ['UNSUPPORTED_SYNTAX'],
     ),
-    render: applicable('absent', evidence => {
+    render: applicable('diagnosed', evidence => {
       const semanticFacts = facts(evidence)
-      if (typeof semanticFacts.errorMessage === 'string' && evidence.diagnosticCodes.includes('RENDER_FAILED')) return 'diagnosed'
+      if (semanticFacts.errorMessage === 'Unrecognized XYChart line: "frob official-data-lost"' &&
+          semanticFacts.verificationOk === false &&
+          evidence.diagnosticCodes.includes('RENDER_FAILED') &&
+          Array.isArray(semanticFacts.bars) && semanticFacts.bars.length === 0) return 'diagnosed'
       const bars = semanticFacts.bars
       const texts = semanticFacts.texts
       if (!Array.isArray(bars) || bars.length !== 2 || !Array.isArray(texts)) fail('unknown-statement render evidence is malformed')
@@ -462,7 +465,7 @@ const xychartUnknownStatementSeam: FidelityCaseDefinition = {
       if (first.value === '1' && second.value === '2' && !texts.includes('official-data-lost')) return 'absent'
       if (texts.includes('official-data-lost')) return 'source-preserved'
       fail('unknown-statement render behavior changed without a recognized disposition')
-    }),
+    }, ['RENDER_FAILED']),
     serialize: applicable('source-preserved', evidence => (facts(evidence).serializedSource === xychartUnknownStatementSource ? 'source-preserved' : 'absent')),
     mutate: applicable(
       'diagnosed',
@@ -501,6 +504,7 @@ const xychartUnknownStatementSeam: FidelityCaseDefinition = {
         diagnosticCodes: renderDiagnosticCodes,
         semantics: {
           errorMessage: renderErrorMessage,
+          verificationOk: verification.ok,
           bars: tagsWithClass(rendered, 'rect', 'xychart-bar').map(bar => ({
             label: bar['data-label'] ?? null,
             value: bar['data-value'] ?? null,

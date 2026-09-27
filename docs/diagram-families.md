@@ -6,7 +6,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 
 The checked roster and per-family capability states are generated from `FamilyDescriptor` in the [Section A capability report](./project/section-a-capability-report.md). Agents can discover the live roster and operation shapes through `am capabilities --json`; its compact Section A summary links to the exhaustive audit. Library and Code Mode callers can use `describeOps(family)` for the exact mutation schema. This guide keeps examples and family-specific caveats, not a second inventory.
 
-Opaque fallback does not mean unsupported: those bodies parse, render, verify, and round-trip losslessly, but agents should edit preserved source deliberately instead of calling `mutate`.
+Opaque fallback preserves source without claiming native semantics. Some bodies can still render; unsupported or malformed statements fail verification/rendering rather than producing a plausible partial diagram. Agents should edit preserved source deliberately instead of calling `mutate`.
 
 To pick a family from the reader's task rather than from this inventory, start at [`choosing-a-diagram.md`](./choosing-a-diagram.md).
 
@@ -106,7 +106,7 @@ xychart-beta
   line [50, 180, 420]
 ```
 
-The modeled title, axes, orientation, and bar/line series are structurally mutable through `asXyChart`; use `describeOps('xychart')` for the exact schema. Unmodeled or malformed syntax falls back losslessly and stays source-level. See [`design/families/xychart.md`](./design/families/xychart.md) for compatibility details and layout notes.
+The modeled title, axes, orientation, and bar/line series are structurally mutable through `asXyChart`; use `describeOps('xychart')` for the exact schema. Unknown statements fall back losslessly at the agent layer, but verification and rendering reject them by name instead of silently dropping them. See [`design/families/xychart.md`](./design/families/xychart.md) for compatibility details and layout notes.
 
 ## Pie
 
