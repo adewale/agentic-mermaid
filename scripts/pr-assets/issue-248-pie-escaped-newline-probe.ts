@@ -13,6 +13,7 @@ await page.setContent('<div id="host"></div>')
 await page.addScriptTag({ path: join(root, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js') })
 const cases = [
   ['escaped-n-label', 'pie\n  "A\\nB" : 1'],
+  ['escaped-tab-n-label', 'pie\n  "A\\t\\n\\tB" : 1'],
   ['literal-backslash-n-label', 'pie\n  "A\\\\nB" : 1'],
   ['escaped-n-title', 'pie\n  title A\\nB\n  "Slice" : 1'],
 ] as const
@@ -41,8 +42,9 @@ for (const [name, source] of cases) {
   const localSvg = renderMermaidSVG(source, { embedFontImport: false })
   const localParsed = parsePieChart(source.split('\n'))
   const localTerminal = renderMermaidASCII(source, { colorMode: 'none' })
-  if (name === 'escaped-n-label') {
-    if (!upstream.svgText.includes('A\nB') || upstream.legendAdvance === null ||
+  if (name === 'escaped-n-label' || name === 'escaped-tab-n-label') {
+    const upstreamText = name === 'escaped-tab-n-label' ? 'A\t\n\tB' : 'A\nB'
+    if (!upstream.svgText.includes(upstreamText) || upstream.legendAdvance === null ||
         Math.abs(upstream.legendAdvance - (upstream.spacedAdvance ?? -1)) > 0.01 ||
         localParsed.entries[0]?.displayLabel !== 'A B' || !localSvg.includes('>A B (100.0%)</text>') ||
         !localTerminal.startsWith('A B  ')) {

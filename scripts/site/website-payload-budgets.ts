@@ -100,8 +100,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRawBytes: 3_393_400,
     maxGzipBytes: 1_008_800,
     // Pie's escaped-LF painted-text projection stays in the existing two
-    // requests. The final linear scanner measured 3,393,296 raw / 1,008,697
-    // gzip / 795,919 Brotli on Linux/x64. Retain the cross-platform ceiling.
+    // requests. The tab-aware linear scanner measured 3,393,328 raw /
+    // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
+    // cross-platform ceiling.
     maxBrotliBytes: 796_800,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
