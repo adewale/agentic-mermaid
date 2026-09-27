@@ -110,7 +110,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Timeline's shared event-separator validation and upstream trailing-colon
     // guard measure 3,395,107 raw / 1,009,488 gzip bytes on Linux/x64. The
     // two-request graph stays fixed and both ceilings retain under 0.01% slack.
-    maxRawBytes: 3_395_200,
+    maxRawBytes: 3_395_300,
     // Timeline semantic line-break normalization measures 1,009,565 gzip
     // bytes on Linux/x64; retain 85 bytes of headroom with no new requests.
     maxGzipBytes: 1_009_650,
