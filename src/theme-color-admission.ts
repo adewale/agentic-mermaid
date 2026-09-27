@@ -25,6 +25,10 @@ const GITGRAPH_INK_KEYS = new Set([
 const TIMELINE_COLOR_KEYS = new Set(
   Array.from({ length: 12 }, (_, index) => [`cScale${index}`, `cScaleLabel${index}`, `cScaleInv${index}`]).flat(),
 )
+const RADAR_COLOR_KEYS = new Set([
+  ...Array.from({ length: 12 }, (_, index) => `cScale${index}`),
+  'titleColor',
+])
 // Timeline mixes both cScale fills and cScaleInv lines into derived
 // color-mix() paints; `none` invalidates those colors. Labels require ink.
 
@@ -126,6 +130,7 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
   const privateColorKeys = familyId === 'pie' ? PIE_COLOR_KEYS
     : familyId === 'gitgraph' ? GITGRAPH_COLOR_KEYS
     : familyId === 'timeline' ? TIMELINE_COLOR_KEYS
+    : familyId === 'radar' ? RADAR_COLOR_KEYS
     : undefined
   const colorKeys = privateColorKeys ? new Set([...SHARED_COLOR_KEYS, ...privateColorKeys]) : SHARED_COLOR_KEYS
   for (const key of colorKeys) {
@@ -135,8 +140,22 @@ export function checkThemeVariableColors(vars: MermaidThemeVariables | undefined
     const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
     const disallowNone = SHARED_INK_KEYS.has(key) || PIE_INK_KEYS.has(key)
       || GITGRAPH_INK_KEYS.has(key) || (familyId === 'timeline' && TIMELINE_COLOR_KEYS.has(key))
+      || (familyId === 'radar' && RADAR_COLOR_KEYS.has(key))
     if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, !disallowNone) === undefined) {
       throw new ThemeVariableColorError(key, value, !disallowNone)
+    }
+  }
+  if (familyId === 'radar') {
+    const radar = configMap(vars.radar)
+    if (!radar) return
+    for (const key of ['axisColor', 'graticuleColor'] as const) {
+      const raw = radar[key]
+      if (raw === undefined) continue
+      const allowNone = key === 'graticuleColor'
+      const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
+      if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, allowNone) === undefined) {
+        throw new ThemeVariableColorError(`radar.${key}`, value, allowNone)
+      }
     }
   }
 }

@@ -77,7 +77,7 @@ radar-beta
     expect(cfg.paletteOverrides?.[2]).toBe('#00ff00')
   })
 
-  test('theme variables reach final SVG paint and invalid values warn instead of disappearing', () => {
+  test('theme variables reach final SVG paint, invalid colors fail, and non-color values warn', () => {
     const source = `---
 config:
   themeVariables:
@@ -123,12 +123,14 @@ radar-beta
   axis a, b
   curve x{1,2}
   max 3`
-    const hostileSvg = renderMermaidSVG(hostileSource)
-    expect(hostileSvg).not.toContain('evil.example')
-    expect(hostileSvg).not.toContain('stroke: url(')
+    expect(() => renderMermaidSVG(hostileSource))
+      .toThrow('themeVariables.radar.axisColor: "url(https://evil.example/x)" is not a CSS color')
     const invalid = verifyMermaid(hostileSource)
     expect(invalid.warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'themeVariables.radar.axisColor' }),
+      expect.objectContaining({ code: 'RENDER_FAILED', reason: expect.stringContaining('themeVariables.radar.axisColor') }),
+    ]))
+    const nonColorSource = hostileSource.replace('      axisColor: "url(https://evil.example/x)"\n', '')
+    expect(verifyMermaid(nonColorSource).warnings).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'themeVariables.radar.curveOpacity' }),
       expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'themeVariables.radar.mystery' }),
     ]))

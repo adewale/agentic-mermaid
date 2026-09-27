@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { parseHex, mixHex, luma255, toHex, tryParseCssColor } from '../shared/color-math.ts'
-import { safeCssColor } from '../shared/css-color.ts'
+import { safeCssColor, safeCssPaint } from '../shared/css-color.ts'
 import type { CharRole, AsciiTheme, ColorMode } from './types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { MIX } from '../theme.ts'
@@ -234,7 +234,7 @@ function escapeHtml(text: string): string {
 
 /** Wrap text in a <span> with an inline color style. */
 function htmlSpan(hex: string, text: string): string {
-  const color = safeCssColor(hex)
+  const color = safeCssPaint(hex)
   return color
     ? `<span style="color:${color}">${escapeHtml(text)}</span>`
     : escapeHtml(text)

@@ -1,0 +1,6 @@
+{
+  "code": "INVALID_THEME_COLOR",
+  "key": "radar.axisColor",
+  "value": "notacolor",
+  "message": "themeVariables.radar.axisColor: \"notacolor\" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor, or var(--name), e.g. themeVariables.radar.axisColor:#f96"
+}
