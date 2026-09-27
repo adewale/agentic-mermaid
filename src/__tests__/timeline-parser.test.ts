@@ -135,6 +135,21 @@ describe('parseTimelineDiagram', () => {
     ])
   })
 
+  it('rejects upstream-corrupting trailing and empty event separators', () => {
+    // Mermaid 11.16 rejects a trailing colon before the serialized newline;
+    // if another period follows, its lexer can instead swallow that period.
+    for (const source of [
+      'timeline\n  2020 : A:\n',
+      'timeline\n  2020 : A :\n  2021 : B\n',
+      'timeline\n  2020 : A: : B\n',
+    ]) {
+      expect(() => parse(source)).toThrow('Invalid timeline event separator')
+    }
+    // A literal colon inside the first event remains valid when another
+    // actual separator and non-empty event follow it.
+    expect(parse('timeline\n  2020 : A:: B\n').sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(['A:', 'B'])
+  })
+
   it('ignores hash-style comment lines supported by Mermaid timeline syntax', () => {
     const diagram = parse(`timeline
       # release milestones

@@ -86,7 +86,15 @@ export function splitTimelineEvents(raw: string): string[] {
       index++
     }
 
-    events.push(raw.slice(start, index).trim())
+    const event = raw.slice(start, index).trim()
+    if (!event || (index >= raw.length && event.endsWith(':'))) {
+      throw syntaxError({
+        what: `Invalid timeline event separator in "${raw}"`,
+        expectedForm: 'a non-empty event after every separator, without a trailing colon',
+        example: '2024 : Launch : Beta',
+      })
+    }
+    events.push(event)
   }
 
   return events

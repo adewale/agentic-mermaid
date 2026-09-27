@@ -120,13 +120,20 @@ describe('timeline fidelity fallback', () => {
     expect(serializeMermaid(d)).toContain('timeline EXTRA')
   })
 
-  test('a trailing colon stays event text, while a dangling event separator falls back to opaque', () => {
-    const trailingText = parse('timeline\n  2020 : A :')
-    expect(trailingText.body.kind).toBe('timeline')
-    if (trailingText.body.kind === 'timeline') {
-      expect(trailingText.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A :')
+  test('upstream-invalid event separators stay opaque and fail verification', () => {
+    for (const source of [
+      'timeline\n  2020 : A :',
+      'timeline\n  2020 : A:\n  2021 : B',
+      'timeline\n  2020 : A: : B',
+      'timeline\n  2020 :',
+    ]) {
+      const parsed = parse(source)
+      expect(parsed.body.kind, source).toBe('opaque')
+      expect(serializeMermaid(parsed), source).toContain(source)
+      const verified = verifyMermaid(parsed)
+      expect(verified.ok, source).toBe(false)
+      expect(verified.warnings.map(warning => warning.code), source).toContain('RENDER_FAILED')
     }
-    expect(parse('timeline\n  2020 :').body.kind).toBe('opaque')
   })
 })
 
