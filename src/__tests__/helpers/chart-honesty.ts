@@ -94,6 +94,11 @@ export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
       source: titled('Order model', 'erDiagram\n  CUSTOMER ||--o{ ORDER : places'),
       expectText: ['Order model', 'CUSTOMER', 'ORDER', 'places'],
     },
+    {
+      name: 'title over a group with no entities',
+      source: titled('Inventory', 'erDiagram\n  subgraph Warehouse\n  end'),
+      expectText: ['Inventory', 'Warehouse'],
+    },
   ],
   timeline: [
     {

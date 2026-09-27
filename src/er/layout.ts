@@ -420,7 +420,7 @@ export function layoutErDiagram(
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
   if (diagram.entities.length === 0) {
-    if (diagram.groups.length > 0) return layoutErGroupsOnly(diagram)
+    if (diagram.groups.length > 0) return withErTitle(layoutErGroupsOnly(diagram), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }
   }
 
