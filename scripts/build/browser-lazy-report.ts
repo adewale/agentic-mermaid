@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   brotliCompressSync,
   constants as zlibConstants,
@@ -132,7 +133,7 @@ if (htmlEntityOutputs.length !== 1 || !familyFiles.pie.includes(htmlEntityOutput
 }
 // Source-level tests do not exercise the build-only CJS alias. Execute the
 // emitted ESM entry so a broken split decoder fails this mandatory build gate.
-const { renderMermaidSVGAsync } = await import(join(ROOT, 'dist/browser-lazy/index.js'))
+const { renderMermaidSVGAsync } = await import(pathToFileURL(join(ROOT, 'dist/browser-lazy/index.js')).href)
 for (const [name, displayed] of [['NotEqualTilde', '≂̸'], ['notit', '¬it;']] as const) {
   const svg = await renderMermaidSVGAsync(`pie\n  "A#${name};B" : 1\n`)
   if (!svg.includes(`>A${displayed}B (100.0%)</text>`)) {
