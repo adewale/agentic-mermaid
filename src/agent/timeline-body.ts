@@ -225,9 +225,12 @@ function normalizeTimelineOpText(value: string, opts: { field: string; allowColo
 
 function normalizeTimelineTitleOpText(value: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Timeline title must be a string' })
+  if (/[\r\n]/.test(value)) {
+    return err({ code: 'INVALID_OP', message: 'Timeline title must be single-line; pinned Mermaid renders <br> literally in titles' })
+  }
   const title = value.trim()
-  if (!title || /[\r\n]/.test(title)) {
-    return err({ code: 'INVALID_OP', message: 'Timeline title must be non-empty and single-line; pinned Mermaid renders <br> literally in titles' })
+  if (!title) {
+    return err({ code: 'INVALID_OP', message: 'Timeline title must be non-empty' })
   }
   return ok(title)
 }

@@ -264,7 +264,7 @@
     },
     {
       "path": "src/agent/timeline-body.ts",
-      "sha256": "30ad2536bdc836f20418b5189e2238215fbe2586b98b80bb2b17f5ea7d7bb9fa"
+      "sha256": "1c381ea9b1d6002ae314973352924e3463bb92800c704e45145f51c23e08619c"
     },
     {
       "path": "src/agent/trace-log.ts",
