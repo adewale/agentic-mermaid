@@ -760,11 +760,11 @@
     },
     {
       "path": "src/quadrant/parser.ts",
-      "sha256": "5de80ab1f85ac421d2c26b46b04fd72dfc3f7c24d9d902842137e23a0ebfaf42"
+      "sha256": "c552dc5f689d32cf5b574c2c3762a4b56bb807b01eb9a4fe6f0fced93569f0a5"
     },
     {
       "path": "src/quadrant/point-style.ts",
-      "sha256": "b2bdfbc03c4b685c042abbaef832d909987b57b38b6c58e16b4ca4aba52af845"
+      "sha256": "314e72b0fe4e91348a0144816a7c197befd60d9a64f520323abf872b54e47b76"
     },
     {
       "path": "src/quadrant/renderer.ts",
