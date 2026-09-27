@@ -508,7 +508,7 @@
     },
     {
       "path": "src/custom-font-geometry.ts",
-      "sha256": "4f5c198c72dc718d6e3adb44b377659e380b6db22ea4ea98689e6a3257980217"
+      "sha256": "41a4fea0e9450615c1991a8ed954dbafab490c0dacf16daa801f42aad51c4f46"
     },
     {
       "path": "src/elk-instance.ts",
@@ -716,7 +716,7 @@
     },
     {
       "path": "src/pie/layout.ts",
-      "sha256": "44465094eb929a23184857710503dd4f6459427da1e10f393a64bcd6fbaf2b03"
+      "sha256": "455bd13fc38ee88ed56668d724b6cb20fc372183f5606772c2c08c29352acf92"
     },
     {
       "path": "src/pie/palette.ts",
@@ -728,7 +728,7 @@
     },
     {
       "path": "src/pie/renderer.ts",
-      "sha256": "8c551ecafd75c66dfced6799521798031f8966dd9b3412a180b2668896a10fd7"
+      "sha256": "373df1ab9d9f8d8511bfeb065984286f5372cdb39bdfa20011dbedc4f73bf2a0"
     },
     {
       "path": "src/pie/source-title.ts",

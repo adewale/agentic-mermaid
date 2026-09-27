@@ -94,8 +94,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The complete HTML5 named-reference table for Pie raises the all-family
     // editor bundle, but does not add a request or affect the lazy demo path.
     // Linux/x64 captured 3,392,643 raw / 1,008,476 gzip / 796,046 Brotli;
-    // these three ceilings retain less than 0.1% headroom.
-    maxRawBytes: 3_393_000,
+    // Authored Pie literal-metrics metadata adds 439 raw bytes on Linux/x64;
+    // the two-request editor graph is unchanged and the raw ceiling retains
+    // less than 0.01% headroom above the measured 3,393,082 bytes.
+    maxRawBytes: 3_393_400,
     maxGzipBytes: 1_008_800,
     maxBrotliBytes: 796_400,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
