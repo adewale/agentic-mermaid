@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import fc from 'fast-check'
 
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { buildMermaid, verifyMermaid } from '../agent/index.ts'
@@ -13,6 +12,9 @@ import { tryParseCssColor } from '../shared/color-math.ts'
 const INVALID = [
   'notacolor', 'constructor', '__proto__', 'rgb(x)', 'rgb(1oops,2,3)',
   'rgba(1,2,3,0.5junk)', 'hsl(120,50%oops,50%)', '#12345',
+  'rgb(1 2 3 / .5 / junk)', 'hsl(120 50% 50% / .5 / junk)',
+  'rgb(1, 2, 3 / .5)', 'hsl(120, 50%, 50% / .5)',
+  'hsl(1e308turn,50%,50%)',
   'hwb(120 0% 0%)', 'color-mix(in srgb, red, blue)', 'url(#a)',
 ] as const
 
@@ -35,17 +37,22 @@ describe('authored style color admission (#303, source/typed slice)', () => {
     expect(drawableAuthoredCssPaint('none', false)).toBeUndefined()
     expect(tryParseCssColor('constructor')).toBeNull()
     expect(tryParseCssColor('rgb(1oops,2,3)')).toBeNull()
+    expect(tryParseCssColor('rgb(1 2 3 / .5 / junk)')).toBeNull()
+    expect(tryParseCssColor('hsl(120 50% 50% / .5 / junk)')).toBeNull()
+    expect(tryParseCssColor('hsl(1e308turn,50%,50%)')).toBeNull()
     expect(tryParseCssColor('#3b82')).toEqual([0x33, 0xbb, 0x88, 0x22 / 255])
   })
 
   test('every affected graphical source placement refuses the offending value by directive and property', () => {
-    fc.assert(fc.property(fc.constantFrom(...SOURCES), fc.constantFrom(...INVALID), ({ directive, make }, value) => {
-      const source = make(value)
-      const named = `${directive}: ${directive.startsWith('linkStyle') ? 'stroke' : 'fill'} ${JSON.stringify(value)} is not a CSS color`
-      expect(() => renderMermaidSVG(source)).toThrow(named)
-      expect(() => renderMermaidASCII(source, { useAscii: true })).toThrow(named)
-      expect(() => renderMermaidASCII(source, { useAscii: false })).toThrow(named)
-    }), { numRuns: 100 })
+    for (const { directive, make } of SOURCES) {
+      for (const value of INVALID) {
+        const source = make(value)
+        const named = `${directive}: ${directive.startsWith('linkStyle') ? 'stroke' : 'fill'} ${JSON.stringify(value)} is not a CSS color`
+        expect(() => renderMermaidSVG(source)).toThrow(named)
+        expect(() => renderMermaidASCII(source, { useAscii: true })).toThrow(named)
+        expect(() => renderMermaidASCII(source, { useAscii: false })).toThrow(named)
+      }
+    }
   })
 
   test('verify exposes the same reason, and PNG refuses before drawing a misleading node', () => {
@@ -64,6 +71,7 @@ describe('authored style color admission (#303, source/typed slice)', () => {
       ['flowchart TD\n  A --> B\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
       ['flowchart TD\n  A --> B\n  style Z fill:notacolor', 'style Z: fill "notacolor"'],
       ['flowchart TD\n  A --> B\n  linkStyle 99 stroke:notacolor', 'linkStyle 99: stroke "notacolor"'],
+      ['stateDiagram-v2\n  A --> B\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
       ['classDiagram\n  class A\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
       ['erDiagram\n  A ||--o{ B : has\n  classDef unused fill:notacolor', 'classDef unused: fill "notacolor"'],
     ] as const) {
@@ -76,7 +84,7 @@ describe('authored style color admission (#303, source/typed slice)', () => {
   })
 
   test('typed style mutations refuse the same unknown and malformed colors at build time', () => {
-    fc.assert(fc.property(fc.constantFrom(...INVALID), value => {
+    for (const value of INVALID) {
       const result = buildMermaid('flowchart', [
         { kind: 'add_node', id: 'A', label: 'A' },
         { kind: 'set_node_style', id: 'A', style: `fill:${value}` },
@@ -86,7 +94,37 @@ describe('authored style color admission (#303, source/typed slice)', () => {
         expect(result.error.code).toBe('INVALID_OP')
         expect(result.error.message).toContain(`fill ${JSON.stringify(value)} is not a CSS color`)
       }
-    }), { numRuns: 100 })
+    }
+  })
+
+  test('Class, ER, and State typed style mutations reject bad paint', () => {
+    const results = [
+      buildMermaid('class', [
+        { kind: 'add_class', id: 'A' },
+        { kind: 'set_class_style', class: 'A', style: 'fill:notacolor' },
+      ]),
+      buildMermaid('er', [
+        { kind: 'add_entity', id: 'A' },
+        { kind: 'set_entity_style', entity: 'A', style: 'fill:notacolor' },
+      ]),
+      buildMermaid('state', [
+        { kind: 'add_state', id: 'A' },
+        { kind: 'set_state_style', id: 'A', style: 'fill:notacolor' },
+      ]),
+      buildMermaid('state', [
+        { kind: 'add_state', id: 'A' },
+        { kind: 'add_state', id: 'B' },
+        { kind: 'add_transition', from: 'A', to: 'B' },
+        { kind: 'set_transition_style', index: 0, style: 'stroke:notacolor' },
+      ]),
+    ]
+    for (const result of results) {
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.code).toBe('INVALID_OP')
+        expect(result.error.message).toContain('"notacolor" is not a CSS color')
+      }
+    }
   })
 
   test('CLI and MCP SVG transport preserve only the nominal, named diagnostic', async () => {

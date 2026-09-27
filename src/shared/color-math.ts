@@ -149,6 +149,7 @@ export function tryParseCssColor(color: string): RgbaColor | null {
   if (rgb) {
     const body = rgb[1]!.trim()
     const slash = body.split('/').map(part => part.trim())
+    if (slash.length > 2 || (slash.length === 2 && body.includes(','))) return null
     const components = (body.includes(',') ? body.split(',') : slash[0]!.split(/\s+/)).map(part => part.trim())
     let alphaToken = slash[1]
     if (components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
@@ -171,6 +172,7 @@ export function tryParseCssColor(color: string): RgbaColor | null {
   if (hsl) {
     const body = hsl[1]!.trim()
     const slash = body.split('/').map(part => part.trim())
+    if (slash.length > 2 || (slash.length === 2 && body.includes(','))) return null
     const components = (body.includes(',') ? body.split(',') : slash[0]!.split(/\s+/)).map(part => part.trim())
     let alphaToken = slash[1]
     if (components.length === 4 && alphaToken === undefined) alphaToken = components.pop()
@@ -201,12 +203,13 @@ function parseCssHue(token: string): number | null {
   if (!match) return null
   const value = Number(match[1])
   if (!Number.isFinite(value)) return null
+  let degrees = value
   switch (match[2]?.toLowerCase()) {
-    case 'grad': return value * 0.9
-    case 'rad': return value * 180 / Math.PI
-    case 'turn': return value * 360
-    default: return value
+    case 'grad': degrees *= 0.9; break
+    case 'rad': degrees *= 180 / Math.PI; break
+    case 'turn': degrees *= 360; break
   }
+  return Number.isFinite(degrees) ? degrees : null
 }
 
 function parseAlpha(token: string | undefined): number | null {
