@@ -1028,7 +1028,7 @@
     },
     {
       "path": "src/shared/color-math.ts",
-      "sha256": "6625dc0fefa68aef7511d67df007e6756b25fb0105137d4341c6763a1858ff62"
+      "sha256": "92d9652adf96502d9e1d42a884d7b8195bca1e75f8f849c9284c146916c3c2e9"
     },
     {
       "path": "src/shared/config-wire-or-warn.ts",
@@ -1096,7 +1096,7 @@
     },
     {
       "path": "src/shared/style-props.ts",
-      "sha256": "ba405ed27a9d6ca1758bb3ce5933264ed0903d11c41f5eb2186fd3967fc8d2d2"
+      "sha256": "23abc411d14a14bad31f290b5008000bf2e596962d179484e47525c7ef5bd64e"
     },
     {
       "path": "src/shared/svg-a11y.ts",
