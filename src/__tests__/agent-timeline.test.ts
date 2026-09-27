@@ -146,22 +146,50 @@ describe('timeline mutate — all 10 ops', () => {
 
   test('event mutations preserve clock and URL colons accepted by both parsers', () => {
     const text = 'Standup at 10:30 https://example.test/a:b'
-    const cases: TimelineMutationOp[] = [
-      { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text },
-      { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text },
-      { kind: 'add_period', sectionIndex: 0, label: '2023', events: [text] },
+    const base = [
+      { label: 'P1', periods: [{ label: '2020', events: ['A'] }, { label: '2021', events: ['B'] }] },
+      { label: 'P2', periods: [{ label: '2022', events: ['C'] }] },
     ]
-    for (const op of cases) {
+    const cases: { op: TimelineMutationOp; expected: typeof base }[] = [
+      {
+        op: { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text },
+        expected: [
+          { label: 'P1', periods: [{ label: '2020', events: [text] }, { label: '2021', events: ['B'] }] },
+          base[1]!,
+        ],
+      },
+      {
+        op: { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text },
+        expected: [
+          { label: 'P1', periods: [{ label: '2020', events: ['A', text] }, { label: '2021', events: ['B'] }] },
+          base[1]!,
+        ],
+      },
+      {
+        op: { kind: 'add_period', sectionIndex: 0, label: '2023', events: [text] },
+        expected: [
+          { label: 'P1', periods: [...base[0]!.periods, { label: '2023', events: [text] }] },
+          base[1]!,
+        ],
+      },
+    ]
+    const project = (sections: { label?: string; periods: { label: string; events: { text: string }[] }[] }[]) =>
+      sections.map(section => ({
+        label: section.label,
+        periods: section.periods.map(period => ({ label: period.label, events: period.events.map(event => event.text) })),
+      }))
+    for (const { op, expected } of cases) {
       const result = mutate(timeline(SRC), op)
       expect(result.ok, op.kind).toBe(true)
       if (!result.ok) continue
+      expect(project(result.value.body.sections), `${op.kind} typed mutation`).toEqual(expected)
       const source = serializeMermaid(result.value)
       const reparsed = parse(source)
       expect(reparsed.body.kind, op.kind).toBe('timeline')
       if (reparsed.body.kind !== 'timeline') continue
-      expect(reparsed.body.sections.flatMap(section => section.periods.flatMap(period => period.events.map(event => event.text))), op.kind).toContain(text)
+      expect(project(reparsed.body.sections), `${op.kind} agent reparse`).toEqual(expected)
       const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
-      expect(native.sections.flatMap(section => section.periods.flatMap(period => period.events.map(event => event.text))), op.kind).toContain(text)
+      expect(project(native.sections), `${op.kind} native reparse`).toEqual(expected)
     }
   })
 
@@ -180,10 +208,21 @@ describe('timeline mutate — all 10 ops', () => {
   test('rejects mutation text that would change timeline structure on reparse', () => {
     const event = mutate(timeline(SRC), { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'A: B' })
     const tabSeparator = mutate(timeline(SRC), { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'A:\tB' })
+    // Pinned Mermaid 11.16.0 treats the newline after a trailing colon as a
+    // separator; with the next period present it can swallow that period.
+    const trailingColonOps: TimelineMutationOp[] = [
+      { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'A:' },
+      { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'A:b:' },
+      { kind: 'add_period', sectionIndex: 0, label: '2023', events: ['A::'] },
+    ]
     const period = mutate(timeline(SRC), { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: '2020:Q1' })
     const title = mutate(timeline(SRC), { kind: 'set_title', title: '   ' })
     expect(!event.ok && event.error.code).toBe('INVALID_OP')
     expect(!tabSeparator.ok && tabSeparator.error.code).toBe('INVALID_OP')
+    for (const op of trailingColonOps) {
+      const result = mutate(timeline(SRC), op)
+      expect(!result.ok && result.error.code, op.kind).toBe('INVALID_OP')
+    }
     expect(!period.ok && period.error.code).toBe('INVALID_OP')
     expect(!title.ok && title.error.code).toBe('INVALID_OP')
   })

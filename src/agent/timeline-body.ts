@@ -221,6 +221,12 @@ function normalizeTimelineOpText(value: string, opts: { field: string; allowColo
 function normalizeTimelineEventOpText(value: string): Result<string, MutationError> {
   const normalized = normalizeTimelineOpText(value, { field: 'event text' })
   if (!normalized.ok) return normalized
+  // renderTimeline always appends a newline. Pinned Mermaid treats a trailing
+  // colon before that newline as a separator, rejecting or swallowing the next
+  // period even though the local splitter sees it as ordinary text.
+  if (normalized.value.endsWith(':')) {
+    return err({ code: 'INVALID_OP', message: 'Timeline event text must not end with : (upstream event separator)' })
+  }
   try {
     if (splitTimelineEvents(`: ${normalized.value}`).length === 1) return normalized
   } catch { /* malformed event separator is an invalid mutation */ }

@@ -169,8 +169,9 @@ Conventions (mirroring what journey got in PR #141):
 - moving the last period out of an implicit (unlabeled) section drops the
   emptied section, matching `remove_period`.
 - event-text mutations use the shared `: ` separator grammar: clock/URL
-  colons such as `10:30` or `https://` survive, while `A: B` is rejected
-  because serialization would turn it into two events.
+  colons such as `10:30` or `https://` survive, while `A: B` and text ending
+  in `:` are rejected because Mermaid would split or swallow events after
+  serialization (which always ends with a newline).
 - accessibility text rejects `;`, `{`, `}` (they could not survive
   serialize → re-parse); multi-line descriptions serialize in the
   `accDescr { ... }` block form.
