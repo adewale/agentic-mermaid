@@ -90,6 +90,15 @@ and is consumed by BOTH the SVG render hook and verify's layout adapter
 config. The typed section shape is `ArchitectureRuntimeConfig` in
 `src/mermaid-source.ts`.
 
+Consumed Architecture theme colors use the shared color-admission boundary:
+`clusterBkg` (group fill and derived header color), `clusterBorder` (group
+stroke), and `secondaryColor` (service fill only when `mainBkg` is absent).
+Malformed authored values fail by name with `INVALID_THEME_COLOR` before SVG,
+PNG, ASCII, CLI or MCP output. `clusterBkg:none` is invalid because the header
+derives a `color-mix()` from it; `clusterBorder:none` and the direct
+`secondaryColor:none` fill are allowed. Shared `mainBkg` and
+`primaryBorderColor` are admitted by the shared theme gate.
+
 ## Completed elevation contracts
 
 - **Typed editing:** services, junctions, groups, group labels, accessibility,
