@@ -54,9 +54,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Linux/x64 measures 735,369 raw / 275,828 gzip / 251,742 Brotli bytes.
     // The bounded Timeline Scene wrapper check and width loop remain in the
     // existing lazy graph; Linux/x64 measured 735,792 raw / 275,963 gzip.
-    maxRawBytes: 735_950,
-    maxGzipBytes: 276_050,
-    maxBrotliBytes: 251_900,
+    // Source-admission guards measure 736,006 raw / 276,044 gzip / 251,929
+    // Brotli on the same 30-request graph; keep less than 0.02% headroom.
+    maxRawBytes: 736_150,
+    maxGzipBytes: 276_150,
+    maxBrotliBytes: 252_050,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -118,11 +120,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 1,009,850 gzip bytes with the same two editor requests.
     // Timeline title parity and the single-line mutation guard stay in the
     // same two-request editor graph; Linux/x64 measured 3,396,710 raw bytes.
-    maxRawBytes: 3_396_900,
+    // Source-admission guards measure 3,397,027 raw / 1,010,222 gzip on the
+    // same two-request graph; ceilings retain less than 0.01% slack.
+    maxRawBytes: 3_397_150,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_010_150,
+    maxGzipBytes: 1_010_350,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.

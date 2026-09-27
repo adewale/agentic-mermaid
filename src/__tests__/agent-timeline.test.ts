@@ -120,13 +120,62 @@ describe('timeline fidelity fallback', () => {
     expect(serializeMermaid(d)).toContain('timeline EXTRA')
   })
 
-  test('a trailing colon stays event text, while a dangling event separator falls back to opaque', () => {
-    const trailingText = parse('timeline\n  2020 : A :')
-    expect(trailingText.body.kind).toBe('timeline')
-    if (trailingText.body.kind === 'timeline') {
-      expect(trailingText.body.sections[0]!.periods[0]!.events[0]!.text).toBe('A :')
+  test('invalid or reinterpretation-prone event separators stay opaque and fail verification', () => {
+    for (const source of [
+      'timeline\n  2020 : A :',
+      'timeline\n  2020 : A:\n  2021 : B',
+      'timeline\n  2020 : A: : B',
+      'timeline\n  2020 :',
+    ]) {
+      const parsed = parse(source)
+      expect(parsed.body.kind, source).toBe('opaque')
+      expect(serializeMermaid(parsed), source).toContain(source)
+      const verified = verifyMermaid(parsed)
+      expect(verified.ok, source).toBe(false)
+      expect(verified.warnings.map(warning => warning.code), source).toContain('RENDER_FAILED')
     }
-    expect(parse('timeline\n  2020 :').body.kind).toBe('opaque')
+  })
+
+  test('diagnoses the grammar-accepted final-colon-at-EOF form rather than silently canonicalizing it', () => {
+    const source = 'timeline\n  2020 : A:'
+    const parsed = parse(source)
+    expect(parsed.body.kind).toBe('opaque')
+    if (parsed.body.kind !== 'opaque') return
+    expect(parsed.body.source).toBe(source)
+    // Pinned Mermaid 11.16's grammar accepts this exact EOF form as event
+    // "A:", but its public render API rejects it and our canonical serializer
+    // appends a newline, which the grammar also rejects.
+    expect(serializeMermaid(parsed)).toBe(`${source}\n`)
+    const verified = verifyMermaid(parsed)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
+  })
+
+  test('diagnoses an upstream-valid whitespace-only middle event instead of dropping it', () => {
+    const source = 'timeline\n  2020 : A:  : B\n'
+    // Pinned Mermaid 11.16 parses this as ["A", " ", "B"]. The local typed
+    // model cannot round-trip the whitespace-only event, so it fails closed.
+    const parsed = parse(source)
+    expect(parsed.body.kind).toBe('opaque')
+    const verified = verifyMermaid(parsed)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
+  })
+
+  test('valid colon-ending events keep their following separator on the same line', () => {
+    for (const { source, events } of [
+      { source: 'timeline\n  2020 : A:: B\n  2021 : C', events: ['A:', 'B'] },
+      { source: 'timeline\n  2020 : A:: B:: C', events: ['A:', 'B:', 'C'] },
+      { source: 'timeline\n  2020 : A :: B', events: ['A :', 'B'] },
+    ]) {
+      const parsed = timeline(source)
+      expect(parsed.body.sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
+      const canonical = serializeMermaid(parsed)
+      expect(canonical).toContain(`2020 : ${source.split('2020 : ')[1]!.split('\n')[0]}`)
+      expect(timeline(canonical).body.sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
+      expect(parseTimelineDiagram(normalizeMermaidSource(canonical).lines).sections[0]!.periods[0]!.events.map(event => event.text)).toEqual(events)
+      expect(verifyMermaid(timeline(canonical)).ok).toBe(true)
+    }
   })
 })
 
