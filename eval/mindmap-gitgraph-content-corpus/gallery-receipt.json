@@ -764,7 +764,7 @@
     },
     {
       "path": "src/quadrant/point-style.ts",
-      "sha256": "314e72b0fe4e91348a0144816a7c197befd60d9a64f520323abf872b54e47b76"
+      "sha256": "4eb313206d6d7023c07c5b20c61b1f3042341ae7108aae6eb6275669452b21a3"
     },
     {
       "path": "src/quadrant/renderer.ts",
