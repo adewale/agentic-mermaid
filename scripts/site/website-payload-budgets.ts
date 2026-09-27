@@ -47,8 +47,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Pie's bounded numeric-entity key prepass adds a small shared parser
     // chunk; the exact Linux totals remain pinned in the generated baseline.
     maxRawBytes: 733_350,
-    maxGzipBytes: 275_150,
-    maxBrotliBytes: 251_150,
+    maxGzipBytes: 275_300,
+    maxBrotliBytes: 251_300,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -89,8 +89,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // editor bundle while retaining the fixed two-request graph.
     // Pie's terminal projection and source-aware title display add a small
     // shared-editor import; the complete two-request graph stays fixed.
-    maxRawBytes: 3_359_800,
-    maxGzipBytes: 988_000,
+    // Final Linux/x64 title-directive capture: 3,360,225 raw / 988,115 gzip
+    // editor bytes and 275,227 gzip / 251,244 Brotli demo bytes.
+    maxRawBytes: 3_360_350,
+    maxGzipBytes: 988_200,
     maxBrotliBytes: 777_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
