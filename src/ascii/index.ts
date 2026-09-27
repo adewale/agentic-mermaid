@@ -52,6 +52,8 @@ import {
   terminalOutputLineWidth,
 } from '../terminal-security.ts'
 import { AsciiWidthError } from './width-error.ts'
+import { parsePieChart } from '../pie/parser.ts'
+import { safePieTerminalText } from './pie.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -215,6 +217,17 @@ export function renderMermaidASCIIWithReceipt(
   const normalizedSource = widthBudget && family.id !== 'pie'
     ? projectLabelsInNormalizedSource(terminalSource.source, widthBudget, outputPolicy.targetWidth !== undefined)
     : terminalSource.source
+  // Source admission sees the authored `\\r` / `\\t` bytes, not the control
+  // characters created by Pie's grammar. Reflect the family-owned terminal
+  // projection in the shared receipt and public diagnostics as well.
+  const pieControlsReplaced = family.id === 'pie' && (() => {
+    const chart = parsePieChart(normalizedSource.authoredPieFamilyLines ?? normalizedSource.familyLines)
+    return (chart.title !== undefined && safePieTerminalText(chart.title) !== chart.title)
+      || chart.entries.some(entry => {
+        const visible = entry.displayLabel ?? entry.label
+        return safePieTerminalText(visible) !== visible
+      })
+  })()
   const familyContext = resolvedFamilyRenderContextOf(request)
   const diagramType = family.id
   let connectorScene: SceneDoc | null = null
@@ -240,7 +253,7 @@ export function renderMermaidASCIIWithReceipt(
     outputPolicy.theme,
     connectorScene,
     {
-      controlsReplaced: terminalSource.controlsReplaced,
+      controlsReplaced: terminalSource.controlsReplaced || pieControlsReplaced,
       connectorProjectionFailed,
     },
   )
