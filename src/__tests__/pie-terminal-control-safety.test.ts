@@ -3,6 +3,7 @@ import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 const diagnostic = 'TERMINAL_CONTROL_CHARACTERS_REPLACED'
 
@@ -32,15 +33,73 @@ test('Pie terminal output replaces controls produced by authored escapes after s
   }
 })
 
-test('Pie authored newlines and entity-generated backslashes remain distinct from controls', () => {
+test('Pie authored newlines paint as one space and entity-generated backslashes remain distinct from controls', () => {
   for (const [source, visible] of [
-    ['pie\n  "A\\nB" : 1\n', 'A\nB'],
+    ['pie\n  "A\\nB" : 1\n', 'A B'],
     ['pie\n  "A#92;rB" : 1\n', 'A\\rB'],
   ] as const) {
     const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
     expect(result.text).toStartWith(visible)
     expect(result.terminalStyle.diagnostics.map(item => item.code)).not.toContain(diagnostic)
   }
+})
+
+test('Pie escaped newline keeps source identity but paints one SVG and terminal line', () => {
+  const source = 'pie\n  "A\\nB" : 1\n  "A\\\\nB" : 2\n'
+  const parsed = parsePieChart(source.trim().split('\n'))
+  expect(parsed.entries.map(entry => [entry.label, entry.displayLabel ?? entry.label])).toEqual([
+    ['A\nB', 'A B'],
+    ['A\\nB', 'A\\nB'],
+  ])
+  const agent = parseRegisteredMermaid(source)
+  expect(agent.ok).toBe(true)
+  if (agent.ok) expect(serializeMermaid(agent.value)).toBe(source)
+
+  const svg = renderMermaidSVG(source)
+  expect(svg).toContain('A B (33.3%)')
+  expect(svg).toContain('A\\nB (66.7%)')
+  expect(svg).not.toContain('>A</tspan>')
+  const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
+  expect(meta.regions.filter(region => region.id.startsWith('slice-')).map(region => region.projectedText))
+    .toEqual(['A B', 'A\\nB'])
+  expect(meta.ascii).toStartWith('A B  ')
+  expect(meta.ascii).not.toContain('A\nB')
+  expect(meta.warnings.map(item => item.code)).not.toContain(diagnostic)
+})
+
+test('Pie escaped newline collapses adjacent authored whitespace like browser SVG text', () => {
+  for (const [raw, expected] of [
+    ['A\\n\\nB', 'A B'],
+    ['A  \\n  B', 'A B'],
+    ['A\\t\\nB', 'A B'],
+    ['A\\n\\tB', 'A B'],
+    ['A\\t\\n\\tB', 'A B'],
+    ['A \\t\\n\\t B', 'A B'],
+    ['\\nA', 'A'],
+    ['A\\n', 'A'],
+  ] as const) {
+    const source = `pie\n  "${raw}" : 1\n`
+    const entry = parsePieChart(source.trim().split('\n')).entries[0]!
+    expect(entry.displayLabel).toBe(expected)
+    if (raw === 'A\\t\\n\\tB') {
+      expect(entry.label).toBe('A\t\n\tB')
+      const agent = parseRegisteredMermaid(source)
+      expect(agent.ok).toBe(true)
+      if (agent.ok) expect(serializeMermaid(agent.value)).toBe(source)
+    }
+    expect(renderMermaidSVG(source)).toContain(`>${expected} (100.0%)</text>`)
+    expect(renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).regions[0]?.projectedText).toBe(expected)
+  }
+})
+
+test('Pie escaped newline paint normalization stays bounded after a long whitespace prefix', () => {
+  const prefix = ' \t'.repeat(20_000)
+  const source = `pie\n  "${prefix}X\\nY" : 1\n`
+  const started = performance.now()
+  const entry = parsePieChart(source.trim().split('\n')).entries[0]!
+  expect(entry.label).toBe(`${prefix}X\nY`)
+  expect(entry.displayLabel).toBe('X Y')
+  expect(performance.now() - started).toBeLessThan(250)
 })
 
 test('all-zero Pie output does not claim a control replacement that never rendered', () => {

@@ -94,7 +94,7 @@ test('pinned Mermaid consumes escapes before arbitrary label characters for firs
 test('pinned Mermaid converts escaped controls before Pie label identity while agent source stays lossless', () => {
   const escaped = `pie\n  "A\\nB" : 1\n`
   expect(upstreamSections(escaped)).toEqual([['A\nB', 1]])
-  expect(parsePieChart(escaped.split('\n')).entries).toEqual([{ label: 'A\nB', value: 1 }])
+  expect(parsePieChart(escaped.split('\n')).entries).toEqual([{ label: 'A\nB', displayLabel: 'A B', value: 1 }])
   const parsed = parseRegisteredMermaid(escaped)
   expect(parsed.ok).toBe(true)
   if (parsed.ok) {

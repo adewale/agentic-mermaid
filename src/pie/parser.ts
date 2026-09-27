@@ -132,21 +132,27 @@ export function parsePieChart(lines: string[]): PieChart {
       // Mermaid's grammar consumes source escapes while entity markers are
       // still opaque tokens. Expand those markers only afterward: a backslash
       // produced by #92; is visible text, not a new source escape.
-      const displayLabel = projectPieEntityDisplay(decodeEscapes(mermaidPieSourceKey(preprocessedLabel)))
-      if (hasNewTerminalControl(label, displayLabel)) {
+      const projectedLabel = projectPieEntityDisplay(decodeEscapes(mermaidPieSourceKey(preprocessedLabel)))
+      if (hasNewTerminalControl(label, projectedLabel)) {
         throw syntaxError({
           what: 'Pie entity projection creates a terminal control character after escape decoding',
           expectedForm: 'an entity that displays printable text',
           example: '"Alpha&#35;" : 10',
         })
       }
-      if (XML_DISALLOWED_CONTROL_RE.test(displayLabel)) {
+      if (XML_DISALLOWED_CONTROL_RE.test(projectedLabel)) {
         throw syntaxError({
           what: 'Pie slice display label contains an XML-disallowed control character',
           expectedForm: 'a label without XML-disallowed control characters',
           example: '"Alpha" : 10',
         })
       }
+      // Mermaid keeps an escaped LF in its Pie DB and SVG text node, where
+      // browser whitespace collapsing paints it as one space. Keep that LF
+      // in source identity, but use the painted form on output surfaces.
+      // Do this after checking entity-produced controls above: an entity must
+      // not gain a route around the terminal-control safety boundary.
+      const displayLabel = collapsePieEscapedNewlines(projectedLabel)
       if (seenSourceLabels.has(sourceKey)) hasDuplicateSourceLabels = true
       else {
         seenSourceLabels.add(sourceKey)
@@ -187,6 +193,22 @@ function needsPieLiteralText(text: string): boolean {
   // Pie writes its label/title into an SVG text node. Shared formatting tags
   // and Markdown markers belong to other families; Pie shows them literally.
   return /[<>*~]/.test(text)
+}
+
+function collapsePieEscapedNewlines(text: string): string {
+  if (!text.includes('\n')) return text
+  // The SVG browser paint collapses LF and its adjacent spaces or tabs. Split once
+  // and trim each segment with index walks: a whitespace-prefix regex can
+  // retry from every space before a non-whitespace character and go quadratic.
+  const visible: string[] = []
+  for (const line of text.split('\n')) {
+    let start = 0
+    let end = line.length
+    while (start < end && (line[start] === ' ' || line[start] === '\t')) start++
+    while (end > start && (line[end - 1] === ' ' || line[end - 1] === '\t')) end--
+    if (start < end) visible.push(line.slice(start, end))
+  }
+  return visible.join(' ')
 }
 
 function projectPieTitleDisplay(authoredTitle: string): string {

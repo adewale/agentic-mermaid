@@ -20,7 +20,7 @@ import type { PieVisualConfig } from './config.ts'
 export interface PieEntry {
   /** The slice label (contents of the `"..."` quotes). */
   label: string
-  /** Visible legend/tooltip projection after Mermaid's entity preprocessor. */
+  /** Visible legend/tooltip projection after Mermaid's entity preprocessor and escaped-LF paint normalization. */
   displayLabel?: string
   /** The slice value — a positive number (supported to two decimal places). */
   value: number
