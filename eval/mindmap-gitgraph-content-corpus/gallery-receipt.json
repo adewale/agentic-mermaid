@@ -4,7 +4,7 @@
   "inputs": [
     {
       "path": "docs/project/upstream-mermaid-manifest.json",
-      "sha256": "905e580a84ade4f920cdb6c3c6a39491fbde80bbb2ab3b8e824b9c941ded1ccf"
+      "sha256": "41687d946222c49ae30d658c201b78d45de9072df059af56b1511ce762446899"
     },
     {
       "path": "eval/mindmap-gitgraph-content-corpus/fork-snapshot.json",
@@ -992,7 +992,7 @@
     },
     {
       "path": "src/sequence/parser.ts",
-      "sha256": "5b08bcb37c869b46cd681befcc3203967ddf9d9185a5a3189208a5037b38717c"
+      "sha256": "54e3a8cb9f3f21b0cb71251d47f5987ca46924954feb59a8b38ab7cf33163b5c"
     },
     {
       "path": "src/sequence/renderer.ts",
@@ -1192,7 +1192,7 @@
     },
     {
       "path": "src/upstream-mermaid-family-index.json",
-      "sha256": "ae3d2934dbd207a2d64edd8901e4b98b5a01c3167c92a6d5b678d299a11e37be"
+      "sha256": "26e26d8be4715cfd17694e3ae1cf89edf9dc7b93a7e5522aef204598e5832315"
     },
     {
       "path": "src/upstream-mermaid-manifest.ts",
