@@ -41,7 +41,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
     maxRawBytes: 732_258,
     maxGzipBytes: 274_656,
-    maxBrotliBytes: 250_820,
+    maxBrotliBytes: 250_710,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
