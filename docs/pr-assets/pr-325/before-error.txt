@@ -1,0 +1,10 @@
+Base: 6b95685d136a177ca5757d313474600edd75824d (audited squash merge of PR #324)
+Input: state-note-first-word-br.mmd
+Public command: bun run bin/am.ts render <absolute path to state-note-first-word-br.mmd> --format svg
+Observed: exit 2, `Error: RENDER_FAILED: Rendering failed`; no SVG was produced.
+
+Direct `renderMermaidSVG(source)` with the same input on that base threw:
+
+SceneValidationError: Scene validation failed: scene: parts[3]/1(text:state-note:note#0:text): text "Line1Line2Line3Line4Line5" not found in crisp
+
+There is no successful before image to compare with the head output.

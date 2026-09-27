@@ -69,6 +69,20 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     expect(missing.join('\n')).toContain('not found in crisp')
   })
 
+  it('normalizes authored break tags before checking the first visible word', () => {
+    const make = (crispText: string) => marks.text(
+      { id: 'note', role: 'label', text: 'Line1<br/>Line2', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+      `<text x="10" y="20" font-size="12">${crispText}</text>`,
+    )
+    const faithful: string[] = []
+    nodeProblems(make('Line1&lt;br/&gt;Line2'), 'p', faithful)
+    expect(faithful).toEqual([])
+
+    const missingFirstWord: string[] = []
+    nodeProblems(make('Line2'), 'p', missingFirstWord)
+    expect(missingFirstWord.join('\n')).toContain('not found in crisp')
+  })
+
   it('checks complete literal class member text, including tag-named and trailing generic parameters', () => {
     for (const [semantic, crispText] of [
       ['List<b> data', 'List data'],
