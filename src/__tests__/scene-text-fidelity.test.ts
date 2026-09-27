@@ -54,6 +54,35 @@ describe('fidelity oracle checks text x/y/anchor', () => {
       '<text x="10" y="20" font-size="12" dy="4.2">Hi</text>'), 'p', problems)
     expect(problems).toEqual([])
   })
+
+  it('treats generic angle brackets as semantic text, not removable markup', () => {
+    const make = (crisp: string) => marks.text(
+      { id: 'generic', role: 'member', text: 'List<List<int>> data', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+      crisp,
+    )
+    const faithful: string[] = []
+    nodeProblems(make('<text x="10" y="20" font-size="12">List&lt;List&lt;int&gt;&gt; data</text>'), 'p', faithful)
+    expect(faithful).toEqual([])
+
+    const missing: string[] = []
+    nodeProblems(make('<text x="10" y="20" font-size="12">List data</text>'), 'p', missing)
+    expect(missing.join('\n')).toContain('not found in crisp')
+  })
+
+  it('checks complete literal class member text, including tag-named and trailing generic parameters', () => {
+    for (const [semantic, crispText] of [
+      ['List<b> data', 'List data'],
+      ['Map<i> values', 'Map values'],
+      ['+id: List<int>', '+id: List'],
+    ] as const) {
+      const problems: string[] = []
+      nodeProblems(marks.text(
+        { id: 'generic', role: 'member', text: semantic, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+        `<text x="10" y="20" font-size="12">${crispText}</text>`,
+      ), 'p', problems)
+      expect(problems.join('\n')).toContain('not found in crisp')
+    }
+  })
 })
 
 describe('quadrant lowering is text-faithful', () => {

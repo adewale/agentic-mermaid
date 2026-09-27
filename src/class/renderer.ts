@@ -3,7 +3,7 @@ import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
+import { CLS, CLASS_STYLE_DEFAULTS, memberToString } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
@@ -418,6 +418,27 @@ function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lin
 function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const fontStyle = member.isAbstract ? ' font-style="italic"' : ''
   const decoration = member.isStatic ? ' text-decoration="underline"' : ''
+
+  if (!member.isMethod && member.sourceText) {
+    const plain = memberToString(member)
+    const visible = member.visibility && plain.startsWith(member.visibility)
+      ? `<tspan fill="var(--_text-faint)">${escapeXml(member.visibility)}</tspan>` +
+        `<tspan fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-sec)')}">${escapeXml(plain.slice(1))}</tspan>`
+      : `<tspan fill="${escapeAttr(style.nodeTextColor ?? 'var(--_text-sec)')}">${escapeXml(plain)}</tspan>`
+    return marks.text({
+      id: sceneId,
+      role: 'member',
+      text: plain,
+      x,
+      y,
+      fontSize: CLS_FONT.memberSize,
+      anchor: 'start',
+      paint: { fill: style.nodeTextColor ?? 'var(--_text-sec)' },
+    },
+      `<text x="${x}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
+      `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}>` +
+      `${visible}</text>`)
+  }
 
   // Build tspan parts for syntax-highlighted member text
   const spans: string[] = []

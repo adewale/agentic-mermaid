@@ -229,6 +229,17 @@ describe('Class official annotation forms', () => {
     }
   })
 
+  test('angle-bearing backtick IDs remain diagnosed rather than silently losing label text', () => {
+    const source = 'classDiagram\nclass `A<<B>>`'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const verified = verifyMermaid(parsed.value)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]))
+    expect(() => renderMermaidSVG(source)).toThrow(/Scene validation failed/)
+  })
+
   test('direct parser ignores annotation text in full-line comments', () => {
     expect(parseClassDiagram(['classDiagram', '%% note <<interface>>', 'class Shape']).classes.map(node => node.id)).toEqual(['Shape'])
   })

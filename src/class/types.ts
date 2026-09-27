@@ -54,6 +54,8 @@ export interface ClassMember {
   visibility: '+' | '-' | '#' | '~' | ''
   /** Member name */
   name: string
+  /** Authored attribute text; display preserves Mermaid's member order and punctuation. */
+  sourceText?: string
   /** Type annotation (e.g., "String", "int", "void") */
   type?: string
   /** Whether the member is static (underlined in UML) */

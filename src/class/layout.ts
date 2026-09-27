@@ -554,8 +554,54 @@ function maxMemberWidth(members: ClassMember[]): number {
 
 /** Convert a class member to its display string */
 export function memberToString(m: ClassMember): string {
+  if (!m.isMethod && m.sourceText) {
+    const visibility = m.visibility && m.sourceText.startsWith(m.visibility) ? m.visibility : ''
+    return visibility + formatGenericMemberText(m.sourceText.slice(visibility.length))
+  }
   const vis = m.visibility ? `${m.visibility} ` : ''
   const name = m.isMethod ? `${m.name}(${m.params || ''})` : m.name
   const type = m.type ? `: ${m.type}` : ''
   return `${vis}${name}${type}`
+}
+
+/** Match Mermaid's outside-in tilde pairing, including nested generic types. */
+function formatGenericMemberText(input: string): string {
+  const sets = input.split(/(,)/)
+  const output: string[] = []
+  // Pair comma-separated generic arguments before formatting. In particular,
+  // never pop a formatted output segment based on a raw input index: after one
+  // pair is consumed those indexes no longer refer to the same output entry.
+  for (let i = 0; i < sets.length; i += 2) {
+    let set = sets[i]!
+    let tildes = countTildes(set)
+    while (tildes % 2 !== 0 && i + 2 < sets.length) {
+      const next = sets[i + 2]!
+      set += `,${next}`
+      tildes += countTildes(next)
+      i += 2
+    }
+    output.push(formatGenericSet(set))
+    if (i + 1 < sets.length) output.push(',')
+  }
+  return output.join('')
+}
+
+function countTildes(input: string): number {
+  let count = 0
+  for (const char of input) if (char === '~') count++
+  return count
+}
+
+function formatGenericSet(input: string): string {
+  const chars = [...input]
+  const tildes: number[] = []
+  for (let i = 0; i < chars.length; i++) if (chars[i] === '~') tildes.push(i)
+  if (tildes.length <= 1) return input
+  // A leading odd tilde is UML's private visibility marker, not a bracket.
+  const first = tildes.length % 2 !== 0 && chars[0] === '~' ? 1 : 0
+  for (let left = first, right = tildes.length - 1; left < right; left++, right--) {
+    chars[tildes[left]!] = '<'
+    chars[tildes[right]!] = '>'
+  }
+  return chars.join('')
 }

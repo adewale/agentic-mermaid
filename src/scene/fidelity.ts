@@ -219,9 +219,22 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
-      const wantText = normalize(node.text)
-      if (wantText && !normalize(serialized).includes(wantText.split(' ')[0]!)) {
-        problems.push(`${path}(text:${node.id}): text "${wantText.slice(0, 40)}" not found in crisp`)
+      if (node.role === 'member') {
+        // Class members are literal source text, not emphasis markup. Compare
+        // their entire visible string so a lost type argument (including
+        // <b>/<i>/<u>/<s>) cannot be hidden by the first-token check.
+        const memberText = (s: string) => unescapeXml(s.replace(/<[^>]+>/g, ''))
+          .replace(/\s+/g, ' ')
+          .trim()
+        const wantText = node.text.replace(/\s+/g, ' ').trim()
+        if (memberText(serialized) !== wantText) {
+          problems.push(`${path}(text:${node.id}): member text "${wantText.slice(0, 40)}" not found in crisp`)
+        }
+      } else {
+        const wantText = normalize(node.text)
+        if (wantText && !normalize(serialized).includes(wantText.split(' ')[0]!)) {
+          problems.push(`${path}(text:${node.id}): text "${wantText.slice(0, 40)}" not found in crisp`)
+        }
       }
       return
     }

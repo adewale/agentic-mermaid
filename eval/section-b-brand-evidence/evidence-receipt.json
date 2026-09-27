@@ -3,7 +3,7 @@
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
     "count": 282,
-    "treeSha256": "c6f347972bc1a584846758615f8174afb762111401a631140e3449f927052be4"
+    "treeSha256": "2b9d0fc1d053bcd7de2fb5b845dc5b14a046ce965caa5bf08a2c7ff8c8126b9b"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,18 +62,18 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "324c1d058f4706f0eff0f2a07a9d403aac355aec338b7967c4cdfcc91943bb59",
-      "pngSha256": "99555fa073f4c80647d3a46f2ed799483917d2fb605790282e613c0de6bd3173"
+      "svgSha256": "c61e1a21c2f35ea3a019537381ff22ac5b5ed744633df5882f824b18a4e4ae3e",
+      "pngSha256": "f4e502ff4e2f96fe78585fd54fdb990b63636f34378a3f3e020915068cb2d5a0"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "e7b95e2ef2cfb971d6a9e81f357ee1e9d895faa96ab4ac627f812cea0fa42c6e",
-      "pngSha256": "4ddcc7fae698bf6b8b0fec596520831df29f304a3fb585a5e46d72cc976ee3f6"
+      "svgSha256": "46defa3ba3d3a4ce09ae98bf8dc1dc31a191b5dfbcb07c6d9e5a731610e05af2",
+      "pngSha256": "8440e7c48e6394dd4d54fa71ddfe2b60ac5b575a90f644203092dcf0dc77e33f"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "fbdb896bb30a8ef377a9a3bdf9d66fa9a29bce2c39c9432c2967673579b0a344",
-      "pngSha256": "5d700bc6bca928f9dd0c913ceac0d6ac2119095235826471702f898691d5f344"
+      "svgSha256": "a06740f2b9613992eed134ed71ead14f2b632a2be1241f21f1a4947275531780",
+      "pngSha256": "02852911343985850369888a43d2054e40473e9e10651225873aa7d6c189c2ab"
     }
   },
   "terminalSha256": "db9145796c0c1e0940fa002d4298de6658f4275082dfcb2c5ac96e3615a60f3f",
@@ -87,15 +87,15 @@
   "visualApproval": {
     "path": "eval/section-b-brand-evidence/visual-approval.json",
     "status": "approved",
-    "artifactSha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9",
-    "reviewedAt": "2026-08-21",
-    "reviewer": "Codex coding agent, during the PR #220 rebase verification",
+    "artifactSha256": "2ab154227c65f7a418eb4133c2589d43251a904cbb8f47ecf5667ac9026e1d3b",
+    "reviewedAt": "2026-09-27",
+    "reviewer": "Codex coding agent, PR #306 Class member review",
     "audit": "eval/section-b-brand-evidence/production-comparison.md"
   },
   "outputs": [
     {
       "path": "docs/design/families/section-b-brand-evidence.png",
-      "sha256": "a3503c114d7ebda020000f22a6760855f2404f366c3596e1e45af789dcaa33f9"
+      "sha256": "2ab154227c65f7a418eb4133c2589d43251a904cbb8f47ecf5667ac9026e1d3b"
     }
   ]
 }

@@ -715,6 +715,7 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
     member: {
       visibility,
       name: name.replace(/[$*]$/, ''),
+      sourceText: trimmed.replace(/[$*]$/, ''),
       type: type || undefined,
       isStatic,
       isAbstract,
