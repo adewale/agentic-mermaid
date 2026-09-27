@@ -44,9 +44,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
     // Pie's authored-label identity bridge adds 154 raw / 27 gzip bytes to
     // the shared render waist without changing the request graph.
-    maxRawBytes: 732_800,
-    maxGzipBytes: 274_850,
-    maxBrotliBytes: 250_839,
+    maxRawBytes: 732_950,
+    maxGzipBytes: 274_950,
+    maxBrotliBytes: 250_950,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -83,8 +83,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // keep the two-request graph fixed. The guarded parser adds 581 raw editor
     // bytes versus the earlier capture. These ceilings remain within 0.1% of
     // the current Linux totals, which are pinned exactly in the baseline.
-    maxRawBytes: 3_356_000,
-    maxGzipBytes: 986_500,
+    maxRawBytes: 3_356_600,
+    maxGzipBytes: 986_650,
     maxBrotliBytes: 776_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),

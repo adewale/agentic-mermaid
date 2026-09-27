@@ -105,12 +105,13 @@ export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, opts: 
         opts.onProjectionDiagnostic?.(diagnostic)
       },
     })
-    // HTML output contains escaped text and styling markup, so scanning it
-    // directly confuses both label identity and terminal-cell coordinates.
-    // The unstyled projection has the same visible grid and is the source of
-    // truth for regions; retain the requested HTML in the returned payload.
-    const regionCanvas = opts.colorMode === 'html'
-      ? renderMermaidASCII(input, { ...opts, colorMode: 'none', onProjectionDiagnostic: undefined })
+    // Pie HTML escapes entity-spelled labels, so scanning it directly can
+    // bind a slice to the wrong row. Its built-in renderer has the same grid
+    // without styling; use that for region coordinates. Do not re-render
+    // extension families, whose hooks may depend on color mode or have effects.
+    const pieSource = parseMermaid(source)
+    const regionCanvas = opts.colorMode === 'html' && pieSource.ok && pieSource.value.body.kind === 'pie'
+      ? renderMermaidASCII(input, { ...opts, colorMode: 'none', onProjectionDiagnostic: undefined, onConfigDiagnostic: undefined })
       : ascii
     const regions = addSemanticContainerRegions(regionCanvas, source, deriveRegions(regionCanvas, source))
     const projectionWarnings: AsciiWarning[] = projection.map(diagnostic => ({

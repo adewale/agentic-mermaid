@@ -135,6 +135,12 @@ test('Pie terminal, width, HTML and metadata projections keep entity-distinct ro
   expect(htmlMeta.ascii).toBe(htmlRows.join('\n'))
   expect(htmlMeta.regions.map(region => [region.id, region.projectedText, region.canvasRow]))
     .toEqual([['slice-0', 'A&amp;B', 0], ['slice-1', 'A&B', 1]])
+  const configDiagnostics: string[] = []
+  renderMermaidASCIIWithMeta(encoded, {
+    colorMode: 'html', mermaidConfig: { pie: { unknownField: true } },
+    onConfigDiagnostic: diagnostic => configDiagnostics.push(diagnostic.field),
+  })
+  expect(configDiagnostics).toEqual(['pie.unknownField'])
   const withActions = renderMermaidWithActions(encoded, { format: 'ascii', options: { colorMode: 'none' } })
   expect(typeof withActions.output).toBe('string')
   if (typeof withActions.output === 'string') expect(withActions.output.split('\n')).toHaveLength(2)
@@ -151,6 +157,31 @@ test('Pie grammar entities remain decoded while section-label entity spelling re
     expect(drawnSlices(encoded)).toEqual([[label, 1]])
     expect(renderMermaidASCII(encoded, { colorMode: 'none' })).toStartWith(`${label}  `)
   }
+})
+
+test('numeric entity spelling collides with Mermaid’s pre-parser marker in first-wins identity', () => {
+  const source = 'pie\n  "A&#35;B" : 1\n  "A&ﬂ°°35¶ßB" : 2\n'
+  expect(upstreamSections(source)).toEqual([['A&ﬂ°°35¶ßB', 1]])
+  expect(parsePieChart(source.trim().split('\n'))).toMatchObject({
+    entries: [{ label: 'A&#35;B', value: 1 }], hasDuplicateSourceLabels: true,
+  })
+  expect(drawnSlices(source)).toEqual([['A&#35;B', 1]])
+  const parsed = parseRegisteredMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (parsed.ok) {
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+  }
+  const escaped = 'pie\n  "A#\\35;B" : 1\n  "Aﬂ°°35¶ßB" : 2\n'
+  expect(upstreamSections(escaped)).toEqual([['A#35;B', 1], ['Aﬂ°°35¶ßB', 2]])
+  expect(parsePieChart(escaped.trim().split('\n')).entries).toEqual([
+    { label: 'A#35;B', value: 1 }, { label: 'Aﬂ°°35¶ßB', value: 2 },
+  ])
+  expect(drawnSlices(escaped)).toEqual([['A#35;B', 1], ['Aﬂ°°35¶ßB', 2]])
+  const prepass = 'pie\n  "styleX:#35;" : 1\n  "styleX:#35" : 2\n'
+  expect(upstreamSections(prepass)).toEqual([['styleX:#35', 1]])
+  expect(parsePieChart(prepass.trim().split('\n'))).toMatchObject({ hasDuplicateSourceLabels: true })
+  expect(drawnSlices(prepass)).toHaveLength(1)
 })
 
 test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene validation', () => {

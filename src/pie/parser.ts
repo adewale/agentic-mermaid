@@ -118,9 +118,15 @@ export function parsePieChart(lines: string[]): PieChart {
       // Check after validating the value: even a duplicate invalid entry must
       // still fail, as it does upstream. Use the pre-display label so two
       // distinct <br> spellings do not collapse into one source identity.
-      if (seenSourceLabels.has(sourceLabel)) hasDuplicateSourceLabels = true
+      // Mermaid runs encodeEntities over source before the Pie grammar and
+      // keys its DB with that preprocessed STRING. Decimal entity spellings
+      // therefore collide with their literal internal-marker spelling.
+      const preprocessedLine = mermaidPieEntityPrepass(line)
+      const preprocessedLabel = ENTRY_RE.exec(preprocessedLine)?.[1] ?? entryMatch[1]!
+      const sourceKey = decodeEscapes(mermaidPieSourceKey(preprocessedLabel))
+      if (seenSourceLabels.has(sourceKey)) hasDuplicateSourceLabels = true
       else {
-        seenSourceLabels.add(sourceLabel)
+        seenSourceLabels.add(sourceKey)
         entries.push({ label, value })
       }
       continue
@@ -151,6 +157,22 @@ export function parsePieChart(lines: string[]): PieChart {
     ...(hasDuplicateSourceLabels ? { hasDuplicateSourceLabels: true } : {}),
     ...(hasEscapedControlLabels ? { hasEscapedControlLabels: true } : {}),
   }
+}
+
+function mermaidPieEntityPrepass(line: string): string {
+  // These two substitutions precede encodeEntities in pinned Mermaid. They
+  // can occur inside an otherwise valid quoted Pie label, so identity must
+  // observe them even though the source/display spelling remains authored.
+  return line
+    .replace(/style.*:\S*#.*;/g, match => match.slice(0, -1))
+    .replace(/classDef.*:\S*#.*;/g, match => match.slice(0, -1))
+}
+
+function mermaidPieSourceKey(label: string): string {
+  return label.replace(/#\w+;/g, token => {
+    const inner = token.slice(1, -1)
+    return /^\+?\d+$/.test(inner) ? `ﬂ°°${inner}¶ß` : `ﬂ°${inner}¶ß`
+  })
 }
 
 function decodeEscapes(raw: string): string {
