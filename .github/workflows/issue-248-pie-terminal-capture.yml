@@ -1,0 +1,41 @@
+name: Temporary issue 248 Pie terminal capture
+
+on:
+  push:
+    branches: [codex/248-pie-terminal-controls]
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium --with-deps
+      - run: bun run build
+      - run: npm pack --dry-run --json > package-files-capture.json
+      - run: bun run gallery:mermaid-docs
+      - run: bun run gallery:mindmap-gitgraph
+      - run: bun run gallery:section-b || test -s docs/design/families/section-b-brand-evidence.png
+      - run: bun run website:payload:write
+      - uses: actions/upload-artifact@v7
+        with:
+          name: issue-248-pie-terminal-${{ github.sha }}
+          path: |
+            docs/design/families/mermaid-doc-examples-all-families.png
+            docs/design/families/mindmap-content-gallery.png
+            docs/design/families/gitgraph-content-gallery.png
+            docs/design/families/section-b-brand-evidence.png
+            eval/mermaid-doc-showcase/gallery-receipt.json
+            eval/mindmap-gitgraph-content-corpus/gallery-receipt.json
+            eval/section-b-brand-evidence/evidence-receipt.json
+            eval/website-payload/baseline.json
+            package-files-capture.json
+          if-no-files-found: error
