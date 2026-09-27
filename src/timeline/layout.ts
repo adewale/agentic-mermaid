@@ -409,8 +409,10 @@ function projectedMainEnd(metrics: SectionMetric[], sectionPadX: number, showSec
 function measureTimelineText(text: string, fontSize: number, fontWeight: number): MultilineMetrics {
   const lines = text.split('\n')
   const lineHeight = fontSize * LINE_HEIGHT_RATIO
+  let width = 0
+  for (const line of lines) width = Math.max(width, measureTextWidth(line, fontSize, fontWeight))
   return {
-    width: Math.max(0, ...lines.map(line => measureTextWidth(line, fontSize, fontWeight))),
+    width,
     height: lines.length * lineHeight,
     lines,
     lineHeight,

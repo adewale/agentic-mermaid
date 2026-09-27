@@ -121,6 +121,25 @@ function unescapeXml(s: string): string {
   return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
 }
 
+/** Parse only the wrappers emitted by Timeline's literal-text renderer. This
+ * keeps extra elements and attributes from being hidden by text comparison. */
+function timelineLiteralText(serialized: string): string | undefined {
+  const outer = /^<text\b([^<>]*)>([\s\S]*)<\/text>$/.exec(serialized)
+  if (!outer) return undefined
+  if (!/^(?:\s+(?:x|y|class|text-anchor|font-size|font-weight|data-literal-text|font-family|letter-spacing|dy|data-id|data-role|aria-label|role)="[^"<>]*")+$/.test(outer[1]!)) return undefined
+  const inner = outer[2]!
+  if (!inner.includes('<')) return inner.includes('>') ? undefined : unescapeXml(inner)
+  const spans = /<tspan x="([^"]+)" dy="([^"]+)">([^<>]*)<\/tspan>/g
+  const lines: string[] = []
+  let cursor = 0
+  for (const match of inner.matchAll(spans)) {
+    if (match.index !== cursor || !Number.isFinite(Number(match[1])) || !Number.isFinite(Number(match[2]))) return undefined
+    lines.push(unescapeXml(match[3]!))
+    cursor += match[0].length
+  }
+  return cursor === inner.length && lines.length > 0 ? lines.join('\n') : undefined
+}
+
 function parsedTransform(value: string | undefined): SceneTransform | undefined {
   if (!value) return undefined
   const match = /^rotate\(\s*([-+\d.eE]+)[,\s]+([-+\d.eE]+)[,\s]+([-+\d.eE]+)\s*\)$/.exec(value)
@@ -218,14 +237,10 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // established formatting normalization and diagnostics.
       const hasStyledTspan = /<tspan\b[^>]*(?:font-weight="bold"|font-style="italic"|text-decoration=)/.test(serialized)
       const timelineTextMark = /class="timeline-(?:title|section-label|period-text|event-text)"/.test(serialized)
+      const timelineText = timelineTextMark ? timelineLiteralText(serialized) : undefined
       if (timelineTextMark) {
-        const ownedTags = serialized.match(/<[^>]*>/g) ?? []
-        if (ownedTags.some(tag => !/^<\/?(?:text|tspan)(?:\s[^<>]*)?>$/.test(tag))) {
+        if (timelineText === undefined) {
           problems.push(`${path}(text:${node.id}): unexpected markup in Timeline crisp`)
-          return
-        }
-        if (hasStyledTspan) {
-          problems.push(`${path}(text:${node.id}): unexpected styled Timeline tspan`)
           return
         }
       }
@@ -257,16 +272,8 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
         // This path is literal authored text, not HTML formatting. Only the
         // owned <text>/<tspan> wrappers may occur; compare the complete
         // decoded contents, including punctuation and semantic line breaks.
-        const textMatch = serialized.match(/^<text\b[^>]*>([\s\S]*)<\/text>$/)
-        if (!textMatch) {
-          problems.push(`${path}(text:${node.id}): unexpected markup in literal Timeline crisp`)
-        } else {
-          const visible = unescapeXml(textMatch[1]!
-            .replace(/<\/tspan>\s*<tspan\b[^>]*>/g, '\n')
-            .replace(/<\/?tspan\b[^>]*>/g, ''))
-          if (visible !== node.text) {
-            problems.push(`${path}(text:${node.id}): literal text "${node.text.slice(0, 40)}" not found in crisp`)
-          }
+        if (timelineText !== node.text) {
+          problems.push(`${path}(text:${node.id}): literal text "${node.text.slice(0, 40)}" not found in crisp`)
         }
       } else {
         const wantText = normalize(node.text, false)

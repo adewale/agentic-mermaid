@@ -19,6 +19,13 @@ describe('timeline layout', () => {
     expect(literal.width).toBeGreaterThan(withoutTags.width)
   })
 
+  it('measures many semantic line breaks without an argument-spread stack overflow', () => {
+    const title = `A${'\n'.repeat(1_000_000)}`
+    const positioned = layoutTimelineDiagram({ title, sections: [] })
+    expect(positioned.title?.text.startsWith('A\n')).toBe(true)
+    expect(positioned.title?.text.endsWith('\n')).toBe(true)
+  })
+
   it('extends the rail beyond a single period marker and keeps the event below it', () => {
     const diagram = layout(`timeline
       2024 : Launch`)

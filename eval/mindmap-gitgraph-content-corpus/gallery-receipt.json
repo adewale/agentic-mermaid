@@ -908,7 +908,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "1b7cbe393e56a17ea3fc680eabd1dc46c293d334258f93043f5dc9b85a19beab"
+      "sha256": "0ef15125eceb28f7839d420777f7d8343ae736b25955bd13587b19cf7428f4e5"
     },
     {
       "path": "src/scene/gradient-resources.ts",
@@ -1168,7 +1168,7 @@
     },
     {
       "path": "src/timeline/layout.ts",
-      "sha256": "4be291783671399196878337a31364ffabb3579d3117d0a3e326b8084d05d526"
+      "sha256": "23d4bfaefafc32879be732a588bca24e9fbf4f62276aad1b651d419bb0fbe39d"
     },
     {
       "path": "src/timeline/parse-core.ts",
