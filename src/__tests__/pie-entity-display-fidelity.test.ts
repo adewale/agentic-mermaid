@@ -46,6 +46,66 @@ function titleXml(source: string): string {
   return match[1]!
 }
 
+test('Pie authored formatting-looking text remains literal across SVG, terminal, agent, and async render', async () => {
+  for (const [label, title] of [
+    ['A<br>B', 'T<br>itle'],
+    ['A<br/>B', 'T<br/>itle'],
+    ['A<b>B</b>', 'T<b>itle</b>'],
+    ['A**B**', 'T**itle**'],
+    ['A~~B~~', 'T~~itle~~'],
+  ] as const) {
+    const source = `pie showData\n  title ${title}\n  "${label}" : 1\n`
+    const chart = parsePieChart(source.trim().split('\n'))
+    expect(chart.title).toBe(title)
+    expect(chart.displayTitle).toBe(title)
+    expect(chart.entries[0]!.label).toBe(label)
+    expect(chart.entries[0]!.displayLabel).toBe(label)
+    expect(decodeXML(titleXml(source))).toBe(title)
+    expect(decodeXML(legendXml(source))).toStartWith(`${label} [1]`)
+    expect(renderMermaidSVG(source)).not.toContain('<tspan')
+    expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(`${title}\n${label}`)
+    const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
+    expect(meta.regions.map(region => region.projectedText)).toEqual([title, label])
+    expect(await renderMermaidSVGAsync(source)).toBe(renderMermaidSVG(source))
+    const agent = parseRegisteredMermaid(source)
+    expect(agent.ok).toBe(true)
+    if (!agent.ok) continue
+    expect(agent.value.body.kind).toBe('pie')
+    expect(serializeMermaid(agent.value)).toBe(source)
+    const changed = mutate(agent.value, { kind: 'set_slice_value', label, value: 2 })
+    expect(changed.ok).toBe(true)
+    if (changed.ok) expect(decodeXML(legendXml(serializeMermaid(changed.value)))).toStartWith(`${label} [2]`)
+  }
+})
+
+test('pinned Mermaid Pie DB retains authored markup-like title and section strings', () => {
+  const pairs = [
+    ['A<br>B', 'T<br>itle'],
+    ['A<br/>B', 'T<br/>itle'],
+    ['A<b>B</b>', 'T<b>itle</b>'],
+    ['A**B**', 'T**itle**'],
+  ] as const
+  const sources = pairs.map(([label, title]) => `pie showData\n  title ${title}\n  "${label}" : 1\n`)
+  const script = `
+    import DOMPurify from 'dompurify'
+    DOMPurify.addHook = () => {}
+    DOMPurify.sanitize = text => text
+    const { default: mermaid } = await import('mermaid')
+    mermaid.initialize({ startOnLoad: false })
+    const results = []
+    for (const source of ${JSON.stringify(sources)}) {
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
+      results.push({ title: diagram.db.getDiagramTitle(), sections: [...diagram.db.getSections()] })
+    }
+    process.stdout.write(JSON.stringify(results))
+  `
+  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
+  expect(probe.exitCode).toBe(0)
+  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(
+    pairs.map(([label, title]) => ({ title, sections: [[label, 1]] })),
+  )
+})
+
 test('Pie title entities follow pinned Mermaid visible text while source and agent title stay authored', async () => {
   for (const { sourceTitle, display, xml } of [
     { sourceTitle: 'A#65;B', display: 'AAB', xml: 'AAB' },
