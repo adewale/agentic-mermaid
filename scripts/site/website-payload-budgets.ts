@@ -70,8 +70,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // recognition leave the two-request graph unchanged. Exact Linux totals
     // are pinned in the baseline.
     maxRawBytes: 3_357_564,
-    maxGzipBytes: 989_761,
-    maxBrotliBytes: 777_170,
+    // The ratcheted upstream inventory changes the generated editor bundle's
+    // compression without adding requests; the final Linux capture pins bytes.
+    maxGzipBytes: 989_765,
+    maxBrotliBytes: 777_692,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
