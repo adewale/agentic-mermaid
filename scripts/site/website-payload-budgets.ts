@@ -36,7 +36,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
-    maxRequests: 30,
+    // Shared authored-color admission adds one cacheable lazy chunk to the
+    // Timeline demo's browser graph: 31 requests on Linux/Bun 1.4.2.
+    maxRequests: 31,
     // The shared accDescr scanner removes one lazy chunk without changing
     // rendered pixels; the unclosed-block guard, inline-empty-Class-body
     // recognition, and literal Class-member Scene fidelity add a few bytes.
@@ -56,9 +58,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // existing lazy graph; Linux/x64 measured 735,792 raw / 275,963 gzip.
     // Source-admission guards measure 736,006 raw / 276,044 gzip / 251,929
     // Brotli on the same 30-request graph; keep less than 0.02% headroom.
-    maxRawBytes: 736_150,
-    maxGzipBytes: 276_150,
-    maxBrotliBytes: 252_050,
+    // Color validation and lazy-route parity measure 738,563 raw / 277,148
+    // gzip / 252,919 Brotli bytes; retain under 0.06% measurement headroom.
+    maxRawBytes: 738_700,
+    maxGzipBytes: 277_250,
+    maxBrotliBytes: 253_050,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -126,11 +130,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // diagnostic and preserves its authored frontmatter through verification.
     // Linux/Bun 1.4.2 measures 3,397,755 raw / 1,010,948 gzip / 798,156
     // Brotli bytes. Keep roughly 0.01% headroom on the same two-request graph.
-    maxRawBytes: 3_397_850,
+    // The complete editor bundle measures 3,400,568 raw and 1,011,676 gzip
+    // bytes after authored-color admission on the same two-request graph.
+    maxRawBytes: 3_400_700,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_011_050,
+    maxGzipBytes: 1_011_800,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.
