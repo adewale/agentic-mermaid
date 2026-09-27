@@ -212,15 +212,18 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // normalized the way the text emitter normalizes labels (markdown
       // backticks, <b>/<i>/<u>/<s> emphasis tags, whitespace), so formatted
       // labels don't false-positive.
-      // Crisp contains owned SVG tags, while semantic text may contain a
-      // literal angle-bracket sequence (for example a decoded Pie entity).
-      // Strip semantic formatting tags only when the crisp actually emitted
-      // styled tspans; otherwise those characters are literal visible text.
+      // Crisp contains owned SVG tags, while a projected Pie legend may
+      // contain a literal angle-bracket sequence from an entity. Preserve
+      // that one literal projection; other families keep their established
+      // formatting normalization and diagnostics.
       const hasStyledTspan = /<tspan\b[^>]*(?:font-weight="bold"|font-style="italic"|text-decoration=)/.test(serialized)
+      const literalPieLegend = node.role === 'legend'
+        && serialized.includes('class="pie-legend-text"')
+        && !hasStyledTspan
       const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml(s
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<[^>]+>/g, '')
-      ) : hasStyledTspan ? s.replace(/<\/?(?:b|i|u|s|strong|em)\b[^>]*>/gi, '') : s)
+      ) : literalPieLegend ? s : s.replace(/<[^>]+>/g, ''))
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
