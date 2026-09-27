@@ -43,7 +43,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // macOS/arm64 ceilings; exact Linux totals are pinned in the baseline.
     maxRawBytes: 732_258,
     maxGzipBytes: 274_660,
-    maxBrotliBytes: 250_812,
+    maxBrotliBytes: 250_718,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -71,11 +71,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared accDescr scanner, unclosed-block guard, and inline-empty-Class
     // recognition leave the two-request graph unchanged. Exact Linux totals
     // are pinned in the baseline.
-    // Authored Class member text raises the complete editor bundle by 781 raw
-    // and 140 gzip bytes but lowers Brotli by 70, with the same two requests.
-    maxRawBytes: 3_358_345,
-    maxGzipBytes: 989_906,
-    maxBrotliBytes: 777_381,
+    // Authored Class member text raises the complete Bun 1.4.2 editor bundle
+    // without changing its two-request graph. Pin the Linux/x64 totals.
+    maxRawBytes: 3_353_575,
+    maxGzipBytes: 985_477,
+    maxBrotliBytes: 775_166,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

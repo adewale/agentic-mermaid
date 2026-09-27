@@ -7,7 +7,7 @@ import { renderMermaidSVG } from '../../src/index.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
 
 const SOURCE = 'classDiagram\n  class Account {\n    +id: string\n    int count\n    +List~int~ position\n  }\n'
-const BASE_SHA = '62977c1c3f734cb93579ccb25599bc6a4a872c91'
+const BASE_SHA = '5982650fff6f95c723a492f3370a603f868b3e4e'
 const baseDirectory = process.argv[2]
 if (!baseDirectory) throw new Error('Usage: bun run scripts/pr-assets/issue-248-class-member-text.ts <base-checkout>')
 
