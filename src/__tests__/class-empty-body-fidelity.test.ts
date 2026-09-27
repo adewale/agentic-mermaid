@@ -19,6 +19,7 @@ test('an inline empty class body keeps its class identity across public surfaces
     const serialized = serializeMermaid(parsed.value)
     const reparsed = parseRegisteredMermaid(serialized)
     expect(reparsed.ok).toBe(true)
+    if (reparsed.ok) expect(reparsed.value.body.kind).toBe('class')
     if (reparsed.ok && reparsed.value.body.kind === 'class') {
       expect(reparsed.value.body.classes.map(node => node.id)).toEqual(['EmptyClass'])
     }
@@ -38,6 +39,7 @@ test('an inline empty body does not consume the next class declaration', () => {
 
   const parsed = parseRegisteredMermaid(source)
   expect(parsed.ok).toBe(true)
+  if (parsed.ok) expect(parsed.value.body.kind).toBe('class')
   if (!parsed.ok || parsed.value.body.kind !== 'class') return
   expect(parsed.value.body.classes.map(node => node.id)).toEqual(expectedIds)
   expect(parsed.value.body.classes.every(node => node.members.length === 0)).toBe(true)
@@ -45,6 +47,7 @@ test('an inline empty body does not consume the next class declaration', () => {
   const serialized = serializeMermaid(parsed.value)
   const reparsed = parseRegisteredMermaid(serialized)
   expect(reparsed.ok).toBe(true)
+  if (reparsed.ok) expect(reparsed.value.body.kind).toBe('class')
   if (reparsed.ok && reparsed.value.body.kind === 'class') {
     expect(reparsed.value.body.classes.map(node => node.id)).toEqual(expectedIds)
   }
