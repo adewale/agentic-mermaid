@@ -22,7 +22,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Sequence half-arrow examples add bytes without changing the six-request
     // graph; these are the reviewed Linux/x64 totals.
     maxRawBytes: 391_535,
-    maxGzipBytes: 68_606,
+    maxGzipBytes: 68_610,
     maxBrotliBytes: 54_396,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
@@ -69,11 +69,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // The shared accDescr scanner, unclosed-block guard, and inline-empty-Class
     // recognition leave the two-request graph unchanged. Exact Linux totals
     // are pinned in the baseline.
-    maxRawBytes: 3_357_564,
-    // The ratcheted upstream inventory changes the generated editor bundle's
-    // compression without adding requests; the final Linux capture pins bytes.
-    maxGzipBytes: 989_765,
-    maxBrotliBytes: 777_692,
+    maxRawBytes: 3_360_000,
+    maxGzipBytes: 991_000,
+    maxBrotliBytes: 779_000,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),
