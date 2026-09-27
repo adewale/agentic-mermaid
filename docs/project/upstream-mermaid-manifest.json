@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "864e848a4a754a38475bd994ca903a360f33ca3d5eeac37639099b07a99ddc97",
+    "inventorySha256": "ac3565f9628a4477306fb19c12172b6e9ce595fd581f57b0b6f4ad480700ac6f",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "fe3539c84231beeedc8ddea3d922749ffc87d6baa18265e529d28b12e228f150",
+        "sha256": "095b2509100aabdce8ec898f711690cccefd625034fcd8152011d85109b4f127",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -13378,7 +13378,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "59b1ecbed8d71e842334fb0ee4e04616c52ae986e566670fb130561ddf8ab7a1",
+        "fingerprint": "73a44c836ec8435ce38d75ef6917b7d0f06a4ed2a1fa9b39e96024ed38fc7397",
         "sourceSha256": "303dc9694178a92874b2058dfacd294be6f33d243f591bee0b2cea7411890215"
       },
       {
@@ -13728,7 +13728,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "82628aae3cba2ac5b15a69334bd7a57478f2025428da66c920ec82da8c4fa7fb",
+        "fingerprint": "4dcabc873fbcfc3be095a6a9d9b33f33bf4e3a84519ede490f1f6ced68352f14",
         "sourceSha256": "cb353427eaaef864fc5241e7e078a9e6c221d4dba58790283a29e1f587d10abc"
       },
       {
@@ -13908,7 +13908,7 @@
           "sequence"
         ],
         "status": "executable",
-        "fingerprint": "d5016a3e6e80c0ff68b8de72b2c13ab7779a7ff9ec51936178962c3e1b094370",
+        "fingerprint": "7e113829d8a6ee42bac03ac2319b702819e06aa7940a1751207e50930336ca9e",
         "sourceSha256": "f087449a5dbd552759e616243664811ac67f66229cf7bf059024e279d7a99e0b"
       },
       {
