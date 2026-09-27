@@ -46,7 +46,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // the shared render waist without changing the request graph.
     // Pie's bounded numeric-entity key prepass adds a small shared parser
     // chunk; the exact Linux totals remain pinned in the generated baseline.
-    maxRawBytes: 733_350,
+    // The title-directive bridge reached 733,574 raw demo bytes on Linux/x64;
+    // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
+    maxRawBytes: 734_000,
     maxGzipBytes: 275_300,
     maxBrotliBytes: 251_300,
     required: Object.freeze([
