@@ -35,7 +35,7 @@ const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
   .sort((a, b) => b.length - a.length)
   .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   .join('|')
-const SEQUENCE_MESSAGE_RE = new RegExp(String.raw`^(\S+?)(\(\))?\s*(${arrowAlternatives})\s*(\(\))?([+-]?)(\S+?)\s*:\s*(.+)$`)
+const SEQUENCE_MESSAGE_PREFIX_RE = new RegExp(String.raw`^(\S+?)(\(\))?\s*(${arrowAlternatives})`)
 
 export interface ParsedSequenceMessageLine {
   from: string
@@ -49,11 +49,24 @@ export interface ParsedSequenceMessageLine {
 
 /** One message-line grammar shared by renderer and agent parsers. */
 export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLine | null {
-  const match = line.match(SEQUENCE_MESSAGE_RE)
+  const match = line.match(SEQUENCE_MESSAGE_PREFIX_RE)
   if (!match || !isMessageArrow(match[3]!)) return null
+  // A single scan after the arrow admits optional spaces around Mermaid's
+  // central-connection and activation markers. Avoid adjacent optional \s*
+  // regex groups, which can backtrack quadratically on a long malformed line.
+  let tail = line.slice(match[0].length).trimStart()
+  const centralEnd = tail.startsWith('()')
+  if (centralEnd) tail = tail.slice(2).trimStart()
+  const activationMark = tail[0] === '+' || tail[0] === '-' ? tail[0] : undefined
+  if (activationMark) tail = tail.slice(1).trimStart()
+  const colon = tail.indexOf(':')
+  if (colon < 1) return null
+  const to = tail.slice(0, colon).trimEnd()
+  const label = tail.slice(colon + 1).trimStart()
+  if (!to || /\s/.test(to) || !label) return null
   return {
-    from: match[1]!, arrow: match[3]!, activationMark: match[5] || undefined,
-    to: match[6]!, label: match[7]!, centralStart: Boolean(match[2]), centralEnd: Boolean(match[4]),
+    from: match[1]!, arrow: match[3]!, activationMark,
+    to, label, centralStart: Boolean(match[2]), centralEnd,
   }
 }
 
