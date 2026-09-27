@@ -724,7 +724,7 @@
     },
     {
       "path": "src/pie/parser.ts",
-      "sha256": "613e386a5d9c268a1a86721e488de381ddfdf5e293cd5c84f543e5d9e099e832"
+      "sha256": "43518cc027621318bba72023fe5259a029319efd4eebc30ffbb76e5005067542"
     },
     {
       "path": "src/pie/renderer.ts",
@@ -800,7 +800,7 @@
     },
     {
       "path": "src/render-contract.ts",
-      "sha256": "88eb99d581ce9527d2ff1a53c32e6c4b96989ea12abe2b400ad4167faf4fc1b6"
+      "sha256": "b1e1768b83404b7f738d96f6cab1d46c8316c8da2e6e54752581046eef87f2d9"
     },
     {
       "path": "src/render-family-hooks.ts",
@@ -904,7 +904,7 @@
     },
     {
       "path": "src/scene/fidelity.ts",
-      "sha256": "a8a5fbb0ceb501b0282a3f5776a8d8bcb5f99f70f17ee03fb74251fce29d6a46"
+      "sha256": "e42414955db8389955c1fa7287d4ac924137920c35697005ed54f4e44813732c"
     },
     {
       "path": "src/scene/gradient-resources.ts",
