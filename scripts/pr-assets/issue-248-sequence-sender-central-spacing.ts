@@ -12,7 +12,7 @@ const SOURCE = `sequenceDiagram
   Alice ()-->> Bob: Reverse
   Alice ()->>() Bob: Dual
 `
-const BASE_SHA = '018c3c917ac426f0b296f23de4299c0bc71cf107'
+const BASE_SHA = '036b8fa52ad2b3da01a61e937675eaebc291326f'
 const baseDirectory = process.argv[2]
 if (!baseDirectory) throw new Error('Usage: bun run scripts/pr-assets/issue-248-sequence-sender-central-spacing.ts <base-checkout>')
 
