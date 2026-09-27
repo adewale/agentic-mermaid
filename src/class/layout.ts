@@ -554,6 +554,10 @@ function maxMemberWidth(members: ClassMember[]): number {
 
 /** Convert a class member to its display string */
 export function memberToString(m: ClassMember): string {
+  if (!m.isMethod && m.sourceText) {
+    const visibility = m.visibility && m.sourceText.startsWith(m.visibility) ? m.visibility : ''
+    return visibility + m.sourceText.slice(visibility.length).replace(/~([^~]+)~/g, '<$1>')
+  }
   const vis = m.visibility ? `${m.visibility} ` : ''
   const name = m.isMethod ? `${m.name}(${m.params || ''})` : m.name
   const type = m.type ? `: ${m.type}` : ''
