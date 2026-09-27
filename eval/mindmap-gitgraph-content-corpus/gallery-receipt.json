@@ -72,7 +72,7 @@
     },
     {
       "path": "scripts/pr-assets/mindmap-gitgraph-content-gallery.ts",
-      "sha256": "f475381c30f6c878c1fc917b1078baed56257428b8e1ca999b55484f3c2ec2cf"
+      "sha256": "491e124aa5291b4b4d1b5600bdaa5a53a1ea58cfd9c964d5983fde97c6dcd8d8"
     },
     {
       "path": "src/agent/accessibility-envelope.ts",
@@ -1028,7 +1028,7 @@
     },
     {
       "path": "src/shared/color-math.ts",
-      "sha256": "3c71dfec9519a48d18c2abf70b7f93b8cf0eb124049522e5e4b7dfc5fce1a415"
+      "sha256": "6625dc0fefa68aef7511d67df007e6756b25fb0105137d4341c6763a1858ff62"
     },
     {
       "path": "src/shared/config-wire-or-warn.ts",
