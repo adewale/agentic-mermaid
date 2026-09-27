@@ -127,7 +127,10 @@ export function parsePieChart(lines: string[]): PieChart {
       // Normalize authored formatting before expanding entity markers. A
       // marker that produces `<br>` or `<b>` is literal visible Pie text, not
       // an authored formatting instruction.
-      const displayLabel = decodeEscapes(projectPieEntityDisplay(normalizeBrTags(preprocessedLabel)))
+      // Mermaid's grammar consumes source escapes while entity markers are
+      // still opaque tokens. Expand those markers only afterward: a backslash
+      // produced by #92; is visible text, not a new source escape.
+      const displayLabel = projectPieEntityDisplay(decodeEscapes(mermaidPieSourceKey(normalizeBrTags(preprocessedLabel))))
       if (hasNewTerminalControl(label, displayLabel)) {
         throw syntaxError({
           what: 'Pie entity projection creates a terminal control character after escape decoding',
@@ -248,10 +251,10 @@ function hasNewTerminalControl(authoredLabel: string, displayLabel: string): boo
 }
 
 function projectPieEntityDisplay(label: string): string {
-  return label.replace(/#\w+;/g, token => {
-    const inner = token.slice(1, -1)
+  return label.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_token, numeric: string | undefined, named: string | undefined) => {
+    const inner = numeric ?? named!
     let decoded: string
-    if (/^\d+$/.test(inner)) {
+    if (numeric !== undefined) {
       const codePoint = Number(inner)
       decoded = codePoint === 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
         ? '\ufffd'

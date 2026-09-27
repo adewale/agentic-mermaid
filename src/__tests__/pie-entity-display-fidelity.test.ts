@@ -14,6 +14,9 @@ const cases = [
   { sourceLabel: 'A&#amp;B', display: 'A&&B', xml: 'A&amp;&amp;B' },
   { sourceLabel: 'A&amp;B', display: 'A&amp;B', xml: 'A&amp;amp;B' },
   { sourceLabel: 'A#copy;B', display: 'A©B', xml: 'A©B' },
+  { sourceLabel: 'A#92;rB', display: 'A\\rB', xml: 'A\\rB' },
+  { sourceLabel: 'A#92;#35;B', display: 'A\\#B', xml: 'A\\#B' },
+  { sourceLabel: 'A#92;XB', display: 'A\\XB', xml: 'A\\XB' },
   { sourceLabel: 'A#nbsp;B', display: 'A\u00a0B', xml: 'A\u00a0B' },
   { sourceLabel: 'A#unknown;B', display: 'A&unknown;B', xml: 'A&amp;unknown;B' },
   { sourceLabel: 'A#constructor;B', display: 'A&constructor;B', xml: 'A&amp;constructor;B' },
@@ -81,13 +84,31 @@ test('Pie style/classDef prepass changes visible text only where pinned Mermaid 
 test('projected terminal controls are diagnosed before SVG or terminal output', () => {
   for (const sourceLabel of [
     'A#7;B', 'A#9;B', 'A#10;B', 'A#13;B', 'A#127;B', 'A#129;B',
-    'A#92;rB', 'A#92;tB', 'A#92;nB', 'A#92;#114;B',
   ]) {
     const source = `pie\n  "${sourceLabel}" : 1\n`
     const diagnostic = /Pie entity (?:projects|projection creates) a terminal control character/
     expect(() => renderMermaidSVG(source)).toThrow(diagnostic)
     for (const colorMode of ['none', 'ansi16', 'html'] as const) {
       expect(() => renderMermaidASCII(source, { colorMode })).toThrow(diagnostic)
+    }
+  }
+})
+
+test('entity-created backslashes remain printable after the source escape pass', () => {
+  for (const [sourceLabel, visible] of [
+    ['A#92;nB', 'A\\nB'],
+    ['A#92;rB', 'A\\rB'],
+    ['A#92;tB', 'A\\tB'],
+    ['A#92;#114;B', 'A\\rB'],
+  ] as const) {
+    const source = `pie\n  "${sourceLabel}" : 1\n`
+    const entry = parsePieChart(source.trim().split('\n')).entries[0]!
+    expect(entry.displayLabel).toBe(visible)
+    expect(decodeXML(legendXml(source))).toStartWith(visible)
+    for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+      const rendered = renderMermaidASCII(source, { colorMode })
+      expect(rendered).toContain(visible)
+      expect(renderMermaidASCIIWithMeta(source, { colorMode }).regions[0]?.projectedText).toBe(visible)
     }
   }
 })
