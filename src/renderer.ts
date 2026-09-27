@@ -94,15 +94,17 @@ export function lowerGraphScene(
   if (shadowDefs) defsParts.push(shadowDefs)
   // Per-color arrow markers for edges with custom stroke via linkStyle
   const customStrokeColors = new Set<string>()
+  const fixedMarkerColors = new Set<string | undefined>()
   if (style.edgeStrokeColor) customStrokeColors.add(style.edgeStrokeColor)
   let needsCircle = false
   let needsCross = false
   for (const edge of graph.edges) {
     if (edge.inlineStyle?.stroke) customStrokeColors.add(edge.inlineStyle.stroke)
+    if (edge.inlineStyle?.['stroke-width']) fixedMarkerColors.add(edge.inlineStyle.stroke ?? style.edgeStrokeColor)
     if (edge.startMarker === 'circle' || edge.endMarker === 'circle') needsCircle = true
     if (edge.startMarker === 'cross' || edge.endMarker === 'cross') needsCross = true
   }
-  const markerResources = flowchartMarkerResources(customStrokeColors, needsCircle, needsCross)
+  const markerResources = flowchartMarkerResources(customStrokeColors, fixedMarkerColors, needsCircle, needsCross)
   defsParts.splice(1, 0, serializeMarkerResources(markerResources))
   defsParts.push('</defs>')
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
@@ -158,19 +160,22 @@ export function lowerGraphScene(
  * renderer-dependent auto-start-reverse behavior in SVG rasterizers.
  * Arrow color uses var(--_arrow) CSS variable.
  */
-function arrowMarkerResources(color?: string): readonly MarkerDescriptor[] {
+function arrowMarkerResources(color?: string, fixed = false): readonly MarkerDescriptor[] {
   const w = ARROW_HEAD.width
-  const h = ARROW_HEAD.height
+  // A custom-width edge gets a fixed 8×8 head: the default SVG strokeWidth
+  // units would magnify the marker by the authored edge width.
+  const h = fixed ? w : ARROW_HEAD.height
   // SVG places this reference point at the route vertex. Anchor the polygon
   // tip itself so a correctly clipped route cannot push the visible arrow
   // through the target outline.
   const refX = w
   const stroke = color ?? 'var(--_arrow)'
-  const suffix = color ? `-${markerSuffix(color)}` : ''
+  const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
   const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
+  const units = fixed ? { units: 'userSpaceOnUse' as const } : {}
   return [
-    { id: `arrowhead${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: refX, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint },
-    { id: `arrowhead-start${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: 0, y: h / 2 }, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: w, y: 0 }, { x: 0, y: h / 2 }, { x: w, y: h }] }, paint },
+    { id: `arrowhead${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: refX, y: h / 2 }, ...units, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint },
+    { id: `arrowhead-start${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: 0, y: h / 2 }, ...units, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: w, y: 0 }, { x: 0, y: h / 2 }, { x: w, y: h }] }, paint },
   ]
 }
 
@@ -178,26 +183,26 @@ function arrowMarkerResources(color?: string): readonly MarkerDescriptor[] {
  * Generate arrow markers tinted to a specific color (for linkStyle stroke overrides).
  * IDs are suffixed with a sanitized color string to avoid collisions.
  */
-function circleMarkerResources(color?: string): readonly MarkerDescriptor[] {
+function circleMarkerResources(color?: string, fixed = false): readonly MarkerDescriptor[] {
   const size = ARROW_HEAD.width
-  const suffix = color ? `-${markerSuffix(color)}` : ''
+  const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
   const stroke = color ?? 'var(--_arrow)'
   const r = size / 2 - 0.75
-  const common = { shape: 'circle' as const, size: { width: size, height: size }, orient: 'auto' as const, geometry: { kind: 'circle' as const, cx: size / 2, cy: size / 2, r }, paint: { fill: 'none', stroke, strokeWidth: '1' } }
+  const common = { shape: 'circle' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'circle' as const, cx: size / 2, cy: size / 2, r }, paint: { fill: 'none', stroke, strokeWidth: '1' } }
   return [
     { ...common, id: `circlehead${suffix}`, ref: { x: size - 0.5, y: size / 2 } },
     { ...common, id: `circlehead-start${suffix}`, ref: { x: 0.5, y: size / 2 } },
   ]
 }
 
-function crossMarkerResources(color?: string): readonly MarkerDescriptor[] {
+function crossMarkerResources(color?: string, fixed = false): readonly MarkerDescriptor[] {
   const size = ARROW_HEAD.width
-  const suffix = color ? `-${markerSuffix(color)}` : ''
+  const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
   const stroke = color ?? 'var(--_arrow)'
   const pad = 1.25
   const a = pad
   const b = size - pad
-  const common = { shape: 'cross' as const, size: { width: size, height: size }, orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: '1.25', strokeLinecap: 'round' as const } }
+  const common = { shape: 'cross' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: '1.25', strokeLinecap: 'round' as const } }
   return [
     { ...common, id: `crosshead${suffix}`, ref: { x: b, y: size / 2 } },
     { ...common, id: `crosshead-start${suffix}`, ref: { x: pad, y: size / 2 } },
@@ -206,6 +211,7 @@ function crossMarkerResources(color?: string): readonly MarkerDescriptor[] {
 
 function flowchartMarkerResources(
   colors: ReadonlySet<string>,
+  fixedColors: ReadonlySet<string | undefined>,
   needsCircle: boolean,
   needsCross: boolean,
 ): readonly MarkerDescriptor[] {
@@ -216,6 +222,11 @@ function flowchartMarkerResources(
     resources.push(...arrowMarkerResources(color))
     if (needsCircle) resources.push(...circleMarkerResources(color))
     if (needsCross) resources.push(...crossMarkerResources(color))
+  }
+  for (const color of fixedColors) {
+    resources.push(...arrowMarkerResources(color, true))
+    if (needsCircle) resources.push(...circleMarkerResources(color, true))
+    if (needsCross) resources.push(...crossMarkerResources(color, true))
   }
   return resources
 }
@@ -447,8 +458,11 @@ function renderEdge(
     textAnchor: 'middle',
     visual: { kind: 'companion', markId: `${labelSceneId}:text` },
   }] : []
+  const authoredClassNames = (edge.classNames ?? [])
+    .map(name => name.replace(/[^A-Za-z0-9_-]/g, ''))
+    .filter(Boolean)
   const connectorSemantics = {
-    identity: { id: edge.id ?? sceneId },
+    identity: { id: edge.id ?? sceneId, ...(authoredClassNames.length ? { classNames: authoredClassNames } : {}) },
     endpoints: { from: edge.source, to: edge.target },
     relationship: {
       kind: 'flowchart-edge',
@@ -495,7 +509,7 @@ function renderEdge(
 
   // Build marker attributes based on arrow direction flags
   // Use color-specific markers when edge has a custom stroke from linkStyle
-  const suffix = markerColor ? `-${markerSuffix(markerColor)}` : ''
+  const suffix = `${markerColor ? `-${markerSuffix(markerColor)}` : ''}${edge.inlineStyle?.['stroke-width'] ? '-fixed' : ''}`
   let markers = ''
   let endMarker: MarkerDescriptor | undefined
   let startMarker: MarkerDescriptor | undefined
@@ -521,7 +535,7 @@ function renderEdge(
   // - data-arrow-start/end: arrow presence flags
   // - data-label: edge label if present (for quick lookup without traversing DOM)
   const dataAttrs = [
-    `class="${['edge', ...(edge.classNames ?? []).map(name => name.replace(/[^A-Za-z0-9_-]/g, '')).filter(Boolean)].join(' ')}"`,
+    `class="${['edge', ...authoredClassNames].join(' ')}"`,
     ...(edge.id ? [`data-id="${escapeAttr(edge.id)}"`] : []),
     `data-from="${escapeAttr(edge.source)}"`,
     `data-to="${escapeAttr(edge.target)}"`,

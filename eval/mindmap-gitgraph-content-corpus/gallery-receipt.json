@@ -820,7 +820,7 @@
     },
     {
       "path": "src/renderer.ts",
-      "sha256": "c25ce584d5b4986aa21a7226decc5c3ea928ef53e720b7705a10398945e05bff"
+      "sha256": "ee4649d459c13b811958b7e77f340a298faf1627c0705c253bacfe0f7a088ba1"
     },
     {
       "path": "src/resource-manifest.ts",

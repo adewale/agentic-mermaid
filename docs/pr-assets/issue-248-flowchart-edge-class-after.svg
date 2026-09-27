@@ -30,8 +30,14 @@
   <marker id="arrowhead-start-23ff0000" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
     <polygon points="8 0, 0 2.5, 8 5" fill="#ff0000" stroke="#ff0000" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
+  <marker id="arrowhead-23ff0000-fixed" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#ff0000" stroke="#ff0000" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start-23ff0000-fixed" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="8 0, 0 4, 8 8" fill="#ff0000" stroke="#ff0000" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
 </defs>
-<polyline class="edge hot" data-id="e1" data-from="A" data-to="B" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="100,58.45 148,58.45" fill="none" stroke="#ff0000" stroke-width="6px" marker-end="url(#arrowhead-23ff0000)" data-relationship="flowchart-edge" data-direction="forward" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B" />
+<polyline class="edge hot" data-id="e1" data-from="A" data-to="B" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="100,58.45 148,58.45" fill="none" stroke="#ff0000" stroke-width="6px" marker-end="url(#arrowhead-23ff0000-fixed)" data-relationship="flowchart-edge" data-direction="forward" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B" />
 <polyline class="edge" data-id="e2" data-from="B" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="208,58.45 256,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="B to C" />
 <g class="node" data-id="A" data-label="A" data-shape="rectangle" data-role="node">
   <rect x="40" y="40" width="60" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#d4d4d4" stroke-width="0.75" data-id="node-shape:A" data-role="node" />

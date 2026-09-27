@@ -1,0 +1,28 @@
+name: Temporary issue 248 Flowchart edge-class payload capture
+
+on:
+  push:
+    branches: [codex/248-flowchart-edge-class]
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium --with-deps
+      - run: bun run build
+      - run: bun run website:payload:write
+      - uses: actions/upload-artifact@v7
+        with:
+          name: issue-248-flowchart-edge-class-payload-${{ github.sha }}
+          path: eval/website-payload/baseline.json
+          if-no-files-found: error
