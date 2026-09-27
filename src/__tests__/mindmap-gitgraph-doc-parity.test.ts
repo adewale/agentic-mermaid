@@ -97,6 +97,20 @@ describe('Mindmap documentation parity and grammar closure', () => {
 })
 
 describe('GitGraph documentation parity and identity closure', () => {
+  test('the official merge cherry-pick fence has valid Scene and SVG geometry', () => {
+    const markdown = readFileSync(join(import.meta.dir, '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/gitgraph.md'), 'utf8')
+    const source = [...markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)]
+      .map(match => match[1]!.trim())
+      .find(fence => fence.includes('cherry-pick id:"MERGE" parent:"B"'))
+    expect(source).toBeDefined()
+    const diagram = parseGitGraph(source!)
+    const cherryPick = diagram.commits.find(commit => commit.type === 'CHERRY_PICK')
+    expect(cherryPick?.parents).toEqual(['A', 'MERGE'])
+    const svg = renderMermaidSVG(source!, { embedFontImport: false })
+    expect(svg).toContain(`data-id="${cherryPick!.id}"`)
+    expect(svg).toContain('class="git-commit type-cherry_pick"')
+  })
+
   test('the visual-evidence fixture exercises title, direction, orders, types, tags, merge, and merge-parent cherry-pick', () => {
     const source = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/families/gitgraph-demo.mmd'), 'utf8')
     const body = source.replace(/^---[\s\S]*?---\s*/, '')
