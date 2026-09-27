@@ -7,16 +7,37 @@
 // graphical pipeline therefore gives the root a class derived from the
 // unscoped output and prefixes every selector with it, as upstream Mermaid
 // does with the SVG id. Identical outputs share a scope because their rules
-// are identical; any difference in output yields a different scope.
+// are identical; any difference in output yields a different scope, up to a
+// 64-bit hash collision (see scopeHash).
 //
 // Only descendant and class selectors are introduced: resvg (PNG) and every
 // browser support them, which keeps raster and inline rendering in agreement.
 // ============================================================================
 
-import { hashId } from './scene/seed.ts'
 import { replaceSvgRootStartTag, scanSvgStartTags, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 
 export const SVG_STYLE_SCOPE_PREFIX = 'am-'
+
+/** The scope's hash of an unscoped SVG: 64 bits as two 32-bit lanes (cyrb53's
+ * mixing with both lanes kept whole), each fixed-width base 36. A 32-bit hash
+ * names distinct outputs alike after about 2^16 of them, and one page can then
+ * restyle another's diagram; two lanes put that at about 2^32. It is not a
+ * cryptographic hash, so it separates distinct outputs but does not resist a
+ * collision crafted on purpose. */
+function scopeHash(text: string): string {
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    h1 = Math.imul(h1 ^ code, 2654435761)
+    h2 = Math.imul(h2 ^ code, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507)
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507)
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return `${(h2 >>> 0).toString(36).padStart(7, '0')}${(h1 >>> 0).toString(36).padStart(7, '0')}`
+}
 
 /** Selector prefix for a scope: a root `svg` compound gains the class, and
  * every other selector becomes a descendant of the scoped root. */
@@ -162,7 +183,7 @@ export function scopeSvgStyles(svg: string): string {
   }
   if (styleRanges.length === 0) return svg
 
-  const scope = `${SVG_STYLE_SCOPE_PREFIX}${hashId(svg)}`
+  const scope = `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`
   let scoped = svg
   for (const range of [...styleRanges].sort((left, right) => right.start - left.start)) {
     scoped = `${scoped.slice(0, range.start)}${scopeCss(scoped.slice(range.start, range.end), scope)}${scoped.slice(range.end)}`

@@ -16,7 +16,7 @@ import { join } from 'node:path'
 
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { knownStyles, renderMermaidSVG } from '../index.ts'
-import { scopeCss, svgStyleScope } from '../svg-style-scope.ts'
+import { scopeCss, scopeSvgStyles, svgStyleScope } from '../svg-style-scope.ts'
 
 const SCOPE = 'am-test0'
 
@@ -175,6 +175,17 @@ describe('every render scopes its styles to its own root', () => {
       }),
       { numRuns: 40 },
     )
+  })
+
+  // Random pairs never meet a hash collision, so this pins one: two distinct
+  // style blocks that a 32-bit scope hash both named am-c1v6eo, which let either
+  // diagram's rules restyle the other on one page.
+  it('keeps apart two outputs a 32-bit scope hash named alike', () => {
+    const swatch = (fill: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><style>.n{fill:${fill}}</style><rect class="n" width="10" height="10"/></svg>`
+    const scopeA = svgStyleScope(scopeSvgStyles(swatch('#01c28c')))
+    const scopeB = svgStyleScope(scopeSvgStyles(swatch('#0582f0')))
+    expect(scopeB).not.toBe(scopeA)
+    expect(scopeA).toMatch(/^am-[0-9a-z]{14}$/)
   })
 })
 
