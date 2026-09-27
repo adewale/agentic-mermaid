@@ -25,7 +25,7 @@
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap } from '../mermaid-source.ts'
-import { safeCssColor } from '../shared/css-color.ts'
+import { safeCssPaint } from '../shared/css-color.ts'
 
 export type PieLegendPosition = 'top' | 'bottom' | 'left' | 'right' | 'center'
 
@@ -101,17 +101,17 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   }
 
   for (let i = 0; i < 12; i++) {
-    const fill = safeCssColor(vars[`pie${i + 1}`])
+    const fill = safeCssPaint(vars[`pie${i + 1}`])
     if (fill !== undefined) config.paletteOverrides[i] = fill
   }
 
-  const strokeColor = safeCssColor(vars.pieStrokeColor)
+  const strokeColor = safeCssPaint(vars.pieStrokeColor)
   if (strokeColor !== undefined) config.strokeColor = strokeColor
   const strokeWidth = cssSize(vars.pieStrokeWidth)
   if (strokeWidth !== undefined) config.strokeWidth = strokeWidth
   const outerStrokeWidth = cssSize(vars.pieOuterStrokeWidth)
   if (outerStrokeWidth !== undefined) config.outerStrokeWidth = outerStrokeWidth
-  const outerStrokeColor = safeCssColor(vars.pieOuterStrokeColor)
+  const outerStrokeColor = safeCssPaint(vars.pieOuterStrokeColor)
   if (outerStrokeColor !== undefined) config.outerStrokeColor = outerStrokeColor
   const opacity = vars.pieOpacity
   if (typeof opacity === 'number' && Number.isFinite(opacity) && opacity >= 0 && opacity <= 1) {
@@ -119,15 +119,15 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   }
   const sectionTextSize = cssSize(vars.pieSectionTextSize)
   if (sectionTextSize !== undefined) config.sectionTextSize = sectionTextSize
-  const sectionTextColor = safeCssColor(vars.pieSectionTextColor)
+  const sectionTextColor = safeCssPaint(vars.pieSectionTextColor)
   if (sectionTextColor !== undefined) config.sectionTextColor = sectionTextColor
   const titleTextSize = cssSize(vars.pieTitleTextSize)
   if (titleTextSize !== undefined) config.titleTextSize = titleTextSize
-  const titleTextColor = safeCssColor(vars.pieTitleTextColor)
+  const titleTextColor = safeCssPaint(vars.pieTitleTextColor)
   if (titleTextColor !== undefined) config.titleTextColor = titleTextColor
   const legendTextSize = cssSize(vars.pieLegendTextSize)
   if (legendTextSize !== undefined) config.legendTextSize = legendTextSize
-  const legendTextColor = safeCssColor(vars.pieLegendTextColor)
+  const legendTextColor = safeCssPaint(vars.pieLegendTextColor)
   if (legendTextColor !== undefined) config.legendTextColor = legendTextColor
 
   return config

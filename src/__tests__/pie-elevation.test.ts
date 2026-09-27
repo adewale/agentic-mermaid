@@ -618,11 +618,7 @@ describe('pie color injection defenses', () => {
     const payloads = ['red" onmouseover="alert(1)', '</style><script>alert(1)</script><style>', 'url(https://example.invalid/x)', 'red;stroke:black', 'red{fill:black}']
     for (const field of ['pie1', 'pieStrokeColor', 'pieOuterStrokeColor', 'pieSectionTextColor']) {
       for (const payload of payloads) {
-        const svg = renderWith(field, payload)
-        expect(svg).not.toContain('onmouseover=')
-        expect(svg).not.toContain('<script>')
-        expect(svg).not.toContain('example.invalid')
-        expect(svg).not.toContain(payload)
+        expect(() => renderWith(field, payload)).toThrow(`themeVariables.${field}: ${JSON.stringify(payload)} is not a CSS color`)
       }
     }
   })

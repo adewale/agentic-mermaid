@@ -315,7 +315,7 @@ xychart-beta
 
   test('entity normalization and Mermaid theme safety are shared across outputs', () => {
     const encoded = 'flowchart LR\n  A[Tom &amp; Jerry] --> B'
-    const options = { mermaidConfig: { themeVariables: { primaryTextColor: 'url(https://evil.invalid/x)' } } }
+    const options = { mermaidConfig: { themeVariables: { primaryTextColor: '#123456' } } }
     const svg = resolveRenderRequest(encoded, options, 'svg')
     const layout = resolveRenderRequest(encoded, options, 'layout')
     const terminal = resolveRenderRequest(encoded, options, 'unicode')
@@ -324,11 +324,16 @@ xychart-beta
     expect(svg.sharedRequestDigest).toBe(layout.sharedRequestDigest)
     expect(svg.sharedRequestDigest).toBe(terminal.sharedRequestDigest)
     expect(svg.appearance.digest).toBe(terminal.appearance.digest)
-    expect(svg.appearance.colors.fg).not.toContain('url(')
+    expect(svg.appearance.colors.fg).toBe('#123456')
     const raw = resolveRenderRequest(encoded.replace('&amp;', '&'), options, 'svg')
     expect(raw.source.text).toBe(svg.source.text)
     expect(raw.source.originalText).not.toBe(svg.source.originalText)
     expect(raw.sharedRequestDigest).not.toBe(svg.sharedRequestDigest)
+    const invalid = { mermaidConfig: { themeVariables: { primaryTextColor: 'url(https://evil.invalid/x)' } } }
+    for (const output of ['svg', 'layout', 'unicode'] as const) {
+      expect(() => resolveRenderRequest(encoded, invalid, output))
+        .toThrow('themeVariables.primaryTextColor: "url(https://evil.invalid/x)" is not a CSS color')
+    }
   })
 
   test('advanced adapters reject null, functions, prototype keys, and unknown fields', () => {
