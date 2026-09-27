@@ -48,7 +48,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // chunk; the exact Linux totals remain pinned in the generated baseline.
     // The title-directive bridge reached 733,574 raw demo bytes on Linux/x64;
     // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
-    maxRawBytes: 734_000,
+    // Flowchart edge-class paint adds 182 raw bytes to the shared lazy path;
+    // the request graph remains unchanged.
+    maxRawBytes: 734_300,
     maxGzipBytes: 275_600,
     maxBrotliBytes: 251_500,
     required: Object.freeze([
@@ -103,8 +105,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // XYChart's fail-loud unknown-statement guard remains in these two
     // requests; Linux/x64 measured 3,394,044 raw / 1,009,119 gzip /
     // 796,674 Brotli, within the existing narrow ceilings.
-    maxRawBytes: 3_394_100,
-    maxGzipBytes: 1_009_200,
+    // Authored edge-class propagation adds 325 raw / 124 gzip bytes to the
+    // complete editor; preserve narrow ceilings around the Linux capture.
+    maxRawBytes: 3_394_500,
+    maxGzipBytes: 1_009_300,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. The tab-aware linear scanner measured 3,393,328 raw /
     // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
