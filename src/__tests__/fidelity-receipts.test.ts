@@ -278,6 +278,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/er-multi-class.fidelity.ts',
       'fidelity/cases/er-word-cardinality.fidelity.ts',
       'fidelity/cases/gitgraph-duplicate-official.fidelity.ts',
+      'fidelity/cases/journey-official-fence.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
       'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/pie-entity-display.fidelity.ts',
@@ -303,6 +304,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'flowchart.classes.edge-paint-implication',
       'flowchart.links.boundary-whitespace-mutation-closure',
       'gitgraph.official.main-branch-duplicate-id-diagnosed',
+      'journey.official.fence-0',
       'journey.scores.fractional-parser-render-seam',
       'pie.official.fence-0',
       'pie.official.fence-1',
@@ -337,12 +339,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 43,
-      passedCaseCount: 43,
+      caseCount: 44,
+      passedCaseCount: 44,
       failedCaseCount: 0,
-      observedSurfaceCount: 155,
+      observedSurfaceCount: 158,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 17,
+      notApplicableSurfaceCount: 18,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -371,7 +373,7 @@ describe('issue #248 construct fidelity receipts', () => {
       agent: 'source-preserved', render: 'diagnosed', serialize: 'source-preserved', mutate: 'diagnosed',
     })
     expect(capability.features.find(feature => feature.family === 'journey')!.surfaces).toEqual({
-      agent: 'native', render: 'native', serialize: 'native', mutate: 'native',
+      agent: 'native', render: 'absent', serialize: 'native', mutate: 'native',
     })
     expect(capability.features.find(feature => feature.featureId === 'official-doc:flowchart:section:text-on-links')!.surfaces.mutate).toBe('native')
     expect(capability.features.find(feature => feature.featureId === 'official-doc:sankey:section:links-coloring')!.surfaces.render).toBe('absent')
@@ -392,6 +394,86 @@ describe('issue #248 construct fidelity receipts', () => {
       replacement: FidelityJson
       additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
     }> = [
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'agent',
+        path: ['sections', 0, 'tasks', 2, 'actors'],
+        replacement: ['Me'],
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'tasks', 2, 'actorDots', 1, 'actor'],
+        replacement: 'Dog',
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'tasks', 2, 'face', 'y'],
+        replacement: 256.3,
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['default', 'curve'],
+        replacement: null,
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'sections', 0, 'box', 'width'],
+        replacement: 1,
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['default', 'curvePaint'],
+        replacement: ['transparent', '2'],
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'guideLines', 2, 'y1'],
+        replacement: 100,
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'actorLegendText', 1, 'text'],
+        replacement: 'Dog',
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'sections', 0, 'box', 'width'],
+        replacement: 500,
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'tasks', 0, 'box', 'width'],
+        replacement: 260,
+        additionalChanges: [{ path: ['parityMode', 'tasks', 0, 'box', 'x'], replacement: 118 }],
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'tasks', 0, 'track', 'y1'],
+        replacement: -100,
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'tasks', 2, 'actorDots', 1, 'x'],
+        replacement: 540,
+      },
+      {
+        caseId: 'journey.official.fence-0',
+        surface: 'render',
+        path: ['parityMode', 'actorLegend', 1, 'y'],
+        replacement: 94,
+        additionalChanges: [{ path: ['parityMode', 'actorLegendText', 1, 'y'], replacement: 94 }],
+      },
       {
         caseId: 'journey.scores.fractional-parser-render-seam',
         surface: 'agent',

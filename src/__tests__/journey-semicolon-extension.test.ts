@@ -39,7 +39,7 @@ describe('Journey semicolon statements are a diagnosed Agentic extension', () =>
     expect(extension.surfaces.mutate).toMatchObject({ disposition: 'portable-newline-output', tasks: ['A:5', 'B:4'] })
     const official = JSON.parse(readFileSync(join(projectRoot, 'docs/project/fidelity-capability-report.json'), 'utf8'))
     expect(official.features.flatMap((feature: { caseIds: string[] }) => feature.caseIds)).not.toContain(extension.id)
-    expect(official.features.find((feature: { featureId: string }) => feature.featureId === 'official-doc:journey:section:user-journey-diagram').disposition).toBe('native')
+    expect(official.features.find((feature: { featureId: string }) => feature.featureId === 'official-doc:journey:section:user-journey-diagram').disposition).toBe('absent')
   })
 
   test('pinned Mermaid 11.16 rejects a joined task line that both local parsers retain', () => {
