@@ -3,13 +3,13 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "3900d18dc317593e74720b270267fc1003b7de2a9397902339621f34b2ccd2e1",
-  "receiptResultSha256": "bdf40c086b84bc46f2eb5ebed08031d792b9615f3c3e709c0798056afa9b79f0",
+  "receiptInputSha256": "ac8ce3056422da8a80c4e33815a94cb4b89e5750e57364f3561e704f3bda5486",
+  "receiptResultSha256": "082b515fb66304e26a5d61e509f49ddb965effeac41ff98f14af54c69cb3f829",
   "summary": {
-    "caseCount": 51,
-    "featureCount": 30,
+    "caseCount": 52,
+    "featureCount": 31,
     "dispositions": {
-      "native": 15,
+      "native": 16,
       "source-preserved": 0,
       "diagnosed": 8,
       "absent": 7
@@ -912,6 +912,50 @@
             }
           },
           "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:sankey:section:example",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-0"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies the pinned energy example; Sankey link mutations have separate semantic receipts."
+          ]
+        }
+      },
+      "diagnostics": {
+        "agent": [
+          "FLOW_IMBALANCE"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-0",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies the pinned energy example; Sankey link mutations have separate semantic receipts."
+              ]
+            }
+          },
+          "diagnostics": {
+            "agent": [
+              "FLOW_IMBALANCE"
+            ]
+          }
         }
       ],
       "acceptedDivergences": []
