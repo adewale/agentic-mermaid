@@ -7,7 +7,8 @@ copied by hand. Hand copies are how the repo ended up recommending two
 different ways to author a new diagram for months, and how six docs kept
 listing a stale hosted tool set.
 
-Three checks run in `bun run test`, and one audit runs weekly outside CI.
+Three checks run in `bun run test`. Prose claims need an occasional audit by
+hand.
 
 ## Generated blocks
 
@@ -49,13 +50,13 @@ inline code in the maintained docs, `llms.txt`, the `init-agent` bundle, and
 the CLI's own help text. Each verb, flag, and `--format` value must be one
 the CLI accepts (`COMMAND_FLAGS`, `CLI_RENDER_FORMATS`, `MCP_FLAG_SPECS`).
 
-## Weekly audit
+## Audit by hand
 
 Prose claims — "the hosted endpoint caches results", "Radar projects the
 renderer AST", "0.4.2 is not yet published" — have no registry to check
-against. A scheduled Claude Code routine runs the prompt below every Monday
-and opens a GitHub issue. It never blocks a merge. To run it by hand, give
-the prompt to an agent with a checkout of `main`.
+against. Audit them from time to time, before a release for example, by
+giving the prompt below to an agent with a checkout of `main`. The audit
+reports findings in a GitHub issue and never blocks a merge.
 
 ### Audit prompt
 
