@@ -1,0 +1,1 @@
+{"ok":false,"error":{"code":"INVALID_STYLE_COLOR","message":"quadrant point A: color \"notacolor\" is not a CSS color — expected a drawable color name, hex color, rgb()/rgba(), hsl()/hsla(), transparent, currentColor, none, or var(--name), e.g. color: #f96","subject":"quadrant point A","property":"color","value":"notacolor"}}

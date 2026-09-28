@@ -18,13 +18,37 @@
 //   radius        a non-negative number
 //   stroke-width  a non-negative number with an optional px suffix
 //   color / stroke-color
-//                 a conservative CSS-color charset (hex, named, rgb()/hsl()
-//                 functional forms); characters that could escape an SVG
-//                 style attribute (quotes, semicolons, braces, angle
-//                 brackets) are rejected.
+//                 a drawable CSS paint (including none for point fill/stroke).
+//                 Safe text that a browser would ignore is refused by name.
 // ============================================================================
 
-import { isSafeCssColor } from '../shared/css-color.ts'
+import { drawableAuthoredCssPaint } from '../shared/css-color.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
+
+const DIAGNOSTIC_SUBJECT_CAP = 128
+const DIAGNOSTIC_VALUE_CAP = 256
+
+/** Authored Quadrant paint that is injection-safe but not drawable is still a failure. */
+export class QuadrantStyleColorError extends Error {
+  readonly code = 'INVALID_STYLE_COLOR' as const
+  readonly subject: string
+  readonly property: 'color' | 'stroke-color'
+  readonly value: string
+
+  constructor(subject: string, property: 'color' | 'stroke-color', value: string) {
+    const boundedSubject = subject.slice(0, DIAGNOSTIC_SUBJECT_CAP)
+    const boundedValue = value.slice(0, DIAGNOSTIC_VALUE_CAP)
+    super(syntaxError({
+      what: `${boundedSubject}: ${property} ${JSON.stringify(boundedValue)} is not a CSS color`,
+      expectedForm: 'a drawable color name, hex color, rgb()/rgba(), hsl()/hsla(), transparent, currentColor, none, or var(--name)',
+      example: `${property}: #f96`,
+    }).message)
+    this.name = 'QuadrantStyleColorError'
+    this.subject = boundedSubject
+    this.property = property
+    this.value = boundedValue
+  }
+}
 
 /** Typed per-point style properties (upstream's documented set). */
 export interface QuadrantPointStyle {
@@ -75,11 +99,11 @@ function splitTopLevelEntries(value: string): string[] | null {
 /**
  * Parse a comma-separated `key: value` style tail (the text after a point's
  * coordinates, or after a classDef's name). An empty tail is valid and yields
- * no style. Unknown keys and malformed values return an error message — the
- * caller decides whether to throw (renderer parser) or fall back to opaque
- * (agent body).
+ * no style. Malformed non-paint values return an error message; non-drawable
+ * paint throws a nominal color error so render routes can preserve its named
+ * diagnostic. The agent body catches either failure and falls back to opaque.
  */
-export function parsePointStyleEntries(tail: string): StyleParseResult {
+export function parsePointStyleEntries(tail: string, subject = 'quadrant point style'): StyleParseResult {
   const trimmed = tail.trim()
   if (trimmed.length === 0) return { ok: true, style: undefined }
   const style: QuadrantPointStyle = {}
@@ -100,12 +124,12 @@ export function parsePointStyleEntries(tail: string): StyleParseResult {
         break
       }
       case 'color': {
-        if (!isSafeCssColor(value)) return { ok: false, error: `color has unsupported characters or syntax: "${value}"` }
+        if (drawableAuthoredCssPaint(value, true) === undefined) throw new QuadrantStyleColorError(subject, 'color', value)
         style.color = value
         break
       }
       case 'stroke-color': {
-        if (!isSafeCssColor(value)) return { ok: false, error: `stroke-color has unsupported characters or syntax: "${value}"` }
+        if (drawableAuthoredCssPaint(value, true) === undefined) throw new QuadrantStyleColorError(subject, 'stroke-color', value)
         style.strokeColor = value
         break
       }
@@ -144,7 +168,7 @@ export function parseClassDefTail(tail: string): ClassDefParseResult {
   const m = tail.trim().match(/^([A-Za-z_][\w-]*)\s+(.+)$/)
   if (!m) return { ok: false, error: `expected "classDef <name> <styles>", got "classDef ${tail.trim()}"` }
   const name = m[1]!
-  const parsed = parsePointStyleEntries(m[2]!)
+  const parsed = parsePointStyleEntries(m[2]!, `quadrant classDef ${name}`)
   if (!parsed.ok) return { ok: false, error: `classDef ${name}: ${parsed.error}` }
   if (!parsed.style) return { ok: false, error: `classDef ${name} has no style entries` }
   return { ok: true, name, style: parsed.style }

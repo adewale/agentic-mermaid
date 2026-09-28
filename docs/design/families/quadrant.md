@@ -50,8 +50,11 @@ Rendering details:
   point referencing an unknown classDef still exposes its class to external
   stylesheets — upstream-parity no-op, never a silent discard;
 - value validation is conservative (numbers for radius, `Npx` for
-  stroke-width, a safe CSS-color charset for colors) because values land in a
-  style attribute;
+  stroke-width, drawable CSS paints for `color` and `stroke-color`). Merely
+  injection-safe tokens such as `notacolor`, malformed functions, and modern
+  functions the local color parser cannot prove drawable are refused by name
+  before SVG, PNG, ASCII, or Unicode output. Both point fill and stroke allow
+  `none`, and unresolved `var(--name)` is an explicit pass-through;
 - the agent serializer emits a canonical form (`radius, color, stroke-color,
   stroke-width` order; classDefs after points) that the renderer parser
   re-parses identically (differential-tested), so styled bodies round-trip

@@ -17,14 +17,18 @@
 import { describe, it, expect } from 'bun:test'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
-import { resolvePointVisual } from '../quadrant/point-style.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { QuadrantStyleColorError, resolvePointVisual } from '../quadrant/point-style.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { toMermaidLines, normalizeMermaidSource } from '../mermaid-source.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asQuadrant } from '../agent/types.ts'
+import { runBatchLine } from '../cli/index.ts'
+import { handleHostedRequest } from '../mcp/hosted-server.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import { renderMermaidPNG } from '../agent/png.ts'
 
 function parse(src: string) {
   return parseQuadrantChart(toMermaidLines(src))
@@ -60,10 +64,10 @@ describe('quadrant parser models point styles and classDefs', () => {
   it('keeps commas inside functional colors while splitting top-level entries', () => {
     const chart = parse(`quadrantChart
   RGB: [0.2, 0.8] color: rgb(255, 0, 0), radius: 10, stroke-color: hsl(120, 100%, 50%)
-  classDef mixed color: color-mix(in srgb, red 20%, blue)
+  classDef mixed color: rgba(10, 20, 30, 0.5)
   Mixed:::mixed: [0.8, 0.2]`)
     expect(chart.points[0]!.style).toMatchObject({ color: 'rgb(255, 0, 0)', radius: 10, strokeColor: 'hsl(120, 100%, 50%)' })
-    expect(chart.classDefs.mixed!.color).toBe('color-mix(in srgb, red 20%, blue)')
+    expect(chart.classDefs.mixed!.color).toBe('rgba(10, 20, 30, 0.5)')
     const svg = renderMermaidSVG(`quadrantChart
   RGB: [0.2, 0.8] color: rgb(255, 0, 0), radius: 10`)
     expect(svg).toContain('fill:rgb(255, 0, 0)')
@@ -104,6 +108,68 @@ describe('quadrant parser models point styles and classDefs', () => {
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] radius: big')).toThrow(/radius/i)
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] banana: "spl;it"')).toThrow(/style/i)
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] color: "x;{}"')).toThrow(/color|style/i)
+  })
+})
+
+describe('quadrant authored paint admission (#303)', () => {
+  const invalid = ['notacolor', '#12345', 'rgb(x)', 'url(#a)', 'color-mix(in srgb, red 20%, blue)']
+
+  it('refuses every non-drawable direct and class paint before graphical or terminal output', () => {
+    for (const property of ['color', 'stroke-color'] as const) {
+      for (const value of invalid) {
+        for (const source of [
+          `quadrantChart\n  A: [0.5, 0.5] ${property}: ${value}`,
+          `quadrantChart\n  classDef bad ${property}: ${value}\n  A:::bad: [0.5, 0.5]`,
+        ]) {
+          const named = `${property} ${JSON.stringify(value)} is not a CSS color`
+          expect(() => renderMermaidSVG(source), source).toThrow(named)
+          expect(() => renderMermaidPNG(source), source).toThrow(named)
+          expect(() => renderMermaidASCII(source, { useAscii: true }), source).toThrow(named)
+          expect(() => renderMermaidASCII(source, { useAscii: false }), source).toThrow(named)
+          const agent = parseMermaid(source)
+          expect(agent.ok).toBe(true)
+          if (agent.ok) expect(agent.value.body.kind).toBe('opaque')
+          const verdict = verifyMermaid(source)
+          expect(verdict.ok).toBe(false)
+          expect(verdict.warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+        }
+      }
+    }
+  })
+
+  it('preserves drawable fill and stroke paints, including none and unresolved local variables', () => {
+    for (const value of ['rebeccapurple', '#f96', '#11223380', 'rgb(255, 0, 0)', 'hsl(120 100% 50%)', 'transparent', 'currentColor', 'none', 'var(--brand)']) {
+      const source = `quadrantChart\n  A: [0.5, 0.5] color: ${value}, stroke-color: ${value}`
+      expect(() => renderMermaidSVG(source), value).not.toThrow()
+      expect(() => renderMermaidASCII(source), value).not.toThrow()
+      expect(verifyMermaid(source).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+    }
+  })
+
+  it('projects only nominal bounded color errors through CLI and MCP', async () => {
+    const source = 'quadrantChart\n  A: [0.5, 0.5] color: notacolor'
+    for (const format of ['svg', 'ascii', 'unicode'] as const) {
+      const result = runBatchLine(JSON.stringify({ op: 'render', format, source }), 0) as { ok: boolean; error: { code: string; subject: string; property: string; value: string; message: string } }
+      expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_STYLE_COLOR', subject: 'quadrant point A', property: 'color', value: 'notacolor', message: expect.stringContaining('notacolor') } })
+    }
+    const response = await handleHostedRequest(
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_svg', arguments: { source } } },
+      {
+        async execute() { return { ok: true, value: null, logs: [] } },
+        async renderPng() { throw new Error('not used') },
+      },
+    )
+    const payload = JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+    expect(payload).toMatchObject({ ok: false, error: { code: 'INVALID_STYLE_COLOR', property: 'color', value: 'notacolor' } })
+    expect(projectRenderErrorDiagnostic({ code: 'INVALID_STYLE_COLOR', subject: 'quadrant point A', property: 'color', value: 'notacolor', message: 'forged' }))
+      .toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+    const veryLong = 'x'.repeat(100_000)
+    let thrown: unknown
+    try { renderMermaidSVG(`quadrantChart\n  A: [0.5, 0.5] color: ${veryLong}`) } catch (error) { thrown = error }
+    expect(thrown).toBeInstanceOf(QuadrantStyleColorError)
+    const diagnostic = projectRenderErrorDiagnostic(thrown)
+    expect(diagnostic.message.length).toBeLessThan(600)
+    expect('value' in diagnostic && diagnostic.value.length).toBeLessThanOrEqual(256)
   })
 })
 

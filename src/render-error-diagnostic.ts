@@ -4,6 +4,7 @@ import {
   type FamilyDetectionDiagnostic,
 } from './family-detection.ts'
 import { AuthoredStyleColorError } from './shared/style-props.ts'
+import { QuadrantStyleColorError } from './quadrant/point-style.ts'
 import { FamilyConfigColorError, RenderOptionColorError, ThemeVariableColorError } from './theme-color-admission.ts'
 
 export type AsciiWidthErrorDiagnostic = Readonly<{
@@ -76,6 +77,15 @@ export function projectKnownRenderErrorDiagnostic(error: unknown): KnownRenderEr
     }
   }
   if (error instanceof AuthoredStyleColorError) {
+    return {
+      code: error.code,
+      message: error.message,
+      subject: error.subject,
+      property: error.property,
+      value: error.value,
+    }
+  }
+  if (error instanceof QuadrantStyleColorError) {
     return {
       code: error.code,
       message: error.message,
