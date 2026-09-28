@@ -2,14 +2,14 @@ import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import fc from 'fast-check'
 import { layoutCertificateProof } from '../agent/certificates.ts'
-import type { FamilyDescriptor } from '../agent/families.ts'
+import type { FamilyDescriptor, FamilyLayoutResult } from '../agent/families.ts'
 import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
-import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCIIWithReceipt, renderMermaidSVG } from '../index.ts'
 import { detectDiagramTypeFromFirstLine, normalizeMermaidSource } from '../mermaid-source.ts'
-import { positionResolvedFamily } from '../positioning.ts'
+import { normalizeFamilyLayoutResult, positionResolvedFamily } from '../positioning.ts'
 import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { DEFAULTS } from '../theme.ts'
@@ -110,71 +110,102 @@ function assertUsableAscii(ascii: string): void {
   expect(ascii).not.toMatch(/undefined/)
 }
 
+const PERTURBED_FG = '#0a0b0c'
+const PERTURBED_WIDTH = 37
+const PERTURBED_TERMINAL_LINE = 'perturbed-terminal-hook'
+
+function withFamilyHooks<T>(kind: DiagramKind, replacement: FamilyDescriptor, run: () => T): T {
+  const restore = replaceFamilyForTest(kind, replacement)
+  try {
+    return run()
+  } finally {
+    restore()
+  }
+}
+
+function widenPositioned(result: FamilyLayoutResult | PositionedDiagram, by: number): FamilyLayoutResult {
+  const { positioned, ...rest } = normalizeFamilyLayoutResult(result)
+  return { ...rest, positioned: { ...positioned, width: positioned.width + by } }
+}
+
+function viewBoxWidth(svg: string): number {
+  const match = /<svg\b[^>]*\bviewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"/.exec(svg)
+  if (!match) throw new Error('rendered SVG has no numeric viewBox')
+  return Number(match[1])
+}
+
 describe('property: FamilyDescriptor render waist', () => {
+  // Each registered hook is replaced by one that perturbs its result. The
+  // perturbation must surface in the public output, which proves the public
+  // renderers execute the registered hook rather than a private copy.
   test('public SVG and ASCII renderers dispatch through the registered family hooks', () => {
     fc.assert(
       fc.property(FAMILY, ({ family, k, tag }) => {
         const source = buildSource(family, k, tag)
         const normalized = normalizeMermaidSource(source)
-        const publicKind = detectDiagramTypeFromFirstLine(normalized.firstLine) ?? 'flowchart'
+        const publicKind = (detectDiagramTypeFromFirstLine(normalized.firstLine) ?? 'flowchart') as DiagramKind
         const original = getFamily(publicKind)
         expect(original?.layout).toBeDefined()
         expect(original?.lowerScene).toBeDefined()
-        expect(original?.renderSvg).toBeUndefined()
         expect(original?.renderAscii).toBeDefined()
         expect(original?.normalizeRequest).toBeDefined()
         if (!original?.layout || !original.lowerScene || !original.renderAscii || !original.normalizeRequest) return
+        const { layout, renderAscii, normalizeRequest } = original
+        const renderSvg = () => renderMermaidSVG(source, { embedFontImport: false })
+        const renderAsciiReceipt = () => renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
 
-        let normalizationCalls = 0
-        let layoutCalls = 0
-        let sceneCalls = 0
-        let asciiCalls = 0
-        const restore = replaceFamilyForTest(publicKind as DiagramKind, {
+        const svg = renderSvg()
+        assertUsableSvg(svg)
+        expect(renderSvg()).toBe(svg)
+        const ascii = renderAsciiReceipt()
+        assertUsableAscii(ascii.text)
+        expect(renderAsciiReceipt().text).toBe(ascii.text)
+        expect(svg).not.toContain(PERTURBED_FG)
+        expect(ascii.terminalStyle.theme.fg).not.toBe(PERTURBED_FG)
+        expect(ascii.terminalStyle.connectorProjection.evidence).toBe('scene')
+
+        // normalizeRequest: the frozen request context is the contract; a
+        // palette patch it returns reaches both the SVG and the terminal theme.
+        withFamilyHooks(publicKind, {
           ...original,
           normalizeRequest: ctx => {
-            normalizationCalls++
             expect(Object.isFrozen(ctx)).toBe(true)
             expect(Object.isFrozen(ctx.source)).toBe(true)
             expect(Object.isFrozen(ctx.renderOptions)).toBe(true)
             expect(Object.isFrozen(ctx.colors)).toBe(true)
-            return original.normalizeRequest!(ctx)
+            const result = normalizeRequest(ctx) ?? {}
+            return { ...result, appearance: { ...result.appearance, colors: { ...result.appearance?.colors, fg: PERTURBED_FG } } }
           },
-          layout: ctx => {
-            layoutCalls++
-            return original.layout!(ctx)
-          },
-          lowerScene: ctx => {
-            sceneCalls++
-            return original.lowerScene!(ctx)
-          },
-          renderAscii: ctx => {
-            asciiCalls++
-            return original.renderAscii!(ctx)
-          },
+        }, () => {
+          expect(renderSvg()).toContain(PERTURBED_FG)
+          expect(renderAsciiReceipt().terminalStyle.theme.fg).toBe(PERTURBED_FG)
         })
 
-        try {
-          const svgA = renderMermaidSVG(source, { embedFontImport: false })
-          const svgB = renderMermaidSVG(source, { embedFontImport: false })
-          assertUsableSvg(svgA)
-          expect(svgB).toBe(svgA)
+        // layout: a widened positioned artifact widens the SVG canvas.
+        withFamilyHooks(publicKind, { ...original, layout: ctx => widenPositioned(layout(ctx), PERTURBED_WIDTH) }, () => {
+          expect(viewBoxWidth(renderSvg())).toBeCloseTo(viewBoxWidth(svg) + PERTURBED_WIDTH, 6)
+        })
 
-          const asciiA = renderMermaidASCII(source, { colorMode: 'none' })
-          const asciiB = renderMermaidASCII(source, { colorMode: 'none' })
-          assertUsableAscii(asciiA)
-          expect(asciiB).toBe(asciiA)
-
-          // Terminal connector projection runs the registered layout/lowering
-          // waist as well as the two graphical renders.
-          expect(normalizationCalls).toBe(4)
-          expect(layoutCalls).toBe(4)
-          // Both graphical renders and both terminal projections consume the
-          // same SceneGraph connector semantics.
-          expect(sceneCalls).toBe(4)
-          expect(asciiCalls).toBe(2)
-        } finally {
-          restore()
+        // layout and lowerScene: SVG rendering surfaces a failing hook. The
+        // terminal text does not depend on either hook, but its connector
+        // semantics are read through them, so the receipt loses its Scene
+        // evidence while the text stays byte-identical.
+        for (const hook of ['layout', 'lowerScene'] as const) {
+          const failure = `perturbed ${hook} hook`
+          withFamilyHooks(publicKind, { ...original, [hook]: () => { throw new Error(failure) } }, () => {
+            expect(renderSvg).toThrow(failure)
+            const perturbed = renderAsciiReceipt()
+            expect(perturbed.text).toBe(ascii.text)
+            expect(perturbed.terminalStyle.connectorProjection.evidence).toBe('unavailable')
+          })
         }
+
+        // renderAscii: the terminal text is the registered hook's output, and
+        // SVG never routes through the terminal hook.
+        withFamilyHooks(publicKind, { ...original, renderAscii: ctx => `${renderAscii(ctx)}\n${PERTURBED_TERMINAL_LINE}` }, () => {
+          expect(renderAsciiReceipt().text).toBe(`${ascii.text}\n${PERTURBED_TERMINAL_LINE}`)
+          expect(renderSvg()).toBe(svg)
+        })
       }),
       { numRuns: RUNS },
     )
