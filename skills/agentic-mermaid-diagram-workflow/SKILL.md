@@ -51,10 +51,9 @@ fenced block and recheck every op `kind` and field against this skill or
 
 Run `am capabilities --json` (or call the equivalent SDK capability API) before
 choosing a family or mutation. Its registry-derived family entries expose the
-current narrower, operation schema, edit policy, output support, and minimal
-source example; the generated Section A matrix supplies explicit native,
-source-preserved, diagnosed, and absent states. This skill intentionally does
-not maintain a second family or operation table.
+current narrower, operation schema, edit policy, output support, per-family
+conformance, and minimal source example. This skill intentionally does not
+maintain a second family or operation table.
 
 On hosted MCP, inspect the connected server's `tools/list` for its tool surface
 and call `describe_sdk({ family, detail: 'fields' })` for mutation fields. There

@@ -72,7 +72,7 @@ Do not concatenate strings or regenerate a whole existing structured diagram whe
 
 ## Output artifacts
 
-Agentic Mermaid outputs SVG, PNG, and ASCII:
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout:
 
 \`\`\`bash
 npx agentic-mermaid render diagram.mmd --format svg > diagram.svg

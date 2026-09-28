@@ -26,8 +26,9 @@ participant and top-level message ops remain live. Only an un-segmentable
 diagram (a stray `end`, an unclosed block) falls back to a whole-body OPAQUE
 body. Either way the parser never silently drops constructs.
 
-Verify Tier 1 only (no layout engine): EMPTY_DIAGRAM, EDGE_MISANCHORED
-(message references missing participant), LABEL_OVERFLOW (participant label or
-message text over char cap).
+Verify: Tier 1 EMPTY_DIAGRAM, EDGE_MISANCHORED (message references missing
+participant), LABEL_OVERFLOW (participant label or message text over char cap);
+layout-geometry checks on the sequence layout (OFF_CANVAS, GROUP_BREACH,
+NODE_OVERLAP); and UNSUPPORTED_SYNTAX naming verbatim segments.
 
 Upstream: https://mermaid.js.org/syntax/sequenceDiagram.html

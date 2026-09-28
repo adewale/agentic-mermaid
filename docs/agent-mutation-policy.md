@@ -31,23 +31,13 @@ When a particular body does not narrow, agents are not told it can be safely edi
 
 ## Current split
 
-Structured mutation is exposed for every built-in renderable family when its modeled subset narrows:
+Structured mutation is exposed for every built-in renderable family when its modeled subset narrows. `am capabilities --json` lists each family's narrower and `mutationOps`, and `describeOps(family)` gives the exact op fields; this page does not keep a second roster.
 
-- flowchart/state;
-- sequence (segment-preserving: `alt`/`opt`/`loop`/`par` are typed fragments with read-back and mutation ops; Note/box/critical/activate/autonumber/title ride along verbatim as opaque-block segments. Top-level message indices stay separate from fragment-message indices. Only un-segmentable input, e.g. an unbalanced `end`, falls back to whole-body opaque);
-- timeline;
-- class;
-- ER;
-- journey (simple title/section/task bodies; BUILD-15);
-- architecture (modeled groups/services/junctions/edges; BUILD-17);
-- xychart (modeled title/axes/series; BUILD-16);
-- pie (title/showData/slices);
-- quadrant (title/axes/quadrant labels/points);
-- gantt (title/sections/tasks, with calendar directives and click/comment/accessibility lines preserved as opaque segments).
+Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par` as typed fragments (with their own read-back and mutation ops) while Note/box/critical/activate/autonumber/title ride along verbatim, and its top-level message indices stay separate from fragment-message indices; gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
 
 Opaque/source-level bodies:
 
-- any known-family diagram that falls back to an opaque body because it contains unmodeled syntax (e.g. architecture `{group}` boundary modifiers, accTitle/accDescr, malformed pie entries, out-of-range quadrant coordinates, or un-segmentable sequence/gantt syntax).
+- any known-family diagram that falls back to an opaque body because it contains unmodeled syntax (e.g. architecture `{group}` boundary modifiers, malformed pie entries, out-of-range quadrant coordinates, or un-segmentable sequence/gantt syntax).
 
 For source-level bodies, the safe loop is:
 
