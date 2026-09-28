@@ -8,7 +8,7 @@
     "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
     "npmIntegrity": "sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==",
     "packageJsonSha256": "88ea12cf87bb2616d3ed68b1f0d3202a0ab1ad5a1eed82f8471dfd8f9dc8d1cb",
-    "inventorySha256": "ac3565f9628a4477306fb19c12172b6e9ce595fd581f57b0b6f4ad480700ac6f",
+    "inventorySha256": "94fd11b720843f7988956486054e64318cc639b94ccd4f548d888e64cef6afef",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -1502,7 +1502,7 @@
         "kind": "syntax-features",
         "scope": "repository",
         "path": "eval/mermaid-upstream-suite-bench/cases.json",
-        "sha256": "095b2509100aabdce8ec898f711690cccefd625034fcd8152011d85109b4f127",
+        "sha256": "c694545c0fdfc19f7f0be2346b61a449e0cb0db32f3d7587fea241b9cb550a11",
         "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0"
       },
       {
@@ -11608,7 +11608,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "a8a9432e3fdbea18511a45b94de724bc55f06ef231c51716792faf28fbef80ed",
+        "fingerprint": "7748b45a98907d449b0d954787f75b5bb45ae9b2c5b927b84f543ac4436585cf",
         "sourceSha256": "8f71d07a7d5f716bd7170ac3f116ece14ef0870c3073e1532858f397ba2b7cf5"
       },
       {
@@ -11648,7 +11648,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "547b074f7bc5b6cc64416e9c54906ada92dcd448dfd3cb1f67dde5087317ea5d",
+        "fingerprint": "63da40ee1e2782bc23ad62b93d348f82ffe497103c8093c9ef0046abbb7d7038",
         "sourceSha256": "17aae4ab764c0e96a5ce165a5cbf16238f59b9f27649854876dabc75b8b14d9d"
       },
       {
@@ -12738,7 +12738,7 @@
           "flowchart"
         ],
         "status": "executable",
-        "fingerprint": "0855aff3105b07d569acbf2c1a1273655da6cf81c915825c93759de31a9655f3",
+        "fingerprint": "8bc80849a91b5171c339a624f57f531eeb3318d76f755f61f7bdb5f13ac57581",
         "sourceSha256": "792ae05a31e80204eb1ef41c6d388cc24e113425f8d8a226f3b0a0b5c11a5494"
       },
       {
