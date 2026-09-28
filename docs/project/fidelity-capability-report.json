@@ -3,13 +3,13 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "be5b2e055a7d85d7c8f3c21f50922ef7b72b797a69b3b351912bb81f792c3902",
-  "receiptResultSha256": "927ccff3f54415c6ba79147734d5ec7caf91562a6298a78b2212000da215a94b",
+  "receiptInputSha256": "81586381e6a0e893fcdf9ed9a72466fd982e78a87dad8fe78c36d0141c1b217a",
+  "receiptResultSha256": "967bddd1fef26f35be26682bab56af279528828b1578c31cbaa70fe4d5ade7c8",
   "summary": {
-    "caseCount": 44,
-    "featureCount": 23,
+    "caseCount": 48,
+    "featureCount": 27,
     "dispositions": {
-      "native": 8,
+      "native": 12,
       "source-preserved": 0,
       "diagnosed": 8,
       "absent": 7
@@ -727,6 +727,158 @@
           }
         }
       ]
+    },
+    {
+      "featureId": "official-doc:sankey:section:basic",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-1"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+          ]
+        }
+      },
+      "diagnostics": {
+        "agent": [
+          "COMMENT_DROPPED"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-1",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+              ]
+            }
+          },
+          "diagnostics": {
+            "agent": [
+              "COMMENT_DROPPED"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:sankey:section:commas",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-3"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-3",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:sankey:section:double-quotes",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-4"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-4",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:sankey:section:empty-lines",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-2"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-2",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:sankey:section:links-coloring",
