@@ -3,13 +3,13 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "9dc63cea15880915304cd4d0c464d187a174fceb1c746b92edb599903099f132",
-  "receiptResultSha256": "56b7acb92e8dfc13776e8cbc29c3949a82686bd8efa3416b5a7a4b05206b368b",
+  "receiptInputSha256": "d3d1d55f273e12bb8ef1b7365fb0f7c624132a73383ef459424302ec701ce17a",
+  "receiptResultSha256": "3706e856ed1f3eebe58b16ec4850dbbf003789538dfdd529f89f36c8aa40c14b",
   "summary": {
-    "caseCount": 41,
-    "featureCount": 21,
+    "caseCount": 43,
+    "featureCount": 23,
     "dispositions": {
-      "native": 7,
+      "native": 9,
       "source-preserved": 0,
       "diagnosed": 8,
       "absent": 6
@@ -460,6 +460,78 @@
             "render": "native",
             "serialize": "native",
             "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:pie:section:example",
+      "family": "pie",
+      "disposition": "native",
+      "caseIds": [
+        "pie.official.fence-1"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These cases classify official syntax, not a mutation operation; set_slice_value has separate Pie receipts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "pie.official.fence-1",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These cases classify official syntax, not a mutation operation; set_slice_value has separate Pie receipts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:pie:section:pie-chart-diagrams",
+      "family": "pie",
+      "disposition": "native",
+      "caseIds": [
+        "pie.official.fence-0"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These cases classify official syntax, not a mutation operation; set_slice_value has separate Pie receipts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "pie.official.fence-0",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These cases classify official syntax, not a mutation operation; set_slice_value has separate Pie receipts."
+              ]
+            }
           },
           "diagnostics": {}
         }

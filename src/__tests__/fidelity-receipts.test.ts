@@ -9,6 +9,7 @@ import type {
   FidelitySurfaceExpectation,
 } from './fidelity/contract.ts'
 import { discoverFidelityRegistry } from './fidelity/registry.ts'
+import { piePathGeometry } from './fidelity/cases/pie-official-fences.fidelity.ts'
 import { projectFidelityCapabilityReport } from './fidelity/projector.ts'
 import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './fidelity/revision-compatibility.ts'
 import { runFidelityCases, validateFidelityRegistry } from './fidelity/runner.ts'
@@ -65,6 +66,15 @@ function setJsonPath(value: FidelityJson, path: readonly (number | string)[], re
 }
 
 describe('issue #248 construct fidelity receipts', () => {
+  test('official Pie path observation rejects hidden extra SVG commands', () => {
+    const solid = 'M 119 157 L 119 62 A 95 95 0 1 1 27.65 130.93 Z'
+    const donut = 'M 119 62 A 95 95 0 0 1 175.94 233.04 L 130.39 172.21 A 19 19 0 0 0 119 138 Z'
+    expect(piePathGeometry(solid).validShape).toBe(true)
+    expect(piePathGeometry(donut).validShape).toBe(true)
+    expect(piePathGeometry(solid.replace(' Z', ' Z M 400 400 L 401 401 Z')).validShape).toBe(false)
+    expect(piePathGeometry(donut.replace(' L 130.39', ' L 400 400 L 130.39')).validShape).toBe(false)
+  })
+
   test('the public projection rejects stale, forged, and unreceipted native claims', () => {
     expect(validateFidelityCapabilityReport(FIDELITY_CAPABILITY_REPORT)).toEqual([])
 
@@ -271,6 +281,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/landed-adoption.fidelity.ts',
       'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/pie-entity-display.fidelity.ts',
+      'fidelity/cases/pie-official-fences.fidelity.ts',
       'fidelity/cases/pie-terminal-control.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
       'fidelity/cases/timeline-direction.fidelity.ts',
@@ -293,6 +304,8 @@ describe('issue #248 construct fidelity receipts', () => {
       'flowchart.links.boundary-whitespace-mutation-closure',
       'gitgraph.official.main-branch-duplicate-id-diagnosed',
       'journey.scores.fractional-parser-render-seam',
+      'pie.official.fence-0',
+      'pie.official.fence-1',
       'pie.syntax.authored-formatting-literal',
       'pie.syntax.duplicate-label-first-wins',
       'pie.syntax.entity-spelling-distinct',
@@ -324,12 +337,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 41,
-      passedCaseCount: 41,
+      caseCount: 43,
+      passedCaseCount: 43,
       failedCaseCount: 0,
-      observedSurfaceCount: 149,
+      observedSurfaceCount: 155,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 15,
+      notApplicableSurfaceCount: 17,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -450,6 +463,117 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'render',
         path: ['links', 0, 'opacity'],
         replacement: '1',
+      },
+      {
+        caseId: 'pie.official.fence-0',
+        surface: 'render',
+        path: ['paths', 0, 'end', 0],
+        replacement: 119,
+      },
+      {
+        caseId: 'pie.official.fence-0',
+        surface: 'render',
+        path: ['paths', 1, 'centerMove'],
+        replacement: [300, 150],
+      },
+      {
+        caseId: 'pie.official.fence-0',
+        surface: 'render',
+        path: ['paths', 0, 'fill'],
+        replacement: '#000000',
+        additionalChanges: [{ path: ['swatches', 0, 'fill'], replacement: '#000000' }],
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['paths', 1, 'innerRadii', 0],
+        replacement: 0,
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['paths', 1, 'innerLargeArc'],
+        replacement: 1,
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['paths', 1, 'validShape'],
+        replacement: false,
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['paths', 1, 'highlighted'],
+        replacement: false,
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['paths', 1, 'highlightClass'],
+        replacement: false,
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['dimSliceOpacity'],
+        replacement: '1',
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['highlightRule', 'stroke'],
+        replacement: 'none',
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['outerStrokeColor'],
+        replacement: 'transparent',
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['outer', 'cy'],
+        replacement: 177,
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['legends', 1, 'text'],
+        replacement: 'Potassium (46.3%)',
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['legends', 1, 'x'],
+        replacement: 1000,
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['swatches', 1, 'x'],
+        replacement: 20,
+        additionalChanges: [{ path: ['legends', 1, 'x'], replacement: 42 }],
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['swatches', 1, 'y'],
+        replacement: 117,
+        additionalChanges: [{ path: ['legends', 1, 'y'], replacement: 124 }],
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['sliceLabels', 0, 'fill'],
+        replacement: 'transparent',
+      },
+      {
+        caseId: 'pie.official.fence-1',
+        surface: 'render',
+        path: ['sliceLabels', 0, 'x'],
+        replacement: 1000,
       },
       {
         caseId: 'xychart.official.fence-1',
