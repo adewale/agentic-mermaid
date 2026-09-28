@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "d3d1d55f273e12bb8ef1b7365fb0f7c624132a73383ef459424302ec701ce17a",
+    "inputSha256": "be5b2e055a7d85d7c8f3c21f50922ef7b72b797a69b3b351912bb81f792c3902",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -109,6 +109,10 @@
       {
         "path": "src/__tests__/fidelity/cases/gitgraph-duplicate-official.fidelity.ts",
         "sha256": "43997b963ed7b697af374730b9a4dea0ee1f880fb02abcb9ddb41b39bfe9e57c"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/journey-official-fence.fidelity.ts",
+        "sha256": "9c30e319db3609da1e98f3566d5c869692d2da8e0b23c8ddff09d96c85e5430e"
       },
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
@@ -1618,6 +1622,890 @@
             "rejected": true
           },
           "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "journey.official.fence-0",
+      "family": "journey",
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "sourceSha256": "8addc31e2a3b63dfa747b2f5b97988d0d7268a2fdda6ebf5795c66fa61b01792",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/userJourney.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official syntax; Journey set_task_score has a separate semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "sections": [
+              {
+                "label": "Go to work",
+                "tasks": [
+                  {
+                    "actors": [
+                      "Me"
+                    ],
+                    "score": 5,
+                    "text": "Make tea"
+                  },
+                  {
+                    "actors": [
+                      "Me"
+                    ],
+                    "score": 3,
+                    "text": "Go upstairs"
+                  },
+                  {
+                    "actors": [
+                      "Me",
+                      "Cat"
+                    ],
+                    "score": 1,
+                    "text": "Do work"
+                  }
+                ]
+              },
+              {
+                "label": "Go home",
+                "tasks": [
+                  {
+                    "actors": [
+                      "Me"
+                    ],
+                    "score": 5,
+                    "text": "Go downstairs"
+                  },
+                  {
+                    "actors": [
+                      "Me"
+                    ],
+                    "score": 5,
+                    "text": "Sit down"
+                  }
+                ]
+              }
+            ],
+            "title": "My working day"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "default": {
+              "accessibilityTitle": [
+                "journey-1f5nxlm-title",
+                "My working day"
+              ],
+              "actorLegend": [
+                {
+                  "actor": "Me",
+                  "colorIndex": 0,
+                  "x": 37,
+                  "y": 144.4
+                },
+                {
+                  "actor": "Cat",
+                  "colorIndex": 1,
+                  "x": 37,
+                  "y": 166.4
+                }
+              ],
+              "actorLegendText": [
+                {
+                  "text": "Me",
+                  "x": 54,
+                  "y": 144.4
+                },
+                {
+                  "text": "Cat",
+                  "x": 54,
+                  "y": 166.4
+                }
+              ],
+              "actorPaint": [
+                "#34438d",
+                "#8d3f34"
+              ],
+              "ariaLabelledBy": "journey-1f5nxlm-title",
+              "curve": {
+                "controls": [
+                  [
+                    298,
+                    256.3
+                  ],
+                  [
+                    348,
+                    336.3
+                  ],
+                  [
+                    448,
+                    336.3
+                  ],
+                  [
+                    498,
+                    416.3
+                  ],
+                  [
+                    598.6666666666666,
+                    416.3
+                  ],
+                  [
+                    649.3333333333334,
+                    256.3
+                  ],
+                  [
+                    750,
+                    256.3
+                  ],
+                  [
+                    800,
+                    256.3
+                  ]
+                ],
+                "points": [
+                  [
+                    248,
+                    256.3
+                  ],
+                  [
+                    398,
+                    336.3
+                  ],
+                  [
+                    548,
+                    416.3
+                  ],
+                  [
+                    700,
+                    256.3
+                  ],
+                  [
+                    850,
+                    256.3
+                  ]
+                ],
+                "validShape": true
+              },
+              "curvePaint": [
+                "#9a9a9b",
+                "2"
+              ],
+              "facePaint": [
+                "#d7d7d7",
+                "#47474a",
+                "1.2"
+              ],
+              "guideLines": [
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 256.3,
+                  "y2": 256.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 296.3,
+                  "y2": 296.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 336.3,
+                  "y2": 336.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 376.3,
+                  "y2": 376.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 416.3,
+                  "y2": 416.3
+                }
+              ],
+              "guides": [
+                {
+                  "score": 5,
+                  "y": 256.3
+                },
+                {
+                  "score": 4,
+                  "y": 296.3
+                },
+                {
+                  "score": 3,
+                  "y": 336.3
+                },
+                {
+                  "score": 2,
+                  "y": 376.3
+                },
+                {
+                  "score": 1,
+                  "y": 416.3
+                }
+              ],
+              "sectionPaint": [
+                "#f0f0f1",
+                "#ecedf4"
+              ],
+              "sections": [
+                {
+                  "box": {
+                    "height": 36,
+                    "width": 444,
+                    "x": 176,
+                    "y": 73.4
+                  },
+                  "id": "section-0",
+                  "label": "Go to work",
+                  "role": "section",
+                  "text": "Go to work"
+                },
+                {
+                  "box": {
+                    "height": 36,
+                    "width": 294,
+                    "x": 628,
+                    "y": 73.4
+                  },
+                  "id": "section-1",
+                  "label": "Go home",
+                  "role": "section",
+                  "text": "Go home"
+                }
+              ],
+              "taskBoxPaint": [
+                "#f9f9f9",
+                "#d4d4d4",
+                "1"
+              ],
+              "taskTextPaint": "#27272A",
+              "tasks": [
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 248,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 186,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 248,
+                    "y": 256.3
+                  },
+                  "id": "task-0",
+                  "markerScore": 5,
+                  "role": "task",
+                  "score": 5,
+                  "section": "Go to work",
+                  "text": "Make tea",
+                  "textX": 248,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 248,
+                    "x2": 248,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 398,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 336,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 398,
+                    "y": 336.3
+                  },
+                  "id": "task-1",
+                  "markerScore": 3,
+                  "role": "task",
+                  "score": 3,
+                  "section": "Go to work",
+                  "text": "Go upstairs",
+                  "textX": 398,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 398,
+                    "x2": 398,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 540,
+                      "y": 184.3
+                    },
+                    {
+                      "actor": "Cat",
+                      "colorIndex": 1,
+                      "r": 4,
+                      "x": 556,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me, Cat",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 486,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 548,
+                    "y": 416.3
+                  },
+                  "id": "task-2",
+                  "markerScore": 1,
+                  "role": "task",
+                  "score": 1,
+                  "section": "Go to work",
+                  "text": "Do work",
+                  "textX": 548,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 548,
+                    "x2": 548,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 700,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 638,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 700,
+                    "y": 256.3
+                  },
+                  "id": "task-3",
+                  "markerScore": 5,
+                  "role": "task",
+                  "score": 5,
+                  "section": "Go home",
+                  "text": "Go downstairs",
+                  "textX": 700,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 700,
+                    "x2": 700,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 850,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 788,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 850,
+                    "y": 256.3
+                  },
+                  "id": "task-4",
+                  "markerScore": 5,
+                  "role": "task",
+                  "score": 5,
+                  "section": "Go home",
+                  "text": "Sit down",
+                  "textX": 850,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 850,
+                    "x2": 850,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                }
+              ],
+              "title": {
+                "text": "My working day",
+                "x": 491,
+                "y": 39.7
+              },
+              "viewBox": "0 0 982 482.3"
+            },
+            "parityMode": {
+              "accessibilityTitle": [
+                "journey-1f5nxlm-title",
+                "My working day"
+              ],
+              "actorLegend": [
+                {
+                  "actor": "Me",
+                  "colorIndex": 0,
+                  "x": 37,
+                  "y": 144.4
+                },
+                {
+                  "actor": "Cat",
+                  "colorIndex": 1,
+                  "x": 37,
+                  "y": 166.4
+                }
+              ],
+              "actorLegendText": [
+                {
+                  "text": "Me",
+                  "x": 54,
+                  "y": 144.4
+                },
+                {
+                  "text": "Cat",
+                  "x": 54,
+                  "y": 166.4
+                }
+              ],
+              "actorPaint": [
+                "#34438d",
+                "#8d3f34"
+              ],
+              "ariaLabelledBy": "journey-1f5nxlm-title",
+              "curve": null,
+              "curvePaint": null,
+              "facePaint": [
+                "#d7d7d7",
+                "#47474a",
+                "1.2"
+              ],
+              "guideLines": [
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 256.3,
+                  "y2": 256.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 296.3,
+                  "y2": 296.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 336.3,
+                  "y2": 336.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 376.3,
+                  "y2": 376.3
+                },
+                {
+                  "x1": 176,
+                  "x2": 950,
+                  "y1": 416.3,
+                  "y2": 416.3
+                }
+              ],
+              "guides": [
+                {
+                  "score": 5,
+                  "y": 256.3
+                },
+                {
+                  "score": 4,
+                  "y": 296.3
+                },
+                {
+                  "score": 3,
+                  "y": 336.3
+                },
+                {
+                  "score": 2,
+                  "y": 376.3
+                },
+                {
+                  "score": 1,
+                  "y": 416.3
+                }
+              ],
+              "sectionPaint": [
+                "#f0f0f1",
+                "#ecedf4"
+              ],
+              "sections": [
+                {
+                  "box": {
+                    "height": 36,
+                    "width": 444,
+                    "x": 176,
+                    "y": 73.4
+                  },
+                  "id": "section-0",
+                  "label": "Go to work",
+                  "role": "section",
+                  "text": "Go to work"
+                },
+                {
+                  "box": {
+                    "height": 36,
+                    "width": 294,
+                    "x": 628,
+                    "y": 73.4
+                  },
+                  "id": "section-1",
+                  "label": "Go home",
+                  "role": "section",
+                  "text": "Go home"
+                }
+              ],
+              "taskBoxPaint": [
+                "#f9f9f9",
+                "#d4d4d4",
+                "1"
+              ],
+              "taskTextPaint": "#27272A",
+              "tasks": [
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 248,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 186,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 248,
+                    "y": 256.3
+                  },
+                  "id": "task-0",
+                  "markerScore": 5,
+                  "role": "task",
+                  "score": 5,
+                  "section": "Go to work",
+                  "text": "Make tea",
+                  "textX": 248,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 248,
+                    "x2": 248,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 398,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 336,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 398,
+                    "y": 336.3
+                  },
+                  "id": "task-1",
+                  "markerScore": 3,
+                  "role": "task",
+                  "score": 3,
+                  "section": "Go to work",
+                  "text": "Go upstairs",
+                  "textX": 398,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 398,
+                    "x2": 398,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 540,
+                      "y": 184.3
+                    },
+                    {
+                      "actor": "Cat",
+                      "colorIndex": 1,
+                      "r": 4,
+                      "x": 556,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me, Cat",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 486,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 548,
+                    "y": 416.3
+                  },
+                  "id": "task-2",
+                  "markerScore": 1,
+                  "role": "task",
+                  "score": 1,
+                  "section": "Go to work",
+                  "text": "Do work",
+                  "textX": 548,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 548,
+                    "x2": 548,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 700,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 638,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 700,
+                    "y": 256.3
+                  },
+                  "id": "task-3",
+                  "markerScore": 5,
+                  "role": "task",
+                  "score": 5,
+                  "section": "Go home",
+                  "text": "Go downstairs",
+                  "textX": 700,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 700,
+                    "x2": 700,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                },
+                {
+                  "actorDots": [
+                    {
+                      "actor": "Me",
+                      "colorIndex": 0,
+                      "r": 4,
+                      "x": 850,
+                      "y": 184.3
+                    }
+                  ],
+                  "actors": "Me",
+                  "box": {
+                    "height": 60.900000000000006,
+                    "width": 124,
+                    "x": 788,
+                    "y": 139.4
+                  },
+                  "face": {
+                    "r": 16,
+                    "x": 850,
+                    "y": 256.3
+                  },
+                  "id": "task-4",
+                  "markerScore": 5,
+                  "role": "task",
+                  "score": 5,
+                  "section": "Go home",
+                  "text": "Sit down",
+                  "textX": 850,
+                  "textY": 159.85,
+                  "track": {
+                    "x1": 850,
+                    "x2": 850,
+                    "y1": 200.3,
+                    "y2": 448.3
+                  }
+                }
+              ],
+              "title": {
+                "text": "My working day",
+                "x": 491,
+                "y": 39.7
+              },
+              "viewBox": "0 0 982 482.3"
+            }
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "sections": [
+                {
+                  "label": "Go to work",
+                  "tasks": [
+                    {
+                      "actors": [
+                        "Me"
+                      ],
+                      "score": 5,
+                      "text": "Make tea"
+                    },
+                    {
+                      "actors": [
+                        "Me"
+                      ],
+                      "score": 3,
+                      "text": "Go upstairs"
+                    },
+                    {
+                      "actors": [
+                        "Me",
+                        "Cat"
+                      ],
+                      "score": 1,
+                      "text": "Do work"
+                    }
+                  ]
+                },
+                {
+                  "label": "Go home",
+                  "tasks": [
+                    {
+                      "actors": [
+                        "Me"
+                      ],
+                      "score": 5,
+                      "text": "Go downstairs"
+                    },
+                    {
+                      "actors": [
+                        "Me"
+                      ],
+                      "score": 5,
+                      "text": "Sit down"
+                    }
+                  ]
+                }
+              ],
+              "title": "My working day"
+            },
+            "stable": true
+          },
+          "disposition": "native"
         }
       },
       "passed": true,
@@ -7552,11 +8440,11 @@
     }
   ],
   "summary": {
-    "caseCount": 43,
-    "passedCaseCount": 43,
+    "caseCount": 44,
+    "passedCaseCount": 44,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 155,
+    "observedSurfaceCount": 158,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 17
+    "notApplicableSurfaceCount": 18
   }
 }

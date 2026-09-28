@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "d3d1d55f273e12bb8ef1b7365fb0f7c624132a73383ef459424302ec701ce17a",
-  "receiptResultSha256": "3706e856ed1f3eebe58b16ec4850dbbf003789538dfdd529f89f36c8aa40c14b",
+  "receiptInputSha256": "be5b2e055a7d85d7c8f3c21f50922ef7b72b797a69b3b351912bb81f792c3902",
+  "receiptResultSha256": "927ccff3f54415c6ba79147734d5ec7caf91562a6298a78b2212000da215a94b",
   "summary": {
-    "caseCount": 43,
+    "caseCount": 44,
     "featureCount": 23,
     "dispositions": {
-      "native": 9,
+      "native": 8,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 6
+      "absent": 7
     }
   },
   "features": [
@@ -441,18 +441,33 @@
     {
       "featureId": "official-doc:journey:section:user-journey-diagram",
       "family": "journey",
-      "disposition": "native",
+      "disposition": "absent",
       "caseIds": [
+        "journey.official.fence-0",
         "journey.scores.fractional-parser-render-seam"
       ],
       "surfaces": {
         "agent": "native",
-        "render": "native",
+        "render": "absent",
         "serialize": "native",
         "mutate": "native"
       },
       "diagnostics": {},
       "caseEvidence": [
+        {
+          "caseId": "journey.official.fence-0",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official syntax; Journey set_task_score has a separate semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
         {
           "caseId": "journey.scores.fractional-parser-render-seam",
           "surfaces": {
