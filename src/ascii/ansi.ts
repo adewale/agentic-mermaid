@@ -244,7 +244,10 @@ function htmlSpan(hex: string, text: string): string {
 function concreteTerminalHex(color: string): string | undefined {
   const safe = safeCssColor(color)
   const parsed = safe ? tryParseCssColor(safe) : null
-  return parsed ? toHex(parsed[0], parsed[1], parsed[2]) : undefined
+  // ANSI foregrounds cannot encode opacity. Until the terminal background is
+  // known and composited, emitting the RGB channels would falsely turn a
+  // transparent or translucent authored paint into an opaque one.
+  return parsed && parsed[3] === 1 ? toHex(parsed[0], parsed[1], parsed[2]) : undefined
 }
 
 // ============================================================================

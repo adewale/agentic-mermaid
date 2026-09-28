@@ -312,7 +312,7 @@
     },
     {
       "path": "src/ascii/ansi.ts",
-      "sha256": "5e8722f4a97f7da7582e2b4bcf08248905dfdee7c6ab1dd239aea0c6a31e7517"
+      "sha256": "ce241ba27f3bdb94afeff001a64e5a9193a7c5704d2210e1aab2a009cbf6cd79"
     },
     {
       "path": "src/ascii/architecture.ts",
@@ -476,7 +476,7 @@
     },
     {
       "path": "src/ascii/xychart.ts",
-      "sha256": "66fd5e29be3aa802858e65d008360ed00713101ec19b6e58c9436d0823a0bc44"
+      "sha256": "80c7967248c4ad790af693c05388df18bb3ae5e5841c51997ba5f12ee4fdddff"
     },
     {
       "path": "src/browser-png.ts",
@@ -1036,7 +1036,7 @@
     },
     {
       "path": "src/shared/css-color.ts",
-      "sha256": "c306e2e3134259a3030305157210467925fe36120fef808d3f365c3dd804aec0"
+      "sha256": "69b7ecd2e82d0e3918443480752fddb6c53f9f09f3a0f5e9fce8e221c357dd64"
     },
     {
       "path": "src/shared/css-font.ts",
@@ -1152,7 +1152,7 @@
     },
     {
       "path": "src/terminal-security.ts",
-      "sha256": "dd0e982f23488bdd66ece7046bb6389fb9ae39960c99d677bcca7e2196b456f6"
+      "sha256": "b87b93bb5e2c917c1da62f970edcc7ccb3153889da4b2d199a5d0dac82679ac5"
     },
     {
       "path": "src/terminal-style.ts",
@@ -1164,7 +1164,7 @@
     },
     {
       "path": "src/theme-color-admission.ts",
-      "sha256": "454b95afd59ee88a3bd5a997145179f9015c9978f69de42662ca1821ec225a59"
+      "sha256": "6cec5c9f48c617502da6899fdeacdf8be9b0f5be563911f358740a6477620625"
     },
     {
       "path": "src/theme.ts",
@@ -1232,7 +1232,7 @@
     },
     {
       "path": "src/xychart/parser.ts",
-      "sha256": "e33491f8b2be5b37f6e9da9b1692072cbb3c548c262f074711c5ca87d38c61ec"
+      "sha256": "f655216d31bdf98344d57a3f2cf7b61f264dc1fbd198f85b9ee93312ed543495"
     },
     {
       "path": "src/xychart/renderer.ts",

@@ -82,9 +82,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Quadrant authored-paint admission keeps 31 requests. The exact
     // Linux/Bun 1.4.2 capture measures 743,964 raw / 278,662 gzip /
     // 254,237 Brotli bytes.
-    maxRawBytes: 744_085,
-    maxGzipBytes: 278_785,
-    maxBrotliBytes: 254_360,
+    // XY Chart's nested theme and palette guards retain that 31-request graph.
+    // Linux/Bun 1.4.2 measures 745,142 raw / 278,983 gzip / 254,471 Brotli.
+    maxRawBytes: 745_220,
+    maxGzipBytes: 279_100,
+    maxBrotliBytes: 254_580,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -170,15 +172,18 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 1,013,219 gzip / 799,227 Brotli in the same Linux capture.
     // The same Linux capture measures 3,406,957 raw / 1,013,492 gzip /
     // 799,355 Brotli bytes in the unchanged two-request editor graph.
-    maxRawBytes: 3_407_080,
+    // XY Chart color admission and terminal-projection safety measure
+    // 3,408,123 raw / 1,013,779 gzip / 799,550 Brotli in the same
+    // two-request graph on Linux/Bun 1.4.2.
+    maxRawBytes: 3_408_225,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_013_620,
+    maxGzipBytes: 1_013_945,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.
-    maxBrotliBytes: 799_480,
+    maxBrotliBytes: 800_015,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

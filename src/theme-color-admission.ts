@@ -2,7 +2,7 @@ import type { MermaidFrontmatterMap, MermaidThemeVariables } from './mermaid-sou
 import type { RenderOptions } from './types.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import { CHANNEL_THEME_KEYS } from './color-resolver.ts'
-import { drawableAuthoredCssPaint } from './shared/css-color.ts'
+import { drawableAuthoredCssPaint, splitCssColorList } from './shared/css-color.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 
 const SHARED_COLOR_KEYS = new Set<string>(Object.values(CHANNEL_THEME_KEYS).flat())
@@ -32,6 +32,14 @@ const RADAR_COLOR_KEYS = new Set([
   'titleColor',
 ])
 const ARCHITECTURE_COLOR_KEYS = new Set(['clusterBkg', 'clusterBorder'])
+const XYCHART_COLOR_KEYS = [
+  'backgroundColor', 'titleColor', 'xAxisLabelColor', 'xAxisTickColor', 'xAxisLineColor',
+  'xAxisTitleColor', 'yAxisLabelColor', 'yAxisTickColor', 'yAxisLineColor',
+  'yAxisTitleColor', 'legendTextColor',
+] as const
+const XYCHART_STROKE_KEYS = new Set<string>([
+  'xAxisTickColor', 'xAxisLineColor', 'yAxisTickColor', 'yAxisLineColor',
+])
 // Architecture feeds the selected source key from each shared channel into
 // derived color-mix() paints. Shadowed fallbacks do not reach those sinks.
 const ARCHITECTURE_MIXED_CHANNELS = [
@@ -243,6 +251,38 @@ export function checkThemeVariableColors(
       const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
       if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, allowNone) === undefined) {
         throw new ThemeVariableColorError(`radar.${key}`, value, allowNone)
+      }
+    }
+  }
+  if (familyId === 'xychart') {
+    const chart = configMap(vars.xyChart)
+    if (!chart) return
+    for (const key of XYCHART_COLOR_KEYS) {
+      // The family hook selects an explicit render background ahead of the
+      // chart's theme fallback; the shadowed value never reaches a paint sink.
+      if (key === 'backgroundColor' && renderOptions?.bg !== undefined) continue
+      const raw = chart[key]
+      if (raw === undefined) continue
+      const allowNone = XYCHART_STROKE_KEYS.has(key)
+      const value = typeof raw === 'string' ? raw : JSON.stringify(raw) ?? String(raw)
+      if (typeof raw !== 'string' || drawableAuthoredCssPaint(raw, allowNone) === undefined) {
+        throw new ThemeVariableColorError(`xyChart.${key}`, value, allowNone)
+      }
+    }
+    const palette = chart.plotColorPalette
+    // An empty palette is an intentional request for the built-in fallback,
+    // not an invalid palette entry. Keep empty entries inside a nonempty list
+    // as errors so they cannot disappear during normalization.
+    if (palette !== undefined && !(typeof palette === 'string' && palette.trim().length === 0)) {
+      const entries = typeof palette === 'string' ? splitCssColorList(palette) : palette
+      if (!Array.isArray(entries)) {
+        throw new ThemeVariableColorError('xyChart.plotColorPalette', JSON.stringify(palette) ?? String(palette), false)
+      }
+      for (const [index, raw] of entries.entries()) {
+        const value = typeof raw === 'string' ? raw.trim() : JSON.stringify(raw) ?? String(raw)
+        if (typeof raw !== 'string' || drawableAuthoredCssPaint(value) === undefined) {
+          throw new ThemeVariableColorError(`xyChart.plotColorPalette[${index}]`, value, false)
+        }
       }
     }
   }

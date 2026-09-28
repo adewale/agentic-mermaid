@@ -16,7 +16,7 @@ import type { XYChart, XYChartConfig, XYChartTheme } from '../xychart/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole, Canvas, RoleCanvas } from './types.ts'
 import { colorizeText } from './ansi.ts'
-import { CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
+import { CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
 import { graphemes } from '../shared/graphemes.ts'
@@ -69,13 +69,11 @@ const ASC = {
 /** Per-cell hex color override canvas. Parallel to RoleCanvas. */
 type HexCanvas = (string | null)[][]
 
-/** Generate an array of hex colors, one per series. */
+/** Preserve authored CSS palette entries; colorizeText resolves concrete
+ * paints for ANSI and retains safe CSS values for HTML output. */
 function getSeriesColors(total: number, theme: AsciiTheme, palette?: string[]): string[] {
   if (palette && palette.length > 0) {
-    const usable = palette.filter(isValidHex)
-    if (usable.length > 0) {
-      return Array.from({ length: total }, (_, i) => usable[i % usable.length]!)
-    }
+    return Array.from({ length: total }, (_, i) => palette[i % palette.length]!)
   }
   const accent = theme.accent ?? CHART_ACCENT_FALLBACK
   if (total <= 1) return [accent]

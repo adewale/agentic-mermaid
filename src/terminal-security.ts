@@ -1,4 +1,4 @@
-import { safeCssColor } from './shared/css-color.ts'
+import { safeCssPaint } from './shared/css-color.ts'
 import type { ColorMode } from './ascii/types.ts'
 import { visualWidth } from './ascii/width.ts'
 import { boundedUtf8ByteLength } from './shared/utf8.ts'
@@ -179,7 +179,9 @@ export function secureTerminalHtmlOutput(value: string): string {
   for (const match of value.matchAll(trustedSpan)) {
     const index = match.index ?? 0
     output += escapeTerminalHtmlText(value.slice(cursor, index))
-    const color = safeCssColor(match[1])
+    // Match the color vocabulary used by htmlSpan(), including safe var()
+    // references. Otherwise a generated palette span is escaped as text.
+    const color = safeCssPaint(match[1])
     // Trusted color helpers emit only the three canonical text entities. Raw
     // numeric/named entities could decode to terminal controls in a browser,
     // so a span containing any other ampersand is rendered as inert text.

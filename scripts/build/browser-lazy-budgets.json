@@ -5,19 +5,19 @@
   "families": {
     "flowchart": { "requests": 26, "raw": 2275000, "gzip": 694000, "brotli": 556000 },
     "state": { "requests": 25, "raw": 2272000, "gzip": 693000, "brotli": 555000 },
-    "sequence": { "requests": 24, "raw": 573100, "gzip": 176175, "brotli": 155725 },
-    "timeline": { "requests": 24, "raw": 556000, "gzip": 171125, "brotli": 151100 },
+    "sequence": { "requests": 24, "raw": 574165, "gzip": 176470, "brotli": 155995 },
+    "timeline": { "requests": 24, "raw": 556830, "gzip": 171410, "brotli": 151380 },
     "class": { "requests": 28, "raw": 2276000, "gzip": 695000, "brotli": 557000 },
     "er": { "requests": 27, "raw": 2279000, "gzip": 697000, "brotli": 559000 },
-    "journey": { "requests": 26, "raw": 576000, "gzip": 178375, "brotli": 157675 },
+    "journey": { "requests": 26, "raw": 576265, "gzip": 178655, "brotli": 157950 },
     "architecture": { "requests": 25, "raw": 2289000, "gzip": 698000, "brotli": 559000 },
-    "xychart": { "requests": 25, "raw": 581050, "gzip": 179600, "brotli": 158700 },
-    "pie": { "requests": 26, "raw": 602050, "gzip": 198350, "brotli": 176225 },
-    "quadrant": { "requests": 26, "raw": 558060, "gzip": 173625, "brotli": 153475 },
+    "xychart": { "requests": 25, "raw": 582120, "gzip": 179900, "brotli": 158985 },
+    "pie": { "requests": 26, "raw": 603120, "gzip": 198630, "brotli": 176505 },
+    "quadrant": { "requests": 26, "raw": 559195, "gzip": 173935, "brotli": 153695 },
     "gantt": { "requests": 25, "raw": 609000, "gzip": 189000, "brotli": 167000 },
-    "mindmap": { "requests": 27, "raw": 557000, "gzip": 174350, "brotli": 154100 },
-    "gitgraph": { "requests": 26, "raw": 562000, "gzip": 175325, "brotli": 154850 },
-    "radar": { "requests": 27, "raw": 568000, "gzip": 177575, "brotli": 157000 },
-    "sankey": { "requests": 26, "raw": 561200, "gzip": 175300, "brotli": 154900 }
+    "mindmap": { "requests": 27, "raw": 557180, "gzip": 174640, "brotli": 154335 },
+    "gitgraph": { "requests": 26, "raw": 562310, "gzip": 175605, "brotli": 155120 },
+    "radar": { "requests": 27, "raw": 568140, "gzip": 177865, "brotli": 157180 },
+    "sankey": { "requests": 26, "raw": 562275, "gzip": 175600, "brotli": 155135 }
   }
 }

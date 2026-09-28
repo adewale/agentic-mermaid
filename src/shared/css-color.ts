@@ -28,6 +28,26 @@ const CSS_COLOR_FUNCTIONS = new Set([
   'rgba',
 ])
 
+/** Split a comma-string palette without breaking functional rgb()/hsl() colors. */
+export function splitCssColorList(value: string): string[] {
+  const entries: string[] = []
+  let depth = 0
+  let start = 0
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index]
+    if (char === '(') depth++
+    else if (char === ')') depth--
+    else if (char === ',' && depth === 0) {
+      entries.push(value.slice(start, index))
+      start = index + 1
+    }
+    if (depth < 0) return [value]
+  }
+  if (depth !== 0) return [value]
+  entries.push(value.slice(start))
+  return entries
+}
+
 /**
  * Return a trimmed, conservatively safe CSS color token, or undefined.
  *

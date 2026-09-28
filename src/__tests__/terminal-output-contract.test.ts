@@ -73,6 +73,18 @@ describe('terminal text security boundary', () => {
     expect(rendered).toContain('&lt;span style="color:#123456" onmouseover="alert(1)"&gt;')
   })
 
+  test('preserves safe variable-color spans but refuses fetching paint and false-opaque ANSI', () => {
+    const variable = colorizeText('<safe>', 'var(--brand)', 'html')
+    expect(secureTerminalHtmlOutput(variable)).toBe('<span style="color:var(--brand)">&lt;safe&gt;</span>')
+    const fetching = '<span style="color:var(--brand,url(https://evil.invalid/x))">bad</span>'
+    expect(secureTerminalHtmlOutput(fetching)).not.toContain('<span')
+    expect(secureTerminalHtmlOutput(fetching)).toContain('&lt;span')
+    for (const translucent of ['transparent', 'rgba(255,0,0,0)', '#ff000080']) {
+      expect(colorizeText('bar', translucent, 'truecolor')).toBe('bar')
+      expect(colorizeText('bar', translucent, 'html')).toContain(`style="color:${translucent}"`)
+    }
+  })
+
   test('every registered terminal family crosses the final HTML boundary without double-escaping trusted spans', () => {
     const payload = '<img src=x onerror=alert(1)>'
     const trusted = colorizeText('<trusted>', '#123456', 'html')
