@@ -390,17 +390,13 @@ describe('vocabulary doc-sync', () => {
     expect(help).not.toContain('flowchart/state, sequence')
   })
 
-  test('every MutationOp kind is in spec, capabilities, and MCP SDK declaration', () => {
-    const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
+  test('every MutationOp kind is in capabilities and the MCP SDK declaration', () => {
     const cap = buildCapabilities()
     for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY)) {
       const familyCap = cap.families.find(f => f.id === family)
       expect(familyCap?.mutationOps).toEqual([...ops])
       expect(familyCap?.editPolicy).toBe('structured-when-narrowed')
-      for (const op of ops) {
-        expect(spec).toContain(op)
-        expect(SDK_DECLARATION).toContain(op)
-      }
+      for (const op of ops) expect(SDK_DECLARATION).toContain(op)
     }
   })
 
@@ -470,6 +466,10 @@ describe('vocabulary doc-sync', () => {
       const rows = largestFamilyKeyedTable(text, familyKeys)
       expect({ file, copiesRoster: rows * 2 >= BUILTIN_FAMILY_METADATA.length }).toEqual({ file, copiesRoster: false })
     }
+    // A code block of overloads or narrowers copies the roster as surely as a
+    // table does; the spec may name a worked example or two, not the registry.
+    const narrowersInSpec = BUILTIN_FAMILY_METADATA.filter(family => new RegExp(`\\b${family.narrower}\\b`).test(agentNative))
+    expect({ copiesNarrowers: narrowersInSpec.length * 2 >= BUILTIN_FAMILY_METADATA.length }).toEqual({ copiesNarrowers: false })
 
     for (const text of [skill, codeMode, SDK_DECLARATION]) {
       expect(text).toContain('ganttToday')
