@@ -1,0 +1,64 @@
+name: Nightly finder
+
+# Randomness belongs in finder lanes, not in the PR gate (docs/testing-strategy.md,
+# "Seed policy: pinned gates, rolling finders"). Every property suite rolls fresh
+# fast-check seeds with a raised default run count. A failure never blocks a pull
+# request; it files (or comments on) one issue with the seed and counterexample so
+# it can be fixed and kept as a permanent fast-check `examples` entry.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly-finder
+  cancel-in-progress: false
+
+jobs:
+  random-seed-properties:
+    name: Random-seed property sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Roll fresh seeds across every fast-check suite
+        id: sweep
+        env:
+          AM_FC_SEED: random
+          AM_FC_NUM_RUNS: '300'
+        run: |
+          set -o pipefail
+          mapfile -t files < <(git grep -l "from 'fast-check'" -- 'src/__tests__/*.test.ts')
+          echo "Sweeping ${#files[@]} property files"
+          bun test --timeout 120000 "${files[@]}" 2>&1 | tee sweep.log
+
+      - name: File or update the finder issue
+        if: ${{ failure() && steps.sweep.outcome == 'failure' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          bun run scripts/ci/nightly-finder-report.ts sweep.log > finder-body.md
+          title=$(bun -e "import { FINDER_ISSUE_TITLE } from './scripts/ci/nightly-finder-report.ts'; console.log(FINDER_ISSUE_TITLE)")
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file finder-body.md
+          else
+            gh issue create --title "$title" --body-file finder-body.md
+          fi
