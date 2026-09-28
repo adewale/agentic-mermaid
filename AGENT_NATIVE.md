@@ -91,39 +91,44 @@ Warnings split into three tiers by how reliable/actionable the underlying check 
 
 Derived from parsed structure or character-level source properties. Deterministic, no font measurement dependency.
 
+<!-- BEGIN GENERATED: warning-table:structural -->
 | Code | Severity | Description |
 |---|---|---|
-| `EMPTY_DIAGRAM`    | error   | Diagram contains no renderable elements |
-| `EDGE_MISANCHORED` | error   | Edge endpoint does not attach to a real node / participant |
-| `OFF_CANVAS`       | error   | Node or edge segment lies outside the canvas |
-| `GROUP_BREACH`     | error   | Member node lies outside its group's bounds |
-| `UNKNOWN_SHAPE`    | warning | Shape name unrecognized; default used |
-| `LABEL_OVERFLOW`   | warning | Label character count exceeds the configurable limit (default 40 chars). Payload includes `charCount` and `limit`. Source-based, no font-table dependency. |
-| `UNRESOLVABLE_SCHEDULE` | error | The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error. |
-| `RENDER_FAILED`    | error   | Any family: the source verifies structurally but the strict render parser throws on its canonical source, so rendering would fail. Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. |
+| `EMPTY_DIAGRAM` | error | Diagram contains no renderable elements |
+| `EDGE_MISANCHORED` | error | Edge endpoint does not attach to a real node / participant |
+| `OFF_CANVAS` | error | Node or edge segment lies outside the canvas |
+| `GROUP_BREACH` | error | Member node lies outside its group's bounds |
+| `UNKNOWN_SHAPE` | warning | Shape name unrecognized; default used |
+| `LABEL_OVERFLOW` | warning | A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\n` split lines, XML entities count as one character, and formatting tags are stripped. Payload includes `charCount` and `limit`. Character-based, no font-table dependency. |
+| `UNRESOLVABLE_SCHEDULE` | error | The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (unknown task reference, bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error. |
+| `RENDER_FAILED` | error | Any family: the source parses but the strict render parser, layout, or theme colors reject it, so rendering would fail. Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. |
+<!-- END GENERATED: warning-table:structural -->
 
 ### Tier 2 — Geometric (advisory)
 
 Correctly detect what they claim to detect, but the occurrence may be intentional. Suppress when intent is clear; do not gate CI on them alone.
 
+<!-- BEGIN GENERATED: warning-table:geometric -->
 | Code | Severity | Description |
 |---|---|---|
-| `NODE_OVERLAP`     | warning | Two laid-out node bounding boxes intersect |
+| `NODE_OVERLAP` | warning | Two laid-out node bounding boxes intersect |
 | `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
 | `ROUTE_HITCH` | warning | An edge bends although a direct lane for it is provably clear (route-contract tripwire) |
 | `ROUTE_UNEXPLAINED_BEND` | warning | An edge contains a diagonal segment under orthogonal routing (route-contract tripwire) |
 | `ROUTE_LABEL_ON_SHARED_TRUNK` | warning | A label pill sits on a line segment another edge shares (route-contract tripwire) |
-| `ROUTE_SELF_LOOP_OCCUPANCY` | warning | A self-loop certificate has invalid side/boundary geometry or collides with another loop/label |
+| `ROUTE_SELF_LOOP_OCCUPANCY` | warning | A self-loop certificate has invalid side/boundary geometry or collides with another loop/label (route-contract tripwire) |
 | `ROUTE_CONTAINER_MISANCHOR` | warning | A container edge does not terminate on the container border (route-contract tripwire) |
 | `ROUTE_SHAPE_MISANCHOR` | warning | An endpoint is off the rendered shape boundary (route-contract tripwire) |
-| `ROUTE_STALE_AFTER_NODE_MOVE` | warning | An endpoint detached from its node entirely (route-contract tripwire) |
+| `ROUTE_STALE_AFTER_NODE_MOVE` | warning | An endpoint detached from its node entirely, or another node sits on the edge's route (route-contract tripwire) |
+<!-- END GENERATED: warning-table:geometric -->
 
-Codes are the contract surface agents reason about. Emitting an undocumented code fails CI; documenting an unemitted one also fails CI. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
+Codes are the contract surface agents reason about. These tables are generated from `src/agent/warning-catalog.ts`, which must describe every `WarningCode` and nothing else or typecheck fails, so a code cannot ship undocumented. Agents omit known-irrelevant codes via `VerifyOptions.suppress`.
 
 ### Tier 3 — Lint (advisory)
 
 Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that parse and render but are probably not what the agent intended. Advisory lint never flips `verify.ok`; an explicitly authored Brand constraint with `action: "error"` emits `BRAND_CONSTRAINT_ERROR` and does flip it.
 
+<!-- BEGIN GENERATED: warning-table:lint -->
 | Code | Severity | Description |
 |---|---|---|
 | `DUPLICATE_EDGE` | warning | Flowchart/state contains an exact repeated edge with the same endpoints, label, style, and markers. Usually accidental regeneration or duplicate mutation. |
@@ -131,17 +136,18 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 | `DECISION_BRANCH_UNLABELED` | warning | A decision diamond has two or more exits and this branch carries no condition label. ISO 5807 (10.3.1.2) and ANSI X3.5 (4.10.2) require every exit of a multi-exit decision to be labeled with its condition value. |
 | `FLOW_IMBALANCE` | warning | A sankey intermediate node (one with both inflow and outflow) receives a different total than it emits. Conservation across stages is the domain's defining property — the ribbon widths are an account — and the layout silently renders `max(in, out)`, hiding the unaccounted quantity. Payload carries `node`, `inflow`, `outflow`, and a `message` naming the unaccounted amount. Balance the flows or add an explicit remainder link (e.g. a `Losses` sink). |
 | `COMMENT_DROPPED` | warning | The source contains in-body `%%` comments that this diagram's structured serialization does not preserve (reported with `count` and `lines`). The leading wrapper — frontmatter, `%%{init}%%` directives, comments before the header — always round-trips byte-verbatim; in-body comments survive only in opaque bodies or preserved opaque segments. Re-home load-bearing comments into the wrapper, or accept the loss as canonicalization. |
-| `UNSUPPORTED_SYNTAX` | warning | The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings). Payload includes `syntax`, optional `line`, and `message`. |
+| `UNSUPPORTED_SYNTAX` | warning | The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings), or, with `syntax: "empty_layout"`, the source carries content but the local layout renders a 0x0 canvas with no nodes, edges, or groups. Payload includes `syntax`, optional `line`, and `message`. |
 | `CONTENT_DROPPED_ON_ROUNDTRIP` | warning | The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt. |
-| `INEFFECTIVE_CONFIG` | warning | A Mermaid config field was accepted (for config-shape compatibility) but has no effect on this family's geometry or paint — e.g. Journey's sequence-era fields (`boxMargin`, `rightAngles`, …). Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so. |
+| `INEFFECTIVE_CONFIG` | warning | A Mermaid config field has no effect on this family's geometry or paint: it is accepted for config-shape compatibility but not wired (e.g. Journey's sequence-era fields `boxMargin`, `rightAngles`, …), unknown to the family's config section, or given an invalid value. Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so. |
 | `LOW_CONTRAST` | warning | A concrete authored paint remains authoritative but misses a measurable contrast threshold against the final resolved opaque background. Payload names the `field`, `foreground`, `background`, measured `ratio`, and required `minimum`; verification diagnoses without repainting authored intent. Transparent output is not measured because its host backdrop is unknown. |
 | `LABELS_HIDDEN` | warning | A chart's layout left out text the source asked for because it did not fit. XY chart: `target: "x-axis"` lists the authored category names the axis does not draw (tick labels thinned to avoid overlap, or the whole category axis dropped when its widest name does not fit); `target: "data-labels"` lists the bars (`category = value`) whose value label fits neither inside the bar nor in the plot beyond its end — shorten the names, flip with `set_orientation {horizontal: true}`, or widen the value range. Quadrant chart: `target: "point-labels"` lists the points whose label collides with labels placed first — spread the points, shorten the names, or enlarge the chart. The chart still renders; `describe` still lists every category and point, so this lint is the only signal that a reader cannot see them. |
 | `BAR_RANGE_EXCLUDES_ZERO` | warning | An XY chart with bar series has an authored y-axis range that excludes zero. Bars grow from zero clamped into the range, so they start at the reported `baseline` and their lengths stop being proportional to their values (a truncated axis). The authored range is kept. Include zero with `set_y_axis`, or draw the series as a line. |
 | `VALUES_OUTSIDE_RANGE` | warning | An XY chart series has values outside the authored y-axis range. A bar stops at the edge of the range, so its length understates the value, and a line point is drawn past the plot. The warning names the `series`, the `values` outside the range, and the `range`; the range is kept. Widen it with `set_y_axis`, or remove it so the axis fits the data. |
 | `BRAND_CONSTRAINT_WARNING` | warning | A caller-selected inspect-only `contrast`, `accent-area`, or `mono-role` Brand constraint failed or could not be measured. Payload reports the constraint, `measurement`, applicable role/mark, and concrete evidence without repainting or relayout. |
 | `BRAND_CONSTRAINT_ERROR` | error | The same inspect-only Brand constraint contract with `action: "error"`; it preserves authored output but flips `verify.ok` so a caller can enforce its declared brand policy. |
+<!-- END GENERATED: warning-table:lint -->
 
-`FamilyDescriptor.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER`, documented here, and covered by doc-sync tests.
+`FamilyDescriptor.verify` hooks are wired and run today; built-ins use them for Tier 1 structural warnings for class/ER and the central flowchart verifier emits the initial Tier 3 lint catalogue. Future lint codes should be added deliberately to `WARNING_TIER` and described in `src/agent/warning-catalog.ts`; `bun run doc-blocks` regenerates the tables here.
 
 **Branded coordinate types** (`Finite`) prevent NaN / Infinity from reaching the renderer. `toFinite()` is the only constructor; it throws on invalid input.
 

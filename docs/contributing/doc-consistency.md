@@ -1,11 +1,11 @@
 # Keeping docs consistent with the code
 
 A fact that has one source in code — the families, the MCP tools, the CLI
-verbs and flags, the warning codes, a family's no-op config keys, the
-agent workflow — is either generated into a doc or pointed at. It is not
-copied by hand. Hand copies are how the repo ended up recommending two
-different ways to author a new diagram for months, and how six docs kept
-listing a stale hosted tool set.
+verbs and flags, the warning codes and their descriptions, a family's no-op
+config keys, the agent workflow — is either generated into a doc or pointed
+at. It is not copied by hand. Hand copies are how the repo ended up
+recommending two different ways to author a new diagram for months, and how
+six docs kept listing a stale hosted tool set.
 
 Three checks run in `bun run test`. Prose claims need an occasional audit by
 hand.
@@ -20,7 +20,10 @@ Hosted tools: <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk
 
 A block can sit inside a sentence or table cell, or span lines. The block
 ids and their renderers are in `scripts/docs/doc-blocks.ts`; `noop-keys`
-takes a family id (`noop-keys:sequence`). `src/__tests__/doc-blocks.test.ts`
+takes a family id (`noop-keys:sequence`), and `warning-table` and
+`warning-summaries` take a warning tier (`warning-table:lint`) and print the
+descriptions in `src/agent/warning-catalog.ts`, which also feeds the
+per-code pages on the website. `src/__tests__/doc-blocks.test.ts`
 fails when a block is stale or names an unknown renderer. Code-generated
 surfaces (`llms.txt`, the `init-agent` bundle, the Code Mode SDK declaration,
 `am verify --help`) import the same constants instead.

@@ -40,6 +40,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Warning-code descriptions have one source, `src/agent/warning-catalog.ts`,
+  and a code without a description fails typecheck. The website's per-code
+  pages, the `AGENT_NATIVE.md` warning tables and the tier notes printed by
+  `am --agent-instructions` are generated from it. Descriptions that
+  contradicted `verify` are corrected: `RENDER_FAILED` also covers
+  unrecognized headers, invalid theme colors and layout errors;
+  `INEFFECTIVE_CONFIG` also covers unknown fields and invalid values;
+  `LABELS_HIDDEN` covers quadrant point labels; `ROUTE_UNEXPLAINED_BEND`
+  applies to flowchart and state, not class and ER; and `NODE_OVERLAP` is
+  listed for every family it checks.
 - Agent guidance now says one thing everywhere: write Mermaid source directly for
   a new diagram, then parse, verify, and render it; use `buildMermaid` /
   `createMermaid` when generating a diagram programmatically, and typed

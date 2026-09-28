@@ -10,7 +10,8 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA, getFamily } from '../../src/agent/families.ts'
-import { WARNING_TIER, type WarningCode, type WarningTier } from '../../src/agent/types.ts'
+import { WARNING_SEVERITY, WARNING_TIER, type WarningCode, type WarningTier } from '../../src/agent/types.ts'
+import { WARNING_CATALOG } from '../../src/agent/warning-catalog.ts'
 import { COMMAND_FLAGS } from '../../src/cli/index.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../../src/mcp/tool-names.ts'
 import { CLI_RENDER_FORMATS } from '../../src/render-contract.ts'
@@ -18,8 +19,27 @@ import { EXISTING_DIAGRAM_WORKFLOW, NEW_DIAGRAM_POLICY } from '../../src/shared/
 
 const ticked = (values: readonly string[]): string => values.map(value => `\`${value}\``).join(', ')
 
+// Codes print in catalog order.
 const codesInTier = (tier: WarningTier): WarningCode[] =>
-  (Object.keys(WARNING_TIER) as WarningCode[]).filter(code => WARNING_TIER[code] === tier)
+  (Object.keys(WARNING_CATALOG) as WarningCode[]).filter(code => WARNING_TIER[code] === tier)
+
+const warningTier = (argument?: string): WarningTier => {
+  if (argument === 'structural' || argument === 'geometric' || argument === 'lint') return argument
+  throw new Error(`unknown warning tier ${argument}`)
+}
+
+/** The tier's codes, then "`CODE` means …" for each code with a guide note. */
+const warningSummaries = (tier: WarningTier): string => {
+  const codes = codesInTier(tier)
+  const notes = codes.flatMap(code => WARNING_CATALOG[code].guideNote ? [`\`${code}\` means ${WARNING_CATALOG[code].guideNote}.`] : [])
+  return [`${ticked(codes)}.`, ...notes].join(' ')
+}
+
+const warningTable = (tier: WarningTier): string => [
+  '| Code | Severity | Description |',
+  '|---|---|---|',
+  ...codesInTier(tier).map(code => `| \`${code}\` | ${WARNING_SEVERITY[code]} | ${WARNING_CATALOG[code].summary.replace(/\|/g, '\\|')} |`),
+].join('\n')
 
 const noopKeys = (family: string): string => {
   const keys = getFamily(family)?.config?.noopKeys
@@ -27,7 +47,10 @@ const noopKeys = (family: string): string => {
   return ticked(keys)
 }
 
-/** Renderer for each block id; `noop-keys:<family>` takes the family id. */
+/**
+ * Renderer for each block id; `noop-keys:<family>` takes the family id, and
+ * `warning-summaries:<tier>` / `warning-table:<tier>` take a warning tier.
+ */
 export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>> = {
   'agent-workflow': () => `${NEW_DIAGRAM_POLICY} ${EXISTING_DIAGRAM_WORKFLOW}`,
   'new-diagram-policy': () => NEW_DIAGRAM_POLICY,
@@ -38,6 +61,8 @@ export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>>
   'warning-codes:structural': () => ticked(codesInTier('structural')),
   'warning-codes:geometric': () => ticked(codesInTier('geometric')),
   'warning-codes:lint': () => ticked(codesInTier('lint')),
+  'warning-summaries': tier => warningSummaries(warningTier(tier)),
+  'warning-table': tier => warningTable(warningTier(tier)),
   'family-ids': () => ticked(BUILTIN_FAMILY_METADATA.map(family => family.id)),
   'noop-keys': family => noopKeys(family ?? ''),
 }
