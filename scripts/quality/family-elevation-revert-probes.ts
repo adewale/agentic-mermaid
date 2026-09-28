@@ -3,8 +3,10 @@
  * Reproduce the causal red side of the final family-elevation review fixes.
  *
  * The script copies the current checkout to a temporary sandbox, injects one
- * real source fault at a time, and requires the named focused test to fail with
- * the recorded count. The working tree is never modified.
+ * real source fault at a time, and requires the named focused test to go red.
+ * It asserts detection, not an exact failure count: adding another test that
+ * also catches the fault, or a second defence that masks one assertion, must
+ * not break the probe. The working tree is never modified.
  */
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,7 +19,6 @@ interface Probe {
   replace?: string
   append?: string
   test: string[]
-  failures: number
 }
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -45,7 +46,6 @@ const probes: Probe[] = [
     return state
   }`,
     test: ['src/__tests__/state-typed-elevation.test.ts'],
-    failures: 1,
   },
   {
     name: 'implicit GitGraph order stays monotone after branch nine',
@@ -57,7 +57,6 @@ const probes: Probe[] = [
   return Number(\`0.\${index}\`)
 }`,
     test: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
-    failures: 1,
   },
   {
     name: 'known invalid family config values cannot disappear silently',
@@ -76,7 +75,6 @@ const probes: Probe[] = [
   return [] // injected fault: silently swallow invalid known values
   if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics`,
     test: ['src/__tests__/unknown-config-wire-or-warn.test.ts'],
-    failures: 15,
   },
   {
     name: 'invalid XY reserved-space config is ignored rather than clamped into geometry',
@@ -91,7 +89,6 @@ const probes: Probe[] = [
       getPositiveNumber(config.plotReservedSpacePercent, DEFAULT_XY_CHART_CONFIG.plotReservedSpacePercent),
     )),`,
     test: ['src/__tests__/unknown-config-wire-or-warn.test.ts', '-t', 'xychart: invalid documented values'],
-    failures: 1,
   },
   {
     name: 'expanded upstream loop variants remain one-to-one and ordered',
@@ -99,14 +96,12 @@ const probes: Probe[] = [
     find: 'commit id:\\"__proto__\\"\\n        branch __proto__',
     replace: 'commit id:\\"prototype\\"\\n        branch prototype',
     test: ['src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts', '-t', 'binds every classification'],
-    failures: 1,
   },
   {
     name: 'pinned upstream provenance rejects changed source bytes',
     file: 'eval/mermaid-upstream-suite-bench/upstream-f3dea583/mindmap.spec.ts',
     append: '\n// injected provenance fault\n',
     test: ['src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts', '-t', 'binds every classification'],
-    failures: 1,
   },
   {
     name: 'SVG identity checks exact semantic ids, not only counts',
@@ -114,7 +109,6 @@ const probes: Probe[] = [
     find: 'data-id="${escapeAttr(node.id)}" data-label=',
     replace: 'data-id="${escapeAttr(`fault:${node.id}`)}" data-label=',
     test: ['src/__tests__/svg-identity-contract.test.ts', '-t', 'enrolls every registered family'],
-    failures: 1,
   },
   {
     name: 'SVG relation checks reject wrong ids with unchanged endpoints',
@@ -122,7 +116,6 @@ const probes: Probe[] = [
     find: '    const sceneId = `edge:${pairKey}#${k}`',
     replace: '    const sceneId = `fault:${pairKey}#${k}`',
     test: ['src/__tests__/svg-identity-contract.test.ts', '-t', 'enrolls every registered family'],
-    failures: 1,
   },
   {
     name: 'Mindmap parser cannot accept and then drop empty icons',
@@ -130,7 +123,6 @@ const probes: Probe[] = [
     find: "      if (!icon || !value) throw new MindmapParseError('Mindmap icon decoration must contain a non-empty value without closing parentheses', index + 1)",
     replace: "      if (!icon) throw new MindmapParseError('Mindmap icon decoration must contain a non-empty value without closing parentheses', index + 1)",
     test: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', '-t', 'rejects empty icon decorations'],
-    failures: 1,
   },
   {
     name: 'Mindmap decoration edits cannot change the reparsed tree',
@@ -138,7 +130,6 @@ const probes: Probe[] = [
     find: "        if (!stableBodySyntax(next)) return unstableDecorationError('icon', icon.value)",
     replace: '        // injected fault: accept unstable icon syntax',
     test: ['src/__tests__/mindmap-agent-ops.test.ts', '-t', 'icon and class operations'],
-    failures: 1,
   },
   {
     name: 'mutable style values cannot inject line-oriented statements',
@@ -152,7 +143,6 @@ const probes: Probe[] = [
       'src/__tests__/er-typed-segments.test.ts',
       '-t', 'paint mutations reject',
     ],
-    failures: 4,
   },
   {
     name: 'targetWidth contraction cannot discard distinctive content',
@@ -160,15 +150,13 @@ const probes: Probe[] = [
     find: `  const boundedOutput = output.split('\\n').map(line => line.trimEnd()).join('\\n').trimEnd()`,
     replace: `  const boundedOutput = output.replace(/descriptive/gi, '').split('\\n').map(line => line.trimEnd()).join('\\n').trimEnd()`,
     test: ['src/__tests__/ascii-target-width.test.ts', '-t', 'every registered family shrinks'],
-    failures: 1,
   },
   {
     name: 'ER label-less relationships remain visible',
     file: 'src/er/parser.ts',
-    find: `  const regex = new RegExp(\`^(\${ER_ENTITY_REFERENCE_SOURCE})\\\\s+([|o}{]+)(--|\\\\.\\\\.)([|o}{]+)\\\\s+(\${ER_ENTITY_REFERENCE_SOURCE})(?:\\\\s*:\\\\s*(.*))?$\`)`,
-    replace: `  const regex = new RegExp(\`^(\${ER_ENTITY_REFERENCE_SOURCE})\\\\s+([|o}{]+)(--|\\\\.\\\\.)([|o}{]+)\\\\s+(\${ER_ENTITY_REFERENCE_SOURCE})\\\\s*:\\\\s*(.+)$\`)`,
+    find: `(?:[ \\\\t]*:[ \\\\t]*(.*))?$\`,`,
+    replace: `[ \\\\t]*:[ \\\\t]*(.+)$\`, // injected fault: require a label`,
     test: ['src/__tests__/er-parser.test.ts', '-t', 'label-less relationships parse and render visibly'],
-    failures: 1,
   },
   {
     name: 'XYChart raster output honors authored backgroundColor',
@@ -176,7 +164,6 @@ const probes: Probe[] = [
     find: `    background: graphical.rasterBackground,`,
     replace: `    background: 'white', // injected fault: drop projected family background`,
     test: ['src/__tests__/xychart-renderer.test.ts', '-t', 'carries the authored background'],
-    failures: 1,
   },
   {
     name: 'Quadrant axis labels remain inside measured half-plot budgets',
@@ -184,7 +171,6 @@ const probes: Probe[] = [
     find: `      near: budgetAxisLabel(chart.xAxis.near, halfBudget, axisFontX, style.edgeLabelFontWeight),`,
     replace: `      near: chart.xAxis.near, // injected fault: bypass half-plot budget`,
     test: ['src/__tests__/quadrant.test.ts', '-t', 'long axis labels wrap within their half-plot budgets'],
-    failures: 1,
   },
   {
     name: 'Mindmap reserved-prefix whitespace cannot change node meaning on serialization',
@@ -192,7 +178,6 @@ const probes: Probe[] = [
     find: `    if (/^::icon\\b/i.test(trimmed)) {`,
     replace: `    if (/^::icon\\(/i.test(trimmed)) { // injected fault: allow reserved-prefix whitespace as a node`,
     test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'reserved decorations'],
-    failures: 1,
   },
   {
     name: 'GitGraph cherry-pick rejects commits already reachable through inherited history',
@@ -200,7 +185,6 @@ const probes: Probe[] = [
     find: `      if (reachableFrom(current.head, source.id, commitById)) throw new GitGraphParseError(\`Cherry-pick source '\${source.id}' is already reachable from current branch '\${currentBranch}'.\`, index + 1)`,
     replace: `      if (source.branch === currentBranch) throw new GitGraphParseError(\`Cherry-pick source '\${source.id}' is already on current branch '\${currentBranch}'.\`, index + 1)`,
     test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'already reachable'],
-    failures: 1,
   },
   {
     name: 'GitGraph layout cannot emit duplicate coincident parent relations',
@@ -208,7 +192,6 @@ const probes: Probe[] = [
     find: `    for (const [index, parentId] of [...new Set(commit.parents)].entries()) {`,
     replace: `    for (const [index, parentId] of commit.parents.entries()) { // injected fault: duplicate parents`,
     test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'one semantic parent relation'],
-    failures: 1,
   },
   {
     name: 'Delimiter-bearing relation endpoints retain injective semantic IDs',
@@ -218,7 +201,6 @@ const probes: Probe[] = [
     : \`relation:\${JSON.stringify([from, to])}\``,
     replace: `  const body = \`\${from}->\${to}\` // injected fault: delimiter-ambiguous identity`,
     test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'relation identities remain injective'],
-    failures: 1,
   },
   {
     name: 'State concurrency separators remain continuous between region boxes',
@@ -226,7 +208,6 @@ const probes: Probe[] = [
     find: `        for (let y = top; y <= bottom; y++) canvas[x]![y] = graph.config.useAscii ? ':' : '┆'`,
     replace: `        for (let y = top; y <= bottom; y++) void y // injected fault: omit separator`,
     test: ['src/__tests__/state-ascii-elevation.test.ts', '-t', 'one continuous concurrency separator'],
-    failures: 1,
   },
   {
     name: 'ER shortcut routing cannot overwrite a foreign entity rectangle',
@@ -236,7 +217,6 @@ const probes: Probe[] = [
         : lineY`,
     replace: `      const detourY = lineY // injected fault: tunnel directly through foreign boxes`,
     test: ['src/__tests__/er-ascii-clearance.test.ts', '-t', 'routes a non-adjacent'],
-    failures: 1,
   },
 ]
 
@@ -280,10 +260,10 @@ function runProbe(probe: Probe): void {
     })
     const output = `${result.stdout.toString()}\n${result.stderr.toString()}`
     const actual = failureCount(output)
-    if (result.exitCode === 0 || actual !== probe.failures) {
-      throw new Error(`${probe.name}: expected ${probe.failures} failing test(s), exit=${result.exitCode}, observed=${String(actual)}\n${output.slice(-4000)}`)
+    if (result.exitCode === 0 || actual === undefined || actual < 1) {
+      throw new Error(`${probe.name}: the injected fault was not detected, exit=${result.exitCode}, failing tests=${String(actual)}\n${output.slice(-4000)}`)
     }
-    console.log(`RED ${probe.failures.toString().padStart(2)}  ${probe.name}`)
+    console.log(`RED ${actual.toString().padStart(2)}  ${probe.name}`)
   } finally {
     writeFileSync(path, original)
   }
