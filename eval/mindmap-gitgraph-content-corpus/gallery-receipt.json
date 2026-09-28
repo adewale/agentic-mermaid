@@ -1036,7 +1036,7 @@
     },
     {
       "path": "src/shared/css-color.ts",
-      "sha256": "c306e2e3134259a3030305157210467925fe36120fef808d3f365c3dd804aec0"
+      "sha256": "69b7ecd2e82d0e3918443480752fddb6c53f9f09f3a0f5e9fce8e221c357dd64"
     },
     {
       "path": "src/shared/css-font.ts",
@@ -1164,7 +1164,7 @@
     },
     {
       "path": "src/theme-color-admission.ts",
-      "sha256": "454b95afd59ee88a3bd5a997145179f9015c9978f69de42662ca1821ec225a59"
+      "sha256": "5c4211bc123360a91565075a7661e8f97060d907ee1bd5e4eba688e664460d21"
     },
     {
       "path": "src/theme.ts",
@@ -1232,7 +1232,7 @@
     },
     {
       "path": "src/xychart/parser.ts",
-      "sha256": "e33491f8b2be5b37f6e9da9b1692072cbb3c548c262f074711c5ca87d38c61ec"
+      "sha256": "f655216d31bdf98344d57a3f2cf7b61f264dc1fbd198f85b9ee93312ed543495"
     },
     {
       "path": "src/xychart/renderer.ts",

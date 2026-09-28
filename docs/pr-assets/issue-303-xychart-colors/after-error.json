@@ -1,0 +1,10 @@
+{
+  "ok": false,
+  "op": "render",
+  "error": {
+    "code": "INVALID_THEME_COLOR",
+    "message": "themeVariables.xyChart.plotColorPalette[0]: \"notacolor\" is not a CSS color — expected a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor, or var(--name), e.g. themeVariables.xyChart.plotColorPalette[0]:#f96",
+    "key": "xyChart.plotColorPalette[0]",
+    "value": "notacolor"
+  }
+}

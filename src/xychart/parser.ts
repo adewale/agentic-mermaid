@@ -13,6 +13,7 @@ import type {
   XYChartTheme,
 } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { splitCssColorList } from '../shared/css-color.ts'
 
 // ============================================================================
 // XY Chart parser
@@ -527,7 +528,7 @@ function resolveAxisConfig(root: MermaidFrontmatterMap, key: 'xAxis' | 'yAxis'):
 
 function parsePalette(value: string | undefined): string[] | undefined {
   if (!value) return undefined
-  const items = value.split(',').map(item => item.trim()).filter(Boolean)
+  const items = splitCssColorList(value).map(item => item.trim()).filter(Boolean)
   return items.length > 0 ? items : undefined
 }
 
