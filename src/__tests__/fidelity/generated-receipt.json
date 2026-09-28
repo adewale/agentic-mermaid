@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "73d34de336b5d6e20701cb72ea2f94d4b8acae883cce5e438ef81ba9099bce92",
+    "inputSha256": "bf07adfcb8c271c85e7e1f23a9a861c589b2924bffd502cecea4b2202beb331b",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -129,6 +129,10 @@
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
         "sha256": "e2d83a2c83e47fb0d8c0e690bba59df384de88ea54851bde2d7a4847897d8df1"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/mindmap-official-hierarchy-fences.fidelity.ts",
+        "sha256": "ac61f5adaaf9f0ae32b5eff51c70c6e80e1a85238f31a851377be2c037a37ef1"
       },
       {
         "path": "src/__tests__/fidelity/cases/mindmap-official-shape-fences.fidelity.ts",
@@ -5083,6 +5087,402 @@
           "semantics": {
             "mutatedScore": 4.25,
             "reparsedMutatedScore": 4.25
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-1",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:syntax",
+      "sourceSha256": "dbee575f3448c3972c253ddb56f1e734d09a15ed7cb04759389cc048e1daefe0",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official hierarchy fences classify authored indentation; Mindmap mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "nodes": [
+              {
+                "children": [
+                  "A"
+                ],
+                "depth": 0,
+                "id": "Root",
+                "label": "Root",
+                "parentId": null,
+                "shape": "default"
+              },
+              {
+                "children": [
+                  "B",
+                  "C"
+                ],
+                "depth": 1,
+                "id": "A",
+                "label": "A",
+                "parentId": "Root",
+                "shape": "default"
+              },
+              {
+                "children": [],
+                "depth": 2,
+                "id": "B",
+                "label": "B",
+                "parentId": "A",
+                "shape": "default"
+              },
+              {
+                "children": [],
+                "depth": 2,
+                "id": "C",
+                "label": "C",
+                "parentId": "A",
+                "shape": "default"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edges": [
+              {
+                "d": "M 88 86.9 C 96.4 86.9 99.6 86.9 108 86.9",
+                "from": "Root",
+                "relationship": "mindmap-branch",
+                "role": "edge",
+                "to": "A"
+              },
+              {
+                "d": "M 164 86.9 C 172.4 86.9 175.6 49.45 184 49.45",
+                "from": "A",
+                "relationship": "mindmap-branch",
+                "role": "edge",
+                "to": "B"
+              },
+              {
+                "d": "M 164 86.9 C 172.4 86.9 175.6 124.35 184 124.35",
+                "from": "A",
+                "relationship": "mindmap-branch",
+                "role": "edge",
+                "to": "C"
+              }
+            ],
+            "externalRefs": [],
+            "nodeGroupCount": 4,
+            "nodes": [
+              {
+                "depth": 0,
+                "id": "Root",
+                "label": "Root",
+                "parentId": null,
+                "role": "node",
+                "text": "Root"
+              },
+              {
+                "depth": 1,
+                "id": "A",
+                "label": "A",
+                "parentId": "Root",
+                "role": "node",
+                "text": "A"
+              },
+              {
+                "depth": 2,
+                "id": "B",
+                "label": "B",
+                "parentId": "A",
+                "role": "node",
+                "text": "B"
+              },
+              {
+                "depth": 2,
+                "id": "C",
+                "label": "C",
+                "parentId": "A",
+                "role": "node",
+                "text": "C"
+              }
+            ],
+            "pathCount": 3,
+            "svgSha256": "e2731d22e163d87a973b1df09f3d4fb98486412ff62fcda5fc873e13f3c1152c",
+            "textCount": 4,
+            "viewBox": "0 0 272 173.8"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "nodes": [
+                {
+                  "children": [
+                    "A"
+                  ],
+                  "depth": 0,
+                  "id": "Root",
+                  "label": "Root",
+                  "parentId": null,
+                  "shape": "default"
+                },
+                {
+                  "children": [
+                    "B",
+                    "C"
+                  ],
+                  "depth": 1,
+                  "id": "A",
+                  "label": "A",
+                  "parentId": "Root",
+                  "shape": "default"
+                },
+                {
+                  "children": [],
+                  "depth": 2,
+                  "id": "B",
+                  "label": "B",
+                  "parentId": "A",
+                  "shape": "default"
+                },
+                {
+                  "children": [],
+                  "depth": 2,
+                  "id": "C",
+                  "label": "C",
+                  "parentId": "A",
+                  "shape": "default"
+                }
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-11",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:unclear-indentation",
+      "sourceSha256": "c796e1925611d2dc48f5526457615516c8110939af0115147e80fcf165ea9f35",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official hierarchy fences classify authored indentation; Mindmap mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "nodes": [
+              {
+                "children": [
+                  "A"
+                ],
+                "depth": 0,
+                "id": "Root",
+                "label": "Root",
+                "parentId": null,
+                "shape": "default"
+              },
+              {
+                "children": [
+                  "B",
+                  "C"
+                ],
+                "depth": 1,
+                "id": "A",
+                "label": "A",
+                "parentId": "Root",
+                "shape": "default"
+              },
+              {
+                "children": [],
+                "depth": 2,
+                "id": "B",
+                "label": "B",
+                "parentId": "A",
+                "shape": "default"
+              },
+              {
+                "children": [],
+                "depth": 2,
+                "id": "C",
+                "label": "C",
+                "parentId": "A",
+                "shape": "default"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edges": [
+              {
+                "d": "M 88 86.9 C 96.4 86.9 99.6 86.9 108 86.9",
+                "from": "Root",
+                "relationship": "mindmap-branch",
+                "role": "edge",
+                "to": "A"
+              },
+              {
+                "d": "M 164 86.9 C 172.4 86.9 175.6 49.45 184 49.45",
+                "from": "A",
+                "relationship": "mindmap-branch",
+                "role": "edge",
+                "to": "B"
+              },
+              {
+                "d": "M 164 86.9 C 172.4 86.9 175.6 124.35 184 124.35",
+                "from": "A",
+                "relationship": "mindmap-branch",
+                "role": "edge",
+                "to": "C"
+              }
+            ],
+            "externalRefs": [],
+            "nodeGroupCount": 4,
+            "nodes": [
+              {
+                "depth": 0,
+                "id": "Root",
+                "label": "Root",
+                "parentId": null,
+                "role": "node",
+                "text": "Root"
+              },
+              {
+                "depth": 1,
+                "id": "A",
+                "label": "A",
+                "parentId": "Root",
+                "role": "node",
+                "text": "A"
+              },
+              {
+                "depth": 2,
+                "id": "B",
+                "label": "B",
+                "parentId": "A",
+                "role": "node",
+                "text": "B"
+              },
+              {
+                "depth": 2,
+                "id": "C",
+                "label": "C",
+                "parentId": "A",
+                "role": "node",
+                "text": "C"
+              }
+            ],
+            "pathCount": 3,
+            "svgSha256": "e2731d22e163d87a973b1df09f3d4fb98486412ff62fcda5fc873e13f3c1152c",
+            "textCount": 4,
+            "viewBox": "0 0 272 173.8"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "nodes": [
+                {
+                  "children": [
+                    "A"
+                  ],
+                  "depth": 0,
+                  "id": "Root",
+                  "label": "Root",
+                  "parentId": null,
+                  "shape": "default"
+                },
+                {
+                  "children": [
+                    "B",
+                    "C"
+                  ],
+                  "depth": 1,
+                  "id": "A",
+                  "label": "A",
+                  "parentId": "Root",
+                  "shape": "default"
+                },
+                {
+                  "children": [],
+                  "depth": 2,
+                  "id": "B",
+                  "label": "B",
+                  "parentId": "A",
+                  "shape": "default"
+                },
+                {
+                  "children": [],
+                  "depth": 2,
+                  "id": "C",
+                  "label": "C",
+                  "parentId": "A",
+                  "shape": "default"
+                }
+              ]
+            },
+            "stable": true
           },
           "disposition": "native"
         }
@@ -22875,11 +23275,11 @@
     }
   ],
   "summary": {
-    "caseCount": 71,
-    "passedCaseCount": 71,
+    "caseCount": 73,
+    "passedCaseCount": 73,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 239,
+    "observedSurfaceCount": 245,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 45
+    "notApplicableSurfaceCount": 47
   }
 }

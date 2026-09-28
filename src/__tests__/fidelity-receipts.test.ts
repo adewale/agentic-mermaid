@@ -283,6 +283,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/gitgraph-duplicate-official.fidelity.ts',
       'fidelity/cases/journey-official-fence.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
+      'fidelity/cases/mindmap-official-hierarchy-fences.fidelity.ts',
       'fidelity/cases/mindmap-official-shape-fences.fidelity.ts',
       'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/pie-entity-display.fidelity.ts',
@@ -321,6 +322,8 @@ describe('issue #248 construct fidelity receipts', () => {
       'gitgraph.official.main-branch-duplicate-id-diagnosed',
       'journey.official.fence-0',
       'journey.scores.fractional-parser-render-seam',
+      'mindmap.official.fence-1',
+      'mindmap.official.fence-11',
       'mindmap.official.fence-2',
       'mindmap.official.fence-3',
       'mindmap.official.fence-4',
@@ -375,12 +378,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 71,
-      passedCaseCount: 71,
+      caseCount: 73,
+      passedCaseCount: 73,
       failedCaseCount: 0,
-      observedSurfaceCount: 239,
+      observedSurfaceCount: 245,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 45,
+      notApplicableSurfaceCount: 47,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -648,6 +651,34 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'serialize',
         path: ['model', 'groups', 0, 'icon'],
         replacement: null,
+      },
+      {
+        caseId: 'mindmap.official.fence-1', surface: 'render',
+        path: ['edges', 0, 'd'], replacement: '',
+      },
+      {
+        caseId: 'mindmap.official.fence-1', surface: 'render',
+        path: ['pathCount'], replacement: 4,
+      },
+      {
+        caseId: 'mindmap.official.fence-1', surface: 'render',
+        path: ['externalRefs'], replacement: ['https://example.invalid/icon.svg'],
+      },
+      {
+        caseId: 'mindmap.official.fence-11', surface: 'agent',
+        path: ['nodes', 3, 'parentId'], replacement: 'B',
+      },
+      {
+        caseId: 'mindmap.official.fence-11', surface: 'render',
+        path: ['edges', 2, 'from'], replacement: 'B',
+      },
+      {
+        caseId: 'mindmap.official.fence-11', surface: 'render',
+        path: ['nodes', 3, 'text'], replacement: 'B',
+      },
+      {
+        caseId: 'mindmap.official.fence-11', surface: 'serialize',
+        path: ['model', 'nodes', 3, 'parentId'], replacement: 'B',
       },
       {
         caseId: 'mindmap.official.fence-2', surface: 'agent',

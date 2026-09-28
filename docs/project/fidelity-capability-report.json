@@ -3,13 +3,13 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "73d34de336b5d6e20701cb72ea2f94d4b8acae883cce5e438ef81ba9099bce92",
-  "receiptResultSha256": "11aa6261f223b0403341f2139b699683c6533056c29d4aad81821c5576440049",
+  "receiptInputSha256": "bf07adfcb8c271c85e7e1f23a9a861c589b2924bffd502cecea4b2202beb331b",
+  "receiptResultSha256": "5b6dd32833455fb964eec3340cc00e46e171224cc0a5d45056d245c44b17fa59",
   "summary": {
-    "caseCount": 71,
-    "featureCount": 48,
+    "caseCount": 73,
+    "featureCount": 50,
     "dispositions": {
-      "native": 17,
+      "native": 19,
       "source-preserved": 0,
       "diagnosed": 8,
       "absent": 23
@@ -920,6 +920,78 @@
             "mutate": {
               "notApplicable": [
                 "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:syntax",
+      "family": "mindmap",
+      "disposition": "native",
+      "caseIds": [
+        "mindmap.official.fence-1"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official hierarchy fences classify authored indentation; Mindmap mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-1",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official hierarchy fences classify authored indentation; Mindmap mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:unclear-indentation",
+      "family": "mindmap",
+      "disposition": "native",
+      "caseIds": [
+        "mindmap.official.fence-11"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official hierarchy fences classify authored indentation; Mindmap mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-11",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official hierarchy fences classify authored indentation; Mindmap mutation has separate contracts."
               ]
             }
           },
