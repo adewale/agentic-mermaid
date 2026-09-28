@@ -270,7 +270,10 @@ export function checkThemeVariableColors(
       }
     }
     const palette = chart.plotColorPalette
-    if (palette !== undefined) {
+    // An empty palette is an intentional request for the built-in fallback,
+    // not an invalid palette entry. Keep empty entries inside a nonempty list
+    // as errors so they cannot disappear during normalization.
+    if (palette !== undefined && !(typeof palette === 'string' && palette.trim().length === 0)) {
       const entries = typeof palette === 'string' ? splitCssColorList(palette) : palette
       if (!Array.isArray(entries)) {
         throw new ThemeVariableColorError('xyChart.plotColorPalette', JSON.stringify(palette) ?? String(palette), false)

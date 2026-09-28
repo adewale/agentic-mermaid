@@ -58,6 +58,11 @@ describe('XY Chart authored color admission (#303)', () => {
     })
     expect(() => renderMermaidSVG(source({ plotColorPalette: '#f96,,#00ff00' })))
       .toThrow('themeVariables.xyChart.plotColorPalette[1]: "" is not a CSS color')
+    const defaultSvg = renderMermaidSVG(CHART)
+    for (const empty of ['', '   ']) {
+      expect(renderMermaidSVG(source({ plotColorPalette: empty }))).toContain('--xychart-color-0: #3b82f6;')
+      expect(defaultSvg).toContain('--xychart-color-0: #3b82f6;')
+    }
   })
 
   test('valid paints stay available, with none limited to stroke-only keys', () => {
@@ -74,6 +79,17 @@ describe('XY Chart authored color admission (#303)', () => {
     const functionalPalette = renderMermaidSVG(source({ plotColorPalette: 'rgb(255, 0, 0), hsl(120, 100%, 50%)' }, `${CHART}\n  line [1, 2]`))
     expect(functionalPalette).toContain('--xychart-color-0: rgb(255, 0, 0);')
     expect(functionalPalette).toContain('--xychart-color-1: hsl(120, 100%, 50%);')
+    const functionalInput = source({ plotColorPalette: 'rgb(255, 0, 0), hsl(120, 100%, 50%)' }, `${CHART}\n  line [1, 2]`)
+    const terminal = renderMermaidASCII(functionalInput, { colorMode: 'truecolor' })
+    expect(terminal).toContain('\u001b[38;2;255;0;0m')
+    expect(terminal).toContain('\u001b[38;2;0;255;0m')
+    const html = renderMermaidASCII(functionalInput, { colorMode: 'html' })
+    expect(html).toContain('style="color:rgb(255, 0, 0)"')
+    expect(html).toContain('style="color:hsl(120, 100%, 50%)"')
+    for (const [paint, expected] of [['red', '255;0;0'], ['#f96', '255;153;102']] as const) {
+      expect(renderMermaidASCII(source({ plotColorPalette: [paint] }), { colorMode: 'truecolor' }))
+        .toContain(`\u001b[38;2;${expected}m`)
+    }
   })
 
   test('PNG, CLI, MCP, init, frontmatter, and render options preserve the same named failure', async () => {
