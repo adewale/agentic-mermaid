@@ -1,7 +1,7 @@
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { attrs, checkedRoundTrip, facts, officialFences, record, ribbonPath, same, tags } from '../case-helpers.ts'
+import { attrs, checkedRoundTrip, facts, fitsMeasuredText, officialFences, parseViewBox, record, ribbonPath, same, tags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The large energy fence remains separate. These are the three distinct
@@ -41,7 +41,7 @@ function renderFacts(svg: string): FidelityJson {
   const gradients = [...svg.matchAll(/<linearGradient\b([^>]*)>([\s\S]*?)<\/linearGradient>/g)]
     .map(match => ({ attrs: attrs(match[1]!), stops: [...match[2]!.matchAll(/<stop\b[^>]*>/g)].map(stop => attrs(stop[0])) }))
   return {
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    viewBox: viewBoxOf(svg),
     nodes: tags(svg, 'rect', 'sankey-node').map(node => ({
       label: node['data-label'] ?? null, role: node['data-role'] ?? null, value: Number(node['data-value']),
       x: Number(node.x), y: Number(node.y), width: Number(node.width), height: Number(node.height), fill: node.fill ?? null,
@@ -52,7 +52,8 @@ function renderFacts(svg: string): FidelityJson {
     labels: texts.map(label => ({
       text: label.text, x: Number(label.attributes.x), y: Number(label.attributes.y), dy: Number(label.attributes.dy),
       anchor: label.attributes['text-anchor'] ?? null, fill: label.attributes.fill ?? null,
-      fontSize: Number(label.attributes['font-size']), stroke: label.attributes.stroke ?? null,
+      fontSize: Number(label.attributes['font-size']), fontWeight: Number(label.attributes['font-weight']),
+      stroke: label.attributes.stroke ?? null,
       strokeWidth: label.attributes['stroke-width'] ?? null,
       paintOrder: label.attributes['paint-order'] ?? null, textLength: Number(label.attributes.textLength),
       lengthAdjust: label.attributes.lengthAdjust ?? null,
@@ -86,8 +87,9 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   const renderedLabels = observed.labels
   const renderedLinks = observed.links
   const gradients = observed.gradients
-  const viewWidth = spec.outlined ? 816.75 : 648
-  if (observed.viewBox !== '0 0 ' + viewWidth + ' 448'
+  // Outlined labels sit right of their bars; the canvas must widen to hold them.
+  const view = parseViewBox(observed.viewBox)
+  if (!view || view.x !== 0 || view.y !== 0
     || !Array.isArray(nodes) || nodes.length !== 4 || !Array.isArray(renderedLabels) || renderedLabels.length !== 4
     || !Array.isArray(renderedLinks) || renderedLinks.length !== 3
     || !Array.isArray(gradients) || gradients.length !== 3) return false
@@ -95,7 +97,6 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   const scale = Number(source.height) / 512.582
   if (!Number.isFinite(scale) || Number(source.height) < 350) return false
   const values = [512.582, 113.726, 342.165, 56.691] as const
-  const expectedTextLengths = [87.165, 162.747, 50.856, 47.892] as const
   for (let index = 0; index < 4; index++) {
     const node = record(nodes[index]!)
     const label = record(renderedLabels[index]!)
@@ -104,7 +105,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     if (node.label !== labels[index] || node.role !== 'bar' || node.value !== values[index]
       || node.x !== x || node.width !== spec.width
       || typeof node.y !== 'number' || typeof node.height !== 'number' || node.height <= 0
-      || node.y < 0 || node.y + node.height > 448
+      || node.y < 0 || node.y + node.height > view.height
       || Math.abs(node.height - values[index]! * scale) > 0.05 || node.fill !== spec.paints[index]
       || node.fillOpacity !== null || node.opacity !== null || node.style !== null
       || node.display !== null || node.visibility !== null || node.transform !== null
@@ -119,8 +120,8 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
       || label.display !== null || label.visibility !== null || label.style !== null
       || label.transform !== null
       || label.lengthAdjust !== 'spacingAndGlyphs'
-      || Math.abs(Number(label.textLength) - expectedTextLengths[index]!) > 0.02
-      || (labelRight ? Number(label.x) + Number(label.textLength) > viewWidth
+      || !fitsMeasuredText(label.textLength, label.text, label.fontSize, label.fontWeight)
+      || (labelRight ? Number(label.x) + Number(label.textLength) > view.width
         : Number(label.x) - Number(label.textLength) < 0)) return false
     if (index > 1) {
       const previous = record(nodes[index - 1]!)

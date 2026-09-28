@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
   FidelityCaseDefinition,
+  FidelityEvidence,
   FidelityJson,
   FidelitySurface,
   FidelitySurfaceExpectation,
@@ -554,6 +555,12 @@ describe('issue #248 construct fidelity receipts', () => {
       {
         caseId: 'architecture.official.fence-0',
         surface: 'render',
+        path: ['viewBox'],
+        replacement: '0 0 400 400',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
         path: ['serviceCardPaint'],
         replacement: 'fill: none; stroke-dasharray: 8;',
       },
@@ -624,8 +631,8 @@ describe('issue #248 construct fidelity receipts', () => {
       {
         caseId: 'architecture.official.fence-5',
         surface: 'render',
-        path: ['glyphs', 0, 'pathSha256'],
-        replacement: 'missing-registered-logo',
+        path: ['glyphs', 0, 'path'],
+        replacement: 'M0 0h24v24H0z',
       },
       {
         caseId: 'architecture.official.fence-5',
@@ -656,6 +663,14 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'serialize',
         path: ['model', 'groups', 0, 'icon'],
         replacement: null,
+      },
+      {
+        caseId: 'mindmap.official.fence-2', surface: 'render',
+        path: ['viewBox'], replacement: '0 0 50 50',
+      },
+      {
+        caseId: 'mindmap.official.fence-5', surface: 'render',
+        path: ['labelAttributes', 'textLength'], replacement: '90',
       },
       {
         caseId: 'mindmap.official.fence-2', surface: 'agent',
@@ -1091,8 +1106,22 @@ describe('issue #248 construct fidelity receipts', () => {
       {
         caseId: 'sankey.official.fence-0',
         surface: 'render',
-        path: ['stylesheetSha256'],
-        replacement: 'hidden-paint',
+        path: ['stylesheet'],
+        replacement: '.sankey-link { display: none; }',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['viewBox'],
+        replacement: '0 0 648 300',
+        additionalChanges: [{ path: ['root', 'height'], replacement: '300' }, { path: ['root', 'viewBox'], replacement: '0 0 648 300' }],
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['nodes', 3, 'fill'],
+        replacement: '#3b82f6',
+        additionalChanges: [{ path: ['nodes', 4, 'fill'], replacement: '#3b82f6' }],
       },
       {
         caseId: 'sankey.official.fence-0',
@@ -1105,12 +1134,6 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'render',
         path: ['groupCount'],
         replacement: 1,
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['svgSha256'],
-        replacement: 'hidden-wrapper',
       },
       {
         caseId: 'sankey.official.fence-0',
@@ -1257,10 +1280,10 @@ describe('issue #248 construct fidelity receipts', () => {
         replacement: 0,
       },
       {
-        caseId: 'radar.official.fence-2',
+        caseId: 'radar.official.fence-0',
         surface: 'render',
-        path: ['tensionReferenceSvgSha256'],
-        replacement: 'missing-reference-paths',
+        path: ['axes', 3, 'x1'],
+        replacement: 100,
       },
       {
         caseId: 'radar.official.fence-2',
@@ -1671,31 +1694,28 @@ describe('issue #248 construct fidelity receipts', () => {
       },
     ]
 
-    for (const sabotage of sabotages) {
+    const observed = new Map<string, FidelityEvidence>()
+    const survivors: string[] = []
+    for (const [index, sabotage] of sabotages.entries()) {
       const original = registry.cases.find(candidate => candidate.id === sabotage.caseId)!
+      if (!observed.has(original.id)) observed.set(original.id, await original.observe())
+      const evidence = observed.get(original.id)!
+      const observation = evidence[sabotage.surface]
+      if (!observation || observation.status !== 'observed') throw new Error(`${sabotage.caseId}: missing observed ${sabotage.surface}`)
+      const semantics = (sabotage.additionalChanges ?? []).reduce(
+        (current, change) => setJsonPath(current, change.path, change.replacement),
+        setJsonPath(observation.semantics, sabotage.path, sabotage.replacement),
+      )
       const sabotaged: FidelityCaseDefinition = {
         ...original,
         id: `${original.id}.sabotage`,
-        observe: async () => {
-          const evidence = await original.observe()
-          const observation = evidence[sabotage.surface]
-          if (!observation || observation.status !== 'observed') throw new Error(`${sabotage.caseId}: missing observed ${sabotage.surface}`)
-          return {
-            ...evidence,
-            [sabotage.surface]: {
-              ...observation,
-              semantics: (sabotage.additionalChanges ?? []).reduce(
-                (semantics, change) => setJsonPath(semantics, change.path, change.replacement),
-                setJsonPath(observation.semantics, sabotage.path, sabotage.replacement),
-              ),
-            },
-          }
-        },
+        observe: () => ({ ...evidence, [sabotage.surface]: { ...observation, semantics } }),
       }
       const receipt = await runFidelityCases([sabotaged])
-      expect(receipt.cases[0]!.passed).toBe(false)
+      if (receipt.cases[0]!.passed) survivors.push(`#${index} ${sabotage.caseId}/${sabotage.surface}/${sabotage.path.join('.')}`)
     }
-  }, 15_000) // Sequential semantic sabotage has grown with the #248 receipt portfolio.
+    expect(survivors).toEqual([])
+  })
 
   test('registry validation rejects duplicate/unknown cases and unacknowledged revision splits', async () => {
     const registry = await discoverFidelityRegistry()

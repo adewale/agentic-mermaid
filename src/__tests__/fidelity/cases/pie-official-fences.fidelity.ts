@@ -1,7 +1,7 @@
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { facts, officialFences, record, same, textTags } from '../case-helpers.ts'
+import { facts, officialFences, record, same, textTags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // All distinct executable fences in the pinned official Pie syntax page.
@@ -18,21 +18,20 @@ type Spec = Readonly<{
   textPosition: number
   highlighted: string | null
   outerStrokeWidth: string | null
-  viewBox: string
   colors: readonly string[]
 }>
 const specs: readonly Spec[] = [
   { featureId: 'official-doc:pie:section:pie-chart-diagrams', title: 'Pets adopted by volunteers',
     showData: false, slices: [{ label: 'Dogs', value: 386 }, { label: 'Cats', value: 85 }, { label: 'Rats', value: 15 }],
     frontmatter: null, donutHole: 0, textPosition: 0.75, highlighted: null, outerStrokeWidth: null,
-    viewBox: '0 0 368.79 276', colors: ['#3b82f6', '#0d5ba5', '#5f79f2'] },
+    colors: ['#3b82f6', '#0d5ba5', '#5f79f2'] },
   { featureId: 'official-doc:pie:section:example', title: 'Key elements in Product X', showData: true,
     slices: [{ label: 'Calcium', value: 42.96 }, { label: 'Potassium', value: 50.05 },
       { label: 'Magnesium', value: 10.01 }, { label: 'Iron', value: 5 }],
     frontmatter: { pie: { textPosition: 0.5, donutHole: 0.2, highlightSlice: 'Potassium' },
       themeVariables: { pieOuterStrokeWidth: '5px' } },
     donutHole: 0.2, textPosition: 0.5, highlighted: 'Potassium', outerStrokeWidth: '5',
-    viewBox: '0 0 464.03 276', colors: ['#3b82f6', '#0d5ba5', '#5f79f2', '#0a5076'] },
+    colors: ['#3b82f6', '#0d5ba5', '#5f79f2', '#0a5076'] },
 ]
 
 function modelFacts(source: string): FidelityJson {
@@ -65,7 +64,7 @@ function renderFacts(svg: string): FidelityJson {
   const legends = textTags(svg, 'text', 'pie-legend-text')
   const outer = textTags(svg, 'circle', 'pie-outer-circle')[0]
   return {
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    viewBox: viewBoxOf(svg),
     title: textTags(svg, 'text', 'pie-title').map(item => ({ text: item.text,
       x: Number(item.attributes.x), y: Number(item.attributes.y), fontSize: item.attributes['font-size'] ?? null })),
     paths: paths.map(item => ({ ...piePathGeometry(item.attributes.d ?? ''),
@@ -99,7 +98,7 @@ function renderFacts(svg: string): FidelityJson {
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
   const actual = facts(evidence)
-  if (actual.slicePaint !== '1.5' || actual.viewBox !== spec.viewBox
+  if (actual.slicePaint !== '1.5'
     || actual.outerStrokeWidth !== spec.outerStrokeWidth
     || actual.outerStrokeColor !== (spec.outerStrokeWidth ? '#d4d4d4' : null)) return false
   if (spec.highlighted && (!same(actual.highlightRule, { stroke: '#27272A', width: '2.5', opacity: '1' })

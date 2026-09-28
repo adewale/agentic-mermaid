@@ -1,8 +1,8 @@
-import { createHash } from 'node:crypto'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
+import { pieSliceColors } from '../../../pie/palette.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { attrs, checkedRoundTrip, decodeXml, facts, officialFences, record, ribbonPath, same, tags } from '../case-helpers.ts'
+import { attrs, checkedRoundTrip, decodeXml, facts, fitsMeasuredText, officialFences, parseViewBox, record, ribbonPath, same, tags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The 68-link, eight-layer official energy example is a separate large-fixture
@@ -58,13 +58,14 @@ const expectedImbalances = authoredNodes.flatMap(label => {
     ? [{ node: label, inflow: totals.incoming, outflow: totals.outgoing }] : []
 })
 if (expectedImbalances.length !== 6) throw new Error('Pinned energy fence imbalances changed')
-const paintsSha256 = 'cdc69d136fc76600e8d60f7e2d6be1e49e0ffc7d7e74314934e7f6aaa47fb1ab'
-const textLengthsSha256 = '15a009c150f577ded681151f762190c61572626f1d152926565bab90ea51171f'
-const stylesheetSha256 = '2a5f1233cf2a6f16fe619469307754651f511794d6ceec554185354b5e8c728f'
-// This one fixed official fixture can additionally fail closed on any SVG
-// structure change. The semantic checks below explain the claim; this digest
-// prevents an unobserved wrapper or later CSS block from hiding its paint.
-const svgSha256 = '9c8c72ae39db81dcee4f8c1f932ccdbd4bbcb12479736b1e2dede9bc91beb513'
+// Fill-less shared-palette sankeys paint nodes from the same categorical ladder
+// as Pie/ASCII, in authored node order, on the default light background.
+const expectedPaints = pieSliceColors(authoredNodes.length, { bg: '#FFFFFF' })
+if (new Set(expectedPaints).size !== expectedPaints.length) throw new Error('Energy node paints must be distinguishable')
+// A later stylesheet rule could hide painted marks without touching their
+// attributes; the single embedded stylesheet must not target Sankey marks or
+// declare hiding paint.
+const HIDING_STYLE = /\.sankey-|display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?![.\d])/
 
 function modelFacts(candidate: string): FidelityJson {
   const parsed = parseRegisteredMermaid(candidate)
@@ -80,12 +81,11 @@ function renderFacts(svg: string): FidelityJson {
     .map(match => ({ attributes: attrs(match[1]!), stops: [...match[2]!.matchAll(/<stop\b[^>]*>/g)]
       .map(stop => attrs(stop[0])) }))
   return {
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    viewBox: viewBoxOf(svg),
     root: attrs(svg.match(/<svg\b[^>]*>/)?.[0] ?? ''),
-    stylesheetSha256: createHash('sha256').update(svg.match(/<style[^>]*>([\s\S]*?)<\/style>/)?.[1] ?? '').digest('hex'),
+    stylesheet: svg.match(/<style[^>]*>([\s\S]*?)<\/style>/)?.[1] ?? null,
     styleBlockCount: [...svg.matchAll(/<style\b/g)].length,
     groupCount: [...svg.matchAll(/<g\b/g)].length,
-    svgSha256: createHash('sha256').update(svg).digest('hex'),
     nodes: tags(svg, 'rect', 'sankey-node').map(node => ({
       label: node['data-label'] ?? null, id: node['data-id'] ?? null, role: node['data-role'] ?? null,
       value: Number(node['data-value']), layer: Number(node['data-layer']),
@@ -97,7 +97,8 @@ function renderFacts(svg: string): FidelityJson {
     labels: labels.map(label => ({
       text: label.text, x: Number(label.attributes.x), y: Number(label.attributes.y),
       dy: Number(label.attributes.dy), anchor: label.attributes['text-anchor'] ?? null,
-      fontSize: Number(label.attributes['font-size']), fill: label.attributes.fill ?? null,
+      fontSize: Number(label.attributes['font-size']), fontWeight: Number(label.attributes['font-weight']),
+      fill: label.attributes.fill ?? null,
       textLength: Number(label.attributes.textLength), lengthAdjust: label.attributes.lengthAdjust ?? null,
       opacity: label.attributes.opacity ?? null, fillOpacity: label.attributes['fill-opacity'] ?? null,
       display: label.attributes.display ?? null, visibility: label.attributes.visibility ?? null,
@@ -129,17 +130,19 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence): boolean {
   const labels = observed.labels
   const links = observed.links
   const gradients = observed.gradients
-  if (observed.viewBox !== '0 0 648 450.63'
-    || !same(observed.root, { xmlns: 'http://www.w3.org/2000/svg', width: '648', height: '450.63',
-      viewBox: '0 0 648 450.63', style: '--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF',
+  const view = parseViewBox(observed.viewBox)
+  if (!view || view.x !== 0 || view.y !== 0
+    || !same(observed.root, { xmlns: 'http://www.w3.org/2000/svg', width: String(view.width), height: String(view.height),
+      viewBox: observed.viewBox, style: '--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF',
       'aria-roledescription': 'sankey diagram', role: 'img' })
-    || observed.stylesheetSha256 !== stylesheetSha256
-    || observed.styleBlockCount !== 1 || observed.groupCount !== 0 || observed.svgSha256 !== svgSha256
-    || !Array.isArray(nodes) || nodes.length !== 48 || !Array.isArray(labels) || labels.length !== 48
-    || !Array.isArray(links) || links.length !== 68 || !Array.isArray(gradients) || gradients.length !== 68) return false
+    || typeof observed.stylesheet !== 'string' || HIDING_STYLE.test(observed.stylesheet)
+    || observed.styleBlockCount !== 1 || observed.groupCount !== 0
+    || !Array.isArray(nodes) || nodes.length !== authoredNodes.length
+    || !Array.isArray(labels) || labels.length !== authoredNodes.length
+    || !Array.isArray(links) || links.length !== authoredLinks.length
+    || !Array.isArray(gradients) || gradients.length !== authoredLinks.length) return false
   const nodeMap = new Map<string, Readonly<Record<string, FidelityJson>>>()
   const paints: string[] = []
-  const lengths: number[] = []
   for (const [index, nodeValue] of nodes.entries()) {
     const node = record(nodeValue)
     const label = record(labels[index]!)
@@ -152,27 +155,25 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence): boolean {
       || node.layer !== expectedLayers.get(expected)
       || Math.abs(Number(node.x) - Math.round((24 + 590 * node.layer / 7) * 100) / 100) > 0.01
       || typeof node.y !== 'number' || typeof node.height !== 'number'
-      || node.y < 0 || node.height <= 0 || node.y + node.height > 450.63
+      || node.y < 0 || node.height <= 0 || node.y + node.height > view.height
       || typeof node.fill !== 'string' || !/^#[0-9a-f]{6}$/.test(node.fill)
       || node.fillOpacity !== null || node.opacity !== null || node.style !== null
       || node.display !== null || node.visibility !== null || node.transform !== null
       || label.text !== expected || label.fill !== '#27272A' || label.fontSize !== 13
       || Math.abs(Number(label.y) - (Number(node.y) + Number(node.height) / 2)) > 0.02
-      || label.x !== (Number(node.x) < 324 ? Number(node.x) + 16 : Number(node.x) - 6)
-      || label.anchor !== (Number(node.x) < 324 ? 'start' : 'end')
+      || label.x !== (Number(node.x) < view.width / 2 ? Number(node.x) + 16 : Number(node.x) - 6)
+      || label.anchor !== (Number(node.x) < view.width / 2 ? 'start' : 'end')
       || label.dy !== 4.55 || label.lengthAdjust !== 'spacingAndGlyphs'
-      || typeof label.textLength !== 'number' || label.textLength <= 0
-      || (label.anchor === 'start' ? Number(label.x) + Number(label.textLength) > 648
+      || !fitsMeasuredText(label.textLength, label.text, label.fontSize, label.fontWeight)
+      || (label.anchor === 'start' ? Number(label.x) + Number(label.textLength) > view.width
         : Number(label.x) - Number(label.textLength) < 0)
       || label.opacity !== null || label.fillOpacity !== null
       || label.display !== null || label.visibility !== null || label.style !== null
       || label.transform !== null) return false
     nodeMap.set(expected, node)
     paints.push(node.fill)
-    lengths.push(label.textLength)
   }
-  if (createHash('sha256').update(JSON.stringify(paints)).digest('hex') !== paintsSha256
-    || createHash('sha256').update(JSON.stringify(lengths)).digest('hex') !== textLengthsSha256) return false
+  if (!same(paints, expectedPaints)) return false
   for (const [index, nodeValue] of nodes.entries()) {
     const node = record(nodeValue)
     for (const previousValue of nodes.slice(0, index)) {

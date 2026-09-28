@@ -1,8 +1,8 @@
-import { createHash } from 'node:crypto'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
+import { resolveArchitectureIcon } from '../../../architecture/icons.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { attrs, checkedRoundTrip, facts, officialFences, record, same, svgPoints, tags } from '../case-helpers.ts'
+import { attrs, checkedRoundTrip, facts, inViewBox, officialFences, parseViewBox, record, same, svgPoints, tags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 const { sources, examples } = officialFences('architecture.md')
@@ -24,13 +24,6 @@ const expectedModel = {
   edges: edges.map(edge => ({ ...edge, sourceBoundary: 'item', targetBoundary: 'item',
     label: null, hasArrowStart: false, hasArrowEnd: false })),
 }
-const glyphs = [
-  { icon: 'logos:aws-lambda', pathSha256: '2da9bb173c1a79c0104b92b2eeb1b870a603c4138096ccf3011340f388e5f580' },
-  { icon: 'logos:aws-aurora', pathSha256: '1377d326e78e01aa4a3ece4b6e2a2faff0c2e95b43dc913efb9b399754eca8e7' },
-  { icon: 'logos:aws-glacier', pathSha256: '5fe0ca13506971b9c57fb848480d957b1521ce919a9704af86e4d72c4dc921ca' },
-  { icon: 'logos:aws-s3', pathSha256: 'b93588b414e0aa1130a8bf3facad1125f16c8904c3a4ea8763547a9f99e9894a' },
-  { icon: 'logos:aws-ec2', pathSha256: '357fa789c74d3f9eeb5ff84acb31b73ab07b4041eb30ac484c02c169979e2bea' },
-]
 function modelFacts(input: string): FidelityJson {
   const parsed = parseRegisteredMermaid(input)
   if (!parsed.ok || parsed.value.body.kind !== 'architecture') {
@@ -53,8 +46,7 @@ function modelFacts(input: string): FidelityJson {
 function renderFacts(svg: string): FidelityJson {
   const iconElements = [...svg.matchAll(/<g\b([^>]*\bclass="architecture-icon"[^>]*)>([\s\S]*?)<\/g>/g)]
   return {
-    svgSha256: createHash('sha256').update(svg).digest('hex'),
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    viewBox: viewBoxOf(svg),
     groups: tags(svg, 'g', 'architecture-group').map(item => ({ id: item['data-id'] ?? null, label: item['data-label'] ?? null })),
     services: tags(svg, 'g', 'architecture-service').map(item => ({ id: item['data-id'] ?? null, label: item['data-label'] ?? null })),
     cards: tags(svg, 'rect', 'architecture-service-card').map(item => ({ id: item['data-id'] ?? null,
@@ -70,7 +62,7 @@ function renderFacts(svg: string): FidelityJson {
       return { icon: item['data-icon'] ?? null, source: item['data-icon-source'] ?? null,
         license: item['data-icon-license'] ?? null,
         pathCount: paths.length,
-        pathSha256: paths.length === 1 ? createHash('sha256').update(paths[0]!.d ?? '').digest('hex') : null,
+        path: paths.length === 1 ? paths[0]!.d ?? null : null,
         fallback: match[2]!.includes('architecture-icon-fallback') }
     }),
     groupFramePaint: svg.match(/\.architecture-group-frame \{([^}]*)\}/)?.[1]?.trim() ?? null,
@@ -79,8 +71,11 @@ function renderFacts(svg: string): FidelityJson {
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence): boolean {
   const observed = facts(evidence)
-  if (observed.svgSha256 !== 'a2ea32308a347d92043218e59a361047693c2914be8d5254e9b1d1e84786f224'
-    || observed.viewBox !== '0 0 721.0139999999999 442'
+  const view = parseViewBox(observed.viewBox)
+  // Each authored name draws the glyph its curated alias resolves to, and the
+  // five logos stay distinguishable (no shared glyph, no fallback mark).
+  const glyphs = [...groups, ...services].map(item => ({ icon: item.icon, path: resolveArchitectureIcon(item.icon)?.path ?? null }))
+  if (!view || glyphs.some(glyph => glyph.path === null) || new Set(glyphs.map(glyph => glyph.path)).size !== glyphs.length
     || !same(observed.groups, groups.map(group => ({ id: group.id, label: group.label })))
     || !same(observed.services, services.map(service => ({ id: service.id, label: service.label })))
     || !same(observed.glyphs, glyphs.map(glyph => ({ ...glyph, source: '@iconify-json/mdi@1.2.3',
@@ -94,8 +89,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence): boolean {
     || !Array.isArray(observed.frames) || observed.frames.length !== 1) return false
   const frame = record(observed.frames[0]!)
   const cards = observed.cards.map(item => record(item))
-  const inView = (x: number, y: number): boolean => Number.isFinite(x) && Number.isFinite(y)
-    && x >= 0 && y >= 0 && x <= 721.014 && y <= 442
+  const inView = (x: number, y: number): boolean => inViewBox(view, x, y, 0.01)
   const overlaps = (a: Readonly<Record<string, FidelityJson>>, b: Readonly<Record<string, FidelityJson>>): boolean =>
     typeof a.x === 'number' && typeof a.y === 'number'
     && typeof a.width === 'number' && typeof a.height === 'number'

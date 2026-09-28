@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { attrs, checkedRoundTrip, facts, officialFences, record, same, textTags } from '../case-helpers.ts'
+import { attrs, checkedRoundTrip, facts, officialFences, parseViewBox, record, same, textTags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 const { sources, examples: manifestExamples } = officialFences('userJourney.md')
@@ -42,7 +42,7 @@ function renderFacts(svg: string): FidelityJson {
   const title = textTags(svg, 'text', 'journey-title')[0]
   const curve = textTags(svg, 'path', 'journey-curve')[0]
   return {
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    viewBox: viewBoxOf(svg),
     accessibilityTitle: svg.match(/<title id="([^"]+)">([^<]*)<\/title>/)?.slice(1) ?? null,
     ariaLabelledBy: svg.match(/<svg\b[^>]*aria-labelledby="([^"]+)"/)?.[1] ?? null,
     title: title ? { text: title.text, x: Number(title.attributes.x), y: Number(title.attributes.y) } : null,
@@ -99,7 +99,8 @@ function renderFacts(svg: string): FidelityJson {
 }
 function renderMatches(value: FidelityJson): boolean {
   const actual = record(value)
-  if (actual.viewBox !== '0 0 982 482.3' || !same(actual.accessibilityTitle, [actual.ariaLabelledBy, 'My working day'])
+  const view = parseViewBox(actual.viewBox)
+  if (!view || view.x !== 0 || view.y !== 0 || !same(actual.accessibilityTitle, [actual.ariaLabelledBy, 'My working day'])
     || actual.curve !== null || actual.curvePaint !== null
     || !same(actual.facePaint, ['#d7d7d7', '#47474a', '1.2'])
     || !same(actual.actorPaint, ['#34438d', '#8d3f34'])
@@ -107,7 +108,9 @@ function renderMatches(value: FidelityJson): boolean {
     || !same(actual.taskBoxPaint, ['#f9f9f9', '#d4d4d4', '1'])
     || actual.taskTextPaint !== '#27272A') return false
   const title = actual.title == null ? null : record(actual.title)
-  if (!title || title.text !== 'My working day' || title.x !== 491 || title.y !== 39.7) return false
+  // The title is centred on the canvas and sits above the score grid.
+  if (!title || title.text !== 'My working day' || title.x !== view.width / 2
+    || typeof title.y !== 'number' || title.y <= 0) return false
   const renderedSections = actual.sections
   const renderedTasks = actual.tasks
   const guides = actual.guides
@@ -127,20 +130,21 @@ function renderMatches(value: FidelityJson): boolean {
     const label = record(actorLegendText[index]!)
     if (typeof dot.x !== 'number' || typeof dot.y !== 'number'
       || typeof label.x !== 'number' || typeof label.y !== 'number'
-      || dot.x < 0 || dot.y < 0 || dot.x >= label.x || label.x > 982
-      || dot.y !== label.y || dot.y > 482.3) return false
+      || dot.x < 0 || dot.y < 0 || dot.x >= label.x || label.x > view.width
+      || dot.y !== label.y || dot.y > view.height) return false
     if (index > 0 && dot.y - Number(record(actorLegend[index - 1]!).y) < 12) return false
   }
   const guideYs = new Map<number, number>()
   for (const [index, guideValue] of guides.entries()) {
     const guide = record(guideValue)
     if (guide.score !== 5 - index || typeof guide.y !== 'number' || !Number.isFinite(guide.y)
-      || guide.y < 0 || guide.y > 482.3) return false
+      || guide.y < 0 || guide.y > view.height) return false
     const line = record(guideLines[index]!)
     if (line.y1 !== guide.y || line.y2 !== guide.y || line.x1 !== 176 || line.x2 !== 950) return false
     guideYs.set(guide.score, guide.y)
   }
-  if ([5, 4, 3, 2, 1].some((score, index) => index > 0 && Math.abs(guideYs.get(score)! - guideYs.get(score + 1)! - 40) > 0.01)) return false
+  if ([5, 4, 3, 2, 1].some((score, index) => index > 0 && Math.abs(guideYs.get(score)! - guideYs.get(score + 1)! - 40) > 0.01)
+    || title.y >= guideYs.get(5)!) return false
   const taskBoxes: { x: number; right: number }[] = []
   for (const [index, expected] of tasks.entries()) {
     const item = record(renderedTasks[index]!)
@@ -156,11 +160,11 @@ function renderMatches(value: FidelityJson): boolean {
       || typeof box.x !== 'number' || typeof box.y !== 'number'
       || typeof box.width !== 'number' || typeof box.height !== 'number'
       || box.width <= 0 || box.height <= 0 || box.x < 0 || box.y < 0
-      || box.x + box.width > 982 || box.y + box.height > 482.3
+      || box.x + box.width > view.width || box.y + box.height > view.height
       || face.x !== box.x + box.width / 2 || item.textX !== face.x
       || typeof track.y1 !== 'number' || typeof track.y2 !== 'number'
       || !Number.isFinite(track.y1) || !Number.isFinite(track.y2)
-      || track.y1 < 0 || track.y2 > 482.3 || track.y1 >= track.y2
+      || track.y1 < 0 || track.y2 > view.height || track.y1 >= track.y2
       || typeof item.textY !== 'number' || item.textY < box.y || item.textY > box.y + box.height) return false
     const boxX = box.x
     const boxY = box.y
@@ -190,7 +194,7 @@ function renderMatches(value: FidelityJson): boolean {
       || item.label !== expected.label || item.text !== expected.label
       || typeof box.x !== 'number' || typeof box.width !== 'number' || typeof box.y !== 'number'
       || typeof box.height !== 'number' || box.width <= 0 || box.height <= 0
-      || box.x < 0 || box.x + box.width > 982 || box.y < 0 || box.y + box.height > 482.3
+      || box.x < 0 || box.x + box.width > view.width || box.y < 0 || box.y + box.height > view.height
       ) return false
     const sectionX = box.x
     const sectionWidth = box.width

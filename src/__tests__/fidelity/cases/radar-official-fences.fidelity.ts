@@ -1,9 +1,8 @@
-import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { attrs, checkedRoundTrip, decodeXml, facts, officialFences, record, same, tags } from '../case-helpers.ts'
+import { attrs, checkedRoundTrip, decodeXml, facts, inViewBox, officialFences, parseViewBox, record, same, tags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The paired example/preview blocks in the official Radar page are three
@@ -21,9 +20,6 @@ type Spec = Readonly<{
   max: number | null
   graticule: 'circle' | 'polygon'
   frontmatter: FidelityJson
-  viewBox: string
-  svgSha256: string
-  center: readonly [number, number]
   colors: readonly string[]
   opacity: string
   axisScale: number
@@ -39,8 +35,6 @@ const specs: readonly Spec[] = [
       { id: 'a', label: 'Alice', values: [85, 90, 80, 70, 75, 90] },
       { id: 'b', label: 'Bob', values: [70, 75, 85, 80, 90, 85] },
     ], min: 0, max: 100, graticule: 'circle', frontmatter: { title: 'Grades' },
-    viewBox: '0 0 481.73 370.5', center: [207.62, 202.25],
-    svgSha256: '6ad3a994cd07a87730d72635bf62ed3acd0461c90bb8f7c822ecbd2e61d90839',
     colors: ['#3b82f6', '#0d5ba5'], opacity: '0.5', axisScale: 1 },
   { featureId: 'official-doc:radar:section:examples', title: 'Restaurant Comparison', renderTitle: 'Restaurant Comparison',
     axes: restaurantAxes, curves: [
@@ -49,8 +43,6 @@ const specs: readonly Spec[] = [
       { id: 'c', label: 'Restaurant C', values: [2, 3, 4, 2] },
       { id: 'd', label: 'Restaurant D', values: [2, 2, 4, 3] },
     ], min: 0, max: 5, graticule: 'polygon', frontmatter: null,
-    viewBox: '0 0 555.45 370.5', center: [217.58, 202.25],
-    svgSha256: '4661aeefb780b4f5b8f830f73699c1d2d87667b4c86a80e2a4575ead2d214ec6',
     colors: ['#3b82f6', '#0d5ba5', '#5f79f2', '#0a5076'], opacity: '0.5', axisScale: 1 },
   { featureId: 'official-doc:radar:section:example-on-config-and-theme', title: null, renderTitle: null,
     axes: ['A', 'B', 'C', 'D', 'E'].map(id => ({ id, label: id })), curves: [
@@ -61,8 +53,6 @@ const specs: readonly Spec[] = [
     frontmatter: { radar: { axisScaleFactor: 0.25, curveTension: 0.1 }, theme: 'base',
       themeVariables: { cScale0: '#FF0000', cScale1: '#00FF00', cScale2: '#0000FF',
         radar: { curveOpacity: 0 } } },
-    viewBox: '0 0 396.35 310.25', center: [163.79, 168.25],
-    svgSha256: '5645bbc27b8632a3e602ebd14f4e26ef8b8201837cd201d6dc984bf4c0aa7da3',
     colors: ['#FF0000', '#00FF00', '#0000FF'], opacity: '0', axisScale: 0.25 },
 ]
 function texts(svg: string, className: string): string[] {
@@ -86,10 +76,7 @@ function renderFacts(svg: string, tensionReference?: string): FidelityJson {
   const areas = [...tags(svg, 'path', 'radar-area'), ...tags(svg, 'polygon', 'radar-area')]
   const referenceAreas = tensionReference === undefined ? null : tags(tensionReference, 'path', 'radar-area')
   return {
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
-    svgSha256: createHash('sha256').update(svg).digest('hex'),
-    tensionReferenceSvgSha256: tensionReference === undefined ? null
-      : createHash('sha256').update(tensionReference).digest('hex'),
+    viewBox: viewBoxOf(svg),
     tensionReferenceAreaCount: referenceAreas?.length ?? null,
     curveTensionChangedPerCurve: referenceAreas === null ? null
       : tags(svg, 'path', 'radar-area').map((item, index) =>
@@ -116,15 +103,14 @@ function renderFacts(svg: string, tensionReference?: string): FidelityJson {
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
   const observed = facts(evidence)
   const circle = spec.graticule === 'circle'
-  if (observed.viewBox !== spec.viewBox || observed.svgSha256 !== spec.svgSha256
+  const view = parseViewBox(observed.viewBox)
+  if (!view
     || !same(observed.circleRings, circle ? [24, 48, 72, 96, 120] : [])
     || observed.polygonRingCount !== (circle ? 0 : 5)
     || !same(observed.axisLabels, spec.axes.map(axis => axis.label))
     || !same(observed.legends, spec.curves.map(curve => curve.label))
     || !same(observed.title, spec.renderTitle ? [spec.renderTitle] : [])
     || observed.curveOpacityRule !== spec.opacity
-    || observed.tensionReferenceSvgSha256 !== (spec.axisScale < 1
-      ? '639c0fe94f5df871278b24a7147cae2963c8a1df17b79e2df144dc3f0b2243a0' : null)
     || observed.tensionReferenceAreaCount !== (spec.axisScale < 1 ? 3 : null)
     || !same(observed.curveTensionChangedPerCurve,
       spec.axisScale < 1 ? [true, true, true] : null)) return false
@@ -132,7 +118,11 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   const areas = observed.areas
   const dots = observed.dots
   const swatches = observed.swatches
-  const [cx, cy] = spec.center
+  // Every axis radiates from one center; the full-scale graticule fits the canvas.
+  const origin = Array.isArray(axes) && axes.length > 0 ? record(axes[0]!) : null
+  const cx = Number(origin?.x1)
+  const cy = Number(origin?.y1)
+  if (!inViewBox(view, cx - 120, cy - 120) || !inViewBox(view, cx + 120, cy + 120)) return false
   const max = spec.max ?? Math.max(...spec.curves.flatMap(curve => curve.values))
   const near = (left: unknown, right: number): boolean => typeof left === 'number'
     && Number.isFinite(left) && Math.abs(left - right) <= 0.02

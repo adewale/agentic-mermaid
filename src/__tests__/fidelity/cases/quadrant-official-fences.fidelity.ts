@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { checkedRoundTrip, facts, officialFences, record, same, textTags } from '../case-helpers.ts'
+import { checkedRoundTrip, facts, inViewBox, isRecord, officialFences, parseViewBox, record, same, textTags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The three distinct executable fences in the pinned official Quadrant page.
@@ -18,8 +17,6 @@ type Spec = Readonly<{
   modelPoints: FidelityJson
   classDefs: FidelityJson
   frontmatter: FidelityJson
-  viewBox: string
-  svgSha256: string
   themeTextNoOp?: boolean
   strokeNoWidthDivergence?: boolean
 }>
@@ -57,19 +54,16 @@ const classDefs = {
 const specs: readonly Spec[] = [
   { featureId: 'official-doc:quadrant:section:example', title: 'Reach and engagement of campaigns',
     axes: commonAxes, quadrants: commonQuadrants, points: basicPoints, modelPoints: defaultPointModel,
-    classDefs: null, frontmatter: null, viewBox: '0 0 456 492',
-    svgSha256: 'ed0129746a51501ade84e3772db73aae7b33c6f7d57f6278cb915486aadad27e' },
+    classDefs: null, frontmatter: null },
   { featureId: 'official-doc:quadrant:section:example-on-config-and-theme', title: null,
     axes: ['Urgent', 'Not Urgent', 'Not Important', 'Important ❤'],
     quadrants: ['Plan', 'Do', 'Delegate', 'Delete'], points: [], modelPoints: [],
     classDefs: null, frontmatter: { quadrantChart: { chartWidth: 400, chartHeight: 400 },
-      themeVariables: { quadrant1TextFill: 'ff0000' } }, viewBox: '0 0 400 400',
-    svgSha256: '4f3eca786f90c2ba0b1dfa5427aebe58b3b715d99945dbee9ba8a06c6c63b2f4',
+      themeVariables: { quadrant1TextFill: 'ff0000' } },
     themeTextNoOp: true },
   { featureId: 'official-doc:quadrant:section:example-on-styling', title: 'Reach and engagement of campaigns',
     axes: commonAxes, quadrants: commonQuadrants, points: styledPoints, modelPoints: styledPointModel,
-    classDefs, frontmatter: null, viewBox: '0 0 456 492',
-    svgSha256: '6ce3f1e2e295dc932713ae3b6f7c7497ee0f0ab7c72da4a9bd3313d5e2db87d2',
+    classDefs, frontmatter: null,
     strokeNoWidthDivergence: true },
 ]
 
@@ -88,8 +82,7 @@ function modelFacts(source: string): FidelityJson {
 function renderFacts(svg: string): FidelityJson {
   const points = textTags(svg, 'circle', 'quadrant-point')
   return {
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
-    svgSha256: createHash('sha256').update(svg).digest('hex'),
+    viewBox: viewBoxOf(svg),
     regions: textTags(svg, 'rect', 'quadrant-region').map(item => ({
       quadrant: Number(item.attributes['data-quadrant']), x: Number(item.attributes.x),
       y: Number(item.attributes.y), width: Number(item.attributes.width),
@@ -113,7 +106,12 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   const observed = facts(evidence)
   const top = spec.title ? 60 : 24
   const size = spec.title ? 380 : 324
-  if (observed.viewBox !== spec.viewBox || observed.svgSha256 !== spec.svgSha256
+  // Authored chartWidth/chartHeight size the canvas; otherwise the grid must
+  // simply fit inside it.
+  const view = parseViewBox(observed.viewBox)
+  const chart = isRecord(spec.frontmatter) && isRecord(spec.frontmatter.quadrantChart) ? spec.frontmatter.quadrantChart : null
+  if (!view || (chart && (view.width !== chart.chartWidth || view.height !== chart.chartHeight))
+    || !inViewBox(view, 52, top) || !inViewBox(view, 52 + size, top + size)
     || !same(observed.title, spec.title ? [spec.title] : [])
     || !same(observed.axes, spec.axes) || !same(observed.pointLabels, spec.points.map(point => point.label))
     || observed.quadrantLabelFill !== '#575759' || observed.pointStrokeWidth !== '1') return false

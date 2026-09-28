@@ -1,7 +1,7 @@
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { attrs, checkedRoundTrip, decodeXml, facts, officialFences, record, ribbonPath, same, tags } from '../case-helpers.ts'
+import { attrs, checkedRoundTrip, decodeXml, facts, officialFences, parseViewBox, record, ribbonPath, same, tags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // This slice reviews the four short CSV grammar fences. The large energy
@@ -48,7 +48,7 @@ function renderFacts(svg: string): FidelityJson {
     .map(match => ({ attributes: attrs(`${match[1]!} ${match[2]!}`), spans: [...match[3]!.matchAll(/<tspan\b([^>]*)>([^<]*)<\/tspan>/g)]
       .map(line => ({ attributes: attrs(line[1]!), text: decodeXml(line[2]!) })) }))
   return {
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    viewBox: viewBoxOf(svg),
     links: tags(svg, 'path', 'sankey-link').map(link => ({
       source: link['data-source'] ?? null, target: link['data-target'] ?? null,
       value: Number(link['data-value']), id: link['data-id'] ?? null,
@@ -78,7 +78,8 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   const nodes = actual.nodes
   const labels = actual.labels
   const gradients = actual.gradients
-  if (actual.viewBox !== '0 0 648 448' || !Array.isArray(renderedLinks) || renderedLinks.length !== spec.links.length
+  const view = parseViewBox(actual.viewBox)
+  if (!view || view.x !== 0 || view.y !== 0 || !Array.isArray(renderedLinks) || renderedLinks.length !== spec.links.length
     || !Array.isArray(nodes) || !Array.isArray(labels) || !Array.isArray(gradients)
     || gradients.length !== spec.links.length) return false
   const expectedValues = new Map<string, { incoming: number; outgoing: number }>()
@@ -106,12 +107,12 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
       || typeof node.height !== 'number' || node.width !== 10 || node.height <= 0
       || Math.abs(node.height - Math.max(expectedValues.get(node.label)!.incoming,
         expectedValues.get(node.label)!.outgoing) * scale) > 0.05
-      || node.x < 0 || node.x + 10 > 648 || node.y < 0 || node.y + node.height > 448
+      || node.x < 0 || node.x + 10 > view.width || node.y < 0 || node.y + node.height > view.height
       || node.fill !== defaultNodePaints[index]
       || typeof node.value !== 'number' || Math.abs(node.value - Math.max(
         expectedValues.get(node.label)!.incoming, expectedValues.get(node.label)!.outgoing)) > 0.001
       || typeof label.x !== 'number' || typeof label.y !== 'number'
-      || label.x < 0 || label.x > 648 || label.y < 0 || label.y > 448
+      || label.x < 0 || label.x > view.width || label.y < 0 || label.y > view.height
       || Math.abs(label.y - (node.y + node.height / 2)) > 0.02
       || label.x !== (node.x < 324 ? node.x + 16 : node.x - 6)
       || label.fill !== '#27272A' || label.fontSize !== 13
@@ -125,7 +126,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
       || Math.abs(Number(firstLine.dy) + 3.9) > 0.01
       || Math.abs(Number(secondLine.dy) - 16.9) > 0.01
       || Number(label.y) + Number(firstLine.dy) < 0
-      || Number(label.y) + Number(firstLine.dy) + Number(secondLine.dy) > 448) return false
+      || Number(label.y) + Number(firstLine.dy) + Number(secondLine.dy) > view.height) return false
     for (const previous of renderedNodes.values()) {
       if (node.x < Number(previous.x) + 10 && Number(previous.x) < node.x + 10
         && node.y < Number(previous.y) + Number(previous.height)

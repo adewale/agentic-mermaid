@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { attrs, checkedRoundTrip, facts, officialFences, record, same, svgNumber, svgPoints } from '../case-helpers.ts'
+import { attrs, checkedRoundTrip, facts, fitsMeasuredText, inViewBox, officialFences, parseViewBox, record, same, svgNumber, svgPoints, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 const { sources, examples } = officialFences('mindmap.md')
@@ -11,23 +10,22 @@ type Shape = 'rect' | 'rounded' | 'circle' | 'bang' | 'cloud' | 'hexagon' | 'def
 type Spec = Readonly<{
   index: number; featureId: string; id: string; label: string; shape: Shape
   tag: 'rect' | 'circle' | 'polygon' | 'ellipse'; vertices?: number; corner?: number
-  viewBox: string; svgSha256: string; textLength: number
 }>
 const specs: readonly Spec[] = [
   { index: 2, featureId: 'official-doc:mindmap:section:square', id: 'id', label: 'I am a square', shape: 'rect',
-    tag: 'rect', corner: 0, viewBox: '0 0 166.273 98.9', textLength: 78.273, svgSha256: 'c99e829d63dbe835930d924547432d552cceb66ef0998fda5dbf3f8423156550' },
+    tag: 'rect', corner: 0 },
   { index: 3, featureId: 'official-doc:mindmap:section:rounded-square', id: 'id', label: 'I am a rounded square', shape: 'rounded',
-    tag: 'rect', corner: 10, viewBox: '0 0 218.88399999999996 98.9', textLength: 130.884, svgSha256: '06e1eb2e2327f0e17da326e1a223d9c330c2ff35d1f642d81edc0ac5a4295189' },
+    tag: 'rect', corner: 10 },
   { index: 4, featureId: 'official-doc:mindmap:section:circle', id: 'id', label: 'I am a circle', shape: 'circle',
-    tag: 'circle', viewBox: '0 0 157.381 157.381', textLength: 69.381, svgSha256: 'e55fd510773a8e8cb757087e94c748b7bc8cc49d8e85fc689603e0dd30bf8032' },
+    tag: 'circle' },
   { index: 5, featureId: 'official-doc:mindmap:section:bang', id: 'id', label: 'I am a bang', shape: 'bang',
-    tag: 'polygon', vertices: 12, viewBox: '0 0 170.935 108.9', textLength: 64.935, svgSha256: '64c8d5255874425f8a46f9ac8e989c7d231448db1e282338a27603895a2d20e8' },
+    tag: 'polygon', vertices: 12 },
   { index: 6, featureId: 'official-doc:mindmap:section:cloud', id: 'id', label: 'I am a cloud', shape: 'cloud',
-    tag: 'ellipse', viewBox: '0 0 173.899 108.9', textLength: 67.899, svgSha256: 'cdad4f7fd7063acf3525fff3ff2710fd8cf6fb05116bc1f2276438d1ee2fa167' },
+    tag: 'ellipse' },
   { index: 7, featureId: 'official-doc:mindmap:section:hexagon', id: 'id', label: 'I am a hexagon', shape: 'hexagon',
-    tag: 'polygon', vertices: 6, viewBox: '0 0 175.165 98.9', textLength: 87.165, svgSha256: '93c47a283ac1c38523555da571d5e5f3877af261f2849de031da60523cd9250c' },
+    tag: 'polygon', vertices: 6 },
   { index: 8, featureId: 'official-doc:mindmap:section:default', id: 'I am the default shape', label: 'I am the default shape', shape: 'default',
-    tag: 'rect', corner: 16, viewBox: '0 0 211.474 98.9', textLength: 123.474, svgSha256: '4f517fe83717369959620d9236d1e219b11f70fb9a401c3d315133dffecfc013' },
+    tag: 'rect', corner: 16 },
 ]
 function polygonContains(points: readonly (readonly [number, number])[], x: number, y: number): boolean {
   let inside = false
@@ -67,8 +65,7 @@ function renderFacts(svg: string): FidelityJson {
   const shape = shapeTag ? attrs(shapeTag[0]) : {}
   const label = node?.[2]?.match(/<text\b([^>]*)>([\s\S]*?)<\/text>/)
   return {
-    svgSha256: createHash('sha256').update(svg).digest('hex'),
-    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    viewBox: viewBoxOf(svg),
     nodeCount: nodes.length, node: node ? attrs(node[1]!) : null,
     shapeCount: shapeTags.length, tag: shapeTag?.[1] ?? null, shape,
     labelCount: node ? [...node[2]!.matchAll(/<text\b/g)].length : 0,
@@ -79,17 +76,15 @@ function renderFacts(svg: string): FidelityJson {
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
   const observed = facts(evidence)
-  if (observed.svgSha256 !== spec.svgSha256 || observed.viewBox !== spec.viewBox
-    || observed.nodeCount !== 1 || observed.shapeCount !== 1 || observed.labelCount !== 1
+  const view = parseViewBox(observed.viewBox)
+  if (!view || observed.nodeCount !== 1 || observed.shapeCount !== 1 || observed.labelCount !== 1
     || observed.edgeCount !== 0 || observed.tag !== spec.tag || observed.label !== spec.label) return false
   const node = record(observed.node)
   const shape = record(observed.shape)
   const label = record(observed.labelAttributes)
   if (node['data-id'] !== spec.id || node['data-label'] !== spec.label || node['data-role'] !== 'node'
     || shape.fill !== '#47474a' || shape.stroke !== '#47474a' || label.fill !== '#FFFFFF') return false
-  const [viewX, viewY, viewWidth, viewHeight] = spec.viewBox.split(' ').map(Number)
-  const inView = (x: number, y: number): boolean => Number.isFinite(x) && Number.isFinite(y)
-    && x >= viewX! && x <= viewX! + viewWidth! && y >= viewY! && y <= viewY! + viewHeight!
+  const inView = (x: number, y: number): boolean => inViewBox(view, x, y)
   const textX = svgNumber(label.x)
   const textY = svgNumber(label.y)
   const textWidth = svgNumber(label.textLength)
@@ -100,7 +95,9 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     && width >= textWidth + 16 && height >= fontSize + 12
     && inView(x, y) && inView(x + width, y + height)
     && near(textX, x + width / 2) && near(textY, y + height / 2)
-  if (!inView(textX, textY) || !near(textWidth, spec.textLength) || fontSize !== 13
+  // The label run is fitted to the shared measurement of its own text.
+  if (!inView(textX, textY) || fontSize !== 13
+    || !fitsMeasuredText(textWidth, observed.label, fontSize, label['font-weight'])
     || label['text-anchor'] !== 'middle' || label.lengthAdjust !== 'spacingAndGlyphs'
     || label['data-font-metrics'] !== 'deterministic-fit') return false
   if (spec.tag === 'rect') {

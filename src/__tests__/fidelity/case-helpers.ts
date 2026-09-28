@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../agent/index.ts'
 import type { ParsedDiagram, VerifyResult } from '../../agent/types.ts'
+import { measureTextWidth } from '../../text-metrics.ts'
 import { UPSTREAM_MERMAID_MANIFEST, type UpstreamSyntaxExample } from '../../upstream-mermaid-manifest.ts'
 import type {
   ApplicableFidelitySurfaceExpectation,
@@ -187,6 +188,17 @@ export function inViewBox(box: ViewBox, x: number, y: number, tolerance = 0): bo
   return Number.isFinite(x) && Number.isFinite(y)
     && x >= box.x - tolerance && x <= box.x + box.width + tolerance
     && y >= box.y - tolerance && y <= box.y + box.height + tolerance
+}
+
+/** A fitted label's `textLength` is the shared text-measurement contract for
+ * its own text, size and weight: the painted run spans exactly the width the
+ * layout reserved. This derives the expectation instead of pinning a float. */
+export function fitsMeasuredText(textLength: unknown, text: unknown, fontSize: unknown, fontWeight: unknown): boolean {
+  const length = typeof textLength === 'number' ? textLength : svgNumber(textLength)
+  const size = typeof fontSize === 'number' ? fontSize : svgNumber(fontSize)
+  const weight = typeof fontWeight === 'number' ? fontWeight : svgNumber(fontWeight)
+  if (typeof text !== 'string' || !text || !(length > 0) || !(size > 0) || !(weight > 0)) return false
+  return Math.abs(length - measureTextWidth(text, size, weight)) <= 0.01
 }
 
 // ---- Pinned official syntax pages -----------------------------------------

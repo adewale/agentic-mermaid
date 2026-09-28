@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { checkedRoundTrip, classTexts, cssRule, facts, officialFences, record, same, svgPoints, tags } from '../case-helpers.ts'
+import { checkedRoundTrip, classTexts, cssRule, facts, inViewBox, officialFences, parseViewBox, record, same, svgPoints, tags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The paired example/preview blocks are six distinct executable sources.
@@ -19,8 +18,6 @@ type Spec = Readonly<{
   services: readonly Service[]
   junctions: readonly string[]
   edges: readonly Edge[]
-  svgSha256: string
-  viewBox: string
 }>
 const coreEdges: readonly Edge[] = [
   { source: 'db', sourceSide: 'L', target: 'server', targetSide: 'R' },
@@ -35,9 +32,7 @@ const specs: readonly Spec[] = [
       { id: 'disk1', label: 'Storage', icon: 'disk', parentId: 'api' },
       { id: 'disk2', label: 'Storage', icon: 'disk', parentId: 'api' },
       { id: 'server', label: 'Server', icon: 'server', parentId: 'api' },
-    ], junctions: [], edges: coreEdges,
-    svgSha256: '731ec2739af56c171a9fce767c97f83e711133c9dd78db9a8e0bc14c33b68836',
-    viewBox: '0 0 721.0139999999999 442' },
+    ], junctions: [], edges: coreEdges },
   { index: 4, featureId: 'official-doc:architecture:section:junctions', groups: [],
     services: [
       { id: 'left_disk', label: 'Disk', icon: 'disk', parentId: null },
@@ -52,8 +47,7 @@ const specs: readonly Spec[] = [
       { source: 'junctionCenter', sourceSide: 'R', target: 'junctionRight', targetSide: 'L' },
       { source: 'top_gateway', sourceSide: 'B', target: 'junctionRight', targetSide: 'T' },
       { source: 'bottom_gateway', sourceSide: 'T', target: 'junctionRight', targetSide: 'B' },
-    ], svgSha256: 'd55fb62161a4e62e5de6f92ccb760af047c351b24b73f24488470a00fd2ac11f',
-    viewBox: '0 0 964.6759999999999 592' },
+    ] },
 ]
 function modelFacts(source: string): FidelityJson {
   const parsed = parseRegisteredMermaid(source)
@@ -108,8 +102,7 @@ function renderFacts(svg: string): FidelityJson {
     id: item['data-id'] ?? null, x: Number(item.cx), y: Number(item.cy), radius: Number(item.r) }))
   const rings = tags(svg, 'circle', 'architecture-junction-ring').map(item => ({
     id: item['data-id'] ?? null, x: Number(item.cx), y: Number(item.cy), radius: Number(item.r) }))
-  return { viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
-    svgSha256: createHash('sha256').update(svg).digest('hex'), groups, services, junctions, edges,
+  return { viewBox: viewBoxOf(svg), groups, services, junctions, edges,
     frames, cards, cores, rings, icons: tags(svg, 'g', 'architecture-icon').map(item => item['data-icon'] ?? null),
     groupLabels: classTexts(svg, 'architecture-group-label'),
     serviceLabels: classTexts(svg, 'architecture-service-label'),
@@ -124,7 +117,8 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   const observed = facts(evidence)
   const paintedFill = (rule: FidelityJson | undefined): boolean =>
     typeof rule === 'string' && /^fill: #[0-9a-f]{6};/i.test(rule)
-  if (observed.viewBox !== spec.viewBox || observed.svgSha256 !== spec.svgSha256
+  const view = parseViewBox(observed.viewBox)
+  if (!view
     || !same(observed.groups, spec.groups.map(group => ({ id: group.id, label: group.label, role: 'group' })))
     || !same(observed.services, spec.services.map(service => ({ id: service.id, label: service.label, role: 'service' })))
     || !same(observed.junctions, spec.junctions.map(id => ({ id, role: 'junction' })))
@@ -148,10 +142,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     || !Array.isArray(cards) || cards.length !== spec.services.length
     || !Array.isArray(cores) || cores.length !== spec.junctions.length
     || !Array.isArray(rings) || rings.length !== spec.junctions.length) return false
-  const [viewX, viewY, viewWidth, viewHeight] = spec.viewBox.split(' ').map(Number)
-  const inView = (x: number, y: number): boolean => Number.isFinite(x) && Number.isFinite(y)
-    && x >= viewX! - 0.01 && x <= viewX! + viewWidth! + 0.01
-    && y >= viewY! - 0.01 && y <= viewY! + viewHeight! + 0.01
+  const inView = (x: number, y: number): boolean => inViewBox(view, x, y, 0.01)
   const serviceBoxes = cards.map(item => record(item))
   const rectanglesOverlap = (a: Readonly<Record<string, FidelityJson>>, b: Readonly<Record<string, FidelityJson>>): boolean =>
     typeof a.x === 'number' && typeof a.y === 'number'

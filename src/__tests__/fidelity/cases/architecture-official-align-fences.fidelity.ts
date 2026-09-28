@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto'
 import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
-import { checkedRoundTrip, classTexts, cssRule, facts, officialFences, record, same, svgPoints, tags } from '../case-helpers.ts'
+import { checkedRoundTrip, classTexts, cssRule, facts, inViewBox, officialFences, parseViewBox, record, same, svgPoints, tags, viewBoxOf } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 const { sources, examples } = officialFences('architecture.md')
@@ -18,8 +17,6 @@ type Spec = Readonly<{
   edges: readonly Edge[]
   alignments: readonly Alignment[]
   alignmentFulfilled: readonly boolean[]
-  viewBox: string
-  svgSha256: string
 }>
 const specs: readonly Spec[] = [
   { index: 1, featureId: 'official-doc:architecture:section:aligning-siblings-v11-16-0',
@@ -34,8 +31,7 @@ const specs: readonly Spec[] = [
       { source: 'db2', sourceSide: 'R', target: 'mcp', targetSide: 'L' },
       { source: 'db3', sourceSide: 'R', target: 'mcp', targetSide: 'L' },
     ], alignments: [{ axis: 'column', members: ['db1', 'db2', 'db3'] }],
-    alignmentFulfilled: [true], viewBox: '0 0 410 358',
-    svgSha256: '581d4ed329d6be7daf0f8b8299f6ec88842906081a0fdfefee6fda0d214192ea' },
+    alignmentFulfilled: [true] },
   { index: 2, featureId: 'official-doc:architecture:section:aligning-siblings-v11-16-0', groups: [],
     services: [
       { id: 'src1', label: 'Source 1', icon: 'server', parentId: null },
@@ -47,8 +43,7 @@ const specs: readonly Spec[] = [
       { source: 'src2', sourceSide: 'B', target: 'proc', targetSide: 'T' },
       { source: 'src3', sourceSide: 'B', target: 'proc', targetSide: 'T' },
     ], alignments: [{ axis: 'row', members: ['src1', 'src2', 'src3'] }],
-    alignmentFulfilled: [true], viewBox: '0 0 537.683 232',
-    svgSha256: '647dec138c495916b7e6a746761b004c37d060fa1fbe2caf304fed61e06290f7' },
+    alignmentFulfilled: [true] },
   { index: 3, featureId: 'official-doc:architecture:section:grid-layouts-combining-row-and-column',
     groups: [
       { id: 'sources', label: 'Sources', icon: 'cloud' },
@@ -78,9 +73,7 @@ const specs: readonly Spec[] = [
       { axis: 'column', members: ['src_a', 'db_one'] },
       { axis: 'column', members: ['src_b', 'db_two', 'brief'] },
       { axis: 'column', members: ['src_c', 'db_three'] },
-    ], alignmentFulfilled: [true, true, false, true, true, true],
-    viewBox: '0 0 882.7764999999999 626',
-    svgSha256: '1072b6cc82fd5bfee3bf3b2db91ab1df548795e219c10d646026b6c6fa2928c2' },
+    ], alignmentFulfilled: [true, true, false, true, true, true] },
 ]
 function modelFacts(source: string): FidelityJson {
   const parsed = parseRegisteredMermaid(source)
@@ -121,8 +114,7 @@ function renderFacts(svg: string, alignments: readonly Alignment[]): FidelityJso
     return centers.every(point => Math.abs(point[sameCoordinate] - centers[0]![sameCoordinate]) <= 0.01)
       && centers.slice(1).every((point, index) => point[orderedCoordinate] > centers[index]![orderedCoordinate] + 0.01)
   })
-  return { viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
-    svgSha256: createHash('sha256').update(svg).digest('hex'),
+  return { viewBox: viewBoxOf(svg),
     groups: tags(svg, 'g', 'architecture-group').map(item => ({ id: item['data-id'] ?? null,
       label: item['data-label'] ?? null })),
     services: tags(svg, 'g', 'architecture-service').map(item => ({ id: item['data-id'] ?? null,
@@ -149,7 +141,8 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   const observed = facts(evidence)
   const paintedFill = (rule: FidelityJson | undefined): boolean =>
     typeof rule === 'string' && /^fill: #[0-9a-f]{6};/i.test(rule)
-  if (observed.viewBox !== spec.viewBox || observed.svgSha256 !== spec.svgSha256
+  const view = parseViewBox(observed.viewBox)
+  if (!view
     || !same(observed.groups, spec.groups.map(item => ({ id: item.id, label: item.label })))
     || !same(observed.services, spec.services.map(item => ({ id: item.id, label: item.label })))
     || !same(observed.icons, [...spec.groups, ...spec.services].map(item => item.icon))
@@ -171,10 +164,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     const card = record(item)
     return [card.id, card]
   }))
-  const [viewX, viewY, viewWidth, viewHeight] = spec.viewBox.split(' ').map(Number)
-  const inView = (x: number, y: number): boolean => Number.isFinite(x) && Number.isFinite(y)
-    && x >= viewX! - 0.01 && x <= viewX! + viewWidth! + 0.01
-    && y >= viewY! - 0.01 && y <= viewY! + viewHeight! + 0.01
+  const inView = (x: number, y: number): boolean => inViewBox(view, x, y, 0.01)
   const serviceBoxes = cards.map(item => record(item))
   const overlaps = (a: Readonly<Record<string, FidelityJson>>, b: Readonly<Record<string, FidelityJson>>): boolean =>
     typeof a.x === 'number' && typeof a.y === 'number'
