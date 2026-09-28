@@ -1794,7 +1794,7 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(validateFidelityRegistry([malformedExpectation])).toContain('block.family.invalid-disposition: agent: invalid disposition bogus')
     await expect(runFidelityCases([malformedExpectation])).rejects.toThrow('invalid disposition bogus')
 
-    const malformedReceipt = structuredClone((await runFidelityRegistryOnce()).receipt)
+    const malformedReceipt = await runFidelityCases([original])
     const observation = malformedReceipt.cases[0]!.observations.agent
     if (!observation || observation.status !== 'observed') throw new Error('fixture agent observation must be observed')
     ;(observation as { disposition: string }).disposition = 'bogus'
@@ -1871,8 +1871,8 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(validateFidelityRegistry([emptyDiagnosis])).toContain('block.family.empty-diagnosis: agent: diagnosed disposition requires at least one diagnostic code')
     await expect(runFidelityCases([emptyDiagnosis])).rejects.toThrow('diagnosed disposition requires at least one diagnostic code')
 
-    const malformedReceipt = structuredClone((await runFidelityRegistryOnce()).receipt)
-    const blockCase = malformedReceipt.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
+    const malformedReceipt = await runFidelityCases([original])
+    const blockCase = malformedReceipt.cases[0]!
     const expectedAgent = blockCase.expected.agent
     const observedAgent = blockCase.observations.agent
     if (expectedAgent.applicability !== 'applicable' || !observedAgent || observedAgent.status !== 'observed') throw new Error('block agent fixture must be applicable and observed')
