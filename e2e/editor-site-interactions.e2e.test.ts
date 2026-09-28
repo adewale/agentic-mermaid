@@ -9,7 +9,7 @@
  * adapter, the same technique editor-style-switch.test.ts uses.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
@@ -38,7 +38,7 @@ function fileForPath(pathname: string): string | null {
   const candidate = rel && !rel.endsWith('/') ? rel : `${rel}index.html`
   for (const path of [candidate, join(rel, 'index.html')]) {
     const abs = normalize(join(SITE, path))
-    if (abs.startsWith(SITE) && existsSync(abs) && !abs.endsWith('/')) return abs
+    if (abs.startsWith(SITE) && existsSync(abs) && statSync(abs).isFile()) return abs
   }
   return null
 }
