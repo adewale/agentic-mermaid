@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "a2f1a72607960adf89e4cd4762e33cd7a5e5b0fbdce3d41c0fadeae744f1cb3c",
+    "inputSha256": "9dc63cea15880915304cd4d0c464d187a174fceb1c746b92edb599903099f132",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -133,6 +133,10 @@
       {
         "path": "src/__tests__/fidelity/cases/timeline-direction.fidelity.ts",
         "sha256": "dce49907bab72433d65b3522576ce782c8d9c3d2e0fd46658e2a458accb46bdd"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/xychart-official-fences.fidelity.ts",
+        "sha256": "d6b4bc430d32ab259a716f3c19253cb91a54acb0e372b3cf318827eb2d05ed71"
       },
       {
         "path": "src/__tests__/fidelity/contract.ts",
@@ -2903,6 +2907,3687 @@
       "issues": []
     },
     {
+      "id": "xychart.official.fence-0",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:example",
+      "sourceSha256": "e1f2fb9b78166627c631f8620fa929ec5eff7222c39cac56ce8fa499c6a98e6f",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#example",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                }
+              ],
+              "title": "Sales Revenue",
+              "xCategories": [
+                "jan",
+                "feb",
+                "mar",
+                "apr",
+                "may",
+                "jun",
+                "jul",
+                "aug",
+                "sep",
+                "oct",
+                "nov",
+                "dec"
+              ],
+              "xName": null,
+              "yName": "Revenue (in $)",
+              "yRange": [
+                4000,
+                11000
+              ]
+            },
+            "outsideBarWarning": false
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              }
+            ],
+            "bars": [
+              {
+                "colorIndex": 0,
+                "height": 61.29,
+                "label": "jan",
+                "value": "5000",
+                "width": 44.23,
+                "x": 79.53,
+                "y": 407.71
+              },
+              {
+                "colorIndex": 0,
+                "height": 122.57,
+                "label": "feb",
+                "value": "6000",
+                "width": 44.23,
+                "x": 126.08,
+                "y": 346.43
+              },
+              {
+                "colorIndex": 0,
+                "height": 214.5,
+                "label": "mar",
+                "value": "7500",
+                "width": 44.23,
+                "x": 172.63,
+                "y": 254.5
+              },
+              {
+                "colorIndex": 0,
+                "height": 257.4,
+                "label": "apr",
+                "value": "8200",
+                "width": 44.23,
+                "x": 219.19,
+                "y": 211.6
+              },
+              {
+                "colorIndex": 0,
+                "height": 337.07,
+                "label": "may",
+                "value": "9500",
+                "width": 44.23,
+                "x": 265.74,
+                "y": 131.93
+              },
+              {
+                "colorIndex": 0,
+                "height": 398.36,
+                "label": "jun",
+                "value": "10500",
+                "width": 44.23,
+                "x": 312.29,
+                "y": 70.64
+              },
+              {
+                "colorIndex": 0,
+                "height": 429,
+                "label": "jul",
+                "value": "11000",
+                "width": 44.23,
+                "x": 358.85,
+                "y": 40
+              },
+              {
+                "colorIndex": 0,
+                "height": 379.97,
+                "label": "aug",
+                "value": "10200",
+                "width": 44.23,
+                "x": 405.4,
+                "y": 89.03
+              },
+              {
+                "colorIndex": 0,
+                "height": 318.69,
+                "label": "sep",
+                "value": "9200",
+                "width": 44.23,
+                "x": 451.95,
+                "y": 150.31
+              },
+              {
+                "colorIndex": 0,
+                "height": 275.79,
+                "label": "oct",
+                "value": "8500",
+                "width": 44.23,
+                "x": 498.5,
+                "y": 193.21
+              },
+              {
+                "colorIndex": 0,
+                "height": 183.86,
+                "label": "nov",
+                "value": "7000",
+                "width": 44.23,
+                "x": 545.06,
+                "y": 285.14
+              },
+              {
+                "colorIndex": 0,
+                "height": 122.57,
+                "label": "dec",
+                "value": "6000",
+                "width": 44.23,
+                "x": 591.61,
+                "y": 346.43
+              }
+            ],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [],
+            "dotPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              }
+            ],
+            "dots": [],
+            "identicalToInsideLabels": false,
+            "labels": [],
+            "legend": [
+              "Bar 1",
+              "Line 1"
+            ],
+            "linePaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [
+              {
+                "colorIndex": 1,
+                "points": [
+                  [
+                    101.64,
+                    407.71
+                  ],
+                  [
+                    148.19,
+                    346.43
+                  ],
+                  [
+                    194.75,
+                    254.5
+                  ],
+                  [
+                    241.3,
+                    211.6
+                  ],
+                  [
+                    287.85,
+                    131.93
+                  ],
+                  [
+                    334.41,
+                    70.64
+                  ],
+                  [
+                    380.96,
+                    40
+                  ],
+                  [
+                    427.51,
+                    89.03
+                  ],
+                  [
+                    474.06,
+                    150.31
+                  ],
+                  [
+                    520.62,
+                    193.21
+                  ],
+                  [
+                    567.17,
+                    285.14
+                  ],
+                  [
+                    613.72,
+                    346.43
+                  ]
+                ]
+              }
+            ],
+            "palette": [
+              "#3b82f6",
+              "#0d5ba5"
+            ],
+            "title": [
+              "Sales Revenue"
+            ],
+            "titleAnchors": [
+              {
+                "x": 350,
+                "y": 30
+              },
+              {
+                "x": 17.8,
+                "y": 254.5
+              },
+              {
+                "x": 660,
+                "y": 51
+              },
+              {
+                "x": 660,
+                "y": 70
+              }
+            ],
+            "titleColor": "#27272A",
+            "viewBox": "0 0 700 500",
+            "xLabels": [
+              "jan",
+              "feb",
+              "mar",
+              "apr",
+              "may",
+              "jun",
+              "jul",
+              "aug",
+              "sep",
+              "oct",
+              "nov",
+              "dec"
+            ],
+            "xTicks": [
+              {
+                "text": "jan",
+                "x": 101.64050000000003,
+                "y": 486.6
+              },
+              {
+                "text": "feb",
+                "x": 148.19350000000003,
+                "y": 486.6
+              },
+              {
+                "text": "mar",
+                "x": 194.74650000000003,
+                "y": 486.6
+              },
+              {
+                "text": "apr",
+                "x": 241.29950000000002,
+                "y": 486.6
+              },
+              {
+                "text": "may",
+                "x": 287.8525,
+                "y": 486.6
+              },
+              {
+                "text": "jun",
+                "x": 334.4055,
+                "y": 486.6
+              },
+              {
+                "text": "jul",
+                "x": 380.9585,
+                "y": 486.6
+              },
+              {
+                "text": "aug",
+                "x": 427.5115,
+                "y": 486.6
+              },
+              {
+                "text": "sep",
+                "x": 474.0645,
+                "y": 486.6
+              },
+              {
+                "text": "oct",
+                "x": 520.6175000000001,
+                "y": 486.6
+              },
+              {
+                "text": "nov",
+                "x": 567.1705,
+                "y": 486.6
+              },
+              {
+                "text": "dec",
+                "x": 613.7235000000001,
+                "y": 486.6
+              }
+            ],
+            "xTitles": [],
+            "yTicks": [
+              {
+                "value": 4000,
+                "x": 66.36400000000003,
+                "y": 469
+              },
+              {
+                "value": 4500,
+                "x": 66.36400000000003,
+                "y": 438.35714285714283
+              },
+              {
+                "value": 5000,
+                "x": 66.36400000000003,
+                "y": 407.7142857142857
+              },
+              {
+                "value": 5500,
+                "x": 66.36400000000003,
+                "y": 377.07142857142856
+              },
+              {
+                "value": 6000,
+                "x": 66.36400000000003,
+                "y": 346.42857142857144
+              },
+              {
+                "value": 6500,
+                "x": 66.36400000000003,
+                "y": 315.7857142857143
+              },
+              {
+                "value": 7000,
+                "x": 66.36400000000003,
+                "y": 285.14285714285717
+              },
+              {
+                "value": 7500,
+                "x": 66.36400000000003,
+                "y": 254.5
+              },
+              {
+                "value": 8000,
+                "x": 66.36400000000003,
+                "y": 223.85714285714286
+              },
+              {
+                "value": 8500,
+                "x": 66.36400000000003,
+                "y": 193.21428571428567
+              },
+              {
+                "value": 9000,
+                "x": 66.36400000000003,
+                "y": 162.57142857142856
+              },
+              {
+                "value": 9500,
+                "x": 66.36400000000003,
+                "y": 131.92857142857144
+              },
+              {
+                "value": 10000,
+                "x": 66.36400000000003,
+                "y": 101.28571428571433
+              },
+              {
+                "value": 10500,
+                "x": 66.36400000000003,
+                "y": 70.64285714285711
+              },
+              {
+                "value": 11000,
+                "x": 66.36400000000003,
+                "y": 40
+              }
+            ],
+            "yTitles": [
+              "Revenue (in $)"
+            ]
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                }
+              ],
+              "title": "Sales Revenue",
+              "xCategories": [
+                "jan",
+                "feb",
+                "mar",
+                "apr",
+                "may",
+                "jun",
+                "jul",
+                "aug",
+                "sep",
+                "oct",
+                "nov",
+                "dec"
+              ],
+              "xName": null,
+              "yName": "Revenue (in $)",
+              "yRange": [
+                4000,
+                11000
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.official.fence-1",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:legend-v",
+      "sourceSha256": "5c9614816d1aab7fa9a879efb89cb5f5ee90d0954c8818c5c86691692c474bbc",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#legend-v",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "line",
+                  "name": "avg",
+                  "pointLabels": null,
+                  "values": [
+                    48.1,
+                    41.5,
+                    45.7,
+                    72.8,
+                    67.7,
+                    59.9
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": "p50",
+                  "pointLabels": null,
+                  "values": [
+                    38.2,
+                    36.8,
+                    39.7,
+                    54.5,
+                    49,
+                    38.4
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": "p95",
+                  "pointLabels": null,
+                  "values": [
+                    112.2,
+                    75.3,
+                    103,
+                    177,
+                    180.2,
+                    109.4
+                  ]
+                }
+              ],
+              "title": "An Example Chart",
+              "xCategories": [
+                "90d",
+                "60d",
+                "30d",
+                "7d",
+                "1d",
+                "Current"
+              ],
+              "xName": null,
+              "yName": "Seconds",
+              "yRange": [
+                0,
+                198.2
+              ]
+            },
+            "outsideBarWarning": false
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              },
+              {
+                "color": "#5f79f2",
+                "index": 2
+              }
+            ],
+            "bars": [],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [],
+            "dotPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              },
+              {
+                "color": "#5f79f2",
+                "index": 2
+              }
+            ],
+            "dots": [],
+            "identicalToInsideLabels": false,
+            "labels": [],
+            "legend": [
+              "avg",
+              "p50",
+              "p95"
+            ],
+            "linePaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              },
+              {
+                "color": "#5f79f2",
+                "index": 2
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [
+              {
+                "colorIndex": 0,
+                "points": [
+                  [
+                    111.89,
+                    364.89
+                  ],
+                  [
+                    209.18,
+                    379.17
+                  ],
+                  [
+                    306.48,
+                    370.08
+                  ],
+                  [
+                    403.77,
+                    311.43
+                  ],
+                  [
+                    501.06,
+                    322.46
+                  ],
+                  [
+                    598.35,
+                    339.35
+                  ]
+                ]
+              },
+              {
+                "colorIndex": 1,
+                "points": [
+                  [
+                    111.89,
+                    386.32
+                  ],
+                  [
+                    209.18,
+                    389.35
+                  ],
+                  [
+                    306.48,
+                    383.07
+                  ],
+                  [
+                    403.77,
+                    351.04
+                  ],
+                  [
+                    501.06,
+                    362.94
+                  ],
+                  [
+                    598.35,
+                    385.88
+                  ]
+                ]
+              },
+              {
+                "colorIndex": 2,
+                "points": [
+                  [
+                    111.89,
+                    226.15
+                  ],
+                  [
+                    209.18,
+                    306.01
+                  ],
+                  [
+                    306.48,
+                    246.06
+                  ],
+                  [
+                    403.77,
+                    85.89
+                  ],
+                  [
+                    501.06,
+                    78.96
+                  ],
+                  [
+                    598.35,
+                    232.21
+                  ]
+                ]
+              }
+            ],
+            "palette": [
+              "#3b82f6",
+              "#0d5ba5",
+              "#5f79f2"
+            ],
+            "title": [
+              "An Example Chart"
+            ],
+            "titleAnchors": [
+              {
+                "x": 350,
+                "y": 30
+              },
+              {
+                "x": 17.8,
+                "y": 254.5
+              },
+              {
+                "x": 670,
+                "y": 51
+              },
+              {
+                "x": 670,
+                "y": 70
+              },
+              {
+                "x": 670,
+                "y": 89
+              }
+            ],
+            "titleColor": "#27272A",
+            "viewBox": "0 0 700 500",
+            "xLabels": [
+              "90d",
+              "60d",
+              "30d",
+              "7d",
+              "1d",
+              "Current"
+            ],
+            "xTicks": [
+              {
+                "text": "90d",
+                "x": 111.89033333333336,
+                "y": 486.6
+              },
+              {
+                "text": "60d",
+                "x": 209.18300000000002,
+                "y": 486.6
+              },
+              {
+                "text": "30d",
+                "x": 306.4756666666667,
+                "y": 486.6
+              },
+              {
+                "text": "7d",
+                "x": 403.7683333333333,
+                "y": 486.6
+              },
+              {
+                "text": "1d",
+                "x": 501.06100000000004,
+                "y": 486.6
+              },
+              {
+                "text": "Current",
+                "x": 598.3536666666666,
+                "y": 486.6
+              }
+            ],
+            "xTitles": [],
+            "yTicks": [
+              {
+                "value": 0,
+                "x": 51.24400000000003,
+                "y": 469
+              },
+              {
+                "value": 20,
+                "x": 51.24400000000003,
+                "y": 425.7103935418769
+              },
+              {
+                "value": 40,
+                "x": 51.24400000000003,
+                "y": 382.4207870837538
+              },
+              {
+                "value": 60,
+                "x": 51.24400000000003,
+                "y": 339.1311806256307
+              },
+              {
+                "value": 80,
+                "x": 51.24400000000003,
+                "y": 295.8415741675076
+              },
+              {
+                "value": 100,
+                "x": 51.24400000000003,
+                "y": 252.55196770938446
+              },
+              {
+                "value": 120,
+                "x": 51.24400000000003,
+                "y": 209.26236125126132
+              },
+              {
+                "value": 140,
+                "x": 51.24400000000003,
+                "y": 165.97275479313822
+              },
+              {
+                "value": 160,
+                "x": 51.24400000000003,
+                "y": 122.68314833501512
+              },
+              {
+                "value": 180,
+                "x": 51.24400000000003,
+                "y": 79.39354187689196
+              }
+            ],
+            "yTitles": [
+              "Seconds"
+            ]
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "line",
+                  "name": "avg",
+                  "pointLabels": null,
+                  "values": [
+                    48.1,
+                    41.5,
+                    45.7,
+                    72.8,
+                    67.7,
+                    59.9
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": "p50",
+                  "pointLabels": null,
+                  "values": [
+                    38.2,
+                    36.8,
+                    39.7,
+                    54.5,
+                    49,
+                    38.4
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": "p95",
+                  "pointLabels": null,
+                  "values": [
+                    112.2,
+                    75.3,
+                    103,
+                    177,
+                    180.2,
+                    109.4
+                  ]
+                }
+              ],
+              "title": "An Example Chart",
+              "xCategories": [
+                "90d",
+                "60d",
+                "30d",
+                "7d",
+                "1d",
+                "Current"
+              ],
+              "xName": null,
+              "yName": "Seconds",
+              "yRange": [
+                0,
+                198.2
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.official.fence-2",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:setting-colors-for-lines-and-bars",
+      "sourceSha256": "e29db599c048b0ae6f6d90c0d58e12b850ebc3021524985aa4652ea32b56c574",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#setting-colors-for-lines-and-bars",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "themeVariables": {
+                  "xyChart": {
+                    "plotColorPalette": "#000000, #0000FF, #00FF00, #FF0000"
+                  }
+                }
+              },
+              "series": [
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    10,
+                    20,
+                    30,
+                    40
+                  ]
+                },
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    20,
+                    30,
+                    25,
+                    35
+                  ]
+                },
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    15,
+                    25,
+                    20,
+                    30
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5,
+                    15,
+                    25,
+                    35
+                  ]
+                }
+              ],
+              "title": "Different Colors in xyChart",
+              "xCategories": [
+                "Category 1",
+                "Category 2",
+                "Category 3",
+                "Category 4"
+              ],
+              "xName": "categoriesX",
+              "yName": "valuesY",
+              "yRange": [
+                0,
+                50
+              ]
+            },
+            "outsideBarWarning": false
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#000000",
+                "index": 0
+              },
+              {
+                "color": "#0000FF",
+                "index": 1
+              },
+              {
+                "color": "#00FF00",
+                "index": 2
+              },
+              {
+                "color": "#FF0000",
+                "index": 3
+              }
+            ],
+            "bars": [
+              {
+                "colorIndex": 1,
+                "height": 161.2,
+                "label": "Category 1",
+                "value": "20",
+                "width": 67.9,
+                "x": 63.79,
+                "y": 281.8
+              },
+              {
+                "colorIndex": 1,
+                "height": 241.8,
+                "label": "Category 2",
+                "value": "30",
+                "width": 67.9,
+                "x": 206.74,
+                "y": 201.2
+              },
+              {
+                "colorIndex": 1,
+                "height": 201.5,
+                "label": "Category 3",
+                "value": "25",
+                "width": 67.9,
+                "x": 349.68,
+                "y": 241.5
+              },
+              {
+                "colorIndex": 1,
+                "height": 282.1,
+                "label": "Category 4",
+                "value": "35",
+                "width": 67.9,
+                "x": 492.63,
+                "y": 160.9
+              },
+              {
+                "colorIndex": 2,
+                "height": 120.9,
+                "label": "Category 1",
+                "value": "15",
+                "width": 67.9,
+                "x": 131.69,
+                "y": 322.1
+              },
+              {
+                "colorIndex": 2,
+                "height": 201.5,
+                "label": "Category 2",
+                "value": "25",
+                "width": 67.9,
+                "x": 274.64,
+                "y": 241.5
+              },
+              {
+                "colorIndex": 2,
+                "height": 161.2,
+                "label": "Category 3",
+                "value": "20",
+                "width": 67.9,
+                "x": 417.58,
+                "y": 281.8
+              },
+              {
+                "colorIndex": 2,
+                "height": 241.8,
+                "label": "Category 4",
+                "value": "30",
+                "width": 67.9,
+                "x": 560.53,
+                "y": 201.2
+              }
+            ],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [],
+            "dotPaint": [
+              {
+                "color": "#000000",
+                "index": 0
+              },
+              {
+                "color": "#0000FF",
+                "index": 1
+              },
+              {
+                "color": "#00FF00",
+                "index": 2
+              },
+              {
+                "color": "#FF0000",
+                "index": 3
+              }
+            ],
+            "dots": [],
+            "identicalToInsideLabels": false,
+            "labels": [],
+            "legend": [
+              "Line 1",
+              "Bar 1",
+              "Bar 2",
+              "Line 2"
+            ],
+            "linePaint": [
+              {
+                "color": "#000000",
+                "index": 0
+              },
+              {
+                "color": "#0000FF",
+                "index": 1
+              },
+              {
+                "color": "#00FF00",
+                "index": 2
+              },
+              {
+                "color": "#FF0000",
+                "index": 3
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [
+              {
+                "colorIndex": 0,
+                "points": [
+                  [
+                    131.69,
+                    362.4
+                  ],
+                  [
+                    274.64,
+                    281.8
+                  ],
+                  [
+                    417.58,
+                    201.2
+                  ],
+                  [
+                    560.53,
+                    120.6
+                  ]
+                ]
+              },
+              {
+                "colorIndex": 3,
+                "points": [
+                  [
+                    131.69,
+                    402.7
+                  ],
+                  [
+                    274.64,
+                    322.1
+                  ],
+                  [
+                    417.58,
+                    241.5
+                  ],
+                  [
+                    560.53,
+                    160.9
+                  ]
+                ]
+              }
+            ],
+            "palette": [
+              "#000000",
+              "#0000FF",
+              "#00FF00",
+              "#FF0000"
+            ],
+            "title": [
+              "Different Colors in xyChart"
+            ],
+            "titleAnchors": [
+              {
+                "x": 350,
+                "y": 30
+              },
+              {
+                "x": 346.11,
+                "y": 495
+              },
+              {
+                "x": 17.8,
+                "y": 241.5
+              },
+              {
+                "x": 655,
+                "y": 51
+              },
+              {
+                "x": 655,
+                "y": 70
+              },
+              {
+                "x": 655,
+                "y": 89
+              },
+              {
+                "x": 655,
+                "y": 108
+              }
+            ],
+            "titleColor": "#27272A",
+            "viewBox": "0 0 700 500",
+            "xLabels": [
+              "Category 1",
+              "Category 2",
+              "Category 3",
+              "Category 4"
+            ],
+            "xTicks": [
+              {
+                "text": "Category 1",
+                "x": 131.69250000000002,
+                "y": 460.6
+              },
+              {
+                "text": "Category 2",
+                "x": 274.63750000000005,
+                "y": 460.6
+              },
+              {
+                "text": "Category 3",
+                "x": 417.5825,
+                "y": 460.6
+              },
+              {
+                "text": "Category 4",
+                "x": 560.5275,
+                "y": 460.6
+              }
+            ],
+            "xTitles": [
+              "categoriesX"
+            ],
+            "yTicks": [
+              {
+                "value": 0,
+                "x": 48.22000000000003,
+                "y": 443
+              },
+              {
+                "value": 5,
+                "x": 48.22000000000003,
+                "y": 402.7
+              },
+              {
+                "value": 10,
+                "x": 48.22000000000003,
+                "y": 362.4
+              },
+              {
+                "value": 15,
+                "x": 48.22000000000003,
+                "y": 322.1
+              },
+              {
+                "value": 20,
+                "x": 48.22000000000003,
+                "y": 281.79999999999995
+              },
+              {
+                "value": 25,
+                "x": 48.22000000000003,
+                "y": 241.5
+              },
+              {
+                "value": 30,
+                "x": 48.22000000000003,
+                "y": 201.20000000000002
+              },
+              {
+                "value": 35,
+                "x": 48.22000000000003,
+                "y": 160.90000000000003
+              },
+              {
+                "value": 40,
+                "x": 48.22000000000003,
+                "y": 120.59999999999997
+              },
+              {
+                "value": 45,
+                "x": 48.22000000000003,
+                "y": 80.30000000000001
+              },
+              {
+                "value": 50,
+                "x": 48.22000000000003,
+                "y": 40
+              }
+            ],
+            "yTitles": [
+              "valuesY"
+            ]
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "themeVariables": {
+                  "xyChart": {
+                    "plotColorPalette": "#000000, #0000FF, #00FF00, #FF0000"
+                  }
+                }
+              },
+              "series": [
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    10,
+                    20,
+                    30,
+                    40
+                  ]
+                },
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    20,
+                    30,
+                    25,
+                    35
+                  ]
+                },
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    15,
+                    25,
+                    20,
+                    30
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5,
+                    15,
+                    25,
+                    35
+                  ]
+                }
+              ],
+              "title": "Different Colors in xyChart",
+              "xCategories": [
+                "Category 1",
+                "Category 2",
+                "Category 3",
+                "Category 4"
+              ],
+              "xName": "categoriesX",
+              "yName": "valuesY",
+              "yRange": [
+                0,
+                50
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.official.fence-3",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:displaying-individual-values-on-a-bar-chart-v11-14-0",
+      "sourceSha256": "3e39682f374b36b9fd257d501ffafa9de3cbd431ae7095c8d24520d87a9694d0",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#displaying-individual-values-on-a-bar-chart-v11-14-0",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "xyChart": {
+                  "showDataLabel": true
+                }
+              },
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    12,
+                    2,
+                    20,
+                    25,
+                    17,
+                    24
+                  ]
+                }
+              ],
+              "title": "Genres in top 100 book survey of 2025",
+              "xCategories": [
+                "comedy",
+                "romance",
+                "mystery",
+                "crime",
+                "non fiction",
+                "other"
+              ],
+              "xName": null,
+              "yName": "Number of Books",
+              "yRange": [
+                0,
+                30
+              ]
+            },
+            "outsideBarWarning": false
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "bars": [
+              {
+                "colorIndex": 0,
+                "height": 171.6,
+                "label": "comedy",
+                "value": "12",
+                "width": 101.3,
+                "x": 62.89,
+                "y": 297.4
+              },
+              {
+                "colorIndex": 0,
+                "height": 28.6,
+                "label": "romance",
+                "value": "2",
+                "width": 101.3,
+                "x": 169.52,
+                "y": 440.4
+              },
+              {
+                "colorIndex": 0,
+                "height": 286,
+                "label": "mystery",
+                "value": "20",
+                "width": 101.3,
+                "x": 276.15,
+                "y": 183
+              },
+              {
+                "colorIndex": 0,
+                "height": 357.5,
+                "label": "crime",
+                "value": "25",
+                "width": 101.3,
+                "x": 382.78,
+                "y": 111.5
+              },
+              {
+                "colorIndex": 0,
+                "height": 243.1,
+                "label": "non fiction",
+                "value": "17",
+                "width": 101.3,
+                "x": 489.41,
+                "y": 225.9
+              },
+              {
+                "colorIndex": 0,
+                "height": 343.2,
+                "label": "other",
+                "value": "24",
+                "width": 101.3,
+                "x": 596.04,
+                "y": 125.8
+              }
+            ],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [
+              {
+                "fontSize": "16",
+                "text": "12",
+                "x": 113.54,
+                "y": 305.4
+              },
+              {
+                "fontSize": "16",
+                "text": "2",
+                "x": 220.17,
+                "y": 448.4
+              },
+              {
+                "fontSize": "16",
+                "text": "20",
+                "x": 326.8,
+                "y": 191
+              },
+              {
+                "fontSize": "16",
+                "text": "25",
+                "x": 433.43,
+                "y": 119.5
+              },
+              {
+                "fontSize": "16",
+                "text": "17",
+                "x": 540.06,
+                "y": 233.9
+              },
+              {
+                "fontSize": "16",
+                "text": "24",
+                "x": 646.68,
+                "y": 133.8
+              }
+            ],
+            "dotPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "dots": [],
+            "identicalToInsideLabels": false,
+            "labels": [],
+            "legend": [],
+            "linePaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [],
+            "palette": [
+              "#3b82f6"
+            ],
+            "title": [
+              "Genres in top 100 book survey of 2025"
+            ],
+            "titleAnchors": [
+              {
+                "x": 350,
+                "y": 30
+              },
+              {
+                "x": 17.8,
+                "y": 254.5
+              }
+            ],
+            "titleColor": "#27272A",
+            "viewBox": "0 0 700 500",
+            "xLabels": [
+              "comedy",
+              "romance",
+              "mystery",
+              "crime",
+              "non fiction",
+              "other"
+            ],
+            "xTicks": [
+              {
+                "text": "comedy",
+                "x": 113.53500000000003,
+                "y": 486.6
+              },
+              {
+                "text": "romance",
+                "x": 220.16500000000002,
+                "y": 486.6
+              },
+              {
+                "text": "mystery",
+                "x": 326.795,
+                "y": 486.6
+              },
+              {
+                "text": "crime",
+                "x": 433.425,
+                "y": 486.6
+              },
+              {
+                "text": "non fiction",
+                "x": 540.0550000000001,
+                "y": 486.6
+              },
+              {
+                "text": "other",
+                "x": 646.685,
+                "y": 486.6
+              }
+            ],
+            "xTitles": [],
+            "yTicks": [
+              {
+                "value": 0,
+                "x": 48.22000000000003,
+                "y": 469
+              },
+              {
+                "value": 2,
+                "x": 48.22000000000003,
+                "y": 440.4
+              },
+              {
+                "value": 4,
+                "x": 48.22000000000003,
+                "y": 411.8
+              },
+              {
+                "value": 6,
+                "x": 48.22000000000003,
+                "y": 383.2
+              },
+              {
+                "value": 8,
+                "x": 48.22000000000003,
+                "y": 354.6
+              },
+              {
+                "value": 10,
+                "x": 48.22000000000003,
+                "y": 326
+              },
+              {
+                "value": 12,
+                "x": 48.22000000000003,
+                "y": 297.4
+              },
+              {
+                "value": 14,
+                "x": 48.22000000000003,
+                "y": 268.79999999999995
+              },
+              {
+                "value": 16,
+                "x": 48.22000000000003,
+                "y": 240.20000000000002
+              },
+              {
+                "value": 18,
+                "x": 48.22000000000003,
+                "y": 211.60000000000002
+              },
+              {
+                "value": 20,
+                "x": 48.22000000000003,
+                "y": 183
+              },
+              {
+                "value": 22,
+                "x": 48.22000000000003,
+                "y": 154.40000000000003
+              },
+              {
+                "value": 24,
+                "x": 48.22000000000003,
+                "y": 125.79999999999995
+              },
+              {
+                "value": 26,
+                "x": 48.22000000000003,
+                "y": 97.19999999999999
+              },
+              {
+                "value": 28,
+                "x": 48.22000000000003,
+                "y": 68.59999999999997
+              },
+              {
+                "value": 30,
+                "x": 48.22000000000003,
+                "y": 40
+              }
+            ],
+            "yTitles": [
+              "Number of Books"
+            ]
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "xyChart": {
+                  "showDataLabel": true
+                }
+              },
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    12,
+                    2,
+                    20,
+                    25,
+                    17,
+                    24
+                  ]
+                }
+              ],
+              "title": "Genres in top 100 book survey of 2025",
+              "xCategories": [
+                "comedy",
+                "romance",
+                "mystery",
+                "crime",
+                "non fiction",
+                "other"
+              ],
+              "xName": null,
+              "yName": "Number of Books",
+              "yRange": [
+                0,
+                30
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.official.fence-4",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:displaying-individual-values-on-a-bar-chart-v11-14-0",
+      "sourceSha256": "e182b48c9492f700854120fbdfb906021e4840dfd7b1a2add3f3f8ffbcb9ab01",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#displaying-individual-values-on-a-bar-chart-v11-14-0",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "diagnosed",
+          "diagnosticCodes": [
+            "INEFFECTIVE_CONFIG"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "INEFFECTIVE_CONFIG"
+          ],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "xyChart": {
+                  "showDataLabel": true,
+                  "showDataLabelOutsideBar": true
+                }
+              },
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    12,
+                    2,
+                    20,
+                    25,
+                    17,
+                    24
+                  ]
+                }
+              ],
+              "title": "Genres in top 100 book survey of 2025",
+              "xCategories": [
+                "comedy",
+                "romance",
+                "mystery",
+                "crime",
+                "non fiction",
+                "other"
+              ],
+              "xName": null,
+              "yName": "Number of Books",
+              "yRange": [
+                0,
+                30
+              ]
+            },
+            "outsideBarWarning": true
+          },
+          "disposition": "diagnosed"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "bars": [
+              {
+                "colorIndex": 0,
+                "height": 171.6,
+                "label": "comedy",
+                "value": "12",
+                "width": 101.3,
+                "x": 62.89,
+                "y": 297.4
+              },
+              {
+                "colorIndex": 0,
+                "height": 28.6,
+                "label": "romance",
+                "value": "2",
+                "width": 101.3,
+                "x": 169.52,
+                "y": 440.4
+              },
+              {
+                "colorIndex": 0,
+                "height": 286,
+                "label": "mystery",
+                "value": "20",
+                "width": 101.3,
+                "x": 276.15,
+                "y": 183
+              },
+              {
+                "colorIndex": 0,
+                "height": 357.5,
+                "label": "crime",
+                "value": "25",
+                "width": 101.3,
+                "x": 382.78,
+                "y": 111.5
+              },
+              {
+                "colorIndex": 0,
+                "height": 243.1,
+                "label": "non fiction",
+                "value": "17",
+                "width": 101.3,
+                "x": 489.41,
+                "y": 225.9
+              },
+              {
+                "colorIndex": 0,
+                "height": 343.2,
+                "label": "other",
+                "value": "24",
+                "width": 101.3,
+                "x": 596.04,
+                "y": 125.8
+              }
+            ],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [
+              {
+                "fontSize": "16",
+                "text": "12",
+                "x": 113.54,
+                "y": 305.4
+              },
+              {
+                "fontSize": "16",
+                "text": "2",
+                "x": 220.17,
+                "y": 448.4
+              },
+              {
+                "fontSize": "16",
+                "text": "20",
+                "x": 326.8,
+                "y": 191
+              },
+              {
+                "fontSize": "16",
+                "text": "25",
+                "x": 433.43,
+                "y": 119.5
+              },
+              {
+                "fontSize": "16",
+                "text": "17",
+                "x": 540.06,
+                "y": 233.9
+              },
+              {
+                "fontSize": "16",
+                "text": "24",
+                "x": 646.68,
+                "y": 133.8
+              }
+            ],
+            "dotPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "dots": [],
+            "identicalToInsideLabels": true,
+            "labels": [],
+            "legend": [],
+            "linePaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [],
+            "palette": [
+              "#3b82f6"
+            ],
+            "title": [
+              "Genres in top 100 book survey of 2025"
+            ],
+            "titleAnchors": [
+              {
+                "x": 350,
+                "y": 30
+              },
+              {
+                "x": 17.8,
+                "y": 254.5
+              }
+            ],
+            "titleColor": "#27272A",
+            "viewBox": "0 0 700 500",
+            "xLabels": [
+              "comedy",
+              "romance",
+              "mystery",
+              "crime",
+              "non fiction",
+              "other"
+            ],
+            "xTicks": [
+              {
+                "text": "comedy",
+                "x": 113.53500000000003,
+                "y": 486.6
+              },
+              {
+                "text": "romance",
+                "x": 220.16500000000002,
+                "y": 486.6
+              },
+              {
+                "text": "mystery",
+                "x": 326.795,
+                "y": 486.6
+              },
+              {
+                "text": "crime",
+                "x": 433.425,
+                "y": 486.6
+              },
+              {
+                "text": "non fiction",
+                "x": 540.0550000000001,
+                "y": 486.6
+              },
+              {
+                "text": "other",
+                "x": 646.685,
+                "y": 486.6
+              }
+            ],
+            "xTitles": [],
+            "yTicks": [
+              {
+                "value": 0,
+                "x": 48.22000000000003,
+                "y": 469
+              },
+              {
+                "value": 2,
+                "x": 48.22000000000003,
+                "y": 440.4
+              },
+              {
+                "value": 4,
+                "x": 48.22000000000003,
+                "y": 411.8
+              },
+              {
+                "value": 6,
+                "x": 48.22000000000003,
+                "y": 383.2
+              },
+              {
+                "value": 8,
+                "x": 48.22000000000003,
+                "y": 354.6
+              },
+              {
+                "value": 10,
+                "x": 48.22000000000003,
+                "y": 326
+              },
+              {
+                "value": 12,
+                "x": 48.22000000000003,
+                "y": 297.4
+              },
+              {
+                "value": 14,
+                "x": 48.22000000000003,
+                "y": 268.79999999999995
+              },
+              {
+                "value": 16,
+                "x": 48.22000000000003,
+                "y": 240.20000000000002
+              },
+              {
+                "value": 18,
+                "x": 48.22000000000003,
+                "y": 211.60000000000002
+              },
+              {
+                "value": 20,
+                "x": 48.22000000000003,
+                "y": 183
+              },
+              {
+                "value": 22,
+                "x": 48.22000000000003,
+                "y": 154.40000000000003
+              },
+              {
+                "value": 24,
+                "x": 48.22000000000003,
+                "y": 125.79999999999995
+              },
+              {
+                "value": 26,
+                "x": 48.22000000000003,
+                "y": 97.19999999999999
+              },
+              {
+                "value": 28,
+                "x": 48.22000000000003,
+                "y": 68.59999999999997
+              },
+              {
+                "value": 30,
+                "x": 48.22000000000003,
+                "y": 40
+              }
+            ],
+            "yTitles": [
+              "Number of Books"
+            ]
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "xyChart": {
+                  "showDataLabel": true,
+                  "showDataLabelOutsideBar": true
+                }
+              },
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    12,
+                    2,
+                    20,
+                    25,
+                    17,
+                    24
+                  ]
+                }
+              ],
+              "title": "Genres in top 100 book survey of 2025",
+              "xCategories": [
+                "comedy",
+                "romance",
+                "mystery",
+                "crime",
+                "non fiction",
+                "other"
+              ],
+              "xName": null,
+              "yName": "Number of Books",
+              "yRange": [
+                0,
+                30
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.official.fence-5",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:per-point-text-labels-for-line-charts-v11-16-0",
+      "sourceSha256": "3ced0512a83b6ab045fb5cefee027b2a316bd6c2ea3ada19a78dc85843382b7a",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#per-point-text-labels-for-line-charts-v11-16-0",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": [
+            "LABEL_OVERFLOW"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "LABEL_OVERFLOW"
+          ],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": [
+                    "PaLM",
+                    "LLaMA-65B",
+                    "Llama 2 34B",
+                    "Mistral 7B",
+                    "Phi-3-mini"
+                  ],
+                  "values": [
+                    540,
+                    65,
+                    34,
+                    7,
+                    3.8
+                  ]
+                }
+              ],
+              "title": "Smallest AI models scoring above 60% on MMLU",
+              "xCategories": [
+                "Apr 2022",
+                "Feb 2023",
+                "Jul 2023",
+                "Sep 2023",
+                "Apr 2024"
+              ],
+              "xName": "Date",
+              "yName": "Parameters (B)",
+              "yRange": [
+                0,
+                600
+              ]
+            },
+            "outsideBarWarning": false
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "bars": [],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [],
+            "dotPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "dots": [
+              {
+                "x": 131,
+                "y": 80.3
+              },
+              {
+                "x": 257.45,
+                "y": 399.34
+              },
+              {
+                "x": 383.89,
+                "y": 420.16
+              },
+              {
+                "x": 510.33,
+                "y": 438.3
+              },
+              {
+                "x": 636.78,
+                "y": 440.45
+              }
+            ],
+            "identicalToInsideLabels": false,
+            "labels": [
+              {
+                "colorIndex": 0,
+                "fill": "#3b82f6",
+                "fontSize": "12",
+                "position": "above",
+                "text": "PaLM",
+                "x": 131,
+                "y": 72.3
+              },
+              {
+                "colorIndex": 0,
+                "fill": "#3b82f6",
+                "fontSize": "12",
+                "position": "above",
+                "text": "LLaMA-65B",
+                "x": 257.45,
+                "y": 391.34
+              },
+              {
+                "colorIndex": 0,
+                "fill": "#3b82f6",
+                "fontSize": "12",
+                "position": "above",
+                "text": "Llama 2 34B",
+                "x": 383.89,
+                "y": 412.16
+              },
+              {
+                "colorIndex": 0,
+                "fill": "#3b82f6",
+                "fontSize": "12",
+                "position": "above",
+                "text": "Mistral 7B",
+                "x": 510.33,
+                "y": 430.3
+              },
+              {
+                "colorIndex": 0,
+                "fill": "#3b82f6",
+                "fontSize": "12",
+                "position": "above",
+                "text": "Phi-3-mini",
+                "x": 636.78,
+                "y": 432.45
+              }
+            ],
+            "legend": [],
+            "linePaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [
+              {
+                "colorIndex": 0,
+                "points": [
+                  [
+                    131,
+                    80.3
+                  ],
+                  [
+                    257.45,
+                    399.34
+                  ],
+                  [
+                    383.89,
+                    420.16
+                  ],
+                  [
+                    510.33,
+                    438.3
+                  ],
+                  [
+                    636.78,
+                    440.45
+                  ]
+                ]
+              }
+            ],
+            "palette": [
+              "#3b82f6"
+            ],
+            "title": [
+              "Smallest AI models scoring above 60% on MMLU"
+            ],
+            "titleAnchors": [
+              {
+                "x": 350,
+                "y": 30
+              },
+              {
+                "x": 383.89,
+                "y": 495
+              },
+              {
+                "x": 17.8,
+                "y": 241.5
+              }
+            ],
+            "titleColor": "#27272A",
+            "viewBox": "0 0 700 500",
+            "xLabels": [
+              "Apr 2022",
+              "Feb 2023",
+              "Jul 2023",
+              "Sep 2023",
+              "Apr 2024"
+            ],
+            "xTicks": [
+              {
+                "text": "Apr 2022",
+                "x": 131.00199999999998,
+                "y": 460.6
+              },
+              {
+                "text": "Feb 2023",
+                "x": 257.44599999999997,
+                "y": 460.6
+              },
+              {
+                "text": "Jul 2023",
+                "x": 383.89,
+                "y": 460.6
+              },
+              {
+                "text": "Sep 2023",
+                "x": 510.334,
+                "y": 460.6
+              },
+              {
+                "text": "Apr 2024",
+                "x": 636.778,
+                "y": 460.6
+              }
+            ],
+            "xTitles": [
+              "Date"
+            ],
+            "yTicks": [
+              {
+                "value": 0,
+                "x": 55.77999999999997,
+                "y": 443
+              },
+              {
+                "value": 50,
+                "x": 55.77999999999997,
+                "y": 409.4166666666667
+              },
+              {
+                "value": 100,
+                "x": 55.77999999999997,
+                "y": 375.83333333333337
+              },
+              {
+                "value": 150,
+                "x": 55.77999999999997,
+                "y": 342.25
+              },
+              {
+                "value": 200,
+                "x": 55.77999999999997,
+                "y": 308.6666666666667
+              },
+              {
+                "value": 250,
+                "x": 55.77999999999997,
+                "y": 275.0833333333333
+              },
+              {
+                "value": 300,
+                "x": 55.77999999999997,
+                "y": 241.5
+              },
+              {
+                "value": 350,
+                "x": 55.77999999999997,
+                "y": 207.91666666666666
+              },
+              {
+                "value": 400,
+                "x": 55.77999999999997,
+                "y": 174.33333333333337
+              },
+              {
+                "value": 450,
+                "x": 55.77999999999997,
+                "y": 140.75
+              },
+              {
+                "value": 500,
+                "x": 55.77999999999997,
+                "y": 107.16666666666663
+              },
+              {
+                "value": 550,
+                "x": 55.77999999999997,
+                "y": 73.58333333333337
+              },
+              {
+                "value": 600,
+                "x": 55.77999999999997,
+                "y": 40
+              }
+            ],
+            "yTitles": [
+              "Parameters (B)"
+            ]
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": [
+                    "PaLM",
+                    "LLaMA-65B",
+                    "Llama 2 34B",
+                    "Mistral 7B",
+                    "Phi-3-mini"
+                  ],
+                  "values": [
+                    540,
+                    65,
+                    34,
+                    7,
+                    3.8
+                  ]
+                }
+              ],
+              "title": "Smallest AI models scoring above 60% on MMLU",
+              "xCategories": [
+                "Apr 2022",
+                "Feb 2023",
+                "Jul 2023",
+                "Sep 2023",
+                "Apr 2024"
+              ],
+              "xName": "Date",
+              "yName": "Parameters (B)",
+              "yRange": [
+                0,
+                600
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.official.fence-6",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:per-point-text-labels-for-line-charts-v11-16-0",
+      "sourceSha256": "50604b119dd92e83815b5d5c1555ed7e7a3fc75f816f878cb122c28a75e1440d",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#per-point-text-labels-for-line-charts-v11-16-0",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": [
+                    "Launch",
+                    null,
+                    null,
+                    "Target Hit"
+                  ],
+                  "values": [
+                    25,
+                    45,
+                    72,
+                    90
+                  ]
+                }
+              ],
+              "title": "Quarterly Performance",
+              "xCategories": [
+                "Q1",
+                "Q2",
+                "Q3",
+                "Q4"
+              ],
+              "xName": null,
+              "yName": "Revenue ($M)",
+              "yRange": [
+                0,
+                100
+              ]
+            },
+            "outsideBarWarning": false
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "bars": [],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [],
+            "dotPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "dots": [
+              {
+                "x": 142.84,
+                "y": 361.75
+              },
+              {
+                "x": 620.41,
+                "y": 82.9
+              }
+            ],
+            "identicalToInsideLabels": false,
+            "labels": [
+              {
+                "colorIndex": 0,
+                "fill": "#3b82f6",
+                "fontSize": "12",
+                "position": "above",
+                "text": "Launch",
+                "x": 142.84,
+                "y": 353.75
+              },
+              {
+                "colorIndex": 0,
+                "fill": "#3b82f6",
+                "fontSize": "12",
+                "position": "above",
+                "text": "Target Hit",
+                "x": 620.41,
+                "y": 74.9
+              }
+            ],
+            "legend": [],
+            "linePaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [
+              {
+                "colorIndex": 0,
+                "points": [
+                  [
+                    142.84,
+                    361.75
+                  ],
+                  [
+                    302.03,
+                    275.95
+                  ],
+                  [
+                    461.22,
+                    160.12
+                  ],
+                  [
+                    620.41,
+                    82.9
+                  ]
+                ]
+              }
+            ],
+            "palette": [
+              "#3b82f6"
+            ],
+            "title": [
+              "Quarterly Performance"
+            ],
+            "titleAnchors": [
+              {
+                "x": 350,
+                "y": 30
+              },
+              {
+                "x": 17.8,
+                "y": 254.5
+              }
+            ],
+            "titleColor": "#27272A",
+            "viewBox": "0 0 700 500",
+            "xLabels": [
+              "Q1",
+              "Q2",
+              "Q3",
+              "Q4"
+            ],
+            "xTicks": [
+              {
+                "text": "Q1",
+                "x": 142.8385,
+                "y": 486.6
+              },
+              {
+                "text": "Q2",
+                "x": 302.02750000000003,
+                "y": 486.6
+              },
+              {
+                "text": "Q3",
+                "x": 461.2165,
+                "y": 486.6
+              },
+              {
+                "text": "Q4",
+                "x": 620.4055,
+                "y": 486.6
+              }
+            ],
+            "xTitles": [],
+            "yTicks": [
+              {
+                "value": 0,
+                "x": 51.24400000000003,
+                "y": 469
+              },
+              {
+                "value": 10,
+                "x": 51.24400000000003,
+                "y": 426.1
+              },
+              {
+                "value": 20,
+                "x": 51.24400000000003,
+                "y": 383.2
+              },
+              {
+                "value": 30,
+                "x": 51.24400000000003,
+                "y": 340.3
+              },
+              {
+                "value": 40,
+                "x": 51.24400000000003,
+                "y": 297.4
+              },
+              {
+                "value": 50,
+                "x": 51.24400000000003,
+                "y": 254.5
+              },
+              {
+                "value": 60,
+                "x": 51.24400000000003,
+                "y": 211.60000000000002
+              },
+              {
+                "value": 70,
+                "x": 51.24400000000003,
+                "y": 168.70000000000005
+              },
+              {
+                "value": 80,
+                "x": 51.24400000000003,
+                "y": 125.79999999999995
+              },
+              {
+                "value": 90,
+                "x": 51.24400000000003,
+                "y": 82.89999999999998
+              },
+              {
+                "value": 100,
+                "x": 51.24400000000003,
+                "y": 40
+              }
+            ],
+            "yTitles": [
+              "Revenue ($M)"
+            ]
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "series": [
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": [
+                    "Launch",
+                    null,
+                    null,
+                    "Target Hit"
+                  ],
+                  "values": [
+                    25,
+                    45,
+                    72,
+                    90
+                  ]
+                }
+              ],
+              "title": "Quarterly Performance",
+              "xCategories": [
+                "Q1",
+                "Q2",
+                "Q3",
+                "Q4"
+              ],
+              "xName": null,
+              "yName": "Revenue ($M)",
+              "yRange": [
+                0,
+                100
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "xychart.official.fence-7",
+      "family": "xychart",
+      "featureId": "official-doc:xychart:section:example-on-config-and-theme",
+      "sourceSha256": "69220afda10326c0cbff41de10c1bf966bec3426dd8ac57e8ad6227a5cbbb064",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/xyChart.html#example-on-config-and-theme",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "themeVariables": {
+                  "xyChart": {
+                    "titleColor": "#ff0000"
+                  }
+                },
+                "xyChart": {
+                  "height": 600,
+                  "showDataLabel": true,
+                  "width": 900
+                }
+              },
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                }
+              ],
+              "title": "Sales Revenue",
+              "xCategories": [
+                "jan",
+                "feb",
+                "mar",
+                "apr",
+                "may",
+                "jun",
+                "jul",
+                "aug",
+                "sep",
+                "oct",
+                "nov",
+                "dec"
+              ],
+              "xName": null,
+              "yName": "Revenue (in $)",
+              "yRange": [
+                4000,
+                11000
+              ]
+            },
+            "outsideBarWarning": false
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "barPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              }
+            ],
+            "bars": [
+              {
+                "colorIndex": 0,
+                "height": 75.57,
+                "label": "jan",
+                "value": "5000",
+                "width": 60.06,
+                "x": 79.94,
+                "y": 493.43
+              },
+              {
+                "colorIndex": 0,
+                "height": 151.14,
+                "label": "feb",
+                "value": "6000",
+                "width": 60.06,
+                "x": 143.16,
+                "y": 417.86
+              },
+              {
+                "colorIndex": 0,
+                "height": 264.5,
+                "label": "mar",
+                "value": "7500",
+                "width": 60.06,
+                "x": 206.38,
+                "y": 304.5
+              },
+              {
+                "colorIndex": 0,
+                "height": 317.4,
+                "label": "apr",
+                "value": "8200",
+                "width": 60.06,
+                "x": 269.6,
+                "y": 251.6
+              },
+              {
+                "colorIndex": 0,
+                "height": 415.64,
+                "label": "may",
+                "value": "9500",
+                "width": 60.06,
+                "x": 332.82,
+                "y": 153.36
+              },
+              {
+                "colorIndex": 0,
+                "height": 491.21,
+                "label": "jun",
+                "value": "10500",
+                "width": 60.06,
+                "x": 396.04,
+                "y": 77.79
+              },
+              {
+                "colorIndex": 0,
+                "height": 529,
+                "label": "jul",
+                "value": "11000",
+                "width": 60.06,
+                "x": 459.26,
+                "y": 40
+              },
+              {
+                "colorIndex": 0,
+                "height": 468.54,
+                "label": "aug",
+                "value": "10200",
+                "width": 60.06,
+                "x": 522.48,
+                "y": 100.46
+              },
+              {
+                "colorIndex": 0,
+                "height": 392.97,
+                "label": "sep",
+                "value": "9200",
+                "width": 60.06,
+                "x": 585.7,
+                "y": 176.03
+              },
+              {
+                "colorIndex": 0,
+                "height": 340.07,
+                "label": "oct",
+                "value": "8500",
+                "width": 60.06,
+                "x": 648.92,
+                "y": 228.93
+              },
+              {
+                "colorIndex": 0,
+                "height": 226.71,
+                "label": "nov",
+                "value": "7000",
+                "width": 60.06,
+                "x": 712.14,
+                "y": 342.29
+              },
+              {
+                "colorIndex": 0,
+                "height": 151.14,
+                "label": "dec",
+                "value": "6000",
+                "width": 60.06,
+                "x": 775.36,
+                "y": 417.86
+              }
+            ],
+            "dataLabelPaint": "#27272A",
+            "dataLabels": [
+              {
+                "fontSize": "16",
+                "text": "5000",
+                "x": 109.97,
+                "y": 501.43
+              },
+              {
+                "fontSize": "16",
+                "text": "6000",
+                "x": 173.19,
+                "y": 425.86
+              },
+              {
+                "fontSize": "16",
+                "text": "7500",
+                "x": 236.41,
+                "y": 312.5
+              },
+              {
+                "fontSize": "16",
+                "text": "8200",
+                "x": 299.63,
+                "y": 259.6
+              },
+              {
+                "fontSize": "16",
+                "text": "9500",
+                "x": 362.85,
+                "y": 161.36
+              },
+              {
+                "fontSize": "16",
+                "text": "10500",
+                "x": 426.07,
+                "y": 85.79
+              },
+              {
+                "fontSize": "16",
+                "text": "11000",
+                "x": 489.29,
+                "y": 48
+              },
+              {
+                "fontSize": "16",
+                "text": "10200",
+                "x": 552.51,
+                "y": 108.46
+              },
+              {
+                "fontSize": "16",
+                "text": "9200",
+                "x": 615.73,
+                "y": 184.03
+              },
+              {
+                "fontSize": "16",
+                "text": "8500",
+                "x": 678.95,
+                "y": 236.93
+              },
+              {
+                "fontSize": "16",
+                "text": "7000",
+                "x": 742.17,
+                "y": 350.29
+              },
+              {
+                "fontSize": "16",
+                "text": "6000",
+                "x": 805.39,
+                "y": 425.86
+              }
+            ],
+            "dotPaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              }
+            ],
+            "dots": [],
+            "identicalToInsideLabels": false,
+            "labels": [],
+            "legend": [
+              "Bar 1",
+              "Line 1"
+            ],
+            "linePaint": [
+              {
+                "color": "#3b82f6",
+                "index": 0
+              },
+              {
+                "color": "#0d5ba5",
+                "index": 1
+              }
+            ],
+            "lineStrokeWidth": "3",
+            "lines": [
+              {
+                "colorIndex": 1,
+                "points": [
+                  [
+                    109.97,
+                    493.43
+                  ],
+                  [
+                    173.19,
+                    417.86
+                  ],
+                  [
+                    236.41,
+                    304.5
+                  ],
+                  [
+                    299.63,
+                    251.6
+                  ],
+                  [
+                    362.85,
+                    153.36
+                  ],
+                  [
+                    426.07,
+                    77.79
+                  ],
+                  [
+                    489.29,
+                    40
+                  ],
+                  [
+                    552.51,
+                    100.46
+                  ],
+                  [
+                    615.73,
+                    176.03
+                  ],
+                  [
+                    678.95,
+                    228.93
+                  ],
+                  [
+                    742.17,
+                    342.29
+                  ],
+                  [
+                    805.39,
+                    417.86
+                  ]
+                ]
+              }
+            ],
+            "palette": [
+              "#3b82f6",
+              "#0d5ba5"
+            ],
+            "title": [
+              "Sales Revenue"
+            ],
+            "titleAnchors": [
+              {
+                "x": 450,
+                "y": 30
+              },
+              {
+                "x": 17.8,
+                "y": 304.5
+              },
+              {
+                "x": 860,
+                "y": 51
+              },
+              {
+                "x": 860,
+                "y": 70
+              }
+            ],
+            "titleColor": "#ff0000",
+            "viewBox": "0 0 900 600",
+            "xLabels": [
+              "jan",
+              "feb",
+              "mar",
+              "apr",
+              "may",
+              "jun",
+              "jul",
+              "aug",
+              "sep",
+              "oct",
+              "nov",
+              "dec"
+            ],
+            "xTicks": [
+              {
+                "text": "jan",
+                "x": 109.97383333333336,
+                "y": 586.6
+              },
+              {
+                "text": "feb",
+                "x": 173.19350000000003,
+                "y": 586.6
+              },
+              {
+                "text": "mar",
+                "x": 236.41316666666668,
+                "y": 586.6
+              },
+              {
+                "text": "apr",
+                "x": 299.63283333333334,
+                "y": 586.6
+              },
+              {
+                "text": "may",
+                "x": 362.8525,
+                "y": 586.6
+              },
+              {
+                "text": "jun",
+                "x": 426.07216666666665,
+                "y": 586.6
+              },
+              {
+                "text": "jul",
+                "x": 489.29183333333333,
+                "y": 586.6
+              },
+              {
+                "text": "aug",
+                "x": 552.5115000000001,
+                "y": 586.6
+              },
+              {
+                "text": "sep",
+                "x": 615.7311666666667,
+                "y": 586.6
+              },
+              {
+                "text": "oct",
+                "x": 678.9508333333333,
+                "y": 586.6
+              },
+              {
+                "text": "nov",
+                "x": 742.1705,
+                "y": 586.6
+              },
+              {
+                "text": "dec",
+                "x": 805.3901666666667,
+                "y": 586.6
+              }
+            ],
+            "xTitles": [],
+            "yTicks": [
+              {
+                "value": 4000,
+                "x": 66.36400000000003,
+                "y": 569
+              },
+              {
+                "value": 4500,
+                "x": 66.36400000000003,
+                "y": 531.2142857142857
+              },
+              {
+                "value": 5000,
+                "x": 66.36400000000003,
+                "y": 493.42857142857144
+              },
+              {
+                "value": 5500,
+                "x": 66.36400000000003,
+                "y": 455.64285714285717
+              },
+              {
+                "value": 6000,
+                "x": 66.36400000000003,
+                "y": 417.8571428571429
+              },
+              {
+                "value": 6500,
+                "x": 66.36400000000003,
+                "y": 380.07142857142856
+              },
+              {
+                "value": 7000,
+                "x": 66.36400000000003,
+                "y": 342.28571428571433
+              },
+              {
+                "value": 7500,
+                "x": 66.36400000000003,
+                "y": 304.5
+              },
+              {
+                "value": 8000,
+                "x": 66.36400000000003,
+                "y": 266.7142857142857
+              },
+              {
+                "value": 8500,
+                "x": 66.36400000000003,
+                "y": 228.9285714285714
+              },
+              {
+                "value": 9000,
+                "x": 66.36400000000003,
+                "y": 191.1428571428571
+              },
+              {
+                "value": 9500,
+                "x": 66.36400000000003,
+                "y": 153.3571428571429
+              },
+              {
+                "value": 10000,
+                "x": 66.36400000000003,
+                "y": 115.57142857142861
+              },
+              {
+                "value": 10500,
+                "x": 66.36400000000003,
+                "y": 77.78571428571428
+              },
+              {
+                "value": 11000,
+                "x": 66.36400000000003,
+                "y": 40
+              }
+            ],
+            "yTitles": [
+              "Revenue (in $)"
+            ]
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "themeVariables": {
+                  "xyChart": {
+                    "titleColor": "#ff0000"
+                  }
+                },
+                "xyChart": {
+                  "height": 600,
+                  "showDataLabel": true,
+                  "width": 900
+                }
+              },
+              "series": [
+                {
+                  "kind": "bar",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                },
+                {
+                  "kind": "line",
+                  "name": null,
+                  "pointLabels": null,
+                  "values": [
+                    5000,
+                    6000,
+                    7500,
+                    8200,
+                    9500,
+                    10500,
+                    11000,
+                    10200,
+                    9200,
+                    8500,
+                    7000,
+                    6000
+                  ]
+                }
+              ],
+              "title": "Sales Revenue",
+              "xCategories": [
+                "jan",
+                "feb",
+                "mar",
+                "apr",
+                "may",
+                "jun",
+                "jul",
+                "aug",
+                "sep",
+                "oct",
+                "nov",
+                "dec"
+              ],
+              "xName": null,
+              "yName": "Revenue (in $)",
+              "yRange": [
+                4000,
+                11000
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
       "id": "xychart.syntax.shared-parser-semantics",
       "family": "xychart",
       "featureId": "official-doc:xychart:section:syntax",
@@ -3199,11 +6884,11 @@
     }
   ],
   "summary": {
-    "caseCount": 33,
-    "passedCaseCount": 33,
+    "caseCount": 41,
+    "passedCaseCount": 41,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 125,
+    "observedSurfaceCount": 149,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 7
+    "notApplicableSurfaceCount": 15
   }
 }
