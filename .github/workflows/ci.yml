@@ -78,9 +78,12 @@ jobs:
         # shared runners. The canonical package script owns their one bounded
         # command-line default so local, CI, and release gates cannot drift;
         # CI appends only Bun's deterministic file-shard selector and runs the
-        # shard's files in isolated worker processes (--parallel implies
+        # shard's files in two isolated worker processes (--parallel implies
         # --isolate, so a file can no longer lean on another file's imports).
-        run: bun run test -- --shard=${{ matrix.shard }} --parallel
+        # Two, not the runner's four: with coverage on, four workers starved the
+        # subprocess- and upstream-Mermaid-heavy tests into 30s timeouts (nine
+        # in a local four-core run); two workers ran the full suite clean.
+        run: bun run test -- --shard=${{ matrix.shard }} --parallel=2
 
       - name: Upload shard coverage
         if: ${{ always() }}

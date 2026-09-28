@@ -383,7 +383,7 @@ table here, which would drift. In broad strokes:
   golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
   incremental mutation lane, the independent focused sabotage lane, and the
   red → green changed-test check. Each unit shard runs its files with
-  `--parallel` (isolated worker processes), so a test file cannot depend on
+  `--parallel=2` (isolated worker processes), so a test file cannot depend on
   another file's imports. A final `CI complete` job waits for the required
   test aggregate, every E2E matrix job, mutation, and red → green, providing one
   protectable result that cannot turn green early.

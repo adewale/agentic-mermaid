@@ -93,7 +93,7 @@ describe('agent-readiness standards syntax', () => {
       run: 'bun run scripts/ci/published-version.ts',
     })
     expect(unitSteps.find((step: any) => step.name === 'Run test shard (coverage = under-tested finder, NOT an adequacy target)')?.run)
-      .toBe('bun run test -- --shard=${{ matrix.shard }} --parallel')
+      .toBe('bun run test -- --shard=${{ matrix.shard }} --parallel=2')
     expect(unitSteps.find((step: any) => step.name === 'Upload shard coverage')?.uses)
       .toBe('actions/upload-artifact@v7')
     expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage', 'mcp-conformance'])
