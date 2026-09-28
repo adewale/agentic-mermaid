@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
-import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import * as agentApi from '../agent/index.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
@@ -47,152 +48,6 @@ const EXPECTED_SURFACES = [
 const TRACKED_EXCEPTION_SURFACES = new Set<SurfaceId>(['mermaidSyntaxParity'])
 
 type SurfaceId = (typeof EXPECTED_SURFACES)[number]
-
-const REQUIRED_FAMILY_EVIDENCE = {
-  flowchart: {
-    semanticModel: ['src/agent/flowchart-body.ts'],
-    serializeRoundTrip: ['src/__tests__/flowchart-parser-conformance.test.ts'],
-    domainProperties: ['src/__tests__/route-contracts.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  state: {
-    semanticModel: ['src/agent/state-body.ts'],
-    serializeRoundTrip: ['src/__tests__/agent-state.test.ts'],
-    domainProperties: ['src/__tests__/agent-state.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  sequence: {
-    semanticModel: ['src/agent/sequence-body.ts'],
-    serializeRoundTrip: ['src/__tests__/agent-mermaidseqbench.test.ts'],
-    domainProperties: ['src/__tests__/ascii-sequence-blocks.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaidseqbench/data.csv'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  timeline: {
-    semanticModel: ['src/agent/timeline-body.ts'],
-    serializeRoundTrip: ['src/__tests__/timeline-parser.test.ts'],
-    domainProperties: ['src/__tests__/timeline-layout.test.ts'],
-    goldensEvidence: ['src/__tests__/timeline-ascii.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  class: {
-    semanticModel: ['src/agent/class-body.ts'],
-    serializeRoundTrip: ['src/__tests__/class-parser.test.ts'],
-    domainProperties: ['src/__tests__/class-er-edge-quality.test.ts'],
-    goldensEvidence: ['src/__tests__/class-integration.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  er: {
-    semanticModel: ['src/agent/er-body.ts'],
-    serializeRoundTrip: ['src/__tests__/er-parser.test.ts'],
-    domainProperties: ['src/__tests__/class-er-edge-quality.test.ts'],
-    goldensEvidence: ['src/__tests__/er-integration.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  journey: {
-    semanticModel: ['src/agent/journey-body.ts'],
-    serializeRoundTrip: ['src/__tests__/journey-parser.test.ts'],
-    domainProperties: ['src/__tests__/journey-layout.test.ts'],
-    goldensEvidence: ['src/__tests__/journey-svg-snapshot.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  architecture: {
-    semanticModel: ['src/agent/architecture-body.ts'],
-    serializeRoundTrip: ['src/__tests__/architecture-parser.test.ts'],
-    domainProperties: ['src/__tests__/architecture-layout.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  xychart: {
-    semanticModel: ['src/agent/xychart-body.ts'],
-    serializeRoundTrip: ['src/__tests__/xychart-parser.test.ts'],
-    domainProperties: ['src/__tests__/property-xychart.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  pie: {
-    semanticModel: ['src/agent/pie-body.ts'],
-    serializeRoundTrip: ['src/__tests__/pie.test.ts'],
-    domainProperties: ['src/__tests__/pie.test.ts'],
-    goldensEvidence: ['src/__tests__/pie.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  quadrant: {
-    semanticModel: ['src/agent/quadrant-body.ts'],
-    serializeRoundTrip: ['src/__tests__/quadrant.test.ts'],
-    domainProperties: ['src/__tests__/quadrant.test.ts'],
-    goldensEvidence: ['src/__tests__/quadrant.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-docs-corpus/corpus.json'],
-    divergenceLedger: ['eval/mermaid-docs-corpus/divergences.json'],
-  },
-  gantt: {
-    semanticModel: ['src/gantt/schedule.ts'],
-    serializeRoundTrip: ['src/__tests__/agent-gantt.test.ts'],
-    domainProperties: ['src/__tests__/property-gantt-schedule.test.ts'],
-    stableRegions: ['src/__tests__/agent-ascii-meta.test.ts'],
-    upstreamHarvest: ['eval/mermaid-gantt-bench/cases.json'],
-    divergenceLedger: ['eval/mermaid-gantt-bench/exclusions.json'],
-    goldensEvidence: ['docs/assets/improvements/gantt-family.png'],
-  },
-  mindmap: {
-    semanticModel: ['src/mindmap/types.ts', 'src/agent/mindmap-body.ts'],
-    serializeRoundTrip: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
-    domainProperties: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'src/__tests__/mindmap-gitgraph-content-corpus.test.ts'],
-    evalFixture: ['eval/mindmap-gitgraph-content-corpus/manifest.json', 'eval/mindmap-gitgraph-content-corpus/fork-snapshot.json'],
-    stableRegions: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
-    upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
-    divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
-    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/mindmap-content-gallery.png', 'src/__tests__/mindmap-gitgraph-content-corpus.test.ts'],
-  },
-  gitgraph: {
-    semanticModel: ['src/gitgraph/types.ts', 'src/agent/gitgraph-body.ts'],
-    serializeRoundTrip: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
-    domainProperties: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'src/__tests__/mindmap-gitgraph-content-corpus.test.ts'],
-    evalFixture: ['eval/mindmap-gitgraph-content-corpus/manifest.json', 'eval/mindmap-gitgraph-content-corpus/fork-snapshot.json'],
-    stableRegions: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
-    upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
-    divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
-    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/gitgraph-content-gallery.png', 'src/__tests__/mindmap-gitgraph-content-corpus.test.ts'],
-  },
-  radar: {
-    semanticModel: ['src/radar/types.ts', 'src/agent/radar-body.ts'],
-    serializeRoundTrip: ['src/__tests__/agent-radar.test.ts'],
-    domainProperties: ['src/__tests__/radar-integration.test.ts'],
-    evalFixture: ['eval/mermaid-radar-bench/harvest.json'],
-    stableRegions: ['src/__tests__/radar-integration.test.ts'],
-    upstreamHarvest: ['eval/mermaid-radar-bench/harvest.json'],
-    divergenceLedger: ['eval/mermaid-radar-bench/harvest.json'],
-    goldensEvidence: ['src/__tests__/radar-renderer.test.ts', 'docs/design/families/radar-demo.png'],
-  },
-  sankey: {
-    semanticModel: ['src/sankey/types.ts', 'src/agent/sankey-body.ts'],
-    serializeRoundTrip: ['src/__tests__/agent-sankey.test.ts'],
-    domainProperties: ['src/__tests__/sankey-integration.test.ts', 'src/__tests__/sankey-rubric-properties.test.ts'],
-    evalFixture: ['eval/mermaid-sankey-bench/harvest.json'],
-    stableRegions: ['src/__tests__/sankey-integration.test.ts'],
-    upstreamHarvest: ['eval/mermaid-sankey-bench/harvest.json'],
-    divergenceLedger: ['eval/mermaid-sankey-bench/harvest.json'],
-    goldensEvidence: ['src/__tests__/sankey-renderer.test.ts', 'docs/design/families/sankey-demo.png'],
-  },
-} satisfies Record<BuiltinFamilyId, Partial<Record<SurfaceId, readonly string[]>>>
 
 type Cell = { status: 'satisfied' | 'exception'; evidence: string[]; tracked?: string[]; note?: string }
 type FamilyFidelity = {
@@ -294,12 +149,15 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
   })
 
   test('behavioral citizenship: every family parses, verifies, renders SVG+ASCII, round-trips, and is deterministic', () => {
-    // Most matrix cells are evidenced by file-existence only. This test makes the
-    // core surfaces (detectionParse, serializeRoundTrip, verifyRenderSeam,
-    // svgRender, asciiUnicodeRender, determinism) behavioral: it actually exercises
-    // the capability for every registered family, so a family that regressed while
-    // its evidence file still existed would now fail here. (#41)
+    // Matrix evidence cells are file references, and a file that exists proves
+    // nothing about the family. This test makes the cheaply checkable surfaces
+    // (detectionParse, semanticModel, serializeRoundTrip, typedMutation,
+    // verifyRenderSeam, svgRender, asciiUnicodeRender, stableRegions,
+    // determinism) behavioral: it exercises each one for every registered
+    // family, so a family that regressed while its evidence file still existed
+    // fails here. (#41)
     const registryIds = new Set<string>(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    const metadata = new Map(BUILTIN_FAMILY_METADATA.map(f => [f.id as string, f]))
     const covered = new Set<string>()
     for (const fx of FAMILY_COUNT_FIXTURES) {
       const parsed = parseMermaid(fx.source)
@@ -309,6 +167,15 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
 
       // detectionParse: detected as the right family.
       expect({ family: fx.family, kind: parsed.value.kind }).toEqual({ family: fx.family, kind: fx.family })
+      // semanticModel: the family's own structured body, not the opaque fallback.
+      expect({ family: fx.family, body: parsed.value.body.kind }).toEqual({ family: fx.family, body: fx.family })
+      // typedMutation: the advertised public narrower accepts the diagram and
+      // the family exposes structured mutation ops.
+      const narrower = (agentApi as Record<string, unknown>)[metadata.get(fx.family)!.narrower]
+      expect({ family: fx.family, narrower: typeof narrower }).toEqual({ family: fx.family, narrower: 'function' })
+      expect({ family: fx.family, narrowed: (narrower as (diagram: unknown) => unknown)(parsed.value) === parsed.value })
+        .toEqual({ family: fx.family, narrowed: true })
+      expect({ family: fx.family, ops: MUTATION_OPS_BY_FAMILY[fx.family].length > 0 }).toEqual({ family: fx.family, ops: true })
       // verifyRenderSeam: structural verify passes.
       expect({ family: fx.family, verifyOk: verifyMermaid(fx.source).ok }).toEqual({ family: fx.family, verifyOk: true })
       // serializeRoundTrip: serialize → reparse → serialize is stable.
@@ -325,24 +192,21 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
       expect({ family: fx.family, ascii: renderMermaidASCII(fx.source).trim().length > 0 }).toEqual({ family: fx.family, ascii: true })
       // determinism: identical SVG across repeated renders.
       expect({ family: fx.family, deterministic: renderMermaidSVG(fx.source) === svg }).toEqual({ family: fx.family, deterministic: true })
+      // stableRegions: layout exposes node regions inside the canvas, and the
+      // region metadata is identical across repeated layouts.
+      const regions = layoutMermaid(parsed.value, { regions: true }).regions ?? []
+      const canvas = regions.find(region => region.kind === 'canvas')?.bounds
+      const nodeRegions = regions.filter(region => region.kind === 'node')
+      expect({ family: fx.family, canvas: canvas !== undefined, nodeRegions: nodeRegions.length > 0 })
+        .toEqual({ family: fx.family, canvas: true, nodeRegions: true })
+      const outside = nodeRegions.filter(({ bounds: b }) =>
+        !canvas || b.x < canvas.x || b.y < canvas.y || b.x + b.w > canvas.x + canvas.w || b.y + b.h > canvas.y + canvas.h)
+      expect({ family: fx.family, outside: outside.map(region => region.id) }).toEqual({ family: fx.family, outside: [] })
+      expect({ family: fx.family, stableRegions: JSON.stringify(layoutMermaid(parsed.value, { regions: true }).regions) === JSON.stringify(regions) })
+        .toEqual({ family: fx.family, stableRegions: true })
     }
     // No registered family is silently skipped: each must have a behavioral fixture.
     expect([...registryIds].filter(id => !covered.has(id)).sort()).toEqual([])
-  })
-
-  test('family-sensitive cells cite load-bearing family-specific evidence', () => {
-    const matrix = loadMatrix()
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      const row = matrix.families[family.id]!
-      const required = REQUIRED_FAMILY_EVIDENCE[family.id]
-      for (const [surface, evidencePaths] of Object.entries(required) as Array<[SurfaceId, readonly string[]]>) {
-        const cell = row.cells[surface]
-        expect({ family: family.id, surface, status: cell.status }).toEqual({ family: family.id, surface, status: 'satisfied' })
-        for (const evidence of evidencePaths) {
-          expect({ family: family.id, surface, evidence, listed: cell.evidence.includes(evidence) }).toEqual({ family: family.id, surface, evidence, listed: true })
-        }
-      }
-    }
   })
 
   test('every family reports receipt-backed syntax parity and proves its recognizable domain metaphor', () => {
@@ -419,12 +283,6 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
 
     const auditedNonGantt = Object.entries(matrix.families).filter(([id, row]) => id !== 'gantt' && row.auditLevel === 'audited')
     expect(auditedNonGantt.map(([id]) => id)).toContain('xychart')
-    const xychart = matrix.families.xychart!
-    expect(xychart.cells.semanticModel.evidence).toContain('src/agent/xychart-body.ts')
-    expect(xychart.cells.domainProperties.evidence).toContain('src/__tests__/property-xychart.test.ts')
-    expect(xychart.cells.stableRegions.evidence).toContain('src/__tests__/agent-ascii-meta.test.ts')
-    expect(xychart.cells.upstreamHarvest.evidence).toContain('eval/mermaid-docs-corpus/corpus.json')
-    expect(xychart.cells.divergenceLedger.evidence).toContain('eval/mermaid-docs-corpus/divergences.json')
   })
 
   test('flagship quality loop: every registered family is enrolled in fuzz, tracker, and layout projection', () => {
