@@ -10,7 +10,7 @@ interface PackageJson {
   exports?: Record<string, string | Record<string, string>>
   bin?: Record<string, string>
 }
-interface ExpectedManifest { schemaVersion: 1; files: string[] }
+interface ExpectedManifest { schemaVersion: 2; files: string[] }
 
 const REQUIRED_PACKAGE_FILES = [
   'package.json',
@@ -21,13 +21,27 @@ const REQUIRED_PACKAGE_FILES = [
   'server.json',
 ] as const
 
+/** esbuild and tsup name split chunks and declaration bundles by content hash
+ * (`chunk-3PBMBDZH.js`, `index-CUL2V04U.d.ts`), so every source edit renames
+ * them. The reviewed manifest pins which files ship and how many hashed chunks
+ * there are, not the hash text. */
+export function normalizePackagePath(path: string): string {
+  return path.replace(/-([A-Za-z0-9]{8})(\.js|\.d\.ts)$/, (whole, hash: string, extension: string) =>
+    /[A-Z0-9]/.test(hash) ? `-[hash]${extension}` : whole)
+}
+
+function countBy(paths: readonly string[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const path of paths) counts.set(path, (counts.get(path) ?? 0) + 1)
+  return counts
+}
+
 export function publishPackageProblems(
   packageJson: PackageJson,
   files: readonly string[],
-  expectedFiles: readonly string[] = files,
+  expectedFiles: readonly string[] = files.map(normalizePackagePath),
 ): string[] {
   const present = new Set(files)
-  const expected = new Set(expectedFiles)
   const required = new Set<string>(REQUIRED_PACKAGE_FILES)
   for (const target of Object.values(packageJson.bin ?? {})) required.add(stripDotSlash(target))
   for (const entry of Object.values(packageJson.exports ?? {})) {
@@ -39,11 +53,17 @@ export function publishPackageProblems(
     .filter(path => !present.has(path))
     .sort()
     .map(path => `npm package is missing required file: ${path}`)
-  for (const path of expected) {
-    if (!present.has(path)) problems.push(`npm package is missing expected file: ${path}`)
+  const expectedCounts = countBy(expectedFiles)
+  const presentCounts = countBy(files.map(normalizePackagePath))
+  for (const [path, count] of expectedCounts) {
+    const found = presentCounts.get(path) ?? 0
+    if (found < count) problems.push(`npm package is missing expected file: ${path}${count > 1 ? ` (expected ${count}, found ${found})` : ''}`)
+  }
+  for (const [path, count] of presentCounts) {
+    const allowed = expectedCounts.get(path) ?? 0
+    if (count > allowed) problems.push(`npm package has unexpected file: ${path}${allowed > 0 ? ` (expected ${allowed}, found ${count})` : ''}`)
   }
   for (const path of files) {
-    if (!expected.has(path)) problems.push(`npm package has unexpected file: ${path}`)
     if (path.endsWith('.map')) problems.push(`npm package must not ship source maps: ${path}`)
     if (path === 'skill-evals/private' || path.startsWith('skill-evals/private/')) {
       problems.push(`npm package leaked private evaluation material: ${path}`)
@@ -63,8 +83,9 @@ if (import.meta.main) {
   const root = join(import.meta.dir, '..', '..')
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson
   const expected = JSON.parse(readFileSync(join(import.meta.dir, 'publish-package-files.json'), 'utf8')) as ExpectedManifest
-  if (expected.schemaVersion !== 1 || !Array.isArray(expected.files) || expected.files.length === 0) {
-    throw new Error('publish-package-files.json must contain a non-empty schemaVersion 1 file manifest')
+  const writeManifest = process.argv.includes('--write-manifest')
+  if (!writeManifest && (expected.schemaVersion !== 2 || !Array.isArray(expected.files) || expected.files.length === 0)) {
+    throw new Error('publish-package-files.json must contain a non-empty schemaVersion 2 file manifest')
   }
   const destinationFlag = process.argv.indexOf('--pack-destination')
   const destinationValue = destinationFlag >= 0 ? process.argv[destinationFlag + 1] : undefined
@@ -91,7 +112,12 @@ if (import.meta.main) {
   }
   const packResult = result[0]
   const files = packResult?.files?.map(file => file.path) ?? []
-  const problems = publishPackageProblems(packageJson, files, expected.files)
+  if (writeManifest) {
+    const normalized = files.map(normalizePackagePath).sort((a, b) => a < b ? -1 : a > b ? 1 : 0)
+    writeFileSync(join(import.meta.dir, 'publish-package-files.json'), `${JSON.stringify({ schemaVersion: 2, files: normalized }, null, 2)}\n`)
+    process.stdout.write(`wrote scripts/ci/publish-package-files.json (${normalized.length} files); review the diff\n`)
+  }
+  const problems = publishPackageProblems(packageJson, files, writeManifest ? files.map(normalizePackagePath) : expected.files)
   if (problems.length > 0) {
     process.stderr.write(problems.map(problem => `- ${problem}`).join('\n') + '\n')
     process.exit(1)
