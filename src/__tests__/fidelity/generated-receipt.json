@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "87fbda1b5b7dd582dcebd9bd3f27c36911ef1827b5e8dcd7c56e97be6439fdc8",
+    "inputSha256": "73d34de336b5d6e20701cb72ea2f94d4b8acae883cce5e438ef81ba9099bce92",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -129,6 +129,10 @@
       {
         "path": "src/__tests__/fidelity/cases/landed-adoption.fidelity.ts",
         "sha256": "e2d83a2c83e47fb0d8c0e690bba59df384de88ea54851bde2d7a4847897d8df1"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/mindmap-official-shape-fences.fidelity.ts",
+        "sha256": "c672750c6782ccdec13eedc21a51142607d59b01f4e17f1d4f17865feeef1ff6"
       },
       {
         "path": "src/__tests__/fidelity/cases/pie-duplicate-label.fidelity.ts",
@@ -5079,6 +5083,733 @@
           "semantics": {
             "mutatedScore": 4.25,
             "reparsedMutatedScore": 4.25
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-2",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:square",
+      "sourceSha256": "6cc452bb25f7fc5a4f30034eff8ae453b66eb2346094a283b7e2302f658e67ce",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "root": {
+              "children": [],
+              "id": "id",
+              "label": "I am a square",
+              "shape": "rect"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 0,
+            "label": "I am a square",
+            "labelAttributes": {
+              "data-font-metrics": "deterministic-fit",
+              "dy": "4.55",
+              "fill": "#FFFFFF",
+              "font-size": "13",
+              "font-weight": "500",
+              "lengthAdjust": "spacingAndGlyphs",
+              "text-anchor": "middle",
+              "textLength": "78.273",
+              "x": "83.1365",
+              "y": "49.45"
+            },
+            "labelCount": 1,
+            "node": {
+              "class": "mindmap-node depth-0",
+              "data-id": "id",
+              "data-label": "I am a square",
+              "data-role": "node"
+            },
+            "nodeCount": 1,
+            "shape": {
+              "fill": "#47474a",
+              "height": "34.9",
+              "rx": "0",
+              "ry": "0",
+              "stroke": "#47474a",
+              "stroke-width": "1.5",
+              "width": "102.273",
+              "x": "32",
+              "y": "32"
+            },
+            "shapeCount": 1,
+            "svgSha256": "c99e829d63dbe835930d924547432d552cceb66ef0998fda5dbf3f8423156550",
+            "tag": "rect",
+            "viewBox": "0 0 166.273 98.9"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "root": {
+                "children": [],
+                "id": "id",
+                "label": "I am a square",
+                "shape": "rect"
+              }
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-3",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:rounded-square",
+      "sourceSha256": "1643ae2f0c961f381d27f0d6e8ae9cfef2bbe051fd1ee497f2f742cbca810c49",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "root": {
+              "children": [],
+              "id": "id",
+              "label": "I am a rounded square",
+              "shape": "rounded"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 0,
+            "label": "I am a rounded square",
+            "labelAttributes": {
+              "data-font-metrics": "deterministic-fit",
+              "dy": "4.55",
+              "fill": "#FFFFFF",
+              "font-size": "13",
+              "font-weight": "500",
+              "lengthAdjust": "spacingAndGlyphs",
+              "text-anchor": "middle",
+              "textLength": "130.884",
+              "x": "109.44199999999998",
+              "y": "49.45"
+            },
+            "labelCount": 1,
+            "node": {
+              "class": "mindmap-node depth-0",
+              "data-id": "id",
+              "data-label": "I am a rounded square",
+              "data-role": "node"
+            },
+            "nodeCount": 1,
+            "shape": {
+              "fill": "#47474a",
+              "height": "34.9",
+              "rx": "10",
+              "ry": "10",
+              "stroke": "#47474a",
+              "stroke-width": "1.5",
+              "width": "154.884",
+              "x": "32",
+              "y": "32"
+            },
+            "shapeCount": 1,
+            "svgSha256": "06e1eb2e2327f0e17da326e1a223d9c330c2ff35d1f642d81edc0ac5a4295189",
+            "tag": "rect",
+            "viewBox": "0 0 218.88399999999996 98.9"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "root": {
+                "children": [],
+                "id": "id",
+                "label": "I am a rounded square",
+                "shape": "rounded"
+              }
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-4",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:circle",
+      "sourceSha256": "81ac59b93ff9f66b6372b6c69d49d754db1e0239da740d74b55e666b3cd067f9",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "root": {
+              "children": [],
+              "id": "id",
+              "label": "I am a circle",
+              "shape": "circle"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 0,
+            "label": "I am a circle",
+            "labelAttributes": {
+              "data-font-metrics": "deterministic-fit",
+              "dy": "4.55",
+              "fill": "#FFFFFF",
+              "font-size": "13",
+              "font-weight": "500",
+              "lengthAdjust": "spacingAndGlyphs",
+              "text-anchor": "middle",
+              "textLength": "69.381",
+              "x": "78.6905",
+              "y": "78.6905"
+            },
+            "labelCount": 1,
+            "node": {
+              "class": "mindmap-node depth-0",
+              "data-id": "id",
+              "data-label": "I am a circle",
+              "data-role": "node"
+            },
+            "nodeCount": 1,
+            "shape": {
+              "cx": "78.691",
+              "cy": "78.691",
+              "fill": "#47474a",
+              "r": "46.691",
+              "stroke": "#47474a",
+              "stroke-width": "1.5"
+            },
+            "shapeCount": 1,
+            "svgSha256": "e55fd510773a8e8cb757087e94c748b7bc8cc49d8e85fc689603e0dd30bf8032",
+            "tag": "circle",
+            "viewBox": "0 0 157.381 157.381"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "root": {
+                "children": [],
+                "id": "id",
+                "label": "I am a circle",
+                "shape": "circle"
+              }
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-5",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:bang",
+      "sourceSha256": "a3759dc9e72b95d6373163f76192c246d4ee0f3b37b1fd432fafc2bad560e6b0",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "root": {
+              "children": [],
+              "id": "id",
+              "label": "I am a bang",
+              "shape": "bang"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 0,
+            "label": "I am a bang",
+            "labelAttributes": {
+              "data-font-metrics": "deterministic-fit",
+              "dy": "4.55",
+              "fill": "#FFFFFF",
+              "font-size": "13",
+              "font-weight": "500",
+              "lengthAdjust": "spacingAndGlyphs",
+              "text-anchor": "middle",
+              "textLength": "64.935",
+              "x": "85.4675",
+              "y": "54.45"
+            },
+            "labelCount": 1,
+            "node": {
+              "class": "mindmap-node depth-0",
+              "data-id": "id",
+              "data-label": "I am a bang",
+              "data-role": "node"
+            },
+            "nodeCount": 1,
+            "shape": {
+              "fill": "#47474a",
+              "points": "85.468,32 105.785,39.674 131.772,43.225 126.103,54.45 131.772,65.675 105.785,69.226 85.468,76.9 65.15,69.226 39.163,65.675 44.832,54.45 39.163,43.225 65.15,39.674",
+              "stroke": "#47474a",
+              "stroke-width": "1.5"
+            },
+            "shapeCount": 1,
+            "svgSha256": "64c8d5255874425f8a46f9ac8e989c7d231448db1e282338a27603895a2d20e8",
+            "tag": "polygon",
+            "viewBox": "0 0 170.935 108.9"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "root": {
+                "children": [],
+                "id": "id",
+                "label": "I am a bang",
+                "shape": "bang"
+              }
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-6",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:cloud",
+      "sourceSha256": "6cd5d2e69bd981ac994fa64ea8e435c1aa1ced563dc23b6638b138794fe159ac",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "root": {
+              "children": [],
+              "id": "id",
+              "label": "I am a cloud",
+              "shape": "cloud"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 0,
+            "label": "I am a cloud",
+            "labelAttributes": {
+              "data-font-metrics": "deterministic-fit",
+              "dy": "4.55",
+              "fill": "#FFFFFF",
+              "font-size": "13",
+              "font-weight": "500",
+              "lengthAdjust": "spacingAndGlyphs",
+              "text-anchor": "middle",
+              "textLength": "67.899",
+              "x": "86.9495",
+              "y": "54.45"
+            },
+            "labelCount": 1,
+            "node": {
+              "class": "mindmap-node depth-0",
+              "data-id": "id",
+              "data-label": "I am a cloud",
+              "data-role": "node"
+            },
+            "nodeCount": 1,
+            "shape": {
+              "cx": "86.95",
+              "cy": "54.45",
+              "fill": "#47474a",
+              "rx": "54.949",
+              "ry": "22.45",
+              "stroke": "#47474a",
+              "stroke-width": "1.5"
+            },
+            "shapeCount": 1,
+            "svgSha256": "cdad4f7fd7063acf3525fff3ff2710fd8cf6fb05116bc1f2276438d1ee2fa167",
+            "tag": "ellipse",
+            "viewBox": "0 0 173.899 108.9"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "root": {
+                "children": [],
+                "id": "id",
+                "label": "I am a cloud",
+                "shape": "cloud"
+              }
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-7",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:hexagon",
+      "sourceSha256": "a21b1de3449745fcb0e04c0fce4b2bbe52cf6c71e7cd38a5853f9974b5a449e0",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "root": {
+              "children": [],
+              "id": "id",
+              "label": "I am a hexagon",
+              "shape": "hexagon"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 0,
+            "label": "I am a hexagon",
+            "labelAttributes": {
+              "data-font-metrics": "deterministic-fit",
+              "dy": "4.55",
+              "fill": "#FFFFFF",
+              "font-size": "13",
+              "font-weight": "500",
+              "lengthAdjust": "spacingAndGlyphs",
+              "text-anchor": "middle",
+              "textLength": "87.165",
+              "x": "87.5825",
+              "y": "49.45"
+            },
+            "labelCount": 1,
+            "node": {
+              "class": "mindmap-node depth-0",
+              "data-id": "id",
+              "data-label": "I am a hexagon",
+              "data-role": "node"
+            },
+            "nodeCount": 1,
+            "shape": {
+              "fill": "#47474a",
+              "points": "44,32 131.165,32 143.165,49.45 131.165,66.9 44,66.9 32,49.45",
+              "stroke": "#47474a",
+              "stroke-width": "1.5"
+            },
+            "shapeCount": 1,
+            "svgSha256": "93c47a283ac1c38523555da571d5e5f3877af261f2849de031da60523cd9250c",
+            "tag": "polygon",
+            "viewBox": "0 0 175.165 98.9"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "root": {
+                "children": [],
+                "id": "id",
+                "label": "I am a hexagon",
+                "shape": "hexagon"
+              }
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "mindmap.official.fence-8",
+      "family": "mindmap",
+      "featureId": "official-doc:mindmap:section:default",
+      "sourceSha256": "0e3f19cc2bca40fa34beaa6407d9edaeff5df955116d0d747055b2ca6750b95c",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/mindmap.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "root": {
+              "children": [],
+              "id": "I am the default shape",
+              "label": "I am the default shape",
+              "shape": "default"
+            }
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "edgeCount": 0,
+            "label": "I am the default shape",
+            "labelAttributes": {
+              "data-font-metrics": "deterministic-fit",
+              "dy": "4.55",
+              "fill": "#FFFFFF",
+              "font-size": "13",
+              "font-weight": "500",
+              "lengthAdjust": "spacingAndGlyphs",
+              "text-anchor": "middle",
+              "textLength": "123.474",
+              "x": "105.737",
+              "y": "49.45"
+            },
+            "labelCount": 1,
+            "node": {
+              "class": "mindmap-node depth-0",
+              "data-id": "I am the default shape",
+              "data-label": "I am the default shape",
+              "data-role": "node"
+            },
+            "nodeCount": 1,
+            "shape": {
+              "fill": "#47474a",
+              "height": "34.9",
+              "rx": "16",
+              "ry": "16",
+              "stroke": "#47474a",
+              "stroke-width": "1.5",
+              "width": "147.474",
+              "x": "32",
+              "y": "32"
+            },
+            "shapeCount": 1,
+            "svgSha256": "4f517fe83717369959620d9236d1e219b11f70fb9a401c3d315133dffecfc013",
+            "tag": "rect",
+            "viewBox": "0 0 211.474 98.9"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "root": {
+                "children": [],
+                "id": "I am the default shape",
+                "label": "I am the default shape",
+                "shape": "default"
+              }
+            },
+            "stable": true
           },
           "disposition": "native"
         }
@@ -22144,11 +22875,11 @@
     }
   ],
   "summary": {
-    "caseCount": 64,
-    "passedCaseCount": 64,
+    "caseCount": 71,
+    "passedCaseCount": 71,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 218,
+    "observedSurfaceCount": 239,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 38
+    "notApplicableSurfaceCount": 45
   }
 }

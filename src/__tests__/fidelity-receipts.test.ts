@@ -283,6 +283,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/gitgraph-duplicate-official.fidelity.ts',
       'fidelity/cases/journey-official-fence.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
+      'fidelity/cases/mindmap-official-shape-fences.fidelity.ts',
       'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/pie-entity-display.fidelity.ts',
       'fidelity/cases/pie-official-fences.fidelity.ts',
@@ -320,6 +321,13 @@ describe('issue #248 construct fidelity receipts', () => {
       'gitgraph.official.main-branch-duplicate-id-diagnosed',
       'journey.official.fence-0',
       'journey.scores.fractional-parser-render-seam',
+      'mindmap.official.fence-2',
+      'mindmap.official.fence-3',
+      'mindmap.official.fence-4',
+      'mindmap.official.fence-5',
+      'mindmap.official.fence-6',
+      'mindmap.official.fence-7',
+      'mindmap.official.fence-8',
       'pie.official.fence-0',
       'pie.official.fence-1',
       'pie.syntax.authored-formatting-literal',
@@ -367,12 +375,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 64,
-      passedCaseCount: 64,
+      caseCount: 71,
+      passedCaseCount: 71,
       failedCaseCount: 0,
-      observedSurfaceCount: 218,
+      observedSurfaceCount: 239,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 38,
+      notApplicableSurfaceCount: 45,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -640,6 +648,100 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'serialize',
         path: ['model', 'groups', 0, 'icon'],
         replacement: null,
+      },
+      {
+        caseId: 'mindmap.official.fence-2', surface: 'agent',
+        path: ['root', 'shape'], replacement: 'default',
+      },
+      {
+        caseId: 'mindmap.official.fence-2', surface: 'render',
+        path: ['shape', 'rx'], replacement: '16',
+      },
+      {
+        caseId: 'mindmap.official.fence-2', surface: 'render',
+        path: ['shape', 'x'], replacement: '83.1365',
+        additionalChanges: [
+          { path: ['shape', 'y'], replacement: '49.45' },
+          { path: ['shape', 'width'], replacement: '1' },
+          { path: ['shape', 'height'], replacement: '1' },
+        ],
+      },
+      {
+        caseId: 'mindmap.official.fence-2', surface: 'render',
+        path: ['labelAttributes', 'textLength'], replacement: '1',
+      },
+      {
+        caseId: 'mindmap.official.fence-3', surface: 'render',
+        path: ['shape', 'ry'], replacement: '0',
+      },
+      {
+        caseId: 'mindmap.official.fence-3', surface: 'render',
+        path: ['shape', 'rx'], replacement: '0xa',
+        additionalChanges: [{ path: ['shape', 'ry'], replacement: '0xa' }],
+      },
+      {
+        caseId: 'mindmap.official.fence-3', surface: 'render',
+        path: ['labelAttributes', 'font-size'], replacement: '0xd',
+      },
+      {
+        caseId: 'mindmap.official.fence-4', surface: 'render',
+        path: ['shape', 'r'], replacement: '0',
+      },
+      {
+        caseId: 'mindmap.official.fence-4', surface: 'render',
+        path: ['shape', 'r'], replacement: '1',
+      },
+      {
+        caseId: 'mindmap.official.fence-5', surface: 'render',
+        path: ['shape', 'points'], replacement: '0,0 1,1',
+      },
+      {
+        caseId: 'mindmap.official.fence-5', surface: 'render',
+        path: ['shape', 'points'],
+        replacement: '85.468,0x20 105.785,39.674 131.772,43.225 126.103,54.45 131.772,65.675 105.785,69.226 85.468,76.9 65.15,69.226 39.163,65.675 44.832,54.45 39.163,43.225 65.15,39.674',
+      },
+      {
+        caseId: 'mindmap.official.fence-5', surface: 'render',
+        path: ['shape', 'points'], replacement: Array(12).fill('85.468,54.45').join(' '),
+      },
+      {
+        caseId: 'mindmap.official.fence-5', surface: 'render',
+        path: ['shape', 'points'],
+        replacement: '20,9 85.4675,9 150.935,9 150.935,35 90,35 45,35 45,75 90,75 150.935,75 150.935,99.9 85.4675,99.9 20,99.9',
+      },
+      {
+        caseId: 'mindmap.official.fence-5', surface: 'render',
+        path: ['shape', 'points'],
+        replacement: '20,9 50,9 85.4675,9 120,9 150.935,9 150.935,54.45 150.935,99.9 120,99.9 85.4675,99.9 50,99.9 20,99.9 20,54.45',
+      },
+      {
+        caseId: 'mindmap.official.fence-6', surface: 'render',
+        path: ['shape', 'rx'], replacement: '0',
+      },
+      {
+        caseId: 'mindmap.official.fence-6', surface: 'render',
+        path: ['shape', 'rx'], replacement: '1',
+        additionalChanges: [{ path: ['shape', 'ry'], replacement: '1' }],
+      },
+      {
+        caseId: 'mindmap.official.fence-7', surface: 'render',
+        path: ['shape', 'points'], replacement: '0,0 1,1',
+      },
+      {
+        caseId: 'mindmap.official.fence-7', surface: 'render',
+        path: ['shape', 'points'], replacement: '20,9 155.165,9 155.165,35 45,35 45,89.9 20,89.9',
+      },
+      {
+        caseId: 'mindmap.official.fence-7', surface: 'render',
+        path: ['shape', 'points'], replacement: '20,9 87.5825,9 155.165,9 155.165,89.9 87.5825,89.9 20,89.9',
+      },
+      {
+        caseId: 'mindmap.official.fence-8', surface: 'render',
+        path: ['tag'], replacement: 'path',
+      },
+      {
+        caseId: 'mindmap.official.fence-8', surface: 'serialize',
+        path: ['model', 'root', 'label'], replacement: 'lost',
       },
       {
         caseId: 'journey.official.fence-0',
