@@ -8,7 +8,7 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import type { QuadrantVisualConfig } from './config.ts'
-import { measureTextWidth } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureTextWidth } from '../text-metrics.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { applyTextTransform, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
@@ -239,7 +239,11 @@ export function layoutQuadrantChart(
   const paddingY = visual.quadrantPadding ?? Q.paddingY
   const titleFontSize = visual.titleFontSize ?? Q.titleFontSize
   const titleGap = visual.titlePadding ?? Q.titleGap
-  const titleHeight = chart.title ? titleFontSize + titleGap : 0
+  const titleWeight = Math.max(style.groupHeaderFontWeight, 600)
+  // The title is centered over the plot, so it wraps to the plot's width
+  // rather than running past the canvas edges (a configured chartWidth stays).
+  let titleText = chart.title
+  let titleHeight = chart.title ? titleFontSize + titleGap : 0
 
   // Per-axis text metrics (wired config wins per axis; the shared edge-label
   // style slot is the fallback for both).
@@ -275,6 +279,10 @@ export function layoutQuadrantChart(
       near: budgetAxisLabel(chart.yAxis.near, halfBudget, axisFontY, style.edgeLabelFontWeight),
       ...(chart.yAxis.far ? { far: budgetAxisLabel(chart.yAxis.far, halfBudget, axisFontY, style.edgeLabelFontWeight) } : {}),
     } : undefined
+    if (chart.title) {
+      titleText = wrapLabelToWidth(applyTextTransform(chart.title, style.groupTextTransform), size, titleFontSize, titleWeight, style.groupLetterSpacing)
+      titleHeight = titleFontSize * (1 + (titleText.split('\n').length - 1) * LINE_HEIGHT_RATIO) + titleGap
+    }
     const xLines = Math.max(1, ...(budgetedX ? [budgetedX.near, budgetedX.far ?? ''].map(text => text.split('\n').length) : [1]))
     const yLines = Math.max(1, ...(budgetedY ? [budgetedY.near, budgetedY.far ?? ''].map(text => text.split('\n').length) : [1]))
     xAxisGutter = baseXAxisGutter + (xLines - 1) * axisFontX * 1.1
@@ -417,8 +425,8 @@ export function layoutQuadrantChart(
   return {
     width: round(width),
     height: round(height),
-    title: chart.title
-      ? { text: chart.title, x: round(plotX + size / 2), y: round(paddingY + titleFontSize / 2), fontSize: titleFontSize }
+    title: titleText !== undefined
+      ? { text: titleText, x: round(plotX + size / 2), y: round(paddingY + (titleHeight - titleGap) / 2), fontSize: titleFontSize }
       : undefined,
     accessibility: chart.accessibility ? { ...chart.accessibility } : undefined,
     plot: { x: round(plotX), y: round(plotY), size: round(size) },

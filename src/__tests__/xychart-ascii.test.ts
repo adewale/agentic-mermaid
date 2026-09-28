@@ -6,8 +6,11 @@
  * and edge cases.
  */
 import { describe, it, expect } from 'bun:test'
+import fc from 'fast-check'
 import { AsciiWidthError, renderMermaidASCII } from '../ascii/index.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { categoricalPalette } from '../shared/categorical-palette.ts'
 
 // ============================================================================
 // Helper — render with no colors for easy string matching
@@ -449,5 +452,30 @@ describe('xychart ASCII – axis structure', () => {
     expect(result).not.toContain('┤')
     expect(result).not.toContain('┬')
     expect(result).not.toContain('┼')
+  })
+})
+
+// ============================================================================
+// Series colors
+// ============================================================================
+
+describe('xychart ASCII – series colors', () => {
+  const ONE_SERIES = 'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [4, 8]'
+  const barColors = (html: string): string[] =>
+    [...new Set([...html.matchAll(/<span style="color:(#[0-9a-fA-F]{6})">█+<\/span>/g)].map(match => match[1]!.toLowerCase()))]
+
+  it('draws a single series in the repaired color SVG draws, not an accent that vanishes', () => {
+    const colors = { bg: '#ffffff', fg: '#27272a', accent: '#ffffff' }
+    const svgColor = renderMermaidSVG(ONE_SERIES, colors).match(/--xychart-color-0:\s*(#[0-9a-fA-F]{6})/)?.[1]
+    expect(svgColor).toBe('#d7d7d7')
+    expect(barColors(renderMermaidASCII(ONE_SERIES, { colorMode: 'html', theme: colors }))).toEqual([svgColor!])
+  })
+
+  it('draws a single series in the shared palette for any accent and background', () => {
+    const hex = fc.integer({ min: 0, max: 0xffffff }).map(n => `#${n.toString(16).padStart(6, '0')}`)
+    fc.assert(fc.property(hex, hex, (accent, bg) => {
+      const html = renderMermaidASCII(ONE_SERIES, { colorMode: 'html', theme: { bg, fg: '#27272a', accent } })
+      expect(barColors(html)).toEqual([categoricalPalette(1, { accent, bg })[0]!.toLowerCase()])
+    }), { numRuns: 60 })
   })
 })

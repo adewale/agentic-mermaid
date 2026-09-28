@@ -2,12 +2,15 @@
 // Shared categorical palette — the single home for derived peer-category
 // colors used by pie/radar, xychart, journey, mindmap, and gitgraph.
 //
-// Small charts (≤ MONO_LADDER_MAX slices) keep the existing xychart
+// Small charts (≤ MONO_LADDER_MAX slices) start from the existing xychart
 // same-family ladder: accent-anchored shades that read as one palette across
-// chart families. Past that count the ladder degenerates into near-identical
-// neighbors (the Journey actor-dot defect class — plan §Pie item 4; measured:
-// two of fifteen ladder colors sit at WCAG 1.01:1 against each other), so
-// high-count charts switch to a hue-rotation wheel SIZED TO THE SLICE COUNT
+// chart families. The ladder alone can collide at any count (its tiers can land
+// on the accent's own lightness), so small palettes are repaired against the
+// same visibility and ΔE floors described below. Past that count the ladder
+// degenerates into near-identical neighbors everywhere (the Journey actor-dot
+// defect class — plan §Pie item 4; measured: two of fifteen ladder colors sit
+// at WCAG 1.01:1 against each other), so high-count charts switch to a
+// hue-rotation wheel SIZED TO THE SLICE COUNT
 // (P1: palettes sized to element counts instead of modulo wraps):
 //   - hues spread evenly from the accent hue (360/count steps — every pair of
 //     same-lightness colors is ≥ 2·(360/count) apart)
@@ -113,16 +116,40 @@ export function categoricalPaletteWithDiagnostics(count: number, inputs: Categor
 
 function categoricalPaletteInternal(count: number, inputs: CategoricalPaletteInputs, diagnostics?: CategoricalPaletteDiagnostics): string[] {
   if (count <= MONO_LADDER_MAX) {
-    // Preserve the exact legacy getSeriesColor contract, including authored
+    // The legacy getSeriesColor ladder is the starting point, including authored
     // CSS spelling in slot zero and its historical fallback behaviour for the
     // remaining ladder. Normalizing here would change #rgb/named/rgb() bytes.
     const legacyAccent = inputs.accent ?? CHART_ACCENT_FALLBACK
-    return Array.from({ length: Math.max(0, count) }, (_unused, index) => getSeriesColor(index, legacyAccent, inputs.bg))
+    const ladder = Array.from({ length: Math.max(0, count) }, (_unused, index) => getSeriesColor(index, legacyAccent, inputs.bg))
+    return repairLegacyLadder(ladder, inputs.bg, diagnostics)
   }
 
   const safeBg = concreteCssHex(inputs.bg)
   const safeAccent = concreteCssHex(inputs.accent, safeBg) ?? CHART_ACCENT_FALLBACK
   return hueSpreadColors(count, safeAccent, safeBg, diagnostics)
+}
+
+/** Small palettes owe the same contract as large ones: every fill visible
+ * against the background and every pair at least MIN_SLICE_DELTA_E apart. The
+ * ladder's alternating tiers collide with the accent itself (measured: at six
+ * slices every built-in palette held a pair below ΔE_OK 0.06), so it is
+ * repaired with the same bounded searches as the hue wheel. Fills that already
+ * satisfy the contract keep their exact bytes. A palette containing a color that
+ * cannot be resolved to concrete sRGB is returned unchanged: it cannot be
+ * measured, like the LOW_CONTRAST rule for an unknown backdrop. */
+function repairLegacyLadder(ladder: string[], rawBg: string | undefined, diagnostics?: CategoricalPaletteDiagnostics): string[] {
+  const bg = concreteCssHex(rawBg)
+  const measured = ladder.map(color => concreteCssHex(color, bg))
+  if (measured.some(color => color === undefined)) return ladder
+  const concrete = measured as string[]
+  const dark = ((bg === undefined ? null : hexToOklab(bg))?.L ?? 1) < 0.55
+  const visible = concrete.map(hex => {
+    if (isVisible(hex, bg)) return hex
+    const lch = hexToOklch(hex)
+    return lch ? ensureBgContrast(lch, bg, dark, diagnostics) : hex
+  })
+  const separated = visible.length > 1 ? enforceMinDeltaE(visible, bg, dark, diagnostics) : visible
+  return separated.map((hex, index) => hex === concrete[index] ? ladder[index]! : hex)
 }
 
 /** Normalize the concrete CSS forms accepted by StyleSpec into the six-digit

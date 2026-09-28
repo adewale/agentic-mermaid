@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "2ab154227c65f7a418eb4133c2589d43251a904cbb8f47ecf5667ac9026e1d3b",
+  "artifactSha256": "bacf986e3aa8a4364e037eb0b23fce71e8b26701f6b4ec6ee938eb8a94329c53",
   "reviewedAt": "2026-09-27",
-  "reviewer": "Codex coding agent, PR #306 Class member review",
-  "scope": "The 1560×9464 full sheet, all 64 family-by-variant cells, and the source-bound before/after Class member assets were reviewed. RGB comparison with the prior approved sheet found 673 changed pixels, confined to x=725–765 in the Class column across the four style variants (y=589–7693); all other family cells are byte-identical at the pixel level. The Class member text now preserves authored order without clipping or disturbing connectors, compartments, or labels.",
+  "reviewer": "Claude Code agent, while rebasing the chart-honesty branch onto main's PR #306",
+  "scope": "The 1560×9464 sheet, all 64 family-by-variant cells, was compared with this branch's previous approved sheet at native size through a per-pixel difference mask: 715 of 14,763,840 pixels differ, all in the Class column (x=720–765) across the four style variants (y=589–7693). They are main's PR #306 Class member text (\"+id: string\" in authored order instead of \"+ string: id:\"), drawn with this branch's text tones. Every other cell is identical at the pixel level; geometry, containment, endpoints, peer-category paint, and authored emphasis are unchanged.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

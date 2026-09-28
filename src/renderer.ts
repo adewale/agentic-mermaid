@@ -1,11 +1,12 @@
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
+import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle } from './styles.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
-import { resolveInlineNodeTextColor } from './color-resolver.ts'
+import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
 import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
@@ -19,7 +20,7 @@ import {
   type ConnectorPathProjectionSegment,
 } from './scene/connector-geometry.ts'
 import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
-import { shapeOutline } from './shape-outline.ts'
+import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -109,6 +110,9 @@ export function lowerGraphScene(
   defsParts.push('</defs>')
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
+  // 0. The diagram's frontmatter title, in the band layout reserved above.
+  if (graph.title) parts.push(diagramTitleMark(graph.title, style))
+
   // 1. Subgraph backgrounds (group rectangles with header bands)
   for (const group of graph.groups) {
     parts.push(renderGroup(group, font, style))
@@ -137,7 +141,7 @@ export function lowerGraphScene(
 
   // 4. Nodes (shape + label wrapped in <g class="node">)
   for (const node of graph.nodes) {
-    parts.push(renderNode(node, font, style, options.security !== 'strict'))
+    parts.push(renderNode(node, font, style, colors, options.security !== 'strict'))
   }
 
   // 5. State-diagram notes (placed by the layout pass on their declared side)
@@ -794,9 +798,10 @@ function dist(a: Point, b: Point): number {
  * - data-label: display label text
  * - data-shape: shape type (rectangle, diamond, circle, etc.)
  */
-function renderNode(node: PositionedNode, font: string, style: ResolvedRenderStyle, includeInteraction: boolean): SceneNode {
+function renderNode(node: PositionedNode, font: string, style: ResolvedRenderStyle, colors: DiagramColors, includeInteraction: boolean): SceneNode {
   const shape = renderNodeShape(node, style)
-  const label = renderNodeLabel(node, font, style)
+  const ink = nodeTextInk(node, style, colors)
+  const label = renderNodeLabel(node, font, style, ink)
 
   // Combine shape and label inside a semantic group
   // This enables reliable node identification without heuristics
@@ -813,7 +818,7 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
     undefined
 
   const children: Array<{ node: SceneNode; indent: number }> = [{ indent: 2, node: shape }]
-  const media = renderFlowchartMedia(node, style)
+  const media = renderFlowchartMedia(node, ink)
   if (media) children.push({ indent: 2, node: media })
   if (label) {
     children.push({ indent: 2, node: label })
@@ -833,8 +838,8 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   })
 }
 
-function renderFlowchartMedia(node: PositionedNode, style: ResolvedRenderStyle): SceneNode | null {
-  const color = escapeAttr(style.nodeTextColor ?? 'var(--_text)')
+function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | null {
+  const color = escapeAttr(ink)
   const size = Math.min(28, node.height * 0.4)
   const cx = node.x + node.width / 2
   const y = node.y + 6
@@ -888,7 +893,18 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
 // Node label rendering
 // ============================================================================
 
-function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRenderStyle): SceneNode | null {
+/** The ink for a node's label and media: the author's color, black or white
+ * on the author's fill, the Style's text color, or else the theme tone inked
+ * for the node fill it sits on (a shape that paints no fill leaves its label
+ * on the page). */
+function nodeTextInk(node: PositionedNode, style: ResolvedRenderStyle, colors: DiagramColors): string {
+  const onNode = style.nodeTextColor ?? (node.inlineStyle?.fill || !paintsNodeFill(node)
+    ? 'var(--_text)'
+    : toneOnFill('var(--_text)', style.nodeFillColor ?? 'var(--_node-fill)', colors))
+  return resolveInlineNodeTextColor(node.inlineStyle, onNode)
+}
+
+function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRenderStyle, rawTextColor: string): SceneNode | null {
   // State pseudostates have no label (history keeps its H/H* glyph)
   if (node.shape === 'state-start' || node.shape === 'state-end' ||
       node.shape === 'state-fork' || node.shape === 'state-join' || node.shape === 'state-choice') {
@@ -898,7 +914,6 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
 
-  const rawTextColor = resolveInlineNodeTextColor(node.inlineStyle, style.nodeTextColor ?? 'var(--_text)')
   const textColor = escapeAttr(rawTextColor)
   const label = applyTextTransform(node.label, style.nodeTextTransform)
 

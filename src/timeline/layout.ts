@@ -296,7 +296,9 @@ export function layoutTimelineDiagram(
 
   const mainEnd = mainCursor + (vertical ? TL.paddingY : TL.paddingX)
   const crossEnd = maxCrossEnd + (vertical ? TL.paddingX : TL.paddingY)
-  const width = vertical ? crossEnd : mainEnd
+  // The title is centered over the canvas, so the canvas covers the wrapped
+  // title and its padding even when the periods are narrower.
+  const width = Math.max(vertical ? crossEnd : mainEnd, titleMetrics ? titleMetrics.width + 2 * TL.paddingX : 0)
   const height = vertical ? mainEnd : crossEnd
 
   const allPeriods = sections.flatMap(section => section.periods)

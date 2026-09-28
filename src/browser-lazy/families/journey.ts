@@ -1,4 +1,5 @@
 import descriptorData from '../generated/descriptors/journey.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
 import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../../journey/layout.ts'
 import { parseJourneyDiagram } from '../../journey/parser.ts'
@@ -9,7 +10,7 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     appearance: { family: resolveJourneyRequestAppearance(ctx.renderOptions) as unknown as Record<string, unknown> },
   }),
   layout: ctx => layoutResult(layoutJourneyDiagram(
-    parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility),
+    withFrontmatterTitle(parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter),
     (ctx.familyAppearance as ReturnType<typeof resolveJourneyRequestAppearance> | undefined)
       ?? resolveJourneyRequestAppearance(ctx.renderOptions),
     ctx.renderOptions,

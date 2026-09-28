@@ -419,14 +419,16 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
         return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
       }
       p.label = label
-      // Implicit (message-only) participants have no declaration statement;
-      // the label only survives serialize → re-parse if one exists. Insert it
-      // at the TOP so the renderer parser (first declaration wins) sees it
-      // before any boxed/opaque re-declaration of the same id.
+      // As in Mermaid, a participant's first declaration places it and its
+      // last aliased declaration names it. The label only survives serialize →
+      // re-parse through a declaration statement: when the naming declaration
+      // is preserved source (a boxed `participant A as …`), declare the new
+      // label right after it; an implicit (message-only) participant is
+      // declared at the top.
       const ref = participants.indexOf(p)
-      if (!statements.some(s => s.kind === 'participant' && s.ref === ref)) {
-        statements.unshift({ kind: 'participant', ref })
-      }
+      const naming = namingDeclaration(statements, ref, p.id)
+      if (naming === undefined) statements.unshift({ kind: 'participant', ref })
+      else if (naming.preserved) statements.splice(naming.index + 1, 0, { kind: 'participant', ref })
       break
     }
     case 'remove_message': {
@@ -535,6 +537,19 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     }
   }
   return ok({ kind: 'sequence', participants, messages, statements })
+}
+
+/** The statement whose declaration names participant `id` last: its own
+ * declaration statement, or a preserved line that declares it with an alias. */
+function namingDeclaration(statements: SequenceStatement[], ref: number, id: string): { index: number; preserved: boolean } | undefined {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const aliased = new RegExp(`^\\s*(?:participant|actor)\\s+${escaped}(?:@\\{[^}]*\\})?\\s+as\\s`, 'i')
+  for (let index = statements.length - 1; index >= 0; index--) {
+    const statement = statements[index]!
+    if (statement.kind === 'participant' && statement.ref === ref) return { index, preserved: false }
+    if (statement.kind === 'opaque-block' && statement.lines.some(line => aliased.test(line))) return { index, preserved: true }
+  }
+  return undefined
 }
 
 function opaqueBlocksReference(statements: SequenceStatement[], id: string): boolean {

@@ -4,6 +4,8 @@ import { parseMindmap } from '../../mindmap/parser.ts'
 import { positionMindmap, resolveMindmapPositionConfig } from '../../mindmap/position.ts'
 import { lowerMindmapScene } from '../../mindmap/renderer.ts'
 import { withAccessibilityFields } from '../../shared/accessibility-directives.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
+import { resolveRenderStyle } from '../../styles.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, {
   normalizeRequest: ctx => ({
@@ -12,9 +14,10 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     },
   }),
   layout: ctx => layoutResult(positionMindmap(
-    withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility),
+    withFrontmatterTitle(withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility), ctx.source.frontmatter),
     (ctx.familyConfig as { position?: ReturnType<typeof resolveMindmapPositionConfig> } | undefined)?.position
       ?? resolveMindmapPositionConfig(undefined, undefined),
+    resolveRenderStyle(ctx.renderOptions, undefined, ctx.styleFace),
   ), { injectAccessibility: false }),
   lowerScene: scene(lowerMindmapScene),
 })

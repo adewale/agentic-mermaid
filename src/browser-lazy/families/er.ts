@@ -4,6 +4,7 @@ import { applyErFrontmatterDirection, layoutErDiagram, resolveErRenderOptions } 
 import { parseErDiagram } from '../../er/parser.ts'
 import { lowerErScene } from '../../er/renderer.ts'
 import { withAccessibilityFields } from '../../shared/accessibility-directives.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 import { checkAllClassLikeAuthoredStyles } from '../../shared/style-props.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, {
@@ -11,10 +12,10 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     renderOptions: resolveErRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
   layout: ctx => {
-    const diagram = applyErFrontmatterDirection(
+    const diagram = withFrontmatterTitle(applyErFrontmatterDirection(
       withAccessibilityFields(parseErDiagram(ctx.source.familyLines), ctx.source.accessibility),
       ctx.source.frontmatter,
-    )
+    ), ctx.source.frontmatter)
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
     return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace))
   },

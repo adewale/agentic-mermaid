@@ -19,6 +19,7 @@ import { colorizeText } from './ansi.ts'
 import { CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
+import { barBaselineValue } from '../xychart/axis-utils.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -70,14 +71,15 @@ const ASC = {
 type HexCanvas = (string | null)[][]
 
 /** Preserve authored CSS palette entries; colorizeText resolves concrete
- * paints for ANSI and retains safe CSS values for HTML output. */
+ * paints for ANSI and retains safe CSS values for HTML output. Without a
+ * palette, the series take the palette SVG draws, so one series gets the same
+ * repair as several (an accent that vanishes into the background is moved off
+ * it in both outputs). */
 function getSeriesColors(total: number, theme: AsciiTheme, palette?: string[]): string[] {
   if (palette && palette.length > 0) {
     return Array.from({ length: total }, (_, i) => palette[i % palette.length]!)
   }
-  const accent = theme.accent ?? CHART_ACCENT_FALLBACK
-  if (total <= 1) return [accent]
-  return categoricalPalette(total, { accent, bg: theme.bg })
+  return categoricalPalette(Math.max(1, total), { accent: theme.accent ?? CHART_ACCENT_FALLBACK, bg: theme.bg })
 }
 
 /** Map a CharRole to its hex color from the theme (for canvasToString fallback). */
@@ -256,7 +258,7 @@ function renderVertical(
     const usable = Math.max(1, bandW - 2)
     const singleBarW = Math.max(1, Math.min(Math.floor(usable / barCount), 8))
     const groupW = singleBarW * barCount + (barCount - 1)
-    const baseRow = valueToRow(Math.max(0, yRange.min))
+    const baseRow = valueToRow(barBaselineValue(yRange))
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
       const entry = barEntries[bIdx]!
@@ -450,7 +452,7 @@ function renderHorizontal(
     const barCount = barEntries.length
     const singleBarH = 1
     const groupH = singleBarH * barCount + (barCount - 1)
-    const baseCol = valueToCol(Math.max(0, yRange.min))
+    const baseCol = valueToCol(barBaselineValue(yRange))
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
       const entry = barEntries[bIdx]!

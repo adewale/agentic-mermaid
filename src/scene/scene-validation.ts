@@ -940,6 +940,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (!['arcs', 'bevel', 'miter', 'miter-clip', 'round'].includes(String(value.stroke.lineJoin))) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.lineJoin`, 'has an unknown line join')
     if (value.stroke.mixBlendMode !== undefined && !['normal', 'multiply'].includes(String(value.stroke.mixBlendMode))) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.mixBlendMode`, 'must be normal or multiply')
     if (typeof value.stroke.nonScaling !== 'boolean') add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.nonScaling`, 'must be boolean')
+    if (value.stroke.encodesValue !== undefined && typeof value.stroke.encodesValue !== 'boolean') add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.encodesValue`, 'must be boolean')
     if (value.stroke.dash !== undefined) {
       if (!record(value.stroke.dash)) add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke.dash`, 'must be a dash descriptor')
       else {

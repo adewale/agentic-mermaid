@@ -246,6 +246,9 @@ export interface ConnectorStroke {
   paintOrder?: string
   mixBlendMode?: 'normal' | 'multiply'
   nonScaling: boolean
+  /** The width is the data (a sankey flow's quantity), so every backend draws
+   * it exactly as given and never scales it by a look's pen width. */
+  encodesValue?: boolean
 }
 
 export interface ConnectorLabelDescriptor {
@@ -364,6 +367,12 @@ export interface TextMark extends SceneNodeBase {
   fontSize: number
   anchor: 'start' | 'middle' | 'end'
   paint: MarkPaint
+  /** Ink the family chose for this text on the page, when `paint.fill` was
+   *  instead chosen against the data mark the text sits on (a value label
+   *  inside a bar). A backend that puts the glyphs back on the page, as the
+   *  sketch looks do with their page-colored halo over hatched or washed
+   *  fills, paints this ink so the label stays readable. */
+  pageFill?: string
 }
 
 /** A semantic wrapper (<g ...>...</g>) whose children are scene nodes.

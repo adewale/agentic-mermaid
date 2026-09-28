@@ -95,6 +95,10 @@ export interface ResolvedArchitectureVisualConfig {
   layerSpacing?: number
 }
 
+/** Where a group's title starts when its icon comes first, from the group's
+ * left edge; the layout reserves the same room (MermaidSubgraph.titleOffset). */
+export const ARCHITECTURE_GROUP_ICON_TITLE_OFFSET = 36
+
 export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
   groupHeaderHeight: 28,
   groupFontSize: 12,

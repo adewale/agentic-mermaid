@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 
+import { knownStyles } from '../index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
+import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
+import { resolveRenderStyle } from '../styles.ts'
 
 const SUPPORTED_ENDPOINT_CASES = ([
   ['INCLUDE_CHILDREN', false, 'X', 'A'],
@@ -65,5 +68,33 @@ function assertCleanHierarchyCase(source: string, from: string, to: string): voi
 describe('bounded hierarchy endpoint model', () => {
   test.each(SUPPORTED_ENDPOINT_CASES)('%s routes without stale coordinates', (_name, withDirectionOverride, from, to) => {
     assertCleanHierarchyCase(nestedGraph(withDirectionOverride, from, to), from, to)
+  })
+})
+
+// A group's title may widen it (only SEPARATE hierarchy handling honors the
+// minimum width), but a title that fits must not change the INCLUDE_CHILDREN
+// layout: the group still holds exactly its padding around its content.
+const TITLED_GROUPS = `flowchart TD
+  subgraph edge[Edge Layer]
+    web[Web App]
+  end
+  subgraph core[Core Services]
+    api[API]
+    db[(Postgres)]
+  end
+  web --> api
+  api --> db`
+
+describe('group titles and hierarchy handling', () => {
+  test('a group whose title fits holds exactly its bottom padding below its content, in every style', () => {
+    for (const name of [undefined, ...knownStyles()]) {
+      const { style, face } = resolveStyleStackWithFace(name)
+      const options = { style, styleFace: face }
+      const positioned = layoutGraphSync(parseMermaid(TITLED_GROUPS), options)
+      const group = positioned.groups.find(candidate => candidate.id === 'edge')!
+      const web = positioned.nodes.find(candidate => candidate.id === 'web')!
+      expect(group.y + group.height - (web.y + web.height), name ?? 'default')
+        .toBeCloseTo(resolveRenderStyle(options, undefined, face).groupPaddingY, 1)
+    }
   })
 })

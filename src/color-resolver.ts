@@ -1,7 +1,7 @@
 import type { MermaidGraph, RenderOptions } from './types.ts'
-import { tryParseHex, luma255 } from './shared/color-math.ts'
+import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
-import { DEFAULTS } from './theme.ts'
+import { DEFAULTS, resolvedColorValue } from './theme.ts'
 import type { MermaidRuntimeConfig, MermaidThemeVariables } from './mermaid-source.ts'
 import { safeCssPaint } from './shared/css-color.ts'
 import { checkedAuthoredStyle } from './shared/style-props.ts'
@@ -139,11 +139,15 @@ function parseRgbFunction(color: string): { r: number; g: number; b: number } | 
   return Object.values(rgb).every(v => v >= 0 && v <= 255) ? rgb : null
 }
 
+/** Ink for text drawn on an opaque fill: whichever of black and white has the
+ * higher WCAG contrast. The better of the two is at least 4.58:1 against any
+ * opaque color, so text on a data mark always clears WCAG AA; a brightness
+ * threshold picks the weaker ink for mid-tone fills. */
 export function contrastTextColor(fill: string): string | undefined {
   const rgb = parseHexToRgb(fill) ?? parseRgbFunction(fill)
   if (!rgb) return undefined
-  const brightness = luma255(rgb.r, rgb.g, rgb.b)
-  return brightness > 140 ? '#000000' : '#FFFFFF'
+  const luminance = relativeLuminance(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)!
+  return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? '#000000' : '#FFFFFF'
 }
 
 export function resolveInlineNodeTextColor(
@@ -153,4 +157,57 @@ export function resolveInlineNodeTextColor(
   if (inlineStyle?.color) return inlineStyle.color
   if (inlineStyle?.fill) return contrastTextColor(inlineStyle.fill) ?? fallback
   return fallback
+}
+
+/** The theme's own text tones: the only paints toneOnFill moves. */
+const THEME_TEXT_TONES: ReadonlySet<string> = new Set(['var(--_text)', 'var(--_text-sec)', 'var(--_text-muted)', 'var(--_text-faint)'])
+
+/**
+ * A theme tone inked for a fill the author did not choose: a node's own fill,
+ * or a tint of it. The tones are repaired against the page, and a custom
+ * `surface` can put the node fill far from it (black nodes on a white page),
+ * so the tone is kept where it reads on the fill at WCAG AA and moved toward
+ * black or white just far enough where it does not. The faint tone is
+ * decoration (separators), held to the 3:1 of non-text contrast as the theme
+ * holds it. Any other paint is returned as it is, and so is a tone or fill
+ * that is not concrete: its color is only known at runtime. Callers pass a
+ * Style's own text color around this, not through it: the Style chose it for
+ * its own fill, and verify reports it when it fails.
+ */
+export function toneOnFill(tone: string, fill: string, colors: DiagramColors): string {
+  if (!THEME_TEXT_TONES.has(tone)) return tone
+  const resolvedTone = resolvedColorValue(tone, colors)
+  const resolvedFill = resolvedColorValue(fill, colors)
+  const composite = resolvedTone && resolvedFill ? compositeCssColor(resolvedFill, resolvedColorValue('var(--bg)', colors) ?? '#ffffff') : null
+  if (!composite) return tone
+  const minimum = tone === 'var(--_text-faint)' ? WCAG_AA_NON_TEXT_CONTRAST : WCAG_AA_TEXT_CONTRAST
+  const ink = legibleInk(resolvedTone!, toHex(...composite), minimum)
+  return ink === resolvedTone ? tone : ink
+}
+
+/**
+ * Ink for text a family draws on a node. The author's `color` wins. On an
+ * author-styled shape (`style X fill:…`) each tone the family would use (name,
+ * secondary, muted) is kept where it reads on the author's fill at WCAG AA and
+ * moved toward black or white just far enough where it does not. On an
+ * unstyled one the theme tones are inked for `nodeFill`, the Style's or the
+ * theme's node fill (toneOnFill); it is omitted when the Style sets the text
+ * color, which then owns the text on its own fills. Either way a dark fill the
+ * author chose never swallows theme-colored text.
+ */
+export function inkOnNodeFill(
+  inlineStyle: Record<string, string> | undefined,
+  colors: DiagramColors,
+  nodeFill?: string,
+): (tone: string) => string {
+  const color = inlineStyle?.color
+  if (color) return () => color
+  if (!inlineStyle?.fill) return nodeFill === undefined ? tone => tone : tone => toneOnFill(tone, nodeFill, colors)
+  const composite = compositeCssColor(inlineStyle.fill, resolvedColorValue('var(--bg)', colors) ?? '#ffffff')
+  if (!composite) return tone => tone
+  const fill = toHex(...composite)
+  return tone => {
+    const resolved = resolvedColorValue(tone, colors)
+    return resolved ? legibleInk(resolved, fill) : contrastTextColor(fill) ?? tone
+  }
 }

@@ -45,7 +45,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    maxRequests: 31,
+    maxRequests: 29,
     maxRawBytes: 783_000,
     maxGzipBytes: 293_000,
     maxBrotliBytes: 267_500,

@@ -2889,6 +2889,24 @@ const WARNING_DETAIL: Record<string, { what: string; triggers: string; fix: stri
     fix: 'Choose a foreground or page color that meets the warning’s <code>minimum</code> ratio. The renderer preserves explicit authored paint, so re-run verify after changing the source rather than expecting an automatic repaint.',
     example: '---\nconfig:\n  themeVariables:\n    radar:\n      axisColor: "#dddddd"\n---\nradar-beta\n  axis speed, cost, safety\n  curve current{4,3,5}\n  max 5',
   },
+  LABELS_HIDDEN: {
+    what: 'an XY chart left out text the source asked for because it did not fit: category names on the x-axis, or bar value labels.',
+    triggers: 'Many or long category names under a vertical chart, where the axis thins its tick labels to avoid overlap or drops a category axis whose widest name does not fit; or a bar whose value label fits neither inside the bar nor in the plot beyond its end. <code>target</code> says which, and <code>labels</code> lists exactly what is missing.',
+    fix: 'Shorten the category names, flip the chart with <code>set_orientation {horizontal: true}</code> so categories run down the side, or widen the value range so labels have room beyond the bars.',
+    example: 'xychart-beta\n  x-axis ["North region", "South region", "East region", "West region", "Central region", "Coastal region", "Mountain region", "Desert region", "Island region", "Border region"]\n  bar [12, 18, 9, 22, 15, 11, 7, 5, 3, 8]',
+  },
+  BAR_RANGE_EXCLUDES_ZERO: {
+    what: 'an XY chart with bar series has an authored y-axis range that excludes zero, so bar lengths are not proportional to their values.',
+    triggers: 'A <code>y-axis min --> max</code> range entirely above or below zero. Bars grow from zero clamped into the range, so every bar starts at the reported <code>baseline</code> and small differences look large.',
+    fix: 'Include zero in the range with <code>set_y_axis</code>, or draw the series as a <code>line</code>, whose position (not length) carries the value.',
+    example: 'xychart-beta\n  x-axis [Q1, Q2, Q3]\n  y-axis 90 --> 100\n  bar [92, 95, 97]',
+  },
+  VALUES_OUTSIDE_RANGE: {
+    what: 'an XY chart has values outside its authored y-axis range, so the chart misstates them: a bar stops at the edge of the range and a line point is drawn past the plot.',
+    triggers: 'A <code>y-axis min --> max</code> range that does not reach every value of a series. The warning names the <code>series</code>, the <code>values</code> outside the range, and the <code>range</code> itself; a bar chart drawn with <code>bar [5, 20]</code> on <code>0 --> 10</code> shows the two bars at a 1:2 length ratio instead of 1:4.',
+    fix: 'Widen the range with <code>set_y_axis</code> so it reaches every value, or remove the range so the axis fits the data.',
+    example: 'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [5, 20]',
+  },
   BRAND_CONSTRAINT_WARNING: {
     what: 'an explicitly requested inspect-only Brand constraint failed or could not be measured.',
     triggers: 'A StyleSpec <code>contrast</code>, <code>accent-area</code>, or <code>mono-role</code> constraint with <code>action: "warn"</code> inspects final Scene paint. Transparent or unresolved compositing contexts report unmeasurable evidence without inventing a ratio.',

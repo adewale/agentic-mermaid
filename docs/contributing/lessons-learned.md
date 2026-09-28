@@ -1,5 +1,82 @@
 # Lessons learned
 
+## 2026-09 — landing a cross-cutting PR beside a fast merge stream (#281, #354)
+
+#281 changed rendering in every family: scoped SVG styles, a separated palette,
+per-label ink and halos. It stayed open for four days and was rebased about two
+dozen times while 63 other PRs merged to main, 30 of them in one day. Each green
+head was overtaken before it could merge. It landed about 90 minutes after the
+Codex merge stream was paused, and only after #354 reverted the 11
+official-fence receipt PRs that pinned the old rendering.
+
+**A PR that touches every family cannot live beside a fast merge stream.**
+Rebasing does not converge when main moves faster than regeneration plus CI.
+Rule: land a cross-cutting change in a short, announced merge freeze, or split
+it into slices that each merge within hours.
+
+**Whole-output hashes are change detectors, not tests.** The receipts pinned
+SHA-256 digests of whole SVGs, so any byte change broke them, even a new style
+scope class, while the semantic checks in the same receipts never conflicted.
+Rule: assert the facts a receipt exists for (colors, ink, contrast, drawn text),
+and keep byte-exact snapshots in one regenerable, approval-gated place.
+
+**Do not resolve conflicts by rewriting another author's assertions.** Seven
+commits on #281's branch rewrote those receipts to match its output. That hid
+the real problem, which was merge order, and blurred who owned the tests.
+Reverting the receipts (#354) and leaving their author to re-land them against
+the new rendering fixed it in one step. Rule: when another author's tests pin
+behavior your change deliberately alters, revert them and let the author
+re-land; do not edit their assertions from your branch.
+
+**Committed generated files turn every rebase into a regeneration job.** 41 of
+#281's 68 commits were bookkeeping, and each rebase cost 30–40 minutes
+including CI. Rule: generate derived reports in CI and check their freshness
+there (#304, #331) instead of committing them.
+
+**When a loop does not converge, escalate instead of automating harder.** An
+hourly rebase-and-republish loop kept #281 current for days. The blocker was a
+decision only the maintainer could make: pause the stream and merge. Rule: after
+a green head is overtaken twice, stop and ask for that decision.
+
+**Keep PR descriptions short and stable.** #281's 60 KB description carried
+commit hashes, counts, and rebase tallies, so it was rewritten more than 40
+times. Rule: say what, why, how to verify, and the risk; leave volatile facts to
+CI output.
+
+**Stacked PRs that edit adjacent lines conflict even when both are right.**
+After #354 merged, #281 conflicted in two generated reports because its rows sat
+next to the revert's edits. Rule: merge the base, replay the top PR onto the new
+main without changing its tree, let CI run once on that exact head, then merge.
+
+## 2026-09 — the silent deploy freeze (0.4.2, found by #335)
+
+`package.json` moved to 0.4.2 on 3 August (#250), and 0.4.2 was never
+published. The deploy workflow treats a version missing from npm as "not yet":
+it skips every deploy step and ends green. For eight weeks every merge produced
+a green deploy run while agentic-mermaid.dev kept serving the 0.4.1 build from
+31 July, 87 main commits behind. A verification audit (#335) found it; no alarm
+did.
+
+**A precondition that blocks the job must not end green.** The 2026-07
+transaction rule below guarded every step after the npm check, but not the check
+itself, and a skip that reports success looks exactly like a deploy. Rule: a
+blocked job fails, or leaves a visible waiting state with a deadline after which
+it fails.
+
+**When the site deploys only published bytes, release cadence is part of
+production health.** The site pins `unpkg.com/agentic-mermaid@<version>` and
+deploys only a build byte-identical to that npm package. That held while
+releases came every day or two (0.3.1 to 0.4.1 in four days) and froze
+production when they stopped. Rule: choose the release cadence explicitly, or
+decouple the site from npm; never leave production freshness to whoever
+remembers to publish.
+
+**An alarm that is always red is as blind as a false green.** Failing the
+deploy on every merge between releases, plus a daily check for the same cause,
+would make red the normal state at up to 30 merges a day. Rule: one signal per
+cause, red only when someone must act; prefer a grace period or deadline to a
+failure on every event.
+
 ## 2026-08 — shrinkable flowchart mutation contracts
 
 **Parseability is too weak an oracle for typed mutation.** The original
