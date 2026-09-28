@@ -68,13 +68,6 @@ export const RADAR_WIRED_CONFIG_FIELDS = [
   'useMaxWidth', 'tickLabels',
 ] as const
 
-/** Accepted-but-unwired keys; each presence emits INEFFECTIVE_CONFIG. Radar
- *  theme colors flow through the Style + Palette system, so the config-section
- *  color/stroke knobs are honestly reported as no-ops rather than duplicated. */
-export const RADAR_NOOP_CONFIG_FIELDS = [
-  'useWidth',
-] as const
-
 export const RADAR_THEME_FIELDS = [
   'axisColor', 'axisStrokeWidth', 'axisLabelFontSize',
   'curveOpacity', 'curveStrokeWidth',

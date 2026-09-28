@@ -17,8 +17,9 @@
 //     quadrantExternalBorderStrokeWidth  → outer border
 //     useMaxWidth (base config)          → responsive SVG root (100% width)
 //
-//   NOT WIRED (accepted for Mermaid config-shape compatibility; each presence
-//   emits the INEFFECTIVE_CONFIG Tier-3 lint via verify — P4):
+//   NOT WIRED (accepted for Mermaid config-shape compatibility; listed in the
+//   registry's quadrant config.noopKeys in src/agent/families.ts, and each
+//   presence emits the INEFFECTIVE_CONFIG Tier-3 lint via verify — P4):
 //     xAxisPosition, yAxisPosition       → axes always render bottom/left
 //     quadrantTextTopPadding             → region labels are centered, never
 //                                          top-anchored
@@ -60,11 +61,6 @@ export const QUADRANT_WIRED_CONFIG_FIELDS = [
   'pointLabelFontSize', 'pointRadius', 'pointTextPadding',
   'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth',
   'useMaxWidth',
-] as const
-
-/** Accepted-but-unwired keys; each presence emits INEFFECTIVE_CONFIG. */
-export const QUADRANT_NOOP_CONFIG_FIELDS = [
-  'quadrantTextTopPadding', 'xAxisPosition', 'yAxisPosition', 'useWidth',
 ] as const
 
 const POSITIVE_FIELDS = [

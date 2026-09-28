@@ -4,7 +4,6 @@ import type { RenderOptions, TextTransform } from '../types.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
 // Deterministic spacing defaults, shared with layout.ts so the
 // idealEdgeLengthMultiplier mapping and the layout fallback cannot drift.
@@ -300,23 +299,6 @@ export function resolveArchitectureRenderOptions(
     nodeSpacing: options.nodeSpacing ?? nodeSpacing,
     layerSpacing: options.layerSpacing ?? layerSpacing,
   }
-}
-
-/**
- * Documented architecture config keys accepted for Mermaid config-shape
- * compatibility but NOT wired to any geometry or paint: they tune upstream's
- * fcose force simulation, which has no analogue in this deterministic layout.
- * Verify names each present key via INEFFECTIVE_CONFIG (P4). The wired keys —
- * nodeSeparation, idealEdgeLengthMultiplier, padding, iconSize, fontSize —
- * never appear here.
- */
-export const ARCHITECTURE_NOOP_CONFIG_FIELDS = [
-  'edgeElasticity', 'numIter', 'randomize', 'seed',
-] as const
-
-/** Which documented-but-unwired `architecture` config fields are present (sorted). */
-export function architectureIneffectiveConfigFields(configs: unknown[]): string[] {
-  return ineffectiveFieldsPresent(configs, ARCHITECTURE_NOOP_CONFIG_FIELDS)
 }
 
 export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): ArchitectureLayoutMetrics {

@@ -6,7 +6,7 @@
 // per-role font sizes, paddings, border stroke widths, axis positions, and
 // the base useWidth/useMaxWidth. Wired keys have real geometry/paint effects;
 // every accepted-but-unwired key emits the INEFFECTIVE_CONFIG Tier-3 lint
-// (journey's JOURNEY_NOOP_CONFIG_FIELDS pattern) — P4: a documented
+// (the registry's config.noopKeys in src/agent/families.ts) — P4: a documented
 // limitation must be a runtime diagnostic, never a silent no-op.
 // ============================================================================
 
@@ -17,10 +17,10 @@ import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import {
   resolveQuadrantVisualConfig,
   QUADRANT_WIRED_CONFIG_FIELDS,
-  QUADRANT_NOOP_CONFIG_FIELDS,
 } from '../quadrant/config.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { getFamily } from '../agent/families.ts'
 
 const BODY = `quadrantChart
   x-axis Urgent --> Not Urgent
@@ -136,7 +136,8 @@ describe('quadrant unwired config keys emit INEFFECTIVE_CONFIG', () => {
 
   it('the wired and noop key sets partition the documented schema with no overlap', () => {
     const wired = new Set<string>(QUADRANT_WIRED_CONFIG_FIELDS)
-    for (const field of QUADRANT_NOOP_CONFIG_FIELDS) {
+    const noop = getFamily('quadrant')!.config!.noopKeys!
+    for (const field of noop) {
       expect({ field, alsoWired: wired.has(field) }).toEqual({ field, alsoWired: false })
     }
     // The full upstream QuadrantChartConfig key list (config schema docs).
@@ -148,7 +149,7 @@ describe('quadrant unwired config keys emit INEFFECTIVE_CONFIG', () => {
       'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth',
       'useWidth', 'useMaxWidth',
     ]
-    const covered = new Set<string>([...QUADRANT_WIRED_CONFIG_FIELDS, ...QUADRANT_NOOP_CONFIG_FIELDS])
+    const covered = new Set<string>([...QUADRANT_WIRED_CONFIG_FIELDS, ...noop])
     for (const field of documented) {
       expect({ field, covered: covered.has(field) }).toEqual({ field, covered: true })
     }

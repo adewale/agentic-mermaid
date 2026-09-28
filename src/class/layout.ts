@@ -20,7 +20,6 @@ import type { ClassDiagram, ClassNode, ClassNamespace, ClassMember, PositionedCl
 import type { RenderOptions, Point } from '../types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
-import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -95,23 +94,6 @@ export function resolveClassRenderOptions(
 export function configSpacing(frontmatter: MermaidFrontmatterMap, family: string, key: string): number | undefined {
   const value = getFrontmatterScalar<number>(frontmatter, [family, key])
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
-}
-
-/**
- * Documented classDiagram config keys accepted for Mermaid config-shape
- * compatibility but NOT wired to any class geometry or paint (P4: each
- * presence is named by verify's INEFFECTIVE_CONFIG lint). The wired keys —
- * nodeSpacing, rankSpacing — never appear here.
- */
-export const CLASS_NOOP_CONFIG_FIELDS = [
-  'arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin',
-  'hideEmptyMembersBox', 'htmlLabels', 'padding',
-  'textHeight', 'titleTopMargin',
-] as const
-
-/** Which documented-but-unwired `class` config fields are present (sorted). */
-export function classIneffectiveConfigFields(configs: unknown[]): string[] {
-  return ineffectiveFieldsPresent(configs, CLASS_NOOP_CONFIG_FIELDS)
 }
 
 type ClassSizeMap = Map<string, { width: number; height: number; headerHeight: number; attrHeight: number; methodHeight: number }>

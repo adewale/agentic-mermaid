@@ -19,7 +19,8 @@
 //   sankey.nodeColors    map label -> css color (v11.15.0+)
 //
 // Wire-or-warn (P4): every documented key is either resolved here or named in
-// the SANKEY_NOOP_* lists that verify surfaces as Tier-3 INEFFECTIVE_CONFIG.
+// the registry's sankey config.noopKeys (src/agent/families.ts), which verify
+// surfaces as Tier-3 INEFFECTIVE_CONFIG.
 // ============================================================================
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
@@ -137,6 +138,3 @@ export function resolveSankeyVisualConfig(frontmatter: MermaidFrontmatterMap = {
 
 /** Documented sankey config keys wired by this family. */
 export const SANKEY_WIRED_CONFIG_FIELDS = ['width', 'height', 'linkColor', 'nodeAlignment', 'showValues', 'prefix', 'suffix', 'labelStyle', 'nodeWidth', 'nodePadding', 'nodeColors'] as const
-
-/** Documented-but-unwired sankey config section fields (Tier-3 INEFFECTIVE_CONFIG). */
-export const SANKEY_NOOP_CONFIG_FIELDS = ['useMaxWidth'] as const

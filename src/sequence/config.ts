@@ -1,9 +1,10 @@
 // ============================================================================
-// Sequence runtime config — the single wire-or-warn table (family-elevation-
+// Sequence runtime config — wire-or-warn (family-elevation-
 // plan §Sequence item 6, config half; the class/er/flowchart pattern).
 //
 // Mermaid's documented SequenceDiagramConfig keys split into exactly two
-// buckets, defined HERE so wiring and warning cannot drift:
+// buckets: WIRED keys are resolved HERE; NOOP keys are the registry's sequence
+// config.noopKeys in src/agent/families.ts, which verify's lint reads:
 //
 //   WIRED (natural mappings in src/sequence/layout.ts):
 //     actorMargin      → gap between actor box edges (upstream: center gap =
@@ -49,16 +50,6 @@ const WIRED_NUMBER_FIELDS = [
 
 export const SEQUENCE_WIRED_CONFIG_FIELDS = [...WIRED_NUMBER_FIELDS, 'showSequenceNumbers'] as const
 
-/** Documented-but-unwired sequence config keys (Tier-3 INEFFECTIVE_CONFIG). */
-export const SEQUENCE_NOOP_CONFIG_FIELDS = [
-  'actorFontFamily', 'actorFontSize', 'actorFontWeight',
-  'arrowMarkerAbsolute', 'bottomMarginAdj', 'boxMargin', 'boxTextMargin',
-  'forceMenus', 'hideUnusedParticipants', 'labelBoxHeight', 'labelBoxWidth',
-  'messageAlign', 'messageFontFamily', 'messageFontSize', 'messageFontWeight',
-  'mirrorActors', 'noteAlign', 'noteFontFamily', 'noteFontSize', 'noteFontWeight',
-  'rightAngles', 'useMaxWidth', 'useWidth', 'wrap', 'wrapPadding',
-] as const
-
 /**
  * Resolve the wired `sequence` config section from the merged frontmatter map
  * (YAML frontmatter `config.sequence` and `%%{init: {"sequence": …}}%%` both
@@ -75,20 +66,4 @@ export function resolveSequenceConfig(frontmatter: MermaidFrontmatterMap | undef
   const numbers = getFrontmatterScalar<boolean>(frontmatter, ['sequence', 'showSequenceNumbers'])
   if (numbers === true) out.showSequenceNumbers = true
   return out
-}
-
-/**
- * NOOP keys present in the given config objects, sorted. Verify's
- * INEFFECTIVE_CONFIG lint does not call this: it reads the registry's
- * sequence config.noopKeys in src/agent/families.ts.
- */
-export function sequenceIneffectiveConfigFields(configs: unknown[]): string[] {
-  const present = new Set<string>()
-  for (const config of configs) {
-    if (!config || typeof config !== 'object') continue
-    for (const field of SEQUENCE_NOOP_CONFIG_FIELDS) {
-      if (field in (config as Record<string, unknown>)) present.add(field)
-    }
-  }
-  return [...present].sort()
 }

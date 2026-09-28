@@ -33,30 +33,6 @@ import { wrapLabelToWidth } from './shared/label-wrap.ts'
 export const FLOWCHART_DEFAULT_WRAPPING_WIDTH = 200
 
 /**
- * Documented flowchart config keys accepted for Mermaid config-shape
- * compatibility but NOT wired to any flowchart geometry or paint (P4: each
- * presence is named by verify's INEFFECTIVE_CONFIG lint). The wired keys —
- * nodeSpacing, rankSpacing, wrappingWidth — never appear here.
- */
-export const FLOWCHART_NOOP_CONFIG_FIELDS = [
-  'arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding',
-  'htmlLabels', 'inheritDir', 'padding', 'subGraphTitleMargin', 'titleTopMargin',
-] as const
-
-/** The documented-but-unwired flowchart config fields present in any of the
- *  given config sections (frontmatter + init directives), sorted. */
-export function flowchartIneffectiveConfigFields(configs: unknown[]): string[] {
-  const present = new Set<string>()
-  for (const config of configs) {
-    if (!config || typeof config !== 'object') continue
-    for (const field of FLOWCHART_NOOP_CONFIG_FIELDS) {
-      if (field in (config as Record<string, unknown>)) present.add(field)
-    }
-  }
-  return [...present].sort()
-}
-
-/**
  * Fold the typed `flowchart` frontmatter config section into RenderOptions:
  * nodeSpacing/rankSpacing/wrappingWidth are the wired keys — explicit
  * RenderOptions always win over frontmatter.
