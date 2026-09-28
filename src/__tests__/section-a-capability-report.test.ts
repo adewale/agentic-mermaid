@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { build as buildWithEsbuild } from 'esbuild'
 import {
   ALL_FAMILY_CAPABILITY_KEYS_ORDERED,
   ALL_RENDER_TRANSPORT_KEYS_ORDERED,
@@ -36,16 +37,35 @@ const ROOT = join(import.meta.dir, '..', '..')
 const MARKDOWN = join(ROOT, 'docs', 'project', 'section-a-capability-report.md')
 
 describe('Section A capability report', () => {
-  test('stays repository tooling without pulling audit corpora into the published surface', () => {
+  test('stays repository tooling without pulling audit corpora into the published surface', async () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     expect(pkg.exports['./capabilities']).toBeUndefined()
     expect(pkg.exports['./resources']).toBeUndefined()
     expect(existsSync(join(ROOT, 'src', 'capabilities.ts'))).toBe(false)
     expect(existsSync(join(ROOT, 'src', 'resources.ts'))).toBe(false)
-    const rendererBarrel = readFileSync(join(ROOT, 'src/index.ts'), 'utf8')
-    expect(rendererBarrel).not.toContain("'./section-a-capability-report.ts'")
-    expect(rendererBarrel).not.toContain("'./upstream-mermaid-manifest.ts'")
-  })
+    // Transitive, not just direct: bundle each importable library entry
+    // (tsup's declaration entries) and inspect what it actually pulls in.
+    const auditModules = /(?:^|\/)src\/(?:section-a-capability-report|upstream-mermaid-manifest)\.ts$/
+    const pulled = await Promise.all(['src/index.ts', 'src/agent/index.ts', 'src/agent/core.ts'].map(async entry => {
+      const bundled = await buildWithEsbuild({
+        entryPoints: [join(ROOT, entry)],
+        absWorkingDir: ROOT,
+        bundle: true,
+        write: false,
+        metafile: true,
+        platform: 'node',
+        format: 'esm',
+        packages: 'external',
+        logLevel: 'silent',
+      })
+      return { entry, auditModules: Object.keys(bundled.metafile.inputs).filter(input => auditModules.test(input)) }
+    }))
+    expect(pulled).toEqual([
+      { entry: 'src/index.ts', auditModules: [] },
+      { entry: 'src/agent/index.ts', auditModules: [] },
+      { entry: 'src/agent/core.ts', auditModules: [] },
+    ])
+  }, 30_000)
 
   test('is a valid, immutable, JSON-safe projection of live authorities', () => {
     const report = createSectionACapabilityReport()

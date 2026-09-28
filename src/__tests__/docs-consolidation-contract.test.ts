@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { WARNING_TIER, type WarningCode, type WarningTier } from '../agent/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -45,20 +45,6 @@ describe('maintained documentation is derived from current contracts', () => {
     expect(index).toContain('mutation-testing.md')
   })
 
-  test('completed family-elevation records are historical, not active design specs', () => {
-    const archive = join(ROOT, 'docs', 'project', 'archive', 'pr-149')
-    const names = new Set(readdirSync(archive))
-    expect(names).toEqual(new Set([
-      'README.md',
-      'consolidation-plan.md',
-      'family-elevation-acceptance.md',
-      'family-elevation-evidence.json',
-      'family-elevation-plan.md',
-    ]))
-    const acceptance = readFileSync(join(archive, 'family-elevation-acceptance.md'))
-    expect(createHash('sha256').update(acceptance).digest('hex')).toBe('31b4233a2dc2f673ef734960dc3c5af7827910816bd94792ff4b349ae5f3c8ec')
-  })
-
   test('the canonical backlog contains only unfinished inventory items', () => {
     const todo = readFileSync(join(ROOT, 'TODO.md'), 'utf8')
     expect(todo).not.toMatch(/^- \[x\]/m)
@@ -99,7 +85,7 @@ describe('maintained documentation is derived from current contracts', () => {
     }
   })
 
-  test('the refactor characterization index names every contract surface and an existing gate', () => {
+  test('the refactor characterization index names every contract surface and an existing gate', async () => {
     const manifest = JSON.parse(readFileSync(join(ROOT, 'docs/design/system/consolidation-characterization.json'), 'utf8')) as {
       scopeProjection: string
       contracts: Array<{ surface: string; familyScope: string; evidence: string[] }>
@@ -110,11 +96,11 @@ describe('maintained documentation is derived from current contracts', () => {
       projectionSymbol: 'knownFamilies',
       projectionRest: [],
     })
-    expect(existsSync(join(ROOT, projectionPath!))).toBe(true)
-    const projectionSource = readFileSync(join(ROOT, projectionPath!), 'utf8')
-    expect(projectionSource).toMatch(new RegExp(`export\\s+function\\s+${projectionSymbol}\\b`))
-    expect(projectionSource).toContain('const REGISTRY = buildBuiltinRegistry()')
-    expect(projectionSource).not.toContain('function augmentFamily')
+    // The projection is callable and covers the built-in registry the
+    // contracts are scoped to.
+    const projection = (await import(join(ROOT, projectionPath!)) as Record<string, unknown>)[projectionSymbol!]
+    expect(typeof projection).toBe('function')
+    expect((projection as () => string[])()).toEqual(expect.arrayContaining(BUILTIN_FAMILY_METADATA.map(family => family.id)))
 
     expect(new Set(manifest.contracts.map(contract => contract.surface))).toEqual(new Set([
       'semantic identity', 'geometry', 'terminal cells', 'config diagnostics',

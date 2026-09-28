@@ -1,36 +1,29 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { markedMutationScopes } from '../../scripts/quality/marked-mutation-scopes.mjs'
 import { MUTATION_PROFILES } from '../../stryker.config.mjs'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
-function scopedSource(spec: string): string {
-  const match = /^(.*):(\d+)-(\d+)$/.exec(spec)
-  if (!match) throw new Error(`invalid mutation range: ${spec}`)
-  const [, file, startText, endText] = match
-  return readFileSync(join(ROOT, file!), 'utf8')
-    .split(/\r?\n/)
-    .slice(Number(startText) - 1, Number(endText))
-    .join('\n')
-}
-
 describe('mutation profile policy', () => {
-  test('focused scopes follow semantic markers', () => {
-    const route = MUTATION_PROFILES['routes:certs']
-    expect(route.mutate).toHaveLength(2)
-    expect(scopedSource(route.mutate[0]!)).toContain('const finalizeCertificate')
-    expect(scopedSource(route.mutate[1]!)).toContain('ROUTE_STALE_AFTER_NODE_MOVE')
-
-    const subgraph = MUTATION_PROFILES['routes:subgraph']
-    expect(scopedSource(subgraph.mutate[0]!)).toContain('crossHierarchyEdges.push')
-    expect(scopedSource(subgraph.mutate[1]!)).toContain('function deepestCommonAncestor')
-
-    const links = MUTATION_PROFILES.links
-    expect(links.mutate).toHaveLength(3)
-    expect(scopedSource(links.mutate[0]!)).toContain('Math.max(extraOpen, extraClose)')
-    expect(scopedSource(links.mutate[1]!)).toContain("classes[i] === 'feedback'")
-    expect(scopedSource(links.mutate[2]!)).toContain('moveSet(separationUnit(ahead.id, behind.id)')
+  test('marked scopes resolve to exactly the lines between one ordered marker pair', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-mutation-scope-'))
+    try {
+      const write = (name: string, lines: string[]) => writeFileSync(join(dir, name), lines.join('\n'))
+      write('ok.ts', ['a', '  // mutation-scope:x:start', 'b', 'c', '  // mutation-scope:x:end', 'd'])
+      expect(markedMutationScopes(dir, [{ file: 'ok.ts', marker: 'x' }])).toEqual(['ok.ts:3-4'])
+      write('missing.ts', ['// mutation-scope:x:start', 'b'])
+      write('duplicate.ts', ['// mutation-scope:x:start', 'b', '// mutation-scope:x:end', '// mutation-scope:x:start', 'c', '// mutation-scope:x:end'])
+      write('reversed.ts', ['// mutation-scope:x:end', 'b', '// mutation-scope:x:start'])
+      write('empty.ts', ['// mutation-scope:x:start', '// mutation-scope:x:end'])
+      for (const file of ['missing.ts', 'duplicate.ts', 'reversed.ts', 'empty.ts']) {
+        expect(() => markedMutationScopes(dir, [{ file, marker: 'x' }])).toThrow('mutation-scope marker pair')
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   test('one package command selects every profile', () => {
