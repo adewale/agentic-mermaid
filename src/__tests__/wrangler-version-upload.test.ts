@@ -1,11 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { parse as parseYaml } from 'yaml'
 import { resolveWranglerVersionUpload } from '../../scripts/ci/resolve-wrangler-version-upload'
 
 const WORKER = 'agentic-mermaid-website'
 const VERSION_ID = '556b9e5c-895c-4b19-958b-964a90322a1d'
-const DEPLOY_WORKFLOW = readFileSync(join(import.meta.dir, '..', '..', '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')
+const REPO = join(import.meta.dir, '..', '..')
+const PARSER = join(REPO, 'scripts', 'ci', 'resolve-wrangler-version-upload.ts')
+const DEPLOY_WORKFLOW = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')) as {
+  jobs: Record<string, { steps?: Array<{ run?: string; 'working-directory'?: string }> }>
+}
 
 describe('Wrangler version-upload output', () => {
   test('treats worker_tag as an opaque Cloudflare identifier', () => {
@@ -35,7 +40,9 @@ describe('Wrangler version-upload output', () => {
   })
 
   test('the production workflow delegates candidate resolution to the tested parser', () => {
-    expect(DEPLOY_WORKFLOW).toContain('bun run ../scripts/ci/resolve-wrangler-version-upload.ts')
-    expect(DEPLOY_WORKFLOW).not.toContain('.worker_tag == $tag')
+    const steps = Object.values(DEPLOY_WORKFLOW.jobs).flatMap(job => job.steps ?? [])
+    const invocations = steps.flatMap(step => [...(step.run ?? '').matchAll(/\bbun run (\S*resolve-wrangler-version-upload\.ts)\b/g)]
+      .map(match => resolve(REPO, step['working-directory'] ?? '.', match[1]!)))
+    expect(invocations).toEqual([PARSER])
   })
 })
