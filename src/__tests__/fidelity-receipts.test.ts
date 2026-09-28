@@ -284,6 +284,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/pie-entity-display.fidelity.ts',
       'fidelity/cases/pie-official-fences.fidelity.ts',
       'fidelity/cases/pie-terminal-control.fidelity.ts',
+      'fidelity/cases/sankey-official-config-fences.fidelity.ts',
       'fidelity/cases/sankey-official-csv-fences.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
       'fidelity/cases/timeline-direction.fidelity.ts',
@@ -325,6 +326,9 @@ describe('issue #248 construct fidelity receipts', () => {
       'sankey.official.fence-2',
       'sankey.official.fence-3',
       'sankey.official.fence-4',
+      'sankey.official.fence-5',
+      'sankey.official.fence-6',
+      'sankey.official.fence-7',
       'state.comments.trailing-transition-loss',
       'timeline.direction.td-vertical-geometry',
       'timeline.direction.unsupported-header-diagnosis',
@@ -344,12 +348,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 48,
-      passedCaseCount: 48,
+      caseCount: 51,
+      passedCaseCount: 51,
       failedCaseCount: 0,
-      observedSurfaceCount: 170,
+      observedSurfaceCount: 179,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 22,
+      notApplicableSurfaceCount: 25,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -645,6 +649,72 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'render',
         path: ['labels', 0, 'linePositions', 1, 'x'],
         replacement: 1000,
+      },
+      {
+        caseId: 'sankey.official.fence-5',
+        surface: 'agent',
+        path: ['config', 'labelStyle'],
+        replacement: 'legacy',
+      },
+      {
+        caseId: 'sankey.official.fence-5',
+        surface: 'render',
+        path: ['labels', 1, 'stroke'],
+        replacement: null,
+      },
+      {
+        caseId: 'sankey.official.fence-5',
+        surface: 'render',
+        path: ['labels', 1, 'textLength'],
+        replacement: 1,
+      },
+      {
+        caseId: 'sankey.official.fence-5',
+        surface: 'render',
+        path: ['labels', 1, 'strokeOpacity'],
+        replacement: '0',
+      },
+      {
+        caseId: 'sankey.official.fence-6',
+        surface: 'render',
+        path: ['nodes', 1, 'width'],
+        replacement: 10,
+      },
+      {
+        caseId: 'sankey.official.fence-6',
+        surface: 'render',
+        path: ['nodes', 2, 'y'],
+        replacement: 110,
+      },
+      {
+        caseId: 'sankey.official.fence-7',
+        surface: 'render',
+        path: ['nodes', 2, 'fill'],
+        replacement: '#5f79f2',
+      },
+      {
+        caseId: 'sankey.official.fence-7',
+        surface: 'render',
+        path: ['nodes', 2, 'fillOpacity'],
+        replacement: '0',
+      },
+      {
+        caseId: 'sankey.official.fence-7',
+        surface: 'render',
+        path: ['links', 1, 'strokeOpacity'],
+        replacement: '0',
+      },
+      {
+        caseId: 'sankey.official.fence-7',
+        surface: 'render',
+        path: ['gradients', 1, 'stops', 1, 'opacity'],
+        replacement: '0',
+      },
+      {
+        caseId: 'sankey.official.fence-7',
+        surface: 'serialize',
+        path: ['config', 'nodeColors', 'Industry'],
+        replacement: '#5f79f2',
       },
       {
         caseId: 'sankey.links.typed-gradient-endpoints',

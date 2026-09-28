@@ -3,13 +3,13 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "81586381e6a0e893fcdf9ed9a72466fd982e78a87dad8fe78c36d0141c1b217a",
-  "receiptResultSha256": "967bddd1fef26f35be26682bab56af279528828b1578c31cbaa70fe4d5ade7c8",
+  "receiptInputSha256": "3900d18dc317593e74720b270267fc1003b7de2a9397902339621f34b2ccd2e1",
+  "receiptResultSha256": "bdf40c086b84bc46f2eb5ebed08031d792b9615f3c3e709c0798056afa9b79f0",
   "summary": {
-    "caseCount": 48,
-    "featureCount": 27,
+    "caseCount": 51,
+    "featureCount": 30,
     "dispositions": {
-      "native": 12,
+      "native": 15,
       "source-preserved": 0,
       "diagnosed": 8,
       "absent": 7
@@ -809,6 +809,42 @@
       "acceptedDivergences": []
     },
     {
+      "featureId": "official-doc:sankey:section:custom-node-colors-v11-15-0",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-7"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-7",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
       "featureId": "official-doc:sankey:section:double-quotes",
       "family": "sankey",
       "disposition": "native",
@@ -872,6 +908,42 @@
             "mutate": {
               "notApplicable": [
                 "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:sankey:section:label-style-v11-15-0",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-5"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-5",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
               ]
             }
           },
@@ -948,6 +1020,42 @@
             "render": "native",
             "serialize": "native",
             "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:sankey:section:node-width-and-padding-v11-15-0",
+      "family": "sankey",
+      "disposition": "native",
+      "caseIds": [
+        "sankey.official.fence-6"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "sankey.official.fence-6",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+              ]
+            }
           },
           "diagnostics": {}
         }
