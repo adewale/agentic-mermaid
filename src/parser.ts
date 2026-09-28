@@ -1,5 +1,5 @@
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.ts'
-import { normalizeBrTags } from './multiline-utils.ts'
+import { normalizeBrTags, normalizePlainLabel } from './multiline-utils.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
@@ -191,10 +191,14 @@ interface ParsedLabelText {
 }
 
 /**
- * ONE label normalization for node and edge labels: a quoted backtick string
- * ("`…`") is a Mermaid markdown string — backticks consumed, styling
- * retained as formatted runs — while everything else keeps the existing
- * normalizeBrTags pipeline (quote stripping, <br> handling, emphasis→tags).
+ * ONE label normalization for node, edge and subgraph labels: a quoted
+ * backtick string ("`…`") is a Mermaid markdown string — backticks consumed,
+ * styling retained as formatted runs — while everything else is plain text
+ * whose `*`/`~` stay literal, as upstream keeps them. Both trim boundary
+ * whitespace like upstream's flowchart DB, and typed mutations trim to match
+ * (flowchart-body.ts). Upstream keeps it in a `@{ label }` value, which renders
+ * the same; trimming there too lets the serializer's bracket form re-parse to
+ * the same label.
  * `alreadyUnquoted` marks callers whose grammar consumed the double quotes
  * (consumeQuotedNode, parseMetadataLabel).
  */
@@ -204,9 +208,9 @@ function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
     : raw
   const quoteConsumed = alreadyUnquoted || unquoted !== raw
   if (quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')) {
-    return { text: markdownStringToFormattedText(unquoted.slice(1, -1)), markdown: true }
+    return { text: markdownStringToFormattedText(unquoted.slice(1, -1).trim()), markdown: true }
   }
-  return { text: normalizeBrTags(raw), markdown: false }
+  return { text: normalizePlainLabel(unquoted.trim()), markdown: false }
 }
 
 function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: string } {
@@ -1083,8 +1087,7 @@ function parseEdgeLine(
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
-        const rawEdgeLabel = pipeLabel.rawLabel.trim()
-        edgeLabel = rawEdgeLabel ? parseLabelText(rawEdgeLabel).text : undefined
+        edgeLabel = parseLabelText(pipeLabel.rawLabel.trim()).text || undefined
         consumed += pipeLabel.consumed
       }
       remaining = remaining.slice(consumed).trim()
@@ -1099,7 +1102,7 @@ function parseEdgeLine(
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
       hasArrowStart = textArrow.hasArrowStart
-      edgeLabel = parseLabelText(textArrow.rawLabel).text
+      edgeLabel = parseLabelText(textArrow.rawLabel).text || undefined
       remaining = remaining.slice(textArrow.consumed).trim()
       style = textArrowStyleFromOps(textArrow.openOp, textArrow.closeOp)
       length = textArrowLengthFromOps(textArrow.openOp, textArrow.closeOp)

@@ -484,7 +484,10 @@ const xychartUnknownStatementSeam: FidelityCaseDefinition = {
   },
 }
 
+// Upstream trims boundary whitespace from link text; parse, render,
+// serialization and typed mutation all close over the trimmed label.
 const flowchartBoundaryWhitespaceSource = `${['flowchart TD', '  A -->|" a "| B'].join('\n')}\n`
+const flowchartBoundaryWhitespaceCanonical = `${['flowchart TD', '  A -->|a| B'].join('\n')}\n`
 
 function matchesFlowchartEdges(value: FidelityJson, expected: readonly Readonly<Record<string, string>>[]): boolean {
   const semanticFacts = record(value, 'flowchart facts')
@@ -547,29 +550,29 @@ const flowchartBoundaryWhitespaceMutation: FidelityCaseDefinition = {
   upstreamReference: 'https://mermaid.ai/open-source/syntax/flowchart.html#text-on-links',
   upstreamRevision: UPSTREAM_REVISION,
   expected: {
-    agent: applicable('native', evidence => (matchesFlowchartEdges(facts(evidence).diagram ?? null, [{ source: 'A', target: 'B', label: ' a ' }]) ? 'native' : 'absent')),
+    agent: applicable('native', evidence => (matchesFlowchartEdges(facts(evidence).diagram ?? null, [{ source: 'A', target: 'B', label: 'a' }]) ? 'native' : 'absent')),
     render: applicable('native', evidence =>
-      matchesRenderedFlowchart(facts(evidence).rendered ?? null, [{ source: 'A', target: 'B', label: ' a ' }]) ? 'native' : 'absent',
+      matchesRenderedFlowchart(facts(evidence).rendered ?? null, [{ source: 'A', target: 'B', label: 'a' }]) ? 'native' : 'absent',
     ),
     serialize: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
-      return semanticFacts.serializedSource === flowchartBoundaryWhitespaceSource && semanticFacts.reserializedSource === flowchartBoundaryWhitespaceSource && matchesFlowchartEdges(semanticFacts.reparsedDiagram ?? null, [{ source: 'A', target: 'B', label: ' a ' }]) ? 'native' : 'absent'
+      return semanticFacts.serializedSource === flowchartBoundaryWhitespaceCanonical && semanticFacts.reserializedSource === flowchartBoundaryWhitespaceCanonical && matchesFlowchartEdges(semanticFacts.reparsedDiagram ?? null, [{ source: 'A', target: 'B', label: 'a' }]) ? 'native' : 'absent'
     }),
     mutate: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
       const expectedEdges = [
-        { source: 'A', target: 'B', label: ' a ' },
-        { source: 'B', target: 'A', label: ' b ' },
+        { source: 'A', target: 'B', label: 'a' },
+        { source: 'B', target: 'A', label: 'b' },
       ]
       return semanticFacts.mutationOk === true &&
         typeof semanticFacts.serializedSource === 'string' &&
-        semanticFacts.serializedSource.includes('B -->|" b "| A') &&
+        semanticFacts.serializedSource.includes('B -->|b| A') &&
         semanticFacts.reserializedSource === semanticFacts.serializedSource &&
         matchesFlowchartEdges(semanticFacts.mutatedDiagram ?? null, expectedEdges) &&
         matchesFlowchartEdges(semanticFacts.reparsedDiagram ?? null, expectedEdges) &&
         matchesRenderedFlowchart(semanticFacts.rendered ?? null, [
-          { source: 'A', target: 'B', label: ' a ' },
-          { source: 'B', target: 'A', label: ' b ' },
+          { source: 'A', target: 'B', label: 'a' },
+          { source: 'B', target: 'A', label: 'b' },
         ])
         ? 'native'
         : typeof semanticFacts.errorCode === 'string'

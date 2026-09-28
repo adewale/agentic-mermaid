@@ -5,6 +5,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Flowchart plain labels keep `*`, `**` and `~~` as literal text, as upstream
+  Mermaid does; only markdown strings (`` "`…`" ``) format them. `LABEL_OVERFLOW`
+  counts those characters as drawn.
+- Flowchart node, edge and subgraph labels trim leading and trailing
+  whitespace, as upstream does, and typed `add_node`, `set_label`, `add_edge`
+  and `add_subgraph` trim their labels the same way. Label whitespace is no
+  longer preserved.
+- Serialized flowcharts quote a node label or subgraph title containing `;`,
+  and write a subgraph title's line break as `<br>`, so the output re-parses.
 - Sequence participants that only a note names (`note left of A: …`,
   `note over A,B: …`) are now part of the typed body, facts, describe output
   and structural counts, in the order upstream Mermaid creates them.

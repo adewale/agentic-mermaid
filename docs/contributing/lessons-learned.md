@@ -95,6 +95,10 @@ label. The serializer now quotes those labels, and the minimized example is a
 fixed regression. Rule: when a target grammar's unquoted form normalizes an
 admitted value, choose a lossless quoted form rather than weakening the typed
 contract to match the parser's normalization.
+*Superseded for flowchart labels (2026-09):* the parser and typed mutations
+now both trim boundary whitespace, as upstream does, so no admitted label value
+is lost by the bare form. The rule still holds wherever a grammar normalizes a
+value the typed contract keeps.
 
 ## 2026-07 — the sankey enrollment audit (what the machinery forced vs. what it let slide)
 

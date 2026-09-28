@@ -4333,7 +4333,7 @@
       "labelsContain": [
         "D",
         "E",
-        " shape: rounded "
+        "shape: rounded"
       ]
     }
   },
@@ -4439,8 +4439,8 @@
       "minNodes": 4,
       "minEdges": 4,
       "labelsContain": [
-        " h ",
-        " test ",
+        "h",
+        "test",
         "C",
         "D",
         "hello"
@@ -7399,7 +7399,6 @@
       "groupCount": 0,
       "minNodes": 3,
       "labelsContain": [
-        " ",
         "Test",
         "C"
       ]

@@ -50,7 +50,7 @@ const DIRECTIONS: Direction[] = ['TB', 'TD', 'BT', 'RL', 'LR']
 // Node ids never collide with subgraph ids (S0, S1, …) or grammar keywords.
 const NODE_IDS = ['A', 'B', 'C', 'D', 'E', 'n1', 'n_2', 'Node3', 'k-1']
 const WORDS = ['alpha', 'Beta', 'gamma', 'D4', 'echo', 'Fox', 'go', 'ok', 'x9', 'Zed']
-const QUOTED_CHARS = 'abcXYZ019 ()[]{}<>:,.!?-_/&=+\''.split('') // no `*`/`~` (KD2), no `;` (KD4)
+const QUOTED_CHARS = 'abcXYZ019 ()[]{}<>:,.!?-_/&=+\'*~;'.split('')
 // Edge operators with a fixed spelling; labelled forms are built below.
 const ARROWS = ['-->', '---', '-.->', '==>', '-.-', '===', '--o', '--x', '<-->']
 
@@ -59,9 +59,7 @@ const labelArb: fc.Arbitrary<Label> = fc.oneof(
   wordsArb.map(text => ({ text, quoted: false })),
   fc
     .array(fc.constantFrom(...QUOTED_CHARS), { minLength: 1, maxLength: 12 })
-    .map(chars => chars.join('').trim()) // KD3: no boundary whitespace
-    .filter(text => text.length > 0)
-    .map(text => ({ text, quoted: true })),
+    .map(chars => ({ text: chars.join(''), quoted: true })),
 )
 const nodeRefArb: fc.Arbitrary<NodeRef> = fc.oneof(
   fc.constantFrom(...NODE_IDS).map(id => ({ id })),
@@ -135,40 +133,6 @@ function printFlowchart(chart: Flowchart): string {
   emit(chart.body, 1)
   return lines.join('\n')
 }
-
-// ---------------------------------------------------------------------------
-// Known divergences (found by this property; product code deliberately
-// unchanged). Each is steered around by the generator AND pinned below, so a
-// fix turns its pinned test red: delete the entry and its steering then.
-// ---------------------------------------------------------------------------
-
-const KNOWN_DIVERGENCES = {
-  // KD2: plain (non-markdown) node and edge labels get markdown-lite
-  // formatting (src/multiline-utils.ts normalizeBrTags: `*x*` → italic,
-  // `**x**` → bold, `~~x~~` → strike); upstream keeps the characters and only
-  // formats backtick markdown strings. Steering: no `*` or `~` in labels.
-  plainLabelMarkdown: [
-    { source: 'flowchart TB\n  A["*a*"]', upstream: 'A rectangle : *a*', ours: 'A rectangle : <i>a</i>' },
-    { source: 'flowchart TB\n  A[**b**]', upstream: 'A rectangle : **b**', ours: 'A rectangle : <b>b</b>' },
-  ],
-  // KD3: node labels (quoted or not) and quoted edge labels keep boundary
-  // whitespace; upstream's DB trims it. Ours looks deliberate (agent.test.ts
-  // "typed mutations preserve boundary whitespace in labels") but diverges.
-  // Steering: generated labels never start or end with a space.
-  boundaryWhitespace: [
-    { source: 'flowchart TB\n  A[" a "]', upstream: 'A rectangle : a', ours: 'A rectangle :  a ' },
-  ],
-} as const
-
-// KD4 (a round-trip bug, property iv): the serializer drops the quotes from a
-// `;`-bearing label, and `;` is a statement separator. Brackets shield it in
-// `A[;a]`, but not in an asymmetric `A>;a]` node or after a closing bracket in
-// a subgraph title, so our own parser rejects the serialized source.
-// Steering: labels never contain `;`.
-const KNOWN_ROUND_TRIP_BUGS = [
-  { source: 'flowchart TB\n  A>";a"] --> B', serializedLine: '  A>;a] --> B' },
-  { source: 'flowchart TB\n  subgraph S0 ["};a"]\n    A\n  end', serializedLine: '  subgraph S0[};a]' },
-] as const
 
 const sourceArb = flowchartArb.map(printFlowchart)
 
@@ -248,6 +212,9 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       'cylinder [( )]': /\w\[\(/,
       'hexagon {{ }}': /\w\{\{/,
       'quoted label': /[[({>]"/,
+      'quoted label with `*` or `~`': /"[^"\n]*[*~][^"\n]*"/,
+      'quoted label with `;`': /"[^"\n]*;[^"\n]*"/,
+      'quoted label with boundary whitespace': /"(?: [^"\n]*|[^"\n]* )"/,
       'unquoted label': /\w\[[a-zA-Z]/,
       '-->': / --> /,
       '---': / --- /,
@@ -293,22 +260,52 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     )
   }, 20_000)
 
-  test('each known divergence still diverges exactly as recorded', async () => {
-    for (const known of Object.values(KNOWN_DIVERGENCES).flat()) {
-      const upstreamParse = await upstream.parse(known.source)
-      expect(upstreamParse.ok).toBe(true)
-      if (!upstreamParse.ok) continue
-      expect({ source: known.source, upstream: theirs(upstreamParse).vertices }).toEqual({ source: known.source, upstream: expect.arrayContaining([known.upstream]) })
-      expect({ source: known.source, ours: ours(parseOurs(known.source)).vertices }).toEqual({ source: known.source, ours: expect.arrayContaining([known.ours]) })
-    }
-    for (const known of KNOWN_ROUND_TRIP_BUGS) {
-      expect((await upstream.parse(known.source)).ok).toBe(true)
-      const parsed = parseRegisteredMermaid(known.source)
-      expect(parsed.ok).toBe(true)
-      if (!parsed.ok) continue
-      const serialized = serializeMermaid(parsed.value)
-      expect(serialized.split('\n')).toContain(known.serializedLine)
-      expect({ serialized, reparsed: parseRegisteredMermaid(serialized).ok }).toEqual({ serialized, reparsed: false })
-    }
+  // Divergences this property found, now fixed: each source agrees with
+  // upstream, matches the recorded projection, and survives serialize →
+  // re-parse. Returns the serialized source.
+  async function agreesWithUpstream(source: string, expected: Partial<Projection>): Promise<string> {
+    const upstreamParse = await upstream.parse(source)
+    if (!upstreamParse.ok) throw new Error(`upstream rejected:\n${source}`)
+    const projection = ours(parseOurs(source))
+    expect({ source, ...projection }).toEqual({ source, ...theirs(upstreamParse) })
+    expect({ source, ...projection }).toMatchObject({ source, ...expected })
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(`our parser rejected:\n${source}`)
+    const serialized = serializeMermaid(parsed.value)
+    expect({ serialized, ...ours(parseOurs(serialized)) }).toEqual({ serialized, ...projection })
+    return serialized
+  }
+
+  test('plain labels keep `*` and `~` literally; only markdown strings format them', async () => {
+    await agreesWithUpstream('flowchart TB\n  A["*a*"]', { vertices: ['A rectangle : *a*'] })
+    await agreesWithUpstream('flowchart TB\n  A[**b**]', { vertices: ['A rectangle : **b**'] })
+    await agreesWithUpstream('flowchart TB\n  A>"~~c~~"] -->|"*x*"| B', {
+      vertices: ['A asymmetric : ~~c~~', 'B rectangle : B'],
+      edges: ['A B normal arrow_point : *x*'],
+    })
+  })
+
+  test('node, edge and subgraph labels trim boundary whitespace', async () => {
+    await agreesWithUpstream('flowchart TB\n  A[" a "] -->|" b "| B', {
+      vertices: ['A rectangle : a', 'B rectangle : B'],
+      edges: ['A B normal arrow_point : b'],
+    })
+    await agreesWithUpstream('flowchart TB\n  A[ c ] -- " d " --> B', {
+      vertices: ['A rectangle : c', 'B rectangle : B'],
+      edges: ['A B normal arrow_point : d'],
+    })
+    // A blank label trims to empty and serializes as `" "`: upstream rejects `""`.
+    const serialized = await agreesWithUpstream('flowchart TB\n  subgraph S0 [" e "]\n    A[" "]\n  end', {
+      vertices: ['A rectangle : '],
+      subgraphs: ['S0 : e'],
+    })
+    expect(serialized).toContain('  subgraph S0[e]\n    A[" "]\n')
+  })
+
+  test('a `;`-bearing label keeps its quotes, so the serialized source re-parses', async () => {
+    const node = await agreesWithUpstream('flowchart TB\n  A>";a"] --> B', { vertices: ['A asymmetric : ;a', 'B rectangle : B'] })
+    expect(node.split('\n')).toContain('  A>";a"] --> B')
+    const title = await agreesWithUpstream('flowchart TB\n  subgraph S0 ["};a"]\n    A\n  end', { subgraphs: ['S0 : };a'] })
+    expect(title.split('\n')).toContain('  subgraph S0["};a"]')
   })
 })

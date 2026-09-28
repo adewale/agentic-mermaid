@@ -601,7 +601,7 @@ describe('issue #248 construct fidelity receipts', () => {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
         surface: 'mutate',
         path: ['mutatedDiagram', 'edges', 1, 'label'],
-        replacement: 'b',
+        replacement: ' b ',
       },
       {
         caseId: 'flowchart.classes.edge-paint-implication',
@@ -620,7 +620,7 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'render',
         path: ['rendered', 'edges'],
         replacement: [
-          { source: 'A', target: 'B', label: ' a ' },
+          { source: 'A', target: 'B', label: 'a' },
           { source: 'X', target: 'Y', label: 'ghost' },
         ],
       },
@@ -628,14 +628,14 @@ describe('issue #248 construct fidelity receipts', () => {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
         surface: 'mutate',
         path: ['rendered', 'edges'],
-        replacement: [{ source: 'A', target: 'B', label: ' a ' }],
+        replacement: [{ source: 'A', target: 'B', label: 'a' }],
       },
       {
         caseId: 'flowchart.links.boundary-whitespace-mutation-closure',
         surface: 'mutate',
         path: ['rendered', 'labelGroups', 0, 'visibleText'],
-        replacement: ' b ',
-        additionalChanges: [{ path: ['rendered', 'labelGroups', 1, 'visibleText'], replacement: ' a ' }],
+        replacement: 'b',
+        additionalChanges: [{ path: ['rendered', 'labelGroups', 1, 'visibleText'], replacement: 'a' }],
       },
     ]
 

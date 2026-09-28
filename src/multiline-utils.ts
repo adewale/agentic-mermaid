@@ -12,19 +12,29 @@ import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.t
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
  * literal \n sequences to newline characters. Strips unsupported HTML tags
- * but preserves formatting tags (<b>, <i>, <u>, <s>) for SVG rendering.
+ * but preserves formatting tags (<b>, <i>, <u>, <s>) for SVG rendering, and
+ * maps markdown-lite emphasis (`**b**`, `*i*`, `~~s~~`) to those tags.
  */
 export function normalizeBrTags(label: string): string {
+  return normalizePlainLabel(label)
+    // Markdown formatting → HTML tags (order matters: ** before *)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
+    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+}
+
+/**
+ * normalizeBrTags without the markdown-lite emphasis: `*` and `~` stay
+ * literal. Flowchart plain labels use it, because upstream formats emphasis
+ * only inside markdown strings ("`…`").
+ */
+export function normalizePlainLabel(label: string): string {
   // Strip surrounding double quotes (Mermaid uses them for special chars in labels)
   const unquoted = label.startsWith('"') && label.endsWith('"') ? label.slice(1, -1) : label
   return unquoted
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/\\n/g, '\n')
     .replace(/<\/?(?:sub|sup|small|mark)\s*>/gi, '')
-    // Markdown formatting → HTML tags (order matters: ** before *)
-    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
-    .replace(/~~(.+?)~~/g, '<s>$1</s>')
 }
 
 /**

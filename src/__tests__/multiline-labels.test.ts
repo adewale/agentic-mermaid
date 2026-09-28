@@ -809,29 +809,23 @@ describe('normalizeBrTags – markdown formatting', () => {
   })
 })
 
-describe('renderMermaidSVGAsync – markdown formatting in labels', () => {
-  it('renders **bold** as font-weight="bold"', async () => {
-    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello **bold** text]')
-    expect(svg).toContain('font-weight="bold"')
-    expect(svg).toContain('>bold</tspan>')
-  })
+// Upstream formats `**`, `*` and `~~` only inside a flowchart markdown string
+// ("`…`", flowchart-markdown-strings.test.ts); a plain label keeps them.
+describe('renderMermaidSVGAsync – markdown markers in plain flowchart labels', () => {
+  const STYLED = /font-weight="bold"|font-style="italic"|text-decoration="line-through"/
 
-  it('renders *italic* as font-style="italic"', async () => {
-    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello *italic* text]')
-    expect(svg).toContain('font-style="italic"')
-    expect(svg).toContain('>italic</tspan>')
-  })
+  for (const marked of ['**bold**', '*italic*', '~~strike~~']) {
+    it(`keeps ${marked} literal in a node label`, async () => {
+      const svg = await renderMermaidSVGAsync(`graph TD\n  A[Hello ${marked} text]`)
+      expect(svg).toContain(`>Hello ${marked} text</text>`)
+      expect(svg).not.toMatch(STYLED)
+    })
+  }
 
-  it('renders ~~strike~~ as text-decoration="line-through"', async () => {
-    const svg = await renderMermaidSVGAsync('graph TD\n  A[Hello ~~strike~~ text]')
-    expect(svg).toContain('text-decoration="line-through"')
-    expect(svg).toContain('>strike</tspan>')
-  })
-
-  it('renders **bold** in edge labels', async () => {
+  it('keeps **bold** literal in an edge label', async () => {
     const svg = await renderMermaidSVGAsync('graph TD\n  A -->|**important**| B')
-    expect(svg).toContain('font-weight="bold"')
-    expect(svg).toContain('>important</tspan>')
+    expect(svg).toContain('>**important**</text>')
+    expect(svg).not.toMatch(STYLED)
   })
 })
 

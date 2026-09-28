@@ -288,9 +288,6 @@ Found by the property and model tests. Where a test pins the wrong behaviour
 or a generator steers around it, the entry names the test; remove the pin
 and the steering with the fix.
 
-- [ ] **BUG-1 — Flowchart plain labels get markdown formatting** (`todo`). `*a*`, `**b**` and `~~c~~` in a non-markdown label render as italic, bold and strike; upstream keeps the characters. Pinned as KD2 in `src/__tests__/property-upstream-flowchart.test.ts`.
-- [ ] **BUG-2 — Flowchart label boundary whitespace** (`owner-decision`). Node labels and quoted edge labels keep leading and trailing spaces; upstream trims them. `agent.test.ts` asserts the current behaviour, so decide which contract wins. Pinned as KD3 in `property-upstream-flowchart.test.ts`.
-- [ ] **BUG-3 — `;` breaks Flowchart round-trip** (`todo`). The serializer drops the quotes from a `;`-bearing label in an asymmetric node (`A>";a"]`) or a subgraph title, and our own parser then rejects the output. Pinned as KD4 in `property-upstream-flowchart.test.ts`.
 - [ ] **BUG-7 — Sequence `actor` after first use changes the participant's kind** (`todo`). When a message or note has already created a participant, a later bare `actor X` makes ours switch its kind to actor; upstream keeps it a participant (`note left of Carol: hi` then `actor Carol`). The declare-before-use steering in `src/__tests__/property-upstream-sequence.test.ts` hides it.
 - [ ] **BUG-8 — ER entity loses its subgraph when its placing relation goes** (`todo`). An entity still used by another relation, but first placed inside a subgraph by a relation that was removed, re-parses outside the subgraph and in a different position (`A` inside `subgraph G`, also in a top-level `H ||--o{ A`).
 

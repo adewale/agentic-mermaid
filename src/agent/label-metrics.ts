@@ -8,21 +8,26 @@
 // ============================================================================
 
 import { decodeXML } from 'entities'
-import { normalizeBrTags, stripFormattingTags } from '../multiline-utils.ts'
+import { normalizeBrTags, normalizePlainLabel, stripFormattingTags } from '../multiline-utils.ts'
 import type { LayoutWarning } from './types.ts'
+
+/** How a family's renderer reads label text: flowchart plain labels keep
+ * `*`/`~` literal (`plain`); other families render markdown-lite emphasis. */
+export type LabelEmphasis = 'markdown-lite' | 'plain'
 
 /**
  * Length of a label as rendered: the longest line after entity decoding,
  * <br>/\n splitting, and formatting-tag stripping. `&#160;` counts as one
  * character; `<br/>` starts a new line and counts as zero.
  */
-export function labelDisplayLength(label: string): number {
-  const rendered = stripFormattingTags(normalizeBrTags(decodeXML(label)))
+export function labelDisplayLength(label: string, emphasis: LabelEmphasis = 'markdown-lite'): number {
+  const normalize = emphasis === 'plain' ? normalizePlainLabel : normalizeBrTags
+  const rendered = stripFormattingTags(normalize(decodeXML(label)))
   return rendered.split('\n').reduce((max, line) => Math.max(max, line.length), 0)
 }
 
 /** Build a LABEL_OVERFLOW warning when the rendered length exceeds the cap, else null. */
-export function labelOverflowWarning(target: string, text: string, cap: number): LayoutWarning | null {
-  const charCount = labelDisplayLength(text)
+export function labelOverflowWarning(target: string, text: string, cap: number, emphasis?: LabelEmphasis): LayoutWarning | null {
+  const charCount = labelDisplayLength(text, emphasis)
   return charCount > cap ? { code: 'LABEL_OVERFLOW', target, charCount, limit: cap } : null
 }

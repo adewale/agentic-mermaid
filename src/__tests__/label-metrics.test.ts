@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { labelDisplayLength, labelOverflowWarning } from '../agent/label-metrics.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 
 // LABEL_OVERFLOW measures what the renderer draws: entities decode, <br>
 // splits lines, formatting tags strip. See src/agent/label-metrics.ts.
@@ -39,5 +40,17 @@ describe('labelOverflowWarning', () => {
   })
   test('null at or under the cap', () => {
     expect(labelOverflowWarning('A', 'x'.repeat(40), 40)).toBeNull()
+  })
+})
+
+describe('flowchart LABEL_OVERFLOW', () => {
+  test('counts the asterisks a plain label draws literally', () => {
+    // 38 x between ** markers renders as 42 characters, over the default 40.
+    const label = `**${'x'.repeat(38)}**`
+    const verify = verifyMermaid(`flowchart LR\n  A["${label}"] --> B`)
+    expect(verify.warnings).toContainEqual({ code: 'LABEL_OVERFLOW', target: 'A', charCount: 42, limit: 40 })
+    // A markdown string draws the same text bold, without the markers.
+    const markdown = verifyMermaid(`flowchart LR\n  A["\`${label}\`"] --> B`)
+    expect(markdown.warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')).toEqual([])
   })
 })
