@@ -77,8 +77,10 @@ jobs:
         # Coverage makes corpus and adversarial tests several times slower on
         # shared runners. The canonical package script owns their one bounded
         # command-line default so local, CI, and release gates cannot drift;
-        # CI appends only Bun's deterministic file-shard selector.
-        run: bun run test -- --shard=${{ matrix.shard }}
+        # CI appends only Bun's deterministic file-shard selector and runs the
+        # shard's files in isolated worker processes (--parallel implies
+        # --isolate, so a file can no longer lean on another file's imports).
+        run: bun run test -- --shard=${{ matrix.shard }} --parallel
 
       - name: Upload shard coverage
         if: ${{ always() }}
@@ -168,6 +170,45 @@ jobs:
 
       - name: Run pinned official MCP conformance scenarios
         run: bun run eval:mcp-conformance
+
+  # CLAUDE.md good-pr dimension 4, checked mechanically: when a PR changes
+  # production code and tests, at least one changed test must fail against the
+  # base branch's production code. Pure refactors opt out with the
+  # `no-red-green` label (read live, so re-running the job after labelling works).
+  red-green:
+    name: Changed tests fail on the base branch
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run changed tests against the base branch's production code
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name' | grep -qx 'no-red-green'; then
+            echo "Skipped: the PR carries the no-red-green label."
+            exit 0
+          fi
+          bun run scripts/ci/red-green.ts --base "$BASE_SHA"
 
   # Preserve the existing required check name while the work behind it runs in
   # parallel. always() turns a failed or cancelled prerequisite into a failed
@@ -319,7 +360,7 @@ jobs:
   ci-complete:
     name: CI complete
     runs-on: ubuntu-latest
-    needs: [test, e2e, mutation-incremental]
+    needs: [test, e2e, mutation-incremental, red-green]
     if: ${{ always() }}
     steps:
       - name: Require every CI lane to pass
@@ -327,8 +368,10 @@ jobs:
           TEST_RESULT: ${{ needs.test.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           MUTATION_RESULT: ${{ needs.mutation-incremental.result }}
+          RED_GREEN_RESULT: ${{ needs.red-green.result }}
         run: |
-          if [[ "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || "$MUTATION_RESULT" != "success" ]]; then
-            echo "test=$TEST_RESULT e2e=$E2E_RESULT mutation=$MUTATION_RESULT"
+          # red-green runs only for pull requests; a push to main skips it.
+          if [[ "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || "$MUTATION_RESULT" != "success" || ( "$RED_GREEN_RESULT" != "success" && "$RED_GREEN_RESULT" != "skipped" ) ]]; then
+            echo "test=$TEST_RESULT e2e=$E2E_RESULT mutation=$MUTATION_RESULT red-green=$RED_GREEN_RESULT"
             exit 1
           fi

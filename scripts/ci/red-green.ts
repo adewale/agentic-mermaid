@@ -1,0 +1,123 @@
+#!/usr/bin/env bun
+// Red → green: a pull request that changes production code together with tests
+// must include at least one changed test that FAILS against the base branch's
+// production code. This mechanically checks the "tests that prove the fix"
+// rule (CLAUDE.md, good-pr dimension 4) that sabotage probes and PR prose used
+// to argue by hand.
+//
+// The head's whole src/__tests__ tree is overlaid on a base-branch worktree so
+// changed tests keep their helpers and fixtures; only the changed test files
+// run. A test that cannot even import against the base (a new API) counts as
+// red — it does discriminate. Pure refactors that touch tests opt out with the
+// `no-red-green` PR label (ci.yml). The decision logic is unit-tested in
+// src/__tests__/red-green.test.ts.
+
+import { cpSync, existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+export interface ChangedFiles {
+  production: string[]
+  tests: string[]
+}
+
+export function classifyChangedFiles(paths: readonly string[]): ChangedFiles {
+  const production = paths.filter(path =>
+    (path.startsWith('src/') || path.startsWith('bin/'))
+    && !path.startsWith('src/__tests__/')
+    && /\.(ts|tsx|js|mjs|json)$/.test(path))
+  const tests = paths.filter(path => path.startsWith('src/__tests__/') && path.endsWith('.test.ts'))
+  return { production: [...production].sort(), tests: [...tests].sort() }
+}
+
+export type RedGreenVerdict =
+  | { code: 'skip'; ok: true; message: string }
+  | { code: 'red'; ok: true; message: string }
+  | { code: 'green-on-base'; ok: false; message: string }
+
+/** The skip verdict when there is nothing to prove red, else undefined. */
+export function redGreenSkip(changed: ChangedFiles): RedGreenVerdict | undefined {
+  if (changed.production.length === 0) {
+    return { code: 'skip', ok: true, message: 'No production source changed; nothing to prove red.' }
+  }
+  if (changed.tests.length === 0) {
+    return { code: 'skip', ok: true, message: 'Production source changed without test changes; red → green not applicable (see PR description for why no test proves this change).' }
+  }
+  return undefined
+}
+
+export function redGreenVerdict(changed: ChangedFiles, baseRun?: { exitCode: number; failingTests: number }): RedGreenVerdict {
+  const skip = redGreenSkip(changed)
+  if (skip) return skip
+  if (!baseRun) throw new Error('A base-branch run is required when production and tests both changed')
+  if (baseRun.exitCode !== 0) {
+    return { code: 'red', ok: true, message: `${baseRun.failingTests || 'At least one'} changed test(s) fail against the base branch; the tests discriminate the change.` }
+  }
+  return {
+    code: 'green-on-base',
+    ok: false,
+    message: `Every changed test passes against the base branch's production code (${changed.tests.join(', ')}). `
+      + 'Add a test that fails without this change, or label the PR `no-red-green` if it is a pure refactor.',
+  }
+}
+
+export function failingTestCount(output: string): number {
+  const matches = [...output.matchAll(/^\s*(\d+) fail\s*$/gm)]
+  return matches.length > 0 ? Number(matches.at(-1)![1]) : 0
+}
+
+function git(args: string[], cwd: string): string {
+  const result = Bun.spawnSync(['git', ...args], { cwd, stdout: 'pipe', stderr: 'pipe' })
+  if (result.exitCode !== 0) throw new Error(`git ${args.join(' ')} failed: ${result.stderr.toString()}`)
+  return result.stdout.toString()
+}
+
+if (import.meta.main) {
+  const root = join(import.meta.dir, '..', '..')
+  const baseIndex = process.argv.indexOf('--base')
+  const base = baseIndex >= 0 ? process.argv[baseIndex + 1] : undefined
+  if (!base) throw new Error('Usage: bun run scripts/ci/red-green.ts --base <base-sha>')
+
+  const changed = classifyChangedFiles(
+    git(['diff', '--name-only', '--diff-filter=AMR', `${base}...HEAD`], root).split('\n').filter(Boolean),
+  )
+  const skip = redGreenSkip(changed)
+  if (skip) {
+    process.stdout.write(`${skip.message}\n`)
+    process.exit(0)
+  }
+  let verdict: RedGreenVerdict
+
+  const worktree = mkdtempSync(join(tmpdir(), 'am-red-green-'))
+  rmSync(worktree, { recursive: true, force: true })
+  git(['worktree', 'add', '--quiet', '--detach', worktree, base], root)
+  try {
+    const dependenciesChanged = Bun.spawnSync(['git', 'diff', '--quiet', base, 'HEAD', '--', 'package.json', 'bun.lock'], { cwd: root }).exitCode !== 0
+    if (dependenciesChanged) {
+      const install = Bun.spawnSync(['bun', 'install', '--frozen-lockfile'], { cwd: worktree, stdout: 'inherit', stderr: 'inherit' })
+      if (install.exitCode !== 0) throw new Error('bun install failed in the base worktree')
+    } else if (existsSync(join(root, 'node_modules'))) {
+      symlinkSync(join(root, 'node_modules'), join(worktree, 'node_modules'), 'dir')
+    }
+    rmSync(join(worktree, 'src', '__tests__'), { recursive: true, force: true })
+    cpSync(join(root, 'src', '__tests__'), join(worktree, 'src', '__tests__'), { recursive: true })
+
+    process.stdout.write(`Running ${changed.tests.length} changed test file(s) against base ${base.slice(0, 12)} production code:\n${changed.tests.map(path => `  ${path}`).join('\n')}\n`)
+    const run = Bun.spawnSync(['bun', 'test', '--timeout', '30000', ...changed.tests], {
+      cwd: worktree,
+      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+    const output = `${run.stdout.toString()}\n${run.stderr.toString()}`
+    process.stdout.write(output.split('\n').filter(line => /^\(fail\)|^\s*\d+ (pass|fail)\s*$|^error:/.test(line)).join('\n') + '\n')
+    verdict = redGreenVerdict(changed, { exitCode: run.exitCode, failingTests: failingTestCount(output) })
+  } finally {
+    Bun.spawnSync(['git', 'worktree', 'remove', '--force', worktree], { cwd: root })
+    rmSync(worktree, { recursive: true, force: true })
+  }
+
+  if (process.env.GITHUB_ACTIONS === 'true' && !verdict.ok) process.stdout.write(`::error title=Red → green::${verdict.message}\n`)
+  process.stdout.write(`${verdict.message}\n`)
+  process.exit(verdict.ok ? 0 : 1)
+}

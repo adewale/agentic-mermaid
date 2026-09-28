@@ -93,7 +93,7 @@ describe('agent-readiness standards syntax', () => {
       run: 'bun run scripts/ci/published-version.ts',
     })
     expect(unitSteps.find((step: any) => step.name === 'Run test shard (coverage = under-tested finder, NOT an adequacy target)')?.run)
-      .toBe('bun run test -- --shard=${{ matrix.shard }}')
+      .toBe('bun run test -- --shard=${{ matrix.shard }} --parallel')
     expect(unitSteps.find((step: any) => step.name === 'Upload shard coverage')?.uses)
       .toBe('actions/upload-artifact@v7')
     expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage', 'mcp-conformance'])
@@ -102,7 +102,7 @@ describe('agent-readiness standards syntax', () => {
     expect(ci.jobs.e2e.strategy.matrix.suite).toEqual(['cli', 'dist-artifact', 'tarball-consumer', 'tarball-consumer-node22', 'browser'])
     expect(e2eSteps.find((step: any) => step.name === 'Setup Node for shipped-artifact gates')?.with?.['node-version'])
       .toBe("${{ matrix.suite == 'tarball-consumer-node22' && '22' || '24' }}")
-    expect(ci.jobs['ci-complete'].needs).toEqual(['test', 'e2e', 'mutation-incremental'])
+    expect(ci.jobs['ci-complete'].needs).toEqual(['test', 'e2e', 'mutation-incremental', 'red-green'])
     expect(ci.jobs['ci-complete'].if).toBe('${{ always() }}')
     expect(ci.jobs['ci-complete'].steps.find((step: any) => step.name === 'Require every CI lane to pass')?.run)
       .toContain('E2E_RESULT')
