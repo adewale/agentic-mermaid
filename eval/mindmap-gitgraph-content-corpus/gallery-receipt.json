@@ -132,7 +132,7 @@
     },
     {
       "path": "src/agent/families.ts",
-      "sha256": "3160b610d7bbc1ad21e127d7134080a980d3efeda3f531377223d76868cfc9de"
+      "sha256": "73dfea03a42440edcdb7c76d0dc6d8e624cbad895fe9373bfab486a3fa3a888e"
     },
     {
       "path": "src/agent/family-labels.ts",
@@ -1060,7 +1060,7 @@
     },
     {
       "path": "src/shared/family-config-diagnostics.ts",
-      "sha256": "9314b3f80ab5f993cdbe84627a00b382bae9d54003617baee42f6ae5a9fc8456"
+      "sha256": "cb7ca8e1c5b5a0f32e6b37a681f454b62ce45f6e4ecd7f2bca2c931e5be9c916"
     },
     {
       "path": "src/shared/graphemes.ts",

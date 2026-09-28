@@ -84,9 +84,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 254,237 Brotli bytes.
     // XY Chart's nested theme and palette guards retain that 31-request graph.
     // Linux/Bun 1.4.2 measures 745,142 raw / 278,983 gzip / 254,471 Brotli.
-    maxRawBytes: 745_220,
+    // Explicit XY Chart no-op diagnostics keep the graph unchanged; the exact
+    // Linux capture measures 745,425 raw / 254,601 Brotli bytes.
+    maxRawBytes: 745_500,
     maxGzipBytes: 279_100,
-    maxBrotliBytes: 254_580,
+    maxBrotliBytes: 254_650,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -175,7 +177,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // XY Chart color admission and terminal-projection safety measure
     // 3,408,123 raw / 1,013,779 gzip / 799,550 Brotli in the same
     // two-request graph on Linux/Bun 1.4.2.
-    maxRawBytes: 3_408_225,
+    // Shared no-op validity diagnostics measure 3,408,480 raw in that graph.
+    maxRawBytes: 3_408_600,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.

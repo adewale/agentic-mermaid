@@ -597,7 +597,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   web:R --> L:api
   api:R --> L:db` },
   { id: 'xychart', upstreamId: 'xychart', maturity: 'stable', label: 'XY chart', headers: ['xychart', 'xychart-beta'], narrower: 'asXyChart', editorDiagramType: 'XY Chart', editorLabel: 'XY chart', editorDescription: 'Bar and line series using xychart syntax.', editorExampleId: 'xychart-basic', editorGlyph: 'XY',
-    config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
+    config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showDataLabelOutsideBar', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'], noopKeys: ['showDataLabelOutsideBar'] },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^xychart(?:-beta)?(?:\s|$)/.test(line),
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
