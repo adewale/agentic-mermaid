@@ -159,6 +159,25 @@ sources we did not write:
   per-family local-gap budgets grow. Mindmap/GitGraph use their declared
   `f3dea583…` compatibility revision and account for all 26/69 official spec
   blocks in a dedicated executable oracle.
+- **Official-fence corpus** (`official-fence-corpus.test.ts`) — every one of
+  the 481 official syntax fences on the 31 pinned upstream pages, matched to
+  the manifest by digest. The 331 fences of rendered families must parse to a
+  structured body, verify, render, and keep their structural counts through
+  serialize → re-parse; the 150 fences of unrendered families must be
+  diagnosed `UNSUPPORTED_FAMILY` with their bytes preserved. Deviations live in
+  one small expectations table (`id [ outcomes ] # reason`); a new deviation
+  and an unexpected pass both fail, so the table cannot go stale.
+- **Construct fidelity cases** (`fidelity-receipts.test.ts`) — classify pinned
+  constructs per surface with semantic oracles (shapes, measured text widths,
+  marks inside the viewBox), and regenerate the shipped capability report in
+  memory. No raw-observation receipt or whole-SVG hash is committed.
+- **Grammar-based differentials** (`property-upstream-flowchart.test.ts`,
+  `property-upstream-sequence.test.ts`) — recursive `fc.letrec` grammars
+  generate sources that pinned upstream Mermaid 11.16 must accept; ours must
+  accept them too, agree on node/edge/participant counts, shapes, labels, and
+  arrows, and round-trip. A long-lived upstream worker
+  (`helpers/upstream-mermaid.ts`) lets async properties shrink. Known
+  divergences are pinned as explicit cases that fail once fixed.
 
 These exist because our hand-written fixtures encode what we already knew
 the parser modeled. Upstream examples are "adversarial in exactly the
@@ -197,6 +216,17 @@ must agree." This sidesteps the oracle problem without a human:
   Statement-permutation invariance is deliberately *not* asserted — source
   order is a stated design property, so permuting statements may legitimately
   change geometry.
+- **Colour and source relations** — `property-invariance-colour.test.ts`:
+  palettes, colour options, named themes, theme colour variables, and family
+  colour config never move geometry (layout and paint-free SVG, via the shared
+  `helpers/svg-normalize.ts` `stripPaint` option), and an invalid value in any
+  painted key is refused by name rather than emitted or dropped (the #303
+  class, for every family at once). `property-invariance-source.test.ts`:
+  inserting `%%` comments and blank lines leaves SVG byte-identical, and a
+  chained flowchart edge equals its split form in facts, layout, and bytes.
+- **Model-based editing** — `property-er-model.test.ts` drives the typed ER
+  edit operations with `fc.commands` against a simple model, including invalid
+  commands whose error code the model predicts.
 
 **Runs:** every PR.
 **Does not prove:** cross-architecture equality (x86_64 hash vs ARM64 hash
