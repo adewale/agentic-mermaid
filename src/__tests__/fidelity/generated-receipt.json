@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "058534050fd438a3bfe86eeae7ee8f7c8ee418c0fa431dc93c8e052b12a2f88b",
+    "inputSha256": "7fb5c8f81945e71337e8aa4ab63339d65408f5632c6ef88ba8114db24fe40dd7",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -85,6 +85,10 @@
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
         "sha256": "c5aea15b3600df9292b2330c2ce0675ab5905b8b94a4547c10ecb7aa709f340b"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/architecture-official-core-fences.fidelity.ts",
+        "sha256": "aa91cee1a0196b5dd2b7cc56be27ac9438cacabde12db92873f0c457b8bab70b"
       },
       {
         "path": "src/__tests__/fidelity/cases/class-annotation.fidelity.ts",
@@ -197,6 +201,811 @@
     ]
   },
   "cases": [
+    {
+      "id": "architecture.official.fence-0",
+      "family": "architecture",
+      "featureId": "official-doc:architecture:section:example",
+      "sourceSha256": "3ac9c372e33de93332d317b981309c8947430ff0fe02243d6e743c8751aff090",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/architecture.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These cases classify pinned official sources; architecture mutation operations have separate tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignments": [],
+            "edges": [
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "db",
+                "sourceBoundary": "item",
+                "sourceSide": "L",
+                "target": "server",
+                "targetBoundary": "item",
+                "targetSide": "R"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "disk1",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "server",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "disk2",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "db",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              }
+            ],
+            "groups": [
+              {
+                "icon": "cloud",
+                "id": "api",
+                "label": "API",
+                "parentId": null
+              }
+            ],
+            "junctions": [],
+            "services": [
+              {
+                "icon": "database",
+                "id": "db",
+                "label": "Database",
+                "parentId": "api"
+              },
+              {
+                "icon": "disk",
+                "id": "disk1",
+                "label": "Storage",
+                "parentId": "api"
+              },
+              {
+                "icon": "disk",
+                "id": "disk2",
+                "label": "Storage",
+                "parentId": "api"
+              },
+              {
+                "icon": "server",
+                "id": "server",
+                "label": "Server",
+                "parentId": "api"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "cards": [
+              {
+                "height": 48,
+                "id": "service-card:db",
+                "width": 132.266,
+                "x": 371.37399999999997,
+                "y": 84
+              },
+              {
+                "height": 48,
+                "id": "service-card:disk1",
+                "width": 123.374,
+                "x": 56,
+                "y": 336
+              },
+              {
+                "height": 48,
+                "id": "service-card:disk2",
+                "width": 123.374,
+                "x": 539.6399999999999,
+                "y": 168
+              },
+              {
+                "height": 48,
+                "id": "service-card:server",
+                "width": 120,
+                "x": 215.374,
+                "y": 252
+              }
+            ],
+            "cores": [],
+            "edges": [
+              {
+                "direction": "undirected",
+                "points": "371.37399999999997,108 353.374,108 353.374,276 335.374,276",
+                "role": "edge",
+                "source": "db",
+                "sourceBoundary": "item",
+                "sourceSide": "L",
+                "target": "server",
+                "targetBoundary": "item",
+                "targetSide": "R"
+              },
+              {
+                "direction": "undirected",
+                "points": "117.687,336 117.687,318 275.374,318 275.374,300",
+                "role": "edge",
+                "source": "disk1",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "server",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              },
+              {
+                "direction": "undirected",
+                "points": "601.3269999999999,168 601.3269999999999,150 437.50699999999995,150 437.50699999999995,132",
+                "role": "edge",
+                "source": "disk2",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "db",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              }
+            ],
+            "frames": [
+              {
+                "height": 362,
+                "id": "group-frame:api",
+                "width": 643.0139999999999,
+                "x": 38,
+                "y": 40
+              }
+            ],
+            "groupFramePaint": "fill: #fafafa; stroke: none;",
+            "groupLabels": [
+              "API"
+            ],
+            "groupOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "groups": [
+              {
+                "id": "api",
+                "label": "API",
+                "role": "group"
+              }
+            ],
+            "icons": [
+              "cloud",
+              "database",
+              "disk",
+              "disk",
+              "server"
+            ],
+            "junctionCorePaint": "fill: #d3d3d4; stroke: #47474a; stroke-width: 0.75;",
+            "junctionRingPaint": "fill: #FFFFFF; stroke: #47474a; stroke-width: 1.25;",
+            "junctions": [],
+            "rings": [],
+            "serviceCardPaint": "fill: #f9f9f9; stroke: none;",
+            "serviceLabels": [
+              "Database",
+              "Storage",
+              "Storage",
+              "Server"
+            ],
+            "serviceOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "services": [
+              {
+                "id": "db",
+                "label": "Database",
+                "role": "service"
+              },
+              {
+                "id": "disk1",
+                "label": "Storage",
+                "role": "service"
+              },
+              {
+                "id": "disk2",
+                "label": "Storage",
+                "role": "service"
+              },
+              {
+                "id": "server",
+                "label": "Server",
+                "role": "service"
+              }
+            ],
+            "svgSha256": "731ec2739af56c171a9fce767c97f83e711133c9dd78db9a8e0bc14c33b68836",
+            "viewBox": "0 0 721.0139999999999 442"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "alignments": [],
+              "edges": [
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "db",
+                  "sourceBoundary": "item",
+                  "sourceSide": "L",
+                  "target": "server",
+                  "targetBoundary": "item",
+                  "targetSide": "R"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "disk1",
+                  "sourceBoundary": "item",
+                  "sourceSide": "T",
+                  "target": "server",
+                  "targetBoundary": "item",
+                  "targetSide": "B"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "disk2",
+                  "sourceBoundary": "item",
+                  "sourceSide": "T",
+                  "target": "db",
+                  "targetBoundary": "item",
+                  "targetSide": "B"
+                }
+              ],
+              "groups": [
+                {
+                  "icon": "cloud",
+                  "id": "api",
+                  "label": "API",
+                  "parentId": null
+                }
+              ],
+              "junctions": [],
+              "services": [
+                {
+                  "icon": "database",
+                  "id": "db",
+                  "label": "Database",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "disk",
+                  "id": "disk1",
+                  "label": "Storage",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "disk",
+                  "id": "disk2",
+                  "label": "Storage",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "server",
+                  "id": "server",
+                  "label": "Server",
+                  "parentId": "api"
+                }
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "architecture.official.fence-4",
+      "family": "architecture",
+      "featureId": "official-doc:architecture:section:junctions",
+      "sourceSha256": "8050b0388d696eade46b47c20b12ef26d7fc7c9076a7ed81c06f7d0bd726fdc9",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/architecture.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These cases classify pinned official sources; architecture mutation operations have separate tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignments": [],
+            "edges": [
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "left_disk",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "junctionCenter",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "top_disk",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "junctionCenter",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "bottom_disk",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "junctionCenter",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "junctionCenter",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "junctionRight",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "top_gateway",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "junctionRight",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "bottom_gateway",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "junctionRight",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              }
+            ],
+            "groups": [],
+            "junctions": [
+              {
+                "id": "junctionCenter",
+                "parentId": null
+              },
+              {
+                "id": "junctionRight",
+                "parentId": null
+              }
+            ],
+            "services": [
+              {
+                "icon": "disk",
+                "id": "left_disk",
+                "label": "Disk",
+                "parentId": null
+              },
+              {
+                "icon": "disk",
+                "id": "top_disk",
+                "label": "Disk",
+                "parentId": null
+              },
+              {
+                "icon": "disk",
+                "id": "bottom_disk",
+                "label": "Disk",
+                "parentId": null
+              },
+              {
+                "icon": "internet",
+                "id": "top_gateway",
+                "label": "Gateway",
+                "parentId": null
+              },
+              {
+                "icon": "internet",
+                "id": "bottom_gateway",
+                "label": "Gateway",
+                "parentId": null
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "cards": [
+              {
+                "height": 48,
+                "id": "service-card:left_disk",
+                "width": 120,
+                "x": 202.338,
+                "y": 40
+              },
+              {
+                "height": 48,
+                "id": "service-card:top_disk",
+                "width": 120,
+                "x": 520.6759999999999,
+                "y": 124
+              },
+              {
+                "height": 48,
+                "id": "service-card:bottom_disk",
+                "width": 120,
+                "x": 804.6759999999999,
+                "y": 272
+              },
+              {
+                "height": 48,
+                "id": "service-card:top_gateway",
+                "width": 126.338,
+                "x": 40,
+                "y": 356
+              },
+              {
+                "height": 48,
+                "id": "service-card:bottom_gateway",
+                "width": 126.338,
+                "x": 358.33799999999997,
+                "y": 504
+              }
+            ],
+            "cores": [
+              {
+                "id": "junction-core:junctionCenter",
+                "radius": 4.5,
+                "x": 690.6759999999999,
+                "y": 222
+              },
+              {
+                "id": "junction-core:junctionRight",
+                "radius": 4.5,
+                "x": 754.6759999999999,
+                "y": 454
+              }
+            ],
+            "edges": [
+              {
+                "direction": "undirected",
+                "points": "322.33799999999997,64 501.50699999999995,64 501.50699999999995,222 676.6759999999999,222",
+                "role": "edge",
+                "source": "left_disk",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "junctionCenter",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              },
+              {
+                "direction": "undirected",
+                "points": "580.6759999999999,172 580.6759999999999,192 690.6759999999999,192 690.6759999999999,208",
+                "role": "edge",
+                "source": "top_disk",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "junctionCenter",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "direction": "undirected",
+                "points": "864.6759999999999,272 864.6759999999999,252 690.6759999999999,252 690.6759999999999,236",
+                "role": "edge",
+                "source": "bottom_disk",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "junctionCenter",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              },
+              {
+                "direction": "undirected",
+                "points": "704.6759999999999,222 722.6759999999999,222 722.6759999999999,454 740.6759999999999,454",
+                "role": "edge",
+                "source": "junctionCenter",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "junctionRight",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              },
+              {
+                "direction": "undirected",
+                "points": "103.169,404 103.169,424 754.6759999999999,424 754.6759999999999,440",
+                "role": "edge",
+                "source": "top_gateway",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "junctionRight",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "direction": "undirected",
+                "points": "421.50699999999995,504 421.50699999999995,484 754.6759999999999,484 754.6759999999999,468",
+                "role": "edge",
+                "source": "bottom_gateway",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "junctionRight",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              }
+            ],
+            "frames": [],
+            "groupFramePaint": "fill: #fafafa; stroke: none;",
+            "groupLabels": [],
+            "groupOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "groups": [],
+            "icons": [
+              "disk",
+              "disk",
+              "disk",
+              "internet",
+              "internet"
+            ],
+            "junctionCorePaint": "fill: #d3d3d4; stroke: #47474a; stroke-width: 0.75;",
+            "junctionRingPaint": "fill: #FFFFFF; stroke: #47474a; stroke-width: 1.25;",
+            "junctions": [
+              {
+                "id": "junctionCenter",
+                "role": "junction"
+              },
+              {
+                "id": "junctionRight",
+                "role": "junction"
+              }
+            ],
+            "rings": [
+              {
+                "id": "junction-ring:junctionCenter",
+                "radius": 8,
+                "x": 690.6759999999999,
+                "y": 222
+              },
+              {
+                "id": "junction-ring:junctionRight",
+                "radius": 8,
+                "x": 754.6759999999999,
+                "y": 454
+              }
+            ],
+            "serviceCardPaint": "fill: #f9f9f9; stroke: none;",
+            "serviceLabels": [
+              "Disk",
+              "Disk",
+              "Disk",
+              "Gateway",
+              "Gateway"
+            ],
+            "serviceOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "services": [
+              {
+                "id": "left_disk",
+                "label": "Disk",
+                "role": "service"
+              },
+              {
+                "id": "top_disk",
+                "label": "Disk",
+                "role": "service"
+              },
+              {
+                "id": "bottom_disk",
+                "label": "Disk",
+                "role": "service"
+              },
+              {
+                "id": "top_gateway",
+                "label": "Gateway",
+                "role": "service"
+              },
+              {
+                "id": "bottom_gateway",
+                "label": "Gateway",
+                "role": "service"
+              }
+            ],
+            "svgSha256": "d55fb62161a4e62e5de6f92ccb760af047c351b24b73f24488470a00fd2ac11f",
+            "viewBox": "0 0 964.6759999999999 592"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "alignments": [],
+              "edges": [
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "left_disk",
+                  "sourceBoundary": "item",
+                  "sourceSide": "R",
+                  "target": "junctionCenter",
+                  "targetBoundary": "item",
+                  "targetSide": "L"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "top_disk",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "junctionCenter",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "bottom_disk",
+                  "sourceBoundary": "item",
+                  "sourceSide": "T",
+                  "target": "junctionCenter",
+                  "targetBoundary": "item",
+                  "targetSide": "B"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "junctionCenter",
+                  "sourceBoundary": "item",
+                  "sourceSide": "R",
+                  "target": "junctionRight",
+                  "targetBoundary": "item",
+                  "targetSide": "L"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "top_gateway",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "junctionRight",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "bottom_gateway",
+                  "sourceBoundary": "item",
+                  "sourceSide": "T",
+                  "target": "junctionRight",
+                  "targetBoundary": "item",
+                  "targetSide": "B"
+                }
+              ],
+              "groups": [],
+              "junctions": [
+                {
+                  "id": "junctionCenter",
+                  "parentId": null
+                },
+                {
+                  "id": "junctionRight",
+                  "parentId": null
+                }
+              ],
+              "services": [
+                {
+                  "icon": "disk",
+                  "id": "left_disk",
+                  "label": "Disk",
+                  "parentId": null
+                },
+                {
+                  "icon": "disk",
+                  "id": "top_disk",
+                  "label": "Disk",
+                  "parentId": null
+                },
+                {
+                  "icon": "disk",
+                  "id": "bottom_disk",
+                  "label": "Disk",
+                  "parentId": null
+                },
+                {
+                  "icon": "internet",
+                  "id": "top_gateway",
+                  "label": "Gateway",
+                  "parentId": null
+                },
+                {
+                  "icon": "internet",
+                  "id": "bottom_gateway",
+                  "label": "Gateway",
+                  "parentId": null
+                }
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
     {
       "id": "block.family.accurately-diagnosed-unsupported",
       "family": "block",
@@ -19660,11 +20469,11 @@
     }
   ],
   "summary": {
-    "caseCount": 58,
-    "passedCaseCount": 58,
+    "caseCount": 60,
+    "passedCaseCount": 60,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 200,
+    "observedSurfaceCount": 206,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 32
+    "notApplicableSurfaceCount": 34
   }
 }
