@@ -476,7 +476,7 @@
     },
     {
       "path": "src/ascii/xychart.ts",
-      "sha256": "66fd5e29be3aa802858e65d008360ed00713101ec19b6e58c9436d0823a0bc44"
+      "sha256": "80c7967248c4ad790af693c05388df18bb3ae5e5841c51997ba5f12ee4fdddff"
     },
     {
       "path": "src/browser-png.ts",
@@ -1164,7 +1164,7 @@
     },
     {
       "path": "src/theme-color-admission.ts",
-      "sha256": "5c4211bc123360a91565075a7661e8f97060d907ee1bd5e4eba688e664460d21"
+      "sha256": "6cec5c9f48c617502da6899fdeacdf8be9b0f5be563911f358740a6477620625"
     },
     {
       "path": "src/theme.ts",
