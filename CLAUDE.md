@@ -46,7 +46,10 @@ The seven dimensions:
 2. **Visual evidence** — for visual/UI changes include captioned before/after
    renders (generated artifacts preferred). If a geometry change is below visual
    perceptibility, say so honestly and let the quantitative metric stand as the
-   evidence — do not pad the PR with near-identical screenshots.
+   evidence — do not pad the PR with near-identical screenshots. Attach renders
+   to the PR (uploaded images or a CI artifact) rather than committing new files
+   under `docs/pr-assets/`, and never make a test read PR evidence: the
+   regression protection belongs in a semantic test of the current render.
 3. **Code that fits** — match existing patterns, naming, and comment density; no
    unrelated refactoring smuggled in.
 4. **Tests that prove the fix** — tests must fail when the fix is reverted.
