@@ -79,7 +79,7 @@ Because the SVG keeps CSS variables in place, toggling `.dark` updates existing 
 
 ## PNG export button
 
-PNG rendering returns bytes. In browser-oriented React apps, call the PNG helper from a server action/API route or other Node-capable boundary where `@resvg/resvg-js` is available.
+PNG rendering returns bytes. The native helper below needs a server action/API route or other Node-capable boundary where `@resvg/resvg-js` is available.
 
 ```ts
 import { renderMermaidPNG } from 'agentic-mermaid/agent'
@@ -89,7 +89,15 @@ export function renderDiagramPng(source: string) {
 }
 ```
 
-For client-only exports, use the live editor/browser's existing download path or post the source to a server endpoint.
+For client-only exports, the root `agentic-mermaid` entry also exports a
+host-injected browser PNG path: `renderMermaidPNGInBrowserWithReceipt(source,
+options, output, rasterize)` or the reusable
+`createMermaidBrowserPNGRenderer({ rasterize })`. No browser rasterizer ships
+with the library: the host supplies `rasterize(securedSvg, context)` (for
+example with Canvas/OffscreenCanvas), which must resolve to `{ png }` bytes at
+exactly `context.rasterDimensions` on `context.rasterBackground`, and may report
+`fontSources` and `diagnostics`. See [`api.md`](./api.md#png). Otherwise, post
+the source to a server endpoint.
 
 ## Error handling
 

@@ -127,23 +127,25 @@ For per-element emphasis, keep using Mermaid-native directives such as `classDef
 
 ## Security and fonts
 
-Default SVG output can include Google Fonts `@import` rules. The selected font
-gets one only when it is a single plain family name; class and ER diagrams can
-also import JetBrains Mono for monospace labels. CSS-variable references and
-font stacks do not produce an import for the selected family. For offline,
-strict, or agent-generated artifacts, use either:
+Default SVG output makes no font requests. Google Fonts `@import` rules are
+opt-in via `embedFontImport: true`; the selected font then gets one only when it
+is a single plain family name, and class and ER diagrams can also import
+JetBrains Mono for monospace labels. CSS-variable references and font stacks do
+not produce an import for the selected family.
 
 ```ts
-renderMermaidSVG(source, { embedFontImport: false })
+renderMermaidSVG(source, { embedFontImport: true })
 ```
 
-or strict mode:
+For untrusted diagrams, use strict mode:
 
 ```ts
 renderMermaidSVG(source, { security: 'strict' })
 ```
 
-`security: 'strict'` disables external-fetch references and is the recommended default for untrusted diagrams.
+`security: 'strict'` disables external-fetch references, including font imports
+requested with `embedFontImport: true`, and is the recommended default for
+untrusted diagrams.
 
 For custom Style font selection, browser faces, PNG `fontDirs`, fallbacks, and
 output-surface differences, see [Fonts in custom styles](./custom-fonts.md).

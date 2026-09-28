@@ -391,9 +391,11 @@ file around the root export:
 
 1. **Separate catalog from runtime hooks.** Family ids, header detection,
    maturity, capabilities, and canonical examples must live in a browser-safe
-   catalog that imports no parser, layout, SVG, ASCII, or agent hooks. Today the
-   complete registry imports those hooks, which pulls the whole graph into a
-   nominally render-only bundle.
+   catalog that imports no parser, layout, SVG, ASCII, or agent hooks. The
+   complete registry imports those hooks and would pull the whole graph into a
+   nominally render-only bundle, so
+   `scripts/build/generate-browser-family-catalog.ts` generates a hook-free
+   catalog in `src/browser-lazy/generated/` instead.
 2. **Keep one source-normalization authority.** The loader must handle BOMs,
    frontmatter, init directives, comments, and accessibility directives with
    the same contract as server rendering. Refactor that contract so detection

@@ -48,12 +48,13 @@ changelogs for the current state.
 
 ## What each does that the others don't
 
-**Only Mermaid:** the full diagram-type catalogue (gantt, mindmap, gitgraph,
-sankey, and the 11.x additions like kanban, radar, treemap, venn, wardley,
-treeview, event modeling); native rendering inside GitHub, GitLab, Notion,
-Obsidian, and hundreds of tools; the grammar itself — both other projects
-implement *Mermaid's* language, and compatibility with Mermaid is the
-correctness bar they measure against.
+**Only Mermaid:** the full diagram-type catalogue, including families neither
+other project renders (requirement, C4, block, packet, kanban, treemap,
+ZenUML, and newer additions like venn, wardley, treeview, event modeling —
+see `am capabilities --json` for what Agentic Mermaid registers); native
+rendering inside GitHub, GitLab, Notion, Obsidian, and hundreds of tools;
+the grammar itself — both other projects implement *Mermaid's* language,
+and compatibility with Mermaid is the correctness bar they measure against.
 
 **Only Beautiful Mermaid (vs Mermaid):** synchronous, dependency-light
 rendering with no browser; a deliberate two-color theming foundation with

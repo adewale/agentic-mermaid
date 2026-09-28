@@ -103,7 +103,7 @@ Use strict rendering for untrusted source:
 renderMermaidSVG(source, { security: 'strict' })
 ```
 
-Strict mode disables external-fetch references such as remote font imports. Agents should prefer strict mode unless the caller explicitly wants externally loaded fonts.
+Strict mode disables external-fetch references such as remote font imports (which are otherwise opt-in via `embedFontImport: true`). Agents should prefer strict mode for untrusted source.
 
 ## PNG and config
 

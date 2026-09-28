@@ -26,10 +26,11 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 The canonical `FamilyDescriptor` registry owns headers, discovery, examples,
 operations, rendering hooks, positioned projections, semantic roles, and
 capability evidence. Run `am capabilities --json` for the current roster and
-per-family operation shapes; the generated Section A matrix records native,
-source-preserved, diagnosed, and not-applicable capabilities without a copied
-table. `absent` belongs to the validation vocabulary but is rejected from the
-shipped syntax ledger:
+per-family operation shapes. The generated Section A matrix is repository
+tooling, not part of `am capabilities`; it records native, source-preserved,
+diagnosed, and not-applicable capabilities without a copied table. `absent`
+belongs to the validation vocabulary but is rejected from the shipped syntax
+ledger:
 [`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
 
 **Structured-or-opaque rule:** every family either has a structured body
@@ -44,8 +45,8 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   or a stack merged left → right
   (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls styled ink and
   never moves layout. CLI: `am render --style … --seed N`, `am styles`;
-  MCP render tools take `style`/`seed`; RENDER_FAILED-gated verify means a
-  clean verify proves the styled source renders. Authoring guide, schema, and
+  MCP render tools take `options.style`/`options.seed`; RENDER_FAILED-gated
+  verify means a clean verify proves the styled source renders. Authoring guide, schema, and
   cookbook: `docs/style-authoring.md`, `docs/schemas/style-spec.schema.json`,
   and `docs/custom-style-cookbook.md`. Custom font selection and resolution:
   `docs/custom-fonts.md`.
@@ -99,9 +100,9 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 
 ## CLI (`am`)
 
-`render` (svg/ascii/unicode/json with multi-input results; png uses one
+`render` (svg/ascii/unicode/layout with multi-input results; png uses one
 input plus `--output`; `--security strict`, `--watch`), `render-markdown` (skip bad blocks),
-`parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json),
+`parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json/facts),
 `capabilities --json` (including `families[].editPolicy` and
 `families[].mutationOps`),
 `batch --jsonl` (including mutate),
