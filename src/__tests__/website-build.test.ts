@@ -1449,49 +1449,8 @@ describe('Workers Static Assets website contract', () => {
       expect({ rel, buildTime: json.generatedFrom.buildTime }).not.toEqual({ rel, buildTime: 'development' })
       expect(Number.isNaN(Date.parse(json.generatedFrom.buildTime))).toBe(false)
     }
-    const deployWorkflow = readRepo('.github/workflows/deploy-cloudflare.yml')
-    expect(deployWorkflow).toContain('SITE_GIT_SHA="$EXPECTED_SHA"')
-    expect(deployWorkflow).toContain('SITE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" bun run website')
-    expect(deployWorkflow).not.toContain('SITE_GIT_SHA="$(git rev-parse HEAD)"')
-    expect(deployWorkflow).toContain("EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}")
-    expect(deployWorkflow).toContain("jq -r '.generatedFrom.gitSha // empty'")
-    expect(deployWorkflow).toContain("\n          await_deployed_sha\n          probe 'verify accepts")
-    // Production deployment is a transaction: build only the exact current
-    // main commit and npm bytes, attach a candidate at zero traffic, exercise
-    // that immutable version through the real domain, then promote or roll
-    // back. These checks deliberately reject the old deploy-then-probe shape.
-    expect(deployWorkflow).toContain('cancel-in-progress: false')
-    expect(deployWorkflow).not.toContain('queue:')
-    expect(deployWorkflow).toContain('actions: read')
-    expect(deployWorkflow).toContain('::error title=Cloudflare credentials missing::')
-    expect(deployWorkflow).toContain('### Cloudflare deploy failed')
-    expect(deployWorkflow).not.toContain('Skipping Cloudflare deploy because CLOUDFLARE_API_TOKEN')
-    expect(deployWorkflow).toContain('Require successful canonical CI for a manual deployment')
-    expect(deployWorkflow).toContain("if: github.event_name == 'workflow_dispatch' && steps.cloudflare-secrets.outputs.available == 'true'")
-    expect(deployWorkflow).toContain('"repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs"')
-    expect(deployWorkflow).toContain('-f head_sha="$EXPECTED_SHA"')
-    expect(deployWorkflow).toContain('-f branch=main')
-    expect(deployWorkflow).toContain('-f event=push')
-    expect(deployWorkflow).toContain('.head_sha == $sha')
-    expect(deployWorkflow).toContain('.head_branch == "main"')
-    expect(deployWorkflow).toContain('.event == "push"')
-    expect(deployWorkflow).toContain('.conclusion == "success"')
-    expect(deployWorkflow).toContain('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1')
-    expect(deployWorkflow).toContain('oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6')
-    expect(deployWorkflow).toContain('bun install --frozen-lockfile')
-    expect(deployWorkflow).toContain("test \"$(node_modules/.bin/wrangler --version)\" = '4.114.0'")
-    expect(deployWorkflow).toContain('cmp -s dist/browser.global.js "$published_dist/browser.global.js"')
-    expect(deployWorkflow).toContain('diff --brief --recursive dist/browser-lazy "$published_dist/browser-lazy"')
-    expect(deployWorkflow).toContain('../node_modules/.bin/wrangler versions upload')
-    expect(deployWorkflow).toContain('"${PREVIOUS_ID}@100%" "${CANDIDATE_ID}@0%"')
-    expect(deployWorkflow).toContain('Cloudflare-Workers-Version-Overrides: agentic-mermaid-website=')
-    expect(deployWorkflow).toContain('"${CANDIDATE_ID}@100%"')
-    expect(deployWorkflow).toContain('Arm rollback before changing production state')
-    expect(deployWorkflow).toContain('always() && steps.rollback-guard.outputs.armed == \'true\'')
-    expect(deployWorkflow.indexOf('Arm rollback before changing production state')).toBeLessThan(deployWorkflow.indexOf('Attach the candidate at zero traffic'))
-    expect(deployWorkflow).toContain('../node_modules/.bin/wrangler rollback "$PREVIOUS_ID"')
-    expect(deployWorkflow).not.toContain('wrangler@latest')
-    expect(deployWorkflow.indexOf('Probe the full zero-traffic /mcp candidate')).toBeLessThan(deployWorkflow.indexOf('Promote the verified candidate to all traffic'))
+    // The deploy transaction that stamps and verifies these catalogs is
+    // exercised in deploy-workflow-transaction.test.ts.
     for (const rel of ['agent-manifest.json', 'harnesses.json', 'recipes/index.json', 'skills/index.json', 'schemas/index.json']) {
       expect({ rel, exists: existsSync(join(SITE, rel)) }).toEqual({ rel, exists: false })
     }
