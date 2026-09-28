@@ -26,6 +26,10 @@ describe('local/CI quality aggregate', () => {
       return /(?:evidence|gallery|generated)-receipt\.json/.test(source) ? [name] : []
     })
     receiptScripts.push('benchmark:palette:check')
+    // The fidelity generator no longer writes a raw receipt JSON, but its
+    // --check still regenerates and compares the capability report, extension
+    // receipts, and citizenship matrix, so it stays enrolled.
+    receiptScripts.push('fidelity:receipts:check')
     expect(EVIDENCE_CHECKS.map(check => check.command[2]).sort()).toEqual(receiptScripts.sort())
   })
 
