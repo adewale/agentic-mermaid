@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "87fbda1b5b7dd582dcebd9bd3f27c36911ef1827b5e8dcd7c56e97be6439fdc8",
-  "receiptResultSha256": "5e5696edef8ef8702f9ee9fc2fbbb00e2cd3e07baac2dce2c8d4d0383e13bcb5",
+  "receiptInputSha256": "73d34de336b5d6e20701cb72ea2f94d4b8acae883cce5e438ef81ba9099bce92",
+  "receiptResultSha256": "11aa6261f223b0403341f2139b699683c6533056c29d4aad81821c5576440049",
   "summary": {
-    "caseCount": 64,
-    "featureCount": 41,
+    "caseCount": 71,
+    "featureCount": 48,
     "dispositions": {
       "native": 17,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 16
+      "absent": 23
     }
   },
   "features": [
@@ -670,6 +670,258 @@
             "render": "native",
             "serialize": "native",
             "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:bang",
+      "family": "mindmap",
+      "disposition": "absent",
+      "caseIds": [
+        "mindmap.official.fence-5"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-5",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:circle",
+      "family": "mindmap",
+      "disposition": "absent",
+      "caseIds": [
+        "mindmap.official.fence-4"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-4",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:cloud",
+      "family": "mindmap",
+      "disposition": "absent",
+      "caseIds": [
+        "mindmap.official.fence-6"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-6",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:default",
+      "family": "mindmap",
+      "disposition": "absent",
+      "caseIds": [
+        "mindmap.official.fence-8"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-8",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:hexagon",
+      "family": "mindmap",
+      "disposition": "absent",
+      "caseIds": [
+        "mindmap.official.fence-7"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-7",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:rounded-square",
+      "family": "mindmap",
+      "disposition": "absent",
+      "caseIds": [
+        "mindmap.official.fence-3"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-3",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:mindmap:section:square",
+      "family": "mindmap",
+      "disposition": "absent",
+      "caseIds": [
+        "mindmap.official.fence-2"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "mindmap.official.fence-2",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These pinned shape-only sources classify syntax/rendering; Mindmap node mutation has separate contracts."
+              ]
+            }
           },
           "diagnostics": {}
         }
