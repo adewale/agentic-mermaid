@@ -3,19 +3,70 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "7fb5c8f81945e71337e8aa4ab63339d65408f5632c6ef88ba8114db24fe40dd7",
-  "receiptResultSha256": "d62756397ed9d27f87cea3e3cc42546beeec167f4f62da789103cec273f5e415",
+  "receiptInputSha256": "7c66fe86009ddfe9a0284f9601dbdbafbd923a833d69cdb8354ea6db690a71f0",
+  "receiptResultSha256": "f54bbfcded7aec5191187f8633220f06edd0b1c9d19d769a08579c2fa2e26c51",
   "summary": {
-    "caseCount": 60,
-    "featureCount": 38,
+    "caseCount": 63,
+    "featureCount": 40,
     "dispositions": {
       "native": 17,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 13
+      "absent": 15
     }
   },
   "features": [
+    {
+      "featureId": "official-doc:architecture:section:aligning-siblings-v11-16-0",
+      "family": "architecture",
+      "disposition": "absent",
+      "caseIds": [
+        "architecture.official.fence-1",
+        "architecture.official.fence-2"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "architecture.official.fence-1",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "architecture.official.fence-2",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
     {
       "featureId": "official-doc:architecture:section:example",
       "family": "architecture",
@@ -44,6 +95,42 @@
             "mutate": {
               "notApplicable": [
                 "These cases classify pinned official sources; architecture mutation operations have separate tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:architecture:section:grid-layouts-combining-row-and-column",
+      "family": "architecture",
+      "disposition": "absent",
+      "caseIds": [
+        "architecture.official.fence-3"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "architecture.official.fence-3",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official source examples; typed Architecture mutations have separate operation tests."
               ]
             }
           },

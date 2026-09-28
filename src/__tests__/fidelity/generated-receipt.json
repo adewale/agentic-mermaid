@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "7fb5c8f81945e71337e8aa4ab63339d65408f5632c6ef88ba8114db24fe40dd7",
+    "inputSha256": "7c66fe86009ddfe9a0284f9601dbdbafbd923a833d69cdb8354ea6db690a71f0",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -85,6 +85,10 @@
       {
         "path": "scripts/pr-assets/generate-fidelity-receipts.ts",
         "sha256": "c5aea15b3600df9292b2330c2ce0675ab5905b8b94a4547c10ecb7aa709f340b"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/architecture-official-align-fences.fidelity.ts",
+        "sha256": "ee48256e640726b486d26dc9b458d16f3c1124e32564356d4909e46246d3911a"
       },
       {
         "path": "src/__tests__/fidelity/cases/architecture-official-core-fences.fidelity.ts",
@@ -519,6 +523,1342 @@
                   "id": "server",
                   "label": "Server",
                   "parentId": "api"
+                }
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "architecture.official.fence-1",
+      "family": "architecture",
+      "featureId": "official-doc:architecture:section:aligning-siblings-v11-16-0",
+      "sourceSha256": "e98aeab5ff10adea848545bc1a150a4509745dc9141086b7e95ffe239b77750f",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/architecture.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignments": [
+              {
+                "axis": "column",
+                "members": [
+                  "db1",
+                  "db2",
+                  "db3"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "db1",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "mcp",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "db2",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "mcp",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "db3",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "mcp",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              }
+            ],
+            "groups": [
+              {
+                "icon": "cloud",
+                "id": "api",
+                "label": "API",
+                "parentId": null
+              }
+            ],
+            "junctions": [],
+            "services": [
+              {
+                "icon": "database",
+                "id": "db1",
+                "label": "DB1",
+                "parentId": "api"
+              },
+              {
+                "icon": "database",
+                "id": "db2",
+                "label": "DB2",
+                "parentId": "api"
+              },
+              {
+                "icon": "database",
+                "id": "db3",
+                "label": "DB3",
+                "parentId": "api"
+              },
+              {
+                "icon": "server",
+                "id": "mcp",
+                "label": "MCP",
+                "parentId": "api"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignmentFulfilled": [
+              true
+            ],
+            "arrowMarkerPresent": true,
+            "cards": [
+              {
+                "height": 48,
+                "id": "db1",
+                "width": 120,
+                "x": 56,
+                "y": 84
+              },
+              {
+                "height": 48,
+                "id": "db2",
+                "width": 120,
+                "x": 56,
+                "y": 168
+              },
+              {
+                "height": 48,
+                "id": "db3",
+                "width": 120,
+                "x": 56,
+                "y": 252
+              },
+              {
+                "height": 48,
+                "id": "mcp",
+                "width": 120,
+                "x": 232,
+                "y": 168
+              }
+            ],
+            "edges": [
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "176,108 204,108 204,192 232,192",
+                "source": "db1",
+                "sourceSide": "R",
+                "target": "mcp",
+                "targetSide": "L"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "176,192 232,192",
+                "source": "db2",
+                "sourceSide": "R",
+                "target": "mcp",
+                "targetSide": "L"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "176,276 204,276 204,192 232,192",
+                "source": "db3",
+                "sourceSide": "R",
+                "target": "mcp",
+                "targetSide": "L"
+              }
+            ],
+            "frames": [
+              {
+                "height": 278,
+                "id": "api",
+                "width": 332,
+                "x": 38,
+                "y": 40
+              }
+            ],
+            "groupFramePaint": "fill: #fafafa; stroke: none;",
+            "groupLabels": [
+              "API"
+            ],
+            "groupOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "groups": [
+              {
+                "id": "api",
+                "label": "API"
+              }
+            ],
+            "icons": [
+              "cloud",
+              "database",
+              "database",
+              "database",
+              "server"
+            ],
+            "serviceCardPaint": "fill: #f9f9f9; stroke: none;",
+            "serviceLabels": [
+              "DB1",
+              "DB2",
+              "DB3",
+              "MCP"
+            ],
+            "serviceOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "services": [
+              {
+                "id": "db1",
+                "label": "DB1"
+              },
+              {
+                "id": "db2",
+                "label": "DB2"
+              },
+              {
+                "id": "db3",
+                "label": "DB3"
+              },
+              {
+                "id": "mcp",
+                "label": "MCP"
+              }
+            ],
+            "svgSha256": "581d4ed329d6be7daf0f8b8299f6ec88842906081a0fdfefee6fda0d214192ea",
+            "viewBox": "0 0 410 358"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "alignments": [
+                {
+                  "axis": "column",
+                  "members": [
+                    "db1",
+                    "db2",
+                    "db3"
+                  ]
+                }
+              ],
+              "edges": [
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "db1",
+                  "sourceBoundary": "item",
+                  "sourceSide": "R",
+                  "target": "mcp",
+                  "targetBoundary": "item",
+                  "targetSide": "L"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "db2",
+                  "sourceBoundary": "item",
+                  "sourceSide": "R",
+                  "target": "mcp",
+                  "targetBoundary": "item",
+                  "targetSide": "L"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "db3",
+                  "sourceBoundary": "item",
+                  "sourceSide": "R",
+                  "target": "mcp",
+                  "targetBoundary": "item",
+                  "targetSide": "L"
+                }
+              ],
+              "groups": [
+                {
+                  "icon": "cloud",
+                  "id": "api",
+                  "label": "API",
+                  "parentId": null
+                }
+              ],
+              "junctions": [],
+              "services": [
+                {
+                  "icon": "database",
+                  "id": "db1",
+                  "label": "DB1",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "database",
+                  "id": "db2",
+                  "label": "DB2",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "database",
+                  "id": "db3",
+                  "label": "DB3",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "server",
+                  "id": "mcp",
+                  "label": "MCP",
+                  "parentId": "api"
+                }
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "architecture.official.fence-2",
+      "family": "architecture",
+      "featureId": "official-doc:architecture:section:aligning-siblings-v11-16-0",
+      "sourceSha256": "2eddace16930d4278e4404b40fbbc90e3a6181efce0e87ecc25f6db8acc0b7e8",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/architecture.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignments": [
+              {
+                "axis": "row",
+                "members": [
+                  "src1",
+                  "src2",
+                  "src3"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "src1",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "proc",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "src2",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "proc",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "src3",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "proc",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              }
+            ],
+            "groups": [],
+            "junctions": [],
+            "services": [
+              {
+                "icon": "server",
+                "id": "src1",
+                "label": "Source 1",
+                "parentId": null
+              },
+              {
+                "icon": "server",
+                "id": "src2",
+                "label": "Source 2",
+                "parentId": null
+              },
+              {
+                "icon": "server",
+                "id": "src3",
+                "label": "Source 3",
+                "parentId": null
+              },
+              {
+                "icon": "server",
+                "id": "proc",
+                "label": "Processor",
+                "parentId": null
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignmentFulfilled": [
+              true
+            ],
+            "arrowMarkerPresent": true,
+            "cards": [
+              {
+                "height": 48,
+                "id": "src1",
+                "width": 125.59700000000001,
+                "x": 40,
+                "y": 40
+              },
+              {
+                "height": 48,
+                "id": "src2",
+                "width": 130.043,
+                "x": 201.597,
+                "y": 40
+              },
+              {
+                "height": 48,
+                "id": "src3",
+                "width": 130.043,
+                "x": 367.64,
+                "y": 40
+              },
+              {
+                "height": 48,
+                "id": "proc",
+                "width": 141.15800000000002,
+                "x": 196.78050000000002,
+                "y": 144
+              }
+            ],
+            "edges": [
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "102.7985,88 102.7985,116 267.3595,116 267.3595,144",
+                "source": "src1",
+                "sourceSide": "B",
+                "target": "proc",
+                "targetSide": "T"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "266.61850000000004,88 266.61850000000004,116 267.3595,116 267.3595,144",
+                "source": "src2",
+                "sourceSide": "B",
+                "target": "proc",
+                "targetSide": "T"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "432.6615,88 432.6615,116 267.3595,116 267.3595,144",
+                "source": "src3",
+                "sourceSide": "B",
+                "target": "proc",
+                "targetSide": "T"
+              }
+            ],
+            "frames": [],
+            "groupFramePaint": "fill: #fafafa; stroke: none;",
+            "groupLabels": [],
+            "groupOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "groups": [],
+            "icons": [
+              "server",
+              "server",
+              "server",
+              "server"
+            ],
+            "serviceCardPaint": "fill: #f9f9f9; stroke: none;",
+            "serviceLabels": [
+              "Source 1",
+              "Source 2",
+              "Source 3",
+              "Processor"
+            ],
+            "serviceOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "services": [
+              {
+                "id": "src1",
+                "label": "Source 1"
+              },
+              {
+                "id": "src2",
+                "label": "Source 2"
+              },
+              {
+                "id": "src3",
+                "label": "Source 3"
+              },
+              {
+                "id": "proc",
+                "label": "Processor"
+              }
+            ],
+            "svgSha256": "647dec138c495916b7e6a746761b004c37d060fa1fbe2caf304fed61e06290f7",
+            "viewBox": "0 0 537.683 232"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "alignments": [
+                {
+                  "axis": "row",
+                  "members": [
+                    "src1",
+                    "src2",
+                    "src3"
+                  ]
+                }
+              ],
+              "edges": [
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "src1",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "proc",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "src2",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "proc",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "src3",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "proc",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                }
+              ],
+              "groups": [],
+              "junctions": [],
+              "services": [
+                {
+                  "icon": "server",
+                  "id": "src1",
+                  "label": "Source 1",
+                  "parentId": null
+                },
+                {
+                  "icon": "server",
+                  "id": "src2",
+                  "label": "Source 2",
+                  "parentId": null
+                },
+                {
+                  "icon": "server",
+                  "id": "src3",
+                  "label": "Source 3",
+                  "parentId": null
+                },
+                {
+                  "icon": "server",
+                  "id": "proc",
+                  "label": "Processor",
+                  "parentId": null
+                }
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "architecture.official.fence-3",
+      "family": "architecture",
+      "featureId": "official-doc:architecture:section:grid-layouts-combining-row-and-column",
+      "sourceSha256": "5aaae9a5b816cb02cedea4636d3c000e066208952fe70755a3be67dac69a4849",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/architecture.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignments": [
+              {
+                "axis": "row",
+                "members": [
+                  "src_a",
+                  "src_b",
+                  "src_c"
+                ]
+              },
+              {
+                "axis": "row",
+                "members": [
+                  "db_one",
+                  "db_two",
+                  "db_three"
+                ]
+              },
+              {
+                "axis": "row",
+                "members": [
+                  "brief",
+                  "analyst",
+                  "delivery"
+                ]
+              },
+              {
+                "axis": "column",
+                "members": [
+                  "src_a",
+                  "db_one"
+                ]
+              },
+              {
+                "axis": "column",
+                "members": [
+                  "src_b",
+                  "db_two",
+                  "brief"
+                ]
+              },
+              {
+                "axis": "column",
+                "members": [
+                  "src_c",
+                  "db_three"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "src_a",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "db_one",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "src_b",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "db_two",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "src_c",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "db_three",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "db_two",
+                "sourceBoundary": "item",
+                "sourceSide": "B",
+                "target": "brief",
+                "targetBoundary": "item",
+                "targetSide": "T"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "brief",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "analyst",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              },
+              {
+                "hasArrowEnd": true,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "analyst",
+                "sourceBoundary": "item",
+                "sourceSide": "R",
+                "target": "delivery",
+                "targetBoundary": "item",
+                "targetSide": "L"
+              }
+            ],
+            "groups": [
+              {
+                "icon": "cloud",
+                "id": "sources",
+                "label": "Sources",
+                "parentId": null
+              },
+              {
+                "icon": "database",
+                "id": "storage",
+                "label": "Storage",
+                "parentId": null
+              },
+              {
+                "icon": "disk",
+                "id": "output",
+                "label": "Output",
+                "parentId": null
+              }
+            ],
+            "junctions": [],
+            "services": [
+              {
+                "icon": "server",
+                "id": "src_a",
+                "label": "Source A",
+                "parentId": "sources"
+              },
+              {
+                "icon": "server",
+                "id": "src_b",
+                "label": "Source B",
+                "parentId": "sources"
+              },
+              {
+                "icon": "server",
+                "id": "src_c",
+                "label": "Source C",
+                "parentId": "sources"
+              },
+              {
+                "icon": "database",
+                "id": "db_one",
+                "label": "DB One",
+                "parentId": "storage"
+              },
+              {
+                "icon": "database",
+                "id": "db_two",
+                "label": "DB Two",
+                "parentId": "storage"
+              },
+              {
+                "icon": "database",
+                "id": "db_three",
+                "label": "DB Three",
+                "parentId": "storage"
+              },
+              {
+                "icon": "disk",
+                "id": "brief",
+                "label": "Brief",
+                "parentId": "output"
+              },
+              {
+                "icon": "server",
+                "id": "analyst",
+                "label": "Analyst",
+                "parentId": "output"
+              },
+              {
+                "icon": "cloud",
+                "id": "delivery",
+                "label": "Delivery",
+                "parentId": "output"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignmentFulfilled": [
+              true,
+              true,
+              false,
+              true,
+              true,
+              true
+            ],
+            "arrowMarkerPresent": true,
+            "cards": [
+              {
+                "height": 48,
+                "id": "src_a",
+                "width": 131.525,
+                "x": 56,
+                "y": 84
+              },
+              {
+                "height": 48,
+                "id": "src_b",
+                "width": 131.525,
+                "x": 223.525,
+                "y": 84
+              },
+              {
+                "height": 48,
+                "id": "src_c",
+                "width": 131.525,
+                "x": 391.05,
+                "y": 84
+              },
+              {
+                "height": 48,
+                "id": "db_one",
+                "width": 120,
+                "x": 61.7625,
+                "y": 260
+              },
+              {
+                "height": 48,
+                "id": "db_two",
+                "width": 121.151,
+                "x": 228.712,
+                "y": 260
+              },
+              {
+                "height": 48,
+                "id": "db_three",
+                "width": 133.007,
+                "x": 390.30899999999997,
+                "y": 260
+              },
+              {
+                "height": 48,
+                "id": "brief",
+                "width": 120,
+                "x": 229.2875,
+                "y": 436
+              },
+              {
+                "height": 48,
+                "id": "analyst",
+                "width": 120.41,
+                "x": 542.0285,
+                "y": 520
+              },
+              {
+                "height": 48,
+                "id": "delivery",
+                "width": 126.338,
+                "x": 698.4385,
+                "y": 436
+              }
+            ],
+            "edges": [
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "121.7625,132 121.7625,260",
+                "source": "src_a",
+                "sourceSide": "B",
+                "target": "db_one",
+                "targetSide": "T"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "289.2875,132 289.2875,196 289.28749999999997,196 289.28749999999997,260",
+                "source": "src_b",
+                "sourceSide": "B",
+                "target": "db_two",
+                "targetSide": "T"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "456.8125,132 456.8125,260",
+                "source": "src_c",
+                "sourceSide": "B",
+                "target": "db_three",
+                "targetSide": "T"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "289.28749999999997,308 289.28749999999997,372 289.2875,372 289.2875,436",
+                "source": "db_two",
+                "sourceSide": "B",
+                "target": "brief",
+                "targetSide": "T"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "349.2875,460 445.658,460 445.658,544 542.0285,544",
+                "source": "brief",
+                "sourceSide": "R",
+                "target": "analyst",
+                "targetSide": "L"
+              },
+              {
+                "direction": "forward",
+                "markerEnd": "url(#architecture-arrow-end)",
+                "markerStart": null,
+                "points": "662.4385,544 680.4385,544 680.4385,460 698.4385,460",
+                "source": "analyst",
+                "sourceSide": "R",
+                "target": "delivery",
+                "targetSide": "L"
+              }
+            ],
+            "frames": [
+              {
+                "height": 110,
+                "id": "sources",
+                "width": 502.57500000000005,
+                "x": 38,
+                "y": 40
+              },
+              {
+                "height": 110,
+                "id": "storage",
+                "width": 497.55350000000004,
+                "x": 43.7625,
+                "y": 216
+              },
+              {
+                "height": 194,
+                "id": "output",
+                "width": 631.4889999999999,
+                "x": 211.2875,
+                "y": 392
+              }
+            ],
+            "groupFramePaint": "fill: #fafafa; stroke: none;",
+            "groupLabels": [
+              "Sources",
+              "Storage",
+              "Output"
+            ],
+            "groupOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "groups": [
+              {
+                "id": "sources",
+                "label": "Sources"
+              },
+              {
+                "id": "storage",
+                "label": "Storage"
+              },
+              {
+                "id": "output",
+                "label": "Output"
+              }
+            ],
+            "icons": [
+              "cloud",
+              "database",
+              "disk",
+              "server",
+              "server",
+              "server",
+              "database",
+              "database",
+              "database",
+              "disk",
+              "server",
+              "cloud"
+            ],
+            "serviceCardPaint": "fill: #f9f9f9; stroke: none;",
+            "serviceLabels": [
+              "Source A",
+              "Source B",
+              "Source C",
+              "DB One",
+              "DB Two",
+              "DB Three",
+              "Brief",
+              "Analyst",
+              "Delivery"
+            ],
+            "serviceOutlinePaint": "fill: none; stroke: #d4d4d4; stroke-width: 1;",
+            "services": [
+              {
+                "id": "src_a",
+                "label": "Source A"
+              },
+              {
+                "id": "src_b",
+                "label": "Source B"
+              },
+              {
+                "id": "src_c",
+                "label": "Source C"
+              },
+              {
+                "id": "db_one",
+                "label": "DB One"
+              },
+              {
+                "id": "db_two",
+                "label": "DB Two"
+              },
+              {
+                "id": "db_three",
+                "label": "DB Three"
+              },
+              {
+                "id": "brief",
+                "label": "Brief"
+              },
+              {
+                "id": "analyst",
+                "label": "Analyst"
+              },
+              {
+                "id": "delivery",
+                "label": "Delivery"
+              }
+            ],
+            "svgSha256": "1072b6cc82fd5bfee3bf3b2db91ab1df548795e219c10d646026b6c6fa2928c2",
+            "viewBox": "0 0 882.7764999999999 626"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "alignments": [
+                {
+                  "axis": "row",
+                  "members": [
+                    "src_a",
+                    "src_b",
+                    "src_c"
+                  ]
+                },
+                {
+                  "axis": "row",
+                  "members": [
+                    "db_one",
+                    "db_two",
+                    "db_three"
+                  ]
+                },
+                {
+                  "axis": "row",
+                  "members": [
+                    "brief",
+                    "analyst",
+                    "delivery"
+                  ]
+                },
+                {
+                  "axis": "column",
+                  "members": [
+                    "src_a",
+                    "db_one"
+                  ]
+                },
+                {
+                  "axis": "column",
+                  "members": [
+                    "src_b",
+                    "db_two",
+                    "brief"
+                  ]
+                },
+                {
+                  "axis": "column",
+                  "members": [
+                    "src_c",
+                    "db_three"
+                  ]
+                }
+              ],
+              "edges": [
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "src_a",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "db_one",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "src_b",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "db_two",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "src_c",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "db_three",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "db_two",
+                  "sourceBoundary": "item",
+                  "sourceSide": "B",
+                  "target": "brief",
+                  "targetBoundary": "item",
+                  "targetSide": "T"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "brief",
+                  "sourceBoundary": "item",
+                  "sourceSide": "R",
+                  "target": "analyst",
+                  "targetBoundary": "item",
+                  "targetSide": "L"
+                },
+                {
+                  "hasArrowEnd": true,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "analyst",
+                  "sourceBoundary": "item",
+                  "sourceSide": "R",
+                  "target": "delivery",
+                  "targetBoundary": "item",
+                  "targetSide": "L"
+                }
+              ],
+              "groups": [
+                {
+                  "icon": "cloud",
+                  "id": "sources",
+                  "label": "Sources",
+                  "parentId": null
+                },
+                {
+                  "icon": "database",
+                  "id": "storage",
+                  "label": "Storage",
+                  "parentId": null
+                },
+                {
+                  "icon": "disk",
+                  "id": "output",
+                  "label": "Output",
+                  "parentId": null
+                }
+              ],
+              "junctions": [],
+              "services": [
+                {
+                  "icon": "server",
+                  "id": "src_a",
+                  "label": "Source A",
+                  "parentId": "sources"
+                },
+                {
+                  "icon": "server",
+                  "id": "src_b",
+                  "label": "Source B",
+                  "parentId": "sources"
+                },
+                {
+                  "icon": "server",
+                  "id": "src_c",
+                  "label": "Source C",
+                  "parentId": "sources"
+                },
+                {
+                  "icon": "database",
+                  "id": "db_one",
+                  "label": "DB One",
+                  "parentId": "storage"
+                },
+                {
+                  "icon": "database",
+                  "id": "db_two",
+                  "label": "DB Two",
+                  "parentId": "storage"
+                },
+                {
+                  "icon": "database",
+                  "id": "db_three",
+                  "label": "DB Three",
+                  "parentId": "storage"
+                },
+                {
+                  "icon": "disk",
+                  "id": "brief",
+                  "label": "Brief",
+                  "parentId": "output"
+                },
+                {
+                  "icon": "server",
+                  "id": "analyst",
+                  "label": "Analyst",
+                  "parentId": "output"
+                },
+                {
+                  "icon": "cloud",
+                  "id": "delivery",
+                  "label": "Delivery",
+                  "parentId": "output"
                 }
               ]
             },
@@ -20469,11 +21809,11 @@
     }
   ],
   "summary": {
-    "caseCount": 60,
-    "passedCaseCount": 60,
+    "caseCount": 63,
+    "passedCaseCount": 63,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 206,
+    "observedSurfaceCount": 215,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 34
+    "notApplicableSurfaceCount": 37
   }
 }
