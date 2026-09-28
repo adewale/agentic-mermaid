@@ -3,7 +3,10 @@
 // Executable case definitions and raw observations remain test-only. Runtime
 // discovery consumes only this generated, JSON-safe projection.
 
-export const FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION = 5 as const
+// v6 dropped the receipt input/result digests: they hashed case-file bytes
+// and raw observations, so every case edit churned this runtime data without
+// changing a claim. Freshness is now enforced by the fidelity unit test.
+export const FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION = 6 as const
 
 export const FIDELITY_DISPOSITIONS = Object.freeze(['native', 'source-preserved', 'diagnosed', 'absent'] as const)
 
@@ -52,8 +55,6 @@ export interface FidelityCapabilityReport {
   mode: 'public'
   publicClaimsChanged: true
   upstreamRevision: string
-  receiptInputSha256: string
-  receiptResultSha256: string
   summary: {
     caseCount: number
     featureCount: number

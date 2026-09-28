@@ -226,7 +226,7 @@ function featureRows(
       fingerprint: feature.fingerprint,
       ...(feature.sourceSha256 ? { sourceSha256: feature.sourceSha256 } : {}),
       evidence: receipt
-        ? ['docs/project/fidelity-capability-report.json', 'src/__tests__/fidelity/generated-receipt.json']
+        ? ['docs/project/fidelity-capability-report.json', 'src/__tests__/fidelity-receipts.test.ts']
         : ['docs/project/fidelity-capability-report.json'],
       receipt: receipt
         ? {

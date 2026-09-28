@@ -18,7 +18,6 @@ import {
   type UpstreamMermaidManifest,
 } from './upstream-mermaid-manifest.ts'
 
-const SHA256_PATTERN = /^[0-9a-f]{64}$/
 const DISPOSITION_RANK: Readonly<Record<FidelityDisposition, number>> = Object.freeze({
   native: 0,
   'source-preserved': 1,
@@ -65,8 +64,6 @@ export function validateFidelityCapabilityReport(
   if (value.schemaVersion !== FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION) issues.push('fidelity capability report schema is stale')
   if (value.mode !== 'public' || value.publicClaimsChanged !== true) issues.push('fidelity capability report is not the public claim authority')
   if (value.upstreamRevision !== manifest.provenance.commit) issues.push('fidelity capability report upstream revision is stale')
-  if (typeof value.receiptInputSha256 !== 'string' || !SHA256_PATTERN.test(value.receiptInputSha256)) issues.push('fidelity capability report input digest is invalid')
-  if (typeof value.receiptResultSha256 !== 'string' || !SHA256_PATTERN.test(value.receiptResultSha256)) issues.push('fidelity capability report result digest is invalid')
   if (!isRecord(value.summary)) issues.push('fidelity capability report summary is invalid')
   if (!Array.isArray(value.features)) return [...issues, 'fidelity capability report features are invalid'].sort(compareCodePointStrings)
 
