@@ -137,7 +137,7 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     width: positive, height: positive, useMaxWidth: boolean, useWidth: positive,
     titleFontSize: positive, titlePadding: nonNegative,
     chartOrientation: oneOf('vertical', 'horizontal'), plotReservedSpacePercent: range(0, 100, false),
-    showDataLabel: boolean, showTitle: boolean, showLegend: boolean,
+    showDataLabel: boolean, showDataLabelOutsideBar: boolean, showTitle: boolean, showLegend: boolean,
     legendFontSize: positive, legendPadding: nonNegative,
     xAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
     yAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
@@ -161,7 +161,7 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
 }
 
 const XY_AXIS_VALUE_RULES: Record<string, ValueRule> = {
-  showLabel: boolean, labelFontSize: positive, labelPadding: nonNegative,
+  showLabel: boolean, labelFontSize: positive, labelPadding: nonNegative, labelRotation: finite,
   showTitle: boolean, titleFontSize: positive, titlePadding: nonNegative,
   showTick: boolean, tickLength: nonNegative, tickWidth: positive,
   showAxisLine: boolean, axisLineWidth: positive,
@@ -230,6 +230,11 @@ export function familyConfigValueDiagnostics(
         const valueRule = XY_AXIS_VALUE_RULES[key]
         if (!valueRule) warn(`xyChart.${axis}.${key}`, 'a documented axis-config field')
         else if (!valueRule.valid(axisConfig[key])) warn(`xyChart.${axis}.${key}`, valueRule.expected)
+        else if (key === 'labelRotation') diagnostics.push({
+          code: 'INEFFECTIVE_CONFIG',
+          field: `xyChart.${axis}.${key}`,
+          message: `xyChart ${axis}.${key} is accepted for Mermaid compatibility but has no effect on this renderer.`,
+        })
       }
     }
   }
@@ -245,7 +250,13 @@ export function familyNoopConfigDiagnostics(
   const config = section(root, spec.section)
   if (!config) return []
   const noop = new Set(spec.noopKeys ?? [])
-  return Object.keys(config).filter(key => noop.has(key)).sort().map(key => ({
+  return Object.keys(config).filter(key => {
+    if (!noop.has(key)) return false
+    // An invalid value already has a more precise validity diagnostic; it
+    // must not also be described as an accepted compatibility no-op.
+    const valueRule = FAMILY_VALUE_RULES[kind]?.[key]
+    return !valueRule || valueRule.valid(config[key])
+  }).sort().map(key => ({
     code: 'INEFFECTIVE_CONFIG' as const,
     field: `${spec.section}.${key}`,
     message: `${kind} config field "${key}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
