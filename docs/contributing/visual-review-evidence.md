@@ -26,10 +26,13 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 ## Golden-snapshot drift gate (`[approve-goldens]`)
 
 Committed goldens under `src/__tests__/testdata/` are a **hard CI gate**, not an
-ignorable warning. The `ci.yml` "Golden snapshot drift" step fails the build if:
+ignorable warning. The gate is the `golden-drift` check in `bun run quality:check`
+(`QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`, run by the `ci.yml` Quality
+gates job), and it fails if:
 
-- running the suite leaves **uncommitted** changes under `testdata/` (regenerate
-  and commit them), or
+- the working tree has **uncommitted** changes under `testdata/` (regenerate
+  and commit them) — in practice this half only bites locally, after you have
+  run the suite, because the CI Quality gates job does not run the unit suite, or
 - any commit in the PR/push range **modifies** committed goldens **without its
   own** approval line starting with `[approve-goldens]`.
 

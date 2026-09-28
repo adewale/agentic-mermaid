@@ -354,7 +354,8 @@ fixes a real, current lockout.
 ### Phase 3 — surfaces, discovery, and the artifact-handle audit ✅ implemented
 
 - `.well-known/mcp/server-card.json` `protocolVersions` (currently the three
-  stale entries), `website/source/mcp-registry/server.json`, `server.json`,
+  stale entries), the root `server.json` (the canonical Registry manifest; the
+  former `website/source/mcp-registry/server.json` copy was later removed),
   `/docs/mcp/`, `website/README.md`.
 - Record the §4.4 artifact-handle audit result.
 - Add the §7 probes to `website/e2e-mcp.sh`, which now runs on every deploy.
@@ -556,7 +557,7 @@ Every item from the issue. Line references re-verified against current `main`
 | S1 | `_meta` tolerance test; keep closed schemas validating `arguments` not the envelope | **confirmed** — `dispatchMcpRequest` reads only `name`/`arguments` | Holds today. §10 pins it. **Amended:** `_meta` becomes *required and validated* on the modern path, not merely tolerated. |
 | S2 | Error-code audit; regression test asserting no `-32002` | **confirmed** — zero occurrences repo-wide | Already conformant. Corpus records every error shape. **Amended:** three *new* codes arrive (`-32020/-32021/-32022`). |
 | S3 | Add `Mcp-Method`/`Mcp-Name` to `access-control-allow-headers` (`mcp-handler.ts:106-111`) | line accurate | Phase 2. **Upgraded to required:** these headers are REQUIRED on modern requests, so browser preflight fails without them. |
-| S4 | Update `/docs/mcp/`, `website/README.md`, `.well-known/mcp/server-card.json`, `website/source/mcp-registry/server.json` | all exist; server card serves the three stale versions | Phase 3. |
+| S4 | Update `/docs/mcp/`, `website/README.md`, `.well-known/mcp/server-card.json`, root `server.json` | all exist; server card serves the three stale versions | Phase 3. |
 | S5 | Add a `2026-07-28`-pinned probe to `website/e2e-mcp.sh` | script exists; no pinned probe | Phase 3. Script now runs on every deploy (commit `a438bd2`). |
 
 ### Optional

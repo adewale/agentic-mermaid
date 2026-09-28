@@ -34,7 +34,7 @@ Every new diagram PR should include at least one official Mermaid example.
 3. Add that exact Mermaid source to this repo's tests.
 4. Render it with official Mermaid and Agentic Mermaid from the same source. Confirm semantic equivalence and the family hallmark; pixel identity is not required.
 5. Commit the example source, official comparison (when reproducible), Agentic artifact, and exact regeneration command.
-6. Put the artifact in the PR's captioned Visual Evidence table with separate **Why** and **What to inspect** text.
+6. Attach the rendered artifact to the PR (an uploaded image or CI artifact) with a caption giving separate **Why** and **What to inspect** text; PR-only renders are not committed (see [`visual-review-evidence.md`](./visual-review-evidence.md)).
 
 For this repo, that usually means:
 
@@ -81,7 +81,7 @@ Before merge, verify that it is **Visual-metaphor complete**:
 - Mermaid's rendered example and a Wikipedia/domain reference are both cited;
 - the family's recognizable hallmark is stated in the matrix (central idea for Mindmap, lifelines for Sequence, time-scaled bars for Gantt, and so on);
 - at least one independent semantic/geometry assertion proves that hallmark rather than snapshotting implementation bytes;
-- a representative generated screenshot is committed and captioned in the PR's Visual Evidence table;
+- a representative generated PNG/SVG is committed under `docs/design/families/` as the matrix row's `fidelity.visualArtifact` (the committed visual the citizenship test requires), and captioned renders are attached to the PR;
 - SVG and terminal output are reviewed separately: surface availability does not prove visual fidelity.
 
 See [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) for the current registry-derived standard.

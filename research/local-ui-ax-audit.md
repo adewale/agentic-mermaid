@@ -5,6 +5,8 @@ Target: `http://127.0.0.1:9095/`
 Scope: `website/public`, `mockups/styles.css`, `mockups/theme.js`, `website/build.ts`, `editor/css/*.css`, `editor/html/*.html`, `editor/js/*.js`
 Mode: review-only for product code; wrote this audit artifact only.
 
+> **Status: historical snapshot (2026-06-28).** Findings describe the editor and site at that date, not now: `mockups/` was deleted in #110 (163d89a3), and the colour, font, and export popovers have since been rebuilt on `createPopupController` (`editor/js/helpers.js`) with `aria-expanded`/`aria-controls` triggers, `role="dialog"` popups, and Escape dismissal (`editor/html/left-panel.html`, `editor/html/topbar.html`).
+
 ## Context checked
 - `plan.md`: not present at repo root (`ENOENT` when read).
 - `progress.md`: notes a prior AX conventions brief and lack of web fetch tools; this audit used local files plus live localhost checks.
@@ -22,14 +24,14 @@ Mode: review-only for product code; wrote this audit artifact only.
 
 ### P1 — Color picker is not keyboard/screen-reader robust
 - **Files/selectors:** `editor/html/left-panel.html:155-176` (`#color-popup`), `editor/js/color-picker.js:18-37`, `editor/js/color-picker.js:49-95`, `.color-edit-btn` triggers.
-- **Evidence:** opening a color control only adds `.open` and positions the popup; it does not move focus into the popup, set trigger `aria-expanded`, attach `aria-controls`, give the popup `role="dialog"`, or handle `Escape`. The only close paths are close button or outside click.
+- **Evidence (at the time; since fixed):** opening a color control only added `.open` and positioned the popup; it did not move focus into the popup, set trigger `aria-expanded`, attach `aria-controls`, give the popup `role="dialog"`, or handle `Escape`. The only close paths are close button or outside click.
 - **Live check:** Playwright opened `#color-popup`, pressed `Escape`, and `#color-popup.open` remained `1`; trigger `aria-expanded` was `null`.
 - **Impact:** keyboard users can open the picker but are left on the trigger with an unannounced floating surface; Escape does not dismiss it, and the open popup can intercept subsequent pointer actions.
 - **Impeccable dimensions:** accessibility, attention-to-detail.
 
 ### P2 — Export and font popovers miss common disclosure/menu behavior
 - **Files/selectors:** `editor/html/topbar.html:118-139` (`#export-chevron-btn`, `#export-dropdown`), `editor/js/export.js:25-37`; `editor/html/left-panel.html:178-199` (`#font-popup`), `editor/js/font-picker.js:95-125`.
-- **Evidence:** export chevron has a title but no `aria-haspopup`, `aria-expanded`, or `aria-controls`; `toggleExportDropdown()` only toggles `.open`, and global close only listens for outside click. Font select opens and focuses search, but trigger also lacks expanded/controls state and Escape handling.
+- **Evidence (at the time; since fixed):** export chevron had a title but no `aria-haspopup`, `aria-expanded`, or `aria-controls`; `toggleExportDropdown()` only toggles `.open`, and global close only listens for outside click. Font select opens and focuses search, but trigger also lacks expanded/controls state and Escape handling.
 - **Live check:** after opening and pressing Escape: `exportAfterEscape=1`, `fontAfterEscape=1`; both trigger `aria-expanded` values were `null`.
 - **Impact:** custom popovers do not meet user expectations for keyboard dismissal/state announcement; screen-reader users get less reliable disclosure state.
 - **Impeccable dimensions:** accessibility, anti-AI-slop (polished custom controls should behave like native ones).

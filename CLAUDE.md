@@ -55,7 +55,9 @@ The seven dimensions:
 4. **Tests that prove the fix** — tests must fail when the fix is reverted.
    Verify red→green and state the result (e.g. "N tests fail without the fix").
    CI's `red-green` job checks this: at least one changed test must fail against
-   the base branch's production code. Label pure refactors `no-red-green`.
+   the base branch's production code. It skips itself when no `src/`/`bin/`
+   production file or no test changed; label `no-red-green` only a pure
+   refactor that changes both.
 5. **Scoped and safe** — one concern, minimal diff, full test suite run, risks flagged.
 6. **Standalone description** — what / why / how / testing / risk, understandable
    without reading the diff.

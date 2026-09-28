@@ -41,7 +41,8 @@ from source-adjacent markers; inserting code above the behavior cannot silently
 move those lanes onto unrelated lines.
 
 Beyond the lanes documented here, configs exist for every built-in renderable
-family through named profiles: flowchart uses `mutation-test -- routes`;
+family except Sankey (no profile yet) through named profiles in
+`stryker.config.mjs`: flowchart uses `mutation-test -- routes`;
 XYChart, Architecture, and Radar share `mutation-test -- families`; State, Sequence,
 Timeline, Class, ER, Journey, Pie, Quadrant, Gantt, Mindmap, and GitGraph each
 have a focused command. These are **opt-in diagnostic survivor harvests**. They

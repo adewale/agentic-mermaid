@@ -1,5 +1,7 @@
 # Code Context
 
+> **Status: historical snapshot (2026-06-30, PR #76), not a map of the current repo.** `mockups/` was deleted in #110 (163d89a3); site pages and assets now live under `website/source/` (`pages/`, `assets/`), and line numbers below have moved.
+
 ## Files Retrieved
 1. `website/build.ts` (lines 14-116, 200-332, 506-573) - static site route map, mockup transforms, generated masthead, install route generation, editor generation path.
 2. `mockups/home.html` (lines 13-91) - homepage masthead and agent prompt widget source.
@@ -31,12 +33,12 @@
   - Font CSS `editor/css/font-picker.css:18-35`, JS `editor/js/font-picker.js:89-116` positions fixed popup near `#font-select-btn`.
   - Color CSS `editor/css/color-picker.css:1-13`, JS `editor/js/color-picker.js:20-38` positions fixed popup near clicked `.color-edit-btn`.
   Severity: **medium** for mobile/overflow risk; popovers use fixed pixel widths and limited viewport clamping, no focus trap/Escape handling for font/color, and export dropdown lacks ARIA expanded/list semantics updates.
-- **Editor rendered SVG accessibility:** live SVG insertion is `editor/js/rendering.js:194-199` (`previewInner.innerHTML = svg; var svgEl = ...`). Library accessibility exists only when source contains `accTitle`/`accDescr`: `src/index.ts:70-107` injects `<title>/<desc>`, `role="img"`, `aria-labelledby`; called during `renderMermaidSVG()` finalize at `src/index.ts:247-263`. Severity: **medium** if requirement is every rendered preview SVG has accessible name; current default diagrams without accTitle/accDescr get no role/title from `src/index.ts` and editor does not add fallback ARIA.
+- **Editor rendered SVG accessibility:** live SVG insertion was `editor/js/rendering.js:194-199` (`previewInner.innerHTML = svg; var svgEl = ...`) at the time; it is now `insertStrictRenderedSvg()`, which parses with `DOMParser` and uses `previewInner.replaceChildren(document.importNode(...))`. Library accessibility exists only when source contains `accTitle`/`accDescr`: `src/index.ts:70-107` injects `<title>/<desc>`, `role="img"`, `aria-labelledby`; called during `renderMermaidSVG()` finalize at `src/index.ts:247-263`. Severity: **medium** if requirement is every rendered preview SVG has accessible name; current default diagrams without accTitle/accDescr get no role/title from `src/index.ts` and editor does not add fallback ARIA.
 - **Unicode output sizing/overflow:** markup in `editor/html/right-panel.html:75-96`, content set by `setTextOutputs()` and `renderTextOutputs()` in `editor/js/rendering.js:71-78`, `:168-178`. CSS `editor/css/preview.css:314-372` uses `max-height:190px`, `min-height:92px`, `overflow:auto`, `white-space:pre`, `font-size:12px`. Severity: **medium** for mobile overflow/readability; horizontal overflow is intentional, but panel can dominate limited viewport and no responsive font/height adjustments exist beyond one-column verify tier.
 - **Gallery layout:** source is `mockups/gallery.html`; CSS at `mockups/styles.css:369-397` sets two-column grid, `.gallery-wide/.gallery-span` full row, plate `overflow:auto`, wide SVG `width:max(100%,640px)` and mobile `width:max(100%,600px)`. Severity: **low/medium** depending request; mobile wide diagrams intentionally overflow horizontally inside tile.
 
 ## Architecture
-- The **public site is mostly static mockups** under `mockups/`, transformed by `website/build.ts` into `website/public/`. Edits to homepage/gallery/site CSS/theme picker should be made in `mockups/*`, then build regenerates `website/public/*`.
+- The **public site was mostly static mockups** under `mockups/` (since moved to `website/source/`), transformed by `website/build.ts` into `website/public/`. Edits to homepage/gallery/site CSS/theme picker were made in `mockups/*`, then build regenerated `website/public/*`.
 - The **install and docs-like routes are generated strings** in `website/build.ts` using `pageShell()` and `mastheadHtml()`, not separate mockups. Navigation changes must update both mockup mastheads (home/gallery/etc.) and `mastheadHtml()` or pages diverge.
 - The **live editor is modular source** under `editor/`; `scripts/site/editor.ts` concatenates CSS/JS partials and bundles `src/browser.ts`. `website/build.ts` then emits the generated editor at `/editor/`.
 - The editor renderer calls browser API exposed from `src/browser.ts`, receives SVG string from `src/index.ts`, inserts it into `#preview-inner`, then separately renders Unicode/ASCII into `<pre><code>` outputs.

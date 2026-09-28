@@ -17,7 +17,7 @@ Current authorities are:
 - [`docs/project/brand-primitives-plan.md`](../../docs/project/brand-primitives-plan.md),
   the customization architecture and Section B design;
 - [`docs/project/archive/section-a-rendering-contract-2026-07.md`](../../docs/project/archive/section-a-rendering-contract-2026-07.md),
-  the open Section A landing record until its PR merges; and
+  the Section A implementation record (implemented and verified by PR #163); and
 - the generated Section A capability report and executable registries for the
   current implementation contract.
 
