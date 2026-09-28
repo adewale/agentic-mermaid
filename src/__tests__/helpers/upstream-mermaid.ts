@@ -30,6 +30,20 @@ export interface UpstreamFlowchartSubgraph {
   nodes: string[]
 }
 
+export interface UpstreamSequenceActor {
+  name: string
+  description: string
+  type: string
+}
+
+export interface UpstreamSequenceMessage {
+  from?: string
+  to?: string
+  message: string
+  /** Upstream LINETYPE: arrows, notes and block open/close markers share it. */
+  type: number
+}
+
 export type UpstreamParse =
   | {
       ok: true
@@ -39,6 +53,11 @@ export type UpstreamParse =
         vertices: UpstreamFlowchartVertex[]
         edges: UpstreamFlowchartEdge[]
         subgraphs: UpstreamFlowchartSubgraph[]
+      }
+      /** Present when the diagram DB exposes the sequence actor/message API. */
+      sequence?: {
+        actors: UpstreamSequenceActor[]
+        messages: UpstreamSequenceMessage[]
       }
     }
   | { ok: false; error: string }
@@ -68,6 +87,13 @@ function flowchart(db) {
     subgraphs: (db.getSubGraphs?.() ?? []).map(s => ({ id: s.id, title: String(s.title ?? ''), nodes: [...s.nodes] })),
   }
 }
+function sequence(db) {
+  if (typeof db?.getActors !== 'function' || typeof db?.getMessages !== 'function') return undefined
+  return {
+    actors: [...db.getActors().values()].map(a => ({ name: a.name, description: String(a.description ?? ''), type: String(a.type ?? '') })),
+    messages: db.getMessages().map(m => ({ from: m.from, to: m.to, message: String(m.message ?? ''), type: m.type })),
+  }
+}
 const decoder = new TextDecoder()
 let buffered = ''
 for await (const chunk of Bun.stdin.stream()) {
@@ -78,7 +104,7 @@ for await (const chunk of Bun.stdin.stream()) {
     let reply
     try {
       const diagram = await mermaid.mermaidAPI.getDiagramFromText(JSON.parse(line))
-      reply = { ok: true, type: diagram.type, flowchart: flowchart(diagram.db) }
+      reply = { ok: true, type: diagram.type, flowchart: flowchart(diagram.db), sequence: sequence(diagram.db) }
     } catch (error) {
       reply = { ok: false, error: String(error?.message ?? error).split('\\n')[0] }
     }
