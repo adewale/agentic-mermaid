@@ -19,15 +19,9 @@ type Finding = {
   text: string
 }
 
+// Focused and skipped tests are enforced repository-wide by Biome's
+// suspicious/noFocusedTests and suspicious/noSkippedTests (biome.json).
 const RULES = [
-  {
-    name: 'focused test committed',
-    re: /\b(?:describe|test|it)\s*\.\s*only\s*\(/,
-  },
-  {
-    name: 'direct skip committed',
-    re: /\b(?:describe|test|it)\s*\.\s*skip\s*\(/,
-  },
   {
     name: 'truthy/falsy assertion',
     re: /\.toBe(?:Truthy|Falsy)\s*\(/,
@@ -74,7 +68,7 @@ function findTestQualitySmells(files = testFiles()): Finding[] {
 }
 
 describe('test-quality lint (testing-best-practices guardrails)', () => {
-  test('tests do not carry focused/skipped tests, truthy assertions, or fixed waits', () => {
+  test('tests do not carry truthy assertions or fixed waits', () => {
     expect(findTestQualitySmells()).toEqual([])
   })
 
@@ -104,8 +98,6 @@ describe('test-quality lint (testing-best-practices guardrails)', () => {
 
   test('the lint has teeth for each guarded anti-pattern', () => {
     const examples = [
-      'test' + '.only("debug", () => {})',
-      'describe' + '.skip("later", () => {})',
       'expect(result).toBe' + 'Truthy()',
       'await page.waitFor' + 'Timeout(500)',
     ]
