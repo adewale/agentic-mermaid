@@ -274,6 +274,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/pie-terminal-control.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
       'fidelity/cases/timeline-direction.fidelity.ts',
+      'fidelity/cases/xychart-official-fences.fidelity.ts',
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
       'block.family.accurately-diagnosed-unsupported',
@@ -307,6 +308,14 @@ describe('issue #248 construct fidelity receipts', () => {
       'state.comments.trailing-transition-loss',
       'timeline.direction.td-vertical-geometry',
       'timeline.direction.unsupported-header-diagnosis',
+      'xychart.official.fence-0',
+      'xychart.official.fence-1',
+      'xychart.official.fence-2',
+      'xychart.official.fence-3',
+      'xychart.official.fence-4',
+      'xychart.official.fence-5',
+      'xychart.official.fence-6',
+      'xychart.official.fence-7',
       'xychart.syntax.shared-parser-semantics',
       'xychart.syntax.unknown-statement-render-seam',
     ])
@@ -315,12 +324,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 33,
-      passedCaseCount: 33,
+      caseCount: 41,
+      passedCaseCount: 41,
       failedCaseCount: 0,
-      observedSurfaceCount: 125,
+      observedSurfaceCount: 149,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 7,
+      notApplicableSurfaceCount: 15,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -441,6 +450,117 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'render',
         path: ['links', 0, 'opacity'],
         replacement: '1',
+      },
+      {
+        caseId: 'xychart.official.fence-1',
+        surface: 'render',
+        path: ['lines', 0, 'points', 1, 0],
+        replacement: 111.89,
+      },
+      {
+        caseId: 'xychart.official.fence-1',
+        surface: 'render',
+        path: ['lineStrokeWidth'],
+        replacement: '0',
+      },
+      {
+        caseId: 'xychart.official.fence-2',
+        surface: 'render',
+        path: ['barPaint', 1, 'color'],
+        replacement: '#ff00ff',
+      },
+      {
+        caseId: 'xychart.official.fence-2',
+        surface: 'render',
+        path: ['bars', 0, 'x'],
+        replacement: 97.7425,
+        additionalChanges: [{ path: ['bars', 4, 'x'], replacement: 97.7425 }],
+      },
+      {
+        caseId: 'xychart.official.fence-2',
+        surface: 'render',
+        path: ['bars', 0, 'x'],
+        replacement: 131.69,
+        additionalChanges: [{ path: ['bars', 4, 'x'], replacement: 63.79 }],
+      },
+      {
+        caseId: 'xychart.official.fence-3',
+        surface: 'render',
+        path: ['bars', 0, 'height'],
+        replacement: 1,
+      },
+      {
+        caseId: 'xychart.official.fence-3',
+        surface: 'render',
+        path: ['bars', 0, 'x'],
+        replacement: 1000,
+      },
+      {
+        caseId: 'xychart.official.fence-3',
+        surface: 'render',
+        path: ['bars', 0, 'width'],
+        replacement: 0.00001,
+        additionalChanges: [{ path: ['bars', 0, 'x'], replacement: 113.534995 }],
+      },
+      {
+        caseId: 'xychart.official.fence-3',
+        surface: 'render',
+        path: ['dataLabels', 0, 'x'],
+        replacement: 1000,
+      },
+      {
+        caseId: 'xychart.official.fence-3',
+        surface: 'render',
+        path: ['dataLabels', 0, 'fontSize'],
+        replacement: '0',
+      },
+      {
+        caseId: 'xychart.official.fence-3',
+        surface: 'render',
+        path: ['dataLabelPaint'],
+        replacement: 'transparent',
+      },
+      {
+        caseId: 'xychart.official.fence-4',
+        surface: 'render',
+        path: ['identicalToInsideLabels'],
+        replacement: false,
+      },
+      {
+        caseId: 'xychart.official.fence-5',
+        surface: 'render',
+        path: ['labels', 0, 'x'],
+        replacement: 636.78,
+      },
+      {
+        caseId: 'xychart.official.fence-5',
+        surface: 'render',
+        path: ['labels', 0, 'fill'],
+        replacement: '#ff00ff',
+      },
+      {
+        caseId: 'xychart.official.fence-5',
+        surface: 'render',
+        path: ['lines', 0, 'points', 0, 0],
+        replacement: 1131,
+      },
+      {
+        caseId: 'xychart.official.fence-6',
+        surface: 'render',
+        path: ['labels', 0, 'fontSize'],
+        replacement: '16',
+      },
+      {
+        caseId: 'xychart.official.fence-6',
+        surface: 'render',
+        path: ['lines', 0, 'points', 0, 1],
+        replacement: 1361,
+      },
+      {
+        caseId: 'xychart.official.fence-6',
+        surface: 'render',
+        path: ['yTicks', 0, 'value'],
+        replacement: 99,
       },
       {
         caseId: 'xychart.syntax.shared-parser-semantics',

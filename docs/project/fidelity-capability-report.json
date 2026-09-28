@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "a2f1a72607960adf89e4cd4762e33cd7a5e5b0fbdce3d41c0fadeae744f1cb3c",
-  "receiptResultSha256": "7268160b62748ad1322ce178b270374f6b6fabc5c3f36ff162b9fe6cd63fc419",
+  "receiptInputSha256": "9dc63cea15880915304cd4d0c464d187a174fceb1c746b92edb599903099f132",
+  "receiptResultSha256": "56b7acb92e8dfc13776e8cbc29c3949a82686bd8efa3416b5a7a4b05206b368b",
   "summary": {
-    "caseCount": 33,
-    "featureCount": 15,
+    "caseCount": 41,
+    "featureCount": 21,
     "dispositions": {
-      "native": 6,
+      "native": 7,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 1
+      "absent": 6
     }
   },
   "features": [
@@ -810,6 +810,276 @@
             ],
             "mutate": [
               "INVALID_OP"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:xychart:section:displaying-individual-values-on-a-bar-chart-v11-14-0",
+      "family": "xychart",
+      "disposition": "absent",
+      "caseIds": [
+        "xychart.official.fence-3",
+        "xychart.official.fence-4"
+      ],
+      "surfaces": {
+        "agent": "diagnosed",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+          ]
+        }
+      },
+      "diagnostics": {
+        "agent": [
+          "INEFFECTIVE_CONFIG"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "xychart.official.fence-3",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "xychart.official.fence-4",
+          "surfaces": {
+            "agent": "diagnosed",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {
+            "agent": [
+              "INEFFECTIVE_CONFIG"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:xychart:section:example",
+      "family": "xychart",
+      "disposition": "absent",
+      "caseIds": [
+        "xychart.official.fence-0"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "xychart.official.fence-0",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:xychart:section:example-on-config-and-theme",
+      "family": "xychart",
+      "disposition": "absent",
+      "caseIds": [
+        "xychart.official.fence-7"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "xychart.official.fence-7",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:xychart:section:legend-v",
+      "family": "xychart",
+      "disposition": "absent",
+      "caseIds": [
+        "xychart.official.fence-1"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "xychart.official.fence-1",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:xychart:section:per-point-text-labels-for-line-charts-v11-16-0",
+      "family": "xychart",
+      "disposition": "native",
+      "caseIds": [
+        "xychart.official.fence-5",
+        "xychart.official.fence-6"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+          ]
+        }
+      },
+      "diagnostics": {
+        "agent": [
+          "LABEL_OVERFLOW"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "xychart.official.fence-5",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {
+            "agent": [
+              "LABEL_OVERFLOW"
+            ]
+          }
+        },
+        {
+          "caseId": "xychart.official.fence-6",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:xychart:section:setting-colors-for-lines-and-bars",
+      "family": "xychart",
+      "disposition": "absent",
+      "caseIds": [
+        "xychart.official.fence-2"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+          ]
+        }
+      },
+      "diagnostics": {
+        "agent": [
+          "COMMENT_DROPPED"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "xychart.official.fence-2",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt."
+              ]
+            }
+          },
+          "diagnostics": {
+            "agent": [
+              "COMMENT_DROPPED"
             ]
           }
         }
