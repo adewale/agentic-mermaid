@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -11,6 +12,7 @@ import {
 import type { ExtensionRegistration } from '../shared/extension-identity.ts'
 import {
   getStyle,
+  inferBackend,
   knownStyleDescriptors,
   knownStyles,
   registerStyle,
@@ -27,7 +29,7 @@ import {
 import { runBackendConformance } from '../scene/backend-conformance.ts'
 import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
-import '../scene/builtin-backends.ts'
+import { BUILTIN_BACKENDS } from '../scene/builtin-backends.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 
 const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
@@ -612,16 +614,36 @@ describe('canonical style identities', () => {
 
 describe('backend registration and host policy', () => {
   test('first-party backend implementations are inert and have one enrollment authority', () => {
-    for (const file of ['rough-backend.ts', 'hybrid-backend.ts']) {
-      const source = readFileSync(join(import.meta.dir, '..', 'scene', file), 'utf8')
-      expect({ file, selfRegisters: source.includes('registerBuiltInBackend(') })
-        .toEqual({ file, selfRegisters: false })
+    // A fresh process observes import side effects that this file's own
+    // import of builtin-backends.ts has already applied.
+    const probe = spawnSync(process.execPath, ['--eval', `
+      const { knownBackendDescriptors } = await import('./src/scene/backend.ts')
+      const ids = () => knownBackendDescriptors().map(entry => entry.identity.id)
+      const initial = ids()
+      await import('./src/scene/rough-backend.ts')
+      await import('./src/scene/hybrid-backend.ts')
+      const afterImplementations = ids()
+      const { BUILTIN_BACKENDS } = await import('./src/scene/builtin-backends.ts')
+      console.log(JSON.stringify({ initial, afterImplementations, enrolled: ids(), builtins: BUILTIN_BACKENDS.map(backend => backend.id) }))
+    `], { cwd: join(import.meta.dir, '..', '..'), encoding: 'utf8' })
+    expect({ status: probe.status, stderr: probe.stderr }).toEqual({ status: 0, stderr: '' })
+    const observed = JSON.parse(probe.stdout) as Record<'initial' | 'afterImplementations' | 'enrolled' | 'builtins', string[]>
+    expect(observed.builtins).toEqual(BUILTIN_BACKENDS.map(backend => backend.id))
+    expect(observed.initial).toEqual([])
+    expect(observed.afterImplementations).toEqual([])
+    expect(observed.enrolled).toEqual(observed.builtins.map(id => `backend:${id}`))
+  })
+
+  test('every built-in backend is registered and renders the looks that select it', () => {
+    for (const backend of BUILTIN_BACKENDS) {
+      expect(getBackend(backend.id)).toBe(backend)
+      const look = knownStyleDescriptors()
+        .find(descriptor => descriptor.kind === 'look' && inferBackend(descriptor.spec) === backend.id)
+      expect({ backend: backend.id, look: look !== undefined }).toEqual({ backend: backend.id, look: true })
+      const { svg, receipt } = renderMermaidSVGWithReceipt('flowchart LR\n  A --> B', { style: look!.inputName })
+      expect(svg).toContain('<svg')
+      expect(receipt.executionDecision?.backend).toMatchObject({ mode: 'scene', selectedId: `backend:${backend.id}` })
     }
-    const enrollment = readFileSync(join(import.meta.dir, '..', 'scene', 'builtin-backends.ts'), 'utf8')
-    expect(enrollment).toContain('DefaultBackend')
-    expect(enrollment).toContain('RoughBackend')
-    expect(enrollment).toContain('HybridBackend')
-    expect(enrollment).toContain('for (const backend of BUILTIN_BACKENDS) registerBuiltInBackend(backend)')
   })
 
   test('stores canonical descriptors while retaining built-in short IDs', () => {
