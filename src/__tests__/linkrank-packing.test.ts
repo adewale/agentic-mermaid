@@ -14,6 +14,8 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const cases: [string, string][] = [
   // Shove lands a node on a bystander: nodeOverlaps + edgeThroughNode without
@@ -98,6 +100,35 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
       }
       const hash = createHash('sha256').update(JSON.stringify(digest)).digest('hex')
       expect(hash).toBe(expectedHashes[name]!)
+    })
+  }
+})
+
+// Issue #87 evidence fixtures: an authored `B ----> A` feedback edge requests
+// three ranks in every direction (Bug 1), and overlap repair must not compress
+// the N7 ----> N0 rank constraint again (Bug 2). These gaps were previously
+// asserted only by the gallery generator; they now gate every run.
+describe('issue #87 link-rank evidence fixtures keep the requested gap', () => {
+  const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'linkrank-feedback-packing', 'fixtures')
+  const fixtures = [
+    ...(['lr', 'rl', 'td', 'bt'] as const).map(dir => ({ file: `feedback-long-${dir}.mmd`, source: 'A', target: 'B' })),
+    { file: 'packing-td.mmd', source: 'N7', target: 'N0' },
+    { file: 'packing-bt.mmd', source: 'N7', target: 'N0' },
+  ]
+  for (const fixture of fixtures) {
+    test(`${fixture.file}: ${fixture.source}/${fixture.target} boundary gap is at least 224px`, () => {
+      const text = readFileSync(join(FIXTURES, fixture.file), 'utf8')
+      const direction = /^flowchart (LR|RL|TD|BT)\b/m.exec(text)![1] as 'LR' | 'RL' | 'TD' | 'BT'
+      const graph = parseMermaid(text)
+      const positioned = layoutGraphSync(graph)
+      const source = positioned.nodes.find(n => n.id === fixture.source)!
+      const target = positioned.nodes.find(n => n.id === fixture.target)!
+      const gap = direction === 'LR' ? target.x - (source.x + source.width)
+        : direction === 'RL' ? source.x - (target.x + target.width)
+          : direction === 'TD' ? target.y - (source.y + source.height)
+            : source.y - (target.y + target.height)
+      expect(gap).toBeGreaterThanOrEqual(223.5)
+      expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
     })
   }
 })
