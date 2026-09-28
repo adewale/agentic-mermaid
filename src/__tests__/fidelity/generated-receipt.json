@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "be5b2e055a7d85d7c8f3c21f50922ef7b72b797a69b3b351912bb81f792c3902",
+    "inputSha256": "81586381e6a0e893fcdf9ed9a72466fd982e78a87dad8fe78c36d0141c1b217a",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -133,6 +133,10 @@
       {
         "path": "src/__tests__/fidelity/cases/pie-terminal-control.fidelity.ts",
         "sha256": "b46cd2191e688a1f7737db3d0ce9215d25ca97fc8216eb1d7278e4a9dc13bbfd"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/sankey-official-csv-fences.fidelity.ts",
+        "sha256": "37c5e66f62f55173747b55ff5be53edd494e4d4ca3ce57c762da830c25e79f73"
       },
       {
         "path": "src/__tests__/fidelity/cases/seed.fidelity.ts",
@@ -4200,6 +4204,1340 @@
               "nodeColorB": "#0000ff"
             },
             "serializedSource": "---\nconfig:\n  sankey:\n    linkColor: gradient\n    nodeColors:\n      A: \"#ff0000\"\n      B: \"#0000ff\"\n---\nsankey-beta\n  A,B,2\n"
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.official.fence-1",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:basic",
+      "sourceSha256": "b088b06b854e48044606b7b85362addc2de3fe2d0e4096e010ec0a2070adc41e",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ]
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [
+            "COMMENT_DROPPED"
+          ],
+          "semantics": {
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Over generation / exports",
+                "value": 104.453
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "H2 conversion",
+                "value": 27.14
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "gradients": [
+              {
+                "id": "sankey-gradient-1",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#0d5ba5",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 110.94,
+                "y2": 97.66
+              },
+              {
+                "id": "sankey-gradient-2",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#5f79f2",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 264.8,
+                "y2": 278.52
+              },
+              {
+                "id": "sankey-gradient-3",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#0a5076",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 364.14,
+                "y2": 404.86
+              }
+            ],
+            "labels": [
+              {
+                "anchor": "start",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 40
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 40
+                  }
+                ],
+                "lines": [
+                  "Electricity grid",
+                  "245.32"
+                ],
+                "x": 40,
+                "y": 210.28
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Over generation / exports",
+                  "104.45"
+                ],
+                "x": 608,
+                "y": 97.66
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Heating and cooling - homes",
+                  "113.73"
+                ],
+                "x": 608,
+                "y": 278.52
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "H2 conversion",
+                  "27.14"
+                ],
+                "x": 608,
+                "y": 404.86
+              }
+            ],
+            "links": [
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Electricity grid->Over generation / exports",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    110.94
+                  ],
+                  "control2": [
+                    324,
+                    97.66
+                  ],
+                  "end": [
+                    614,
+                    97.66
+                  ],
+                  "start": [
+                    34,
+                    110.94
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-1)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Over generation / exports",
+                "value": 104.453,
+                "width": 147.32
+              },
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Electricity grid->Heating and cooling - homes",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    264.8
+                  ],
+                  "control2": [
+                    324,
+                    278.52
+                  ],
+                  "end": [
+                    614,
+                    278.52
+                  ],
+                  "start": [
+                    34,
+                    264.8
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-2)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling - homes",
+                "value": 113.726,
+                "width": 160.4
+              },
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Electricity grid->H2 conversion",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    364.14
+                  ],
+                  "control2": [
+                    324,
+                    404.86
+                  ],
+                  "end": [
+                    614,
+                    404.86
+                  ],
+                  "start": [
+                    34,
+                    364.14
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-3)",
+                "style": "mix-blend-mode:multiply",
+                "target": "H2 conversion",
+                "value": 27.14,
+                "width": 38.28
+              }
+            ],
+            "nodes": [
+              {
+                "fill": "#3b82f6",
+                "height": 346,
+                "id": "Electricity grid",
+                "label": "Electricity grid",
+                "role": "bar",
+                "value": 245.31900000000002,
+                "width": 10,
+                "x": 24,
+                "y": 37.28
+              },
+              {
+                "fill": "#0d5ba5",
+                "height": 147.32,
+                "id": "Over generation / exports",
+                "label": "Over generation / exports",
+                "role": "bar",
+                "value": 104.453,
+                "width": 10,
+                "x": 614,
+                "y": 24
+              },
+              {
+                "fill": "#5f79f2",
+                "height": 160.4,
+                "id": "Heating and cooling - homes",
+                "label": "Heating and cooling - homes",
+                "role": "bar",
+                "value": 113.726,
+                "width": 10,
+                "x": 614,
+                "y": 198.32
+              },
+              {
+                "fill": "#0a5076",
+                "height": 38.28,
+                "id": "H2 conversion",
+                "label": "H2 conversion",
+                "role": "bar",
+                "value": 27.14,
+                "width": 10,
+                "x": 614,
+                "y": 385.72
+              }
+            ],
+            "viewBox": "0 0 648 448"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Over generation / exports",
+                "value": 104.453
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "H2 conversion",
+                "value": 27.14
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.official.fence-2",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:empty-lines",
+      "sourceSha256": "c49672c90d0239604a462a24cffe6b5b6addfcb3de204a8d551488754aae39fb",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "links": [
+              {
+                "source": "Bio-conversion",
+                "target": "Losses",
+                "value": 26.862
+              },
+              {
+                "source": "Bio-conversion",
+                "target": "Solid",
+                "value": 280.322
+              },
+              {
+                "source": "Bio-conversion",
+                "target": "Gas",
+                "value": 81.144
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "gradients": [
+              {
+                "id": "sankey-gradient-1",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#0d5ba5",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 71.23,
+                "y2": 35.97
+              },
+              {
+                "id": "sankey-gradient-2",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#5f79f2",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 208.08,
+                "y2": 199.82
+              },
+              {
+                "id": "sankey-gradient-3",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#0a5076",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 369.11,
+                "y2": 387.85
+              }
+            ],
+            "labels": [
+              {
+                "anchor": "start",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 40
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 40
+                  }
+                ],
+                "lines": [
+                  "Bio-conversion",
+                  "388.33"
+                ],
+                "x": 40,
+                "y": 232.26
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Losses",
+                  "26.86"
+                ],
+                "x": 608,
+                "y": 35.97
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Solid",
+                  "280.32"
+                ],
+                "x": 608,
+                "y": 199.82
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Gas",
+                  "81.14"
+                ],
+                "x": 608,
+                "y": 387.85
+              }
+            ],
+            "links": [
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Bio-conversion->Losses",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    71.23
+                  ],
+                  "control2": [
+                    324,
+                    35.97
+                  ],
+                  "end": [
+                    614,
+                    35.97
+                  ],
+                  "start": [
+                    34,
+                    71.23
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Bio-conversion",
+                "stroke": "url(#sankey-gradient-1)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Losses",
+                "value": 26.862,
+                "width": 23.93
+              },
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Bio-conversion->Solid",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    208.08
+                  ],
+                  "control2": [
+                    324,
+                    199.82
+                  ],
+                  "end": [
+                    614,
+                    199.82
+                  ],
+                  "start": [
+                    34,
+                    208.08
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Bio-conversion",
+                "stroke": "url(#sankey-gradient-2)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Solid",
+                "value": 280.322,
+                "width": 249.77
+              },
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Bio-conversion->Gas",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    369.11
+                  ],
+                  "control2": [
+                    324,
+                    387.85
+                  ],
+                  "end": [
+                    614,
+                    387.85
+                  ],
+                  "start": [
+                    34,
+                    369.11
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Bio-conversion",
+                "stroke": "url(#sankey-gradient-3)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Gas",
+                "value": 81.144,
+                "width": 72.3
+              }
+            ],
+            "nodes": [
+              {
+                "fill": "#3b82f6",
+                "height": 346,
+                "id": "Bio-conversion",
+                "label": "Bio-conversion",
+                "role": "bar",
+                "value": 388.32800000000003,
+                "width": 10,
+                "x": 24,
+                "y": 59.26
+              },
+              {
+                "fill": "#0d5ba5",
+                "height": 23.93,
+                "id": "Losses",
+                "label": "Losses",
+                "role": "bar",
+                "value": 26.862,
+                "width": 10,
+                "x": 614,
+                "y": 24
+              },
+              {
+                "fill": "#5f79f2",
+                "height": 249.77,
+                "id": "Solid",
+                "label": "Solid",
+                "role": "bar",
+                "value": 280.322,
+                "width": 10,
+                "x": 614,
+                "y": 74.93
+              },
+              {
+                "fill": "#0a5076",
+                "height": 72.3,
+                "id": "Gas",
+                "label": "Gas",
+                "role": "bar",
+                "value": 81.144,
+                "width": 10,
+                "x": 614,
+                "y": 351.7
+              }
+            ],
+            "viewBox": "0 0 648 448"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "links": [
+              {
+                "source": "Bio-conversion",
+                "target": "Losses",
+                "value": 26.862
+              },
+              {
+                "source": "Bio-conversion",
+                "target": "Solid",
+                "value": 280.322
+              },
+              {
+                "source": "Bio-conversion",
+                "target": "Gas",
+                "value": 81.144
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.official.fence-3",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:commas",
+      "sourceSha256": "7a78d87a89bd7acd3b5418bf749562245cfcef5526bc5c10b7ae7dad6921251f",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "links": [
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, homes",
+                "value": 193.026
+              },
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, commercial",
+                "value": 70.672
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "gradients": [
+              {
+                "id": "sankey-gradient-1",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#0d5ba5",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 165.25,
+                "y2": 160.52
+              },
+              {
+                "id": "sankey-gradient-2",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#5f79f2",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 351.75,
+                "y2": 374.02
+              }
+            ],
+            "labels": [
+              {
+                "anchor": "start",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 40
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 40
+                  }
+                ],
+                "lines": [
+                  "Pumped heat",
+                  "263.7"
+                ],
+                "x": 40,
+                "y": 215.23
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Heating and cooling, homes",
+                  "193.03"
+                ],
+                "x": 608,
+                "y": 160.52
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Heating and cooling, commercial",
+                  "70.67"
+                ],
+                "x": 608,
+                "y": 374.02
+              }
+            ],
+            "links": [
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Pumped heat->Heating and cooling, homes",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    165.25
+                  ],
+                  "control2": [
+                    324,
+                    160.52
+                  ],
+                  "end": [
+                    614,
+                    160.52
+                  ],
+                  "start": [
+                    34,
+                    165.25
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Pumped heat",
+                "stroke": "url(#sankey-gradient-1)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling, homes",
+                "value": 193.026,
+                "width": 273.03
+              },
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Pumped heat->Heating and cooling, commercial",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    351.75
+                  ],
+                  "control2": [
+                    324,
+                    374.02
+                  ],
+                  "end": [
+                    614,
+                    374.02
+                  ],
+                  "start": [
+                    34,
+                    351.75
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Pumped heat",
+                "stroke": "url(#sankey-gradient-2)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling, commercial",
+                "value": 70.672,
+                "width": 99.97
+              }
+            ],
+            "nodes": [
+              {
+                "fill": "#3b82f6",
+                "height": 373,
+                "id": "Pumped heat",
+                "label": "Pumped heat",
+                "role": "bar",
+                "value": 263.698,
+                "width": 10,
+                "x": 24,
+                "y": 28.73
+              },
+              {
+                "fill": "#0d5ba5",
+                "height": 273.03,
+                "id": "Heating and cooling, homes",
+                "label": "Heating and cooling, homes",
+                "role": "bar",
+                "value": 193.026,
+                "width": 10,
+                "x": 614,
+                "y": 24
+              },
+              {
+                "fill": "#5f79f2",
+                "height": 99.97,
+                "id": "Heating and cooling, commercial",
+                "label": "Heating and cooling, commercial",
+                "role": "bar",
+                "value": 70.672,
+                "width": 10,
+                "x": 614,
+                "y": 324.03
+              }
+            ],
+            "viewBox": "0 0 648 448"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "links": [
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, homes",
+                "value": 193.026
+              },
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, commercial",
+                "value": 70.672
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.official.fence-4",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:double-quotes",
+      "sourceSha256": "e1f75ecc99fffd3351e46d525a8aa64b62a9bc7f75e58ba2302b4a7f5f7c8783",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official CSV syntax; link mutations have separate semantic receipts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "links": [
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, \"homes\"",
+                "value": 193.026
+              },
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, \"commercial\"",
+                "value": 70.672
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "gradients": [
+              {
+                "id": "sankey-gradient-1",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#0d5ba5",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 165.25,
+                "y2": 160.52
+              },
+              {
+                "id": "sankey-gradient-2",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%"
+                  },
+                  {
+                    "color": "#5f79f2",
+                    "offset": "100%"
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 351.75,
+                "y2": 374.02
+              }
+            ],
+            "labels": [
+              {
+                "anchor": "start",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 40
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 40
+                  }
+                ],
+                "lines": [
+                  "Pumped heat",
+                  "263.7"
+                ],
+                "x": 40,
+                "y": 215.23
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Heating and cooling, \"homes\"",
+                  "193.03"
+                ],
+                "x": 608,
+                "y": 160.52
+              },
+              {
+                "anchor": "end",
+                "fill": "#27272A",
+                "fontSize": 13,
+                "linePositions": [
+                  {
+                    "dy": -3.9000000000000012,
+                    "x": 608
+                  },
+                  {
+                    "dy": 16.900000000000002,
+                    "x": 608
+                  }
+                ],
+                "lines": [
+                  "Heating and cooling, \"commercial\"",
+                  "70.67"
+                ],
+                "x": 608,
+                "y": 374.02
+              }
+            ],
+            "links": [
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Pumped heat->Heating and cooling, \"homes\"",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    165.25
+                  ],
+                  "control2": [
+                    324,
+                    160.52
+                  ],
+                  "end": [
+                    614,
+                    160.52
+                  ],
+                  "start": [
+                    34,
+                    165.25
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Pumped heat",
+                "stroke": "url(#sankey-gradient-1)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling, \"homes\"",
+                "value": 193.026,
+                "width": 273.03
+              },
+              {
+                "direction": "forward",
+                "fill": "none",
+                "id": "link:Pumped heat->Heating and cooling, \"commercial\"",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    351.75
+                  ],
+                  "control2": [
+                    324,
+                    374.02
+                  ],
+                  "end": [
+                    614,
+                    374.02
+                  ],
+                  "start": [
+                    34,
+                    351.75
+                  ],
+                  "validShape": true
+                },
+                "relationship": "flow",
+                "role": "edge",
+                "source": "Pumped heat",
+                "stroke": "url(#sankey-gradient-2)",
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling, \"commercial\"",
+                "value": 70.672,
+                "width": 99.97
+              }
+            ],
+            "nodes": [
+              {
+                "fill": "#3b82f6",
+                "height": 373,
+                "id": "Pumped heat",
+                "label": "Pumped heat",
+                "role": "bar",
+                "value": 263.698,
+                "width": 10,
+                "x": 24,
+                "y": 28.73
+              },
+              {
+                "fill": "#0d5ba5",
+                "height": 273.03,
+                "id": "Heating and cooling, \"homes\"",
+                "label": "Heating and cooling, \"homes\"",
+                "role": "bar",
+                "value": 193.026,
+                "width": 10,
+                "x": 614,
+                "y": 24
+              },
+              {
+                "fill": "#5f79f2",
+                "height": 99.97,
+                "id": "Heating and cooling, \"commercial\"",
+                "label": "Heating and cooling, \"commercial\"",
+                "role": "bar",
+                "value": 70.672,
+                "width": 10,
+                "x": 614,
+                "y": 324.03
+              }
+            ],
+            "viewBox": "0 0 648 448"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "links": [
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, \"homes\"",
+                "value": 193.026
+              },
+              {
+                "source": "Pumped heat",
+                "target": "Heating and cooling, \"commercial\"",
+                "value": 70.672
+              }
+            ],
+            "stable": true
           },
           "disposition": "native"
         }
@@ -8440,11 +9778,11 @@
     }
   ],
   "summary": {
-    "caseCount": 44,
-    "passedCaseCount": 44,
+    "caseCount": 48,
+    "passedCaseCount": 48,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 158,
+    "observedSurfaceCount": 170,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 18
+    "notApplicableSurfaceCount": 22
   }
 }
