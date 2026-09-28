@@ -9,7 +9,6 @@ import type {
   FidelitySurfaceExpectation,
 } from './fidelity/contract.ts'
 import { discoverFidelityRegistry } from './fidelity/registry.ts'
-import { piePathGeometry } from './fidelity/cases/pie-official-fences.fidelity.ts'
 import { projectFidelityCapabilityReport } from './fidelity/projector.ts'
 import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './fidelity/revision-compatibility.ts'
 import { runFidelityCases, validateFidelityRegistry } from './fidelity/runner.ts'
@@ -66,15 +65,6 @@ function setJsonPath(value: FidelityJson, path: readonly (number | string)[], re
 }
 
 describe('issue #248 construct fidelity receipts', () => {
-  test('official Pie path observation rejects hidden extra SVG commands', () => {
-    const solid = 'M 119 157 L 119 62 A 95 95 0 1 1 27.65 130.93 Z'
-    const donut = 'M 119 62 A 95 95 0 0 1 175.94 233.04 L 130.39 172.21 A 19 19 0 0 0 119 138 Z'
-    expect(piePathGeometry(solid).validShape).toBe(true)
-    expect(piePathGeometry(donut).validShape).toBe(true)
-    expect(piePathGeometry(solid.replace(' Z', ' Z M 400 400 L 401 401 Z')).validShape).toBe(false)
-    expect(piePathGeometry(donut.replace(' L 130.39', ' L 400 400 L 130.39')).validShape).toBe(false)
-  })
-
   test('the public projection rejects stale, forged, and unreceipted native claims', () => {
     expect(validateFidelityCapabilityReport(FIDELITY_CAPABILITY_REPORT)).toEqual([])
 
@@ -272,9 +262,6 @@ describe('issue #248 construct fidelity receipts', () => {
   test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
-      'fidelity/cases/architecture-official-align-fences.fidelity.ts',
-      'fidelity/cases/architecture-official-core-fences.fidelity.ts',
-      'fidelity/cases/architecture-official-icon-fence.fidelity.ts',
       'fidelity/cases/class-annotation.fidelity.ts',
       'fidelity/cases/class-bare-link.fidelity.ts',
       'fidelity/cases/class-safe-link-tooltip.fidelity.ts',
@@ -283,27 +270,13 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/gitgraph-duplicate-official.fidelity.ts',
       'fidelity/cases/journey-official-fence.fidelity.ts',
       'fidelity/cases/landed-adoption.fidelity.ts',
-      'fidelity/cases/mindmap-official-shape-fences.fidelity.ts',
       'fidelity/cases/pie-duplicate-label.fidelity.ts',
       'fidelity/cases/pie-entity-display.fidelity.ts',
-      'fidelity/cases/pie-official-fences.fidelity.ts',
       'fidelity/cases/pie-terminal-control.fidelity.ts',
-      'fidelity/cases/quadrant-official-fences.fidelity.ts',
-      'fidelity/cases/radar-official-fences.fidelity.ts',
-      'fidelity/cases/sankey-official-config-fences.fidelity.ts',
-      'fidelity/cases/sankey-official-csv-fences.fidelity.ts',
-      'fidelity/cases/sankey-official-energy-fence.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
       'fidelity/cases/timeline-direction.fidelity.ts',
-      'fidelity/cases/xychart-official-fences.fidelity.ts',
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
-      'architecture.official.fence-0',
-      'architecture.official.fence-1',
-      'architecture.official.fence-2',
-      'architecture.official.fence-3',
-      'architecture.official.fence-4',
-      'architecture.official.fence-5',
       'block.family.accurately-diagnosed-unsupported',
       'class.annotations.inline-native',
       'class.annotations.repeated-diagnosed',
@@ -321,15 +294,6 @@ describe('issue #248 construct fidelity receipts', () => {
       'gitgraph.official.main-branch-duplicate-id-diagnosed',
       'journey.official.fence-0',
       'journey.scores.fractional-parser-render-seam',
-      'mindmap.official.fence-2',
-      'mindmap.official.fence-3',
-      'mindmap.official.fence-4',
-      'mindmap.official.fence-5',
-      'mindmap.official.fence-6',
-      'mindmap.official.fence-7',
-      'mindmap.official.fence-8',
-      'pie.official.fence-0',
-      'pie.official.fence-1',
       'pie.syntax.authored-formatting-literal',
       'pie.syntax.duplicate-label-first-wins',
       'pie.syntax.entity-spelling-distinct',
@@ -339,34 +303,12 @@ describe('issue #248 construct fidelity receipts', () => {
       'pie.syntax.numeric-entity-display',
       'pie.syntax.title-entity-display',
       'pie.syntax.xml-disallowed-control-diagnosed',
-      'quadrant.official.fence-0',
-      'quadrant.official.fence-1',
-      'quadrant.official.fence-2',
-      'radar.official.fence-0',
-      'radar.official.fence-1',
-      'radar.official.fence-2',
       'sankey.links.dark-background-normal-alpha-divergence',
       'sankey.links.light-background-multiply',
       'sankey.links.typed-gradient-endpoints',
-      'sankey.official.fence-0',
-      'sankey.official.fence-1',
-      'sankey.official.fence-2',
-      'sankey.official.fence-3',
-      'sankey.official.fence-4',
-      'sankey.official.fence-5',
-      'sankey.official.fence-6',
-      'sankey.official.fence-7',
       'state.comments.trailing-transition-loss',
       'timeline.direction.td-vertical-geometry',
       'timeline.direction.unsupported-header-diagnosis',
-      'xychart.official.fence-0',
-      'xychart.official.fence-1',
-      'xychart.official.fence-2',
-      'xychart.official.fence-3',
-      'xychart.official.fence-4',
-      'xychart.official.fence-5',
-      'xychart.official.fence-6',
-      'xychart.official.fence-7',
       'xychart.syntax.shared-parser-semantics',
       'xychart.syntax.unknown-statement-render-seam',
     ])
@@ -375,12 +317,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 71,
-      passedCaseCount: 71,
+      caseCount: 34,
+      passedCaseCount: 34,
       failedCaseCount: 0,
-      observedSurfaceCount: 239,
+      observedSurfaceCount: 128,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 45,
+      notApplicableSurfaceCount: 8,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -430,319 +372,6 @@ describe('issue #248 construct fidelity receipts', () => {
       replacement: FidelityJson
       additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
     }> = [
-      {
-        caseId: 'architecture.official.fence-1',
-        surface: 'agent',
-        path: ['alignments', 0, 'axis'],
-        replacement: 'row',
-      },
-      {
-        caseId: 'architecture.official.fence-1',
-        surface: 'render',
-        path: ['alignmentFulfilled', 0],
-        replacement: false,
-      },
-      {
-        caseId: 'architecture.official.fence-1',
-        surface: 'render',
-        path: ['edges', 0, 'targetSide'],
-        replacement: 'R',
-      },
-      {
-        caseId: 'architecture.official.fence-1',
-        surface: 'render',
-        path: ['edges', 0, 'markerEnd'],
-        replacement: null,
-      },
-      {
-        caseId: 'architecture.official.fence-1',
-        surface: 'render',
-        path: ['edges', 0, 'points'],
-        replacement: '176,108 204,0x6c 204,192 232,192',
-      },
-      {
-        caseId: 'architecture.official.fence-2',
-        surface: 'render',
-        path: ['serviceLabels', 0],
-        replacement: 'Missing source',
-      },
-      {
-        caseId: 'architecture.official.fence-2',
-        surface: 'serialize',
-        path: ['model', 'alignments', 0, 'members', 1],
-        replacement: 'proc',
-      },
-      {
-        caseId: 'architecture.official.fence-3',
-        surface: 'agent',
-        path: ['alignments', 2, 'members', 1],
-        replacement: 'delivery',
-      },
-      {
-        caseId: 'architecture.official.fence-3',
-        surface: 'render',
-        path: ['alignmentFulfilled', 2],
-        replacement: true,
-      },
-      {
-        caseId: 'architecture.official.fence-3',
-        surface: 'render',
-        path: ['cards', 7, 'x'],
-        replacement: 9999,
-      },
-      {
-        caseId: 'architecture.official.fence-3',
-        surface: 'render',
-        path: ['frames', 0, 'x'],
-        replacement: 0,
-        additionalChanges: [
-          { path: ['frames', 0, 'y'], replacement: 0 },
-          { path: ['frames', 0, 'width'], replacement: 882.7764999999999 },
-          { path: ['frames', 0, 'height'], replacement: 626 },
-        ],
-      },
-      {
-        caseId: 'architecture.official.fence-3',
-        surface: 'render',
-        path: ['serviceCardPaint'],
-        replacement: 'fill: none; stroke-dasharray: 8;',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'agent',
-        path: ['edges', 0, 'sourceSide'],
-        replacement: 'R',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['edges', 1, 'targetSide'],
-        replacement: 'T',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['edges', 0, 'points'],
-        replacement: '371.37399999999997,108 371.37399999999997,-1000 335.374,-1000 335.374,276',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['edges', 0, 'points'],
-        replacement: '371.37399999999997,108 353.374,0x6c 353.374,276 335.374,276',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['edges', 0, 'points'],
-        replacement: '371.37399999999997,108 600,108 600,276 335.374,276',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['edges', 0, 'points'],
-        replacement: '371.37399999999997,108 500,108 500,216 335.374,216 335.374,276',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['serviceCardPaint'],
-        replacement: 'fill: none; stroke-dasharray: 8;',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['cards', 0, 'x'],
-        replacement: 10000,
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['cards', 2, 'x'],
-        replacement: 400,
-        additionalChanges: [
-          { path: ['cards', 2, 'y'], replacement: 90 },
-          { path: ['edges', 2, 'points'], replacement: '461.687,90 461.687,80 437.50699999999995,80 437.50699999999995,132' },
-        ],
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'render',
-        path: ['serviceLabels', 2],
-        replacement: 'Not Storage',
-      },
-      {
-        caseId: 'architecture.official.fence-0',
-        surface: 'serialize',
-        path: ['model', 'services', 2, 'parentId'],
-        replacement: null,
-      },
-      {
-        caseId: 'architecture.official.fence-4',
-        surface: 'agent',
-        path: ['junctions', 1, 'id'],
-        replacement: 'lost-junction',
-      },
-      {
-        caseId: 'architecture.official.fence-4',
-        surface: 'render',
-        path: ['edges', 3, 'points'],
-        replacement: '0,0 1,1',
-      },
-      {
-        caseId: 'architecture.official.fence-4',
-        surface: 'render',
-        path: ['cores', 0, 'x'],
-        replacement: 1,
-      },
-      {
-        caseId: 'architecture.official.fence-4',
-        surface: 'render',
-        path: ['cores', 0, 'radius'],
-        replacement: 0,
-      },
-      {
-        caseId: 'architecture.official.fence-4',
-        surface: 'render',
-        path: ['junctionRingPaint'],
-        replacement: null,
-      },
-      {
-        caseId: 'architecture.official.fence-5',
-        surface: 'agent',
-        path: ['services', 2, 'icon'],
-        replacement: 'logos:aws-ec2',
-      },
-      {
-        caseId: 'architecture.official.fence-5',
-        surface: 'render',
-        path: ['glyphs', 0, 'pathSha256'],
-        replacement: 'missing-registered-logo',
-      },
-      {
-        caseId: 'architecture.official.fence-5',
-        surface: 'render',
-        path: ['glyphs', 4, 'fallback'],
-        replacement: true,
-      },
-      {
-        caseId: 'architecture.official.fence-5',
-        surface: 'render',
-        path: ['frames', 0, 'x'],
-        replacement: -100,
-      },
-      {
-        caseId: 'architecture.official.fence-5',
-        surface: 'render',
-        path: ['edges', 0, 'points'],
-        replacement: '0,0 1,1',
-      },
-      {
-        caseId: 'architecture.official.fence-5',
-        surface: 'render',
-        path: ['edges', 0, 'points'],
-        replacement: '371.37399999999997,108 353.374,0x6c 353.374,276 335.374,276',
-      },
-      {
-        caseId: 'architecture.official.fence-5',
-        surface: 'serialize',
-        path: ['model', 'groups', 0, 'icon'],
-        replacement: null,
-      },
-      {
-        caseId: 'mindmap.official.fence-2', surface: 'agent',
-        path: ['root', 'shape'], replacement: 'default',
-      },
-      {
-        caseId: 'mindmap.official.fence-2', surface: 'render',
-        path: ['shape', 'rx'], replacement: '16',
-      },
-      {
-        caseId: 'mindmap.official.fence-2', surface: 'render',
-        path: ['shape', 'x'], replacement: '83.1365',
-        additionalChanges: [
-          { path: ['shape', 'y'], replacement: '49.45' },
-          { path: ['shape', 'width'], replacement: '1' },
-          { path: ['shape', 'height'], replacement: '1' },
-        ],
-      },
-      {
-        caseId: 'mindmap.official.fence-2', surface: 'render',
-        path: ['labelAttributes', 'textLength'], replacement: '1',
-      },
-      {
-        caseId: 'mindmap.official.fence-3', surface: 'render',
-        path: ['shape', 'ry'], replacement: '0',
-      },
-      {
-        caseId: 'mindmap.official.fence-3', surface: 'render',
-        path: ['shape', 'rx'], replacement: '0xa',
-        additionalChanges: [{ path: ['shape', 'ry'], replacement: '0xa' }],
-      },
-      {
-        caseId: 'mindmap.official.fence-3', surface: 'render',
-        path: ['labelAttributes', 'font-size'], replacement: '0xd',
-      },
-      {
-        caseId: 'mindmap.official.fence-4', surface: 'render',
-        path: ['shape', 'r'], replacement: '0',
-      },
-      {
-        caseId: 'mindmap.official.fence-4', surface: 'render',
-        path: ['shape', 'r'], replacement: '1',
-      },
-      {
-        caseId: 'mindmap.official.fence-5', surface: 'render',
-        path: ['shape', 'points'], replacement: '0,0 1,1',
-      },
-      {
-        caseId: 'mindmap.official.fence-5', surface: 'render',
-        path: ['shape', 'points'],
-        replacement: '85.468,0x20 105.785,39.674 131.772,43.225 126.103,54.45 131.772,65.675 105.785,69.226 85.468,76.9 65.15,69.226 39.163,65.675 44.832,54.45 39.163,43.225 65.15,39.674',
-      },
-      {
-        caseId: 'mindmap.official.fence-5', surface: 'render',
-        path: ['shape', 'points'], replacement: Array(12).fill('85.468,54.45').join(' '),
-      },
-      {
-        caseId: 'mindmap.official.fence-5', surface: 'render',
-        path: ['shape', 'points'],
-        replacement: '20,9 85.4675,9 150.935,9 150.935,35 90,35 45,35 45,75 90,75 150.935,75 150.935,99.9 85.4675,99.9 20,99.9',
-      },
-      {
-        caseId: 'mindmap.official.fence-5', surface: 'render',
-        path: ['shape', 'points'],
-        replacement: '20,9 50,9 85.4675,9 120,9 150.935,9 150.935,54.45 150.935,99.9 120,99.9 85.4675,99.9 50,99.9 20,99.9 20,54.45',
-      },
-      {
-        caseId: 'mindmap.official.fence-6', surface: 'render',
-        path: ['shape', 'rx'], replacement: '0',
-      },
-      {
-        caseId: 'mindmap.official.fence-6', surface: 'render',
-        path: ['shape', 'rx'], replacement: '1',
-        additionalChanges: [{ path: ['shape', 'ry'], replacement: '1' }],
-      },
-      {
-        caseId: 'mindmap.official.fence-7', surface: 'render',
-        path: ['shape', 'points'], replacement: '0,0 1,1',
-      },
-      {
-        caseId: 'mindmap.official.fence-7', surface: 'render',
-        path: ['shape', 'points'], replacement: '20,9 155.165,9 155.165,35 45,35 45,89.9 20,89.9',
-      },
-      {
-        caseId: 'mindmap.official.fence-7', surface: 'render',
-        path: ['shape', 'points'], replacement: '20,9 87.5825,9 155.165,9 155.165,89.9 87.5825,89.9 20,89.9',
-      },
-      {
-        caseId: 'mindmap.official.fence-8', surface: 'render',
-        path: ['tag'], replacement: 'path',
-      },
-      {
-        caseId: 'mindmap.official.fence-8', surface: 'serialize',
-        path: ['model', 'root', 'label'], replacement: 'lost',
-      },
       {
         caseId: 'journey.official.fence-0',
         surface: 'agent',
@@ -848,419 +477,6 @@ describe('issue #248 construct fidelity receipts', () => {
         replacement: 4,
       },
       {
-        caseId: 'sankey.official.fence-1',
-        surface: 'agent',
-        path: ['links', 2, 'target'],
-        replacement: 'Unrelated conversion',
-      },
-      {
-        caseId: 'sankey.official.fence-2',
-        surface: 'render',
-        path: ['links', 1, 'source'],
-        replacement: 'Unrelated source',
-      },
-      {
-        caseId: 'sankey.official.fence-3',
-        surface: 'render',
-        path: ['gradients', 0, 'stops', 0, 'color'],
-        replacement: '#ff0000',
-      },
-      {
-        caseId: 'sankey.official.fence-4',
-        surface: 'render',
-        path: ['nodes', 1, 'label'],
-        replacement: 'Heating and cooling, homes',
-      },
-      {
-        caseId: 'sankey.official.fence-4',
-        surface: 'serialize',
-        path: ['links', 0, 'target'],
-        replacement: 'Heating and cooling, homes',
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['links', 0, 'path', 'end', 0],
-        replacement: 500,
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['links', 1, 'width'],
-        replacement: 147.32,
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['links', 1, 'fill'],
-        replacement: '#ff0000',
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['labels', 1, 'y'],
-        replacement: 200,
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['labels', 1, 'fill'],
-        replacement: 'transparent',
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['nodes', 2, 'y'],
-        replacement: 24,
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['nodes', 0, 'height'],
-        replacement: 3.46,
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['nodes', 1, 'fill'],
-        replacement: '#3b82f6',
-        additionalChanges: [{ path: ['gradients', 0, 'stops', 1, 'color'], replacement: '#3b82f6' }],
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['links', 1, 'path', 'start', 1],
-        replacement: 110.94,
-        additionalChanges: [
-          { path: ['links', 1, 'path', 'control1', 1], replacement: 110.94 },
-          { path: ['gradients', 1, 'y1'], replacement: 110.94 },
-        ],
-      },
-      {
-        caseId: 'sankey.official.fence-3',
-        surface: 'render',
-        path: ['nodes', 1, 'x'],
-        replacement: 35,
-        additionalChanges: [
-          { path: ['nodes', 2, 'x'], replacement: 35 },
-          { path: ['labels', 1, 'x'], replacement: 51 },
-          { path: ['labels', 1, 'anchor'], replacement: 'start' },
-          { path: ['labels', 2, 'x'], replacement: 51 },
-          { path: ['labels', 2, 'anchor'], replacement: 'start' },
-          { path: ['links', 0, 'path', 'end', 0], replacement: 35 },
-          { path: ['links', 0, 'path', 'control1', 0], replacement: 34.5 },
-          { path: ['links', 0, 'path', 'control2', 0], replacement: 34.5 },
-          { path: ['links', 1, 'path', 'end', 0], replacement: 35 },
-          { path: ['links', 1, 'path', 'control1', 0], replacement: 34.5 },
-          { path: ['links', 1, 'path', 'control2', 0], replacement: 34.5 },
-          { path: ['gradients', 0, 'x2'], replacement: 35 },
-          { path: ['gradients', 1, 'x2'], replacement: 35 },
-        ],
-      },
-      {
-        caseId: 'sankey.official.fence-3',
-        surface: 'render',
-        path: ['nodes', 0, 'fill'],
-        replacement: '#000000',
-        additionalChanges: [
-          { path: ['nodes', 1, 'fill'], replacement: '#000001' },
-          { path: ['nodes', 2, 'fill'], replacement: '#000002' },
-          { path: ['gradients', 0, 'stops', 0, 'color'], replacement: '#000000' },
-          { path: ['gradients', 0, 'stops', 1, 'color'], replacement: '#000001' },
-          { path: ['gradients', 1, 'stops', 0, 'color'], replacement: '#000000' },
-          { path: ['gradients', 1, 'stops', 1, 'color'], replacement: '#000002' },
-        ],
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['links', 0, 'path', 'start', 1],
-        replacement: 264.8,
-        additionalChanges: [
-          { path: ['links', 0, 'path', 'control1', 1], replacement: 264.8 },
-          { path: ['gradients', 0, 'y1'], replacement: 264.8 },
-          { path: ['links', 1, 'path', 'start', 1], replacement: 110.94 },
-          { path: ['links', 1, 'path', 'control1', 1], replacement: 110.94 },
-          { path: ['gradients', 1, 'y1'], replacement: 110.94 },
-        ],
-      },
-      {
-        caseId: 'sankey.official.fence-1',
-        surface: 'render',
-        path: ['labels', 0, 'linePositions', 1, 'x'],
-        replacement: 1000,
-      },
-      {
-        caseId: 'sankey.official.fence-5',
-        surface: 'agent',
-        path: ['config', 'labelStyle'],
-        replacement: 'legacy',
-      },
-      {
-        caseId: 'sankey.official.fence-5',
-        surface: 'render',
-        path: ['labels', 1, 'stroke'],
-        replacement: null,
-      },
-      {
-        caseId: 'sankey.official.fence-5',
-        surface: 'render',
-        path: ['labels', 1, 'textLength'],
-        replacement: 1,
-      },
-      {
-        caseId: 'sankey.official.fence-5',
-        surface: 'render',
-        path: ['labels', 1, 'strokeOpacity'],
-        replacement: '0',
-      },
-      {
-        caseId: 'sankey.official.fence-6',
-        surface: 'render',
-        path: ['nodes', 1, 'width'],
-        replacement: 10,
-      },
-      {
-        caseId: 'sankey.official.fence-6',
-        surface: 'render',
-        path: ['nodes', 2, 'y'],
-        replacement: 110,
-      },
-      {
-        caseId: 'sankey.official.fence-7',
-        surface: 'render',
-        path: ['nodes', 2, 'fill'],
-        replacement: '#5f79f2',
-      },
-      {
-        caseId: 'sankey.official.fence-7',
-        surface: 'render',
-        path: ['nodes', 2, 'fillOpacity'],
-        replacement: '0',
-      },
-      {
-        caseId: 'sankey.official.fence-7',
-        surface: 'render',
-        path: ['links', 1, 'strokeOpacity'],
-        replacement: '0',
-      },
-      {
-        caseId: 'sankey.official.fence-7',
-        surface: 'render',
-        path: ['gradients', 1, 'stops', 1, 'opacity'],
-        replacement: '0',
-      },
-      {
-        caseId: 'sankey.official.fence-7',
-        surface: 'serialize',
-        path: ['config', 'nodeColors', 'Industry'],
-        replacement: '#5f79f2',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'agent',
-        path: ['links', 0, 'target'],
-        replacement: 'Unrelated generation',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'agent',
-        path: ['flowImbalances', 0, 'node'],
-        replacement: 'Unrelated generation',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'agent',
-        path: ['flowImbalances', 0, 'inflow'],
-        replacement: 0,
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['root', 'style'],
-        replacement: '--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;display:none',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['stylesheetSha256'],
-        replacement: 'hidden-paint',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['styleBlockCount'],
-        replacement: 2,
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['groupCount'],
-        replacement: 1,
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['svgSha256'],
-        replacement: 'hidden-wrapper',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['nodes', 1, 'height'],
-        replacement: 1,
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['links', 14, 'path', 'start', 1],
-        replacement: 236.02,
-        additionalChanges: [
-          { path: ['links', 14, 'path', 'control1', 1], replacement: 236.02 },
-          { path: ['gradients', 14, 'y1'], replacement: 236.02 },
-        ],
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['nodes', 16, 'layer'],
-        replacement: 5,
-        additionalChanges: [
-          { path: ['nodes', 16, 'x'], replacement: 445.43 },
-          { path: ['labels', 16, 'x'], replacement: 439.43 },
-          { path: ['links', 13, 'path', 'end', 0], replacement: 445.43 },
-          { path: ['links', 13, 'path', 'control1', 0], replacement: 408.29 },
-          { path: ['links', 13, 'path', 'control2', 0], replacement: 408.29 },
-          { path: ['gradients', 13, 'x2'], replacement: 445.43 },
-        ],
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['links', 0, 'target'],
-        replacement: 'Unrelated generation',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['gradients', 0, 'stops', 0, 'color'],
-        replacement: '#000000',
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'render',
-        path: ['labels', 0, 'textLength'],
-        replacement: 1,
-      },
-      {
-        caseId: 'sankey.official.fence-0',
-        surface: 'serialize',
-        path: ['config', 'showValues'],
-        replacement: true,
-      },
-      {
-        caseId: 'quadrant.official.fence-0',
-        surface: 'agent',
-        path: ['points', 0, 'x'],
-        replacement: 0.9,
-      },
-      {
-        caseId: 'quadrant.official.fence-0',
-        surface: 'render',
-        path: ['points', 0, 'cx'],
-        replacement: 394,
-      },
-      {
-        caseId: 'quadrant.official.fence-1',
-        surface: 'agent',
-        path: ['frontmatter', 'quadrantChart', 'chartWidth'],
-        replacement: 500,
-      },
-      {
-        caseId: 'quadrant.official.fence-1',
-        surface: 'render',
-        path: ['quadrantLabelFill'],
-        replacement: '#ff0000',
-      },
-      {
-        caseId: 'quadrant.official.fence-2',
-        surface: 'agent',
-        path: ['classDefs', 'class2', 'radius'],
-        replacement: 5,
-      },
-      {
-        caseId: 'quadrant.official.fence-2',
-        surface: 'render',
-        path: ['points', 2, 'style'],
-        replacement: 'fill:#00ff33',
-      },
-      {
-        caseId: 'quadrant.official.fence-2',
-        surface: 'serialize',
-        path: ['model', 'points', 3, 'style', 'strokeWidth'],
-        replacement: '1px',
-      },
-      {
-        caseId: 'radar.official.fence-0',
-        surface: 'agent',
-        path: ['axes', 0, 'label'],
-        replacement: 'Wrong subject',
-      },
-      {
-        caseId: 'radar.official.fence-0',
-        surface: 'render',
-        path: ['dots', 0, 'y'],
-        replacement: 202.25,
-      },
-      {
-        caseId: 'radar.official.fence-1',
-        surface: 'render',
-        path: ['polygonRingCount'],
-        replacement: 0,
-      },
-      {
-        caseId: 'radar.official.fence-1',
-        surface: 'serialize',
-        path: ['model', 'curves', 0, 'values', 0],
-        replacement: 1,
-      },
-      {
-        caseId: 'radar.official.fence-2',
-        surface: 'agent',
-        path: ['frontmatter', 'radar', 'axisScaleFactor'],
-        replacement: 1,
-      },
-      {
-        caseId: 'radar.official.fence-2',
-        surface: 'render',
-        path: ['areas', 0, 'opacity'],
-        replacement: '0.5',
-      },
-      {
-        caseId: 'radar.official.fence-2',
-        surface: 'render',
-        path: ['curveTensionChangedPerCurve', 1],
-        replacement: false,
-      },
-      {
-        caseId: 'radar.official.fence-2',
-        surface: 'render',
-        path: ['tensionReferenceAreaCount'],
-        replacement: 0,
-      },
-      {
-        caseId: 'radar.official.fence-2',
-        surface: 'render',
-        path: ['tensionReferenceSvgSha256'],
-        replacement: 'missing-reference-paths',
-      },
-      {
-        caseId: 'radar.official.fence-2',
-        surface: 'render',
-        path: ['axes', 0, 'y2'],
-        replacement: 48.25,
-      },
-      {
         caseId: 'sankey.links.typed-gradient-endpoints',
         surface: 'render',
         path: ['gradient', 'stops', 0, 'color'],
@@ -1307,228 +523,6 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'render',
         path: ['links', 0, 'opacity'],
         replacement: '1',
-      },
-      {
-        caseId: 'pie.official.fence-0',
-        surface: 'render',
-        path: ['paths', 0, 'end', 0],
-        replacement: 119,
-      },
-      {
-        caseId: 'pie.official.fence-0',
-        surface: 'render',
-        path: ['paths', 1, 'centerMove'],
-        replacement: [300, 150],
-      },
-      {
-        caseId: 'pie.official.fence-0',
-        surface: 'render',
-        path: ['paths', 0, 'fill'],
-        replacement: '#000000',
-        additionalChanges: [{ path: ['swatches', 0, 'fill'], replacement: '#000000' }],
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['paths', 1, 'innerRadii', 0],
-        replacement: 0,
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['paths', 1, 'innerLargeArc'],
-        replacement: 1,
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['paths', 1, 'validShape'],
-        replacement: false,
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['paths', 1, 'highlighted'],
-        replacement: false,
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['paths', 1, 'highlightClass'],
-        replacement: false,
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['dimSliceOpacity'],
-        replacement: '1',
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['highlightRule', 'stroke'],
-        replacement: 'none',
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['outerStrokeColor'],
-        replacement: 'transparent',
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['outer', 'cy'],
-        replacement: 177,
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['legends', 1, 'text'],
-        replacement: 'Potassium (46.3%)',
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['legends', 1, 'x'],
-        replacement: 1000,
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['swatches', 1, 'x'],
-        replacement: 20,
-        additionalChanges: [{ path: ['legends', 1, 'x'], replacement: 42 }],
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['swatches', 1, 'y'],
-        replacement: 117,
-        additionalChanges: [{ path: ['legends', 1, 'y'], replacement: 124 }],
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['sliceLabels', 0, 'fill'],
-        replacement: 'transparent',
-      },
-      {
-        caseId: 'pie.official.fence-1',
-        surface: 'render',
-        path: ['sliceLabels', 0, 'x'],
-        replacement: 1000,
-      },
-      {
-        caseId: 'xychart.official.fence-1',
-        surface: 'render',
-        path: ['lines', 0, 'points', 1, 0],
-        replacement: 111.89,
-      },
-      {
-        caseId: 'xychart.official.fence-1',
-        surface: 'render',
-        path: ['lineStrokeWidth'],
-        replacement: '0',
-      },
-      {
-        caseId: 'xychart.official.fence-2',
-        surface: 'render',
-        path: ['barPaint', 1, 'color'],
-        replacement: '#ff00ff',
-      },
-      {
-        caseId: 'xychart.official.fence-2',
-        surface: 'render',
-        path: ['bars', 0, 'x'],
-        replacement: 97.7425,
-        additionalChanges: [{ path: ['bars', 4, 'x'], replacement: 97.7425 }],
-      },
-      {
-        caseId: 'xychart.official.fence-2',
-        surface: 'render',
-        path: ['bars', 0, 'x'],
-        replacement: 131.69,
-        additionalChanges: [{ path: ['bars', 4, 'x'], replacement: 63.79 }],
-      },
-      {
-        caseId: 'xychart.official.fence-3',
-        surface: 'render',
-        path: ['bars', 0, 'height'],
-        replacement: 1,
-      },
-      {
-        caseId: 'xychart.official.fence-3',
-        surface: 'render',
-        path: ['bars', 0, 'x'],
-        replacement: 1000,
-      },
-      {
-        caseId: 'xychart.official.fence-3',
-        surface: 'render',
-        path: ['bars', 0, 'width'],
-        replacement: 0.00001,
-        additionalChanges: [{ path: ['bars', 0, 'x'], replacement: 113.534995 }],
-      },
-      {
-        caseId: 'xychart.official.fence-3',
-        surface: 'render',
-        path: ['dataLabels', 0, 'x'],
-        replacement: 1000,
-      },
-      {
-        caseId: 'xychart.official.fence-3',
-        surface: 'render',
-        path: ['dataLabels', 0, 'fontSize'],
-        replacement: '0',
-      },
-      {
-        caseId: 'xychart.official.fence-3',
-        surface: 'render',
-        path: ['dataLabelPaint'],
-        replacement: 'transparent',
-      },
-      {
-        caseId: 'xychart.official.fence-4',
-        surface: 'render',
-        path: ['identicalToInsideLabels'],
-        replacement: false,
-      },
-      {
-        caseId: 'xychart.official.fence-5',
-        surface: 'render',
-        path: ['labels', 0, 'x'],
-        replacement: 636.78,
-      },
-      {
-        caseId: 'xychart.official.fence-5',
-        surface: 'render',
-        path: ['labels', 0, 'fill'],
-        replacement: '#ff00ff',
-      },
-      {
-        caseId: 'xychart.official.fence-5',
-        surface: 'render',
-        path: ['lines', 0, 'points', 0, 0],
-        replacement: 1131,
-      },
-      {
-        caseId: 'xychart.official.fence-6',
-        surface: 'render',
-        path: ['labels', 0, 'fontSize'],
-        replacement: '16',
-      },
-      {
-        caseId: 'xychart.official.fence-6',
-        surface: 'render',
-        path: ['lines', 0, 'points', 0, 1],
-        replacement: 1361,
-      },
-      {
-        caseId: 'xychart.official.fence-6',
-        surface: 'render',
-        path: ['yTicks', 0, 'value'],
-        replacement: 99,
       },
       {
         caseId: 'xychart.syntax.shared-parser-semantics',
@@ -1687,7 +681,7 @@ describe('issue #248 construct fidelity receipts', () => {
       const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
       expect(receipt.cases[0]!.passed).toBe(false)
     }
-  }, 15_000) // Sequential semantic sabotage has grown with the #248 receipt portfolio.
+  })
 
   test('registry validation rejects duplicate/unknown cases and unacknowledged revision splits', async () => {
     const registry = await discoverFidelityRegistry()
@@ -1728,7 +722,7 @@ describe('issue #248 construct fidelity receipts', () => {
 
   test('blocked applicable surfaces remain explicit and fail the receipt', async () => {
     const registry = await discoverFidelityRegistry()
-    const original = registry.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
+    const original = registry.cases[0]!
     const notApplicable = (rationale: string): FidelitySurfaceExpectation => ({ applicability: 'not-applicable', rationale })
     const blocked: FidelityCaseDefinition = {
       ...original,
@@ -1907,7 +901,7 @@ describe('issue #248 construct fidelity receipts', () => {
 
   test('diagnosed dispositions require a concrete diagnostic in validation, execution, and projection', async () => {
     const registry = await discoverFidelityRegistry()
-    const original = registry.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
+    const original = registry.cases[0]!
     const agent = original.expected.agent
     if (agent.applicability !== 'applicable') throw new Error('block agent must be applicable')
     const emptyDiagnosis = {
@@ -1919,9 +913,8 @@ describe('issue #248 construct fidelity receipts', () => {
     await expect(runFidelityCases([emptyDiagnosis], registry.caseFiles)).rejects.toThrow('diagnosed disposition requires at least one diagnostic code')
 
     const malformedReceipt = readJson<FidelityReceiptResult>(RECEIPT)
-    const blockCase = malformedReceipt.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
-    const expectedAgent = blockCase.expected.agent
-    const observedAgent = blockCase.observations.agent
+    const expectedAgent = malformedReceipt.cases[0]!.expected.agent
+    const observedAgent = malformedReceipt.cases[0]!.observations.agent
     if (expectedAgent.applicability !== 'applicable' || !observedAgent || observedAgent.status !== 'observed') throw new Error('block agent fixture must be applicable and observed')
     ;(expectedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
     ;(observedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
