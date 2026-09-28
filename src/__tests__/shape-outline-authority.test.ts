@@ -5,9 +5,9 @@ import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, shapePorts } from '../route-contracts.ts'
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
-import { pointOnShapeSide, shapeOutline, shapeRoutingProfile } from '../shape-outline.ts'
+import { paintsNodeFill, pointOnShapeSide, shapeOutline, shapeRoutingProfile } from '../shape-outline.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import type { PositionedNode } from '../types.ts'
+import type { NodeShape, PositionedNode } from '../types.ts'
 
 const PAINT = { fill: '#fff', stroke: '#000', strokeWidth: '1' }
 const node = (shape: PositionedNode['shape'], semanticShape?: string): PositionedNode => ({
@@ -27,7 +27,28 @@ const ENVELOPE_SHAPES = new Set([
   'bow-rect', 'tag-doc',
 ])
 
+// Every geometric shape; the Record makes a new NodeShape a type error here.
+const GEOMETRIC_SHAPES = Object.keys({
+  rectangle: 1, service: 1, rounded: 1, diamond: 1, stadium: 1, circle: 1, subroutine: 1, doublecircle: 1,
+  hexagon: 1, cylinder: 1, asymmetric: 1, trapezoid: 1, 'trapezoid-alt': 1, 'lean-r': 1, 'lean-l': 1,
+  'state-start': 1, 'state-end': 1, 'state-fork': 1, 'state-join': 1, 'state-choice': 1, 'state-history': 1,
+} satisfies Record<NodeShape, 1>) as NodeShape[]
+
 describe('canonical shape outline authority', () => {
+  // Node text is inked against the node's fill only where the outline paints
+  // it (an open symbol leaves its label on the page), so the two must agree.
+  test('paintsNodeFill says exactly which outlines paint the node fill', () => {
+    const fill = '#123456'
+    const nodes = [
+      ...Object.entries(FLOWCHART_V11_SHAPES).map(([semanticShape, definition]) => node(definition.geometry, semanticShape)),
+      ...GEOMETRIC_SHAPES.map(shape => node(shape)),
+    ]
+    for (const positioned of nodes) {
+      const painted = shapeOutline(positioned, { ...PAINT, fill }).crisp.includes(`fill="${fill}"`)
+      expect(paintsNodeFill(positioned), positioned.semanticShape ?? positioned.shape).toBe(painted)
+    }
+  })
+
   test('every documented semantic shape declares a bounded routing policy', () => {
     for (const [semanticShape, definition] of Object.entries(FLOWCHART_V11_SHAPES)) {
       const outline = shapeOutline(node(definition.geometry, semanticShape), PAINT)

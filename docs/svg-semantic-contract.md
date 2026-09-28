@@ -26,6 +26,8 @@ Source-authored IDs win. Anonymous marks receive semantic IDs derived from label
 
 References are rewritten only when their target is declared in the same SVG. This prevents accidental rewriting of label text. Two instances rendered with distinct prefixes have no colliding declarations, while their semantic `data-id` values remain comparable. Prefixes accept ASCII letters, digits, `_`, `-`, `.`, and `:`; unsafe attribute/URL characters fail fast.
 
+Style rules need no prefix. An inline `<style>` element applies to its whole host page, so every render scopes its own rules: the root `<svg>` carries a class `am-<hash>` derived from the finished output, and each selector in the SVG's style sheets is rewritten to match only inside that root (`.am-<hash> .xychart-bar`, `svg.am-<hash>`). Two different diagrams inlined in one page therefore keep their own paint, and identical renders share one scope harmlessly. Declarations, strings, comments, and non-selector at-rules are copied unchanged, and resvg rasterizes the scoped SVG to the same pixels as the unscoped one (`property-svg-style-scope.test.ts`; the page-level property runs in the browser lane as `svg-style-isolation-browser.test.ts`).
+
 ## Relation accessibility
 
 Typed edges, messages, and relationships emit:

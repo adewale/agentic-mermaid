@@ -5,11 +5,15 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 683_000,
     // Timeline literal-label SVG output adds a few hundred bytes to the
     // existing homepage request graph; exact Linux totals live in the baseline.
-    maxGzipBytes: 406_650,
-    maxBrotliBytes: 388_250,
+    // Holding every family's text to the chart-honesty contract (root-scoped
+    // SVG styles with a 64-bit scope class, text tones that clear AA on every
+    // surface, and label halos) adds 2,453 raw, 425 gzip, and 303 Brotli bytes
+    // to the prerendered homepage SVGs; the request graph is unchanged.
+    maxRawBytes: 685_323,
+    maxGzipBytes: 407_006,
+    maxBrotliBytes: 388_439,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -21,11 +25,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // Sequence half-arrow examples add bytes without changing the six-request
     // graph; these are the reviewed Linux/x64 totals.
-    maxRawBytes: 392_000,
     // Authored Class member display changes compression by one byte while
     // leaving the route graph and raw bytes unchanged.
-    maxGzipBytes: 68_700,
-    maxBrotliBytes: 54_550,
+    // The chart-honesty text contract adds 4,130 raw, 567 gzip, and 506 Brotli
+    // bytes to the prerendered examples page without adding a request.
+    maxRawBytes: 395_890,
+    maxGzipBytes: 69_188,
+    maxBrotliBytes: 54_917,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -38,7 +44,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // appearance path shared with the complete browser bundle.
     // Shared authored-color admission adds one cacheable lazy chunk to the
     // Timeline demo's browser graph: 31 requests on Linux/Bun 1.4.2.
-    maxRequests: 31,
+    maxRequests: 29,
     // The shared accDescr scanner removes one lazy chunk without changing
     // rendered pixels; the unclosed-block guard, inline-empty-Class-body
     // recognition, and literal Class-member Scene fidelity add a few bytes.
@@ -86,9 +92,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Linux/Bun 1.4.2 measures 745,142 raw / 278,983 gzip / 254,471 Brotli.
     // Explicit XY Chart no-op diagnostics keep the graph unchanged; the exact
     // Linux capture measures 745,425 raw / 254,601 Brotli bytes.
-    maxRawBytes: 745_500,
-    maxGzipBytes: 279_100,
-    maxBrotliBytes: 254_650,
+    // The chart-honesty text contract adds 6,435 raw, 2,370 gzip, and 1,800
+    // Brotli bytes to the shared chunks and regroups the small ones, so the
+    // graph has 29 requests where main's has 31. Each ceiling keeps main's
+    // allowance above the Linux total for the macOS recording.
+    maxRawBytes: 751_935,
+    maxGzipBytes: 281_470,
+    maxBrotliBytes: 256_450,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -178,15 +188,22 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // 3,408,123 raw / 1,013,779 gzip / 799,550 Brotli in the same
     // two-request graph on Linux/Bun 1.4.2.
     // Shared no-op validity diagnostics measure 3,408,480 raw in that graph.
-    maxRawBytes: 3_408_600,
     // Timeline semantic line-break normalization previously measured 1,009,565
     // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
     // on Linux/x64; retain 150 bytes of headroom with no new requests.
-    maxGzipBytes: 1_013_945,
     // Pie's escaped-LF painted-text projection stays in the existing two
     // requests. Timeline title parity and its boundary guard reach 797,353
     // Brotli bytes on Linux/x64, still in the same two-request graph.
-    maxBrotliBytes: 800_015,
+    // The chart-honesty contract (SVG style scoping, per-bar data labels,
+    // contrast ink, palette repair, the LABELS_HIDDEN and
+    // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
+    // family's text tones, halos, titles, and containment, the node-fill ink,
+    // and the VALUES_OUTSIDE_RANGE lint) adds 23,852 raw, 8,943 gzip, and 6,435
+    // Brotli bytes to the Linux/x64 editor bundle without a new request. Each
+    // ceiling keeps main's allowance above the Linux total.
+    maxRawBytes: 3_432_452,
+    maxGzipBytes: 1_022_888,
+    maxBrotliBytes: 806_450,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

@@ -18,7 +18,17 @@ const descriptorData = Object.freeze({
       "mainBranchName",
       "mainBranchOrder",
       "parallelCommits",
-      "rotateCommitLabel"
+      "rotateCommitLabel",
+      "arrowMarkerAbsolute",
+      "diagramPadding",
+      "nodeLabel",
+      "titleTopMargin"
+    ],
+    "noopKeys": [
+      "arrowMarkerAbsolute",
+      "diagramPadding",
+      "nodeLabel",
+      "titleTopMargin"
     ]
   },
   "identity": {

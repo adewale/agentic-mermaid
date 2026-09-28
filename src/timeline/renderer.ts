@@ -2,6 +2,7 @@ import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTi
 import type { RenderContext, RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
+import { toneOnFill } from '../color-resolver.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
@@ -78,10 +79,11 @@ export function lowerTimelineScene(
   const timelineConfig = timelineAppearance.timelineConfig
   const parts: SceneNode[] = []
   const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS, resolved.styleFace)
-  const paints = timelinePaints(style)
+  const familyPalettes = timelineAppearance.familyPalettes
+  const eventText = eventTextFill(style, colors, familyPalettes)
+  const paints = timelinePaints(style, eventText)
   const accessibleTitle = diagram.accessibilityTitle ?? diagram.title?.text.replace(/\n+/g, ' ')
   const accessibleDescription = diagram.accessibilityDescription
-  const familyPalettes = timelineAppearance.familyPalettes
   // disableMulticolor collapses every color family to 0 — for per-period
   // families AND labeled per-section families (upstream semantics; the old
   // gate skipped labeled sections, plan §Timeline 3).
@@ -97,7 +99,7 @@ export function lowerTimelineScene(
   // The shadow <defs> sit between the two style blocks (matching the historical
   // push order); they are re-derivable from prelude.colors, so styled backends
   // lose nothing by their living inside the prelude crisp.
-  const extraCss = timelineStyles(style)
+  const extraCss = timelineStyles(style, eventText)
   const preludeSegments = [
     svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs),
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport),
@@ -191,10 +193,22 @@ export function lowerTimelineScene(
   return { family: 'timeline', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
+/** The paint of event text, which sits on its card: the style's node fill or
+ *  the theme's, which is what every card resolves to once colors are inlined.
+ *  A custom surface can put that fill far from the page the theme tones are
+ *  repaired against, so the theme label is inked for it. A Style's text color
+ *  and an authored section label color are kept, like any authored paint. */
+function eventTextFill(style: ResolvedRenderStyle, colors: DiagramColors, familyPalettes: readonly TimelineFamilyPalette[]): string {
+  const themed = style.nodeTextColor ?? 'var(--tl-label, var(--_text-muted))'
+  if (style.nodeTextColor !== undefined || familyPalettes.some(palette => palette.label !== 'var(--_text)')) return themed
+  const inked = toneOnFill('var(--_text)', style.nodeFillColor ?? 'var(--_node-fill)', colors)
+  return inked === 'var(--_text)' ? themed : inked
+}
+
 /** Resolved per-role paints — mirrors the class rules in timelineStyles(), so
  *  styled backends see the same colors the crisp CSS classes resolve to.
  *  Keep in sync with timelineStyles(). */
-function timelinePaints(style: ResolvedRenderStyle) {
+function timelinePaints(style: ResolvedRenderStyle, eventText: string) {
   return {
     title: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
     rail: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
@@ -231,13 +245,13 @@ function timelinePaints(style: ResolvedRenderStyle) {
       stroke: style.nodeBorderColor ?? 'var(--tl-line, var(--_node-stroke))',
       strokeWidth: String(style.nodeLineWidth),
     },
-    eventText: { fill: style.nodeTextColor ?? 'var(--tl-label, var(--_text-muted))' },
+    eventText: { fill: eventText },
   }
 }
 
 type TimelinePaints = ReturnType<typeof timelinePaints>
 
-function timelineStyles(style: ResolvedRenderStyle): string {
+function timelineStyles(style: ResolvedRenderStyle, eventText: string): string {
   return `<style>
   .timeline-title { fill: ${style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
   .timeline-rail { stroke: ${style.edgeStrokeColor ?? 'var(--_line)'}; stroke-width: ${style.lineWidth}; stroke-linecap: round; }
@@ -250,7 +264,7 @@ function timelineStyles(style: ResolvedRenderStyle): string {
   .timeline-period-pill { fill: ${style.nodeFillColor ?? 'var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg)))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg)))'}; stroke-width: ${style.nodeLineWidth}; }
   .timeline-period-text { fill: ${style.nodeTextColor ?? 'var(--tl-label, var(--_text))'}; }
   .timeline-event-card { fill: ${style.nodeFillColor ?? 'var(--tl-event-fill, var(--_node-fill))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.nodeLineWidth}; }
-  .timeline-event-text { fill: ${style.nodeTextColor ?? 'var(--tl-label, var(--_text-muted))'}; }
+  .timeline-event-text { fill: ${eventText}; }
 </style>`
 }
 

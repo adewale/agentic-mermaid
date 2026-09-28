@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="388.8" height="238" viewBox="0 0 388.8 238" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="pie chart" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="388.8" height="238" viewBox="0 0 388.8 238" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="pie chart" role="img" class="am-04ehrv701i7djk">
 <style>
-  text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg {
+  .am-04ehrv701i7djk text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-04ehrv701i7djk {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -18,18 +18,18 @@
   }
 </style>
 <style>
-  .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
-  .pie-slice.highlighted { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
-  .pie-slice.highlighted-on-hover:hover { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
-  .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
-  .pie-legend-text { fill: #27272A; }
-  .pie-title { fill: #27272A; }
-  .pie-slice.pie-dim { opacity: 0.4; }
-  .pie-legend-swatch.pie-dim { opacity: 0.4; }
+  .am-04ehrv701i7djk .pie-slice { stroke: #FFFFFF; stroke-width: 1.5; }
+  .am-04ehrv701i7djk .pie-slice.highlighted { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
+  .am-04ehrv701i7djk .pie-slice.highlighted-on-hover:hover { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
+  .am-04ehrv701i7djk .pie-legend-swatch { stroke: #d4d4d4; stroke-width: 1; }
+  .am-04ehrv701i7djk .pie-legend-text { fill: #27272A; }
+  .am-04ehrv701i7djk .pie-title { fill: #27272A; }
+  .am-04ehrv701i7djk .pie-slice.pie-dim { opacity: 0.4; }
+  .am-04ehrv701i7djk .pie-legend-swatch.pie-dim { opacity: 0.4; }
 </style>
 <path class="pie-slice" d="M 119 119 L 119 24 A 95 95 0 0 1 201.27 166.5 Z" fill="#3b82f6" data-label="A&amp;#35;B" data-value="1" data-percent="33.3%" data-id="slice:A&amp;#35;B" data-role="pie-slice" />
 <path class="pie-slice" d="M 119 119 L 201.27 166.5 A 95 95 0 1 1 119 24 Z" fill="#0d5ba5" data-label="A&amp;#65;B" data-value="2" data-percent="66.7%" data-id="slice:A&amp;#65;B" data-role="pie-slice" />
-<text x="180.7" y="83.38" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">33%</text>
+<text x="180.7" y="83.38" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#000000" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">33%</text>
 <text x="57.3" y="154.63" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">67%</text>
 <rect class="pie-legend-swatch" x="246" y="101" width="14" height="14" rx="2" ry="2" fill="#3b82f6" />
 <text x="268" y="108" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" dy="4.55" textLength="90.87" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A&amp;#B [1] (33.3%)</text>

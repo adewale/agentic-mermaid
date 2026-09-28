@@ -23,20 +23,29 @@ const ROOT = join(import.meta.dir, '..', '..')
 /** Extra syntax broadens role coverage beyond each descriptor's minimal
  * discovery example. This is test stimulus, not a family/capability roster. */
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
-  flowchart: `flowchart LR
+  flowchart: `---
+title: Operations flow
+---
+flowchart LR
   subgraph ops[Operations]
     A@{ icon: "fa fa-book", form: "circle", label: "Start" }
     U@{ icon: "acme:unknown", label: "Fallback" }
   end
   U --> A -->|go| B{Ready?}`,
-  state: `stateDiagram-v2
+  state: `---
+title: Document review
+---
+stateDiagram-v2
   state Work {
     [*] --> Draft
     Draft --> Done : finish
   }
   note right of Work : Review
   [*] --> Work`,
-  sequence: `sequenceDiagram
+  sequence: `---
+title: Request lifecycle
+---
+sequenceDiagram
   box Aqua Team
     actor A as Alice
     participant B@{ "type": "database", "alias": "Bob" }
@@ -59,7 +68,10 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
     2026 Q1 : Design : Build
   section Beta
     2026 Q2 : Ship`,
-  class: `classDiagram
+  class: `---
+title: Accounting model
+---
+classDiagram
   namespace Domain {
     class Account {
       +id: string
@@ -69,7 +81,10 @@ const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
   class Ledger
   note for Account "Aggregate root"
   Account "1" o-- "*" Ledger : records`,
-  er: `erDiagram
+  er: `---
+title: Commerce model
+---
+erDiagram
   subgraph Commerce
     CUSTOMER ||--o{ ORDER : places
     CUSTOMER {
@@ -125,7 +140,10 @@ pie showData
   Implement :crit, build, 2026-01-05, 5d
   Release :milestone, release, after build, 0d
   Cutover :vert, cutover, 2026-01-09, 0d`,
-  mindmap: `mindmap
+  mindmap: `---
+title: Product plan
+---
+mindmap
   root((Product))
     Research
       ::icon(fa fa-book)

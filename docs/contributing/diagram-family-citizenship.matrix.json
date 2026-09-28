@@ -83,6 +83,10 @@
       "description": "Mermaid and a Wikipedia/domain reference define a recognizable family hallmark that is protected by geometry assertions and reviewer-visible artifacts."
     },
     {
+      "id": "chartHonesty",
+      "description": "Every text the family draws, in every registered style, is measured as rasterized: legible against what surrounds it (WCAG 4.5:1, or 3:1 for large text), on the canvas, drawn or reported by verify (LABELS_HIDDEN), and read the same in every style; generated diagrams with random frontmatter titles hold the same contract."
+    },
+    {
       "id": "goldensEvidence",
       "description": "Goldens, snapshots, or reviewer evidence cover representative output."
     },
@@ -275,6 +279,15 @@
             "docs/design/mermaid-family-fidelity-audit.md",
             "docs/design/families/flowchart-v11-shapes-after.png",
             "src/__tests__/flowchart-v11-shapes.test.ts"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-1.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         }
       },
@@ -470,6 +483,15 @@
             "docs/design/mermaid-family-fidelity-audit.md",
             "docs/design/families/state-pseudostates-after.png",
             "src/__tests__/state-pseudostates.test.ts"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-2.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         }
       },
@@ -668,6 +690,15 @@
             "docs/design/families/sequence-parity-after.png",
             "src/__tests__/sequence-layout.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-3.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -862,6 +893,15 @@
             "docs/design/mermaid-family-fidelity-audit.md",
             "docs/design/families/timeline-vertical-after.png",
             "src/__tests__/timeline-layout.test.ts"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-4.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         }
       },
@@ -1059,6 +1099,15 @@
             "docs/design/families/class-namespaces-after.png",
             "src/__tests__/class-er-edge-quality.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-1.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -1255,6 +1304,15 @@
             "docs/design/families/er-direction-after.png",
             "src/__tests__/class-er-edge-quality.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-2.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -1450,6 +1508,15 @@
             "docs/design/families/journey-section-overlap-after.png",
             "src/__tests__/journey-layout-quality.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-3.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -1644,6 +1711,15 @@
             "docs/design/mermaid-family-fidelity-audit.md",
             "docs/design/families/architecture-align-after.png",
             "src/__tests__/architecture-layout.test.ts"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-4.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         }
       },
@@ -1841,6 +1917,15 @@
             "docs/design/families/xychart-legend-after.png",
             "src/__tests__/xychart-renderer.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-1.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -2036,6 +2121,15 @@
             "docs/design/families/pie-donut-labels-after.png",
             "src/__tests__/pie-elevation.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-2.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -2230,6 +2324,15 @@
             "docs/design/mermaid-family-fidelity-audit.md",
             "docs/design/families/quadrant-styling-after.png",
             "src/__tests__/quadrant.test.ts"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-3.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         }
       },
@@ -2430,6 +2533,15 @@
             "docs/design/families/gantt-dependency-overlay-after.png",
             "src/__tests__/gantt-dependency-overlay.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-4.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -2605,6 +2717,15 @@
             "docs/design/families/mindmap-content-gallery.png",
             "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json",
             "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-1.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         }
       },
@@ -2787,6 +2908,15 @@
             "eval/mindmap-gitgraph-content-corpus/gallery-receipt.json",
             "src/__tests__/mindmap-gitgraph-content-corpus.test.ts"
           ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-2.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
+          ]
         }
       },
       "fidelity": {
@@ -2944,6 +3074,15 @@
           "evidence": [
             "docs/design/mermaid-family-fidelity-audit.md",
             "docs/design/families/radar-demo.png"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-3.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         },
         "goldensEvidence": {
@@ -3119,6 +3258,15 @@
           "evidence": [
             "docs/design/mermaid-family-fidelity-audit.md",
             "docs/design/families/sankey-demo.png"
+          ]
+        },
+        "chartHonesty": {
+          "status": "satisfied",
+          "evidence": [
+            "docs/design/system/chart-honesty.md",
+            "src/__tests__/helpers/chart-honesty.ts",
+            "src/__tests__/chart-honesty-text-4.test.ts",
+            "src/__tests__/property-chart-honesty.test.ts"
           ]
         },
         "goldensEvidence": {

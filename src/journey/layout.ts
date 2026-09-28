@@ -352,7 +352,9 @@ export function layoutJourneyDiagram(
   const naturalPlotRight = cursorX + JY.arrowOverhang
   const plotRight = Math.max(naturalPlotRight, plotLeft + JY.minPlotWidth)
   const maxSectionRight = Math.max(plotRight, ...sections.map(section => section.x + section.width))
-  const width = maxSectionRight + visual.paddingX
+  // The title is centered over the canvas, so the canvas is at least as wide
+  // as the title and its padding; a long title never runs off both edges.
+  const width = Math.max(maxSectionRight + visual.paddingX, titleMetrics ? titleMetrics.width + 2 * visual.paddingX : 0)
 
   let actorY = taskY + JY.legendDotRadius
   const actors: PositionedJourneyActor[] = actorLabels.map((actor, index) => {

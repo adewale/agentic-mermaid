@@ -14,7 +14,11 @@ const descriptorData = Object.freeze({
     "section": "mindmap",
     "keys": [
       "padding",
-      "maxNodeWidth"
+      "maxNodeWidth",
+      "layoutAlgorithm"
+    ],
+    "noopKeys": [
+      "layoutAlgorithm"
     ]
   },
   "identity": {
@@ -36,6 +40,7 @@ const descriptorData = Object.freeze({
   ],
   "semanticRoles": [
     "prelude",
+    "title",
     "chrome",
     "edge",
     "node",
@@ -46,6 +51,15 @@ const descriptorData = Object.freeze({
     {
       "role": "prelude",
       "primitive": "document",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
+      "role": "title",
+      "primitive": "text",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [

@@ -442,8 +442,10 @@ function separateItemBoxes(boxes: CellBox[]): void {
   }
 }
 
-function placeEdgeLabel(text: string, path: GridCoord[], obstacles: CellBox[]): GridCoord {
+function placeEdgeLabel(text: string, path: GridCoord[], boxes: CellBox[]): GridCoord {
   const width = visualWidth(text)
+  // A label may sit inside a group; only the group's frame is in its way.
+  const obstacles = boxes.flatMap(box => box.kind === 'group' ? groupFrame(box) : [box])
   const segments = path.slice(1).map((point, index) => ({ a: path[index]!, b: point }))
     .sort((a, b) => (Math.abs(b.b.x - b.a.x) - Math.abs(a.b.x - a.a.x)))
   const clear = (x: number, y: number): boolean => {
@@ -483,6 +485,17 @@ function preferredDirection(side: ArchitectureEndpoint['side']): Direction {
 function fallbackPath(start: GridCoord, end: GridCoord): GridCoord[] {
   if (start.x === end.x || start.y === end.y) return [start, end]
   return [start, { x: end.x, y: start.y }, end]
+}
+
+/** The four one-cell sides of a group box. */
+function groupFrame(box: CellBox): CellBox[] {
+  const side = (x: number, y: number, width: number, height: number): CellBox => ({ ...box, x, y, width, height })
+  return [
+    side(box.x, box.y, box.width, 1),
+    side(box.x, bottom(box), box.width, 1),
+    side(box.x, box.y, 1, box.height),
+    side(right(box), box.y, 1, box.height),
+  ]
 }
 
 function right(box: CellBox): number { return box.x + box.width - 1 }

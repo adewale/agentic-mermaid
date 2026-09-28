@@ -35,6 +35,7 @@ import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { parseXYChart, renderXYChartText } from '../xychart/parser.ts'
+import { barBaselineValue } from '../xychart/axis-utils.ts'
 
 // ---- Number format ----------------------------------------------------------
 //
@@ -367,6 +368,43 @@ export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWar
         code: 'UNSUPPORTED_SYNTAX',
         syntax: 'xychart_axis_series_length_mismatch',
         message: `XY chart series ${s.id} has ${s.values.length} values for ${categoryCount} x-axis categories; Mermaid tolerates the mismatch by dropping or synthesizing positions. Make the lengths equal.`,
+      })
+    }
+  }
+  // Bars encode value as length from zero. An authored range that excludes
+  // zero clamps their common start to the axis end nearest zero, so lengths
+  // stop being proportional to values; the range is kept, and said so.
+  const range = body.yAxis?.range
+  if (range && body.series.some(s => s.kind === 'bar')) {
+    const baseline = barBaselineValue(range)
+    if (baseline !== 0) {
+      warnings.push({
+        code: 'BAR_RANGE_EXCLUDES_ZERO',
+        range: { min: range.min, max: range.max },
+        baseline,
+        message: `XY chart y-axis range ${range.min} --> ${range.max} excludes zero, so bars start at ${baseline} and their lengths are not proportional to their values. Include zero in the range (set_y_axis), or draw the series as a line.`,
+      })
+    }
+  }
+  // Every mark is read against the authored range. A bar value outside it is
+  // drawn stopped at the range edge and a line point is drawn past the plot, so
+  // the chart misstates the value either way; the range is kept, and said so.
+  if (range) {
+    const lo = Math.min(range.min, range.max)
+    const hi = Math.max(range.min, range.max)
+    for (const s of body.series) {
+      const outside = s.values.filter(value => value < lo || value > hi)
+      if (outside.length === 0) continue
+      const shown = outside.length <= 5 ? outside.join(', ') : `${outside.slice(0, 5).join(', ')} and ${outside.length - 5} more`
+      const effect = s.kind === 'bar'
+        ? `its bars stop at the edge of the range, so their lengths understate ${outside.length === 1 ? 'that value' : 'those values'}`
+        : 'its line is drawn past the plot there, beyond the axis it is read against'
+      warnings.push({
+        code: 'VALUES_OUTSIDE_RANGE',
+        series: s.id,
+        values: outside,
+        range: { min: range.min, max: range.max },
+        message: `XY chart ${s.kind} series ${s.id} has ${outside.length === 1 ? 'value' : 'values'} ${shown} outside the y-axis range ${range.min} --> ${range.max}: ${effect}. Widen the range (set_y_axis) or remove it so the axis fits the data.`,
       })
     }
   }

@@ -487,6 +487,20 @@ function stateBar(x: number, y: number, w: number, h: number): RenderedShapeOutl
 function solidRect(x: number, y: number, w: number, h: number, color: string, strokeWidth: string): RenderedShapeOutline {
   return { geometry: { kind: 'rect', x, y, width: w, height: h }, crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}" stroke="${color}" stroke-width="${strokeWidth}" />`, routing: { kind: 'rect', x, y, width: w, height: h } }
 }
+/** Shapes whose outline does not paint the node's fill, so a label drawn in
+ * them sits on something else: text blocks and open symbols (drawn with
+ * `openPath`) leave it on whatever lies beneath, and the solid marks (the fork
+ * bar, the filled circle, the state pseudostates) are painted in a line or
+ * text tone. Semantic shapes and geometries share the one set. */
+const SHAPES_WITHOUT_NODE_FILL: ReadonlySet<string> = new Set([
+  'text', 'brace', 'brace-r', 'braces', 'datastore', 'fork', 'f-circ',
+  'state-start', 'state-end', 'state-fork', 'state-join',
+])
+
+/** Whether a node's outline paints the node's fill, so its label sits on it. */
+export function paintsNodeFill(node: Pick<PositionedNode, 'shape' | 'semanticShape'>): boolean {
+  return !SHAPES_WITHOUT_NODE_FILL.has(node.semanticShape ?? node.shape)
+}
 function openPath(node: PositionedNode, d: string, paint: Paint): RenderedShapeOutline {
   const value = path(node, d, paint, { fill: 'none', reason: 'open symbol has no enclosing painted boundary' })
   value.routing = { kind: 'envelope', x: node.x, y: node.y, width: node.width, height: node.height, reason: 'open symbol routes to its layout envelope' }

@@ -5,6 +5,7 @@ import { layoutSequenceDiagram } from '../../sequence/layout.ts'
 import { parseSequenceDiagram } from '../../sequence/parser.ts'
 import { lowerSequenceScene } from '../../sequence/renderer.ts'
 import { withAccessibilityFields } from '../../shared/accessibility-directives.ts'
+import { withFrontmatterTitle } from '../../mermaid-source.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, {
   normalizeRequest: ctx => ({
@@ -14,10 +15,10 @@ export default createBrowserFamilyDescriptor(descriptorData, {
     const seqConfig = (ctx.familyConfig as {
       sequence?: ReturnType<typeof resolveSequenceConfig>
     } | undefined)?.sequence ?? {}
-    const diagram = withAccessibilityFields(
+    const diagram = withFrontmatterTitle(withAccessibilityFields(
       parseSequenceDiagram(ctx.source.familyLines, seqConfig),
       ctx.source.accessibility,
-    )
+    ), ctx.source.frontmatter)
     return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig, ctx.styleFace))
   },
   lowerScene: scene(lowerSequenceScene),

@@ -139,8 +139,10 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   'actor-pill': traits('actor-pill', SHAPE, 'node', { sketch: 'shape' }),
   service: traits('service', SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
   junction: traits('junction', SHAPE_OR_GROUP, 'node', { domIdentity: true }),
-  icon: traits('icon', SHAPE_TEXT_OR_DOCUMENT, 'node'),
-  title: traits('title', ANY_MARK, 'label', { domIdentity: true }),
+  // Text glyphs a sketch look draws always sit on its page halo; icons and
+  // titles can be text too.
+  icon: traits('icon', SHAPE_TEXT_OR_DOCUMENT, 'node', { textHalo: true }),
+  title: traits('title', ANY_MARK, 'label', { domIdentity: true, textHalo: true }),
   defs: traits('defs', DOCUMENT, 'label'),
   prelude: traits('prelude', PRELUDE, 'label'),
   chrome: traits('chrome', ANY_MARK, 'label'),

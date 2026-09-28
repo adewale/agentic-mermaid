@@ -30,9 +30,6 @@ const descriptorData = Object.freeze({
       "legendPadding",
       "xAxis",
       "yAxis"
-    ],
-    "noopKeys": [
-      "showDataLabelOutsideBar"
     ]
   },
   "identity": {

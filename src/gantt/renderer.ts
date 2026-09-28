@@ -10,7 +10,7 @@
 // blind to done/active/crit semantics.
 //
 // Theme roles map to the shared CSS custom properties:
-//   text  → axis/task/date labels  (var(--fg) / var(--muted))
+//   text  → axis/task/date labels  (var(--_text) / var(--_text-muted))
 //   node  → bars + milestones      (var(--accent) / var(--surface))
 //   edge  → grid lines, today/vert markers (var(--line))
 //   group → section bands          (var(--surface))
@@ -25,7 +25,7 @@
 // ============================================================================
 
 import type { GanttLayoutResult } from './types.ts'
-import { ganttAxisLabelOffset, ganttMeasureTextWidth, ganttTitleFontSize, ganttTitleY, resolveGanttRenderStyle } from './layout.ts'
+import { ganttAxisLabelOffset, ganttMeasureTextWidth, ganttTitleFontSize, ganttTitleFontWeight, ganttTitleY, resolveGanttRenderStyle } from './layout.ts'
 import { parseTodayMarkerStyle, todayMarkerStyleAttr } from './today-marker.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
@@ -73,10 +73,13 @@ function ganttPalette(style: ResolvedRenderStyle): GanttPalette {
     doneFill: style.nodeFillColor ?? 'var(--muted, var(--line, var(--fg)))',
     criticalFill: style.nodeFillColor ?? 'var(--fg)',
     criticalStroke: style.nodeBorderColor ?? style.edgeStrokeColor ?? 'var(--accent, var(--fg))',
-    titleFill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--fg)',
-    groupText: style.groupTextColor ?? style.nodeTextColor ?? 'var(--fg)',
-    taskText: style.nodeTextColor ?? 'var(--fg)',
-    axisText: style.edgeTextColor ?? style.groupTextColor ?? 'var(--muted, var(--fg))',
+    // Text takes the theme's text tones, which are contrast-repaired against
+    // the page and its tints; raw --fg/--muted are palette inputs and can sit
+    // under WCAG AA on their own page (solarized, tokyo-night-light).
+    titleFill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)',
+    groupText: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)',
+    taskText: style.nodeTextColor ?? 'var(--_text)',
+    axisText: style.edgeTextColor ?? style.groupTextColor ?? 'var(--_text-muted)',
   }
 }
 
@@ -628,7 +631,7 @@ export function lowerGanttScene(
 
   if (layout.title) {
     const title = applyTextTransform(layout.title, style.groupTextTransform)
-    parts.push(textMark('title', 'title', layout.width / 2, ganttTitleY(style), title, 'gantt-title', ganttTitleFontSize(style), Math.max(style.groupHeaderFontWeight, 600), palette.titleFill, 'middle', style.groupLetterSpacing))
+    parts.push(textMark('title', 'title', layout.width / 2, ganttTitleY(style), title, 'gantt-title', ganttTitleFontSize(style), ganttTitleFontWeight(style), palette.titleFill, 'middle', style.groupLetterSpacing))
   }
 
   parts.push(marks.documentClose())

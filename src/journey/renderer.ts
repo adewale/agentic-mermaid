@@ -10,7 +10,8 @@ import type {
 } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors, resolvedColorValue } from '../theme.ts'
+import { toneOnFill } from '../color-resolver.ts'
 import type { JourneyRequestAppearance, JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
@@ -25,7 +26,7 @@ import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
-import { isHexColor, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
+import { isHexColor, legibleInk, mixHex, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
 import {
   projectConnectorPath,
@@ -65,6 +66,8 @@ interface JourneyPaints {
   arrow: string
   nodeFill: string
   nodeStroke: string
+  /** Task text, inked against the task box fill it sits on. */
+  taskText: string
   groupFill: string
   groupStroke: string
   groupText: string
@@ -280,7 +283,7 @@ ${sectionBandPalette}
   .journey-section-label { fill: ${paints.sectionTextColors[0] ?? 'var(--_text)'}; }
 ${sectionLabelPalette}
   .journey-task-box { fill: ${paints.nodeFill}; stroke: ${paints.nodeStroke}; stroke-width: ${style.nodeLineWidth}; }
-  .journey-task-text { fill: ${style.nodeTextColor ?? 'var(--_text)'};${visual.taskFontFamily ? ` font-family: ${visual.taskFontFamily};` : ''} }
+  .journey-task-text { fill: ${paints.taskText};${visual.taskFontFamily ? ` font-family: ${visual.taskFontFamily};` : ''} }
   .journey-track { stroke: color-mix(in srgb, ${paints.nodeStroke} 78%, var(--bg)); stroke-width: ${style.lineWidth}; stroke-dasharray: 4 7; }${drawCurve ? `
   .journey-curve { fill: none; stroke: color-mix(in srgb, ${paints.arrow} 55%, var(--bg)); stroke-width: ${Math.max(2, style.lineWidth * 2)}; stroke-linecap: round; }` : ''}
   .journey-guide { stroke: color-mix(in srgb, ${paints.nodeStroke} 62%, var(--bg)); stroke-width: 1; }
@@ -623,7 +626,7 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
   const children: Array<{ node: SceneNode; indent: number }> = [
     { indent: 2, node: renderTrack(task.track, task, style, paints) },
     { indent: 2, node: renderTaskBox(task, style, paints, channels) },
-    { indent: 2, node: renderTaskLabel(task, style, channels) },
+    { indent: 2, node: renderTaskLabel(task, style, paints, channels) },
   ]
 
   for (const dot of task.actorDots) {
@@ -677,7 +680,7 @@ function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, 
   )
 }
 
-function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle, channels: SemanticChannels): SceneNode {
+function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
   return marks.text(
     {
       id: `task-label:${task.id}`,
@@ -687,7 +690,7 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
       y: task.textY,
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
-      paint: { fill: style.nodeTextColor ?? 'var(--_text)' },
+      paint: { fill: paints.taskText },
       channels,
     },
     renderMultilineText(
@@ -837,12 +840,21 @@ function journeyPaints(
       ? `color-mix(in srgb, ${explicitFill} ${index === 0 ? 42 : 38}%, var(--bg))`
       : style.groupBorderColor ?? `color-mix(in srgb, ${sectionBases[index % sectionBases.length]} ${index === 0 ? 42 : 38}%, var(--bg))`
   })
+  // The guard measures the band as drawn; a color-mix of concrete colors is
+  // concrete too, so resolve it rather than leave the label unguarded.
+  const measuredBands = sectionBands.map((band, index) => {
+    const base = sectionBases[index % sectionBases.length]!
+    const explicitFill = visual.sectionFills[index % visual.sectionFills.length]
+    return explicitFill === undefined && style.groupHeaderFillColor === undefined && isHexColor(base) && isHexColor(colors.bg)
+      ? mixHex(base, colors.bg, index === 0 ? 14 : 16)
+      : band
+  })
   const sectionTextColors = Array.from({ length: configuredSectionCount }, (_unused, index) =>
     contrastGuardedLabelColor(
       visual.sectionColours.length > 0 ? visual.sectionColours[index % visual.sectionColours.length] : undefined,
-      sectionBands[index]!,
+      measuredBands[index]!,
       style.groupTextColor ?? 'var(--_text)',
-      colors.bg,
+      colors,
     ),
   )
   const actorColors = visual.actorColours.length > 0
@@ -853,6 +865,9 @@ function journeyPaints(
     arrow,
     nodeFill,
     nodeStroke,
+    // A custom surface can put the task box far from the page the theme tones
+    // are repaired against.
+    taskText: style.nodeTextColor ?? toneOnFill('var(--_text)', nodeFill, colors),
     groupFill,
     groupStroke,
     groupText,
@@ -882,16 +897,22 @@ function paletteBases(arrow: string, colors: DiagramColors, style: ResolvedRende
 }
 
 /** Explicit label color wins only when concrete composited paints clear
- * WCAG AA (4.5:1). A null ratio is uncertainty, never proof. */
+ * WCAG AA (4.5:1). A null ratio is uncertainty, never proof. Without an
+ * explicit color the themed ink is kept where it reads on a measurable band
+ * and moved toward black or white just far enough where it does not. */
 function contrastGuardedLabelColor(
   explicit: string | undefined,
   band: string,
   fallback: string,
-  canvas: string,
+  colors: DiagramColors,
 ): string {
+  const canvas = colors.bg
   if (explicit) {
     const ratio = wcagCssContrastRatio(explicit, band, canvas)
     if (ratio !== null && ratio >= 4.5) return explicit
+  } else {
+    const themed = resolvedColorValue(fallback, colors)
+    if (themed !== undefined && isHexColor(band)) return legibleInk(themed, band)
   }
   const black = wcagCssContrastRatio('#000000', band, canvas)
   const white = wcagCssContrastRatio('#ffffff', band, canvas)
