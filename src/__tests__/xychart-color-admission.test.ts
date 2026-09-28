@@ -86,9 +86,19 @@ describe('XY Chart authored color admission (#303)', () => {
     const html = renderMermaidASCII(functionalInput, { colorMode: 'html' })
     expect(html).toContain('style="color:rgb(255, 0, 0)"')
     expect(html).toContain('style="color:hsl(120, 100%, 50%)"')
+    const variableHtml = renderMermaidASCII(source({ plotColorPalette: ['var(--brand)'] }), { colorMode: 'html' })
+    expect(variableHtml).toContain('<span style="color:var(--brand)">')
+    expect(variableHtml).not.toContain('&lt;span style=')
     for (const [paint, expected] of [['red', '255;0;0'], ['#f96', '255;153;102']] as const) {
       expect(renderMermaidASCII(source({ plotColorPalette: [paint] }), { colorMode: 'truecolor' }))
         .toContain(`\u001b[38;2;${expected}m`)
+    }
+    for (const translucent of ['transparent', 'rgba(255,0,0,0)', '#ff000080']) {
+      const terminal = renderMermaidASCII(source({ plotColorPalette: [translucent] }), { colorMode: 'truecolor' })
+      expect(terminal).not.toContain('\u001b[38;2;255;0;0m')
+      if (translucent === 'transparent') expect(terminal).not.toContain('\u001b[38;2;0;0;0m')
+      expect(renderMermaidASCII(source({ plotColorPalette: [translucent] }), { colorMode: 'html' }))
+        .toContain(`style="color:${translucent}"`)
     }
   })
 
