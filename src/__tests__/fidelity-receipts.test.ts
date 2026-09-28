@@ -286,6 +286,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/pie-terminal-control.fidelity.ts',
       'fidelity/cases/sankey-official-config-fences.fidelity.ts',
       'fidelity/cases/sankey-official-csv-fences.fidelity.ts',
+      'fidelity/cases/sankey-official-energy-fence.fidelity.ts',
       'fidelity/cases/seed.fidelity.ts',
       'fidelity/cases/timeline-direction.fidelity.ts',
       'fidelity/cases/xychart-official-fences.fidelity.ts',
@@ -322,6 +323,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'sankey.links.dark-background-normal-alpha-divergence',
       'sankey.links.light-background-multiply',
       'sankey.links.typed-gradient-endpoints',
+      'sankey.official.fence-0',
       'sankey.official.fence-1',
       'sankey.official.fence-2',
       'sankey.official.fence-3',
@@ -348,12 +350,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 51,
-      passedCaseCount: 51,
+      caseCount: 52,
+      passedCaseCount: 52,
       failedCaseCount: 0,
-      observedSurfaceCount: 179,
+      observedSurfaceCount: 182,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 25,
+      notApplicableSurfaceCount: 26,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -715,6 +717,108 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'serialize',
         path: ['config', 'nodeColors', 'Industry'],
         replacement: '#5f79f2',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'agent',
+        path: ['links', 0, 'target'],
+        replacement: 'Unrelated generation',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'agent',
+        path: ['flowImbalances', 0, 'node'],
+        replacement: 'Unrelated generation',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'agent',
+        path: ['flowImbalances', 0, 'inflow'],
+        replacement: 0,
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['root', 'style'],
+        replacement: '--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;display:none',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['stylesheetSha256'],
+        replacement: 'hidden-paint',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['styleBlockCount'],
+        replacement: 2,
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['groupCount'],
+        replacement: 1,
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['svgSha256'],
+        replacement: 'hidden-wrapper',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['nodes', 1, 'height'],
+        replacement: 1,
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['links', 14, 'path', 'start', 1],
+        replacement: 236.02,
+        additionalChanges: [
+          { path: ['links', 14, 'path', 'control1', 1], replacement: 236.02 },
+          { path: ['gradients', 14, 'y1'], replacement: 236.02 },
+        ],
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['nodes', 16, 'layer'],
+        replacement: 5,
+        additionalChanges: [
+          { path: ['nodes', 16, 'x'], replacement: 445.43 },
+          { path: ['labels', 16, 'x'], replacement: 439.43 },
+          { path: ['links', 13, 'path', 'end', 0], replacement: 445.43 },
+          { path: ['links', 13, 'path', 'control1', 0], replacement: 408.29 },
+          { path: ['links', 13, 'path', 'control2', 0], replacement: 408.29 },
+          { path: ['gradients', 13, 'x2'], replacement: 445.43 },
+        ],
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['links', 0, 'target'],
+        replacement: 'Unrelated generation',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['gradients', 0, 'stops', 0, 'color'],
+        replacement: '#000000',
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'render',
+        path: ['labels', 0, 'textLength'],
+        replacement: 1,
+      },
+      {
+        caseId: 'sankey.official.fence-0',
+        surface: 'serialize',
+        path: ['config', 'showValues'],
+        replacement: true,
       },
       {
         caseId: 'sankey.links.typed-gradient-endpoints',
