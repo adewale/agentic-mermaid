@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import type { RoleStyles, SemanticBinding } from '../scene/style-registry.ts'
 import {
   EXACT_ROLE_STYLE_CONTRACT,
@@ -19,6 +20,9 @@ import {
 } from '../scene/style-registry.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
+// Registered only inside child processes by site-probe.preload.ts.
+const PROBE_LOOK = 'look:registry-authority-probe'
+const PROBE_PALETTE = 'palette:registry-authority-probe'
 
 function compileTimeRoleContract(): void {
   const valid: RoleStyles = { node: { paddingX: 4 }, 'pie-slice': { cue: 'pattern' } }
@@ -146,25 +150,52 @@ describe('StyleSpec has one projected field authority', () => {
 
     expect(descriptors.find(descriptor => descriptor.identity.id === 'palette:tufte')).toBeUndefined()
     expect(knownStyles()).not.toContain('palette:tufte')
-
-    const editorGenerator = readFileSync(join(ROOT, 'scripts', 'site', 'editor.ts'), 'utf8')
-    expect(editorGenerator).toContain('knownStyleDescriptors()')
-    expect(editorGenerator).not.toContain('THEME_LABELS')
-    expect(editorGenerator).not.toContain('STYLE_LABELS')
-    expect(editorGenerator).not.toContain("import { THEMES }")
-
-    for (const relative of ['src/cli/index.ts', 'src/mcp/hosted-server.ts', 'website/build.ts']) {
-      const consumer = readFileSync(join(ROOT, relative), 'utf8')
-      expect({ relative, canonical: consumer.includes('knownStyleDescriptors') }).toEqual({ relative, canonical: true })
-      expect({ relative, legacy: consumer.includes('knownStyles()') }).toEqual({ relative, legacy: false })
-    }
-    expect(readFileSync(join(ROOT, 'website', 'build.ts'), 'utf8')).not.toContain('STYLE_THEME_LABELS')
   })
 
-  test('removed Tufte and default bare inputs have no metadata or public resolution', () => {
-    for (const relative of ['src/index.ts', 'src/agent/core.ts', 'src/scene/style-registry.ts']) {
-      expect(readFileSync(join(ROOT, relative), 'utf8')).not.toContain('TUFTE_STYLE_ALIAS')
+  test('a newly registered Look and Palette reach CLI, hosted MCP, and editor picker discovery', () => {
+    // The probe registers before any consumer module loads. A consumer with a
+    // hand-maintained roster cannot list styles it has never heard of.
+    const preload = join(ROOT, 'src', '__tests__', 'site-probe.preload.ts')
+    const probeEnv = { ...process.env, AM_TEST_PROBE_STYLES: '1' }
+    const probeLabel = 'Registry Authority Probe'
+    const run = (args: string[], env: Record<string, string | undefined>) => {
+      const result = Bun.spawnSync(['bun', '--preload', preload, ...args], { cwd: ROOT, env })
+      expect({ args, exitCode: result.exitCode, stderr: result.exitCode === 0 ? '' : result.stderr.toString() })
+        .toEqual({ args, exitCode: 0, stderr: '' })
+      return result.stdout.toString()
     }
+
+    const cliRows = (env: Record<string, string | undefined>) =>
+      JSON.parse(run([join(ROOT, 'bin', 'am.ts'), 'styles', '--json'], env)) as Array<{ canonicalId: string; kind: string; label: string; isDefault: boolean }>
+    expect(cliRows(probeEnv).filter(row => row.canonicalId.endsWith(':registry-authority-probe'))).toEqual([
+      expect.objectContaining({ canonicalId: PROBE_LOOK, kind: 'look', label: probeLabel, isDefault: false }),
+      expect.objectContaining({ canonicalId: PROBE_PALETTE, kind: 'palette', label: probeLabel, isDefault: false }),
+    ])
+    // Control: the same command without registration does not mention the probe.
+    expect(cliRows({ ...process.env }).some(row => row.canonicalId.endsWith(':registry-authority-probe'))).toBe(false)
+
+    const hostedTools = JSON.parse(run(['-e', `const { HOSTED_TOOLS } = await import(${JSON.stringify(join(ROOT, 'src', 'mcp', 'hosted-server.ts'))}); console.log(JSON.stringify(HOSTED_TOOLS))`], probeEnv)) as Array<{ name: string }>
+    const renderSvg = JSON.stringify(hostedTools.find(tool => tool.name === 'render_svg'))
+    expect(renderSvg).toMatch(new RegExp(`registered Look \\([^)]*${PROBE_LOOK}[^)]*\\)`))
+    expect(renderSvg).toMatch(new RegExp(`Palette \\([^)]*${PROBE_PALETTE}[^)]*\\)`))
+
+    const out = join(mkdtempSync(join(tmpdir(), 'am-style-authority-')), 'editor.html')
+    try {
+      run([join(ROOT, 'scripts', 'site', 'editor.ts')], { ...probeEnv, AM_TEST_REDIRECT_WRITE: out })
+      const html = readFileSync(out, 'utf8')
+      const styleItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-style="([^"]+)"[^>]*>([^<]*)<\/button>/g), match => [match[1], match[2]])
+      const themeItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-theme="([^"]*)"[^>]*>(?:<span[^>]*><\/span>)?([^<]*)<\/button>/g), match => [match[1], match[2]])
+      expect(styleItems).toContainEqual([PROBE_LOOK, probeLabel])
+      expect(themeItems).toContainEqual([PROBE_PALETTE, probeLabel])
+      // Kind routing: a Look is never offered as a palette and vice versa.
+      expect(styleItems.map(item => item[0])).not.toContain(PROBE_PALETTE)
+      expect(themeItems.map(item => item[0])).not.toContain(PROBE_LOOK)
+    } finally {
+      rmSync(dirname(out), { recursive: true, force: true })
+    }
+  }, 60_000)
+
+  test('removed Tufte and default bare inputs have no metadata or public resolution', () => {
     expect(knownStyleDescriptors().some(descriptor => descriptor.identity.id === 'look:tufte')).toBe(true)
     expect(getStyle('palette:tufte')).toBeUndefined()
     expect(getStyle('tufte')).toBeUndefined()
