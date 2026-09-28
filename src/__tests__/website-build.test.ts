@@ -1662,8 +1662,6 @@ describe('Workers Static Assets website contract', () => {
 
   test('audit fixes keep hidden UI inert, shortcuts scoped, and mobile tables responsive', () => {
     const editor = read('editor/index.html')
-    const editorRuntime = read(editorScriptRel(editor))
-    const editorAll = editor + '\n' + editorRuntime
     const styles = read('styles.css')
     // Runtime behaviour of these controls (the "?" dialog, Cmd/Ctrl+C in the
     // source, copy-button width) is exercised in a real browser by
@@ -1692,11 +1690,6 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).toContain('role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true"')
     expect(editor).toContain('class="status-left" role="status" aria-live="polite" aria-atomic="true"')
     expect(editor).toContain('id="verify-bar" role="status" aria-live="polite" aria-atomic="true"')
-    // Security pins retained pending review: the strict-insertion behaviour is
-    // now also exercised in a real browser (e2e/editor-site-interactions.e2e.test.ts).
-    expect(editorAll).toContain('insertStrictRenderedSvg')
-    expect(editorAll).toContain('new DOMParser().parseFromString(svg, "image/svg+xml")')
-    expect(editorAll).toContain('previewInner.replaceChildren(document.importNode(parsed.documentElement, true))')
   })
 
   test('shipped copy feedback holds the button width while its label changes, then restores it', async () => {
@@ -1812,13 +1805,8 @@ describe('Workers Static Assets website contract', () => {
 
   test('production CSP forbids inline executable scripts and generated pages externalize them', () => {
     const headers = read('_headers')
-    const workerCore = readFileSync(join(REPO, 'website/src/worker-core.ts'), 'utf8')
     expect(headers).toContain("script-src 'self'")
     expect(headers).not.toContain("script-src 'self' 'unsafe-inline'")
-    // Security pins retained pending review: the served header is now asserted
-    // on a real worker response in the Worker-first routing test.
-    expect(workerCore).toContain("script-src 'self'")
-    expect(workerCore).not.toContain("script-src 'self' 'unsafe-inline'")
     for (const rel of files().filter(candidate => candidate.endsWith('.html'))) {
       expect({ rel, executableInlineScript: /<script(?![^>]*\bsrc=)(?![^>]*type="application\/ld\+json")[^>]*>/i.test(read(rel)) })
         .toEqual({ rel, executableInlineScript: false })

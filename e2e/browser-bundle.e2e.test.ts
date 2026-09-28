@@ -413,18 +413,6 @@ describe('demo page', () => {
     expect(requestedFamilyChunks).toEqual([expect.stringMatching(/\/timeline-[A-Z0-9]{8}\.js$/)])
   })
 
-  test('keeps strict rendering and parsed-node insertion in the generated initializer', () => {
-    const html = readFileSync(join(PUBLIC, 'demo', 'index.html'), 'utf8')
-    const initializer = Array.from(html.matchAll(/<script type="module" src="\/(generated\/inline-[a-f0-9]{12}\.js)"><\/script>/g), match => readFileSync(join(PUBLIC, match[1]!), 'utf8')).find(source => source.includes("var SOURCE = document.getElementById('demo-source').textContent"))
-    expect(initializer, 'demo initializer emitted as a generated external script').toBeDefined()
-    expect(initializer).toMatch(/import \{ renderMermaidSVGAsync \} from '\/demo\/browser-lazy\/index-[a-f0-9]{12}\.js'/)
-    expect(initializer).toContain('await renderMermaidSVGAsync')
-    expect(initializer).toContain("security: 'strict'")
-    expect(initializer).toContain("new DOMParser().parseFromString(svg, 'image/svg+xml')")
-    expect(initializer).toContain('target.replaceChildren(document.importNode(parsed.documentElement, true))')
-    expect(initializer).not.toMatch(/\.innerHTML\s*=/)
-  })
-
   test('the initializer renders page source strictly and inserts only one parsed SVG document', async () => {
     const withDemo = async (options: { source?: string; renderer?: string }) => {
       const page = await demoBrowser.newPage()
