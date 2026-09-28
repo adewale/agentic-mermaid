@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type {
   FidelityCaseDefinition,
   FidelityEvidence,
@@ -27,7 +28,8 @@ import {
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
 } from '../fidelity-capability-report.ts'
-import { fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
+import { FIDELITY_SURFACES, fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(join(FIDELITY_ARTIFACT_ROOT, path), 'utf8')) as T
@@ -273,109 +275,27 @@ describe('issue #248 construct fidelity receipts', () => {
     ]))
   })
 
-  test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
+  test('the registry is discovered structurally, not from a hand-maintained roster', async () => {
     const registry = await discoverFidelityRegistry()
-    expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
-      'fidelity/cases/architecture-official-align-fences.fidelity.ts',
-      'fidelity/cases/architecture-official-core-fences.fidelity.ts',
-      'fidelity/cases/architecture-official-icon-fence.fidelity.ts',
-      'fidelity/cases/class-annotation.fidelity.ts',
-      'fidelity/cases/class-bare-link.fidelity.ts',
-      'fidelity/cases/class-safe-link-tooltip.fidelity.ts',
-      'fidelity/cases/er-multi-class.fidelity.ts',
-      'fidelity/cases/er-word-cardinality.fidelity.ts',
-      'fidelity/cases/gitgraph-duplicate-official.fidelity.ts',
-      'fidelity/cases/journey-official-fence.fidelity.ts',
-      'fidelity/cases/landed-adoption.fidelity.ts',
-      'fidelity/cases/mindmap-official-shape-fences.fidelity.ts',
-      'fidelity/cases/pie-duplicate-label.fidelity.ts',
-      'fidelity/cases/pie-entity-display.fidelity.ts',
-      'fidelity/cases/pie-official-fences.fidelity.ts',
-      'fidelity/cases/pie-terminal-control.fidelity.ts',
-      'fidelity/cases/quadrant-official-fences.fidelity.ts',
-      'fidelity/cases/radar-official-fences.fidelity.ts',
-      'fidelity/cases/sankey-official-config-fences.fidelity.ts',
-      'fidelity/cases/sankey-official-csv-fences.fidelity.ts',
-      'fidelity/cases/sankey-official-energy-fence.fidelity.ts',
-      'fidelity/cases/seed.fidelity.ts',
-      'fidelity/cases/timeline-direction.fidelity.ts',
-      'fidelity/cases/xychart-official-fences.fidelity.ts',
-    ])
-    expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
-      'architecture.official.fence-0',
-      'architecture.official.fence-1',
-      'architecture.official.fence-2',
-      'architecture.official.fence-3',
-      'architecture.official.fence-4',
-      'architecture.official.fence-5',
-      'block.family.accurately-diagnosed-unsupported',
-      'class.annotations.inline-native',
-      'class.annotations.repeated-diagnosed',
-      'class.annotations.separate-native',
-      'class.interaction.navigation-target-diagnosed',
-      'class.interaction.safe-link-tooltip-native',
-      'class.relationship.escaped-directed-native',
-      'class.relationship.hyphenated-endpoint-diagnosed',
-      'class.relationship.link-dashed-native',
-      'class.relationship.link-solid-native',
-      'er.classes.multiple-assignments-and-shorthand',
-      'er.relationships.word-cardinality-aliases',
-      'flowchart.classes.edge-paint-implication',
-      'flowchart.links.boundary-whitespace-mutation-closure',
-      'gitgraph.official.main-branch-duplicate-id-diagnosed',
-      'journey.official.fence-0',
-      'journey.scores.fractional-parser-render-seam',
-      'mindmap.official.fence-2',
-      'mindmap.official.fence-3',
-      'mindmap.official.fence-4',
-      'mindmap.official.fence-5',
-      'mindmap.official.fence-6',
-      'mindmap.official.fence-7',
-      'mindmap.official.fence-8',
-      'pie.official.fence-0',
-      'pie.official.fence-1',
-      'pie.syntax.authored-formatting-literal',
-      'pie.syntax.duplicate-label-first-wins',
-      'pie.syntax.entity-spelling-distinct',
-      'pie.syntax.escaped-newline-painted-space',
-      'pie.syntax.escaped-terminal-control-sanitized',
-      'pie.syntax.named-entity-display',
-      'pie.syntax.numeric-entity-display',
-      'pie.syntax.title-entity-display',
-      'pie.syntax.xml-disallowed-control-diagnosed',
-      'quadrant.official.fence-0',
-      'quadrant.official.fence-1',
-      'quadrant.official.fence-2',
-      'radar.official.fence-0',
-      'radar.official.fence-1',
-      'radar.official.fence-2',
-      'sankey.links.dark-background-normal-alpha-divergence',
-      'sankey.links.light-background-multiply',
-      'sankey.links.typed-gradient-endpoints',
-      'sankey.official.fence-0',
-      'sankey.official.fence-1',
-      'sankey.official.fence-2',
-      'sankey.official.fence-3',
-      'sankey.official.fence-4',
-      'sankey.official.fence-5',
-      'sankey.official.fence-6',
-      'sankey.official.fence-7',
-      'state.comments.trailing-transition-loss',
-      'timeline.direction.td-vertical-geometry',
-      'timeline.direction.unsupported-header-diagnosis',
-      'xychart.official.fence-0',
-      'xychart.official.fence-1',
-      'xychart.official.fence-2',
-      'xychart.official.fence-3',
-      'xychart.official.fence-4',
-      'xychart.official.fence-5',
-      'xychart.official.fence-6',
-      'xychart.official.fence-7',
-      'xychart.syntax.shared-parser-semantics',
-      'xychart.syntax.unknown-statement-render-seam',
-    ])
+    const caseDirectory = join(import.meta.dir, 'fidelity', 'cases')
+    expect(registry.caseFiles).toEqual(readdirSync(caseDirectory)
+      .filter(name => name.endsWith('.fidelity.ts')).sort().map(name => join(caseDirectory, name)))
+    const emptyModules: string[] = []
+    const moduleCaseIds: string[] = []
+    for (const path of registry.caseFiles) {
+      const { fidelityCases } = (await import(pathToFileURL(path).href)) as { fidelityCases: readonly FidelityCaseDefinition[] }
+      if (fidelityCases.length === 0) emptyModules.push(path.slice(caseDirectory.length + 1))
+      moduleCaseIds.push(...fidelityCases.map(fidelityCase => fidelityCase.id))
+    }
+    expect(emptyModules).toEqual([])
+    const ids = registry.cases.map(fidelityCase => fidelityCase.id)
+    expect(ids).toEqual([...moduleCaseIds].sort(compareCodePointStrings))
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(validateFidelityRegistry(registry.cases)).toEqual([])
+  })
 
-    const { receipt } = await runFidelityRegistryOnce()
+  test('every case passes and regenerates the committed public projections', async () => {
+    const { registry, receipt } = await runFidelityRegistryOnce()
     expect(failedFidelityCases(receipt)).toEqual([])
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(FIDELITY_CAPABILITY_REPORT_PATH))
     // Byte freshness of every committed projection (`bun run fidelity:receipts`
@@ -383,13 +303,18 @@ describe('issue #248 construct fidelity receipts', () => {
     for (const artifact of generatedFidelityArtifacts(receipt)) {
       expect({ path: artifact.path, content: readFileSync(join(FIDELITY_ARTIFACT_ROOT, artifact.path), 'utf8') }).toEqual(artifact)
     }
+    // Counts derive from the registry: every applicable surface is observed
+    // (never blocked) and every other surface carries a not-applicable decision.
+    const caseCount = registry.cases.length
+    const notApplicableSurfaceCount = registry.cases.flatMap(fidelityCase => Object.values(fidelityCase.expected))
+      .filter(expectation => expectation.applicability === 'not-applicable').length
     expect(receipt.summary).toEqual({
-      caseCount: 71,
-      passedCaseCount: 71,
+      caseCount,
+      passedCaseCount: caseCount,
       failedCaseCount: 0,
-      observedSurfaceCount: 239,
+      observedSurfaceCount: caseCount * FIDELITY_SURFACES.length - notApplicableSurfaceCount,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 45,
+      notApplicableSurfaceCount,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
