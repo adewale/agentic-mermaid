@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "81586381e6a0e893fcdf9ed9a72466fd982e78a87dad8fe78c36d0141c1b217a",
+    "inputSha256": "3900d18dc317593e74720b270267fc1003b7de2a9397902339621f34b2ccd2e1",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -133,6 +133,10 @@
       {
         "path": "src/__tests__/fidelity/cases/pie-terminal-control.fidelity.ts",
         "sha256": "b46cd2191e688a1f7737db3d0ce9215d25ca97fc8216eb1d7278e4a9dc13bbfd"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/sankey-official-config-fences.fidelity.ts",
+        "sha256": "96a4949498b3ecfae660173197561125201a9cde0ef9a5bbc2369db4125b559f"
       },
       {
         "path": "src/__tests__/fidelity/cases/sankey-official-csv-fences.fidelity.ts",
@@ -5546,6 +5550,1273 @@
       "issues": []
     },
     {
+      "id": "sankey.official.fence-5",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:label-style-v11-15-0",
+      "sourceSha256": "dd27b757e9035088632b84b51469358d3fceeece6e7b7debc7b39a4cd3de2d5b",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "config": {
+              "labelStyle": "outlined",
+              "showValues": false
+            },
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Industry",
+                "value": 342.165
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Losses",
+                "value": 56.691
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "gradients": [
+              {
+                "id": "sankey-gradient-1",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#0d5ba5",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 75.38,
+                "y2": 65.71
+              },
+              {
+                "id": "sankey-gradient-2",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#5f79f2",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 242.59,
+                "y2": 244.92
+              },
+              {
+                "id": "sankey-gradient-3",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#0a5076",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 388.88,
+                "y2": 403.21
+              }
+            ],
+            "labels": [
+              {
+                "anchor": "start",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": "stroke fill",
+                "stroke": "#FFFFFF",
+                "strokeOpacity": null,
+                "strokeWidth": "3",
+                "style": null,
+                "text": "Electricity grid",
+                "textLength": 87.165,
+                "transform": null,
+                "visibility": null,
+                "x": 40,
+                "y": 221.67
+              },
+              {
+                "anchor": "start",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": "stroke fill",
+                "stroke": "#FFFFFF",
+                "strokeOpacity": null,
+                "strokeWidth": "3",
+                "style": null,
+                "text": "Heating and cooling - homes",
+                "textLength": 162.747,
+                "transform": null,
+                "visibility": null,
+                "x": 630,
+                "y": 65.71
+              },
+              {
+                "anchor": "start",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": "stroke fill",
+                "stroke": "#FFFFFF",
+                "strokeOpacity": null,
+                "strokeWidth": "3",
+                "style": null,
+                "text": "Industry",
+                "textLength": 50.856,
+                "transform": null,
+                "visibility": null,
+                "x": 630,
+                "y": 244.92
+              },
+              {
+                "anchor": "start",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": "stroke fill",
+                "stroke": "#FFFFFF",
+                "strokeOpacity": null,
+                "strokeWidth": "3",
+                "style": null,
+                "text": "Losses",
+                "textLength": 47.892,
+                "transform": null,
+                "visibility": null,
+                "x": 630,
+                "y": 403.21
+              }
+            ],
+            "links": [
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    75.38
+                  ],
+                  "control2": [
+                    324,
+                    65.71
+                  ],
+                  "end": [
+                    614,
+                    65.71
+                  ],
+                  "start": [
+                    34,
+                    75.38
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-1)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling - homes",
+                "transform": null,
+                "value": 113.726,
+                "visibility": null,
+                "width": 83.42
+              },
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    242.59
+                  ],
+                  "control2": [
+                    324,
+                    244.92
+                  ],
+                  "end": [
+                    614,
+                    244.92
+                  ],
+                  "start": [
+                    34,
+                    242.59
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-2)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Industry",
+                "transform": null,
+                "value": 342.165,
+                "visibility": null,
+                "width": 250.99
+              },
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    388.88
+                  ],
+                  "control2": [
+                    324,
+                    403.21
+                  ],
+                  "end": [
+                    614,
+                    403.21
+                  ],
+                  "start": [
+                    34,
+                    388.88
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-3)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Losses",
+                "transform": null,
+                "value": 56.691,
+                "visibility": null,
+                "width": 41.59
+              }
+            ],
+            "nodes": [
+              {
+                "display": null,
+                "fill": "#3b82f6",
+                "fillOpacity": null,
+                "height": 376,
+                "label": "Electricity grid",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 512.582,
+                "visibility": null,
+                "width": 10,
+                "x": 24,
+                "y": 33.67
+              },
+              {
+                "display": null,
+                "fill": "#0d5ba5",
+                "fillOpacity": null,
+                "height": 83.42,
+                "label": "Heating and cooling - homes",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 113.726,
+                "visibility": null,
+                "width": 10,
+                "x": 614,
+                "y": 24
+              },
+              {
+                "display": null,
+                "fill": "#5f79f2",
+                "fillOpacity": null,
+                "height": 250.99,
+                "label": "Industry",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 342.165,
+                "visibility": null,
+                "width": 10,
+                "x": 614,
+                "y": 119.42
+              },
+              {
+                "display": null,
+                "fill": "#0a5076",
+                "fillOpacity": null,
+                "height": 41.59,
+                "label": "Losses",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 56.691,
+                "visibility": null,
+                "width": 10,
+                "x": 614,
+                "y": 382.41
+              }
+            ],
+            "viewBox": "0 0 816.75 448"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "config": {
+              "labelStyle": "outlined",
+              "showValues": false
+            },
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Industry",
+                "value": 342.165
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Losses",
+                "value": 56.691
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.official.fence-6",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:node-width-and-padding-v11-15-0",
+      "sourceSha256": "f08519eab9533461f35a286c7c1e0ca9daba973c52eff1dd296fca2cd3755ab2",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "config": {
+              "nodePadding": 20,
+              "nodeWidth": 15,
+              "showValues": false
+            },
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Industry",
+                "value": 342.165
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Losses",
+                "value": 56.691
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "gradients": [
+              {
+                "id": "sankey-gradient-1",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#0d5ba5",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 39,
+                "x2": 609,
+                "y1": 80.06,
+                "y2": 63.94
+              },
+              {
+                "id": "sankey-gradient-2",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#5f79f2",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 39,
+                "x2": 609,
+                "y1": 240.15,
+                "y2": 244.03
+              },
+              {
+                "id": "sankey-gradient-3",
+                "stops": [
+                  {
+                    "color": "#3b82f6",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#0a5076",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 39,
+                "x2": 609,
+                "y1": 380.21,
+                "y2": 404.09
+              }
+            ],
+            "labels": [
+              {
+                "anchor": "start",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Electricity grid",
+                "textLength": 87.165,
+                "transform": null,
+                "visibility": null,
+                "x": 45,
+                "y": 220.12
+              },
+              {
+                "anchor": "end",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Heating and cooling - homes",
+                "textLength": 162.747,
+                "transform": null,
+                "visibility": null,
+                "x": 603,
+                "y": 63.94
+              },
+              {
+                "anchor": "end",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Industry",
+                "textLength": 50.856,
+                "transform": null,
+                "visibility": null,
+                "x": 603,
+                "y": 244.03
+              },
+              {
+                "anchor": "end",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Losses",
+                "textLength": 47.892,
+                "transform": null,
+                "visibility": null,
+                "x": 603,
+                "y": 404.09
+              }
+            ],
+            "links": [
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    80.06
+                  ],
+                  "control2": [
+                    324,
+                    63.94
+                  ],
+                  "end": [
+                    609,
+                    63.94
+                  ],
+                  "start": [
+                    39,
+                    80.06
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-1)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling - homes",
+                "transform": null,
+                "value": 113.726,
+                "visibility": null,
+                "width": 79.87
+              },
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    240.15
+                  ],
+                  "control2": [
+                    324,
+                    244.03
+                  ],
+                  "end": [
+                    609,
+                    244.03
+                  ],
+                  "start": [
+                    39,
+                    240.15
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-2)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Industry",
+                "transform": null,
+                "value": 342.165,
+                "visibility": null,
+                "width": 240.31
+              },
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    380.21
+                  ],
+                  "control2": [
+                    324,
+                    404.09
+                  ],
+                  "end": [
+                    609,
+                    404.09
+                  ],
+                  "start": [
+                    39,
+                    380.21
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-3)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Losses",
+                "transform": null,
+                "value": 56.691,
+                "visibility": null,
+                "width": 39.82
+              }
+            ],
+            "nodes": [
+              {
+                "display": null,
+                "fill": "#3b82f6",
+                "fillOpacity": null,
+                "height": 360,
+                "label": "Electricity grid",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 512.582,
+                "visibility": null,
+                "width": 15,
+                "x": 24,
+                "y": 40.12
+              },
+              {
+                "display": null,
+                "fill": "#0d5ba5",
+                "fillOpacity": null,
+                "height": 79.87,
+                "label": "Heating and cooling - homes",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 113.726,
+                "visibility": null,
+                "width": 15,
+                "x": 609,
+                "y": 24
+              },
+              {
+                "display": null,
+                "fill": "#5f79f2",
+                "fillOpacity": null,
+                "height": 240.31,
+                "label": "Industry",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 342.165,
+                "visibility": null,
+                "width": 15,
+                "x": 609,
+                "y": 123.87
+              },
+              {
+                "display": null,
+                "fill": "#0a5076",
+                "fillOpacity": null,
+                "height": 39.82,
+                "label": "Losses",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 56.691,
+                "visibility": null,
+                "width": 15,
+                "x": 609,
+                "y": 384.18
+              }
+            ],
+            "viewBox": "0 0 648 448"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "config": {
+              "nodePadding": 20,
+              "nodeWidth": 15,
+              "showValues": false
+            },
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Industry",
+                "value": 342.165
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Losses",
+                "value": 56.691
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "sankey.official.fence-7",
+      "family": "sankey",
+      "featureId": "official-doc:sankey:section:custom-node-colors-v11-15-0",
+      "sourceSha256": "2a7579bc573f4bf15f352e72d26e826cb7a625dd239e4088b0c61f8aa853c711",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/sankey.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These classify official frontmatter examples; config mutation is not a structured Sankey operation."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "config": {
+              "nodeColors": {
+                "Electricity grid": "#4e79a7",
+                "Industry": "#e15759",
+                "Losses": "#bab0ab"
+              },
+              "showValues": false
+            },
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Industry",
+                "value": 342.165
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Losses",
+                "value": 56.691
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "gradients": [
+              {
+                "id": "sankey-gradient-1",
+                "stops": [
+                  {
+                    "color": "#4e79a7",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#0d5ba5",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 75.38,
+                "y2": 65.71
+              },
+              {
+                "id": "sankey-gradient-2",
+                "stops": [
+                  {
+                    "color": "#4e79a7",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#e15759",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 242.59,
+                "y2": 244.92
+              },
+              {
+                "id": "sankey-gradient-3",
+                "stops": [
+                  {
+                    "color": "#4e79a7",
+                    "offset": "0%",
+                    "opacity": null,
+                    "style": null
+                  },
+                  {
+                    "color": "#bab0ab",
+                    "offset": "100%",
+                    "opacity": null,
+                    "style": null
+                  }
+                ],
+                "units": "userSpaceOnUse",
+                "x1": 34,
+                "x2": 614,
+                "y1": 388.88,
+                "y2": 403.21
+              }
+            ],
+            "labels": [
+              {
+                "anchor": "start",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Electricity grid",
+                "textLength": 87.165,
+                "transform": null,
+                "visibility": null,
+                "x": 40,
+                "y": 221.67
+              },
+              {
+                "anchor": "end",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Heating and cooling - homes",
+                "textLength": 162.747,
+                "transform": null,
+                "visibility": null,
+                "x": 608,
+                "y": 65.71
+              },
+              {
+                "anchor": "end",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Industry",
+                "textLength": 50.856,
+                "transform": null,
+                "visibility": null,
+                "x": 608,
+                "y": 244.92
+              },
+              {
+                "anchor": "end",
+                "display": null,
+                "dy": 4.55,
+                "fill": "#27272A",
+                "fillOpacity": null,
+                "fontSize": 13,
+                "lengthAdjust": "spacingAndGlyphs",
+                "opacity": null,
+                "paintOrder": null,
+                "stroke": null,
+                "strokeOpacity": null,
+                "strokeWidth": null,
+                "style": null,
+                "text": "Losses",
+                "textLength": 47.892,
+                "transform": null,
+                "visibility": null,
+                "x": 608,
+                "y": 403.21
+              }
+            ],
+            "links": [
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    75.38
+                  ],
+                  "control2": [
+                    324,
+                    65.71
+                  ],
+                  "end": [
+                    614,
+                    65.71
+                  ],
+                  "start": [
+                    34,
+                    75.38
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-1)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Heating and cooling - homes",
+                "transform": null,
+                "value": 113.726,
+                "visibility": null,
+                "width": 83.42
+              },
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    242.59
+                  ],
+                  "control2": [
+                    324,
+                    244.92
+                  ],
+                  "end": [
+                    614,
+                    244.92
+                  ],
+                  "start": [
+                    34,
+                    242.59
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-2)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Industry",
+                "transform": null,
+                "value": 342.165,
+                "visibility": null,
+                "width": 250.99
+              },
+              {
+                "display": null,
+                "fill": "none",
+                "opacity": "0.5",
+                "path": {
+                  "control1": [
+                    324,
+                    388.88
+                  ],
+                  "control2": [
+                    324,
+                    403.21
+                  ],
+                  "end": [
+                    614,
+                    403.21
+                  ],
+                  "start": [
+                    34,
+                    388.88
+                  ],
+                  "valid": true
+                },
+                "source": "Electricity grid",
+                "stroke": "url(#sankey-gradient-3)",
+                "strokeOpacity": null,
+                "style": "mix-blend-mode:multiply",
+                "target": "Losses",
+                "transform": null,
+                "value": 56.691,
+                "visibility": null,
+                "width": 41.59
+              }
+            ],
+            "nodes": [
+              {
+                "display": null,
+                "fill": "#4e79a7",
+                "fillOpacity": null,
+                "height": 376,
+                "label": "Electricity grid",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 512.582,
+                "visibility": null,
+                "width": 10,
+                "x": 24,
+                "y": 33.67
+              },
+              {
+                "display": null,
+                "fill": "#0d5ba5",
+                "fillOpacity": null,
+                "height": 83.42,
+                "label": "Heating and cooling - homes",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 113.726,
+                "visibility": null,
+                "width": 10,
+                "x": 614,
+                "y": 24
+              },
+              {
+                "display": null,
+                "fill": "#e15759",
+                "fillOpacity": null,
+                "height": 250.99,
+                "label": "Industry",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 342.165,
+                "visibility": null,
+                "width": 10,
+                "x": 614,
+                "y": 119.42
+              },
+              {
+                "display": null,
+                "fill": "#bab0ab",
+                "fillOpacity": null,
+                "height": 41.59,
+                "label": "Losses",
+                "opacity": null,
+                "role": "bar",
+                "style": null,
+                "transform": null,
+                "value": 56.691,
+                "visibility": null,
+                "width": 10,
+                "x": 614,
+                "y": 382.41
+              }
+            ],
+            "viewBox": "0 0 648 448"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "config": {
+              "nodeColors": {
+                "Electricity grid": "#4e79a7",
+                "Industry": "#e15759",
+                "Losses": "#bab0ab"
+              },
+              "showValues": false
+            },
+            "links": [
+              {
+                "source": "Electricity grid",
+                "target": "Heating and cooling - homes",
+                "value": 113.726
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Industry",
+                "value": 342.165
+              },
+              {
+                "source": "Electricity grid",
+                "target": "Losses",
+                "value": 56.691
+              }
+            ],
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
       "id": "state.comments.trailing-transition-loss",
       "family": "state",
       "featureId": "official-doc:state:section:comments",
@@ -9778,11 +11049,11 @@
     }
   ],
   "summary": {
-    "caseCount": 48,
-    "passedCaseCount": 48,
+    "caseCount": 51,
+    "passedCaseCount": 51,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 170,
+    "observedSurfaceCount": 179,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 22
+    "notApplicableSurfaceCount": 25
   }
 }
