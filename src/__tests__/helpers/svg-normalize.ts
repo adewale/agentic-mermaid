@@ -68,7 +68,7 @@ function stripSvgPaint(svg: string): string {
       return kept ? ` style="${kept}"` : ''
     })
     .replace(/\sclass="([^"]*)"/g, (_attr, classes: string) =>
-      ` class="${classes.split(' ').map(token => token.replace(PALETTE_SLOT_CLASS, '$1#')).join(' ')}"`,
+      ` class="${classes.split(' ').map(name => name.replace(PALETTE_SLOT_CLASS, '$1#')).join(' ')}"`,
     )
 }
 

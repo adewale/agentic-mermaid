@@ -13,6 +13,7 @@ import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { asEr, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import type { ErCardinality, ErMutationOp, ErValidDiagram, ParsedDiagram } from '../agent/types.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 type ModelEntity = { label?: string; attributes: string[] }
 type ModelRelation = { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
@@ -41,7 +42,7 @@ function bodyAsModel(diagram: ParsedDiagram): Model {
   return {
     entities: new Map(
       [...body.entities]
-        .sort((a, b) => a.id.localeCompare(b.id))
+        .sort((a, b) => compareCodePointStrings(a.id, b.id))
         .map(entity => [entity.id, { ...(entity.label ? { label: entity.label } : {}), attributes: entity.attributes.map(attribute => attribute.text) }]),
     ),
     relations: body.relations.map(({ from, to, leftCard, rightCard, dashed, label }) => ({ from, to, leftCard, rightCard, dashed, ...(label ? { label } : {}) })),
@@ -49,7 +50,7 @@ function bodyAsModel(diagram: ParsedDiagram): Model {
 }
 
 function sortedModel(model: Model): Model {
-  return { entities: new Map([...model.entities].sort(([a], [b]) => a.localeCompare(b))), relations: model.relations }
+  return { entities: new Map([...model.entities].sort(([a], [b]) => compareCodePointStrings(a, b))), relations: model.relations }
 }
 
 function assertConforms(model: Model, real: Real): void {
