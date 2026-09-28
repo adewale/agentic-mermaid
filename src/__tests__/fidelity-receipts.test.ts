@@ -274,6 +274,7 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
       'fidelity/cases/architecture-official-align-fences.fidelity.ts',
       'fidelity/cases/architecture-official-core-fences.fidelity.ts',
+      'fidelity/cases/architecture-official-icon-fence.fidelity.ts',
       'fidelity/cases/class-annotation.fidelity.ts',
       'fidelity/cases/class-bare-link.fidelity.ts',
       'fidelity/cases/class-safe-link-tooltip.fidelity.ts',
@@ -301,6 +302,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'architecture.official.fence-2',
       'architecture.official.fence-3',
       'architecture.official.fence-4',
+      'architecture.official.fence-5',
       'block.family.accurately-diagnosed-unsupported',
       'class.annotations.inline-native',
       'class.annotations.repeated-diagnosed',
@@ -365,12 +367,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 63,
-      passedCaseCount: 63,
+      caseCount: 64,
+      passedCaseCount: 64,
       failedCaseCount: 0,
-      observedSurfaceCount: 215,
+      observedSurfaceCount: 218,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 37,
+      notApplicableSurfaceCount: 38,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -445,6 +447,12 @@ describe('issue #248 construct fidelity receipts', () => {
         replacement: null,
       },
       {
+        caseId: 'architecture.official.fence-1',
+        surface: 'render',
+        path: ['edges', 0, 'points'],
+        replacement: '176,108 204,0x6c 204,192 232,192',
+      },
+      {
         caseId: 'architecture.official.fence-2',
         surface: 'render',
         path: ['serviceLabels', 0],
@@ -508,6 +516,12 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'render',
         path: ['edges', 0, 'points'],
         replacement: '371.37399999999997,108 371.37399999999997,-1000 335.374,-1000 335.374,276',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['edges', 0, 'points'],
+        replacement: '371.37399999999997,108 353.374,0x6c 353.374,276 335.374,276',
       },
       {
         caseId: 'architecture.official.fence-0',
@@ -583,6 +597,48 @@ describe('issue #248 construct fidelity receipts', () => {
         caseId: 'architecture.official.fence-4',
         surface: 'render',
         path: ['junctionRingPaint'],
+        replacement: null,
+      },
+      {
+        caseId: 'architecture.official.fence-5',
+        surface: 'agent',
+        path: ['services', 2, 'icon'],
+        replacement: 'logos:aws-ec2',
+      },
+      {
+        caseId: 'architecture.official.fence-5',
+        surface: 'render',
+        path: ['glyphs', 0, 'pathSha256'],
+        replacement: 'missing-registered-logo',
+      },
+      {
+        caseId: 'architecture.official.fence-5',
+        surface: 'render',
+        path: ['glyphs', 4, 'fallback'],
+        replacement: true,
+      },
+      {
+        caseId: 'architecture.official.fence-5',
+        surface: 'render',
+        path: ['frames', 0, 'x'],
+        replacement: -100,
+      },
+      {
+        caseId: 'architecture.official.fence-5',
+        surface: 'render',
+        path: ['edges', 0, 'points'],
+        replacement: '0,0 1,1',
+      },
+      {
+        caseId: 'architecture.official.fence-5',
+        surface: 'render',
+        path: ['edges', 0, 'points'],
+        replacement: '371.37399999999997,108 353.374,0x6c 353.374,276 335.374,276',
+      },
+      {
+        caseId: 'architecture.official.fence-5',
+        surface: 'serialize',
+        path: ['model', 'groups', 0, 'icon'],
         replacement: null,
       },
       {

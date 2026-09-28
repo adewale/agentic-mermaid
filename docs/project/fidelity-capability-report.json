@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "7c66fe86009ddfe9a0284f9601dbdbafbd923a833d69cdb8354ea6db690a71f0",
-  "receiptResultSha256": "f54bbfcded7aec5191187f8633220f06edd0b1c9d19d769a08579c2fa2e26c51",
+  "receiptInputSha256": "87fbda1b5b7dd582dcebd9bd3f27c36911ef1827b5e8dcd7c56e97be6439fdc8",
+  "receiptResultSha256": "5e5696edef8ef8702f9ee9fc2fbbb00e2cd3e07baac2dce2c8d4d0383e13bcb5",
   "summary": {
-    "caseCount": 63,
-    "featureCount": 40,
+    "caseCount": 64,
+    "featureCount": 41,
     "dispositions": {
       "native": 17,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 15
+      "absent": 16
     }
   },
   "features": [
@@ -131,6 +131,42 @@
             "mutate": {
               "notApplicable": [
                 "This case classifies official source examples; typed Architecture mutations have separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:architecture:section:icons",
+      "family": "architecture",
+      "disposition": "absent",
+      "caseIds": [
+        "architecture.official.fence-5"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "The pinned official icon example has no mutation operation; icon mutations have separate contracts."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "architecture.official.fence-5",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "The pinned official icon example has no mutation operation; icon mutations have separate contracts."
               ]
             }
           },

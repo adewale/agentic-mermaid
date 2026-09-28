@@ -6,6 +6,13 @@ import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
+function parseSvgPoints(value: string): readonly (readonly [number, number])[] | null {
+  const svgNumberPattern = '[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?'
+  if (!new RegExp(`^${svgNumberPattern},${svgNumberPattern}(?: ${svgNumberPattern},${svgNumberPattern})+$`).test(value)) return null
+  const points = value.split(' ').map(pair => pair.split(',').map(Number))
+  return points.every(point => point.length === 2 && point.every(Number.isFinite)) ? points as [number, number][] : null
+}
+
 // The paired example/preview blocks are six distinct executable sources.
 // This narrow slice covers the basic grouped-services example and junction fan-in.
 const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..',
@@ -269,8 +276,8 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
       || edge.sourceBoundary !== 'item' || edge.targetBoundary !== 'item'
       || edge.direction !== 'undirected' || edge.role !== 'edge'
       || typeof edge.points !== 'string') return false
-    const points = edge.points.split(' ').map(pair => pair.split(',').map(Number))
-    if (points.length < 2 || points.some(point => point.length !== 2 || !inView(point[0]!, point[1]!))) return false
+    const points = parseSvgPoints(edge.points)
+    if (!points || points.some(point => !inView(point[0], point[1]))) return false
     const sourceAnchor = anchor(expected.source, expected.sourceSide)
     const targetAnchor = anchor(expected.target, expected.targetSide)
     const first = points[0]!
