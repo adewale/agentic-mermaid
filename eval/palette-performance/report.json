@@ -8,8 +8,8 @@
   },
   "provenance": {
     "authority": "content-addressed-inputs-v1",
-    "sourceCommit": "b3755cad326154cf38ba50e0de3bf4bbb812ef22",
-    "sourceTreeSha256": "7f4ffccbb44f7868f03a768aa06ce015979aa3ca9f2e92b3c150d314cb35536e",
+    "sourceCommit": "207dfd3998f44245bc1fc8f5cbabe02837bbe01e",
+    "sourceTreeSha256": "e5b2455787c3881ec54f88f6cbb8d3ea36ae965410eb29384e3a0708e6b37548",
     "dirty": false,
     "inputs": [
       {
@@ -30,11 +30,11 @@
       },
       {
         "path": "src/shared/color-math.ts",
-        "sha256": "ce24d6b27e27ea1918c0cd1db750184e9362cc3a0756c3b311479a5cf9cc5a8b"
+        "sha256": "d69326756bc7cf0b1e74646f9f74b2ee929b9778caebef4549987933d2f1a09f"
       },
       {
         "path": "src/shared/css-named-colors.ts",
-        "sha256": "8a1fa9e04009325ea44a0b67a6793f7eafdedc43cb5fb394817302bb6a7fa33c"
+        "sha256": "8107b47fadcbc419120d5720fd741d5ed70683b4b53e62776ab792d0da88a336"
       },
       {
         "path": "src/shared/perceptual-color.ts",
@@ -55,7 +55,7 @@
     }
   },
   "environment": {
-    "runtime": "Bun 1.3.13",
+    "runtime": "Bun 1.4.2",
     "os": "linux",
     "arch": "x64",
     "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
@@ -74,7 +74,7 @@
   },
   "timingEvidence": {
     "samplesPath": "eval/palette-performance/samples.json",
-    "samplesSha256": "1e3053c8b7bc5c443090b5ce0fe2d37ce8bfe14d49b80b7fa2494ff3d8d2bd69"
+    "samplesSha256": "90c952af5b7515c0344efb19473d3e29fdc1b26df0833692537bf818b792521e"
   },
   "complexity": {
     "regimes": {
@@ -121,136 +121,136 @@
     "unit": "milliseconds per palette-generation call",
     "overall": {
       "samples": 7200,
-      "p50": 0.461552,
-      "mean": 2.180486,
-      "p95": 4.389068
+      "p50": 0.451937,
+      "mean": 2.170303,
+      "p95": 4.470231
     },
     "byCount": [
       {
         "count": 7,
         "samples": 400,
-        "p50": 0.05861,
-        "mean": 0.073837,
-        "p95": 0.119796
+        "p50": 0.057294,
+        "mean": 0.069718,
+        "p95": 0.110706
       },
       {
         "count": 8,
         "samples": 400,
-        "p50": 0.072794,
-        "mean": 0.0815,
-        "p95": 0.131355
+        "p50": 0.070838,
+        "mean": 0.091744,
+        "p95": 0.135825
       },
       {
         "count": 9,
         "samples": 400,
-        "p50": 0.097621,
-        "mean": 0.112781,
-        "p95": 0.18335
+        "p50": 0.093438,
+        "mean": 0.109397,
+        "p95": 0.184808
       },
       {
         "count": 10,
         "samples": 400,
-        "p50": 0.102916,
-        "mean": 0.128758,
-        "p95": 0.216572
+        "p50": 0.099868,
+        "mean": 0.131157,
+        "p95": 0.218336
       },
       {
         "count": 11,
         "samples": 400,
-        "p50": 0.143795,
-        "mean": 0.176732,
-        "p95": 0.30017
+        "p50": 0.142781,
+        "mean": 0.170629,
+        "p95": 0.280369
       },
       {
         "count": 12,
         "samples": 400,
-        "p50": 0.143266,
-        "mean": 0.184018,
-        "p95": 0.347726
+        "p50": 0.139334,
+        "mean": 0.185036,
+        "p95": 0.327787
       },
       {
         "count": 13,
         "samples": 400,
-        "p50": 0.226991,
-        "mean": 0.256514,
-        "p95": 0.430229
+        "p50": 0.216658,
+        "mean": 0.243131,
+        "p95": 0.417088
       },
       {
         "count": 14,
         "samples": 400,
-        "p50": 0.207236,
-        "mean": 0.344784,
-        "p95": 0.77918
+        "p50": 0.210946,
+        "mean": 0.3284,
+        "p95": 0.741118
       },
       {
         "count": 15,
         "samples": 400,
-        "p50": 0.3613,
-        "mean": 0.514394,
-        "p95": 1.103995
+        "p50": 0.34799,
+        "mean": 0.493323,
+        "p95": 1.084188
       },
       {
         "count": 16,
         "samples": 400,
-        "p50": 0.46573,
-        "mean": 0.663757,
-        "p95": 1.386883
+        "p50": 0.448948,
+        "mean": 0.664203,
+        "p95": 1.389866
       },
       {
         "count": 17,
         "samples": 400,
-        "p50": 0.861739,
-        "mean": 1.11455,
-        "p95": 2.485756
+        "p50": 0.814149,
+        "mean": 1.071547,
+        "p95": 2.495056
       },
       {
         "count": 18,
         "samples": 400,
-        "p50": 1.307149,
-        "mean": 1.405686,
-        "p95": 2.904818
+        "p50": 1.294189,
+        "mean": 1.346578,
+        "p95": 2.690315
       },
       {
         "count": 19,
         "samples": 400,
-        "p50": 1.516079,
-        "mean": 1.729757,
-        "p95": 3.201259
+        "p50": 1.410877,
+        "mean": 1.657316,
+        "p95": 3.159828
       },
       {
         "count": 20,
         "samples": 400,
-        "p50": 2.055383,
-        "mean": 2.210719,
-        "p95": 3.894963
+        "p50": 1.90157,
+        "mean": 2.145463,
+        "p95": 4.240927
       },
       {
         "count": 21,
         "samples": 400,
-        "p50": 2.594544,
-        "mean": 2.700786,
-        "p95": 4.689869
+        "p50": 2.402802,
+        "mean": 2.631237,
+        "p95": 4.547171
       },
       {
         "count": 22,
         "samples": 400,
-        "p50": 2.733313,
-        "mean": 3.126408,
-        "p95": 5.126525
+        "p50": 2.568019,
+        "mean": 3.03343,
+        "p95": 4.802986
       },
       {
         "count": 23,
         "samples": 400,
-        "p50": 3.186754,
-        "mean": 5.827918,
-        "p95": 8.725748
+        "p50": 3.102734,
+        "mean": 6.007602,
+        "p95": 19.719512
       },
       {
         "count": 24,
         "samples": 400,
-        "p50": 4.362437,
-        "mean": 18.595846,
-        "p95": 54.846874
+        "p50": 4.470231,
+        "mean": 18.68554,
+        "p95": 56.571927
       }
     ]
   },
