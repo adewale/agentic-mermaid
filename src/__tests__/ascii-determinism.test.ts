@@ -82,27 +82,34 @@ const FIXTURES: Array<{ name: string; src: string }> = [
 ]
 
 describe('ASCII full-corpus determinism', () => {
-  it('every mermaid-js docs corpus entry has a stable ASCII outcome across repeated runs', () => {
-    const corpus = loadCorpus()
+  // One test per family keeps each unit of work well inside the per-test
+  // budget when the suite runs with `--parallel` on a shared runner, while the
+  // corpus-wide inventory below still pins the rendered/error totals.
+  const corpus = loadCorpus()
+  const families = [...new Set(corpus.map(entry => entry.family))].sort()
+
+  it('the corpus inventory is complete and internally consistent', () => {
     expect(corpus.length).toBeGreaterThan(200)
-    const unstable: Array<{ family: string; origin: string; index: number; outcomes: ReturnType<typeof asciiOutcome>[] }> = []
-    const errors: string[] = []
-    let rendered = 0
-    for (const entry of corpus) {
-      const outcomes = [asciiOutcome(entry.source), asciiOutcome(entry.source), asciiOutcome(entry.source)]
-      if (outcomes.every(o => o.ok)) rendered++
-      else errors.push(corpusKey(entry))
-      if (new Set(outcomes.map(o => JSON.stringify(o))).size !== 1) {
-        unstable.push({ family: entry.family, origin: entry.origin, index: entry.index, outcomes })
+    expect(corpus.length - EXPECTED_CORPUS_ASCII_ERRORS.length).toBe(EXPECTED_CORPUS_RENDERED)
+    const keys = new Set(corpus.map(corpusKey))
+    for (const key of EXPECTED_CORPUS_ASCII_ERRORS) expect(keys.has(key), key).toBe(true)
+  })
+
+  for (const family of families) {
+    it(`${family}: every mermaid-js docs corpus entry has a stable ASCII outcome across repeated runs`, () => {
+      const unstable: Array<{ origin: string; index: number; outcomes: ReturnType<typeof asciiOutcome>[] }> = []
+      const errors: string[] = []
+      for (const entry of corpus.filter(candidate => candidate.family === family)) {
+        const outcomes = [asciiOutcome(entry.source), asciiOutcome(entry.source), asciiOutcome(entry.source)]
+        if (!outcomes.every(o => o.ok)) errors.push(corpusKey(entry))
+        if (new Set(outcomes.map(o => JSON.stringify(o))).size !== 1) {
+          unstable.push({ origin: entry.origin, index: entry.index, outcomes })
+        }
       }
-    }
-    expect(rendered).toBe(EXPECTED_CORPUS_RENDERED)
-    expect(errors.sort()).toEqual(EXPECTED_CORPUS_ASCII_ERRORS)
-    expect(unstable).toEqual([])
-  // Whole-suite coverage instrumentation pushes this corpus pass just beyond
-  // 10 seconds on shared CI runners; keep the determinism work intact and give
-  // the bounded test enough scheduling headroom.
-  }, 20_000)
+      expect(errors.sort()).toEqual(EXPECTED_CORPUS_ASCII_ERRORS.filter(key => key.startsWith(`${family}:`)))
+      expect(unstable).toEqual([])
+    })
+  }
 })
 
 describe('ASCII pathfinder determinism', () => {
