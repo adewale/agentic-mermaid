@@ -1,10 +1,10 @@
-import { describeMermaid, describeMermaidSource } from '../agent/describe.ts'
+import { DESCRIBE_FORMATS, type DescribeFormat, describeMermaid, describeMermaidSource, isDescribeFormat } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import type { ExtensionValidDiagram, ParsedDiagram, PreservedValidDiagram } from '../agent/types.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 
-export type McpDescribeFormat = 'text' | 'json' | 'facts'
+export type McpDescribeFormat = DescribeFormat
 
 export const EXTERNAL_FAMILY_DESCRIBE_UNAVAILABLE_CODE = 'EXTERNAL_FAMILY_DESCRIBE_UNAVAILABLE' as const
 
@@ -39,8 +39,8 @@ export function mcpVerificationSummary(diagram: ParsedDiagram): string {
 
 export function mcpDescribeFormat(args: Readonly<Record<string, unknown>>): McpDescribeFormat {
   const format = args.format ?? 'text'
-  if (format === 'text' || format === 'json' || format === 'facts') return format
-  throw new Error('describe format must be one of: text, json, facts')
+  if (isDescribeFormat(format)) return format
+  throw new Error(`describe format must be one of: ${DESCRIBE_FORMATS.join(', ')}`)
 }
 
 /**

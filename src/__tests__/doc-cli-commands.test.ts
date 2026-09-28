@@ -1,14 +1,14 @@
 // Every CLI invocation written in the maintained docs must be one the CLI
 // accepts: the verb exists, each --flag belongs to that verb, and each --format
 // value is one the verb takes. The oracles are the CLI's own closed tables
-// (COMMAND_FLAGS, CLI_RENDER_FORMATS, MCP_FLAG_SPECS); where the CLI decides
-// inline (describe's formats, flags that work without a verb) the test asks
+// (COMMAND_FLAGS, CLI_RENDER_FORMATS, DESCRIBE_FORMATS, MCP_FLAG_SPECS); for
+// flags that work without a verb, which the CLI decides inline, the test asks
 // the CLI itself. A doc showing `am render --format json` fails here.
 
-import { afterAll, describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { isDescribeFormat } from '../agent/describe.ts'
 import { COMMAND_FLAGS, COMMAND_HELP, parseArgs, runCli } from '../cli/index.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { runAmCli } from '../cli/run-entrypoint.ts'
@@ -171,11 +171,6 @@ function invocations(snippet: string): Invocation[] {
 // Checking against the CLI's own authorities
 // ---------------------------------------------------------------------------
 
-const scratch = mkdtempSync(join(tmpdir(), 'am-doc-cli-'))
-const PROBE_DIAGRAM = join(scratch, 'probe.mmd')
-writeFileSync(PROBE_DIAGRAM, 'flowchart TD\n  A --> B\n')
-afterAll(() => rmSync(scratch, { recursive: true, force: true }))
-
 /** Swap process.stdout/stderr writes for a buffer until `restore()`. */
 function captureOutput(): { text: () => string; restore: () => void } {
   const chunks: string[] = []
@@ -204,10 +199,10 @@ function cliAccepts(argv: string[]): boolean {
   return cliVerdicts.get(key)!
 }
 
-/** Who decides each verb's --format values; cmdDescribe validates inline, so ask it. */
+/** Who decides each verb's --format values. */
 const FORMAT_ACCEPTED: Record<string, (value: string) => boolean> = {
   render: isCliRenderFormat,
-  describe: value => cliAccepts(['describe', PROBE_DIAGRAM, '--format', value]),
+  describe: isDescribeFormat,
 }
 
 const SHORT_OPTION_ACCEPTED: Record<Cli, (option: string) => boolean> = {

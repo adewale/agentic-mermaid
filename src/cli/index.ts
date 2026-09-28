@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, statSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { describeMermaid } from '../agent/describe.ts'
+import { DESCRIBE_FORMATS, describeMermaid, isDescribeFormat } from '../agent/describe.ts'
 import type { BuiltinFamilyId, FamilyConformanceReport } from '../agent/families.ts'
 import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, getFamily, getFamilyConformanceReport, isBuiltinFamilyId, knownFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidPNG, renderMermaidPNGWithReceipt, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../agent/index.ts'
@@ -1153,9 +1153,9 @@ function cmdFormat(args: ParsedArgs): number {
 function cmdDescribe(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
   const rawFormat = args.flags.format
-  const format = rawFormat === 'json' || rawFormat === 'facts' || rawFormat === 'text' || rawFormat === undefined ? ((rawFormat ?? 'text') as 'text' | 'json' | 'facts') : undefined
+  const format = rawFormat === undefined ? 'text' : isDescribeFormat(rawFormat) ? rawFormat : undefined
   if (!format) {
-    process.stderr.write('am describe --format must be one of: text, json, facts\n')
+    process.stderr.write(`am describe --format must be one of: ${DESCRIBE_FORMATS.join(', ')}\n`)
     return EXIT_ARG_ERROR
   }
   const parsed = parseRegisteredMermaid(source)
