@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { deflateRawSync } from 'node:zlib'
 
 import {
   decodeEditorStateHash,
@@ -8,6 +9,8 @@ import {
   EDITOR_SHARE_STATE_KEYS,
   hostedEditorStateHref,
 } from '../../scripts/site/editor-state-url.ts'
+import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
+import { evaluateBrowserScript } from './browser-script-harness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SKIP_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules', 'public'])
@@ -80,11 +83,55 @@ describe('editor link producer/consumer contract', () => {
     expect(skill).not.toMatch(/\bbtoa\(|\batob\(/)
   })
 
-  test('the browser consumer and build-time producer admit the same state fields', () => {
-    const sharing = readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8')
-    const manifest = sharing.match(/var EDITOR_SHARE_STATE_KEYS = Object\.freeze\(\[([^\]]+)]\);/)
-    expect(manifest, 'browser state-field manifest').not.toBeNull()
-    const browserKeys = Array.from(manifest![1]!.matchAll(/'([^']+)'/g), match => match[1])
-    expect(browserKeys).toEqual(Array.from(EDITOR_SHARE_STATE_KEYS))
+  test('the browser consumer and build-time producer admit the same state fields', async () => {
+    const consumer = browserShareConsumer()
+    expect(Array.from(consumer.api.EDITOR_SHARE_STATE_KEYS)).toEqual(Array.from(EDITOR_SHARE_STATE_KEYS))
+
+    // Every field the producer can emit is accepted and restored by the browser.
+    const complete = {
+      source: 'flowchart TD\n  Shared --> Link',
+      palette: 'paper',
+      style: 'hand-drawn',
+      seed: 7,
+      config: { padding: 24 },
+    }
+    expect(Object.keys(complete).sort()).toEqual(Array.from(EDITOR_SHARE_STATE_KEYS).sort())
+    consumer.window.location.hash = editorStateHref(complete).split('/editor/')[1]!
+    expect(await consumer.api.getHashSource()).toBe(complete.source)
+    expect(consumer.api.hashDecodeFailure).toBeNull()
+    expect(consumer.state).toEqual({ palette: 'paper', style: 'hand-drawn', seed: 7, config: { padding: 24 } })
+
+    // A field outside the shared schema (the producer refuses to emit one) is
+    // refused by the consumer rather than partially applied.
+    expect(() => editorStateHref({ ...complete, theme: 'paper' } as any)).toThrow('Unknown editor share state field: theme')
+    const extended = browserShareConsumer()
+    extended.window.location.hash = '#deflate:' + deflateRawSync(Buffer.from(JSON.stringify({ ...complete, theme: 'paper' }))).toString('base64url')
+    expect(await extended.api.getHashSource()).toBeNull()
+    expect(extended.api.hashDecodeFailure).toBe('corrupt')
   })
 })
+
+function browserShareConsumer() {
+  const window = {
+    location: { hash: '', pathname: '/editor/', search: '' },
+    history: { replaceState() {} },
+    __mermaid: {
+      SHARED_RENDER_OPTION_FIELDS,
+      knownStyleDescriptors: () => [{ kind: 'look', inputName: 'hand-drawn' }],
+    },
+  }
+  const state = { palette: '', style: 'crisp', seed: 0, config: {} as Record<string, unknown> }
+  const api = evaluateBrowserScript<{
+    EDITOR_SHARE_STATE_KEYS: readonly string[]
+    getHashSource(): Promise<string | null>
+    readonly hashDecodeFailure: string | null
+  }>(readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8'), {
+    window,
+    state,
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    editorPaletteInput: (value: unknown) => (value === 'paper' ? 'paper' : ''),
+    DEFAULT_EDITOR_PALETTE: 'paper',
+  }, '{ EDITOR_SHARE_STATE_KEYS, getHashSource, get hashDecodeFailure() { return hashDecodeFailure; } }')
+  return { api, window, state }
+}
