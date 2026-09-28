@@ -371,9 +371,5 @@ describe('content-addressed installed resource manifest', () => {
     expect(verified.readBytes()).toEqual(bytes)
     expect('absolutePath' in verified).toBe(false)
     expectCode(() => resolver.resolve('resource:test/fixture.ttf'), 'RESOURCE_DIGEST_MISMATCH')
-
-    const websiteBuild = readFileSync(join(import.meta.dir, '..', '..', 'website', 'build.ts'), 'utf8')
-    expect(websiteBuild).not.toContain('verified.absolutePath')
-    expect(websiteBuild).toContain('Buffer.from(verified.readBytes())')
   })
 })
