@@ -13,7 +13,7 @@ contracts, see [`layout-characterization/README.md`](./layout-characterization/R
 The current measured complexity-aware and registry-derived interaction
 portfolio is specified in
 [`project/complexity-aware-test-portfolio-plan.md`](./project/complexity-aware-test-portfolio-plan.md);
-its immutable before and content-addressed candidate reports live under
+its immutable before and measured candidate reports live under
 `eval/test-portfolio/`.
 
 ## Local CI parity
@@ -25,12 +25,14 @@ freshness, sketch and whole-corpus audits, lint, repository-wide typechecking,
 hero freshness, and the golden-drift guard. The workflow calls this same
 entry point, so the local list and CI list cannot diverge.
 
-Run `bun run evidence:check` for the narrower generated-evidence audit. It
-executes every receipt-backed gallery plus palette-performance provenance,
-continues after failures, and reports all stale artifacts together. Evidence
-receipts hash their exact local source/fixture graph and the transitive Bun
-lockfile closure of packages imported by that graph. Unrelated tools that are
-present elsewhere in `bun.lock` do not invalidate visual evidence.
+Committed galleries and before/after sheets are dated review snapshots, not
+gates: regenerate one with its `gallery:*` command when the rendering is
+reviewed again. Where an evidence script carried a real assertion, the unit
+suite now runs it against current code (for example the issue #87 link-rank
+gaps, the palette rollout and harmony reports, and the Section B sheet, which
+is regenerated in memory and byte-compared). Committed text/JSON generated
+from source is refreshed with `bun run generate`, and its unit test fails when
+it is stale. There are no input-hash receipts.
 
 ## The central problem: this is a partly non-testable program
 

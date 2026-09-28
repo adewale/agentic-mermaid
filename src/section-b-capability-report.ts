@@ -503,7 +503,7 @@ function body(): Omit<SectionBCapabilityReport, 'digest'> {
       { id: 'B5', status: 'complete', evidence: [
         'docs/style-authoring.md',
         'scripts/pr-assets/section-b-brand-evidence.ts',
-        'eval/section-b-brand-evidence/evidence-receipt.json',
+        'src/__tests__/section-b-visual-evidence.test.ts',
         'eval/section-b-brand-evidence/usability-agent-session.json',
         'examples/styles/catalog.json',
         'eval/style-prototype-evidence/visual-approval.json',

@@ -47,6 +47,6 @@ This corpus supplements the exact Mermaid parser/spec oracle. The oracle asks wh
 
 Warnings are pinned per case, including count and order; only deliberately long-content cases expect `LABEL_OVERFLOW`.
 
-## Visual receipt
+## Gallery
 
-`bun run gallery:mindmap-gitgraph` runs the same parse/round-trip/determinism/terminal checks while generating the two gallery PNGs. It writes [`gallery-receipt.json`](./gallery-receipt.json), which hashes every fixture, the manifest and fork snapshot, the generator's fail-closed transitive local import graph, and both outputs. `bun run gallery:mindmap-gitgraph:check` and the unit suite reject source or image drift. The corpus, receipt, and fixtures are included in the npm package so links from the packaged family documentation remain reproducible.
+`bun run gallery:mindmap-gitgraph` runs the same parse/round-trip/determinism/terminal checks while generating the two gallery PNGs. The PNGs are dated review snapshots; `src/__tests__/mindmap-gitgraph-content-corpus.test.ts` runs those checks against current code on every test run. The corpus and fixtures are included in the npm package so links from the packaged family documentation remain reproducible.

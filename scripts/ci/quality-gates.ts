@@ -6,54 +6,6 @@ export interface QualityCheck {
   command: string[]
 }
 
-export const EVIDENCE_CHECKS: readonly QualityCheck[] = [
-  {
-    id: 'fidelity-receipts',
-    label: 'Issue #248 construct fidelity receipts and public capability projection',
-    command: ['bun', 'run', 'fidelity:receipts:check'],
-  },
-  {
-    id: 'linkrank-feedback-packing',
-    label: 'Issue #87 link-rank visual evidence',
-    command: ['bun', 'run', 'gallery:linkrank-feedback-packing:check'],
-  },
-  {
-    id: 'mermaid-docs',
-    label: 'Mermaid documentation showcase receipt',
-    command: ['bun', 'run', 'gallery:mermaid-docs:check'],
-  },
-  {
-    id: 'mindmap-gitgraph',
-    label: 'Mindmap/GitGraph gallery receipt',
-    command: ['bun', 'run', 'gallery:mindmap-gitgraph:check'],
-  },
-  {
-    id: 'palette-harmony',
-    label: 'Optional palette harmony evidence',
-    command: ['bun', 'run', 'gallery:palette-harmony:check'],
-  },
-  {
-    id: 'palette-performance',
-    label: 'Palette performance provenance',
-    command: ['bun', 'run', 'benchmark:palette:check'],
-  },
-  {
-    id: 'palette-rollout',
-    label: 'Controlled palette rollout evidence',
-    command: ['bun', 'run', 'gallery:palette-rollout:check'],
-  },
-  {
-    id: 'pie-highlight',
-    label: 'Pie highlightSlice evidence',
-    command: ['bun', 'run', 'gallery:pie-highlight:check'],
-  },
-  {
-    id: 'section-b',
-    label: 'Section B visual evidence',
-    command: ['bun', 'run', 'gallery:section-b:check'],
-  },
-]
-
 export const QUALITY_CHECKS: readonly QualityCheck[] = [
   { id: 'install', label: 'Install locked dependencies', command: ['bun', 'install', '--frozen-lockfile'] },
   { id: 'dependency-audit', label: 'Reject high or critical dependency advisories', command: ['bun', 'run', 'audit:dependencies'] },
@@ -63,10 +15,10 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   // catalog/descriptors before CI inspected them.
   { id: 'browser-family-catalog', label: 'Verify the committed lazy browser family catalog', command: ['bun', 'run', 'check:browser-families'] },
   { id: 'website', label: 'Verify website and Worker artifacts', command: ['bun', 'run', 'website:check'] },
-  { id: 'evidence', label: 'Check all generated evidence receipts and provenance', command: ['bun', 'run', 'evidence:check'] },
   { id: 'sketch', label: 'Run sketch prototype style checks', command: ['bun', 'run', 'sketch:check'] },
   { id: 'rendered-corpora', label: 'Audit rendered corpora and family structural evidence', command: ['bun', 'run', 'audit:ugly'] },
-  { id: 'lint', label: 'Lint TypeScript and repository contracts', command: ['bun', 'run', 'lint'] },
+  // lint:contracts are ordinary unit tests and already run in the unit shards.
+  { id: 'lint', label: 'Lint TypeScript', command: ['bun', 'run', 'lint:biome'] },
   { id: 'typecheck', label: 'Type check', command: ['bun', 'run', 'typecheck'] },
   { id: 'hero', label: 'Check README hero image freshness', command: ['bun', 'run', 'hero:check'] },
   { id: 'golden-drift', label: 'Enforce reviewed golden snapshot drift', command: ['bun', 'run', 'scripts/ci/golden-drift.ts'] },
@@ -104,9 +56,8 @@ function reportFailures(suite: string, failures: readonly QualityCheck[]): never
 }
 
 if (import.meta.main) {
-  const evidenceOnly = process.argv.includes('--evidence-only')
-  const suite = evidenceOnly ? 'Evidence freshness audit' : 'Quality suite'
-  const failures = collectFailedChecks(evidenceOnly ? EVIDENCE_CHECKS : QUALITY_CHECKS, runCheck)
+  const suite = 'Quality suite'
+  const failures = collectFailedChecks(QUALITY_CHECKS, runCheck)
   if (failures.length > 0) reportFailures(suite, failures)
-  process.stdout.write(`\n${suite} passed (${(evidenceOnly ? EVIDENCE_CHECKS : QUALITY_CHECKS).length} checks).\n`)
+  process.stdout.write(`\n${suite} passed (${QUALITY_CHECKS.length} checks).\n`)
 }

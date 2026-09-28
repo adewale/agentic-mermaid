@@ -134,7 +134,7 @@ describe('agent-readiness standards syntax', () => {
     expect(qualitySteps.map((step: any) => step.run).filter(Boolean)).toEqual(['bun run quality:check'])
     expect(QUALITY_CHECKS.map(check => check.command.join(' '))).toEqual(expect.arrayContaining([
       'bun run audit:ugly',
-      'bun run lint',
+      'bun run lint:biome',
       'bun run audit:dependencies',
     ]))
     expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm) ?? []).toHaveLength(0)

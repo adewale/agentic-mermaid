@@ -342,7 +342,7 @@ Use the existing promote/check workflow from `scripts/update-ascii-goldens.ts`:
 - add the Mermaid source and expected output in the same fixture file;
 - regenerate with `bun run goldens:ascii`;
 - review the diff before commit;
-- gate with `bun run goldens:ascii:check`.
+- gate with `bun test src/__tests__/ascii.test.ts`.
 
 Snapshot/golden files must not contain wall-clock dates. Fixtures that test `todayMarker` pass an explicit date through render options.
 

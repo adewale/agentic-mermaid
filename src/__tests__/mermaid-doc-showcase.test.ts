@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { hashArtifactInputs, runtimeDependencyClosure, runtimeDependencySummary, sortRepositoryPaths, transitiveLocalInputs } from '../../scripts/pr-assets/artifact-receipt.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
@@ -65,27 +64,5 @@ describe('official Mermaid documentation showcase', () => {
     const branchFills = new Set([...svg.matchAll(/class="mindmap-node depth-1"[\s\S]*?<[^>]+ fill="([^"]+)"/g)].map(match => match[1]))
     expect(branchStrokes.size).toBeGreaterThanOrEqual(3)
     expect(branchFills.size).toBeGreaterThanOrEqual(3)
-  })
-
-  test('generated docs gallery receipt covers current sources and PNG bytes', () => {
-    const receipt = JSON.parse(readFileSync(join(ROOT, 'eval', 'mermaid-doc-showcase', 'gallery-receipt.json'), 'utf8')) as {
-      schemaVersion: number
-      generator: string
-      inputCount: number
-      inputTreeSha256: string
-      runtimeDependencies: ReturnType<typeof runtimeDependencySummary>
-      output: string
-      outputSha256: string
-    }
-    expect(receipt.schemaVersion).toBe(1)
-    expect(receipt.generator).toBe('scripts/pr-assets/mermaid-doc-showcase-gallery.ts')
-    const entrypoints = [join(ROOT, receipt.generator)]
-    const inputs = sortRepositoryPaths(ROOT, [join(ROOT, 'eval', 'mermaid-doc-showcase', 'manifest.json'), ...transitiveLocalInputs(ROOT, entrypoints)])
-    const runtimeDependencies = runtimeDependencyClosure(ROOT, entrypoints)
-    expect(receipt.inputCount).toBe(inputs.length)
-    expect(receipt.inputTreeSha256).toBe(hashArtifactInputs(ROOT, inputs, runtimeDependencies))
-    expect(receipt.runtimeDependencies).toEqual(runtimeDependencySummary(runtimeDependencies))
-    const output = readFileSync(join(ROOT, receipt.output))
-    expect(createHash('sha256').update(output).digest('hex')).toBe(receipt.outputSha256)
   })
 })

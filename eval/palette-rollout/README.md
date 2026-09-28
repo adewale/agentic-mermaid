@@ -14,7 +14,7 @@ provenance metadata; shallow CI does not need to resolve it.
 
 ```sh
 bun run gallery:palette-rollout
-bun run gallery:palette-rollout:check
+bun test src/__tests__/palette-rollout-evidence-integrity.test.ts  # report matches a fresh render
 ```
 
 `gallery:palette-rollout:baseline` is a characterization command, not a normal

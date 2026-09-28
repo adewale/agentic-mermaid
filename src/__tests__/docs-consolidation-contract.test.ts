@@ -23,6 +23,8 @@ describe('maintained documentation is derived from current contracts', () => {
   test('every documented bare `bun run` script exists', () => {
     const missing: string[] = []
     for (const path of docs) {
+      // Archived plans record the commands that existed when they were written.
+      if (repoPath(path).startsWith('docs/project/archive/')) continue
       const text = readFileSync(path, 'utf8')
       for (const match of text.matchAll(/\bbun run ([^\s`]+)/g)) {
         const script = match[1]!

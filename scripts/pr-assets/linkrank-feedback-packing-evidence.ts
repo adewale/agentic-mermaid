@@ -4,7 +4,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
-import { filesUnder, hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const EVAL_DIR = join(ROOT, 'eval', 'linkrank-feedback-packing')
@@ -13,7 +12,6 @@ const BASELINE_DIR = join(EVAL_DIR, 'baseline')
 const BASELINE_LAYOUT = join(BASELINE_DIR, 'layout.json')
 const MATRIX_OUTPUT = join(ROOT, 'docs', 'pr-assets', 'issue-87-linkrank-feedback-packing-before-after.png')
 const AFTER_OUTPUT = join(ROOT, 'docs', 'pr-assets', 'issue-87-linkrank-feedback-packing-after.png')
-const RECEIPT = join(EVAL_DIR, 'evidence-receipt.json')
 const BASELINE_COMMIT = 'ad20678e72aff19b4b67178d3bc9dcad3c8c0630'
 const MIN_GAP = 224
 const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
@@ -123,7 +121,7 @@ if (!existsSync(BASELINE_LAYOUT) || cases.some(spec => !existsSync(svgPath(spec)
 }
 
 const baseline = JSON.parse(readFileSync(BASELINE_LAYOUT, 'utf8')) as BaselineLayout
-if (baseline.commit !== BASELINE_COMMIT) throw new Error(`Baseline receipt is not pinned to ${BASELINE_COMMIT}`)
+if (baseline.commit !== BASELINE_COMMIT) throw new Error(`Baseline layout is not pinned to ${BASELINE_COMMIT}`)
 const baselineGap = new Map(baseline.cases.map(entry => [entry.id, entry.gap]))
 const currentRuntime = await runtimeAt(ROOT)
 const measurements = cases.map(spec => {
@@ -135,46 +133,6 @@ const measurements = cases.map(spec => {
   if (after < MIN_GAP - 0.5) throw new Error(`${spec.id}: current boundary gap is ${after}px; expected at least ${MIN_GAP}px`)
   return { id: spec.id, before, after }
 })
-
-const repoPath = (path: string): string => repositoryPath(ROOT, path)
-const baselineInputs = [BASELINE_LAYOUT, ...cases.map(svgPath)]
-const receiptEntrypoints = [
-  import.meta.filename,
-  join(ROOT, 'src', 'parser.ts'),
-  join(ROOT, 'src', 'layout-engine.ts'),
-  join(ROOT, 'src', 'index.ts'),
-]
-const inputPaths = sortRepositoryPaths(ROOT, [
-  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
-  ...filesUnder(FIXTURE_DIR, path => path.endsWith('.mmd')),
-  ...baselineInputs,
-])
-const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
-const currentReceipt = () => ({
-  schemaVersion: 1,
-  generator: repoPath(import.meta.filename),
-  baseline: { commit: BASELINE_COMMIT, artifacts: baselineInputs.map(path => ({ path: repoPath(path), sha256: sha256File(path) })) },
-  measurements,
-  inputCount: inputPaths.length,
-  inputTreeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies),
-  runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
-  outputs: [MATRIX_OUTPUT, AFTER_OUTPUT].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
-})
-
-if (process.argv.includes('--receipt-only')) {
-  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
-  console.log('Refreshed Issue #87 receipt without rewriting visual output')
-  process.exit(0)
-}
-
-if (process.argv.includes('--check')) {
-  const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
-  if (JSON.stringify(recorded) !== JSON.stringify(currentReceipt())) {
-    throw new Error('Issue #87 visual evidence is stale; run bun run scripts/pr-assets/linkrank-feedback-packing-evidence.ts --receipt-only to preserve reviewed pixels, or omit --receipt-only to regenerate visuals for review')
-  }
-  console.log('Issue #87 visual evidence is synchronized')
-  process.exit(0)
-}
 
 const measurementOf = (id: string) => measurements.find(entry => entry.id === id)!
 const panel = (label: string, gap: number, svg: string, state: 'before' | 'after'): string => `<figure class="${state}">
@@ -227,5 +185,4 @@ await page.locator('#matrix').screenshot({ path: MATRIX_OUTPUT })
 await page.locator('#after').screenshot({ path: AFTER_OUTPUT })
 await page.close()
 await browser.close()
-writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
 console.log(`wrote ${MATRIX_OUTPUT} and ${AFTER_OUTPUT}`)

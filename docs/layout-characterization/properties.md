@@ -152,7 +152,7 @@ being folded into the minimal PBT kernel:
 | **V1** | SVG snapshots | Human-visible visual drift in any renderer family. |
 | **V2** | SVG/PNG fingerprints | Byte-level drift on both vector and raster public surfaces. |
 | **V3** | Quality metrics | Changes in crossings, bends, route length, area fill, label fit, or edge-label overlap risk. |
-| **V4** | Generator drift check | A stale contact sheet or visual report fails `characterization-generated-artifacts.test.ts` / `bun run characterization:check`. |
+| **V4** | Generator drift check | A stale contact sheet or visual report fails `characterization-generated-artifacts.test.ts`. |
 
 These signals should trigger review, not panic. A quality metric can improve,
 degrade, or simply change because a layout strategy changed. The review question
@@ -268,7 +268,7 @@ bun run scripts/characterization/contact-sheet-families.ts
 bun run scripts/characterization/visual-quality.ts
 
 # CI-friendly generated-artifact drift check
-bun run characterization:check
+bun test src/__tests__/characterization-generated-artifacts.test.ts
 
 # Quick mutation evidence for the load-bearing ranges
 bun run mutation-test -- characterization

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -85,28 +84,6 @@ const plainSvgText = (svg: string): string => svg
   .replace(/\s+/g, ' ').trim()
 
 describe('Mindmap/GitGraph popularity-weighted real-content corpus', () => {
-  test('gallery receipt pins every source input and generated artifact', () => {
-    const receipt = JSON.parse(readFileSync(join(CORPUS, 'gallery-receipt.json'), 'utf8')) as {
-      schemaVersion: number
-      generator: string
-      inputs: Array<{ path: string; sha256: string }>
-      outputs: Array<{ path: string; sha256: string }>
-    }
-    expect(receipt.schemaVersion).toBe(1)
-    expect(receipt.generator).toBe('scripts/pr-assets/mindmap-gitgraph-content-gallery.ts')
-    expect(receipt.inputs.map(input => input.path)).toContain('eval/mindmap-gitgraph-content-corpus/manifest.json')
-    expect(receipt.inputs.some(input => input.path.startsWith('src/mindmap/'))).toBe(true)
-    expect(receipt.inputs.some(input => input.path.startsWith('src/gitgraph/'))).toBe(true)
-    expect(receipt.outputs.map(output => output.path).sort()).toEqual([
-      'docs/design/families/gitgraph-content-gallery.png',
-      'docs/design/families/mindmap-content-gallery.png',
-    ])
-    for (const artifact of [...receipt.inputs, ...receipt.outputs]) {
-      const actual = createHash('sha256').update(readFileSync(join(CORPUS, '..', '..', artifact.path))).digest('hex')
-      expect(actual, artifact.path).toBe(artifact.sha256)
-    }
-  })
-
   test('manifest accounts for every fixture and records reproducible source weighting', () => {
     expect(manifest.schemaVersion).toBe(1)
     expect(manifest.target).toBe('Mermaid 11.16.0')

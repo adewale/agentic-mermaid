@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
-import { fileReceiptEntries, hashArtifactInputs, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs, type RuntimeDependencySummary } from '../../scripts/pr-assets/artifact-receipt.ts'
+import { sha256File } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(import.meta.dir, 'report.json')
@@ -15,36 +15,8 @@ const LARGE_COUNTS = [25, 64, 256, 1000] as const
 const WARMUP_CALLS = 200
 const SAMPLES_PER_FIXTURE = 20
 const ORDER_SEED = 179
-const RECEIPT_ENTRYPOINTS = [import.meta.filename]
-const INPUTS = sortRepositoryPaths(ROOT, transitiveLocalInputs(ROOT, RECEIPT_ENTRYPOINTS))
-const RUNTIME_DEPENDENCIES = runtimeDependencyClosure(ROOT, RECEIPT_ENTRYPOINTS)
 
 const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
-export const PALETTE_PROVENANCE_AUTHORITY = 'content-addressed-inputs-v1' as const
-
-export function verifyPaletteSourceProvenance(
-  provenance: any,
-  expectedSourceTreeSha256: string,
-  expectedInputs: unknown,
-  expectedRuntimeDependencies: RuntimeDependencySummary,
-): void {
-  if (provenance?.authority !== PALETTE_PROVENANCE_AUTHORITY) {
-    throw new Error(`Palette performance provenance authority must be ${PALETTE_PROVENANCE_AUTHORITY}`)
-  }
-  if (provenance.dirty !== false) throw new Error('Palette performance report does not attest a clean source tree')
-  if (!/^[0-9a-f]{40}$/.test(String(provenance.sourceCommit ?? ''))) {
-    throw new Error('Palette performance sourceCommit must identify the clean recording checkout')
-  }
-  if (provenance.sourceTreeSha256 !== expectedSourceTreeSha256) {
-    throw new Error('Palette performance report inputs are stale; record on a clean committed tree')
-  }
-  if (JSON.stringify(provenance.inputs) !== JSON.stringify(expectedInputs)) {
-    throw new Error('Palette performance report input manifest is stale')
-  }
-  if (JSON.stringify(provenance.runtimeDependencies) !== JSON.stringify(expectedRuntimeDependencies)) {
-    throw new Error('Palette performance runtime dependency closure is stale')
-  }
-}
 const round = (value: number): number => Math.round(value * 1_000_000) / 1_000_000
 const PALETTE_FIXTURES = BUILTIN_PALETTE_DEFINITIONS.map(definition =>
   [definition.inputName, definition.colors] as const)
@@ -96,7 +68,7 @@ export const timingResults = (timings: readonly Timing[]) => ({
   })),
 })
 
-function complexityEvidence() {
+export function complexityEvidence() {
   const themes = PALETTE_FIXTURES
   return LARGE_COUNTS.map(count => {
     let maxCandidateEvaluations = 0
@@ -161,16 +133,12 @@ function record(): void {
     validity: {
       claim: 'Warmed single-process palette-generation latency on the recorded environment.',
       warrant: 'A fixed built-in-theme by peer-count fixture matrix, repeated in deterministic shuffled orders.',
-      backing: 'Recorded protocol, exact input hashes, runtime/CPU metadata, latency distribution, and deterministic operation counts.',
+      backing: 'Recorded protocol, recording commit, runtime/CPU metadata, latency distribution, and deterministic operation counts.',
       rebuttal: 'Absolute timings are observational, are not portable across machines, and are not a CI threshold.',
     },
     provenance: {
-      authority: PALETTE_PROVENANCE_AUTHORITY,
       sourceCommit,
-      sourceTreeSha256: hashArtifactInputs(ROOT, INPUTS, RUNTIME_DEPENDENCIES),
       dirty: false,
-      inputs: fileReceiptEntries(ROOT, INPUTS),
-      runtimeDependencies: runtimeDependencySummary(RUNTIME_DEPENDENCIES),
     },
     environment: {
       runtime: `Bun ${Bun.version}`,
@@ -207,8 +175,8 @@ function record(): void {
       'This measures palette generation, not an entire diagram render.',
       'Most controlled families generate one peer-category channel; Journey independently generates section and actor palettes.',
       'No cross-machine latency guarantee follows from this report.',
-      'The recording commit is informational and can become unreachable after a squash merge; exact input hashes are the durable source authority.',
-      'CI checks source freshness and deterministic complexity invariants, but does not gate on wall-clock time.',
+      'The recording commit is informational and can become unreachable after a squash merge.',
+      'CI checks deterministic complexity invariants and that aggregates match the raw samples; it does not gate on wall-clock time or source hashes.',
     ],
   }
   writeFileSync(REPORT, `${JSON.stringify(report, null, 2)}\n`)
@@ -243,12 +211,6 @@ function check(): void {
   const report = JSON.parse(readFileSync(REPORT, 'utf8')) as any
   const samples = JSON.parse(readFileSync(SAMPLES, 'utf8')) as any
   if (report.schemaVersion !== 1) throw new Error('Unsupported palette performance report schema')
-  verifyPaletteSourceProvenance(
-    report.provenance,
-    hashArtifactInputs(ROOT, INPUTS, RUNTIME_DEPENDENCIES),
-    fileReceiptEntries(ROOT, INPUTS),
-    runtimeDependencySummary(RUNTIME_DEPENDENCIES),
-  )
   if (JSON.stringify(report.complexity?.deterministicLargeCountEvidence) !== JSON.stringify(complexityEvidence())) {
     throw new Error('Palette deterministic complexity evidence is stale')
   }
@@ -256,7 +218,7 @@ function check(): void {
   if (report.validity?.rebuttal !== 'Absolute timings are observational, are not portable across machines, and are not a CI threshold.') {
     throw new Error('Palette timing validity limitation is missing')
   }
-  console.log('Palette performance provenance, raw timing aggregates, and deterministic complexity evidence pass')
+  console.log('Palette performance raw timing aggregates and deterministic complexity evidence pass')
 }
 
 if (import.meta.main) {

@@ -262,7 +262,7 @@ The deterministic preflight is:
 
 ```bash
 bun run eval:skill:sabotage
-bun run eval:family-portfolio:check
+bun test src/__tests__/mermaid-family-portfolio.test.ts
 skill-benchmark audit-manifest .skill-eval-runner-tune.json --format markdown
 ```
 

@@ -160,7 +160,7 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
     upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
-    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/mindmap-content-gallery.png', 'eval/mindmap-gitgraph-content-corpus/gallery-receipt.json'],
+    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/mindmap-content-gallery.png', 'src/__tests__/mindmap-gitgraph-content-corpus.test.ts'],
   },
   gitgraph: {
     semanticModel: ['src/gitgraph/types.ts', 'src/agent/gitgraph-body.ts'],
@@ -170,7 +170,7 @@ const REQUIRED_FAMILY_EVIDENCE = {
     stableRegions: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts'],
     upstreamHarvest: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
     divergenceLedger: ['eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json'],
-    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/gitgraph-content-gallery.png', 'eval/mindmap-gitgraph-content-corpus/gallery-receipt.json'],
+    goldensEvidence: ['src/__tests__/mindmap-gitgraph-citizenship.test.ts', 'docs/design/families/gitgraph-content-gallery.png', 'src/__tests__/mindmap-gitgraph-content-corpus.test.ts'],
   },
   radar: {
     semanticModel: ['src/radar/types.ts', 'src/agent/radar-body.ts'],

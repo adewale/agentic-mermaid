@@ -141,7 +141,7 @@
       "id": "generated-delivery",
       "surface": "generated artifacts",
       "familyScope": "registry",
-      "evidence": ["src/__tests__/characterization-generated-artifacts.test.ts", "src/__tests__/artifact-receipt.test.ts"]
+      "evidence": ["src/__tests__/characterization-generated-artifacts.test.ts", "src/__tests__/section-b-visual-evidence.test.ts"]
     }
   ]
 }

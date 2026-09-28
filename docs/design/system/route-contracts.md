@@ -823,7 +823,7 @@ in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
   duplicate-edge sweep); no primary-forward hitch survives when
   the prover says the lane is clear; straightened endpoints remain on shape
   boundaries; repeated runs byte-identical (determinism).
-- **Goldens**: ASCII goldens must not change (`goldens:ascii:check`); SVG
+- **Goldens**: ASCII goldens must not change (`src/__tests__/ascii.test.ts`); SVG
   changes are reviewed via the corpus comparison harness
   (`eval/layout-compare`) — regressions-first verdicts, not eyeball-only.
 - **Fault sensitivity**: `bun run mutation-test -- routes` remains an opt-in

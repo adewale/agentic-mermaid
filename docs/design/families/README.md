@@ -46,11 +46,8 @@ The all-family Style + Palette sheet and gallery evidence are generated and chec
 ```bash
 bun run scripts/pr-assets/family-elevation-style-palette.ts
 bun run gallery:mindmap-gitgraph
-bun run gallery:mindmap-gitgraph:check
 bun run gallery:mermaid-docs
-bun run gallery:mermaid-docs:check
 bun run gallery:pie-highlight
-bun run gallery:pie-highlight:check
 ```
 
 ## Where every registered family is documented

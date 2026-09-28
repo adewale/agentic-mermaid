@@ -7,7 +7,7 @@ import { chromium } from 'playwright'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { wcagContrastRatio } from '../../src/shared/color-math.ts'
 import { apcaContrast, minPairwiseDeltaEOK } from '../../src/shared/perceptual-color.ts'
-import { hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
+import { repositoryPath } from './artifact-receipt.ts'
 
 type Family = 'xychart' | 'journey' | 'mindmap' | 'gitgraph'
 interface EvidenceCase { id: string; family: Family; theme: 'github-light' | 'dracula'; source: string }
@@ -37,7 +37,6 @@ const BASELINE_DIR = join(ROOT, 'eval', 'palette-rollout', 'baseline')
 const BASELINE_JSON = join(BASELINE_DIR, 'baseline.json')
 const REPORT = join(ROOT, 'eval', 'palette-rollout', 'report.json')
 const CONTACT_SHEET = join(ROOT, 'docs', 'pr-assets', 'pr-179', 'palette-rollout-before-after.png')
-const RECEIPT = join(ROOT, 'eval', 'palette-rollout', 'evidence-receipt.json')
 const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
 
 const FLOORS = { minDeltaEOK: 0.10, minWcagVsBackground: 1.25, minAbsApcaVsBackground: 15 } as const
@@ -361,6 +360,24 @@ function buildReport(currentCases: CaseResult[], baseline: BaselineFile, baselin
   }
 }
 
+function loadVerifiedBaseline(): { baseline: BaselineFile; baselineCases: CaseResult[] } {
+  if (!existsSync(BASELINE_JSON)) throw new Error('Missing palette baseline; run bun run gallery:palette-rollout:baseline before changing palette code')
+  const baseline = JSON.parse(readFileSync(BASELINE_JSON, 'utf8')) as BaselineFile
+  if (!/^[0-9a-f]{40}$/.test(baseline.commit)) throw new Error('Palette baseline commit must be a full lowercase Git commit identity')
+  // Frozen SVG bytes, not baseline.json, are the source of truth. Re-extract
+  // every color and recompute every metric before building/checking evidence.
+  return { baseline, baselineCases: verifiedBaselineCases(baseline) }
+}
+
+/** Re-render every case with the current renderer and rebuild the report that
+ * must match the committed `eval/palette-rollout/report.json`. */
+export function expectedPaletteRolloutReport(): ReturnType<typeof buildReport> {
+  const { baseline, baselineCases } = loadVerifiedBaseline()
+  return buildReport(renderAll().map(item => item.result), baseline, baselineCases)
+}
+
+export const PALETTE_ROLLOUT_REPORT = REPORT
+
 async function main(): Promise<void> {
   if (process.argv.includes('--record-baseline')) {
     const baselineCommitIndex = process.argv.indexOf('--baseline-commit')
@@ -376,53 +393,13 @@ async function main(): Promise<void> {
     return
   }
 
-  if (!existsSync(BASELINE_JSON)) throw new Error('Missing palette baseline; run bun run gallery:palette-rollout:baseline before changing palette code')
-  const baseline = JSON.parse(readFileSync(BASELINE_JSON, 'utf8')) as BaselineFile
-  if (!/^[0-9a-f]{40}$/.test(baseline.commit)) throw new Error('Palette baseline commit must be a full lowercase Git commit identity')
-  // Frozen SVG bytes, not baseline.json, are the source of truth. Re-extract
-  // every color and recompute every metric before building/checking evidence.
-  const baselineCases = verifiedBaselineCases(baseline)
-
-  const receiptEntrypoints = [import.meta.filename]
-  const inputPaths = sortRepositoryPaths(ROOT, [
-    ...transitiveLocalInputs(ROOT, receiptEntrypoints),
-    BASELINE_JSON,
-    ...cases.map(item => baselineSvgPath(item.id)),
-  ])
-  const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
-  const currentReceipt = () => ({
-    schemaVersion: 1,
-    generator: repoPath(import.meta.filename),
-    inputCount: inputPaths.length,
-    inputTreeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies),
-    runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
-    outputs: [REPORT, CONTACT_SHEET].map(path => ({ path: repoPath(path), sha256: sha256File(path) })),
-  })
-
-  const expectedReport = () => {
-    const rendered = renderAll()
-    return buildReport(rendered.map(item => item.result), baseline, baselineCases)
-  }
-
-  if (process.argv.includes('--receipt-only')) {
-    const recordedReport = JSON.parse(readFileSync(REPORT, 'utf8'))
-    if (JSON.stringify(recordedReport) !== JSON.stringify(expectedReport())) {
-      throw new Error('Cannot refresh palette rollout receipt while the report is stale')
-    }
-    writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
-    console.log('Refreshed palette rollout receipt without rewriting visual output')
-    return
-  }
+  const { baseline, baselineCases } = loadVerifiedBaseline()
 
   if (process.argv.includes('--check')) {
-    const expected = expectedReport()
+    const expected = expectedPaletteRolloutReport()
     const recordedReport = JSON.parse(readFileSync(REPORT, 'utf8'))
     if (JSON.stringify(recordedReport) !== JSON.stringify(expected)) {
       throw new Error('Palette rollout report is stale; run bun run gallery:palette-rollout')
-    }
-    const recordedReceipt = JSON.parse(readFileSync(RECEIPT, 'utf8'))
-    if (JSON.stringify(recordedReceipt) !== JSON.stringify(currentReceipt())) {
-      throw new Error('Palette rollout evidence is stale; run bun run gallery:palette-rollout')
     }
     if (expected.summary.automaticVerdict !== 'improvement') throw new Error('Palette rollout does not clear the automatic improvement gate')
     console.log('Palette rollout evidence is synchronized and clears the improvement gate')
@@ -457,7 +434,6 @@ async function main(): Promise<void> {
   await page.locator('main').screenshot({ path: CONTACT_SHEET })
   await page.close()
   await browser.close()
-  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
   if (report.summary.automaticVerdict !== 'improvement') {
     throw new Error(`Palette rollout failed its automatic improvement gate (${report.summary.afterViolations} remaining violations)`)
   }

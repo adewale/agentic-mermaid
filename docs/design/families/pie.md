@@ -126,8 +126,8 @@ so the only behavioral change vs. the old `toFixed(1)` is the floor.
 ![Pie highlightSlice regression cross-products](./pie-highlightslice-regression-matrix.png)
 
 The captioned evidence sheet above is generated from current renderer output by
-`bun run gallery:pie-highlight`; `bun run gallery:pie-highlight:check` and its
-receipt test bind both PNGs to the complete TypeScript input tree. It includes
+`bun run gallery:pie-highlight`; it is a dated snapshot of the reviewed change,
+regenerated when the rendering is reviewed again, not a CI gate. It includes
 crisp `highlightSlice × pieOpacity × long bold label`, hand-drawn and watercolor
 Scene redraws, and a real browser pointer over the interactive tooltip overlay.
 
