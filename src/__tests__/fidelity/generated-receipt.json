@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "ac8ce3056422da8a80c4e33815a94cb4b89e5750e57364f3561e704f3bda5486",
+    "inputSha256": "a5fdf2014b1c8fa8b833882fd1434fa5259f1de84c24172cdcc7281c07aaa0b6",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -133,6 +133,10 @@
       {
         "path": "src/__tests__/fidelity/cases/pie-terminal-control.fidelity.ts",
         "sha256": "b46cd2191e688a1f7737db3d0ce9215d25ca97fc8216eb1d7278e4a9dc13bbfd"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/quadrant-official-fences.fidelity.ts",
+        "sha256": "837b748abd81046770a9b931145a76f99843997227e2b86435e3d33e0d8960b3"
       },
       {
         "path": "src/__tests__/fidelity/cases/sankey-official-config-fences.fidelity.ts",
@@ -3984,6 +3988,860 @@
             "rejected": true
           },
           "disposition": "diagnosed"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "quadrant.official.fence-0",
+      "family": "quadrant",
+      "featureId": "official-doc:quadrant:section:example",
+      "sourceSha256": "ab68741da71fae260c045fd990343c00fdd656747ad9624dda13e1872446c4f2",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/quadrantChart.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              "Low Reach",
+              "High Reach",
+              "Low Engagement",
+              "High Engagement"
+            ],
+            "classDefs": null,
+            "frontmatter": null,
+            "points": [
+              {
+                "label": "Campaign A",
+                "x": 0.3,
+                "y": 0.6
+              },
+              {
+                "label": "Campaign B",
+                "x": 0.45,
+                "y": 0.23
+              },
+              {
+                "label": "Campaign C",
+                "x": 0.57,
+                "y": 0.69
+              },
+              {
+                "label": "Campaign D",
+                "x": 0.78,
+                "y": 0.34
+              },
+              {
+                "label": "Campaign E",
+                "x": 0.4,
+                "y": 0.34
+              },
+              {
+                "label": "Campaign F",
+                "x": 0.35,
+                "y": 0.78
+              }
+            ],
+            "quadrants": [
+              "We should expand",
+              "Need to promote",
+              "Re-evaluate",
+              "May be improved"
+            ],
+            "title": "Reach and engagement of campaigns"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              "Low Reach",
+              "High Reach",
+              "Low Engagement",
+              "High Engagement"
+            ],
+            "labels": [
+              {
+                "fill": null,
+                "style": null,
+                "text": "Need to promote",
+                "x": 147,
+                "y": 155
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "We should expand",
+                "x": 337,
+                "y": 155
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "Re-evaluate",
+                "x": 147,
+                "y": 345
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "May be improved",
+                "x": 337,
+                "y": 345
+              }
+            ],
+            "pointLabels": [
+              "Campaign A",
+              "Campaign B",
+              "Campaign C",
+              "Campaign D",
+              "Campaign E",
+              "Campaign F"
+            ],
+            "pointStrokeWidth": "1",
+            "points": [
+              {
+                "className": null,
+                "cx": 166,
+                "cy": 212,
+                "label": "Campaign A",
+                "radius": 6,
+                "style": null,
+                "x": 0.3,
+                "y": 0.6
+              },
+              {
+                "className": null,
+                "cx": 223,
+                "cy": 352.6,
+                "label": "Campaign B",
+                "radius": 6,
+                "style": null,
+                "x": 0.45,
+                "y": 0.23
+              },
+              {
+                "className": null,
+                "cx": 268.6,
+                "cy": 177.8,
+                "label": "Campaign C",
+                "radius": 6,
+                "style": null,
+                "x": 0.57,
+                "y": 0.69
+              },
+              {
+                "className": null,
+                "cx": 348.4,
+                "cy": 310.8,
+                "label": "Campaign D",
+                "radius": 6,
+                "style": null,
+                "x": 0.78,
+                "y": 0.34
+              },
+              {
+                "className": null,
+                "cx": 204,
+                "cy": 310.8,
+                "label": "Campaign E",
+                "radius": 6,
+                "style": null,
+                "x": 0.4,
+                "y": 0.34
+              },
+              {
+                "className": null,
+                "cx": 185,
+                "cy": 143.6,
+                "label": "Campaign F",
+                "radius": 6,
+                "style": null,
+                "x": 0.35,
+                "y": 0.78
+              }
+            ],
+            "quadrantLabelFill": "#575759",
+            "regions": [
+              {
+                "fill": "#f6f6f6",
+                "height": 190,
+                "quadrant": 2,
+                "width": 190,
+                "x": 52,
+                "y": 60
+              },
+              {
+                "fill": "#ededed",
+                "height": 190,
+                "quadrant": 1,
+                "width": 190,
+                "x": 242,
+                "y": 60
+              },
+              {
+                "fill": "#ededed",
+                "height": 190,
+                "quadrant": 3,
+                "width": 190,
+                "x": 52,
+                "y": 250
+              },
+              {
+                "fill": "#f6f6f6",
+                "height": 190,
+                "quadrant": 4,
+                "width": 190,
+                "x": 242,
+                "y": 250
+              }
+            ],
+            "svgSha256": "ed0129746a51501ade84e3772db73aae7b33c6f7d57f6278cb915486aadad27e",
+            "title": [
+              "Reach and engagement of campaigns"
+            ],
+            "viewBox": "0 0 456 492"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "axes": [
+                "Low Reach",
+                "High Reach",
+                "Low Engagement",
+                "High Engagement"
+              ],
+              "classDefs": null,
+              "frontmatter": null,
+              "points": [
+                {
+                  "label": "Campaign A",
+                  "x": 0.3,
+                  "y": 0.6
+                },
+                {
+                  "label": "Campaign B",
+                  "x": 0.45,
+                  "y": 0.23
+                },
+                {
+                  "label": "Campaign C",
+                  "x": 0.57,
+                  "y": 0.69
+                },
+                {
+                  "label": "Campaign D",
+                  "x": 0.78,
+                  "y": 0.34
+                },
+                {
+                  "label": "Campaign E",
+                  "x": 0.4,
+                  "y": 0.34
+                },
+                {
+                  "label": "Campaign F",
+                  "x": 0.35,
+                  "y": 0.78
+                }
+              ],
+              "quadrants": [
+                "We should expand",
+                "Need to promote",
+                "Re-evaluate",
+                "May be improved"
+              ],
+              "title": "Reach and engagement of campaigns"
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "quadrant.official.fence-1",
+      "family": "quadrant",
+      "featureId": "official-doc:quadrant:section:example-on-config-and-theme",
+      "sourceSha256": "9de768ec30909b7feb3f85d426c1e0a88211ded0b564573306f1fa82bb6653fe",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/quadrantChart.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              "Urgent",
+              "Not Urgent",
+              "Not Important",
+              "Important ❤"
+            ],
+            "classDefs": null,
+            "frontmatter": {
+              "quadrantChart": {
+                "chartHeight": 400,
+                "chartWidth": 400
+              },
+              "themeVariables": {
+                "quadrant1TextFill": "ff0000"
+              }
+            },
+            "points": [],
+            "quadrants": [
+              "Plan",
+              "Do",
+              "Delegate",
+              "Delete"
+            ],
+            "title": null
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              "Urgent",
+              "Not Urgent",
+              "Not Important",
+              "Important ❤"
+            ],
+            "labels": [
+              {
+                "fill": null,
+                "style": null,
+                "text": "Do",
+                "x": 133,
+                "y": 105
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "Plan",
+                "x": 295,
+                "y": 105
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "Delegate",
+                "x": 133,
+                "y": 267
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "Delete",
+                "x": 295,
+                "y": 267
+              }
+            ],
+            "pointLabels": [],
+            "pointStrokeWidth": "1",
+            "points": [],
+            "quadrantLabelFill": "#575759",
+            "regions": [
+              {
+                "fill": "#f6f6f6",
+                "height": 162,
+                "quadrant": 2,
+                "width": 162,
+                "x": 52,
+                "y": 24
+              },
+              {
+                "fill": "#ededed",
+                "height": 162,
+                "quadrant": 1,
+                "width": 162,
+                "x": 214,
+                "y": 24
+              },
+              {
+                "fill": "#ededed",
+                "height": 162,
+                "quadrant": 3,
+                "width": 162,
+                "x": 52,
+                "y": 186
+              },
+              {
+                "fill": "#f6f6f6",
+                "height": 162,
+                "quadrant": 4,
+                "width": 162,
+                "x": 214,
+                "y": 186
+              }
+            ],
+            "svgSha256": "4f3eca786f90c2ba0b1dfa5427aebe58b3b715d99945dbee9ba8a06c6c63b2f4",
+            "title": [],
+            "viewBox": "0 0 400 400"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "axes": [
+                "Urgent",
+                "Not Urgent",
+                "Not Important",
+                "Important ❤"
+              ],
+              "classDefs": null,
+              "frontmatter": {
+                "quadrantChart": {
+                  "chartHeight": 400,
+                  "chartWidth": 400
+                },
+                "themeVariables": {
+                  "quadrant1TextFill": "ff0000"
+                }
+              },
+              "points": [],
+              "quadrants": [
+                "Plan",
+                "Do",
+                "Delegate",
+                "Delete"
+              ],
+              "title": null
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "quadrant.official.fence-2",
+      "family": "quadrant",
+      "featureId": "official-doc:quadrant:section:example-on-styling",
+      "sourceSha256": "980c8901e505c06556566bc03575f4ff47c228b18700903c32fd6dcdb001e87f",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/quadrantChart.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              "Low Reach",
+              "High Reach",
+              "Low Engagement",
+              "High Engagement"
+            ],
+            "classDefs": {
+              "class1": {
+                "color": "#109060"
+              },
+              "class2": {
+                "color": "#908342",
+                "radius": 10,
+                "strokeColor": "#310085",
+                "strokeWidth": "10px"
+              },
+              "class3": {
+                "color": "#f00fff",
+                "radius": 10
+              }
+            },
+            "frontmatter": null,
+            "points": [
+              {
+                "label": "Campaign A",
+                "style": {
+                  "radius": 12
+                },
+                "x": 0.9,
+                "y": 0
+              },
+              {
+                "className": "class1",
+                "label": "Campaign B",
+                "style": {
+                  "color": "#ff3300",
+                  "radius": 10
+                },
+                "x": 0.8,
+                "y": 0.1
+              },
+              {
+                "label": "Campaign C",
+                "style": {
+                  "color": "#00ff33",
+                  "radius": 25,
+                  "strokeColor": "#10f0f0"
+                },
+                "x": 0.7,
+                "y": 0.2
+              },
+              {
+                "label": "Campaign D",
+                "style": {
+                  "color": "#ff33f0",
+                  "radius": 15,
+                  "strokeColor": "#00ff0f",
+                  "strokeWidth": "5px"
+                },
+                "x": 0.6,
+                "y": 0.3
+              },
+              {
+                "className": "class2",
+                "label": "Campaign E",
+                "x": 0.5,
+                "y": 0.4
+              },
+              {
+                "className": "class3",
+                "label": "Campaign F",
+                "style": {
+                  "color": "#0000ff"
+                },
+                "x": 0.4,
+                "y": 0.5
+              }
+            ],
+            "quadrants": [
+              "We should expand",
+              "Need to promote",
+              "Re-evaluate",
+              "May be improved"
+            ],
+            "title": "Reach and engagement of campaigns"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              "Low Reach",
+              "High Reach",
+              "Low Engagement",
+              "High Engagement"
+            ],
+            "labels": [
+              {
+                "fill": null,
+                "style": null,
+                "text": "Need to promote",
+                "x": 147,
+                "y": 155
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "We should expand",
+                "x": 337,
+                "y": 155
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "Re-evaluate",
+                "x": 147,
+                "y": 345
+              },
+              {
+                "fill": null,
+                "style": null,
+                "text": "May be improved",
+                "x": 337,
+                "y": 345
+              }
+            ],
+            "pointLabels": [
+              "Campaign A",
+              "Campaign B",
+              "Campaign C",
+              "Campaign D",
+              "Campaign E",
+              "Campaign F"
+            ],
+            "pointStrokeWidth": "1",
+            "points": [
+              {
+                "className": null,
+                "cx": 394,
+                "cy": 440,
+                "label": "Campaign A",
+                "radius": 12,
+                "style": null,
+                "x": 0.9,
+                "y": 0
+              },
+              {
+                "className": "class1",
+                "cx": 356,
+                "cy": 402,
+                "label": "Campaign B",
+                "radius": 10,
+                "style": "fill:#ff3300",
+                "x": 0.8,
+                "y": 0.1
+              },
+              {
+                "className": null,
+                "cx": 318,
+                "cy": 364,
+                "label": "Campaign C",
+                "radius": 25,
+                "style": "fill:#00ff33;stroke:#10f0f0",
+                "x": 0.7,
+                "y": 0.2
+              },
+              {
+                "className": null,
+                "cx": 280,
+                "cy": 326,
+                "label": "Campaign D",
+                "radius": 15,
+                "style": "fill:#ff33f0;stroke:#00ff0f;stroke-width:5px",
+                "x": 0.6,
+                "y": 0.3
+              },
+              {
+                "className": "class2",
+                "cx": 242,
+                "cy": 288,
+                "label": "Campaign E",
+                "radius": 10,
+                "style": "fill:#908342;stroke:#310085;stroke-width:10px",
+                "x": 0.5,
+                "y": 0.4
+              },
+              {
+                "className": "class3",
+                "cx": 204,
+                "cy": 250,
+                "label": "Campaign F",
+                "radius": 10,
+                "style": "fill:#0000ff",
+                "x": 0.4,
+                "y": 0.5
+              }
+            ],
+            "quadrantLabelFill": "#575759",
+            "regions": [
+              {
+                "fill": "#f6f6f6",
+                "height": 190,
+                "quadrant": 2,
+                "width": 190,
+                "x": 52,
+                "y": 60
+              },
+              {
+                "fill": "#ededed",
+                "height": 190,
+                "quadrant": 1,
+                "width": 190,
+                "x": 242,
+                "y": 60
+              },
+              {
+                "fill": "#ededed",
+                "height": 190,
+                "quadrant": 3,
+                "width": 190,
+                "x": 52,
+                "y": 250
+              },
+              {
+                "fill": "#f6f6f6",
+                "height": 190,
+                "quadrant": 4,
+                "width": 190,
+                "x": 242,
+                "y": 250
+              }
+            ],
+            "svgSha256": "6ce3f1e2e295dc932713ae3b6f7c7497ee0f0ab7c72da4a9bd3313d5e2db87d2",
+            "title": [
+              "Reach and engagement of campaigns"
+            ],
+            "viewBox": "0 0 456 492"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "axes": [
+                "Low Reach",
+                "High Reach",
+                "Low Engagement",
+                "High Engagement"
+              ],
+              "classDefs": {
+                "class1": {
+                  "color": "#109060"
+                },
+                "class2": {
+                  "color": "#908342",
+                  "radius": 10,
+                  "strokeColor": "#310085",
+                  "strokeWidth": "10px"
+                },
+                "class3": {
+                  "color": "#f00fff",
+                  "radius": 10
+                }
+              },
+              "frontmatter": null,
+              "points": [
+                {
+                  "label": "Campaign A",
+                  "style": {
+                    "radius": 12
+                  },
+                  "x": 0.9,
+                  "y": 0
+                },
+                {
+                  "className": "class1",
+                  "label": "Campaign B",
+                  "style": {
+                    "color": "#ff3300",
+                    "radius": 10
+                  },
+                  "x": 0.8,
+                  "y": 0.1
+                },
+                {
+                  "label": "Campaign C",
+                  "style": {
+                    "color": "#00ff33",
+                    "radius": 25,
+                    "strokeColor": "#10f0f0"
+                  },
+                  "x": 0.7,
+                  "y": 0.2
+                },
+                {
+                  "label": "Campaign D",
+                  "style": {
+                    "color": "#ff33f0",
+                    "radius": 15,
+                    "strokeColor": "#00ff0f",
+                    "strokeWidth": "5px"
+                  },
+                  "x": 0.6,
+                  "y": 0.3
+                },
+                {
+                  "className": "class2",
+                  "label": "Campaign E",
+                  "x": 0.5,
+                  "y": 0.4
+                },
+                {
+                  "className": "class3",
+                  "label": "Campaign F",
+                  "style": {
+                    "color": "#0000ff"
+                  },
+                  "x": 0.4,
+                  "y": 0.5
+                }
+              ],
+              "quadrants": [
+                "We should expand",
+                "Need to promote",
+                "Re-evaluate",
+                "May be improved"
+              ],
+              "title": "Reach and engagement of campaigns"
+            },
+            "stable": true
+          },
+          "disposition": "native"
         }
       },
       "passed": true,
@@ -17548,11 +18406,11 @@
     }
   ],
   "summary": {
-    "caseCount": 52,
-    "passedCaseCount": 52,
+    "caseCount": 55,
+    "passedCaseCount": 55,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 182,
+    "observedSurfaceCount": 191,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 26
+    "notApplicableSurfaceCount": 29
   }
 }

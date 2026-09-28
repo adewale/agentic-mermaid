@@ -284,6 +284,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/pie-entity-display.fidelity.ts',
       'fidelity/cases/pie-official-fences.fidelity.ts',
       'fidelity/cases/pie-terminal-control.fidelity.ts',
+      'fidelity/cases/quadrant-official-fences.fidelity.ts',
       'fidelity/cases/sankey-official-config-fences.fidelity.ts',
       'fidelity/cases/sankey-official-csv-fences.fidelity.ts',
       'fidelity/cases/sankey-official-energy-fence.fidelity.ts',
@@ -320,6 +321,9 @@ describe('issue #248 construct fidelity receipts', () => {
       'pie.syntax.numeric-entity-display',
       'pie.syntax.title-entity-display',
       'pie.syntax.xml-disallowed-control-diagnosed',
+      'quadrant.official.fence-0',
+      'quadrant.official.fence-1',
+      'quadrant.official.fence-2',
       'sankey.links.dark-background-normal-alpha-divergence',
       'sankey.links.light-background-multiply',
       'sankey.links.typed-gradient-endpoints',
@@ -350,12 +354,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 52,
-      passedCaseCount: 52,
+      caseCount: 55,
+      passedCaseCount: 55,
       failedCaseCount: 0,
-      observedSurfaceCount: 182,
+      observedSurfaceCount: 191,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 26,
+      notApplicableSurfaceCount: 29,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -819,6 +823,48 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'serialize',
         path: ['config', 'showValues'],
         replacement: true,
+      },
+      {
+        caseId: 'quadrant.official.fence-0',
+        surface: 'agent',
+        path: ['points', 0, 'x'],
+        replacement: 0.9,
+      },
+      {
+        caseId: 'quadrant.official.fence-0',
+        surface: 'render',
+        path: ['points', 0, 'cx'],
+        replacement: 394,
+      },
+      {
+        caseId: 'quadrant.official.fence-1',
+        surface: 'agent',
+        path: ['frontmatter', 'quadrantChart', 'chartWidth'],
+        replacement: 500,
+      },
+      {
+        caseId: 'quadrant.official.fence-1',
+        surface: 'render',
+        path: ['quadrantLabelFill'],
+        replacement: '#ff0000',
+      },
+      {
+        caseId: 'quadrant.official.fence-2',
+        surface: 'agent',
+        path: ['classDefs', 'class2', 'radius'],
+        replacement: 5,
+      },
+      {
+        caseId: 'quadrant.official.fence-2',
+        surface: 'render',
+        path: ['points', 2, 'style'],
+        replacement: 'fill:#00ff33',
+      },
+      {
+        caseId: 'quadrant.official.fence-2',
+        surface: 'serialize',
+        path: ['model', 'points', 3, 'style', 'strokeWidth'],
+        replacement: '1px',
       },
       {
         caseId: 'sankey.links.typed-gradient-endpoints',
