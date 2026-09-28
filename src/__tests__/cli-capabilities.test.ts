@@ -7,43 +7,17 @@ import { getFamily, getFamilyConformanceReport, knownFamilies } from '../agent/f
 import { WARNING_SEVERITY } from '../agent/types.ts'
 import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
-import { createSectionACapabilityReport, sectionACapabilityDiscoverySummary } from '../section-a-capability-report.ts'
-import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
 
 describe('am capabilities', () => {
-  it('emits a JSON object with bounded built-in discovery and Section A summary fields', () => {
+  it('emits a bounded JSON object with the built-in discovery fields', () => {
     const cap = buildCapabilities()
     expect(typeof cap.sdkVersion).toBe('string')
     expect(cap.sdkVersion.length).toBeGreaterThan(0)
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
-    expect(cap.sectionA).toEqual(sectionACapabilityDiscoverySummary())
-    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(false)
-    expect(cap.sectionA.counts.syntaxReceiptFeatureCount).toBe(cap.sectionA.fidelity.featureCount)
-    expect(cap.sectionA.counts.syntaxUnreceiptedFeatureCount).toBeGreaterThan(0)
-  })
-
-  it('Section A CLI discovery is the canonical registry projection, not a copied matrix', () => {
-    const sectionA = buildCapabilities().sectionA
-    expect(sectionA.counts.registeredFamilyCount).toBe(knownFamilies().length)
-    expect(sectionA.reportDigest).toBe(createSectionACapabilityReport().digest)
-    expect(sectionA.upstreamPin.inventorySha256).toBe(createSectionACapabilityReport().upstream.inventorySha256)
-  })
-
-  it('keeps exhaustive syntax evidence out of the routine agent-discovery budget', () => {
-    const cap = buildCapabilities()
-    expect(cap.sectionA.counts.syntaxFeatureClassificationCount).toBe(UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures.length)
-    expect('matrices' in cap.sectionA).toBe(false)
-    expect(cap.sectionA.fullReport).toEqual({
-      repositoryModule: 'src/section-a-capability-report.ts',
-      factory: 'createSectionACapabilityReport',
-      markdown: 'docs/project/section-a-capability-report.md',
-      regenerateCommand: 'bun run section-a-report',
-    })
     // The discovery payload grows a few KB per registered family (example,
-    // config keys, ops). The teeth of this gate are the matrix exclusions
-    // above; the byte ceiling only guards against re-inlining bulk evidence.
+    // config keys, ops); the ceiling guards against re-inlining bulk evidence.
     expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(80 * 1024)
   })
 
@@ -173,10 +147,6 @@ describe('am capabilities', () => {
     expect(schema.properties.outputFormats.items).toEqual(cliRenderFormatJsonSchema())
     const outputFormats = new Set(schema.properties.outputFormats.items.enum)
     for (const format of cap.outputFormats) expect(outputFormats.has(format)).toBe(true)
-    for (const k of schema.properties.sectionA.required ?? []) {
-      expect(Object.prototype.hasOwnProperty.call(cap.sectionA, k)).toBe(true)
-    }
-    expect(cap.sectionA.noAbsentSyntaxCapabilities).toBe(false)
   })
 })
 

@@ -375,33 +375,6 @@ export const ALL_FAMILY_CAPABILITY_KEYS_ORDERED: ExactKeySet<
   FamilyCapability
 > = true
 
-/**
- * Small, stable projection for routine agent discovery. The exhaustive report
- * deliberately stays in repository audit tooling and its generated
- * Markdown artifact; returning its evidence corpora from every
- * `am capabilities` call makes ordinary discovery needlessly expensive.
- */
-export interface SectionACapabilityDiscoverySummary {
-  projectionVersion: 1
-  reportSchemaVersion: typeof SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION
-  reportDigest: string
-  upstreamPin: {
-    package: string
-    version: string
-    commit: string
-    inventorySha256: string
-  }
-  counts: SectionACapabilityReport['summary']
-  noAbsentSyntaxCapabilities: boolean
-  fidelity: SectionACapabilityReport['fidelity']
-  fullReport: {
-    repositoryModule: 'src/section-a-capability-report.ts'
-    factory: 'createSectionACapabilityReport'
-    markdown: 'docs/project/section-a-capability-report.md'
-    regenerateCommand: 'bun run section-a-report'
-  }
-}
-
 interface CharacterizationIndex {
   schemaVersion: number
   scopeProjection: string
@@ -910,32 +883,6 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
   const report = deepFreeze({ ...payload, digest: renderContractDigest(payload) }) as SectionACapabilityReport
   capabilityReportCache = { families: descriptors, backends: backendDescriptors, report }
   return report
-}
-
-/** Project the full audit report into the bounded `am capabilities` envelope. */
-export function sectionACapabilityDiscoverySummary(
-  report: SectionACapabilityReport = createSectionACapabilityReport(),
-): SectionACapabilityDiscoverySummary {
-  return deepFreeze({
-    projectionVersion: 1,
-    reportSchemaVersion: report.schemaVersion,
-    reportDigest: report.digest,
-    upstreamPin: {
-      package: report.upstream.package,
-      version: report.upstream.version,
-      commit: report.upstream.commit,
-      inventorySha256: report.upstream.inventorySha256,
-    },
-    counts: { ...report.summary },
-    noAbsentSyntaxCapabilities: report.summary.syntaxAbsentCount === 0,
-    fidelity: { ...report.fidelity },
-    fullReport: {
-      repositoryModule: 'src/section-a-capability-report.ts',
-      factory: 'createSectionACapabilityReport',
-      markdown: 'docs/project/section-a-capability-report.md',
-      regenerateCommand: 'bun run section-a-report',
-    },
-  }) as SectionACapabilityDiscoverySummary
 }
 
 function unique(values: readonly string[]): boolean {

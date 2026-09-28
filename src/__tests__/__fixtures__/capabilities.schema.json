@@ -3,7 +3,7 @@
   "title": "AmCapabilitiesEnvelope",
   "description": "Shape emitted by `am capabilities`. Loop 7 / A3.1.",
   "type": "object",
-  "required": ["sdkVersion", "families", "warningCodes", "outputFormats", "sectionA"],
+  "required": ["sdkVersion", "families", "warningCodes", "outputFormats"],
   "properties": {
     "sdkVersion": {
       "type": "string",
@@ -52,11 +52,6 @@
     "outputFormats": {
       "type": "array",
       "items": { "type": "string", "enum": ["svg", "ascii", "unicode", "png", "layout"] }
-    },
-    "sectionA": {
-      "type": "object",
-      "description": "Bounded discovery summary of the audit-only Section A report.",
-      "required": ["projectionVersion", "reportSchemaVersion", "reportDigest", "upstreamPin", "counts", "noAbsentSyntaxCapabilities", "fidelity", "fullReport"]
     }
   }
 }

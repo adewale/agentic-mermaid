@@ -25,7 +25,6 @@ import { CLI_RENDER_FORMATS, cliRenderFormatHelpLines, DEFAULT_CLI_RENDER_FORMAT
 import { projectRenderErrorDiagnostic, type RenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { StyleInput, StyleSpec } from '../scene/style-registry.ts'
 import { inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../scene/style-registry.ts'
-import { createSectionACapabilityReport, type SectionACapabilityDiscoverySummary, sectionACapabilityDiscoverySummary } from '../section-a-capability-report.ts'
 import { collectBatched } from '../shared/batched.ts'
 import type { RenderOptions } from '../types.ts'
 import { PACKAGE_VERSION } from '../version.ts'
@@ -371,9 +370,7 @@ it as {ok,text}. --format json emits the structured AX tree
 Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
     warningCodes: [{ code, tier, severity }],
-    outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)},
-    sectionA: { reportSchemaVersion, reportDigest, upstreamPin, counts,
-      noAbsentSyntaxCapabilities, fidelity, fullReport } }
+    outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)} }
 editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
 introspect what the CLI can do without running every command.`,
   batch: `am batch  (reads JSONL from stdin)
@@ -1234,8 +1231,6 @@ interface CapabilitiesEnvelope {
   families: FamilyCapability[]
   warningCodes: WarningCodeCapability[]
   outputFormats: CliRenderFormat[]
-  /** Bounded projection of the audit-only Section A capability report. */
-  sectionA: SectionACapabilityDiscoverySummary
 }
 
 // Source of truth now lives in the agent layer (src/agent/mutation-ops.ts) so
@@ -1310,7 +1305,6 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     families,
     warningCodes,
     outputFormats: [...CLI_RENDER_FORMATS],
-    sectionA: sectionACapabilityDiscoverySummary(createSectionACapabilityReport()),
   }
 }
 

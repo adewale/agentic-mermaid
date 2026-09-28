@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { build as buildWithEsbuild } from 'esbuild'
+import tsupConfig from '../../tsup.config.ts'
 import {
   ALL_FAMILY_CAPABILITY_KEYS_ORDERED,
   ALL_RENDER_TRANSPORT_KEYS_ORDERED,
@@ -43,10 +44,12 @@ describe('Section A capability report', () => {
     expect(pkg.exports['./resources']).toBeUndefined()
     expect(existsSync(join(ROOT, 'src', 'capabilities.ts'))).toBe(false)
     expect(existsSync(join(ROOT, 'src', 'resources.ts'))).toBe(false)
-    // Transitive, not just direct: bundle each importable library entry
-    // (tsup's declaration entries) and inspect what it actually pulls in.
+    // Transitive, not just direct: bundle every published entry — the library
+    // exports and the `am`/MCP bins — and inspect what it actually pulls in.
+    const entries = Object.values((tsupConfig as { entry: Record<string, string> }).entry)
+    expect(entries).toContain('src/cli/am-bin.ts')
     const auditModules = /(?:^|\/)src\/(?:section-a-capability-report|upstream-mermaid-manifest)\.ts$/
-    const pulled = await Promise.all(['src/index.ts', 'src/agent/index.ts', 'src/agent/core.ts'].map(async entry => {
+    const pulled = await Promise.all(entries.map(async entry => {
       const bundled = await buildWithEsbuild({
         entryPoints: [join(ROOT, entry)],
         absWorkingDir: ROOT,
@@ -60,11 +63,7 @@ describe('Section A capability report', () => {
       })
       return { entry, auditModules: Object.keys(bundled.metafile.inputs).filter(input => auditModules.test(input)) }
     }))
-    expect(pulled).toEqual([
-      { entry: 'src/index.ts', auditModules: [] },
-      { entry: 'src/agent/index.ts', auditModules: [] },
-      { entry: 'src/agent/core.ts', auditModules: [] },
-    ])
+    expect(pulled).toEqual(entries.map(entry => ({ entry, auditModules: [] })))
   }, 30_000)
 
   test('is a valid, immutable, JSON-safe projection of live authorities', () => {
