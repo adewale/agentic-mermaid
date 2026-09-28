@@ -425,6 +425,59 @@ describe('demo page', () => {
     expect(initializer).not.toMatch(/\.innerHTML\s*=/)
   })
 
+  test('the initializer renders page source strictly and inserts only one parsed SVG document', async () => {
+    const withDemo = async (options: { source?: string; renderer?: string }) => {
+      const page = await demoBrowser.newPage()
+      const requests: string[] = []
+      page.on('request', request => requests.push(request.url()))
+      if (options.source !== undefined) {
+        await page.route(`${base}/demo/`, async route => {
+          const response = await route.fetch()
+          const escaped = options.source!.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          const body = (await response.text()).replace(/(<code id="demo-source">)[\s\S]*?(<\/code>)/, `$1${escaped}$2`)
+          await route.fulfill({ response, body })
+        })
+      }
+      if (options.renderer !== undefined) {
+        await page.route(/\/demo\/browser-lazy\/index-[a-f0-9]{12}\.js$/, route => route.fulfill({
+          contentType: 'text/javascript',
+          body: `export async function renderMermaidSVGAsync() { return ${JSON.stringify(options.renderer)} }`,
+        }))
+      }
+      try {
+        await page.goto(`${base}/demo/`, { waitUntil: 'networkidle' })
+        await page.waitForFunction(() => /^render(?:ed in-browser| failed)/.test(document.getElementById('demo-status')?.textContent ?? ''))
+        return await page.evaluate(requested => {
+          const target = document.getElementById('demo-diagram')!
+          return {
+            status: document.getElementById('demo-status')!.textContent ?? '',
+            children: Array.from(target.children).map(child => child.localName),
+            // Non-strict output carries author links as <a href> or host-activated data-href nodes.
+            links: Array.from(target.querySelectorAll('a, [data-href], [role="link"]')).map(link => link.getAttribute('href') ?? link.getAttribute('data-href') ?? link.localName),
+            injected: (window as any).__demoInjected ?? null,
+            smuggledImages: document.querySelectorAll('#demo-diagram img').length,
+            attackerRequests: requested.filter(url => url.includes('attacker.invalid')).length,
+          }
+        }, requests)
+      } finally {
+        await page.close()
+      }
+    }
+
+    // Strict mode drops author-supplied navigation targets from page source.
+    const linked = await withDemo({ source: 'flowchart LR\n  A --> B\n  click A href "https://attacker.invalid/phish"' })
+    expect(linked).toMatchObject({ status: 'rendered in-browser', children: ['svg'], links: [], attackerRequests: 0 })
+
+    // Renderer output is parsed as one SVG document, never as HTML: trailing
+    // markup is refused instead of being inserted (and its handler never runs).
+    const smuggling = await withDemo({ renderer: '<svg xmlns="http://www.w3.org/2000/svg"><g/></svg><img src="data:," onerror="window.__demoInjected = 1">' })
+    expect(smuggling).toMatchObject({ injected: null, smuggledImages: 0 })
+    expect(smuggling.status).toStartWith('render failed:')
+    expect(smuggling.children).not.toContain('svg')
+    const clean = await withDemo({ renderer: '<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>' })
+    expect(clean).toMatchObject({ status: 'rendered in-browser', children: ['svg'], injected: null })
+  })
+
   test('re-renders when the style changes', async () => {
     const before = await demoPage.locator('#demo-diagram').innerHTML()
     await demoPage.selectOption('#demo-style', 'hand-drawn')
