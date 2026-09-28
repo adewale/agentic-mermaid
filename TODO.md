@@ -293,7 +293,6 @@ generator steering, with the fix.
 - [ ] **BUG-3 — `;` breaks Flowchart round-trip** (`todo`). The serializer drops the quotes from a `;`-bearing label in an asymmetric node (`A>";a"]`) or a subgraph title, and our own parser then rejects the output. Pinned as KD4 in `property-upstream-flowchart.test.ts`.
 - [ ] **BUG-4 — Sequence participant named only by a note** (`todo`). The typed body omits it, although upstream declares it and our renderer draws it. Pinned as KS1 in `src/__tests__/property-upstream-sequence.test.ts`.
 - [ ] **BUG-5 — ER entity lost after its only relation is removed** (`todo`). An entity that only a relation declared disappears from the serialized source once that relation goes (`remove_relation`, or `remove_entity` on the other endpoint), although the typed body and its facts still list it. Pinned in `src/__tests__/property-er-model.test.ts`.
-- [ ] **BUG-6 — Gapped Pie or Radar palette fails the render** (`todo`). A `pieN` or `cScaleN` theme variable set without its predecessors builds a sparse palette array that the render contract refuses to snapshot, so the diagram does not render. Pinned in `src/__tests__/property-invariance-colour.test.ts`.
 
 ## Non-goals
 

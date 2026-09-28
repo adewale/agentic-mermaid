@@ -7,8 +7,9 @@ import {
 import { CHART_ACCENT_FALLBACK, isValidHex } from '../xychart/colors.ts'
 
 export interface PiePaletteInputs extends CategoricalPaletteInputs {
-  /** pie1..pie12 explicit fills in source order (index i = slice i, cycling at 12). */
-  overrides?: Array<string | undefined>
+  /** pie1..pie12 explicit fills in source order (index i = slice i, cycling at 12);
+   *  a null or missing entry keeps the derived color. */
+  overrides?: ReadonlyArray<string | null | undefined>
 }
 
 /** Fill colors for `count` slices, in source order. Deterministic. Explicit

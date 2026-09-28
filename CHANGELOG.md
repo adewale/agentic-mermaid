@@ -5,6 +5,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Pie and Radar diagrams with a gapped palette theme variable (only `pie2`, or
+  only `cScale1`) now render instead of failing with an internal snapshot
+  error; the set slot uses the authored colour and the others keep their
+  defaults, as upstream Mermaid does.
 - Bounded horizontal XYChart terminal allocation by output width and kept
   target-subgraph frames disjoint from outside nodes and sibling containers.
 - Preserved valid Unicode subgraph identifiers and rejected malformed explicit
