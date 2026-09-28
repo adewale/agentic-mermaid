@@ -143,15 +143,6 @@ function printFlowchart(chart: Flowchart): string {
 // ---------------------------------------------------------------------------
 
 const KNOWN_DIVERGENCES = {
-  // KD1: upstream's addVertex lets a later declaration replace a node's shape
-  // and label; ours keeps whatever registered the id first (src/parser.ts
-  // registerNode), even a bare reference. Minimal repros:
-  //   flowchart TB\n  A --> B\n  A[alpha]   upstream A = square "alpha"; ours rectangle "A"
-  //   flowchart TB\n  A[x] --> A[y]         upstream A = "y"; ours "x"
-  lateDeclaration: [
-    { source: 'flowchart TB\n  A --> B\n  A[alpha]', upstream: 'A rectangle : alpha', ours: 'A rectangle : A' },
-    { source: 'flowchart TB\n  A[x] --> A[y]', upstream: 'A rectangle : y', ours: 'A rectangle : x' },
-  ],
   // KD2: plain (non-markdown) node and edge labels get markdown-lite
   // formatting (src/multiline-utils.ts normalizeBrTags: `*x*` → italic,
   // `**x**` → bold, `~~x~~` → strike); upstream keeps the characters and only
@@ -179,26 +170,7 @@ const KNOWN_ROUND_TRIP_BUGS = [
   { source: 'flowchart TB\n  subgraph S0 ["};a"]\n    A\n  end', serializedLine: '  subgraph S0[};a]' },
 ] as const
 
-/** KD1 steering: a node may carry a shape/label only at its first mention. */
-function declareOnlyAtFirstMention(chart: Flowchart): Flowchart {
-  const seen = new Set<string>()
-  const visit = (node: NodeRef): NodeRef => {
-    const first = !seen.has(node.id)
-    seen.add(node.id)
-    return first ? node : { id: node.id }
-  }
-  const statements = (list: Statement[]): Statement[] =>
-    list.map(statement =>
-      statement.kind === 'subgraph'
-        ? { ...statement, body: statements(statement.body) }
-        : statement.kind === 'node'
-          ? { ...statement, node: visit(statement.node) }
-          : { ...statement, head: visit(statement.head), tail: statement.tail.map(({ link, node }) => ({ link, node: visit(node) })) },
-    )
-  return { ...chart, body: statements(chart.body) }
-}
-
-const sourceArb = flowchartArb.map(declareOnlyAtFirstMention).map(printFlowchart)
+const sourceArb = flowchartArb.map(printFlowchart)
 
 // ---------------------------------------------------------------------------
 // One comparable projection for both parsers
