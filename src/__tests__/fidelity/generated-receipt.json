@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "9dc63cea15880915304cd4d0c464d187a174fceb1c746b92edb599903099f132",
+    "inputSha256": "d3d1d55f273e12bb8ef1b7365fb0f7c624132a73383ef459424302ec701ce17a",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -121,6 +121,10 @@
       {
         "path": "src/__tests__/fidelity/cases/pie-entity-display.fidelity.ts",
         "sha256": "7659f1a6d63de660224a84bad6ee64f3da569b7cc2f40fc33b154ca7bd7e92a8"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/pie-official-fences.fidelity.ts",
+        "sha256": "ce8809d15aaed1af31a0ba4dac5ba8cf341eeeb0eaf29207d50b744357f51211"
       },
       {
         "path": "src/__tests__/fidelity/cases/pie-terminal-control.fidelity.ts",
@@ -1683,6 +1687,670 @@
           "semantics": {
             "mutatedScore": 4.25,
             "reparsedMutatedScore": 4.25
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "pie.official.fence-0",
+      "family": "pie",
+      "featureId": "official-doc:pie:section:pie-chart-diagrams",
+      "sourceSha256": "6e9b2060d6d59e1b4eec6077d963d1a698666b9a6ca4a1e43e7eaf4877a5497f",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/pie.html#pie-chart-diagrams",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These cases classify official syntax, not a mutation operation; set_slice_value has separate Pie receipts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "frontmatter": null,
+            "showData": false,
+            "slices": [
+              {
+                "label": "Dogs",
+                "value": 386
+              },
+              {
+                "label": "Cats",
+                "value": 85
+              },
+              {
+                "label": "Rats",
+                "value": 15
+              }
+            ],
+            "title": "Pets adopted by volunteers"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "dimSliceOpacity": "0.4",
+            "dimSwatchOpacity": "0.4",
+            "highlightRule": {
+              "opacity": "1",
+              "stroke": "#27272A",
+              "width": "2.5"
+            },
+            "legends": [
+              {
+                "fontSize": "13",
+                "text": "Dogs (79.4%)",
+                "weight": "500",
+                "x": 268,
+                "y": 135
+              },
+              {
+                "fontSize": "13",
+                "text": "Cats (17.5%)",
+                "weight": "500",
+                "x": 268,
+                "y": 157
+              },
+              {
+                "fontSize": "13",
+                "text": "Rats (3.1%)",
+                "weight": "500",
+                "x": 268,
+                "y": 179
+              }
+            ],
+            "outer": null,
+            "outerStrokeColor": null,
+            "outerStrokeWidth": null,
+            "paths": [
+              {
+                "centerMove": [
+                  119,
+                  157
+                ],
+                "dimmed": false,
+                "end": [
+                  27.65,
+                  130.93
+                ],
+                "fill": "#3b82f6",
+                "highlightClass": false,
+                "highlighted": false,
+                "id": "slice:Dogs",
+                "innerEnd": null,
+                "innerLargeArc": null,
+                "innerRadii": null,
+                "innerStart": null,
+                "label": "Dogs",
+                "largeArc": 1,
+                "outerRadii": [
+                  95,
+                  95
+                ],
+                "percent": "79.4%",
+                "role": "pie-slice",
+                "start": [
+                  119,
+                  62
+                ],
+                "validShape": true,
+                "value": "386"
+              },
+              {
+                "centerMove": [
+                  119,
+                  157
+                ],
+                "dimmed": false,
+                "end": [
+                  100.69,
+                  63.78
+                ],
+                "fill": "#0d5ba5",
+                "highlightClass": false,
+                "highlighted": false,
+                "id": "slice:Cats",
+                "innerEnd": null,
+                "innerLargeArc": null,
+                "innerRadii": null,
+                "innerStart": null,
+                "label": "Cats",
+                "largeArc": 0,
+                "outerRadii": [
+                  95,
+                  95
+                ],
+                "percent": "17.5%",
+                "role": "pie-slice",
+                "start": [
+                  27.65,
+                  130.93
+                ],
+                "validShape": true,
+                "value": "85"
+              },
+              {
+                "centerMove": [
+                  119,
+                  157
+                ],
+                "dimmed": false,
+                "end": [
+                  119,
+                  62
+                ],
+                "fill": "#5f79f2",
+                "highlightClass": false,
+                "highlighted": false,
+                "id": "slice:Rats",
+                "innerEnd": null,
+                "innerLargeArc": null,
+                "innerRadii": null,
+                "innerStart": null,
+                "label": "Rats",
+                "largeArc": 0,
+                "outerRadii": [
+                  95,
+                  95
+                ],
+                "percent": "3.1%",
+                "role": "pie-slice",
+                "start": [
+                  100.69,
+                  63.78
+                ],
+                "validShape": true,
+                "value": "15"
+              }
+            ],
+            "sliceLabels": [
+              {
+                "fill": "#FFFFFF",
+                "fontSize": "12",
+                "text": "79%",
+                "x": 161.92,
+                "y": 213.88
+              },
+              {
+                "fill": "#FFFFFF",
+                "fontSize": "12",
+                "text": "17%",
+                "x": 70.78,
+                "y": 104.55
+              }
+            ],
+            "slicePaint": "1.5",
+            "swatches": [
+              {
+                "dimmed": false,
+                "fill": "#3b82f6",
+                "height": 14,
+                "width": 14,
+                "x": 246,
+                "y": 128
+              },
+              {
+                "dimmed": false,
+                "fill": "#0d5ba5",
+                "height": 14,
+                "width": 14,
+                "x": 246,
+                "y": 150
+              },
+              {
+                "dimmed": false,
+                "fill": "#5f79f2",
+                "height": 14,
+                "width": 14,
+                "x": 246,
+                "y": 172
+              }
+            ],
+            "title": [
+              {
+                "fontSize": "18",
+                "text": "Pets adopted by volunteers",
+                "x": 184.4,
+                "y": 33
+              }
+            ],
+            "viewBox": "0 0 368.79 276"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": null,
+              "showData": false,
+              "slices": [
+                {
+                  "label": "Dogs",
+                  "value": 386
+                },
+                {
+                  "label": "Cats",
+                  "value": 85
+                },
+                {
+                  "label": "Rats",
+                  "value": 15
+                }
+              ],
+              "title": "Pets adopted by volunteers"
+            },
+            "roundtrip": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "pie.official.fence-1",
+      "family": "pie",
+      "featureId": "official-doc:pie:section:example",
+      "sourceSha256": "d4a8a447631f9969ddd135f7465a335d4259f53e1635f6c68a9f933cad17c3f8",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/pie.html#example",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "These cases classify official syntax, not a mutation operation; set_slice_value has separate Pie receipts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "frontmatter": {
+              "pie": {
+                "donutHole": 0.2,
+                "highlightSlice": "Potassium",
+                "textPosition": 0.5
+              },
+              "themeVariables": {
+                "pieOuterStrokeWidth": "5px"
+              }
+            },
+            "showData": true,
+            "slices": [
+              {
+                "label": "Calcium",
+                "value": 42.96
+              },
+              {
+                "label": "Potassium",
+                "value": 50.05
+              },
+              {
+                "label": "Magnesium",
+                "value": 10.01
+              },
+              {
+                "label": "Iron",
+                "value": 5
+              }
+            ],
+            "title": "Key elements in Product X"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "dimSliceOpacity": "0.4",
+            "dimSwatchOpacity": "0.4",
+            "highlightRule": {
+              "opacity": "1",
+              "stroke": "#27272A",
+              "width": "2.5"
+            },
+            "legends": [
+              {
+                "fontSize": "13",
+                "text": "Calcium [42.96] (39.8%)",
+                "weight": "500",
+                "x": 268,
+                "y": 124
+              },
+              {
+                "fontSize": "13",
+                "text": "Potassium [50.05] (46.3%)",
+                "weight": "700",
+                "x": 268,
+                "y": 146
+              },
+              {
+                "fontSize": "13",
+                "text": "Magnesium [10.01] (9.3%)",
+                "weight": "500",
+                "x": 268,
+                "y": 168
+              },
+              {
+                "fontSize": "13",
+                "text": "Iron [5] (4.6%)",
+                "weight": "500",
+                "x": 268,
+                "y": 190
+              }
+            ],
+            "outer": {
+              "cx": 119,
+              "cy": 157,
+              "fill": "none",
+              "r": 97.5
+            },
+            "outerStrokeColor": "#d4d4d4",
+            "outerStrokeWidth": "5",
+            "paths": [
+              {
+                "centerMove": null,
+                "dimmed": true,
+                "end": [
+                  175.94,
+                  233.04
+                ],
+                "fill": "#3b82f6",
+                "highlightClass": false,
+                "highlighted": false,
+                "id": "slice:Calcium",
+                "innerEnd": [
+                  119,
+                  138
+                ],
+                "innerLargeArc": 0,
+                "innerRadii": [
+                  19,
+                  19
+                ],
+                "innerStart": [
+                  130.39,
+                  172.21
+                ],
+                "label": "Calcium",
+                "largeArc": 0,
+                "outerRadii": [
+                  95,
+                  95
+                ],
+                "percent": "39.8%",
+                "role": "pie-slice",
+                "start": [
+                  119,
+                  62
+                ],
+                "validShape": true,
+                "value": "42.96"
+              },
+              {
+                "centerMove": null,
+                "dimmed": false,
+                "end": [
+                  46.2,
+                  95.97
+                ],
+                "fill": "#0d5ba5",
+                "highlightClass": true,
+                "highlighted": true,
+                "id": "slice:Potassium",
+                "innerEnd": [
+                  130.39,
+                  172.21
+                ],
+                "innerLargeArc": 0,
+                "innerRadii": [
+                  19,
+                  19
+                ],
+                "innerStart": [
+                  104.44,
+                  144.79
+                ],
+                "label": "Potassium",
+                "largeArc": 0,
+                "outerRadii": [
+                  95,
+                  95
+                ],
+                "percent": "46.3%",
+                "role": "pie-slice",
+                "start": [
+                  175.94,
+                  233.04
+                ],
+                "validShape": true,
+                "value": "50.05"
+              },
+              {
+                "centerMove": null,
+                "dimmed": true,
+                "end": [
+                  91.76,
+                  65.99
+                ],
+                "fill": "#5f79f2",
+                "highlightClass": false,
+                "highlighted": false,
+                "id": "slice:Magnesium",
+                "innerEnd": [
+                  104.44,
+                  144.79
+                ],
+                "innerLargeArc": 0,
+                "innerRadii": [
+                  19,
+                  19
+                ],
+                "innerStart": [
+                  113.55,
+                  138.8
+                ],
+                "label": "Magnesium",
+                "largeArc": 0,
+                "outerRadii": [
+                  95,
+                  95
+                ],
+                "percent": "9.3%",
+                "role": "pie-slice",
+                "start": [
+                  46.2,
+                  95.97
+                ],
+                "validShape": true,
+                "value": "10.01"
+              },
+              {
+                "centerMove": null,
+                "dimmed": true,
+                "end": [
+                  119,
+                  62
+                ],
+                "fill": "#0a5076",
+                "highlightClass": false,
+                "highlighted": false,
+                "id": "slice:Iron",
+                "innerEnd": [
+                  113.55,
+                  138.8
+                ],
+                "innerLargeArc": 0,
+                "innerRadii": [
+                  19,
+                  19
+                ],
+                "innerStart": [
+                  119,
+                  138
+                ],
+                "label": "Iron",
+                "largeArc": 0,
+                "outerRadii": [
+                  95,
+                  95
+                ],
+                "percent": "4.6%",
+                "role": "pie-slice",
+                "start": [
+                  91.76,
+                  65.99
+                ],
+                "validShape": true,
+                "value": "5"
+              }
+            ],
+            "sliceLabels": [
+              {
+                "fill": "#27272A",
+                "fontSize": "12",
+                "text": "40%",
+                "x": 164.07,
+                "y": 142
+              },
+              {
+                "fill": "#FFFFFF",
+                "fontSize": "12",
+                "text": "46%",
+                "x": 84.5,
+                "y": 189.65
+              },
+              {
+                "fill": "#27272A",
+                "fontSize": "12",
+                "text": "9%",
+                "x": 92.89,
+                "y": 117.32
+              }
+            ],
+            "slicePaint": "1.5",
+            "swatches": [
+              {
+                "dimmed": true,
+                "fill": "#3b82f6",
+                "height": 14,
+                "width": 14,
+                "x": 246,
+                "y": 117
+              },
+              {
+                "dimmed": false,
+                "fill": "#0d5ba5",
+                "height": 14,
+                "width": 14,
+                "x": 246,
+                "y": 139
+              },
+              {
+                "dimmed": true,
+                "fill": "#5f79f2",
+                "height": 14,
+                "width": 14,
+                "x": 246,
+                "y": 161
+              },
+              {
+                "dimmed": true,
+                "fill": "#0a5076",
+                "height": 14,
+                "width": 14,
+                "x": 246,
+                "y": 183
+              }
+            ],
+            "title": [
+              {
+                "fontSize": "18",
+                "text": "Key elements in Product X",
+                "x": 232.01,
+                "y": 33
+              }
+            ],
+            "viewBox": "0 0 464.03 276"
+          },
+          "disposition": "native"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "frontmatter": {
+                "pie": {
+                  "donutHole": 0.2,
+                  "highlightSlice": "Potassium",
+                  "textPosition": 0.5
+                },
+                "themeVariables": {
+                  "pieOuterStrokeWidth": "5px"
+                }
+              },
+              "showData": true,
+              "slices": [
+                {
+                  "label": "Calcium",
+                  "value": 42.96
+                },
+                {
+                  "label": "Potassium",
+                  "value": 50.05
+                },
+                {
+                  "label": "Magnesium",
+                  "value": 10.01
+                },
+                {
+                  "label": "Iron",
+                  "value": 5
+                }
+              ],
+              "title": "Key elements in Product X"
+            },
+            "roundtrip": true
           },
           "disposition": "native"
         }
@@ -6884,11 +7552,11 @@
     }
   ],
   "summary": {
-    "caseCount": 41,
-    "passedCaseCount": 41,
+    "caseCount": 43,
+    "passedCaseCount": 43,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 149,
+    "observedSurfaceCount": 155,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 15
+    "notApplicableSurfaceCount": 17
   }
 }
