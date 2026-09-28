@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "a5fdf2014b1c8fa8b833882fd1434fa5259f1de84c24172cdcc7281c07aaa0b6",
+    "inputSha256": "058534050fd438a3bfe86eeae7ee8f7c8ee418c0fa431dc93c8e052b12a2f88b",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -137,6 +137,10 @@
       {
         "path": "src/__tests__/fidelity/cases/quadrant-official-fences.fidelity.ts",
         "sha256": "837b748abd81046770a9b931145a76f99843997227e2b86435e3d33e0d8960b3"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/radar-official-fences.fidelity.ts",
+        "sha256": "939127c825f172aa34ab9ac094afe5f254634183b8a5f4a4c86d7da0604b849a"
       },
       {
         "path": "src/__tests__/fidelity/cases/sankey-official-config-fences.fidelity.ts",
@@ -4838,6 +4842,1256 @@
                 "May be improved"
               ],
               "title": "Reach and engagement of campaigns"
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "radar.official.fence-0",
+      "family": "radar",
+      "featureId": "official-doc:radar:section:examples",
+      "sourceSha256": "fe71d728210d81d81886969cbc66bb5e69a301bee7015239f81e18ee86cb7856",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/radar.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official source examples; typed Radar mutations have separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              {
+                "id": "m",
+                "label": "Math"
+              },
+              {
+                "id": "s",
+                "label": "Science"
+              },
+              {
+                "id": "e",
+                "label": "English"
+              },
+              {
+                "id": "h",
+                "label": "History"
+              },
+              {
+                "id": "g",
+                "label": "Geography"
+              },
+              {
+                "id": "a",
+                "label": "Art"
+              }
+            ],
+            "curves": [
+              {
+                "id": "a",
+                "label": "Alice",
+                "values": [
+                  85,
+                  90,
+                  80,
+                  70,
+                  75,
+                  90
+                ]
+              },
+              {
+                "id": "b",
+                "label": "Bob",
+                "values": [
+                  70,
+                  75,
+                  85,
+                  80,
+                  90,
+                  85
+                ]
+              }
+            ],
+            "frontmatter": {
+              "title": "Grades"
+            },
+            "graticule": "circle",
+            "max": 100,
+            "min": 0,
+            "showLegend": true,
+            "ticks": 5,
+            "title": null
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "areas": [
+              {
+                "fill": "#3b82f6",
+                "id": "curve:a",
+                "label": "Alice",
+                "opacity": "0.5",
+                "role": "pie-slice",
+                "shape": "path",
+                "shapeData": "M 207.62 100.25 C 239.42 100.25 287.02 122.75 301.15 148.25 C 315.28 173.75 306.66 226.79 290.76 250.25 C 274.86 273.71 235 286.76 207.62 286.25 C 180.24 285.74 145.58 270.71 129.68 247.25 C 113.78 223.79 100.84 173.24 114.09 148.25 C 127.34 123.26 175.82 100.25 207.62 100.25 Z",
+                "stroke": "#3b82f6"
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "curve:b",
+                "label": "Bob",
+                "opacity": "0.5",
+                "role": "pie-slice",
+                "shape": "path",
+                "shapeData": "M 207.62 118.25 C 235.89 119.27 270.54 134.3 285.56 157.25 C 300.58 180.2 309.2 229.28 295.95 253.25 C 282.7 277.22 238.54 297.74 207.62 298.25 C 176.7 298.76 129.11 281.24 114.09 256.25 C 99.07 231.26 103.39 174.71 119.29 151.25 C 135.19 127.79 179.35 117.23 207.62 118.25 Z",
+                "stroke": "#0d5ba5"
+              }
+            ],
+            "axes": [
+              {
+                "x1": 207.62,
+                "x2": 207.62,
+                "y1": 202.25,
+                "y2": 82.25
+              },
+              {
+                "x1": 207.62,
+                "x2": 311.54,
+                "y1": 202.25,
+                "y2": 142.25
+              },
+              {
+                "x1": 207.62,
+                "x2": 311.54,
+                "y1": 202.25,
+                "y2": 262.25
+              },
+              {
+                "x1": 207.62,
+                "x2": 207.62,
+                "y1": 202.25,
+                "y2": 322.25
+              },
+              {
+                "x1": 207.62,
+                "x2": 103.7,
+                "y1": 202.25,
+                "y2": 262.25
+              },
+              {
+                "x1": 207.62,
+                "x2": 103.7,
+                "y1": 202.25,
+                "y2": 142.25
+              }
+            ],
+            "axisLabels": [
+              "Math",
+              "Science",
+              "English",
+              "History",
+              "Geography",
+              "Art"
+            ],
+            "circleRings": [
+              24,
+              48,
+              72,
+              96,
+              120
+            ],
+            "curveOpacityRule": "0.5",
+            "curveTensionChangedPerCurve": null,
+            "dots": [
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:0",
+                "radius": 3,
+                "role": "point",
+                "x": 207.62,
+                "y": 100.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:1",
+                "radius": 3,
+                "role": "point",
+                "x": 301.15,
+                "y": 148.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:2",
+                "radius": 3,
+                "role": "point",
+                "x": 290.76,
+                "y": 250.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:3",
+                "radius": 3,
+                "role": "point",
+                "x": 207.62,
+                "y": 286.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:4",
+                "radius": 3,
+                "role": "point",
+                "x": 129.68,
+                "y": 247.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:5",
+                "radius": 3,
+                "role": "point",
+                "x": 114.09,
+                "y": 148.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:0",
+                "radius": 3,
+                "role": "point",
+                "x": 207.62,
+                "y": 118.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:1",
+                "radius": 3,
+                "role": "point",
+                "x": 285.56,
+                "y": 157.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:2",
+                "radius": 3,
+                "role": "point",
+                "x": 295.95,
+                "y": 253.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:3",
+                "radius": 3,
+                "role": "point",
+                "x": 207.62,
+                "y": 298.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:4",
+                "radius": 3,
+                "role": "point",
+                "x": 114.09,
+                "y": 256.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:5",
+                "radius": 3,
+                "role": "point",
+                "x": 119.29,
+                "y": 151.25
+              }
+            ],
+            "legends": [
+              "Alice",
+              "Bob"
+            ],
+            "polygonRingCount": 0,
+            "svgSha256": "6ad3a994cd07a87730d72635bf62ed3acd0461c90bb8f7c822ecbd2e61d90839",
+            "swatches": [
+              {
+                "fill": "#3b82f6",
+                "opacity": "0.5"
+              },
+              {
+                "fill": "#0d5ba5",
+                "opacity": "0.5"
+              }
+            ],
+            "tensionReferenceAreaCount": null,
+            "tensionReferenceSvgSha256": null,
+            "title": [
+              "Grades"
+            ],
+            "viewBox": "0 0 481.73 370.5"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "axes": [
+                {
+                  "id": "m",
+                  "label": "Math"
+                },
+                {
+                  "id": "s",
+                  "label": "Science"
+                },
+                {
+                  "id": "e",
+                  "label": "English"
+                },
+                {
+                  "id": "h",
+                  "label": "History"
+                },
+                {
+                  "id": "g",
+                  "label": "Geography"
+                },
+                {
+                  "id": "a",
+                  "label": "Art"
+                }
+              ],
+              "curves": [
+                {
+                  "id": "a",
+                  "label": "Alice",
+                  "values": [
+                    85,
+                    90,
+                    80,
+                    70,
+                    75,
+                    90
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Bob",
+                  "values": [
+                    70,
+                    75,
+                    85,
+                    80,
+                    90,
+                    85
+                  ]
+                }
+              ],
+              "frontmatter": {
+                "title": "Grades"
+              },
+              "graticule": "circle",
+              "max": 100,
+              "min": 0,
+              "showLegend": true,
+              "ticks": 5,
+              "title": null
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "radar.official.fence-1",
+      "family": "radar",
+      "featureId": "official-doc:radar:section:examples",
+      "sourceSha256": "fa29e04f75d150b0e4b89323144fefe2545f8fecf2c0c3a704043549cea593a3",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/radar.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official source examples; typed Radar mutations have separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              {
+                "id": "food",
+                "label": "Food Quality"
+              },
+              {
+                "id": "service",
+                "label": "Service"
+              },
+              {
+                "id": "price",
+                "label": "Price"
+              },
+              {
+                "id": "ambiance",
+                "label": "Ambiance"
+              }
+            ],
+            "curves": [
+              {
+                "id": "a",
+                "label": "Restaurant A",
+                "values": [
+                  4,
+                  3,
+                  2,
+                  4
+                ]
+              },
+              {
+                "id": "b",
+                "label": "Restaurant B",
+                "values": [
+                  3,
+                  4,
+                  3,
+                  3
+                ]
+              },
+              {
+                "id": "c",
+                "label": "Restaurant C",
+                "values": [
+                  2,
+                  3,
+                  4,
+                  2
+                ]
+              },
+              {
+                "id": "d",
+                "label": "Restaurant D",
+                "values": [
+                  2,
+                  2,
+                  4,
+                  3
+                ]
+              }
+            ],
+            "frontmatter": null,
+            "graticule": "polygon",
+            "max": 5,
+            "min": 0,
+            "showLegend": true,
+            "ticks": 5,
+            "title": "Restaurant Comparison"
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "areas": [
+              {
+                "fill": "#3b82f6",
+                "id": "curve:a",
+                "label": "Restaurant A",
+                "opacity": "0.5",
+                "role": "pie-slice",
+                "shape": "polygon",
+                "shapeData": "217.58,106.25 289.58,202.25 217.58,250.25 121.57,202.25",
+                "stroke": "#3b82f6"
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "curve:b",
+                "label": "Restaurant B",
+                "opacity": "0.5",
+                "role": "pie-slice",
+                "shape": "polygon",
+                "shapeData": "217.58,130.25 313.58,202.25 217.58,274.25 145.57,202.25",
+                "stroke": "#0d5ba5"
+              },
+              {
+                "fill": "#5f79f2",
+                "id": "curve:c",
+                "label": "Restaurant C",
+                "opacity": "0.5",
+                "role": "pie-slice",
+                "shape": "polygon",
+                "shapeData": "217.58,154.25 289.58,202.25 217.58,298.25 169.58,202.25",
+                "stroke": "#5f79f2"
+              },
+              {
+                "fill": "#0a5076",
+                "id": "curve:d",
+                "label": "Restaurant D",
+                "opacity": "0.5",
+                "role": "pie-slice",
+                "shape": "polygon",
+                "shapeData": "217.58,154.25 265.58,202.25 217.58,298.25 145.57,202.25",
+                "stroke": "#0a5076"
+              }
+            ],
+            "axes": [
+              {
+                "x1": 217.58,
+                "x2": 217.58,
+                "y1": 202.25,
+                "y2": 82.25
+              },
+              {
+                "x1": 217.58,
+                "x2": 337.58,
+                "y1": 202.25,
+                "y2": 202.25
+              },
+              {
+                "x1": 217.58,
+                "x2": 217.58,
+                "y1": 202.25,
+                "y2": 322.25
+              },
+              {
+                "x1": 217.58,
+                "x2": 97.57,
+                "y1": 202.25,
+                "y2": 202.25
+              }
+            ],
+            "axisLabels": [
+              "Food Quality",
+              "Service",
+              "Price",
+              "Ambiance"
+            ],
+            "circleRings": [],
+            "curveOpacityRule": "0.5",
+            "curveTensionChangedPerCurve": null,
+            "dots": [
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:0",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 106.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:1",
+                "radius": 3,
+                "role": "point",
+                "x": 289.58,
+                "y": 202.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:2",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 250.25
+              },
+              {
+                "fill": "#3b82f6",
+                "id": "dot:a:3",
+                "radius": 3,
+                "role": "point",
+                "x": 121.57,
+                "y": 202.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:0",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 130.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:1",
+                "radius": 3,
+                "role": "point",
+                "x": 313.58,
+                "y": 202.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:2",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 274.25
+              },
+              {
+                "fill": "#0d5ba5",
+                "id": "dot:b:3",
+                "radius": 3,
+                "role": "point",
+                "x": 145.57,
+                "y": 202.25
+              },
+              {
+                "fill": "#5f79f2",
+                "id": "dot:c:0",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 154.25
+              },
+              {
+                "fill": "#5f79f2",
+                "id": "dot:c:1",
+                "radius": 3,
+                "role": "point",
+                "x": 289.58,
+                "y": 202.25
+              },
+              {
+                "fill": "#5f79f2",
+                "id": "dot:c:2",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 298.25
+              },
+              {
+                "fill": "#5f79f2",
+                "id": "dot:c:3",
+                "radius": 3,
+                "role": "point",
+                "x": 169.58,
+                "y": 202.25
+              },
+              {
+                "fill": "#0a5076",
+                "id": "dot:d:0",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 154.25
+              },
+              {
+                "fill": "#0a5076",
+                "id": "dot:d:1",
+                "radius": 3,
+                "role": "point",
+                "x": 265.58,
+                "y": 202.25
+              },
+              {
+                "fill": "#0a5076",
+                "id": "dot:d:2",
+                "radius": 3,
+                "role": "point",
+                "x": 217.58,
+                "y": 298.25
+              },
+              {
+                "fill": "#0a5076",
+                "id": "dot:d:3",
+                "radius": 3,
+                "role": "point",
+                "x": 145.57,
+                "y": 202.25
+              }
+            ],
+            "legends": [
+              "Restaurant A",
+              "Restaurant B",
+              "Restaurant C",
+              "Restaurant D"
+            ],
+            "polygonRingCount": 5,
+            "svgSha256": "4661aeefb780b4f5b8f830f73699c1d2d87667b4c86a80e2a4575ead2d214ec6",
+            "swatches": [
+              {
+                "fill": "#3b82f6",
+                "opacity": "0.5"
+              },
+              {
+                "fill": "#0d5ba5",
+                "opacity": "0.5"
+              },
+              {
+                "fill": "#5f79f2",
+                "opacity": "0.5"
+              },
+              {
+                "fill": "#0a5076",
+                "opacity": "0.5"
+              }
+            ],
+            "tensionReferenceAreaCount": null,
+            "tensionReferenceSvgSha256": null,
+            "title": [
+              "Restaurant Comparison"
+            ],
+            "viewBox": "0 0 555.45 370.5"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "axes": [
+                {
+                  "id": "food",
+                  "label": "Food Quality"
+                },
+                {
+                  "id": "service",
+                  "label": "Service"
+                },
+                {
+                  "id": "price",
+                  "label": "Price"
+                },
+                {
+                  "id": "ambiance",
+                  "label": "Ambiance"
+                }
+              ],
+              "curves": [
+                {
+                  "id": "a",
+                  "label": "Restaurant A",
+                  "values": [
+                    4,
+                    3,
+                    2,
+                    4
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Restaurant B",
+                  "values": [
+                    3,
+                    4,
+                    3,
+                    3
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Restaurant C",
+                  "values": [
+                    2,
+                    3,
+                    4,
+                    2
+                  ]
+                },
+                {
+                  "id": "d",
+                  "label": "Restaurant D",
+                  "values": [
+                    2,
+                    2,
+                    4,
+                    3
+                  ]
+                }
+              ],
+              "frontmatter": null,
+              "graticule": "polygon",
+              "max": 5,
+              "min": 0,
+              "showLegend": true,
+              "ticks": 5,
+              "title": "Restaurant Comparison"
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "radar.official.fence-2",
+      "family": "radar",
+      "featureId": "official-doc:radar:section:example-on-config-and-theme",
+      "sourceSha256": "2778e879bff0091a57af81256729d4831a205e531198769f8709ba5983ade6d1",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/radar.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "This case classifies official source examples; typed Radar mutations have separate operation tests."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "axes": [
+              {
+                "id": "A",
+                "label": "A"
+              },
+              {
+                "id": "B",
+                "label": "B"
+              },
+              {
+                "id": "C",
+                "label": "C"
+              },
+              {
+                "id": "D",
+                "label": "D"
+              },
+              {
+                "id": "E",
+                "label": "E"
+              }
+            ],
+            "curves": [
+              {
+                "id": "c1",
+                "label": "c1",
+                "values": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              },
+              {
+                "id": "c2",
+                "label": "c2",
+                "values": [
+                  5,
+                  4,
+                  3,
+                  2,
+                  1
+                ]
+              },
+              {
+                "id": "c3",
+                "label": "c3",
+                "values": [
+                  3,
+                  3,
+                  3,
+                  3,
+                  3
+                ]
+              }
+            ],
+            "frontmatter": {
+              "radar": {
+                "axisScaleFactor": 0.25,
+                "curveTension": 0.1
+              },
+              "theme": "base",
+              "themeVariables": {
+                "cScale0": "#FF0000",
+                "cScale1": "#00FF00",
+                "cScale2": "#0000FF",
+                "radar": {
+                  "curveOpacity": 0
+                }
+              }
+            },
+            "graticule": "circle",
+            "max": null,
+            "min": 0,
+            "showLegend": true,
+            "ticks": 5,
+            "title": null
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "areas": [
+              {
+                "fill": "#FF0000",
+                "id": "curve:c1",
+                "label": "c1",
+                "opacity": "0",
+                "role": "pie-slice",
+                "shape": "path",
+                "shapeData": "M 163.79 144.25 C 179.77 146.48 205.21 145.2 209.44 153.42 C 213.67 161.64 216.32 217.25 206.11 226.5 C 195.9 235.75 123.01 255.45 107.36 245.92 C 91.72 236.39 44.02 141.34 49.66 131.17 C 55.3 121 147.81 142.03 163.79 144.25 Z",
+                "stroke": "#FF0000"
+              },
+              {
+                "fill": "#00FF00",
+                "id": "curve:c2",
+                "label": "c2",
+                "opacity": "0",
+                "role": "pie-slice",
+                "shape": "path",
+                "shapeData": "M 163.79 48.25 C 175.2 46.03 250.86 120.76 255.09 138.58 C 259.32 156.41 218.06 219.65 206.11 226.5 C 194.16 233.35 142.1 213.65 135.58 207.08 C 129.07 200.51 138.14 176.71 140.96 160.83 C 143.78 144.95 152.38 50.48 163.79 48.25 Z",
+                "stroke": "#00FF00"
+              },
+              {
+                "fill": "#0000FF",
+                "id": "curve:c3",
+                "label": "c3",
+                "opacity": "0",
+                "role": "pie-slice",
+                "shape": "path",
+                "shapeData": "M 163.79 96.25 C 177.49 96.25 228.04 132.98 232.27 146 C 236.5 159.03 217.19 218.45 206.11 226.5 C 195.03 234.55 132.55 234.55 121.47 226.5 C 110.39 218.45 91.08 159.03 95.31 146 C 99.54 132.98 150.09 96.25 163.79 96.25 Z",
+                "stroke": "#0000FF"
+              }
+            ],
+            "axes": [
+              {
+                "x1": 163.79,
+                "x2": 163.79,
+                "y1": 168.25,
+                "y2": 138.25
+              },
+              {
+                "x1": 163.79,
+                "x2": 192.32,
+                "y1": 168.25,
+                "y2": 158.98
+              },
+              {
+                "x1": 163.79,
+                "x2": 181.42,
+                "y1": 168.25,
+                "y2": 192.52
+              },
+              {
+                "x1": 163.79,
+                "x2": 146.16,
+                "y1": 168.25,
+                "y2": 192.52
+              },
+              {
+                "x1": 163.79,
+                "x2": 135.26,
+                "y1": 168.25,
+                "y2": 158.98
+              }
+            ],
+            "axisLabels": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ],
+            "circleRings": [
+              24,
+              48,
+              72,
+              96,
+              120
+            ],
+            "curveOpacityRule": "0",
+            "curveTensionChangedPerCurve": [
+              true,
+              true,
+              true
+            ],
+            "dots": [
+              {
+                "fill": "#FF0000",
+                "id": "dot:c1:0",
+                "radius": 3,
+                "role": "point",
+                "x": 163.79,
+                "y": 144.25
+              },
+              {
+                "fill": "#FF0000",
+                "id": "dot:c1:1",
+                "radius": 3,
+                "role": "point",
+                "x": 209.44,
+                "y": 153.42
+              },
+              {
+                "fill": "#FF0000",
+                "id": "dot:c1:2",
+                "radius": 3,
+                "role": "point",
+                "x": 206.11,
+                "y": 226.5
+              },
+              {
+                "fill": "#FF0000",
+                "id": "dot:c1:3",
+                "radius": 3,
+                "role": "point",
+                "x": 107.36,
+                "y": 245.92
+              },
+              {
+                "fill": "#FF0000",
+                "id": "dot:c1:4",
+                "radius": 3,
+                "role": "point",
+                "x": 49.66,
+                "y": 131.17
+              },
+              {
+                "fill": "#00FF00",
+                "id": "dot:c2:0",
+                "radius": 3,
+                "role": "point",
+                "x": 163.79,
+                "y": 48.25
+              },
+              {
+                "fill": "#00FF00",
+                "id": "dot:c2:1",
+                "radius": 3,
+                "role": "point",
+                "x": 255.09,
+                "y": 138.58
+              },
+              {
+                "fill": "#00FF00",
+                "id": "dot:c2:2",
+                "radius": 3,
+                "role": "point",
+                "x": 206.11,
+                "y": 226.5
+              },
+              {
+                "fill": "#00FF00",
+                "id": "dot:c2:3",
+                "radius": 3,
+                "role": "point",
+                "x": 135.58,
+                "y": 207.08
+              },
+              {
+                "fill": "#00FF00",
+                "id": "dot:c2:4",
+                "radius": 3,
+                "role": "point",
+                "x": 140.96,
+                "y": 160.83
+              },
+              {
+                "fill": "#0000FF",
+                "id": "dot:c3:0",
+                "radius": 3,
+                "role": "point",
+                "x": 163.79,
+                "y": 96.25
+              },
+              {
+                "fill": "#0000FF",
+                "id": "dot:c3:1",
+                "radius": 3,
+                "role": "point",
+                "x": 232.27,
+                "y": 146
+              },
+              {
+                "fill": "#0000FF",
+                "id": "dot:c3:2",
+                "radius": 3,
+                "role": "point",
+                "x": 206.11,
+                "y": 226.5
+              },
+              {
+                "fill": "#0000FF",
+                "id": "dot:c3:3",
+                "radius": 3,
+                "role": "point",
+                "x": 121.47,
+                "y": 226.5
+              },
+              {
+                "fill": "#0000FF",
+                "id": "dot:c3:4",
+                "radius": 3,
+                "role": "point",
+                "x": 95.31,
+                "y": 146
+              }
+            ],
+            "legends": [
+              "c1",
+              "c2",
+              "c3"
+            ],
+            "polygonRingCount": 0,
+            "svgSha256": "5645bbc27b8632a3e602ebd14f4e26ef8b8201837cd201d6dc984bf4c0aa7da3",
+            "swatches": [
+              {
+                "fill": "#FF0000",
+                "opacity": "0"
+              },
+              {
+                "fill": "#00FF00",
+                "opacity": "0"
+              },
+              {
+                "fill": "#0000FF",
+                "opacity": "0"
+              }
+            ],
+            "tensionReferenceAreaCount": 3,
+            "tensionReferenceSvgSha256": "639c0fe94f5df871278b24a7147cae2963c8a1df17b79e2df144dc3f0b2243a0",
+            "title": [],
+            "viewBox": "0 0 396.35 310.25"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "axes": [
+                {
+                  "id": "A",
+                  "label": "A"
+                },
+                {
+                  "id": "B",
+                  "label": "B"
+                },
+                {
+                  "id": "C",
+                  "label": "C"
+                },
+                {
+                  "id": "D",
+                  "label": "D"
+                },
+                {
+                  "id": "E",
+                  "label": "E"
+                }
+              ],
+              "curves": [
+                {
+                  "id": "c1",
+                  "label": "c1",
+                  "values": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                  ]
+                },
+                {
+                  "id": "c2",
+                  "label": "c2",
+                  "values": [
+                    5,
+                    4,
+                    3,
+                    2,
+                    1
+                  ]
+                },
+                {
+                  "id": "c3",
+                  "label": "c3",
+                  "values": [
+                    3,
+                    3,
+                    3,
+                    3,
+                    3
+                  ]
+                }
+              ],
+              "frontmatter": {
+                "radar": {
+                  "axisScaleFactor": 0.25,
+                  "curveTension": 0.1
+                },
+                "theme": "base",
+                "themeVariables": {
+                  "cScale0": "#FF0000",
+                  "cScale1": "#00FF00",
+                  "cScale2": "#0000FF",
+                  "radar": {
+                    "curveOpacity": 0
+                  }
+                }
+              },
+              "graticule": "circle",
+              "max": null,
+              "min": 0,
+              "showLegend": true,
+              "ticks": 5,
+              "title": null
             },
             "stable": true
           },
@@ -18406,11 +19660,11 @@
     }
   ],
   "summary": {
-    "caseCount": 55,
-    "passedCaseCount": 55,
+    "caseCount": 58,
+    "passedCaseCount": 58,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 191,
+    "observedSurfaceCount": 200,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 29
+    "notApplicableSurfaceCount": 32
   }
 }

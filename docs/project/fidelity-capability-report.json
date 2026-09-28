@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "a5fdf2014b1c8fa8b833882fd1434fa5259f1de84c24172cdcc7281c07aaa0b6",
-  "receiptResultSha256": "1abf9f9a9f2080e1298bb78e6a10661f25dea68e71cbbbb9e4a07b0eb2bb96a9",
+  "receiptInputSha256": "058534050fd438a3bfe86eeae7ee8f7c8ee418c0fa431dc93c8e052b12a2f88b",
+  "receiptResultSha256": "fb066bab54b8216fc3019ea42fa8fafee1b192fc477932bd1f78ed93e71bf0cd",
   "summary": {
-    "caseCount": 55,
-    "featureCount": 34,
+    "caseCount": 58,
+    "featureCount": 36,
     "dispositions": {
       "native": 17,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 9
+      "absent": 11
     }
   },
   "features": [
@@ -828,6 +828,93 @@
             "mutate": {
               "notApplicable": [
                 "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:radar:section:example-on-config-and-theme",
+      "family": "radar",
+      "disposition": "absent",
+      "caseIds": [
+        "radar.official.fence-2"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official source examples; typed Radar mutations have separate operation tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "radar.official.fence-2",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official source examples; typed Radar mutations have separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:radar:section:examples",
+      "family": "radar",
+      "disposition": "absent",
+      "caseIds": [
+        "radar.official.fence-0",
+        "radar.official.fence-1"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "This case classifies official source examples; typed Radar mutations have separate operation tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "radar.official.fence-0",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official source examples; typed Radar mutations have separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        },
+        {
+          "caseId": "radar.official.fence-1",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official source examples; typed Radar mutations have separate operation tests."
               ]
             }
           },

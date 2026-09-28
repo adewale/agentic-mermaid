@@ -285,6 +285,7 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/pie-official-fences.fidelity.ts',
       'fidelity/cases/pie-terminal-control.fidelity.ts',
       'fidelity/cases/quadrant-official-fences.fidelity.ts',
+      'fidelity/cases/radar-official-fences.fidelity.ts',
       'fidelity/cases/sankey-official-config-fences.fidelity.ts',
       'fidelity/cases/sankey-official-csv-fences.fidelity.ts',
       'fidelity/cases/sankey-official-energy-fence.fidelity.ts',
@@ -324,6 +325,9 @@ describe('issue #248 construct fidelity receipts', () => {
       'quadrant.official.fence-0',
       'quadrant.official.fence-1',
       'quadrant.official.fence-2',
+      'radar.official.fence-0',
+      'radar.official.fence-1',
+      'radar.official.fence-2',
       'sankey.links.dark-background-normal-alpha-divergence',
       'sankey.links.light-background-multiply',
       'sankey.links.typed-gradient-endpoints',
@@ -354,12 +358,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 55,
-      passedCaseCount: 55,
+      caseCount: 58,
+      passedCaseCount: 58,
       failedCaseCount: 0,
-      observedSurfaceCount: 191,
+      observedSurfaceCount: 200,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 29,
+      notApplicableSurfaceCount: 32,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -865,6 +869,66 @@ describe('issue #248 construct fidelity receipts', () => {
         surface: 'serialize',
         path: ['model', 'points', 3, 'style', 'strokeWidth'],
         replacement: '1px',
+      },
+      {
+        caseId: 'radar.official.fence-0',
+        surface: 'agent',
+        path: ['axes', 0, 'label'],
+        replacement: 'Wrong subject',
+      },
+      {
+        caseId: 'radar.official.fence-0',
+        surface: 'render',
+        path: ['dots', 0, 'y'],
+        replacement: 202.25,
+      },
+      {
+        caseId: 'radar.official.fence-1',
+        surface: 'render',
+        path: ['polygonRingCount'],
+        replacement: 0,
+      },
+      {
+        caseId: 'radar.official.fence-1',
+        surface: 'serialize',
+        path: ['model', 'curves', 0, 'values', 0],
+        replacement: 1,
+      },
+      {
+        caseId: 'radar.official.fence-2',
+        surface: 'agent',
+        path: ['frontmatter', 'radar', 'axisScaleFactor'],
+        replacement: 1,
+      },
+      {
+        caseId: 'radar.official.fence-2',
+        surface: 'render',
+        path: ['areas', 0, 'opacity'],
+        replacement: '0.5',
+      },
+      {
+        caseId: 'radar.official.fence-2',
+        surface: 'render',
+        path: ['curveTensionChangedPerCurve', 1],
+        replacement: false,
+      },
+      {
+        caseId: 'radar.official.fence-2',
+        surface: 'render',
+        path: ['tensionReferenceAreaCount'],
+        replacement: 0,
+      },
+      {
+        caseId: 'radar.official.fence-2',
+        surface: 'render',
+        path: ['tensionReferenceSvgSha256'],
+        replacement: 'missing-reference-paths',
+      },
+      {
+        caseId: 'radar.official.fence-2',
+        surface: 'render',
+        path: ['axes', 0, 'y2'],
+        replacement: 48.25,
       },
       {
         caseId: 'sankey.links.typed-gradient-endpoints',
