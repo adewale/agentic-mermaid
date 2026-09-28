@@ -45,16 +45,39 @@ describe('removed compatibility surfaces stay removed', () => {
     expect(knownStyles()).not.toContain('tufte')
   })
 
-  test('editor persistence and share links expose only canonical storage and codecs', () => {
+  test('editor share links and drafts accept only the canonical codec and tab-scoped storage', async () => {
+    // Evaluate the shipped editor script against in-memory storage. The
+    // share-link codec and storage behaviour are covered in depth by
+    // editor-security-closures.test.ts and, for the live page (including the
+    // absent draft-privacy toggle), by website-browser-a11y.test.ts.
+    const memoryStorage = () => {
+      const values = new Map<string, string>()
+      return {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => { values.set(key, String(value)) },
+        removeItem: (key: string) => { values.delete(key) },
+      }
+    }
+    const localStorage = memoryStorage()
+    const sessionStorage = memoryStorage()
+    const persistedDraft = JSON.stringify({ source: 'flowchart TD\n  Persisted --> Draft' })
+    localStorage.setItem('bm-editor-draft', persistedDraft)
     const sharing = readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8')
-    const editorHtml = readFileSync(join(ROOT, 'editor/html/left-panel.html'), 'utf8')
-    expect(sharing).not.toContain('function encodeSource(')
-    expect(sharing).not.toContain('function base64ToUtf8(')
-    expect(sharing).not.toContain('DRAFT_MODE_PERSISTENT')
-    expect(sharing).not.toContain('DRAFT_MODE_SESSION')
-    expect(sharing).toContain('return sessionStorage;')
-    expect(editorHtml).not.toContain('draft-privacy-btn')
-    expect(editorHtml).not.toContain('Autosave: this browser')
+    const editor = new Function('localStorage', 'sessionStorage', 'editor', 'state', `${sharing}
+      return { decodeSource, readEditorDraft, saveEditorDraft, get hashDecodeFailure() { return hashDecodeFailure } };`,
+    )(localStorage, sessionStorage, { value: 'flowchart TD\n  Current --> Tab' }, { style: 'crisp', config: {} })
+
+    // The retired plain-base64 share link fails closed instead of decoding.
+    expect(await editor.decodeSource(Buffer.from(JSON.stringify({ source: 'flowchart TD\n  A --> B' })).toString('base64'))).toBe('')
+    expect(editor.hashDecodeFailure).toBe('corrupt')
+
+    // A draft persisted by the retired browser-wide mode is dropped, never restored.
+    expect(editor.readEditorDraft()).toBeNull()
+    expect(localStorage.getItem('bm-editor-draft')).toBeNull()
+    editor.saveEditorDraft()
+    expect(localStorage.getItem('bm-editor-draft')).toBeNull()
+    expect(JSON.parse(sessionStorage.getItem('bm-editor-draft')!)).toMatchObject({ source: 'flowchart TD\n  Current --> Tab' })
+    expect(editor.readEditorDraft()).toMatchObject({ source: 'flowchart TD\n  Current --> Tab' })
   })
 
   test('breaking contract generations reject v1 negotiation', () => {
