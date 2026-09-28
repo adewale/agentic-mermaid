@@ -224,8 +224,20 @@ mutating process-global configuration).
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,
 not a gate" — `docs/contributing/lessons-learned.md`). Rolling seeds belong in
-finder lanes: the deep-fuzz scripts under `eval/`, or deliberate
-`AM_FC_SEED=random` sweeps. Before the pin was frozen, every unpinned suite was
+finder lanes: the scheduled `nightly-finder.yml` workflow, the deep-fuzz scripts
+under `eval/`, or deliberate `AM_FC_SEED=random` sweeps.
+
+The nightly finder rolls fresh seeds across every fast-check file with
+`AM_FC_NUM_RUNS=300` (raises the default run count; a per-assert `numRuns`
+still wins). It never blocks a pull request. A failure files or comments on one
+issue carrying the seed, path, and counterexample
+(`scripts/ci/nightly-finder-report.ts`). Fix a real counterexample and keep it
+forever as a fast-check `examples` entry on the property: seeds and paths do not
+survive fast-check upgrades, `examples` do. Its first local run found a real
+Architecture routing counterexample (`AM_FC_SEED=1102132276` in
+`architecture-layout.test.ts`) that the pinned seed never reached.
+
+Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
 zero failures — the pin does not freeze a known-bad ticket, and the sweep is
 repeatable from the same knob.
@@ -245,7 +257,13 @@ behaviors:
   and found dead code the unit tests couldn't.
 - **Sabotage suite** (`eval/sabotage/route-regressions.ts`) — deliberately
   reverts a fixed bug in a detached worktree and asserts the suite goes
-  **red**, proving five named route/link regression tests actually bite.
+  **red**, proving nine named route/link regression tests actually bite.
+- **Red → green** (`scripts/ci/red-green.ts`, the `red-green` CI job) — when a
+  pull request changes production source and tests, at least one changed test
+  must fail against the base branch's production code. This mechanically
+  checks the "tests that fail when the fix is reverted" rule for every PR,
+  instead of a hand-written probe per fix. Pure refactors opt out with the
+  `no-red-green` label.
 
 The broad scheduled mutation matrix was retired after 26 consecutive scheduled
 runs produced no success and its final repair grew to 39 coverage workers (41
@@ -333,9 +351,14 @@ table here, which would drift. In broad strokes:
   the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
   type check, the hero check, the
   golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
-  incremental mutation lane, and the independent focused sabotage lane. A final
-  `CI complete` job waits for the required test aggregate, every E2E matrix job,
-  and mutation, providing one protectable result that cannot turn green early.
+  incremental mutation lane, the independent focused sabotage lane, and the
+  red → green changed-test check. Each unit shard runs its files with
+  `--parallel` (isolated worker processes), so a test file cannot depend on
+  another file's imports. A final `CI complete` job waits for the required
+  test aggregate, every E2E matrix job, mutation, and red → green, providing one
+  protectable result that cannot turn green early.
+- **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
+  suite; failures become an issue, never a blocked PR.
 - **Manual / periodic:** opt-in broad Stryker survivor harvests,
   `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.
@@ -400,7 +423,8 @@ gates rather than adding new machinery:
    metric-derived (only its faithfulness axis is now independent), so it
    cannot validate those metrics — only a real periodic judge run can.
 2. Automatic mutation assurance is deliberately narrow: PR feedback uses the
-   fast incremental faithfulness-counter lane plus five focused sabotage probes.
+   fast incremental faithfulness-counter lane plus nine focused sabotage probes;
+   diff-scoped mutation of each PR's changed lines is tracked in issue #355.
    Broad mutation configs are manual diagnostics because the retired scheduled
    matrix did not justify its runner and maintenance cost. Line coverage is
    framed as a finder, not a headline score.
