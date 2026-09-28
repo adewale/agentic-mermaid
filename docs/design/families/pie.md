@@ -40,7 +40,7 @@ on-slice labels: #1027).
 | `pieLegendTextSize`, `pieLegendTextColor` | legend text | size feeds layout measurement and rendering |
 
 Documented-but-unwired keys emit the Tier-3 `INEFFECTIVE_CONFIG` lint instead
-of being silently swallowed (P4): `useMaxWidth`, `useWidth` (config section).
+of being silently swallowed (P4): <!-- BEGIN GENERATED: noop-keys:pie -->`useMaxWidth`, `useWidth`<!-- END GENERATED: noop-keys:pie --> (config section).
 Every other documented key — including `highlightSlice` and the title/legend
 text theme variables — is wired above.
 

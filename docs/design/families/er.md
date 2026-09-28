@@ -58,9 +58,7 @@ The typed `er` frontmatter section (`ErRuntimeConfig` in
 - **Wired**: `layoutDirection` (precedence: in-body `direction` statement >
   `er.layoutDirection` > LR default), `nodeSpacing`, `rankSpacing`
   (explicit RenderOptions win).
-- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): `titleTopMargin`,
-  `diagramPadding`, `minEntityWidth`, `minEntityHeight`, `entityPadding`,
-  `stroke`, `fill`, `fontSize` (the er descriptor's `config.noopKeys` in
+- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): <!-- BEGIN GENERATED: noop-keys:er -->`diagramPadding`, `entityPadding`, `fill`, `fontSize`, `minEntityHeight`, `minEntityWidth`, `stroke`, `titleTopMargin`<!-- END GENERATED: noop-keys:er --> (the er descriptor's `config.noopKeys` in
   `src/agent/families.ts`, which the lint reads).
 
 ## Crow's-foot markers (glyph correction)

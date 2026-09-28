@@ -323,7 +323,7 @@ Agent-contract CLI verbs for explicit self-discovery, summaries, and batch opera
 
 The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted byte-for-byte by `am --agent-instructions`; this spec intentionally does not duplicate the full snippet. The stable contract is:
 
-1. For new diagrams, author Mermaid source directly, then `parseRegisteredMermaid` → `verifyMermaid` → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build one from typed ops when generating it programmatically.
+1. <!-- BEGIN GENERATED: new-diagram-policy -->New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).<!-- END GENERATED: new-diagram-policy -->
 2. For existing diagrams, `parseRegisteredMermaid(source)` → `ValidDiagram`.
 3. Use the family entry's registry-advertised narrower; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
@@ -409,7 +409,7 @@ Concrete consequences, in roughly descending impact:
 7. **Benchmark eval at speed.** MermaidSeqBench (and any future eval) runs as one `execute()` per case rather than N round-trips. Internal velocity multiplier.
 8. **Hosted Worker path.** The shipped `/mcp` endpoint uses Cloudflare Dynamic Worker isolates through the platform loader binding, not `@cloudflare/codemode`. The runtime has explicit security/resource limits and differential parity with local Code Mode; remaining WAF and abuse-control operations are tracked separately in `TODO.md`.
 9. **The skill becomes runnable, not just descriptive.** `references/code-mode.md` ships canonical executable JavaScript snippets the agent copy-pastes into `execute()`. Skill stops being prose; starts being a library of executable patterns.
-10. **A future diagram REPL would be a thin transport.** An `am repl` could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped and would need promotion to `TODO.md` before implementation.
+10. **A future diagram REPL would be a thin transport.** A `repl` verb on the `am` CLI could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped and would need promotion to `TODO.md` before implementation.
 
 The biggest single consequence is #1: it gives us permission to never grow the spec for composition, queries, diffing, explaining, or any "we should probably have a verb for that" feature. **The verb set is intentionally small; Code Mode makes it sufficient.**
 

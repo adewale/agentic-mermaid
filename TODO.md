@@ -237,7 +237,8 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   ASTs; State, Timeline, and Journey share parse cores; XYChart now projects the
   strict renderer AST and no longer owns a second grammar. Radar also projects
   the strict renderer-owned `parseRadarChart()` result; it was incorrectly
-  retained in the old remainder list. The remaining duplicated families are
+  retained in the old remainder list. Sankey projects the renderer-owned
+  `parseSankeyDiagram()` result from its first release. The remaining duplicated families are
   [Class #260](https://github.com/adewale/agentic-mermaid/issues/260),
   [ER #266](https://github.com/adewale/agentic-mermaid/issues/266),
   [Sequence #264](https://github.com/adewale/agentic-mermaid/issues/264),

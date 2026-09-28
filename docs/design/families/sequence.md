@@ -41,12 +41,7 @@ knob overrides only its documented layout field.
 
 ### Unwired keys → INEFFECTIVE_CONFIG
 
-Everything else documented on upstream's `SequenceDiagramConfig` — `wrap`,
-`wrapPadding`, `mirrorActors`, `messageAlign`, `noteAlign`, `boxMargin`,
-`boxTextMargin`, `bottomMarginAdj`, `rightAngles`, `labelBoxWidth`,
-`labelBoxHeight`, `hideUnusedParticipants`, `forceMenus`,
-`arrowMarkerAbsolute`, `useMaxWidth`, `useWidth`, and the
-`actor/note/messageFont*` keys — is accepted for config-shape compatibility
+Everything else documented on upstream's `SequenceDiagramConfig` — <!-- BEGIN GENERATED: noop-keys:sequence -->`actorFont`, `actorFontFamily`, `actorFontSize`, `actorFontWeight`, `arrowMarkerAbsolute`, `bottomMarginAdj`, `boxMargin`, `boxTextMargin`, `forceMenus`, `hideUnusedParticipants`, `labelBoxHeight`, `labelBoxWidth`, `messageAlign`, `messageFont`, `messageFontFamily`, `messageFontSize`, `messageFontWeight`, `mirrorActors`, `noteAlign`, `noteFont`, `noteFontFamily`, `noteFontSize`, `noteFontWeight`, `rightAngles`, `useMaxWidth`, `useWidth`, `wrap`, `wrapPadding`<!-- END GENERATED: noop-keys:sequence --> — is accepted for config-shape compatibility
 and named per key by verify's Tier-3 `INEFFECTIVE_CONFIG` lint (the exact
 list is the sequence descriptor's `config.noopKeys` in
 `src/agent/families.ts`). Font keys stay unwired deliberately:

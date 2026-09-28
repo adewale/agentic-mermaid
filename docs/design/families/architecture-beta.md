@@ -82,7 +82,7 @@ lint list is registry-owned (below):
 | `padding`, `iconSize`, `fontSize` | wired | visual metrics (pre-existing) |
 | `nodeSeparation` | wired | same-layer sibling spacing in px (`RenderOptions.nodeSpacing` fallback — the class/er `nodeSpacing` pass-through idiom; explicit RenderOptions win) |
 | `idealEdgeLengthMultiplier` | wired | layer gap scaled around upstream's `1.5` default: `round(56 × m / 1.5)` — upstream defines it as ideal same-group edge length, and the layer gap is the deterministic edge length between connected ranks |
-| `edgeElasticity`, `numIter`, `seed`, `randomize` | lint | fcose force-simulation knobs with no meaning in a deterministic layout; each present key is named by verify's Tier-3 `INEFFECTIVE_CONFIG` (the architecture descriptor's `config.noopKeys` in `src/agent/families.ts`) |
+| <!-- BEGIN GENERATED: noop-keys:architecture -->`edgeElasticity`, `numIter`, `randomize`, `seed`<!-- END GENERATED: noop-keys:architecture --> | lint | fcose force-simulation knobs with no meaning in a deterministic layout; each present key is named by verify's Tier-3 `INEFFECTIVE_CONFIG` (the architecture descriptor's `config.noopKeys` in `src/agent/families.ts`) |
 
 `resolveArchitectureRenderOptions()` folds the wired keys into RenderOptions
 and is consumed by BOTH the SVG render hook and verify's layout adapter

@@ -150,11 +150,8 @@ Theme variables `cScale0..11` / `cScaleLabel0..11` / `cScaleInv0..11` feed the
 same palette derivation.
 
 Everything else in upstream's documented `TimelineDiagramConfig` — the
-journey-shaped sequence-era remainder (`diagramMarginX/Y`, `leftMargin`,
-`width`, `height`, `padding`, `boxMargin`, `boxTextMargin`, `noteMargin`,
-`messageMargin`, `messageAlign`, `bottomMarginAdj`, `rightAngles`,
-`taskFontSize`, `taskFontFamily`, `taskMargin`, `activationWidth`,
-`textPlacement`, `actorColours`) plus the base `useMaxWidth`/`useWidth` — is
+journey-shaped sequence-era remainder plus the base `useMaxWidth`/`useWidth`:
+<!-- BEGIN GENERATED: noop-keys:timeline -->`diagramMarginX`, `diagramMarginY`, `leftMargin`, `width`, `height`, `padding`, `boxMargin`, `boxTextMargin`, `noteMargin`, `messageMargin`, `messageAlign`, `bottomMarginAdj`, `rightAngles`, `taskFontSize`, `taskFontFamily`, `taskMargin`, `activationWidth`, `textPlacement`, `actorColours`, `useMaxWidth`, `useWidth`<!-- END GENERATED: noop-keys:timeline --> — is
 accepted for config-shape compatibility but has no effect here, and verify
 names each present field with the Tier-3 `INEFFECTIVE_CONFIG` lint (the
 timeline descriptor's `config.noopKeys` in `src/agent/families.ts`, journey

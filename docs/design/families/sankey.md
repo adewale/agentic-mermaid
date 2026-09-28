@@ -75,7 +75,7 @@ canvas midline; the canvas grows so measured labels and nodes never clip.
 Wired: `width`, `height`, `linkColor` (`source` | `target` | `gradient` |
 CSS color), `nodeAlignment`, `showValues`, `prefix`, `suffix`, `labelStyle`
 (`legacy` | `outlined`), `nodeWidth`, `nodePadding`, `nodeColors`.
-Declared no-op: `useMaxWidth`.
+Declared no-op: <!-- BEGIN GENERATED: noop-keys:sankey -->`useMaxWidth`<!-- END GENERATED: noop-keys:sankey -->.
 
 `linkColor: gradient` (the upstream default) creates a typed, deterministic
 source→target `linearGradient` resource for every ribbon. IDs are namespaced

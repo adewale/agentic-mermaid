@@ -15,7 +15,7 @@ cross-process and same-machine cross-runtime on x86_64/ARM64).
 
 ## The agent loop
 
-New diagrams: author Mermaid source → parse → verify → render/return.
+New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).
 Existing structured diagrams: parse → narrow → mutate → verify → serialize.
 Run verify at every commit point. Never serialize a diagram whose verify result
 you haven't inspected.
@@ -41,9 +41,8 @@ Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 
 ## MCP tools
 
-Local MCP exposes 4 tools: `execute`, `describe_sdk`, `render_png`, and
-`describe`. Hosted MCP exposes 9 tools: `execute`, `describe_sdk`, `render_svg`,
-`render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`.
+Local MCP exposes 4 tools: `execute`, `describe_sdk`, `render_png`, and `describe`.
+Hosted MCP exposes 9 tools: `execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`.
 `render_png` is offline on the local server. Hosted successful deterministic
 results may be reused by a private server-side compute cache for up to 24 hours;
 the HTTP response is always `cache-control: no-store` and reports compute reuse

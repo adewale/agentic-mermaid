@@ -36,6 +36,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Agent guidance now says one thing everywhere: write Mermaid source directly for
+  a new diagram, then parse, verify, and render it; use `buildMermaid` /
+  `createMermaid` when generating a diagram programmatically, and typed
+  mutation for edits. `am --agent-instructions`, `llms.txt`, `am init-agent`,
+  the Code Mode SDK declaration, and the skills previously disagreed.
+- `am verify --help` lists the warning codes from the runtime registry, grouped
+  by severity.
 - Updated the `brace-expansion` development override to the first 5.x release
   patched for GHSA-rgw5-rvv9-x895.
 - Updated the transitive `fast-uri` override to 3.1.6 (first raised to 3.1.5

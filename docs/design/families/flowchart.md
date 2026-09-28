@@ -39,7 +39,7 @@ Upstream schema verified 2026-07-10
 | `nodeSpacing` | **wired** | → `RenderOptions.nodeSpacing` → ELK `spacing.nodeNode` |
 | `rankSpacing` | **wired** | → `RenderOptions.layerSpacing` → ELK `nodeNodeBetweenLayers` |
 | `wrappingWidth` | **wired** | measured-pixel auto-wrap of node labels at layout sizing |
-| `curve`, `htmlLabels`, `padding`, `diagramPadding`, `titleTopMargin`, `subGraphTitleMargin`, `arrowMarkerAbsolute`, `defaultRenderer`, `inheritDir` | **lint** | `INEFFECTIVE_CONFIG` Tier-3 warning naming the field |
+| <!-- BEGIN GENERATED: noop-keys:flowchart -->`arrowMarkerAbsolute`, `curve`, `defaultRenderer`, `diagramPadding`, `htmlLabels`, `inheritDir`, `padding`, `subGraphTitleMargin`, `titleTopMargin`<!-- END GENERATED: noop-keys:flowchart --> | **lint** | `INEFFECTIVE_CONFIG` Tier-3 warning naming the field |
 
 - Wiring: `resolveFlowchartRenderOptions` in `src/flowchart-config.ts`.
   Warning: the lint list is the flowchart descriptor's `config.noopKeys` in

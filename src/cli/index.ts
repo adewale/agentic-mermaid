@@ -15,7 +15,7 @@ import { parseRegisteredMermaid } from '../agent/parse.ts'
 import type { PngOptions, PngRasterWarning } from '../agent/png.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
-import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode } from '../agent/types.ts'
+import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode, WarningSeverity } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
@@ -31,6 +31,8 @@ import { PACKAGE_VERSION } from '../version.ts'
 import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
 import { EXIT_ARG_ERROR, EXIT_INTERNAL, EXIT_OK, EXIT_VERIFY_FAILED } from './exit-codes.ts'
 import { initAgentFiles } from './init-agent.ts'
+import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
+import { EXISTING_DIAGRAM_WORKFLOW, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 /**
  * Loop 12 M1: build a structured CLI error envelope. Keeps `message` a short
@@ -286,6 +288,18 @@ Exit codes:
   4  uncaught internal failure
 `
 
+/** Warning codes of one severity, comma-separated and wrapped for help text. */
+function codesWithSeverity(severity: WarningSeverity): string {
+  const codes = (Object.keys(WARNING_SEVERITY) as WarningCode[]).filter(code => WARNING_SEVERITY[code] === severity)
+  const lines: string[] = []
+  for (const code of codes) {
+    const last = lines.at(-1)
+    if (last !== undefined && last.length + code.length + 2 <= 100) lines[lines.length - 1] = `${last}, ${code}`
+    else lines.push(code)
+  }
+  return lines.join(',\n')
+}
+
 export const COMMAND_HELP: Record<string, string> = {
   render: `am render <file|-> [--format ${CLI_RENDER_FORMATS.join('|')}] [--json]
 Render a diagram. Default is ${DEFAULT_CLI_RENDER_FORMAT.toUpperCase()}.
@@ -329,16 +343,13 @@ With --json: [{ name, canonicalId, kind: look|palette, isDefault, backend, inten
 Always emits JSON: {ok, warnings[], layout}.
   --style <S>       Resolve the same named/file-backed Style used by render so
                     inspect-only Brand constraints evaluate the styled Scene.
-Tier-1 error codes flip ok=false:
-EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH, UNRESOLVABLE_SCHEDULE,
-RENDER_FAILED (source verifies structurally but the render parser rejects it), BRAND_CONSTRAINT_ERROR
-(only when a Style constraint explicitly selects action=error). Warning codes:
-UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap),
-NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK,
-ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE,
-DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
-CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN, BAR_RANGE_EXCLUDES_ZERO,
-VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING.
+Error codes flip ok=false:
+${codesWithSeverity('error')}.
+RENDER_FAILED: the source verifies structurally but the render parser rejects it.
+BRAND_CONSTRAINT_ERROR: only when a Style constraint explicitly selects action=error.
+Warning codes:
+${codesWithSeverity('warning')}.
+LABEL_OVERFLOW counts characters against --label-cap.
 Brand constraints inspect without repainting or relayout; other Tier-3 lint is advisory.
 Exit 0 if ok, 3 if verify reports severity='error'.`,
   parse: `am parse <file|->
@@ -1405,8 +1416,8 @@ cross-process and same-machine cross-runtime on x86_64/ARM64).
 
 ## The agent loop
 
-New diagrams: author Mermaid source → parse → verify → render/return.
-Existing structured diagrams: parse → narrow → mutate → verify → serialize.
+${NEW_DIAGRAM_POLICY}
+${EXISTING_DIAGRAM_WORKFLOW}
 Run verify at every commit point. Never serialize a diagram whose verify result
 you haven't inspected.
 
@@ -1431,9 +1442,8 @@ Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
 
 ## MCP tools
 
-Local MCP exposes 4 tools: \`execute\`, \`describe_sdk\`, \`render_png\`, and
-\`describe\`. Hosted MCP exposes 9 tools: \`execute\`, \`describe_sdk\`, \`render_svg\`,
-\`render_ascii\`, \`render_png\`, \`verify\`, \`describe\`, \`mutate\`, and \`build\`.
+Local MCP exposes ${LOCAL_MCP_TOOL_NAMES.length} tools: ${inlineToolList(LOCAL_MCP_TOOL_NAMES)}.
+Hosted MCP exposes ${HOSTED_MCP_TOOL_NAMES.length} tools: ${inlineToolList(HOSTED_MCP_TOOL_NAMES)}.
 \`render_png\` is offline on the local server. Hosted successful deterministic
 results may be reused by a private server-side compute cache for up to 24 hours;
 the HTTP response is always \`cache-control: no-store\` and reports compute reuse

@@ -1,6 +1,7 @@
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
+import { NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
   return family.narrower.slice(2)
@@ -828,9 +829,7 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
 }
 
 // Conventions:
-// 1. For new diagrams, use buildMermaid(kind, ops) — or createMermaid(kind)
-//    then mutate step by step — and verify/render the result. Hand-author
-//    Mermaid source only for syntax the typed ops do not model.
+// 1. ${NEW_DIAGRAM_POLICY}
 // 2. For existing structured diagrams, use mutate() + verify + serializeMermaid();
 //    do not regenerate/concatenate source when a typed op exists.
 ${SDK_FAMILY_CONVENTION}
