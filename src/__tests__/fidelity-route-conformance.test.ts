@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
+import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { renderSourceToFormatWithReceipt } from '../cli/index.ts'
 import { FIDELITY_CAPABILITY_REPORT } from '../fidelity-capability-report.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
@@ -12,6 +13,7 @@ import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { renderWebsiteSVGWithReceipt } from '../../website/src/rendering.ts'
 import { discoverFidelityRegistry } from './fidelity/registry.ts'
+import type { RenderOptions } from '../types.ts'
 
 const OPTIONS = Object.freeze({
   security: 'strict' as const,
@@ -19,6 +21,13 @@ const OPTIONS = Object.freeze({
   bg: '#f8fafc',
   fg: '#172033',
   accent: '#2563eb',
+})
+const ALTERNATE_OPTIONS = Object.freeze({
+  security: 'strict' as const,
+  padding: 31,
+  bg: '#111827',
+  fg: '#f9fafb',
+  accent: '#f59e0b',
 })
 
 function call(name: string, args: Record<string, unknown>): JsonRpcRequest {
@@ -56,19 +65,19 @@ function diagnosticFrom(callable: () => unknown): ReturnType<typeof projectRende
   return projectRenderErrorDiagnostic(thrown)
 }
 
-async function svgArtifacts(source: string): Promise<Record<string, { svg: string; receipt: unknown }>> {
+async function svgArtifacts(source: string, options: RenderOptions = OPTIONS): Promise<Record<string, { svg: string; receipt: unknown }>> {
   const hosted = payloadOf(await handleHostedRequest(
-    call('render_svg', { source, options: OPTIONS }),
+    call('render_svg', { source, options }),
     hostedContext(),
   ))
   return {
-    library: renderMermaidSVGWithReceipt(source, OPTIONS),
+    library: renderMermaidSVGWithReceipt(source, options),
     cli: (() => {
-      const rendered = renderSourceToFormatWithReceipt(source, 'svg', OPTIONS)
+      const rendered = renderSourceToFormatWithReceipt(source, 'svg', options)
       return { svg: rendered.output as string, receipt: rendered.receipt }
     })(),
-    browserEditor: BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(source, OPTIONS),
-    website: renderWebsiteSVGWithReceipt(source, OPTIONS),
+    browserEditor: BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(source, options),
+    website: renderWebsiteSVGWithReceipt(source, options),
     hostedMcp: { svg: hosted.svg, receipt: hosted.receipt },
   }
 }
@@ -89,6 +98,74 @@ describe('issue #248 fidelity route conformance', () => {
     for (const [surface, artifact] of Object.entries(artifacts)) {
       expect(artifact.svg, surface).toBe(authority.svg)
       expect(artifact.receipt, surface).toEqual(authority.receipt)
+    }
+  })
+
+  test('every built-in family preserves the typed request digest and SVG result across public adapters', async () => {
+    for (const familyId of knownBuiltinFamilies()) {
+      const source = getFamily(familyId)?.example
+      expect(source, `${familyId} source`).toBeDefined()
+      if (!source) continue
+      const first = await svgArtifacts(source, OPTIONS)
+      const alternate = await svgArtifacts(source, ALTERNATE_OPTIONS)
+      const firstAuthority = first.library!
+      const alternateAuthority = alternate.library!
+      expect((firstAuthority.receipt as { sharedRequestDigest: string }).sharedRequestDigest, familyId)
+        .not.toBe((alternateAuthority.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
+      for (const [label, artifacts, authority] of [
+        ['standard', first, firstAuthority],
+        ['alternate', alternate, alternateAuthority],
+      ] as const) {
+        for (const [surface, artifact] of Object.entries(artifacts)) {
+          expect(artifact.svg, `${familyId}/${label}/${surface} svg`).toBe(authority.svg)
+          expect(artifact.receipt, `${familyId}/${label}/${surface} receipt`).toEqual(authority.receipt)
+        }
+      }
+    }
+  })
+
+  test('a changed source changes the request digest and reaches every adapter unchanged', async () => {
+    const first = await svgArtifacts('flowchart LR\n  A[Alpha] --> B[Beta]')
+    const second = await svgArtifacts('flowchart LR\n  A[Alpha] --> C[Gamma]')
+    expect((first.library!.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
+      .not.toBe((second.library!.receipt as { sharedRequestDigest: string }).sharedRequestDigest)
+    for (const artifacts of [first, second]) {
+      for (const [surface, artifact] of Object.entries(artifacts)) {
+        expect(artifact.svg, `${surface} svg`).toBe(artifacts.library!.svg)
+        expect(artifact.receipt, `${surface} receipt`).toEqual(artifacts.library!.receipt)
+      }
+    }
+  })
+
+  test('named style, theme, and render-option refusals retain every typed field across adapters', async () => {
+    const cases = [
+      {
+        source: 'flowchart LR\n  A --> B\n  style A fill:notacolor',
+        options: OPTIONS,
+        expected: { code: 'INVALID_STYLE_COLOR', subject: 'style A', property: 'fill', value: 'notacolor' },
+      },
+      {
+        source: '%%{init: {"themeVariables":{"xyChart":{"titleColor":"notacolor"}}}}%%\nxychart\n  x-axis [A]\n  bar [1]',
+        options: OPTIONS,
+        expected: { code: 'INVALID_THEME_COLOR', key: 'xyChart.titleColor', value: 'notacolor' },
+      },
+      {
+        source: 'architecture-beta\n  service api(server)[API]',
+        options: { ...OPTIONS, bg: 'none' },
+        expected: { code: 'INVALID_RENDER_COLOR', field: 'bg', value: 'none' },
+      },
+    ] as const
+    for (const { source, options, expected } of cases) {
+      const authority = diagnosticFrom(() => renderMermaidSVGWithReceipt(source, options))
+      expect(authority).toMatchObject(expected)
+      const direct = {
+        cli: diagnosticFrom(() => renderSourceToFormatWithReceipt(source, 'svg', options)),
+        browserEditor: diagnosticFrom(() => BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(source, options)),
+        website: diagnosticFrom(() => renderWebsiteSVGWithReceipt(source, options)),
+      }
+      for (const [surface, diagnostic] of Object.entries(direct)) expect(diagnostic, `${expected.code}/${surface}`).toEqual(authority)
+      const hosted = payloadOf(await handleHostedRequest(call('render_svg', { source, options }), hostedContext()))
+      expect(hosted).toMatchObject({ ok: false, isError: true, error: authority })
     }
   })
 
