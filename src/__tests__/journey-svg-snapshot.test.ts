@@ -5,17 +5,9 @@ import { describe, it, expect } from 'bun:test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
+import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const snapshotDir = join(import.meta.dir, 'testdata', 'svg')
-
-function normalizeSvg(svg: string): string {
-  return svg
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map(line => line.trimEnd())
-    .join('\n')
-    .trim()
-}
 
 describe('renderMermaidSVG – journey snapshots', () => {
   it('matches the representative journey golden SVG', () => {

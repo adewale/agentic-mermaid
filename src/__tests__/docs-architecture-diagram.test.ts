@@ -15,19 +15,11 @@ import { describe, it, expect } from 'bun:test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
+import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const systemDir = join(import.meta.dir, '..', '..', 'docs', 'design', 'system')
 const sourcePath = join(systemDir, 'architecture.mmd')
 const goldenPath = join(systemDir, 'architecture.svg')
-
-function normalizeSvg(svg: string): string {
-  return svg
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map(line => line.trimEnd())
-    .join('\n')
-    .trim()
-}
 
 describe('docs/design/system architecture figure', () => {
   const source = readFileSync(sourcePath, 'utf-8')

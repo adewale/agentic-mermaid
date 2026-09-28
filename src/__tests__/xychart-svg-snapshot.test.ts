@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
+import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const snapshotDir = join(import.meta.dir, 'testdata', 'svg')
 
@@ -26,15 +27,6 @@ xychart
   y-axis Users 0 --> 100
   bar [30, 60, 45]
   line [25, 55, 50]`
-
-function normalizeSvg(svg: string): string {
-  return svg
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map(line => line.trimEnd())
-    .join('\n')
-    .trim()
-}
 
 describe('renderMermaidSVG – xychart snapshots', () => {
   it('matches the accessible mixed xychart golden SVG', () => {
