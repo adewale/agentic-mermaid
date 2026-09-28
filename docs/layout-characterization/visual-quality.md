@@ -20,7 +20,7 @@ gates: `src/__tests__/contact-sheet.test.ts`,
 | Sequence diagram | [sequence.svg](./visual-snapshots/sequence.svg) | `08ed832d387d` | `8920255c0012` | 7488 | 420x286 | 420x286 | 3/4 | 0 | 0 | 560 | 8.0% | 100.0% | 0 | 10 | 60 | 0.58 | 5.47:1 | 1.47 |
 | Class diagram | [class.svg](./visual-snapshots/class.svg) | `7c9f3e13a2fe` | `da15de026074` | 4243 | 360x237.8 | 360x238 | 3/2 | 0 | 2 | 240 | 20.6% | 100.0% | 0 | n/a | 40 | 0.58 | 13.54:1 | 1.51 |
 | ER diagram | [er.svg](./visual-snapshots/er.svg) | `87742b6d96d8` | `52ea067c209b` | 9729 | 951.768x136 | 952x136 | 3/2 | 0 | 0 | 452 | 18.2% | 100.0% | 0 | 226 | 222 | 0.39 | 5.20:1 | 7.00 |
-| Timeline | [timeline.svg](./visual-snapshots/timeline.svg) | `18339ae9d6ef` | `206a0a53be16` | 7888 | 380x286.6 | 380x287 | 4/0 | 0 | 0 | 0 | 13.2% | 100.0% | 0 | n/a | 24 | 0.37 | 5.20:1 | 1.32 |
+| Timeline | [timeline.svg](./visual-snapshots/timeline.svg) | `1761b681061c` | `206a0a53be16` | 7888 | 380x286.6 | 380x287 | 4/0 | 0 | 0 | 0 | 13.2% | 100.0% | 0 | n/a | 24 | 0.37 | 5.20:1 | 1.32 |
 | Gantt chart | [gantt.svg](./visual-snapshots/gantt.svg) | `46a8243efa43` | `4e1f49937933` | 10366 | 703x282 | 703x282 | 4/0 | 0 | 0 | 0 | 5.4% | 75.0% | 0 | n/a | 8 | 0.20 | 5.47:1 | 2.49 |
 | User journey | [journey.svg](./visual-snapshots/journey.svg) | `f19bd91afe5f` | `f9d1919d8a88` | 15272 | 530x482.3 | 530x482 | 2/0 | 0 | 0 | 0 | 5.9% | 100.0% | 0 | n/a | 26 | 0.08 | 7.21:1 | 1.10 |
 | XY chart | [xychart.svg](./visual-snapshots/xychart.svg) | `53f7a94010e1` | `b9ab7095025d` | 18126 | 700x500 | 700x500 | 6/0 | 0 | 0 | 0 | 33.9% | 50.0% | 0 | n/a | 9 | 0.17 | 14.89:1 | 1.40 |

@@ -28,10 +28,10 @@
         {
           "path": "/",
           "count": 1,
-          "sha256": "6e3b12441ac6dae369621f3dd5ed2148ca4d46c8150f27a3f10f053336f46fd5",
-          "rawBytes": 267395,
-          "gzipBytes": 62724,
-          "brotliBytes": 47739
+          "sha256": "887f9151e22c67c07d9bb6a1aa141a20ffec34ace308fa26ca2b53ac13c6e91e",
+          "rawBytes": 267620,
+          "gzipBytes": 62732,
+          "brotliBytes": 47784
         },
         {
           "path": "/fonts/Caveat.subset.woff2",
@@ -100,9 +100,9 @@
       ],
       "totals": {
         "requests": 9,
-        "rawBytes": 685098,
-        "gzipBytes": 406998,
-        "brotliBytes": 388394
+        "rawBytes": 685323,
+        "gzipBytes": 407006,
+        "brotliBytes": 388439
       }
     },
     {
@@ -132,10 +132,10 @@
         {
           "path": "/examples/",
           "count": 1,
-          "sha256": "d78a5a416f338d93dd10678ea0f1328ab781a3114190640abd69c114943f2440",
-          "rawBytes": 287713,
-          "gzipBytes": 41288,
-          "brotliBytes": 31203
+          "sha256": "133004d818239f9e63f8479f4a61224eee1f36af66fa33c20c0dd42d1e85b8be",
+          "rawBytes": 287938,
+          "gzipBytes": 41311,
+          "brotliBytes": 31218
         },
         {
           "path": "/shader-mark.js",
@@ -164,9 +164,9 @@
       ],
       "totals": {
         "requests": 6,
-        "rawBytes": 395665,
-        "gzipBytes": 69165,
-        "brotliBytes": 54902
+        "rawBytes": 395890,
+        "gzipBytes": 69188,
+        "brotliBytes": 54917
       }
     },
     {
@@ -180,10 +180,26 @@
         {
           "path": "/demo/",
           "count": 1,
-          "sha256": "6e274eb469b8913695fa4ee280b69cdf1971d5cdd84497b329c4c1decf6771bb",
+          "sha256": "7daf51dde1d6d298f9020fc947cd9a1532a5634b081b123bd31b42b3ee8d0930",
           "rawBytes": 10184,
-          "gzipBytes": 3573,
-          "brotliBytes": 2810
+          "gzipBytes": 3574,
+          "brotliBytes": 2818
+        },
+        {
+          "path": "/demo/browser-lazy/chunks/chunk-4JFYOUA3.js",
+          "count": 1,
+          "sha256": "669a700443abe16b9c5d6b5795d5190278679be793ea39cc03d653fe628c8364",
+          "rawBytes": 183054,
+          "gzipBytes": 53054,
+          "brotliBytes": 45744
+        },
+        {
+          "path": "/demo/browser-lazy/chunks/chunk-5F6TNNZX.js",
+          "count": 1,
+          "sha256": "3c89bdb75b72439fb316c7a2126d5949736230ccaf36dcf130424f545bd97746",
+          "rawBytes": 1525,
+          "gzipBytes": 857,
+          "brotliBytes": 757
         },
         {
           "path": "/demo/browser-lazy/chunks/chunk-5Q4S74UO.js",
@@ -194,36 +210,12 @@
           "brotliBytes": 444
         },
         {
-          "path": "/demo/browser-lazy/chunks/chunk-6GXL5ULN.js",
-          "count": 1,
-          "sha256": "11a21394780e32a8938905e5908d79ebfc86d68d51177a4783be8c4d182095b8",
-          "rawBytes": 181199,
-          "gzipBytes": 52502,
-          "brotliBytes": 45378
-        },
-        {
           "path": "/demo/browser-lazy/chunks/chunk-7BVMGJOS.js",
           "count": 1,
           "sha256": "8261b139ddaf709dc8aeaf3e45378e9bfff3dcae0d99c2aa33456b4a4867ee2e",
           "rawBytes": 19431,
           "gzipBytes": 3799,
           "brotliBytes": 3350
-        },
-        {
-          "path": "/demo/browser-lazy/chunks/chunk-7DH3HG62.js",
-          "count": 1,
-          "sha256": "cea8a4c40342e9074be901c3f6d1b99017c667d6b7582cf0cad2018280a6b90e",
-          "rawBytes": 2112,
-          "gzipBytes": 848,
-          "brotliBytes": 783
-        },
-        {
-          "path": "/demo/browser-lazy/chunks/chunk-BBSCGXL4.js",
-          "count": 1,
-          "sha256": "616d9aa990ea6df82549e8ee154272b1e573649ae7f4b663229e7c79aead6154",
-          "rawBytes": 16232,
-          "gzipBytes": 5702,
-          "brotliBytes": 5173
         },
         {
           "path": "/demo/browser-lazy/chunks/chunk-EPFMQPXX.js",
@@ -234,12 +226,12 @@
           "brotliBytes": 127
         },
         {
-          "path": "/demo/browser-lazy/chunks/chunk-HNIPPN6E.js",
+          "path": "/demo/browser-lazy/chunks/chunk-HV4X3QHT.js",
           "count": 1,
-          "sha256": "10a79fe5dde84a30249ee10545703558ef4898bb18b754784e30204221afda5f",
-          "rawBytes": 36996,
-          "gzipBytes": 11033,
-          "brotliBytes": 9617
+          "sha256": "ccb5f6f507991a63d4dc82205917ce5b8a813e2ba8d9010bad445556a61d73bc",
+          "rawBytes": 2133,
+          "gzipBytes": 857,
+          "brotliBytes": 786
         },
         {
           "path": "/demo/browser-lazy/chunks/chunk-I6VE56S7.js",
@@ -248,6 +240,30 @@
           "rawBytes": 400,
           "gzipBytes": 279,
           "brotliBytes": 269
+        },
+        {
+          "path": "/demo/browser-lazy/chunks/chunk-JLATDQBP.js",
+          "count": 1,
+          "sha256": "1f8bd78291292149dfdc28f6a89207c69959fb56caf46847c5d4d712655d7d98",
+          "rawBytes": 36996,
+          "gzipBytes": 11033,
+          "brotliBytes": 9618
+        },
+        {
+          "path": "/demo/browser-lazy/chunks/chunk-KZ5RTVCR.js",
+          "count": 1,
+          "sha256": "c5a368db5e2ef546aa48797814cd7f10394625f53f2f04a4f583165e938839cf",
+          "rawBytes": 16783,
+          "gzipBytes": 5850,
+          "brotliBytes": 5301
+        },
+        {
+          "path": "/demo/browser-lazy/chunks/chunk-L5WHT45A.js",
+          "count": 1,
+          "sha256": "4bc564fa6164b91aac045dbfe71187a232a2918ba0117f8d7c4efe148ec85c51",
+          "rawBytes": 2787,
+          "gzipBytes": 1172,
+          "brotliBytes": 1000
         },
         {
           "path": "/demo/browser-lazy/chunks/chunk-M6BT2HIP.js",
@@ -266,14 +282,6 @@
           "brotliBytes": 121
         },
         {
-          "path": "/demo/browser-lazy/chunks/chunk-PNKT4MUG.js",
-          "count": 1,
-          "sha256": "98a4c9d0bdfaf46ee45bd3261aa40529f472496f9f7353865721632b6a77074b",
-          "rawBytes": 2787,
-          "gzipBytes": 1171,
-          "brotliBytes": 1000
-        },
-        {
           "path": "/demo/browser-lazy/chunks/chunk-PSS26STX.js",
           "count": 1,
           "sha256": "6376f97835a6a33038b1fb115d76a6600752ab746beadcb2af668e30560cb7d1",
@@ -290,20 +298,20 @@
           "brotliBytes": 120
         },
         {
+          "path": "/demo/browser-lazy/chunks/chunk-Q64OAU54.js",
+          "count": 1,
+          "sha256": "27c5a7cdc97e9db35d5495f8aff829400e470bd4bd85586525e54ab87d5dc84c",
+          "rawBytes": 14986,
+          "gzipBytes": 4192,
+          "brotliBytes": 3833
+        },
+        {
           "path": "/demo/browser-lazy/chunks/chunk-QK3Y4WPE.js",
           "count": 1,
           "sha256": "1d6a617133b8276cb825cbe569f43e8c06ed3bb856fa8930e505d0450436a9df",
           "rawBytes": 9911,
           "gzipBytes": 3669,
           "brotliBytes": 3315
-        },
-        {
-          "path": "/demo/browser-lazy/chunks/chunk-REWGZCFV.js",
-          "count": 1,
-          "sha256": "abb546c02d8eaada799e710c9410ed91e69ec7b2fc9f7ddb6c37b848b91f8792",
-          "rawBytes": 2805,
-          "gzipBytes": 1313,
-          "brotliBytes": 1191
         },
         {
           "path": "/demo/browser-lazy/chunks/chunk-STQRDZ67.js",
@@ -314,52 +322,44 @@
           "brotliBytes": 2843
         },
         {
-          "path": "/demo/browser-lazy/chunks/chunk-WIU7MN3K.js",
+          "path": "/demo/browser-lazy/chunks/chunk-VJKZ74RO.js",
           "count": 1,
-          "sha256": "4a5b972f233b59c9ab49e94facd6b795a411886dbf2aa3439a848003097d7576",
-          "rawBytes": 14986,
-          "gzipBytes": 4191,
-          "brotliBytes": 3841
+          "sha256": "f0f92bf25c1c6a15b66601b1fb8a0942e49657e10dd438f6559cfd02f827d97f",
+          "rawBytes": 2940,
+          "gzipBytes": 1360,
+          "brotliBytes": 1235
         },
         {
-          "path": "/demo/browser-lazy/chunks/chunk-YOMPKASF.js",
+          "path": "/demo/browser-lazy/chunks/chunk-WTZNYXAX.js",
           "count": 1,
-          "sha256": "4e2f7863f6dda194284cc3a7531eeed886f6923b35fe45f30f29fbd81fac49f1",
+          "sha256": "a4e98b1ecf7c23d877e228ac0ddae8ed7aa068e0133f67cfc4288c1a3724bdce",
           "rawBytes": 4595,
           "gzipBytes": 1641,
-          "brotliBytes": 1476
+          "brotliBytes": 1474
         },
         {
-          "path": "/demo/browser-lazy/chunks/chunk-Z4HYPSR3.js",
+          "path": "/demo/browser-lazy/chunks/render-core-YTPT72R5.js",
           "count": 1,
-          "sha256": "ee79a0f0d3e72482ff583c3e3bb68bb503db021e7dfd5618c23b028665920448",
-          "rawBytes": 985,
-          "gzipBytes": 604,
-          "brotliBytes": 549
+          "sha256": "0a617a8634db663f619560ced0adcbc445a48cd46e8c23b561ff0591833e18c5",
+          "rawBytes": 113661,
+          "gzipBytes": 35583,
+          "brotliBytes": 31643
         },
         {
-          "path": "/demo/browser-lazy/chunks/render-core-EMRFQSGX.js",
+          "path": "/demo/browser-lazy/chunks/timeline-5YUESGPF.js",
           "count": 1,
-          "sha256": "3134c61616ad702855b487ab4d9b14f7c084cb0cb5fc7ddf685c43665957a481",
-          "rawBytes": 107221,
-          "gzipBytes": 33794,
-          "brotliBytes": 30078
+          "sha256": "24d18a4c72cf87afb221becc5cefb02c7295634ad185f5b1f518da92f48f67af",
+          "rawBytes": 24265,
+          "gzipBytes": 7489,
+          "brotliBytes": 6772
         },
         {
-          "path": "/demo/browser-lazy/chunks/timeline-ZSITLIHJ.js",
+          "path": "/demo/browser-lazy/index-844b8a889d32.js",
           "count": 1,
-          "sha256": "892c94e36a7d0c85be02cb958040360c0ceec5f7aca350beb75dadc6d75e18ac",
-          "rawBytes": 23776,
-          "gzipBytes": 7333,
-          "brotliBytes": 6625
-        },
-        {
-          "path": "/demo/browser-lazy/index-9ce343492e63.js",
-          "count": 1,
-          "sha256": "9ce343492e6319648aa6d4c618c6403c1491a72a42972e1346e34d8872bd0a0b",
+          "sha256": "844b8a889d3213774e65bb3c2a1bc712e5d59fbd1168441b63e5d688d9350b67",
           "rawBytes": 3034,
-          "gzipBytes": 1136,
-          "brotliBytes": 987
+          "gzipBytes": 1138,
+          "brotliBytes": 984
         },
         {
           "path": "/fonts/Inter-Regular.subset-f99ced08c3ad.woff2",
@@ -378,12 +378,12 @@
           "brotliBytes": 40120
         },
         {
-          "path": "/generated/inline-8840a375acee.js",
+          "path": "/generated/inline-187df5d7c4e7.js",
           "count": 1,
-          "sha256": "8840a375aceec5554b3dccafdfd48cb89021a703c96c3e65ee645b39103f0168",
+          "sha256": "187df5d7c4e7958113fbe6ab8ed0ad93dd21a39cd7b8f40cfc27309abd92826b",
           "rawBytes": 1187,
           "gzipBytes": 542,
-          "brotliBytes": 430
+          "brotliBytes": 423
         },
         {
           "path": "/shader-mark.js",
@@ -412,9 +412,9 @@
       ],
       "totals": {
         "requests": 29,
-        "rawBytes": 741829,
-        "gzipBytes": 278448,
-        "brotliBytes": 253951
+        "rawBytes": 751860,
+        "gzipBytes": 281407,
+        "brotliBytes": 256401
       }
     },
     {
@@ -428,25 +428,25 @@
         {
           "path": "/editor/",
           "count": 1,
-          "sha256": "98d0d64f65a6cbc941fd68276488174da65f3c6a90d2aa12b8c3d4d86adfd324",
+          "sha256": "2c22212a1d71f6d8be075e4bc3e7b553e80c1c040c75b1139508b01da1fdae5c",
           "rawBytes": 102590,
           "gzipBytes": 18089,
-          "brotliBytes": 15353
+          "brotliBytes": 15355
         },
         {
-          "path": "/editor/editor-446e5baeff2e.js",
+          "path": "/editor/editor-9fdce1d1242d.js",
           "count": 1,
-          "sha256": "d1a5bd8ba06e226118cd236923fd4e8f39cd9df8ff724c9d86c6b3328a49df76",
-          "rawBytes": 3316143,
-          "gzipBytes": 999947,
-          "brotliBytes": 787936
+          "sha256": "045f97c4a724f251cc7a78ae761ee1a7b228efdbad4dae48049a8c7d8efc2f49",
+          "rawBytes": 3329742,
+          "gzipBytes": 1004706,
+          "brotliBytes": 791037
         }
       ],
       "totals": {
         "requests": 2,
-        "rawBytes": 3418733,
-        "gzipBytes": 1018036,
-        "brotliBytes": 803289
+        "rawBytes": 3432332,
+        "gzipBytes": 1022795,
+        "brotliBytes": 806392
       }
     }
   ]

@@ -5,15 +5,15 @@ import type { WebsitePayloadBudgets } from './website-payload-authority.ts'
 export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   home: Object.freeze({
     maxRequests: 9,
-    maxRawBytes: 685_098,
-    // The marker-reference change updates generated homepage SVG bytes without
-    // adding a request; gzip is unchanged and the other exact totals are pinned.
+    // Timeline literal-label SVG output adds a few hundred bytes to the
+    // existing homepage request graph; exact Linux totals live in the baseline.
     // Holding every family's text to the chart-honesty contract (root-scoped
     // SVG styles with a 64-bit scope class, text tones that clear AA on every
-    // surface, and label halos) adds 2,453 raw, 433 gzip, and 398 Brotli bytes
+    // surface, and label halos) adds 2,453 raw, 425 gzip, and 303 Brotli bytes
     // to the prerendered homepage SVGs; the request graph is unchanged.
-    maxGzipBytes: 406_998,
-    maxBrotliBytes: 388_394,
+    maxRawBytes: 685_323,
+    maxGzipBytes: 407_006,
+    maxBrotliBytes: 388_439,
     required: Object.freeze([
       '^/$', '^/styles\\.css$',
       '^/fonts/Inter-Regular\\.subset-[a-f0-9]{12}\\.woff2$',
@@ -25,13 +25,13 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // Sequence half-arrow examples add bytes without changing the six-request
     // graph; these are the reviewed Linux/x64 totals.
-    // The chart-honesty text contract adds 4,130 raw, 558 gzip, and 509 Brotli
-    // bytes to the prerendered examples page without adding a request.
-    maxRawBytes: 395_665,
     // Authored Class member display changes compression by one byte while
     // leaving the route graph and raw bytes unchanged.
-    maxGzipBytes: 69_165,
-    maxBrotliBytes: 54_902,
+    // The chart-honesty text contract adds 4,130 raw, 567 gzip, and 506 Brotli
+    // bytes to the prerendered examples page without adding a request.
+    maxRawBytes: 395_890,
+    maxGzipBytes: 69_188,
+    maxBrotliBytes: 54_917,
     required: Object.freeze([
       '^/examples/$', '^/styles\\.css$', '^/examples-[a-f0-9]{12}\\.js$', '^/examples-[a-f0-9]{12}\\.css$',
     ]),
@@ -42,6 +42,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // but avoids every other family and the shared ELK chunk. Exact byte totals
     // are ratcheted from the browser capture below, including the canonical
     // appearance path shared with the complete browser bundle.
+    // Shared authored-color admission adds one cacheable lazy chunk to the
+    // Timeline demo's browser graph: 31 requests on Linux/Bun 1.4.2.
     maxRequests: 29,
     // The shared accDescr scanner removes one lazy chunk without changing
     // rendered pixels; the unclosed-block guard, inline-empty-Class-body
@@ -54,14 +56,49 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // chunk; the exact Linux totals remain pinned in the generated baseline.
     // The title-directive bridge reached 733,574 raw demo bytes on Linux/x64;
     // keep a sub-0.1% ceiling margin for regenerated bundle metadata.
-    // The chart-honesty text contract, with its checks that name an invalid
-    // authored color, adds 7,858 raw, 3,078 gzip, and 2,573 Brotli bytes to the
-    // shared chunks, and its module moves regroup the small shared chunks, so
-    // the graph drops from 30 to 29 requests. Each ceiling keeps main's
+    // Flowchart edge-class paint plus bounded fixed-size markers reach 734,628
+    // Linux raw bytes on the shared lazy path; the request graph is unchanged.
+    // Timeline literal-text Scene validation keeps the same request graph;
+    // Linux/x64 measures 735,369 raw / 275,828 gzip / 251,742 Brotli bytes.
+    // The bounded Timeline Scene wrapper check and width loop remain in the
+    // existing lazy graph; Linux/x64 measured 735,792 raw / 275,963 gzip.
+    // Source-admission guards measure 736,006 raw / 276,044 gzip / 251,929
+    // Brotli on the same 30-request graph; keep less than 0.02% headroom.
+    // Color validation and lazy-route parity measure 738,563 raw / 277,148
+    // gzip / 252,919 Brotli bytes; retain under 0.06% measurement headroom.
+    // Shared/Pie theme-color admission measures 739,757 raw / 277,593 gzip /
+    // 253,307 Brotli on the same 31-request Linux/Bun 1.4.2 graph.
+    // GitGraph theme admission adds a fixed shared-color gate. Linux/Bun 1.4.2
+    // measures 740,029 raw / 277,672 gzip / 253,383 Brotli on 31 requests.
+    // Timeline's 36 indexed theme-color guards keep the same 31-request graph.
+    // Linux/Bun 1.4.2 measures 740,173 raw / 277,714 gzip / 253,465 Brotli.
+    // Timeline/Journey config-color admission keeps the same 31 requests;
+    // Linux/Bun 1.4.2 measures 741,651 raw / 278,039 gzip / 253,698 Brotli.
+    // Radar theme-color admission keeps the 31-request graph. The pinned
+    // Linux/Bun 1.4.2 capture measures 742,066 raw / 278,139 gzip /
+    // 253,806 Brotli bytes; retain less than 0.04% headroom.
+    // Architecture's three family theme-color guards retain 31 requests.
+    // Linux/Bun 1.4.2 measures 742,416 raw / 278,248 gzip / 253,877 Brotli.
+    // Architecture's shared derived-paint admission keeps 31 requests. The
+    // exact Linux/Bun 1.4.2 capture measures 742,685 raw / 278,345 gzip /
+    // 253,985 Brotli bytes; these ceilings keep less than 0.06% headroom.
+    // Architecture selected theme/render-option admission keeps the 31-request
+    // graph. Linux/Bun 1.4.2 measures 744,011 raw / 278,669 gzip / 254,184
+    // Brotli bytes after resolved visual precedence.
+    // Quadrant authored-paint admission keeps 31 requests. The exact
+    // Linux/Bun 1.4.2 capture measures 743,964 raw / 278,662 gzip /
+    // 254,237 Brotli bytes.
+    // XY Chart's nested theme and palette guards retain that 31-request graph.
+    // Linux/Bun 1.4.2 measures 745,142 raw / 278,983 gzip / 254,471 Brotli.
+    // Explicit XY Chart no-op diagnostics keep the graph unchanged; the exact
+    // Linux capture measures 745,425 raw / 254,601 Brotli bytes.
+    // The chart-honesty text contract adds 6,435 raw, 2,370 gzip, and 1,800
+    // Brotli bytes to the shared chunks and regroups the small ones, so the
+    // graph has 29 requests where main's has 31. Each ceiling keeps main's
     // allowance above the Linux total for the macOS recording.
-    maxRawBytes: 741_858,
-    maxGzipBytes: 278_678,
-    maxBrotliBytes: 254_073,
+    maxRawBytes: 751_935,
+    maxGzipBytes: 281_470,
+    maxBrotliBytes: 256_450,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -108,21 +145,65 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // Authored Pie literal-metrics metadata adds 439 raw bytes on Linux/x64;
     // the two-request editor graph is unchanged and the raw ceiling retains
     // less than 0.01% headroom above the measured 3,393,082 bytes.
+    // ER multi-class lexing/paint adds no request. The audited linear class
+    // accumulator measured 3,394,056 raw / 1,009,119 gzip / 796,614 Brotli
+    // on Linux/x64; exact hashes and totals are pinned in the baseline.
+    // XYChart's fail-loud unknown-statement guard remains in these two
+    // requests; Linux/x64 measured 3,394,044 raw / 1,009,119 gzip /
+    // 796,674 Brotli, within the existing narrow ceilings.
+    // Authored edge-class propagation and fixed-size marker variants reach
+    // 3,394,829 raw / 1,009,358 gzip Linux bytes in the two-request editor.
+    // Timeline's shared event-separator validation and upstream trailing-colon
+    // guard measure 3,395,107 raw / 1,009,488 gzip bytes on Linux/x64. The
+    // two-request graph stays fixed and both ceilings retain under 0.01% slack.
+    // The shared Scene literal-text guard measures 3,395,922 raw and
+    // 1,009,850 gzip bytes with the same two editor requests.
+    // Timeline title parity and the single-line mutation guard stay in the
+    // same two-request editor graph; Linux/x64 measured 3,396,710 raw bytes.
+    // Source-admission guards measure 3,397,027 raw / 1,010,222 gzip on the
+    // same two-request graph; ceilings retain less than 0.01% slack.
+    // The official GitGraph duplicate-ID disposition adds a narrow agent
+    // diagnostic and preserves its authored frontmatter through verification.
+    // Linux/Bun 1.4.2 measures 3,397,755 raw / 1,010,948 gzip / 798,156
+    // Brotli bytes. Keep roughly 0.01% headroom on the same two-request graph.
+    // The complete editor bundle measures 3,400,568 raw and 1,011,676 gzip
+    // bytes after authored-color admission on the same two-request graph.
+    // Shared/Pie theme-color admission measures 3,402,004 raw / 1,012,296
+    // gzip / 798,367 Brotli on Linux/Bun 1.4.2, still two requests.
+    // The same shared gate measures 3,402,280 raw / 1,012,359 gzip /
+    // 798,560 Brotli on the unchanged two-request editor graph.
+    // The two-request editor measures 3,402,427 raw bytes with Timeline admission.
+    // The two-request editor measures 3,403,967 raw with this shared gate.
+    // The same shared guard measures 3,404,384 raw / 1,012,711 gzip /
+    // 798,966 Brotli bytes in the unchanged two-request editor graph.
+    // The same gate measures 3,404,740 raw / 1,012,842 gzip / 799,370
+    // Brotli bytes in the unchanged two-request editor graph.
+    // The complete editor bundle measures 3,405,034 raw / 1,012,944 gzip /
+    // 799,359 Brotli bytes in the same exact Linux capture.
+    // The complete two-request editor graph measures 3,406,538 raw /
+    // 1,013,219 gzip / 799,227 Brotli in the same Linux capture.
+    // The same Linux capture measures 3,406,957 raw / 1,013,492 gzip /
+    // 799,355 Brotli bytes in the unchanged two-request editor graph.
+    // XY Chart color admission and terminal-projection safety measure
+    // 3,408,123 raw / 1,013,779 gzip / 799,550 Brotli in the same
+    // two-request graph on Linux/Bun 1.4.2.
+    // Shared no-op validity diagnostics measure 3,408,480 raw in that graph.
+    // Timeline semantic line-break normalization previously measured 1,009,565
+    // gzip bytes. The shared literal-text Scene guard now measures 1,009,850
+    // on Linux/x64; retain 150 bytes of headroom with no new requests.
     // Pie's escaped-LF painted-text projection stays in the existing two
-    // requests. The tab-aware linear scanner measured 3,393,328 raw /
-    // 1,008,710 gzip / 796,392 Brotli on Linux/x64; retain the narrow
-    // cross-platform ceiling.
+    // requests. Timeline title parity and its boundary guard reach 797,353
+    // Brotli bytes on Linux/x64, still in the same two-request graph.
     // The chart-honesty contract (SVG style scoping, per-bar data labels,
     // contrast ink, palette repair, the LABELS_HIDDEN and
     // BAR_RANGE_EXCLUDES_ZERO lints, registered upstream config keys, and every
-    // family's text tones, halos, titles, and containment, and the checks that
-    // name an invalid authored color, the node-fill ink, and the
-    // VALUES_OUTSIDE_RANGE lint) adds 25,405 raw, 9,326 gzip, and 6,897 Brotli
-    // bytes to the Linux/x64 editor bundle without a new request. Each ceiling
-    // keeps main's allowance above the Linux total.
-    maxRawBytes: 3_418_805,
-    maxGzipBytes: 1_018_126,
-    maxBrotliBytes: 803_697,
+    // family's text tones, halos, titles, and containment, the node-fill ink,
+    // and the VALUES_OUTSIDE_RANGE lint) adds 23,852 raw, 8,943 gzip, and 6,435
+    // Brotli bytes to the Linux/x64 editor bundle without a new request. Each
+    // ceiling keeps main's allowance above the Linux total.
+    maxRawBytes: 3_432_452,
+    maxGzipBytes: 1_022_888,
+    maxBrotliBytes: 806_450,
     required: Object.freeze(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$']),
     forbidden: Object.freeze([]),
   }),

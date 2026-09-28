@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "3f8ab115ffb678311702515ed80340027de78ad8cf33b78a9254bd0e7ffdb108",
-  "receiptResultSha256": "3ff000331b1a648609120f88c5cd01693949abd11820252aa8ac381a3c159fce",
+  "receiptInputSha256": "5b633b55fe2febc047cba8d7ac02f25e76589455c7b2279d09197e10631bf5b9",
+  "receiptResultSha256": "e1bb160e8db152a83ada3da9267a6b09d3a98319e531a03e671ff35135cbb23f",
   "summary": {
-    "caseCount": 31,
-    "featureCount": 13,
+    "caseCount": 34,
+    "featureCount": 15,
     "dispositions": {
-      "native": 4,
+      "native": 5,
       "source-preserved": 0,
-      "diagnosed": 6,
-      "absent": 3
+      "diagnosed": 8,
+      "absent": 2
     }
   },
   "features": [
@@ -277,6 +277,34 @@
       "acceptedDivergences": []
     },
     {
+      "featureId": "official-doc:er:section:classes",
+      "family": "er",
+      "disposition": "native",
+      "caseIds": [
+        "er.classes.multiple-assignments-and-shorthand"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "er.classes.multiple-assignments-and-shorthand",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
       "featureId": "official-doc:er:section:relationship-syntax",
       "family": "er",
       "disposition": "native",
@@ -293,6 +321,34 @@
       "caseEvidence": [
         {
           "caseId": "er.relationships.word-cardinality-aliases",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": "native"
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:flowchart:section:attaching-an-id-to-edges",
+      "family": "flowchart",
+      "disposition": "native",
+      "caseIds": [
+        "flowchart.classes.edge-paint-implication"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": "native"
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "flowchart.classes.edge-paint-implication",
           "surfaces": {
             "agent": "native",
             "render": "native",
@@ -333,11 +389,62 @@
       "acceptedDivergences": []
     },
     {
-      "featureId": "official-doc:flowchart:section:using-classdef-statements-for-animations",
-      "family": "flowchart",
+      "featureId": "official-doc:gitgraph:section:customizing-main-branch-name",
+      "family": "gitgraph",
+      "disposition": "diagnosed",
+      "caseIds": [
+        "gitgraph.official.main-branch-duplicate-id-diagnosed"
+      ],
+      "surfaces": {
+        "agent": "source-preserved",
+        "render": "diagnosed",
+        "serialize": "source-preserved",
+        "mutate": "diagnosed"
+      },
+      "diagnostics": {
+        "agent": [
+          "RENDER_FAILED",
+          "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "GITGRAPH_DUPLICATE_COMMIT_ID"
+        ],
+        "mutate": [
+          "INVALID_OP"
+        ]
+      },
+      "caseEvidence": [
+        {
+          "caseId": "gitgraph.official.main-branch-duplicate-id-diagnosed",
+          "surfaces": {
+            "agent": "source-preserved",
+            "render": "diagnosed",
+            "serialize": "source-preserved",
+            "mutate": "diagnosed"
+          },
+          "diagnostics": {
+            "agent": [
+              "RENDER_FAILED",
+              "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "GITGRAPH_DUPLICATE_COMMIT_ID"
+            ],
+            "mutate": [
+              "INVALID_OP"
+            ]
+          }
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:journey:section:user-journey-diagram",
+      "family": "journey",
       "disposition": "absent",
       "caseIds": [
-        "flowchart.classes.edge-paint-implication"
+        "journey.official.fence-0",
+        "journey.scores.fractional-parser-render-seam"
       ],
       "surfaces": {
         "agent": "native",
@@ -348,33 +455,19 @@
       "diagnostics": {},
       "caseEvidence": [
         {
-          "caseId": "flowchart.classes.edge-paint-implication",
+          "caseId": "journey.official.fence-0",
           "surfaces": {
             "agent": "native",
             "render": "absent",
             "serialize": "native",
-            "mutate": "native"
+            "mutate": {
+              "notApplicable": [
+                "This case classifies official syntax; Journey set_task_score has a separate semantic receipt."
+              ]
+            }
           },
           "diagnostics": {}
-        }
-      ],
-      "acceptedDivergences": []
-    },
-    {
-      "featureId": "official-doc:journey:section:user-journey-diagram",
-      "family": "journey",
-      "disposition": "native",
-      "caseIds": [
-        "journey.scores.fractional-parser-render-seam"
-      ],
-      "surfaces": {
-        "agent": "native",
-        "render": "native",
-        "serialize": "native",
-        "mutate": "native"
-      },
-      "diagnostics": {},
-      "caseEvidence": [
+        },
         {
           "caseId": "journey.scores.fractional-parser-render-seam",
           "surfaces": {
@@ -741,20 +834,23 @@
     {
       "featureId": "official-doc:xychart:section:syntax",
       "family": "xychart",
-      "disposition": "absent",
+      "disposition": "diagnosed",
       "caseIds": [
         "xychart.syntax.shared-parser-semantics",
         "xychart.syntax.unknown-statement-render-seam"
       ],
       "surfaces": {
         "agent": "source-preserved",
-        "render": "absent",
+        "render": "diagnosed",
         "serialize": "source-preserved",
         "mutate": "diagnosed"
       },
       "diagnostics": {
         "agent": [
           "UNSUPPORTED_SYNTAX"
+        ],
+        "render": [
+          "RENDER_FAILED"
         ],
         "mutate": [
           "INVALID_OP"
@@ -775,13 +871,16 @@
           "caseId": "xychart.syntax.unknown-statement-render-seam",
           "surfaces": {
             "agent": "source-preserved",
-            "render": "absent",
+            "render": "diagnosed",
             "serialize": "source-preserved",
             "mutate": "diagnosed"
           },
           "diagnostics": {
             "agent": [
               "UNSUPPORTED_SYNTAX"
+            ],
+            "render": [
+              "RENDER_FAILED"
             ],
             "mutate": [
               "INVALID_OP"

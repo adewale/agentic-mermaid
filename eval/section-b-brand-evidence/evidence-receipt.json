@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "generator": "scripts/pr-assets/section-b-brand-evidence.ts",
   "inputs": {
-    "count": 284,
-    "treeSha256": "ca9a4f1ab9f4850911b1c69c4d3fea365a892673df6d242d59e777c6ef549d44"
+    "count": 285,
+    "treeSha256": "344fabeee8799d95c39d7cee910d456e01ff4540db14141383093e709eb1d808"
   },
   "runtimeDependencies": {
     "algorithm": "bun-lock-transitive-v1",
@@ -62,17 +62,17 @@
   "graphicalBackends": {
     "default": {
       "familyCount": 16,
-      "svgSha256": "4ab009e24525109290626ded4453ae1455c8e1ee61cf9b59d591dba66ce8dffa",
+      "svgSha256": "57bb83c6b5be0efa949c27593c52606a836c366745810605346e65372cca9394",
       "pngSha256": "c2a1ec2eddc2f027ffee2c75973490decb70c38a23271197b5aa945ea58dfbff"
     },
     "rough": {
       "familyCount": 16,
-      "svgSha256": "a578325c859753f4ee954f341a604fcac1919a4309d5287b12476b5cd71ed4ee",
+      "svgSha256": "2e42858827a94c5b3e5ec3b65dc819721fece2168b5c29c8535f4e497bb5a991",
       "pngSha256": "d159406a3e99ec0e031d537c3d6f63941c8f7c9b78e24deaa55510ad97189d10"
     },
     "hybrid": {
       "familyCount": 16,
-      "svgSha256": "b19aa96c885528be112edaccd7b8fda4adf51ecaba8557587e7e08863445ce7a",
+      "svgSha256": "a42304972b3f337cd10cc3ca9ac83ed6d0005b413226854f204733ec410ca111",
       "pngSha256": "3af5b8c91976a188f6dbba8d8a9f4e30c984c29a4c2b27755ae2eb663e2b5faf"
     }
   },
