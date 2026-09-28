@@ -78,9 +78,9 @@ export function resolveSequenceConfig(frontmatter: MermaidFrontmatterMap | undef
 }
 
 /**
- * NOOP keys present in the given config objects, sorted — the input to
- * verify's INEFFECTIVE_CONFIG warnings. The table lives beside the wiring so
- * wire and warn cannot drift.
+ * NOOP keys present in the given config objects, sorted. Verify's
+ * INEFFECTIVE_CONFIG lint does not call this: it reads the registry's
+ * sequence config.noopKeys in src/agent/families.ts.
  */
 export function sequenceIneffectiveConfigFields(configs: unknown[]): string[] {
   const present = new Set<string>()

@@ -261,8 +261,8 @@ export function resolveArchitectureVisualConfig(
 //                                      edge length between connected ranks)
 //   LINT   edgeElasticity, numIter, seed, randomize — fcose simulation knobs
 //          with no meaning in a deterministic layout; named by verify's
-//          INEFFECTIVE_CONFIG (ARCHITECTURE_NOOP_CONFIG_FIELDS below), never
-//          silently swallowed.
+//          INEFFECTIVE_CONFIG (the registry's architecture config.noopKeys in
+//          src/agent/families.ts), never silently swallowed.
 // ---------------------------------------------------------------------------
 
 function resolveNodeSeparation(architecture: MermaidFrontmatterMap | undefined): number | undefined {

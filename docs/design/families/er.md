@@ -60,7 +60,8 @@ The typed `er` frontmatter section (`ErRuntimeConfig` in
   (explicit RenderOptions win).
 - **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): `titleTopMargin`,
   `diagramPadding`, `minEntityWidth`, `minEntityHeight`, `entityPadding`,
-  `stroke`, `fill`, `fontSize` (`ER_NOOP_CONFIG_FIELDS`, beside the wiring).
+  `stroke`, `fill`, `fontSize` (the er descriptor's `config.noopKeys` in
+  `src/agent/families.ts`, which the lint reads).
 
 ## Crow's-foot markers (glyph correction)
 

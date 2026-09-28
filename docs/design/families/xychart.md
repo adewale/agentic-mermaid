@@ -150,9 +150,10 @@ The structured body (`src/agent/xychart-body.ts`) models the header
 orientation, title, axes, and series, and its op menu includes two
 whole-chart/point-level ops beyond the series-level set:
 
-- `set_orientation {horizontal: boolean}` — flips the `xychart-beta
-  horizontal` header suffix; `false` drops the suffix (vertical is the
-  serialized default)
+- `set_orientation {horizontal: boolean}` — sets an explicit header
+  orientation: `true` serializes `xychart-beta horizontal`, `false`
+  serializes `xychart-beta vertical`; only a body with no orientation set
+  emits the bare header (deferring to frontmatter `chartOrientation`)
 - `set_data_point {seriesIndex, index, value}` — edits a single value in
   place with prescriptive index validation (`SERIES_NOT_FOUND` /
   `POINT_NOT_FOUND` errors name the valid ranges) and rejects non-finite

@@ -23,7 +23,7 @@ modeled subset. Silent loss is never an acceptable level.
 | Frontmatter / init directives / leading comments | Parsed source preserves the exact prefix before the family header in `meta.wrapperSource`, including `''`, while the body owns the disjoint exact suffix; re-emitted verbatim by default. Canonical wrapper synthesis is opt-in for synthesized payloads that omit `wrapperSource`. |
 | In-body comments | Preserved by opaque bodies; structured bodies must either preserve them or report `COMMENT_DROPPED`. |
 | Unknown family syntax | Use L1 opaque preservation when rendering remains safe; otherwise L0 named failure. |
-| Mermaid v11 `@{ ... }` metadata | Must not create phantom nodes or silently drop targets. Current safety floor preserves opaque/unsupported forms and consumes supported label metadata conservatively. Full typed-shape vocabulary remains separate (#44). |
+| Mermaid v11 `@{ ... }` metadata | Must not create phantom nodes or silently drop targets. Current safety floor preserves opaque/unsupported forms and consumes supported label metadata conservatively. The full documented v11 typed-shape vocabulary (#44) parses structurally via `src/flowchart-shapes.ts`; undocumented shape names, unknown keys, and placement/dimension keys (`pos`, `h`, `w`, `constraint`) stay on the opaque floor (`src/agent/flowchart-unsupported.ts`). |
 | Actions/clicks | Never execute during parse/render/analysis. Preserve source intent and expose source-only metadata where modeled. |
 | Render regions | Stable IDs are required for L4 claims; V1 region coverage may be partial but must be documented and tested. |
 

@@ -156,8 +156,9 @@ journey-shaped sequence-era remainder (`diagramMarginX/Y`, `leftMargin`,
 `taskFontSize`, `taskFontFamily`, `taskMargin`, `activationWidth`,
 `textPlacement`, `actorColours`) plus the base `useMaxWidth`/`useWidth` — is
 accepted for config-shape compatibility but has no effect here, and verify
-names each present field with the Tier-3 `INEFFECTIVE_CONFIG` lint
-(`TIMELINE_NOOP_CONFIG_FIELDS` in `src/agent/verify.ts`, journey pattern).
+names each present field with the Tier-3 `INEFFECTIVE_CONFIG` lint (the
+timeline descriptor's `config.noopKeys` in `src/agent/families.ts`, journey
+pattern).
 
 ## Agent surface
 

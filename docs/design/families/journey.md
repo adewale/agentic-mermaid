@@ -130,11 +130,12 @@ as-authored for the section label band (Mermaid semantics), and explicit
 otherwise the label flips to the band's black/white contrast color instead of
 rendering invisible text.
 
-The sequence-era fields that do not map to this visual metaphor (`noteMargin`,
-`messageMargin`, `messageAlign`, `bottomMarginAdj`, `rightAngles`,
-`activationWidth`, `textPlacement`) are accepted in normalized config for
-Mermaid compatibility but do not alter Journey SVG geometry; `verify` reports
-them with an ineffective-config lint so migrating users are not misled.
+The sequence-era fields that do not map to this visual metaphor (`boxMargin`,
+`boxTextMargin`, `noteMargin`, `messageMargin`, `messageAlign`, …; the exact
+list is the journey descriptor's `config.noopKeys` in `src/agent/families.ts`)
+are accepted in normalized config for Mermaid compatibility but do not alter
+Journey SVG geometry; `verify` reports them with an ineffective-config lint so
+migrating users are not misled.
 
 ## Accessibility
 

@@ -10,9 +10,8 @@
 //           measured-pixel auto-wrap of node labels at layout sizing.
 //   LINT  — every other documented key is accepted for Mermaid config-shape
 //           compatibility and named by verify's INEFFECTIVE_CONFIG Tier-3
-//           lint (FLOWCHART_NOOP_CONFIG_FIELDS below), never silently
-//           swallowed. The NOOP table lives beside the wiring so wire and
-//           warn cannot drift.
+//           lint (the registry's flowchart config.noopKeys in
+//           src/agent/families.ts), never silently swallowed.
 //
 // wrappingWidth semantics: upstream defaults it to 200 but applies the wrap
 // ONLY to markdown-string labels; regular labels never auto-wrap upstream.

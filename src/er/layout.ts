@@ -59,7 +59,7 @@ export const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
  * keys. Precedence: an in-body `direction` statement > er.layoutDirection >
  * the LR default; explicit RenderOptions spacing > er.nodeSpacing/rankSpacing.
  * The documented-but-unwired keys are named by verify's INEFFECTIVE_CONFIG
- * lint (ER_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ * lint (the family's config.noopKeys in src/agent/families.ts).
  */
 export function applyErFrontmatterConfig(
   diagram: ErDiagram,

@@ -225,8 +225,8 @@ The typed `class` frontmatter section (`ClassRuntimeConfig` in
 - **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): `titleTopMargin`,
   `arrowMarkerAbsolute`, `dividerMargin`, `padding`, `textHeight`,
   `defaultRenderer`, `diagramPadding`, `htmlLabels`, `hideEmptyMembersBox` —
-  the table (`CLASS_NOOP_CONFIG_FIELDS`) lives
-  beside the wiring in `src/class/layout.ts` so wire and warn cannot drift.
+  the lint reads the class descriptor's `config.noopKeys` in
+  `src/agent/families.ts`.
 
 ## Generic classes (repo #118)
 

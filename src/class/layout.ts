@@ -69,8 +69,8 @@ export const CLASS_STYLE_DEFAULTS: RenderStyleDefaults = {
  * Fold the typed `class` frontmatter config section into RenderOptions
  * (wire-or-warn, P4): nodeSpacing/rankSpacing are the wired keys — explicit
  * RenderOptions always win over frontmatter. The documented-but-unwired keys
- * are named by verify's INEFFECTIVE_CONFIG lint (CLASS_NOOP_CONFIG_FIELDS in
- * src/agent/verify.ts), never silently accepted.
+ * are named by verify's INEFFECTIVE_CONFIG lint (the family's config.noopKeys in
+ * src/agent/families.ts), never silently accepted.
  */
 export function resolveClassRenderOptions(
   frontmatter: MermaidFrontmatterMap | undefined,
