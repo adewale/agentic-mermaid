@@ -3,16 +3,16 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "ac8ce3056422da8a80c4e33815a94cb4b89e5750e57364f3561e704f3bda5486",
-  "receiptResultSha256": "082b515fb66304e26a5d61e509f49ddb965effeac41ff98f14af54c69cb3f829",
+  "receiptInputSha256": "a5fdf2014b1c8fa8b833882fd1434fa5259f1de84c24172cdcc7281c07aaa0b6",
+  "receiptResultSha256": "1abf9f9a9f2080e1298bb78e6a10661f25dea68e71cbbbb9e4a07b0eb2bb96a9",
   "summary": {
-    "caseCount": 52,
-    "featureCount": 31,
+    "caseCount": 55,
+    "featureCount": 34,
     "dispositions": {
-      "native": 16,
+      "native": 17,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 7
+      "absent": 9
     }
   },
   "features": [
@@ -727,6 +727,114 @@
           }
         }
       ]
+    },
+    {
+      "featureId": "official-doc:quadrant:section:example",
+      "family": "quadrant",
+      "disposition": "native",
+      "caseIds": [
+        "quadrant.official.fence-0"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "native",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "quadrant.official.fence-0",
+          "surfaces": {
+            "agent": "native",
+            "render": "native",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:quadrant:section:example-on-config-and-theme",
+      "family": "quadrant",
+      "disposition": "absent",
+      "caseIds": [
+        "quadrant.official.fence-1"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "quadrant.official.fence-1",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:quadrant:section:example-on-styling",
+      "family": "quadrant",
+      "disposition": "absent",
+      "caseIds": [
+        "quadrant.official.fence-2"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "quadrant.official.fence-2",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These cases classify the pinned official source; Quadrant point mutation has separate operation tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
     },
     {
       "featureId": "official-doc:sankey:section:basic",

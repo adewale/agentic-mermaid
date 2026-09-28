@@ -1,0 +1,231 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { renderMermaidSVG } from '../../../index.ts'
+import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+
+// The three distinct executable fences in the pinned official Quadrant page.
+const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..',
+  'skills/agentic-mermaid-diagram-workflow/references/upstream/quadrantChart.md'), 'utf8')
+const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
+  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
+const examples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
+  .filter(example => example.origin === 'official-syntax/quadrantChart.md' && example.family === 'quadrant')
+  .sort((left, right) => left.index - right.index)
+if (sources.length !== 3 || examples.length !== 3) throw new Error('Pinned Quadrant fence inventory changed')
+for (const [index, source] of sources.entries()) {
+  if (examples[index]!.id !== 'quadrant:official-syntax/quadrantChart.md#' + index
+    || examples[index]!.sourceSha256 !== createHash('sha256').update(source).digest('hex')) {
+    throw new Error('Pinned Quadrant fence ' + index + ' differs from the manifest')
+  }
+}
+
+type Point = Readonly<{ label: string; x: number; y: number; radius: number; className: string | null; style: string | null }>
+type Spec = Readonly<{
+  featureId: string
+  title: string | null
+  axes: readonly string[]
+  quadrants: readonly string[]
+  points: readonly Point[]
+  modelPoints: FidelityJson
+  classDefs: FidelityJson
+  frontmatter: FidelityJson
+  viewBox: string
+  svgSha256: string
+  themeTextNoOp?: boolean
+  strokeNoWidthDivergence?: boolean
+}>
+const commonAxes = ['Low Reach', 'High Reach', 'Low Engagement', 'High Engagement']
+const commonQuadrants = ['We should expand', 'Need to promote', 'Re-evaluate', 'May be improved']
+const plain = (label: string, x: number, y: number): Point => ({ label, x, y, radius: 6, className: null, style: null })
+const basicPoints = [plain('Campaign A', 0.3, 0.6), plain('Campaign B', 0.45, 0.23),
+  plain('Campaign C', 0.57, 0.69), plain('Campaign D', 0.78, 0.34),
+  plain('Campaign E', 0.4, 0.34), plain('Campaign F', 0.35, 0.78)]
+const styledPoints: readonly Point[] = [
+  { label: 'Campaign A', x: 0.9, y: 0, radius: 12, className: null, style: null },
+  { label: 'Campaign B', x: 0.8, y: 0.1, radius: 10, className: 'class1', style: 'fill:#ff3300' },
+  { label: 'Campaign C', x: 0.7, y: 0.2, radius: 25, className: null, style: 'fill:#00ff33;stroke:#10f0f0' },
+  { label: 'Campaign D', x: 0.6, y: 0.3, radius: 15, className: null,
+    style: 'fill:#ff33f0;stroke:#00ff0f;stroke-width:5px' },
+  { label: 'Campaign E', x: 0.5, y: 0.4, radius: 10, className: 'class2',
+    style: 'fill:#908342;stroke:#310085;stroke-width:10px' },
+  { label: 'Campaign F', x: 0.4, y: 0.5, radius: 10, className: 'class3', style: 'fill:#0000ff' },
+]
+const defaultPointModel = basicPoints.map(({ label, x, y }) => ({ label, x, y }))
+const styledPointModel: FidelityJson = [
+  { label: 'Campaign A', x: 0.9, y: 0, style: { radius: 12 } },
+  { label: 'Campaign B', x: 0.8, y: 0.1, className: 'class1', style: { color: '#ff3300', radius: 10 } },
+  { label: 'Campaign C', x: 0.7, y: 0.2, style: { radius: 25, color: '#00ff33', strokeColor: '#10f0f0' } },
+  { label: 'Campaign D', x: 0.6, y: 0.3, style: {
+    radius: 15, strokeColor: '#00ff0f', strokeWidth: '5px', color: '#ff33f0' } },
+  { label: 'Campaign E', x: 0.5, y: 0.4, className: 'class2' },
+  { label: 'Campaign F', x: 0.4, y: 0.5, className: 'class3', style: { color: '#0000ff' } },
+]
+const classDefs = {
+  class1: { color: '#109060' },
+  class2: { color: '#908342', radius: 10, strokeColor: '#310085', strokeWidth: '10px' },
+  class3: { color: '#f00fff', radius: 10 },
+}
+const specs: readonly Spec[] = [
+  { featureId: 'official-doc:quadrant:section:example', title: 'Reach and engagement of campaigns',
+    axes: commonAxes, quadrants: commonQuadrants, points: basicPoints, modelPoints: defaultPointModel,
+    classDefs: null, frontmatter: null, viewBox: '0 0 456 492',
+    svgSha256: 'ed0129746a51501ade84e3772db73aae7b33c6f7d57f6278cb915486aadad27e' },
+  { featureId: 'official-doc:quadrant:section:example-on-config-and-theme', title: null,
+    axes: ['Urgent', 'Not Urgent', 'Not Important', 'Important ❤'],
+    quadrants: ['Plan', 'Do', 'Delegate', 'Delete'], points: [], modelPoints: [],
+    classDefs: null, frontmatter: { quadrantChart: { chartWidth: 400, chartHeight: 400 },
+      themeVariables: { quadrant1TextFill: 'ff0000' } }, viewBox: '0 0 400 400',
+    svgSha256: '4f3eca786f90c2ba0b1dfa5427aebe58b3b715d99945dbee9ba8a06c6c63b2f4',
+    themeTextNoOp: true },
+  { featureId: 'official-doc:quadrant:section:example-on-styling', title: 'Reach and engagement of campaigns',
+    axes: commonAxes, quadrants: commonQuadrants, points: styledPoints, modelPoints: styledPointModel,
+    classDefs, frontmatter: null, viewBox: '0 0 456 492',
+    svgSha256: '6ce3f1e2e295dc932713ae3b6f7c7497ee0f0ab7c72da4a9bd3313d5e2db87d2',
+    strokeNoWidthDivergence: true },
+]
+
+function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Quadrant evidence must be an object')
+  return value as Readonly<Record<string, FidelityJson>>
+}
+function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
+  return record(evidence.semantics)
+}
+function same(left: unknown, right: unknown): boolean {
+  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+        .map(([key, item]) => [key, canonical(item)]))
+      : value
+  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
+}
+function decodeXml(value: string): string {
+  return value.replace(/&(amp|lt|gt|quot|apos|#39);/g, (_, entity: string) => ({
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'",
+  })[entity]!)
+}
+function attrs(tag: string): Record<string, string> {
+  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)]
+    .map(match => [match[1]!, decodeXml(match[2]!)]))
+}
+function tags(svg: string, tag: string, className: string): { attributes: Record<string, string>; text: string }[] {
+  return [...svg.matchAll(new RegExp('<' + tag + '\\b[^>]*>(?:[^<]*<\\/' + tag + '>)?|<' + tag + '\\b[^>]*\\/\\s*>', 'g'))]
+    .map(match => ({ attributes: attrs(match[0]), text: decodeXml(match[0].match(/>([^<]*)<\//)?.[1] ?? '') }))
+    .filter(item => (item.attributes.class ?? '').split(/\s+/).includes(className))
+}
+function modelFacts(source: string): FidelityJson {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'quadrant') {
+    return { kind: parsed.ok ? parsed.value.body.kind : 'parse-failure' }
+  }
+  const body = parsed.value.body
+  return { title: body.title ?? null, axes: [body.xAxis?.near ?? null, body.xAxis?.far ?? null,
+      body.yAxis?.near ?? null, body.yAxis?.far ?? null],
+    quadrants: body.quadrants.map(label => label ?? null), points: body.points as unknown as FidelityJson,
+    classDefs: (body.classDefs as unknown as FidelityJson | undefined) ?? null,
+    frontmatter: (parsed.value.meta.frontmatter as FidelityJson | undefined) ?? null }
+}
+function renderFacts(svg: string): FidelityJson {
+  const points = tags(svg, 'circle', 'quadrant-point')
+  return {
+    viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
+    svgSha256: createHash('sha256').update(svg).digest('hex'),
+    regions: tags(svg, 'rect', 'quadrant-region').map(item => ({
+      quadrant: Number(item.attributes['data-quadrant']), x: Number(item.attributes.x),
+      y: Number(item.attributes.y), width: Number(item.attributes.width),
+      height: Number(item.attributes.height), fill: item.attributes.fill ?? null })),
+    labels: tags(svg, 'text', 'quadrant-label').map(item => ({
+      text: item.text, x: Number(item.attributes.x), y: Number(item.attributes.y),
+      fill: item.attributes.fill ?? null, style: item.attributes.style ?? null })),
+    axes: tags(svg, 'text', 'quadrant-axis-label').map(item => item.text),
+    title: tags(svg, 'text', 'quadrant-title').map(item => item.text),
+    points: points.map(item => ({
+      label: item.attributes['data-label'] ?? null, x: Number(item.attributes['data-x']),
+      y: Number(item.attributes['data-y']), cx: Number(item.attributes.cx), cy: Number(item.attributes.cy),
+      radius: Number(item.attributes.r), className: item.attributes.class?.split(/\s+/)[1] ?? null,
+      style: item.attributes.style ?? null })),
+    pointLabels: tags(svg, 'text', 'quadrant-point-label').map(item => item.text),
+    quadrantLabelFill: svg.match(/\.quadrant-label \{ fill: ([^;]+); \}/)?.[1] ?? null,
+    pointStrokeWidth: svg.match(/\.quadrant-point \{[^}]*stroke-width: ([^;]+); \}/)?.[1] ?? null,
+  }
+}
+function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
+  const facts = semantic(evidence)
+  const top = spec.title ? 60 : 24
+  const size = spec.title ? 380 : 324
+  if (facts.viewBox !== spec.viewBox || facts.svgSha256 !== spec.svgSha256
+    || !same(facts.title, spec.title ? [spec.title] : [])
+    || !same(facts.axes, spec.axes) || !same(facts.pointLabels, spec.points.map(point => point.label))
+    || facts.quadrantLabelFill !== '#575759' || facts.pointStrokeWidth !== '1') return false
+  const regions = facts.regions
+  const labels = facts.labels
+  const points = facts.points
+  if (!Array.isArray(regions) || regions.length !== 4 || !Array.isArray(labels) || labels.length !== 4
+    || !Array.isArray(points) || points.length !== spec.points.length) return false
+  for (const [index, number] of [2, 1, 3, 4].entries()) {
+    const region = record(regions[index]!)
+    const label = record(labels[index]!)
+    const expectedX = 52 + (number === 1 || number === 4 ? size / 2 : 0)
+    const expectedY = top + (number === 3 || number === 4 ? size / 2 : 0)
+    if (region.quadrant !== number || region.x !== expectedX || region.y !== expectedY
+      || region.width !== size / 2 || region.height !== size / 2
+      || region.fill !== (number === 1 || number === 3 ? '#ededed' : '#f6f6f6')
+      || label.text !== spec.quadrants[number - 1]
+      || label.x !== expectedX + size / 4 || label.y !== expectedY + size / 4
+      || label.fill !== null || label.style !== null) return false
+  }
+  for (const [index, authored] of spec.points.entries()) {
+    const point = record(points[index]!)
+    if (point.label !== authored.label || point.x !== authored.x || point.y !== authored.y
+      || Math.abs(Number(point.cx) - (52 + size * authored.x)) > 0.01
+      || Math.abs(Number(point.cy) - (top + size * (1 - authored.y))) > 0.01
+      || point.radius !== authored.radius || point.className !== authored.className
+      || point.style !== authored.style) return false
+  }
+  return true
+}
+
+export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec, index) => ({
+  id: 'quadrant.official.fence-' + index, family: 'quadrant', featureId: spec.featureId,
+  source: sources[index]!, upstreamReference: examples[index]!.officialDocs ?? 'https://mermaid.ai/open-source/syntax/quadrantChart.html',
+  upstreamRevision: UPSTREAM_MERMAID_MANIFEST.provenance.commit,
+  expected: {
+    agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
+      const facts = semantic(evidence)
+      return facts.title === spec.title && same(facts.axes, spec.axes)
+        && same(facts.quadrants, spec.quadrants) && same(facts.points, spec.modelPoints)
+        && same(facts.classDefs, spec.classDefs) && same(facts.frontmatter, spec.frontmatter)
+        ? 'native' : 'absent'
+    } },
+    render: { applicability: 'applicable', disposition: spec.themeTextNoOp || spec.strokeNoWidthDivergence ? 'absent' : 'native',
+      evaluate: evidence => renderMatches(evidence, spec)
+        ? spec.themeTextNoOp || spec.strokeNoWidthDivergence ? 'absent' : 'native' : 'source-preserved' },
+    serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
+      const facts = semantic(evidence)
+      return facts.stable === true && same(facts.model, {
+        title: spec.title, axes: spec.axes, quadrants: spec.quadrants, points: spec.modelPoints,
+        classDefs: spec.classDefs, frontmatter: spec.frontmatter }) ? 'native' : 'absent'
+    } },
+    mutate: { applicability: 'not-applicable', rationale: 'These cases classify the pinned official source; Quadrant point mutation has separate operation tests.' },
+  },
+  observe: () => {
+    const source = sources[index]!
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'quadrant') throw new Error('Pinned Quadrant fence must parse')
+    const verified = verifyMermaid(source)
+    if (!verified.ok) throw new Error('Pinned Quadrant fence must verify')
+    const serialized = serializeMermaid(parsed.value)
+    const reparsed = parseRegisteredMermaid(serialized)
+    if (!reparsed.ok) throw new Error('Pinned Quadrant fence must reparse')
+    return {
+      agent: { status: 'observed' as const, diagnosticCodes: verified.warnings.map(warning => warning.code),
+        semantics: modelFacts(source) },
+      render: { status: 'observed' as const, diagnosticCodes: [], semantics: renderFacts(renderMermaidSVG(source)) },
+      serialize: { status: 'observed' as const, diagnosticCodes: [], semantics: {
+        model: modelFacts(serialized), stable: serializeMermaid(reparsed.value) === serialized } },
+    }
+  },
+}))
