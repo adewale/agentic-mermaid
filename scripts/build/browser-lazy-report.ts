@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
   brotliCompressSync,
@@ -31,7 +31,12 @@ interface Budgets {
   families: Record<BrowserBuiltinFamilyId, TransferBudget>
 }
 
-const ROOT = join(import.meta.dir, '../..')
+// --root measures another checkout's build (the PR payload delta measures the
+// base branch with this script); --measure-only skips this checkout's
+// structural assertions and budgets and only reports transfer sizes.
+const rootFlag = process.argv.indexOf('--root')
+const ROOT = rootFlag >= 0 ? resolve(process.argv[rootFlag + 1]!) : join(import.meta.dir, '../..')
+const MEASURE_ONLY = process.argv.includes('--measure-only')
 const META_PATH = join(ROOT, 'dist/metafile-esm.json')
 const BUDGET_PATH = join(import.meta.dir, 'browser-lazy-budgets.json')
 const metafile = JSON.parse(readFileSync(META_PATH, 'utf8')) as Metafile
@@ -96,12 +101,15 @@ const renderCore = requireOne(
   dynamicImports.filter(path => /\/render-core-[A-Z0-9]+\.js$/.test(path)),
   'shared render core',
 )
-const familyOutputs = Object.fromEntries(BROWSER_BUILTIN_FAMILY_IDS.map(id => [id, requireOne(
+const MEASURED_FAMILY_IDS = MEASURE_ONLY
+  ? BROWSER_BUILTIN_FAMILY_IDS.filter(id => dynamicImports.some(path => new RegExp(`/${id}-[A-Z0-9]+\\.js$`).test(path)))
+  : BROWSER_BUILTIN_FAMILY_IDS
+const familyOutputs = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, requireOne(
   dynamicImports.filter(path => new RegExp(`/${id}-[A-Z0-9]+\\.js$`).test(path)),
   `${id} loader`,
 )])) as Record<BrowserBuiltinFamilyId, string>
 
-if (dynamicImports.length !== BROWSER_BUILTIN_FAMILY_IDS.length + 1) {
+if (!MEASURE_ONLY && dynamicImports.length !== BROWSER_BUILTIN_FAMILY_IDS.length + 1) {
   throw new Error(`Async entry has ${dynamicImports.length} dynamic imports; expected one core plus ${BROWSER_BUILTIN_FAMILY_IDS.length} families`)
 }
 
@@ -116,43 +124,45 @@ const elkOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/elkjs/')))
 const elkOutput = requireOne(elkOutputs, 'ELK implementation chunk')
 const initialFiles = staticClosure([entry])
-const familyFiles = Object.fromEntries(BROWSER_BUILTIN_FAMILY_IDS.map(id => [
+const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 
-// Pie alone needs the complete HTML5 named-reference table. Keep that data
-// out of initial download and every other family's transfer closure.
-const htmlEntityOutputs = outputNames.filter(path =>
-  Object.keys(metafile.outputs[path]!.inputs).some(input =>
-    input.includes('entities/dist/') && input.endsWith('/generated/decode-data-html.js')))
-if (htmlEntityOutputs.length !== 1 || !familyFiles.pie.includes(htmlEntityOutputs[0]!)
-  || initialFiles.includes(htmlEntityOutputs[0]!)
-  || BROWSER_BUILTIN_FAMILY_IDS.some(id => id !== 'pie' && familyFiles[id].includes(htmlEntityOutputs[0]!))) {
-  throw new Error('HTML5 named-reference table must load with Pie only')
-}
-// Source-level tests do not exercise the build-only CJS alias. Execute the
-// emitted ESM entry so a broken split decoder fails this mandatory build gate.
-const { renderMermaidSVGAsync } = await import(pathToFileURL(join(ROOT, 'dist/browser-lazy/index.js')).href)
-for (const [name, displayed] of [['NotEqualTilde', '≂̸'], ['notit', '¬it;']] as const) {
-  const svg = await renderMermaidSVGAsync(`pie\n  "A#${name};B" : 1\n`)
-  if (!svg.includes(`>A${displayed}B (100.0%)</text>`)) {
-    throw new Error(`Built Pie lazy decoder failed HTML5 named reference #${name};`)
+const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
+if (!MEASURE_ONLY) {
+  // Pie alone needs the complete HTML5 named-reference table. Keep that data
+  // out of initial download and every other family's transfer closure.
+  const htmlEntityOutputs = outputNames.filter(path =>
+    Object.keys(metafile.outputs[path]!.inputs).some(input =>
+      input.includes('entities/dist/') && input.endsWith('/generated/decode-data-html.js')))
+  if (htmlEntityOutputs.length !== 1 || !familyFiles.pie.includes(htmlEntityOutputs[0]!)
+    || initialFiles.includes(htmlEntityOutputs[0]!)
+    || BROWSER_BUILTIN_FAMILY_IDS.some(id => id !== 'pie' && familyFiles[id].includes(htmlEntityOutputs[0]!))) {
+    throw new Error('HTML5 named-reference table must load with Pie only')
   }
-}
+  // Source-level tests do not exercise the build-only CJS alias. Execute the
+  // emitted ESM entry so a broken split decoder fails this mandatory build gate.
+  const { renderMermaidSVGAsync } = await import(pathToFileURL(join(ROOT, 'dist/browser-lazy/index.js')).href)
+  for (const [name, displayed] of [['NotEqualTilde', '≂̸'], ['notit', '¬it;']] as const) {
+    const svg = await renderMermaidSVGAsync(`pie\n  "A#${name};B" : 1\n`)
+    if (!svg.includes(`>A${displayed}B (100.0%)</text>`)) {
+      throw new Error(`Built Pie lazy decoder failed HTML5 named reference #${name};`)
+    }
+  }
 
-const observedElkFamilies = BROWSER_BUILTIN_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
-if (JSON.stringify(observedElkFamilies) !== JSON.stringify(budgets.elkFamilies)) {
-  throw new Error(`ELK family graph drifted: expected ${budgets.elkFamilies.join(', ')}, observed ${observedElkFamilies.join(', ')}`)
+  if (JSON.stringify(observedElkFamilies) !== JSON.stringify(budgets.elkFamilies)) {
+    throw new Error(`ELK family graph drifted: expected ${budgets.elkFamilies.join(', ')}, observed ${observedElkFamilies.join(', ')}`)
+  }
+  if (observedElkFamilies.length < 2) throw new Error('ELK sharing needs at least two family consumers')
 }
-if (observedElkFamilies.length < 2) throw new Error('ELK sharing needs at least two family consumers')
 
 const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
   elkChunk: elkOutput,
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
-  families: Object.fromEntries(BROWSER_BUILTIN_FAMILY_IDS.map(id => [id, {
+  families: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
     requests: familyFiles[id].length,
     elk: familyFiles[id].includes(elkOutput),
     ...transferSize(familyFiles[id]),
@@ -170,8 +180,10 @@ function checkBudget(label: string, actual: TransferSize & { requests: number },
     }
   }
 }
-checkBudget('initial', report.initial, budgets.initial)
-for (const id of BROWSER_BUILTIN_FAMILY_IDS) checkBudget(id, report.families[id], budgets.families[id])
+if (!MEASURE_ONLY) {
+  checkBudget('initial', report.initial, budgets.initial)
+  for (const id of BROWSER_BUILTIN_FAMILY_IDS) checkBudget(id, report.families[id], budgets.families[id])
+}
 if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\n${problems.join('\n')}`)
 
 if (process.argv.includes('--json')) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)

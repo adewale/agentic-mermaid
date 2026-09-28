@@ -1,52 +1,57 @@
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { join, normalize, sep } from 'node:path'
-import { brotliCompressSync, constants as zlibConstants, gzipSync } from 'node:zlib'
 import {
+  WEBSITE_PAYLOAD_AUTHORITY,
   WEBSITE_PAYLOAD_COMPRESSION,
   WEBSITE_PAYLOAD_OBSERVATION_MS,
-  WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN,
   WEBSITE_PAYLOAD_ROUTES,
-  assertWebsitePayloadReportCurrent,
-  assertWebsitePayloadRecordingToolchain,
+  WEBSITE_PAYLOAD_SCHEMA_VERSION,
   publicRequestPathToFile,
   verifyWebsitePayloadBudgets,
   websitePayloadCaptureProblems,
-  websitePayloadRecordingToolchainMatches,
   type WebsitePayloadReport,
 } from '../../scripts/site/website-payload-authority.ts'
 import { WEBSITE_PAYLOAD_BUDGETS } from '../../scripts/site/website-payload-budgets.ts'
-import { ensureWebsiteBuilt } from './website-public-fixture.ts'
-
-ensureWebsiteBuilt()
 
 const REPO = join(import.meta.dir, '..', '..')
 const PUBLIC = join(REPO, 'website', 'public')
-const report = JSON.parse(readFileSync(join(REPO, 'eval', 'website-payload', 'baseline.json'), 'utf8')) as WebsitePayloadReport
 
-// The baseline records the toolchain that produced it. Different Bun versions
-// emit byte-different bundles from identical sources, and d3-sankey exposed the
-// same effect across operating systems and CPU architectures on Bun 1.3.13.
-// Comparing locally built bytes against the recorded ones is therefore only
-// meaningful on the recorded Bun version, platform, and architecture; elsewhere
-// the check reports the toolchain mismatch instead of a false payload regression.
-//
-// This does NOT weaken the gate on the recording toolchain (CI), where every
-// exact byte, hash, and total is still compared. Off it, the byte comparison is
-// skipped VISIBLY rather than softened. The route budgets keep running and use
-// reviewed cross-platform ceilings. A tolerance in the exact comparator would hide
-// whether a delta came from the toolchain or a real regression, so there is no
-// pretend approximation there. Route coverage and budget verification remain
-// platform-independent and keep running everywhere.
-const RECORDED_BUN = WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.bun
-const RECORDED_PLATFORM = WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.platform
-const RECORDED_ARCH = WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.arch
-const ON_RECORDING_TOOLCHAIN = websitePayloadRecordingToolchainMatches(
-  { bun: RECORDED_BUN, platform: RECORDED_PLATFORM, arch: RECORDED_ARCH },
-  { bun: Bun.version, platform: process.platform, arch: process.arch },
-)
-const TOOLCHAIN_NOTE = `built with Bun ${Bun.version} on ${process.platform}/${process.arch}, baseline recorded with Bun ${RECORDED_BUN} on ${RECORDED_PLATFORM}/${RECORDED_ARCH}`
+// A synthetic capture that satisfies every route budget. The live capture is
+// checked against the same budgets by `bun run website:payload:check` in the
+// browser lane; these tests exercise the checker itself.
+const SAMPLE_REQUESTS: Record<string, string[]> = {
+  home: ['/', '/styles.css', '/fonts/Inter-Regular.subset-0123456789ab.woff2', '/fonts/Inter-Medium.subset-0123456789ab.woff2'],
+  examples: ['/examples/', '/styles.css', '/examples-0123456789ab.js', '/examples-0123456789ab.css'],
+  demo: ['/demo/', '/demo/browser-lazy/index-0123456789ab.js', '/demo/browser-lazy/chunks/timeline-ABCD2345.js', '/generated/inline-0123456789ab.js'],
+  'editor-empty': ['/editor/', '/editor/editor-0123456789ab.js'],
+}
+
+function sampleReport(): WebsitePayloadReport {
+  return {
+    schemaVersion: WEBSITE_PAYLOAD_SCHEMA_VERSION,
+    authority: WEBSITE_PAYLOAD_AUTHORITY,
+    compression: WEBSITE_PAYLOAD_COMPRESSION,
+    capture: { observationAfterReadyMs: WEBSITE_PAYLOAD_OBSERVATION_MS },
+    toolchain: { bun: Bun.version, playwright: 'test', chromium: 'test', platform: process.platform, arch: process.arch },
+    routes: WEBSITE_PAYLOAD_ROUTES.map(route => {
+      const budget = WEBSITE_PAYLOAD_BUDGETS[route.id]!
+      const requests = SAMPLE_REQUESTS[route.id]!.map(path => ({ path, count: 1, sha256: '0'.repeat(64), rawBytes: 1, gzipBytes: 1, brotliBytes: 1 }))
+      return {
+        id: route.id,
+        url: route.url,
+        viewport: { ...route.viewport },
+        requests,
+        totals: {
+          requests: requests.length,
+          rawBytes: Math.floor(budget.maxRawBytes / 2),
+          gzipBytes: Math.floor(budget.maxGzipBytes / 2),
+          brotliBytes: Math.floor(budget.maxBrotliBytes / 2),
+        },
+      }
+    }),
+  }
+}
+const report = sampleReport()
 
 function independentPublicFile(requestPath: string): string {
   const pathname = new URL(requestPath, 'https://independent.invalid').pathname
@@ -56,61 +61,11 @@ function independentPublicFile(requestPath: string): string {
   return absolute
 }
 
-describe('deterministic website payload authority', () => {
-  // Toolchain-independent: reads only the recorded report, so it guards route
-  // coverage and the ratcheted budgets in every environment.
-  test('the recorded report covers every route and matches the ratcheted budgets', () => {
-    expect(report.routes.map(route => route.id)).toEqual(WEBSITE_PAYLOAD_ROUTES.map(route => route.id))
-    expect(report.capture.observationAfterReadyMs).toBe(WEBSITE_PAYLOAD_OBSERVATION_MS)
-    expect({ bun: report.toolchain.bun, platform: report.toolchain.platform, arch: report.toolchain.arch }).toEqual(WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN)
-    expect(() => assertWebsitePayloadRecordingToolchain(report.toolchain)).not.toThrow()
-    expect(report.toolchain.playwright).not.toBeEmpty()
-    expect(report.toolchain.chromium).not.toBeEmpty()
-    expect(report.toolchain.platform).not.toBeEmpty()
-    expect(report.toolchain.arch).not.toBeEmpty()
-    for (const route of report.routes) {
-      const budget = WEBSITE_PAYLOAD_BUDGETS[route.id]!
-      expect(route.totals.requests, `${route.id} requests`).toBeLessThanOrEqual(budget.maxRequests)
-      expect(route.totals.rawBytes, `${route.id} rawBytes`).toBeLessThanOrEqual(budget.maxRawBytes)
-      expect(route.totals.gzipBytes, `${route.id} gzipBytes`).toBeLessThanOrEqual(budget.maxGzipBytes)
-      expect(route.totals.brotliBytes, `${route.id} brotliBytes`).toBeLessThanOrEqual(budget.maxBrotliBytes)
-    }
+describe('website payload budget authority', () => {
+  test('every captured route has a budget and the sample capture satisfies all of them', () => {
+    expect(Object.keys(WEBSITE_PAYLOAD_BUDGETS).sort()).toEqual(WEBSITE_PAYLOAD_ROUTES.map(route => route.id).sort())
     expect(verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)).toEqual([])
   })
-
-  test.skipIf(!ON_RECORDING_TOOLCHAIN)(`independently verifies every recorded byte, compression result, hash, and total (${TOOLCHAIN_NOTE})`, () => {
-    const measurementCache = new Map<string, { sha256: string, rawBytes: number, gzipBytes: number, brotliBytes: number }>()
-    for (const route of report.routes) {
-      const totals = { requests: 0, rawBytes: 0, gzipBytes: 0, brotliBytes: 0 }
-      for (const asset of route.requests) {
-        let measured = measurementCache.get(asset.path)
-        if (!measured) {
-          const bytes = readFileSync(independentPublicFile(asset.path))
-          measured = {
-            sha256: createHash('sha256').update(bytes).digest('hex'),
-            rawBytes: bytes.byteLength,
-            gzipBytes: gzipSync(bytes, { level: WEBSITE_PAYLOAD_COMPRESSION.gzipLevel }).byteLength,
-            brotliBytes: brotliCompressSync(bytes, { params: {
-              [zlibConstants.BROTLI_PARAM_QUALITY]: WEBSITE_PAYLOAD_COMPRESSION.brotliQuality,
-              [zlibConstants.BROTLI_PARAM_LGWIN]: WEBSITE_PAYLOAD_COMPRESSION.brotliLgwin,
-            } }).byteLength,
-          }
-          measurementCache.set(asset.path, measured)
-        }
-        expect(measured, `${route.id} ${asset.path}`).toEqual({
-          sha256: asset.sha256,
-          rawBytes: asset.rawBytes,
-          gzipBytes: asset.gzipBytes,
-          brotliBytes: asset.brotliBytes,
-        })
-        totals.requests += asset.count
-        totals.rawBytes += measured.rawBytes * asset.count
-        totals.gzipBytes += measured.gzipBytes * asset.count
-        totals.brotliBytes += measured.brotliBytes * asset.count
-      }
-      expect(totals, route.id).toEqual(route.totals)
-    }
-  }, 30_000)
 
   test('rejects every budget dimension, eager forbidden resources, and missing required resources', () => {
     for (const field of ['requests', 'rawBytes', 'gzipBytes', 'brotliBytes'] as const) {
@@ -152,11 +107,7 @@ describe('deterministic website payload authority', () => {
     ]))
   })
 
-  test('rejects stale reports and invalid browser captures', () => {
-    const stale = structuredClone(report)
-    stale.routes[0]!.requests[0]!.sha256 = 'stale'
-    expect(() => assertWebsitePayloadReportCurrent(JSON.stringify(stale, null, 2) + '\n', report)).toThrow('Website payload report is stale')
-    expect(() => assertWebsitePayloadReportCurrent(JSON.stringify(report, null, 2) + '\n', report)).not.toThrow()
+  test('reports invalid browser captures', () => {
     expect(websitePayloadCaptureProblems({
       failedRequests: ['net::ERR_FAILED /missing.js'],
       badResponses: ['404 /missing.js'],
@@ -166,15 +117,6 @@ describe('deterministic website payload authority', () => {
       'non-success response: 404 /missing.js',
       'page error: boom',
     ])
-  })
-
-  test('requires the recorded Bun version, platform, and architecture for exact-byte comparisons', () => {
-    const recorded = { bun: '1.2.3', platform: 'linux' as const, arch: 'x64' as const }
-    expect(websitePayloadRecordingToolchainMatches(recorded, recorded)).toBe(true)
-    expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, bun: '1.2.4' })).toBe(false)
-    expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, platform: 'darwin' })).toBe(false)
-    expect(websitePayloadRecordingToolchainMatches(recorded, { ...recorded, arch: 'arm64' })).toBe(false)
-    expect(() => assertWebsitePayloadRecordingToolchain({ ...WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN, arch: 'arm64' })).toThrow('baseline toolchain must be')
   })
 
   test('independently maps route documents and fails closed on encoded traversal', () => {

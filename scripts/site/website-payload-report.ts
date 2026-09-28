@@ -1,25 +1,30 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { extname, join, normalize, sep } from 'node:path'
+import { extname, join, normalize, resolve, sep } from 'node:path'
 import { chromium } from 'playwright'
 import {
   WEBSITE_PAYLOAD_OBSERVATION_MS,
-  WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN,
   WEBSITE_PAYLOAD_ROUTES,
-  assertWebsitePayloadRecordingToolchain,
-  assertWebsitePayloadReportCurrent,
   buildWebsitePayloadReport,
   stablePayloadJson,
   verifyWebsitePayloadBudgets,
   websitePayloadCaptureProblems,
-  websitePayloadRecordingToolchainMatches,
-  type WebsitePayloadReport,
 } from './website-payload-authority.ts'
 import { WEBSITE_PAYLOAD_BUDGETS } from './website-payload-budgets.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
+// Usage:
+//   --check                 build, capture every route, and verify the budgets
+//   --report <path>         also write the measured report (the PR payload delta)
+//   --root <checkout>       build and measure another checkout (the PR's base)
+// Byte ceilings have headroom; per-PR growth is judged by scripts/ci/payload-delta.ts
+// against the base branch built on the same runner, not by a committed baseline.
+const argValue = (flag: string): string | undefined => {
+  const index = process.argv.indexOf(flag)
+  return index >= 0 ? process.argv[index + 1] : undefined
+}
+const ROOT = argValue('--root') ? resolve(argValue('--root')!) : join(import.meta.dir, '..', '..')
+const REPORT_OUT = argValue('--report')
 const PUBLIC = mkdtempSync(join(tmpdir(), 'agentic-mermaid-website-payload-'))
-const REPORT = join(ROOT, 'eval', 'website-payload', 'baseline.json')
 let cleaned = false
 function cleanup() {
   if (cleaned) return
@@ -27,9 +32,7 @@ function cleanup() {
   rmSync(PUBLIC, { recursive: true, force: true })
 }
 process.on('exit', cleanup)
-const mode = process.argv.includes('--write') ? 'write' : process.argv.includes('--check') ? 'check' : ''
-const requireExact = process.argv.includes('--require-exact')
-if (!mode) throw new Error('Usage: bun run scripts/site/website-payload-report.ts --write|--check')
+if (!process.argv.includes('--check') && !REPORT_OUT) throw new Error('Usage: bun run scripts/site/website-payload-report.ts --check [--report <path>] [--root <checkout>]')
 
 const build = Bun.spawnSync(['bun', 'run', 'website/build.ts', '--public-only'], {
   cwd: ROOT,
@@ -123,27 +126,12 @@ const report = buildWebsitePayloadReport(PUBLIC, captured, {
   arch: process.arch,
 })
 cleanup()
-const problems = verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)
-if (problems.length) throw new Error(`Website payload budget failures:\n${problems.map(problem => `- ${problem}`).join('\n')}`)
-const current = stablePayloadJson(report)
-if (mode === 'write') {
-  await Bun.write(REPORT, current)
-  console.log(`wrote ${REPORT}`)
-} else {
-  if (!existsSync(REPORT)) throw new Error(`Missing payload report: ${REPORT}`)
-  const recorded = readFileSync(REPORT, 'utf8')
-  const recordedReport = JSON.parse(recorded) as WebsitePayloadReport
-  assertWebsitePayloadRecordingToolchain(recordedReport.toolchain)
-  if (requireExact && !websitePayloadRecordingToolchainMatches(WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN, report.toolchain)) {
-    throw new Error(`Exact website payload verification requires Bun ${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.bun} on ${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.platform}/${WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.arch}`)
+if (REPORT_OUT) writeFileSync(resolve(REPORT_OUT), stablePayloadJson(report))
+if (process.argv.includes('--check')) {
+  const problems = verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)
+  if (problems.length) throw new Error(`Website payload budget failures:\n${problems.map(problem => `- ${problem}`).join('\n')}`)
+  for (const route of report.routes) {
+    console.log(`${route.id}: ${route.totals.requests} requests, ${route.totals.rawBytes} raw / ${route.totals.gzipBytes} gzip / ${route.totals.brotliBytes} Brotli bytes`)
   }
-  if (websitePayloadRecordingToolchainMatches(recordedReport.toolchain, report.toolchain)) {
-    assertWebsitePayloadReportCurrent(recorded, report)
-    console.log('Website payload report, exact request graphs, and budgets pass')
-  } else {
-    console.log(
-      `Website payload budgets pass; exact byte comparison skipped: built with Bun ${report.toolchain.bun} on ${report.toolchain.platform}/${report.toolchain.arch}, `
-      + `baseline recorded with Bun ${recordedReport.toolchain.bun} on ${recordedReport.toolchain.platform}/${recordedReport.toolchain.arch}`,
-    )
-  }
+  console.log('Website payload request graphs and budgets pass')
 }

@@ -382,7 +382,9 @@ table here, which would drift. In broad strokes:
   `measureQuality`/whole-corpus ugly-detector/layout-rubric, the heuristic-tracker ratchet,
   the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
   type check, the hero check, the
-  golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
+  golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix (whose
+  browser lane checks route payload budgets and, on pull requests, the gzip
+  delta against the base branch built on the same runner), the fast
   incremental mutation lane, the independent focused sabotage lane, and the
   red → green changed-test check. Each unit shard runs its files with
   `--parallel=2` (isolated worker processes), so a test file cannot depend on
