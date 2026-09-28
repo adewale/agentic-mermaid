@@ -312,7 +312,7 @@
     },
     {
       "path": "src/ascii/ansi.ts",
-      "sha256": "5e8722f4a97f7da7582e2b4bcf08248905dfdee7c6ab1dd239aea0c6a31e7517"
+      "sha256": "ce241ba27f3bdb94afeff001a64e5a9193a7c5704d2210e1aab2a009cbf6cd79"
     },
     {
       "path": "src/ascii/architecture.ts",
@@ -1152,7 +1152,7 @@
     },
     {
       "path": "src/terminal-security.ts",
-      "sha256": "dd0e982f23488bdd66ece7046bb6389fb9ae39960c99d677bcca7e2196b456f6"
+      "sha256": "b87b93bb5e2c917c1da62f970edcc7ccb3153889da4b2d199a5d0dac82679ac5"
     },
     {
       "path": "src/terminal-style.ts",
