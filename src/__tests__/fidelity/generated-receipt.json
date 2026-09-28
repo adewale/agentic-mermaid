@@ -56,7 +56,7 @@
     ]
   },
   "freshness": {
-    "inputSha256": "7c66fe86009ddfe9a0284f9601dbdbafbd923a833d69cdb8354ea6db690a71f0",
+    "inputSha256": "87fbda1b5b7dd582dcebd9bd3f27c36911ef1827b5e8dcd7c56e97be6439fdc8",
     "files": [
       {
         "path": "docs/project/issue-248-fidelity-delivery-plan.md",
@@ -88,11 +88,15 @@
       },
       {
         "path": "src/__tests__/fidelity/cases/architecture-official-align-fences.fidelity.ts",
-        "sha256": "ee48256e640726b486d26dc9b458d16f3c1124e32564356d4909e46246d3911a"
+        "sha256": "eea18ca24b04df4bc31f17d6d36b0b9843a368472ec46b7066a5129f768e7717"
       },
       {
         "path": "src/__tests__/fidelity/cases/architecture-official-core-fences.fidelity.ts",
-        "sha256": "aa91cee1a0196b5dd2b7cc56be27ac9438cacabde12db92873f0c457b8bab70b"
+        "sha256": "6f1c7b9c282c3441c5975231194204cb2ffd1dcd8ad16e3e0a84fdc3ef2b8ee8"
+      },
+      {
+        "path": "src/__tests__/fidelity/cases/architecture-official-icon-fence.fidelity.ts",
+        "sha256": "46f859fae90244ef67f747cef6b88c2b49c11e9f8b401efb6ea3d1b418571679"
       },
       {
         "path": "src/__tests__/fidelity/cases/class-annotation.fidelity.ts",
@@ -2335,6 +2339,337 @@
                   "id": "bottom_gateway",
                   "label": "Gateway",
                   "parentId": null
+                }
+              ]
+            },
+            "stable": true
+          },
+          "disposition": "native"
+        }
+      },
+      "passed": true,
+      "issues": []
+    },
+    {
+      "id": "architecture.official.fence-5",
+      "family": "architecture",
+      "featureId": "official-doc:architecture:section:icons",
+      "sourceSha256": "efca52653cdef14c133627f35621a6551c407f12b561c25e122b1eec7f1ee578",
+      "upstreamReference": "https://mermaid.ai/open-source/syntax/architecture.html",
+      "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+      "expected": {
+        "agent": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "render": {
+          "applicability": "applicable",
+          "disposition": "absent",
+          "diagnosticCodes": []
+        },
+        "serialize": {
+          "applicability": "applicable",
+          "disposition": "native",
+          "diagnosticCodes": []
+        },
+        "mutate": {
+          "applicability": "not-applicable",
+          "rationale": "The pinned official icon example has no mutation operation; icon mutations have separate contracts."
+        }
+      },
+      "observations": {
+        "agent": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "alignments": [],
+            "edges": [
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "db",
+                "sourceBoundary": "item",
+                "sourceSide": "L",
+                "target": "server",
+                "targetBoundary": "item",
+                "targetSide": "R"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "disk1",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "server",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              },
+              {
+                "hasArrowEnd": false,
+                "hasArrowStart": false,
+                "label": null,
+                "source": "disk2",
+                "sourceBoundary": "item",
+                "sourceSide": "T",
+                "target": "db",
+                "targetBoundary": "item",
+                "targetSide": "B"
+              }
+            ],
+            "groups": [
+              {
+                "icon": "logos:aws-lambda",
+                "id": "api",
+                "label": "API",
+                "parentId": null
+              }
+            ],
+            "junctions": [],
+            "services": [
+              {
+                "icon": "logos:aws-aurora",
+                "id": "db",
+                "label": "Database",
+                "parentId": "api"
+              },
+              {
+                "icon": "logos:aws-glacier",
+                "id": "disk1",
+                "label": "Storage",
+                "parentId": "api"
+              },
+              {
+                "icon": "logos:aws-s3",
+                "id": "disk2",
+                "label": "Storage",
+                "parentId": "api"
+              },
+              {
+                "icon": "logos:aws-ec2",
+                "id": "server",
+                "label": "Server",
+                "parentId": "api"
+              }
+            ]
+          },
+          "disposition": "native"
+        },
+        "render": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "cards": [
+              {
+                "height": 48,
+                "id": "service-card:db",
+                "width": 132.266,
+                "x": 371.37399999999997,
+                "y": 84
+              },
+              {
+                "height": 48,
+                "id": "service-card:disk1",
+                "width": 123.374,
+                "x": 56,
+                "y": 336
+              },
+              {
+                "height": 48,
+                "id": "service-card:disk2",
+                "width": 123.374,
+                "x": 539.6399999999999,
+                "y": 168
+              },
+              {
+                "height": 48,
+                "id": "service-card:server",
+                "width": 120,
+                "x": 215.374,
+                "y": 252
+              }
+            ],
+            "edges": [
+              {
+                "points": "371.37399999999997,108 353.374,108 353.374,276 335.374,276",
+                "source": "db",
+                "sourceSide": "L",
+                "target": "server",
+                "targetSide": "R"
+              },
+              {
+                "points": "117.687,336 117.687,318 275.374,318 275.374,300",
+                "source": "disk1",
+                "sourceSide": "T",
+                "target": "server",
+                "targetSide": "B"
+              },
+              {
+                "points": "601.3269999999999,168 601.3269999999999,150 437.50699999999995,150 437.50699999999995,132",
+                "source": "disk2",
+                "sourceSide": "T",
+                "target": "db",
+                "targetSide": "B"
+              }
+            ],
+            "frames": [
+              {
+                "height": 362,
+                "id": "group-frame:api",
+                "width": 643.0139999999999,
+                "x": 38,
+                "y": 40
+              }
+            ],
+            "glyphs": [
+              {
+                "fallback": false,
+                "icon": "logos:aws-lambda",
+                "license": "Apache-2.0",
+                "pathCount": 1,
+                "pathSha256": "2da9bb173c1a79c0104b92b2eeb1b870a603c4138096ccf3011340f388e5f580",
+                "source": "@iconify-json/mdi@1.2.3"
+              },
+              {
+                "fallback": false,
+                "icon": "logos:aws-aurora",
+                "license": "Apache-2.0",
+                "pathCount": 1,
+                "pathSha256": "1377d326e78e01aa4a3ece4b6e2a2faff0c2e95b43dc913efb9b399754eca8e7",
+                "source": "@iconify-json/mdi@1.2.3"
+              },
+              {
+                "fallback": false,
+                "icon": "logos:aws-glacier",
+                "license": "Apache-2.0",
+                "pathCount": 1,
+                "pathSha256": "5fe0ca13506971b9c57fb848480d957b1521ce919a9704af86e4d72c4dc921ca",
+                "source": "@iconify-json/mdi@1.2.3"
+              },
+              {
+                "fallback": false,
+                "icon": "logos:aws-s3",
+                "license": "Apache-2.0",
+                "pathCount": 1,
+                "pathSha256": "b93588b414e0aa1130a8bf3facad1125f16c8904c3a4ea8763547a9f99e9894a",
+                "source": "@iconify-json/mdi@1.2.3"
+              },
+              {
+                "fallback": false,
+                "icon": "logos:aws-ec2",
+                "license": "Apache-2.0",
+                "pathCount": 1,
+                "pathSha256": "357fa789c74d3f9eeb5ff84acb31b73ab07b4041eb30ac484c02c169979e2bea",
+                "source": "@iconify-json/mdi@1.2.3"
+              }
+            ],
+            "groupFramePaint": "fill: #fafafa; stroke: none;",
+            "groups": [
+              {
+                "id": "api",
+                "label": "API"
+              }
+            ],
+            "serviceCardPaint": "fill: #f9f9f9; stroke: none;",
+            "services": [
+              {
+                "id": "db",
+                "label": "Database"
+              },
+              {
+                "id": "disk1",
+                "label": "Storage"
+              },
+              {
+                "id": "disk2",
+                "label": "Storage"
+              },
+              {
+                "id": "server",
+                "label": "Server"
+              }
+            ],
+            "svgSha256": "a2ea32308a347d92043218e59a361047693c2914be8d5254e9b1d1e84786f224",
+            "viewBox": "0 0 721.0139999999999 442"
+          },
+          "disposition": "absent"
+        },
+        "serialize": {
+          "status": "observed",
+          "diagnosticCodes": [],
+          "semantics": {
+            "model": {
+              "alignments": [],
+              "edges": [
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "db",
+                  "sourceBoundary": "item",
+                  "sourceSide": "L",
+                  "target": "server",
+                  "targetBoundary": "item",
+                  "targetSide": "R"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "disk1",
+                  "sourceBoundary": "item",
+                  "sourceSide": "T",
+                  "target": "server",
+                  "targetBoundary": "item",
+                  "targetSide": "B"
+                },
+                {
+                  "hasArrowEnd": false,
+                  "hasArrowStart": false,
+                  "label": null,
+                  "source": "disk2",
+                  "sourceBoundary": "item",
+                  "sourceSide": "T",
+                  "target": "db",
+                  "targetBoundary": "item",
+                  "targetSide": "B"
+                }
+              ],
+              "groups": [
+                {
+                  "icon": "logos:aws-lambda",
+                  "id": "api",
+                  "label": "API",
+                  "parentId": null
+                }
+              ],
+              "junctions": [],
+              "services": [
+                {
+                  "icon": "logos:aws-aurora",
+                  "id": "db",
+                  "label": "Database",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "logos:aws-glacier",
+                  "id": "disk1",
+                  "label": "Storage",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "logos:aws-s3",
+                  "id": "disk2",
+                  "label": "Storage",
+                  "parentId": "api"
+                },
+                {
+                  "icon": "logos:aws-ec2",
+                  "id": "server",
+                  "label": "Server",
+                  "parentId": "api"
                 }
               ]
             },
@@ -21809,11 +22144,11 @@
     }
   ],
   "summary": {
-    "caseCount": 63,
-    "passedCaseCount": 63,
+    "caseCount": 64,
+    "passedCaseCount": 64,
     "failedCaseCount": 0,
-    "observedSurfaceCount": 215,
+    "observedSurfaceCount": 218,
     "blockedSurfaceCount": 0,
-    "notApplicableSurfaceCount": 37
+    "notApplicableSurfaceCount": 38
   }
 }

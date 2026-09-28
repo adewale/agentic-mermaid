@@ -6,6 +6,13 @@ import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
+function parseSvgPoints(value: string): readonly (readonly [number, number])[] | null {
+  const svgNumberPattern = '[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?'
+  if (!new RegExp(`^${svgNumberPattern},${svgNumberPattern}(?: ${svgNumberPattern},${svgNumberPattern})+$`).test(value)) return null
+  const points = value.split(' ').map(pair => pair.split(',').map(Number))
+  return points.every(point => point.length === 2 && point.every(Number.isFinite)) ? points as [number, number][] : null
+}
+
 const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..',
   'skills/agentic-mermaid-diagram-workflow/references/upstream/architecture.md'), 'utf8')
 const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
@@ -291,11 +298,10 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
       || edge.direction !== 'forward' || edge.markerStart !== null
       || edge.markerEnd !== 'url(#architecture-arrow-end)'
       || typeof edge.points !== 'string') return false
-    const points = edge.points.split(' ').map(pair => pair.split(',').map(Number))
+    const points = parseSvgPoints(edge.points)
     const from = anchor(expected.source, expected.sourceSide)
     const to = anchor(expected.target, expected.targetSide)
-    if (!from || !to || points.length < 2 || points.some(point => point.length !== 2
-      || !inView(point[0]!, point[1]!))) return false
+    if (!from || !to || !points || points.some(point => !inView(point[0], point[1]))) return false
     const first = points[0]!
     const last = points.at(-1)!
     if (!near(first[0]!, from[0]) || !near(first[1]!, from[1])
