@@ -2,9 +2,9 @@
 
 A diagram is considered **good looking** when it satisfies, in order:
 
-1. **All Tier 1 structural checks pass.** No `EMPTY_DIAGRAM`, no
-   `EDGE_MISANCHORED`, no `OFF_CANVAS`, no `GROUP_BREACH`, no
-   `UNKNOWN_SHAPE`, no `LABEL_OVERFLOW` (default cap: 40 chars).
+1. **All Tier 1 structural checks pass.** None of
+   <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`<!-- END GENERATED: warning-codes:structural -->
+   fires (`LABEL_OVERFLOW` default cap: 40 chars).
    This is non-negotiable — fix the source before judging visuals.
 
 2. **Tier 2 geometric checks are within bounds.** `NODE_OVERLAP` count
@@ -12,7 +12,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    diagram with a single intentional overlap (e.g., a self-loop) is
    still considered good. The `ROUTE_*` codes (`ROUTE_HITCH`,
    `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`,
-   `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`,
+   `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`,
    `ROUTE_STALE_AFTER_NODE_MOVE`) should always be zero — they are
    route-contract tripwires (see `docs/design/system/route-contracts.md`), and
    any hit means the layout pipeline regressed, not the diagram.

@@ -81,9 +81,11 @@ The audit and controlled rollout changed the plan in twelve ways.
 
 8. **Visual evidence needs its own reproducibility contract.** The rollout now
    freezes pre-change SVGs, extracts the categorical colors actually serialized
-   by each renderer, writes a machine-readable comparison, and hashes every
-   source input plus the generated report/contact sheet. `--check` fails when
-   code, baseline, metrics, or images drift.
+   by each renderer, and writes a machine-readable comparison plus a contact
+   sheet. `--check` recomputes the baseline metrics from the frozen SVGs,
+   re-renders every case, and fails when the rebuilt report differs from the
+   committed `report.json` or no longer clears the automatic improvement gate;
+   it checks behaviour, not input hashes or contact-sheet pixels.
 
 9. **A controlled rollout is a compatibility policy, not a global recolor.**
    Counts up to six retain each family's existing derived colors byte-for-byte

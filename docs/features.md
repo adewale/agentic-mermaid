@@ -26,10 +26,11 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 The canonical `FamilyDescriptor` registry owns headers, discovery, examples,
 operations, rendering hooks, positioned projections, semantic roles, and
 capability evidence. Run `am capabilities --json` for the current roster and
-per-family operation shapes; the generated Section A matrix records native,
-source-preserved, diagnosed, and not-applicable capabilities without a copied
-table. `absent` belongs to the validation vocabulary but is rejected from the
-shipped syntax ledger:
+per-family operation shapes. The generated Section A matrix is repository
+tooling, not part of `am capabilities`; it records native, source-preserved,
+diagnosed, and not-applicable capabilities without a copied table. `absent`
+belongs to the validation vocabulary but is rejected from the shipped syntax
+ledger:
 [`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
 
 **Structured-or-opaque rule:** every family either has a structured body
@@ -44,8 +45,8 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
   or a stack merged left → right
   (`{ style: ['hand-drawn', 'dracula'] }`). `seed` re-rolls styled ink and
   never moves layout. CLI: `am render --style … --seed N`, `am styles`;
-  MCP render tools take `style`/`seed`; RENDER_FAILED-gated verify means a
-  clean verify proves the styled source renders. Authoring guide, schema, and
+  MCP render tools take `options.style`/`options.seed`; RENDER_FAILED-gated
+  verify means a clean verify proves the styled source renders. Authoring guide, schema, and
   cookbook: `docs/style-authoring.md`, `docs/schemas/style-spec.schema.json`,
   and `docs/custom-style-cookbook.md`. Custom font selection and resolution:
   `docs/custom-fonts.md`.
@@ -72,11 +73,9 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 
 ## Verification tiers
 
-- **Tier 1 (structural, universal):** EMPTY_DIAGRAM, EDGE_MISANCHORED,
-  OFF_CANVAS, GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW, UNRESOLVABLE_SCHEDULE,
-  RENDER_FAILED (a clean verify proves the source actually renders).
-- **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** NODE_OVERLAP, ROUTE_SELF_CROSS, and the route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
-- **Tier 3 (lint and inspect-only policy):** DUPLICATE_EDGE, UNREACHABLE_NODE, DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX, CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING, BRAND_CONSTRAINT_ERROR. FLOW_IMBALANCE flags a sankey intermediate node whose inflow and outflow differ (conservation is the domain's defining property). LABELS_HIDDEN lists the XY chart category names and bar value labels the layout could not fit; BAR_RANGE_EXCLUDES_ZERO flags a bar chart whose authored value range excludes zero, so bar lengths stop encoding value; VALUES_OUTSIDE_RANGE names the values an authored range leaves outside it, which the chart draws clipped or off the plot. Brand constraints inspect final contrast, accent area, or monochrome role paint without repainting/relayout; only the caller-selected `action: "error"` code flips `verify.ok`.
+- **Tier 1 (structural, universal):** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`<!-- END GENERATED: warning-codes:structural -->. `RENDER_FAILED` is structural, so a clean verify proves the source actually renders.
+- **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** <!-- BEGIN GENERATED: warning-codes:geometric -->`NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`<!-- END GENERATED: warning-codes:geometric -->.
+- **Tier 3 (lint and inspect-only policy):** <!-- BEGIN GENERATED: warning-codes:lint -->`BRAND_CONSTRAINT_ERROR`, `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`<!-- END GENERATED: warning-codes:lint -->. FLOW_IMBALANCE flags a sankey intermediate node whose inflow and outflow differ (conservation is the domain's defining property). LABELS_HIDDEN lists the XY chart category names and bar value labels the layout could not fit; BAR_RANGE_EXCLUDES_ZERO flags a bar chart whose authored value range excludes zero, so bar lengths stop encoding value; VALUES_OUTSIDE_RANGE names the values an authored range leaves outside it, which the chart draws clipped or off the plot. Brand constraints inspect final contrast, accent area, or monochrome role paint without repainting/relayout; only the caller-selected `action: "error"` code flips `verify.ok`.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).
 
@@ -99,9 +98,9 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 
 ## CLI (`am`)
 
-`render` (svg/ascii/unicode/json with multi-input results; png uses one
+`render` (svg/ascii/unicode/layout with multi-input results; png uses one
 input plus `--output`; `--security strict`, `--watch`), `render-markdown` (skip bad blocks),
-`parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json),
+`parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json/facts),
 `capabilities --json` (including `families[].editPolicy` and
 `families[].mutationOps`),
 `batch --jsonl` (including mutate),

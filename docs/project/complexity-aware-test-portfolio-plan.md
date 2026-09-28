@@ -44,7 +44,7 @@ Source: clean detached worktree at `cb2412b15b48ae41e55ace80f613be3723072d49`. E
 
 The earlier 131.18s subtotal remains useful as evidence of timing variance, but 109.07s is the pinned pre-change value used for this migration.
 
-Current authorities and test corpus:
+Authorities and test corpus at the 2026-07-19 baseline commit (a dated snapshot, not the live registry, which has since added Sankey; `am capabilities --json` is current):
 
 - 15 built-in families;
 - 15 registered non-default Looks (16 including crisp);

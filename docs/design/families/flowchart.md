@@ -39,12 +39,13 @@ Upstream schema verified 2026-07-10
 | `nodeSpacing` | **wired** | → `RenderOptions.nodeSpacing` → ELK `spacing.nodeNode` |
 | `rankSpacing` | **wired** | → `RenderOptions.layerSpacing` → ELK `nodeNodeBetweenLayers` |
 | `wrappingWidth` | **wired** | measured-pixel auto-wrap of node labels at layout sizing |
-| `curve`, `htmlLabels`, `padding`, `diagramPadding`, `titleTopMargin`, `subGraphTitleMargin`, `arrowMarkerAbsolute`, `defaultRenderer`, `inheritDir` | **lint** | `INEFFECTIVE_CONFIG` Tier-3 warning naming the field |
+| <!-- BEGIN GENERATED: noop-keys:flowchart -->`arrowMarkerAbsolute`, `curve`, `defaultRenderer`, `diagramPadding`, `htmlLabels`, `inheritDir`, `padding`, `subGraphTitleMargin`, `titleTopMargin`<!-- END GENERATED: noop-keys:flowchart --> | **lint** | `INEFFECTIVE_CONFIG` Tier-3 warning naming the field |
 
-- Single wire-or-warn table: `src/flowchart-config.ts`
-  (`FLOWCHART_NOOP_CONFIG_FIELDS` lives beside `resolveFlowchartRenderOptions`
-  so wire and warn cannot drift). Verify hook:
-  `flowchartIneffectiveConfigWarnings` in `src/agent/verify.ts`.
+- Wiring: `resolveFlowchartRenderOptions` in `src/flowchart-config.ts`.
+  Warning: the lint list is the flowchart descriptor's `config.noopKeys` in
+  `src/agent/families.ts`; verify's `INEFFECTIVE_CONFIG` lint reads it via
+  `getFamily(kind).config` (`familyNoopConfigDiagnostics` in
+  `src/shared/family-config-diagnostics.ts`).
 - Explicit `RenderOptions` always win over frontmatter/init-directive config.
 - `wrappingWidth` semantics mirror upstream: regular labels wrap **only when
   the key is explicitly configured** (so existing corpus geometry cannot
@@ -109,11 +110,14 @@ Upstream schema verified 2026-07-10
   `src/parser.ts` (comma- or whitespace/newline-separated entries,
   quote-aware) is consumed by both the render parser and the agent
   structured/opaque gate (`src/agent/flowchart-unsupported.ts`).
-- Structured/opaque boundary: metadata whose keys ⊆ {shape, label} with a
-  documented shape name parses **structured**; undocumented shape names,
-  `icon:`/`img:` metadata, and extra keys keep the lossless opaque fallback +
-  `flowchart_node_metadata` lint (the #29 safety floor: label renders on a
-  rectangle, metadata keys never become nodes).
+- Structured/opaque boundary: node metadata whose keys fall in the modeled
+  set (`isModeledNodeMetadata` in `src/agent/flowchart-unsupported.ts`:
+  shape/label plus `icon:`/`img:`/`form:`) with a documented shape name parses
+  **structured**; undocumented shape names, unknown keys, and placement/size
+  keys (`pos`, `h`, `w`, `constraint`) keep the lossless opaque fallback
+  (undocumented shapes and unknown keys also get the `flowchart_node_metadata`
+  lint — the #29 safety floor: label renders on a rectangle, metadata keys
+  never become nodes).
 - Ops: `set_shape` (and `add_node.shape`) accept both geometry names and any
   documented v11 name/alias; v11 names set `semanticShape`/`authoredShape`,
   geometry names clear them.

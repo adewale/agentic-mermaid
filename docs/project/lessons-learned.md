@@ -259,14 +259,16 @@ family docs, and `TODO.md`.
 - **A combinatorial estimate must respect its mathematical lower bound.** The planned 350–600-row Style portfolio could never satisfy the declared Look × Palette × three-background obligation: that triple alone requires 900 rows. Keep the obligation and report the miss; never tune a covering-array budget by silently dropping the tuple that made it valuable.
 - **Complexity is a vector and a registration obligation, not one score.** Entity count cannot stand in for nesting, reciprocal/parallel routes, cycles, Unicode classes, authored text volume, configuration, or family-risk syntax. Every family now supplies minimal, representative, dense, text-stress, risk, and real-corpus-outlier sources; adding a family without those witnesses fails closure rather than reducing its test depth invisibly.
 - **Contact sheets are Cynefin probes, not visual proof.** A diversity-selected overview lets a reviewer sense repeated patterns and surprising outliers in a complex aesthetic space, while native-size cells answer readability questions. Bind the selection, source, dimensions, and HTML bytes in a manifest; keep model sanity separate from independent human approval, and leave optional review evidence pending rather than inventing reviewer identity or minutes.
-- **Receipt dependencies should follow the build graph, not the repository tree.** Hashing every `src/**/*.ts` file invalidated four visual receipts after unrelated test-only edits while every output byte stayed unchanged; merge-ref CI then found three more broad visual authorities after a script-only package change. A fail-closed transitive local-import graph reduced the seven input sets by 59.9–98.5%, still invalidates true renderer dependencies, and turns receipt churn into causal evidence instead of source-tree noise.
+- **Receipt dependencies should follow the build graph, not the repository tree.** Hashing every `src/**/*.ts` file invalidated four visual receipts after unrelated test-only edits while every output byte stayed unchanged; merge-ref CI then found three more broad visual authorities after a script-only package change. A fail-closed transitive local-import graph reduced the seven input sets by 59.9–98.5%, still invalidates true renderer dependencies, and turns receipt churn into causal evidence instead of source-tree noise. *Superseded by #357, which removed input-hash receipts: the current rule is that a generated artifact's unit test compares it against current code, not against recorded input hashes.*
 - **Run generators after the final source/test edit and final rebase.**
   Dependency-complete receipts correctly became stale after late test changes and
   again when a moving base changed the merge-ref input tree. The reliable order is
   implementation → tests → audit remediation → final rebase → generation →
   freshness gates → merge-ref CI. Receipts should include package and lock inputs,
   but still disclose environmental fonts, browser binaries, and rasterizers they
-  cannot pin.
+  cannot pin. *The receipt half is superseded by #357 (there are no input-hash
+  receipts); the current rule is to regenerate with `bun run generate` after the
+  final edit and rebase, and let the stale-output unit tests catch drift.*
 - **Conditional skips are capability gaps, not passes.** A skipped positive-path
   integration test must name the missing external capability, retain adjacent
   deterministic coverage for behavior available everywhere, and be reported

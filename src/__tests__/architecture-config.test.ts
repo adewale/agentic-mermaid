@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { DEFAULT_ARCHITECTURE_VISUAL, resolveArchitectureVisualConfig, architectureIneffectiveConfigFields } from '../architecture/config.ts'
+import { DEFAULT_ARCHITECTURE_VISUAL, resolveArchitectureVisualConfig } from '../architecture/config.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
@@ -132,18 +132,6 @@ config:
 architecture-beta
   service api(server)[API]`)
     expect(invalid.layerSpacing).toBeUndefined()
-  })
-
-  it('names exactly the unwired fcose-simulation keys', () => {
-    const fields = architectureIneffectiveConfigFields([{
-      nodeSeparation: 100,
-      idealEdgeLengthMultiplier: 2,
-      edgeElasticity: 0.9,
-      numIter: 5000,
-      seed: 7,
-      randomize: true,
-    }])
-    expect(fields).toEqual(['edgeElasticity', 'numIter', 'randomize', 'seed'])
   })
 
   it('verify emits INEFFECTIVE_CONFIG for the fcose keys and stays ok; wired keys stay silent', () => {

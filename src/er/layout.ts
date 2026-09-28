@@ -19,7 +19,6 @@ import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
-import { ineffectiveFieldsPresent } from '../shared/config-wire-or-warn.ts'
 
 /** Layout constants for ER diagrams */
 const ER = {
@@ -59,7 +58,7 @@ export const ER_STYLE_DEFAULTS: RenderStyleDefaults = {
  * keys. Precedence: an in-body `direction` statement > er.layoutDirection >
  * the LR default; explicit RenderOptions spacing > er.nodeSpacing/rankSpacing.
  * The documented-but-unwired keys are named by verify's INEFFECTIVE_CONFIG
- * lint (ER_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ * lint (the family's config.noopKeys in src/agent/families.ts).
  */
 export function applyErFrontmatterConfig(
   diagram: ErDiagram,
@@ -99,22 +98,6 @@ export function resolveErRenderOptions(
   return nodeSpacing === undefined && rankSpacing === undefined
     ? options
     : { ...options, nodeSpacing: options.nodeSpacing ?? nodeSpacing, layerSpacing: options.layerSpacing ?? rankSpacing }
-}
-
-/**
- * Documented er config keys accepted for Mermaid config-shape compatibility
- * but NOT wired to any ER geometry or paint (P4: named by verify's
- * INEFFECTIVE_CONFIG lint). The wired keys — layoutDirection, nodeSpacing,
- * rankSpacing — never appear here.
- */
-export const ER_NOOP_CONFIG_FIELDS = [
-  'diagramPadding', 'entityPadding', 'fill', 'fontSize', 'minEntityHeight',
-  'minEntityWidth', 'stroke', 'titleTopMargin',
-] as const
-
-/** Which documented-but-unwired `er` config fields are present (sorted). */
-export function erIneffectiveConfigFields(configs: unknown[]): string[] {
-  return ineffectiveFieldsPresent(configs, ER_NOOP_CONFIG_FIELDS)
 }
 
 type EntitySizeMap = Map<string, { width: number; height: number; headerHeight: number }>

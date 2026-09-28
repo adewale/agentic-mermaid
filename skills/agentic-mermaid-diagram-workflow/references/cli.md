@@ -14,6 +14,7 @@ am mutate <file|-> --ops JSON|file  many MutationOps → verify → new source
 am format <file|->            idempotent reformat
 am describe <file|->          prose summary, --format json AX tree, or --format facts semantic facts
 am capabilities --json        families, editPolicy, mutationOps, warning codes, formats
+am styles [--json]            registered styles, looks, and palette-only themes
 am batch --jsonl              JSONL stdin → JSONL envelopes (render/verify/parse/serialize/mutate)
 am render-markdown <file.md> [--ascii]  render fenced Mermaid blocks
 am llms-txt                   agent discovery digest

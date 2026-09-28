@@ -1,5 +1,7 @@
 # Research: 2025–2026 AX conventions for static docs + browser editor
 
+> **Status: historical snapshot (2026-06-30, PR #76).** The standards research stands, but the "Repo touchpoints" and repo-specific findings name `mockups/*`, which was deleted in #110 (163d89a3); the site sources now live under `website/source/`.
+
 ## Summary
 Current accessibility practice for a static documentation site with a browser editor is still anchored in WCAG 2.2 Level AA, native HTML semantics first, APG patterns only for custom widgets, and explicit respect for user preferences such as reduced motion and forced colors. For this repo, the most important conventions are: preserve semantic documents/tables/code, make custom menus/dialogs truly keyboard-operable, provide visible focus and 24×24+ targets, avoid color-only status, honor reduced motion/high contrast, and give generated diagrams/text outputs accessible names/descriptions.
 

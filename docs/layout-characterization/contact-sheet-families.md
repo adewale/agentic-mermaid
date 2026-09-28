@@ -27,6 +27,8 @@ invariants hold (verified empirically).
 | [Mindmap](#mindmap) | ✓ | ✓ | ✓ | · |
 | [GitGraph](#gitgraph) | ✓ | ✓ | ✓ | · |
 | [Architecture diagram](#architecture) | ✓ | ✓ | ✓ | · |
+| [Radar chart](#radar) | ✓ | ✓ | ✓ | · |
+| [Sankey diagram](#sankey) | ✓ | ✓ | ✓ | · |
 
 **Total** and **Deterministic** hold for every renderer (the bedrock contract;
 also pinned across the 271-entry docs corpus by `ascii-determinism.test.ts`).
@@ -549,4 +551,65 @@ Rendered:
   │ └───────────────┘   └───────────────────┘ │
   │                                           │
   └───────────────────────────────────────────┘
+```
+
+## <a id="radar"></a>Radar chart
+
+**Layout strategy:** Polar geometry degraded to a grouped proportional-bar table (src/ascii/radar.ts).
+
+**Signature invariant:** One row group per axis in source order, one bar per curve on the scale shared with SVG; a legend of curves heads the table. Ragged rows.
+
+Source:
+
+```mermaid
+radar-beta
+  title Skills
+  axis speed["Speed"], power["Power"], range["Range"]
+  curve now["Current"]{4, 3, 5}
+  curve goal["Target"]{5, 5, 4}
+  max 5
+```
+
+Rendered:
+
+```
+Skills
+● Current   ● Target
+
+Speed  Current │ ███████████████████ 4
+       Target  │ ████████████████████████ 5
+Power  Current │ ██████████████ 3
+       Target  │ ████████████████████████ 5
+Range  Current │ ████████████████████████ 5
+       Target  │ ███████████████████ 4
+```
+
+## <a id="sankey"></a>Sankey diagram
+
+**Layout strategy:** Flow graph rendered as a grouped adjacency list (src/ascii/sankey.ts).
+
+**Signature invariant:** One section per node with outgoing flow, in first-appearance order; branches keep authored row order with a value column and a value-proportional bar. Ragged rows.
+
+Source:
+
+```mermaid
+sankey-beta
+  Coal,Electricity,127
+  Gas,Electricity,80
+  Electricity,Homes,120
+  Electricity,Industry,87
+```
+
+Rendered:
+
+```
+Coal  127
+  └─▶ Electricity  127  ████████████████████
+
+Electricity  207
+  ├─▶ Homes        120  ███████████████████
+  └─▶ Industry      87  ██████████████
+
+Gas  80
+  └─▶ Electricity   80  █████████████
 ```

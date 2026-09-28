@@ -65,8 +65,8 @@ legend still lists every point. Scene-IR marks carry the resolved paint.
 
 ## Config — wire-or-warn (C3)
 
-`src/quadrant/config.ts` is the single wire-or-warn table for the documented
-QuadrantChartConfig (config-defs-quadrant-chart-config.html):
+`src/quadrant/config.ts` wires the documented QuadrantChartConfig
+(config-defs-quadrant-chart-config.html); the lint list is registry-owned:
 
 **Wired** (`QUADRANT_WIRED_CONFIG_FIELDS`): `chartWidth`, `chartHeight`
 (canvas size; the square plot side derives after fixed chrome),
@@ -76,7 +76,8 @@ QuadrantChartConfig (config-defs-quadrant-chart-config.html):
 `quadrantInternalBorderStrokeWidth`, `quadrantExternalBorderStrokeWidth`,
 and base `useMaxWidth` (responsive root, xychart parity).
 
-**Not wired** (`QUADRANT_NOOP_CONFIG_FIELDS`): `xAxisPosition`,
+**Not wired** (the quadrant descriptor's `config.noopKeys` in
+`src/agent/families.ts`, which the lint reads): `xAxisPosition`,
 `yAxisPosition` (axes always render bottom/left), `quadrantTextTopPadding`
 (region labels are centered, never top-anchored), and base `useWidth`. Each
 present-but-unwired key emits the `INEFFECTIVE_CONFIG` Tier-3 lint from

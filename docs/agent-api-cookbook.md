@@ -12,7 +12,7 @@ Agentic Mermaid is not just a renderer. It is a structured edit loop:
 4. **Verify** before any commit point.
 5. **Serialize** only after inspecting `verify.ok`, `verify.warnings`, and, when relevant, `verify.layout`.
 
-For brand-new diagrams, author Mermaid source directly, then parse/verify/render. For existing modeled diagrams, prefer typed mutation so edits preserve structure and round-trip predictably.
+<!-- BEGIN GENERATED: new-diagram-policy -->New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).<!-- END GENERATED: new-diagram-policy --> For existing modeled diagrams, prefer typed mutation so edits preserve structure and round-trip predictably.
 
 ## Pick the right channel
 

@@ -42,18 +42,19 @@ changelogs for the current state.
 | Deterministic output | Not a goal (browser/layout variance) | Mostly stable, not a tested guarantee | ✅ byte-identical across runs/processes, CI-gated |
 | Round-trip guarantee (parse → serialize keeps your source) | — | — | ✅ verbatim for unmodeled syntax, canonical for structured bodies |
 | CLI | `mermaid-cli` (`mmdc`, Puppeteer-based) | — | `am` (render/verify/mutate/batch/preview/…, single-binary build) |
-| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Local Code Mode MCP (`execute`, `describe_sdk`, `render_png`, `describe`) plus hosted `/mcp` (`execute`, progressive schema discovery, render/verify/describe, `mutate`/`build`), `llms.txt`, agent skill |
+| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Local Code Mode MCP (<!-- BEGIN GENERATED: local-mcp-tools -->`execute`, `describe_sdk`, `render_png`, and `describe`<!-- END GENERATED: local-mcp-tools -->) plus hosted `/mcp` (`execute`, progressive schema discovery, render/verify/describe, `mutate`/`build`), `llms.txt`, agent skill |
 | Interactivity (click handlers, animations) | ✅ | Partial (tooltips) | Inherited where upstream has it; not a focus |
 | Ecosystem & docs | Vast — the de-facto standard, GitHub/GitLab/Notion render it natively | Growing, popular for terminal/AI use | Small; this repo |
 
 ## What each does that the others don't
 
-**Only Mermaid:** the full diagram-type catalogue (gantt, mindmap, gitgraph,
-sankey, and the 11.x additions like kanban, radar, treemap, venn, wardley,
-treeview, event modeling); native rendering inside GitHub, GitLab, Notion,
-Obsidian, and hundreds of tools; the grammar itself — both other projects
-implement *Mermaid's* language, and compatibility with Mermaid is the
-correctness bar they measure against.
+**Only Mermaid:** the full diagram-type catalogue, including families neither
+other project renders (requirement, C4, block, packet, kanban, treemap,
+ZenUML, and newer additions like venn, wardley, treeview, event modeling —
+see `am capabilities --json` for what Agentic Mermaid registers); native
+rendering inside GitHub, GitLab, Notion, Obsidian, and hundreds of tools;
+the grammar itself — both other projects implement *Mermaid's* language,
+and compatibility with Mermaid is the correctness bar they measure against.
 
 **Only Beautiful Mermaid (vs Mermaid):** synchronous, dependency-light
 rendering with no browser; a deliberate two-color theming foundation with

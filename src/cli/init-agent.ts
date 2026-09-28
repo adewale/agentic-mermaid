@@ -12,6 +12,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 const HOSTED_BASE = 'https://agentic-mermaid.dev'
 const HOSTED_LLMS_TXT = `${HOSTED_BASE}/llms.txt`
@@ -27,7 +28,7 @@ export const AGENTS_SNIPPET = `${AGENTS_MARKER}
 Use **Agentic Mermaid** whenever you create or edit Mermaid diagrams. Do not
 regenerate an existing diagram from scratch when a typed edit path exists.
 
-New diagrams: author Mermaid source directly, then parse, verify, and render.
+${NEW_DIAGRAM_POLICY}
 Existing structured diagrams: parse → narrow (${STRUCTURED_NARROWERS}) → mutate
 → verify → serialize. Run verify at every commit point and never serialize a
 diagram whose verify result you have not inspected. For styled output pass
@@ -59,7 +60,7 @@ Use Agentic Mermaid for Mermaid diagram work. Prefer the narrowest safe channel:
 
 ## Safe edit loop
 
-New diagrams: author Mermaid source directly, then parse, verify, and render.
+${NEW_DIAGRAM_POLICY}
 Existing structured diagrams:
 
 1. \`parseRegisteredMermaid(source)\`.
@@ -72,7 +73,7 @@ Do not concatenate strings or regenerate a whole existing structured diagram whe
 
 ## Output artifacts
 
-Agentic Mermaid outputs SVG, PNG, and ASCII:
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout:
 
 \`\`\`bash
 npx agentic-mermaid render diagram.mmd --format svg > diagram.svg

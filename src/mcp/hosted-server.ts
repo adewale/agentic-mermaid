@@ -36,6 +36,7 @@ import {
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
+import { isDescribeFormat } from '../agent/describe.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
 import type { RenderOptions } from '../types.ts'
@@ -457,9 +458,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     case 'describe': {
       if (typeof args.source !== 'string') return null
       const format = args.format ?? 'text'
-      return format === 'text' || format === 'json' || format === 'facts'
-        ? { t: 'describe', source: args.source, format }
-        : null
+      return isDescribeFormat(format) ? { t: 'describe', source: args.source, format } : null
     }
     case 'describe_sdk': {
       try {

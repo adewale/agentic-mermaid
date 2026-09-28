@@ -19,9 +19,17 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
+/** Every describe format, for the CLI flag, the MCP tool schema, and argument checks. */
+export const DESCRIBE_FORMATS = ['text', 'json', 'facts'] as const
+export type DescribeFormat = (typeof DESCRIBE_FORMATS)[number]
+
+export function isDescribeFormat(value: unknown): value is DescribeFormat {
+  return (DESCRIBE_FORMATS as readonly unknown[]).includes(value)
+}
+
 export interface DescribeOptions {
   /** 'text' (default): prose summary. 'json': structured AX tree (#7349). 'facts': deterministic semantic facts. */
-  format?: 'text' | 'json' | 'facts'
+  format?: DescribeFormat
 }
 
 /** Structured accessibility tree (#7349): the graph as a list of nodes + edges. */

@@ -10,9 +10,10 @@ on-slice labels: #1027).
 
 - `src/pie/parser.ts` — render grammar (loud errors, never silent drops).
 - `src/pie/config.ts` — the single resolver for the `pie` config section +
-  pie theme variables (`resolvePieVisualConfig`), plus the
-  documented-but-unwired lists that back the `INEFFECTIVE_CONFIG` lint
-  (`pieIneffectiveConfigFields`, consumed by `src/agent/verify.ts`).
+  pie theme variables (`resolvePieVisualConfig`). The documented-but-unwired
+  keys that back the `INEFFECTIVE_CONFIG` lint are the pie descriptor's
+  `config.noopKeys` in `src/agent/families.ts`, which `src/agent/verify.ts`
+  reads through `getFamily(kind).config`.
 - `src/pie/palette.ts` — the single home for slice fills, consumed by the SVG
   renderer (wedges + legend swatches) and `src/ascii/pie.ts` (bars).
 - `src/pie/layout.ts` — geometry, legend arrangement by `legendPosition`,
@@ -39,7 +40,7 @@ on-slice labels: #1027).
 | `pieLegendTextSize`, `pieLegendTextColor` | legend text | size feeds layout measurement and rendering |
 
 Documented-but-unwired keys emit the Tier-3 `INEFFECTIVE_CONFIG` lint instead
-of being silently swallowed (P4): `useMaxWidth`, `useWidth` (config section).
+of being silently swallowed (P4): <!-- BEGIN GENERATED: noop-keys:pie -->`useMaxWidth`, `useWidth`<!-- END GENERATED: noop-keys:pie --> (config section).
 Every other documented key — including `highlightSlice` and the title/legend
 text theme variables — is wired above.
 

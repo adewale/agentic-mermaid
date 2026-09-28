@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { resolveRadarVisualConfig, RADAR_NOOP_CONFIG_FIELDS } from '../radar/config.ts'
+import { resolveRadarVisualConfig } from '../radar/config.ts'
 import { layoutRadarChart } from '../radar/layout.ts'
 import { parseRadarChart } from '../radar/parser.ts'
 import { renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
@@ -176,7 +176,9 @@ radar-beta
     expect(straight.curves[0]!.areaPath).not.toContain('C') // polyline
   })
 
-  test('noop fields are declared for the INEFFECTIVE_CONFIG lint', () => {
-    expect(RADAR_NOOP_CONFIG_FIELDS).toContain('useWidth')
+  test('noop fields are named by the INEFFECTIVE_CONFIG lint; wired fields are not', () => {
+    const source = '---\nconfig:\n  radar:\n    useWidth: 600\n    useMaxWidth: true\n---\nradar-beta\n  axis a, b, c\n  curve x{1,2,3}\n  max 5'
+    const fields = verifyMermaid(source).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG').map(w => (w as { field: string }).field)
+    expect(fields).toEqual(['radar.useWidth'])
   })
 })

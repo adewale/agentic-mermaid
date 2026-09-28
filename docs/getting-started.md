@@ -65,9 +65,11 @@ const png = renderMermaidPNG(`flowchart TD
 writeFileSync('diagram.png', png)
 ```
 
-Portable PNG controls are `scale` (default `2`, for retina), `background`, and
-the mutually exclusive `fitTo: { width? }` / `fitTo: { height? }`; the same
-controls are available through the browser adapter, CLI, and local/hosted MCP.
+Portable PNG controls are `scale` (default `2`, for retina), `background`,
+the mutually exclusive `fitTo: { width? }` / `fitTo: { height? }`, and
+`minLabelPx` (legibility floor, default `9`; `0` disables the
+`BELOW_READABLE_SIZE` warning); the same controls are available through the
+browser adapter, CLI, and local/hosted MCP.
 Node/Bun additionally accepts trusted-host `fontDirs`, `loadSystemFonts`, and
 the library-only `onWarning` callback.
 
@@ -173,13 +175,16 @@ the simpler choice.
 | ASCII / Unicode | `agentic-mermaid` |
 | PNG (native rasterizer) | `agentic-mermaid/agent` |
 | Palettes (`knownStyleDescriptors`, `fromShikiTheme`) | `agentic-mermaid` |
-| Everything in one path (Node/Bun) | `agentic-mermaid/agent` |
+| Editing plus SVG/PNG/ASCII rendering in one path (Node/Bun) | `agentic-mermaid/agent` |
 | Typed editing (Node/Bun) | `agentic-mermaid/agent` |
 | Typed editing (browser/workerd) | `agentic-mermaid/agent/core` |
 
-`agentic-mermaid/agent` re-exports the renderers too, so Node/Bun applications
-can use it as one import path for all formats. Browser and workerd code should
-use `agentic-mermaid/agent/core`, which excludes the native PNG implementation.
+`agentic-mermaid/agent` re-exports the synchronous renderers too, so Node/Bun
+applications can use it as one import path for SVG, PNG, ASCII/Unicode, and
+layout output. It is not a superset of `agentic-mermaid`: `fromShikiTheme`,
+`renderMermaidSVGAsync`, `createMermaidRenderer`, and the browser PNG adapters
+are imported from the root entry. Browser and workerd code should use
+`agentic-mermaid/agent/core`, which excludes the native PNG implementation.
 
 ## Prefer the command line?
 

@@ -74,15 +74,15 @@ item 2, option (b)):
 
 ## Runtime config (wire-or-warn, plan §Architecture item 3 / X7)
 
-`src/architecture/config.ts` is the single wire-or-warn table for the
-documented `architecture.*` keys:
+`src/architecture/config.ts` wires the documented `architecture.*` keys; the
+lint list is registry-owned (below):
 
 | Key | Status | Mapping |
 |---|---|---|
 | `padding`, `iconSize`, `fontSize` | wired | visual metrics (pre-existing) |
 | `nodeSeparation` | wired | same-layer sibling spacing in px (`RenderOptions.nodeSpacing` fallback — the class/er `nodeSpacing` pass-through idiom; explicit RenderOptions win) |
 | `idealEdgeLengthMultiplier` | wired | layer gap scaled around upstream's `1.5` default: `round(56 × m / 1.5)` — upstream defines it as ideal same-group edge length, and the layer gap is the deterministic edge length between connected ranks |
-| `edgeElasticity`, `numIter`, `seed`, `randomize` | lint | fcose force-simulation knobs with no meaning in a deterministic layout; each present key is named by verify's Tier-3 `INEFFECTIVE_CONFIG` (`ARCHITECTURE_NOOP_CONFIG_FIELDS`) |
+| <!-- BEGIN GENERATED: noop-keys:architecture -->`edgeElasticity`, `numIter`, `randomize`, `seed`<!-- END GENERATED: noop-keys:architecture --> | lint | fcose force-simulation knobs with no meaning in a deterministic layout; each present key is named by verify's Tier-3 `INEFFECTIVE_CONFIG` (the architecture descriptor's `config.noopKeys` in `src/agent/families.ts`) |
 
 `resolveArchitectureRenderOptions()` folds the wired keys into RenderOptions
 and is consumed by BOTH the SVG render hook and verify's layout adapter
@@ -142,9 +142,9 @@ Executable gates: `architecture-layout.test.ts`,
 
 ## Compatibility Notes
 
-- Mermaid's current public header for this diagram family is `architecture-beta`, so that is the supported header.
+- Both `architecture-beta` (Mermaid's current public header) and `architecture` are accepted — the family descriptor's `headers` in `src/agent/families.ts` and `parseArchitectureDiagram()` agree; structured serialization emits `architecture-beta`.
 - Leading Mermaid comments (`%% ...`), YAML frontmatter, and Mermaid init directives before the header are stripped by the public SVG/PNG/ASCII/agent entrypoints before they call `parseArchitectureDiagram()`.
 - The public architecture renderers interpret the merged wrapper config for a focused subset of Mermaid semantics:
   `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize` /
   `architecture.nodeSeparation` / `architecture.idealEdgeLengthMultiplier` (see the wire-or-warn table above).
-- `parseArchitectureDiagram()` expects preprocessed `architecture-beta` body lines; wrapper config is intentionally handled outside the parser because the parser returns only the diagram model.
+- `parseArchitectureDiagram()` expects preprocessed `architecture` / `architecture-beta` body lines; wrapper config is intentionally handled outside the parser because the parser returns only the diagram model.

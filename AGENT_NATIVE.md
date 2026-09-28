@@ -47,9 +47,9 @@ The generated edit policy decides where typed mutation is available. For an opaq
 This is the honest, stronger position. Earlier drafts wrapped ELK in a `withSeededRandom(rng, fn)` helper and exposed a `LayoutContext.rng` seed, claiming the seed "drove" layout. **It did not.** Seed 1 and seed 999999 produced byte-identical output because ELK never consults `Math.random` on this path. That apparatus was theater and is removed. There is no layout seed because none is needed; determinism is a property of the engine configuration, guarded by test. (The render option `seed` that exists today is a *style* seed — it re-rolls the ink of styled looks and never touches layout.)
 
 Enforcement that determinism stays true:
-- A **grep-based lint test** (runs under `bun test`, not aspirational ESLint) fails if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**`, `src/gantt/**` (the Gantt scheduler must never read the wall clock), or `src/layout-engine.ts`. Introducing ambient nondeterminism breaks the build.
+- A **grep-based lint test** (runs under `bun test`, not aspirational ESLint) fails if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**`, `src/gantt/**`, `src/mindmap/**`, `src/gitgraph/**`, or `src/layout-engine.ts` (the Gantt scheduler must never read the wall clock; Mindmap/GitGraph ids and geometry must be deterministic). Introducing ambient nondeterminism breaks the build.
 - A **cross-process determinism test** spawns child processes and asserts byte-identical layout.
-- A **drift sentinel** pins canonical layout JSON for a hand-picked corpus; any change requires conscious re-baseline.
+- A **drift sentinel** (`src/__tests__/layout-equivalence.test.ts`) pins integer-rounded layout geometry for the mermaid-docs corpus plus the layout-compare fixtures in `src/__tests__/testdata/layout-geometry-baseline.json`; any change requires a reviewed `[approve-goldens]` re-baseline.
 
 The canonical artifact is the **layout JSON**, not the SVG:
 
@@ -275,7 +275,7 @@ interface VerifyOptions { suppress?: WarningCode[]; labelCharCap?: number }  // 
 
 There is no `LayoutContext`, no `SeededRNG`, no `Clock`, no font-metric table in the public surface. Those existed to support a seed apparatus that did nothing (see § (1)). The only verification knob is `labelCharCap`.
 
-**CLI** (`am <verb>`) with JSON where useful: `render`, `preview`, `verify`, `parse`, `serialize`, `mutate`, `format`, `describe`, `capabilities`, `batch`, `render-markdown`, `llms-txt`. `am capabilities --json` reports each family's `editPolicy` (`structured-when-narrowed` vs `source-level-only`) plus `mutationOps`, so agents can route without trial-and-error. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
+**CLI** (`am <verb>`) with JSON where useful: `render`, `preview`, `verify`, `parse`, `serialize`, `mutate`, `format`, `describe`, `capabilities`, `styles`, `batch`, `render-markdown`, `llms-txt`, `init-agent` (`am --help` is authoritative). `am capabilities --json` reports each family's `editPolicy` (`structured-when-narrowed` vs `source-level-only`) plus `mutationOps`, so agents can route without trial-and-error. Plus `am --agent-instructions` printing the canonical agent-use guide embedded in the binary at build time — agents read the doc that ships with the tool, not whatever their training set indexed. The CLI's role is one-shot operations, shell-only contexts (CI, Bash-tool agents), and human inspection; multi-step editing belongs in the library or Code Mode, not in shell pipelines.
 
 ---
 
@@ -296,11 +296,11 @@ Five artifacts, all derived from this doc:
 
 - **npm package** `agentic-mermaid` with the `agentic-mermaid/agent` subpath. The full TypeScript API, including ASCII, PNG, and SVG output helpers. Agents with shell access import the library directly and compose verbs in their own JS/TS runtime; no MCP wrapper required.
 - **`skills/agentic-mermaid-diagram-workflow/`** agent-agnostic skill bundle. Master `SKILL.md` routes by *both* diagram family and composition channel: it picks Code Mode when the MCP is connected, library import when the agent can run JS/TS with imports, the CLI for shell-only contexts. Per-family references (`flowchart.md`, `sequence.md`, etc.) describe syntax. Two channel references — `code-mode.md` (the canonical multi-step pattern) and `cli.md` (shell-only) — describe composition. Progressive disclosure means the LLM loads only what it needs. Family references sync from upstream Mermaid docs weekly via the shipped GitHub Action at `.github/workflows/sync-mermaid-docs.yml`, alongside our additions (LayoutWarning codes, MutationOp taxonomy).
-- **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**` or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
+- **Substrate grep-lint** runs under `bun test` (not an uninstalled ESLint): `src/__tests__/agent-substrate-lint.test.ts` fails the build if `Math.random`, `Date.now`, or `performance.now` appear in `src/agent/**`, `src/gantt/**`, `src/mindmap/**`, `src/gitgraph/**`, or `src/layout-engine.ts`. This is real enforcement, executed in CI, not an aspirational config file.
 - **`agentic-mermaid-mcp`** Code Mode-style MCP server. The primary tool is `execute(code: string)`: the model writes JavaScript against the typed `mermaid.*` SDK declaration embedded in the system prompt. Local stdio/HTTP runs synchronous code in a `node:vm` sandbox. The hosted `/mcp` endpoint runs the same hardened facade in per-request Cloudflare Dynamic Worker isolates with bounded CPU/subrequests and no outbound network. Pure render/verify/describe helpers share transport-neutral behavior. Differential tests pin the common contract and explicitly name strict-module and CPU-time divergences; neither runtime depends on `@cloudflare/codemode`.
 - **`Instructions_for_agents.md`** at repo root, hard-capped under 100 lines. `am --agent-instructions` prints the same content at runtime; a doc-sync test asserts the two are byte-identical.
 
-No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode for both paths: agents-with-shell write JS/TS against the imported library; agents-without-shell write JavaScript against the MCP's `mermaid.*` SDK. Same surface in both cases.
+Beyond stdio, the MCP server also speaks Streamable HTTP/SSE locally (`agentic-mermaid-mcp --transport http`, see `docs/mcp-http-transport.md`), and the hosted `/mcp` endpoint runs the same facade; there is no REST render API and no editor WebSocket watch. The skill teaches Code Mode for both paths: agents-with-shell write JS/TS against the imported library; agents-without-shell write JavaScript against the MCP's `mermaid.*` SDK. Same surface in both cases.
 
 ---
 
@@ -312,10 +312,10 @@ Agent-contract CLI verbs for explicit self-discovery, summaries, and batch opera
 - `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize/mutate handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream.
 - `am preview <file|-> [--output file.html] [--open] [--json] [--security strict]` — write a standalone strict-mode HTML preview for human inspection without hand-building wrapper files.
 - `am mutate <file|-> (--op '<json>' | --ops '<json array|file>') [--json]` — apply typed mutations, verify once at the commit point, and omit source on verify failure.
-- `am describe <file|-> [--format text|json] [--json]` — emit a prose summary or structured AX tree (`{kind,nodes,edges,entryPoints,sinks}`) for screen readers, doc generation, and agent context compaction.
+- `am describe <file|-> [--format text|json|facts] [--json]` — emit a prose summary, structured AX tree (`{kind,nodes,edges,entryPoints,sinks}`), or semantic fact lines for screen readers, doc generation, and agent context compaction.
 - **Exit codes** are widened to 4: `EXIT_OK=0`, `EXIT_ARG_ERROR=2`, `EXIT_VERIFY_FAILED=3`, `EXIT_INTERNAL=4` (in `src/cli/exit-codes.ts`). The CLI was previously `0` or `2` only. `EXIT_VERIFY_FAILED=3` is the new code for "valid args, but the diagram failed verify" — important for agents wrapping `am verify` in batch.
 
-**Counter-example, documented.** manuareraa PR #42 on `lukilabs/beautiful-mermaid` ships an MCP server with 4 render-only tools (`render_svg` / `render_ascii` / `list_themes` / `parse`). We rejected this design: a render-tool-per-format MCP forces the agent to chain calls and loses ValidDiagram context. Our Code Mode design keeps one primary `execute()` surface for multi-step edits; `render_png` and `describe` are narrow helpers, not a render-tool-per-format API. PR #42 is preserved here as the documented counter-example so future contributors understand why we chose Code Mode.
+**Counter-example, documented.** manuareraa PR #42 on `lukilabs/beautiful-mermaid` ships an MCP server with 4 render-only tools (`render_svg` / `render_ascii` / `list_themes` / `parse`). We rejected this design: a render-tool-per-format MCP forces the agent to chain calls and loses ValidDiagram context. Our Code Mode design keeps one primary `execute()` surface for multi-step edits. The hosted endpoint does expose narrow `render_svg`/`render_ascii`/`render_png`, `verify`, `describe`, and declarative `mutate`/`build` helpers for clients that cannot run code, but they are conveniences over the same facade, not the primary editing API. PR #42 is preserved here as the documented counter-example so future contributors understand why we chose Code Mode.
 
 ---
 
@@ -323,7 +323,7 @@ Agent-contract CLI verbs for explicit self-discovery, summaries, and batch opera
 
 The canonical runtime guide lives in `Instructions_for_agents.md` and is emitted byte-for-byte by `am --agent-instructions`; this spec intentionally does not duplicate the full snippet. The stable contract is:
 
-1. For new diagrams, `buildMermaid(kind, ops)` — or `createMermaid(kind)` then typed mutations — then `verifyMermaid` / render or return it. Author Mermaid source directly only for syntax the typed ops do not model.
+1. <!-- BEGIN GENERATED: new-diagram-policy -->New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).<!-- END GENERATED: new-diagram-policy -->
 2. For existing diagrams, `parseRegisteredMermaid(source)` → `ValidDiagram`.
 3. Use the family entry's registry-advertised narrower; `null` means no structured mutation for that body.
 4. Apply typed `mutate` ops only to narrowed mutable bodies; Code Mode SDK-returned diagrams are read-only to block direct IR edits.
@@ -342,7 +342,7 @@ This section records the design discipline for the branch, not an active roadmap
 |---|---|
 | **Ship** | Keep the minimum lethal surface together: substrate + `verify` + `mutate` + `serialize` + typed MutationOps + CLI + skill + Code Mode MCP + `Instructions_for_agents.md`. |
 | **Learn** | Use MermaidSeqBench, stored Code Mode evals, live model transcripts, and real consumers to decide what is missing. |
-| **Expand by evidence** | Promote more MutationOps, composition primitives, HTTP/SSE MCP transport, or additional structured families only when evidence justifies them. |
+| **Expand by evidence** | Promote more MutationOps, composition primitives, or additional structured families only when evidence justifies them. |
 
 ---
 
@@ -351,9 +351,9 @@ This section records the design discipline for the branch, not an active roadmap
 | What | How | Target |
 |---|---|---|
 | Layout JSON byte-equality across runs | Determinism grid (4 directions × node-counts 2..12 × {sparse, dense, star}) | 100% within one ELK version on one machine |
-| Drift sentinel | 8 hand-picked canonical layout JSONs as snapshots; any change without explicit acknowledgment fails CI | — |
+| Drift sentinel | `layout-equivalence.test.ts`: integer-rounded geometry for the docs corpus plus layout-compare fixtures, byte-compared to a committed baseline; changes need an `[approve-goldens]` line | 0 diffs |
 | Cross-process determinism | Test spawns child `bun` processes; layout JSON byte-identical across them | 100% |
-| Grep-lint substrate | Test fails if `Math.random`/`Date.now`/`performance.now` appear in `src/agent/**` or `src/layout-engine.ts` | 0 hits |
+| Grep-lint substrate | Test fails if `Math.random`/`Date.now`/`performance.now` appear in `src/agent/**`, `src/gantt/**`, `src/mindmap/**`, `src/gitgraph/**`, `src/layout-engine.ts` | 0 hits |
 | Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | high |
 | Round-trip identity | Golden corpus + property test | 100% on canonical input |
 | Round-trip property | Property test (fast-check) | 100% on parseable input |
@@ -409,7 +409,7 @@ Concrete consequences, in roughly descending impact:
 7. **Benchmark eval at speed.** MermaidSeqBench (and any future eval) runs as one `execute()` per case rather than N round-trips. Internal velocity multiplier.
 8. **Hosted Worker path.** The shipped `/mcp` endpoint uses Cloudflare Dynamic Worker isolates through the platform loader binding, not `@cloudflare/codemode`. The runtime has explicit security/resource limits and differential parity with local Code Mode; remaining WAF and abuse-control operations are tracked separately in `TODO.md`.
 9. **The skill becomes runnable, not just descriptive.** `references/code-mode.md` ships canonical executable JavaScript snippets the agent copy-pastes into `execute()`. Skill stops being prose; starts being a library of executable patterns.
-10. **A future diagram REPL would be a thin transport.** An `am repl` could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped and would need promotion to `TODO.md` before implementation.
+10. **A future diagram REPL would be a thin transport.** A `repl` verb on the `am` CLI could become an interactive Code Mode shell — paste JavaScript, get structured results, iterate. Same sandbox, different transport. It is not shipped and would need promotion to `TODO.md` before implementation.
 
 The biggest single consequence is #1: it gives us permission to never grow the spec for composition, queries, diffing, explaining, or any "we should probably have a verb for that" feature. **The verb set is intentionally small; Code Mode makes it sufficient.**
 

@@ -51,7 +51,7 @@ A future family cannot satisfy citizenship by adding a parser and a rectangle re
 - harvest upstream examples/tests and maintain an executable divergence ledger;
 - state the family’s domain visual hallmark using Mermaid plus a Wikipedia/domain reference;
 - add independent geometry/semantic assertions for that hallmark;
-- commit a representative renderer artifact and place it in the PR’s captioned Visual Evidence table;
+- commit a representative renderer artifact as the family's `fidelity.visualArtifact` (the citizenship test requires it) and attach captioned renders to the PR;
 - demonstrate at least one discriminating red→green or revert probe;
 - avoid claiming compatibility for syntax that is merely accepted, preserved, flattened or warned.
 

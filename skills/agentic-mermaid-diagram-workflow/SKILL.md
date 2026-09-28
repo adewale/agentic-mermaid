@@ -12,7 +12,7 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 - `agentic-mermaid-mcp` connected → **Code Mode** (`references/code-mode.md`). Multi-step edits in one round-trip.
 - Can run JS/TS with imports → **library** (`agentic-mermaid/agent`). Same SDK.
 - Shell only → **CLI** (`references/cli.md`).
-- No local install, network only → **hosted MCP** at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC; `execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build` tools — 64 KB input cap). Read `references/hosted-mcp.md` before composing a hosted request. Use the named direct tool and its exact argument object; do not substitute library APIs or local Code Mode for a hosted direct-tool task.
+- No local install, network only → **hosted MCP** at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC; <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools --> tools — 64 KB input cap). Read `references/hosted-mcp.md` before composing a hosted request. Use the named direct tool and its exact argument object; do not substitute library APIs or local Code Mode for a hosted direct-tool task.
 
 For hosted MCP, choose the least-powerful tool that completes the task:
 
@@ -51,10 +51,9 @@ fenced block and recheck every op `kind` and field against this skill or
 
 Run `am capabilities --json` (or call the equivalent SDK capability API) before
 choosing a family or mutation. Its registry-derived family entries expose the
-current narrower, operation schema, edit policy, output support, and minimal
-source example; the generated Section A matrix supplies explicit native,
-source-preserved, diagnosed, and absent states. This skill intentionally does
-not maintain a second family or operation table.
+current narrower, operation schema, edit policy, output support, per-family
+conformance, and minimal source example. This skill intentionally does not
+maintain a second family or operation table.
 
 On hosted MCP, inspect the connected server's `tools/list` for its tool surface
 and call `describe_sdk({ family, detail: 'fields' })` for mutation fields. There
@@ -81,7 +80,7 @@ Renderability and edit policy still come from `am capabilities --json`, not from
 
 ## Workflow
 
-For new diagrams, author Mermaid source directly, then `parseRegisteredMermaid` / `verifyMermaid` / render. For existing modeled diagrams:
+<!-- BEGIN GENERATED: new-diagram-policy -->New diagrams: author Mermaid source directly, then parse → verify → render or return it. `buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).<!-- END GENERATED: new-diagram-policy --> For existing modeled diagrams:
 
 1. `parseRegisteredMermaid(source)` → `ValidDiagram`.
 2. Use the family entry's advertised narrower (for example `asFlowchart(d)` or

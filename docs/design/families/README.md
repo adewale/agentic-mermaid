@@ -17,6 +17,8 @@ across several surfaces; this hub points at each.
 | Mindmap | [`mindmap.md`](./mindmap.md) | indentation-sensitive tree, compact bilateral layout, and spatial terminal output |
 | Pie | [`pie.md`](./pie.md) | donut, labels, palette, and legend geometry |
 | Quadrant | [`quadrant.md`](./quadrant.md) | point paint and dense placement |
+| Radar (`radar-beta`) | [`radar.md`](./radar.md) | graticules, shared chart palette, and long axis-label placement |
+| Sankey | [`sankey.md`](./sankey.md) | `d3-sankey` layering, flow conservation (`FLOW_IMBALANCE`), and ribbon paint |
 | Sequence | [`sequence.md`](./sequence.md) | block/lifecycle semantics and containment |
 | State | [`state.md`](./state.md) | regions, notes, pseudostates, paint, and loop routes |
 | Timeline | [`timeline.md`](./timeline.md) | shared grammar and vertical layout |

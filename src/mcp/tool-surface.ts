@@ -1,4 +1,5 @@
 import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { DESCRIBE_FORMATS } from '../agent/describe.ts'
 import {
   META_SERVER_INFO,
   isLegacyProtocolVersion,
@@ -643,7 +644,7 @@ machine checking (for example edge A -> B : label, member Duck +quack()).`,
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
-        format: { type: 'string', enum: ['text', 'json', 'facts'], description: 'text (default), json AX tree, or facts semantic read-back.' },
+        format: { type: 'string', enum: [...DESCRIBE_FORMATS], description: 'text (default), json AX tree, or facts semantic read-back.' },
       },
       required: ['source'],
     },

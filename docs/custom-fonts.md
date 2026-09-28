@@ -120,15 +120,17 @@ SVG output always declares the selected family through the root `--font` CSS
 custom property and a `font-family` rule. The SVG renderer does not read
 `fontDirs`.
 
-By default, a single plain family name such as `Acme Sans` produces a Google
-Fonts `@import`. Class and ER diagrams can also import JetBrains Mono for their
-monospace labels. Set `embedFontImport: false`, or use `security: 'strict'`, to
-omit all of those requests while keeping the family declaration:
+By default, SVG output makes no font requests. Google Fonts imports are opt-in
+via `embedFontImport: true`: a single plain family name such as `Acme Sans`
+then produces a Google Fonts `@import`, and class and ER diagrams can also
+import JetBrains Mono for their monospace labels. `security: 'strict'` omits
+all of those requests even when `embedFontImport` is set, while keeping the
+family declaration:
 
 ```ts
 const svg = renderMermaidSVG(source, {
   style: { font: 'Acme Sans' },
-  embedFontImport: false,
+  embedFontImport: true,
 })
 ```
 
@@ -145,8 +147,8 @@ renderMermaidSVG(source, {
 })
 ```
 
-The class/ER JetBrains Mono import still applies unless `embedFontImport` is
-false or strict security is enabled.
+With `embedFontImport: true`, the class/ER JetBrains Mono import still applies
+to these renders unless strict security is enabled.
 
 If the selected family is unavailable when the SVG is viewed, normal CSS
 fallback applies. A family stack makes that fallback explicit.
@@ -239,8 +241,8 @@ name, include the directory through `fontDirs`, supply the required weights,
 and make sure Mermaid `fontFamily` configuration in the source is not
 overriding the Style.
 
-**The SVG requests a font from the network.** Render with
-`security: 'strict'` or `embedFontImport: false`.
+**The SVG requests a font from the network.** The render opted in with
+`embedFontImport: true`; drop that option or render with `security: 'strict'`.
 
 **The SVG looks different in another viewer.** The other environment did not
 resolve the same family or selected a different fallback. Use a deliberate

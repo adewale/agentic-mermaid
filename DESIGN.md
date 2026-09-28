@@ -2,13 +2,13 @@
 name: Agentic Mermaid
 description: Local-first, agent-native Mermaid rendering and typed diagram editing.
 colors:
-  paper: "#F5F0E4"
-  ink: "#221E16"
-  accent-terracotta: "#9A4A24"
+  paper: "#F8F4F0"
+  ink: "#26201B"
+  accent-pine: "#1B6E52"
   brand-pine: "#6FC2A2"
   brand-on-pine: "#0A4434"
-  surface: "#EDE7DB"
-  line: "#D8D0C1"
+  surface: "#EEE9E5"
+  line: "#DDD8D4"
 typography:
   display:
     fontFamily: "Charter, Bitstream Charter, Iowan Old Style, Palatino Linotype, Palatino, Georgia, serif"
@@ -46,7 +46,7 @@ spacing:
   xxl: "56px"
 components:
   button-primary:
-    backgroundColor: "{colors.accent-terracotta}"
+    backgroundColor: "{colors.accent-pine}"
     textColor: "{colors.paper}"
     rounded: "{rounded.md}"
     padding: "0 12px"
@@ -71,22 +71,22 @@ components:
 
 Agentic Mermaid’s public site is a document-first brand surface for engineers, documentation authors, and coding agents. It should feel precise, calm, and mechanically trustworthy: a readable manual with enough workbench affordance that visitors can immediately copy an agent prompt, open the editor, install locally, or inspect the machine-readable contract.
 
-The system is restrained by design. Proof diagrams, source snippets, warning codes, and local-first constraints carry the brand; decoration does not. The site must never imply hosted Code Mode, arbitrary execution, or a production render API.
+The system is restrained by design. Proof diagrams, source snippets, warning codes, and local-first constraints carry the brand; decoration does not. The site must never imply a REST render API or arbitrary server-side execution: hosted Code Mode `execute` runs only over MCP JSON-RPC, in capped isolates with no network, and local use stays the recommended path.
 
 **Key Characteristics:**
-- Sparse Paper-and-ink surface with one terracotta action accent and an isolated pine logo mark.
+- Sparse Paper-and-ink surface with one pine action accent and a separately isolated pine logo mark.
 - Serif headings for manual authority; system/humanist sans for controls and prose; mono only for code, labels, and traces.
 - Flat panels with hairline borders, not glossy cards or SaaS shadows.
 - Concrete diagrams, commands, warnings, and source snippets instead of AI-magic claims.
 
 ## Colors
 
-The palette is restrained: Paper, ink, one terracotta action/link accent, and a separate pine logo chip that renderer themes never retint.
+The palette is restrained: Paper (the Kiln Stone ground), ink, one pine action/link accent, and a separate pine logo chip that renderer themes never retint. Terracotta survives only in the `paper` render palette, not in the shell. Surface and line are derived from ink and Paper with `color-mix()`; the hex values above are their resolved defaults.
 
 ### Primary
 - **Paper Ground**: the page background. It is a committed product surface, not generic beige decoration.
-- **Terracotta Action**: primary actions, links, focus rings, and selected states. Use it sparingly so it remains meaningful.
-- **Pine Mark**: logo chip and shader fallback only. Do not use it as a general CTA color.
+- **Pine Action** (`--accent`): primary actions, links, focus rings, and selected states. Use it sparingly so it remains meaningful.
+- **Pine Mark** (`--brand-pine`, `--brand-on`): the lighter logo chip and shader fallback only. It is a separate brand token from the action accent; do not use it as a CTA color.
 
 ### Neutral
 - **Ink**: headings and body text.
@@ -94,7 +94,7 @@ The palette is restrained: Paper, ink, one terracotta action/link accent, and a 
 - **Surface / Line**: panels, code blocks, tables, dividers, and grouped proof artifacts.
 
 ### Named Rules
-**The Local-First Honesty Rule.** Color may highlight local commands, warnings, and agent routes, but it must never imply a hosted execution surface.
+**The Local-First Honesty Rule.** Color may highlight local commands, warnings, and agent routes, but it must never present the hosted endpoint as the default path or imply execution beyond its network-less Code Mode sandbox.
 
 **The Isolated Mark Rule.** Brand mark tokens are isolated from renderer themes and page scheme tokens. Theme changes may retint diagrams, never the shell identity.
 
@@ -133,7 +133,7 @@ The system is flat by default. Depth comes from tonal layering, hairline borders
 
 ### Buttons
 - **Shape:** compact rectangle with gentle corners (8px).
-- **Primary:** terracotta fill, Paper text, min-height 40px; on mobile/coarse contexts use 44px where practical.
+- **Primary:** pine accent fill, Paper text, min-height 40px; on mobile/coarse contexts use 44px where practical.
 - **Secondary:** surface fill, ink/soft-ink text, hairline border.
 - **Hover / Focus:** subtle color shift and 2px accent focus ring; no bounce, glow, or glass.
 
@@ -149,7 +149,7 @@ The system is flat by default. Depth comes from tonal layering, hairline borders
 
 ### Inputs / Fields
 - **Style:** surface fill, hairline border, 8px radius, visible label.
-- **Focus:** 2px terracotta focus outline, offset outside the control.
+- **Focus:** 2px accent focus outline, offset outside the control.
 - **Error / Disabled:** status colors must clear WCAG AA when used as text.
 
 ### Navigation
@@ -170,7 +170,7 @@ The prompt card is the agent handoff primitive. It must keep copy controls visib
 
 ### Don't:
 - **Don't** make the site look like a generic SaaS landing page with card grids, glass panels, glowing AI gradients, loud hero metrics, or overbearing CTAs.
-- **Don't** imply hosted Code Mode, arbitrary execution, or a production render API.
+- **Don't** imply a REST render API, network access from hosted Code Mode, or that the hosted endpoint replaces local use.
 - **Don't** use gradient text, decorative grid backgrounds, broad soft card shadows, or side-stripe borders.
 - **Don't** repeat tiny uppercase/mono section labels as page scaffolding when headings or grouping can do the work.
 - **Don't** hide core editor controls on mobile; adapt them so Source, Preview, Diagram, Unicode, ASCII, zoom, pan, copy, export, settings, examples, and theme remain reachable.

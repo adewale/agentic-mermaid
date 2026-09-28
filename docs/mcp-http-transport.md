@@ -88,7 +88,7 @@ Response shape:
     "content": [
       {
         "type": "text",
-        "text": "{\"ok\":true,\"png_base64\":\"iVBORw0KGgo...\",\"warnings\":[]}"
+        "text": "{\"ok\":true,\"png_base64\":\"iVBORw0KGgo…\",\"receipt\":{\"version\":2,\"output\":\"png\",…},\"runtime\":{\"engine\":\"resvg\",\"binding\":\"napi\",…},\"warnings\":[]}"
       }
     ],
     "isError": false
@@ -96,7 +96,7 @@ Response shape:
 }
 ```
 
-`warnings` always appears. `PNG_FONT_COVERAGE` names missing CJK/emoji coverage and points to `fontDirs`/`loadSystemFonts`; source configuration diagnostics use the same deterministic warning envelope.
+`receipt` is the render request receipt (request/appearance digests plus the capability and execution decisions) and `runtime` records rasterizer provenance (engine, binding, font sources, reproducibility); both are also present on file and URL responses. `warnings` always appears. `PNG_FONT_COVERAGE` names missing CJK/emoji coverage and points to `fontDirs`/`loadSystemFonts`; source configuration diagnostics use the same deterministic warning envelope.
 
 ### File output
 
@@ -127,7 +127,10 @@ Response shape (`content[0].text` is JSON):
     "mimeType": "image/png",
     "bytes": 12345,
     "sha256": "64 lowercase hex characters"
-  }
+  },
+  "receipt": { "version": 2, "output": "png", … },
+  "runtime": { "engine": "resvg", "binding": "napi", … },
+  "warnings": []
 }
 ```
 
@@ -162,7 +165,10 @@ Response shape (`content[0].text` is JSON):
     "mimeType": "image/png",
     "bytes": 12345,
     "sha256": "64 lowercase hex characters"
-  }
+  },
+  "receipt": { "version": 2, "output": "png", … },
+  "runtime": { "engine": "resvg", "binding": "napi", … },
+  "warnings": []
 }
 ```
 

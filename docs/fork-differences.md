@@ -25,7 +25,7 @@ Every registered family is structured when narrowed; segment-preserving families
 This fork renders a wider set of Mermaid families in both the gallery and editor:
 
 - Flowcharts and state diagrams
-- Architecture diagrams (`architecture-beta`)
+- Architecture diagrams (`architecture-beta`, or `architecture`)
 - Sequence diagrams
 - Class diagrams
 - ER diagrams
@@ -38,6 +38,7 @@ This fork renders a wider set of Mermaid families in both the gallery and editor
 - Mindmaps (`mindmap`) with indentation-sensitive hierarchy, shapes, icons, and classes
 - Git graphs (`gitGraph`) with deterministic replayed commits, branches, merges, and cherry-picks
 - Radar charts (`radar-beta`) — spider/star charts plotting multivariate profiles across equi-angular axes from a shared center
+- Sankey diagrams (`sankey`, `sankey-beta`) — CSV-style flows whose ribbon widths are conserved across stages (`FLOW_IMBALANCE` flags an unbalanced node)
 
 The live editor has registry-backed example coverage for every built-in family
 (`src/__tests__/editor-examples.test.ts`). Browser E2E still spot-checks several

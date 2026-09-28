@@ -19,11 +19,9 @@ import { describe, it, expect } from 'bun:test'
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { verifyMermaid } from '../agent/index.ts'
+import { getFamily, verifyMermaid } from '../agent/index.ts'
 import {
-  FLOWCHART_NOOP_CONFIG_FIELDS,
   applyFlowchartLabelWrapping,
-  flowchartIneffectiveConfigFields,
   resolveFlowchartRenderOptions,
 } from '../flowchart-config.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
@@ -76,11 +74,9 @@ describe('flowchart INEFFECTIVE_CONFIG lint (fix stage, P4)', () => {
     expect(verifyMermaid(AB).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')).toEqual([])
   })
 
-  it('the NOOP table and the wired keys partition the documented schema', () => {
-    for (const wired of ['nodeSpacing', 'rankSpacing', 'wrappingWidth']) {
-      expect(FLOWCHART_NOOP_CONFIG_FIELDS).not.toContain(wired)
-    }
-    expect(flowchartIneffectiveConfigFields([{ curve: 'basis', nodeSpacing: 10 }])).toEqual(['curve'])
+  it('the registry noopKeys and the wired keys partition the documented schema', () => {
+    const config = getFamily('flowchart')!.config!
+    expect(['nodeSpacing', 'rankSpacing', 'wrappingWidth', ...config.noopKeys!].sort()).toEqual([...config.keys].sort())
   })
 })
 

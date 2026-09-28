@@ -141,6 +141,22 @@ const FAMILIES: Family[] = [
     invariants: { total: true, deterministic: true, noDiagonals: true, rectangular: false },
     source: 'architecture-beta\n  group api(cloud)[API]\n  service db(database)[Database] in api\n  service server(server)[Server] in api\n  db:L -- R:server',
   },
+  {
+    id: 'radar',
+    title: 'Radar chart',
+    strategy: 'Polar geometry degraded to a grouped proportional-bar table (src/ascii/radar.ts).',
+    signature: 'One row group per axis in source order, one bar per curve on the scale shared with SVG; a legend of curves heads the table. Ragged rows.',
+    invariants: { total: true, deterministic: true, noDiagonals: true, rectangular: false },
+    source: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5',
+  },
+  {
+    id: 'sankey',
+    title: 'Sankey diagram',
+    strategy: 'Flow graph rendered as a grouped adjacency list (src/ascii/sankey.ts).',
+    signature: 'One section per node with outgoing flow, in first-appearance order; branches keep authored row order with a value column and a value-proportional bar. Ragged rows.',
+    invariants: { total: true, deterministic: true, noDiagonals: true, rectangular: false },
+    source: 'sankey-beta\n  Coal,Electricity,127\n  Gas,Electricity,80\n  Electricity,Homes,120\n  Electricity,Industry,87',
+  },
 ]
 
 const U = { colorMode: 'none' } as const // default unicode (canonical output)

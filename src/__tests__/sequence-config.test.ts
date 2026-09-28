@@ -18,7 +18,7 @@ import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
-import { resolveSequenceConfig, SEQUENCE_NOOP_CONFIG_FIELDS, sequenceIneffectiveConfigFields } from '../sequence/config.ts'
+import { resolveSequenceConfig } from '../sequence/config.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import type { SequenceRuntimeConfig } from '../mermaid-source.ts'
 
@@ -162,14 +162,6 @@ ${SRC}`
     expect(fields).toContain('sequence.wrap')
     expect(fields).toContain('sequence.rightAngles')
     expect(fields).not.toContain('sequence.actorMargin')
-  })
-
-  test('the NOOP table is disjoint from the wired keys and drives the lint', () => {
-    expect(SEQUENCE_NOOP_CONFIG_FIELDS).toContain('mirrorActors')
-    expect(SEQUENCE_NOOP_CONFIG_FIELDS).toContain('wrap')
-    expect(SEQUENCE_NOOP_CONFIG_FIELDS).not.toContain('actorMargin')
-    expect(SEQUENCE_NOOP_CONFIG_FIELDS).not.toContain('showSequenceNumbers')
-    expect(sequenceIneffectiveConfigFields([{ wrap: true, actorMargin: 1 }])).toEqual(['wrap'])
   })
 
   test('no config → no INEFFECTIVE_CONFIG noise', () => {

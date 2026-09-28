@@ -222,11 +222,9 @@ The typed `class` frontmatter section (`ClassRuntimeConfig` in
   `resolveClassRenderOptions` in `src/class/layout.ts`, applied on both the
   render path (`render-family-hooks.ts`) and the verify layout path
   (`family-layouts.ts`).
-- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): `titleTopMargin`,
-  `arrowMarkerAbsolute`, `dividerMargin`, `padding`, `textHeight`,
-  `defaultRenderer`, `diagramPadding`, `htmlLabels`, `hideEmptyMembersBox` —
-  the table (`CLASS_NOOP_CONFIG_FIELDS`) lives
-  beside the wiring in `src/class/layout.ts` so wire and warn cannot drift.
+- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): <!-- BEGIN GENERATED: noop-keys:class -->`arrowMarkerAbsolute`, `defaultRenderer`, `diagramPadding`, `dividerMargin`, `hideEmptyMembersBox`, `htmlLabels`, `padding`, `textHeight`, `titleTopMargin`<!-- END GENERATED: noop-keys:class --> —
+  the lint reads the class descriptor's `config.noopKeys` in
+  `src/agent/families.ts`.
 
 ## Generic classes (repo #118)
 

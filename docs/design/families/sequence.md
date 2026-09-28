@@ -20,8 +20,9 @@ spec — the layout/renderer live in `src/sequence/`, the agent body in
 
 Typed `sequence` config section (`SequenceRuntimeConfig` in
 `src/mermaid-source.ts`), following the class/er/flowchart wire-or-warn
-pattern. The single wire/warn table lives in `src/sequence/config.ts` so
-wiring and the verify lint cannot drift.
+pattern. Wiring lives in `src/sequence/config.ts`; the verify lint's
+unwired-key list is the sequence descriptor's `config.noopKeys` in
+`src/agent/families.ts`.
 
 ### Wired keys (natural mappings in `src/sequence/layout.ts`)
 
@@ -40,14 +41,10 @@ knob overrides only its documented layout field.
 
 ### Unwired keys → INEFFECTIVE_CONFIG
 
-Everything else documented on upstream's `SequenceDiagramConfig` — `wrap`,
-`wrapPadding`, `mirrorActors`, `messageAlign`, `noteAlign`, `boxMargin`,
-`boxTextMargin`, `bottomMarginAdj`, `rightAngles`, `labelBoxWidth`,
-`labelBoxHeight`, `hideUnusedParticipants`, `forceMenus`,
-`arrowMarkerAbsolute`, `useMaxWidth`, `useWidth`, and the nine
-`actor/note/messageFont*` keys — is accepted for config-shape compatibility
-and named per key by verify's Tier-3 `INEFFECTIVE_CONFIG` lint
-(`SEQUENCE_NOOP_CONFIG_FIELDS`). Font keys stay unwired deliberately:
+Everything else documented on upstream's `SequenceDiagramConfig` — <!-- BEGIN GENERATED: noop-keys:sequence -->`actorFont`, `actorFontFamily`, `actorFontSize`, `actorFontWeight`, `arrowMarkerAbsolute`, `bottomMarginAdj`, `boxMargin`, `boxTextMargin`, `forceMenus`, `hideUnusedParticipants`, `labelBoxHeight`, `labelBoxWidth`, `messageAlign`, `messageFont`, `messageFontFamily`, `messageFontSize`, `messageFontWeight`, `mirrorActors`, `noteAlign`, `noteFont`, `noteFontFamily`, `noteFontSize`, `noteFontWeight`, `rightAngles`, `useMaxWidth`, `useWidth`, `wrap`, `wrapPadding`<!-- END GENERATED: noop-keys:sequence --> — is accepted for config-shape compatibility
+and named per key by verify's Tier-3 `INEFFECTIVE_CONFIG` lint (the exact
+list is the sequence descriptor's `config.noopKeys` in
+`src/agent/families.ts`). Font keys stay unwired deliberately:
 typography routes through the style system (`RenderOptions.style` roles),
 not per-family config.
 

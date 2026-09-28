@@ -41,7 +41,7 @@ Recurring user pressure in Mermaid core:
 ### Beautiful Mermaid and Agentic Mermaid forks
 
 - [`lukilabs/beautiful-mermaid#59`](https://github.com/lukilabs/beautiful-mermaid/issues/59) requests “All Mermaid v11 diagrams” and includes a concrete Gantt sample with `interactive: true`.
-- [`lukilabs/beautiful-mermaid` `phase1-charts`](https://github.com/lukilabs/beautiful-mermaid/tree/phase1-charts) contains branch-only Gantt code: `src/gantt/parser.ts`, `src/gantt/layout.ts`, `src/gantt/renderer.ts`, `src/ascii/gantt.ts`, and `src/__tests__/gantt.test.ts`. It is useful prior art, but it predates Agentic Mermaid’s current source normalization, strict-security pass, agent surface, golden fixtures, and deterministic-output requirements.
+- [`lukilabs/beautiful-mermaid` `phase1-charts`](https://github.com/lukilabs/beautiful-mermaid/tree/phase1-charts) contains branch-only Gantt code (paths on that upstream branch): `src/gantt/parser.ts`, `src/gantt/layout.ts`, `src/gantt/renderer.ts`, `src/ascii/gantt.ts`, and `src/__tests__/gantt.test.ts`. It is useful prior art, but it predates Agentic Mermaid’s current source normalization, strict-security pass, agent surface, golden fixtures, and deterministic-output requirements.
 - Agentic Mermaid implemented Gantt on the family-descriptor, structured-or-opaque, quality-adapter, and registry contracts established by earlier work. Historical sequencing is preserved in Git history and the PR #149 archive.
 
 ### Mermaid ASCII and terminal-renderer forks
@@ -59,7 +59,7 @@ These terminal renderers converge on the same useful display shape: a left label
 
 ## Compatibility target
 
-Target Mermaid Gantt syntax as documented on Mermaid `develop` on 2026-06-11. Host renderers such as GitHub, GitLab, Obsidian, and Markdown plugins pin different Mermaid versions; Agentic Mermaid should not claim host parity. It should claim a pinned Mermaid-core syntax target and expose syntax support in `am capabilities --json` once Gantt lands.
+Target Mermaid Gantt syntax as documented on Mermaid `develop` on 2026-06-11. Host renderers such as GitHub, GitLab, Obsidian, and Markdown plugins pin different Mermaid versions; Agentic Mermaid should not claim host parity. It should claim a pinned Mermaid-core syntax target; Gantt syntax support is exposed in `am capabilities --json`.
 
 The renderer must accept Mermaid source wrappers already supported by Agentic Mermaid:
 
@@ -98,7 +98,7 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 | Duration tokens | parse + render | Support the documented Mermaid token set from [PR #7443](https://github.com/mermaid-js/mermaid/pull/7443): `ms`, `s`, `m`, `h`, `d`, `w`, `M`, `y`, including decimals where Mermaid accepts them. Invalid duration tokens are parse errors; see [#6586](https://github.com/mermaid-js/mermaid/issues/6586). |
 | `click <id> href ...` | parse + sanitized render | Strict mode strips unsafe external refs as today. Loose mode may emit safe links if the existing renderer policy allows it. |
 | `click <id> call ...` | parse + preserve only | Never execute JavaScript callbacks in Agentic Mermaid. No callback output in strict mode. |
-| Frontmatter `config.gantt` / top-level Gantt config | parse + render where supported | `displayMode`, `barHeight`, padding, `topAxis`, `axisFormat`, `tickInterval`, and `todayMarker` should flow through the same normalized config path as xychart/timeline. |
+| Frontmatter `config.gantt` / top-level Gantt config | parse + render where supported | `displayMode`, `barHeight`, `topAxis`, `axisFormat`, and `tickInterval` are wired (`resolveGanttFrontmatterConfig` in `src/gantt/parser.ts`). The other documented keys are accepted but inert and named by `INEFFECTIVE_CONFIG`; the list is the gantt descriptor's `config.noopKeys` in `src/agent/families.ts`. The `todayMarker` *directive* is wired separately (row above). |
 | `displayMode: compact` | parse + SVG render; ASCII best effort | Compact layout uses deterministic interval packing inside each section. It must not overlap labels, bars, or ticks. See [#7603](https://github.com/mermaid-js/mermaid/issues/7603). |
 | Comments and `#`/`;` in titles/task text | parse + preserve + render text | Mermaid changed parser behavior in [PR #5095](https://github.com/mermaid-js/mermaid/pull/5095). Fixtures must cover this. |
 
@@ -175,25 +175,24 @@ marker, a wrapped 65-char label, and status-styled milestones in one chart.
 
 ## Architecture
 
-Build Gantt as a five-stage family pipeline.
+Gantt shipped as a five-stage family pipeline. The stage notes below record
+the design as built and point at the files that now own each stage.
 
 ### 1. Routing and family registration
 
-Files to touch after PR #22:
+As shipped:
 
-- `src/mermaid-source.ts`: add `gantt` to strict and loose detection.
-- `src/index.ts`: route SVG rendering to `src/gantt/*`.
-- `src/ascii/index.ts`: route ASCII/Unicode rendering to `src/ascii/gantt.ts`.
-- `src/agent/types.ts`: add `DiagramKind = 'gantt'`.
-- `src/agent/families-builtin.ts`: register `id: 'gantt'`, detect `gantt`, and implement `extractGanttLabels`.
-- `src/agent/family-layouts.ts`: add `ganttToRendered` so `measureQuality`, `checkQuality`, `verify.layout`, and layout-compare see Gantt geometry.
-- `src/mcp/sdk-decl.ts`, `src/mcp/server.ts`, `src/cli/index.ts`, `Instructions_for_agents.md`, `llms.txt`, and skills: sync capability docs through the existing doc-sync tests.
+- `src/agent/families.ts`: the `gantt` metadata row (headers, `asGantt`, config contract).
+- `src/agent/families-builtin.ts`: agent hooks over `src/agent/gantt-body.ts` (`parseGanttBody`, `renderGantt`, `mutateGantt`, `verifyGantt`).
+- `src/render-family-hooks.ts`: SVG (`src/gantt/pipeline.ts`, `src/gantt/renderer.ts`) and ASCII/Unicode (`src/ascii/gantt.ts`) render hooks.
+- `src/agent/family-layouts.ts`: `projectGanttPositioned` projects Gantt geometry for `measureQuality`, `checkQuality`, `verify.layout`, and layout-compare.
+- Capability docs (MCP, CLI, `Instructions_for_agents.md`, `llms.txt`, skills) stay synced through the doc-sync tests.
 
 The `FamilyDescriptor` registers with `mutate` and `serialize` hooks from the start (the enforcement test fails CI otherwise): detect, label extraction, and a segment-preserving structured body whose serialization re-emits opaque segments verbatim. Unmodeled or unparseable bodies fall back whole-opaque, preserving source byte-for-byte.
 
 ### 2. Syntax parser
 
-Create `src/gantt/parser.ts` and `src/gantt/types.ts`.
+Shipped as `src/gantt/parser.ts` and `src/gantt/types.ts`.
 
 The parser should produce two related values:
 
@@ -213,7 +212,7 @@ Parser rules:
 
 ### 3. Calendar and dependency resolver
 
-Create `src/gantt/schedule.ts`.
+Shipped as `src/gantt/schedule.ts`.
 
 Do not let renderers compute dates. Renderers receive resolved task intervals and markers.
 
@@ -248,11 +247,10 @@ Scheduling rules:
 
 ### 4. SVG layout and renderer
 
-Create:
+Shipped as:
 
 - `src/gantt/layout.ts`
-- `src/gantt/renderer.ts`
-- `src/gantt/colors.ts` if status colors need family-local helpers
+- `src/gantt/renderer.ts` (status colors live in its `ganttPalette`; no separate colors module was needed)
 
 The `phase1-charts` branch is a starting point for the visual shape: left section/task columns, plot area, row lines, grid lines, bars, milestones, and optional hover overlays. Port the idea, not the code wholesale.
 
@@ -270,7 +268,7 @@ SVG requirements:
 
 ### 5. ASCII and Unicode renderer
 
-Create `src/ascii/gantt.ts` using current Agentic Mermaid ASCII infrastructure.
+Shipped as `src/ascii/gantt.ts` on the shared Agentic Mermaid ASCII infrastructure.
 
 The terminal shape should combine the pgavlin and kais-radwan patterns:
 
@@ -304,7 +302,7 @@ Gantt verification should start source-level and structural:
 - `EDGE_MISANCHORED`: dependency/click reference points at an unknown task ID;
 - `OFF_CANVAS`: resolved bars or markers outside plot bounds;
 - `GROUP_BREACH`: section-owned rows outside the section band;
-- `DUPLICATE_EDGE` is not relevant unless visual dependency edges are added later;
+- `DUPLICATE_EDGE` is not relevant: dependency connectors are an opt-in render overlay (see [Dependency arrows](#dependency-arrows-and-critical-path-overlay-render-option)), not layout edges;
 - `UNREACHABLE_NODE` is not relevant to Gantt.
 
 `describeMermaid(..., {format:'json'})` should expose an AX tree with:
@@ -379,8 +377,9 @@ implementation plan:
 3. **ASCII renderer + goldens.** Landed terminal output and reviewable goldens.
 4. **SVG renderer + PNG path.** Landed role styling, accessibility,
    strict-security handling, status classes, and snapshots.
-5. **Quality/layout adapter.** Landed `ganttToRendered` and layout-compare
-   fixtures.
+5. **Quality/layout adapter.** Landed the Gantt layout projection (now
+   `projectGanttPositioned` in `src/agent/family-layouts.ts`) and
+   layout-compare fixtures.
 6. **Editor/showcase/docs.** Landed the examples and product-surface coverage.
 7. **Release notes and capability sync.** Landed capability documentation and
    registry/doc-sync coverage.

@@ -31,10 +31,10 @@ Adding a `DiagramKind` cannot compile until its conformance profile exists.
 Runtime exact-set checks, independent tuple enumeration and fake/removed-family
 sabotage prevent a hidden opt-out.
 
-The current measured candidate contains 1,047 core rows covering 2,739 declared
-obligations and 135 mixed-format rows covering 309 obligations. These counts
-are derived and pinned by [`eval/test-portfolio/candidate.json`](../../eval/test-portfolio/candidate.json);
-they are not API constants.
+The current measured candidate's core and mixed-format row and obligation
+counts are derived and pinned by [`eval/test-portfolio/candidate.json`](../../eval/test-portfolio/candidate.json)
+(`portfolio.coreRows`, `coreRequiredObligations`, `mixedFormatRows`,
+`mixedRequiredObligations`); read them there — they are not API constants.
 
 The former family × Look × Palette matrix proved every named triple for one
 simple SVG source. The replacement intentionally does **not** retain that exact

@@ -8,7 +8,7 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 - Removed the old `LayoutContext` / `SeededRNG` / `Clock` / `withSeededRandom` / font-metrics apparatus.
 - `RenderedLayout` has no `seed` field.
-- `VerifyOptions` is intentionally small: `{ suppress?, labelCharCap? }`.
+- `VerifyOptions` is intentionally small: `{ suppress?, labelCharCap?, renderOptions? }`.
 - Claim scope: same-input structural layout determinism is tested for the supported runtime/version matrix. Cross-machine or cross-architecture float equality is **not** claimed.
 
 ### Package and compatibility choices
@@ -19,21 +19,10 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ### Mutation surface is intentionally narrower than Mermaid syntax
 
-Structured mutation is exposed for every built-in renderable family, but only when that body's parser/IR/serializer/verifier can preserve the modeled semantics:
+Structured mutation is exposed for every built-in renderable family, but only when that body's parser/IR/serializer/verifier can preserve the modeled semantics. The family roster, edit policies, and mutation operations are generated from `FamilyDescriptor`: read [`section-a-capability-report.md`](./section-a-capability-report.md) or `am capabilities --json` rather than a copied list here. Two family-specific notes:
 
-- flowchart/state;
 - sequence (BUILD-18 — segment-preserving: participants, top-level messages, and direct-message `alt`/`opt`/`loop`/`par` fragments are typed; Note/critical/box/activate/autonumber/title plus nested or unmodeled fragment content ride along verbatim as opaque-block segments; only un-segmentable input such as an unbalanced `end` falls back to whole-body opaque);
-- timeline;
-- class;
-- ER;
-- journey (BUILD-15 pilot);
-- architecture, including group-boundary semantics;
-- xychart;
-- pie;
-- quadrant;
-- gantt;
-- mindmap;
-- gitgraph.
+- architecture mutation includes group-boundary semantics.
 
 Opaque/source-level bodies:
 

@@ -14,7 +14,7 @@ import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } f
 import * as agentTypes from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
-import { buildCapabilities, COMMAND_HELP, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { buildCapabilities, COMMAND_FLAGS, COMMAND_HELP, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -25,10 +25,6 @@ import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 ensureWebsiteBuilt()
 
 const REPO = join(import.meta.dir, '..', '..')
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
 const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Record<string, unknown>>> = {
@@ -124,11 +120,6 @@ describe('Instructions_for_agents.md', () => {
   test('byte-matches am --agent-instructions exactly', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     expect(AGENT_INSTRUCTIONS).toEqual(guide)
-  })
-  test('names every hosted MCP tool (so a new tool cannot silently drift the guide)', () => {
-    for (const tool of HOSTED_TOOLS) {
-      expect({ tool: tool.name, named: AGENT_INSTRUCTIONS.includes(`\`${tool.name}\``) }).toEqual({ tool: tool.name, named: true })
-    }
   })
   test('quick-start examples verify before every serialize', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
@@ -302,24 +293,6 @@ describe('vocabulary doc-sync', () => {
     }
   })
 
-  test('quality geometry table lists every built-in family', () => {
-    const quality = readFileSync(join(REPO, 'docs/quality.md'), 'utf8')
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      expect({
-        family: family.id,
-        row: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(quality),
-      }).toEqual({ family: family.id, row: true })
-    }
-  })
-
-  test('source preservation ladder lists every built-in family and all levels', () => {
-    const ladder = readFileSync(join(REPO, 'docs/design/system/source-preservation-ladder.md'), 'utf8')
-    for (const level of ['L0', 'L1', 'L2', 'L3', 'L4']) expect(ladder).toContain(level)
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      expect({ family: family.id, listed: new RegExp(`\\|\\s*${escapeRegExp(family.id)}\\s*\\|`).test(ladder) }).toEqual({ family: family.id, listed: true })
-    }
-  })
-
   test('TODO backlog IDs are unique', () => {
     const todo = readFileSync(join(REPO, 'TODO.md'), 'utf8')
     const ids = [...todo.matchAll(/\*\*([A-Z]+-\d+)\b/g)].map(m => m[1]!)
@@ -359,20 +332,6 @@ describe('vocabulary doc-sync', () => {
     expect(existsSync(join(REPO, '.github/workflows/nightly-route-mutation.yml'))).toBe(false)
   })
 
-  test('every warning code in Instructions_for_agents.md and spec', () => {
-    const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
-    const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    for (const code of Object.keys(WARNING_SEVERITY)) {
-      expect(guide).toContain(code)
-      expect(spec).toContain(code)
-    }
-  })
-  test('public verify docs list every warning code', () => {
-    const surfaces = [COMMAND_HELP.verify, readFileSync(join(REPO, 'docs/features.md'), 'utf8'), readFileSync(join(REPO, 'docs/agent-api-cookbook.md'), 'utf8')]
-    for (const code of Object.keys(WARNING_SEVERITY)) {
-      for (const surface of surfaces) expect(surface).toContain(code)
-    }
-  })
   test('MCP SDK WarningCode exactly matches the runtime warning registry', () => {
     expect(sdkStringUnion('WarningCode').sort()).toEqual(Object.keys(WARNING_TIER).sort())
   })
@@ -644,49 +603,7 @@ describe('hosted-tool enumeration does not rot', () => {
   })
 })
 
-describe('exact MCP inventories match the runtime registries', () => {
-  const names = (text: string): string[] => [...text.matchAll(/`([a-z_]+)`/g)].map(match => match[1]!)
-  // `source` and `family` are argument nouns inside two inventory descriptions.
-  // Everything else remains raw: no runtime-name filter and no deduplication,
-  // so an unknown or repeated advertised tool makes equality fail.
-  const scopedInventoryNames = (text: string): string[] => names(text).filter(name => name !== 'source' && name !== 'family')
-  const matchOrThrow = (text: string, pattern: RegExp, label: string): RegExpMatchArray => {
-    const match = text.match(pattern)
-    if (!match) throw new Error(`missing exact MCP inventory in ${label}`)
-    return match
-  }
-
-  test('inventory extraction preserves duplicates and unknown names for the equality guard', () => {
-    expect(scopedInventoryNames('`execute`, `execute`, `source`, and `not_a_tool`.')).toEqual(['execute', 'execute', 'not_a_tool'])
-  })
-
-  test('llms and maintained docs name every local and hosted tool exactly once', () => {
-    const local = LOCAL_TOOLS.map(tool => tool.name)
-    const hosted = HOSTED_TOOLS.map(tool => tool.name)
-
-    const llms = readFileSync(join(REPO, 'llms.txt'), 'utf8')
-    const llmsInventory = matchOrThrow(llms, /Local MCP exposes (\d+) tools:([\s\S]*?)\. Hosted MCP exposes (\d+) tools:([\s\S]*?)\.\n/, 'llms.txt')
-    expect({ count: Number(llmsInventory[1]), tools: names(llmsInventory[2]!) }).toEqual({ count: local.length, tools: local })
-    expect({ count: Number(llmsInventory[3]), tools: names(llmsInventory[4]!) }).toEqual({ count: hosted.length, tools: hosted })
-
-    const exactHostedInventories = [
-      ['website/README.md', /Hosted tools:([\s\S]*?)\. Tool inputs/],
-      ['docs/api.md', /Hosted tools are ([^;]+);/],
-      ['website/source/start.md', /Tools: ([^(]+) \(64 KB/],
-      ['README.md', /- \*\*Hosted\.\*\*[^\n]*?\(tools: ([^;]+); 64 KB/],
-      ['Instructions_for_agents.md', /A hosted MCP at ([\s\S]*?) — which apply/],
-      ['skills/agentic-mermaid-diagram-workflow/SKILL.md', /No local install, network only[\s\S]*?JSON-RPC; ([\s\S]*?) tools —/],
-      ['docs/features.md', /It exposes nine bounded MCP JSON-RPC tools:([\s\S]*?)structured edits\./],
-      ['docs/fork-differences.md', /registry-checked tools:([\s\S]*?)structured-edit tools\./],
-      ['docs/mcp-http-transport.md', /Cloudflare-backed, tools ([\s\S]*?), inputs capped/],
-    ] as const
-    for (const [file, pattern] of exactHostedInventories) {
-      const inventory = matchOrThrow(readFileSync(join(REPO, file), 'utf8'), pattern, file)
-      const mentioned = scopedInventoryNames(inventory[1]!)
-      expect({ file, tools: mentioned }).toEqual({ file, tools: hosted })
-    }
-  })
-
+describe('hosted-cache contract', () => {
   test('every maintained hosted-cache contract says private compute + no-store + observable status', () => {
     const surfaces = ['llms.txt', 'docs/mcp-http-transport.md', 'website/public/llms.txt', 'website/public/.well-known/llms.txt']
     for (const file of surfaces) {
@@ -732,9 +649,8 @@ describe('root docs consistency', () => {
     }
   })
 
-  test('advertised CLI verbs have help entries', () => {
-    const commands = ['render', 'verify', 'parse', 'serialize', 'mutate', 'preview', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt', 'init-agent']
-    for (const command of commands) {
+  test('every CLI verb has a help entry', () => {
+    for (const command of Object.keys(COMMAND_FLAGS)) {
       const r = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), command, '--help'], { encoding: 'utf8' })
       expect({ command, status: r.status, stderr: r.stderr }).toEqual({ command, status: 0, stderr: '' })
       expect(r.stdout).toContain(`am ${command}`)

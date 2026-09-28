@@ -232,7 +232,7 @@ export interface GitGraphRuntimeConfig extends MermaidConfigMap {
  * nodeSpacing/rankSpacing are wired into the ELK layout
  * (src/class/layout.ts resolveClassRenderOptions); every other documented
  * key is accepted for config-shape compatibility and named by verify's
- * INEFFECTIVE_CONFIG lint (CLASS_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ * INEFFECTIVE_CONFIG lint (the family's config.noopKeys in src/agent/families.ts).
  */
 export interface ClassRuntimeConfig extends MermaidConfigMap {
   nodeSpacing?: number
@@ -253,7 +253,7 @@ export interface ClassRuntimeConfig extends MermaidConfigMap {
  * Mermaid's documented er config shape (wire-or-warn, P4): layoutDirection +
  * nodeSpacing/rankSpacing are wired (src/er/layout.ts
  * applyErFrontmatterConfig); the rest emit INEFFECTIVE_CONFIG
- * (ER_NOOP_CONFIG_FIELDS in src/agent/verify.ts).
+ * (the family's config.noopKeys in src/agent/families.ts).
  */
 export interface ErRuntimeConfig extends MermaidConfigMap {
   layoutDirection?: string
@@ -274,8 +274,8 @@ export interface ErRuntimeConfig extends MermaidConfigMap {
  * iconSize, fontSize, nodeSeparation, and idealEdgeLengthMultiplier are wired
  * (src/architecture/config.ts); the fcose simulation knobs — edgeElasticity,
  * numIter, seed, randomize — have no meaning in the deterministic layout and
- * emit INEFFECTIVE_CONFIG (ARCHITECTURE_NOOP_CONFIG_FIELDS in
- * src/architecture/config.ts).
+ * emit INEFFECTIVE_CONFIG (the family's config.noopKeys in
+ * src/agent/families.ts).
  */
 export interface ArchitectureRuntimeConfig extends MermaidConfigMap {
   padding?: number
@@ -294,8 +294,8 @@ export interface ArchitectureRuntimeConfig extends MermaidConfigMap {
  * nodeSpacing/rankSpacing/wrappingWidth are wired
  * (src/flowchart-config.ts resolveFlowchartRenderOptions); every other
  * documented key is accepted for config-shape compatibility and named by
- * verify's INEFFECTIVE_CONFIG lint (FLOWCHART_NOOP_CONFIG_FIELDS in
- * src/flowchart-config.ts).
+ * verify's INEFFECTIVE_CONFIG lint (the family's config.noopKeys in
+ * src/agent/families.ts).
  */
 export interface FlowchartRuntimeConfig extends MermaidConfigMap {
   nodeSpacing?: number
@@ -318,8 +318,8 @@ export interface FlowchartRuntimeConfig extends MermaidConfigMap {
  * and showSequenceNumbers are wired (src/sequence/config.ts
  * resolveSequenceConfig → src/sequence/layout.ts); every other documented key
  * is accepted for config-shape compatibility and named by verify's
- * INEFFECTIVE_CONFIG lint (SEQUENCE_NOOP_CONFIG_FIELDS in
- * src/sequence/config.ts).
+ * INEFFECTIVE_CONFIG lint (the family's config.noopKeys in
+ * src/agent/families.ts).
  */
 export interface SequenceRuntimeConfig extends MermaidConfigMap {
   actorMargin?: number

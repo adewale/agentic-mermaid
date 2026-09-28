@@ -20,10 +20,11 @@ its immutable before and measured candidate reports live under
 
 Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
-the dependency audit, font and website regeneration checks, evidence
-freshness, sketch and whole-corpus audits, lint, repository-wide typechecking,
-hero freshness, and the golden-drift guard. The workflow calls this same
-entry point, so the local list and CI list cannot diverge.
+the dependency audit, the font-subset, lazy browser-family catalog, and website
+regeneration checks, the sketch and whole-corpus audits, lint,
+repository-wide typechecking, hero freshness, and the golden-drift guard (the
+list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
+this same entry point, so the local list and CI list cannot diverge.
 
 Committed galleries and before/after sheets are dated review snapshots, not
 gates: regenerate one with its `gallery:*` command when the rendering is
@@ -72,9 +73,8 @@ whether it gates per-PR, and what it does *not* prove.
 
 ## 1. Specified oracles — structural correctness
 
-**Tier-1 `verify`** is the non-negotiable structural gate: no
-`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`,
-`UNKNOWN_SHAPE`, or `LABEL_OVERFLOW`. It is reliable and universal across
+**Tier-1 `verify`** is the non-negotiable structural gate: none of
+<!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`<!-- END GENERATED: warning-codes:structural --> fires. It is reliable and universal across
 families. **Tier-2** (geometric) and **Tier-3** (lint) are advisory.
 
 Alongside it sit the **contract gates**: `am capabilities --json` schema

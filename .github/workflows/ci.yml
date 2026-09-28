@@ -27,8 +27,9 @@ jobs:
         with:
           # Keep CI on the known-good runtime used for local/release validation.
           # `latest` moved underneath this PR and made coverage runs flaky.
-          # Every workflow pins the same Bun: at least engines.bun, and the one
-          # the website payload baseline was recorded with (bun-version.test.ts).
+          # Every workflow pins the same Bun: at least engines.bun, and one
+          # toolchain so the payload delta's base and head builds compare like
+          # with like (bun-version.test.ts).
           bun-version: 1.4.2
           no-cache: true
 
@@ -116,8 +117,8 @@ jobs:
           no-cache: true
 
       # This is the same aggregate developers run locally. It installs the
-      # frozen dependency graph, reports every stale evidence receipt in one
-      # pass, and continues through all remaining quality gates before failing.
+      # frozen dependency graph, runs every QUALITY_CHECKS gate in
+      # scripts/ci/quality-gates.ts, and reports all failures in one pass.
       - name: Run the complete local and CI quality suite
         run: bun run quality:check
 
@@ -286,8 +287,9 @@ jobs:
         with:
           # Keep CI on the known-good runtime used for local/release validation.
           # `latest` moved underneath this PR and made coverage runs flaky.
-          # Every workflow pins the same Bun: at least engines.bun, and the one
-          # the website payload baseline was recorded with (bun-version.test.ts).
+          # Every workflow pins the same Bun: at least engines.bun, and one
+          # toolchain so the payload delta's base and head builds compare like
+          # with like (bun-version.test.ts).
           bun-version: 1.4.2
           no-cache: true
 

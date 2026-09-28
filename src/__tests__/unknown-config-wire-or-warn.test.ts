@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG } from '../index.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
+import { QUADRANT_WIRED_CONFIG_FIELDS } from '../quadrant/config.ts'
+import { RADAR_WIRED_CONFIG_FIELDS } from '../radar/config.ts'
+import { SANKEY_WIRED_CONFIG_FIELDS } from '../sankey/config.ts'
+import { SEQUENCE_WIRED_CONFIG_FIELDS } from '../sequence/config.ts'
 
 const CASES: Array<{ family: string; section: string; source: string; invalidKey: string; invalidValue: unknown }> = [
   { family: 'flowchart', section: 'flowchart', source: 'flowchart LR\n  A --> B', invalidKey: 'nodeSpacing', invalidValue: 'bad' },
@@ -24,6 +28,15 @@ const CASES: Array<{ family: string; section: string; source: string; invalidKey
   { family: 'sankey', section: 'sankey', source: 'sankey-beta\n  A,B,10\n  B,C,4', invalidKey: 'nodeWidth', invalidValue: 'bad' },
 ]
 
+// Families that export their wired-field table: the registry's config.keys
+// must split exactly into those wired fields and config.noopKeys.
+const WIRED_CONFIG_FIELDS: Record<string, readonly string[]> = {
+  quadrant: QUADRANT_WIRED_CONFIG_FIELDS,
+  radar: RADAR_WIRED_CONFIG_FIELDS,
+  sankey: SANKEY_WIRED_CONFIG_FIELDS,
+  sequence: SEQUENCE_WIRED_CONFIG_FIELDS,
+}
+
 function configured(section: string, source: string): string {
   return `---\nconfig:\n  ${section}:\n    madeUpKey: 7\n---\n${source}`
 }
@@ -33,6 +46,13 @@ describe('family config is exhaustive wire-or-warn', () => {
     expect(CASES.map(entry => entry.family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
     expect(new Set(CASES.map(entry => entry.family)).size).toBe(CASES.length)
   })
+
+  for (const [family, wired] of Object.entries(WIRED_CONFIG_FIELDS)) {
+    test(`${family}: registry config keys are exactly the wired fields plus noopKeys`, () => {
+      const config = getFamily(family)!.config!
+      expect([...wired, ...(config.noopKeys ?? [])].sort()).toEqual([...config.keys].sort())
+    })
+  }
 
   for (const entry of CASES) {
     test(`${entry.family}: unknown keys never disappear silently`, () => {

@@ -20,7 +20,8 @@
 //   pieTitleTextSize/Color, pieLegendTextSize/Color — title/legend typography
 //
 // Wire-or-warn (P4): every documented key is either resolved here or named in
-// the PIE_NOOP_* lists that verify surfaces as Tier-3 INEFFECTIVE_CONFIG.
+// the registry's pie config.noopKeys (src/agent/families.ts), which verify
+// surfaces as Tier-3 INEFFECTIVE_CONFIG.
 // ============================================================================
 
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
@@ -131,34 +132,4 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
   if (legendTextColor !== undefined) config.legendTextColor = legendTextColor
 
   return config
-}
-
-/** Documented-but-unwired pie config section fields (Tier-3 INEFFECTIVE_CONFIG). */
-export const PIE_NOOP_CONFIG_FIELDS = ['useMaxWidth', 'useWidth'] as const
-
-/** Documented-but-unwired pie theme variables (Tier-3 INEFFECTIVE_CONFIG). */
-export const PIE_NOOP_THEME_VARIABLES = [] as const
-
-/**
- * Scan pie config sections and themeVariables maps for documented-but-unwired
- * keys. Returns the sorted field names that should carry INEFFECTIVE_CONFIG.
- */
-export function pieIneffectiveConfigFields(
-  pieConfigs: unknown[],
-  themeVariableMaps: unknown[],
-): string[] {
-  const present = new Set<string>()
-  for (const config of pieConfigs) {
-    if (!config || typeof config !== 'object') continue
-    for (const field of PIE_NOOP_CONFIG_FIELDS) {
-      if (field in (config as Record<string, unknown>)) present.add(field)
-    }
-  }
-  for (const vars of themeVariableMaps) {
-    if (!vars || typeof vars !== 'object') continue
-    for (const field of PIE_NOOP_THEME_VARIABLES) {
-      if (field in (vars as Record<string, unknown>)) present.add(field)
-    }
-  }
-  return [...present].sort()
 }

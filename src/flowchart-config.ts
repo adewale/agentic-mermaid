@@ -10,9 +10,8 @@
 //           measured-pixel auto-wrap of node labels at layout sizing.
 //   LINT  — every other documented key is accepted for Mermaid config-shape
 //           compatibility and named by verify's INEFFECTIVE_CONFIG Tier-3
-//           lint (FLOWCHART_NOOP_CONFIG_FIELDS below), never silently
-//           swallowed. The NOOP table lives beside the wiring so wire and
-//           warn cannot drift.
+//           lint (the registry's flowchart config.noopKeys in
+//           src/agent/families.ts), never silently swallowed.
 //
 // wrappingWidth semantics: upstream defaults it to 200 but applies the wrap
 // ONLY to markdown-string labels; regular labels never auto-wrap upstream.
@@ -32,30 +31,6 @@ import { wrapLabelToWidth } from './shared/label-wrap.ts'
 /** Upstream's default `flowchart.wrappingWidth` (applies to markdown-string
  *  labels even when the key is absent — upstream parity). */
 export const FLOWCHART_DEFAULT_WRAPPING_WIDTH = 200
-
-/**
- * Documented flowchart config keys accepted for Mermaid config-shape
- * compatibility but NOT wired to any flowchart geometry or paint (P4: each
- * presence is named by verify's INEFFECTIVE_CONFIG lint). The wired keys —
- * nodeSpacing, rankSpacing, wrappingWidth — never appear here.
- */
-export const FLOWCHART_NOOP_CONFIG_FIELDS = [
-  'arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding',
-  'htmlLabels', 'inheritDir', 'padding', 'subGraphTitleMargin', 'titleTopMargin',
-] as const
-
-/** The documented-but-unwired flowchart config fields present in any of the
- *  given config sections (frontmatter + init directives), sorted. */
-export function flowchartIneffectiveConfigFields(configs: unknown[]): string[] {
-  const present = new Set<string>()
-  for (const config of configs) {
-    if (!config || typeof config !== 'object') continue
-    for (const field of FLOWCHART_NOOP_CONFIG_FIELDS) {
-      if (field in (config as Record<string, unknown>)) present.add(field)
-    }
-  }
-  return [...present].sort()
-}
 
 /**
  * Fold the typed `flowchart` frontmatter config section into RenderOptions:

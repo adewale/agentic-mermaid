@@ -40,7 +40,7 @@ sequenceDiagram
   API-->>User: Session
 ```
 
-Participants and messages are structured. Rich statements such as notes, `alt`, `loop`, and activation syntax remain ordered verbatim segments while participant/message operations stay live; only un-segmentable input falls back to a whole opaque body.
+Participants and messages are structured. `alt`, `opt`, `loop`, and `par` blocks whose bodies hold only messages are typed fragments with their own fragment, branch, and fragment-message ops (see `describeOps('sequence')`). Other rich statements — notes, activation syntax, `critical`/`break`/`rect`/`box` blocks, and fragments containing notes, comments, or nested blocks — remain ordered verbatim segments while participant/message operations stay live; only un-segmentable input falls back to a whole opaque body.
 
 ## Timeline
 
@@ -203,6 +203,17 @@ architecture-beta
 ```
 
 See [`design/families/architecture-beta.md`](./design/families/architecture-beta.md) for parser/layout/render notes.
+
+## Sankey
+
+```mermaid
+sankey-beta
+  Coal,Electricity grid,127.93
+  Electricity grid,Industry,71.24
+  Electricity grid,Losses,56.69
+```
+
+Sankey diagrams accept the `sankey` or `sankey-beta` header followed by one `source,target,value` CSV row per link (an RFC 4180 subset: quoted fields may contain commas, `""` is a literal quote, and blank lines and `%%` comments are allowed). Nodes are implied by the labels, values are non-negative numbers, and self-loops or cycles are rejected. Malformed rows fall back to a lossless opaque body that verification reports (`UNSUPPORTED_SYNTAX`, `RENDER_FAILED`) rather than rendering a partial diagram. Verify also emits the `FLOW_IMBALANCE` lint when an intermediate node receives a different total than it emits. Sankey is structured when narrowed through `asSankey`; use `describeOps('sankey')` for the exact link and rename operation schema. See [`design/families/sankey.md`](./design/families/sankey.md) for layout, config, and terminal notes.
 
 ## Output formats
 
