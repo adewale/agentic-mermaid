@@ -272,6 +272,7 @@ describe('issue #248 construct fidelity receipts', () => {
   test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
+      'fidelity/cases/architecture-official-align-fences.fidelity.ts',
       'fidelity/cases/architecture-official-core-fences.fidelity.ts',
       'fidelity/cases/class-annotation.fidelity.ts',
       'fidelity/cases/class-bare-link.fidelity.ts',
@@ -296,6 +297,9 @@ describe('issue #248 construct fidelity receipts', () => {
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
       'architecture.official.fence-0',
+      'architecture.official.fence-1',
+      'architecture.official.fence-2',
+      'architecture.official.fence-3',
       'architecture.official.fence-4',
       'block.family.accurately-diagnosed-unsupported',
       'class.annotations.inline-native',
@@ -361,12 +365,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 60,
-      passedCaseCount: 60,
+      caseCount: 63,
+      passedCaseCount: 63,
       failedCaseCount: 0,
-      observedSurfaceCount: 206,
+      observedSurfaceCount: 215,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 34,
+      notApplicableSurfaceCount: 37,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -416,6 +420,77 @@ describe('issue #248 construct fidelity receipts', () => {
       replacement: FidelityJson
       additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
     }> = [
+      {
+        caseId: 'architecture.official.fence-1',
+        surface: 'agent',
+        path: ['alignments', 0, 'axis'],
+        replacement: 'row',
+      },
+      {
+        caseId: 'architecture.official.fence-1',
+        surface: 'render',
+        path: ['alignmentFulfilled', 0],
+        replacement: false,
+      },
+      {
+        caseId: 'architecture.official.fence-1',
+        surface: 'render',
+        path: ['edges', 0, 'targetSide'],
+        replacement: 'R',
+      },
+      {
+        caseId: 'architecture.official.fence-1',
+        surface: 'render',
+        path: ['edges', 0, 'markerEnd'],
+        replacement: null,
+      },
+      {
+        caseId: 'architecture.official.fence-2',
+        surface: 'render',
+        path: ['serviceLabels', 0],
+        replacement: 'Missing source',
+      },
+      {
+        caseId: 'architecture.official.fence-2',
+        surface: 'serialize',
+        path: ['model', 'alignments', 0, 'members', 1],
+        replacement: 'proc',
+      },
+      {
+        caseId: 'architecture.official.fence-3',
+        surface: 'agent',
+        path: ['alignments', 2, 'members', 1],
+        replacement: 'delivery',
+      },
+      {
+        caseId: 'architecture.official.fence-3',
+        surface: 'render',
+        path: ['alignmentFulfilled', 2],
+        replacement: true,
+      },
+      {
+        caseId: 'architecture.official.fence-3',
+        surface: 'render',
+        path: ['cards', 7, 'x'],
+        replacement: 9999,
+      },
+      {
+        caseId: 'architecture.official.fence-3',
+        surface: 'render',
+        path: ['frames', 0, 'x'],
+        replacement: 0,
+        additionalChanges: [
+          { path: ['frames', 0, 'y'], replacement: 0 },
+          { path: ['frames', 0, 'width'], replacement: 882.7764999999999 },
+          { path: ['frames', 0, 'height'], replacement: 626 },
+        ],
+      },
+      {
+        caseId: 'architecture.official.fence-3',
+        surface: 'render',
+        path: ['serviceCardPaint'],
+        replacement: 'fill: none; stroke-dasharray: 8;',
+      },
       {
         caseId: 'architecture.official.fence-0',
         surface: 'agent',
@@ -1454,7 +1529,7 @@ describe('issue #248 construct fidelity receipts', () => {
       const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
       expect(receipt.cases[0]!.passed).toBe(false)
     }
-  })
+  }, 15_000) // Sequential semantic sabotage has grown with the #248 receipt portfolio.
 
   test('registry validation rejects duplicate/unknown cases and unacknowledged revision splits', async () => {
     const registry = await discoverFidelityRegistry()
