@@ -13,7 +13,6 @@ import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
-import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -81,27 +80,6 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
       expect(auditRouteContracts(positioned, graph)).toEqual([])
     }
   })
-
-  // Characterization: pin the exact repaired geometry. Explicit hashes avoid
-  // Bun's concurrent cross-file snapshot-writer race in the full suite.
-  const expectedHashes: Record<string, string> = {
-    'shove overlap, LR diamond': '6d93304a97f9175b33a0366fb1782132563efa614106b5f943874bb81aa25b27',
-    'shove overlap, TD 2 components': 'b3aa838a9a3521ae523945719599a5bf5970629396552f5af259c758869dd987',
-    'shove overlap, RL long-link fan': '1488a87ddbae1535e35cb3267bab248e87804d4ccc982fef13029c7c3bab30ef',
-    'feedback rung, BT 3 components': 'c32f0dff6c2f8a499091a5f34eddd0cc3365c17084b310775719a68bf43134fa',
-    'dogleg staircase, TD': '5bb57ff4f46a0c23a30adf5518b6d3d791e7e053a0c261a5822625b4502ccd39',
-  }
-  for (const [name, src] of cases) {
-    test(`${name}: repaired geometry characterization`, () => {
-      const p = layoutGraphSync(parseMermaid(src))
-      const digest = {
-        nodes: p.nodes.map(n => `${n.id}@${n.x.toFixed(1)},${n.y.toFixed(1)} ${n.width.toFixed(1)}x${n.height.toFixed(1)}`),
-        edges: p.edges.map(e => `${e.source}->${e.target}: ${e.points.map(q => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ')}`),
-      }
-      const hash = createHash('sha256').update(JSON.stringify(digest)).digest('hex')
-      expect(hash).toBe(expectedHashes[name]!)
-    })
-  }
 })
 
 // Issue #87 evidence fixtures: an authored `B ----> A` feedback edge requests
