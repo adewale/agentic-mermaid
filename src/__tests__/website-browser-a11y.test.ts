@@ -449,10 +449,14 @@ describeBrowser('website browser accessibility smoke', () => {
   test('Examples fragment failures are retryable and cross-origin fragment URLs fail before fetch', async () => {
     async function exerciseFailure(kind: 'abort' | 'status' | 'mime' | 'malformed' | 'active') {
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
-      let attempts = 0
+      // Fail every fragment request until the retry below. The click scrolls the
+      // section into view, so the near-viewport observer can fetch first; a
+      // "first request fails" rule would let that fetch spend the failure and
+      // turn the click into the successful retry.
+      let failing = true
+      let retries = 0
       await context.route(/\/examples\/fragments\/style-palette-[a-f0-9]{12}$/, async route => {
-        attempts++
-        if (attempts > 1) { await route.continue(); return }
+        if (!failing) { retries++; await route.continue(); return }
         if (kind === 'abort') await route.abort('failed')
         else if (kind === 'status') await route.fulfill({ status: 503, contentType: 'text/html', body: 'unavailable' })
         else if (kind === 'mime') await route.fulfill({ status: 200, contentType: 'application/json', body: '<section data-example-fragment-root="style-palette"></section>' })
@@ -469,9 +473,10 @@ describeBrowser('website browser accessibility smoke', () => {
       expect(await section.locator('[data-example-status]').textContent(), kind).toContain('Could not load examples')
       expect(new URL(page.url()).hash, kind).toBe('')
       expect(await page.evaluate(() => document.activeElement?.hasAttribute('data-example-load')), kind).toBe(true)
+      failing = false
       await button.click()
       await section.locator('[data-example-fragment-root="style-palette"]').waitFor({ state: 'attached' })
-      expect(attempts, kind).toBe(2)
+      expect(retries, kind).toBe(1)
       expect(await section.getAttribute('data-example-state'), kind).toBe('loaded')
       await context.close()
     }
