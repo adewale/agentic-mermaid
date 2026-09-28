@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 
-import { verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { runBatchLine } from '../cli/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -87,6 +87,11 @@ describe('XY Chart authored color admission (#303)', () => {
     ]
     for (const { input, key, value } of cases) {
       expect(() => renderMermaidPNG(input)).toThrow(named(key, value))
+      const parsed = parseRegisteredMermaid(input)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(verifyMermaid(parsed.value).warnings).toContainEqual({
+        code: 'RENDER_FAILED', reason: expect.stringContaining(named(key, value)),
+      })
       for (const format of ['svg', 'ascii', 'unicode'] as const) {
         const result = runBatchLine(JSON.stringify({ op: 'render', format, source: input }), 0) as {
           ok: boolean; error: { code: string; key: string; value: string; message: string }
