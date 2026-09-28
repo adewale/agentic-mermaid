@@ -282,6 +282,19 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **SRC-1 — Segment-preserving Class and Timeline bodies** (`todo`). Preserve typed mutation around unmodeled statements without violating byte-for-byte opaque fallback. Add parser/serializer closure and adversarial reorder tests before promotion.
 - [ ] **SRC-2 — Positional comments for Flowchart and State** (`todo`). Replace announced `COMMENT_DROPPED` loss with positionally anchored opaque segments that survive typed mutation.
 
+## Known defects pinned by tests
+
+Found by the property and model tests from #357. Each test pins today's wrong
+behaviour and turns red when the defect is fixed; delete the pin, and its
+generator steering, with the fix.
+
+- [ ] **BUG-1 — Flowchart plain labels get markdown formatting** (`todo`). `*a*`, `**b**` and `~~c~~` in a non-markdown label render as italic, bold and strike; upstream keeps the characters. Pinned as KD2 in `src/__tests__/property-upstream-flowchart.test.ts`.
+- [ ] **BUG-2 — Flowchart label boundary whitespace** (`owner-decision`). Node labels and quoted edge labels keep leading and trailing spaces; upstream trims them. `agent.test.ts` asserts the current behaviour, so decide which contract wins. Pinned as KD3 in `property-upstream-flowchart.test.ts`.
+- [ ] **BUG-3 — `;` breaks Flowchart round-trip** (`todo`). The serializer drops the quotes from a `;`-bearing label in an asymmetric node (`A>";a"]`) or a subgraph title, and our own parser then rejects the output. Pinned as KD4 in `property-upstream-flowchart.test.ts`.
+- [ ] **BUG-4 — Sequence participant named only by a note** (`todo`). The typed body omits it, although upstream declares it and our renderer draws it. Pinned as KS1 in `src/__tests__/property-upstream-sequence.test.ts`.
+- [ ] **BUG-5 — ER entity lost after its only relation is removed** (`todo`). An entity that only a relation declared disappears from the serialized source once that relation goes (`remove_relation`, or `remove_entity` on the other endpoint), although the typed body and its facts still list it. Pinned in `src/__tests__/property-er-model.test.ts`.
+- [ ] **BUG-6 — Gapped Pie or Radar palette fails the render** (`todo`). A `pieN` or `cScaleN` theme variable set without its predecessors builds a sparse palette array that the render contract refuses to snapshot, so the diagram does not render. Pinned in `src/__tests__/property-invariance-colour.test.ts`.
+
 ## Non-goals
 
 - Do not port Vercel-specific package rename, committed `dist/`, `.vercel`, or Vercel branding.
