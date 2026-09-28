@@ -1,26 +1,11 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { attrs, checkedRoundTrip, facts, officialFences, record, same, svgNumber, svgPoints } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..',
-  'skills/agentic-mermaid-diagram-workflow/references/upstream/mindmap.md'), 'utf8')
-const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const examples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/mindmap.md' && example.family === 'mindmap')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 13 || examples.length !== 13) throw new Error('Pinned Mindmap fence inventory changed')
-for (let index = 2; index <= 8; index++) {
-  const example = examples[index]!
-  if (example.id !== 'mindmap:official-syntax/mindmap.md#' + index
-    || example.sourceSha256 !== createHash('sha256').update(sources[index]!).digest('hex')) {
-    throw new Error('Pinned Mindmap shape fence ' + index + ' differs from the manifest')
-  }
-}
+const { sources, examples } = officialFences('mindmap.md')
 
 type Shape = 'rect' | 'rounded' | 'circle' | 'bang' | 'cloud' | 'hexagon' | 'default'
 type Spec = Readonly<{
@@ -44,37 +29,6 @@ const specs: readonly Spec[] = [
   { index: 8, featureId: 'official-doc:mindmap:section:default', id: 'I am the default shape', label: 'I am the default shape', shape: 'default',
     tag: 'rect', corner: 16, viewBox: '0 0 211.474 98.9', textLength: 123.474, svgSha256: '4f517fe83717369959620d9236d1e219b11f70fb9a401c3d315133dffecfc013' },
 ]
-function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Mindmap shape evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantics(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)]
-    .map(match => [match[1]!, match[2]!.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')]))
-}
-function polygonPoints(value: unknown): readonly (readonly [number, number])[] | null {
-  if (typeof value !== 'string') return null
-  const svgNumberPattern = '[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?'
-  if (!new RegExp(`^${svgNumberPattern},${svgNumberPattern}(?: ${svgNumberPattern},${svgNumberPattern})+$`).test(value)) return null
-  const points = value.split(' ').map(pair => pair.split(',').map(Number))
-  return points.every(point => point.length === 2 && point.every(Number.isFinite)) ? points as [number, number][] : null
-}
-function svgNumber(value: unknown): number {
-  if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)) return NaN
-  const number = Number(value)
-  return Number.isFinite(number) ? number : NaN
-}
 function polygonContains(points: readonly (readonly [number, number])[], x: number, y: number): boolean {
   let inside = false
   for (let index = 0, previous = points.length - 1; index < points.length; previous = index++) {
@@ -124,13 +78,13 @@ function renderFacts(svg: string): FidelityJson {
   }
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
-  const facts = semantics(evidence)
-  if (facts.svgSha256 !== spec.svgSha256 || facts.viewBox !== spec.viewBox
-    || facts.nodeCount !== 1 || facts.shapeCount !== 1 || facts.labelCount !== 1
-    || facts.edgeCount !== 0 || facts.tag !== spec.tag || facts.label !== spec.label) return false
-  const node = record(facts.node)
-  const shape = record(facts.shape)
-  const label = record(facts.labelAttributes)
+  const observed = facts(evidence)
+  if (observed.svgSha256 !== spec.svgSha256 || observed.viewBox !== spec.viewBox
+    || observed.nodeCount !== 1 || observed.shapeCount !== 1 || observed.labelCount !== 1
+    || observed.edgeCount !== 0 || observed.tag !== spec.tag || observed.label !== spec.label) return false
+  const node = record(observed.node)
+  const shape = record(observed.shape)
+  const label = record(observed.labelAttributes)
   if (node['data-id'] !== spec.id || node['data-label'] !== spec.label || node['data-role'] !== 'node'
     || shape.fill !== '#47474a' || shape.stroke !== '#47474a' || label.fill !== '#FFFFFF') return false
   const [viewX, viewY, viewWidth, viewHeight] = spec.viewBox.split(' ').map(Number)
@@ -160,7 +114,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     const ry = svgNumber(spec.tag === 'circle' ? shape.r : shape.ry)
     return rx > 0 && ry > 0 && fits(x - rx, y - ry, 2 * rx, 2 * ry)
   }
-  const points = polygonPoints(shape.points)
+  const points = svgPoints(shape.points)
   if (!points || points.length !== spec.vertices || !points.every(point => inView(point[0], point[1]))) return false
   const xs = points.map(point => point[0]), ys = points.map(point => point[1])
   const area = Math.abs(points.reduce((sum, point, index) => {
@@ -184,8 +138,8 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map(spec =
   upstreamRevision: UPSTREAM_MERMAID_MANIFEST.provenance.commit,
   expected: {
     agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantics(evidence)
-      return same(facts, { root: { id: spec.id, label: spec.label,
+      const observed = facts(evidence)
+      return same(observed, { root: { id: spec.id, label: spec.label,
         shape: spec.shape, children: [] } }) ? 'native' : 'absent'
     } },
     // Pinned Mermaid 11.16 has different default-theme geometry for every
@@ -193,8 +147,8 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map(spec =
     render: { applicability: 'applicable', disposition: 'absent',
       evaluate: evidence => renderMatches(evidence, spec) ? 'absent' : 'source-preserved' },
     serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantics(evidence)
-      return facts.stable === true && same(facts.model, {
+      const observed = facts(evidence)
+      return observed.stable === true && same(observed.model, {
         root: { id: spec.id, label: spec.label, shape: spec.shape, children: [] },
       }) ? 'native' : 'absent'
     } },
@@ -202,18 +156,13 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map(spec =
   },
   observe: () => {
     const source = sources[spec.index]!
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok || parsed.value.body.kind !== 'mindmap') throw new Error('Pinned Mindmap shape fence must parse')
-    const verified = verifyMermaid(source)
-    if (!verified.ok || verified.warnings.length) throw new Error('Pinned Mindmap shape fence must verify without warnings')
-    const serialized = serializeMermaid(parsed.value)
-    const reparsed = parseRegisteredMermaid(serialized)
-    if (!reparsed.ok) throw new Error('Pinned Mindmap shape fence must reparse')
+    const { verified, serialized, stable } = checkedRoundTrip(source, 'mindmap', 'Pinned Mindmap shape fence')
+    if (verified.warnings.length) throw new Error('Pinned Mindmap shape fence must verify without warnings')
     return {
       agent: { status: 'observed' as const, diagnosticCodes: [], semantics: modelFacts(source) },
       render: { status: 'observed' as const, diagnosticCodes: [], semantics: renderFacts(renderMermaidSVG(source)) },
       serialize: { status: 'observed' as const, diagnosticCodes: [], semantics: {
-        model: modelFacts(serialized), stable: serializeMermaid(reparsed.value) === serialized } },
+        model: modelFacts(serialized), stable } },
     }
   },
 }))

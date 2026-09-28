@@ -1,19 +1,14 @@
 import { asClass, mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { parseClassDiagram } from '../../../class/parser.ts'
 import { renderMermaidSVG } from '../../../index.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts } from '../case-helpers.ts'
+import type { FidelityCaseDefinition } from '../contract.ts'
 
 const featureId = 'official-doc:class:section:interaction'
 const upstreamReference = 'https://mermaid.ai/open-source/syntax/classDiagram.html#interaction'
 const upstreamRevision = 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc'
 const href = 'https://example.com/docs'
 const tooltip = 'API reference'
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  const value = evidence.semantics
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Class link evidence must be an object')
-  return value as Record<string, FidelityJson>
-}
 
 const nativeLink: FidelityCaseDefinition = {
   id: 'class.interaction.safe-link-tooltip-native', family: 'class', featureId,

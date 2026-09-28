@@ -1,26 +1,13 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { attrs, checkedRoundTrip, decodeXml, facts, officialFences, record, ribbonPath, same, tags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The 68-link, eight-layer official energy example is a separate large-fixture
 // review. The page has eight distinct fences and every identity remains pinned.
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/sankey.md'), 'utf8')
-const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const examples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/sankey.md' && example.family === 'sankey')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 8 || examples.length !== 8) throw new Error('Pinned Sankey fence inventory changed')
-for (const [index, candidate] of sources.entries()) {
-  if (examples[index]!.id !== 'sankey:official-syntax/sankey.md#' + index
-    || examples[index]!.sourceSha256 !== createHash('sha256').update(candidate).digest('hex')) {
-    throw new Error('Pinned Sankey fence ' + index + ' differs from the manifest')
-  }
-}
+const { sources, examples } = officialFences('sankey.md')
 const source = sources[0]!
 const body = source.split(/\r?\n/)
 const header = body.findIndex(line => line.trim() === 'sankey')
@@ -79,44 +66,6 @@ const stylesheetSha256 = '2a5f1233cf2a6f16fe619469307754651f511794d6ceec55418535
 // prevents an unobserved wrapper or later CSS block from hiding its paint.
 const svgSha256 = '9c8c72ae39db81dcee4f8c1f932ccdbd4bbcb12479736b1e2dede9bc91beb513'
 
-function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Energy evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function decodeXml(value: string): string {
-  return value.replace(/&(quot|amp|lt|gt|apos|#39);/g, (_, entity: string) => ({
-    quot: '"', amp: '&', lt: '<', gt: '>', apos: "'", '#39': "'",
-  })[entity]!)
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)]
-    .map(match => [match[1]!, decodeXml(match[2]!)]))
-}
-function elements(svg: string, tag: string, className: string): Record<string, string>[] {
-  return [...svg.matchAll(new RegExp('<' + tag + '\\b[^>]*>', 'g'))].map(match => attrs(match[0]))
-    .filter(item => (item.class ?? '').split(/\s+/).includes(className))
-}
-function pathFacts(d: string): FidelityJson {
-  const number = '-?(?:\\d+(?:\\.\\d*)?|\\.\\d+)'
-  const pattern = new RegExp('^M (' + number + ') (' + number + ') C (' + number + ') (' + number
-    + '), (' + number + ') (' + number + '), (' + number + ') (' + number + ')$')
-  const match = d.match(pattern)
-  if (!match) return { valid: false }
-  return { valid: true, start: [Number(match[1]), Number(match[2])],
-    control1: [Number(match[3]), Number(match[4])], control2: [Number(match[5]), Number(match[6])],
-    end: [Number(match[7]), Number(match[8])] }
-}
 function modelFacts(candidate: string): FidelityJson {
   const parsed = parseRegisteredMermaid(candidate)
   if (!parsed.ok || parsed.value.body.kind !== 'sankey') return { kind: parsed.ok ? parsed.value.body.kind : 'parse-failure' }
@@ -137,7 +86,7 @@ function renderFacts(svg: string): FidelityJson {
     styleBlockCount: [...svg.matchAll(/<style\b/g)].length,
     groupCount: [...svg.matchAll(/<g\b/g)].length,
     svgSha256: createHash('sha256').update(svg).digest('hex'),
-    nodes: elements(svg, 'rect', 'sankey-node').map(node => ({
+    nodes: tags(svg, 'rect', 'sankey-node').map(node => ({
       label: node['data-label'] ?? null, id: node['data-id'] ?? null, role: node['data-role'] ?? null,
       value: Number(node['data-value']), layer: Number(node['data-layer']),
       x: Number(node.x), y: Number(node.y), width: Number(node.width), height: Number(node.height), fill: node.fill ?? null,
@@ -154,11 +103,11 @@ function renderFacts(svg: string): FidelityJson {
       display: label.attributes.display ?? null, visibility: label.attributes.visibility ?? null,
       style: label.attributes.style ?? null, transform: label.attributes.transform ?? null,
     })),
-    links: elements(svg, 'path', 'sankey-link').map(link => ({
+    links: tags(svg, 'path', 'sankey-link').map(link => ({
       source: link['data-source'] ?? null, target: link['data-target'] ?? null, value: Number(link['data-value']),
       id: link['data-id'] ?? null, role: link['data-role'] ?? null,
       relationship: link['data-relationship'] ?? null, direction: link['data-direction'] ?? null,
-      path: pathFacts(link.d ?? ''), width: Number(link['stroke-width']), stroke: link.stroke ?? null,
+      path: ribbonPath(link.d ?? ''), width: Number(link['stroke-width']), stroke: link.stroke ?? null,
       fill: link.fill ?? null, opacity: link.opacity ?? null, style: link.style ?? null,
       strokeOpacity: link['stroke-opacity'] ?? null, display: link.display ?? null, visibility: link.visibility ?? null,
       transform: link.transform ?? null,
@@ -175,17 +124,17 @@ function renderFacts(svg: string): FidelityJson {
   }
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence): boolean {
-  const facts = semantic(evidence)
-  const nodes = facts.nodes
-  const labels = facts.labels
-  const links = facts.links
-  const gradients = facts.gradients
-  if (facts.viewBox !== '0 0 648 450.63'
-    || !same(facts.root, { xmlns: 'http://www.w3.org/2000/svg', width: '648', height: '450.63',
+  const observed = facts(evidence)
+  const nodes = observed.nodes
+  const labels = observed.labels
+  const links = observed.links
+  const gradients = observed.gradients
+  if (observed.viewBox !== '0 0 648 450.63'
+    || !same(observed.root, { xmlns: 'http://www.w3.org/2000/svg', width: '648', height: '450.63',
       viewBox: '0 0 648 450.63', style: '--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF',
       'aria-roledescription': 'sankey diagram', role: 'img' })
-    || facts.stylesheetSha256 !== stylesheetSha256
-    || facts.styleBlockCount !== 1 || facts.groupCount !== 0 || facts.svgSha256 !== svgSha256
+    || observed.stylesheetSha256 !== stylesheetSha256
+    || observed.styleBlockCount !== 1 || observed.groupCount !== 0 || observed.svgSha256 !== svgSha256
     || !Array.isArray(nodes) || nodes.length !== 48 || !Array.isArray(labels) || labels.length !== 48
     || !Array.isArray(links) || links.length !== 68 || !Array.isArray(gradients) || gradients.length !== 68) return false
   const nodeMap = new Map<string, Readonly<Record<string, FidelityJson>>>()
@@ -307,27 +256,21 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = [{
   expected: {
     agent: { applicability: 'applicable', disposition: 'native', diagnosticCodes: ['FLOW_IMBALANCE'],
       evaluate: evidence => {
-        const facts = semantic(evidence)
-        return same(facts.links, authoredLinks) && same(facts.config, { showValues: false })
-          && same(facts.flowImbalances, expectedImbalances) ? 'native' : 'absent'
+        const observed = facts(evidence)
+        return same(observed.links, authoredLinks) && same(observed.config, { showValues: false })
+          && same(observed.flowImbalances, expectedImbalances) ? 'native' : 'absent'
       } },
     render: { applicability: 'applicable', disposition: 'native',
       evaluate: evidence => renderMatches(evidence) ? 'native' : 'absent' },
     serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.stable === true && same(facts.links, authoredLinks)
-        && same(facts.config, { showValues: false }) ? 'native' : 'absent'
+      const observed = facts(evidence)
+      return observed.stable === true && same(observed.links, authoredLinks)
+        && same(observed.config, { showValues: false }) ? 'native' : 'absent'
     } },
     mutate: { applicability: 'not-applicable', rationale: 'This case classifies the pinned energy example; Sankey link mutations have separate semantic receipts.' },
   },
   observe: () => {
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok || parsed.value.body.kind !== 'sankey') throw new Error('Pinned energy fence must parse')
-    const verified = verifyMermaid(source)
-    if (!verified.ok) throw new Error('Pinned energy fence must verify')
-    const serialized = serializeMermaid(parsed.value)
-    const reparsed = parseRegisteredMermaid(serialized)
-    if (!reparsed.ok) throw new Error('Pinned energy fence must reparse')
+    const { verified, serialized, stable } = checkedRoundTrip(source, 'sankey', 'Pinned energy fence')
     const warnings = verified.warnings.map(warning => warning.code)
     const flowImbalances = verified.warnings.filter(warning => warning.code === 'FLOW_IMBALANCE')
       .map(warning => ({ node: warning.node, inflow: warning.inflow, outflow: warning.outflow }))
@@ -336,7 +279,7 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = [{
         semantics: { ...record(modelFacts(source)), flowImbalances } },
       render: { status: 'observed' as const, diagnosticCodes: [], semantics: renderFacts(renderMermaidSVG(source)) },
       serialize: { status: 'observed' as const, diagnosticCodes: [], semantics: {
-        ...record(modelFacts(serialized)), stable: serializeMermaid(reparsed.value) === serialized } },
+        ...record(modelFacts(serialized)), stable } },
     }
   },
 }]

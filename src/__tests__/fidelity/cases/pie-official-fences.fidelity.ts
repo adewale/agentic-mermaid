@@ -1,26 +1,11 @@
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { facts, officialFences, record, same, textTags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // All distinct executable fences in the pinned official Pie syntax page.
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/pie.md'), 'utf8')
-const sources = [...page.matchAll(/^```mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const manifestExamples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/pie.md' && example.family === 'pie')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 2 || manifestExamples.length !== 2) throw new Error('Pinned Pie fence inventory changed; review every fence')
-for (const [index, source] of sources.entries()) {
-  const entry = manifestExamples[index]!
-  if (entry.id !== `pie:official-syntax/pie.md#${index}`
-    || entry.sourceSha256 !== createHash('sha256').update(source).digest('hex')) {
-    throw new Error(`Pinned Pie fence ${index} differs from its manifest; review the new syntax`)
-  }
-}
+const { sources, examples: manifestExamples } = officialFences('pie.md')
 
 type Slice = Readonly<{ label: string; value: number }>
 type Spec = Readonly<{
@@ -50,29 +35,6 @@ const specs: readonly Spec[] = [
     viewBox: '0 0 464.03 276', colors: ['#3b82f6', '#0d5ba5', '#5f79f2', '#0a5076'] },
 ]
 
-function record(value: FidelityJson): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Pie evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
-}
-function tags(svg: string, tag: string, className: string): { attributes: Record<string, string>; text: string }[] {
-  return [...svg.matchAll(new RegExp(`<${tag}\\b[^>]*>?(?:[^<]*<\\/${tag}>)?`, 'g'))]
-    .map(match => ({ attributes: attrs(match[0]), text: match[0].match(new RegExp(`>([^<]*)<\\/${tag}>$`))?.[1] ?? '' }))
-    .filter(item => (item.attributes.class ?? '').split(/\s+/).includes(className))
-}
 function modelFacts(source: string): FidelityJson {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok || parsed.value.body.kind !== 'pie') return { kind: parsed.ok ? parsed.value.body.kind : 'parse-failure' }
@@ -98,13 +60,13 @@ export function piePathGeometry(d: string): Readonly<Record<string, FidelityJson
     largeArc: Number(match[7]), centerMove: match[3] ? [Number(match[1]), Number(match[2])] : null }
 }
 function renderFacts(svg: string): FidelityJson {
-  const paths = tags(svg, 'path', 'pie-slice')
-  const swatches = tags(svg, 'rect', 'pie-legend-swatch')
-  const legends = tags(svg, 'text', 'pie-legend-text')
-  const outer = tags(svg, 'circle', 'pie-outer-circle')[0]
+  const paths = textTags(svg, 'path', 'pie-slice')
+  const swatches = textTags(svg, 'rect', 'pie-legend-swatch')
+  const legends = textTags(svg, 'text', 'pie-legend-text')
+  const outer = textTags(svg, 'circle', 'pie-outer-circle')[0]
   return {
     viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
-    title: tags(svg, 'text', 'pie-title').map(item => ({ text: item.text,
+    title: textTags(svg, 'text', 'pie-title').map(item => ({ text: item.text,
       x: Number(item.attributes.x), y: Number(item.attributes.y), fontSize: item.attributes['font-size'] ?? null })),
     paths: paths.map(item => ({ ...piePathGeometry(item.attributes.d ?? ''),
       label: item.attributes['data-label'] ?? null, value: item.attributes['data-value'] ?? null,
@@ -119,7 +81,7 @@ function renderFacts(svg: string): FidelityJson {
       dimmed: (item.attributes.class ?? '').split(/\s+/).includes('pie-dim') })),
     legends: legends.map(item => ({ text: item.text, weight: item.attributes['font-weight'] ?? null,
       x: Number(item.attributes.x), y: Number(item.attributes.y), fontSize: item.attributes['font-size'] ?? null })),
-    sliceLabels: tags(svg, 'text', 'pie-slice-label').map(item => ({ text: item.text,
+    sliceLabels: textTags(svg, 'text', 'pie-slice-label').map(item => ({ text: item.text,
       x: Number(item.attributes.x), y: Number(item.attributes.y),
       fontSize: item.attributes['font-size'] ?? null, fill: item.attributes.fill ?? null })),
     outer: outer ? { cx: Number(outer.attributes.cx), cy: Number(outer.attributes.cy), r: Number(outer.attributes.r),
@@ -136,7 +98,7 @@ function renderFacts(svg: string): FidelityJson {
   }
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
-  const actual = semantic(evidence)
+  const actual = facts(evidence)
   if (actual.slicePaint !== '1.5' || actual.viewBox !== spec.viewBox
     || actual.outerStrokeWidth !== spec.outerStrokeWidth
     || actual.outerStrokeColor !== (spec.outerStrokeWidth ? '#d4d4d4' : null)) return false
@@ -256,14 +218,14 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec,
   upstreamRevision: UPSTREAM_MERMAID_MANIFEST.provenance.commit,
   expected: {
     agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.title === spec.title && facts.showData === spec.showData
-        && same(facts.slices, spec.slices) && same(facts.frontmatter, spec.frontmatter) ? 'native' : 'absent'
+      const observed = facts(evidence)
+      return observed.title === spec.title && observed.showData === spec.showData
+        && same(observed.slices, spec.slices) && same(observed.frontmatter, spec.frontmatter) ? 'native' : 'absent'
     } },
     render: { applicability: 'applicable', disposition: 'native', evaluate: evidence => renderMatches(evidence, spec) ? 'native' : 'absent' },
     serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.roundtrip === true && same(facts.model, { title: spec.title, showData: spec.showData,
+      const observed = facts(evidence)
+      return observed.roundtrip === true && same(observed.model, { title: spec.title, showData: spec.showData,
         slices: spec.slices, frontmatter: spec.frontmatter }) ? 'native' : 'absent'
     } },
     mutate: { applicability: 'not-applicable', rationale: 'These cases classify official syntax, not a mutation operation; set_slice_value has separate Pie receipts.' },

@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { GitGraphDuplicateCommitError } from '../../../gitgraph/parser.ts'
 import { renderMermaidSVG } from '../../../index.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts } from '../case-helpers.ts'
+import type { FidelityCaseDefinition } from '../contract.ts'
 
 // The official mainBranchName example contains two custom commits named
 // Boston. Pinned Mermaid 11.16 logs a duplicate-ID warning and continues;
@@ -14,13 +15,6 @@ const matchingFences = [...markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)]
   .filter(fence => fence.includes("mainBranchName: 'MetroLine1'") && (fence.match(/commit id:"Boston"/g) ?? []).length === 2)
 if (matchingFences.length !== 1) throw new Error('Expected one exact official duplicate-Boston GitGraph fence')
 const source = `${matchingFences[0]}\n`
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  if (!evidence.semantics || typeof evidence.semantics !== 'object' || Array.isArray(evidence.semantics)) {
-    throw new Error('GitGraph duplicate-ID evidence must be an object')
-  }
-  return evidence.semantics as Record<string, FidelityJson>
-}
 
 const duplicateOfficialCommitId: FidelityCaseDefinition = {
   id: 'gitgraph.official.main-branch-duplicate-id-diagnosed',

@@ -1,5 +1,6 @@
-import { MermaidFamilyDetectionError, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { MermaidFamilyDetectionError, mutate, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { parseJourneyDiagram } from '../../../journey/parser.ts'
+import { applicable, facts, fail, notApplicable, parsedOrThrow, same } from '../case-helpers.ts'
 import type {
   ApplicableFidelitySurfaceExpectation,
   FidelityCaseDefinition,
@@ -10,35 +11,6 @@ import type {
 } from '../contract.ts'
 
 const UPSTREAM_REVISION = 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc'
-
-function fail(message: string): never {
-  throw new Error(message)
-}
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  if (!evidence.semantics || typeof evidence.semantics !== 'object' || Array.isArray(evidence.semantics)) {
-    fail('semantic evidence must be an object')
-  }
-  return evidence.semantics as Readonly<Record<string, FidelityJson>>
-}
-
-function applicable(
-  disposition: FidelityDisposition,
-  evaluate: ApplicableFidelitySurfaceExpectation['evaluate'],
-  diagnosticCodes: readonly string[] = [],
-): ApplicableFidelitySurfaceExpectation {
-  return { applicability: 'applicable', disposition, diagnosticCodes, evaluate }
-}
-
-function notApplicable(rationale: string): NotApplicableFidelitySurfaceExpectation {
-  return { applicability: 'not-applicable', rationale }
-}
-
-function parsedOrThrow(source: string) {
-  const parsed = parseRegisteredMermaid(source)
-  if (!parsed.ok) fail(`agent parse failed: ${parsed.error.map(error => error.code).join(', ')}`)
-  return parsed.value
-}
 
 function normalizedFlowchartClassFacts(diagram: ReturnType<typeof parsedOrThrow>): FidelityJson {
   if (diagram.body.kind !== 'flowchart') return null
@@ -86,25 +58,25 @@ const stateTrailingComment: FidelityCaseDefinition = {
     agent: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
       return semanticFacts.bodyKind === 'state'
-        && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C'])
-        && JSON.stringify(semanticFacts.droppedCommentLines) === JSON.stringify([1, 2])
+        && same(semanticFacts.transitions, ['A->B', 'B->C'])
+        && same(semanticFacts.droppedCommentLines, [1, 2])
         ? 'native' : 'absent'
     }, ['COMMENT_DROPPED']),
     render: applicable('native', evidence => {
       const renderedEdges = facts(evidence).renderedEdges
       if (!Array.isArray(renderedEdges) || renderedEdges.some(edge => typeof edge !== 'string')) fail('renderedEdges must be strings')
-      return JSON.stringify(renderedEdges) === JSON.stringify(['A->B', 'B->C']) ? 'native' : 'absent'
+      return same(renderedEdges, ['A->B', 'B->C']) ? 'native' : 'absent'
     }),
     serialize: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
-      return JSON.stringify(semanticFacts.reparsedTransitions) === JSON.stringify(['A->B', 'B->C'])
+      return same(semanticFacts.reparsedTransitions, ['A->B', 'B->C'])
         && semanticFacts.commentLossDiagnosed === true ? 'native' : 'absent'
     }),
     mutate: applicable('native', evidence => {
       const semanticFacts = facts(evidence)
       return semanticFacts.mutationOk === true
-        && JSON.stringify(semanticFacts.transitions) === JSON.stringify(['A->B', 'B->C', 'B->A'])
-        && JSON.stringify(semanticFacts.droppedCommentLines) === JSON.stringify([1, 2])
+        && same(semanticFacts.transitions, ['A->B', 'B->C', 'B->A'])
+        && same(semanticFacts.droppedCommentLines, [1, 2])
         ? 'native' : 'absent'
     }, ['COMMENT_DROPPED']),
   },
@@ -136,7 +108,7 @@ const stateTrailingComment: FidelityCaseDefinition = {
       serialize: {
         status: 'observed',
         diagnosticCodes: [],
-        semantics: { reparsedTransitions: transitions(reparsed), commentLossDiagnosed: JSON.stringify(commentLossLines(parsed)) === JSON.stringify([1, 2]) },
+        semantics: { reparsedTransitions: transitions(reparsed), commentLossDiagnosed: same(commentLossLines(parsed), [1, 2]) },
       },
       mutate: {
         status: 'observed',

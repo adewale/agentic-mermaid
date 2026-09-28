@@ -1,26 +1,12 @@
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { attrs, checkedRoundTrip, facts, officialFences, record, ribbonPath, same, tags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The large energy fence remains separate. These are the three distinct
 // official frontmatter examples, pinned to the same reviewed upstream page.
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/sankey.md'), 'utf8')
-const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const examples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/sankey.md' && example.family === 'sankey')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 8 || examples.length !== 8) throw new Error('Pinned Sankey fence inventory changed')
-for (const [index, source] of sources.entries()) {
-  if (examples[index]!.id !== 'sankey:official-syntax/sankey.md#' + index
-    || examples[index]!.sourceSha256 !== createHash('sha256').update(source).digest('hex')) {
-    throw new Error('Pinned Sankey fence ' + index + ' differs from the manifest')
-  }
-}
+const { sources, examples } = officialFences('sankey.md')
 
 type Spec = Readonly<{ index: 5 | 6 | 7; featureId: string; config: Readonly<Record<string, FidelityJson>>;
   width: number; padding: number; paints: readonly string[]; outlined: boolean }>
@@ -42,45 +28,12 @@ const specs: readonly Spec[] = [
     config: { showValues: false, nodeColors: { 'Electricity grid': '#4e79a7', Industry: '#e15759', Losses: '#bab0ab' } },
     width: 10, padding: 12, paints: ['#4e79a7', '#0d5ba5', '#e15759', '#bab0ab'], outlined: false },
 ]
-function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Sankey config evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)]
-    .map(match => [match[1]!, match[2]!.replaceAll('&gt;', '>').replaceAll('&amp;', '&')]))
-}
-function elements(svg: string, tag: string, className: string): Record<string, string>[] {
-  return [...svg.matchAll(new RegExp('<' + tag + '\\b[^>]*>', 'g'))].map(match => attrs(match[0]))
-    .filter(item => (item.class ?? '').split(/\s+/).includes(className))
-}
 function modelFacts(source: string): FidelityJson {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok || parsed.value.body.kind !== 'sankey') return { kind: parsed.ok ? parsed.value.body.kind : 'parse-failure' }
   const frontmatter = record(parsed.value.meta.frontmatter as FidelityJson)
   return { config: record(frontmatter.sankey),
     links: parsed.value.body.links.map(link => ({ source: link.source, target: link.target, value: link.value })) }
-}
-function pathFacts(d: string): FidelityJson {
-  const number = '-?(?:\\d+(?:\\.\\d*)?|\\.\\d+)'
-  const pattern = new RegExp('^M (' + number + ') (' + number + ') C (' + number + ') (' + number
-    + '), (' + number + ') (' + number + '), (' + number + ') (' + number + ')$')
-  const match = d.match(pattern)
-  if (!match) return { valid: false }
-  return { valid: true, start: [Number(match[1]), Number(match[2])],
-    control1: [Number(match[3]), Number(match[4])], control2: [Number(match[5]), Number(match[6])],
-    end: [Number(match[7]), Number(match[8])] }
 }
 function renderFacts(svg: string): FidelityJson {
   const texts = [...svg.matchAll(/<text\b([^>]*)class="sankey-node-label"([^>]*)>([^<]*)<\/text>/g)]
@@ -89,7 +42,7 @@ function renderFacts(svg: string): FidelityJson {
     .map(match => ({ attrs: attrs(match[1]!), stops: [...match[2]!.matchAll(/<stop\b[^>]*>/g)].map(stop => attrs(stop[0])) }))
   return {
     viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
-    nodes: elements(svg, 'rect', 'sankey-node').map(node => ({
+    nodes: tags(svg, 'rect', 'sankey-node').map(node => ({
       label: node['data-label'] ?? null, role: node['data-role'] ?? null, value: Number(node['data-value']),
       x: Number(node.x), y: Number(node.y), width: Number(node.width), height: Number(node.height), fill: node.fill ?? null,
       fillOpacity: node['fill-opacity'] ?? null, opacity: node.opacity ?? null,
@@ -111,10 +64,10 @@ function renderFacts(svg: string): FidelityJson {
       style: label.attributes.style ?? null,
       transform: label.attributes.transform ?? null,
     })),
-    links: elements(svg, 'path', 'sankey-link').map(link => ({
+    links: tags(svg, 'path', 'sankey-link').map(link => ({
       source: link['data-source'] ?? null, target: link['data-target'] ?? null, value: Number(link['data-value']),
       width: Number(link['stroke-width']), stroke: link.stroke ?? null, fill: link.fill ?? null,
-      opacity: link.opacity ?? null, style: link.style ?? null, path: pathFacts(link.d ?? ''),
+      opacity: link.opacity ?? null, style: link.style ?? null, path: ribbonPath(link.d ?? ''),
       strokeOpacity: link['stroke-opacity'] ?? null, display: link.display ?? null,
       visibility: link.visibility ?? null, transform: link.transform ?? null,
     })),
@@ -128,13 +81,13 @@ function renderFacts(svg: string): FidelityJson {
   }
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
-  const facts = semantic(evidence)
-  const nodes = facts.nodes
-  const renderedLabels = facts.labels
-  const renderedLinks = facts.links
-  const gradients = facts.gradients
+  const observed = facts(evidence)
+  const nodes = observed.nodes
+  const renderedLabels = observed.labels
+  const renderedLinks = observed.links
+  const gradients = observed.gradients
   const viewWidth = spec.outlined ? 816.75 : 648
-  if (facts.viewBox !== '0 0 ' + viewWidth + ' 448'
+  if (observed.viewBox !== '0 0 ' + viewWidth + ' 448'
     || !Array.isArray(nodes) || nodes.length !== 4 || !Array.isArray(renderedLabels) || renderedLabels.length !== 4
     || !Array.isArray(renderedLinks) || renderedLinks.length !== 3
     || !Array.isArray(gradients) || gradients.length !== 3) return false
@@ -218,8 +171,8 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
 export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map(spec => {
   const source = sources[spec.index]!
   const matchesModel = (evidence: ObservedFidelitySurfaceEvidence): boolean => {
-    const facts = semantic(evidence)
-    return same(facts.config, spec.config) && same(facts.links, links)
+    const observed = facts(evidence)
+    return same(observed.config, spec.config) && same(observed.links, links)
   }
   return {
     id: 'sankey.official.fence-' + spec.index, family: 'sankey', featureId: spec.featureId, source,
@@ -231,22 +184,16 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map(spec =
       render: { applicability: 'applicable', disposition: 'native', evaluate: evidence =>
         renderMatches(evidence, spec) ? 'native' : 'absent' },
       serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence =>
-        semantic(evidence).stable === true && matchesModel(evidence) ? 'native' : 'absent' },
+        facts(evidence).stable === true && matchesModel(evidence) ? 'native' : 'absent' },
       mutate: { applicability: 'not-applicable', rationale: 'These classify official frontmatter examples; config mutation is not a structured Sankey operation.' },
     },
     observe: () => {
-      const parsed = parseRegisteredMermaid(source)
-      if (!parsed.ok || parsed.value.body.kind !== 'sankey') throw new Error('Pinned official Sankey config fence must parse')
-      const verified = verifyMermaid(source)
-      if (!verified.ok) throw new Error('Pinned official Sankey config fence must verify')
-      const serialized = serializeMermaid(parsed.value)
-      const reparsed = parseRegisteredMermaid(serialized)
-      if (!reparsed.ok) throw new Error('Pinned official Sankey config fence must reparse')
+      const { verified, serialized, stable } = checkedRoundTrip(source, 'sankey', 'Pinned official Sankey config fence')
       return {
         agent: { status: 'observed' as const, diagnosticCodes: verified.warnings.map(warning => warning.code), semantics: modelFacts(source) },
         render: { status: 'observed' as const, diagnosticCodes: [], semantics: renderFacts(renderMermaidSVG(source)) },
         serialize: { status: 'observed' as const, diagnosticCodes: [], semantics: {
-          ...record(modelFacts(serialized)), stable: serializeMermaid(reparsed.value) === serialized } },
+          ...record(modelFacts(serialized)), stable } },
       }
     },
   }

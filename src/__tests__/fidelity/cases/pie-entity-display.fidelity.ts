@@ -1,15 +1,9 @@
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../../../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../../../index.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts, same } from '../case-helpers.ts'
+import type { FidelityCaseDefinition } from '../contract.ts'
 
 const source = 'pie\n  "A&#35;B" : 1\n'
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  if (!evidence.semantics || typeof evidence.semantics !== 'object' || Array.isArray(evidence.semantics)) {
-    throw new Error('Pie entity-display evidence must be an object')
-  }
-  return evidence.semantics as Record<string, FidelityJson>
-}
 
 const numericEntityDisplay: FidelityCaseDefinition = {
   id: 'pie.syntax.numeric-entity-display', family: 'pie',
@@ -162,20 +156,20 @@ const authoredFormattingLiteral: FidelityCaseDefinition = {
     agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
       const f = facts(evidence)
       return f.kind === 'pie' && f.authoredTitle === 'T<b>itle</b>'
-        && JSON.stringify(f.labels) === JSON.stringify(['A<br>B', 'A<br/>B']) ? 'native' : 'absent'
+        && same(f.labels, ['A<br>B', 'A<br/>B']) ? 'native' : 'absent'
     } },
     render: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
       const f = facts(evidence)
       return f.svgTitle === 'T&lt;b&gt;itle&lt;/b&gt;'
-        && JSON.stringify(f.svgLegends) === JSON.stringify(['A&lt;br&gt;B [1] (33.3%)', 'A&lt;br/&gt;B [2] (66.7%)'])
+        && same(f.svgLegends, ['A&lt;br&gt;B [1] (33.3%)', 'A&lt;br/&gt;B [2] (66.7%)'])
         && f.terminalTitle === 'T<b>itle</b>' ? 'native' : 'absent'
     } },
     serialize: { applicability: 'applicable', disposition: 'native',
       evaluate: evidence => facts(evidence).sourceExact === true ? 'native' : 'absent' },
     mutate: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
       const f = facts(evidence)
-      return JSON.stringify(f.values) === JSON.stringify([1, 3])
-        && JSON.stringify(f.labels) === JSON.stringify(['A<br>B', 'A<br/>B']) ? 'native' : 'absent'
+      return same(f.values, [1, 3])
+        && same(f.labels, ['A<br>B', 'A<br/>B']) ? 'native' : 'absent'
     } },
   },
   observe: () => {

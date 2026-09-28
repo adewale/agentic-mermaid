@@ -1,26 +1,12 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { checkedRoundTrip, facts, officialFences, record, same, textTags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The three distinct executable fences in the pinned official Quadrant page.
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..',
-  'skills/agentic-mermaid-diagram-workflow/references/upstream/quadrantChart.md'), 'utf8')
-const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const examples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/quadrantChart.md' && example.family === 'quadrant')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 3 || examples.length !== 3) throw new Error('Pinned Quadrant fence inventory changed')
-for (const [index, source] of sources.entries()) {
-  if (examples[index]!.id !== 'quadrant:official-syntax/quadrantChart.md#' + index
-    || examples[index]!.sourceSha256 !== createHash('sha256').update(source).digest('hex')) {
-    throw new Error('Pinned Quadrant fence ' + index + ' differs from the manifest')
-  }
-}
+const { sources, examples } = officialFences('quadrantChart.md')
 
 type Point = Readonly<{ label: string; x: number; y: number; radius: number; className: string | null; style: string | null }>
 type Spec = Readonly<{
@@ -87,35 +73,6 @@ const specs: readonly Spec[] = [
     strokeNoWidthDivergence: true },
 ]
 
-function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Quadrant evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function decodeXml(value: string): string {
-  return value.replace(/&(amp|lt|gt|quot|apos|#39);/g, (_, entity: string) => ({
-    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'",
-  })[entity]!)
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)]
-    .map(match => [match[1]!, decodeXml(match[2]!)]))
-}
-function tags(svg: string, tag: string, className: string): { attributes: Record<string, string>; text: string }[] {
-  return [...svg.matchAll(new RegExp('<' + tag + '\\b[^>]*>(?:[^<]*<\\/' + tag + '>)?|<' + tag + '\\b[^>]*\\/\\s*>', 'g'))]
-    .map(match => ({ attributes: attrs(match[0]), text: decodeXml(match[0].match(/>([^<]*)<\//)?.[1] ?? '') }))
-    .filter(item => (item.attributes.class ?? '').split(/\s+/).includes(className))
-}
 function modelFacts(source: string): FidelityJson {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok || parsed.value.body.kind !== 'quadrant') {
@@ -129,40 +86,40 @@ function modelFacts(source: string): FidelityJson {
     frontmatter: (parsed.value.meta.frontmatter as FidelityJson | undefined) ?? null }
 }
 function renderFacts(svg: string): FidelityJson {
-  const points = tags(svg, 'circle', 'quadrant-point')
+  const points = textTags(svg, 'circle', 'quadrant-point')
   return {
     viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
     svgSha256: createHash('sha256').update(svg).digest('hex'),
-    regions: tags(svg, 'rect', 'quadrant-region').map(item => ({
+    regions: textTags(svg, 'rect', 'quadrant-region').map(item => ({
       quadrant: Number(item.attributes['data-quadrant']), x: Number(item.attributes.x),
       y: Number(item.attributes.y), width: Number(item.attributes.width),
       height: Number(item.attributes.height), fill: item.attributes.fill ?? null })),
-    labels: tags(svg, 'text', 'quadrant-label').map(item => ({
+    labels: textTags(svg, 'text', 'quadrant-label').map(item => ({
       text: item.text, x: Number(item.attributes.x), y: Number(item.attributes.y),
       fill: item.attributes.fill ?? null, style: item.attributes.style ?? null })),
-    axes: tags(svg, 'text', 'quadrant-axis-label').map(item => item.text),
-    title: tags(svg, 'text', 'quadrant-title').map(item => item.text),
+    axes: textTags(svg, 'text', 'quadrant-axis-label').map(item => item.text),
+    title: textTags(svg, 'text', 'quadrant-title').map(item => item.text),
     points: points.map(item => ({
       label: item.attributes['data-label'] ?? null, x: Number(item.attributes['data-x']),
       y: Number(item.attributes['data-y']), cx: Number(item.attributes.cx), cy: Number(item.attributes.cy),
       radius: Number(item.attributes.r), className: item.attributes.class?.split(/\s+/)[1] ?? null,
       style: item.attributes.style ?? null })),
-    pointLabels: tags(svg, 'text', 'quadrant-point-label').map(item => item.text),
+    pointLabels: textTags(svg, 'text', 'quadrant-point-label').map(item => item.text),
     quadrantLabelFill: svg.match(/\.quadrant-label \{ fill: ([^;]+); \}/)?.[1] ?? null,
     pointStrokeWidth: svg.match(/\.quadrant-point \{[^}]*stroke-width: ([^;]+); \}/)?.[1] ?? null,
   }
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
-  const facts = semantic(evidence)
+  const observed = facts(evidence)
   const top = spec.title ? 60 : 24
   const size = spec.title ? 380 : 324
-  if (facts.viewBox !== spec.viewBox || facts.svgSha256 !== spec.svgSha256
-    || !same(facts.title, spec.title ? [spec.title] : [])
-    || !same(facts.axes, spec.axes) || !same(facts.pointLabels, spec.points.map(point => point.label))
-    || facts.quadrantLabelFill !== '#575759' || facts.pointStrokeWidth !== '1') return false
-  const regions = facts.regions
-  const labels = facts.labels
-  const points = facts.points
+  if (observed.viewBox !== spec.viewBox || observed.svgSha256 !== spec.svgSha256
+    || !same(observed.title, spec.title ? [spec.title] : [])
+    || !same(observed.axes, spec.axes) || !same(observed.pointLabels, spec.points.map(point => point.label))
+    || observed.quadrantLabelFill !== '#575759' || observed.pointStrokeWidth !== '1') return false
+  const regions = observed.regions
+  const labels = observed.labels
+  const points = observed.points
   if (!Array.isArray(regions) || regions.length !== 4 || !Array.isArray(labels) || labels.length !== 4
     || !Array.isArray(points) || points.length !== spec.points.length) return false
   for (const [index, number] of [2, 1, 3, 4].entries()) {
@@ -194,18 +151,18 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec,
   upstreamRevision: UPSTREAM_MERMAID_MANIFEST.provenance.commit,
   expected: {
     agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.title === spec.title && same(facts.axes, spec.axes)
-        && same(facts.quadrants, spec.quadrants) && same(facts.points, spec.modelPoints)
-        && same(facts.classDefs, spec.classDefs) && same(facts.frontmatter, spec.frontmatter)
+      const observed = facts(evidence)
+      return observed.title === spec.title && same(observed.axes, spec.axes)
+        && same(observed.quadrants, spec.quadrants) && same(observed.points, spec.modelPoints)
+        && same(observed.classDefs, spec.classDefs) && same(observed.frontmatter, spec.frontmatter)
         ? 'native' : 'absent'
     } },
     render: { applicability: 'applicable', disposition: spec.themeTextNoOp || spec.strokeNoWidthDivergence ? 'absent' : 'native',
       evaluate: evidence => renderMatches(evidence, spec)
         ? spec.themeTextNoOp || spec.strokeNoWidthDivergence ? 'absent' : 'native' : 'source-preserved' },
     serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.stable === true && same(facts.model, {
+      const observed = facts(evidence)
+      return observed.stable === true && same(observed.model, {
         title: spec.title, axes: spec.axes, quadrants: spec.quadrants, points: spec.modelPoints,
         classDefs: spec.classDefs, frontmatter: spec.frontmatter }) ? 'native' : 'absent'
     } },
@@ -213,19 +170,13 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec,
   },
   observe: () => {
     const source = sources[index]!
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok || parsed.value.body.kind !== 'quadrant') throw new Error('Pinned Quadrant fence must parse')
-    const verified = verifyMermaid(source)
-    if (!verified.ok) throw new Error('Pinned Quadrant fence must verify')
-    const serialized = serializeMermaid(parsed.value)
-    const reparsed = parseRegisteredMermaid(serialized)
-    if (!reparsed.ok) throw new Error('Pinned Quadrant fence must reparse')
+    const { verified, serialized, stable } = checkedRoundTrip(source, 'quadrant', 'Pinned Quadrant fence')
     return {
       agent: { status: 'observed' as const, diagnosticCodes: verified.warnings.map(warning => warning.code),
         semantics: modelFacts(source) },
       render: { status: 'observed' as const, diagnosticCodes: [], semantics: renderFacts(renderMermaidSVG(source)) },
       serialize: { status: 'observed' as const, diagnosticCodes: [], semantics: {
-        model: modelFacts(serialized), stable: serializeMermaid(reparsed.value) === serialized } },
+        model: modelFacts(serialized), stable } },
     }
   },
 }))

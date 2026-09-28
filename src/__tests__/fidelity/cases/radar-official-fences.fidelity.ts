@@ -1,27 +1,14 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { attrs, checkedRoundTrip, decodeXml, facts, officialFences, record, same, tags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // The paired example/preview blocks in the official Radar page are three
 // distinct executable fences, not six independent cases.
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..',
-  'skills/agentic-mermaid-diagram-workflow/references/upstream/radar.md'), 'utf8')
-const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const examples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/radar.md' && example.family === 'radar')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 3 || examples.length !== 3) throw new Error('Pinned Radar fence inventory changed')
-for (const [index, source] of sources.entries()) {
-  if (examples[index]!.id !== 'radar:official-syntax/radar.md#' + index
-    || examples[index]!.sourceSha256 !== createHash('sha256').update(source).digest('hex')) {
-    throw new Error('Pinned Radar fence ' + index + ' differs from the manifest')
-  }
-}
+const { sources, examples } = officialFences('radar.md')
 type Axis = Readonly<{ id: string; label: string }>
 type Curve = Readonly<{ id: string; label: string; values: readonly number[] }>
 type Spec = Readonly<{
@@ -78,34 +65,6 @@ const specs: readonly Spec[] = [
     svgSha256: '5645bbc27b8632a3e602ebd14f4e26ef8b8201837cd201d6dc984bf4c0aa7da3',
     colors: ['#FF0000', '#00FF00', '#0000FF'], opacity: '0', axisScale: 0.25 },
 ]
-function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Radar evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function decodeXml(value: string): string {
-  return value.replace(/&(amp|lt|gt|quot|apos|#39);/g, (_, entity: string) => ({
-    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'",
-  })[entity]!)
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)]
-    .map(match => [match[1]!, decodeXml(match[2]!)]))
-}
-function tags(svg: string, tag: string, className: string): Record<string, string>[] {
-  return [...svg.matchAll(new RegExp('<' + tag + '\\b[^>]*>', 'g'))].map(match => attrs(match[0]))
-    .filter(item => (item.class ?? '').split(/\s+/).includes(className))
-}
 function texts(svg: string, className: string): string[] {
   return [...svg.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)]
     .filter(match => (attrs(match[1]!).class ?? '').split(/\s+/).includes(className))
@@ -155,24 +114,24 @@ function renderFacts(svg: string, tensionReference?: string): FidelityJson {
   }
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
-  const facts = semantic(evidence)
+  const observed = facts(evidence)
   const circle = spec.graticule === 'circle'
-  if (facts.viewBox !== spec.viewBox || facts.svgSha256 !== spec.svgSha256
-    || !same(facts.circleRings, circle ? [24, 48, 72, 96, 120] : [])
-    || facts.polygonRingCount !== (circle ? 0 : 5)
-    || !same(facts.axisLabels, spec.axes.map(axis => axis.label))
-    || !same(facts.legends, spec.curves.map(curve => curve.label))
-    || !same(facts.title, spec.renderTitle ? [spec.renderTitle] : [])
-    || facts.curveOpacityRule !== spec.opacity
-    || facts.tensionReferenceSvgSha256 !== (spec.axisScale < 1
+  if (observed.viewBox !== spec.viewBox || observed.svgSha256 !== spec.svgSha256
+    || !same(observed.circleRings, circle ? [24, 48, 72, 96, 120] : [])
+    || observed.polygonRingCount !== (circle ? 0 : 5)
+    || !same(observed.axisLabels, spec.axes.map(axis => axis.label))
+    || !same(observed.legends, spec.curves.map(curve => curve.label))
+    || !same(observed.title, spec.renderTitle ? [spec.renderTitle] : [])
+    || observed.curveOpacityRule !== spec.opacity
+    || observed.tensionReferenceSvgSha256 !== (spec.axisScale < 1
       ? '639c0fe94f5df871278b24a7147cae2963c8a1df17b79e2df144dc3f0b2243a0' : null)
-    || facts.tensionReferenceAreaCount !== (spec.axisScale < 1 ? 3 : null)
-    || !same(facts.curveTensionChangedPerCurve,
+    || observed.tensionReferenceAreaCount !== (spec.axisScale < 1 ? 3 : null)
+    || !same(observed.curveTensionChangedPerCurve,
       spec.axisScale < 1 ? [true, true, true] : null)) return false
-  const axes = facts.axes
-  const areas = facts.areas
-  const dots = facts.dots
-  const swatches = facts.swatches
+  const axes = observed.axes
+  const areas = observed.areas
+  const dots = observed.dots
+  const swatches = observed.swatches
   const [cx, cy] = spec.center
   const max = spec.max ?? Math.max(...spec.curves.flatMap(curve => curve.values))
   const near = (left: unknown, right: number): boolean => typeof left === 'number'
@@ -221,19 +180,19 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec,
   upstreamRevision: UPSTREAM_MERMAID_MANIFEST.provenance.commit,
   expected: {
     agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.title === spec.title && same(facts.axes, spec.axes) && same(facts.curves, spec.curves)
-        && facts.min === spec.min && facts.max === spec.max && facts.ticks === 5
-        && facts.graticule === spec.graticule && facts.showLegend === true
-        && same(facts.frontmatter, spec.frontmatter) ? 'native' : 'absent'
+      const observed = facts(evidence)
+      return observed.title === spec.title && same(observed.axes, spec.axes) && same(observed.curves, spec.curves)
+        && observed.min === spec.min && observed.max === spec.max && observed.ticks === 5
+        && observed.graticule === spec.graticule && observed.showLegend === true
+        && same(observed.frontmatter, spec.frontmatter) ? 'native' : 'absent'
     } },
     // Pinned Mermaid draws only one path/polygon per curve. The local renderer
     // additionally draws opaque vertex dots, including when curveOpacity=0.
     render: { applicability: 'applicable', disposition: 'absent',
       evaluate: evidence => renderMatches(evidence, spec) ? 'absent' : 'source-preserved' },
     serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.stable === true && same(facts.model, {
+      const observed = facts(evidence)
+      return observed.stable === true && same(observed.model, {
         title: spec.title, axes: spec.axes, curves: spec.curves, min: spec.min, max: spec.max,
         ticks: 5, graticule: spec.graticule, showLegend: true, frontmatter: spec.frontmatter,
       }) ? 'native' : 'absent'
@@ -242,20 +201,14 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec,
   },
   observe: () => {
     const source = sources[index]!
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok || parsed.value.body.kind !== 'radar') throw new Error('Pinned Radar fence must parse')
-    const verified = verifyMermaid(source)
-    if (!verified.ok) throw new Error('Pinned Radar fence must verify')
-    const serialized = serializeMermaid(parsed.value)
-    const reparsed = parseRegisteredMermaid(serialized)
-    if (!reparsed.ok) throw new Error('Pinned Radar fence must reparse')
+    const { verified, serialized, stable } = checkedRoundTrip(source, 'radar', 'Pinned Radar fence')
     return {
       agent: { status: 'observed' as const, diagnosticCodes: verified.warnings.map(warning => warning.code),
         semantics: modelFacts(source) },
       render: { status: 'observed' as const, diagnosticCodes: [], semantics: renderFacts(renderMermaidSVG(source),
         index === 2 ? renderMermaidSVG(source.replace('curveTension: 0.1', 'curveTension: 0.17')) : undefined) },
       serialize: { status: 'observed' as const, diagnosticCodes: [], semantics: {
-        model: modelFacts(serialized), stable: serializeMermaid(reparsed.value) === serialized } },
+        model: modelFacts(serialized), stable } },
     }
   },
 }))

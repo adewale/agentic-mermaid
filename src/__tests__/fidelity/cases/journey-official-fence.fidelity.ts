@@ -1,21 +1,11 @@
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { attrs, checkedRoundTrip, facts, officialFences, record, same, textTags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/userJourney.md'), 'utf8')
-const sources = [...page.matchAll(/^```mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const manifestExamples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/userJourney.md' && example.family === 'journey')
-if (sources.length !== 1 || manifestExamples.length !== 1
-  || manifestExamples[0]!.id !== 'journey:official-syntax/userJourney.md#0'
-  || manifestExamples[0]!.sourceSha256 !== createHash('sha256').update(sources[0]!).digest('hex')) {
-  throw new Error('Pinned Journey official-fence inventory changed; review the authored example')
-}
+const { sources, examples: manifestExamples } = officialFences('userJourney.md')
 const source = sources[0]!
 const tasks = [
   { text: 'Make tea', score: 5, actors: ['Me'] },
@@ -29,29 +19,6 @@ const sections = [
   { label: 'Go home', taskIndexes: [3, 4] },
 ] as const
 
-function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Journey evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
-}
-function elements(svg: string, tag: string, className: string): { attributes: Record<string, string>; text: string }[] {
-  return [...svg.matchAll(new RegExp(`<${tag}\\b[^>]*>(?:[^<]*<\\/${tag}>)?`, 'g'))]
-    .map(match => ({ attributes: attrs(match[0]), text: match[0].match(new RegExp(`>([^<]*)<\\/${tag}>$`))?.[1] ?? '' }))
-    .filter(item => (item.attributes.class ?? '').split(/\s+/).includes(className))
-}
 function modelFacts(text: string): FidelityJson {
   const parsed = parseRegisteredMermaid(text)
   if (!parsed.ok || parsed.value.body.kind !== 'journey') return { kind: parsed.ok ? parsed.value.body.kind : 'parse-failure' }
@@ -72,8 +39,8 @@ function curveFacts(d: string): FidelityJson {
 function renderFacts(svg: string): FidelityJson {
   const sectionBlocks = [...svg.matchAll(/<g class="journey-section"([^>]*)>([\s\S]*?)\n<\/g>/g)]
   const taskBlocks = [...svg.matchAll(/<g class="journey-task"([^>]*)>([\s\S]*?)\n<\/g>/g)]
-  const title = elements(svg, 'text', 'journey-title')[0]
-  const curve = elements(svg, 'path', 'journey-curve')[0]
+  const title = textTags(svg, 'text', 'journey-title')[0]
+  const curve = textTags(svg, 'path', 'journey-curve')[0]
   return {
     viewBox: svg.match(/<svg\b[^>]*viewBox="([^"]+)"/)?.[1] ?? null,
     accessibilityTitle: svg.match(/<title id="([^"]+)">([^<]*)<\/title>/)?.slice(1) ?? null,
@@ -81,8 +48,8 @@ function renderFacts(svg: string): FidelityJson {
     title: title ? { text: title.text, x: Number(title.attributes.x), y: Number(title.attributes.y) } : null,
     sections: sectionBlocks.map(([, attributeText, body]) => {
       const section = attrs(attributeText!)
-      const rect = elements(body!, 'rect', 'journey-section-bg')[0]
-      const label = elements(body!, 'text', 'journey-section-label')[0]
+      const rect = textTags(body!, 'rect', 'journey-section-bg')[0]
+      const label = textTags(body!, 'text', 'journey-section-label')[0]
       return { id: section['data-id'] ?? null, label: section['data-label'] ?? null,
         role: section['data-role'] ?? null, text: label?.text ?? null,
         box: rect ? { x: Number(rect.attributes.x), y: Number(rect.attributes.y),
@@ -90,10 +57,10 @@ function renderFacts(svg: string): FidelityJson {
     }),
     tasks: taskBlocks.map(([, attributeText, body]) => {
       const task = attrs(attributeText!)
-      const box = elements(body!, 'rect', 'journey-task-box')[0]
-      const text = elements(body!, 'text', 'journey-task-text')[0]
-      const face = elements(body!, 'circle', 'journey-score-face')[0]
-      const track = elements(body!, 'line', 'journey-track')[0]
+      const box = textTags(body!, 'rect', 'journey-task-box')[0]
+      const text = textTags(body!, 'text', 'journey-task-text')[0]
+      const face = textTags(body!, 'circle', 'journey-score-face')[0]
+      const track = textTags(body!, 'line', 'journey-track')[0]
       const marker = body!.match(/<g class="journey-score-marker" data-score="([^"]+)"/)
       return { id: task['data-id'] ?? null, role: task['data-role'] ?? null,
         score: Number(task['data-score']), section: task['data-section'] ?? null,
@@ -105,14 +72,14 @@ function renderFacts(svg: string): FidelityJson {
         face: face ? { x: Number(face.attributes.cx), y: Number(face.attributes.cy), r: Number(face.attributes.r) } : null,
         track: track ? { x1: Number(track.attributes.x1), x2: Number(track.attributes.x2),
           y1: Number(track.attributes.y1), y2: Number(track.attributes.y2) } : null,
-        actorDots: elements(body!, 'circle', 'journey-actor-dot').map(dot => ({
+        actorDots: textTags(body!, 'circle', 'journey-actor-dot').map(dot => ({
           actor: dot.attributes['data-actor'] ?? null, x: Number(dot.attributes.cx),
           y: Number(dot.attributes.cy), colorIndex: Number(dot.attributes.class?.match(/journey-actor-(\d+)/)?.[1] ?? -1),
           r: Number(dot.attributes.r) })),
       }
     }),
-    guides: elements(svg, 'text', 'journey-score-label').map(item => ({ score: Number(item.text), y: Number(item.attributes.y) })),
-    guideLines: elements(svg, 'line', 'journey-guide').map(item => ({
+    guides: textTags(svg, 'text', 'journey-score-label').map(item => ({ score: Number(item.text), y: Number(item.attributes.y) })),
+    guideLines: textTags(svg, 'line', 'journey-guide').map(item => ({
       x1: Number(item.attributes.x1), x2: Number(item.attributes.x2),
       y1: Number(item.attributes.y1), y2: Number(item.attributes.y2) })),
     curve: curve ? curveFacts(curve.attributes.d ?? '') : null,
@@ -122,11 +89,11 @@ function renderFacts(svg: string): FidelityJson {
     sectionPaint: [0, 1].map(index => svg.match(new RegExp(`\\.journey-section-${index} \\{ fill: ([^;]+);`))?.[1] ?? null),
     taskBoxPaint: svg.match(/\.journey-task-box \{ fill: ([^;]+); stroke: ([^;]+); stroke-width: ([^;]+);/)?.slice(1) ?? null,
     taskTextPaint: svg.match(/\.journey-task-text \{ fill: ([^;]+);/)?.[1] ?? null,
-    actorLegend: elements(svg, 'circle', 'journey-actor-dot').filter(item => item.attributes['data-id']?.startsWith('actor-legend-dot:'))
+    actorLegend: textTags(svg, 'circle', 'journey-actor-dot').filter(item => item.attributes['data-id']?.startsWith('actor-legend-dot:'))
       .map(item => ({ actor: item.attributes['data-actor'] ?? null,
         colorIndex: Number(item.attributes.class?.match(/journey-actor-(\d+)/)?.[1] ?? -1),
         x: Number(item.attributes.cx), y: Number(item.attributes.cy) })),
-    actorLegendText: elements(svg, 'text', 'journey-actor-legend-text').map(item => ({
+    actorLegendText: textTags(svg, 'text', 'journey-actor-legend-text').map(item => ({
       text: item.text, x: Number(item.attributes.x), y: Number(item.attributes.y) })),
   }
 }
@@ -238,7 +205,7 @@ function renderMatches(value: FidelityJson): boolean {
 }
 
 function renderDisposition(evidence: ObservedFidelitySurfaceEvidence): 'absent' | 'native' {
-  const observation = semantic(evidence)
+  const observation = facts(evidence)
   const normal = record(observation.default)
   const parityMode = record(observation.parityMode)
   if (!renderMatches(parityMode)) throw new Error('Journey no-curve parity-mode geometry changed')
@@ -267,23 +234,17 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = [{
     agent: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
       const expected = { title: 'My working day', sections: sections.map(section => ({ label: section.label,
         tasks: section.taskIndexes.map(index => tasks[index]!) })) }
-      return same(semantic(evidence), expected) ? 'native' : 'absent'
+      return same(facts(evidence), expected) ? 'native' : 'absent'
     } },
     render: { applicability: 'applicable', disposition: 'absent', evaluate: renderDisposition },
     serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantic(evidence)
-      return facts.stable === true && same(facts.model, modelFacts(source)) ? 'native' : 'absent'
+      const observed = facts(evidence)
+      return observed.stable === true && same(observed.model, modelFacts(source)) ? 'native' : 'absent'
     } },
     mutate: { applicability: 'not-applicable', rationale: 'This case classifies official syntax; Journey set_task_score has a separate semantic receipt.' },
   },
   observe: () => {
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok || parsed.value.body.kind !== 'journey') throw new Error('Pinned official Journey fence must parse')
-    const verified = verifyMermaid(source)
-    if (!verified.ok) throw new Error('Pinned official Journey fence must verify')
-    const serialized = serializeMermaid(parsed.value)
-    const reparsed = parseRegisteredMermaid(serialized)
-    if (!reparsed.ok) throw new Error('Pinned official Journey fence must reparse')
+    const { verified, serialized, stable } = checkedRoundTrip(source, 'journey', 'Pinned official Journey fence')
     return {
       agent: { status: 'observed', diagnosticCodes: verified.warnings.map(warning => warning.code), semantics: modelFacts(source) },
       // Mermaid's Journey renderer has no connecting experience curve. Keep the
@@ -293,7 +254,7 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = [{
         parityMode: renderFacts(renderMermaidSVG(source, { journey: { experienceCurve: false } })),
       } },
       serialize: { status: 'observed', diagnosticCodes: [], semantics: {
-        model: modelFacts(serialized), stable: serializeMermaid(reparsed.value) === serialized } },
+        model: modelFacts(serialized), stable } },
     }
   },
 }]

@@ -1,6 +1,7 @@
-import { mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { mutate, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { parseClassDiagram } from '../../../class/parser.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts, parsedOrThrow } from '../case-helpers.ts'
+import type { FidelityCaseDefinition } from '../contract.ts'
 
 const featureId = 'official-doc:class:section:annotations-on-classes'
 const upstreamReference = 'https://mermaid.ai/open-source/syntax/classDiagram.html#annotations-on-classes'
@@ -9,12 +10,6 @@ const source = 'classDiagram\n  class Shape <<interface>>\n  class Other\n  Shap
 const separateSource = 'classDiagram\n  class Shape\n  <<interface>> Shape\n  class Other\n  Shape --> Other\n'
 const repeatedSource = 'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape\n'
 
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  const value = evidence.semantics
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Class annotation evidence must be an object')
-  return value as Record<string, FidelityJson>
-}
-
 function nativeFacts(input: string) {
   const diagram = parseClassDiagram(input.trim().split('\n').map(line => line.trim()))
   return {
@@ -22,12 +17,6 @@ function nativeFacts(input: string) {
     classIds: diagram.classes.map(node => node.id),
     relations: diagram.relationships.map(relation => [relation.from, relation.to]),
   }
-}
-
-function parsedOrThrow(input: string) {
-  const parsed = parseRegisteredMermaid(input)
-  if (!parsed.ok) throw new Error(`Class annotation agent parse failed: ${parsed.error.map(error => error.code).join(', ')}`)
-  return parsed.value
 }
 
 function officialPlacementCase(id: string, placementSource: string): FidelityCaseDefinition {

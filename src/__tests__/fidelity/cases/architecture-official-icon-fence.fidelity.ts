@@ -1,29 +1,11 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { parseRegisteredMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { attrs, checkedRoundTrip, facts, officialFences, record, same, svgPoints, tags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
-function parseSvgPoints(value: string): readonly (readonly [number, number])[] | null {
-  const svgNumberPattern = '[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?'
-  if (!new RegExp(`^${svgNumberPattern},${svgNumberPattern}(?: ${svgNumberPattern},${svgNumberPattern})+$`).test(value)) return null
-  const points = value.split(' ').map(pair => pair.split(',').map(Number))
-  return points.every(point => point.length === 2 && point.every(Number.isFinite)) ? points as [number, number][] : null
-}
-
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..',
-  'skills/agentic-mermaid-diagram-workflow/references/upstream/architecture.md'), 'utf8')
-const sources = [...page.matchAll(/^\x60{3}mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60{3}[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim()).filter((source, index, all) => all.indexOf(source) === index)
-const examples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/architecture.md' && example.family === 'architecture')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 6 || examples.length !== 6 || examples[5]?.id !== 'architecture:official-syntax/architecture.md#5'
-  || examples[5].sourceSha256 !== createHash('sha256').update(sources[5]!).digest('hex')) {
-  throw new Error('Pinned Architecture custom-icon fence differs from the manifest')
-}
+const { sources, examples } = officialFences('architecture.md')
 const source = sources[5]!
 const groups = [{ id: 'api', label: 'API', icon: 'logos:aws-lambda', parentId: null }]
 const services = [
@@ -49,29 +31,6 @@ const glyphs = [
   { icon: 'logos:aws-s3', pathSha256: 'b93588b414e0aa1130a8bf3facad1125f16c8904c3a4ea8763547a9f99e9894a' },
   { icon: 'logos:aws-ec2', pathSha256: '357fa789c74d3f9eeb5ff84acb31b73ab07b4041eb30ac484c02c169979e2bea' },
 ]
-function record(value: FidelityJson | undefined): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Architecture icon evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantics(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return record(evidence.semantics)
-}
-function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
-}
-function attrs(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)]
-    .map(match => [match[1]!, match[2]!.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')]))
-}
-function tags(svg: string, tag: string, className: string): Record<string, string>[] {
-  return [...svg.matchAll(new RegExp('<' + tag + '\\b[^>]*>', 'g'))].map(match => attrs(match[0]))
-    .filter(item => (item.class ?? '').split(/\s+/).includes(className))
-}
 function modelFacts(input: string): FidelityJson {
   const parsed = parseRegisteredMermaid(input)
   if (!parsed.ok || parsed.value.body.kind !== 'architecture') {
@@ -119,22 +78,22 @@ function renderFacts(svg: string): FidelityJson {
   }
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence): boolean {
-  const facts = semantics(evidence)
-  if (facts.svgSha256 !== 'a2ea32308a347d92043218e59a361047693c2914be8d5254e9b1d1e84786f224'
-    || facts.viewBox !== '0 0 721.0139999999999 442'
-    || !same(facts.groups, groups.map(group => ({ id: group.id, label: group.label })))
-    || !same(facts.services, services.map(service => ({ id: service.id, label: service.label })))
-    || !same(facts.glyphs, glyphs.map(glyph => ({ ...glyph, source: '@iconify-json/mdi@1.2.3',
+  const observed = facts(evidence)
+  if (observed.svgSha256 !== 'a2ea32308a347d92043218e59a361047693c2914be8d5254e9b1d1e84786f224'
+    || observed.viewBox !== '0 0 721.0139999999999 442'
+    || !same(observed.groups, groups.map(group => ({ id: group.id, label: group.label })))
+    || !same(observed.services, services.map(service => ({ id: service.id, label: service.label })))
+    || !same(observed.glyphs, glyphs.map(glyph => ({ ...glyph, source: '@iconify-json/mdi@1.2.3',
       license: 'Apache-2.0', pathCount: 1, fallback: false })))
     // Local aliases use curated MDI glyphs rather than the registered Iconify logos pack;
     // the pinned Mermaid 11.16 cards are unfilled and dashed, not filled and solid.
-    || typeof facts.groupFramePaint !== 'string' || !facts.groupFramePaint.includes('fill: #')
-    || typeof facts.serviceCardPaint !== 'string' || !facts.serviceCardPaint.includes('fill: #')) return false
-  if (!Array.isArray(facts.edges) || facts.edges.length !== edges.length
-    || !Array.isArray(facts.cards) || facts.cards.length !== services.length
-    || !Array.isArray(facts.frames) || facts.frames.length !== 1) return false
-  const frame = record(facts.frames[0]!)
-  const cards = facts.cards.map(record)
+    || typeof observed.groupFramePaint !== 'string' || !observed.groupFramePaint.includes('fill: #')
+    || typeof observed.serviceCardPaint !== 'string' || !observed.serviceCardPaint.includes('fill: #')) return false
+  if (!Array.isArray(observed.edges) || observed.edges.length !== edges.length
+    || !Array.isArray(observed.cards) || observed.cards.length !== services.length
+    || !Array.isArray(observed.frames) || observed.frames.length !== 1) return false
+  const frame = record(observed.frames[0]!)
+  const cards = observed.cards.map(item => record(item))
   const inView = (x: number, y: number): boolean => Number.isFinite(x) && Number.isFinite(y)
     && x >= 0 && y >= 0 && x <= 721.014 && y <= 442
   const overlaps = (a: Readonly<Record<string, FidelityJson>>, b: Readonly<Record<string, FidelityJson>>): boolean =>
@@ -182,11 +141,11 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence): boolean {
     return true
   }
   for (const [index, expected] of edges.entries()) {
-    const edge = record(facts.edges[index]!)
+    const edge = record(observed.edges[index]!)
     if (edge.source !== expected.source || edge.target !== expected.target
       || edge.sourceSide !== expected.sourceSide || edge.targetSide !== expected.targetSide
       || typeof edge.points !== 'string') return false
-    const points = parseSvgPoints(edge.points)
+    const points = svgPoints(edge.points)
     const start = anchor(expected.source, expected.sourceSide)
     const end = anchor(expected.target, expected.targetSide)
     if (!start || !end || !points
@@ -207,30 +166,25 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = [{
   upstreamRevision: UPSTREAM_MERMAID_MANIFEST.provenance.commit,
   expected: {
     agent: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => same(semantics(evidence), expectedModel) ? 'native' : 'absent' },
+      evaluate: evidence => same(facts(evidence), expectedModel) ? 'native' : 'absent' },
     // The source models correctly, but local MDI alias glyphs and solid filled
     // cards do not reproduce the registered logos pack or Mermaid 11.16 paint.
     render: { applicability: 'applicable', disposition: 'absent',
       evaluate: evidence => renderMatches(evidence) ? 'absent' : 'source-preserved' },
     serialize: { applicability: 'applicable', disposition: 'native', evaluate: evidence => {
-      const facts = semantics(evidence)
-      return facts.stable === true && same(facts.model, expectedModel) ? 'native' : 'absent'
+      const observed = facts(evidence)
+      return observed.stable === true && same(observed.model, expectedModel) ? 'native' : 'absent'
     } },
     mutate: { applicability: 'not-applicable', rationale: 'The pinned official icon example has no mutation operation; icon mutations have separate contracts.' },
   },
   observe: () => {
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok || parsed.value.body.kind !== 'architecture') throw new Error('Pinned Architecture icon fence must parse')
-    const verified = verifyMermaid(source)
-    if (!verified.ok || verified.warnings.length) throw new Error('Pinned Architecture icon fence must verify without warnings')
-    const serialized = serializeMermaid(parsed.value)
-    const reparsed = parseRegisteredMermaid(serialized)
-    if (!reparsed.ok) throw new Error('Pinned Architecture icon fence must reparse')
+    const { verified, serialized, stable } = checkedRoundTrip(source, 'architecture', 'Pinned Architecture icon fence')
+    if (verified.warnings.length) throw new Error('Pinned Architecture icon fence must verify without warnings')
     return {
       agent: { status: 'observed' as const, diagnosticCodes: [], semantics: modelFacts(source) },
       render: { status: 'observed' as const, diagnosticCodes: [], semantics: renderFacts(renderMermaidSVG(source)) },
       serialize: { status: 'observed' as const, diagnosticCodes: [], semantics: {
-        model: modelFacts(serialized), stable: serializeMermaid(reparsed.value) === serialized } },
+        model: modelFacts(serialized), stable } },
     }
   },
 }]

@@ -1,29 +1,13 @@
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { renderMermaidSVG } from '../../../index.ts'
 import { UPSTREAM_MERMAID_MANIFEST } from '../../../upstream-mermaid-manifest.ts'
+import { facts, officialFences, record, same, textTags } from '../case-helpers.ts'
 import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
 
 // This is the complete set of distinct Mermaid fences in the pinned XY Chart
 // syntax page. A fence is not called native merely because it produces SVG:
 // each expectation below fixes its authored model, paint, labels, or geometry.
-const page = readFileSync(join(import.meta.dir, '..', '..', '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/xyChart.md'), 'utf8')
-const sources = [...page.matchAll(/^```mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```[^\S\r\n]*$/gm)]
-  .map(match => match[1]!.trim())
-  .filter((source, index, all) => all.indexOf(source) === index)
-const manifestExamples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin === 'official-syntax/xyChart.md' && example.family === 'xychart')
-  .sort((left, right) => left.index - right.index)
-if (sources.length !== 8 || manifestExamples.length !== 8) throw new Error('Pinned XY Chart official-fence inventory changed; review every fence')
-for (const [index, source] of sources.entries()) {
-  const entry = manifestExamples[index]!
-  const hash = createHash('sha256').update(source).digest('hex')
-  if (entry.id !== `xychart:official-syntax/xyChart.md#${index}` || entry.sourceSha256 !== hash) {
-    throw new Error(`Pinned XY Chart official fence ${index} differs from its manifest; review the new syntax`)
-  }
-}
+const { sources, examples: manifestExamples } = officialFences('xyChart.md')
 
 type Series = { kind: 'bar' | 'line'; name: string | null; values: readonly number[]; pointLabels: readonly (string | null)[] | null }
 type Model = {
@@ -123,30 +107,6 @@ const specs: readonly Spec[] = [
     legendDivergence: 'unnamed-fallback' },
 ]
 
-function asRecord(value: FidelityJson): Readonly<Record<string, FidelityJson>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Official XY Chart evidence must be an object')
-  return value as Readonly<Record<string, FidelityJson>>
-}
-function semantic(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  return asRecord(evidence.semantics)
-}
-function same(actual: unknown, expected: unknown): boolean {
-  const canonical = (value: unknown): unknown => Array.isArray(value)
-    ? value.map(canonical)
-    : value && typeof value === 'object'
-      ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
-        .map(([key, item]) => [key, canonical(item)]))
-      : value
-  return JSON.stringify(canonical(actual)) === JSON.stringify(canonical(expected))
-}
-function attributes(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
-}
-function tagged(svg: string, tag: string, className: string): { attributes: Record<string, string>; text: string }[] {
-  return [...svg.matchAll(new RegExp(`<${tag}\\b[^>]*>(?:[^<]*<\\/${tag}>)?`, 'g'))]
-    .map(match => ({ attributes: attributes(match[0]), text: match[0].match(new RegExp(`>([^<]*)<\\/${tag}>$`))?.[1] ?? '' }))
-    .filter(item => (item.attributes.class ?? '').split(/\s+/).includes(className))
-}
 function modelFacts(source: string): FidelityJson {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok || parsed.value.body.kind !== 'xychart') return { kind: parsed.ok ? parsed.value.body.kind : 'parse-failure' }
@@ -166,17 +126,17 @@ function linePoints(path: string): [number, number][] {
     .map(match => [Number(match[1]), Number(match[2])])
 }
 function renderFacts(svg: string): FidelityJson {
-  const bars = tagged(svg, 'rect', 'xychart-bar').map(item => ({
+  const bars = textTags(svg, 'rect', 'xychart-bar').map(item => ({
     value: item.attributes['data-value'] ?? null, label: item.attributes['data-label'] ?? null,
     colorIndex: Number(item.attributes.class?.match(/xychart-color-(\d+)/)?.[1] ?? -1),
     x: Number(item.attributes.x), y: Number(item.attributes.y), width: Number(item.attributes.width), height: Number(item.attributes.height),
   }))
-  const lines = tagged(svg, 'path', 'xychart-line').map(item => ({
+  const lines = textTags(svg, 'path', 'xychart-line').map(item => ({
     colorIndex: Number(item.attributes.class?.match(/xychart-color-(\d+)/)?.[1] ?? -1),
     points: linePoints(item.attributes.d ?? ''),
   }))
-  const dots = tagged(svg, 'circle', 'xychart-dot').map(item => ({ x: Number(item.attributes.cx), y: Number(item.attributes.cy) }))
-  const labels = tagged(svg, 'text', 'xychart-point-label').map(item => ({
+  const dots = textTags(svg, 'circle', 'xychart-dot').map(item => ({ x: Number(item.attributes.cx), y: Number(item.attributes.cy) }))
+  const labels = textTags(svg, 'text', 'xychart-point-label').map(item => ({
     text: item.text, x: Number(item.attributes.x), y: Number(item.attributes.y),
     position: item.attributes['data-label-position'] ?? null,
     colorIndex: Number(item.attributes.class?.match(/xychart-color-(\d+)/)?.[1] ?? -1),
@@ -185,22 +145,22 @@ function renderFacts(svg: string): FidelityJson {
   }))
   return {
     viewBox: svg.match(/<svg\b[^>]*\bviewBox="([^"]+)"/)?.[1] ?? null,
-    title: tagged(svg, 'text', 'xychart-title').map(item => item.text),
-    xLabels: tagged(svg, 'text', 'xychart-x-label').map(item => item.text),
-    xTicks: tagged(svg, 'text', 'xychart-x-label').map(item => ({ text: item.text, x: Number(item.attributes.x), y: Number(item.attributes.y) })),
-    yTicks: tagged(svg, 'text', 'xychart-y-label').map(item => ({ value: Number(item.text), x: Number(item.attributes.x), y: Number(item.attributes.y) })),
-    xTitles: tagged(svg, 'text', 'xychart-x-axis-title').map(item => item.text),
-    yTitles: tagged(svg, 'text', 'xychart-y-axis-title').map(item => item.text),
+    title: textTags(svg, 'text', 'xychart-title').map(item => item.text),
+    xLabels: textTags(svg, 'text', 'xychart-x-label').map(item => item.text),
+    xTicks: textTags(svg, 'text', 'xychart-x-label').map(item => ({ text: item.text, x: Number(item.attributes.x), y: Number(item.attributes.y) })),
+    yTicks: textTags(svg, 'text', 'xychart-y-label').map(item => ({ value: Number(item.text), x: Number(item.attributes.x), y: Number(item.attributes.y) })),
+    xTitles: textTags(svg, 'text', 'xychart-x-axis-title').map(item => item.text),
+    yTitles: textTags(svg, 'text', 'xychart-y-axis-title').map(item => item.text),
     titleAnchors: ['xychart-title', 'xychart-x-axis-title', 'xychart-y-axis-title', 'xychart-legend-label']
-      .flatMap(className => tagged(svg, 'text', className).map(item => ({ x: Number(item.attributes.x), y: Number(item.attributes.y) }))),
+      .flatMap(className => textTags(svg, 'text', className).map(item => ({ x: Number(item.attributes.x), y: Number(item.attributes.y) }))),
     bars, lines, dots, labels,
-    dataLabels: tagged(svg, 'text', 'xychart-data-label').map(item => ({
+    dataLabels: textTags(svg, 'text', 'xychart-data-label').map(item => ({
       text: item.text, x: Number(item.attributes.x), y: Number(item.attributes.y),
       fontSize: item.attributes['font-size'] ?? null,
     })),
     dataLabelPaint: svg.match(/\.xychart-data-label \{ fill: ([^;]+);/)?.[1] ?? null,
     lineStrokeWidth: svg.match(/\.xychart-line \{[^}]*stroke-width: ([^;]+);/)?.[1] ?? null,
-    legend: tagged(svg, 'text', 'xychart-legend-label').map(item => item.text),
+    legend: textTags(svg, 'text', 'xychart-legend-label').map(item => item.text),
     palette: [...svg.matchAll(/--xychart-color-\d+:\s*([^;]+);/g)].map(match => match[1]!),
     barPaint: [...svg.matchAll(/\.xychart-bar\.xychart-color-(\d+) \{ fill: ([^;]+); \}/g)]
       .map(match => ({ index: Number(match[1]), color: match[2]! })),
@@ -219,7 +179,7 @@ function affineLinesMatch(actual: Readonly<Record<string, FidelityJson>>, spec: 
   if (expectedLines.length === 0) return true
   const pairs: { value: number; x: number; y: number; pointIndex: number }[] = []
   for (const [lineIndex, expected] of expectedLines.entries()) {
-    const line = asRecord(lines[lineIndex]!)
+    const line = record(lines[lineIndex]!)
     if (line.colorIndex !== expected.index || !Array.isArray(line.points) || line.points.length !== expected.values.length) return false
     let previousX = -Infinity
     for (const [pointIndex, value] of expected.values.entries()) {
@@ -240,7 +200,7 @@ function affineLinesMatch(actual: Readonly<Record<string, FidelityJson>>, spec: 
     && pairs.every(other => pair.pointIndex !== other.pointIndex || Math.abs(pair.x - other.x) <= 0.12))
 }
 function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): boolean {
-  const actual = semantic(evidence)
+  const actual = facts(evidence)
   if (!same(actual.title, [spec.model.title]) || !same(actual.xLabels, spec.model.xCategories)
     || !same(actual.xTitles, spec.model.xName ? [spec.model.xName] : [])
     || !same(actual.yTitles, [spec.model.yName])
@@ -257,7 +217,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     && Number.isFinite(value) && value >= 0 && value <= chartHeight!
   const titleAnchors = actual.titleAnchors
   if (!Array.isArray(titleAnchors) || titleAnchors.some(anchor => {
-    const item = asRecord(anchor)
+    const item = record(anchor)
     return !withinX(item.x) || !withinY(item.y)
   })) return false
   const xTicks = actual.xTicks
@@ -266,29 +226,29 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     || !Array.isArray(yTicks) || yTicks.length !== spec.yTickValues.length) return false
   let previousX = -Infinity
   for (const [index, tick] of xTicks.entries()) {
-    const item = asRecord(tick)
+    const item = record(tick)
     if (item.text !== spec.model.xCategories[index] || !withinX(item.x) || !withinY(item.y)
       || item.x <= previousX) return false
     previousX = item.x
   }
-  const firstYTick = asRecord(yTicks[0]!)
-  const secondYTick = asRecord(yTicks[1]!)
+  const firstYTick = record(yTicks[0]!)
+  const secondYTick = record(yTicks[1]!)
   if (typeof firstYTick.y !== 'number' || typeof secondYTick.y !== 'number'
     || firstYTick.value !== spec.yTickValues[0] || secondYTick.value !== spec.yTickValues[1]) return false
   const ySlope = (secondYTick.y - firstYTick.y) / (spec.yTickValues[1]! - spec.yTickValues[0]!)
   const yIntercept = firstYTick.y - ySlope * spec.yTickValues[0]!
   if (!Number.isFinite(ySlope) || ySlope >= 0 || yTicks.some((tick, index) => {
-    const item = asRecord(tick)
+    const item = record(tick)
     return item.value !== spec.yTickValues[index] || !withinX(item.x) || !withinY(item.y)
       || Math.abs(item.y - (yIntercept + ySlope * spec.yTickValues[index]!)) > 0.15
   })) return false
   const linesForScale = actual.lines
   if (!Array.isArray(linesForScale) || linesForScale.some((line, lineIndex) => {
-    const points = asRecord(line).points
+    const points = record(line).points
     const expected = spec.model.series.filter(series => series.kind === 'line')[lineIndex]
     return !expected || !Array.isArray(points) || points.some((point, pointIndex) => {
       if (!Array.isArray(point) || typeof point[0] !== 'number' || typeof point[1] !== 'number') return true
-      const tick = asRecord(xTicks[pointIndex]!)
+      const tick = record(xTicks[pointIndex]!)
       return point[0] < 0 || point[0] > chartWidth! || point[1] < 0 || point[1] > chartHeight!
         || typeof tick.x !== 'number' || Math.abs(point[0] - tick.x) > 0.15
         || Math.abs(point[1] - (yIntercept + ySlope * expected.values[pointIndex]!)) > 0.15
@@ -305,18 +265,18 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     const color = palette[index]
     const rules = series.kind === 'bar' ? barPaint : linePaint
     if (typeof color !== 'string' || !rules.some(rule => {
-      const paint = asRecord(rule)
+      const paint = record(rule)
       return paint.index === index && paint.color === color
     })) return false
     if (series.pointLabels?.some(Boolean) && !dotPaint.some(rule => {
-      const paint = asRecord(rule)
+      const paint = record(rule)
       return paint.index === index && paint.color === color
     })) return false
   }
   const bars = actual.bars
   const minimumTickSpacing = Math.min(...xTicks.slice(1).map((tick, index) => {
-    const current = asRecord(tick).x
-    const previous = asRecord(xTicks[index]!).x
+    const current = record(tick).x
+    const previous = record(xTicks[index]!).x
     return typeof current === 'number' && typeof previous === 'number' ? current - previous : NaN
   }))
   if (!Number.isFinite(minimumTickSpacing) || minimumTickSpacing <= 0) return false
@@ -324,7 +284,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     ? series.values.map((value, pointIndex) => ({ value: String(value), label: spec.model.xCategories[pointIndex], colorIndex: index })) : [])
   if (!Array.isArray(bars) || bars.length !== expectedBars.length) return false
   for (const [index, expected] of expectedBars.entries()) {
-    const bar = asRecord(bars[index]!)
+    const bar = record(bars[index]!)
     if (bar.value !== expected.value || bar.label !== expected.label || bar.colorIndex !== expected.colorIndex
       || typeof bar.x !== 'number' || typeof bar.y !== 'number' || typeof bar.width !== 'number' || typeof bar.height !== 'number'
       || bar.width < minimumTickSpacing * 0.1 || bar.height <= 0 || bar.x < 0 || bar.x + bar.width > chartWidth!
@@ -335,7 +295,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   for (const series of spec.model.series.filter(item => item.kind === 'bar')) {
     let previousX = -Infinity
     for (let index = 0; index < series.values.length; index += 1) {
-      const bar = asRecord(bars[barOffset + index]!)
+      const bar = record(bars[barOffset + index]!)
       if (typeof bar.x !== 'number' || !Number.isFinite(bar.x) || bar.x <= previousX) return false
       previousX = bar.x
     }
@@ -345,26 +305,26 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   if (barSeries.length > 0) {
     for (let pointIndex = 0; pointIndex < spec.model.xCategories.length; pointIndex += 1) {
       const categoryBars = barSeries.map((_, seriesIndex) => {
-        const bar = asRecord(bars[seriesIndex * spec.model.xCategories.length + pointIndex]!)
+        const bar = record(bars[seriesIndex * spec.model.xCategories.length + pointIndex]!)
         return { left: bar.x as number, right: (bar.x as number) + (bar.width as number) }
       })
       if (categoryBars.some((bar, index) => index > 0 && categoryBars[index - 1]!.right > bar.left + 0.15)) return false
       const centers = categoryBars.map(bar => (bar.left + bar.right) / 2)
-      const tick = asRecord(xTicks[pointIndex]!)
+      const tick = record(xTicks[pointIndex]!)
       if (typeof tick.x !== 'number' || Math.abs(centers.reduce((sum, center) => sum + center, 0) / centers.length - tick.x) > 0.15) return false
     }
   }
   if (bars.length > 1) {
-    const first = asRecord(bars[0]!)
+    const first = record(bars[0]!)
     const secondIndex = expectedBars.findIndex(bar => bar.value !== expectedBars[0]!.value)
     if (secondIndex < 0) return false
-    const second = asRecord(bars[secondIndex]!)
+    const second = record(bars[secondIndex]!)
     const slope = ((second.y as number) - (first.y as number))
       / (Number(expectedBars[secondIndex]!.value) - Number(expectedBars[0]!.value))
     const intercept = (first.y as number) - slope * Number(expectedBars[0]!.value)
     const baseline = (first.y as number) + (first.height as number)
     if (!Number.isFinite(slope) || slope >= 0 || bars.some((bar, index) => {
-      const item = asRecord(bar)
+      const item = record(bar)
       return typeof item.y !== 'number' || typeof item.height !== 'number'
         || Math.abs(item.y - (intercept + slope * Number(expectedBars[index]!.value))) > 0.12
         || Math.abs(item.y + item.height - baseline) > 0.12
@@ -372,7 +332,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     const lines = actual.lines
     const expectedLines = spec.model.series.filter(series => series.kind === 'line')
     if (!Array.isArray(lines) || lines.some((line, lineIndex) => {
-      const points = asRecord(line).points
+      const points = record(line).points
       return !Array.isArray(points) || points.some((point, pointIndex) => {
         if (!Array.isArray(point) || typeof point[1] !== 'number') return true
         return Math.abs(point[1] - (intercept + slope * expectedLines[lineIndex]!.values[pointIndex]!)) > 0.12
@@ -380,7 +340,7 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
     })) return false
   }
   const labels = actual.labels
-  if (!Array.isArray(labels) || !same(labels.map(label => asRecord(label).text), spec.pointLabels ?? [])) return false
+  if (!Array.isArray(labels) || !same(labels.map(label => record(label).text), spec.pointLabels ?? [])) return false
   const expectedLabeledPoints = spec.model.series.flatMap((series, seriesIndex) => {
     if (series.kind !== 'line' || !series.pointLabels) return []
     const lineIndex = spec.model.series.slice(0, seriesIndex).filter(item => item.kind === 'line').length
@@ -391,9 +351,9 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
   if (!Array.isArray(dots) || !Array.isArray(lines) || dots.length !== expectedLabeledPoints.length
     || labels.length !== expectedLabeledPoints.length) return false
   for (const [index, expected] of expectedLabeledPoints.entries()) {
-    const label = asRecord(labels[index]!)
-    const dot = asRecord(dots[index]!)
-    const points = asRecord(lines[expected.lineIndex]!).points
+    const label = record(labels[index]!)
+    const dot = record(dots[index]!)
+    const points = record(lines[expected.lineIndex]!).points
     if (!Array.isArray(points) || !Array.isArray(points[expected.pointIndex])) return false
     const point = points[expected.pointIndex] as FidelityJson[]
     if (label.text !== expected.text || label.position !== 'above'
@@ -404,11 +364,11 @@ function renderMatches(evidence: ObservedFidelitySurfaceEvidence, spec: Spec): b
       || !withinY(label.y) || Math.abs(label.y - (point[1] - 8)) > 0.12) return false
   }
   const dataLabels = actual.dataLabels
-  if (!Array.isArray(dataLabels) || !same(dataLabels.map(label => asRecord(label).text), spec.dataLabels ?? [])) return false
+  if (!Array.isArray(dataLabels) || !same(dataLabels.map(label => record(label).text), spec.dataLabels ?? [])) return false
   if (dataLabels.length > 0 && actual.dataLabelPaint !== '#27272A') return false
   if (dataLabels.length > 0 && dataLabels.some((label, index) => {
-    const text = asRecord(label)
-    const bar = asRecord(bars[index]!)
+    const text = record(label)
+    const bar = record(bars[index]!)
     return !withinX(text.x) || text.fontSize !== '16' || typeof text.y !== 'number' || typeof bar.x !== 'number'
       || typeof bar.width !== 'number' || typeof bar.y !== 'number' || typeof bar.height !== 'number'
       || Math.abs(text.x - (bar.x + bar.width / 2)) > 0.15
@@ -427,16 +387,16 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec,
   expected: {
     agent: { applicability: 'applicable', disposition: spec.outsideBarNoOp ? 'diagnosed' : 'native',
       diagnosticCodes: spec.diagnostics ?? [],
-      evaluate: evidence => same(semantic(evidence).model, spec.model)
-        && (spec.outsideBarNoOp ? semantic(evidence).outsideBarWarning === true : true)
+      evaluate: evidence => same(facts(evidence).model, spec.model)
+        && (spec.outsideBarNoOp ? facts(evidence).outsideBarWarning === true : true)
         ? spec.outsideBarNoOp ? 'diagnosed' : 'native' : 'absent' },
     render: { applicability: 'applicable', disposition: spec.outsideBarNoOp || spec.legendDivergence ? 'absent' : 'native',
       evaluate: evidence => renderMatches(evidence, spec)
-        ? (spec.outsideBarNoOp && semantic(evidence).identicalToInsideLabels === true) || Boolean(spec.legendDivergence)
+        ? (spec.outsideBarNoOp && facts(evidence).identicalToInsideLabels === true) || Boolean(spec.legendDivergence)
           ? 'absent' : 'native'
         : 'source-preserved' },
     serialize: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => same(semantic(evidence).model, spec.model) && semantic(evidence).stable === true ? 'native' : 'absent' },
+      evaluate: evidence => same(facts(evidence).model, spec.model) && facts(evidence).stable === true ? 'native' : 'absent' },
     mutate: { applicability: 'not-applicable', rationale: 'Official syntax-fence classification does not advertise a mutation; XY Chart set_data_point has its own semantic receipt.' },
   },
   observe: () => {
@@ -452,7 +412,7 @@ export const fidelityCases: readonly FidelityCaseDefinition[] = specs.map((spec,
       agent: { status: 'observed', diagnosticCodes: [...new Set(verification.warnings.map(warning => warning.code))],
         semantics: { model: modelFacts(source), outsideBarWarning: verification.warnings.some(warning => warning.code === 'INEFFECTIVE_CONFIG' && warning.message.includes('showDataLabelOutsideBar')) } },
       render: { status: 'observed', diagnosticCodes: [], semantics: {
-        ...asRecord(renderFacts(svg)), identicalToInsideLabels: index === 4 ? svg === renderMermaidSVG(sources[3]!) : false,
+        ...record(renderFacts(svg)), identicalToInsideLabels: index === 4 ? svg === renderMermaidSVG(sources[3]!) : false,
       } },
       serialize: { status: 'observed', diagnosticCodes: [], semantics: {
         model: modelFacts(serialized), stable: serializeMermaid(reparsed.value) === serialized,

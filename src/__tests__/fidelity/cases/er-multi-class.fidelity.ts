@@ -1,7 +1,8 @@
-import { mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid } from '../../../agent/index.ts'
+import { mutate, renderMermaidSVG, serializeMermaid } from '../../../agent/index.ts'
 import { layoutErDiagram } from '../../../er/layout.ts'
 import { parseErDiagram } from '../../../er/parser.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts, parsedOrThrow } from '../case-helpers.ts'
+import type { FidelityCaseDefinition, FidelityJson } from '../contract.ts'
 
 const source = `erDiagram
   A:::vip,hot ||--o{ B : places
@@ -21,12 +22,6 @@ const renamed = [
   { id: 'B', className: 'vip hot' },
   { id: 'C', className: 'vip hot' },
 ]
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  const value = evidence.semantics
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('ER multi-class evidence must be an object')
-  return value as Record<string, FidelityJson>
-}
 
 function matchesEntities(value: FidelityJson, rows: readonly { id: string; className: string }[]): boolean {
   return Array.isArray(value) && value.length === rows.length && value.every((row, index) =>
@@ -55,12 +50,6 @@ function renderedPaint(svg: string) {
     fill: match[0].match(/\bfill="([^"]+)"/)?.[1] ?? null,
     stroke: match[0].match(/\bstroke="([^"]+)"/)?.[1] ?? null,
   }))
-}
-
-function parsedOrThrow(input: string) {
-  const parsed = parseRegisteredMermaid(input)
-  if (!parsed.ok) throw new Error(`ER multi-class agent parse failed: ${parsed.error.map(error => error.code).join(', ')}`)
-  return parsed.value
 }
 
 const erMultiClass: FidelityCaseDefinition = {

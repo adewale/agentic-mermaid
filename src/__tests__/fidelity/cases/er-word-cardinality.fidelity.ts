@@ -1,15 +1,9 @@
 import { mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid } from '../../../agent/index.ts'
 import { parseErDiagram } from '../../../er/parser.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts } from '../case-helpers.ts'
+import type { FidelityCaseDefinition, FidelityJson } from '../contract.ts'
 
 const source = 'erDiagram\n  CAR 1 to zero or more DRIVER : allows\n  DRIVER many(0) optionally to 0+ LICENSE : holds\n'
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  if (!evidence.semantics || typeof evidence.semantics !== 'object' || Array.isArray(evidence.semantics)) {
-    throw new Error('ER word-alias evidence must be an object')
-  }
-  return evidence.semantics as Record<string, FidelityJson>
-}
 
 function matchesRows(value: FidelityJson, expected: readonly Record<string, string | boolean>[]): boolean {
   return Array.isArray(value) && value.length === expected.length && value.every((row, index) =>
