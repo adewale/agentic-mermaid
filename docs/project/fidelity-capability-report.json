@@ -3,19 +3,91 @@
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "058534050fd438a3bfe86eeae7ee8f7c8ee418c0fa431dc93c8e052b12a2f88b",
-  "receiptResultSha256": "fb066bab54b8216fc3019ea42fa8fafee1b192fc477932bd1f78ed93e71bf0cd",
+  "receiptInputSha256": "7fb5c8f81945e71337e8aa4ab63339d65408f5632c6ef88ba8114db24fe40dd7",
+  "receiptResultSha256": "d62756397ed9d27f87cea3e3cc42546beeec167f4f62da789103cec273f5e415",
   "summary": {
-    "caseCount": 58,
-    "featureCount": 36,
+    "caseCount": 60,
+    "featureCount": 38,
     "dispositions": {
       "native": 17,
       "source-preserved": 0,
       "diagnosed": 8,
-      "absent": 11
+      "absent": 13
     }
   },
   "features": [
+    {
+      "featureId": "official-doc:architecture:section:example",
+      "family": "architecture",
+      "disposition": "absent",
+      "caseIds": [
+        "architecture.official.fence-0"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These cases classify pinned official sources; architecture mutation operations have separate tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "architecture.official.fence-0",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These cases classify pinned official sources; architecture mutation operations have separate tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
+    {
+      "featureId": "official-doc:architecture:section:junctions",
+      "family": "architecture",
+      "disposition": "absent",
+      "caseIds": [
+        "architecture.official.fence-4"
+      ],
+      "surfaces": {
+        "agent": "native",
+        "render": "absent",
+        "serialize": "native",
+        "mutate": {
+          "notApplicable": [
+            "These cases classify pinned official sources; architecture mutation operations have separate tests."
+          ]
+        }
+      },
+      "diagnostics": {},
+      "caseEvidence": [
+        {
+          "caseId": "architecture.official.fence-4",
+          "surfaces": {
+            "agent": "native",
+            "render": "absent",
+            "serialize": "native",
+            "mutate": {
+              "notApplicable": [
+                "These cases classify pinned official sources; architecture mutation operations have separate tests."
+              ]
+            }
+          },
+          "diagnostics": {}
+        }
+      ],
+      "acceptedDivergences": []
+    },
     {
       "featureId": "official-doc:block:section:basic-structure",
       "family": "block",

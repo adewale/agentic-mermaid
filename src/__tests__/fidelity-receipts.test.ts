@@ -272,6 +272,7 @@ describe('issue #248 construct fidelity receipts', () => {
   test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
     const registry = await discoverFidelityRegistry()
     expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
+      'fidelity/cases/architecture-official-core-fences.fidelity.ts',
       'fidelity/cases/class-annotation.fidelity.ts',
       'fidelity/cases/class-bare-link.fidelity.ts',
       'fidelity/cases/class-safe-link-tooltip.fidelity.ts',
@@ -294,6 +295,8 @@ describe('issue #248 construct fidelity receipts', () => {
       'fidelity/cases/xychart-official-fences.fidelity.ts',
     ])
     expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
+      'architecture.official.fence-0',
+      'architecture.official.fence-4',
       'block.family.accurately-diagnosed-unsupported',
       'class.annotations.inline-native',
       'class.annotations.repeated-diagnosed',
@@ -358,12 +361,12 @@ describe('issue #248 construct fidelity receipts', () => {
     expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
     expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
     expect(receipt.summary).toEqual({
-      caseCount: 58,
-      passedCaseCount: 58,
+      caseCount: 60,
+      passedCaseCount: 60,
       failedCaseCount: 0,
-      observedSurfaceCount: 200,
+      observedSurfaceCount: 206,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 32,
+      notApplicableSurfaceCount: 34,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -413,6 +416,100 @@ describe('issue #248 construct fidelity receipts', () => {
       replacement: FidelityJson
       additionalChanges?: readonly Readonly<{ path: readonly (number | string)[]; replacement: FidelityJson }>[]
     }> = [
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'agent',
+        path: ['edges', 0, 'sourceSide'],
+        replacement: 'R',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['edges', 1, 'targetSide'],
+        replacement: 'T',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['edges', 0, 'points'],
+        replacement: '371.37399999999997,108 371.37399999999997,-1000 335.374,-1000 335.374,276',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['edges', 0, 'points'],
+        replacement: '371.37399999999997,108 600,108 600,276 335.374,276',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['edges', 0, 'points'],
+        replacement: '371.37399999999997,108 500,108 500,216 335.374,216 335.374,276',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['serviceCardPaint'],
+        replacement: 'fill: none; stroke-dasharray: 8;',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['cards', 0, 'x'],
+        replacement: 10000,
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['cards', 2, 'x'],
+        replacement: 400,
+        additionalChanges: [
+          { path: ['cards', 2, 'y'], replacement: 90 },
+          { path: ['edges', 2, 'points'], replacement: '461.687,90 461.687,80 437.50699999999995,80 437.50699999999995,132' },
+        ],
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'render',
+        path: ['serviceLabels', 2],
+        replacement: 'Not Storage',
+      },
+      {
+        caseId: 'architecture.official.fence-0',
+        surface: 'serialize',
+        path: ['model', 'services', 2, 'parentId'],
+        replacement: null,
+      },
+      {
+        caseId: 'architecture.official.fence-4',
+        surface: 'agent',
+        path: ['junctions', 1, 'id'],
+        replacement: 'lost-junction',
+      },
+      {
+        caseId: 'architecture.official.fence-4',
+        surface: 'render',
+        path: ['edges', 3, 'points'],
+        replacement: '0,0 1,1',
+      },
+      {
+        caseId: 'architecture.official.fence-4',
+        surface: 'render',
+        path: ['cores', 0, 'x'],
+        replacement: 1,
+      },
+      {
+        caseId: 'architecture.official.fence-4',
+        surface: 'render',
+        path: ['cores', 0, 'radius'],
+        replacement: 0,
+      },
+      {
+        caseId: 'architecture.official.fence-4',
+        surface: 'render',
+        path: ['junctionRingPaint'],
+        replacement: null,
+      },
       {
         caseId: 'journey.official.fence-0',
         surface: 'agent',
@@ -1398,7 +1495,7 @@ describe('issue #248 construct fidelity receipts', () => {
 
   test('blocked applicable surfaces remain explicit and fail the receipt', async () => {
     const registry = await discoverFidelityRegistry()
-    const original = registry.cases[0]!
+    const original = registry.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
     const notApplicable = (rationale: string): FidelitySurfaceExpectation => ({ applicability: 'not-applicable', rationale })
     const blocked: FidelityCaseDefinition = {
       ...original,
@@ -1577,7 +1674,7 @@ describe('issue #248 construct fidelity receipts', () => {
 
   test('diagnosed dispositions require a concrete diagnostic in validation, execution, and projection', async () => {
     const registry = await discoverFidelityRegistry()
-    const original = registry.cases[0]!
+    const original = registry.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
     const agent = original.expected.agent
     if (agent.applicability !== 'applicable') throw new Error('block agent must be applicable')
     const emptyDiagnosis = {
@@ -1589,8 +1686,9 @@ describe('issue #248 construct fidelity receipts', () => {
     await expect(runFidelityCases([emptyDiagnosis], registry.caseFiles)).rejects.toThrow('diagnosed disposition requires at least one diagnostic code')
 
     const malformedReceipt = readJson<FidelityReceiptResult>(RECEIPT)
-    const expectedAgent = malformedReceipt.cases[0]!.expected.agent
-    const observedAgent = malformedReceipt.cases[0]!.observations.agent
+    const blockCase = malformedReceipt.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
+    const expectedAgent = blockCase.expected.agent
+    const observedAgent = blockCase.observations.agent
     if (expectedAgent.applicability !== 'applicable' || !observedAgent || observedAgent.status !== 'observed') throw new Error('block agent fixture must be applicable and observed')
     ;(expectedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
     ;(observedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
