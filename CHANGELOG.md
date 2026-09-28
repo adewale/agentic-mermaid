@@ -30,7 +30,6 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   `render_png`, and browser diagnostics. Text-only agents can now detect when
   measurable configured text falls below the selected floor; this bounded
   warning does not certify whether an image is readable.
-- Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
 - Added Sankey as the 16th built-in diagram family, with Mermaid-compatible
   `sankey` and `sankey-beta` CSV syntax, deterministic SVG, PNG, and ASCII
   rendering, typed agent editing, and support across the library, CLI, MCP,
@@ -39,15 +38,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ### Changed
 - Updated the `brace-expansion` development override to the first 5.x release
   patched for GHSA-rgw5-rvv9-x895.
-- Updated the transitive `fast-uri` override to 3.1.5 for
-  GHSA-7p8r-x3mc-p8w7 and pinned transitive `undici` to 7.29.0 for
+- Updated the transitive `fast-uri` override to 3.1.6 (first raised to 3.1.5
+  for GHSA-7p8r-x3mc-p8w7) and pinned transitive `undici` to 7.29.0 for
   GHSA-4cwx-7wf7-3272.
-- Pinned transitive `ip-address` to 10.3.1 for
-  GHSA-mwp4-54f8-5fhr.
+- Pinned transitive `ip-address` to 10.4.0 (first pinned to 10.3.1 for
+  GHSA-mwp4-54f8-5fhr).
 - CI, release, and deploy now run on Bun 1.4.2 (was 1.3.13), and
-  `package.json` declares `engines.bun` `>=1.4.0`. The website payload
-  baseline was re-recorded on Bun 1.4.2; only the editor bundle changed
-  (4,770 raw bytes smaller).
+  `package.json` declares `engines.bun` `>=1.4.0`. At the switch, the only
+  website payload change was the editor bundle, 4,770 raw bytes smaller.
 - `am capabilities --json` (and the site's `capabilities.json`) no longer
   carries the `sectionA` audit summary. Building it pulled the repository-only
   Section A report, upstream syntax manifest, and characterization index into
@@ -55,6 +53,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   packed tarball by 201 KB, and `am capabilities` runs about 40% faster. The
   full report stays available in the repository (`bun run section-a-report`,
   `docs/project/section-a-capability-report.md`).
+
+## 0.4.1 — 2026-07-30
+
+Metadata release for MCP directory listings; no rendering changes.
+
+### Added
+- Added human-readable titles to every MCP tool and published canonical directory-listing and hosted-service privacy documentation.
 
 ## 0.4.0 — 2026-07-28
 

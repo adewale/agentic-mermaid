@@ -18,12 +18,12 @@ Precise, calm, and technically rigorous. The interface should feel like a well-t
 
 ## Anti-references
 
-Do not make this look like a generic SaaS landing page with card grids, glass panels, glowing AI gradients, loud hero metrics, or overbearing CTAs. Do not imply hosted Code Mode, arbitrary execution, or a production render API. Avoid decorative motion, vague “AI magic” language, consumer-soft pills, and inconsistent app-vs-doc navigation.
+Do not make this look like a generic SaaS landing page with card grids, glass panels, glowing AI gradients, loud hero metrics, or overbearing CTAs. Do not imply a REST render API or arbitrary server-side execution: hosted Code Mode `execute` exists only over MCP JSON-RPC, in capped isolates with no network. Avoid decorative motion, vague “AI magic” language, consumer-soft pills, and inconsistent app-vs-doc navigation.
 
 ## Design Principles
 
 1. Lead every visitor to the next honest action: try the editor, install locally, wire an agent, or read capabilities.
-2. Make local-first boundaries visible before trust is asked for; hosted execution stays explicitly out of scope.
+2. Make local-first boundaries visible before trust is asked for; hosted Code Mode is a sandboxed, network-less convenience, there is no REST render API, and local use stays the recommended path.
 3. Practice the product’s determinism: consistent routes, labels, CTA language, and machine-readable mirrors.
 4. Keep the document-first voice, but use stronger affordances where a user must choose or act.
 5. Show real renderer output and concrete commands instead of decorative claims.

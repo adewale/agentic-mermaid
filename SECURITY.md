@@ -28,10 +28,11 @@ Types):
 
 In strict mode the SVG output contains **zero external-fetch references**:
 
-- The Google Fonts `@import` is removed (the only external-fetch vector our
-  output otherwise emits). The font family is still declared via the `--font`
-  CSS variable, so a host that *does* have the font shows it; otherwise the
-  browser falls back to `system-ui, sans-serif`.
+- No Google Fonts `@import` is emitted, even if the caller passes
+  `embedFontImport: true` (that opt-in import is the only external-fetch
+  vector our output otherwise emits). The font family is still declared via
+  the `--font` CSS variable, so a host that *does* have the font shows it;
+  otherwise the browser falls back to `system-ui, sans-serif`.
 - We emit no `<image>`, no `<script>`, no `<foreignObject>`, no external
   `href`/`src`/`url(http…)`/`url(//…)`.
 
@@ -49,10 +50,13 @@ gate or an agent self-check after rendering.
 - **Deterministic renderer, no ambient network or code execution.** SVG/ASCII
   rendering is pure-functional TypeScript with no DOM, no `eval`, no network,
   and no user-controlled filesystem access. PNG rendering may read bundled
-  font assets from the package before offline rasterization. Code Mode snippets
-  run in a `node:vm` context where `process`, `require`,
+  font assets from the package before offline rasterization. Local Code Mode
+  snippets run in a `node:vm` context where `process`, `require`,
   `fetch`, `eval`, `Function`, and host-constructor escape paths are tested
-  absent and dynamic code generation is disabled.
+  absent and dynamic code generation is disabled. Hosted `execute` at
+  `agentic-mermaid.dev/mcp` does not use `node:vm`: each snippet runs in a
+  Cloudflare Dynamic Worker isolate with no network (`globalOutbound: null`),
+  an empty env, and a CPU budget.
 - **HTTP/SSE MCP defaults are local-first.** `agentic-mermaid-mcp --transport
   http` binds to `127.0.0.1` by default. Non-loopback binding requires
   `--auth-token`; `/rpc` and `/message` require `content-type:
@@ -66,12 +70,15 @@ gate or an agent self-check after rendering.
   `execute(code)` to arbitrary hostile users without process/container
   isolation and normal resource controls. HTTP/SSE transport improves
   reachability for trusted clients; it is not a hosted multi-tenant sandbox.
-- **Default mode emits the Google Fonts `@import`.** This is back-compat
-  behavior for existing consumers who render SVGs into pages that expect the
-  Inter webfont. **For agent/untrusted SVG contexts, use strict mode.** MCP
+- **Default mode does not enforce the no-external-refs guarantee.** It omits
+  the Google Fonts `@import` unless the caller opts in with
+  `embedFontImport: true` (back-compat for pages that expect the Inter
+  webfont), and it does not reject a render that carries an external
+  reference. **For agent/untrusted SVG contexts, use strict mode.** MCP
   `render_png` is already offline (the PNG rasterizer has no network). SVG via
-  Code Mode `execute()` lets the agent pass `security: 'strict'`; ASCII output
-  has no external-reference surface.
+  local Code Mode `execute()` lets the agent pass `security: 'strict'`; hosted
+  `render_svg` and hosted `execute` force it. ASCII output has no
+  external-reference surface.
 - **We do not sanitize arbitrary third-party SVG.** `verifyNoExternalRefs`
   is a scanner for *our* output shape, not a general SVG sanitizer. Don't
   feed it untrusted SVG and treat a pass as safe.
