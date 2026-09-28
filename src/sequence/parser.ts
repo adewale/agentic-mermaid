@@ -308,27 +308,17 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     }
 
     // --- Note ---
-    // "Note left of A: text" / "Note right of A: text" / "Note over A,B: text"
-    const noteMatch = line.match(/^Note\s+(left of|right of|over)\s+([^:]+):\s*(.+)$/i)
-    if (noteMatch) {
-      const posStr = noteMatch[1]!.toLowerCase()
-      const actorsStr = noteMatch[2]!.trim()
-      const text = normalizeBrTags(noteMatch[3]!.trim())
-      const noteActorIds = actorsStr.split(',').map(s => s.trim())
-
+    const note = parseSequenceNoteLine(line)
+    if (note) {
       // Ensure actors exist
-      for (const aid of noteActorIds) {
+      for (const aid of note.actorIds) {
         ensureActor(diagram, actorIds, aid)
       }
 
-      let position: 'left' | 'right' | 'over' = 'over'
-      if (posStr === 'left of') position = 'left'
-      else if (posStr === 'right of') position = 'right'
-
       diagram.notes.push({
-        actorIds: noteActorIds,
-        text,
-        position,
+        actorIds: note.actorIds,
+        text: normalizeBrTags(note.text),
+        position: note.position,
         afterIndex: diagram.messages.length - 1,
       })
       continue
@@ -466,6 +456,19 @@ export function parseActorLinks(line: string): { actorId: string; links: Record<
     for (const [label, href] of Object.entries(parsed)) if (typeof href === 'string' && /^(?:https?:|mailto:)/i.test(href)) links[label] = href
     return Object.keys(links).length > 0 ? { actorId: multiple[1]!, links } : null
   } catch { return null }
+}
+
+/** One note-line grammar shared by renderer and agent parsers:
+ *  "Note left of A: text" / "Note right of A: text" / "Note over A,B: text". */
+export function parseSequenceNoteLine(line: string): Pick<Note, 'actorIds' | 'text' | 'position'> | null {
+  const match = line.match(/^Note\s+(left of|right of|over)\s+([^:]+):\s*(.+)$/i)
+  if (!match) return null
+  const placement = match[1]!.toLowerCase()
+  return {
+    actorIds: match[2]!.trim().split(',').map(id => id.trim()),
+    text: match[3]!.trim(),
+    position: placement === 'left of' ? 'left' : placement === 'right of' ? 'right' : 'over',
+  }
 }
 
 function isMessageArrow(value: string): boolean {

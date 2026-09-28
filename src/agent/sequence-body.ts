@@ -28,7 +28,7 @@ import type {
   SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine, parseSequenceNoteLine } from '../sequence/parser.ts'
 import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from '../sequence/block-keywords.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
@@ -174,7 +174,11 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     }
 
     // Any other unmodeled single line (Note…, activate/deactivate, autonumber,
-    // title…) joins an adjacent opaque-block segment, kept verbatim.
+    // title…) joins an adjacent opaque-block segment, kept verbatim. A note
+    // still declares the participants it names, as a message does: upstream
+    // creates them in the listed order and the renderer draws them.
+    const note = parseSequenceNoteLine(line)
+    if (note) for (const id of note.actorIds) ensureKnown(id)
     appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
     i++
   }

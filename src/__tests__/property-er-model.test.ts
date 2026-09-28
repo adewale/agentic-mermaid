@@ -178,32 +178,35 @@ const commands = [
   index.map(at => new ErCommand({ kind: 'remove_relation', index: at })),
 ]
 
-// Every entity is declared by its own statement: see the known bug below for
-// what happens to an entity that only a relation mentions.
-const INITIAL = 'erDiagram\n  CUSTOMER\n  ORDER {\n    int id PK\n  }\n  CUSTOMER ||--o{ ORDER : places'
-
-// KNOWN BUG, found by this model test and pinned rather than fixed here: an
-// entity that only a relation's endpoint declares vanishes from the serialized
-// source once that relation is removed (remove_relation, or remove_entity on
-// the other endpoint), although the typed body and its facts still list it:
-//   erDiagram\n  A ||--o{ B : x   + remove_relation 0   →   "erDiagram\n"
-// The model property steers around it by declaring every entity explicitly.
-// Once fixed, the pinned test below turns red: delete it and the steering.
-const IMPLIED_ENTITY_LOSS = { source: 'erDiagram\n  A ||--o{ B : x', op: { kind: 'remove_relation', index: 0 } } as const
+// CUSTOMER is declared only by the relation, so removing that relation (or
+// ORDER) must keep it in the serialized source.
+const INITIAL = 'erDiagram\n  ORDER {\n    int id PK\n  }\n  CUSTOMER ||--o{ ORDER : places'
 
 describe('ER typed editing API against a shadow model', () => {
-  test('known bug: an entity only a relation declared is lost on serialize after that relation goes', () => {
-    const parsed = parseRegisteredMermaid(IMPLIED_ENTITY_LOSS.source)
-    expect(parsed.ok).toBe(true)
-    if (!parsed.ok) return
-    const result = mutate(parsed.value, IMPLIED_ENTITY_LOSS.op)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(describeMermaidFacts(result.value)).toEqual(['entity A', 'entity B', 'family er'])
-    const serialized = serializeMermaid(result.value)
-    expect(serialized).toBe('erDiagram\n')
-    const reparsed = parseRegisteredMermaid(serialized)
-    expect(reparsed.ok && describeMermaidFacts(reparsed.value)).toEqual(['family er'])
+  test('an entity only a relation declared survives serialization after that relation goes', () => {
+    const cases = [
+      { source: 'erDiagram\n  A ||--o{ B : x', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A\n  B\n' },
+      { source: 'erDiagram\n  A ||--o{ B : x', op: { kind: 'remove_entity', id: 'A' }, serialized: 'erDiagram\n  B\n' },
+      // Declared where they were created, so the entity order survives too.
+      { source: 'erDiagram\n  A ||--o{ B : x\n  C ||--o{ D : y', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A\n  B\n  C ||--o{ D : y\n' },
+      { source: 'erDiagram\n  subgraph G\n    A["Alpha"] ||--o{ B : x\n  end', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  subgraph G\n  A["Alpha"]\n  B\n  end\n' },
+      // A `style` line re-creates A, but not its label.
+      { source: 'erDiagram\n  A["Alpha"] ||--o{ B : x\n  style A fill:#f00', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A["Alpha"]\n  B\n  style A fill:#f00\n' },
+    ] as const
+    for (const { source, op, serialized } of cases) {
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(`rejected:\n${source}`)
+      const result = mutate(parsed.value, op)
+      if (!result.ok) throw new Error(`${op.kind} refused on:\n${source}`)
+      expect({ source, op, serialized: serializeMermaid(result.value) }).toEqual({ source, op, serialized })
+      const reparsed = parseRegisteredMermaid(serialized)
+      if (!reparsed.ok) throw new Error(`serialized source rejected:\n${serialized}`)
+      expect(asEr(reparsed.value)?.body.entities).toEqual(asEr(result.value)?.body.entities)
+      expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(result.value))
+    }
+    // An entity that only a `style` line creates round-trips untouched as before.
+    const styled = parseRegisteredMermaid('erDiagram\n  style A fill:#f00')
+    expect(styled.ok && serializeMermaid(styled.value)).toBe('erDiagram\n  style A fill:#f00\n')
   })
 
   test('the initial diagram matches its model', () => {

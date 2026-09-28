@@ -219,6 +219,27 @@ function normalizeErQuotedIdLabel(id: string): string {
   return id.replace(/<br\s*\/?>/gi, '\n')
 }
 
+/** Entities that no statement would re-create on parse: one that only
+ * relations declared has no statement left once they are removed. A trailing
+ * `style` line re-creates an entity by itself only when there is nothing else
+ * to declare. */
+function undeclaredErEntities(body: ErBody): ErEntity[] {
+  const produced = new Set<string>()
+  for (const entity of body.entities) {
+    const styleDeclares = entity.style !== undefined && entity.attributes.length === 0 && !entity.groupId
+      && renderErEntityReference(entity) === renderErEntityReference({ ...entity, label: undefined })
+    if (styleDeclares) produced.add(entity.id)
+  }
+  for (const statement of body.statements ?? []) {
+    if (statement.kind === 'entity') produced.add(statement.id)
+    else if (statement.kind === 'relation') {
+      const relation = body.relations[statement.ref]
+      if (relation) produced.add(relation.from).add(relation.to)
+    }
+  }
+  return body.entities.filter(entity => !produced.has(entity.id))
+}
+
 export function renderEr(body: ErBody): string {
   const lines: string[] = ['erDiagram']
   const entityById = new Map(body.entities.map(entity => [entity.id, entity]))
@@ -245,13 +266,39 @@ export function renderEr(body: ErBody): string {
   }
 
   if (body.statements) {
+    // Declare each entity no statement re-creates inside its own group, before
+    // the statement that creates the next entity in body order, so the source
+    // re-parses to the same entities in the same order.
+    const order = new Map(body.entities.map((entity, index) => [entity.id, index]))
+    let undeclared = undeclaredErEntities(body)
+    const created = new Set<string>()
+    const openGroups: string[] = []
+    const declareUndeclared = (before: number): void => {
+      undeclared = undeclared.filter(entity => {
+        if (order.get(entity.id)! >= before || entity.groupId !== openGroups.at(-1)) return true
+        pushEntity(entity)
+        return false
+      })
+    }
+    const creates = (ids: string[]): void => {
+      const fresh = ids.filter(id => order.has(id) && !created.has(id))
+      if (fresh.length > 0) declareUndeclared(Math.min(...fresh.map(id => order.get(id)!)))
+      for (const id of fresh) created.add(id)
+    }
+
     for (const statement of body.statements) {
       if (statement.kind === 'entity') {
         const entity = entityById.get(statement.id)
-        if (entity) pushEntity(entity)
+        if (entity) {
+          creates([entity.id])
+          pushEntity(entity)
+        }
       } else if (statement.kind === 'relation') {
         const relation = body.relations[statement.ref]
-        if (relation) pushRelation(relation)
+        if (relation) {
+          creates([relation.from, relation.to])
+          pushRelation(relation)
+        }
       } else if (statement.kind === 'direction') {
         const direction = statement.groupId ? groupById.get(statement.groupId)?.direction : body.direction
         if (direction) lines.push(`  direction ${direction}`)
@@ -261,12 +308,16 @@ export function renderEr(body: ErBody): string {
           const id = /\s/.test(group.id) ? quoteErText(group.id) : group.id
           lines.push(`  subgraph ${id}${group.label !== group.id ? ` [${group.label}]` : ''}`)
         }
+        openGroups.push(statement.id)
       } else if (statement.kind === 'group-close') {
+        declareUndeclared(Infinity)
+        openGroups.pop()
         lines.push('  end')
       } else {
         for (const line of statement.lines) lines.push(`  ${line}`)
       }
     }
+    for (const entity of undeclared) pushEntity(entity)
   } else {
     if (body.direction) lines.push(`  direction ${body.direction}`)
     for (const entity of body.entities) pushEntity(entity)

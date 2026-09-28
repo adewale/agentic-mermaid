@@ -5,6 +5,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Sequence participants that only a note names (`note left of A: …`,
+  `note over A,B: …`) are now part of the typed body, facts, describe output
+  and structural counts, in the order upstream Mermaid creates them.
+- ER entities that only a relation declared no longer disappear from the
+  serialized source when that relation is removed; the serializer declares
+  them in place, inside their subgraph.
 - Pie and Radar diagrams with a gapped palette theme variable (only `pie2`, or
   only `cScale1`) now render instead of failing with an internal snapshot
   error; the set slot uses the authored colour and the others keep their

@@ -16,7 +16,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { asSequence, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { asSequence, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { SequenceBody, SequenceMessage } from '../agent/types.ts'
 import { startUpstreamMermaid, type UpstreamMermaid, type UpstreamParse } from './helpers/upstream-mermaid.ts'
@@ -69,21 +69,7 @@ const statementArb: fc.Arbitrary<Statement> = fc.oneof(
   },
 )
 
-// ---------------------------------------------------------------------------
-// Known divergences (found by this property; product code deliberately
-// unchanged). The generator steers around each one and a pinned test below
-// turns red once it is fixed: delete the entry and its steering then.
-// ---------------------------------------------------------------------------
-
-const KNOWN_DIVERGENCES = [
-  // KS1: a participant that only a note mentions is missing from the typed
-  // body and its facts (notes are opaque segments), although upstream creates
-  // it and our renderer draws it. Steering: notes only name participants that
-  // a declaration or message already introduced.
-  { source: 'sequenceDiagram\n  note left of A: hello', upstream: ['A participant : A'], ours: [] as string[] },
-]
-
-/** Participants are declared at most once and only before any use; notes name only known ones (KS1). */
+/** Participants are declared at most once and only before any use. */
 function declareBeforeUse(statements: Statement[]): Statement[] {
   const seen = new Set<string>()
   const mention = (ids: string[]) => ids.forEach(id => seen.add(id))
@@ -93,8 +79,8 @@ function declareBeforeUse(statements: Statement[]): Statement[] {
       seen.add(statement.id)
       return [statement]
     }
-    if (statement.kind === 'note') return statement.ids.every(id => seen.has(id)) ? [statement] : []
-    if (statement.kind === 'message') mention([statement.message.from, statement.message.to])
+    if (statement.kind === 'note') mention(statement.ids)
+    else if (statement.kind === 'message') mention([statement.message.from, statement.message.to])
     else for (const branch of statement.branches) for (const message of branch.messages) mention([message.from, message.to])
     return [statement]
   })
@@ -220,13 +206,31 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
     )
   }, 20_000)
 
-  test('each known divergence still diverges exactly as recorded', async () => {
-    for (const known of KNOWN_DIVERGENCES) {
-      const upstreamParse = await upstream.parse(known.source)
-      expect(upstreamParse.ok).toBe(true)
-      if (!upstreamParse.ok) continue
-      expect({ source: known.source, participants: theirs(upstreamParse).participants }).toEqual({ source: known.source, participants: known.upstream })
-      expect({ source: known.source, participants: ours(parseOurs(known.source)).participants }).toEqual({ source: known.source, participants: known.ours })
+  test('a participant only a note names is typed and ordered as upstream creates it', async () => {
+    const cases = [
+      { source: 'sequenceDiagram\n  note left of A: hello', participants: ['A participant : A'] },
+      {
+        source: 'sequenceDiagram\n  B->>C: hi\n  note over D,A: x\n  participant A as Alice',
+        participants: ['B participant : B', 'C participant : C', 'D participant : D', 'A participant : Alice'],
+      },
+    ]
+    for (const { source, participants } of cases) {
+      const upstreamParse = await upstream.parse(source)
+      expect({ source, participants: upstreamParse.ok && theirs(upstreamParse).participants }).toEqual({ source, participants })
+      expect({ source, participants: ours(parseOurs(source)).participants }).toEqual({ source, participants })
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(`our parser rejected:\n${source}`)
+      expect(countStructuralElements(parsed.value)?.nodes).toBe(participants.length)
+      expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
     }
+    const parsed = parseRegisteredMermaid(cases[0]!.source)
+    if (!parsed.ok) throw new Error('note-only source rejected')
+    expect(describeMermaidFacts(parsed.value)).toContain('participant A : A')
+    // The note stays preserved source, so typed ops treat A as a known participant.
+    const added = mutate(parsed.value, { kind: 'add_message', from: 'A', to: 'B', text: 'ping' })
+    expect(added.ok && serializeMermaid(added.value)).toBe('sequenceDiagram\n  note left of A: hello\n  A->>B: ping\n')
+    expect(added.ok && ours(parseOurs(serializeMermaid(added.value))).participants).toEqual(['A participant : A', 'B participant : B'])
+    const duplicate = mutate(parsed.value, { kind: 'add_participant', id: 'A' })
+    expect(!duplicate.ok && (duplicate.error as { code: string }).code).toBe('DUPLICATE_PARTICIPANT')
   })
 })
