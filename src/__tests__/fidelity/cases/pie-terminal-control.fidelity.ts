@@ -2,16 +2,10 @@ import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from 
 import { renderMermaidASCIIWithReceipt } from '../../../ascii/index.ts'
 import { parsePieChart } from '../../../pie/parser.ts'
 import { renderMermaidSVG } from '../../../index.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts } from '../case-helpers.ts'
+import type { FidelityCaseDefinition } from '../contract.ts'
 
 const source = 'pie\n  "A\\rB" : 1\n'
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  if (!evidence.semantics || typeof evidence.semantics !== 'object' || Array.isArray(evidence.semantics)) {
-    throw new Error('Pie terminal-control evidence must be an object')
-  }
-  return evidence.semantics as Record<string, FidelityJson>
-}
 
 const escapedTerminalControl: FidelityCaseDefinition = {
   id: 'pie.syntax.escaped-terminal-control-sanitized', family: 'pie',

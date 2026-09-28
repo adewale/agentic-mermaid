@@ -7,7 +7,7 @@ across several surfaces; this hub points at each.
 
 | Family | Design note | Notable cross-cutting surface |
 |---|---|---|
-| Architecture (`architecture-beta`) | [`architecture-beta.md`](./architecture-beta.md) | ops in `AGENT_NATIVE.md`; level in [`source-preservation-ladder.md`](../system/source-preservation-ladder.md) |
+| Architecture (`architecture-beta`) | [`architecture-beta.md`](./architecture-beta.md) | ops from `describeOps('architecture')`; level in [`source-preservation-ladder.md`](../system/source-preservation-ladder.md) |
 | Class | [`class.md`](./class.md) | namespace, generic, paint, and cardinality coverage |
 | ER | [`er.md`](./er.md) | ordered typed/opaque segments and terminal clearance |
 | Flowchart | [`flowchart.md`](./flowchart.md) (+ [`flowchart-parser-conformance.md`](./flowchart-parser-conformance.md)) | routing in [`route-contracts.md`](../system/route-contracts.md) |
@@ -46,18 +46,16 @@ The all-family Style + Palette sheet and gallery evidence are generated and chec
 ```bash
 bun run scripts/pr-assets/family-elevation-style-palette.ts
 bun run gallery:mindmap-gitgraph
-bun run gallery:mindmap-gitgraph:check
 bun run gallery:mermaid-docs
-bun run gallery:mermaid-docs:check
 bun run gallery:pie-highlight
-bun run gallery:pie-highlight:check
 ```
 
 ## Where every registered family is documented
 
 - **Canonical registry:** `FamilyDescriptor` registrations in `src/agent/families.ts`; use `am capabilities --json` for the generated roster.
 - **User-facing catalogue:** [`diagram-families.md`](../../diagram-families.md).
-- **Mutation ops + structured/opaque scope:** [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md).
+- **Mutation ops:** generated — `describeOps(family)` / `opSignatures(family)`, or `families[].opFields` in `am capabilities --json`.
+- **Structured/opaque scope and shared op conventions:** [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md).
 - **Source-preservation level (L0–L4):** [`source-preservation-ladder.md`](../system/source-preservation-ladder.md).
 - **Cross-surface citizenship matrix:** [`diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md).
 - **Mermaid syntax references:** `skills/agentic-mermaid-diagram-workflow/references/`.

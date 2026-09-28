@@ -1,6 +1,4 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { relative, resolve } from 'node:path'
 import {
   FIDELITY_ACCEPTED_DIVERGENCE_POLICIES,
   FIDELITY_DISPOSITIONS,
@@ -10,7 +8,6 @@ import {
   type FidelityCaseResult,
   type FidelityDisposition,
   type FidelityEvidence,
-  type FidelityInputFile,
   type FidelityJson,
   type FidelityReceiptResult,
   type FidelityRevisionAcknowledgement,
@@ -24,21 +21,10 @@ import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './revision-compatibility.ts'
 import { UPSTREAM_MERMAID_MANIFEST, type UpstreamMermaidManifest } from '../../upstream-mermaid-manifest.ts'
 import { compareCodePointStrings } from '../../shared/deterministic-order.ts'
 
-const REPO = resolve(import.meta.dir, '..', '..', '..')
 const SHA_PATTERN = /^[0-9a-f]{40}$/
 const CASE_ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)+$/
-const INFRASTRUCTURE_FILES = [
-  resolve(import.meta.dir, 'contract.ts'),
-  resolve(import.meta.dir, 'registry.ts'),
-  resolve(import.meta.dir, 'revision-compatibility.ts'),
-  resolve(import.meta.dir, 'runner.ts'),
-  resolve(import.meta.dir, 'projector.ts'),
-  resolve(REPO, 'src', 'fidelity-capability-contract.ts'),
-  resolve(REPO, 'src', 'fidelity-capability-report.ts'),
-  resolve(REPO, 'scripts', 'pr-assets', 'generate-fidelity-receipts.ts'),
-]
 
-function sha256(value: string | Uint8Array): string {
+function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
 
@@ -315,14 +301,6 @@ export function validateFidelityRegistry(
   return issues.sort(compareCodePointStrings)
 }
 
-function freshnessFiles(caseFiles: readonly string[], acknowledgements: readonly FidelityRevisionAcknowledgement[]): FidelityInputFile[] {
-  const acknowledgementEvidence = acknowledgements.flatMap(acknowledgement => acknowledgement.evidence.map(path => resolve(REPO, path)))
-  return sortedUnique([...INFRASTRUCTURE_FILES, ...caseFiles, ...acknowledgementEvidence]).map(path => ({
-    path: relative(REPO, path),
-    sha256: sha256(readFileSync(path)),
-  }))
-}
-
 function recordedExpected(expected: Record<FidelitySurface, FidelitySurfaceExpectation>): Record<FidelitySurface, RecordedFidelitySurfaceExpectation> {
   return Object.fromEntries(
     FIDELITY_SURFACES.map(surface => {
@@ -421,9 +399,10 @@ async function runCase(fidelityCase: FidelityCaseDefinition): Promise<FidelityCa
   }
 }
 
+/** Execute cases in memory. Results are never committed: the unit test and
+ * `generate-fidelity-receipts.ts` project them into the public report. */
 export async function runFidelityCases(
   cases: readonly FidelityCaseDefinition[],
-  caseFiles: readonly string[],
   manifest: UpstreamMermaidManifest = UPSTREAM_MERMAID_MANIFEST,
   acknowledgements: readonly FidelityRevisionAcknowledgement[] = FIDELITY_REVISION_ACKNOWLEDGEMENTS,
 ): Promise<FidelityReceiptResult> {
@@ -431,14 +410,13 @@ export async function runFidelityCases(
   if (validationIssues.length > 0) {
     throw new Error(`Invalid fidelity registry:\n${validationIssues.map(issue => `- ${issue}`).join('\n')}`)
   }
-  const files = freshnessFiles(caseFiles, acknowledgements)
   const results: FidelityCaseResult[] = []
   for (const fidelityCase of [...cases].sort((a, b) => compareCodePointStrings(a.id, b.id))) {
     results.push(await runCase(fidelityCase))
   }
   const observations = results.flatMap(result => Object.values(result.observations))
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     upstream: {
       package: 'mermaid',
       version: manifest.provenance.version,
@@ -451,16 +429,6 @@ export async function runFidelityCases(
           evidence: [...acknowledgement.evidence],
         }))
         .sort((a, b) => compareCodePointStrings(a.id, b.id)),
-    },
-    freshness: {
-      inputSha256: sha256(
-        canonicalFidelityJson({
-          files,
-          inventorySha256: manifest.provenance.inventorySha256,
-          revisionAcknowledgements: acknowledgements,
-        }),
-      ),
-      files,
     },
     cases: results,
     summary: {

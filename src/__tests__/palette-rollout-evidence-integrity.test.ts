@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   cleanHeadCommit,
+  expectedPaletteRolloutReport,
+  PALETTE_ROLLOUT_REPORT,
   verifyBaselineCommit,
   verifiedBaselineCases,
   type BaselineFile,
 } from '../../scripts/pr-assets/palette-rollout-evidence.ts'
-import { EVIDENCE_CHECKS, QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const BASELINE_DIR = join(ROOT, 'eval', 'palette-rollout', 'baseline')
@@ -78,10 +79,9 @@ describe('palette rollout evidence integrity', () => {
     }
   })
 
-  test('both palette evidence checks are hard aggregate quality gates', () => {
-    const evidenceCommands = EVIDENCE_CHECKS.map(check => check.command.join(' '))
-    expect(evidenceCommands).toContain('bun run gallery:palette-rollout:check')
-    expect(evidenceCommands).toContain('bun run gallery:palette-harmony:check')
-    expect(QUALITY_CHECKS.map(check => check.command.join(' '))).toContain('bun run evidence:check')
+  test('the committed report matches a fresh render and clears the automatic improvement gate', () => {
+    const expected = expectedPaletteRolloutReport()
+    expect(JSON.parse(readFileSync(PALETTE_ROLLOUT_REPORT, 'utf8'))).toEqual(JSON.parse(JSON.stringify(expected)))
+    expect(expected.summary.automaticVerdict).toBe('improvement')
   })
 })

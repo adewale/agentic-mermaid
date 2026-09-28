@@ -24,9 +24,6 @@
 // ============================================================================
 
 import { describe, it, expect } from 'bun:test'
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import fc from 'fast-check'
 import { parsePieChart } from '../pie/parser.ts'
 import {
@@ -45,9 +42,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
-import { hashArtifactInputs, runtimeDependencyClosure, runtimeDependencySummary, sortRepositoryPaths, transitiveLocalInputs, type RuntimeDependencySummary } from '../../scripts/pr-assets/artifact-receipt.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const LEGEND_FONT = { size: 13, weight: 500 }
 const LEGEND_LINE_HEIGHT = LEGEND_FONT.size * 1.3
 
@@ -519,47 +514,6 @@ pie showData
     expect(renderMermaidASCII(src, { useAscii: true })).toBe(
       renderMermaidASCII('pie showData\n  "hover" : 2\n  "Other" : 1', { useAscii: true }),
     )
-  })
-
-  it('pins the generated cross-product evidence to current renderer inputs and PNG bytes', () => {
-    const receipt = JSON.parse(readFileSync(join(ROOT, 'eval', 'pie-highlightslice', 'evidence-receipt.json'), 'utf8')) as {
-      schemaVersion: number
-      generator: string
-      inputCount: number
-      inputTreeSha256: string
-      runtimeDependencies: RuntimeDependencySummary
-      outputs: Array<{ path: string; sha256: string }>
-    }
-    expect(receipt.schemaVersion).toBe(1)
-    expect(receipt.generator).toBe('scripts/pr-assets/pie-highlightslice-evidence.ts')
-    const entrypoints = [join(ROOT, receipt.generator)]
-    const inputs = sortRepositoryPaths(ROOT, transitiveLocalInputs(ROOT, entrypoints))
-    const runtimeDependencies = runtimeDependencyClosure(ROOT, entrypoints)
-    expect(receipt.inputCount).toBe(inputs.length)
-    expect(receipt.inputTreeSha256).toBe(hashArtifactInputs(ROOT, inputs, runtimeDependencies))
-    expect(receipt.runtimeDependencies).toEqual(runtimeDependencySummary(runtimeDependencies))
-    expect(receipt.outputs.map(output => output.path)).toEqual([
-      'docs/design/families/pie-highlightslice-regression-matrix.png',
-      'docs/design/families/pie-highlightslice-after.png',
-    ])
-    for (const output of receipt.outputs) {
-      expect(createHash('sha256').update(readFileSync(join(ROOT, output.path))).digest('hex'))
-        .toBe(output.sha256)
-    }
-  })
-
-  it('refreshes the receipt without rewriting reviewed PNG evidence', () => {
-    const outputPaths = [
-      join(ROOT, 'docs', 'design', 'families', 'pie-highlightslice-regression-matrix.png'),
-      join(ROOT, 'docs', 'design', 'families', 'pie-highlightslice-after.png'),
-    ]
-    const before = outputPaths.map(path => readFileSync(path))
-    const result = Bun.spawnSync([
-      'bun', 'run', join(ROOT, 'scripts', 'pr-assets', 'pie-highlightslice-evidence.ts'), '--receipt-only',
-    ], { cwd: ROOT })
-    expect(result.exitCode, result.stderr.toString()).toBe(0)
-    expect(result.stdout.toString()).toContain('without rewriting reviewed visual output')
-    expect(outputPaths.map(path => readFileSync(path))).toEqual(before)
   })
 })
 

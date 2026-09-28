@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { build as buildWithEsbuild } from 'esbuild'
+import tsupConfig from '../../tsup.config.ts'
 import {
   ALL_FAMILY_CAPABILITY_KEYS_ORDERED,
   ALL_RENDER_TRANSPORT_KEYS_ORDERED,
@@ -18,6 +20,7 @@ import {
   type FamilyScenePrimitiveEvidence,
 } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
+import { FIDELITY_CAPABILITY_REPORT } from '../fidelity-capability-report.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { DefaultBackend, registerBackend } from '../scene/backend.ts'
 import {
@@ -35,16 +38,33 @@ const ROOT = join(import.meta.dir, '..', '..')
 const MARKDOWN = join(ROOT, 'docs', 'project', 'section-a-capability-report.md')
 
 describe('Section A capability report', () => {
-  test('stays repository tooling without pulling audit corpora into the published surface', () => {
+  test('stays repository tooling without pulling audit corpora into the published surface', async () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     expect(pkg.exports['./capabilities']).toBeUndefined()
     expect(pkg.exports['./resources']).toBeUndefined()
     expect(existsSync(join(ROOT, 'src', 'capabilities.ts'))).toBe(false)
     expect(existsSync(join(ROOT, 'src', 'resources.ts'))).toBe(false)
-    const rendererBarrel = readFileSync(join(ROOT, 'src/index.ts'), 'utf8')
-    expect(rendererBarrel).not.toContain("'./section-a-capability-report.ts'")
-    expect(rendererBarrel).not.toContain("'./upstream-mermaid-manifest.ts'")
-  })
+    // Transitive, not just direct: bundle every published entry — the library
+    // exports and the `am`/MCP bins — and inspect what it actually pulls in.
+    const entries = Object.values((tsupConfig as { entry: Record<string, string> }).entry)
+    expect(entries).toContain('src/cli/am-bin.ts')
+    const auditModules = /(?:^|\/)src\/(?:section-a-capability-report|upstream-mermaid-manifest)\.ts$/
+    const pulled = await Promise.all(entries.map(async entry => {
+      const bundled = await buildWithEsbuild({
+        entryPoints: [join(ROOT, entry)],
+        absWorkingDir: ROOT,
+        bundle: true,
+        write: false,
+        metafile: true,
+        platform: 'node',
+        format: 'esm',
+        packages: 'external',
+        logLevel: 'silent',
+      })
+      return { entry, auditModules: Object.keys(bundled.metafile.inputs).filter(input => auditModules.test(input)) }
+    }))
+    expect(pulled).toEqual(entries.map(entry => ({ entry, auditModules: [] })))
+  }, 30_000)
 
   test('is a valid, immutable, JSON-safe projection of live authorities', () => {
     const report = createSectionACapabilityReport()
@@ -119,10 +139,12 @@ describe('Section A capability report', () => {
     expect(report.summary.syntaxAbsentCount).toBeGreaterThan(0)
     expect(report.fidelity).toMatchObject({
       authority: 'docs/project/fidelity-capability-report.json',
-      caseCount: 34,
-      featureCount: 15,
+      caseCount: FIDELITY_CAPABILITY_REPORT.summary.caseCount,
+      featureCount: FIDELITY_CAPABILITY_REPORT.summary.featureCount,
       upstreamRevision: report.upstream.commit,
     })
+    expect(report.fidelity.caseCount).toBeGreaterThanOrEqual(report.fidelity.featureCount)
+    expect(report.fidelity.featureCount).toBeGreaterThan(0)
     for (const feature of report.matrices.syntax.features) {
       if (feature.state === 'native') expect(feature.receipt.status).toBe('passed')
       if (feature.receipt.status === 'missing') expect(feature.state).toBe('absent')

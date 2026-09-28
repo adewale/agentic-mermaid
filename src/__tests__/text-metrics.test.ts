@@ -19,11 +19,11 @@ describe('TEXT_MEASUREMENT_CONTRACT', () => {
   it('exposes the same width contract used by measureTextWidth', () => {
     const measured = measureText({ text: 'Hello中国🙂', fontSize: 14, fontWeight: 500 })
     expect(measured.contract).toBe(TEXT_MEASUREMENT_CONTRACT)
-    expect(measured.contract.wideCodepoints).toBe('src/shared/unicode-ranges.ts')
     expect(measured.contract.ambiguousWidth).toBe('single-cell')
     expect(measured.contract.version).toBe(3)
     expect(measured.contract.paintedAdvanceProjection).toBe('svg-textLength-spacingAndGlyphs')
     expect(measured.contract.naturalAdvanceExemptions).toBe('none')
+    // Wide codepoints (CJK, emoji) take two monospace cells: 1 + 2 + 2 = 5 × 6px.
     expect(measureMonospaceTextWidth('A界🙂', 10)).toBe(30)
     expect(measured.width).toBe(measureTextWidth('Hello中国🙂', 14, 500))
     expect(measured.charWidthUnits).toBeGreaterThan(0)

@@ -11,5 +11,5 @@ as non-negotiable controls.
 
 ```sh
 bun run gallery:palette-harmony
-bun run gallery:palette-harmony:check
+bun test src/__tests__/palette-harmony-experiment.test.ts  # report matches a fresh computation
 ```

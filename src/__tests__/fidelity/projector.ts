@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import {
   FIDELITY_DISPOSITIONS,
   FIDELITY_SURFACES,
@@ -12,7 +11,6 @@ import {
   type FidelitySurface,
 } from './contract.ts'
 import { FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION } from '../../fidelity-capability-contract.ts'
-import { canonicalFidelityJson } from './runner.ts'
 import { compareCodePointStrings } from '../../shared/deterministic-order.ts'
 
 const DISPOSITION_RANK: Readonly<Record<FidelityDisposition, number>> = Object.freeze({
@@ -21,10 +19,6 @@ const DISPOSITION_RANK: Readonly<Record<FidelityDisposition, number>> = Object.f
   diagnosed: 2,
   absent: 3,
 })
-
-function sha256(value: string): string {
-  return createHash('sha256').update(value).digest('hex')
-}
 
 function isDisposition(value: unknown): value is FidelityDisposition {
   return typeof value === 'string' && FIDELITY_DISPOSITIONS.includes(value as FidelityDisposition)
@@ -190,8 +184,6 @@ export function projectFidelityCapabilityReport(receipt: FidelityReceiptResult):
     mode: 'public',
     publicClaimsChanged: true,
     upstreamRevision: receipt.upstream.manifestRevision,
-    receiptInputSha256: receipt.freshness.inputSha256,
-    receiptResultSha256: sha256(canonicalFidelityJson(receipt)),
     summary: {
       caseCount: receipt.summary.caseCount,
       featureCount: projected.length,

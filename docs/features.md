@@ -102,8 +102,8 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 `render` (svg/ascii/unicode/json with multi-input results; png uses one
 input plus `--output`; `--security strict`, `--watch`), `render-markdown` (skip bad blocks),
 `parse`, `verify`, `mutate` (`--op` or `--ops`), `preview` (strict standalone HTML + optional `--open`), `format`, `describe` (text/json),
-`capabilities --json` (including `families[].editPolicy`,
-`families[].mutationOps`, and the machine-readable `sectionA` contract matrix),
+`capabilities --json` (including `families[].editPolicy` and
+`families[].mutationOps`),
 `batch --jsonl` (including mutate),
 `llms-txt`, `init-agent`, `--agent-instructions`. `mutate` verifies before emitting source; `init-agent` writes a non-clobbering `AGENTS.md` section, root `skills/` bundle, and `.mcp.json` sample into a consumer repo.
 Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.details` arrays.

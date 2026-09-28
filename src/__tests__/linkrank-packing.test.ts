@@ -13,7 +13,8 @@ import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
-import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const cases: [string, string][] = [
   // Shove lands a node on a bystander: nodeOverlaps + edgeThroughNode without
@@ -79,25 +80,33 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
       expect(auditRouteContracts(positioned, graph)).toEqual([])
     }
   })
+})
 
-  // Characterization: pin the exact repaired geometry. Explicit hashes avoid
-  // Bun's concurrent cross-file snapshot-writer race in the full suite.
-  const expectedHashes: Record<string, string> = {
-    'shove overlap, LR diamond': '6d93304a97f9175b33a0366fb1782132563efa614106b5f943874bb81aa25b27',
-    'shove overlap, TD 2 components': 'b3aa838a9a3521ae523945719599a5bf5970629396552f5af259c758869dd987',
-    'shove overlap, RL long-link fan': '1488a87ddbae1535e35cb3267bab248e87804d4ccc982fef13029c7c3bab30ef',
-    'feedback rung, BT 3 components': 'c32f0dff6c2f8a499091a5f34eddd0cc3365c17084b310775719a68bf43134fa',
-    'dogleg staircase, TD': '5bb57ff4f46a0c23a30adf5518b6d3d791e7e053a0c261a5822625b4502ccd39',
-  }
-  for (const [name, src] of cases) {
-    test(`${name}: repaired geometry characterization`, () => {
-      const p = layoutGraphSync(parseMermaid(src))
-      const digest = {
-        nodes: p.nodes.map(n => `${n.id}@${n.x.toFixed(1)},${n.y.toFixed(1)} ${n.width.toFixed(1)}x${n.height.toFixed(1)}`),
-        edges: p.edges.map(e => `${e.source}->${e.target}: ${e.points.map(q => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ')}`),
-      }
-      const hash = createHash('sha256').update(JSON.stringify(digest)).digest('hex')
-      expect(hash).toBe(expectedHashes[name]!)
+// Issue #87 evidence fixtures: an authored `B ----> A` feedback edge requests
+// three ranks in every direction (Bug 1), and overlap repair must not compress
+// the N7 ----> N0 rank constraint again (Bug 2). These gaps were previously
+// asserted only by the gallery generator; they now gate every run.
+describe('issue #87 link-rank evidence fixtures keep the requested gap', () => {
+  const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'linkrank-feedback-packing', 'fixtures')
+  const fixtures = [
+    ...(['lr', 'rl', 'td', 'bt'] as const).map(dir => ({ file: `feedback-long-${dir}.mmd`, source: 'A', target: 'B' })),
+    { file: 'packing-td.mmd', source: 'N7', target: 'N0' },
+    { file: 'packing-bt.mmd', source: 'N7', target: 'N0' },
+  ]
+  for (const fixture of fixtures) {
+    test(`${fixture.file}: ${fixture.source}/${fixture.target} boundary gap is at least 224px`, () => {
+      const text = readFileSync(join(FIXTURES, fixture.file), 'utf8')
+      const direction = /^flowchart (LR|RL|TD|BT)\b/m.exec(text)![1] as 'LR' | 'RL' | 'TD' | 'BT'
+      const graph = parseMermaid(text)
+      const positioned = layoutGraphSync(graph)
+      const source = positioned.nodes.find(n => n.id === fixture.source)!
+      const target = positioned.nodes.find(n => n.id === fixture.target)!
+      const gap = direction === 'LR' ? target.x - (source.x + source.width)
+        : direction === 'RL' ? source.x - (target.x + target.width)
+          : direction === 'TD' ? target.y - (source.y + source.height)
+            : source.y - (target.y + target.height)
+      expect(gap).toBeGreaterThanOrEqual(223.5)
+      expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
     })
   }
 })

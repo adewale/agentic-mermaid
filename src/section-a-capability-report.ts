@@ -104,7 +104,7 @@ import {
   validateFidelityCapabilityReport,
 } from './fidelity-capability-report.ts'
 
-export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 14 as const
+export const SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION = 15 as const
 
 export { FAMILY_CAPABILITY_COLUMNS, UNREGISTERED_FAMILY_CAPABILITY_STATES }
 export type FamilyCapabilityColumn = FamilyCapability
@@ -324,8 +324,6 @@ export interface SectionACapabilityReport {
     authority: 'docs/project/fidelity-capability-report.json'
     schemaVersion: typeof FIDELITY_CAPABILITY_REPORT_SCHEMA_VERSION
     upstreamRevision: string
-    receiptInputSha256: string
-    receiptResultSha256: string
     caseCount: number
     featureCount: number
   }
@@ -376,33 +374,6 @@ export const ALL_FAMILY_CAPABILITY_KEYS_ORDERED: ExactKeySet<
   keyof SectionAFamilyCapabilityRow['capabilities'],
   FamilyCapability
 > = true
-
-/**
- * Small, stable projection for routine agent discovery. The exhaustive report
- * deliberately stays in repository audit tooling and its generated
- * Markdown artifact; returning its evidence corpora from every
- * `am capabilities` call makes ordinary discovery needlessly expensive.
- */
-export interface SectionACapabilityDiscoverySummary {
-  projectionVersion: 1
-  reportSchemaVersion: typeof SECTION_A_CAPABILITY_REPORT_SCHEMA_VERSION
-  reportDigest: string
-  upstreamPin: {
-    package: string
-    version: string
-    commit: string
-    inventorySha256: string
-  }
-  counts: SectionACapabilityReport['summary']
-  noAbsentSyntaxCapabilities: boolean
-  fidelity: SectionACapabilityReport['fidelity']
-  fullReport: {
-    repositoryModule: 'src/section-a-capability-report.ts'
-    factory: 'createSectionACapabilityReport'
-    markdown: 'docs/project/section-a-capability-report.md'
-    regenerateCommand: 'bun run section-a-report'
-  }
-}
 
 interface CharacterizationIndex {
   schemaVersion: number
@@ -863,8 +834,6 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
       authority: 'docs/project/fidelity-capability-report.json',
       schemaVersion: FIDELITY_CAPABILITY_REPORT.schemaVersion,
       upstreamRevision: FIDELITY_CAPABILITY_REPORT.upstreamRevision,
-      receiptInputSha256: FIDELITY_CAPABILITY_REPORT.receiptInputSha256,
-      receiptResultSha256: FIDELITY_CAPABILITY_REPORT.receiptResultSha256,
       caseCount: FIDELITY_CAPABILITY_REPORT.summary.caseCount,
       featureCount: FIDELITY_CAPABILITY_REPORT.summary.featureCount,
     },
@@ -900,7 +869,7 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
         {
           id: 'construct-fidelity-receipts',
           authority: 'docs/project/fidelity-capability-report.json',
-          freshnessGate: 'scripts/pr-assets/generate-fidelity-receipts.ts',
+          freshnessGate: 'src/__tests__/fidelity-receipts.test.ts',
         },
         ...CHARACTERIZATION.evidenceSystems.map(system => ({ ...system })),
       ],
@@ -914,32 +883,6 @@ export function createSectionACapabilityReport(): SectionACapabilityReport {
   const report = deepFreeze({ ...payload, digest: renderContractDigest(payload) }) as SectionACapabilityReport
   capabilityReportCache = { families: descriptors, backends: backendDescriptors, report }
   return report
-}
-
-/** Project the full audit report into the bounded `am capabilities` envelope. */
-export function sectionACapabilityDiscoverySummary(
-  report: SectionACapabilityReport = createSectionACapabilityReport(),
-): SectionACapabilityDiscoverySummary {
-  return deepFreeze({
-    projectionVersion: 1,
-    reportSchemaVersion: report.schemaVersion,
-    reportDigest: report.digest,
-    upstreamPin: {
-      package: report.upstream.package,
-      version: report.upstream.version,
-      commit: report.upstream.commit,
-      inventorySha256: report.upstream.inventorySha256,
-    },
-    counts: { ...report.summary },
-    noAbsentSyntaxCapabilities: report.summary.syntaxAbsentCount === 0,
-    fidelity: { ...report.fidelity },
-    fullReport: {
-      repositoryModule: 'src/section-a-capability-report.ts',
-      factory: 'createSectionACapabilityReport',
-      markdown: 'docs/project/section-a-capability-report.md',
-      regenerateCommand: 'bun run section-a-report',
-    },
-  }) as SectionACapabilityDiscoverySummary
 }
 
 function unique(values: readonly string[]): boolean {
@@ -1413,8 +1356,6 @@ export function validateSectionACapabilityReport(report: SectionACapabilityRepor
     authority: 'docs/project/fidelity-capability-report.json' as const,
     schemaVersion: FIDELITY_CAPABILITY_REPORT.schemaVersion,
     upstreamRevision: FIDELITY_CAPABILITY_REPORT.upstreamRevision,
-    receiptInputSha256: FIDELITY_CAPABILITY_REPORT.receiptInputSha256,
-    receiptResultSha256: FIDELITY_CAPABILITY_REPORT.receiptResultSha256,
     caseCount: FIDELITY_CAPABILITY_REPORT.summary.caseCount,
     featureCount: FIDELITY_CAPABILITY_REPORT.summary.featureCount,
   }
@@ -1511,9 +1452,9 @@ export function sectionACapabilityReportMarkdown(report: SectionACapabilityRepor
   out.push('')
   out.push('Public syntax claims fail closed against the generated construct receipts. A pinned upstream feature without a current passing receipt is `absent`; source preservation, a diagnostic, or an intentional divergence remains visible and cannot be promoted to `native`.')
   out.push('')
-  out.push('| Authority | Schema | Upstream revision | Cases | Receipted features | Receipt input SHA-256 | Receipt result SHA-256 |')
-  out.push('|---|---:|---|---:|---:|---|---|')
-  out.push(`| ${md(report.fidelity.authority)} | ${report.fidelity.schemaVersion} | ${report.fidelity.upstreamRevision} | ${report.fidelity.caseCount} | ${report.fidelity.featureCount} | ${report.fidelity.receiptInputSha256} | ${report.fidelity.receiptResultSha256} |`)
+  out.push('| Authority | Schema | Upstream revision | Cases | Receipted features |')
+  out.push('|---|---:|---|---:|---:|')
+  out.push(`| ${md(report.fidelity.authority)} | ${report.fidelity.schemaVersion} | ${report.fidelity.upstreamRevision} | ${report.fidelity.caseCount} | ${report.fidelity.featureCount} |`)
   out.push('')
   out.push('## State vocabularies')
   out.push('')

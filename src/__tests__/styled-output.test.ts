@@ -8,9 +8,10 @@
 // The baseline lives under testdata/, so golden-drift review applies.
 
 import { describe, test, expect } from 'bun:test'
+import { plugin } from 'bun'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
@@ -314,19 +315,29 @@ describe('bundled fonts', () => {
     }
   })
 
-  test('hosted PNG worker bundles every hosted style/default face', () => {
-    const hostedPng = readFileSync(join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts'), 'utf8')
-    const generatedDir = join(import.meta.dir, '..', '..', 'website', 'src', 'generated')
+  test('hosted PNG worker loads and verifies every hosted face, and reports legibility warnings', async () => {
+    // The Worker's .ttf/.wasm imports are Wrangler-owned module rules. Serve
+    // them as the same bytes here so the real worker module runs natively.
+    const loadedAssets: string[] = []
+    plugin({
+      name: 'hosted-png-worker-assets',
+      setup(build) {
+        build.onLoad({ filter: /[\\/]website[\\/]src[\\/]generated[\\/][^\\/]+\.(?:ttf|wasm)$/ }, args => {
+          loadedAssets.push(basename(args.path))
+          return { exports: { default: new Uint8Array(readFileSync(args.path)).buffer }, loader: 'object' }
+        })
+      },
+    })
+    const { renderMermaidPNGWasm } = await import('../../website/src/png-wasm.ts')
+    expect(loadedAssets.filter(file => file.endsWith('.ttf')).sort())
+      .toEqual(HOSTED_FONT_RESOURCES.map(font => font.file).sort())
 
-    for (const { file } of HOSTED_FONT_RESOURCES) {
-      expect(hostedPng).toContain(`./generated/${file}`)
-      expect(existsSync(join(generatedDir, file))).toBe(true)
-    }
-    // The Worker cannot be imported into this native test runtime because its
-    // WASM/font modules are Wrangler-owned. Pin its final warning propagation
-    // seam while shared projection behavior is exercised by the native and
-    // browser suites.
-    expect(hostedPng).toContain('...graphical.legibilityWarnings')
+    // The first render verifies every bundled face against its manifest
+    // digest before rasterizing. fitTo shrinks 11px labels below the 9px
+    // floor, so the shared legibility gate must surface in the hosted result.
+    const { png, warnings } = await renderMermaidPNGWasm('flowchart LR\n  A[Start] -- go --> B[Finish]\n', { fitTo: { width: 100 } })
+    expect(Array.from(png.subarray(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'BELOW_READABLE_SIZE', cause: 'fitTo' }))
   })
 })
 

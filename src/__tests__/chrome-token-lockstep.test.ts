@@ -8,12 +8,14 @@
  *   editor/css/variables.css           --t-* triplet + functional hues
  *   editor/js/rendering.js             chromeThemeColors() light/dark triplets
  *
- * This test extracts the shared tokens from all three and asserts equality, so
- * the next drift fails CI instead of shipping.
+ * This test reads the CSS tokens, evaluates rendering.js's chromeThemeColors()
+ * in both colour modes, and asserts equality, so the next drift fails CI
+ * instead of shipping.
  */
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { evaluateBrowserScript } from './browser-script-harness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const siteCss = readFileSync(join(REPO, 'website/source/assets/styles.css'), 'utf8')
@@ -25,6 +27,16 @@ function cssHex(css: string, name: string): string {
   const m = css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`))
   expect(Boolean(m), `--${name} not found`).toBe(true)
   return m![1]!.toUpperCase()
+}
+
+/** The triplet the running editor applies to the app shell in one colour mode. */
+function chromeThemeColors(isDark: boolean): { bg: string; fg: string; accent: string } {
+  const colors = evaluateBrowserScript<{ bg: string; fg: string; accent: string }>(
+    renderingJs,
+    { isDark, verifyDetailsBtn: null },
+    'chromeThemeColors()',
+  )
+  return { bg: colors.bg.toUpperCase(), fg: colors.fg.toUpperCase(), accent: colors.accent.toUpperCase() }
 }
 
 /** The `[data-scheme="dark"]` block of a stylesheet. */
@@ -40,9 +52,7 @@ describe('editor and site chrome share one brand system', () => {
     const editor = { bg: cssHex(editorCss, 't-bg'), fg: cssHex(editorCss, 't-fg'), accent: cssHex(editorCss, 't-accent') }
     expect(editor).toEqual(site)
 
-    const js = renderingJs.match(/:\s*{\s*bg:\s*"(#[0-9a-fA-F]{6})",\s*fg:\s*"(#[0-9a-fA-F]{6})",\s*accent:\s*"(#[0-9a-fA-F]{6})"\s*}/)
-    expect(Boolean(js), 'light triplet in chromeThemeColors()').toBe(true)
-    expect({ bg: js![1]!.toUpperCase(), fg: js![2]!.toUpperCase(), accent: js![3]!.toUpperCase() }).toEqual(site)
+    expect(chromeThemeColors(false)).toEqual(site)
   })
 
   test('brand chip tokens match', () => {
@@ -54,9 +64,7 @@ describe('editor and site chrome share one brand system', () => {
     // The site shell is light-only, so the Charcoal triplet lives in two
     // places: editor/css/variables.css [data-scheme="dark"] and the isDark
     // branch of chromeThemeColors() (whose inline styles win at runtime).
-    const js = renderingJs.match(/\?\s*{\s*bg:\s*"(#[0-9a-fA-F]{6})",\s*fg:\s*"(#[0-9a-fA-F]{6})",\s*accent:\s*"(#[0-9a-fA-F]{6})"\s*}/)
-    expect(Boolean(js), 'dark triplet in chromeThemeColors()').toBe(true)
-    const dark = { bg: js![1]!.toUpperCase(), fg: js![2]!.toUpperCase(), accent: js![3]!.toUpperCase() }
+    const dark = chromeThemeColors(true)
     const editorDark = darkBlock(editorCss)
     expect({ bg: cssHex(editorDark, 't-bg'), fg: cssHex(editorDark, 't-fg'), accent: cssHex(editorDark, 't-accent') }).toEqual(dark)
     // The dark accent IS the brand chip colour, in both stylesheets.
@@ -95,9 +103,7 @@ describe('editor and site chrome share one brand system', () => {
     }
     const lightGap = gap(hue(cssHex(siteCss, 'accent')), hue(cssHex(siteCss, 'success')))
     expect(lightGap).toBeGreaterThanOrEqual(20)
-    const darkAccent = renderingJs.match(/\?\s*{\s*bg:\s*"#[0-9a-fA-F]{6}",\s*fg:\s*"#[0-9a-fA-F]{6}",\s*accent:\s*"(#[0-9a-fA-F]{6})"/)
-    expect(Boolean(darkAccent)).toBe(true)
-    const darkGap = gap(hue(darkAccent![1]!.toUpperCase()), hue(cssHex(darkBlock(siteCss), 'success')))
+    const darkGap = gap(hue(chromeThemeColors(true).accent), hue(cssHex(darkBlock(siteCss), 'success')))
     expect(darkGap).toBeGreaterThanOrEqual(20)
   })
 

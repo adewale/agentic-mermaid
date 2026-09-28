@@ -1,58 +1,12 @@
-import { mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { mutate, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { verifyNoExternalRefs } from '../../../index.ts'
-import type { ApplicableFidelitySurfaceExpectation, FidelityCaseDefinition, FidelityDisposition, FidelityJson, NotApplicableFidelitySurfaceExpectation, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { applicable, attrs, facts, fail, isRecord, notApplicable, parsedOrThrow, record, same, svgNumber, tags } from '../case-helpers.ts'
+import type { FidelityCaseDefinition, FidelityDisposition, FidelityJson } from '../contract.ts'
 
 const UPSTREAM_REVISION = 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc'
 
-function fail(message: string): never {
-  throw new Error(message)
-}
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Readonly<Record<string, FidelityJson>> {
-  if (!isRecord(evidence.semantics)) fail('semantic evidence must be an object')
-  return evidence.semantics
-}
-
-function record(value: FidelityJson, context: string): Readonly<Record<string, FidelityJson>> {
-  if (!isRecord(value)) fail(`${context} must be an object`)
-  return value as Readonly<Record<string, FidelityJson>>
-}
-
-function applicable(disposition: FidelityDisposition, evaluate: ApplicableFidelitySurfaceExpectation['evaluate'], diagnosticCodes: readonly string[] = []): ApplicableFidelitySurfaceExpectation {
-  return { applicability: 'applicable', disposition, diagnosticCodes, evaluate }
-}
-
-function notApplicable(rationale: string): NotApplicableFidelitySurfaceExpectation {
-  return { applicability: 'not-applicable', rationale }
-}
-
-function parsedOrThrow(source: string) {
-  const parsed = parseRegisteredMermaid(source)
-  if (!parsed.ok) fail(`agent parse failed: ${parsed.error.map(error => error.code).join(', ')}`)
-  return parsed.value
-}
-
-function attributes(tag: string): Record<string, string> {
-  return Object.fromEntries([...tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
-}
-
-function svgNumber(candidate: FidelityJson): number | null {
-  if (typeof candidate !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(candidate)) return null
-  const parsed = Number(candidate)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
 function textNodes(svg: string): string[] {
   return [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => match[1]!.replace(/<[^>]+>/g, ''))
-}
-
-function tagsWithClass(svg: string, element: string, className: string): Record<string, string>[] {
-  const tags = [...svg.matchAll(new RegExp(`<${element}\\b[^>]*>`, 'g'))].map(match => match[0]!)
-  return tags.map(attributes).filter(attrs => (attrs.class ?? '').split(/\s+/).includes(className))
 }
 
 function flowchartEdgeFacts(diagram: ReturnType<typeof parsedOrThrow>): FidelityJson {
@@ -131,7 +85,7 @@ function matchesXychartFacts(value: FidelityJson, secondValue: number): boolean 
     semanticFacts.title === 'Revenue; Q1' &&
     semanticFacts.horizontal === true &&
     xAxis.name === null &&
-    JSON.stringify(xAxis.categories) === JSON.stringify(['Jan', 'Feb']) &&
+    same(xAxis.categories, ['Jan', 'Feb']) &&
     xAxis.range === null &&
     yAxis.name === 'USD' &&
     yAxis.categories === null &&
@@ -139,7 +93,7 @@ function matchesXychartFacts(value: FidelityJson, secondValue: number): boolean 
     yRange.max === 100 &&
     first.kind === 'bar' &&
     first.name === 'Online' &&
-    JSON.stringify(first.values) === JSON.stringify([10, secondValue]) &&
+    same(first.values, [10, secondValue]) &&
     first.pointLabels === null
   )
 }
@@ -152,7 +106,7 @@ function matchesXychartBars(value: FidelityJson, expectedValues: readonly [strin
     const numericWidth = svgNumber(actual.width ?? null)
     const numericHeight = svgNumber(actual.height ?? null)
     const numericValue = Number(expectedValues[index])
-    if (numericWidth === null || numericHeight === null || !Number.isFinite(numericValue) || numericWidth <= 0 || numericHeight <= 0 || numericValue <= 0 || numericWidth >= numericHeight) return null
+    if (!Number.isFinite(numericWidth) || !Number.isFinite(numericHeight) || !Number.isFinite(numericValue) || numericWidth <= 0 || numericHeight <= 0 || numericValue <= 0 || numericWidth >= numericHeight) return null
     return { width: numericWidth, height: numericHeight, value: numericValue }
   })
   if (dimensions.some(dimension => dimension === null)) return false
@@ -176,9 +130,9 @@ function sankeyRenderFacts(svg: string): FidelityJson {
   const gradientTags = [...svg.matchAll(/<linearGradient\b[^>]*>[\s\S]*?<\/linearGradient>/g)].map(match => match[0]!)
   const gradientTag = gradientTags[0] ?? ''
   const opening = gradientTag.match(/^<linearGradient\b[^>]*>/)?.[0] ?? ''
-  const gradientAttributes = attributes(opening)
-  const stops = [...gradientTag.matchAll(/<stop\b[^>]*\/>/g)].map(match => attributes(match[0]!))
-  const links = tagsWithClass(svg, 'path', 'sankey-link')
+  const gradientAttributes = attrs(opening)
+  const stops = [...gradientTag.matchAll(/<stop\b[^>]*\/>/g)].map(match => attrs(match[0]!))
+  const links = tags(svg, 'path', 'sankey-link')
   return {
     gradientCount: gradientTags.length,
     gradient: {
@@ -230,10 +184,10 @@ const sankeyGradientEndpoints: FidelityCaseDefinition = {
         typeof gradient.id === 'string' &&
         gradient.id.length > 0 &&
         gradient.units === 'userSpaceOnUse' &&
-        x1 !== null &&
-        y1 !== null &&
-        x2 !== null &&
-        y2 !== null &&
+        Number.isFinite(x1) &&
+        Number.isFinite(y1) &&
+        Number.isFinite(x2) &&
+        Number.isFinite(y2) &&
         x1 === endpoints.startX &&
         y1 === endpoints.startY &&
         x2 === endpoints.endX &&
@@ -330,8 +284,8 @@ function sankeyCompositingCase(id: string, background: string, expectedDispositi
     },
     observe: () => {
       const svg = renderMermaidSVG(sankeyGradientSource, { bg: background })
-      const rootStyle = attributes(svg.match(/^<svg\b[^>]*>/)?.[0] ?? '').style ?? ''
-      const links = tagsWithClass(svg, 'path', 'sankey-link')
+      const rootStyle = attrs(svg.match(/^<svg\b[^>]*>/)?.[0] ?? '').style ?? ''
+      const links = tags(svg, 'path', 'sankey-link')
       return {
         render: {
           status: 'observed',
@@ -391,7 +345,7 @@ const xychartSharedParser: FidelityCaseDefinition = {
     const mutatedSource = mutation.ok ? serializeMermaid(mutation.value) : ''
     const mutatedSvg = mutation.ok ? renderMermaidSVG(mutatedSource) : ''
     const barFacts = (rendered: string) =>
-      tagsWithClass(rendered, 'rect', 'xychart-bar').map(bar => ({
+      tags(rendered, 'rect', 'xychart-bar').map(bar => ({
         label: bar['data-label'] ?? null,
         value: bar['data-value'] ?? null,
         width: bar.width ?? null,
@@ -505,7 +459,7 @@ const xychartUnknownStatementSeam: FidelityCaseDefinition = {
         semantics: {
           errorMessage: renderErrorMessage,
           verificationOk: verification.ok,
-          bars: tagsWithClass(rendered, 'rect', 'xychart-bar').map(bar => ({
+          bars: tags(rendered, 'rect', 'xychart-bar').map(bar => ({
             label: bar['data-label'] ?? null,
             value: bar['data-value'] ?? null,
           })),
@@ -549,12 +503,12 @@ function matchesFlowchartEdges(value: FidelityJson, expected: readonly Readonly<
 
 function flowchartRenderFacts(rendered: string): FidelityJson {
   const edges = [...rendered.matchAll(/<(?:path|polyline)\b[^>]*(?:data-from|data-to)="[^"]+"[^>]*>/g)]
-    .map(match => attributes(match[0]!))
+    .map(match => attrs(match[0]!))
     .filter(edge => edge['data-from'] && edge['data-to'])
     .map(edge => ({ source: edge['data-from']!, target: edge['data-to']!, label: edge['data-label'] ?? null }))
   const labelGroups = [...rendered.matchAll(/<g\b[^>]*class="[^"]*\bedge-label\b[^"]*"[^>]*>[\s\S]*?<\/g>/g)].map(match => {
     const opening = match[0].match(/^<g\b[^>]*>/)?.[0] ?? ''
-    const group = attributes(opening)
+    const group = attrs(opening)
     return {
       source: group['data-from'] ?? null,
       target: group['data-to'] ?? null,

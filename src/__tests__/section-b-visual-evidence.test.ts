@@ -2,12 +2,11 @@ import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { buildSectionBBrandEvidence, buildSectionBBrandEvidenceReceipt, SECTION_B_BASELINE_COMMIT, sectionBVariantHeadingMarkup } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
+import { buildSectionBBrandEvidence, GRAPHICAL_BACKEND_PROBES, runSectionBBackendProbe, SECTION_B_BASELINE_COMMIT, sectionBVariantHeadingMarkup, sectionBVisualApproval } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 import { knownBuiltinFamilies } from '../agent/families.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PNG = join(ROOT, 'docs/design/families/section-b-brand-evidence.png')
-const RECEIPT = join(ROOT, 'eval/section-b-brand-evidence/evidence-receipt.json')
 const APPROVAL = join(ROOT, 'eval/section-b-brand-evidence/visual-approval.json')
 
 function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
@@ -35,56 +34,32 @@ describe('Section B generated visual evidence', () => {
     expect(checked.byteLength).toBeGreaterThan(500_000)
   }, 120_000)
 
-  test('receipt covers every built-in family, sentinel plus three holdouts, public output paths, and an honest hard-error baseline', () => {
-    const receipt = JSON.parse(readFileSync(RECEIPT, 'utf8'))
-    expect(receipt).toEqual(buildSectionBBrandEvidenceReceipt())
-    expect(receipt.families).toEqual(knownBuiltinFamilies())
-    expect(receipt.variants).toEqual(['Sentinel · every channel deliberately distinctive', 'Holdout · warm editorial', 'Holdout · light technical', 'Holdout · dark operations'])
-    expect(receipt.outputPaths).toEqual({
-      graphicalCells: 'public native renderMermaidPNG',
-      graphicalBackends: 'public renderMermaidSVG + renderMermaidPNG sentinel probes',
-      terminal: 'public renderMermaidASCII (Unicode, no color)',
-    })
-    expect(receipt.graphicalBackends).toEqual(
-      Object.fromEntries(
-        ['default', 'rough', 'hybrid'].map(backend => [
-          backend,
-          {
-            familyCount: knownBuiltinFamilies().length,
-            svgSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-            pngSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-          },
-        ]),
-      ),
-    )
-    expect(receipt.terminalSha256).toMatch(/^[a-f0-9]{64}$/)
-    expect(receipt.fontInputs).toEqual([
-      { path: 'assets/fonts/DejaVuSans-Bold.ttf', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
-      { path: 'assets/fonts/DejaVuSans.ttf', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) },
-    ])
-    expect(receipt.baseline).toMatchObject({
-      state: 'unsupported-style-fields',
-      expected: expect.stringContaining('no fabricated before image'),
-    })
-    expect(receipt.baseline).toMatchObject({ commit: SECTION_B_BASELINE_COMMIT, expectedExitCode: 2 })
-    expect(receipt.baseline.command).toContain(SECTION_B_BASELINE_COMMIT)
-    expect(receipt.baseline.command).not.toContain('origin/main')
-    expect(receipt.baseline.command).toContain('eval/section-b-brand-evidence/baseline.mmd')
-    expect(receipt.baseline.command).toContain('eval/section-b-brand-evidence/role-style.json')
-    expect(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/baseline.mmd'), 'utf8')).toContain('flowchart LR')
-    expect(JSON.parse(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/role-style.json'), 'utf8'))).toHaveProperty('roles.node')
-    expect(receipt.outputs).toEqual([expect.objectContaining({ path: 'docs/design/families/section-b-brand-evidence.png', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) })])
-    expect(receipt.outputs[0].sha256).toBe(createHash('sha256').update(readFileSync(PNG)).digest('hex'))
+  test('the human approval names the exact committed bytes and the frozen baseline inputs exist', () => {
     const approval = JSON.parse(readFileSync(APPROVAL, 'utf8'))
-    expect(receipt.visualApproval).toEqual({
+    expect(sectionBVisualApproval()).toEqual({
       path: 'eval/section-b-brand-evidence/visual-approval.json',
       status: 'approved',
-      artifactSha256: receipt.outputs[0].sha256,
+      artifactSha256: createHash('sha256').update(readFileSync(PNG)).digest('hex'),
       reviewedAt: approval.reviewedAt,
       reviewer: approval.reviewer,
       audit: approval.audit,
     })
     expect(approval.scope).toContain('64 family-by-variant cells')
+    expect(SECTION_B_BASELINE_COMMIT).toMatch(/^[0-9a-f]{40}$/)
+    expect(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/baseline.mmd'), 'utf8')).toContain('flowchart LR')
+    expect(JSON.parse(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/role-style.json'), 'utf8'))).toHaveProperty('roles.node')
     expect(readFileSync(join(ROOT, 'docs/style-authoring.md'), 'utf8')).toContain('plus three holdout styles')
-  }, 120_000)
+  })
+
+  test('the sentinel renders every built-in family through the default, rough, and hybrid backends', () => {
+    expect(GRAPHICAL_BACKEND_PROBES.map(([backend]) => backend)).toEqual(['default', 'rough', 'hybrid'])
+    for (const [backend, style] of GRAPHICAL_BACKEND_PROBES) {
+      const probe = runSectionBBackendProbe(style)
+      expect(probe.map(entry => entry.family), backend).toEqual(knownBuiltinFamilies())
+      for (const entry of probe) {
+        expect(entry.svgBytes, `${backend} ${entry.family} svg`).toBeGreaterThan(0)
+        expect(entry.pngBytes, `${backend} ${entry.family} png`).toBeGreaterThan(0)
+      }
+    }
+}, 120_000)
 })

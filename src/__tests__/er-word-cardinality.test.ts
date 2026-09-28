@@ -1,14 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid, asEr, mutate, serializeMermaid } from '../agent/index.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
 import { parseErDiagram, parseErRelationshipSyntax } from '../er/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 const parseNative = (statement: string) => parseErDiagram(['erDiagram', statement])
-const asset = (name: string): string => join(import.meta.dir, '..', '..', 'docs', 'pr-assets', name)
 
 const aliases = [
   ['one or zero', 'zero-one', 'zero-or-one'],
@@ -167,12 +163,10 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
     ])
   })
 
-  test('reviewer-facing before/after SVG and PNG are real renderer artifacts', () => {
-    const source = 'erDiagram\nCAR 1 to zero or more DRIVER : allows\n'
-    const before = readFileSync(asset('issue-248-er-word-before.svg'), 'utf8')
-    expect(before).toContain('width="0" height="0"')
-    expect(before).not.toContain('er-relationship')
-    expect(renderMermaidSVG(source, { embedFontImport: false })).toBe(readFileSync(asset('issue-248-er-word-after.svg'), 'utf8'))
-    expect(Buffer.from(renderMermaidPNG(source, { scale: 1 }))).toEqual(readFileSync(asset('issue-248-er-word-after.png')))
+  test('a word-form relationship renders one edge carrying both word cardinalities', () => {
+    const svg = renderMermaidSVG('erDiagram\nCAR 1 to zero or more DRIVER : allows\n')
+    const relations = svg.match(/<polyline class="er-relationship"[^>]*>/g) ?? []
+    expect(relations).toHaveLength(1)
+    expect(relations[0]).toContain('data-from="CAR" data-to="DRIVER" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true"')
   })
 })

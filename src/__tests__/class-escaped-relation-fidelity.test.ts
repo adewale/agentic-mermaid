@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
 import { parseClassDiagram, parseClassRelationship } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
@@ -378,15 +375,11 @@ describe('Class escaped relationship IDs', () => {
     expect(performance.now() - start).toBeLessThan(500)
   })
 
-  test('before/after visual assets are authentic same-source production output', () => {
-    const source = 'classDiagram\n`class A` --> B'
-    const before = readFileSync(new URL('../../docs/pr-assets/issue-248-class-escaped-relation-before.svg', import.meta.url), 'utf8')
-    const after = readFileSync(new URL('../../docs/pr-assets/issue-248-class-escaped-relation-after.svg', import.meta.url), 'utf8')
-    const png = readFileSync(new URL('../../docs/pr-assets/issue-248-class-escaped-relation-after.png', import.meta.url))
-    expect(createHash('sha256').update(before).digest('hex')).toBe('1d3844675611dce1ba9968c146bd75141ad722356eda6285a6951839b8835582')
-    expect(before).toContain('width="0" height="0"')
-    expect(before).not.toContain('class="class-relationship"')
-    expect(after).toBe(renderMermaidSVG(source))
-    expect(png.equals(Buffer.from(renderMermaidPNG(source, { scale: 2 })))).toBe(true)
+  test('a reserved-word escaped endpoint draws one directed relationship between both classes', () => {
+    const svg = renderMermaidSVG('classDiagram\n`class A` --> B')
+    const relations = svg.match(/<(?:path|polyline) class="class-relationship"[^>]*>/g) ?? []
+    expect(relations).toHaveLength(1)
+    expect(relations[0]).toContain('data-from="class A" data-to="B" data-type="association"')
+    expect(relations[0]).toContain('marker-end="url(#cls-arrow)"')
   })
 })

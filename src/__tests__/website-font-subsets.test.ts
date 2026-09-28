@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import manifestJson from '../../website/source/assets/fonts/inter/manifest.json'
-import type { WebsitePayloadReport } from '../../scripts/site/website-payload-authority.ts'
 import { WEBSITE_PAYLOAD_BUDGETS } from '../../scripts/site/website-payload-budgets.ts'
 import {
   WEBSITE_INTER_GLYPH_PROBES,
@@ -26,7 +25,6 @@ ensureWebsiteBuilt()
 const ROOT = join(import.meta.dir, '..', '..')
 const PUBLIC = join(ROOT, 'website', 'public')
 const manifest = manifestJson as unknown as WebsiteInterSubsetManifest
-const payload = JSON.parse(readFileSync(join(ROOT, 'eval', 'website-payload', 'baseline.json'), 'utf8')) as WebsitePayloadReport
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
 describe('canonical website Inter subsets', () => {
@@ -80,29 +78,24 @@ describe('canonical website Inter subsets', () => {
       .toEqual(manifest.outputs.map(output => output.file).sort())
   })
 
-  test('clears both compressed-route stop gates while retaining the full-font blank editor', () => {
+  test('route budgets encode both compressed-route stop gates and the full-font blank editor', () => {
     // These fixed pre-optimization totals independently prove that the public
-    // routes retain the required compression improvement.
+    // routes retain the required compression improvement. website:payload:check
+    // enforces the budgets against a live capture on every PR, so bounding each
+    // budget by its stop gate keeps the gate live without a recorded report.
     const starting = {
       home: { rawBytes: 1_252_938, gzipBytes: 642_665, brotliBytes: 557_024 },
       examples: { rawBytes: 3_283_215, gzipBytes: 1_007_440, brotliBytes: 821_122 },
     }
     for (const id of ['home', 'examples'] as const) {
-      const route = payload.routes.find(candidate => candidate.id === id)!
-      expect(route.totals.gzipBytes / starting[id].gzipBytes, `${id} gzip`).toBeLessThanOrEqual(0.7)
-      expect(route.totals.brotliBytes / starting[id].brotliBytes, `${id} Brotli`).toBeLessThanOrEqual(0.7)
-      expect(route.requests.some(request => /^\/fonts\/Inter-.*\.ttf$/.test(request.path)), `${id} full TTF`).toBe(false)
+      const budget = WEBSITE_PAYLOAD_BUDGETS[id]!
+      expect(budget.maxGzipBytes / starting[id].gzipBytes, `${id} gzip`).toBeLessThanOrEqual(0.7)
+      expect(budget.maxBrotliBytes / starting[id].brotliBytes, `${id} Brotli`).toBeLessThanOrEqual(0.7)
+      expect(budget.forbidden, `${id} full TTF`).toContain('^/fonts/Inter-.*\\.ttf$')
     }
-    const editor = payload.routes.find(candidate => candidate.id === 'editor-empty')!
     const editorBudget = WEBSITE_PAYLOAD_BUDGETS['editor-empty']!
-    expect(editor.totals.requests, 'editor requests').toBeLessThanOrEqual(editorBudget.maxRequests)
-    expect(editor.totals.rawBytes, 'editor raw').toBeLessThanOrEqual(editorBudget.maxRawBytes)
-    expect(editor.totals.gzipBytes, 'editor gzip').toBeLessThanOrEqual(editorBudget.maxGzipBytes)
-    expect(editor.totals.brotliBytes, 'editor Brotli').toBeLessThanOrEqual(editorBudget.maxBrotliBytes)
-    expect(editor.requests.map(request => request.path)).toEqual([
-      '/editor/',
-      expect.stringMatching(/^\/editor\/editor-[a-f0-9]{12}\.js$/),
-    ])
+    expect(editorBudget.maxRequests).toBe(2)
+    expect(editorBudget.required).toEqual(['^/editor/$', '^/editor/editor-[a-f0-9]{12}\\.js$'])
   })
 
   test('rejects source, content-address, coverage, and byte-ceiling sabotage', () => {

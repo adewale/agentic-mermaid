@@ -36,7 +36,9 @@
         "noDebugger": "error",
         "noDoubleEquals": "error",
         "noDuplicateCase": "error",
-        "noDuplicateClassMembers": "error"
+        "noDuplicateClassMembers": "error",
+        "noFocusedTests": "error",
+        "noSkippedTests": "error"
       }
     }
   },

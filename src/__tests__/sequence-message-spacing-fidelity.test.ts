@@ -1,6 +1,4 @@
 import { expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
@@ -105,10 +103,6 @@ test('a long malformed whitespace tail is rejected without marker backtracking',
   expect(performance.now() - start).toBeLessThan(500)
 })
 
-test('the reviewer-facing after SVG is current output and the before SVG shows both dropped messages', () => {
-  const asset = (which: 'before' | 'after') => readFileSync(
-    join(import.meta.dir, `../../docs/pr-assets/issue-248-sequence-message-spacing-${which}.svg`), 'utf8')
-  expect(asset('after')).toBe(renderMermaidSVG(gallerySource))
-  expect(svgTexts(asset('before'))).toEqual(['Hello', 'Alice', 'Bob'])
-  expect(svgTexts(asset('after'))).toEqual(['Hello', 'Hi', 'Center', 'Alice', 'Bob'])
+test('the reviewed gallery source draws the activation, deactivation, and central messages', () => {
+  expect(drawnTexts(gallerySource)).toEqual(['Hello', 'Hi', 'Center', 'Alice', 'Bob'])
 })

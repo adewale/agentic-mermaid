@@ -17,7 +17,7 @@ Regenerate and verify with:
 
 ```sh
 bun run eval:family-portfolio
-bun run eval:family-portfolio:check
+bun test src/__tests__/mermaid-family-portfolio.test.ts
 ```
 
 Reports should publish both this portfolio's family-macro result and the full

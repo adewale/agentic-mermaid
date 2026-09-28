@@ -4,6 +4,9 @@
 // tick generation with a too-fine explicit tickInterval.
 
 import { describe, test, expect } from 'bun:test'
+// resolveRenderRequest needs the built-in family resolver; install it here so
+// this file does not depend on another test file having imported it first.
+import '../agent/families.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { layoutGantt, resolveTicks, GANTT_MAX_TICKS } from '../gantt/layout.ts'

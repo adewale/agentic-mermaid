@@ -6,8 +6,8 @@
  *
  * The same scenarios are pinned in `src/__tests__/contact-sheet.test.ts`
  * (geometry snapshots + zero hard rubric metrics), and
- * `src/__tests__/contact-sheet-png.test.ts` byte-compares the committed PNG
- * so the human-review artifact is also a visual-regression gate.
+ * `src/__tests__/contact-sheet-png.test.ts` checks this generator still
+ * paints one cell per scenario. The PNG is a review artifact, not a golden.
  */
 import { Resvg } from '@resvg/resvg-js'
 import { mkdirSync, writeFileSync } from 'node:fs'

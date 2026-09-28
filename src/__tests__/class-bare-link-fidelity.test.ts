@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { parseClassDiagram, parseClassRelationship } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -278,17 +275,5 @@ describe('Class markerless link fidelity', () => {
       expect(parsed.ok).toBe(true)
       if (parsed.ok) expect(asClass(parsed.value)?.body.relations).toHaveLength(1)
     }
-  })
-
-  test('before/after visual assets are authentic same-input production output', () => {
-    const source = 'classDiagram\nclassO .. classP : Link(Dashed)'
-    const before = readFileSync(new URL('../../docs/pr-assets/issue-248-class-bare-link-before.svg', import.meta.url), 'utf8')
-    const after = readFileSync(new URL('../../docs/pr-assets/issue-248-class-bare-link-after.svg', import.meta.url), 'utf8')
-    const png = readFileSync(new URL('../../docs/pr-assets/issue-248-class-bare-link-after.png', import.meta.url))
-    expect(createHash('sha256').update(before).digest('hex')).toBe('1d3844675611dce1ba9968c146bd75141ad722356eda6285a6951839b8835582')
-    expect(before).toContain('width="0" height="0"')
-    expect(before).not.toContain('class="class-relationship"')
-    expect(after).toBe(renderMermaidSVG(source))
-    expect(png.equals(Buffer.from(renderMermaidPNG(source, { scale: 2 })))).toBe(true)
   })
 })

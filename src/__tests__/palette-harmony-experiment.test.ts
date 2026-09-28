@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { buildPaletteHarmonyReport } from '../../scripts/pr-assets/palette-harmony-experiment.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import {
   HARMONY_TEMPLATES,
@@ -24,5 +27,10 @@ describe('optional {1,2,3,4} harmony experiment', () => {
     expect(fit).toEqual(bestHarmonyFit(base))
     expect(harmony).toEqual(harmonizePalette(base, fit))
     expect(harmonyLoss(harmony, fit.template, fit.orientation)).toBeLessThan(fit.loss)
+  })
+
+  it('the committed report matches a fresh computation', () => {
+    const committed = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'eval', 'palette-harmony', 'report.json'), 'utf8'))
+    expect(committed).toEqual(JSON.parse(JSON.stringify(buildPaletteHarmonyReport())))
   })
 })

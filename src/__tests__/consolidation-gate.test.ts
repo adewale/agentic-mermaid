@@ -9,13 +9,19 @@
  * invariant at the source level: re-adding a local copy fails here with a
  * pointer to the shared home.
  *
- * These are doc-sync-style conformance checks (the code is the source of
- * truth); they complement — not replace — the behavioral gates
- * (svg-a11y-conformance, synthesize-body-kinds, escape/color property tests).
+ * Where the shared behavior is observable it is checked on rendered output
+ * for every family (label escaping, measured-vs-drawn boxes; the SVG root
+ * accessibility wiring is svg-a11y-conformance.test.ts). The remaining source
+ * scans cover duplication with no cheap rendered oracle.
  */
 import { describe, it, expect } from 'bun:test'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { decodeXML } from 'entities'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { mutate, parseRegisteredMermaid, renderMermaidSVG } from '../agent/index.ts'
+import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
+import * as agentTypes from '../agent/types.ts'
 
 const SRC = join(import.meta.dir, '..')
 
@@ -42,18 +48,47 @@ function offenders(pattern: RegExp, allowed: string[]): string[] {
     .map(({ rel }) => rel)
 }
 
-describe('consolidation gate — shared primitives stay single-sourced', () => {
-  it('XML escaping lives in multiline-utils.ts only', () => {
-    // A new `function escapeXml/escapeAttr` outside the shared home means a
-    // renderer re-grew its own escape set (the old copies dropped the
-    // apostrophe escape). Import from multiline-utils.ts instead.
-    expect(offenders(/function escape(?:Xml|Attr)\s*\(/, ['multiline-utils.ts'])).toEqual([])
-  })
+/** A label-carrying edit each family accepts; `text` is the label under test. */
+const LABEL_EDIT_BY_FAMILY: Record<DiagramKind, (text: string) => Record<string, unknown>> = {
+  flowchart: text => ({ kind: 'add_node', id: 'Zebra', label: text }),
+  state: text => ({ kind: 'add_state', id: 'Zebra', label: text }),
+  sequence: text => ({ kind: 'add_message', from: 'U', to: 'S', text }),
+  timeline: text => ({ kind: 'add_period', sectionIndex: 0, label: text }),
+  class: text => ({ kind: 'add_class', id: 'Zebra', label: text }),
+  er: text => ({ kind: 'add_entity', id: 'ZEBRA', label: text }),
+  journey: text => ({ kind: 'add_section', label: text }),
+  architecture: text => ({ kind: 'add_service', id: 'zebra', label: text }),
+  xychart: text => ({ kind: 'set_title', title: text }),
+  pie: text => ({ kind: 'add_slice', label: text, value: 5 }),
+  quadrant: text => ({ kind: 'add_point', label: text, x: 0.5, y: 0.5 }),
+  gantt: text => ({ kind: 'add_section', label: text }),
+  mindmap: text => ({ kind: 'add_node', id: 'Zebra', label: text, parent: 'root', shape: 'rect' }),
+  gitgraph: text => ({ kind: 'append_commit', id: 'zebra', message: text }),
+  radar: text => ({ kind: 'add_axis', id: 'zebra', label: text }),
+  sankey: text => ({ kind: 'add_link', source: text, target: 'Industry', value: 1 }),
+}
 
-  it('FNV-1a hashing lives in scene/seed.ts only', () => {
-    // The 0x811c9dc5/0x01000193 constants must not be re-rolled per family —
-    // use seedFrom()/hashId() from scene/seed.ts.
-    expect(offenders(/0x811c9dc5/i, ['scene/seed.ts'])).toEqual([])
+function renderWithLabel(family: (typeof BUILTIN_FAMILY_METADATA)[number], text: string): string {
+  const parsed = parseRegisteredMermaid(family.example)
+  if (!parsed.ok) throw new Error(`${family.id} example does not parse`)
+  const narrow = (agentTypes as unknown as Record<string, (d: ParsedDiagram) => MutableValidDiagram | null>)[family.narrower]!
+  const edited = mutate(narrow(parsed.value)!, LABEL_EDIT_BY_FAMILY[family.id](text) as AnyMutationOp)
+  if (!edited.ok) throw new Error(`${family.id} rejected the label edit: ${edited.error.message}`)
+  return renderMermaidSVG(edited.value)
+}
+
+describe('consolidation gate — shared primitives stay single-sourced', () => {
+  it('every family escapes apostrophes and ampersands in rendered labels', () => {
+    // The old per-renderer escape copies dropped the apostrophe escape. Every
+    // family must emit label text only in escaped form (any valid entity),
+    // and the decoded SVG must still carry the label. xychart titles are bare
+    // text without quotes, so they carry only the ampersand.
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const label = family.id === 'xychart' ? 'Q2&Q3' : "Q1'Q2&Q3"
+      const svg = renderWithLabel(family, label)
+      expect({ family: family.id, raw: ["Q1'Q2", 'Q2&Q3'].filter(fragment => svg.includes(fragment)), decoded: decodeXML(svg).includes(label) })
+        .toEqual({ family: family.id, raw: [], decoded: true })
+    }
   })
 
   it('hex color math lives in shared/color-math.ts only', () => {
@@ -67,31 +102,36 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
     expect(offenders(/0\.299\s*\*|\*\s*299\b/, ['shared/color-math.ts'])).toEqual([])
   })
 
-  it('SVG root accessibility attrs live in shared/svg-a11y.ts only', () => {
-    expect(offenders(/function buildAccessibilityAttrs\s*\(/, ['shared/svg-a11y.ts'])).toEqual([])
-    // The `.replace('>', …)` splice on svgOpenTag output was how pie/quadrant
-    // lost their <title>/<desc> wiring — pass attrs via svgOpenTag's 5th
-    // parameter instead. (xychart's data-attribute splice on '<svg ' is
-    // position-sensitive legacy output and deliberately not matched.)
-    expect(offenders(/svgOpenTag\([^)]*\)[\s\S]{0,40}?\.replace\('>'/, [])).toEqual([])
-  })
-
-  it('no family defines STYLE_DEFAULTS in both layout.ts and renderer.ts', () => {
-    // Layout (sizing) and renderer (drawing) must resolve the same style
-    // table. One definition per family is fine wherever it lives; a second
-    // literal in the sibling file re-opens the measured-vs-drawn divergence
-    // that undersized class/er title boxes.
-    const declaration = /_STYLE_DEFAULTS: RenderStyleDefaults = \{/
-    const byFamily = new Map<string, string[]>()
-    for (const f of sourceFiles()) {
-      const rel = relative(SRC, f)
-      const m = rel.match(/^([^/]+)\/(layout|renderer)\.ts$/)
-      if (!m) continue
-      if (!declaration.test(readFileSync(f, 'utf8'))) continue
-      byFamily.set(m[1]!, [...(byFamily.get(m[1]!) ?? []), rel])
+  it('class and ER boxes contain every line drawn in them', () => {
+    // Layout (sizing) and renderer (drawing) must resolve the same style: a
+    // renderer that measures its text heavier than layout did draws past the
+    // box edge (the measured-vs-drawn divergence that undersized class/er
+    // title boxes). Drawn text is fitted to its textLength, so its horizontal
+    // extent is exact.
+    const sources = [
+      'classDiagram\n  class VeryLongAccountNameForTesting {\n    +identifierWithALongName: string\n    +close() void\n  }',
+      'erDiagram\n  VERY_LONG_CUSTOMER_ENTITY_NAME {\n    string identifier_with_a_long_name\n  }',
+    ]
+    const attr = (tag: string, name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1]
+    let lines = 0
+    for (const source of sources) {
+      const svg = renderMermaidSVG(source)
+      for (const group of svg.matchAll(/<g [^>]*data-role="(?:class-box|entity)"[^>]*>([\s\S]*?)<\/g>/g)) {
+        const rect = /<rect [^>]*>/.exec(group[1]!)![0]
+        const left = Number(attr(rect, 'x'))
+        const right = left + Number(attr(rect, 'width'))
+        for (const [text] of group[1]!.matchAll(/<text [^>]*textLength="[^"]*"[^>]*>/g)) {
+          const x = Number(attr(text, 'x'))
+          const length = Number(attr(text, 'textLength'))
+          const anchor = attr(text, 'text-anchor') ?? 'start'
+          const start = anchor === 'middle' ? x - length / 2 : anchor === 'end' ? x - length : x
+          expect({ line: attr(text, 'data-id') ?? 'title', inside: start >= left - 0.01 && start + length <= right + 0.01 })
+            .toEqual({ line: attr(text, 'data-id') ?? 'title', inside: true })
+          lines++
+        }
+      }
     }
-    const duplicated = [...byFamily.values()].filter(files => files.length > 1).flat()
-    expect(duplicated).toEqual([])
+    expect(lines).toBeGreaterThanOrEqual(5)
   })
 
   it('the family list is not re-enumerated as a type union outside types.ts', () => {

@@ -1,9 +1,0 @@
-sequenceDiagram
-critical Establish a connection
-  Service->>DB: connect
-option Network timeout
-  Service->>Service: log timeout
-option Credentials rejected
-  Service->>Service: log rejection
-end
-Service->>DB: after

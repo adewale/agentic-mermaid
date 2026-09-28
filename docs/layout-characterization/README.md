@@ -60,7 +60,7 @@ ambiguity?"
 
 This directory owns a different question: "what observable layout behaviour did
 we approve, and did it drift deliberately?" After rebasing this PR over PR 30,
-`bun run characterization:check` reported only the visual-quality report plus
+`characterization-generated-artifacts.test.ts` reported only the visual-quality report plus
 the flowchart/state SVG snapshots as stale. That is the intended signal:
 flowchart/state are exactly the families PR 30's route-contract work should
 move, while the other renderer-family snapshots stayed unchanged. The correct
@@ -72,7 +72,7 @@ For future layout changes:
 | If this changes | Use this evidence | Review action |
 |-----------------|---------------|---------------|
 | Flowchart/state/architecture routing geometry | `bun test src/__tests__/contact-sheet.test.ts src/__tests__/layout-rubric.test.ts` and `bun run track` | Hard rubric violations must stay zero; baseline deltas must be explained as improvement or intended drift. |
-| Generated characterisation artifacts | `bun run characterization:check` | Regenerate the contact sheets / visual snapshots only after reviewing the visual diff. |
+| Generated characterisation artifacts | `bun test src/__tests__/characterization-generated-artifacts.test.ts` | Regenerate the contact sheets / visual snapshots only after reviewing the visual diff. |
 | ASCII grid mechanics | `bun test src/__tests__/characterization-layout.test.ts`; optionally probe selected ranges with `bun run mutation-test -- characterization` | Update P-properties only when the algorithm deliberately changes. |
 | Renderer-family dispatch/output surfaces | `bun test src/__tests__/characterization-families.test.ts` | Drift outside the PR's claimed layout surface is suspicious and needs a separate explanation. |
 
@@ -220,7 +220,7 @@ bun run scripts/characterization/visual-quality.ts
 git diff docs/layout-characterization/
 
 # CI-friendly generated-artifact drift check
-bun run characterization:check
+bun test src/__tests__/characterization-generated-artifacts.test.ts
 
 # Route-contract correctness gates introduced by PR 30
 bun test src/__tests__/contact-sheet.test.ts src/__tests__/layout-rubric.test.ts

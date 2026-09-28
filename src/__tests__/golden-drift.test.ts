@@ -4,6 +4,10 @@
 // meaningful.
 
 import { describe, test, expect } from 'bun:test'
+import { execFileSync, execSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { evaluateGoldenDrift, githubPushBeforeSha, goldenDriftCommands, parseGitStatusPorcelainZ, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
 
 const commit = (sha: string, goldenFiles: string[] = [], commitMessage = 'chore: something') => ({ sha, goldenFiles, commitMessage })
@@ -161,36 +165,64 @@ describe('parseGitStatusPorcelainZ', () => {
 
 describe('goldenDriftCommands', () => {
   const DIR = 'src/__tests__/testdata/'
+  const GOLDEN = `${DIR}a.svg`
+
+  // base -> golden (moves a golden and a non-golden file) -> tip (unrelated).
+  function repository() {
+    const cwd = mkdtempSync(join(tmpdir(), 'golden-drift-commands-'))
+    const vcs = (...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+    const record = (files: Record<string, string>, message: string) => {
+      for (const [file, content] of Object.entries(files)) {
+        mkdirSync(join(cwd, dirname(file)), { recursive: true })
+        writeFileSync(join(cwd, file), content)
+      }
+      vcs('add', '.')
+      vcs('commit', '--quiet', '-m', message)
+      return vcs('rev-parse', 'HEAD')
+    }
+    vcs('init', '--quiet', '-b', 'main')
+    vcs('config', 'user.email', 'test@example.com')
+    vcs('config', 'user.name', 'Test')
+    const base = record({ 'README.md': 'base\n', [GOLDEN]: 'v0\n' }, 'base')
+    const golden = record({ [GOLDEN]: 'v1\n', 'src/other.ts': 'x\n' }, 'move a golden')
+    const tip = record({ 'README.md': 'tip\n' }, 'unrelated tip')
+    return { cwd, base, golden, tip, vcs }
+  }
+
+  /** Run the selected commands the way the CLI wrapper does. */
+  function selected(cwd: string, commands: { filesCmd: string; commitsCmd: string }) {
+    const lines = (command: string) => execSync(command, { cwd, encoding: 'utf8' }).split('\n').map(line => line.trim()).filter(Boolean)
+    return { files: lines(commands.filesCmd), commits: lines(commands.commitsCmd) }
+  }
 
   // The invariant the whole gate rests on: whichever commits decide "did the
   // goldens move" must be the same commits that decide "was it approved".
-  test('every mode scopes files and approval to the same commits', () => {
-    const merge = goldenDriftCommands({ parents: ['base', 'prhead'], pushBefore: null, goldenDir: DIR })
-    expect(merge.filesCmd).toContain('base prhead')
-    expect(merge.commitsCmd).toContain('base..prhead')
-
-    const push = goldenDriftCommands({ parents: ['tip'], pushBefore: 'before', goldenDir: DIR })
-    expect(push.filesCmd).toContain('before..HEAD')
-    expect(push.commitsCmd).toContain('before..HEAD')
-  })
-
-  // Regression for the failure this gate hit on PR #228. A PR whose NET diff
-  // touches goldens but whose TIP commit does not: reading only the tip's
-  // message made every commit pushed after an approved golden change re-fail
-  // the gate. The range diff still reports the approved file, while the tip
-  // message no longer carries the token — so a branch green at the approving
-  // commit went red on the next unrelated commit, with no golden movement
-  // between them.
-  test('merge mode enumerates every PR commit for individual approval checks', () => {
-    const { commitsCmd } = goldenDriftCommands({ parents: ['base', 'prhead'], pushBefore: null, goldenDir: DIR })
-    expect(commitsCmd).toContain('base..prhead')
-    expect(commitsCmd).toContain('--reverse')
+  // Regression for the failure this gate hit on PR #228: a range whose tip does
+  // not touch goldens must still enumerate the earlier golden-moving commit
+  // for its own approval check, or every commit pushed after an approved
+  // golden change re-fails the gate.
+  test('range modes select the net golden change and every commit in the range, oldest first', () => {
+    const repo = repository()
+    try {
+      const merge = selected(repo.cwd, goldenDriftCommands({ parents: [repo.base, repo.tip], pushBefore: null, goldenDir: DIR }))
+      expect(merge).toEqual({ files: [GOLDEN], commits: [repo.golden, repo.tip] })
+      const push = selected(repo.cwd, goldenDriftCommands({ parents: [repo.tip], pushBefore: repo.base, goldenDir: DIR }))
+      expect(push).toEqual({ files: [GOLDEN], commits: [repo.golden, repo.tip] })
+    } finally {
+      rmSync(repo.cwd, { recursive: true, force: true })
+    }
   })
 
   test('a lone non-merge commit with no push payload reads that commit alone', () => {
-    const { filesCmd, commitsCmd } = goldenDriftCommands({ parents: ['tip'], pushBefore: null, goldenDir: DIR })
-    expect(filesCmd).toContain('git show --name-only')
-    expect(commitsCmd).toBe('git rev-parse HEAD')
+    const repo = repository()
+    try {
+      const commands = goldenDriftCommands({ parents: [repo.golden], pushBefore: null, goldenDir: DIR })
+      expect(selected(repo.cwd, commands)).toEqual({ files: [], commits: [repo.tip] })
+      repo.vcs('checkout', '--quiet', repo.golden)
+      expect(selected(repo.cwd, commands)).toEqual({ files: [GOLDEN], commits: [repo.golden] })
+    } finally {
+      rmSync(repo.cwd, { recursive: true, force: true })
+    }
   })
 
   // Reading a range of messages requires the range to be in the checkout. This
@@ -201,16 +233,6 @@ describe('goldenDriftCommands', () => {
     expect(goldenDriftCommands({ parents: ['base', 'prhead'], pushBefore: null, goldenDir: DIR }).needsRangeHistory).toBe(true)
     expect(goldenDriftCommands({ parents: ['tip'], pushBefore: 'before', goldenDir: DIR }).needsRangeHistory).toBe(true)
     expect(goldenDriftCommands({ parents: ['tip'], pushBefore: null, goldenDir: DIR }).needsRangeHistory).toBe(false)
-  })
-
-  test('the file scope is always confined to the golden directory', () => {
-    for (const o of [
-      { parents: ['base', 'prhead'], pushBefore: null },
-      { parents: ['tip'], pushBefore: 'before' },
-      { parents: ['tip'], pushBefore: null },
-    ]) {
-      expect(goldenDriftCommands({ ...o, goldenDir: DIR }).filesCmd).toContain(`-- ${DIR}`)
-    }
   })
 })
 

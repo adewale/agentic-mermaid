@@ -1,13 +1,11 @@
 // The minimum Bun version (src/mcp/bun-version.ts) and every place that states
-// it or pins a Bun: package.json, the workflows, the website payload baseline
-// (which CI compares byte for byte on its pinned Bun), and the cloud-session
+// it or pins a Bun: package.json, the workflows, and the cloud-session
 // SessionStart hook that upgrades an older Bun.
 import { describe, expect, test } from 'bun:test'
 import { accessSync, constants, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import pkg from '../../package.json'
-import { WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN } from '../../scripts/site/website-payload-authority.ts'
 import { MIN_BUN_VERSION, unsupportedBunReason } from '../mcp/bun-version.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -46,13 +44,14 @@ describe('minimum Bun version', () => {
     expect(unsupportedBunReason()).toBeUndefined()
   })
 
-  test('package.json, every workflow, the payload baseline, and the session hook agree on a supported Bun', () => {
+  test('package.json, every workflow, and the session hook agree on a supported Bun', () => {
     expect(pkg.engines.bun).toBe(`>=${MIN_BUN_VERSION}`)
     const pins = workflowBunPins()
     expect(pins.length).toBeGreaterThan(0)
     for (const pin of pins) expect(unsupportedBunReason(pin)).toBeUndefined()
-    // CI verifies the payload baseline exactly, which only works on the Bun that recorded it.
-    expect([...new Set(pins)]).toEqual([WEBSITE_PAYLOAD_RECORDING_TOOLCHAIN.bun])
+    // One Bun everywhere: the payload delta compares base and head bundles built
+    // by the same toolchain, and local/CI/release runs must not drift.
+    expect(new Set(pins).size).toBe(1)
     expect(sessionStartVersion('MIN_BUN')).toBe(MIN_BUN_VERSION)
     expect(sessionStartVersion('PIN_BUN')).toBe(pins[0])
   })

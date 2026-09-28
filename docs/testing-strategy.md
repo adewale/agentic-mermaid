@@ -13,7 +13,7 @@ contracts, see [`layout-characterization/README.md`](./layout-characterization/R
 The current measured complexity-aware and registry-derived interaction
 portfolio is specified in
 [`project/complexity-aware-test-portfolio-plan.md`](./project/complexity-aware-test-portfolio-plan.md);
-its immutable before and content-addressed candidate reports live under
+its immutable before and measured candidate reports live under
 `eval/test-portfolio/`.
 
 ## Local CI parity
@@ -25,12 +25,14 @@ freshness, sketch and whole-corpus audits, lint, repository-wide typechecking,
 hero freshness, and the golden-drift guard. The workflow calls this same
 entry point, so the local list and CI list cannot diverge.
 
-Run `bun run evidence:check` for the narrower generated-evidence audit. It
-executes every receipt-backed gallery plus palette-performance provenance,
-continues after failures, and reports all stale artifacts together. Evidence
-receipts hash their exact local source/fixture graph and the transitive Bun
-lockfile closure of packages imported by that graph. Unrelated tools that are
-present elsewhere in `bun.lock` do not invalidate visual evidence.
+Committed galleries and before/after sheets are dated review snapshots, not
+gates: regenerate one with its `gallery:*` command when the rendering is
+reviewed again. Where an evidence script carried a real assertion, the unit
+suite now runs it against current code (for example the issue #87 link-rank
+gaps, the palette rollout and harmony reports, and the Section B sheet, which
+is regenerated in memory and byte-compared). Committed text/JSON generated
+from source is refreshed with `bun run generate`, and its unit test fails when
+it is stale. There are no input-hash receipts.
 
 ## The central problem: this is a partly non-testable program
 
@@ -159,6 +161,25 @@ sources we did not write:
   per-family local-gap budgets grow. Mindmap/GitGraph use their declared
   `f3dea583…` compatibility revision and account for all 26/69 official spec
   blocks in a dedicated executable oracle.
+- **Official-fence corpus** (`official-fence-corpus.test.ts`) — every one of
+  the 481 official syntax fences on the 31 pinned upstream pages, matched to
+  the manifest by digest. The 331 fences of rendered families must parse to a
+  structured body, verify, render, and keep their structural counts through
+  serialize → re-parse; the 150 fences of unrendered families must be
+  diagnosed `UNSUPPORTED_FAMILY` with their bytes preserved. Deviations live in
+  one small expectations table (`id [ outcomes ] # reason`); a new deviation
+  and an unexpected pass both fail, so the table cannot go stale.
+- **Construct fidelity cases** (`fidelity-receipts.test.ts`) — classify pinned
+  constructs per surface with semantic oracles (shapes, measured text widths,
+  marks inside the viewBox), and regenerate the shipped capability report in
+  memory. No raw-observation receipt or whole-SVG hash is committed.
+- **Grammar-based differentials** (`property-upstream-flowchart.test.ts`,
+  `property-upstream-sequence.test.ts`) — recursive `fc.letrec` grammars
+  generate sources that pinned upstream Mermaid 11.16 must accept; ours must
+  accept them too, agree on node/edge/participant counts, shapes, labels, and
+  arrows, and round-trip. A long-lived upstream worker
+  (`helpers/upstream-mermaid.ts`) lets async properties shrink. Known
+  divergences are pinned as explicit cases that fail once fixed.
 
 These exist because our hand-written fixtures encode what we already knew
 the parser modeled. Upstream examples are "adversarial in exactly the
@@ -197,6 +218,17 @@ must agree." This sidesteps the oracle problem without a human:
   Statement-permutation invariance is deliberately *not* asserted — source
   order is a stated design property, so permuting statements may legitimately
   change geometry.
+- **Colour and source relations** — `property-invariance-colour.test.ts`:
+  palettes, colour options, named themes, theme colour variables, and family
+  colour config never move geometry (layout and paint-free SVG, via the shared
+  `helpers/svg-normalize.ts` `stripPaint` option), and an invalid value in any
+  painted key is refused by name rather than emitted or dropped (the #303
+  class, for every family at once). `property-invariance-source.test.ts`:
+  inserting `%%` comments and blank lines leaves SVG byte-identical, and a
+  chained flowchart edge equals its split form in facts, layout, and bytes.
+- **Model-based editing** — `property-er-model.test.ts` drives the typed ER
+  edit operations with `fc.commands` against a simple model, including invalid
+  commands whose error code the model predicts.
 
 **Runs:** every PR.
 **Does not prove:** cross-architecture equality (x86_64 hash vs ARM64 hash
@@ -224,8 +256,20 @@ mutating process-global configuration).
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,
 not a gate" — `docs/contributing/lessons-learned.md`). Rolling seeds belong in
-finder lanes: the deep-fuzz scripts under `eval/`, or deliberate
-`AM_FC_SEED=random` sweeps. Before the pin was frozen, every unpinned suite was
+finder lanes: the scheduled `nightly-finder.yml` workflow, the deep-fuzz scripts
+under `eval/`, or deliberate `AM_FC_SEED=random` sweeps.
+
+The nightly finder rolls fresh seeds across every fast-check file with
+`AM_FC_NUM_RUNS=300` (raises the default run count; a per-assert `numRuns`
+still wins). It never blocks a pull request. A failure files or comments on one
+issue carrying the seed, path, and counterexample
+(`scripts/ci/nightly-finder-report.ts`). Fix a real counterexample and keep it
+forever as a fast-check `examples` entry on the property: seeds and paths do not
+survive fast-check upgrades, `examples` do. Its first local run found a real
+Architecture routing counterexample (`AM_FC_SEED=1102132276` in
+`architecture-layout.test.ts`) that the pinned seed never reached.
+
+Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
 zero failures — the pin does not freeze a known-bad ticket, and the sweep is
 repeatable from the same knob.
@@ -245,7 +289,13 @@ behaviors:
   and found dead code the unit tests couldn't.
 - **Sabotage suite** (`eval/sabotage/route-regressions.ts`) — deliberately
   reverts a fixed bug in a detached worktree and asserts the suite goes
-  **red**, proving five named route/link regression tests actually bite.
+  **red**, proving nine named route/link regression tests actually bite.
+- **Red → green** (`scripts/ci/red-green.ts`, the `red-green` CI job) — when a
+  pull request changes production source and tests, at least one changed test
+  must fail against the base branch's production code. This mechanically
+  checks the "tests that fail when the fix is reverted" rule for every PR,
+  instead of a hand-written probe per fix. Pure refactors opt out with the
+  `no-red-green` label.
 
 The broad scheduled mutation matrix was retired after 26 consecutive scheduled
 runs produced no success and its final repair grew to 39 coverage workers (41
@@ -338,10 +388,17 @@ table here, which would drift. In broad strokes:
   `measureQuality`/whole-corpus ugly-detector/layout-rubric, the heuristic-tracker ratchet,
   the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
   type check, the hero check, the
-  golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix, the fast
-  incremental mutation lane, and the independent focused sabotage lane. A final
-  `CI complete` job waits for the required test aggregate, every E2E matrix job,
-  and mutation, providing one protectable result that cannot turn green early.
+  golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix (whose
+  browser lane checks route payload budgets and, on pull requests, the gzip
+  delta against the base branch built on the same runner), the fast
+  incremental mutation lane, the independent focused sabotage lane, and the
+  red → green changed-test check. Each unit shard runs its files with
+  `--parallel=2` (isolated worker processes), so a test file cannot depend on
+  another file's imports. A final `CI complete` job waits for the required
+  test aggregate, every E2E matrix job, mutation, and red → green, providing one
+  protectable result that cannot turn green early.
+- **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
+  suite; failures become an issue, never a blocked PR.
 - **Manual / periodic:** opt-in broad Stryker survivor harvests,
   `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.
@@ -406,7 +463,8 @@ gates rather than adding new machinery:
    metric-derived (only its faithfulness axis is now independent), so it
    cannot validate those metrics — only a real periodic judge run can.
 2. Automatic mutation assurance is deliberately narrow: PR feedback uses the
-   fast incremental faithfulness-counter lane plus five focused sabotage probes.
+   fast incremental faithfulness-counter lane plus nine focused sabotage probes;
+   diff-scoped mutation of each PR's changed lines is tracked in issue #355.
    Broad mutation configs are manual diagnostics because the retired scheduled
    matrix did not justify its runner and maintenance cost. Line coverage is
    framed as a finder, not a headline score.

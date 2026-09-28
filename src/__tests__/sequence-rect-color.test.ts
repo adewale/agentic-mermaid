@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -11,8 +8,19 @@ import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import type { Block } from '../sequence/types.ts'
 
-const asset = (name: string): string => join(import.meta.dir, '..', '..', 'docs', 'pr-assets', name)
-const SOURCE = readFileSync(asset('issue-264-rect-color.mmd'), 'utf8')
+const SOURCE = `sequenceDiagram
+participant Alice
+participant John
+Alice->>John: Before
+rect rgb(191, 223, 255)
+Alice->>John: Outer
+rect rgba(0, 0, 255, .1)
+John-->>Alice: Inner
+end
+John-->>Alice: Outer again
+end
+Alice->>John: After
+`
 
 describe('Sequence rect background color', () => {
   test('pinned Mermaid owns the two rect colors as background events', async () => {
@@ -123,10 +131,5 @@ describe('Sequence rect background color', () => {
     expect(bare).toContain('fill="#ff00ff"')
     expect(explicit).toContain('fill="rgb(1, 2, 3)"')
     expect(explicit).not.toContain('fill="#ff00ff"')
-  })
-
-  test('reviewer-facing after SVG and PNG match the production renderer', () => {
-    expect(renderMermaidSVG(SOURCE, { embedFontImport: false })).toBe(readFileSync(asset('issue-264-rect-color-after.svg'), 'utf8'))
-    expect(Buffer.from(renderMermaidPNG(SOURCE, { scale: 1 }))).toEqual(readFileSync(asset('issue-264-rect-color-after.png')))
   })
 })

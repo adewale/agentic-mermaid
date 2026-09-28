@@ -2,17 +2,11 @@ import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from 
 import { decodeXML } from 'entities'
 import { renderMermaidASCII, renderMermaidSVG } from '../../../index.ts'
 import { parsePieChart } from '../../../pie/parser.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts, same } from '../case-helpers.ts'
+import type { FidelityCaseDefinition } from '../contract.ts'
 
 const source = 'pie showData\n  "Alpha" : 10\n  "Beta" : 20\n  "Alpha" : 30\n'
 const expectedSlices = [['Alpha', 10], ['Beta', 20]]
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  if (!evidence.semantics || typeof evidence.semantics !== 'object' || Array.isArray(evidence.semantics)) {
-    throw new Error('Pie duplicate-label evidence must be an object')
-  }
-  return evidence.semantics as Record<string, FidelityJson>
-}
 
 const duplicateFirstWins: FidelityCaseDefinition = {
   id: 'pie.syntax.duplicate-label-first-wins', family: 'pie',
@@ -23,7 +17,7 @@ const duplicateFirstWins: FidelityCaseDefinition = {
     agent: { applicability: 'applicable', disposition: 'source-preserved', diagnosticCodes: ['UNSUPPORTED_SYNTAX'],
       evaluate: evidence => facts(evidence).kind === 'opaque' && facts(evidence).sourceExact === true ? 'source-preserved' : 'absent' },
     render: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => JSON.stringify(facts(evidence).slices) === JSON.stringify(expectedSlices)
+      evaluate: evidence => same(facts(evidence).slices, expectedSlices)
         && facts(evidence).duplicateSeen === true ? 'native' : 'absent' },
     serialize: { applicability: 'applicable', disposition: 'source-preserved',
       evaluate: evidence => facts(evidence).sourceExact === true ? 'source-preserved' : 'absent' },
@@ -95,14 +89,14 @@ const entitySpellingDistinct: FidelityCaseDefinition = {
   upstreamRevision: 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc',
   expected: {
     agent: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => facts(evidence).kind === 'pie' && JSON.stringify(facts(evidence).slices) === JSON.stringify(entityLabels) ? 'native' : 'absent' },
+      evaluate: evidence => facts(evidence).kind === 'pie' && same(facts(evidence).slices, entityLabels) ? 'native' : 'absent' },
     render: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => JSON.stringify(facts(evidence).slices) === JSON.stringify(entityLabels)
+      evaluate: evidence => same(facts(evidence).slices, entityLabels)
         && facts(evidence).terminalIdentity === true ? 'native' : 'absent' },
     serialize: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => JSON.stringify(facts(evidence).slices) === JSON.stringify(entityLabels) ? 'native' : 'absent' },
+      evaluate: evidence => same(facts(evidence).slices, entityLabels) ? 'native' : 'absent' },
     mutate: { applicability: 'applicable', disposition: 'native',
-      evaluate: evidence => JSON.stringify(facts(evidence).slices) === JSON.stringify([['A&amp;B', 1], ['A&B', 3]]) ? 'native' : 'absent' },
+      evaluate: evidence => same(facts(evidence).slices, [['A&amp;B', 1], ['A&B', 3]]) ? 'native' : 'absent' },
   },
   observe: () => {
     const parsed = parseRegisteredMermaid(entitySource)

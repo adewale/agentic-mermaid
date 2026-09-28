@@ -46,11 +46,16 @@ The seven dimensions:
 2. **Visual evidence** — for visual/UI changes include captioned before/after
    renders (generated artifacts preferred). If a geometry change is below visual
    perceptibility, say so honestly and let the quantitative metric stand as the
-   evidence — do not pad the PR with near-identical screenshots.
+   evidence — do not pad the PR with near-identical screenshots. Attach renders
+   to the PR (uploaded images or a CI artifact) rather than committing new files
+   under `docs/pr-assets/`, and never make a test read PR evidence: the
+   regression protection belongs in a semantic test of the current render.
 3. **Code that fits** — match existing patterns, naming, and comment density; no
    unrelated refactoring smuggled in.
 4. **Tests that prove the fix** — tests must fail when the fix is reverted.
    Verify red→green and state the result (e.g. "N tests fail without the fix").
+   CI's `red-green` job checks this: at least one changed test must fail against
+   the base branch's production code. Label pure refactors `no-red-green`.
 5. **Scoped and safe** — one concern, minimal diff, full test suite run, risks flagged.
 6. **Standalone description** — what / why / how / testing / risk, understandable
    without reading the diff.

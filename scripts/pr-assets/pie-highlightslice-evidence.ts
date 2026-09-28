@@ -1,51 +1,16 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
 import { wcagCssContrastRatio } from '../../src/shared/color-math.ts'
-import { hashArtifactInputs, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sha256File, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const MATRIX_OUTPUT = join(ROOT, 'docs', 'design', 'families', 'pie-highlightslice-regression-matrix.png')
 const AFTER_OUTPUT = join(ROOT, 'docs', 'design', 'families', 'pie-highlightslice-after.png')
-const RECEIPT = join(ROOT, 'eval', 'pie-highlightslice', 'evidence-receipt.json')
 // macOS Chrome, else the managed-CI pre-installed Chromium; else Playwright's default.
 const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
-
-const repoPath = (path: string): string => repositoryPath(ROOT, path)
-const receiptEntrypoints = [import.meta.filename]
-const inputPaths = sortRepositoryPaths(ROOT, [
-  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
-])
-const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
-const currentReceipt = () => ({
-  schemaVersion: 1,
-  generator: repoPath(import.meta.filename),
-  inputCount: inputPaths.length,
-  inputTreeSha256: hashArtifactInputs(ROOT, inputPaths, runtimeDependencies),
-  runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
-  outputs: [MATRIX_OUTPUT, AFTER_OUTPUT].map(path => ({
-    path: repoPath(path),
-    sha256: sha256File(path),
-  })),
-})
-
-if (process.argv.includes('--receipt-only')) {
-  writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
-  console.log('Refreshed Pie highlightSlice receipt without rewriting reviewed visual output')
-  process.exit(0)
-}
-
-if (process.argv.includes('--check')) {
-  const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
-  if (JSON.stringify(recorded) !== JSON.stringify(currentReceipt())) {
-    throw new Error('Pie highlightSlice evidence is stale; run bun run scripts/pr-assets/pie-highlightslice-evidence.ts --receipt-only to preserve reviewed pixels, or bun run gallery:pie-highlight to regenerate visuals for review')
-  }
-  console.log('Pie highlightSlice evidence is synchronized')
-  process.exit(0)
-}
 
 const staticSource = `---
 config:
@@ -191,6 +156,4 @@ await page.waitForFunction(() => {
 await page.locator('main').screenshot({ path: MATRIX_OUTPUT })
 await page.close()
 await browser.close()
-mkdirSync(join(ROOT, 'eval', 'pie-highlightslice'), { recursive: true })
-writeFileSync(RECEIPT, `${JSON.stringify(currentReceipt(), null, 2)}\n`)
 console.log(`wrote ${MATRIX_OUTPUT} and ${AFTER_OUTPUT}`)

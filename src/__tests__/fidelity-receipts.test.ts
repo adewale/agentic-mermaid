@@ -1,13 +1,21 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type {
   FidelityCaseDefinition,
+  FidelityEvidence,
   FidelityJson,
-  FidelityReceiptResult,
   FidelitySurface,
   FidelitySurfaceExpectation,
 } from './fidelity/contract.ts'
+import {
+  FIDELITY_ARTIFACT_ROOT,
+  FIDELITY_CAPABILITY_REPORT_PATH,
+  failedFidelityCases,
+  generatedFidelityArtifacts,
+  runFidelityRegistryOnce,
+} from './fidelity/artifacts.ts'
 import { discoverFidelityRegistry } from './fidelity/registry.ts'
 import { projectFidelityCapabilityReport } from './fidelity/projector.ts'
 import { FIDELITY_REVISION_ACKNOWLEDGEMENTS } from './fidelity/revision-compatibility.ts'
@@ -19,13 +27,11 @@ import {
   type FidelityCapabilityFeature,
   type FidelityCapabilityReport,
 } from '../fidelity-capability-report.ts'
-import { fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
-
-const RECEIPT = join(import.meta.dir, 'fidelity', 'generated-receipt.json')
-const CAPABILITY_REPORT = join(import.meta.dir, '..', '..', 'docs', 'project', 'fidelity-capability-report.json')
+import { FIDELITY_SURFACES, fidelityFeatureSatisfiesSyntaxParity } from '../fidelity-capability-contract.ts'
+import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 function readJson<T>(path: string): T {
-  return JSON.parse(readFileSync(path, 'utf8')) as T
+  return JSON.parse(readFileSync(join(FIDELITY_ARTIFACT_ROOT, path), 'utf8')) as T
 }
 
 function clonedManifest(): UpstreamMermaidManifest {
@@ -121,7 +127,7 @@ describe('issue #248 construct fidelity receipts', () => {
       },
     }
     expect(validateFidelityRegistry([accepted])).toEqual([])
-    const receipt = await runFidelityCases([accepted], registry.caseFiles)
+    const receipt = await runFidelityCases([accepted])
     const report = projectFidelityCapabilityReport(receipt)
     expect(validateFidelityCapabilityReport(report)).toEqual([])
     expect(report.features[0]!.acceptedDivergences).toEqual([{
@@ -184,7 +190,7 @@ describe('issue #248 construct fidelity receipts', () => {
       id: 'block.family.unaccepted-same-surface-diagnosis',
     }
     expect(validateFidelityRegistry([accepted, unaccepted])).toEqual([])
-    const mixedReceipt = await runFidelityCases([accepted, unaccepted], registry.caseFiles)
+    const mixedReceipt = await runFidelityCases([accepted, unaccepted])
     const mixedReport = projectFidelityCapabilityReport(mixedReceipt)
     expect(validateFidelityCapabilityReport(mixedReport)).toEqual([])
     const mixedFeature = structuredClone(mixedReport.features[0]!)
@@ -198,7 +204,7 @@ describe('issue #248 construct fidelity receipts', () => {
     const fullyAcceptedReceipt = await runFidelityCases([
       accepted,
       { ...unaccepted, acceptedDivergence: accepted.acceptedDivergence },
-    ], registry.caseFiles)
+    ])
     const fullyAcceptedReport = projectFidelityCapabilityReport(fullyAcceptedReceipt)
     expect(validateFidelityCapabilityReport(fullyAcceptedReport)).toEqual([])
     const fullyAcceptedFeature = structuredClone(fullyAcceptedReport.features[0]!)
@@ -236,7 +242,7 @@ describe('issue #248 construct fidelity receipts', () => {
     }
     expect(validateFidelityRegistry([accepted, sourcePreserved])).toEqual([])
     const mixedDispositionReport = projectFidelityCapabilityReport(
-      await runFidelityCases([accepted, sourcePreserved], registry.caseFiles),
+      await runFidelityCases([accepted, sourcePreserved]),
     )
     expect(validateFidelityCapabilityReport(mixedDispositionReport)).toEqual([])
     const mixedDispositionFeature = structuredClone(mixedDispositionReport.features[0]!)
@@ -259,70 +265,46 @@ describe('issue #248 construct fidelity receipts', () => {
     ]))
   })
 
-  test('the discovered registry executes to the committed fresh result and public capability projection', async () => {
+  test('the registry is discovered structurally, not from a hand-maintained roster', async () => {
     const registry = await discoverFidelityRegistry()
-    expect(registry.caseFiles.map(path => path.slice(import.meta.dir.length + 1))).toEqual([
-      'fidelity/cases/class-annotation.fidelity.ts',
-      'fidelity/cases/class-bare-link.fidelity.ts',
-      'fidelity/cases/class-safe-link-tooltip.fidelity.ts',
-      'fidelity/cases/er-multi-class.fidelity.ts',
-      'fidelity/cases/er-word-cardinality.fidelity.ts',
-      'fidelity/cases/gitgraph-duplicate-official.fidelity.ts',
-      'fidelity/cases/journey-official-fence.fidelity.ts',
-      'fidelity/cases/landed-adoption.fidelity.ts',
-      'fidelity/cases/pie-duplicate-label.fidelity.ts',
-      'fidelity/cases/pie-entity-display.fidelity.ts',
-      'fidelity/cases/pie-terminal-control.fidelity.ts',
-      'fidelity/cases/seed.fidelity.ts',
-      'fidelity/cases/timeline-direction.fidelity.ts',
-    ])
-    expect(registry.cases.map(fidelityCase => fidelityCase.id)).toEqual([
-      'block.family.accurately-diagnosed-unsupported',
-      'class.annotations.inline-native',
-      'class.annotations.repeated-diagnosed',
-      'class.annotations.separate-native',
-      'class.interaction.navigation-target-diagnosed',
-      'class.interaction.safe-link-tooltip-native',
-      'class.relationship.escaped-directed-native',
-      'class.relationship.hyphenated-endpoint-diagnosed',
-      'class.relationship.link-dashed-native',
-      'class.relationship.link-solid-native',
-      'er.classes.multiple-assignments-and-shorthand',
-      'er.relationships.word-cardinality-aliases',
-      'flowchart.classes.edge-paint-implication',
-      'flowchart.links.boundary-whitespace-mutation-closure',
-      'gitgraph.official.main-branch-duplicate-id-diagnosed',
-      'journey.official.fence-0',
-      'journey.scores.fractional-parser-render-seam',
-      'pie.syntax.authored-formatting-literal',
-      'pie.syntax.duplicate-label-first-wins',
-      'pie.syntax.entity-spelling-distinct',
-      'pie.syntax.escaped-newline-painted-space',
-      'pie.syntax.escaped-terminal-control-sanitized',
-      'pie.syntax.named-entity-display',
-      'pie.syntax.numeric-entity-display',
-      'pie.syntax.title-entity-display',
-      'pie.syntax.xml-disallowed-control-diagnosed',
-      'sankey.links.dark-background-normal-alpha-divergence',
-      'sankey.links.light-background-multiply',
-      'sankey.links.typed-gradient-endpoints',
-      'state.comments.trailing-transition-loss',
-      'timeline.direction.td-vertical-geometry',
-      'timeline.direction.unsupported-header-diagnosis',
-      'xychart.syntax.shared-parser-semantics',
-      'xychart.syntax.unknown-statement-render-seam',
-    ])
+    const caseDirectory = join(import.meta.dir, 'fidelity', 'cases')
+    expect(registry.caseFiles).toEqual(readdirSync(caseDirectory)
+      .filter(name => name.endsWith('.fidelity.ts')).sort().map(name => join(caseDirectory, name)))
+    const emptyModules: string[] = []
+    const moduleCaseIds: string[] = []
+    for (const path of registry.caseFiles) {
+      const { fidelityCases } = (await import(pathToFileURL(path).href)) as { fidelityCases: readonly FidelityCaseDefinition[] }
+      if (fidelityCases.length === 0) emptyModules.push(path.slice(caseDirectory.length + 1))
+      moduleCaseIds.push(...fidelityCases.map(fidelityCase => fidelityCase.id))
+    }
+    expect(emptyModules).toEqual([])
+    const ids = registry.cases.map(fidelityCase => fidelityCase.id)
+    expect(ids).toEqual([...moduleCaseIds].sort(compareCodePointStrings))
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(validateFidelityRegistry(registry.cases)).toEqual([])
+  })
 
-    const receipt = await runFidelityCases(registry.cases, registry.caseFiles)
-    expect(receipt).toEqual(readJson<FidelityReceiptResult>(RECEIPT))
-    expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(CAPABILITY_REPORT))
+  test('every case passes and regenerates the committed public projections', async () => {
+    const { registry, receipt } = await runFidelityRegistryOnce()
+    expect(failedFidelityCases(receipt)).toEqual([])
+    expect(projectFidelityCapabilityReport(receipt)).toEqual(readJson(FIDELITY_CAPABILITY_REPORT_PATH))
+    // Byte freshness of every committed projection (`bun run fidelity:receipts`
+    // regenerates them); this replaces the separate `--check` script gate.
+    for (const artifact of generatedFidelityArtifacts(receipt)) {
+      expect({ path: artifact.path, content: readFileSync(join(FIDELITY_ARTIFACT_ROOT, artifact.path), 'utf8') }).toEqual(artifact)
+    }
+    // Counts derive from the registry: every applicable surface is observed
+    // (never blocked) and every other surface carries a not-applicable decision.
+    const caseCount = registry.cases.length
+    const notApplicableSurfaceCount = registry.cases.flatMap(fidelityCase => Object.values(fidelityCase.expected))
+      .filter(expectation => expectation.applicability === 'not-applicable').length
     expect(receipt.summary).toEqual({
-      caseCount: 34,
-      passedCaseCount: 34,
+      caseCount,
+      passedCaseCount: caseCount,
       failedCaseCount: 0,
-      observedSurfaceCount: 128,
+      observedSurfaceCount: caseCount * FIDELITY_SURFACES.length - notApplicableSurfaceCount,
       blockedSurfaceCount: 0,
-      notApplicableSurfaceCount: 8,
+      notApplicableSurfaceCount,
     })
     const capability = projectFidelityCapabilityReport(receipt)
     expect(capability).toMatchObject({ mode: 'public', publicClaimsChanged: true })
@@ -657,30 +639,27 @@ describe('issue #248 construct fidelity receipts', () => {
       },
     ]
 
-    for (const sabotage of sabotages) {
+    const observed = new Map<string, FidelityEvidence>()
+    const survivors: string[] = []
+    for (const [index, sabotage] of sabotages.entries()) {
       const original = registry.cases.find(candidate => candidate.id === sabotage.caseId)!
+      if (!observed.has(original.id)) observed.set(original.id, await original.observe())
+      const evidence = observed.get(original.id)!
+      const observation = evidence[sabotage.surface]
+      if (!observation || observation.status !== 'observed') throw new Error(`${sabotage.caseId}: missing observed ${sabotage.surface}`)
+      const semantics = (sabotage.additionalChanges ?? []).reduce(
+        (current, change) => setJsonPath(current, change.path, change.replacement),
+        setJsonPath(observation.semantics, sabotage.path, sabotage.replacement),
+      )
       const sabotaged: FidelityCaseDefinition = {
         ...original,
         id: `${original.id}.sabotage`,
-        observe: async () => {
-          const evidence = await original.observe()
-          const observation = evidence[sabotage.surface]
-          if (!observation || observation.status !== 'observed') throw new Error(`${sabotage.caseId}: missing observed ${sabotage.surface}`)
-          return {
-            ...evidence,
-            [sabotage.surface]: {
-              ...observation,
-              semantics: (sabotage.additionalChanges ?? []).reduce(
-                (semantics, change) => setJsonPath(semantics, change.path, change.replacement),
-                setJsonPath(observation.semantics, sabotage.path, sabotage.replacement),
-              ),
-            },
-          }
-        },
+        observe: () => ({ ...evidence, [sabotage.surface]: { ...observation, semantics } }),
       }
-      const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
-      expect(receipt.cases[0]!.passed).toBe(false)
+      const receipt = await runFidelityCases([sabotaged])
+      if (receipt.cases[0]!.passed) survivors.push(`#${index} ${sabotage.caseId}/${sabotage.surface}/${sabotage.path.join('.')}`)
     }
+    expect(survivors).toEqual([])
   })
 
   test('registry validation rejects duplicate/unknown cases and unacknowledged revision splits', async () => {
@@ -722,7 +701,7 @@ describe('issue #248 construct fidelity receipts', () => {
 
   test('blocked applicable surfaces remain explicit and fail the receipt', async () => {
     const registry = await discoverFidelityRegistry()
-    const original = registry.cases[0]!
+    const original = registry.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
     const notApplicable = (rationale: string): FidelitySurfaceExpectation => ({ applicability: 'not-applicable', rationale })
     const blocked: FidelityCaseDefinition = {
       ...original,
@@ -747,7 +726,7 @@ describe('issue #248 construct fidelity receipts', () => {
         },
       }),
     }
-    const receipt = await runFidelityCases([blocked], registry.caseFiles)
+    const receipt = await runFidelityCases([blocked])
     expect(receipt.summary).toEqual({
       caseCount: 1,
       passedCaseCount: 0,
@@ -780,7 +759,7 @@ describe('issue #248 construct fidelity receipts', () => {
         }
       },
     }
-    const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
+    const receipt = await runFidelityCases([sabotaged])
     expect(receipt.cases[0]!.passed).toBe(false)
     expect(receipt.cases[0]!.issues).toContain('render: expected native, observed absent')
   })
@@ -816,7 +795,7 @@ describe('issue #248 construct fidelity receipts', () => {
         }
       },
     }
-    const receipt = await runFidelityCases([sabotaged], registry.caseFiles)
+    const receipt = await runFidelityCases([sabotaged])
     expect(receipt.cases[0]!.issues).toContain('agent: expected native, observed absent')
     expect(receipt.cases[0]!.issues).toContain('mutate: expected native, observed absent')
   })
@@ -833,9 +812,9 @@ describe('issue #248 construct fidelity receipts', () => {
       },
     } as unknown as FidelityCaseDefinition
     expect(validateFidelityRegistry([malformedExpectation])).toContain('block.family.invalid-disposition: agent: invalid disposition bogus')
-    await expect(runFidelityCases([malformedExpectation], registry.caseFiles)).rejects.toThrow('invalid disposition bogus')
+    await expect(runFidelityCases([malformedExpectation])).rejects.toThrow('invalid disposition bogus')
 
-    const malformedReceipt = readJson<FidelityReceiptResult>(RECEIPT)
+    const malformedReceipt = await runFidelityCases([original])
     const observation = malformedReceipt.cases[0]!.observations.agent
     if (!observation || observation.status !== 'observed') throw new Error('fixture agent observation must be observed')
     ;(observation as { disposition: string }).disposition = 'bogus'
@@ -887,7 +866,7 @@ describe('issue #248 construct fidelity receipts', () => {
         },
       },
     }
-    const throwingReceipt = await runFidelityCases([throwing], registry.caseFiles)
+    const throwingReceipt = await runFidelityCases([throwing])
     expect(throwingReceipt.cases[0]!.issues).toContain('agent: semantic evaluator failed: sabotaged oracle')
 
     const wrongDiagnostic: FidelityCaseDefinition = {
@@ -895,13 +874,13 @@ describe('issue #248 construct fidelity receipts', () => {
       id: 'state.comments.wrong-diagnostic',
       expected: { ...state.expected, agent: { ...agent, diagnosticCodes: ['WRONG_CODE'] } },
     }
-    const diagnosticReceipt = await runFidelityCases([wrongDiagnostic], registry.caseFiles)
+    const diagnosticReceipt = await runFidelityCases([wrongDiagnostic])
     expect(diagnosticReceipt.cases[0]!.issues).toContain('agent: expected diagnostics ["WRONG_CODE"], observed ["COMMENT_DROPPED"]')
   })
 
   test('diagnosed dispositions require a concrete diagnostic in validation, execution, and projection', async () => {
     const registry = await discoverFidelityRegistry()
-    const original = registry.cases[0]!
+    const original = registry.cases.find(item => item.id === 'block.family.accurately-diagnosed-unsupported')!
     const agent = original.expected.agent
     if (agent.applicability !== 'applicable') throw new Error('block agent must be applicable')
     const emptyDiagnosis = {
@@ -910,11 +889,12 @@ describe('issue #248 construct fidelity receipts', () => {
       expected: { ...original.expected, agent: { ...agent, diagnosticCodes: [] } },
     } as FidelityCaseDefinition
     expect(validateFidelityRegistry([emptyDiagnosis])).toContain('block.family.empty-diagnosis: agent: diagnosed disposition requires at least one diagnostic code')
-    await expect(runFidelityCases([emptyDiagnosis], registry.caseFiles)).rejects.toThrow('diagnosed disposition requires at least one diagnostic code')
+    await expect(runFidelityCases([emptyDiagnosis])).rejects.toThrow('diagnosed disposition requires at least one diagnostic code')
 
-    const malformedReceipt = readJson<FidelityReceiptResult>(RECEIPT)
-    const expectedAgent = malformedReceipt.cases[0]!.expected.agent
-    const observedAgent = malformedReceipt.cases[0]!.observations.agent
+    const malformedReceipt = await runFidelityCases([original])
+    const blockCase = malformedReceipt.cases[0]!
+    const expectedAgent = blockCase.expected.agent
+    const observedAgent = blockCase.observations.agent
     if (expectedAgent.applicability !== 'applicable' || !observedAgent || observedAgent.status !== 'observed') throw new Error('block agent fixture must be applicable and observed')
     ;(expectedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
     ;(observedAgent as unknown as { diagnosticCodes: string[] }).diagnosticCodes = []
@@ -936,7 +916,7 @@ describe('issue #248 construct fidelity receipts', () => {
         },
       }) as never,
     }
-    const receipt = await runFidelityCases([malformed], registry.caseFiles)
+    const receipt = await runFidelityCases([malformed])
     expect(receipt.cases[0]!.passed).toBe(false)
     expect(receipt.cases[0]!.issues[0]).toBe('observer failed: agent: unknown fields disposition')
     expect(receipt.summary.blockedSurfaceCount).toBe(3)
@@ -959,7 +939,7 @@ describe('issue #248 construct fidelity receipts', () => {
           return { ...evidence, agent: { ...agent, semantics } } as never
         },
       }
-      const receipt = await runFidelityCases([malformed], registry.caseFiles)
+      const receipt = await runFidelityCases([malformed])
       expect(receipt.cases[0]!.issues[0]).toBe(`observer failed: ${message}`)
     }
   })

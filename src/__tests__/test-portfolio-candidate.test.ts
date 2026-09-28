@@ -4,25 +4,12 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildContactSheetPlan, buildMixedFormatConformancePlan, buildRenderConformancePlan } from './helpers/render-conformance-plan.ts'
 import { verifyCoreConformancePlan, verifyMixedFormatConformancePlan } from './helpers/render-conformance-verifier.ts'
-import { hashFileTree, sha256File } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const baseline = JSON.parse(readFileSync(join(ROOT, 'eval', 'test-portfolio', 'baseline.json'), 'utf8'))
 const candidate = JSON.parse(readFileSync(join(ROOT, 'eval', 'test-portfolio', 'candidate.json'), 'utf8'))
 
 describe('TEST-3 measured candidate report', () => {
-  test('binds the candidate to its declared input bytes', () => {
-    expect(candidate.schemaVersion).toBe(baseline.schemaVersion)
-    expect(candidate.kind).toBe('complexity-aware-test-portfolio-candidate')
-    expect(candidate.provenance.sourceState).toBe('content-addressed-candidate')
-    const paths = candidate.provenance.inputs.map((entry: { path: string; sha256: string }) => {
-      const path = join(ROOT, entry.path)
-      expect(sha256File(path), entry.path).toBe(entry.sha256)
-      return path
-    })
-    expect(hashFileTree(ROOT, paths)).toBe(candidate.provenance.inputTreeSha256)
-  })
-
   test('derives row and obligation counts from the executable plans', () => {
     const core = buildRenderConformancePlan()
     const mixed = buildMixedFormatConformancePlan()

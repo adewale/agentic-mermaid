@@ -1,6 +1,0 @@
-{
-  "code": "INVALID_RENDER_COLOR",
-  "field": "bg",
-  "value": "none",
-  "message": "render option \"bg\": \"none\" is not a CSS color for Architecture derived paint — expected a drawable CSS color or var(--name), e.g. bg:#f96"
-}

@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parse as parseYaml } from 'yaml'
 import { runSiteSmoke } from '../../scripts/site/smoke-live-site.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -123,31 +126,60 @@ describe('production website smoke runner', () => {
 })
 
 describe('production website smoke deployment wiring', () => {
-  const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')
+  interface Step { name?: string; id?: string; if?: string; run?: string; env?: Record<string, string> }
+  const steps = (parseYaml(readFileSync(join(ROOT, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')) as {
+    jobs: { deploy: { steps: Step[] } }
+  }).jobs.deploy.steps
+  // Promotion is the step that moves the candidate to all traffic.
+  const promoteIndex = steps.findIndex(step => /\bwrangler versions deploy[\s\\]+"\$\{CANDIDATE_ID\}@100%"/.test(step.run ?? ''))
+  const siteSmokes = steps.flatMap((step, index) => step.run?.includes('scripts/site/smoke-live-site.ts') ? [{ step, index }] : [])
 
   test('runs against both the zero-traffic candidate and promoted production', () => {
-    expect(workflow.match(/bun run scripts\/site\/smoke-live-site\.ts/g)).toHaveLength(2)
-
-    const candidate = workflow.slice(
-      workflow.indexOf('- name: Smoke-test the zero-traffic website candidate'),
-      workflow.indexOf('- name: Probe the full zero-traffic /mcp candidate'),
-    )
-    expect(candidate).toContain('SITE_SMOKE_EXPECTED_SHA: ${{ env.EXPECTED_SHA }}')
-    expect(candidate).toContain('SITE_WORKER_VERSION_ID: ${{ steps.candidate.outputs.candidate_id }}')
-
-    const promoted = workflow.slice(
-      workflow.indexOf('- name: Smoke-test the promoted production website'),
-      workflow.indexOf('- name: Roll back any unverified deployment'),
-    )
-    expect(promoted).toContain('id: production-site-verify')
-    expect(promoted).not.toContain('SITE_SMOKE_EXPECTED_SHA')
-    expect(promoted).toContain('echo "verified=true" >> "$GITHUB_OUTPUT"')
+    expect(promoteIndex).toBeGreaterThan(0)
+    const candidate = siteSmokes.filter(({ index }) => index < promoteIndex)
+    const promoted = siteSmokes.filter(({ index }) => index > promoteIndex)
+    expect({ candidate: candidate.length, promoted: promoted.length }).toEqual({ candidate: 1, promoted: 1 })
+    // Before promotion: pinned to the uploaded candidate and to the exact SHA.
+    expect(candidate[0]!.step.env).toMatchObject({
+      SITE_SMOKE_EXPECTED_SHA: expect.stringContaining('EXPECTED_SHA'),
+      SITE_WORKER_VERSION_ID: expect.stringContaining('steps.candidate.outputs.candidate_id'),
+    })
+    // After promotion: ordinary production traffic, without requiring cached
+    // static machine resources to change SHA atomically.
+    expect(promoted[0]!.step.env?.SITE_WORKER_VERSION_ID).toBeUndefined()
+    expect(promoted[0]!.step.env?.SITE_SMOKE_EXPECTED_SHA).toBeUndefined()
   })
 
-  test('rolls back unless both MCP and website production verification pass', () => {
-    const rollback = workflow.slice(workflow.indexOf('- name: Roll back any unverified deployment'))
-    expect(rollback).toContain("steps.production-verify.outputs.verified != 'true'")
-    expect(rollback).toContain("steps.production-site-verify.outputs.verified != 'true'")
+  test('the promoted smoke reports verified only when the smoke passes', () => {
+    const promoted = siteSmokes.find(({ index }) => index > promoteIndex)!.step
+    expect(promoted.id).toBeDefined()
+    for (const [smokeStatus, verified] of [[0, true], [1, false]] as const) {
+      const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-site-smoke-'))
+      try {
+        mkdirSync(join(dir, 'bin'))
+        writeFileSync(join(dir, 'bin', 'bun'), `#!/usr/bin/env bash\nexit ${smokeStatus}\n`)
+        chmodSync(join(dir, 'bin', 'bun'), 0o755)
+        writeFileSync(join(dir, 'output'), '')
+        spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', promoted.run!], {
+          cwd: dir,
+          env: { ...process.env, GITHUB_OUTPUT: join(dir, 'output'), PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
+        })
+        expect({ smokeStatus, verified: readFileSync(join(dir, 'output'), 'utf8').includes('verified=true') })
+          .toEqual({ smokeStatus, verified })
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    }
   })
 
+  test('rolls back unless every post-promotion verification passes', () => {
+    // Every step after promotion that reports `verified` gates the rollback.
+    const verifications = steps.slice(promoteIndex + 1).filter(step => step.id && step.run?.includes('verified=true')).map(step => step.id!)
+    expect(verifications.length).toBeGreaterThanOrEqual(2)
+    const rollback = steps.find(step => /\bwrangler rollback\b/.test(step.run ?? ''))
+    expect(rollback?.if).toContain('always()')
+    for (const id of verifications) {
+      expect({ id, gatesRollback: rollback?.if?.includes(`steps.${id}.outputs.verified != 'true'`) }).toEqual({ id, gatesRollback: true })
+    }
+  })
 })

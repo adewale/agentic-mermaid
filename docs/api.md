@@ -360,13 +360,12 @@ Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source
 
 Repository audit tooling can import `createSectionACapabilityReport()` from
 `src/section-a-capability-report.ts`. It returns the JSON-safe, registry-derived
-request/backend/output/family/Scene matrix. `am capabilities --json` →
-`sectionA` intentionally exposes only its version, pin, digest, counts,
-no-absent status, and directions to this full report. Validate a stored snapshot with
+request/backend/output/family/Scene matrix. Validate a stored snapshot with
 `validateSectionACapabilityReport(report)`. The generated human projection is
 [`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
-Keeping this audit surface out of the package prevents the full characterization
-and upstream syntax corpora from entering renderer/browser bundles.
+Neither the library entries nor the `am` and MCP bins import this audit
+surface, so the full characterization and upstream syntax corpora stay out of
+the published package; `am capabilities --json` reports only the live registry.
 
 Canonical extension identities are kind-qualified (`look:`, `palette:`,
 `backend:`, `family:`, `role:`, and `resource:`), versioned, provenance-bearing,

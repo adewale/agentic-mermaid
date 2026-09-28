@@ -1,53 +1,16 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { renderMermaidASCII, renderMermaidSVG } from '../../src/index.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import { visualWidth } from '../../src/ascii/width.ts'
-import { fileReceiptEntries, repositoryPath, runtimeDependencyClosure, runtimeDependencySummary, sortRepositoryPaths, transitiveLocalInputs } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS = join(ROOT, 'eval', 'mindmap-gitgraph-content-corpus')
 const OUT = join(ROOT, 'docs', 'design', 'families')
-const RECEIPT = join(CORPUS, 'gallery-receipt.json')
 // macOS Chrome, else the managed-CI pre-installed Chromium; else Playwright's default.
 const chromePath = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/opt/pw-browsers/chromium'].find(existsSync)
-
-const repoPath = (absolute: string): string => repositoryPath(ROOT, absolute)
-const receiptEntrypoints = [import.meta.filename]
-const inputPaths = (): string[] => sortRepositoryPaths(ROOT, [
-  join(CORPUS, 'manifest.json'),
-  join(CORPUS, 'fork-snapshot.json'),
-  ...(['mindmap', 'gitgraph'] as const).flatMap(family =>
-    readdirSync(join(CORPUS, family)).filter(name => name.endsWith('.mmd')).sort().map(name => join(CORPUS, family, name))),
-  ...transitiveLocalInputs(ROOT, receiptEntrypoints),
-])
-const runtimeDependencies = runtimeDependencyClosure(ROOT, receiptEntrypoints)
-const outputPaths = (): string[] => (['mindmap', 'gitgraph'] as const).map(family => join(OUT, `${family}-content-gallery.png`))
-const receiptForCurrentFiles = () => ({
-  schemaVersion: 1,
-  generator: repoPath(import.meta.filename),
-  inputs: fileReceiptEntries(ROOT, inputPaths()),
-  runtimeDependencies: runtimeDependencySummary(runtimeDependencies),
-  outputs: fileReceiptEntries(ROOT, outputPaths()),
-})
-
-if (process.argv.includes('--receipt-only')) {
-  writeFileSync(RECEIPT, `${JSON.stringify(receiptForCurrentFiles(), null, 2)}\n`)
-  console.log('Refreshed Mindmap/GitGraph receipt without rewriting reviewed visual output')
-  process.exit(0)
-}
-
-if (process.argv.includes('--check')) {
-  const recorded = JSON.parse(readFileSync(RECEIPT, 'utf8'))
-  const current = receiptForCurrentFiles()
-  if (JSON.stringify(recorded) !== JSON.stringify(current)) {
-    throw new Error('Mindmap/GitGraph gallery receipt is stale; run bun run gallery:mindmap-gitgraph')
-  }
-  console.log('Mindmap/GitGraph gallery receipt is synchronized')
-  process.exit(0)
-}
 
 type Entry = { id: string; family: 'mindmap' | 'gitgraph'; file: string; scenario: string }
 const manifest = JSON.parse(readFileSync(join(CORPUS, 'manifest.json'), 'utf8')) as { cases: Entry[] }
@@ -108,5 +71,4 @@ for (const family of ['mindmap', 'gitgraph'] as const) {
 }
 
 await browser.close()
-writeFileSync(RECEIPT, `${JSON.stringify(receiptForCurrentFiles(), null, 2)}\n`)
-console.log('wrote Mindmap/GitGraph real-content gallery artifacts and freshness receipt')
+console.log('wrote Mindmap/GitGraph real-content gallery artifacts')

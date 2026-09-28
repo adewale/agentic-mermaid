@@ -98,11 +98,6 @@ export interface FidelityRevisionAcknowledgement {
   evidence: readonly string[]
 }
 
-export interface FidelityInputFile {
-  path: string
-  sha256: string
-}
-
 export interface ClassifiedObservedFidelitySurface extends ObservedFidelitySurfaceEvidence {
   disposition: FidelityDisposition
 }
@@ -133,18 +128,16 @@ export interface FidelityCaseResult {
   issues: readonly string[]
 }
 
+/** In-memory execution result. It is deliberately not persisted: the compact
+ * public projection is the only committed artifact. */
 export interface FidelityReceiptResult {
-  schemaVersion: 2
+  schemaVersion: 3
   upstream: {
     package: 'mermaid'
     version: string
     manifestRevision: string
     inventorySha256: string
     revisionAcknowledgements: readonly FidelityRevisionAcknowledgement[]
-  }
-  freshness: {
-    inputSha256: string
-    files: readonly FidelityInputFile[]
   }
   cases: readonly FidelityCaseResult[]
   summary: {

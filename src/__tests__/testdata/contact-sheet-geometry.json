@@ -1,0 +1,743 @@
+{
+  "A": {
+    "title": "1 line, LR — vertex emit + port merge",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":464,"h":209}},
+    "nodes": [
+      {"id":"Q","x":40,"y":40,"w":107,"h":107,"shape":"diamond","label":"Decide"},
+      {"id":"X","x":195,"y":132,"w":99,"h":37,"shape":"rectangle","label":"Side input"},
+      {"id":"T","x":342,"y":75,"w":82,"h":37,"shape":"rectangle","label":"Target"}
+    ],
+    "edges": [
+      {"id":"Q->T","from":"Q","to":"T","path":[[147,94],[342,94]],"label":{"x":245,"y":94,"text":"go"}},
+      {"id":"X->T","from":"X","to":"T","path":[[294,150],[330,150],[330,94],[342,94]]}
+    ],
+    "groups": []
+  },
+  "B": {
+    "title": "1 line, RL — vertex emit + port merge",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":464,"h":209}},
+    "nodes": [
+      {"id":"Q","x":317,"y":40,"w":107,"h":107,"shape":"diamond","label":"Decide"},
+      {"id":"X","x":170,"y":132,"w":99,"h":37,"shape":"rectangle","label":"Side input"},
+      {"id":"T","x":40,"y":75,"w":82,"h":37,"shape":"rectangle","label":"Target"}
+    ],
+    "edges": [
+      {"id":"Q->T","from":"Q","to":"T","path":[[317,94],[122,94]],"label":{"x":219,"y":94,"text":"go"}},
+      {"id":"X->T","from":"X","to":"T","path":[[170,150],[134,150],[134,94],[122,94]]}
+    ],
+    "groups": []
+  },
+  "C": {
+    "title": "1 line, TD — vertex emit + port merge",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":271,"h":357}},
+    "nodes": [
+      {"id":"Q","x":40,"y":40,"w":107,"h":107,"shape":"diamond","label":"Decide"},
+      {"id":"X","x":132,"y":195,"w":99,"h":37,"shape":"rectangle","label":"Side input"},
+      {"id":"T","x":53,"y":280,"w":82,"h":37,"shape":"rectangle","label":"Target"}
+    ],
+    "edges": [
+      {"id":"Q->T","from":"Q","to":"T","path":[[94,147],[94,280]],"label":{"x":94,"y":214,"text":"go"}},
+      {"id":"X->T","from":"X","to":"T","path":[[182,232],[182,268],[94,268],[94,280]]}
+    ],
+    "groups": []
+  },
+  "D": {
+    "title": "1 line, BT — vertex emit + port merge",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":271,"h":357}},
+    "nodes": [
+      {"id":"Q","x":40,"y":210,"w":107,"h":107,"shape":"diamond","label":"Decide"},
+      {"id":"X","x":132,"y":125,"w":99,"h":37,"shape":"rectangle","label":"Side input"},
+      {"id":"T","x":53,"y":40,"w":82,"h":37,"shape":"rectangle","label":"Target"}
+    ],
+    "edges": [
+      {"id":"Q->T","from":"Q","to":"T","path":[[94,210],[94,77]],"label":{"x":94,"y":143,"text":"go"}},
+      {"id":"X->T","from":"X","to":"T","path":[[182,125],[182,89],[94,89],[94,77]]}
+    ],
+    "groups": []
+  },
+  "E": {
+    "title": "diamond fan-out — facet-mid ports, symmetric branch routes",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":407,"h":187}},
+    "nodes": [
+      {"id":"Q","x":40,"y":40,"w":107,"h":107,"shape":"diamond","label":"Decide"},
+      {"id":"P","x":300,"y":48,"w":67,"h":37,"shape":"rectangle","label":"One"},
+      {"id":"R","x":300,"y":102,"w":67,"h":37,"shape":"rectangle","label":"Two"}
+    ],
+    "edges": [
+      {"id":"Q->P","from":"Q","to":"P","path":[[121,67],[300,67]],"label":{"x":210,"y":67,"text":"a"}},
+      {"id":"Q->R","from":"Q","to":"R","path":[[121,121],[300,121]],"label":{"x":210,"y":121,"text":"b"}}
+    ],
+    "groups": []
+  },
+  "F": {
+    "title": "diamond fan-out, TD — facet-mid ports, symmetric branch routes",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":268,"h":384}},
+    "nodes": [
+      {"id":"Q","x":66,"y":40,"w":107,"h":107,"shape":"diamond","label":"Decide"},
+      {"id":"P","x":39,"y":307,"w":67,"h":37,"shape":"rectangle","label":"One"},
+      {"id":"R","x":134,"y":307,"w":67,"h":37,"shape":"rectangle","label":"Two"}
+    ],
+    "edges": [
+      {"id":"Q->P","from":"Q","to":"P","path":[[93,121],[93,190],[72,190],[72,307]],"label":{"x":72,"y":243,"text":"a"}},
+      {"id":"Q->R","from":"Q","to":"R","path":[[147,121],[147,190],[168,190],[168,307]],"label":{"x":168,"y":243,"text":"b"}}
+    ],
+    "groups": []
+  },
+  "G": {
+    "title": "bi-directional diamonds — parallel lines on facet-mid ports",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":309,"h":171}},
+    "nodes": [
+      {"id":"Q","x":40,"y":41,"w":90,"h":90,"shape":"diamond","label":"One"},
+      {"id":"R","x":178,"y":40,"w":91,"h":91,"shape":"diamond","label":"Two"}
+    ],
+    "edges": [
+      {"id":"Q->R","from":"Q","to":"R","path":[[107,63],[200,63]]},
+      {"id":"R->Q","from":"R","to":"Q","path":[[200,108],[107,108]]}
+    ],
+    "groups": []
+  },
+  "H": {
+    "title": "bi-directional rects — two EQUAL parallel lines",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":261,"h":117}},
+    "nodes": [
+      {"id":"A","x":40,"y":40,"w":66,"h":37,"shape":"rectangle","label":"One"},
+      {"id":"B","x":154,"y":40,"w":67,"h":37,"shape":"rectangle","label":"Two"}
+    ],
+    "edges": [
+      {"id":"A->B","from":"A","to":"B","path":[[106,52],[154,52]]},
+      {"id":"B->A","from":"B","to":"A","path":[[154,64],[106,64]]}
+    ],
+    "groups": []
+  },
+  "I": {
+    "title": "diamond chain — vertex to vertex",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":460,"h":183}},
+    "nodes": [
+      {"id":"Q1","x":40,"y":47,"w":90,"h":90,"shape":"diamond","label":"One"},
+      {"id":"Q2","x":178,"y":46,"w":91,"h":91,"shape":"diamond","label":"Two"},
+      {"id":"Q3","x":317,"y":40,"w":103,"h":103,"shape":"diamond","label":"Three"}
+    ],
+    "edges": [
+      {"id":"Q1->Q2","from":"Q1","to":"Q2","path":[[130,92],[178,92]]},
+      {"id":"Q2->Q3","from":"Q2","to":"Q3","path":[[269,92],[317,92]]}
+    ],
+    "groups": []
+  },
+  "J": {
+    "title": "diamond chain, TD — vertex to vertex",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":183,"h":460}},
+    "nodes": [
+      {"id":"Q1","x":47,"y":40,"w":90,"h":90,"shape":"diamond","label":"One"},
+      {"id":"Q2","x":46,"y":178,"w":91,"h":91,"shape":"diamond","label":"Two"},
+      {"id":"Q3","x":40,"y":317,"w":103,"h":103,"shape":"diamond","label":"Three"}
+    ],
+    "edges": [
+      {"id":"Q1->Q2","from":"Q1","to":"Q2","path":[[92,130],[92,178]]},
+      {"id":"Q2->Q3","from":"Q2","to":"Q3","path":[[92,269],[92,317]]}
+    ],
+    "groups": []
+  },
+  "K": {
+    "title": "side input into a claimed diamond — enters the S vertex",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":481,"h":230}},
+    "nodes": [
+      {"id":"Q1","x":40,"y":68,"w":94,"h":94,"shape":"diamond","label":"First"},
+      {"id":"X","x":182,"y":153,"w":99,"h":37,"shape":"rectangle","label":"Side input"},
+      {"id":"Q2","x":329,"y":59,"w":112,"h":112,"shape":"diamond","label":"Second"}
+    ],
+    "edges": [
+      {"id":"Q1->Q2","from":"Q1","to":"Q2","path":[[134,115],[329,115]],"label":{"x":232,"y":115,"text":"go"}},
+      {"id":"X->Q2","from":"X","to":"Q2","path":[[281,171],[385,171]]}
+    ],
+    "groups": []
+  },
+  "L": {
+    "title": "circle fan-in — symmetric merge at the exact port",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":297,"h":277}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":84,"h":84,"shape":"circle","label":"One"},
+      {"id":"B","x":40,"y":152,"w":85,"h":85,"shape":"circle","label":"Two"},
+      {"id":"T","x":173,"y":96,"w":84,"h":84,"shape":"circle","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[125,82],[149,82],[149,138],[173,138]]},
+      {"id":"B->T","from":"B","to":"T","path":[[125,195],[149,195],[149,138],[173,138]]}
+    ],
+    "groups": []
+  },
+  "M": {
+    "title": "stadium fan-in — symmetric merge at the exact port",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":261,"h":182}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":66,"h":37,"shape":"stadium","label":"One"},
+      {"id":"B","x":41,"y":105,"w":67,"h":37,"shape":"stadium","label":"Two"},
+      {"id":"T","x":155,"y":72,"w":66,"h":37,"shape":"stadium","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[106,58],[132,58],[132,91],[155,91]]},
+      {"id":"B->T","from":"B","to":"T","path":[[108,123],[132,123],[132,91],[155,91]]}
+    ],
+    "groups": []
+  },
+  "N": {
+    "title": "hexagon fan-in — symmetric merge at the exact port",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":301,"h":182}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":86,"h":37,"shape":"hexagon","label":"One"},
+      {"id":"B","x":41,"y":105,"w":87,"h":37,"shape":"hexagon","label":"Two"},
+      {"id":"T","x":175,"y":72,"w":86,"h":37,"shape":"hexagon","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[126,58],[152,58],[152,91],[175,91]]},
+      {"id":"B->T","from":"B","to":"T","path":[[128,123],[152,123],[152,91],[175,91]]}
+    ],
+    "groups": []
+  },
+  "O": {
+    "title": "cylinder fan-in — symmetric merge at the exact port",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":261,"h":210}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":66,"h":51,"shape":"cylinder","label":"One"},
+      {"id":"B","x":41,"y":119,"w":67,"h":51,"shape":"cylinder","label":"Two"},
+      {"id":"T","x":155,"y":79,"w":66,"h":51,"shape":"cylinder","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[106,65],[132,65],[132,105],[155,105]]},
+      {"id":"B->T","from":"B","to":"T","path":[[108,144],[132,144],[132,105],[155,105]]}
+    ],
+    "groups": []
+  },
+  "P": {
+    "title": "mixed rect→circle fan-in — symmetric merge",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":279,"h":182}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":67,"h":37,"shape":"rectangle","label":"One"},
+      {"id":"B","x":41,"y":101,"w":67,"h":37,"shape":"rectangle","label":"Two"},
+      {"id":"T","x":155,"y":47,"w":84,"h":84,"shape":"circle","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[108,58],[132,58],[132,89],[155,89]]},
+      {"id":"B->T","from":"B","to":"T","path":[[108,119],[132,119],[132,89],[155,89]]}
+    ],
+    "groups": []
+  },
+  "Q": {
+    "title": "state diagram fan-in — symmetric merge",
+    "shell": {"version":1,"kind":"state","bounds":{"w":304,"h":182}},
+    "nodes": [
+      {"id":"Choosing","x":42,"y":40,"w":98,"h":37,"shape":"rounded","label":"Choosing"},
+      {"id":"Reviewing","x":42,"y":105,"w":103,"h":37,"shape":"rounded","label":"Reviewing"},
+      {"id":"Done","x":191,"y":72,"w":73,"h":37,"shape":"rounded","label":"Done"}
+    ],
+    "edges": [
+      {"id":"Choosing->Done","from":"Choosing","to":"Done","path":[[140,58],[168,58],[168,91],[191,91]]},
+      {"id":"Reviewing->Done","from":"Reviewing","to":"Done","path":[[145,123],[168,123],[168,91],[191,91]]}
+    ],
+    "groups": []
+  },
+  "R": {
+    "title": "labeled feedback — outer loop, label on route",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":551,"h":212}},
+    "nodes": [
+      {"id":"A","x":52,"y":73,"w":91,"h":37,"shape":"rectangle","label":"Request"},
+      {"id":"B","x":191,"y":40,"w":103,"h":103,"shape":"diamond","label":"Valid?"},
+      {"id":"C","x":417,"y":73,"w":94,"h":37,"shape":"rectangle","label":"Process"}
+    ],
+    "edges": [
+      {"id":"A->B","from":"A","to":"B","path":[[143,92],[191,92]]},
+      {"id":"B->A","from":"B","to":"A","path":[[242,143],[242,153],[97,153],[97,110]],"label":{"x":118,"y":152,"text":"no, retry"}},
+      {"id":"B->C","from":"B","to":"C","path":[[294,92],[417,92]],"label":{"x":356,"y":92,"text":"yes"}}
+    ],
+    "groups": []
+  },
+  "S": {
+    "title": "bi-directional circles — port + outer loop",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":321,"h":183}},
+    "nodes": [
+      {"id":"A","x":52,"y":41,"w":84,"h":84,"shape":"circle","label":"One"},
+      {"id":"B","x":184,"y":40,"w":85,"h":85,"shape":"circle","label":"Two"}
+    ],
+    "edges": [
+      {"id":"A->B","from":"A","to":"B","path":[[136,83],[184,83]]},
+      {"id":"B->A","from":"B","to":"A","path":[[227,125],[227,135],[94,135],[94,125]]}
+    ],
+    "groups": []
+  },
+  "T": {
+    "title": "parallelogram I/O fan-in — symmetric merge",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":301,"h":182}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":86,"h":37,"shape":"lean-r","label":"One"},
+      {"id":"B","x":41,"y":105,"w":87,"h":37,"shape":"lean-r","label":"Two"},
+      {"id":"T","x":175,"y":72,"w":86,"h":37,"shape":"lean-r","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[120,58],[152,58],[152,91],[182,91]]},
+      {"id":"B->T","from":"B","to":"T","path":[[121,123],[152,123],[152,91],[182,91]]}
+    ],
+    "groups": []
+  },
+  "U": {
+    "title": "trapezoid fan-in — symmetric merge",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":301,"h":182}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":86,"h":37,"shape":"trapezoid","label":"One"},
+      {"id":"B","x":41,"y":105,"w":87,"h":37,"shape":"trapezoid","label":"Two"},
+      {"id":"T","x":175,"y":72,"w":86,"h":37,"shape":"trapezoid","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[120,58],[152,58],[152,91],[182,91]]},
+      {"id":"B->T","from":"B","to":"T","path":[[121,123],[152,123],[152,91],[182,91]]}
+    ],
+    "groups": []
+  },
+  "V": {
+    "title": "asymmetric fan-in — symmetric merge at the flag point",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":285,"h":182}},
+    "nodes": [
+      {"id":"A","x":41,"y":40,"w":78,"h":37,"shape":"asymmetric","label":"One"},
+      {"id":"B","x":41,"y":105,"w":79,"h":37,"shape":"asymmetric","label":"Two"},
+      {"id":"T","x":167,"y":72,"w":78,"h":37,"shape":"asymmetric","label":"Hub"}
+    ],
+    "edges": [
+      {"id":"A->T","from":"A","to":"T","path":[[118,58],[144,58],[144,91],[167,91]]},
+      {"id":"B->T","from":"B","to":"T","path":[[120,123],[144,123],[144,91],[167,91]]}
+    ],
+    "groups": []
+  },
+  "W": {
+    "title": "product loop — TD decision branch symmetry",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":295,"h":533}},
+    "nodes": [
+      {"id":"A","x":72,"y":84,"w":138,"h":37,"shape":"rectangle","label":"Capture request"},
+      {"id":"B","x":85,"y":169,"w":112,"h":112,"shape":"diamond","label":"Ready?"},
+      {"id":"C","x":48,"y":440,"w":79,"h":37,"shape":"rectangle","label":"Ship"},
+      {"id":"D","x":155,"y":440,"w":79,"h":37,"shape":"rectangle","label":"Refine"}
+    ],
+    "edges": [
+      {"id":"A->B","from":"A","to":"B","path":[[141,121],[141,169]]},
+      {"id":"B->C","from":"B","to":"C","path":[[113,253],[113,324],[88,324],[88,440]],"label":{"x":88,"y":382,"text":"yes"}},
+      {"id":"B->D","from":"B","to":"D","path":[[169,253],[169,324],[195,324],[195,440]],"label":{"x":195,"y":382,"text":"needs work"}}
+    ],
+    "groups": [
+      {"id":"product","x":40,"y":40,"w":208,"h":453,"members":["A","B","C","D"],"label":"Product Loop"}
+    ]
+  },
+  "X": {
+    "title": "three-way TD decision — equivalent branch spread",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":382,"h":394}},
+    "nodes": [
+      {"id":"Q","x":114,"y":40,"w":118,"h":118,"shape":"diamond","label":"Decision"},
+      {"id":"L","x":23,"y":317,"w":81,"h":37,"shape":"rectangle","label":"Left"},
+      {"id":"M","x":132,"y":317,"w":81,"h":37,"shape":"rectangle","label":"Middle"},
+      {"id":"R","x":241,"y":317,"w":81,"h":37,"shape":"rectangle","label":"Right"}
+    ],
+    "edges": [
+      {"id":"Q->L","from":"Q","to":"L","path":[[143,128],[143,201],[64,201],[64,317]],"label":{"x":64,"y":253,"text":"left"}},
+      {"id":"Q->M","from":"Q","to":"M","path":[[173,158],[173,317]],"label":{"x":173,"y":253,"text":"middle"}},
+      {"id":"Q->R","from":"Q","to":"R","path":[[202,128],[202,201],[282,201],[282,317]],"label":{"x":282,"y":253,"text":"right"}}
+    ],
+    "groups": []
+  },
+  "Y": {
+    "title": "five-way fan-in — centered high-degree hub",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":730,"h":287}},
+    "nodes": [
+      {"id":"Web","x":40,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Web App"},
+      {"id":"Mobile","x":175,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Mobile App"},
+      {"id":"CLI","x":310,"y":52,"w":111,"h":37,"shape":"rectangle","label":"CLI Tool"},
+      {"id":"Partner","x":445,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Partner API"},
+      {"id":"Cron","x":579,"y":52,"w":111,"h":37,"shape":"rectangle","label":"Cron Jobs"},
+      {"id":"Gateway","x":319,"y":125,"w":92,"h":37,"shape":"rectangle","label":"Gateway"},
+      {"id":"Auth","x":306,"y":210,"w":118,"h":37,"shape":"rectangle","label":"Auth Service"}
+    ],
+    "edges": [
+      {"id":"Web->Gateway","from":"Web","to":"Gateway","path":[[95,89],[95,107],[365,107],[365,125]]},
+      {"id":"Mobile->Gateway","from":"Mobile","to":"Gateway","path":[[230,89],[230,107],[365,107],[365,125]]},
+      {"id":"CLI->Gateway","from":"CLI","to":"Gateway","path":[[365,89],[365,125]]},
+      {"id":"Partner->Gateway","from":"Partner","to":"Gateway","path":[[500,89],[500,107],[365,107],[365,125]]},
+      {"id":"Cron->Gateway","from":"Cron","to":"Gateway","path":[[635,89],[635,107],[365,107],[365,125]]},
+      {"id":"Gateway->Auth","from":"Gateway","to":"Auth","path":[[365,162],[365,210]]}
+    ],
+    "groups": []
+  },
+  "Z": {
+    "title": "dispatcher 4-way fan-out — shared trunk, no box",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":732,"h":202}},
+    "nodes": [
+      {"id":"Dispatcher","x":312,"y":40,"w":107,"h":37,"shape":"rectangle","label":"Dispatcher"},
+      {"id":"Email","x":40,"y":113,"w":145,"h":37,"shape":"rectangle","label":"Email Worker"},
+      {"id":"SMS","x":209,"y":113,"w":145,"h":37,"shape":"rectangle","label":"SMS Worker"},
+      {"id":"Push","x":378,"y":113,"w":145,"h":37,"shape":"rectangle","label":"Push Worker"},
+      {"id":"Webhook","x":547,"y":113,"w":145,"h":37,"shape":"rectangle","label":"Webhook Worker"}
+    ],
+    "edges": [
+      {"id":"Dispatcher->Email","from":"Dispatcher","to":"Email","path":[[366,77],[366,95],[112,95],[112,113]]},
+      {"id":"Dispatcher->SMS","from":"Dispatcher","to":"SMS","path":[[366,77],[366,95],[281,95],[281,113]]},
+      {"id":"Dispatcher->Push","from":"Dispatcher","to":"Push","path":[[366,77],[366,95],[450,95],[450,113]]},
+      {"id":"Dispatcher->Webhook","from":"Dispatcher","to":"Webhook","path":[[366,77],[366,95],[619,95],[619,113]]}
+    ],
+    "groups": []
+  },
+  "AA": {
+    "title": "LR fan-in + fan-out — symmetric hub treatment",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":442,"h":247}},
+    "nodes": [
+      {"id":"A","x":52,"y":40,"w":89,"h":37,"shape":"rectangle","label":"Ingest A"},
+      {"id":"B","x":52,"y":105,"w":89,"h":37,"shape":"rectangle","label":"Ingest B"},
+      {"id":"C","x":52,"y":170,"w":89,"h":37,"shape":"rectangle","label":"Ingest C"},
+      {"id":"Q","x":177,"y":105,"w":80,"h":37,"shape":"rectangle","label":"Queue"},
+      {"id":"W1","x":293,"y":40,"w":97,"h":37,"shape":"rectangle","label":"Worker 1"},
+      {"id":"W2","x":293,"y":105,"w":97,"h":37,"shape":"rectangle","label":"Worker 2"},
+      {"id":"W3","x":293,"y":170,"w":97,"h":37,"shape":"rectangle","label":"Worker 3"}
+    ],
+    "edges": [
+      {"id":"A->Q","from":"A","to":"Q","path":[[141,58],[159,58],[159,123],[177,123]]},
+      {"id":"B->Q","from":"B","to":"Q","path":[[141,123],[177,123]]},
+      {"id":"C->Q","from":"C","to":"Q","path":[[141,188],[159,188],[159,123],[177,123]]},
+      {"id":"Q->W1","from":"Q","to":"W1","path":[[257,114],[275,114],[275,58],[293,58]]},
+      {"id":"Q->W2","from":"Q","to":"W2","path":[[257,123],[293,123]]},
+      {"id":"Q->W3","from":"Q","to":"W3","path":[[257,133],[275,133],[275,188],[293,188]]}
+    ],
+    "groups": []
+  },
+  "AB": {
+    "title": "labeled TD fan-out — labels remain route-owned",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":491,"h":313}},
+    "nodes": [
+      {"id":"Src","x":193,"y":40,"w":86,"h":37,"shape":"rectangle","label":"Source"},
+      {"id":"Left","x":22,"y":236,"w":124,"h":37,"shape":"rectangle","label":"Left Target"},
+      {"id":"Center","x":174,"y":236,"w":124,"h":37,"shape":"rectangle","label":"Center Target"},
+      {"id":"Right","x":327,"y":236,"w":124,"h":37,"shape":"rectangle","label":"Right Target"}
+    ],
+    "edges": [
+      {"id":"Src->Left","from":"Src","to":"Left","path":[[215,77],[215,120],[84,120],[84,236]],"label":{"x":84,"y":172,"text":"left*"}},
+      {"id":"Src->Center","from":"Src","to":"Center","path":[[237,77],[237,236]],"label":{"x":237,"y":172,"text":"center*"}},
+      {"id":"Src->Right","from":"Src","to":"Right","path":[[258,77],[258,120],[389,120],[389,236]],"label":{"x":389,"y":172,"text":"right*"}}
+    ],
+    "groups": []
+  },
+  "AC": {
+    "title": "&-declared fan-out — compact syntax symmetry",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":316,"h":202}},
+    "nodes": [
+      {"id":"A","x":128,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"B","x":40,"y":113,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"C","x":128,"y":113,"w":60,"h":37,"shape":"rectangle","label":"C"},
+      {"id":"D","x":216,"y":113,"w":60,"h":37,"shape":"rectangle","label":"D"}
+    ],
+    "edges": [
+      {"id":"A->B","from":"A","to":"B","path":[[143,77],[143,95],[70,95],[70,113]]},
+      {"id":"A->C","from":"A","to":"C","path":[[158,77],[158,113]]},
+      {"id":"A->D","from":"A","to":"D","path":[[173,77],[173,95],[246,95],[246,113]]}
+    ],
+    "groups": []
+  },
+  "AD": {
+    "title": "diamond fan-out TD — symmetric doglegs",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":268,"h":384}},
+    "nodes": [
+      {"id":"Q","x":66,"y":40,"w":107,"h":107,"shape":"diamond","label":"Decide"},
+      {"id":"P","x":39,"y":307,"w":67,"h":37,"shape":"rectangle","label":"One"},
+      {"id":"R","x":134,"y":307,"w":67,"h":37,"shape":"rectangle","label":"Two"}
+    ],
+    "edges": [
+      {"id":"Q->P","from":"Q","to":"P","path":[[93,121],[93,190],[72,190],[72,307]],"label":{"x":72,"y":243,"text":"a"}},
+      {"id":"Q->R","from":"Q","to":"R","path":[[147,121],[147,190],[168,190],[168,307]],"label":{"x":168,"y":243,"text":"b"}}
+    ],
+    "groups": []
+  },
+  "AE": {
+    "title": "sibling source fan-out — source-side symmetry",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":491,"h":313}},
+    "nodes": [
+      {"id":"Src","x":193,"y":40,"w":86,"h":37,"shape":"rectangle","label":"Source"},
+      {"id":"Left","x":22,"y":236,"w":124,"h":37,"shape":"rectangle","label":"Left Target"},
+      {"id":"Center","x":174,"y":236,"w":124,"h":37,"shape":"rectangle","label":"Center Target"},
+      {"id":"Right","x":327,"y":236,"w":124,"h":37,"shape":"rectangle","label":"Right Target"}
+    ],
+    "edges": [
+      {"id":"Src->Left","from":"Src","to":"Left","path":[[215,77],[215,120],[84,120],[84,236]],"label":{"x":84,"y":172,"text":"left*"}},
+      {"id":"Src->Center","from":"Src","to":"Center","path":[[237,77],[237,236]],"label":{"x":237,"y":172,"text":"center*"}},
+      {"id":"Src->Right","from":"Src","to":"Right","path":[[258,77],[258,120],[389,120],[389,236]],"label":{"x":389,"y":172,"text":"right*"}}
+    ],
+    "groups": []
+  },
+  "AF": {
+    "title": "labeled LR fan-out connector — no detached labels",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":458,"h":248}},
+    "nodes": [
+      {"id":"Src","x":40,"y":105,"w":86,"h":37,"shape":"rectangle","label":"Source"},
+      {"id":"Top","x":294,"y":40,"w":123,"h":37,"shape":"rectangle","label":"Top Target"},
+      {"id":"Mid","x":294,"y":105,"w":123,"h":37,"shape":"rectangle","label":"Middle Target"},
+      {"id":"Bot","x":294,"y":170,"w":123,"h":37,"shape":"rectangle","label":"Bottom Target"}
+    ],
+    "edges": [
+      {"id":"Src->Top","from":"Src","to":"Top","path":[[126,114],[169,114],[169,58],[294,58]],"label":{"x":219,"y":58,"text":"top*"}},
+      {"id":"Src->Mid","from":"Src","to":"Mid","path":[[126,123],[294,123]],"label":{"x":219,"y":123,"text":"mid*"}},
+      {"id":"Src->Bot","from":"Src","to":"Bot","path":[[126,133],[169,133],[169,188],[294,188]],"label":{"x":219,"y":188,"text":"bot*"}}
+    ],
+    "groups": []
+  },
+  "AG": {
+    "title": "fan-in/fan-out corridor reuse — reciprocal hub symmetry",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":356,"h":182}},
+    "nodes": [
+      {"id":"A","x":40,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"B","x":40,"y":105,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"C","x":148,"y":72,"w":60,"h":37,"shape":"rectangle","label":"C"},
+      {"id":"D","x":256,"y":40,"w":60,"h":37,"shape":"rectangle","label":"D"},
+      {"id":"E","x":256,"y":105,"w":60,"h":37,"shape":"rectangle","label":"E"}
+    ],
+    "edges": [
+      {"id":"A->C","from":"A","to":"C","path":[[100,58],[124,58],[124,91],[148,91]]},
+      {"id":"B->C","from":"B","to":"C","path":[[100,123],[124,123],[124,91],[148,91]]},
+      {"id":"C->D","from":"C","to":"D","path":[[208,85],[232,85],[232,58],[256,58]]},
+      {"id":"C->E","from":"C","to":"E","path":[[208,97],[232,97],[232,123],[256,123]]}
+    ],
+    "groups": []
+  },
+  "AH": {
+    "title": "target-aware fan-in grouping — repeated peers",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":404,"h":263}},
+    "nodes": [
+      {"id":"A1","x":40,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A1"},
+      {"id":"A2","x":128,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A2"},
+      {"id":"A","x":84,"y":125,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"B1","x":216,"y":40,"w":60,"h":37,"shape":"rectangle","label":"B1"},
+      {"id":"B2","x":304,"y":40,"w":60,"h":37,"shape":"rectangle","label":"B2"},
+      {"id":"B","x":260,"y":125,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"C","x":172,"y":186,"w":60,"h":37,"shape":"rectangle","label":"C"}
+    ],
+    "edges": [
+      {"id":"A1->A","from":"A1","to":"A","path":[[70,77],[70,101],[114,101],[114,125]]},
+      {"id":"A2->A","from":"A2","to":"A","path":[[158,77],[158,101],[114,101],[114,125]]},
+      {"id":"B1->B","from":"B1","to":"B","path":[[246,77],[246,101],[290,101],[290,125]]},
+      {"id":"B2->B","from":"B2","to":"B","path":[[334,77],[334,101],[290,101],[290,125]]},
+      {"id":"A->C","from":"A","to":"C","path":[[114,162],[114,174],[202,174],[202,186]]},
+      {"id":"B->C","from":"B","to":"C","path":[[290,162],[290,174],[202,174],[202,186]]}
+    ],
+    "groups": []
+  },
+  "AI": {
+    "title": "dense TD bundles — equal peers + owned chain",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":914,"h":725}},
+    "nodes": [
+      {"id":"A1","x":40,"y":60,"w":105,"h":54,"shape":"rectangle","label":"1 / 2"},
+      {"id":"A2","x":169,"y":60,"w":105,"h":54,"shape":"rectangle","label":"3 / 4"},
+      {"id":"A3","x":298,"y":60,"w":105,"h":54,"shape":"rectangle","label":"5 / 6"},
+      {"id":"A4","x":427,"y":60,"w":105,"h":54,"shape":"rectangle","label":"XXX\n(YYY ZZZ)"},
+      {"id":"A","x":242,"y":142,"w":88,"h":54,"shape":"rectangle","label":"AAA\n(keita)"},
+      {"id":"B1","x":556,"y":60,"w":90,"h":54,"shape":"rectangle","label":"77 77\n(7 / 7 / 7)"},
+      {"id":"B2","x":670,"y":60,"w":90,"h":54,"shape":"rectangle","label":"88-88\n(99 99)"},
+      {"id":"B3","x":784,"y":60,"w":90,"h":54,"shape":"rectangle","label":"111s 222s"},
+      {"id":"B","x":671,"y":142,"w":88,"h":54,"shape":"rectangle","label":"BBB\n(yuriko)"},
+      {"id":"C","x":466,"y":220,"w":69,"h":37,"shape":"rectangle","label":"CCC"},
+      {"id":"D","x":425,"y":305,"w":78,"h":37,"shape":"rectangle","label":"DDDD"},
+      {"id":"E","x":371,"y":435,"w":78,"h":37,"shape":"rectangle","label":"EEEE"},
+      {"id":"F","x":477,"y":389,"w":82,"h":82,"shape":"diamond","label":"F?"},
+      {"id":"G","x":405,"y":631,"w":99,"h":54,"shape":"rectangle","label":"High level\nTr"},
+      {"id":"H","x":532,"y":631,"w":99,"h":54,"shape":"rectangle","label":"Dumb Tr\nS"}
+    ],
+    "edges": [
+      {"id":"A->C","from":"A","to":"C","path":[[286,196],[286,208],[500,208],[500,220]]},
+      {"id":"B->C","from":"B","to":"C","path":[[715,196],[715,208],[500,208],[500,220]]},
+      {"id":"C->D","from":"C","to":"D","path":[[484,257],[484,305]]},
+      {"id":"D->E","from":"D","to":"E","path":[[464,341],[464,365],[410,365],[410,435]]},
+      {"id":"A1->A","from":"A1","to":"A","path":[[92,114],[92,128],[286,128],[286,142]]},
+      {"id":"A2->A","from":"A2","to":"A","path":[[221,114],[221,128],[286,128],[286,142]]},
+      {"id":"A3->A","from":"A3","to":"A","path":[[350,114],[350,128],[286,128],[286,142]]},
+      {"id":"A4->A","from":"A4","to":"A","path":[[479,114],[479,128],[286,128],[286,142]]},
+      {"id":"B1->B","from":"B1","to":"B","path":[[601,114],[601,128],[715,128],[715,142]]},
+      {"id":"B2->B","from":"B2","to":"B","path":[[715,114],[715,142]]},
+      {"id":"B3->B","from":"B3","to":"B","path":[[829,114],[829,128],[715,128],[715,142]]},
+      {"id":"D->F","from":"D","to":"F","path":[[464,341],[464,365],[518,365],[518,389]]},
+      {"id":"F->G","from":"F","to":"G","path":[[497,451],[497,515],[454,515],[454,631]],"label":{"x":454,"y":567,"text":"Yes"}},
+      {"id":"F->H","from":"F","to":"H","path":[[538,451],[538,515],[581,515],[581,631]],"label":{"x":581,"y":567,"text":"No"}}
+    ],
+    "groups": []
+  },
+  "AJ": {
+    "title": "dense overlapping-curve pattern — symmetric parallel labels",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":405,"h":859}},
+    "nodes": [
+      {"id":"Z","x":141,"y":40,"w":70,"h":37,"shape":"rectangle","label":"Start"},
+      {"id":"A","x":132,"y":193,"w":76,"h":37,"shape":"rectangle","label":"Alpha"},
+      {"id":"B","x":136,"y":346,"w":69,"h":37,"shape":"rectangle","label":"Beta"},
+      {"id":"C","x":191,"y":476,"w":83,"h":37,"shape":"rectangle","label":"Gamma"},
+      {"id":"D","x":133,"y":629,"w":72,"h":37,"shape":"rectangle","label":"Delta"},
+      {"id":"E","x":136,"y":782,"w":66,"h":37,"shape":"rectangle","label":"End"}
+    ],
+    "edges": [
+      {"id":"Z->A","from":"Z","to":"A","path":[[165,77],[165,98],[91,98],[91,172],[158,172],[158,193]],"label":{"x":91,"y":135,"text":"long 1"}},
+      {"id":"Z->A","from":"Z","to":"A","path":[[188,77],[188,98],[252,98],[252,172],[183,172],[183,193]],"label":{"x":252,"y":135,"text":"long 2"}},
+      {"id":"A->B","from":"A","to":"B","path":[[163,230],[163,346]],"label":{"x":163,"y":249,"text":"3"}},
+      {"id":"A->B","from":"A","to":"B","path":[[183,230],[183,346]],"label":{"x":201,"y":297,"text":"4"}},
+      {"id":"B->C","from":"B","to":"C","path":[[198,383],[198,476]],"label":{"x":198,"y":429,"text":"5"}},
+      {"id":"B->D","from":"B","to":"D","path":[[170,383],[170,476],[125,476],[125,617],[156,617],[156,629]],"label":{"x":125,"y":571,"text":"6"}},
+      {"id":"C->D","from":"C","to":"D","path":[[197,513],[197,629]],"label":{"x":197,"y":571,"text":"7"}},
+      {"id":"D->E","from":"D","to":"E","path":[[168,666],[168,782]],"label":{"x":168,"y":724,"text":"8"}},
+      {"id":"B->A","from":"B","to":"A","path":[[145,346],[145,230]],"label":{"x":145,"y":297,"text":"9"}},
+      {"id":"C->A","from":"C","to":"A","path":[[253,513],[253,525],[285,525],[285,181],[196,181],[196,193]],"label":{"x":285,"y":417,"text":"10"}},
+      {"id":"D->A","from":"D","to":"A","path":[[168,666],[168,770],[48,770],[48,212],[132,212]],"label":{"x":47,"y":704,"text":"11"}},
+      {"id":"B->B","from":"B","to":"B","path":[[136,356],[112,356],[112,374],[136,374]],"label":{"x":95,"y":365,"text":"12"}},
+      {"id":"C->B","from":"C","to":"B","path":[[232,513],[232,537],[305,537],[305,334],[191,334],[191,346]],"label":{"x":305,"y":514,"text":"13"}},
+      {"id":"D->B","from":"D","to":"B","path":[[150,666],[150,758],[68,758],[68,347],[150,347],[150,346]],"label":{"x":68,"y":552,"text":"14"}},
+      {"id":"C->C","from":"C","to":"C","path":[[191,485],[167,485],[167,503],[191,503]],"label":{"x":150,"y":494,"text":"18"}},
+      {"id":"D->D","from":"D","to":"D","path":[[133,638],[109,638],[109,656],[133,656]],"label":{"x":92,"y":647,"text":"21"}}
+    ],
+    "groups": []
+  },
+  "AK": {
+    "title": "equivalent peer fan-in groups",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":404,"h":202}},
+    "nodes": [
+      {"id":"A1","x":40,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A1"},
+      {"id":"A2","x":128,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A2"},
+      {"id":"A","x":84,"y":125,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"B1","x":216,"y":40,"w":60,"h":37,"shape":"rectangle","label":"B1"},
+      {"id":"B2","x":304,"y":40,"w":60,"h":37,"shape":"rectangle","label":"B2"},
+      {"id":"B","x":260,"y":125,"w":60,"h":37,"shape":"rectangle","label":"B"}
+    ],
+    "edges": [
+      {"id":"A1->A","from":"A1","to":"A","path":[[70,77],[70,101],[114,101],[114,125]]},
+      {"id":"A2->A","from":"A2","to":"A","path":[[158,77],[158,101],[114,101],[114,125]]},
+      {"id":"B1->B","from":"B1","to":"B","path":[[246,77],[246,101],[290,101],[290,125]]},
+      {"id":"B2->B","from":"B2","to":"B","path":[[334,77],[334,101],[290,101],[290,125]]}
+    ],
+    "groups": []
+  },
+  "AL": {
+    "title": "equivalent terminal peer fan-out",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":371,"h":202}},
+    "nodes": [
+      {"id":"Source","x":138,"y":40,"w":86,"h":37,"shape":"rectangle","label":"Source"},
+      {"id":"Left","x":32,"y":113,"w":81,"h":37,"shape":"rectangle","label":"Left"},
+      {"id":"Mid","x":141,"y":113,"w":81,"h":37,"shape":"rectangle","label":"Middle"},
+      {"id":"Right","x":250,"y":113,"w":81,"h":37,"shape":"rectangle","label":"Right"}
+    ],
+    "edges": [
+      {"id":"Source->Left","from":"Source","to":"Left","path":[[160,77],[160,95],[72,95],[72,113]]},
+      {"id":"Source->Mid","from":"Source","to":"Mid","path":[[181,77],[181,113]]},
+      {"id":"Source->Right","from":"Source","to":"Right","path":[[203,77],[203,95],[291,95],[291,113]]}
+    ],
+    "groups": []
+  },
+  "AM": {
+    "title": "two-sided hub symmetry",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":362,"h":182}},
+    "nodes": [
+      {"id":"A","x":40,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"B","x":40,"y":105,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"C","x":148,"y":72,"w":66,"h":37,"shape":"rectangle","label":"Hub"},
+      {"id":"D","x":262,"y":40,"w":60,"h":37,"shape":"rectangle","label":"D"},
+      {"id":"E","x":262,"y":105,"w":60,"h":37,"shape":"rectangle","label":"E"}
+    ],
+    "edges": [
+      {"id":"A->C","from":"A","to":"C","path":[[100,58],[124,58],[124,91],[148,91]]},
+      {"id":"B->C","from":"B","to":"C","path":[[100,123],[124,123],[124,91],[148,91]]},
+      {"id":"C->D","from":"C","to":"D","path":[[214,85],[238,85],[238,58],[262,58]]},
+      {"id":"C->E","from":"C","to":"E","path":[[214,97],[238,97],[238,123],[262,123]]}
+    ],
+    "groups": []
+  },
+  "AN": {
+    "title": "repeated equivalent subtrees",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":580,"h":372}},
+    "nodes": [
+      {"id":"A1","x":40,"y":52,"w":60,"h":37,"shape":"rectangle","label":"A1"},
+      {"id":"A2","x":128,"y":52,"w":60,"h":37,"shape":"rectangle","label":"A2"},
+      {"id":"A","x":84,"y":137,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"B1","x":216,"y":52,"w":60,"h":37,"shape":"rectangle","label":"B1"},
+      {"id":"B2","x":304,"y":52,"w":60,"h":37,"shape":"rectangle","label":"B2"},
+      {"id":"B","x":260,"y":137,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"C1","x":392,"y":52,"w":60,"h":37,"shape":"rectangle","label":"C1"},
+      {"id":"C2","x":480,"y":52,"w":60,"h":37,"shape":"rectangle","label":"C2"},
+      {"id":"C","x":436,"y":137,"w":60,"h":37,"shape":"rectangle","label":"C"},
+      {"id":"Merge","x":249,"y":210,"w":81,"h":37,"shape":"rectangle","label":"Merge"},
+      {"id":"Done","x":253,"y":295,"w":73,"h":37,"shape":"rectangle","label":"Done"}
+    ],
+    "edges": [
+      {"id":"A1->A","from":"A1","to":"A","path":[[70,89],[70,113],[114,113],[114,137]]},
+      {"id":"A2->A","from":"A2","to":"A","path":[[158,89],[158,113],[114,113],[114,137]]},
+      {"id":"B1->B","from":"B1","to":"B","path":[[246,89],[246,113],[290,113],[290,137]]},
+      {"id":"B2->B","from":"B2","to":"B","path":[[334,89],[334,113],[290,113],[290,137]]},
+      {"id":"C1->C","from":"C1","to":"C","path":[[422,89],[422,113],[466,113],[466,137]]},
+      {"id":"C2->C","from":"C2","to":"C","path":[[510,89],[510,113],[466,113],[466,137]]},
+      {"id":"A->Merge","from":"A","to":"Merge","path":[[114,174],[114,192],[290,192],[290,210]]},
+      {"id":"B->Merge","from":"B","to":"Merge","path":[[290,174],[290,210]]},
+      {"id":"C->Merge","from":"C","to":"Merge","path":[[466,174],[466,192],[290,192],[290,210]]},
+      {"id":"Merge->Done","from":"Merge","to":"Done","path":[[290,247],[290,295]]}
+    ],
+    "groups": []
+  },
+  "AO": {
+    "title": "reciprocal peer merge/fan-out",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":228,"h":372}},
+    "nodes": [
+      {"id":"A","x":40,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A"},
+      {"id":"B","x":128,"y":40,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"C","x":84,"y":125,"w":60,"h":37,"shape":"rectangle","label":"C"},
+      {"id":"D","x":40,"y":210,"w":60,"h":37,"shape":"rectangle","label":"D"},
+      {"id":"E","x":128,"y":210,"w":60,"h":37,"shape":"rectangle","label":"E"},
+      {"id":"F","x":84,"y":295,"w":60,"h":37,"shape":"rectangle","label":"F"}
+    ],
+    "edges": [
+      {"id":"A->C","from":"A","to":"C","path":[[70,77],[70,101],[114,101],[114,125]]},
+      {"id":"B->C","from":"B","to":"C","path":[[158,77],[158,101],[114,101],[114,125]]},
+      {"id":"C->D","from":"C","to":"D","path":[[114,162],[114,186],[70,186],[70,210]]},
+      {"id":"C->E","from":"C","to":"E","path":[[114,162],[114,186],[158,186],[158,210]]},
+      {"id":"D->F","from":"D","to":"F","path":[[70,247],[70,271],[114,271],[114,295]]},
+      {"id":"E->F","from":"E","to":"F","path":[[158,247],[158,271],[114,271],[114,295]]}
+    ],
+    "groups": []
+  },
+  "AP": {
+    "title": "duplicate pair into a shared hub — nested, non-crossing lanes",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":248,"h":194}},
+    "nodes": [
+      {"id":"A","x":40,"y":52,"w":60,"h":37,"shape":"rectangle","label":"a"},
+      {"id":"B","x":40,"y":117,"w":60,"h":37,"shape":"rectangle","label":"b"},
+      {"id":"C","x":148,"y":85,"w":60,"h":37,"shape":"rectangle","label":"c"}
+    ],
+    "edges": [
+      {"id":"A->C","from":"A","to":"C","path":[[100,64],[129,64],[129,90],[148,90]]},
+      {"id":"A->C","from":"A","to":"C","path":[[100,77],[116,77],[116,103],[148,103]]},
+      {"id":"B->C","from":"B","to":"C","path":[[100,136],[143,136],[143,117],[148,117]]}
+    ],
+    "groups": []
+  },
+  "AQ": {
+    "title": "duplicate feedback pair — separated back-edge lanes",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":248,"h":117}},
+    "nodes": [
+      {"id":"A","x":40,"y":40,"w":60,"h":37,"shape":"rectangle","label":"a"},
+      {"id":"B","x":148,"y":40,"w":60,"h":37,"shape":"rectangle","label":"b"}
+    ],
+    "edges": [
+      {"id":"A->B","from":"A","to":"B","path":[[100,58],[148,58]]},
+      {"id":"B->A","from":"B","to":"A","path":[[148,51],[100,51]]},
+      {"id":"B->A","from":"B","to":"A","path":[[148,65],[100,65]]}
+    ],
+    "groups": []
+  },
+  "AR": {
+    "title": "issue #62 repro — mixed duplicate/feedback fan-in",
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":342,"h":282}},
+    "nodes": [
+      {"id":"N1","x":46,"y":40,"w":60,"h":37,"shape":"rectangle","label":"n1"},
+      {"id":"N2","x":46,"y":105,"w":60,"h":37,"shape":"rectangle","label":"n2"},
+      {"id":"N4","x":46,"y":170,"w":60,"h":37,"shape":"rectangle","label":"n4"},
+      {"id":"N0","x":230,"y":170,"w":60,"h":37,"shape":"rectangle","label":"n0"},
+      {"id":"N3","x":148,"y":130,"w":60,"h":51,"shape":"cylinder","label":"n3"}
+    ],
+    "edges": [
+      {"id":"N4->N0","from":"N4","to":"N0","path":[[106,188],[230,188]]},
+      {"id":"N0->N4","from":"N0","to":"N4","path":[[260,207],[260,223],[76,223],[76,207]],"label":{"x":171,"y":222,"text":"go"}},
+      {"id":"N2->N3","from":"N2","to":"N3","path":[[106,116],[136,116],[136,142],[148,142]]},
+      {"id":"N2->N3","from":"N2","to":"N3","path":[[106,130],[122,130],[122,156],[148,156]]},
+      {"id":"N4->N3","from":"N4","to":"N3","path":[[106,188],[127,188],[127,170],[148,170]]}
+    ],
+    "groups": []
+  }
+}

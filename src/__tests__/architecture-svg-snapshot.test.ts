@@ -2,17 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
+import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const snapshotDir = join(import.meta.dir, 'testdata', 'svg')
-
-function normalizeSvg(svg: string): string {
-  return svg
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map(line => line.trimEnd())
-    .join('\n')
-    .trim()
-}
 
 describe('renderMermaidSVG – architecture snapshots', () => {
   it('matches the representative architecture golden SVG', () => {

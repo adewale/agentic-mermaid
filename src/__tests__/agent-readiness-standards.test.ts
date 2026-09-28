@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
@@ -45,77 +45,176 @@ function expectAbsoluteHttps(url: unknown) {
   expect(String(url)).toStartWith('https://')
 }
 
-describe('agent-readiness standards syntax', () => {
-  test('local and CI own source gates while release owns exact-SHA attestation and packing', () => {
-    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
-    const ciWorkflow = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
-    const publishWorkflow = readFileSync(join(REPO, '.github/workflows/publish.yml'), 'utf8')
-    const strategy = readFileSync(join(REPO, 'docs/testing-strategy.md'), 'utf8')
-    const pullRequestTemplate = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8')
-    const agentGuide = readFileSync(join(REPO, 'CLAUDE.md'), 'utf8')
-    const ci = parseYaml(ciWorkflow)
-    const publish = parseYaml(publishWorkflow)
-    const unitSteps = ci.jobs.unit.steps
-    const aggregateSteps = ci.jobs.test.steps
-    const qualitySteps = ci.jobs.quality.steps
-    const e2eSteps = ci.jobs.e2e.steps
-    const gateSteps = publish.jobs['release-gate'].steps
-    const packageSteps = publish.jobs.package.steps
-    const publishSteps = publish.jobs.publish.steps
-    const mcpPublishSteps = publish.jobs['publish-mcp'].steps
+interface WorkflowStep { name?: string; id?: string; if?: string; uses?: string; run?: string; env?: Record<string, unknown>; with?: Record<string, unknown>; 'working-directory'?: string }
+interface WorkflowJob { needs?: string | string[]; if?: string; permissions?: string | Record<string, string>; strategy?: { matrix?: Record<string, unknown[]> }; steps?: WorkflowStep[] }
+interface Workflow { on?: Record<string, unknown>; permissions?: string | Record<string, string>; concurrency?: unknown; jobs: Record<string, WorkflowJob> }
 
-    expect(packageJson.scripts.test).toBe('bun test --coverage --timeout 30000 src/__tests__/')
-    expect(ciWorkflow.match(/run: bun run test(?:\s|$)/gm)?.length).toBe(1)
+const WORKFLOWS_DIR = join(REPO, '.github', 'workflows')
+const PACKAGE_SCRIPTS = (JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts
+
+function loadWorkflow(file: string): Workflow {
+  return parseYaml(readFileSync(join(WORKFLOWS_DIR, file), 'utf8')) as Workflow
+}
+
+const WORKFLOW_FILES = readdirSync(WORKFLOWS_DIR).filter(file => /\.ya?ml$/.test(file))
+
+function needsOf(job: WorkflowJob): string[] {
+  return job.needs === undefined ? [] : Array.isArray(job.needs) ? job.needs : [job.needs]
+}
+
+/** Every job `id` waits for, directly or through another job. */
+function upstreamOf(jobs: Record<string, WorkflowJob>, id: string): Set<string> {
+  const seen = new Set<string>()
+  const pending = [...needsOf(jobs[id]!)]
+  while (pending.length > 0) {
+    const next = pending.pop()!
+    if (seen.has(next)) continue
+    seen.add(next)
+    pending.push(...needsOf(jobs[next]!))
+  }
+  return seen
+}
+
+function runsOf(job: WorkflowJob): string[] {
+  return (job.steps ?? []).flatMap(step => step.run === undefined ? [] : [step.run])
+}
+
+/** `bun run <target>` targets, where a target is a package script or a file. */
+function bunRunTargets(run: string): string[] {
+  return [...run.matchAll(/\bbun run ([^\s;&|)]+)/g)].map(match => match[1]!)
+}
+
+function grantsWrite(permissions: WorkflowJob['permissions']): boolean {
+  if (typeof permissions === 'string') return permissions === 'write-all'
+  return Object.values(permissions ?? {}).includes('write')
+}
+
+function holdsOidc(job: WorkflowJob): boolean {
+  return typeof job.permissions === 'object' && job.permissions['id-token'] === 'write'
+}
+
+const NEEDS_RESULT = /^\$\{\{\s*needs(?:\.([\w-]+)|\[['"]([\w-]+)['"]\])\.result\s*\}\}$/
+
+describe('agent-readiness standards syntax', () => {
+  test('every workflow `bun run` target is a package script or a checked-in file', () => {
+    const unresolved: string[] = []
+    for (const file of WORKFLOW_FILES) {
+      for (const [id, job] of Object.entries(loadWorkflow(file).jobs)) {
+        for (const step of job.steps ?? []) {
+          for (const target of bunRunTargets(step.run ?? '')) {
+            const resolves = target.includes('/') || target.endsWith('.ts')
+              ? existsSync(join(REPO, step['working-directory'] ?? '.', target))
+              : Object.hasOwn(PACKAGE_SCRIPTS, target)
+            if (!resolves) unresolved.push(`${file} ${id}: bun run ${target}`)
+          }
+        }
+      }
+    }
+    expect(unresolved).toEqual([])
+  })
+
+  test('CI runs the canonical local gates through their package scripts; release re-runs none of them', () => {
+    const ci = loadWorkflow('ci.yml')
+    const publish = loadWorkflow('publish.yml')
+    const ciRuns = Object.values(ci.jobs).flatMap(runsOf)
+    const publishRuns = Object.values(publish.jobs).flatMap(runsOf)
+    const canonicalSuite = /(?:^|[;&|(]\s*|\n\s*)bun run test(?:\s|$)/
+    expect(ciRuns.filter(run => canonicalSuite.test(run))).toHaveLength(1)
+    expect(publishRuns.filter(run => canonicalSuite.test(run))).toEqual([])
+    // Release attests CI for the exact commit instead of re-running its gates:
+    // the only package script it may invoke is the build it packs.
+    expect([...new Set(publishRuns.flatMap(bunRunTargets).filter(target => Object.hasOwn(PACKAGE_SCRIPTS, target)))])
+      .toEqual(['build'])
+
+    // The aggregate runners developers use locally are the ones CI reaches.
+    const ciTargets = new Set(ciRuns.flatMap(bunRunTargets))
+    for (const runner of ['scripts/ci/quality-gates.ts', 'e2e/run-browser-contracts.ts']) {
+      const scripts = Object.entries(PACKAGE_SCRIPTS).filter(([, command]) => command.includes(runner)).map(([name]) => name)
+      expect({ runner, reachedByCi: scripts.some(name => ciTargets.has(name)) }).toEqual({ runner, reachedByCi: true })
+    }
+    expect(QUALITY_CHECKS.map(check => check.command.join(' '))).toEqual(expect.arrayContaining([
+      'bun run audit:ugly',
+      'bun run lint:biome',
+      'bun run audit:dependencies',
+    ]))
+    // Whatever command the dependency-audit gate resolves to, it must still
+    // fail on high (or less severe) advisories rather than only critical ones.
+    const auditCommands = QUALITY_CHECKS.map(check => check.command.join(' '))
+      .map(command => /^bun run ([^\s/]+)$/.exec(command)?.[1])
+      .flatMap(name => name && Object.hasOwn(PACKAGE_SCRIPTS, name) ? [PACKAGE_SCRIPTS[name]!] : [])
+      .filter(command => /\bbun audit\b/.test(command))
+    expect(auditCommands.length).toBeGreaterThan(0)
+    for (const command of auditCommands) {
+      expect(['low', 'moderate', 'high']).toContain(/--audit-level[= ](\w+)/.exec(command)?.[1] ?? 'low')
+    }
+
     expect(ci.concurrency).toEqual({
       group: 'ci-${{ github.event.pull_request.number || github.ref }}',
       'cancel-in-progress': true,
     })
-    expect(ci.jobs.unit.strategy.matrix.shard).toEqual(['1/3', '2/3', '3/3'])
-    expect(unitSteps.find((step: any) => step.name === 'Build the Node bundle for cross-runtime determinism contracts')?.run)
-      .toBe('bun run build')
-    expect(unitSteps.find((step: any) => step.name === 'Setup Node for the reviewed package manifest')).toMatchObject({
-      if: "${{ matrix.shard == '1/3' }}",
-      uses: 'actions/setup-node@v7',
-      with: {
-        'node-version': 24,
-        'registry-url': 'https://registry.npmjs.org',
-        'package-manager-cache': false,
-      },
-    })
-    expect(unitSteps.find((step: any) => step.name === 'Install the pinned publishing npm for manifest verification')?.run)
-      .toContain('npm install -g npm@11.18.0 --ignore-scripts')
-    expect(unitSteps.find((step: any) => step.name === 'Verify the reviewed npm package file manifest')).toMatchObject({
-      if: "${{ matrix.shard == '1/3' }}",
-      run: 'bun run scripts/ci/verify-publish-package.ts --pack-destination ci-release-artifact',
-    })
-    expect(unitSteps.find((step: any) => step.name === 'Reject a divergent already-published immutable npm version')).toMatchObject({
-      if: "${{ matrix.shard == '1/3' }}",
-      run: 'bun run scripts/ci/published-version.ts',
-    })
-    expect(unitSteps.find((step: any) => step.name === 'Run test shard (coverage = under-tested finder, NOT an adequacy target)')?.run)
-      .toBe('bun run test -- --shard=${{ matrix.shard }}')
-    expect(unitSteps.find((step: any) => step.name === 'Upload shard coverage')?.uses)
-      .toBe('actions/upload-artifact@v7')
-    expect(ci.jobs.test.needs).toEqual(['unit', 'quality', 'route-sabotage', 'mcp-conformance'])
-    expect(aggregateSteps.find((step: any) => step.name === 'Merge shard coverage')?.run)
-      .toBe('bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3')
-    expect(ci.jobs.e2e.strategy.matrix.suite).toEqual(['cli', 'dist-artifact', 'tarball-consumer', 'tarball-consumer-node22', 'browser'])
-    expect(e2eSteps.find((step: any) => step.name === 'Setup Node for shipped-artifact gates')?.with?.['node-version'])
-      .toBe("${{ matrix.suite == 'tarball-consumer-node22' && '22' || '24' }}")
-    expect(ci.jobs['ci-complete'].needs).toEqual(['test', 'e2e', 'mutation-incremental'])
-    expect(ci.jobs['ci-complete'].if).toBe('${{ always() }}')
-    expect(ci.jobs['ci-complete'].steps.find((step: any) => step.name === 'Require every CI lane to pass')?.run)
-      .toContain('E2E_RESULT')
-    expect(BROWSER_CONTRACT_FILES).toEqual([
-      { file: 'security-csp.e2e.test.ts' },
-      { file: 'browser.test.ts' },
-      { file: 'browser-bundle.e2e.test.ts' },
-      { file: 'mcp-browser-cors.e2e.test.ts' },
-      { file: '../src/__tests__/editor-theme-switch.test.ts', browserOptIn: true },
-      { file: '../src/__tests__/editor-style-switch.test.ts', browserOptIn: true },
-      { file: '../src/__tests__/website-browser-a11y.test.ts', browserOptIn: true },
-      { file: '../src/__tests__/svg-style-isolation-browser.test.ts', browserOptIn: true },
-    ])
+    const strategy = readFileSync(join(REPO, 'docs/testing-strategy.md'), 'utf8')
+    const pullRequestTemplate = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8')
+    const agentGuide = readFileSync(join(REPO, 'CLAUDE.md'), 'utf8')
+    expect(strategy).toContain('`bun run test`')
+    expect(pullRequestTemplate).toContain('`bun run test`')
+    expect(agentGuide).toContain('`bun run test`')
+  })
+
+  test('unit shards partition the suite and the coverage merge waits for every shard', () => {
+    const ci = loadWorkflow('ci.yml')
+    const sharded = Object.values(ci.jobs).filter(job => Array.isArray(job.strategy?.matrix?.shard))
+    expect(sharded).toHaveLength(1)
+    const shards = sharded[0]!.strategy!.matrix!.shard!.map(String)
+    const total = shards.length
+    // Bun's `--shard=i/N` selects one slice; the matrix must cover 1..N once.
+    expect([...shards].sort()).toEqual(Array.from({ length: total }, (_, index) => `${index + 1}/${total}`).sort())
+    expect(runsOf(sharded[0]!).some(run => /\bbun run test\b.*\$\{\{\s*matrix\.shard\s*\}\}/.test(run))).toBe(true)
+    const mergeCounts = Object.values(ci.jobs).flatMap(runsOf)
+      .flatMap(run => [...run.matchAll(/scripts\/ci\/merge-lcov\.ts\s+\S+\s+\S+\s+(\d+)/g)].map(match => Number(match[1])))
+    expect(mergeCounts.length).toBeGreaterThan(0)
+    for (const count of mergeCounts) expect(count).toBe(total)
+  })
+
+  test('the protected CI result cannot turn green unless every lane passed', () => {
+    const ci = loadWorkflow('ci.yml')
+    const ids = Object.keys(ci.jobs)
+    // One protectable sink: no job waits for it, it waits for every job, and
+    // it runs even when a prerequisite failed (a skipped check reads as green).
+    const sinks = ids.filter(id => !ids.some(other => needsOf(ci.jobs[other]!).includes(id)))
+    expect(sinks).toHaveLength(1)
+    const sink = sinks[0]!
+    expect([...upstreamOf(ci.jobs, sink)].sort()).toEqual(ids.filter(id => id !== sink).sort())
+
+    const aggregates = ids.filter(id => String(ci.jobs[id]!.if ?? '').includes('always()'))
+    expect(aggregates).toContain(sink)
+    for (const id of aggregates) {
+      const job = ci.jobs[id]!
+      const gates = (job.steps ?? []).filter(step => Object.values(step.env ?? {}).some(value => NEEDS_RESULT.test(String(value))))
+      expect({ job: id, gates: gates.length }).toEqual({ job: id, gates: 1 })
+      const gate = gates[0]!
+      expect(gate.if === undefined || gate.if.includes('always()')).toBe(true)
+      const resultVars = new Map<string, string>()
+      for (const [name, value] of Object.entries(gate.env ?? {})) {
+        const match = NEEDS_RESULT.exec(String(value))
+        if (match) resultVars.set(match[1] ?? match[2]!, name)
+      }
+      expect({ job: id, observed: [...resultVars.keys()].sort() }).toEqual({ job: id, observed: [...needsOf(job)].sort() })
+
+      const runGate = (results: Record<string, string>) => spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', gate.run!], {
+        encoding: 'utf8',
+        env: { PATH: process.env.PATH, ...Object.fromEntries([...resultVars].map(([need, name]) => [name, results[need] ?? 'success'])) },
+      }).status
+      expect({ job: id, allPassed: runGate({}) }).toEqual({ job: id, allPassed: 0 })
+      for (const need of resultVars.keys()) {
+        for (const outcome of ['failure', 'cancelled']) {
+          expect({ job: id, need, outcome, exitsZero: runGate({ [need]: outcome }) === 0 })
+            .toEqual({ job: id, need, outcome, exitsZero: false })
+        }
+      }
+    }
+  })
+
+  test('the browser contract runner lists exactly the discovered browser suites and opts in the gated ones', () => {
     const browserMarkers = /from ['"]playwright['"]|findChromiumExecutable|AM_BROWSER_TESTS/
     const discoveredBrowserFiles = [
       ...readdirSync(join(REPO, 'e2e')).filter(file => file.endsWith('.ts') && file !== 'run-browser-contracts.ts')
@@ -125,112 +224,120 @@ describe('agent-readiness standards syntax', () => {
         .map(file => `../src/__tests__/${file}`),
     ].sort()
     expect(BROWSER_CONTRACT_FILES.map(contract => contract.file).sort()).toEqual(discoveredBrowserFiles)
-    expect(e2eSteps.find((step: any) => step.name === 'Run canonical browser contract suite')?.run)
-      .toBe('bun run test:browser')
-    expect(packageJson.scripts['test:browser']).toBe('bun run e2e/run-browser-contracts.ts')
-    expect(packageJson.scripts['audit:dependencies']).toBe('bun audit --audit-level=high')
-    expect(packageJson.scripts.format).toBe('biome format --write .')
-    expect(packageJson.scripts['format:changed']).toBe('biome format --write --changed')
-    expect(packageJson.scripts['lint:biome']).toBe('biome lint .')
-    expect(qualitySteps.map((step: any) => step.run).filter(Boolean)).toEqual(['bun run quality:check'])
-    expect(QUALITY_CHECKS.map(check => check.command.join(' '))).toEqual(expect.arrayContaining([
-      'bun run audit:ugly',
-      'bun run lint',
-      'bun run audit:dependencies',
-    ]))
-    expect(publishWorkflow.match(/run: bun run test(?:\s|$)/gm) ?? []).toHaveLength(0)
-    expect(publish.jobs['platform-smoke'].needs).toBe('release-gate')
-    expect(publish.jobs.package.needs).toEqual(['release-gate', 'platform-smoke'])
-    expect(publish.jobs.publish.needs).toBe('package')
-    expect(publish.jobs['platform-smoke'].strategy.matrix.os).toEqual(['macos-latest', 'windows-latest'])
-    expect(publish.jobs['platform-smoke'].steps.find((step: any) => step.name === 'Run registry-derived cross-platform rendering contracts')?.run)
-      .toContain('render-conformance-plan.test.ts')
-    expect(gateSteps.find((step: any) => step.name === 'Verify release tag, package versions, and checked-out commit agree')?.run)
-      .toBe('bun run scripts/ci/release-identity.ts')
-    expect(publish.permissions['id-token']).toBeUndefined()
-    expect(publish.jobs['release-gate'].permissions.actions).toBe('read')
-    expect(gateSteps.find((step: any) => step.name === 'Require successful canonical CI for the exact release commit')?.run)
-      .toContain('actions/workflows/ci.yml/runs')
-    expect(packageSteps.find((step: any) => step.name === 'Pack and verify the exact publication artifact')?.run)
-      .toBe('bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact')
-    expect(gateSteps.some((step: any) => /already-published immutable npm version/i.test(step.name ?? ''))).toBe(false)
-    for (const duplicate of [
-      'Reject new high or critical dependency advisories',
-      'Run sketch and whole-corpus layout quality gates',
-      'Run canonical browser contracts',
-      'Lint TypeScript and repository contracts',
-      'Prove focused route regressions fail',
-    ]) expect(publishSteps.find((step: any) => step.name === duplicate)).toBeUndefined()
-    expect(publishSteps.find((step: any) => /human review/i.test(step.name ?? ''))).toBeUndefined()
-    expect(publish.jobs.publish.permissions['id-token']).toBe('write')
-    expect(publish.jobs['publish-mcp'].permissions['id-token']).toBe('write')
-    expect(publish.jobs['release-gate'].permissions['id-token']).toBeUndefined()
-    expect(publish.jobs['platform-smoke'].permissions['id-token']).toBeUndefined()
-    expect(publish.jobs.package.permissions['id-token']).toBeUndefined()
-    expect(publishSteps.some((step: any) => step.uses?.startsWith('actions/checkout@'))).toBe(false)
-    expect(mcpPublishSteps.some((step: any) => step.uses?.startsWith('actions/checkout@'))).toBe(false)
-    const uploadStep = packageSteps.find((step: any) => step.name === 'Upload the verified publication artifact')
-    expect(uploadStep?.with?.['retention-days']).toBe(30)
-    expect(uploadStep?.with?.overwrite).toBe(true)
-    const verifyStep = publishSteps.find((step: any) => step.name === 'Verify the transferred tarball digest')
-    expect(verifyStep?.run).toContain(".filename' release-artifact/package-manifest.json)\" = package.tgz")
-    expect(verifyStep?.run).toContain("printf '%s  package.tgz\\n' \"$manifest_sha\" | cmp --silent")
-    const npmPublishStep = publishSteps.find((step: any) => step.name === 'Publish or recover the exact npm tarball (OIDC trusted publishing)')
-    expect(npmPublishStep?.env?.TARBALL).toBe('./release-artifact/package.tgz')
-    expect(npmPublishStep?.run).toContain('npm publish "$TARBALL" --ignore-scripts --access public')
-    expect(npmPublishStep?.run).toContain('npm view "$package_name@$package_version" dist.integrity --json')
-    expect(npmPublishStep?.run).toContain('registry_integrity" = "$local_integrity')
-    expect(npmPublishStep?.run).toContain('after an ambiguous publish; recovering publication')
-    expect(npmPublishStep?.run).not.toContain('${{')
-    const mcpRecoveryStep = mcpPublishSteps.find(
-      (step: any) => step.name === 'Publish or recover the exact MCP Registry metadata',
-    )
-    expect(mcpRecoveryStep?.env?.MCP_REGISTRY_API_BASE)
-      .toBe('https://registry.modelcontextprotocol.io/v0.1')
-    expect(mcpRecoveryStep?.run).toContain('/servers/$encoded_server_name/versions/$encoded_server_version')
-    expect(mcpRecoveryStep?.run).toContain('.server == $expected[0]')
-    expect(mcpRecoveryStep?.run).toContain('./mcp-publisher login github-oidc')
-    expect(mcpRecoveryStep?.run).toContain('./mcp-publisher publish')
-    expect(mcpRecoveryStep?.run).toContain('after an ambiguous publish; recovering publication')
-    expect(mcpRecoveryStep?.run).not.toContain('${{')
-    expect(publishWorkflow).not.toContain('sigstore@latest')
-    expect(strategy).toContain('`bun run test`')
-    expect(pullRequestTemplate).toContain('`bun run test`')
-    expect(agentGuide).toContain('`bun run test`')
+    // A suite gated on AM_BROWSER_TESTS silently skips unless the runner sets it.
+    for (const contract of BROWSER_CONTRACT_FILES) {
+      const gated = readFileSync(join(REPO, 'e2e', contract.file), 'utf8').includes('AM_BROWSER_TESTS')
+      expect({ file: contract.file, optIn: contract.browserOptIn === true }).toEqual({ file: contract.file, optIn: gated })
+    }
+  })
+
+  test('release attestation gates every job, and OIDC is minted only after it without repository code', () => {
+    const publish = loadWorkflow('publish.yml')
+    const ids = Object.keys(publish.jobs)
+    const roots = ids.filter(id => needsOf(publish.jobs[id]!).length === 0)
+    expect(roots).toHaveLength(1)
+    const root = roots[0]!
+    for (const id of ids.filter(other => other !== root)) {
+      expect({ job: id, gatedByAttestation: upstreamOf(publish.jobs, id).has(root) }).toEqual({ job: id, gatedByAttestation: true })
+    }
+    // The attestation and packing scripts are exercised directly by
+    // release-identity.test.ts and verify-publish-package.test.ts; the
+    // attestation's CI query by release-publish-steps.test.ts.
+    expect(runsOf(publish.jobs[root]!).some(run => run.includes('scripts/ci/release-identity.ts'))).toBe(true)
+    const uploaders = ids.filter(id => (publish.jobs[id]!.steps ?? []).some(step => step.uses?.startsWith('actions/upload-artifact@')))
+    expect(uploaders.length).toBeGreaterThan(0)
+    for (const id of uploaders) {
+      expect({ job: id, verifiesPack: runsOf(publish.jobs[id]!).some(run => run.includes('scripts/ci/verify-publish-package.ts')) })
+        .toEqual({ job: id, verifiesPack: true })
+    }
+
+    expect(ids.filter(id => holdsOidc(publish.jobs[id]!)).length).toBeGreaterThan(0)
+    for (const file of WORKFLOW_FILES) {
+      const workflow = loadWorkflow(file)
+      // OIDC is never granted at workflow scope, where every job inherits it.
+      const workflowScope = workflow.permissions
+      const workflowOidc = workflowScope === 'write-all' || (typeof workflowScope === 'object' && workflowScope['id-token'] === 'write')
+      expect({ file, workflowOidc }).toEqual({ file, workflowOidc: false })
+      const jobIds = Object.keys(workflow.jobs)
+      for (const id of jobIds.filter(candidate => holdsOidc(workflow.jobs[candidate]!))) {
+        const job = workflow.jobs[id]!
+        expect({ file, job: id, checksOut: (job.steps ?? []).some(step => step.uses?.startsWith('actions/checkout@')) })
+          .toEqual({ file, job: id, checksOut: false })
+        const upstream = upstreamOf(workflow.jobs, id)
+        const unprivileged = jobIds.filter(other => !holdsOidc(workflow.jobs[other]!))
+        expect({ file, job: id, notYetFinished: unprivileged.filter(other => !upstream.has(other)) })
+          .toEqual({ file, job: id, notYetFinished: [] })
+      }
+    }
+  })
+
+  test('privileged and release jobs never interpolate expressions into shell or install mutable tools', () => {
+    const npmPins = new Set<string>()
+    for (const file of WORKFLOW_FILES) {
+      const workflow = loadWorkflow(file)
+      const release = workflow.on !== undefined && Object.hasOwn(workflow.on, 'release')
+      for (const [id, job] of Object.entries(workflow.jobs)) {
+        const privileged = release || grantsWrite(job.permissions ?? workflow.permissions)
+        for (const step of job.steps ?? []) {
+          if (step.run === undefined) continue
+          for (const match of step.run.matchAll(/\bnpm install -g npm@(\S+)/g)) npmPins.add(match[1]!)
+          if (!privileged) continue
+          // `${{ }}` inside run: is spliced into the script before bash parses
+          // it; privileged steps must pass values through env: instead.
+          expect({ file, job: id, step: step.name, interpolates: step.run.includes('${{') })
+            .toEqual({ file, job: id, step: step.name, interpolates: false })
+          expect({ file, job: id, step: step.name, installsLatest: /@latest\b/.test(step.run) })
+            .toEqual({ file, job: id, step: step.name, installsLatest: false })
+        }
+      }
+    }
+    // CI verifies the reviewed file manifest with the npm that release packs with.
+    expect(npmPins.size).toBe(1)
+    expect([...npmPins][0]).toMatch(/^\d+\.\d+\.\d+$/)
   })
 
   test('GitHub Actions use Node 24 runtimes and skip the flaky Bun executable cache', () => {
-    const workflowsDir = join(REPO, '.github', 'workflows')
-    const actionSteps = readdirSync(workflowsDir)
-      .filter((file) => file.endsWith('.yml') || file.endsWith('.yaml'))
-      .flatMap((file) => {
-        const workflow = parseYaml(readFileSync(join(workflowsDir, file), 'utf8'))
-        return Object.values(workflow.jobs ?? {}).flatMap((job: any) => job.steps ?? [])
-      })
-      .filter((step: any) => typeof step.uses === 'string')
-
-    const actionRefs = actionSteps.map((step: any) => step.uses)
-    const expectedRefs = new Map([
-      ['actions/checkout@', ['actions/checkout@v7', 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1']],
-      ['actions/upload-artifact@', ['actions/upload-artifact@v7', 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a']],
-      ['actions/download-artifact@', ['actions/download-artifact@v8', 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c']],
-      ['actions/setup-node@', ['actions/setup-node@v7', 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020']],
-    ])
-    for (const [prefix, expected] of expectedRefs) {
-      const matching = actionRefs.filter((ref: string) => ref.startsWith(prefix))
-      expect(matching.length).toBeGreaterThan(0)
-      expect([...new Set(matching)].every(ref => expected.includes(ref))).toBe(true)
+    // Reviewed majors that run on Node 24. Newer majors pass; a downgrade to a
+    // Node 20 major fails. SHA pins carry their version in a trailing comment.
+    const NODE24_MAJOR_FLOORS: Record<string, number> = {
+      'actions/checkout': 7,
+      'actions/upload-artifact': 7,
+      'actions/download-artifact': 8,
+      'actions/setup-node': 7,
+      'oven-sh/setup-bun': 2,
     }
-
-    const setupBunSteps = actionSteps.filter((step: any) => step.uses.startsWith('oven-sh/setup-bun@'))
-    expect(setupBunSteps.length).toBeGreaterThan(0)
-    for (const step of setupBunSteps) {
-      expect([
-        'oven-sh/setup-bun@v2',
-        'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6',
-      ]).toContain(step.uses)
-      expect(step.with?.['no-cache']).toBe(true)
+    let setupBunSteps = 0
+    for (const file of WORKFLOW_FILES) {
+      const text = readFileSync(join(WORKFLOWS_DIR, file), 'utf8')
+      const workflow = parseYaml(text) as Workflow
+      for (const [id, job] of Object.entries(workflow.jobs)) {
+        const secretBearing = holdsOidc(job) || JSON.stringify(job).includes('secrets.')
+          || (workflow.on !== undefined && Object.hasOwn(workflow.on, 'release'))
+        for (const step of job.steps ?? []) {
+          if (step.uses === undefined) continue
+          const match = /^([\w.-]+\/[\w.-]+)(?:\/[\w./-]+)?@(\S+)$/.exec(step.uses)
+          expect({ file, job: id, uses: step.uses, pinned: match !== null }).toEqual({ file, job: id, uses: step.uses, pinned: true })
+          const [, action, ref] = match!
+          const sha = /^[0-9a-f]{40}$/.test(ref!)
+          const tag = /^v(\d+)(?:\.\d+){0,2}$/.exec(ref!)
+          expect({ file, uses: step.uses, immutableOrVersioned: sha || tag !== null }).toEqual({ file, uses: step.uses, immutableOrVersioned: true })
+          // Jobs that hold release credentials run only commit-pinned code.
+          if (secretBearing) expect({ file, job: id, uses: step.uses, shaPinned: sha }).toEqual({ file, job: id, uses: step.uses, shaPinned: true })
+          const reviewedMajor = tag
+            ? Number(tag[1])
+            : Number(new RegExp(`uses:\\s*${step.uses.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*#\\s*v(\\d+)`).exec(text)?.[1] ?? Number.NaN)
+          const floor = NODE24_MAJOR_FLOORS[action!]
+          if (floor !== undefined) {
+            expect({ file, uses: step.uses, meetsNode24Floor: reviewedMajor >= floor }).toEqual({ file, uses: step.uses, meetsNode24Floor: true })
+          }
+          if (action === 'oven-sh/setup-bun') {
+            setupBunSteps++
+            expect(step.with?.['no-cache']).toBe(true)
+          }
+        }
+      }
     }
+    expect(setupBunSteps).toBeGreaterThan(0)
   })
 
   test('llms.txt follows the published parser-compatible Markdown shape', () => {
@@ -352,7 +459,7 @@ describe('agent-readiness standards syntax', () => {
   test('official MCP Registry metadata matches the npm package and hosted server', () => {
     const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     const registry = JSON.parse(readFileSync(join(REPO, 'server.json'), 'utf8'))
-    const publishWorkflow = readFileSync(join(REPO, '.github/workflows/publish.yml'), 'utf8')
+    const publish = loadWorkflow('publish.yml')
 
     expect(registry.$schema).toBe('https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json')
     expect(registry.name).toBe('io.github.adewale/agentic-mermaid')
@@ -376,12 +483,16 @@ describe('agent-readiness standards syntax', () => {
       type: 'streamable-http',
       url: 'https://agentic-mermaid.dev/mcp',
     }])
-    expect(packageJson.files).toContain('server.json')
-    expect(publishWorkflow).toMatch(/\n  publish-mcp:\n(?:    .*\n)*?    needs: publish\n/)
-    expect(publishWorkflow).toContain('releases/download/v1.7.9/mcp-publisher_linux_amd64.tar.gz')
-    expect(publishWorkflow).toContain('ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac')
-    expect(publishWorkflow).toContain('./mcp-publisher login github-oidc')
-    expect(publishWorkflow).toContain('./mcp-publisher publish')
+    // The Registry validates the npm package it points at, so metadata is
+    // published only after npm publication. The publisher's pinned digest and
+    // login/publish sequence are executed in release-publish-steps.test.ts and
+    // mcp-publish-recovery.test.ts; server.json shipping in the tarball is a
+    // required file of scripts/ci/verify-publish-package.ts.
+    const publishingJobs = (pattern: RegExp) => Object.keys(publish.jobs).filter(id => runsOf(publish.jobs[id]!).some(run => pattern.test(run)))
+    const npmPublishers = publishingJobs(/\bnpm publish\b/)
+    const registryPublishers = publishingJobs(/\bmcp-publisher publish\b/)
+    expect({ npm: npmPublishers.length, registry: registryPublishers.length }).toEqual({ npm: 1, registry: 1 })
+    expect(upstreamOf(publish.jobs, registryPublishers[0]!).has(npmPublishers[0]!)).toBe(true)
 
     const packageBin = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'mcp', '--help'], { encoding: 'utf8' })
     expect({ status: packageBin.status, stderr: packageBin.stderr }).toEqual({ status: 0, stderr: '' })

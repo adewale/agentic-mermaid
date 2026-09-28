@@ -1,40 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  PALETTE_PROVENANCE_AUTHORITY,
-  verifyPaletteSourceProvenance,
-  verifyTimingEvidence,
-} from '../../eval/palette-performance/run.ts'
+import { complexityEvidence, verifyTimingEvidence } from '../../eval/palette-performance/run.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(ROOT, 'eval', 'palette-performance', 'report.json')
 const SAMPLES = join(ROOT, 'eval', 'palette-performance', 'samples.json')
 
 describe('palette performance evidence integrity', () => {
-  test('uses exact input content as durable authority across squash merges', () => {
-    const inputs = [{ path: 'src/example.ts', sha256: 'a'.repeat(64) }]
-    const runtimeDependencies = {
-      algorithm: 'bun-lock-transitive-v1' as const,
-      roots: ['example'],
-      packageCount: 1,
-      sha256: 'd'.repeat(64),
-    }
-    const provenance = {
-      authority: PALETTE_PROVENANCE_AUTHORITY,
-      sourceCommit: 'b'.repeat(40),
-      sourceTreeSha256: 'c'.repeat(64),
-      dirty: false,
-      inputs,
-      runtimeDependencies,
-    }
-    expect(() => verifyPaletteSourceProvenance(provenance, 'c'.repeat(64), inputs, runtimeDependencies)).not.toThrow()
-    expect(() => verifyPaletteSourceProvenance({ ...provenance, authority: 'commit-ancestry' }, 'c'.repeat(64), inputs, runtimeDependencies))
-      .toThrow('provenance authority')
-    expect(() => verifyPaletteSourceProvenance(provenance, 'e'.repeat(64), inputs, runtimeDependencies))
-      .toThrow('inputs are stale')
-    expect(() => verifyPaletteSourceProvenance(provenance, 'c'.repeat(64), inputs, { ...runtimeDependencies, sha256: 'f'.repeat(64) }))
-      .toThrow('runtime dependency closure is stale')
+  test('the committed deterministic complexity evidence matches the current palette generator', () => {
+    const report = JSON.parse(readFileSync(REPORT, 'utf8'))
+    expect(report.complexity.deterministicLargeCountEvidence).toEqual(complexityEvidence())
+    expect(report.validity.rebuttal).toBe('Absolute timings are observational, are not portable across machines, and are not a CI threshold.')
   })
 
   test('recomputes aggregates from the committed raw samples', () => {

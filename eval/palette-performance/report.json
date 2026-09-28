@@ -7,52 +7,8 @@
     "rebuttal": "Absolute timings are observational, are not portable across machines, and are not a CI threshold."
   },
   "provenance": {
-    "authority": "content-addressed-inputs-v1",
     "sourceCommit": "207dfd3998f44245bc1fc8f5cbabe02837bbe01e",
-    "sourceTreeSha256": "e5b2455787c3881ec54f88f6cbb8d3ea36ae965410eb29384e3a0708e6b37548",
-    "dirty": false,
-    "inputs": [
-      {
-        "path": "eval/palette-performance/run.ts",
-        "sha256": "411734812717b102363b5ae5213d14bef5f0812de459ed7ea233b02f91344319"
-      },
-      {
-        "path": "scripts/pr-assets/artifact-receipt.ts",
-        "sha256": "8a8bae5bb700d2677d7fadaac8c205eb3ae3968eca600cb3322e673e98285037"
-      },
-      {
-        "path": "src/palette-catalog.ts",
-        "sha256": "30f8b8f8b54989740f02d5346435771b9202ee2c7f4c5e81928ee38b3d7a8748"
-      },
-      {
-        "path": "src/shared/categorical-palette.ts",
-        "sha256": "1a8070cd016a405c31288ccff119872aff57f01303c49359ad940582f7490e00"
-      },
-      {
-        "path": "src/shared/color-math.ts",
-        "sha256": "d69326756bc7cf0b1e74646f9f74b2ee929b9778caebef4549987933d2f1a09f"
-      },
-      {
-        "path": "src/shared/css-named-colors.ts",
-        "sha256": "8107b47fadcbc419120d5720fd741d5ed70683b4b53e62776ab792d0da88a336"
-      },
-      {
-        "path": "src/shared/perceptual-color.ts",
-        "sha256": "ce978da907b6d6d5be8bca8dcbed0b2da9728503fa9fa0f87033675e9980880a"
-      },
-      {
-        "path": "src/xychart/colors.ts",
-        "sha256": "8ae7897cf07074a6ec0f311078fdbdd06a8156a6d42c3c5107edb2833fd36ce6"
-      }
-    ],
-    "runtimeDependencies": {
-      "algorithm": "bun-lock-transitive-v1",
-      "roots": [
-        "typescript"
-      ],
-      "packageCount": 1,
-      "sha256": "b5ff10f40b2ce752601060dbde90d4b37033932d4677ce1cbff1dfebeccf1835"
-    }
+    "dirty": false
   },
   "environment": {
     "runtime": "Bun 1.4.2",

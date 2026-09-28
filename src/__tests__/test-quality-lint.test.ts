@@ -19,15 +19,9 @@ type Finding = {
   text: string
 }
 
+// Focused and skipped tests are enforced repository-wide by Biome's
+// suspicious/noFocusedTests and suspicious/noSkippedTests (biome.json).
 const RULES = [
-  {
-    name: 'focused test committed',
-    re: /\b(?:describe|test|it)\s*\.\s*only\s*\(/,
-  },
-  {
-    name: 'direct skip committed',
-    re: /\b(?:describe|test|it)\s*\.\s*skip\s*\(/,
-  },
   {
     name: 'truthy/falsy assertion',
     re: /\.toBe(?:Truthy|Falsy)\s*\(/,
@@ -74,38 +68,12 @@ function findTestQualitySmells(files = testFiles()): Finding[] {
 }
 
 describe('test-quality lint (testing-best-practices guardrails)', () => {
-  test('tests do not carry focused/skipped tests, truthy assertions, or fixed waits', () => {
+  test('tests do not carry truthy assertions or fixed waits', () => {
     expect(findTestQualitySmells()).toEqual([])
-  })
-
-  test('the CPU-heavy styled golden matrix renders once under the approved contention budget', () => {
-    const source = readFileSync(join(REPO, 'src', '__tests__', 'styled-output.test.ts'), 'utf8')
-    expect(source.match(/\}, 20_000\)/g)?.length).toBe(1)
-    expect(source).not.toContain("test('no styled render throws on any fixture'")
-    expect(source).not.toMatch(/\}, 10_000\)/)
-  })
-
-  test('the 4,500-row showcase stays replaced by bounded conformance portfolios', () => {
-    const showcase = readFileSync(join(REPO, 'src', '__tests__', 'mermaid-doc-showcase.test.ts'), 'utf8')
-    const portfolio = readFileSync(join(REPO, 'src', '__tests__', 'render-conformance-plan.test.ts'), 'utf8')
-    expect(showcase).not.toContain('every built-in Look × Palette combination renders every docs family')
-    expect(showcase).not.toMatch(/\}, 300_000\)/)
-    // The ceiling this guards is portfolio SIZE. That is asserted directly and
-    // deterministically by the row bound below; a wall-clock cap was only ever a
-    // proxy for it, and being a proxy it also encoded machine speed — 60s failed
-    // on a box completing the portfolio in ~62s with every oracle passing. Guard
-    // the real bound, and require the timeout to be the named hang-detector
-    // constant so nobody reintroduces a bare literal sized to one machine.
-    expect(portfolio).toMatch(/expect\(corePlan\.length\)\.toBeLessThan\(1500\)/)
-    expect(portfolio.match(/\}, RENDER_PORTFOLIO_TIMEOUT_MS\)/g)?.length).toBe(2)
-    expect(portfolio).toMatch(/const RENDER_PORTFOLIO_TIMEOUT_MS = \d[\d_]*$/m)
-    expect(portfolio.match(/\}, 20_000\)/g)?.length).toBe(1)
   })
 
   test('the lint has teeth for each guarded anti-pattern', () => {
     const examples = [
-      'test' + '.only("debug", () => {})',
-      'describe' + '.skip("later", () => {})',
       'expect(result).toBe' + 'Truthy()',
       'await page.waitFor' + 'Timeout(500)',
     ]

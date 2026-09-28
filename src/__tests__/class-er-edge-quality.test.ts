@@ -14,8 +14,6 @@
 // worth its risk. Until then, this guard keeps their edge quality from
 // silently regressing.
 import { describe, expect, it } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
@@ -118,6 +116,80 @@ describe('ER diagram relationship edges are orthogonal and clean (ELK direct, no
   })
 })
 
+// The ER diagram from onboarding probe A, inlined verbatim: it is the input
+// that exposed the independent x/width rounding described below.
+const ONBOARDING_PROBE_ER = `erDiagram
+    USER ||--o{ SUBSCRIPTION : has
+    USER ||--o{ INVOICE : receives
+    USER ||--o{ DATA-SOURCE : connects
+    USER ||--o{ ANALYTICS-REPORT : generates
+    SUBSCRIPTION ||--o{ INVOICE : includes
+    SUBSCRIPTION ||--o{ PAYMENT-METHOD : uses
+    INVOICE ||--o{ PAYMENT : contains
+    DATA-SOURCE ||--o{ EVENT : sends
+    ANALYTICS-REPORT }o--|| USER : "belongs to"
+
+    USER {
+        int user_id PK
+        string email UK
+        string name
+        timestamp created_at
+        timestamp updated_at
+    }
+    SUBSCRIPTION {
+        int subscription_id PK
+        int user_id FK
+        string plan_name
+        float monthly_price
+        timestamp start_date
+        timestamp end_date
+        string status
+    }
+    INVOICE {
+        int invoice_id PK
+        int user_id FK
+        int subscription_id FK
+        float amount
+        timestamp issue_date
+        string status
+    }
+    PAYMENT-METHOD {
+        int payment_id PK
+        int subscription_id FK
+        string card_type
+        string last_four
+        boolean is_default
+    }
+    PAYMENT {
+        int payment_transaction_id PK
+        int invoice_id FK
+        float amount
+        timestamp payment_date
+        string status
+    }
+    DATA-SOURCE {
+        int source_id PK
+        int user_id FK
+        string source_type
+        string api_endpoint
+        timestamp connected_at
+    }
+    EVENT {
+        int event_id PK
+        int source_id FK
+        string event_type
+        string event_data
+        timestamp timestamp
+    }
+    ANALYTICS-REPORT {
+        int report_id PK
+        int user_id FK
+        string report_type
+        timestamp generated_at
+        string report_url
+    }
+`
+
 describe('rounding-consistent anchor spans', () => {
   it('the onboarding-probe ER diagram verifies without anchor false positives', () => {
     // Regression: erToRendered rounded x and width independently, shifting
@@ -125,8 +197,7 @@ describe('rounding-consistent anchor spans', () => {
     // ROUTE_SHAPE_MISANCHOR (TOL 0.5) on geometry that is exactly
     // on-boundary pre-rounding. fSpan rounds spans against their rounded
     // start, so anchors and edges agree.
-    const probe = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'docs', 'pr-assets', 'onboarding-probes', 'probe-a.json'), 'utf8')) as { diagrams: { er: string } }
-    const result = verifyMermaid(probe.diagrams.er)
+    const result = verifyMermaid(ONBOARDING_PROBE_ER)
     expect(result.ok).toBe(true)
     expect(result.warnings.filter(w => w.code === 'ROUTE_SHAPE_MISANCHOR')).toEqual([])
   })

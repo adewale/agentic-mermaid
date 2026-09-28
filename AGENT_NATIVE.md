@@ -26,7 +26,7 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 1. **Deterministic layout** — same input → structurally identical layout JSON across runs with the same ELK version. (Not "byte-identical SVG across versions" — that's a stronger claim that needs a forked ELK to actually deliver.)
 2. **Verifiable rendering** — structured "did this render cleanly?" check. Structural warnings (anchors, bounds, emptiness, group containment) are reliable; metric warnings (label fit, overlap) are best-effort because they depend on font-measurement parity with ELK.
-3. **Round-trippable** — `parseRegisteredMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For flowchart/state, sequence, timeline, class, ER, journey, architecture, xychart, pie, quadrant, gantt, mindmap, gitgraph, radar, and sankey, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
+3. **Round-trippable** — `parseRegisteredMermaid` produces a `ValidDiagram` that carries source needed to re-emit the diagram. For every family whose registry entry declares a narrower, `mutate` operates on structured bodies; for opaque-fallback bodies, preserved source is the round-trip mechanism.
 
 (Composition — `@include`, templates, layered scenarios — was the fourth in earlier drafts and is deferred. Agents do not currently reach for composition; they paste and edit. Add when evidence demands.)
 
@@ -174,9 +174,7 @@ interface ValidDiagram {
 
 type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
-  | StateBody | SequenceBody | TimelineBody | ClassBody | ErBody
-  | JourneyBody | ArchitectureBody | XyChartBody | PieBody | QuadrantBody | GanttBody
-  | MindmapBody | GitGraphBody | RadarBody | SankeyBody
+  | SequenceBody | GanttBody | …   // one structured body per registered family; the SDK declaration lists them
   | { kind: 'opaque'; family: DiagramKind; source: string }
 
 type MutableValidDiagram = import('agentic-mermaid/agent').MutableValidDiagram
@@ -219,236 +217,13 @@ Two contracts:
 | `set_node_class` | `id`, `className \| null` | —      | `set_node_class(id, prev_class)` |
 | `set_node_style` | `id`, `style \| null` | —          | `set_node_style(id, prev_style)` |
 
-**State MutationOp kinds** (18, BUILD-19 + the family elevation — promoting state from a "parses AS flowchart" projection to a dedicated `StateBody` IR with state-shaped ops and a real `asState` narrower). Modeled grammar: simple states (`state "Label" as id`, `id : Label`), transitions `from --> to [: label]` where `from`/`to` may be the reserved pseudostate `[*]` (source = start, target = end, scoped per composite level) or a history reference (`[H]`, `Base[H*]`), composite blocks `state X { … }` (nestable), `direction`, pseudostate stereotypes (`state id <<fork|join|choice>>` plus the history forms `<<history>>`/`<<H>>`/`<<deephistory>>`/`<<H*>>`), and notes (`note left|right of X : text`, block form included). Concurrency `--`, `classDef`/`class`/`:::` styling, bare state lines, and hyphenated composite ids are modeled structurally. `[*]` is contextual, not a state node:
+**Other families.** The flowchart table is the worked example, not the menu. Every other family's op kinds, field shapes, requiredness, enums, and mutator-enforced constraints are generated from the registry: `describeOps(family)` / `opSignatures(family)` in the library and Code Mode, `families[].opFields` in `am capabilities --json`, and the generated SDK declaration. Each family's modeled grammar and fallbacks live in its design doc under [`docs/design/families/`](./docs/design/families/README.md). What stays here are the conventions the families share:
 
-| Kind | Required | Optional | Inverse |
-|---|---|---|---|
-| `add_state`            | `id`              | `label`, `parent` (composite) | `remove_state(id)` |
-| `remove_state`         | `id` (refused on a non-empty composite unless `recursive`) | `recursive` (`true` removes the whole subtree; touching transitions/notes cascade, history refs `X[H]` included) | `add_state(...)` |
-| `rename_state`         | `from`, `to`      | — (rewrites transitions) | `rename_state(to, from)` |
-| `set_state_label`      | `id`, `label \| null` | —             | `set_state_label(id, prev_label)` |
-| `add_transition`       | `from`, `to` (`[*]` allowed) | `label`, `parent` | `remove_transition(from->to)` |
-| `remove_transition`    | `index` or `from`/`to` pair | `parent` | `add_transition(...)` |
-| `set_transition_label` | `label \| null` + (`index` or `from`/`to`) | `parent` | `set_transition_label(..., prev_label)` |
-| `make_composite`       | `id`, `members: string[]` | `label`  | `dissolve_composite(id)` |
-| `set_direction`        | `direction`       | `state` (composite override; omit/null = diagram) | `set_direction(prev, state)` |
-| `move_state`           | `id`, `parent \| null` (null = top level; a simple parent promotes to a composite) | — | `move_state(id, prev_parent)` |
-| `dissolve_composite`   | `id` (hoists children + inner transitions into the parent scope; rejects while transitions/notes still reference it) | — | `make_composite(id, members, label)` |
-| `add_note`             | `target`, `text`  | `side` (`left`/`right`, default `right`) | `remove_note(index)` |
-| `remove_note`          | `index`           | —                 | `add_note(target, side, text)` |
-| `set_note_text`        | `index`, `text`   | —                 | `set_note_text(index, prev_text)` |
-| `define_class`         | `name`, `style`   | —                 | restore previous definition |
-| `set_state_class`      | `id`, `className \| null` | —          | restore previous class |
-| `set_state_style`      | `id`, `style \| null` | —              | restore previous style |
-| `set_transition_style` | selector + `style \| null` | `parent`, `region` | restore previous style |
-
-**Sequence MutationOp kinds** (top-level message indices remain separate from typed fragment-message indices):
-
-| Kind | Required | Optional | Inverse |
-|---|---|---|---|
-| `add_participant`    | `id`                  | `label`, `participantKind` (`participant`/`actor`) | `remove_participant(id)` |
-| `remove_participant` | `id`                  | —       | `add_participant(id, label)` |
-| `add_message`        | `from`, `to`, `text`  | `style` (sync/async), insert `index` (omitted = append) | `remove_message(index)` |
-| `remove_message`     | `index`               | —       | `add_message(...)` |
-| `set_message_text`   | `index`, `text`       | —       | `set_message_text(index, prev_text)` |
-| `move_message`       | `from`, `to` (source order IS the interaction timeline, so reorder is a first-class edit) | — | `move_message(to, from)` |
-| `set_participant_label` | `id`, `label`      | —       | `set_participant_label(id, prev_label)` |
-| `add_fragment` / `remove_fragment` / `set_fragment_label` | fragment kind or index | label/index | matching inverse |
-| `add_fragment_branch` / `set_fragment_branch_label` | fragment/branch indices | label | matching inverse |
-| `add_fragment_message` / `remove_fragment_message` / `set_fragment_message_text` | fragment index + message fields/index | branch/index/style | matching inverse |
-
-**Timeline MutationOp kinds** (15 — the journey conventions from PR #141: `index?` on add ops is an insert position, move ops take the insert position after removal, and errors name the legal range):
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`          | `title \| null`                                           | `set_title(prev_title)` |
-| `add_section`        | `label` (+ optional insert `index`)                       | `remove_section(index)` |
-| `remove_section`     | `index`                                                   | `add_section(label)` |
-| `set_section_label`  | `index`, `label`                                          | `set_section_label(index, prev_label)` |
-| `add_period`         | `sectionIndex`, `label` (+ optional `events: string[]`, insert `index`) | `remove_period(sectionIndex, periodIndex)` |
-| `remove_period`      | `sectionIndex`, `periodIndex`                             | `add_period(...)` |
-| `set_period_label`   | `sectionIndex`, `periodIndex`, `label`                    | `set_period_label(... prev_label)` |
-| `add_event`          | `sectionIndex`, `periodIndex`, `text` (+ optional insert `index`) | `remove_event(... eventIndex)` |
-| `remove_event`       | `sectionIndex`, `periodIndex`, `eventIndex`               | `add_event(...)` |
-| `set_event_text`     | `sectionIndex`, `periodIndex`, `eventIndex`, `text`       | `set_event_text(... prev_text)` |
-| `move_period`        | `fromSection`, `fromIndex`, `toSection`, `toIndex` (timeline order IS the chronology, so reorder is a first-class edit) | `move_period(toSection, toIndex, fromSection, fromIndex)` |
-| `move_event`         | `fromSection`, `fromPeriod`, `fromIndex`, `toSection`, `toPeriod`, `toIndex` | `move_event(...)` |
-| `move_section`       | `from`, `to`                                              | `move_section(to, from)` |
-| `set_accessibility_title`       | `title \| null`                                | `set_accessibility_title(prev)` |
-| `set_accessibility_description` | `description \| null`                          | `set_accessibility_description(prev)` |
-
-**Class MutationOp kinds** (15):
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`         | `title \| null`                                      | `set_title(prev_title)` |
-| `add_class`         | `id` (+ optional `label`, `generic`, `members: string[]`, `namespace` dot path) | `remove_class(id)` |
-| `remove_class`      | `id`                                                  | `add_class(id, label, members)` |
-| `rename_class`      | `from`, `to`                                          | `rename_class(to, from)` |
-| `set_class_generic` | `class`, `generic \| null`                            | `set_class_generic(class, prev_generic)` |
-| `add_member`        | `class`, `text`                                       | `remove_member(class, index)` |
-| `remove_member`     | `class`, `index`                                      | `add_member(class, text)` |
-| `add_relation`      | `from`, `to`, `relKind` (+ optional `label`)          | `remove_relation(index)` |
-| `remove_relation`   | `index`                                               | `add_relation(...)` |
-| `add_note`          | `text` (+ optional `for: class`)                       | `remove_note(index)` |
-| `remove_note`       | `index`                                               | `add_note(text, for)` |
-| `set_class_namespace` | `class`, `namespace \| null` (a dot path like `Platform.Auth`, declared on demand; null = top level) | `set_class_namespace(class, prev_namespace)` |
-| `define_class`        | `name`, `style`                                    | restore previous definition |
-| `set_css_class`       | `class`, `className \| null`                       | restore previous assignment |
-| `set_class_style`     | `class`, `style \| null`                           | restore previous style |
-
-**ER MutationOp kinds** (12):
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `add_entity`        | `id` (+ optional `label`, `attributes: string[]`)    | `remove_entity(id)` |
-| `remove_entity`     | `id`                                                  | `add_entity(id, label, attributes)` |
-| `rename_entity`     | `from`, `to`                                          | `rename_entity(to, from)` |
-| `set_entity_label`  | `entity`, `label \| null`                             | `set_entity_label(entity, previous_label)` |
-| `add_attribute`     | `entity`, `text`                                      | `remove_attribute(entity, index)` |
-| `remove_attribute`  | `entity`, `index`                                     | `add_attribute(entity, text)` |
-| `add_relation`      | `from`, `to`, `leftCard`, `rightCard` (+ `dashed`, `label`) | `remove_relation(index)` |
-| `remove_relation`   | `index`                                               | `add_relation(...)` |
-| `set_direction`     | `direction`                                           | restore previous direction |
-| `define_class`      | `name`, `style`                                       | restore previous definition |
-| `set_entity_class`  | `entity`, `className \| null`                        | restore previous assignment |
-| `set_entity_style`  | `entity`, `style \| null`                            | restore previous style |
-
-**Journey MutationOp kinds** (promoted from opaque-only fallback semantics through the family-descriptor registry; ordering and accessibility are typed because Journey order is the timeline):
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
-| `add_section`        | `label` (+ optional insert `index`)                       | `remove_section(index)` |
-| `remove_section`     | `index`                                                   | `add_section(label)` |
-| `set_section_label`  | `index`, `label`                                          | `set_section_label(index, prev_label)` |
-| `add_task`           | `sectionIndex`, `text`, `score` (+ optional `actors`, insert `index`) | `remove_task(sectionIndex, taskIndex)` |
-| `remove_task`        | `sectionIndex`, `taskIndex`                               | `add_task(...)` |
-| `set_task_text`      | `sectionIndex`, `taskIndex`, `text`                       | `set_task_text(... prev_text)` |
-| `set_task_score`     | `sectionIndex`, `taskIndex`, `score` (finite number 1..5) | `set_task_score(... prev_score)` |
-| `set_task_actors`    | `sectionIndex`, `taskIndex`, `actors: string[]`           | `set_task_actors(... prev_actors)` |
-| `rename_actor`       | `from`, `to`                                              | `rename_actor(to, from)` |
-| `move_task`          | `fromSection`, `fromIndex`, `toSection`, `toIndex`        | `move_task(toSection, toIndex, fromSection, fromIndex)` |
-| `move_section`       | `from`, `to`                                              | `move_section(to, from)` |
-| `set_accessibility_title`       | `title \| null`                               | `set_accessibility_title(prev)` |
-| `set_accessibility_description` | `description \| null`                         | `set_accessibility_description(prev)` |
-
-**Architecture MutationOp kinds** (19):
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title` | `title \| null` | `set_title(prev_title)` |
-| `set_accessibility_title` | `title \| null` | `set_accessibility_title(prev)` |
-| `set_accessibility_description` | `description \| null` | `set_accessibility_description(prev)` |
-| `add_service` | `id` (+ optional `label`, `icon`, `group`) | `remove_service(id)` |
-| `remove_service` | `id` (cascades edges/alignments) | `add_service(...)` + re-add edges |
-| `rename_service` | `from`, `to` (rewrites edges/alignments) | `rename_service(to, from)` |
-| `set_service_label` | `id`, `label` | `set_service_label(id, prev_label)` |
-| `set_service_icon` | `id`, `icon: string \| null` | `set_service_icon(id, prev_icon)` |
-| `move_service` | `id`, `group: string \| null` | `move_service(id, prev_group)` |
-| `add_junction` | `id` (+ optional `group`) | `remove_junction(id)` |
-| `remove_junction` | `id` (cascades edges/alignments) | `add_junction(...)` + re-add edges |
-| `rename_junction` | `from`, `to` (rewrites edges/alignments) | `rename_junction(to, from)` |
-| `move_junction` | `id`, `group: string \| null` | `move_junction(id, prev_group)` |
-| `add_group` | `id` (+ optional `label`, `icon`, `parent`) | `remove_group(id)` |
-| `set_group_label` | `id`, `label` | `set_group_label(id, prev_label)` |
-| `remove_group` | `id` (refused if non-empty) | `add_group(...)` |
-| `add_edge` | `from`, `to`, `fromSide`, `toSide` (+ optional boundaries/label/arrows) | `remove_edge(id)` |
-| `update_edge` | `index` (+ any endpoint/side/boundary/label/arrow fields) | `update_edge(index, previous fields)` |
-| `remove_edge` | `index` or `id` (`from->to`) | `add_edge(...)` |
-
-**XY chart MutationOp kinds** (10, BUILD-16 — promoting the xychart family to structured mutation via the family-descriptor registry, following the BUILD-15 journey and BUILD-17 architecture pilots). Canonical number format is `String(n)` (shortest round-tripping decimal); all values must be finite. Modeled grammar covers bare titles/axis-names/series-names/categories — quoted text whose content is bare parses and canonicalizes to unquoted form; embedded quotes/brackets, multi-statement `;` lines, accTitle/accDescr, and any other unmodeled syntax fall back to opaque:
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
-| `set_x_axis`         | `axis: { name?, categories?, range? } \| null` (categories XOR range) | `set_x_axis(prev_axis)` |
-| `set_y_axis`         | `axis: { name?, range? } \| null` (y-axis is never categorical) | `set_y_axis(prev_axis)` |
-| `add_series`         | `kind2: 'bar' \| 'line'`, `values: number[]` (+ optional `name`) | `remove_series(index)` |
-| `remove_series`      | `index`                                                   | `add_series(...)` |
-| `set_series_values`  | `index`, `values: number[]`                              | `set_series_values(index, prev_values)` |
-| `set_series_name`    | `index`, `name: string \| null`                          | `set_series_name(index, prev_name)` |
-| `reorder_series`     | `from`, `to`                                             | `reorder_series(to, from)` |
-| `set_orientation`    | `horizontal: boolean` (`true` adds the `horizontal` header suffix; `false` drops it — vertical is the serialized default) | `set_orientation(prev)` |
-| `set_data_point`     | `seriesIndex`, `index`, `value` (finite; out-of-range indices name the valid ranges) | `set_data_point(seriesIndex, index, prev_value)` |
-
-**Pie MutationOp kinds** (7 — promoting the pie family to structured mutation via the family-descriptor registry, following the journey/architecture/xychart pilots). Slices are addressed by their (unique) label; values must be positive finite numbers. The header's `showData` flag and an optional `title` are modeled; any unmodeled line (accTitle/accDescr, malformed entry) falls back to opaque losslessly:
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
-| `set_show_data`      | `showData: boolean`                                      | `set_show_data(prev_flag)` |
-| `add_slice`          | `label`, `value` (> 0)                                   | `remove_slice(label)` |
-| `remove_slice`       | `label`                                                  | `add_slice(...)` |
-| `rename_slice`       | `from`, `to`                                             | `rename_slice(to, from)` |
-| `set_slice_value`    | `label`, `value` (> 0)                                   | `set_slice_value(label, prev_value)` |
-| `reorder_slice`      | `from`, `to`                                             | `reorder_slice(to, from)` |
-
-**Quadrant MutationOp kinds** (7 — promoting the quadrantChart family to structured mutation via the family-descriptor registry). Points are addressed by their (unique) label; coordinates must be in `[0, 1]`. Quadrant numbering follows Mermaid core (1=top-right, 2=top-left, 3=bottom-left, 4=bottom-right). Styling (`classDef`, `:::`), out-of-range coordinates, and any unmodeled line fall back to opaque losslessly:
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
-| `set_axis_labels`    | `axis: 'x' \| 'y'`, `near: string \| null` (+ optional `far`) | `set_axis_labels(axis, prev_near, prev_far)` |
-| `set_quadrant_label` | `quadrant: 1..4`, `label: string \| null`                | `set_quadrant_label(quadrant, prev_label)` |
-| `add_point`          | `label`, `x`, `y` (in `[0,1]`)                           | `remove_point(label)` |
-| `remove_point`       | `label`                                                  | `add_point(...)` |
-| `move_point`         | `label`, `x`, `y` (in `[0,1]`)                           | `move_point(label, prev_x, prev_y)` |
-| `rename_point`       | `from`, `to`                                             | `rename_point(to, from)` |
-
-**Gantt MutationOp kinds** (13 — segment-preserving from day one per [`docs/design/families/gantt.md`](./docs/design/families/gantt.md)). Sections and tasks are addressed by index (`sectionIndex`, `taskIndex`); `taskId` is the Mermaid id used by `after`/`until`/`click`. Calendar directives (`dateFormat`, `excludes`, `includes`, `weekend`, `weekday`, `todayMarker`, `tickInterval`, `inclusiveEndDates`, `topAxis`), `click` lines, accTitle/accDescr, and comments ride along VERBATIM as opaque-block segments — preserved, source-level-editable, never typed-editable in v1. Every value an op writes is validated by rendering its canonical line and re-parsing it (correctness by construction), so labels with `:` or values with `,` are rejected rather than corrupting the source. Gantt source order IS scheduling semantics (a task with an implicit start chains from the previous task in flat source order), so the move ops REJECT prescriptively whenever they would change an implicit-start task's predecessor — materialize an explicit start (`set_task_dates` or an `after` dependency) and retry:
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`          | `title \| null`                                          | `set_title(prev_title)` |
-| `add_section`        | `label`                                                   | `remove_section(index)` |
-| `rename_section`     | `index`, `label`                                          | `rename_section(index, prev_label)` |
-| `remove_section`     | `index` (drops its tasks too)                             | `add_section(...)` + `add_task(...)` |
-| `add_task`           | `sectionIndex`, `label`, `end` (+ optional `taskId`, `tags`, `start`, insert `index` — a mid-chain insert deliberately re-chains the follower) | `remove_task(sectionIndex, taskIndex)` |
-| `remove_task`        | `sectionIndex`, `taskIndex`                               | `add_task(...)` |
-| `rename_task`        | `sectionIndex`, `taskIndex`, `label`                      | `rename_task(..., prev_label)` |
-| `set_task_status`    | `sectionIndex`, `taskIndex`, `status: 'active' \| 'done' \| 'crit' \| null` (milestone/vert tags are never disturbed) | `set_task_status(..., prev_status)` |
-| `set_task_dates`     | `sectionIndex`, `taskIndex`, `start?: string \| null`, `end?: string` | `set_task_dates(..., prev_start, prev_end)` |
-| `set_task_flags`     | `sectionIndex`, `taskIndex`, `milestone?`, `vert?` (structural-tag toggles; `set_task_status` never touches them) | `set_task_flags(..., prev_flags)` |
-| `set_task_id`        | `sectionIndex`, `taskIndex`, `taskId \| null` (a rename REWRITES structured `after`/`until` references; REJECTS while opaque segments reference the id, and `null` rejects while ANY reference exists) | `set_task_id(..., prev_id)` |
-| `move_task`          | `fromSection`, `fromIndex`, `toSection`, `toIndex` (implicit-start guard above) | `move_task(toSection, toIndex, fromSection, fromIndex)` |
-| `move_section`       | `from`, `to` (implicit-start guard above)                 | `move_section(to, from)` |
-
-**Mindmap MutationOp kinds** (10; see [`docs/design/families/mindmap.md`](./docs/design/families/mindmap.md)):
-
-`add_node`, `remove_node`, `rename_node`, `set_label`, `move_node`, `set_shape`, `set_icon`, `set_node_class`, `set_accessibility_title`, `set_accessibility_description`.
-
-**GitGraph MutationOp kinds** (11; see [`docs/design/families/gitgraph.md`](./docs/design/families/gitgraph.md)):
-
-`append_commit`, `create_branch`, `checkout_branch`, `merge_branch`, `cherry_pick`, `set_commit_message`, `set_commit_type`, `set_commit_tags`, `rename_branch`, `set_accessibility_title`, `set_accessibility_description`.
-
-**Radar MutationOp kinds** (14 — promoting the `radar-beta` family to structured mutation via the FamilyPlugin registry). Axes and curves are addressed by unique ids; each curve carries exactly one finite value per axis, in axis order. The header keyword is `radar-beta`; order-independent and multiline `title`, `axis`/`curve`, and option declarations are modeled. Duplicate identities, vector mismatches, accessibility directives, and any unmodeled line fall back to opaque losslessly rather than weakening the typed invariant:
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `set_title`         | `title \| null`                                        | `set_title(prev_title)` |
-| `add_axis`          | `id` (+ optional `label`, insert `index`, `fill`)      | `remove_axis(id)` |
-| `remove_axis`       | `id`                                                   | `add_axis(...)` |
-| `rename_axis`       | `from`, `to`                                           | `rename_axis(to, from)` |
-| `set_axis_label`    | `id`, `label \| null`                                  | `set_axis_label(id, prev_label)` |
-| `reorder_axis`      | `from`, `to` (permutes every curve's value vector)     | `reorder_axis(to, from)` |
-| `add_curve`         | `id`, `values` (one per axis) (+ optional `label`, insert `index`) | `remove_curve(id)` |
-| `remove_curve`      | `id`                                                   | `add_curve(...)` |
-| `set_curve_values`  | `id`, `values` (one per axis)                          | `set_curve_values(id, prev_values)` |
-| `set_curve_value`   | `curve`, `axis`, `value` (finite)                      | `set_curve_value(curve, axis, prev_value)` |
-| `set_curve_label`   | `id`, `label \| null`                                  | `set_curve_label(id, prev_label)` |
-| `rename_curve`      | `from`, `to`                                           | `rename_curve(to, from)` |
-| `reorder_curve`     | `from`, `to`                                           | `reorder_curve(to, from)` |
-| `set_config`        | optional `max`, `min`, `ticks` (`1..64`), `graticule`, `showLegend`; `null` resets each field | `set_config(prev_fields)` |
-
-**Sankey MutationOp kinds** (4 — the `sankey`/`sankey-beta` CSV family). Links are addressed by `(source, target)` label pair plus an `occurrence` index for parallel duplicate rows; the label IS the node identity, so `rename_node` rewrites every occurrence and rejects a collision that would silently merge two nodes' flows. Self-loops and cycles are rejected by the single invariant owner (the layered layout requires a DAG):
-
-| Kind | Required | Inverse |
-|---|---|---|
-| `add_link`       | `source`, `target`, `value` (+ optional insert `index`)             | `remove_link(source, target, occurrence)` |
-| `remove_link`    | `source`, `target` (+ optional `occurrence`, default 0)             | `add_link(...)` |
-| `set_link_value` | `source`, `target`, `value` (+ optional `occurrence`)               | `set_link_value(source, target, prev_value, occurrence)` |
-| `rename_node`    | `from`, `to` (rewrites every source/target occurrence)              | `rename_node(to, from)` |
+- **Ops are invertible.** A removal carries what re-adding needs and a setter can restore the previous value, so an edit can be undone with typed ops. (Keeping the previous immutable `ValidDiagram` is the cheaper undo — see *Why totality matters*.)
+- **Address by identity where the family has one, by index where order is the meaning.** Nodes, states, classes, entities, services, and radar axes/curves are addressed by id; pie slices, quadrant points, and sankey nodes by their unique label, and a rename that would merge two identities is rejected. Sections, tasks, periods, events, and messages are addressed by index because source order is the timeline; sequence top-level message indices stay separate from fragment-message indices.
+- **Order-bearing families make reordering first-class.** Timeline, Journey, Sequence, and Gantt expose move ops. `index?` on an add op is an insert position (omit = append), a move op takes the insert position after removal, and errors name the legal range.
+- **Ops refuse rather than silently change meaning.** Gantt moves reject when they would change an implicit-start task's predecessor (materialize an explicit start and retry), and Gantt validates every value it writes by rendering and re-parsing that line. Sankey rejects self-loops and cycles. State composite and Architecture group removal refuse a non-empty container (State accepts `recursive: true`).
+- **Numbers are finite and canonical.** Values must be finite and inside the family's range (quadrant coordinates in `[0, 1]`, journey scores 1..5), and XY chart serializes numbers as `String(n)`, the shortest round-tripping decimal.
 
 **Structured-or-opaque rule (v4): never lossy.** The parser only produces a structured body when it fully understands every non-blank, non-comment line for most structured families. If the source contains *any* construct the parser doesn't model — `direction TB` in class, out-of-range scores in journey, duplicate Architecture title declarations, a `;`-joined multi-statement line in xychart, a malformed entry in pie, or out-of-range coordinates in quadrant, etc. — parsing **falls back to an opaque body**. The diagram still parses, renders, verifies (structurally), and round-trips losslessly via preserved `body.source`; it simply isn't offered for structured mutation (structured-family narrowers return `null` on opaque fallbacks). This guarantees the parser never silently drops information. Earlier drafts dropped unrecognized lines on the floor; v4 does not.
 
@@ -473,41 +248,16 @@ serializeMermaid(d: ValidDiagram):                         string
 // ASCII opts.targetWidth is a hard display-cell bound; impossible bounds throw
 // AsciiWidthError { code, requestedWidth, requiredWidth, family, reason }.
 
-// Mutation is overloaded by family. Opaque/source-only families don't typecheck.
+// Mutation is overloaded by family: one overload per mutable family, for example
 mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
-mutate(d: StateValidDiagram,     op: StateMutationOp):     Result<StateValidDiagram, MutationError>
-mutate(d: SequenceValidDiagram,  op: SequenceMutationOp):  Result<SequenceValidDiagram, MutationError>
-mutate(d: TimelineValidDiagram,  op: TimelineMutationOp):  Result<TimelineValidDiagram, MutationError>
-mutate(d: ClassValidDiagram,     op: ClassMutationOp):     Result<ClassValidDiagram, MutationError>
-mutate(d: ErValidDiagram,        op: ErMutationOp):        Result<ErValidDiagram, MutationError>
-mutate(d: JourneyValidDiagram,   op: JourneyMutationOp):   Result<JourneyValidDiagram, MutationError>
-mutate(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Result<ArchitectureValidDiagram, MutationError>
-mutate(d: XyChartValidDiagram,   op: XyChartMutationOp):   Result<XyChartValidDiagram, MutationError>
-mutate(d: PieValidDiagram,       op: PieMutationOp):       Result<PieValidDiagram, MutationError>
-mutate(d: QuadrantValidDiagram,  op: QuadrantMutationOp):  Result<QuadrantValidDiagram, MutationError>
 mutate(d: GanttValidDiagram,     op: GanttMutationOp):     Result<GanttValidDiagram, MutationError>
-mutate(d: MindmapValidDiagram,   op: MindmapMutationOp):   Result<MindmapValidDiagram, MutationError>
-mutate(d: GitGraphValidDiagram,  op: GitGraphMutationOp):  Result<GitGraphValidDiagram, MutationError>
-mutate(d: RadarValidDiagram,     op: RadarMutationOp):     Result<RadarValidDiagram, MutationError>
-mutate(d: SankeyValidDiagram,    op: SankeyMutationOp):    Result<SankeyValidDiagram, MutationError>
+// Opaque/source-only bodies don't typecheck.
 
-// Narrowing helpers; null when the diagram isn't of that family or is opaque/source-level.
+// One narrowing helper per family (the registry names it: families[].narrower
+// in am capabilities --json); null when the diagram isn't of that family or is
+// opaque/source-level.
 asFlowchart(d: ValidDiagram): FlowchartValidDiagram | null
-asState(d: ValidDiagram):     StateValidDiagram | null
-asSequence(d: ValidDiagram):  SequenceValidDiagram | null
-asTimeline(d: ValidDiagram):  TimelineValidDiagram | null
-asClass(d: ValidDiagram):     ClassValidDiagram | null
-asEr(d: ValidDiagram):        ErValidDiagram | null
-asJourney(d: ValidDiagram):   JourneyValidDiagram | null
-asArchitecture(d: ValidDiagram): ArchitectureValidDiagram | null
-asXyChart(d: ValidDiagram):   XyChartValidDiagram | null
-asPie(d: ValidDiagram):       PieValidDiagram | null
-asQuadrant(d: ValidDiagram):  QuadrantValidDiagram | null
 asGantt(d: ValidDiagram):     GanttValidDiagram | null
-asMindmap(d: ValidDiagram):   MindmapValidDiagram | null
-asGitGraph(d: ValidDiagram):  GitGraphValidDiagram | null
-asRadar(d: ValidDiagram):     RadarValidDiagram | null
-asSankey(d: ValidDiagram):    SankeyValidDiagram | null
 
 // Build a ValidDiagram from a JSON-safe graph payload without re-parsing
 // source. Used by `am parse | am serialize` shell pipelines.
@@ -558,7 +308,7 @@ No HTTP endpoint or editor WebSocket watch in v1. The skill teaches Code Mode fo
 
 Agent-contract CLI verbs for explicit self-discovery, summaries, and batch operation:
 
-- `am capabilities [--json]` — emit `{ sdkVersion, families: [{ id, editPolicy, hasParse, hasSerialize, hasMutate, hasVerify, hasExtractLabels, mutationOps }], warningCodes: [{ code, tier, severity }], outputFormats: ["svg","ascii","unicode","png","json"] }`. Sourced from the public dispatch surface, family-plugin registry, and `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
+- `am capabilities [--json]` — emit `{ sdkVersion, families, warningCodes, outputFormats }`, where each family entry carries its `editPolicy`, `mutationOps`, `opFields`, narrower, headers, and example. Sourced from the family registry and the `WARNING_SEVERITY` / `WARNING_TIER` tables — so the contract is self-describing, not hand-maintained. A JSON Schema is committed at `src/__tests__/__fixtures__/capabilities.schema.json`; any shape drift fails the test loudly.
 - `am batch --jsonl` — read JSONL from stdin, dispatch per-line to render/verify/parse/serialize/mutate handlers, emit one JSON envelope per result. Malformed lines surface `{ ok: false, error: { code: 'INVALID_JSON' } }` and do **not** abort the stream.
 - `am preview <file|-> [--output file.html] [--open] [--json] [--security strict]` — write a standalone strict-mode HTML preview for human inspection without hand-building wrapper files.
 - `am mutate <file|-> (--op '<json>' | --ops '<json array|file>') [--json]` — apply typed mutations, verify once at the commit point, and omit source on verify failure.
@@ -614,7 +364,7 @@ This section records the design discipline for the branch, not an active roadmap
 
 Cross-cutting:
 
-- **Doc-sync** (both directions): every `LayoutWarning` code and `MutationOp` kind must appear in this spec. `am --agent-instructions` output must equal `Instructions_for_agents.md` byte-for-byte.
+- **Doc-sync** (both directions): every `LayoutWarning` code must appear in this spec, and the `MutationOp` menu is generated rather than copied here. `am --agent-instructions` output must equal `Instructions_for_agents.md` byte-for-byte.
 - **Test honesty:** no tautological assertions (`expect(typeof x).toBe('boolean')` is banned by review). Every test must be able to fail for the regression it names. Verified by the fault-injection pass.
 
 MermaidSeqBench is wired as an external corpus signal; live model transcript evaluation remains periodic / pre-release rather than PR CI.

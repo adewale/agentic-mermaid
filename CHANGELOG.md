@@ -48,6 +48,13 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   `package.json` declares `engines.bun` `>=1.4.0`. The website payload
   baseline was re-recorded on Bun 1.4.2; only the editor bundle changed
   (4,770 raw bytes smaller).
+- `am capabilities --json` (and the site's `capabilities.json`) no longer
+  carries the `sectionA` audit summary. Building it pulled the repository-only
+  Section A report, upstream syntax manifest, and characterization index into
+  the published `am` bin: `dist/am.js` shrinks from 1.35 MB to 90 KB, the
+  packed tarball by 201 KB, and `am capabilities` runs about 40% faster. The
+  full report stays available in the repository (`bun run section-a-report`,
+  `docs/project/section-a-capability-report.md`).
 
 ## 0.4.0 — 2026-07-28
 

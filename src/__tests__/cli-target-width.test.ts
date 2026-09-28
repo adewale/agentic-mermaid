@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { FLAG_SPECS, runCli } from '../cli/index.ts'
+import { runCli } from '../cli/index.ts'
 import { visualWidth } from '../ascii/width.ts'
 
 function capture(fn: () => number): { code: number; out: string; err: string } {
@@ -47,7 +47,9 @@ describe('am render --target-width', () => {
     expect(capture(() => runCli(['render', sourceFile(), '--format', 'ascii', '--target-width', '0'])).code).toBe(2)
   })
 
-  test('registers and documents the value flag', () => {
-    expect(FLAG_SPECS['target-width']).toEqual({ arg: 'CELLS' })
+  test('documents the value flag in render help', () => {
+    const help = capture(() => runCli(['render', '--help']))
+    expect(help.code).toBe(0)
+    expect(help.out).toMatch(/--target-width <CELLS>/)
   })
 })

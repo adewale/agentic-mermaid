@@ -1,25 +1,14 @@
-import { mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
+import { mutate, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../../agent/index.ts'
 import { layoutTimelineDiagram } from '../../../timeline/layout.ts'
 import { parseTimelineDiagram } from '../../../timeline/parser.ts'
-import type { FidelityCaseDefinition, FidelityJson, ObservedFidelitySurfaceEvidence } from '../contract.ts'
+import { facts, parsedOrThrow, same } from '../case-helpers.ts'
+import type { FidelityCaseDefinition } from '../contract.ts'
 
 const upstreamRevision = 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc'
 const featureId = 'official-doc:timeline:section:direction-v11-14-0'
 const upstreamReference = 'https://mermaid.ai/open-source/syntax/timeline.html#direction-v11-14-0'
 const verticalSource = 'timeline TD\n  2020 : Launch\n  2021 : Scale\n'
 const unsupportedSource = 'timeline TB\n  2020 : Launch\n'
-
-function facts(evidence: ObservedFidelitySurfaceEvidence): Record<string, FidelityJson> {
-  const value = evidence.semantics
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Timeline direction evidence must be an object')
-  return value as Record<string, FidelityJson>
-}
-
-function parsedOrThrow(source: string) {
-  const result = parseRegisteredMermaid(source)
-  if (!result.ok) throw new Error(`Timeline direction parse failed: ${result.error.map(error => error.code).join(', ')}`)
-  return result.value
-}
 
 const verticalDirection: FidelityCaseDefinition = {
   id: 'timeline.direction.td-vertical-geometry',
@@ -29,7 +18,7 @@ const verticalDirection: FidelityCaseDefinition = {
       applicability: 'applicable', disposition: 'native',
       evaluate: evidence => {
         const value = facts(evidence)
-        return value.kind === 'timeline' && value.direction === 'TD' && JSON.stringify(value.periods) === JSON.stringify(['2020', '2021']) ? 'native' : 'absent'
+        return value.kind === 'timeline' && value.direction === 'TD' && same(value.periods, ['2020', '2021']) ? 'native' : 'absent'
       },
     },
     render: {

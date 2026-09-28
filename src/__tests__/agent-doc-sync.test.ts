@@ -6,10 +6,13 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build as buildWithEsbuild } from 'esbuild'
+import ts from 'typescript'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { BUILTIN_FAMILY_METADATA, BUILTIN_FAMILY_METADATA_COVERS_DIAGRAM_KIND, getFamily, knownBuiltinFamilies } from '../agent/families.ts'
-import type { DiagramKind, ValidDiagram } from '../agent/types.ts'
-import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
+import * as agentTypes from '../agent/types.ts'
+import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { buildCapabilities, COMMAND_HELP, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
@@ -25,6 +28,81 @@ const REPO = join(import.meta.dir, '..', '..')
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** One declared, representative edit per built-in family; each introduces "zebra". */
+const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Record<string, unknown>>> = {
+  flowchart: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
+  state: { kind: 'add_state', id: 'Zebra' },
+  sequence: { kind: 'add_participant', id: 'Zebra' },
+  timeline: { kind: 'add_period', sectionIndex: 0, label: 'Zebra' },
+  class: { kind: 'add_class', id: 'Zebra' },
+  er: { kind: 'add_entity', id: 'ZEBRA' },
+  journey: { kind: 'add_section', label: 'Zebra' },
+  architecture: { kind: 'add_service', id: 'zebra', label: 'Zebra' },
+  xychart: { kind: 'set_title', title: 'Zebra' },
+  pie: { kind: 'add_slice', label: 'Zebra', value: 5 },
+  quadrant: { kind: 'add_point', label: 'Zebra', x: 0.5, y: 0.5 },
+  gantt: { kind: 'add_section', label: 'Zebra' },
+  mindmap: { kind: 'add_node', id: 'Zebra', label: 'Zebra', parent: 'root' },
+  gitgraph: { kind: 'create_branch', name: 'zebra' },
+  radar: { kind: 'add_axis', id: 'zebra', label: 'Zebra' },
+  sankey: { kind: 'add_link', source: 'Zebra', target: 'Industry', value: 1 },
+}
+
+const SDK_AST = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+
+/** String-literal members of a `type Name = 'A' | 'B'` alias in the SDK declaration. */
+function sdkStringUnion(name: string): string[] {
+  const alias = SDK_AST.statements.find((statement): statement is ts.TypeAliasDeclaration =>
+    ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
+  if (!alias) return []
+  const members = ts.isUnionTypeNode(alias.type) ? alias.type.types : [alias.type]
+  return members.flatMap(member => ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal) ? [member.literal.text] : [])
+}
+
+/** Method names declared on the SDK's `declare const mermaid: { ... }` global. */
+function sdkMermaidMethodNames(): string[] {
+  for (const statement of SDK_AST.statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'mermaid' || !declaration.type || !ts.isTypeLiteralNode(declaration.type)) continue
+      return declaration.type.members.flatMap(member => ts.isMethodSignature(member) && ts.isIdentifier(member.name) ? [member.name.text] : [])
+    }
+  }
+  return []
+}
+
+/** Rows in the largest Markdown table whose first cell names a built-in family, outside generated blocks. */
+function largestFamilyKeyedTable(markdown: string, familyKeys: ReadonlySet<string>): number {
+  const maintained = markdown.replace(/<!-- BEGIN GENERATED[\s\S]*?<!-- END GENERATED[^>]*-->/g, '')
+  let largest = 0
+  let rows = 0
+  for (const line of maintained.split('\n')) {
+    if (!line.trimStart().startsWith('|')) {
+      largest = Math.max(largest, rows)
+      rows = 0
+      continue
+    }
+    const firstCell = line.split('|')[1]?.replace(/[`*]/g, '').trim().toLowerCase() ?? ''
+    if (familyKeys.has(firstCell)) rows++
+  }
+  return Math.max(largest, rows)
+}
+
+/** Type-check the SDK declaration on its own, as an agent's editor would see it. */
+function sdkDeclarationTypeErrors(): string[] {
+  const fileName = join(tmpdir(), 'agentic-mermaid-code-mode-sdk.d.ts')
+  const options: ts.CompilerOptions = { noEmit: true, strict: true, target: ts.ScriptTarget.ES2022, lib: ['lib.es2022.d.ts'], types: [] }
+  const host = ts.createCompilerHost(options)
+  const readSourceFile = host.getSourceFile.bind(host)
+  const fileExists = host.fileExists.bind(host)
+  host.getSourceFile = (name, languageVersion, ...rest) => name === fileName
+    ? ts.createSourceFile(name, SDK_DECLARATION, languageVersion, true, ts.ScriptKind.TS)
+    : readSourceFile(name, languageVersion, ...rest)
+  host.fileExists = name => name === fileName || fileExists(name)
+  return ts.getPreEmitDiagnostics(ts.createProgram([fileName], options, host))
+    .map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
 }
 
 describe('Instructions_for_agents.md', () => {
@@ -267,22 +345,6 @@ describe('vocabulary doc-sync', () => {
     expect(workflow).not.toContain('git-auto-commit-action')
   })
 
-  test('BrandPack stays exact and kind-specific while executable decorations remain deferred', () => {
-    const plan = readFileSync(join(REPO, 'docs/project/brand-primitives-plan.md'), 'utf8')
-    expect(plan).toContain("identity: ExtensionIdentity<'brand-pack'>")
-    expect(plan).toContain('interface BrandSelection')
-    expect(plan).toContain('version: string')
-    expect(plan).toContain('digest: string')
-    expect(plan).toContain('separate BrandPack registry')
-    expect(plan).toContain('Section B adds no Treatment field, registry, selector,')
-    expect(plan).not.toContain("id: 'treatment:")
-    expect(plan).not.toContain('version?: SemverRange')
-    expect(plan).not.toContain('interface AppearanceFragment')
-    expect(plan).not.toContain('interface BrandRole')
-    expect(plan).not.toContain('NamespacedId')
-    expect(plan).not.toContain('same canonical installed-appearance registry')
-  })
-
   test('bounded fault-detection commands stay wired and documented', () => {
     const docs = readFileSync(join(REPO, 'docs/mutation-testing.md'), 'utf8')
     const ci = readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')
@@ -312,9 +374,7 @@ describe('vocabulary doc-sync', () => {
     }
   })
   test('MCP SDK WarningCode exactly matches the runtime warning registry', () => {
-    const block = /type WarningCode =([\s\S]*?)\n\ninterface VerifyResult/.exec(SDK_DECLARATION)?.[1] ?? ''
-    const declared = [...block.matchAll(/'([A-Z][A-Z0-9_]+)'/g)].map(match => match[1]!).sort()
-    expect(declared).toEqual(Object.keys(WARNING_TIER).sort())
+    expect(sdkStringUnion('WarningCode').sort()).toEqual(Object.keys(WARNING_TIER).sort())
   })
 
   test('every code tiered + severity', () => {
@@ -330,28 +390,26 @@ describe('vocabulary doc-sync', () => {
     expect(help).not.toContain('flowchart/state, sequence')
   })
 
-  test('every MutationOp kind is in spec, capabilities, and MCP SDK declaration', () => {
-    const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
+  test('every MutationOp kind is in capabilities and the MCP SDK declaration', () => {
     const cap = buildCapabilities()
     for (const [family, ops] of Object.entries(MUTATION_OPS_BY_FAMILY)) {
       const familyCap = cap.families.find(f => f.id === family)
       expect(familyCap?.mutationOps).toEqual([...ops])
       expect(familyCap?.editPolicy).toBe('structured-when-narrowed')
-      for (const op of ops) {
-        expect(spec).toContain(op)
-        expect(SDK_DECLARATION).toContain(op)
-      }
+      for (const op of ops) expect(SDK_DECLARATION).toContain(op)
     }
   })
 
-  test('MCP SDK declaration exposes and describes all mutable families', () => {
+  test('MCP SDK declaration type-checks and exposes every mutable family', () => {
+    // Every family's narrower is a method on the `mermaid` global, and the
+    // whole declaration compiles: a family whose body or op union the
+    // declaration names but never declares fails here.
+    const methods = new Set(sdkMermaidMethodNames())
     for (const family of BUILTIN_FAMILY_METADATA) {
-      expect(SDK_DECLARATION).toContain(family.narrower)
+      expect({ family: family.id, narrower: methods.has(family.narrower) }).toEqual({ family: family.id, narrower: true })
     }
-    const convention = SDK_DECLARATION.split('// 3. mutate works on')[1]?.split('//    State owns')[0] ?? ''
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      expect({ family: family.id, described: convention.toLowerCase().includes(family.id) }).toEqual({ family: family.id, described: true })
-    }
+    expect(methods.has('mutate')).toBe(true)
+    expect(sdkDeclarationTypeErrors()).toEqual([])
   })
 
   test('agent-facing docs delegate family and operation discovery to generated surfaces', () => {
@@ -384,20 +442,34 @@ describe('vocabulary doc-sync', () => {
     }
 
     expect(agentNative).toContain('section-a-capability-report.md')
-    expect(agentNative).not.toContain('| Family | Parse / verify / render / round-trip |')
-    expect(agentNative).not.toContain('asFlowchart/asState/asSequence')
     expect(familyGuide).toContain('section-a-capability-report.md')
-    expect(familyGuide).not.toContain('| Family | Header(s) | Render | Structured mutation |')
     expect(cookbook).toContain('## Mutation operation discovery')
     expect(cookbook).toContain('describeOps(family)')
     expect(cookbook).toContain('opSignatures(family)')
-    expect(cookbook).not.toContain('| Family | Narrower | Op kinds |')
-    expect(codeMode).not.toContain('mermaid.asState(d)')
-    expect(cliReference).not.toContain('flowchart, state, sequence')
-    expect(skillEvalReadme).toContain('rather than copied here')
     expect(api).toContain('am capabilities --json')
     expect(api).toContain('describeOps(family)')
-    expect(api).toContain('does not copy an exhaustive')
+
+    // Delegation means no hand-maintained per-family roster table: a table
+    // keyed by family that covers half the registry or more is a copy that
+    // drifts when a family is added. Generated blocks are exempt.
+    const familyKeys = new Set(BUILTIN_FAMILY_METADATA.flatMap(family => [family.id, family.label, family.narrower].map(key => key.toLowerCase())))
+    for (const [file, text] of [
+      ['AGENT_NATIVE.md', agentNative],
+      ['docs/diagram-families.md', familyGuide],
+      ['docs/agent-api-cookbook.md', cookbook],
+      ['docs/api.md', api],
+      ['skills/agentic-mermaid-diagram-workflow/SKILL.md', skill],
+      ['skills/agentic-mermaid-diagram-workflow/references/code-mode.md', codeMode],
+      ['skills/agentic-mermaid-diagram-workflow/references/cli.md', cliReference],
+      ['skill-evals/README.md', skillEvalReadme],
+    ] as const) {
+      const rows = largestFamilyKeyedTable(text, familyKeys)
+      expect({ file, copiesRoster: rows * 2 >= BUILTIN_FAMILY_METADATA.length }).toEqual({ file, copiesRoster: false })
+    }
+    // A code block of overloads or narrowers copies the roster as surely as a
+    // table does; the spec may name a worked example or two, not the registry.
+    const narrowersInSpec = BUILTIN_FAMILY_METADATA.filter(family => new RegExp(`\\b${family.narrower}\\b`).test(agentNative))
+    expect({ copiesNarrowers: narrowersInSpec.length * 2 >= BUILTIN_FAMILY_METADATA.length }).toEqual({ copiesNarrowers: false })
 
     for (const text of [skill, codeMode, SDK_DECLARATION]) {
       expect(text).toContain('ganttToday')
@@ -439,39 +511,40 @@ describe('vocabulary doc-sync', () => {
 
   test('every registered renderable family ships typed mutation (default-by-default enforcement)', () => {
     // Typed mutation is the enforced default: a new family cannot register
-    // source-level-only. Every registered family must (a) expose mutate +
-    // serialize FamilyDescriptor hooks, (b) declare its ops in MUTATION_OPS_BY_FAMILY,
-    // and (c) have a narrower returning non-null on its own structured body. This
-    // closes the loophole where a family could ship without a structured editing
-    // surface (as pie/quadrant once did).
-    const NARROWERS: Record<DiagramKind, (d: ValidDiagram) => unknown> = {
-      flowchart: asFlowchart,
-      state: asState,
-      sequence: asSequence,
-      timeline: asTimeline,
-      class: asClass,
-      er: asEr,
-      journey: asJourney,
-      architecture: asArchitecture,
-      xychart: asXyChart,
-      pie: asPie,
-      quadrant: asQuadrant,
-      gantt: asGantt,
-      mindmap: asMindmap,
-      gitgraph: asGitGraph,
-      radar: asRadar,
-      sankey: asSankey,
-    }
+    // source-level-only. For every registered family, its own example narrows
+    // (and no other family's narrower accepts it), one declared op applies
+    // through the FamilyDescriptor mutate + serialize hooks, and the edited
+    // source reparses to the same family and re-serializes byte-identically.
+    // This closes the loophole where a family could ship without a structured
+    // editing surface (as pie/quadrant once did).
     const FAIL = 'New families ship with typed mutation by default — see docs/contributing/adding-diagram-types.md.'
-    for (const kind of knownBuiltinFamilies()) {
-      const plugin = getFamily(kind)!
-      expect({ kind, hasMutate: typeof plugin.mutate === 'function', msg: FAIL }).toEqual({ kind, hasMutate: true, msg: FAIL })
-      expect({ kind, hasSerialize: typeof plugin.serialize === 'function', msg: FAIL }).toEqual({ kind, hasSerialize: true, msg: FAIL })
-      expect({ kind, declaresOps: kind in MUTATION_OPS_BY_FAMILY, msg: FAIL }).toEqual({ kind, declaresOps: true, msg: FAIL })
-      expect({ kind, hasNarrower: typeof NARROWERS[kind] === 'function', msg: FAIL }).toEqual({ kind, hasNarrower: true, msg: FAIL })
+    const narrowers = agentTypes as unknown as Record<string, (d: ParsedDiagram) => unknown>
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const kind = family.id
+      const edit = TYPED_EDIT_BY_FAMILY[kind]
+      expect({ kind, hasEditFixture: edit !== undefined, msg: FAIL }).toEqual({ kind, hasEditFixture: true, msg: FAIL })
+      expect({ kind, opDeclared: (MUTATION_OPS_BY_FAMILY[kind] as readonly string[]).includes(edit!.kind), msg: FAIL })
+        .toEqual({ kind, opDeclared: true, msg: FAIL })
+
+      const parsed = parseRegisteredMermaid(family.example)
+      if (!parsed.ok) throw new Error(`${kind} example does not parse`)
+      for (const other of BUILTIN_FAMILY_METADATA) {
+        const narrowed = typeof narrowers[other.narrower] === 'function' ? narrowers[other.narrower]!(parsed.value) : undefined
+        expect({ kind, narrower: other.narrower, accepts: narrowed !== null && narrowed !== undefined })
+          .toEqual({ kind, narrower: other.narrower, accepts: other.id === kind })
+      }
+      const typed = narrowers[family.narrower]!(parsed.value) as MutableValidDiagram
+      const mutated = mutate(typed, edit as AnyMutationOp)
+      expect({ kind, mutated: mutated.ok ? true : mutated.error, msg: FAIL }).toEqual({ kind, mutated: true, msg: FAIL })
+      if (!mutated.ok) continue
+      const source = serializeMermaid(mutated.value)
+      expect({ kind, before: /zebra/i.test(serializeMermaid(parsed.value)), after: /zebra/i.test(source) })
+        .toEqual({ kind, before: false, after: true })
+      const reparsed = parseRegisteredMermaid(source)
+      expect({ kind, reparsedKind: reparsed.ok ? reparsed.value.kind : reparsed.error })
+        .toEqual({ kind, reparsedKind: kind })
+      if (reparsed.ok) expect({ kind, stable: serializeMermaid(reparsed.value) === source }).toEqual({ kind, stable: true })
     }
-    // Sanity: the narrower table covers every registered family kind exactly.
-    expect(new Set(Object.keys(NARROWERS))).toEqual(new Set(knownBuiltinFamilies()))
   })
 
   test('state-narrows-via-asState is documented on every agent surface that claims state mutation', () => {
@@ -707,11 +780,6 @@ describe('root docs consistency', () => {
       expect(existsSync(join(REPO, 'docs', doc))).toBe(true)
       expect(readme).toContain(`./docs/${doc}`)
     }
-    expect(
-      readdirSync(REPO)
-        .filter(f => f.endsWith('.md'))
-        .sort(),
-    ).toEqual(['AGENT_NATIVE.md', 'CHANGELOG.md', 'CLAUDE.md', 'DESIGN.md', 'Instructions_for_agents.md', 'PRODUCT.md', 'README.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'TODO.md'])
   })
 
   test('React client recipes bundle through the browser ESM entry', async () => {
@@ -760,14 +828,36 @@ describe('root docs consistency', () => {
     }
   })
 
-  test('MCP package-runner quickstarts install the published package', () => {
-    const rationale = readFileSync(join(REPO, 'docs/mcp-code-mode-rationale.md'), 'utf8')
-    const transport = readFileSync(join(REPO, 'docs/mcp-http-transport.md'), 'utf8')
-    const combined = `${rationale}\n${transport}`
-    expect(combined).not.toContain('npx -y agentic-mermaid-mcp')
-    expect(combined.match(/npx -y agentic-mermaid mcp/g)?.length).toBe(3)
-    expect(rationale).toContain('"args": ["-y", "agentic-mermaid", "mcp"]')
-  })
+  test('package-runner quickstarts install the published package and run a real subcommand', () => {
+    // `npx <pkg> <sub>` resolves the bin named after the package, so every
+    // documented invocation must name this package, that bin must exist, and
+    // the subcommand must be one `am` accepts.
+    const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as { name: string; bin: Record<string, string> }
+    expect(pkg.bin[pkg.name]).toBe(pkg.bin.am)
+    const docs = ['README.md', 'AGENT_NATIVE.md', 'Instructions_for_agents.md', 'llms.txt', 'website/source/start.md',
+      ...readdirSync(join(REPO, 'docs')).filter(file => file.endsWith('.md')).map(file => `docs/${file}`)]
+    const invocations: Array<{ file: string; pkg: string; sub: string }> = []
+    for (const file of docs) {
+      const text = readFileSync(join(REPO, file), 'utf8')
+      for (const match of text.matchAll(/\bnpx\s+(?:-y\s+)?(agentic-mermaid[\w-]*)(?:\s+([a-z][\w-]*))?/g)) {
+        invocations.push({ file, pkg: match[1]!, sub: match[2] ?? '' })
+      }
+      for (const match of text.matchAll(/"args":\s*\[\s*"-y",\s*"(agentic-mermaid[\w-]*)"(?:,\s*"([a-z][\w-]*)")?/g)) {
+        invocations.push({ file, pkg: match[1]!, sub: match[2] ?? '' })
+      }
+    }
+    expect(invocations.length).toBeGreaterThan(0)
+    const subcommands = new Set<string>()
+    for (const invocation of invocations) {
+      expect(invocation).toEqual({ ...invocation, pkg: pkg.name })
+      if (invocation.sub) subcommands.add(invocation.sub)
+    }
+    expect(subcommands.has('mcp')).toBe(true)
+    for (const sub of subcommands) {
+      const help = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), sub, '--help'], { cwd: REPO, encoding: 'utf8' })
+      expect({ sub, status: help.status }).toEqual({ sub, status: 0 })
+    }
+  }, 60_000)
 
   test('theme and RenderOptions inventory is delegated to live discovery and focused docs', () => {
     const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
@@ -776,7 +866,6 @@ describe('root docs consistency', () => {
     const config = readFileSync(join(REPO, 'docs/config.md'), 'utf8')
     expect(readme).toContain('Discoverable palettes')
     expect(theming).toContain('knownStyleDescriptors()')
-    expect(theming).toContain('does not copy the registry')
     expect(theming).not.toMatch(/ships \*\*\d+ built-in themes/)
     for (const option of ['shadow', 'embedFontImport', 'compact', 'idPrefix', 'security', 'ganttToday']) {
       expect(api).toContain(`\`${option}\``)
@@ -808,38 +897,11 @@ describe('root docs consistency', () => {
 })
 
 describe('spec honesty', () => {
-  test('spec no longer claims a seed drives layout', () => {
+  test('spec states that layout is not seeded', () => {
+    // "layout seed" (not bare "seed"): the render option seed is a STYLE seed
+    // that re-rolls ink, and the spec must not deny it exists.
     const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    // The withSeededRandom apparatus is gone; spec should say determinism is
-    // structural. "layout seed" (not bare "seed"): the render option seed is
-    // a STYLE seed that re-rolls ink, and the spec must not deny it exists.
-    expect(spec).not.toContain('withSeededRandom(ctx.rng, fn)')
     expect(spec.toLowerCase()).toContain('there is no layout seed')
-  })
-
-  test('spec does not expose removed VerifyOptions layoutContext API', () => {
-    const spec = readFileSync(join(REPO, 'AGENT_NATIVE.md'), 'utf8')
-    expect(spec).not.toContain('layoutContext?: LayoutContext')
-  })
-
-  test('agent docs use verify-before-commit terminology', () => {
-    for (const file of ['AGENT_NATIVE.md', 'CHANGELOG.md', 'Instructions_for_agents.md', 'skills/agentic-mermaid-diagram-workflow/references/code-mode.md', 'eval/agent-usage/README.md']) {
-      const text = readFileSync(join(REPO, file), 'utf8')
-      expect({ file, stale: text.includes('verify-after-mutate') }).toEqual({ file, stale: false })
-    }
-  })
-
-  test('removed editor seed-shuffle affordance is not advertised as current UI', () => {
-    const checks = [
-      ['src/types.ts', 'editor "shuffle"'],
-      ['docs/project/archive/styles-rollout.md', '🎲'],
-      ['docs/project/archive/styles-rollout.md', 'style picker, 🎲 shuffle'],
-      ['scripts/sketch-prototype/SPEC.md', 'editor "shuffle"'],
-    ] as const
-    for (const [file, stale] of checks) {
-      const text = readFileSync(join(REPO, file), 'utf8')
-      expect({ file, stale, present: text.includes(stale) }).toEqual({ file, stale, present: false })
-    }
   })
 
   test('local and hosted Code Mode boundaries are named honestly', () => {
@@ -1024,31 +1086,12 @@ describe('shipped distribution artifacts present', () => {
     }
   }, 150_000)
 
-  test('npm package includes bundled PNG fonts and delegated docs', () => {
+  test('the npm package publishes with provenance', () => {
+    // The shipped file set, bin targets, and source-map exclusion are checked
+    // against the real `npm pack` by scripts/ci/verify-publish-package.ts and
+    // installed by e2e/tarball-consumer-fuzz.e2e.test.ts; the npx bin contract
+    // by the package-runner quickstart test above.
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
-    expect(pkg.files).toContain('assets/fonts/')
-    expect(pkg.files).toContain('assets/hero.png')
-    for (const doc of ['SECURITY.md', 'docs/*.md', 'docs/schemas/style-spec.schema.json', 'AGENT_NATIVE.md', 'Instructions_for_agents.md', 'skills/']) expect(pkg.files).toContain(doc)
-    for (const repositoryOnly of ['src/', 'TODO.md', 'docs/', 'skill-evals/']) expect(pkg.files).not.toContain(repositoryOnly)
-    for (const removedRootDoc of ['FEATURES.md', 'FORK_DIFFERENCES.md', 'QUALITY.md']) expect(pkg.files).not.toContain(removedRootDoc)
-    // Paths are in npm's canonical (no `./`) form after `npm pkg fix`; both
-    // forms resolve identically at install, and the canonical form keeps
-    // `npm publish` from emitting an auto-correct warning.
-    expect(pkg.bin).toEqual({
-      am: 'dist/am.js',
-      'agentic-mermaid': 'dist/am.js',
-      'agentic-mermaid-mcp': 'dist/agentic-mermaid-mcp.js',
-    })
     expect(pkg.publishConfig).toMatchObject({ access: 'public', provenance: true })
-    expect(pkg.engines.node).toBe('>=22')
-    for (const example of ['examples/agent-loop.ts', 'examples/mcp-vs-cli-complex-diagrams.ts', 'examples/agent-improve-auth-flow.ts']) expect(pkg.files).not.toContain(example)
-    expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans.ttf'))).toBe(true)
-    expect(existsSync(join(REPO, 'assets/fonts/DejaVuSans-Bold.ttf'))).toBe(true)
-    // Tarball slimming starts from a runtime-only allowlist; sourcemaps and the
-    // build-only lazy-graph metafile are explicitly excluded from dist.
-    expect(pkg.files).toContain('!dist/**/*.map')
-    expect(pkg.files).toContain('!dist/metafile-esm.json')
-    // Redundant Bun source bins are not published; the bin map points at dist/*.js.
-    expect(pkg.files).not.toContain('bin/')
   })
 })

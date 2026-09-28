@@ -8,72 +8,9 @@
   },
   "provenance": {
     "baseCommit": "cb2412b15b48ae41e55ace80f613be3723072d49",
-    "sourceState": "content-addressed-candidate",
+    "sourceState": "measured-at-base-commit",
     "capturedAt": "2026-07-19T02:10:00Z",
-    "generator": "manual-command-capture/v1",
-    "inputTreeSha256": "0c7f62b9aa64fed1a17f61d402b2fe72a9c7965b6213b37ab74291e8df96c785",
-    "inputs": [
-      {
-        "path": "eval/test-portfolio/contact-sheets/citizenship-review.json",
-        "sha256": "1f9009c76f5db9d0efe5b256d93a45637ef7b22e865fd3fb7700de835d195081"
-      },
-      {
-        "path": "eval/test-portfolio/contact-sheets/citizenship.html",
-        "sha256": "28cf5c298064c018db54993d16b2e4ff421059be6a3fd35e681657e1b5d1b3cc"
-      },
-      {
-        "path": "eval/test-portfolio/contact-sheets/citizenship.manifest.json",
-        "sha256": "6bd8f0060b9fc5fef292fee2c9f1c7ff5588ca9634b27f4a6d0b01c462908034"
-      },
-      {
-        "path": "scripts/ci/test-portfolio-visual-review.ts",
-        "sha256": "9e5d9f4bc0932e6ba8f3557debe4ca24bb305bd43bbfa4a1f2804fb84e128d3a"
-      },
-      {
-        "path": "scripts/pr-assets/artifact-receipt.ts",
-        "sha256": "8a8bae5bb700d2677d7fadaac8c205eb3ae3968eca600cb3322e673e98285037"
-      },
-      {
-        "path": "scripts/pr-assets/test-portfolio-contact-sheet.ts",
-        "sha256": "5242271d4075395fd6019ab6a7fb8f85cf13beee70b10ac19dde33a1b1dfcfd1"
-      },
-      {
-        "path": "src/__tests__/helpers/diagram-complexity.ts",
-        "sha256": "75e69bb42fbcdd948d8d7e9512fe836e5d1f488b2593442c1c3d3e9dd54fd760"
-      },
-      {
-        "path": "src/__tests__/helpers/family-conformance-profiles.ts",
-        "sha256": "77f756e27184bb4f3381e0ff8bc3909247596939567ae4dd6b98de10bc9ef465"
-      },
-      {
-        "path": "src/__tests__/helpers/render-conformance-plan.ts",
-        "sha256": "d31447fe4182cc5f16b8541296b489878b903ba9e2accfa42754d3162ce84ecd"
-      },
-      {
-        "path": "src/__tests__/helpers/render-conformance-verifier.ts",
-        "sha256": "0622c9f3674895597ff13f029a4a46b7eeabfe206db751f8ad1dc4a4103693cd"
-      },
-      {
-        "path": "src/__tests__/mermaid-doc-showcase.test.ts",
-        "sha256": "85bd192fb8632b838f349d2777c4fbeb478514e8282e9fea3c08d834885f9e43"
-      },
-      {
-        "path": "src/__tests__/render-conformance-plan.test.ts",
-        "sha256": "f5a1dc4e0a6afaa820e4bfd8017893d3b4aa61db9dcfdb874aec046e7800271f"
-      },
-      {
-        "path": "src/__tests__/styled-output.test.ts",
-        "sha256": "06b2f6eb268287628fa9005fa9c03091cd44e85523923c9f2c3828102ba7c9ed"
-      },
-      {
-        "path": "src/__tests__/test-portfolio-contact-sheet.test.ts",
-        "sha256": "178760b238575730aacb33e5bdd503377ae8c2bf5f03bbf1282360256e911a99"
-      },
-      {
-        "path": "src/__tests__/test-portfolio-fault-sensitivity.test.ts",
-        "sha256": "2d9425fc5b0b6a35b1ef25ebe41ad3b549a4254d50908932c12794262e19e9a3"
-      }
-    ]
+    "generator": "manual-command-capture/v1"
   },
   "environment": {
     "runtime": "Bun 1.3.13",
@@ -202,7 +139,7 @@
     "duplicateStyledRendersAfter": 0,
     "styledOutputWallSecondsBefore": 13.9,
     "styledOutputWallSecondsAfter": 8.22,
-    "notes": "The candidate is slower than the provisional 20\u201336s estimate because the declared Look \u00d7 Palette \u00d7 background three-way obligation alone has a mathematical lower bound of 900 real SVG rows. Reliability obligations were retained instead of forcing the estimate.",
+    "notes": "The candidate is slower than the provisional 20–36s estimate because the declared Look × Palette × background three-way obligation alone has a mathematical lower bound of 900 real SVG rows. Reliability obligations were retained instead of forcing the estimate.",
     "fullCoveredSuiteWallSecondsBefore": 410.73,
     "fullCoveredSuiteWallSecondsAfter": 311.65,
     "fullCoveredSuiteWallSecondsSaved": 99.08,

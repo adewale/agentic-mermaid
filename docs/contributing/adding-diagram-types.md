@@ -122,9 +122,9 @@ Run the checks that fit the change:
 
 - `bun run test`
 - `bun run typecheck`
-- `bun run goldens:ascii:check` if you added or changed ASCII/Unicode fixtures
+- `bun test src/__tests__/ascii.test.ts` if you added or changed ASCII/Unicode fixtures
 - `bun run build`
-- `bun run characterization:check` and `bun run gallery:mermaid-docs:check` if you added or changed visual evidence
+- `bun test src/__tests__/characterization-generated-artifacts.test.ts` if you added or changed characterization output
 - `bun run bench` if the diagram type adds meaningful layout or rendering cost
 
 ## 7. Agent-Native Typed Mutation (Required)

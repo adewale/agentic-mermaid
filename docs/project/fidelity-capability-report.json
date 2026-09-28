@@ -1,10 +1,8 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "mode": "public",
   "publicClaimsChanged": true,
   "upstreamRevision": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
-  "receiptInputSha256": "5b633b55fe2febc047cba8d7ac02f25e76589455c7b2279d09197e10631bf5b9",
-  "receiptResultSha256": "e1bb160e8db152a83ada3da9267a6b09d3a98319e531a03e671ff35135cbb23f",
   "summary": {
     "caseCount": 34,
     "featureCount": 15,
