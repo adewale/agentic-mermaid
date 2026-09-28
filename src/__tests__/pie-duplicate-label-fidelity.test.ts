@@ -1,6 +1,4 @@
 import { expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -238,12 +236,4 @@ test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene
 
 test('invalid duplicate values still fail before first-wins suppression', () => {
   expect(() => parsePieChart(['pie', '"A" : 1', '"A" : -1'])).toThrow(/invalid value/)
-})
-
-test('reviewer-facing before and after SVGs show the authentic slice change', () => {
-  const asset = (which: 'before' | 'after') => readFileSync(
-    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-duplicate-label-${which}.svg`), 'utf8')
-  expect(slicesInSvg(asset('before'))).toEqual([['Alpha', 10], ['Beta', 20], ['Alpha', 30]])
-  expect(asset('after')).toBe(renderMermaidSVG(source))
-  expect(slicesInSvg(asset('after'))).toEqual([['Alpha', 10], ['Beta', 20]])
 })

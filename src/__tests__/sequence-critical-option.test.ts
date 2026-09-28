@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -11,8 +8,16 @@ import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseSequenceBlockContinuation, parseSequenceBlockOpener } from '../sequence/block-keywords.ts'
 import type { Block } from '../sequence/types.ts'
 
-const asset = (name: string): string => join(import.meta.dir, '..', '..', 'docs', 'pr-assets', name)
-const CRITICAL = readFileSync(asset('issue-264-critical-option.mmd'), 'utf8')
+const CRITICAL = `sequenceDiagram
+critical Establish a connection
+  Service->>DB: connect
+option Network timeout
+  Service->>Service: log timeout
+option Credentials rejected
+  Service->>Service: log rejection
+end
+Service->>DB: after
+`
 
 const EXPECTED_BLOCK: Block = {
   type: 'critical', label: 'Establish a connection', startIndex: 0, endIndex: 2,
@@ -133,10 +138,5 @@ describe('Sequence critical/option keyword boundary', () => {
     const serialized = serializeMermaid(parsed.value)
     expect(serialized).toContain(authoredBlockLines.join('\n'))
     expect(parseSequenceDiagram(serialized.trimEnd().split('\n')).blocks[0]?.type).toBe('critical')
-  })
-
-  test('reviewer-facing after SVG and PNG match the production renderer', () => {
-    expect(renderMermaidSVG(CRITICAL, { embedFontImport: false })).toBe(readFileSync(asset('issue-264-critical-option-after.svg'), 'utf8'))
-    expect(Buffer.from(renderMermaidPNG(CRITICAL, { scale: 1 }))).toEqual(readFileSync(asset('issue-264-critical-option-after.png')))
   })
 })

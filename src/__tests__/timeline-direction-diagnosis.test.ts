@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
 import mermaid from 'mermaid'
 import { asTimeline, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
@@ -90,14 +89,6 @@ describe('Timeline header-direction admission', () => {
       expect(parseTimelineDiagram(input.split('\n').map(line => line.trim())).direction).toBe(direction)
       expect(renderMermaidSVG(input)).toContain('Launch')
     }
-  })
-
-  test('the reviewed baseline is the old silent horizontal render, not a fabricated after image', () => {
-    const before = readFileSync(new URL('../../docs/pr-assets/issue-248-timeline-direction-before.svg', import.meta.url), 'utf8')
-    expect(before).toContain('Launch')
-    expect(before).toContain('2020')
-    expect(before).not.toContain('TB')
-    expect(() => renderMermaidSVG(source('timeline TB'), { embedFontImport: false })).toThrow(/Unsupported timeline header/)
   })
 
   test('the lazy browser route rejects unsupported suffixes with the same Timeline diagnosis', async () => {

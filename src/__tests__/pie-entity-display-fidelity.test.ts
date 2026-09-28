@@ -1,6 +1,4 @@
 import { expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { decodeHTML, decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -246,42 +244,17 @@ test('pinned Mermaid Pie DB and SVG entity cleanup witness title display indepen
   }
 })
 
-test('reviewed Pie title before/after visuals use the same production source', () => {
-  const source = 'pie showData\n  title A#65;B\n  "X" : 1\n  "Y" : 2\n'
-  const asset = (which: 'before' | 'after') => readFileSync(
-    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-title-entity-${which}.svg`), 'utf8')
-  expect(asset('before')).toContain('>A#65;B</text>')
-  expect(asset('after')).toBe(renderMermaidSVG(source))
-  expect(asset('after')).toContain('>AAB</text>')
-})
-
-test('reviewed Pie named-reference visuals use the same production source', () => {
-  const source = 'pie showData\n  title Named references\n  "A#reg;B" : 1\n  "C" : 2\n'
-  const asset = (which: 'before' | 'after') => readFileSync(
-    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-named-entity-${which}.svg`), 'utf8')
-  expect(asset('before')).toContain('>A&amp;reg;B [1] (33.3%)</text>')
-  expect(asset('after')).toBe(renderMermaidSVG(source))
-  expect(asset('after')).toContain('>A®B [1] (33.3%)</text>')
-})
-
-test('reviewed Pie authored-formatting visuals use the same production source', () => {
-  const source = 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n  "C" : 2\n'
-  const asset = (which: 'before' | 'after') => readFileSync(
-    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-authored-formatting-${which}.svg`), 'utf8')
-  expect(asset('before')).toContain('<tspan')
-  expect(asset('after')).toBe(renderMermaidSVG(source))
-  expect(asset('after')).toContain('>A&lt;br&gt;B [1] (33.3%)</text>')
-  expect(asset('after')).toContain('>T&lt;b&gt;itle&lt;/b&gt;</text>')
-})
-
-test('reviewed Pie escaped-newline visuals use the same production source', () => {
-  const source = 'pie showData\n  title Escaped newline\n  "A\\nB" : 1\n  "Control" : 2\n'
-  const asset = (which: 'before' | 'after') => readFileSync(
-    join(import.meta.dir, `../../docs/pr-assets/issue-248-pie-escaped-newline-${which}.svg`), 'utf8')
-  expect(asset('before')).toContain('<tspan')
-  expect(asset('after')).toBe(renderMermaidSVG(source))
-  expect(asset('after')).toContain('>A B [1] (33.3%)</text>')
-  expect(asset('after')).not.toContain('<tspan')
+test('reviewed Pie title, named-reference, formatting, and escaped-newline sources paint display text', () => {
+  for (const { source, title, legend } of [
+    { source: 'pie showData\n  title A#65;B\n  "X" : 1\n  "Y" : 2\n', title: 'AAB', legend: 'X [1] (33.3%)' },
+    { source: 'pie showData\n  title Named references\n  "A#reg;B" : 1\n  "C" : 2\n', title: 'Named references', legend: 'A®B [1] (33.3%)' },
+    { source: 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n  "C" : 2\n', title: 'T&lt;b&gt;itle&lt;/b&gt;', legend: 'A&lt;br&gt;B [1] (33.3%)' },
+    { source: 'pie showData\n  title Escaped newline\n  "A\\nB" : 1\n  "Control" : 2\n', title: 'Escaped newline', legend: 'A B [1] (33.3%)' },
+  ]) {
+    expect(titleXml(source)).toBe(title)
+    expect(legendXml(source)).toBe(legend)
+    expect(renderMermaidSVG(source)).not.toContain('<tspan')
+  }
 })
 
 test('Pie inline showData title keeps authored entity spelling and an entity-created tag stays literal', () => {

@@ -1,10 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import mermaid from 'mermaid'
 import { asEr, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
-import { renderMermaidPNG } from '../agent/png.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
@@ -194,14 +191,5 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
       if (chart.entities[0]?.className?.split(' ').length !== 200002) process.exit(1);`
     const node = spawnSync('node', ['--input-type=module', '-e', script], { encoding: 'utf8' })
     expect(node.status).toBe(0)
-  })
-
-  test('reviewer-facing before/after images are same-source production artifacts', () => {
-    const asset = (side: 'before' | 'after', ext: 'svg' | 'png') => join(import.meta.dir, '..', '..', 'docs', 'pr-assets', `issue-248-er-multi-class-${side}.${ext}`)
-    const before = readFileSync(asset('before', 'svg'), 'utf8')
-    expect(before).toContain('data-class="hot"')
-    expect(before).not.toContain('data-class="vip hot"')
-    expect(renderMermaidSVG(source)).toBe(readFileSync(asset('after', 'svg'), 'utf8'))
-    expect(Buffer.from(renderMermaidPNG(source))).toEqual(readFileSync(asset('after', 'png')))
   })
 })

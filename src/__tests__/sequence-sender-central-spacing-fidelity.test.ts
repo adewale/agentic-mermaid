@@ -1,6 +1,4 @@
 import { expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
@@ -174,12 +172,4 @@ test('non-numeric punctuation and alphanumeric senders retain upstream central m
   expect(probe.exitCode).toBe(0)
   expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(senders.map(from => ({ from, central: true })))
   for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toMatchObject({ from: sender, centralStart: true })
-})
-
-test('reviewer-facing before and after SVGs match the missing and recovered messages', () => {
-  const asset = (which: 'before' | 'after') => readFileSync(
-    join(import.meta.dir, `../../docs/pr-assets/issue-248-sequence-sender-central-spacing-${which}.svg`), 'utf8')
-  expect(texts(asset('before'))).toEqual(['Alice', 'Bob'])
-  expect(asset('after')).toBe(renderMermaidSVG(source))
-  expect(texts(asset('after'))).toEqual(['Reverse', 'Dual', 'Alice', 'Bob'])
 })

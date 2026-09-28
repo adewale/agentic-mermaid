@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { asClass, mutate, parseRegisteredMermaid, renderMermaidPNG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseClassAnnotationStatement, parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -255,16 +254,13 @@ describe('Class official annotation forms', () => {
     expect(performance.now() - labelStart).toBeLessThan(1_000)
   })
 
-  test('the before/after SVGs are honest same-input renderer evidence', () => {
-    const source = 'classDiagram\n  class Shape <<interface>>'
-    const before = readFileSync(new URL('../../docs/pr-assets/issue-248-class-annotation-before.svg', import.meta.url), 'utf8')
-    const after = readFileSync(new URL('../../docs/pr-assets/issue-248-class-annotation-after.svg', import.meta.url), 'utf8')
-    const afterPng = readFileSync(new URL('../../docs/pr-assets/issue-248-class-annotation-after.png', import.meta.url))
-    expect(before).toContain('width="0" height="0"')
-    expect(before).not.toContain('data-annotation=')
-    expect(after).toBe(renderMermaidSVG(source, { embedFontImport: false }))
-    expect(after).toContain('data-annotation="interface"')
-    expect(afterPng).toEqual(Buffer.from(renderMermaidPNG(source)))
+  test('a lone inline-annotated class renders a sized box carrying its stereotype', () => {
+    const svg = renderMermaidSVG('classDiagram\n  class Shape <<interface>>', { embedFontImport: false })
+    const [, width, height] = svg.match(/<svg\b[^>]*\bwidth="([0-9.]+)" height="([0-9.]+)"/) ?? []
+    expect(Number(width)).toBeGreaterThan(0)
+    expect(Number(height)).toBeGreaterThan(0)
+    expect(svg).toContain('data-annotation="interface"')
+    expect(svg).toContain('&lt;&lt;interface&gt;&gt;')
   })
 
   test('the lazy browser route retains the same annotation or specific rejection', async () => {
