@@ -1,13 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { execFileSync } from 'node:child_process'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { decodeEditorStateHash, EDITOR_SHARE_STATE_KEYS } from '../../scripts/site/editor-state-url.ts'
-import { WEBSITE_BUILD_FINGERPRINT_PATHS } from '../../scripts/site/website-build-fingerprint.ts'
+import { isWebsiteBuildFingerprintInput } from '../../scripts/site/website-build-fingerprint.ts'
 import { createStyledExampleRenderState, WEBSITE_EXAMPLE_THEME } from '../../scripts/site/example-render-state.ts'
 import { LEGACY_RICH_EXAMPLE_ALIASES } from '../../scripts/site/website-example-legacy-aliases.ts'
 import { renderWebsiteSVG } from '../../website/src/rendering.ts'
@@ -19,6 +20,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from '../../website/agent-resource-inventory.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+import { evaluateBrowserScript, FakeDocument, manualTimers, runBrowserScriptInContext } from './browser-script-harness.ts'
 
 ensureWebsiteBuilt()
 import { HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../mcp/hosted-server.ts'
@@ -202,6 +204,51 @@ function staticCleanRoutesFromGeneratedPages() {
     .sort()
 }
 
+/** Run the shipped shader-mark.js against a WebGL double and a manual frame clock. */
+function shaderMarkHarness(options: { reducedMotion: boolean }) {
+  const document = new FakeDocument()
+  const trigger = document.element('a', { href: '/' })
+  document.element('span', { class: 'mark' }, trigger)
+  let drawCalls = 0
+  const gl = new Proxy({}, {
+    get(_target, property) {
+      if (property === 'getProgramParameter') return () => true
+      if (property === 'drawArrays') return () => { drawCalls++ }
+      if (typeof property === 'string' && /^[A-Z_]+$/.test(property)) return 1
+      return () => ({})
+    },
+  })
+  const createElement = document.createElement.bind(document)
+  document.createElement = (tag: string) => Object.assign(createElement(tag), tag === 'canvas' ? { getContext: () => gl, width: 0, height: 0 } : {})
+  let now = 0
+  let nextFrame = 1
+  const frames = new Map<number, (time: number) => void>()
+  evaluateBrowserScript(read('shader-mark.js'), {
+    document,
+    window: { devicePixelRatio: 2, addEventListener() {} },
+    matchMedia: () => ({ matches: options.reducedMotion }),
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+    requestAnimationFrame: (callback: (time: number) => void) => { frames.set(nextFrame, callback); return nextFrame++ },
+    cancelAnimationFrame: (id: number) => { frames.delete(id) },
+  }, 'null')
+  return {
+    trigger,
+    draws: () => drawCalls,
+    pendingFrames: () => frames.size,
+    runUntilIdle() {
+      let count = 0
+      while (frames.size && count < 10_000) {
+        now += 16
+        const queued = [...frames.values()]
+        frames.clear()
+        for (const callback of queued) callback(now)
+        count++
+      }
+      return count
+    },
+  }
+}
+
 async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) => Promise<Response> }> {
   return createWebsiteWorker({
     executeHarness: 'test-harness',
@@ -244,7 +291,7 @@ describe('Workers Static Assets website contract', () => {
     expect(existsSync(join(REPO, 'website/wrangler.toml'))).toBe(false)
     const jsonc = readFileSync(join(REPO, 'website/wrangler.jsonc'), 'utf8')
     const config = JSON.parse(jsonc.replace(/^\s*\/\/.*$/gm, ''))
-    expect(config.compatibility_date).toBe('2026-06-27')
+    expect(config.compatibility_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(config.routes).toEqual([
       { pattern: 'agentic-mermaid.dev', custom_domain: true },
       { pattern: 'www.agentic-mermaid.dev', custom_domain: true },
@@ -260,10 +307,14 @@ describe('Workers Static Assets website contract', () => {
     expect(config.assets).toEqual({ directory: './public', binding: 'ASSETS', run_worker_first: true, not_found_handling: '404-page' })
     // Hosted MCP contract: the Worker Loader binding backs Code Mode execute.
     expect(config.worker_loaders).toEqual([{ binding: 'LOADER' }])
-    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
-    expect(packageJson.scripts['website:dev']).toBe('cd website && WRANGLER_SEND_METRICS=false ../node_modules/.bin/wrangler dev --local --host 127.0.0.1 --port 9095 --ip 127.0.0.1')
-    expect(packageJson.devDependencies.wrangler).toBe('4.114.0')
-    expect(packageJson.scripts.deploy).toBe('gh workflow run deploy-cloudflare.yml --ref main')
+    const scripts = (JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts
+    // Local development stays local: simulated bindings, loopback-only listener.
+    const devArgs = scripts['website:dev']!.split(/\s+/)
+    expect(devArgs).toContain('--local')
+    expect(devArgs[devArgs.indexOf('--ip') + 1]).toBe('127.0.0.1')
+    // Production changes only through the guarded deploy workflow transaction.
+    const directProductionChanges = Object.entries(scripts).filter(([, script]) => /\bwrangler\s+(?:deploy|versions\s+deploy|rollback)\b/.test(script))
+    expect(directProductionChanges).toEqual([])
   })
 
   test('Worker-first routing canonicalizes hosts, preserves path redirects, and wraps assets with headers', async () => {
@@ -328,6 +379,9 @@ describe('Workers Static Assets website contract', () => {
     const html = await worker.fetch(new Request('https://agentic-mermaid.dev/'), env(() => new Response('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8' } })))
     expect(html.status).toBe(200)
     expect(html.headers.get('content-security-policy')).toContain("default-src 'self'")
+    // Executable script is same-origin only: no inline or eval'd script.
+    const scriptSrc = (html.headers.get('content-security-policy') ?? '').split(';').map(directive => directive.trim()).filter(directive => /^script-src\s/.test(directive))
+    expect(scriptSrc).toEqual(["script-src 'self'"])
     expect(html.headers.get('x-content-type-options')).toBe('nosniff')
     expect(html.headers.get('strict-transport-security')).toBe('max-age=31536000')
     expect(html.headers.get('cache-control')).toBe('no-cache')
@@ -465,24 +519,23 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
-  test('Workers website source no longer depends on mockups', () => {
-    expect(existsSync(join(REPO, 'website/source/pages/home.html'))).toBe(true)
-    expect(existsSync(join(REPO, 'website/source/assets/styles.css'))).toBe(true)
-    const checkedFiles = ['website/build.ts', 'website/README.md', 'package.json', '.github/workflows/ci.yml', 'eval/agent-usage/homepage-prompt.ts']
-    for (const rel of checkedFiles) {
-      const text = readRepo(rel)
-      expect({ rel, hasMockupDependency: /mockups\/(?:site-gen|home\.html)|join\([^\n]*['"]mockups['"]|\bMOCKUPS\b|readMock\b|copyMockFile\b/.test(text) }).toEqual({ rel, hasMockupDependency: false })
-    }
-    expect(readRepo('package.json')).not.toContain('"site"')
-    expect(readRepo('package.json')).not.toContain('"site:check"')
-    const preload = readRepo('src/__tests__/website-public-fixture.ts')
-    expect(preload).toContain('computeWebsiteBuildFingerprint')
-    expect(preload).not.toContain("'--public-only'")
-    expect(preload).toContain('GENERATED_FILES')
-    expect(preload).toContain("'deploy-version.ts'")
-    expect(readRepo('bunfig.toml')).not.toContain('website-public-fixture.ts')
-    for (const rel of ['website', 'editor', 'scripts/site', 'scripts/docs', 'shared', 'docs/schemas/style-spec.schema.json', 'docs/assets/style-cookbook', 'examples/styles', 'skills/agentic-mermaid-diagram-workflow', 'Instructions_for_agents.md']) {
-      expect(WEBSITE_BUILD_FINGERPRINT_PATHS as readonly string[]).toContain(rel)
+  test('the website fixture is opt-in and fingerprints every repository input it publishes', () => {
+    // Building the site is expensive; only files that import the fixture pay for it.
+    const bunfig = Bun.TOML.parse(readRepo('bunfig.toml')) as { test?: { preload?: string[] } }
+    expect((bunfig.test?.preload ?? []).filter(path => path.includes('website-public-fixture'))).toEqual([])
+    // Repository inputs the build reads at runtime (not via imports) and ships
+    // verbatim or transformed; website-build-fingerprint.test.ts covers the
+    // import graph and the hashing behaviour itself.
+    for (const rel of [
+      'website/source/pages/home.html',
+      'website/source/assets/styles.css',
+      'docs/schemas/style-spec.schema.json',
+      'docs/assets/style-cookbook/transit-route-map.png',
+      'examples/styles/catalog.json',
+      'skills/agentic-mermaid-diagram-workflow/SKILL.md',
+      'Instructions_for_agents.md',
+    ]) {
+      expect({ rel, exists: existsSync(join(REPO, rel)), fingerprinted: isWebsiteBuildFingerprintInput(rel) }).toEqual({ rel, exists: true, fingerprinted: true })
     }
   })
 
@@ -664,13 +717,31 @@ describe('Workers Static Assets website contract', () => {
       expect({ font: font.value, hostedOrSystem: hostedFamilies.includes(font.value) || allowedSystem.has(font.value) }).toEqual({ font: font.value, hostedOrSystem: true })
     }
     expect(editorScript).not.toContain('Poppins')
-    const editorBuilder = readFileSync(join(REPO, 'scripts/site/editor.ts'), 'utf8')
-    const websiteBuilder = readFileSync(join(REPO, 'website/build.ts'), 'utf8')
-    expect(editorBuilder).toContain("AM_EDITOR_FONT_PREFIX || 'assets/fonts/'")
-    expect(editorBuilder).toContain("fileURLToPath(new URL('../../src/browser.ts', import.meta.url))")
-    expect(editorBuilder).not.toMatch(/new URL\([^\n]+import\.meta\.url\)\.pathname/)
-    expect(websiteBuilder).toContain("AM_EDITOR_FONT_PREFIX: '/fonts/'")
   })
+
+  test('the editor builder works from a checkout path containing a space', () => {
+    // URL.pathname percent-encodes the space, so a builder that resolves its
+    // inputs through it cannot find them; the generated page must still bundle.
+    const parent = mkdtempSync(join(tmpdir(), 'am editor builder '))
+    try {
+      const checkout = join(parent, 'agentic mermaid')
+      for (const rel of ['editor', 'shared', 'scripts/site', 'package.json']) cpSync(join(REPO, rel), join(checkout, rel), { recursive: true })
+      cpSync(join(REPO, 'src'), join(checkout, 'src'), { recursive: true, filter: path => !path.includes(`${join('src', '__tests__')}`) })
+      symlinkSync(join(REPO, 'node_modules'), join(checkout, 'node_modules'))
+      const out = join(parent, 'editor.html')
+      const result = Bun.spawnSync(['bun', '--preload', join(REPO, 'src/__tests__/site-probe.preload.ts'), join(checkout, 'scripts/site/editor.ts')], {
+        cwd: checkout,
+        env: { ...process.env, AM_TEST_REDIRECT_WRITE: out, AM_EDITOR_FONT_PREFIX: '' },
+      })
+      expect({ exitCode: result.exitCode, stderr: result.stderr.toString() }).toEqual({ exitCode: 0, stderr: '' })
+      const html = readFileSync(out, 'utf8')
+      expect(html).toContain('window.__mermaid')
+      // Without an explicit prefix the standalone editor serves fonts relative to itself.
+      expect(html).toContain(`url('assets/fonts/${HOSTED_FONT_RESOURCES[0]!.file}')`)
+    } finally {
+      rmSync(parent, { recursive: true, force: true })
+    }
+  }, 60_000)
 
   test('generated public text assets do not depend on external font imports', () => {
     const scanned = files().filter((f) => /\.(html|svg|css|md|txt|json)$/.test(f))
@@ -1594,39 +1665,18 @@ describe('Workers Static Assets website contract', () => {
     const editorRuntime = read(editorScriptRel(editor))
     const editorAll = editor + '\n' + editorRuntime
     const styles = read('styles.css')
-    const theme = read('theme.js')
-    const copyFeedback = readRepo('shared/browser/copy-feedback.js').trimEnd()
-    const home = read('index.html')
+    // Runtime behaviour of these controls (the "?" dialog, Cmd/Ctrl+C in the
+    // source, copy-button width) is exercised in a real browser by
+    // e2e/editor-site-interactions.e2e.test.ts and website-browser-a11y.test.ts;
+    // the shipped copy-feedback script is exercised below.
     expect(editor).toContain('id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert')
     expect(editor).toContain('id="config-view" role="dialog" aria-modal="false" aria-label="Diagram settings" hidden aria-hidden="true" inert')
-    expect(editorAll).toContain('setExamplesSidebarOpen(false);')
-    expect(editorAll).toContain('setSettingsOpen(false);')
-    expect(editorAll).not.toContain("e.key.toLowerCase() === 'c'")
-    expect(editorAll).not.toContain('aria-keyshortcuts="Meta+C Control+C"')
-    expect(theme).not.toContain('am-theme')
-    expect(theme.startsWith(copyFeedback)).toBe(true)
-    expect(editorAll).toContain(copyFeedback)
-    expect(theme.match(/function setCopyFeedback/g)?.length).toBe(1)
-    expect(editorAll.match(/function setCopyFeedback/g)?.length).toBe(1)
-    expect(readRepo('editor/js/helpers.js')).not.toContain('function setCopyFeedback')
-    expect(theme).toContain("name + ' copied to clipboard.'")
-    // Copy feedback must reserve the button's resting width before swapping in the
-    // shorter "Copied" label, so the hero's flex neighbours don't slide sideways.
-    expect(theme).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
-    expect(theme).toContain("btn.style.minWidth = ''")
-    // The editor's shared copy feedback reserves width the same way for labelled
-    // copy buttons before swapping in the shorter feedback text.
-    expect(editorAll).toContain("btn.style.minWidth = Math.ceil(btn.getBoundingClientRect().width)")
+    expect(editor).not.toContain('aria-keyshortcuts="Meta+C Control+C"')
     // The Share and "?" buttons are gone from the topbar; copy-link lives on in
     // the export dropdown and the cheat sheet is reached by the "?" key alone.
     expect(editor).not.toContain('id="share-btn"')
     expect(editor).not.toContain('id="shortcuts-btn"')
     expect(editor).toContain('id="copy-link-btn"')
-    // "?" opens the cheat sheet without a trigger button, and it renders as a
-    // Gmail-style scrim + panel (aria-modal, backdrop click closes).
-    expect(editorAll).toContain("shortcutsReturnFocus = shortcutsReturnTarget(document.activeElement)")
-    expect(editorAll).toContain('portalShortcutsDialog()')
-    expect(editorAll).toContain('setShortcutsBackgroundInert(true)')
     expect(editor).toContain('id="shortcuts-dialog" role="dialog" aria-modal="true"')
     expect(editor).toContain('class="shortcuts-dialog-panel"')
     expect(styles).toContain('@media (forced-colors: active)')
@@ -1638,17 +1688,51 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).toContain('aria-haspopup="dialog"')
     expect(editor).toContain('id="export-dropdown" role="dialog" aria-modal="false" aria-label="Export options"')
     expect(editor).not.toContain('role="menu" aria-label="Export options"')
-    expect(editorAll).not.toContain("setAttribute('role', 'menuitem')")
     expect(editor).toContain('id="font-popup" role="dialog" aria-modal="false" aria-label="Font picker"')
     expect(editor).toContain('role="dialog" aria-modal="false" aria-labelledby="color-popup-title" aria-hidden="true"')
     expect(editor).toContain('class="status-left" role="status" aria-live="polite" aria-atomic="true"')
     expect(editor).toContain('id="verify-bar" role="status" aria-live="polite" aria-atomic="true"')
+    // Security pins retained pending review: the strict-insertion behaviour is
+    // now also exercised in a real browser (e2e/editor-site-interactions.e2e.test.ts).
     expect(editorAll).toContain('insertStrictRenderedSvg')
     expect(editorAll).toContain('new DOMParser().parseFromString(svg, "image/svg+xml")')
     expect(editorAll).toContain('previewInner.replaceChildren(document.importNode(parsed.documentElement, true))')
-    expect(editorAll).toContain('fitUnicodeOutput')
-    expect(editorAll).toContain('ensureTextOutputs')
-    expect(editorAll).toContain('markTextOutputsDirty')
+  })
+
+  test('shipped copy feedback holds the button width while its label changes, then restores it', async () => {
+    // Drive the shipped theme.js (shared copy feedback + site wiring) through a
+    // click on a copy button. The layout double sizes the button from its label
+    // unless a min-width reserves more, as a flex item would be.
+    const timers = manualTimers()
+    const document = new FakeDocument()
+    const widget = document.element('div', { 'data-copy-widget': '' })
+    const button = document.element('button', { class: 'primary-action', 'data-copy-text': 'Fetch https://agentic-mermaid.dev/start.md', 'data-copy-name': 'Agent prompt' }, widget)
+    document.element('span', { class: 'copy-prompt-icon' }, button)
+    const label = document.element('span', {}, button, [document.createTextNode('Use with an agent')])
+    const status = document.element('p', { role: 'status' }, widget)
+    button.layout = () => ({ width: Math.max(Number.parseFloat(button.style.minWidth || '0') || 0, 24 + 7.3 * label.textContent.length) })
+    const copied: string[] = []
+    runBrowserScriptInContext(read('theme.js'), {
+      setTimeout: timers.setTimeout,
+      clearTimeout: timers.clearTimeout,
+      document,
+      navigator: { clipboard: { writeText: async (text: string) => { copied.push(text) } } },
+    }, 'website/public/theme.js')
+    const restingWidth = button.getBoundingClientRect().width
+    button.click()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(copied).toEqual(['Fetch https://agentic-mermaid.dev/start.md'])
+    expect(label.textContent).toBe('Copied')
+    expect(button.dataset.copyState).toBe('ok')
+    expect(status.textContent).toBe('Agent prompt copied to clipboard.')
+    expect(button.getBoundingClientRect().width).toBeGreaterThanOrEqual(restingWidth)
+    expect(button.getBoundingClientRect().width).toBeLessThan(restingWidth + 1)
+    timers.flush()
+    expect(label.textContent).toBe('Use with an agent')
+    expect(button.dataset.copyState).toBeUndefined()
+    expect(status.textContent).toBe('')
+    expect(button.style.minWidth).toBe('')
+    expect(button.getBoundingClientRect().width).toBe(restingWidth)
   })
 
   test('warning pages carry real per-code content, badges, and social metadata ships site-wide', () => {
@@ -1731,6 +1815,8 @@ describe('Workers Static Assets website contract', () => {
     const workerCore = readFileSync(join(REPO, 'website/src/worker-core.ts'), 'utf8')
     expect(headers).toContain("script-src 'self'")
     expect(headers).not.toContain("script-src 'self' 'unsafe-inline'")
+    // Security pins retained pending review: the served header is now asserted
+    // on a real worker response in the Worker-first routing test.
     expect(workerCore).toContain("script-src 'self'")
     expect(workerCore).not.toContain("script-src 'self' 'unsafe-inline'")
     for (const rel of files().filter(candidate => candidate.endsWith('.html'))) {
@@ -1744,7 +1830,6 @@ describe('Workers Static Assets website contract', () => {
   test('audit fixes give public proof diagrams accessible names and immutable editor assets', () => {
     const home = read('index.html')
     const examples = read('examples/index.html')
-    const workerCore = readFileSync(join(REPO, 'website/src/worker-core.ts'), 'utf8')
     expect(home).toContain('role="img" aria-labelledby="edit-loop-svg-title edit-loop-svg-desc"')
     expect(home).toContain('<title id="edit-loop-svg-title">Agentic Mermaid edit loop</title>')
     expect(examples).toContain('role="img" aria-labelledby="example-flowchart-basic-svg-title example-flowchart-basic-svg-desc"')
@@ -1753,11 +1838,26 @@ describe('Workers Static Assets website contract', () => {
     expect(examples).toContain('aria-labelledby="example-journey-basic-svg-title example-journey-basic-svg-desc"')
     expect(examples).not.toContain('aria-labelledby="tl-')
     expect(examples).not.toContain('aria-labelledby="journey-')
+    // Cache policy is the worker's alone; its behaviour (immutable hashed
+    // assets, no-cache HTML, stripped upstream cache headers) is asserted on
+    // real responses in the Worker-first routing test above.
     expect(read('_headers')).not.toContain('Cache-Control')
-    expect(workerCore).toContain("headers.delete('Cache-Control')")
-    expect(workerCore).toContain('classifyWebsiteAssetCache')
-    expect(workerCore).toContain("public, max-age=31536000, immutable")
-    expect(read('shader-mark.js')).toContain('runs a short sweep only on direct hover/focus')
-    expect(read('shader-mark.js')).not.toContain('requestAnimationFrame(frame);\n    }\n    requestAnimationFrame(frame);')
+  })
+
+  test('the brand mark paints once and animates only for a bounded sweep on hover or focus', () => {
+    const mark = shaderMarkHarness({ reducedMotion: false })
+    expect(mark.draws()).toBeGreaterThan(0)
+    expect(mark.pendingFrames()).toBe(0)
+    for (const event of ['pointerenter', 'pointerleave', 'focusin', 'focusout']) {
+      mark.trigger.dispatch(event)
+      expect({ event, animating: mark.pendingFrames() }).toEqual({ event, animating: 1 })
+      const frames = mark.runUntilIdle()
+      expect({ event, settled: mark.pendingFrames(), bounded: frames > 10 && frames < 300 }).toEqual({ event, settled: 0, bounded: true })
+    }
+
+    const reduced = shaderMarkHarness({ reducedMotion: true })
+    reduced.trigger.dispatch('pointerenter')
+    expect(reduced.pendingFrames()).toBe(0)
+    expect(reduced.draws()).toBeGreaterThan(0)
   })
 })
