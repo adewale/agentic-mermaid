@@ -5,6 +5,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- A later bare `participant X` or `actor X` no longer changes a sequence
+  participant that already exists; as upstream Mermaid does, only a naming
+  declaration (`as …` or a metadata alias) changes its label and type.
+- Sequence participants that only a preserved block creates (`rect`,
+  `critical`, `break`, `box`, nested blocks, a note inside a `loop`, a
+  `create` line) are now part of the typed body, facts and structural counts,
+  in upstream's order; the blocks stay byte-for-byte.
+- `set_participant_label` on a participant no declaration names now declares
+  it right after the statement that first names it, so re-parsing keeps the
+  participant order.
 - Compositing a translucent colour over another no longer returns channel
   values a rounding error above 255 (`#0F05` over white).
 - ER entities keep their subgraph and position through serialization when the
