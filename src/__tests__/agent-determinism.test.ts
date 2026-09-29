@@ -160,15 +160,6 @@ describe('determinism — locale-independent ordering authority', () => {
     expect(['\u{10000}', '\uE000'].sort(compareCodePointStrings)).toEqual(['\uE000', '\u{10000}'])
   })
 
-  test('executable TypeScript and JavaScript do not call ambient locale collation', () => {
-    const forbidden = 'locale' + 'Compare'
-    const scan = spawnSync('git', ['grep', '-n', forbidden, '--', '*.ts', '*.js', '*.mjs', '*.cjs'], { encoding: 'utf8' })
-    expect(scan.status).not.toBeNull()
-    expect([0, 1]).toContain(scan.status!)
-    expect(scan.stderr).toBe('')
-    expect(scan.stdout).toBe('')
-  })
-
   const NODE = findNodeBinary()
   const fn = testRequiring({ node: NODE !== null })
   fn('Scene shell bytes are identical under English and Swedish Node locales', async () => {

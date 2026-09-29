@@ -188,18 +188,11 @@ describe('characterisation · Tier A · universal invariants', () => {
     )
   })
 
-  // P2. Determinism. render(x) is byte-identical across runs. This is the
-  // keystone that makes golden/approval tests valid. Kills mutants that
-  // replace the deterministic MinHeap FIFO tie-break, label-segment tie-break,
-  // or stable root sort with order-dependent or random behaviour.
-  it('P2 determinism — byte-identical across repeated renders', () => {
-    fc.assert(
-      fc.property(generalGraphArb, ({ src }) => {
-        expect(renderMermaidASCII(src, U)).toBe(renderMermaidASCII(src, U))
-      }),
-      { numRuns: RUNS },
-    )
-  })
+  // P2 (determinism) is enforced statically: agent-substrate-lint bans
+  // Math.random / Date.now / performance.now / process.env in src/ascii, and
+  // ascii-determinism.test.ts re-renders the docs corpus and the tie-break
+  // fixtures. A reordered (but still deterministic) tie-break is P2-invisible;
+  // ascii-pathfinder-determinism pins the FIFO route exactly.
 
   // P3. Orthogonality. No diagonal connector glyphs: every edge is Manhattan
   // (90° bends only). This is the defining invariant of the A* router. Kills

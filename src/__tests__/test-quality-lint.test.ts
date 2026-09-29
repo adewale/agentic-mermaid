@@ -6,25 +6,33 @@
 // runtime-capability checks.
 
 import { describe, expect, test } from 'bun:test'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { type AllowEntry, type LintRule, lintSource, REPO_ROOT, staleEntries, unexcused, walkFiles } from './helpers/source-scan.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
 // Every .ts file under these roots (tests and their helpers)...
 const TEST_ROOTS = ['src/__tests__', 'e2e']
 // ...and every *.test.ts under these, which mix tests with ordinary scripts.
 const TEST_FILE_ROOTS = ['scripts', 'eval']
 
-type Finding = {
-  file: string
-  line: number
-  rule: string
-  text: string
+/** The local names a file binds with value (not `import type`) imports. */
+function staticImportBindings(code: string): string[] {
+  const names: string[] = []
+  for (const [, clause] of code.matchAll(/^\s*import\s+(?!type\b)([^'"]+?)\s+from\s+['"]/gm)) {
+    const named = /\{([^}]*)\}/.exec(clause!)?.[1]
+    for (const specifier of named?.split(',') ?? []) {
+      const parts = specifier.trim().split(/\s+/)
+      if (parts[0] && parts[0] !== 'type') names.push(parts.at(-1)!)
+    }
+    const rest = clause!.replace(/\{[^}]*\}/, '')
+    for (const binding of rest.matchAll(/(?:\*\s*as\s+)?([A-Za-z_$][\w$]*)/g)) names.push(binding[1]!)
+  }
+  return names
 }
 
 // Focused and skipped tests are enforced repository-wide by Biome's
 // suspicious/noFocusedTests and suspicious/noSkippedTests (biome.json).
-const RULES = [
+const RULES: readonly LintRule[] = [
   {
     name: 'truthy/falsy assertion',
     re: /\.toBe(?:Truthy|Falsy)\s*\(/,
@@ -41,12 +49,32 @@ const RULES = [
     name: 'ad-hoc sleep',
     re: /new Promise\b.*\bsetTimeout\s*\(\s*[\w$]+\s*,\s*(?!\s)(?!0\s*\))[^)]|\bBun\.sleep(?:Sync)?\s*\(/,
   },
-] as const
+  {
+    // An agent loop once shipped `expect(typeof observedDifference).toBe('boolean')`:
+    // the value is typed boolean, so the assertion can never fail. Agent tests
+    // assert the value instead.
+    name: 'typeof-boolean tautology in an agent test',
+    files: /^src\/__tests__\/agent[^/]*\.test\.ts$/,
+    re: /expect\(\s*typeof[^)]*\)\s*\.\s*toBe\(\s*['"]boolean['"]\s*\)/,
+  },
+  {
+    // tsc already fixes the type and presence of a static import, so
+    // `expect(typeof imported).toBe('function')` or
+    // `expect(imported).toBeDefined()` can only pass. Call it instead.
+    name: 'assertion on a static import',
+    re: code => {
+      const names = staticImportBindings(code)
+      if (names.length === 0) return null
+      const binding = `(?:${names.map(name => name.replace(/\$/g, '\\$')).join('|')})(?:\\.[\\w$]+)*`
+      return new RegExp(`expect\\(\\s*(?:typeof\\s+${binding}\\s*\\)\\s*\\.\\s*toBe\\(\\s*['"]\\w+['"]\\s*\\)|${binding}\\s*\\)\\s*\\.\\s*toBeDefined\\(\\s*\\))`)
+    },
+  },
+]
 
 // Deliberate exceptions to a rule, each with its reason. An entry matches a
 // finding by file, rule and a fragment of the offending line, and an entry that
 // no longer matches anything fails the lint, so the list cannot rot.
-const ALLOWED: ReadonlyArray<{ file: string; rule: string; fragment: string; reason: string }> = [
+const ALLOWED: readonly AllowEntry[] = [
   {
     file: 'src/__tests__/website-browser-a11y.test.ts',
     rule: 'ad-hoc sleep',
@@ -73,55 +101,24 @@ const ALLOWED: ReadonlyArray<{ file: string; rule: string; fragment: string; rea
   },
 ]
 
-function walk(dir: string): string[] {
-  const out: string[] = []
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry)
-    if (statSync(path).isDirectory()) out.push(...walk(path))
-    else if (path.endsWith('.ts')) out.push(path)
-  }
-  return out
-}
-
 function testFiles(): string[] {
   return [
-    ...TEST_ROOTS.flatMap(root => walk(join(REPO, root))),
-    ...TEST_FILE_ROOTS.flatMap(root => walk(join(REPO, root)).filter(path => path.endsWith('.test.ts'))),
+    ...TEST_ROOTS.flatMap(root => walkFiles(join(REPO_ROOT, root), path => path.endsWith('.ts'))),
+    ...TEST_FILE_ROOTS.flatMap(root => walkFiles(join(REPO_ROOT, root), path => path.endsWith('.test.ts'))),
   ]
 }
 
-function isAllowed(finding: Finding): boolean {
-  return ALLOWED.some(entry => entry.file === finding.file && entry.rule === finding.rule && finding.text.includes(entry.fragment))
-}
-
-function stripLineComment(line: string): string {
-  return line.replace(/\/\/.*$/, '')
-}
-
-function findTestQualitySmells(files = testFiles()): Finding[] {
-  const findings: Finding[] = []
-  for (const file of files) {
-    const rel = file.slice(REPO.length + 1)
-    const lines = readVirtualAware(file).split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      const code = stripLineComment(lines[i]!)
-      for (const rule of RULES) {
-        if (rule.re.test(code)) {
-          findings.push({ file: rel, line: i + 1, rule: rule.name, text: lines[i]!.trim() })
-        }
-      }
-    }
-  }
-  return findings
+function findTestQualitySmells() {
+  return testFiles().flatMap(file => lintSource(file.slice(REPO_ROOT.length + 1), readFileSync(file, 'utf8'), RULES))
 }
 
 describe('test-quality lint (testing-best-practices guardrails)', () => {
-  test('tests do not carry truthy assertions, fixed waits or ad-hoc sleeps', () => {
-    expect(findTestQualitySmells().filter(finding => !isAllowed(finding))).toEqual([])
+  test('tests do not carry truthy assertions, fixed waits, ad-hoc sleeps or type tautologies', () => {
+    expect(unexcused(findTestQualitySmells(), ALLOWED)).toEqual([])
   })
 
   test('scans test files under scripts/ and eval/ too', () => {
-    const scanned = new Set(testFiles().map(file => file.slice(REPO.length + 1)))
+    const scanned = new Set(testFiles().map(file => file.slice(REPO_ROOT.length + 1)))
     expect(scanned.has('scripts/sketch-prototype/styles.test.ts')).toBe(true)
     expect(scanned.has('eval/family-usage/count.test.ts')).toBe(true)
     // Only test files there, not the scripts they sit beside.
@@ -129,38 +126,36 @@ describe('test-quality lint (testing-best-practices guardrails)', () => {
   })
 
   test('every allow-list entry still matches a finding', () => {
-    const findings = findTestQualitySmells()
-    const stale = ALLOWED.filter(entry => !findings.some(finding => entry.file === finding.file && entry.rule === finding.rule && finding.text.includes(entry.fragment)))
+    const stale = staleEntries(findTestQualitySmells(), ALLOWED)
     expect(stale.map(entry => `${entry.file}: ${entry.fragment}`)).toEqual([])
   })
 
   test('the lint has teeth for each guarded anti-pattern', () => {
-    const examples: ReadonlyArray<readonly [string, readonly string[]]> = [
-      ['expect(result).toBe' + 'Truthy()', ['truthy/falsy assertion']],
-      ['await page.waitFor' + 'Timeout(500)', ['fixed browser timeout wait']],
-      ['await new Promise(r => set' + 'Timeout(r, 250))', ['ad-hoc sleep']],
-      ['await new Promise((resolve) => set' + 'Timeout(resolve, delayMs))', ['ad-hoc sleep']],
-      ['await Bun.sl' + 'eep(50)', ['ad-hoc sleep']],
+    const agentTest = 'src/__tests__/agent-virtual.test.ts'
+    const otherTest = 'src/__tests__/virtual.test.ts'
+    const examples: ReadonlyArray<readonly [string, string, readonly string[]]> = [
+      [otherTest, 'expect(result).toBe' + 'Truthy()', ['truthy/falsy assertion']],
+      [otherTest, 'await page.waitFor' + 'Timeout(500)', ['fixed browser timeout wait']],
+      [otherTest, 'await new Promise(r => set' + 'Timeout(r, 250))', ['ad-hoc sleep']],
+      [otherTest, 'await new Promise((resolve) => set' + 'Timeout(resolve, delayMs))', ['ad-hoc sleep']],
+      [otherTest, 'await Bun.sl' + 'eep(50)', ['ad-hoc sleep']],
       // A zero-delay timer only yields the event loop.
-      ['await new Promise(resolve => set' + 'Timeout(resolve, 0))', []],
+      [otherTest, 'await new Promise(resolve => set' + 'Timeout(resolve, 0))', []],
+      [agentTest, 'expect(typeof observedDifference).toBe' + "('boolean')", ['typeof-boolean tautology in an agent test']],
+      // Outside agent tests a typeof check may be probing untyped JSON.
+      [otherTest, 'expect(typeof payload.ok).toBe' + "('boolean')", []],
+      [otherTest, "import { verify } from '../agent/index.ts'\nexpect(typeof verify).toBe" + "('function')", ['assertion on a static import']],
+      [otherTest, "import * as agent from '../agent/index.ts'\nexpect(agent.verify).toBe" + 'Defined()', ['assertion on a static import']],
+      [otherTest, "import Default, { a as renamed } from 'x'\nexpect(typeof renamed).toBe" + "('string')\nexpect(Default).toBe" + 'Defined()', ['assertion on a static import', 'assertion on a static import']],
+      // A type-only import has no runtime value to assert on; a local does.
+      [otherTest, "import type { Verify } from '../agent/index.ts'\nconst verify = load()\nexpect(typeof verify).toBe" + "('function')", []],
+      // Prose in a comment is not an assertion.
+      [otherTest, "import { verify } from 'x'\n// expect(typeof verify).toBe" + "('function')", []],
     ]
-    for (const [idx, [example, rules]] of examples.entries()) {
-      const file = join(REPO, `virtual-${idx}.test.ts`)
-      const findings = findTestQualitySmells([fileFromText(file, example)])
+    for (const [file, example, rules] of examples) {
+      const findings = lintSource(file, example, RULES)
       expect({ example, rules: findings.map(f => f.rule) }).toEqual({ example, rules: [...rules] })
     }
-    expect(new Set(examples.flatMap(([, rules]) => rules))).toEqual(new Set(RULES.map(rule => rule.name)))
+    expect(new Set(examples.flatMap(([, , rules]) => rules))).toEqual(new Set(RULES.map(rule => rule.name)))
   })
 })
-
-function fileFromText(path: string, text: string): string {
-  virtualFiles.set(path, text)
-  return path
-}
-
-const realReadFileSync = readFileSync
-const virtualFiles = new Map<string, string>()
-
-function readVirtualAware(path: string): string {
-  return virtualFiles.get(path) ?? realReadFileSync(path, 'utf8')
-}

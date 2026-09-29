@@ -5,48 +5,18 @@
  * found the same primitives re-implemented across families, and several of the
  * copies had silently diverged (class/er measured titles at the wrong weight,
  * four escapeAttr copies dropped the apostrophe escape, two luminance formulas
- * disagreed). Each scan below pins one "this must stay single-sourced"
- * invariant at the source level: re-adding a local copy fails here with a
- * pointer to the shared home.
- *
- * Where the shared behavior is observable it is checked on rendered output
- * for every family (label escaping, measured-vs-drawn boxes; the SVG root
- * accessibility wiring is svg-a11y-conformance.test.ts). The remaining source
- * scans cover duplication with no cheap rendered oracle.
+ * disagreed). The shared behaviour is checked here on rendered output for
+ * every family (label escaping, measured-vs-drawn boxes; the SVG root
+ * accessibility wiring is svg-a11y-conformance.test.ts). Duplication with no
+ * cheap rendered oracle (hex colour math, luma weights, the family union) is
+ * a rule in source-lint.test.ts.
  */
 import { describe, it, expect } from 'bun:test'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
 import { decodeXML } from 'entities'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { mutate, parseRegisteredMermaid, renderMermaidSVG } from '../agent/index.ts'
 import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
 import * as agentTypes from '../agent/types.ts'
-
-const SRC = join(import.meta.dir, '..')
-
-function sourceFiles(dir: string = SRC): string[] {
-  const out: string[] = []
-  for (const entry of readdirSync(dir)) {
-    const p = join(dir, entry)
-    if (statSync(p).isDirectory()) {
-      if (entry === '__tests__' || entry === 'node_modules') continue
-      out.push(...sourceFiles(p))
-    } else if (entry.endsWith('.ts') && !entry.endsWith('.d.ts')) {
-      out.push(p)
-    }
-  }
-  return out
-}
-
-/** Files matching `pattern`, excluding the allowed home(s) of the primitive. */
-function offenders(pattern: RegExp, allowed: string[]): string[] {
-  return sourceFiles()
-    .map(f => ({ f, rel: relative(SRC, f) }))
-    .filter(({ rel }) => !allowed.includes(rel))
-    .filter(({ f }) => pattern.test(readFileSync(f, 'utf8')))
-    .map(({ rel }) => rel)
-}
 
 /** A label-carrying edit each family accepts; `text` is the label under test. */
 const LABEL_EDIT_BY_FAMILY: Record<DiagramKind, (text: string) => Record<string, unknown>> = {
@@ -91,17 +61,6 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
     }
   })
 
-  it('hex color math lives in shared/color-math.ts only', () => {
-    // Hex parsing/serialization/mixing had four diverging copies. New code
-    // imports parseHex/toHex/mixHex/luma255 from shared/color-math.ts.
-    // color-resolver.ts and xychart/colors.ts keep exported names as one-line
-    // delegates over the shared module — allowed; re-implementations are not.
-    const hexParse = /function (?:parseHex|hexToRgb|parseHexToRgb|rgbToHex|mixHex|mixHexColors|mixColors)\s*\(/
-    expect(offenders(hexParse, ['shared/color-math.ts', 'color-resolver.ts', 'xychart/colors.ts'])).toEqual([])
-    // The BT.601 luma weights likewise (string form catches inline copies).
-    expect(offenders(/0\.299\s*\*|\*\s*299\b/, ['shared/color-math.ts'])).toEqual([])
-  })
-
   it('class and ER boxes contain every line drawn in them', () => {
     // Layout (sizing) and renderer (drawing) must resolve the same style: a
     // renderer that measures its text heavier than layout did draws past the
@@ -132,15 +91,5 @@ describe('consolidation gate — shared primitives stay single-sourced', () => {
       }
     }
     expect(lines).toBeGreaterThanOrEqual(5)
-  })
-
-  it('the family list is not re-enumerated as a type union outside types.ts', () => {
-    // `'flowchart' | 'state' | … | 'gantt'` written out longhand is a 13th
-    // copy of DiagramKind waiting to drift (facade.ts's two copies had
-    // already diverged in member order). Import DiagramKind instead.
-    // mcp/sdk-decl.ts is the sandbox's *declaration string* of the SDK types
-    // and cannot import — it mirrors types.ts by construction and is allowed.
-    const longhand = /'flowchart'\s*\|\s*'state'\s*\|\s*'sequence'/
-    expect(offenders(longhand, ['agent/types.ts', 'mcp/sdk-decl.ts'])).toEqual([])
   })
 })

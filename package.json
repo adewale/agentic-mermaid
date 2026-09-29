@@ -159,7 +159,7 @@
     "test:family-elevation-reverts": "bun run scripts/quality/family-elevation-revert-probes.ts",
     "lint": "bun run lint:biome && bun run lint:contracts",
     "lint:biome": "biome lint .",
-    "lint:contracts": "bun test src/__tests__/agent-substrate-lint.test.ts src/__tests__/test-quality-lint.test.ts",
+    "lint:contracts": "bun test src/__tests__/agent-substrate-lint.test.ts src/__tests__/test-quality-lint.test.ts src/__tests__/source-lint.test.ts",
     "eval:agent-live": "bun run eval/agent-usage/live.ts",
     "eval:agent-subagent": "bun run eval/agent-usage/capture-subagent-prompt-eval.ts",
     "eval:mcp-conformance": "bun run scripts/ci/mcp-conformance.ts",

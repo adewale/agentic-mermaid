@@ -1,4 +1,5 @@
-// Doc-sync + no-tautology guards.
+// Doc-sync guards. (The typeof-tautology guard for agent tests is a rule in
+// test-quality-lint.test.ts.)
 
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
@@ -787,27 +788,6 @@ describe('spec honesty', () => {
       expect({ file, codemodePackage: text.includes('@cloudflare/codemode') }).toEqual({ file, codemodePackage: true })
     }
     expect(spec).toContain('neither runtime depends on `@cloudflare/codemode`')
-  })
-})
-
-describe('no-tautology guard for our own test suite', () => {
-  // The prior loop shipped `expect(typeof observedDifference).toBe('boolean')`.
-  // Guard against that class of assertion sneaking back into agent tests.
-  test('no typeof-tautology assertions in agent tests', () => {
-    const dir = join(REPO, 'src', '__tests__')
-    const names = require('node:fs')
-      .readdirSync(dir)
-      .filter((f: string) => f.startsWith('agent') && f.endsWith('.test.ts'))
-      .filter((f: string) => f !== 'agent-doc-sync.test.ts') // this guard mentions the pattern in prose
-    const TAUT = /expect\(\s*typeof[^)]*\)\s*\.\s*toBe\(\s*['"]boolean['"]\s*\)/
-    for (const name of names) {
-      // Strip line comments so prose can't trip the guard.
-      const code = readFileSync(join(dir, name), 'utf8')
-        .split('\n')
-        .map(l => l.replace(/\/\/.*$/, ''))
-        .join('\n')
-      expect({ file: name, tautology: TAUT.test(code) }).toEqual({ file: name, tautology: false })
-    }
   })
 })
 
