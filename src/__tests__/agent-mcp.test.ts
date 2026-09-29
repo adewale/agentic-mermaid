@@ -1,12 +1,18 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { runCli } from '../cli/index.ts'
 import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+
+const CLI_SCRATCH = mkdtempSync(join(tmpdir(), 'am-agent-mcp-cli-'))
+afterAll(() => rmSync(CLI_SCRATCH, { recursive: true, force: true }))
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {
@@ -737,7 +743,7 @@ describe('CLI — sad paths via runCli', () => {
   }
 
   test('render parse failures exit 2 with PARSE_FAILED, not INTERNAL', () => {
-    const tmp = `/tmp/cli-render-invalid-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-render-invalid-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart XX\n  A --> B\n')
     const { code, out } = capture(() => runCli(['render', tmp, '--format', 'svg', '--json']))
     expect(code).toBe(2)
@@ -745,7 +751,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate on structured architecture preserves typed accessibility directives (B04)', () => {
-    const tmp = `/tmp/cli-architecture-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-architecture-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'architecture-beta\n  service api(server)[API]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_service","id":"db","label":"Database","icon":"database"}', '--json']))
     expect(code).toBe(0)
@@ -753,7 +759,7 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('service db(database)[Database]')
 
-    const accessibleTmp = `/tmp/cli-architecture-accessible-${Date.now()}.mmd`
+    const accessibleTmp = `${CLI_SCRATCH}/cli-architecture-accessible-${Date.now()}.mmd`
     require('node:fs').writeFileSync(accessibleTmp, 'architecture-beta\n  accTitle: A11y\n  service api(server)[API]\n')
     const accessible = capture(() => runCli(['mutate', accessibleTmp, '--op', '{"kind":"add_service","id":"db","label":"DB"}', '--json']))
     expect(accessible.code).toBe(0)
@@ -763,7 +769,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate on structured journey succeeds (BUILD-15); opaque journey stays unsupported', () => {
-    const tmp = `/tmp/cli-journey-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-journey-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'journey\n  section Work\n  Code: 4: Me\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5,"actors":["Me"]}', '--json']))
     expect(code).toBe(0)
@@ -771,7 +777,7 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('Review: 5: Me')
 
-    const opaqueTmp = `/tmp/cli-journey-opaque-${Date.now()}.mmd`
+    const opaqueTmp = `${CLI_SCRATCH}/cli-journey-opaque-${Date.now()}.mmd`
     require('node:fs').writeFileSync(opaqueTmp, 'journey\n  Code: 9: Me\n')
     const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5}', '--json']))
     expect(opaque.code).toBe(2)
@@ -779,7 +785,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate on structured xychart preserves delimiter-bearing quoted text', () => {
-    const tmp = `/tmp/cli-xychart-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-xychart-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'xychart-beta\n  x-axis [Jan, Feb]\n  bar [1, 2]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_series","kind2":"line","name":"Mobile","values":[3,4]}', '--json']))
     expect(code).toBe(0)
@@ -787,13 +793,13 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('line Mobile [3, 4]')
 
-    const accessibleTmp = `/tmp/cli-xychart-accessible-${Date.now()}.mmd`
+    const accessibleTmp = `${CLI_SCRATCH}/cli-xychart-accessible-${Date.now()}.mmd`
     require('node:fs').writeFileSync(accessibleTmp, 'xychart-beta\n  accTitle: Sales chart\n  bar [1, 2]\n')
     const accessible = capture(() => runCli(['mutate', accessibleTmp, '--op', '{"kind":"set_title","title":"X"}', '--json']))
     expect(accessible.code).toBe(0)
     expect(JSON.parse(accessible.out).source).toContain('accTitle: Sales chart')
 
-    const quotedTmp = `/tmp/cli-xychart-quoted-${Date.now()}.mmd`
+    const quotedTmp = `${CLI_SCRATCH}/cli-xychart-quoted-${Date.now()}.mmd`
     require('node:fs').writeFileSync(quotedTmp, 'xychart-beta\n  title "Quoted [supported]"\n  bar [1, 2]\n')
     const quoted = capture(() => runCli(['mutate', quotedTmp, '--op', '{"kind":"set_y_axis","axis":{"range":{"min":0,"max":5}}}', '--json']))
     expect(quoted.code).toBe(0)
@@ -801,7 +807,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate on sequence-with-notes (BUILD-18: structured-with-segments) succeeds and keeps the note', () => {
-    const tmp = `/tmp/cli-seqnote-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-seqnote-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_message","from":"A","to":"B","text":"x"}']))
     expect(code).toBe(0)
@@ -811,7 +817,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate verifies before emitting and exits 3 when the result is invalid', () => {
-    const tmp = `/tmp/cli-mutate-invalid-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-mutate-invalid-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Only]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"remove_node","id":"A"}', '--json']))
     expect(code).toBe(3)
@@ -823,7 +829,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate --json includes verify warnings on success', () => {
-    const tmp = `/tmp/cli-mutate-warning-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-mutate-warning-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A --> B\n')
     const long = 'X'.repeat(80)
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_node', id: 'C', label: long }), '--json']))
@@ -835,7 +841,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate supports class diagrams through the public CLI surface', () => {
-    const tmp = `/tmp/cli-class-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-class-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'classDiagram\n  class Animal\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_class', id: 'Duck', members: ['+quack()'] })]))
     expect(code).toBe(0)
@@ -847,7 +853,7 @@ describe('CLI — sad paths via runCli', () => {
     // Was 2 in Loop ≤6 (when verify-failed shared an exit code with arg
     // errors); Loop 7 split out a dedicated EXIT_VERIFY_FAILED=3 so a CI
     // script can branch on cause-of-failure.
-    const tmp = `/tmp/cli-empty-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-empty-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, '')
     const { code } = capture(() => runCli(['verify', tmp]))
     expect(code).toBe(3)
@@ -855,8 +861,8 @@ describe('CLI — sad paths via runCli', () => {
 
   test('verify resolves and safely admits file-backed Styles so constraints match render', () => {
     const stamp = Date.now()
-    const source = `/tmp/cli-verify-style-${stamp}.mmd`
-    const style = `/tmp/cli-verify-style-${stamp}.json`
+    const source = `${CLI_SCRATCH}/cli-verify-style-${stamp}.mmd`
+    const style = `${CLI_SCRATCH}/cli-verify-style-${stamp}.json`
     const fs = require('node:fs') as typeof import('node:fs')
     fs.writeFileSync(source, 'flowchart TD\n  A[Alpha]\n')
     try {
@@ -903,7 +909,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('verify rejects malformed label caps and unknown suppression codes', () => {
-    const tmp = `/tmp/cli-verify-options-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-verify-options-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A --> B\n')
     for (const args of [
       ['verify', tmp, '--label-cap', 'nope'],
@@ -927,7 +933,7 @@ describe('CLI — sad paths via runCli', () => {
   test('REGRESSION: am parse | am serialize supports structured payload families', () => {
     const { synthesizeFromGraph, serializeMermaid } = require('../agent/serialize.ts')
     for (const src of ['classDiagram\n  class Animal\n', 'timeline\n  title Plan\n  2024 : Alpha\n', 'erDiagram\n  CUSTOMER {\n    string id\n  }\n']) {
-      const tmp = `/tmp/cli-structured-${Date.now()}-${Math.random()}.mmd`
+      const tmp = `${CLI_SCRATCH}/cli-structured-${Date.now()}-${Math.random()}.mmd`
       require('node:fs').writeFileSync(tmp, src)
       const parsed = capture(() => runCli(['parse', tmp]))
       expect(parsed.code).toBe(0)
@@ -939,11 +945,11 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', () => {
-    const tmp = `/tmp/cli-styled-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-styled-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Start] --> B[End]\n  classDef hot fill:#f00\n  class A hot\n  style B stroke:#0f0\n  linkStyle 0 stroke:#00f\n')
     const parsed = capture(() => runCli(['parse', tmp]))
     expect(parsed.code).toBe(0)
-    const tmpJson = `/tmp/cli-styled-json-${Date.now()}.json`
+    const tmpJson = `${CLI_SCRATCH}/cli-styled-json-${Date.now()}.json`
     require('node:fs').writeFileSync(tmpJson, parsed.out)
     // Feed the parse JSON back through serialize via a stdin shim: write to fd 0
     // is awkward in-process, so re-synthesize directly to assert the data path.
@@ -960,7 +966,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('format idempotent over 3 rounds', () => {
-    const tmp = `/tmp/cli-fmt-${Date.now()}.mmd`
+    const tmp = `${CLI_SCRATCH}/cli-fmt-${Date.now()}.mmd`
     require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Alpha] --> B{D}\n  B -->|yes| C((End))\n')
     const r1 = capture(() => runCli(['format', tmp]))
     require('node:fs').writeFileSync(tmp, r1.out)

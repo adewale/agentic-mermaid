@@ -1,7 +1,7 @@
 // Loop 12 M1: CLI error envelope carries structured ParseError[] in `details`
 // rather than JSON-stringifying it into `message`.
 
-import { describe, test, expect } from 'bun:test'
+import { afterAll, describe, test, expect } from 'bun:test'
 import { runCli } from '../cli/index.ts'
 
 function capture(fn: () => number): { code: number; out: string } {
@@ -13,9 +13,15 @@ function capture(fn: () => number): { code: number; out: string } {
   return { code, out: chunks.join('') }
 }
 
-import { writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const scratchRoot = mkdtempSync(join(tmpdir(), 'am-cli-err-'))
+afterAll(() => rmSync(scratchRoot, { recursive: true, force: true }))
+
 function tmp(content: string): string {
-  const p = `/tmp/cli-err-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`
+  const p = join(scratchRoot, `cli-err-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`)
   writeFileSync(p, content)
   return p
 }

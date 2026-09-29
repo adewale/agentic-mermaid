@@ -1,6 +1,6 @@
 // Loop 9 M3 + M4 — `am render --format layout|unicode|ascii` round-trips.
 
-import { describe, test, expect } from 'bun:test'
+import { afterAll, describe, test, expect } from 'bun:test'
 import { runCli } from '../cli/index.ts'
 
 function capture(fn: () => number): { code: number; out: string } {
@@ -25,11 +25,18 @@ function withStdin<T>(input: string, fn: () => T): T {
 }
 void withStdin // unused
 
+const tempDirs: string[] = []
+afterAll(() => {
+  const { rmSync } = require('node:fs') as typeof import('node:fs')
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
 function tmpFile(source: string): string {
   const { writeFileSync, mkdtempSync } = require('node:fs') as typeof import('node:fs')
   const { tmpdir } = require('node:os') as typeof import('node:os')
   const { join } = require('node:path') as typeof import('node:path')
   const d = mkdtempSync(join(tmpdir(), 'am-render-fmt-'))
+  tempDirs.push(d)
   const p = join(d, 'in.mmd')
   writeFileSync(p, source)
   return p

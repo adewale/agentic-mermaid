@@ -1,13 +1,16 @@
 // Loop 13 M4 (#959) + M5 (#930): multi-input rendering + watch re-render step.
 
-import { describe, test, expect } from 'bun:test'
+import { afterAll, describe, test, expect } from 'bun:test'
 import { mkdtempSync, readFileSync, renameSync, rmSync, watch as fsWatch, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
 
+const scratchRoot = mkdtempSync(join(tmpdir(), 'am-multi-input-'))
+afterAll(() => rmSync(scratchRoot, { recursive: true, force: true }))
+
 function tmp(content: string): string {
-  const p = join(tmpdir(), `mi-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`)
+  const p = join(scratchRoot, `mi-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`)
   writeFileSync(p, content)
   return p
 }

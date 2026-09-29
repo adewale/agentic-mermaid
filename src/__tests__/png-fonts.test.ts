@@ -8,8 +8,8 @@
 // legitimate renders right of a single-section, single-task journey box, so
 // any ink there is label overflow.
 
-import { describe, test, expect } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { afterAll, describe, test, expect } from 'bun:test'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -18,6 +18,17 @@ import { renderMermaidSVG } from '../index.ts'
 import { runCli } from '../cli/index.ts'
 import { PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME, pngNapiRuntimeProvenance } from '../png-contract.ts'
 import { decodePng, inkColumns } from './helpers/png-pixels.ts'
+
+const tempDirs: string[] = []
+afterAll(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  tempDirs.push(dir)
+  return dir
+}
 
 const JOURNEY_LONG_LABEL = `journey
   title Onboarding
@@ -169,7 +180,7 @@ function captureCli(argv: string[]): { code: number; out: string; err: string } 
 }
 
 function tmpPngRun(source: string, extraFlags: string[] = []): { code: number; out: string; err: string; outFile: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'am-png-fonts-'))
+  const dir = tempDir('am-png-fonts-')
   const inFile = join(dir, 'in.mmd')
   const outFile = join(dir, 'out.png')
   writeFileSync(inFile, source)
@@ -179,7 +190,7 @@ function tmpPngRun(source: string, extraFlags: string[] = []): { code: number; o
 
 describe('am render --format png font flags', () => {
   test('PNG-only controls are rejected for non-PNG formats', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-png-only-flags-'))
+    const dir = tempDir('am-png-only-flags-')
     const input = join(dir, 'in.mmd')
     writeFileSync(input, 'flowchart LR\n  A --> B')
     for (const flag of [['--scale', '2'], ['--bg', '#fff'], ['--fit-width', '64'], ['--system-fonts']]) {

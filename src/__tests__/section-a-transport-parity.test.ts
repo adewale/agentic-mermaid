@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { afterAll, describe, expect, test } from 'bun:test'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
@@ -25,6 +25,17 @@ import {
   SECTION_A_TRANSPORT_FIXTURE,
   sectionATransportReceiptProjection,
 } from './helpers/section-a-transport-fixture.ts'
+
+const tempDirs: string[] = []
+afterAll(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  tempDirs.push(dir)
+  return dir
+}
 
 const { source: SOURCE, options: OPTIONS } = SECTION_A_TRANSPORT_FIXTURE
 
@@ -96,7 +107,7 @@ describe('Section A transport and backend parity receipts', () => {
 
   test('the canonical SVG sentinel crosses library, CLI, local MCP, hosted MCP, and website adapters unchanged', async () => {
     const library = renderMermaidSVGWithReceipt(SOURCE, OPTIONS)
-    const dir = mkdtempSync(join(tmpdir(), 'am-section-a-transport-'))
+    const dir = tempDir('am-section-a-transport-')
     const input = join(dir, 'sentinel.mmd')
     writeFileSync(input, SOURCE)
     const cliRun = captureStdout(() => runCli([
@@ -292,7 +303,7 @@ architecture-beta
       fitTo: { width: 64 },
       options: { style },
     }), hostedContext()))
-    const dir = mkdtempSync(join(tmpdir(), 'am-section-a-png-'))
+    const dir = tempDir('am-section-a-png-')
     const input = join(dir, 'diagram.mmd')
     const output = join(dir, 'diagram.png')
     writeFileSync(input, SOURCE)

@@ -1,9 +1,20 @@
-import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { afterAll, describe, expect, test } from 'bun:test'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runCli } from '../cli/index.ts'
 import { visualWidth } from '../ascii/width.ts'
+
+const tempDirs: string[] = []
+afterAll(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  tempDirs.push(dir)
+  return dir
+}
 
 function capture(fn: () => number): { code: number; out: string; err: string } {
   const out: string[] = []
@@ -20,7 +31,7 @@ function capture(fn: () => number): { code: number; out: string; err: string } {
 }
 
 function sourceFile(): string {
-  const path = join(mkdtempSync(join(tmpdir(), 'am-target-width-')), 'diagram.mmd')
+  const path = join(tempDir('am-target-width-'), 'diagram.mmd')
   writeFileSync(path, 'flowchart TD\n  A["日本語 descriptive terminal label"] --> B[Done]\n')
   return path
 }

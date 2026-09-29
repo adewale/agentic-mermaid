@@ -1,12 +1,23 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { buildContactSheetPlan } from './helpers/render-conformance-plan.ts'
 import { validateContactSheetReview, type ContactSheetReview } from '../../scripts/ci/test-portfolio-visual-review.ts'
+
+const tempDirs: string[] = []
+afterAll(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  tempDirs.push(dir)
+  return dir
+}
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -40,7 +51,7 @@ describe('plan-derived contact sheets', () => {
   test('generates a real before/after change probe plus adjacent controls', () => {
     const directory = join(ROOT, 'eval', 'test-portfolio', 'contact-sheets')
     const rowId = JSON.parse(readFileSync(join(directory, 'citizenship.manifest.json'), 'utf8')).rows[0].id
-    const output = mkdtempSync(join(tmpdir(), 'am-change-contact-sheet-'))
+    const output = tempDir('am-change-contact-sheet-')
     const generated = spawnSync('bun', [
       'run', 'scripts/pr-assets/test-portfolio-contact-sheet.ts',
       '--kind', 'change', '--row-id', rowId,

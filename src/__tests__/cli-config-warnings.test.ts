@@ -1,8 +1,19 @@
-import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { afterAll, describe, expect, test } from 'bun:test'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runCli } from '../cli/index.ts'
+
+const tempDirs: string[] = []
+afterAll(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  tempDirs.push(dir)
+  return dir
+}
 
 const SOURCE = `---
 config:
@@ -15,7 +26,7 @@ stateDiagram-v2
 const LEGIBILITY_SOURCE = 'flowchart LR\n  A[Start] -- go --> B[Finish]\n'
 
 function fixture(): { source: string; png: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'am-config-warning-'))
+  const dir = tempDir('am-config-warning-')
   const source = join(dir, 'state.mmd')
   writeFileSync(source, SOURCE)
   return { source, png: join(dir, 'state.png') }
@@ -55,7 +66,7 @@ describe('CLI render config diagnostics', () => {
   })
 
   test('PNG reports a below-floor label warning on stderr and in JSON', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-legibility-warning-'))
+    const dir = tempDir('am-legibility-warning-')
     const source = join(dir, 'flow.mmd')
     writeFileSync(source, LEGIBILITY_SOURCE)
 
