@@ -159,6 +159,8 @@ const NOT_A_COPY: Readonly<Record<string, string>> = {
     'scope bullets name families for unrelated reasons; no bullet is a roster',
   'eval/section-b-brand-evidence/production-comparison.md names 15 of 16 families; missing sankey':
     'a dated manual-review record of the families audited before Sankey shipped',
+  'TODO.md names 14 of 16 families; missing quadrant, mindmap':
+    'the Known defects list names each family a bug touches; it is not a roster, and it changes as bugs are found and fixed',
   'TODO.md names all 16 families but is neither generated nor marked <!-- complete: family-ids -->':
     'CONS-26 reports grammar convergence family by family; a new family starts converged, as Sankey did, so it is a status note, not a roster',
   'website/source/start.md names all 9 hosted MCP tools but is neither generated nor marked <!-- complete: hosted-mcp-tools -->':
