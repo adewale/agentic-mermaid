@@ -50,6 +50,10 @@ describe('remaining public agentic boundary fuzz', () => {
     }), { numRuns: RUNS })
   })
 
+  // Total: every input yields a value or the resolver's own diagnosis. The
+  // resolvers deliberately throw TypeError/RangeError for bad options, so
+  // totality is judged by the message: an engine null/undefined dereference
+  // is a crash, not a diagnosis.
   test('terminal and PNG policy resolvers are total and deterministic', () => {
     fc.assert(fc.property(fc.anything(), value => {
       for (const run of [
@@ -59,7 +63,9 @@ describe('remaining public agentic boundary fuzz', () => {
         () => assertPngRasterBudget(SVG, value as never),
         () => assertHostedPngRasterBudget(value as never),
       ]) {
-        expect(outcome(run)).toBe(outcome(run))
+        const first = outcome(run)
+        expect(outcome(run)).toBe(first)
+        expect(first).not.toMatch(/(?:null|undefined) is not an object|Cannot read propert|is not a function|is not iterable/)
       }
     }), { numRuns: RUNS })
   })

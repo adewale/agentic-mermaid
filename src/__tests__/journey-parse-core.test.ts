@@ -14,6 +14,7 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asJourney } from '../agent/types.ts'
 import { hasJourneyStatementDelimiter } from '../journey/parse-core.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
 
 function rendererParse(text: string) {
   return parseJourneyDiagram(preprocessMermaidLines(text))
@@ -84,10 +85,12 @@ describe('semicolon statement separation (diagnosed Agentic extension)', () => {
   })
 
   test('large semicolon-heavy malformed input stays bounded through the public parser', () => {
-    const source = 'journey\nTask: 3: &' + 'a;'.repeat(64_000)
-    const started = performance.now()
-    expect(() => rendererParse(source)).toThrow()
-    expect(performance.now() - started).toBeLessThan(500)
+    const source = (n: number) => `journey\nTask: 3: &${'a;'.repeat(n)}`
+    expect(() => rendererParse(source(64_000))).toThrow()
+    const { ratio } = measureGrowth(n => {
+      try { rendererParse(source(n)) } catch { /* diagnosed above */ }
+    }, 4_000)
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
   })
 
   test('entity semicolons and real delimiters agree with mutation validation', () => {

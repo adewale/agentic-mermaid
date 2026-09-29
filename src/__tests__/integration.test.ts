@@ -10,6 +10,36 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 
+/** The outline element drawn for one rendered part (`node-shape:A`,
+ *  `group-rect:ci`): its tag, polygon vertices, and vertical extent. Arrowhead
+ *  markers are polygons too, so a bare `<polygon` substring proves nothing. */
+function outline(svg: string, dataId: string) {
+  const match = svg.match(new RegExp(`<(rect|polygon|circle|ellipse|path) ([^>]*)data-id="${dataId}"`))
+  if (!match) return null
+  const attrs = match[2]!
+  const num = (name: string) => Number(attrs.match(new RegExp(` ?${name}="([^"]+)"`))?.[1])
+  const points = (attrs.match(/points="([^"]+)"/)?.[1] ?? '').trim().split(/\s+/).filter(Boolean)
+    .map(pair => pair.split(',').map(Number) as [number, number])
+  const ys = points.map(([, y]) => y)
+  const [top, bottom] = match[1] === 'rect' ? [num('y'), num('y') + num('height')]
+    : match[1] === 'circle' ? [num('cy') - num('r'), num('cy') + num('r')]
+      : [Math.min(...ys), Math.max(...ys)]
+  return { tag: match[1]!, vertices: points.length, points, top, bottom }
+}
+
+/** `<data-shape>:<tag>[/<vertices>]` for a flowchart node, e.g. `hexagon:polygon/6`. */
+function nodeShape(svg: string, id: string): string {
+  const declared = svg.match(new RegExp(`<g class="node" data-id="${id}" [^>]*data-shape="([^"]+)"`))?.[1]
+  const drawn = outline(svg, `node-shape:${id}`)
+  return `${declared}:${drawn?.tag}${drawn?.vertices ? `/${drawn.vertices}` : ''}`
+}
+
+/** Width of a 4-vertex outline's top and bottom edges. */
+function edgeWidths(points: Array<[number, number]>) {
+  const byY = [...points].sort((a, b) => a[1] - b[1])
+  return { top: Math.abs(byY[0]![0] - byY[1]![0]), bottom: Math.abs(byY[2]![0] - byY[3]![0]) }
+}
+
 // ============================================================================
 // Basic rendering
 // ============================================================================
@@ -84,8 +114,9 @@ describe('renderMermaidSVG – complex diagrams', () => {
     expect(svg).toContain('>Diamond</text>')
     expect(svg).toContain('>Stadium</text>')
     expect(svg).toContain('>Circle</text>')
-    expect(svg).toContain('<polygon')
-    expect(svg).toContain('<circle')
+    expect(Object.fromEntries(['A', 'B', 'C', 'D', 'E'].map(id => [id, nodeShape(svg, id)]))).toEqual({
+      A: 'rectangle:rect', B: 'rounded:rect', C: 'diamond:polygon/4', D: 'stadium:rect', E: 'circle:circle',
+    })
   })
 
   it('renders all edge styles', () => {
@@ -175,7 +206,7 @@ describe('renderMermaidSVG – Batch 1 shapes', () => {
   it('renders hexagon as a polygon', () => {
     const svg = renderMermaidSVG('graph TD\n  A{{Decision}} --> B')
     expect(svg).toContain('>Decision</text>')
-    expect(svg).toContain('<polygon')
+    expect(nodeShape(svg, 'A')).toBe('hexagon:polygon/6')
   })
 })
 
@@ -193,13 +224,18 @@ describe('renderMermaidSVG – Batch 2 shapes', () => {
   it('renders asymmetric / flag', () => {
     const svg = renderMermaidSVG('graph TD\n  A>Flag Shape] --> B')
     expect(svg).toContain('>Flag Shape</text>')
-    expect(svg).toContain('<polygon')
+    expect(nodeShape(svg, 'A')).toBe('asymmetric:polygon/5')
   })
 
   it('renders trapezoid shapes', () => {
     const svg = renderMermaidSVG('graph TD\n  A[/Wider Bottom\\] --> B[\\Wider Top/]')
     expect(svg).toContain('>Wider Bottom</text>')
     expect(svg).toContain('>Wider Top</text>')
+    expect({ A: nodeShape(svg, 'A'), B: nodeShape(svg, 'B') })
+      .toEqual({ A: 'trapezoid:polygon/4', B: 'trapezoid-alt:polygon/4' })
+    const widerBottom = edgeWidths(outline(svg, 'node-shape:A')!.points)
+    const widerTop = edgeWidths(outline(svg, 'node-shape:B')!.points)
+    expect({ A: widerBottom.bottom > widerBottom.top, B: widerTop.top > widerTop.bottom }).toEqual({ A: true, B: true })
   })
 })
 
@@ -383,6 +419,10 @@ describe('renderMermaidSVG – source order', () => {
     expect(svg).toContain('>Push Code</text>')
     expect(svg).toContain('>Deploy</text>')
     expect(svg).toContain('>Production</text>')
+    // The subgraph sits above every node that follows it in TD flow.
+    const group = outline(svg, 'group-rect:ci')!
+    const below = Object.fromEntries(['D', 'E', 'F'].map(id => [id, outline(svg, `node-shape:${id}`)!.top >= group.bottom]))
+    expect(below).toEqual({ D: true, E: true, F: true })
   })
 })
 

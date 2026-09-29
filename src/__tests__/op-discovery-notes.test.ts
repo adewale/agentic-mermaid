@@ -6,6 +6,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { describeOps, opSignatures } from '../agent/op-schema.ts'
+import { buildChecked } from '../agent/apply.ts'
 import { buildCapabilities } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 
@@ -36,6 +37,22 @@ describe('op field notes (mutator-enforced constraints + omit-defaults)', () => 
   test('gantt task end/start grammar is annotated', () => {
     expect(noteOf('gantt', 'add_task', 'end')).toContain('duration')
     expect(noteOf('gantt', 'add_task', 'start')).toContain('after')
+  })
+
+  // The header's claim: the noted constraints are ENFORCED, not just documented.
+  // Each row is a value just inside and just outside its note.
+  test('the mutator enforces each noted numeric constraint', () => {
+    const rows: Array<[Parameters<typeof buildChecked>[0], (value: number) => unknown[], number, number, RegExp]> = [
+      ['journey', score => [{ kind: 'add_section', label: 'S' }, { kind: 'add_task', sectionIndex: 0, text: 'T', score }], 5, 6, /Journey score must be a finite number 1\.\.5/],
+      ['quadrant', x => [{ kind: 'add_point', label: 'P', x, y: 0.5 }], 1, 1.5, /Quadrant point x must be a number in \[0, 1\]/],
+      ['pie', value => [{ kind: 'add_slice', label: 'A', value }], 2, 0, /Pie slice value must be a positive finite number/],
+    ]
+    for (const [family, ops, inside, outside, diagnostic] of rows) {
+      expect({ family, ok: buildChecked(family, ops(inside) as never).ok }).toEqual({ family, ok: true })
+      const rejected = buildChecked(family, ops(outside) as never)
+      expect({ family, ok: rejected.ok, message: rejected.ok ? '' : rejected.error.message })
+        .toEqual({ family, ok: false, message: expect.stringMatching(diagnostic) })
+    }
   })
 
   test('notes propagate into am capabilities opFields', () => {

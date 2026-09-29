@@ -71,17 +71,21 @@ function executeRecovery(
 set -euo pipefail
 output_file=
 requested_url=
+connect_timeout=none
+max_time=none
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --output) output_file="$2"; shift 2 ;;
     --write-out) shift 2 ;;
     --silent|--show-error|--location) shift ;;
-    --connect-timeout|--max-time) shift 2 ;;
+    --connect-timeout) connect_timeout="$2"; shift 2 ;;
+    --max-time) max_time="$2"; shift 2 ;;
     *) requested_url="$1"; shift ;;
   esac
 done
 test -n "$output_file"
 printf '%s\\n' "$requested_url" >> "$MOCK_ROOT/requested-urls"
+printf 'connect-timeout=%s max-time=%s\\n' "$connect_timeout" "$max_time" >> "$MOCK_ROOT/request-timeouts"
 count=0
 if [ -f "$MOCK_ROOT/curl-count" ]; then count="$(cat "$MOCK_ROOT/curl-count")"; fi
 count=$((count + 1))
@@ -140,26 +144,28 @@ esac
   })()
   const curlCalls = Number.parseInt(readFileSync(join(dir, 'curl-count'), 'utf8'), 10)
   const requestedUrls = readFileSync(join(dir, 'requested-urls'), 'utf8').trim().split('\n').filter(Boolean)
-  return { ...result, publisherCalls, curlCalls, requestedUrls }
+  const requestTimeouts = readFileSync(join(dir, 'request-timeouts'), 'utf8').trim().split('\n').filter(Boolean)
+  return { ...result, publisherCalls, curlCalls, requestedUrls, requestTimeouts }
 }
 
 describe('MCP Registry immutable publication recovery', () => {
-  test('the executable contract uses the exact frozen-version endpoint and structural equality', () => {
-    expect(run).toContain('/servers/$encoded_server_name/versions/$encoded_server_version')
-    expect(run).toContain('$value | @uri')
-    expect(run).toContain('.server == $expected[0]')
-    expect(run).toContain('._meta["io.modelcontextprotocol.registry/official"].status')
-    expect(run).toContain('registry_record_status" != active')
-    expect(run).toContain('--connect-timeout 5')
-    expect(run).toContain('--max-time 10')
+  // Endpoint, structural equality and status checks are proven by executing
+  // the step below; what only the script text can show is that it
+  // interpolates no workflow expression (a `${{ }}` in `run` is a shell
+  // injection vector).
+  test('the recovery script interpolates no ${{ }} workflow expressions (injection guard)', () => {
+    expect(run).toBeDefined()
     expect(run).not.toContain('${{')
   })
 
+  test('every Registry request is time-bounded', () => {
+    const result = executeRecovery(['absent'], { publishStatus: 42 })
+    expect(result.requestTimeouts).toEqual(Array(3).fill('connect-timeout=5 max-time=10'))
+  })
+
   test('every request targets the percent-encoded exact-version identity endpoint', () => {
-    // The string assertions above cannot show that the interpolated URL is
-    // actually well formed, so read back what the step really asked curl for.
-    // `/` in the server name must arrive encoded or the path would address a
-    // different resource.
+    // Read back what the step really asked curl for. `/` in the server name
+    // must arrive encoded or the path would address a different resource.
     const result = executeRecovery(['absent'], { publishStatus: 42 })
     expect(result.requestedUrls.length).toBe(3)
     const expectedUrl = 'https://registry.modelcontextprotocol.io/v0.1'

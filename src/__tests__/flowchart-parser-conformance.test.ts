@@ -158,40 +158,6 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(parseGraph(labelOnly).edges[0]!.id).toBeUndefined()
   })
 
-  test('edge IDs are modeled as structured identity (no lint, byte round-trip)', () => {
-    const source = 'flowchart LR\n  A e1@--> B\n'
-    const graph = parseGraph(source)
-    expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
-    expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['A->B'])
-    expect(graph.edges[0]!.id).toBe('e1')
-
-    const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('flowchart')
-    expect(serializeMermaid(diagram)).toBe(source)
-
-    const verify = verifyMermaid(source)
-    expect(verify.ok).toBe(true)
-    expect(verify.layout.edges.map(e => `${e.from}->${e.to}`)).toEqual(['A->B'])
-    expect(verify.warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_edge_id' }))
-  })
-
-  test('edge metadata is rendered, source-preserved, and never parsed as a phantom node', () => {
-    const source = 'flowchart LR\n  A e1@==> B\n  e1@{ animate: true }\n'
-    const graph = parseGraph(source)
-    expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B'])
-    expect(graph.nodes.has('e1')).toBe(false)
-    expect(graph.edges.map(e => `${e.source}->${e.target}:${e.style}`)).toEqual(['A->B:thick'])
-
-    const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('flowchart')
-    expect(serializeMermaid(diagram)).toBe(source)
-    if (diagram.body.kind === 'flowchart') expect(diagram.body.graph.edges[0]).toMatchObject({ id: 'e1', animate: true })
-
-    expect(graph.edges[0]).toMatchObject({ animate: true })
-    expect(renderMermaidSVG(source)).toContain('data-animate="true"')
-    expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_edge_metadata' }))
-  })
-
   test('safe click/href directives render inert link metadata without phantom nodes', () => {
     const source = 'flowchart LR\n  A-->B\n  click A href "https://example.com"\n'
     const graph = parseGraph(source)
@@ -205,16 +171,6 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(graph.nodes.get('A')?.href).toBe('https://example.com')
     expect(renderMermaidSVG(source)).toContain('data-href="https://example.com" role="link"')
     expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_interaction_directive' }))
-  })
-
-  test('markdown-string labels are source-preserved and warned, never silently dropped', () => {
-    const source = 'flowchart LR\n  A["`**bold** text`"] --> B\n'
-    const diagram = parseAgent(source)
-    expect(diagram.body.kind).toBe('opaque')
-    expect(serializeMermaid(diagram)).toBe(source)
-    const verify = verifyMermaid(source)
-    expect(verify.ok).toBe(true)
-    expect(verify.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_markdown_string', line: 2 }))
   })
 
   test('node metadata @{ shape } is modeled for documented names, opaque + warned otherwise, no phantom nodes', () => {

@@ -167,7 +167,6 @@ describe('server/discover', () => {
 
 describe('modern _meta is required and validated', () => {
   test.each([
-    ['no _meta at all', {}],
     ['missing clientCapabilities', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_INFO]: { name: 'x', version: '1' } }],
     // clientInfo is optional, but a SUPPLIED one is an `Implementation` and must
     // be well-formed — absent and malformed are different cases.
@@ -190,11 +189,10 @@ describe('modern _meta is required and validated', () => {
     ['extension value that is not an object', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { extensions: { 'acme/example': true } } }],
     ['extension key without a namespace', { [META_PROTOCOL_VERSION]: MODERN, [META_CLIENT_CAPABILITIES]: { extensions: { example: {} } } }],
   ])('%s is rejected with INVALID_PARAMS', async (_label, meta) => {
-    const request: JsonRpcRequest = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: { [META_PROTOCOL_VERSION]: MODERN, ...meta } } }
-    // Only the cases that still declare a modern version reach the check; the
-    // 'no _meta' case is legacy by the selection rule and must NOT be rejected.
+    // Every row declares the modern version itself, so each reaches the _meta
+    // check. A request with no _meta is legacy, not malformed (tested below).
+    const request: JsonRpcRequest = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: meta } }
     const response = await handleHostedRequest(request, context())
-    if (Object.keys(meta).length === 0) return
     expect(response?.error?.code).toBe(-32602)
   })
 
@@ -578,8 +576,9 @@ describe('modern results carry the fields this revision requires', () => {
   // The spec lists exactly which operations get hints; tools/call is not one of
   // them, and a cached tool CALL would be a correctness bug, not an optimisation.
   test('a modern tools/call result is complete but not cacheable', async () => {
-    const response = await handleHostedRequest(modern('tools/call', { name: 'verify', arguments: { text: FLOW } }), context())
+    const response = await handleHostedRequest(modern('tools/call', { name: 'verify', arguments: { source: FLOW } }), context())
     const result = response?.result as Record<string, unknown>
+    expect(result.isError).toBe(false)
     expect(result.resultType).toBe('complete')
     expect(result.ttlMs).toBeUndefined()
     expect(result.cacheScope).toBeUndefined()

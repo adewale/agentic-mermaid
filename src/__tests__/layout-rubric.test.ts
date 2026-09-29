@@ -254,27 +254,6 @@ describe('issue #37 — property generators sample the full edge-syntax vocabula
 })
 
 describe('property: ports and outlines (mathematical oracles over random diagrams)', () => {
-  it('every edge endpoint lies on the rendered shape outline — all shapes, all directions', () => {
-    fc.assert(
-      fc.property(randomFlowchartWideEdges, source => {
-        const graph = parseMermaid(source)
-        const positioned = layoutGraphSync(graph)
-        const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
-        for (const e of positioned.edges) {
-          for (const [id, pt] of [
-            [e.source, e.points[0]!],
-            [e.target, e.points[e.points.length - 1]!],
-          ] as const) {
-            const node = nodeMap.get(id)
-            if (node && !onShapeOutline(node, pt)) return false
-          }
-        }
-        return true
-      }),
-      { numRuns: 120, seed: PROPERTY_SEED },
-    )
-  })
-
   it('certificate port fields always agree with the geometric port oracle', () => {
     fc.assert(
       fc.property(randomFlowchartWideEdges, source => {
@@ -310,27 +289,26 @@ describe('property: ports and outlines (mathematical oracles over random diagram
     )
   })
 
-  it('no hitch survives: no edge bends while a clear lane exists for it', () => {
-    fc.assert(
-      fc.property(randomFlowchartWideEdges, source => {
-        const graph = parseMermaid(source)
-        const positioned = layoutGraphSync(graph)
-        return assessLayout(graph, positioned).metrics.hitches === 0
-      }),
-      { numRuns: 120, seed: PROPERTY_SEED },
-    )
-  })
-
+  // Covers every HARD_METRICS entry, including offOutlineEndpoints (each edge
+  // endpoint lies on its node's rendered outline, all shapes and directions)
+  // and hitches (no edge bends while a clear lane exists for it). The failure
+  // names the violated metric and edge.
   it('every hard rubric metric is zero for arbitrary small diagrams', () => {
     fc.assert(
       fc.property(randomFlowchartWideEdges, source => {
         const graph = parseMermaid(source)
         const positioned = layoutGraphSync(graph)
-        return hardViolations(assessLayout(graph, positioned)).length === 0
+        expect({ source, hard: hardViolations(assessLayout(graph, positioned)) }).toEqual({ source, hard: [] })
       }),
       { numRuns: 120, seed: PROPERTY_SEED },
     )
   })
+
+  // The three ratchets below measure one deterministic sample of the same
+  // generator the other oracles use; lay it out once and share it.
+  let ratchetSample: ReturnType<typeof layoutGraphSync>['edges'][] | undefined
+  const ratchetEdges = () => (ratchetSample ??= fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
+    .map(source => layoutGraphSync(parseMermaid(source)).edges))
 
   // "No two edges cross unless logically required", specialized to the case
   // where a crossing is PROVABLY never required: duplicate edges (the same
@@ -343,12 +321,9 @@ describe('property: ports and outlines (mathematical oracles over random diagram
   // fixed seeded sample: the count must not grow. Lower the baseline as the
   // count drops; the target is zero.
   it('duplicate-edge crossings stay at or below the pinned baseline (ratchet, target 0)', () => {
-    // Deterministic sample of the same generator the other oracles use.
     const DUPLICATE_CROSSING_BASELINE = 3
-    const samples = fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
     let crossings = 0
-    for (const source of samples) {
-      const edges = layoutGraphSync(parseMermaid(source)).edges
+    for (const edges of ratchetEdges()) {
       for (let i = 0; i < edges.length; i++) {
         for (let j = i + 1; j < edges.length; j++) {
           const a = edges[i]!, b = edges[j]!
@@ -369,10 +344,8 @@ describe('property: ports and outlines (mathematical oracles over random diagram
   // it is NOT a claim that the current number is acceptable.
   it('sibling-edge crossings stay at or below the pinned baseline (ratchet, target 0)', () => {
     const SIBLING_CROSSING_BASELINE = 95
-    const samples = fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
     let crossings = 0
-    for (const source of samples) {
-      const edges = layoutGraphSync(parseMermaid(source)).edges
+    for (const edges of ratchetEdges()) {
       for (let i = 0; i < edges.length; i++) {
         for (let j = i + 1; j < edges.length; j++) {
           const a = edges[i]!, b = edges[j]!
@@ -392,10 +365,8 @@ describe('property: ports and outlines (mathematical oracles over random diagram
     const MIN_SEP = 11
     const UNSEPARATED_DUPLICATE_BASELINE = 7
     const dist = (p: RubricPt, q: RubricPt) => Math.hypot(p.x - q.x, p.y - q.y)
-    const samples = fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
     let unseparated = 0
-    for (const source of samples) {
-      const edges = layoutGraphSync(parseMermaid(source)).edges
+    for (const edges of ratchetEdges()) {
       for (let i = 0; i < edges.length; i++) {
         for (let j = i + 1; j < edges.length; j++) {
           const a = edges[i]!, b = edges[j]!

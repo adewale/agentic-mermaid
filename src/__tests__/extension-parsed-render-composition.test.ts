@@ -217,6 +217,9 @@ describe('open parsed-diagram render composition', () => {
           shared: [svg.receipt.sharedRequestDigest, text.receipt.sharedRequestDigest, layout.receipt.sharedRequestDigest],
         }
       `)
+      // Read before toMatchObject: Bun's toMatchObject writes asymmetric
+      // matchers back into the received object.
+      const shared = executed.ok ? (executed.value as { shared?: unknown }).shared : undefined
       expect(executed).toMatchObject({
         ok: true,
         value: {
@@ -224,9 +227,9 @@ describe('open parsed-diagram render composition', () => {
           outputs: ['svg', 'ascii', 'layout'],
         },
       })
-      if (executed.ok && executed.value && typeof executed.value === 'object' && 'shared' in executed.value) {
-        expect(new Set((executed.value as { shared: string[] }).shared).size).toBe(1)
-      }
+      // All three outputs share one request digest.
+      expect({ shared: Array.isArray(shared) ? shared.length : shared, distinct: Array.isArray(shared) ? new Set(shared).size : 0 })
+        .toEqual({ shared: 3, distinct: 1 })
     } finally {
       unregister()
     }

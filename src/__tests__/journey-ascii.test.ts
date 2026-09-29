@@ -73,8 +73,10 @@ describe('journey ASCII', () => {
       section Work
       Make<br>tea: 5: Me`)
 
-    expect(result).toContain('Make')
-    expect(result).toContain('tea')
+    // The first line follows the score glyphs; the continuation is indented to
+    // the same text column, and the <br> itself never leaks.
+    expect(result).toContain('●●●●● Make\n      tea')
+    expect(result).not.toContain('<br')
   })
 
   it('keeps FE0F variation-selector emoji lines within maxWidth', () => {

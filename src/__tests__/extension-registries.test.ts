@@ -31,6 +31,9 @@ import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
 import { BUILTIN_BACKENDS } from '../scene/builtin-backends.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
+import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
+import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 
 const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({ compatibility: BACKEND_COMPATIBILITY })
@@ -1067,24 +1070,25 @@ describe('backend registration and host policy', () => {
   // initializing, and the failure surfaces as
   // `ReferenceError: Cannot access 'REGISTRY' before initialization` across
   // thousands of unrelated tests. That happened on the 0.2.0 -> 0.3.0 bump.
-  // This fails first, and says what to do.
+  // Reading the registered identities fails here in that case too; a pin that
+  // is still accepted but no longer `^X.Y.0` fails with its id. The pins live in
+  // src/scene/roles.ts, src/scene/style-registry.ts, src/scene/backend.ts,
+  // src/agent/families.ts and src/font-manifest.ts: update them together.
   test('built-in core compatibility pins track the current package version', () => {
-    const files = [
-      'scene/roles.ts',
-      'scene/style-registry.ts',
-      'scene/backend.ts',
-      'agent/families.ts',
-      'font-manifest.ts',
-    ]
     const [major, minor] = PACKAGE_VERSION.split('.')
-    const expected = `core: '^${major}.${minor}.0'`
-    for (const file of files) {
-      const source = readFileSync(join(import.meta.dir, '..', file), 'utf8')
-      const pins = source.match(/core: '\^\d+\.\d+\.\d+'/g) ?? []
-      expect(pins.length, `${file} declares a built-in core compatibility pin`).toBeGreaterThan(0)
-      for (const pin of pins) {
-        expect(pin, `${file}: update this pin when PACKAGE_VERSION changes minor`).toBe(expected)
-      }
-    }
+    const expected = `^${major}.${minor}.0`
+    const builtins = [
+      ...SCENE_ROLE_DESCRIPTORS.map(descriptor => descriptor.identity),
+      ...knownStyleDescriptors().map(descriptor => descriptor.identity),
+      ...knownBackendDescriptors().map(descriptor => descriptor.identity),
+      ...BUILTIN_FAMILY_METADATA.map(family => getFamily(family.id)!.identity),
+      ...HOSTED_FONT_RESOURCES.map(resource => resource.identity),
+    ].filter(identity => identity.provenance.owner === 'agentic-mermaid')
+    // Every registry kind is represented, so none can drop out silently.
+    expect(new Set(builtins.map(identity => identity.kind)).size).toBeGreaterThanOrEqual(5)
+    const stale = builtins
+      .filter(identity => identity.compatibility.core !== expected || !evaluateExtensionCompatibility(identity).accepted)
+      .map(identity => `${identity.id}: core ${identity.compatibility.core}`)
+    expect(stale).toEqual([])
   })
 })

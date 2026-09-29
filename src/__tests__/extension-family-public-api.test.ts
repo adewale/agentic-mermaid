@@ -169,7 +169,7 @@ describe('registered family public layout and verify APIs', () => {
     const unregister = registerFamily(descriptor)
     try {
       const parsed = parseRegisteredMermaid(source)
-      expect(parsed.ok).toBe(true)
+      expect(parsed.ok && parsed.value.body.kind).toBe('extension')
       if (!parsed.ok || parsed.value.body.kind !== 'extension') return
       expect(parsed.value.body.source).toBe(source)
       expect(parsed.value.body.data).toEqual({ parsed: true })
@@ -232,7 +232,7 @@ describe('registered family public layout and verify APIs', () => {
     const unregister = registerFamily(descriptor)
     try {
       const parsed = parseRegisteredMermaid(source)
-      expect(parsed.ok).toBe(true)
+      expect(parsed.ok && parsed.value.body.kind).toBe('extension')
       if (!parsed.ok || parsed.value.body.kind !== 'extension') return
       expect(parsed.value.meta.wrapperSource).toBe(wrapper)
       expect(parsed.value.body.source).toBe(body)
@@ -441,7 +441,7 @@ family payload
     const unregister = registerFamily(descriptor)
     try {
       const parsed = parseRegisteredMermaid('parseDataSnapshotDiagram\n  payload')
-      expect(parsed.ok).toBe(true)
+      expect(parsed.ok && parsed.value.body.kind).toBe('extension')
       if (!parsed.ok || parsed.value.body.kind !== 'extension') return
       const data = parsed.value.body.data as typeof owned
       expect(data).not.toBe(owned)

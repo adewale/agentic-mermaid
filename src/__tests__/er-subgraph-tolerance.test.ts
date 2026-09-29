@@ -1,22 +1,21 @@
 /**
- * ER subgraph-direction tolerance (repo #103, option 2 as decided there).
+ * ER subgraphs (repo #103). Upstream's parser accepts flowchart-style
+ * `subgraph … direction RL … end` inside an erDiagram (one upstream test pins
+ * it, with the subgraph clause riding the header line). This renderer used to
+ * hard-fail on the header-riding form ("Invalid mermaid header") because the
+ * strict family detector only accepted a bare `erDiagram` header; subgraphs
+ * are now modelled natively.
  *
- * Upstream's parser tolerates flowchart-style `subgraph … direction RL … end`
- * inside an erDiagram (one upstream test pins it, with the subgraph clause
- * riding the header line). This renderer used to hard-fail on the
- * header-riding form ("Invalid mermaid header") because the strict family
- * detector only accepted a bare `erDiagram` header.
- *
- * Tolerance contract:
- *   - the source parses and renders; subgraph/end lines are ignored content,
- *   - entities/relationships around (and inside) the ignored blocks render,
- *   - `direction` INSIDE a subgraph block belongs to the dropped construct
- *     and must NOT leak into the diagram-level direction,
- *   - verify announces the dropped grouping with the existing
- *     UNSUPPORTED_SYNTAX Tier-3 lint (naming the construct; suppressing the
- *     generic `er_opaque` double-flag),
- *   - the agent body uses ordered typed/opaque statement segments, so entity
- *     and relation edits stay live without dropping tolerated grouping lines.
+ * Contract:
+ *   - the header-riding form parses and renders instead of hard-failing,
+ *   - body-form subgraph blocks render as semantic `er-subgraph` frames with
+ *     their entities and relationships,
+ *   - `direction` INSIDE a subgraph block is scoped to that group and does
+ *     NOT leak into the diagram-level direction,
+ *   - native subgraphs verify with no `er_subgraph` UNSUPPORTED_SYNTAX lint
+ *     and no RENDER_FAILED,
+ *   - the agent body models subgraph identity and ordered group boundaries
+ *     around typed relations, and serialization round-trips canonically.
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'

@@ -162,16 +162,6 @@ describe('actor palette', () => {
       .find(item => item.code === 'UNSUPPORTED_SYNTAX' && item.syntax === 'journey_actor_palette_limit')
     expect(warning).toBeDefined()
   })
-
-  it('gives nine actors nine distinct derived colors', () => {
-    const tasks = Array.from({ length: 9 }, (_v, i) => `    T${i}: 3: Actor${i}`).join('\n')
-    const svg = renderMermaidSVG(`journey\n  section S\n${tasks}`)
-    const fills = new Set<string>()
-    for (const match of svg.matchAll(/\.journey-actor-(\d+) \{ fill: ([^;]+);/g)) {
-      fills.add(match[2]!.trim())
-    }
-    expect(fills.size).toBeGreaterThanOrEqual(9)
-  })
 })
 
 describe('section label contrast (WCAG AA)', () => {

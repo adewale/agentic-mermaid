@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
-import { GitGraphDuplicateCommitError, parseGitGraph, parseMindmap, serializeGitGraph, serializeMindmap } from '../index.ts'
+import { GitGraphDuplicateCommitError, GitGraphParseError, MindmapParseError, parseGitGraph, parseMindmap, serializeGitGraph, serializeMindmap } from '../index.ts'
 import type { GitGraphDiagram } from '../gitgraph/types.ts'
 import type { MindmapNode } from '../mindmap/types.ts'
 
@@ -109,7 +109,7 @@ function actual(d:GitGraphDiagram, wanted:A):A {
   return a
 }
 function runGit(source:string, assertions:A):void {
-  if(assertions.parseError){expect(()=>parseGitGraph(source)).toThrow();return}
+  if(assertions.parseError){expect(()=>parseGitGraph(source)).toThrow(GitGraphParseError);return}
   const d=parseGitGraph(source); expect(actual(d,assertions)).toEqual(assertions)
   const canonical=serializeGitGraph(d); expect(serializeGitGraph(parseGitGraph(canonical))).toBe(canonical)
 }
@@ -153,7 +153,7 @@ describe('pinned Mermaid Mindmap/GitGraph upstream oracle',()=>{
 
   for(const b of oracle.blocks.filter(b=>b.classification==='portable'||b.classification==='error')) test(`${b.id} — ${b.upstream.block}`,()=>{
     if(b.family==='mindmap'){
-      if(b.assertions!.parseError){expect(()=>parseMindmap(b.source!)).toThrow();return}
+      if(b.assertions!.parseError){expect(()=>parseMindmap(b.source!)).toThrow(MindmapParseError);return}
       const d=parseMindmap(b.source!); expect(flatten(d.root)).toEqual(b.assertions!.nodes)
       const canonical=serializeMindmap(d); expect(serializeMindmap(parseMindmap(canonical))).toBe(canonical)
     } else if(b.variants) for(const v of b.variants) runGit(v.source,v.assertions)

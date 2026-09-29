@@ -247,6 +247,8 @@ describe('gantt task metadata helper (shared with the agent body)', () => {
     for (const raw of samples) {
       const meta = parseGanttTaskMeta(raw)!
       const rendered = renderGanttTaskMeta(meta)
+      // parse(render(meta)) recovers every field, so a renderer that drops one fails.
+      expect({ raw, reparsed: parseGanttTaskMeta(rendered) }).toEqual({ raw, reparsed: meta })
       expect(renderGanttTaskMeta(parseGanttTaskMeta(rendered)!)).toBe(rendered)
     }
   })

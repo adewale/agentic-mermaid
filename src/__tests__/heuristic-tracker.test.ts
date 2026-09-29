@@ -59,6 +59,7 @@ describe('heuristic-tracker ratchet', () => {
   // offenders below; any NEW unexplained-bend/label-overlap finding fails, and
   // fixing a known one fails too (so the baseline only ever shrinks).
   const KNOWN_ROUTE_CONTRACT_OFFENDERS = [
+    // Known-bug pin BUG-35 (TODO.md): the D->E label sits on a shared trunk.
     'contact-sheet/AJ: ROUTE_LABEL_ON_SHARED_TRUNK D->E',
   ]
 

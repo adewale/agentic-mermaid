@@ -204,13 +204,19 @@ describe('exclusions are an executable divergence ledger', () => {
 
   for (const e of exclusions.filter(e => !e.oursErrorCode)) {
     test(`${e.id}: ours still parses and round-trips the source (divergence is semantic, not lossy)`, () => {
-      const model = modelOf(e.source)
-      // exclude-boundary-model / local-tz sources RESOLVE for us — the
-      // divergence is which boundary instant the walk lands on, never a crash.
-      const schedule = resolveGanttSchedule(model)
+      // local-tz sources RESOLVE for us: the divergence is which boundary
+      // instant the walk lands on, never a crash.
+      const schedule = resolveGanttSchedule(modelOf(e.source))
       expect(schedule.tasks.length).toBeGreaterThan(0)
       const r = parseMermaid(e.source)
-      expect(r.ok).toBe(true)
+      if (!r.ok) throw new Error(`${e.id}: agent parse failed: ${JSON.stringify(r.error)}`)
+      expect({ id: e.id, body: r.value.body.kind }).toEqual({ id: e.id, body: 'gantt' })
+      // Canonical serialization is idempotent and schedules exactly the same tasks.
+      const canonical = serializeMermaid(r.value)
+      const reparsed = parseMermaid(canonical)
+      if (!reparsed.ok) throw new Error(`${e.id}: canonical form failed to parse`)
+      expect({ id: e.id, stable: serializeMermaid(reparsed.value) === canonical }).toEqual({ id: e.id, stable: true })
+      expect(resolveGanttSchedule(modelOf(canonical)).tasks).toEqual(schedule.tasks)
     })
   }
 })

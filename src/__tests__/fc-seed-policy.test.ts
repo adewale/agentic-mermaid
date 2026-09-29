@@ -31,19 +31,11 @@ describe('fast-check seed policy (preload)', () => {
     }
   })
 
-  test('the policy test restores its deliberate process-global probe', () => {
-    const saved = fc.readConfigureGlobal()
-    fc.configureGlobal({ ...saved, seed: 424242 })
-    expect(fc.readConfigureGlobal()?.seed).toBe(424242)
-    fc.configureGlobal(saved)
-    expect(fc.readConfigureGlobal()?.seed).toBe(saved?.seed)
-  })
-
   test('suite-specific regression seeds use per-assert options', () => {
     // Shards are separate processes, so a cross-file epilogue cannot detect a
     // global reset in another shard. Keep process-global configuration owned
-    // by the preload and this explicit save/restore probe; every regression
-    // seed elsewhere must be supplied to fc.assert instead.
+    // by the preload; every regression seed elsewhere must be supplied to
+    // fc.assert instead.
     const offenders = testFilesUnder(import.meta.dir)
       .filter(path => path !== import.meta.filename)
       .flatMap((path) => {

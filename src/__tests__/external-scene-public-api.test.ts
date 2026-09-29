@@ -456,15 +456,15 @@ describe('public external Scene construction and admission', () => {
     expect(edge?.kind).toBe('connector')
     if (!edge || edge.kind !== 'connector') return
 
-    for (const marker of [
-      { ...ARROW, shape: 'forged' },
-      { ...ARROW, units: 'forged' },
-      { ...ARROW, orient: 'forged' },
-      { ...ARROW, overflow: 'forged' },
-      { ...ARROW, unknownMarkerField: true },
-      { ...ARROW, size: { ...ARROW.size, unknownSizeField: true } },
-    ]) {
-      expect(() => buildExternalScene({ ...base, markers: [marker] } as unknown as ExternalSceneInput)).toThrow()
+    for (const [marker, diagnostic] of [
+      [{ ...ARROW, shape: 'forged' }, /has an unknown shape/],
+      [{ ...ARROW, units: 'forged' }, /units must be strokeWidth or userSpaceOnUse/],
+      [{ ...ARROW, orient: 'forged' }, /orient must be auto/],
+      [{ ...ARROW, overflow: 'forged' }, /overflow must be hidden or visible/],
+      [{ ...ARROW, unknownMarkerField: true }, /markers\[0\]\.unknownMarkerField is not part of the v1 input contract/],
+      [{ ...ARROW, size: { ...ARROW.size, unknownSizeField: true } }, /markers\[0\]\.size\.unknownSizeField is not part of the v1 input contract/],
+    ] as const) {
+      expect(() => buildExternalScene({ ...base, markers: [marker] } as unknown as ExternalSceneInput)).toThrow(diagnostic)
     }
 
     const collidingMarker = { ...ARROW, id: 'external-scene-title' }
@@ -502,6 +502,7 @@ describe('public external Scene construction and admission', () => {
     const container = base.parts[0]!
     const data = base.parts[1]!
     const edge = base.parts[2]!
+    expect([container.kind, data.kind, edge.kind]).toEqual(['container', 'data-mark', 'connector'])
     if (container.kind !== 'container' || data.kind !== 'data-mark' || edge.kind !== 'connector') return
     const shape = container.children[0]!
     const text = container.children[1]!
@@ -614,7 +615,7 @@ describe('public external Scene construction and admission', () => {
       expect(() => buildExternalScene({
         ...base,
         metadata: {} as ExternalSceneInput['metadata'],
-      })).toThrow()
+      })).toThrow(/input\.metadata\.title must be a string/)
     } finally {
       delete (Object.prototype as { title?: unknown }).title
     }
@@ -679,10 +680,12 @@ describe('public external Scene construction and admission', () => {
           style === undefined ? {} : { style },
         )
         expect(svg).toContain('data-id="left-node"')
-        expect(svg).not.toContain('audit.invalid')
         expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
       }
-      // Descriptor-based snapshotting never invokes the live root get trap.
+      // The oracle is the live read count: descriptor-based snapshotting never
+      // invokes the live root get trap. (A served forged part has no admitted
+      // SVG serialization, so it would throw rather than appear in the markup;
+      // no markup assertion can see it.)
       expect(livePartsReads).toBe(0)
     } finally {
       unregister()
@@ -717,7 +720,8 @@ describe('public external Scene construction and admission', () => {
       })
       const svg = backend.render(swapping, { seed: 0 })
       expect(svg, backend.id).toContain('Safe external Scene')
-      expect(svg, backend.id).not.toContain('audit.invalid')
+      expect(svg, backend.id).toContain('data-id="left-node"')
+      // The live read count is the oracle; a forged part could not serialize.
       expect(livePartsReads, backend.id).toBe(0)
     }
   })

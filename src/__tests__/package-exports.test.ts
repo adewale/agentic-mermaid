@@ -10,22 +10,14 @@ describe('package exports', () => {
   it('uses the Agentic Mermaid npm package name', () => {
     expect(packageJson.name).toBe('agentic-mermaid')
   })
+  // Loop 7 A2: yhatt#74 — catches accidental removal of conditional-export
+  // fallbacks during package.json edits.
   it('defines a default export fallback for runtimes resolving conditional exports', () => {
     expect(packageJson.exports['.']).toMatchObject({
       import: './dist/index.js',
       types: './dist/index.d.ts',
       default: './dist/index.js',
     })
-  })
-
-  // Loop 7 A2: yhatt#74 — registry-driven regression that catches accidental
-  // removal of conditional-export fallbacks during package.json edits.
-  it('package.json parsed via fs.readFileSync has exports["."]["default"]', () => {
-    const raw = readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')
-    const pkg = JSON.parse(raw)
-    expect(pkg.exports).toBeDefined()
-    expect(pkg.exports['.']).toBeDefined()
-    expect(pkg.exports['.'].default).toBe('./dist/index.js')
   })
 
   it('package.json has exports["./agent"]["default"]', () => {

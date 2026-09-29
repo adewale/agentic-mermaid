@@ -11,14 +11,13 @@
  * from "exactly one" plus a circle) and ONE_OR_MORE with no tick
  * (indistinguishable from a bare "many"). These invariants judge the
  * regenerated goldens (P5): each cardinality's marker is asserted by its
- * primitive counts in the scene geometry, and all four signatures must be
- * pairwise distinct.
+ * exact primitive counts in the scene geometry; the four expected signatures
+ * (2L0C, 1L1C, 4L0C, 3L1C) are pairwise distinct by construction.
  */
 import { describe, it, expect } from 'bun:test'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutErDiagram } from '../er/layout.ts'
 import { lowerErScene } from '../er/renderer.ts'
-import type { Cardinality } from '../er/types.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 
 /** Lower `A <glyphs> B : x` and return the marker geometry at entity1's end. */
@@ -54,16 +53,5 @@ describe('crow\'s-foot marker vocabulary (upstream reference)', () => {
 
   it('}o (zero or more) draws the crow\'s foot + circle, no tick', () => {
     expect(markerFor('}o--o{')).toEqual({ lines: 3, circles: 1, category: 'zero-many' })
-  })
-
-  it('all four cardinalities have pairwise-distinct marker signatures', () => {
-    const glyphs: Array<[Cardinality, string]> = [
-      ['one', '||--||'], ['zero-one', '|o--o|'], ['many', '}|--|{'], ['zero-many', '}o--o{'],
-    ]
-    const signatures = glyphs.map(([, g]) => {
-      const m = markerFor(g)
-      return `${m.lines}L${m.circles}C`
-    })
-    expect(new Set(signatures).size).toBe(4)
   })
 })

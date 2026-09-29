@@ -124,13 +124,12 @@ describe('property-based class parsing', () => {
     const classArb = fc.uniqueArray(idArb, { minLength: 2, maxLength: 5 }).chain(ids =>
       fc.record({
         ids: fc.constant(ids),
-        namespaces: fc.array(
-          fc.record({
-            name: wordArb.map(word => `${word.toUpperCase()}Space`),
-            members: fc.subarray(ids, { minLength: 1, maxLength: ids.length }),
-          }),
-          { maxLength: 2 },
-        ),
+        // Only some classes are declared up front, so relationships must
+        // materialize the rest.
+        declared: fc.subarray(ids),
+        namespaceNames: fc.uniqueArray(wordArb.map(word => `${word.toUpperCase()}Space`), { minLength: 2, maxLength: 2 }),
+        // Each class joins at most one namespace (-1 = none).
+        namespaceOf: fc.array(fc.integer({ min: -1, max: 1 }), { minLength: ids.length, maxLength: ids.length }),
         relationships: fc.array(
           fc.record({
             from: fc.constantFrom(...ids),
@@ -144,9 +143,12 @@ describe('property-based class parsing', () => {
     )
 
     fc.assert(
-      fc.property(classArb, ({ ids, namespaces, relationships }) => {
-        const lines = ['classDiagram', ...ids.map(id => `class ${id}`)]
+      fc.property(classArb, ({ ids, declared, namespaceNames, namespaceOf, relationships }) => {
+        const lines = ['classDiagram', ...declared.map(id => `class ${id}`)]
 
+        const namespaces = namespaceNames
+          .map((name, index) => ({ name, members: ids.filter((_, i) => namespaceOf[i] === index) }))
+          .filter(namespace => namespace.members.length > 0)
         for (const namespace of namespaces) {
           lines.push(`namespace ${namespace.name} {`)
           for (const member of namespace.members) {
@@ -162,18 +164,21 @@ describe('property-based class parsing', () => {
         }
 
         const diagram = parseClassDiagram(toLines(lines.join('\n')))
-        const classIds = new Set(diagram.classes.map(node => node.id))
 
-        for (const relationship of diagram.relationships) {
-          expect(classIds.has(relationship.from)).toBe(true)
-          expect(classIds.has(relationship.to)).toBe(true)
-        }
-
-        for (const namespace of diagram.namespaces) {
-          for (const classId of namespace.classIds) {
-            expect(classIds.has(classId)).toBe(true)
-          }
-        }
+        // Every relationship survives, in order, with its endpoints.
+        expect(diagram.relationships.map(r => `${r.from}->${r.to}`))
+          .toEqual(relationships.map(r => `${r.from}->${r.to}`))
+        // Exactly the declared, namespaced and referenced classes exist:
+        // undeclared endpoints are materialized and nothing phantom appears.
+        const expectedClasses = new Set([
+          ...declared,
+          ...namespaces.flatMap(namespace => namespace.members),
+          ...relationships.flatMap(r => [r.from, r.to]),
+        ])
+        expect(diagram.classes.map(node => node.id).sort()).toEqual([...expectedClasses].sort())
+        // Namespace membership is exactly what was authored.
+        expect(Object.fromEntries(diagram.namespaces.map(namespace => [namespace.name, [...namespace.classIds].sort()])))
+          .toEqual(Object.fromEntries(namespaces.map(namespace => [namespace.name, [...namespace.members].sort()])))
       }),
       { numRuns: PROPERTY_RUNS },
     )

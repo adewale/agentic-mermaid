@@ -84,8 +84,8 @@ describe('link length is preserved through round-trip', () => {
     'flowchart LR\n  A ====> B',
     'flowchart LR\n  A ~~~~ B',
   ])('%s re-serializes to the same operator length', src => {
-    const op = src.split('  ')[1]!.trim().replace(/[AB ]/g, '')
-    expect(serialized(src)).toContain(op)
+    // Exact equality: `toContain(op)` would also accept a longer drifted operator.
+    expect(serialized(src)).toBe(`${src}\n`)
   })
 
   it.each([
@@ -98,21 +98,19 @@ describe('link length is preserved through round-trip', () => {
     const graph = parseMermaid(src)
     expect(graph.edges[0]!.length).toBe(length)
     const out = serialized(src)
-    expect(out).toContain(op)
+    expect(out).toBe(`flowchart LR\n  A ${op} B\n`)
     expect(parseMermaid(out).edges[0]!.length).toBe(length)
   })
 
   it('base-form operators serialize byte-identically (no churn for length 1)', () => {
-    for (const [src, op] of [
-      ['flowchart LR\n  A --> B', '-->'],
-      ['flowchart LR\n  A --- B', '---'],
-      ['flowchart LR\n  A -.-> B', '-.->'],
-      ['flowchart LR\n  A ==> B', '==>'],
-    ] as const) {
-      const out = serialized(src)
-      expect(out).toContain(op)
-      // a base solid arrow must NOT pick up extra dashes
-      if (op === '-->') expect(out).not.toContain('--->')
+    for (const src of [
+      'flowchart LR\n  A --> B',
+      'flowchart LR\n  A --- B',
+      'flowchart LR\n  A -.-> B',
+      'flowchart LR\n  A ==> B',
+    ]) {
+      // Exact equality: a base operator must not pick up extra dashes/dots/bars.
+      expect(serialized(src)).toBe(`${src}\n`)
     }
   })
 })
@@ -364,14 +362,17 @@ describe('link length is honored across subgraph boundaries', () => {
     expect(long.ok).toBe(true)
     const top = long.layout.nodes.find(n => n.id === 'top')!
     const bottom = long.layout.nodes.find(n => n.id === 'bottom')!
-    const outside = long.layout.nodes.find(n => n.id === 'outside')!
     // Internal TB stacking survived the shove: bottom below top, same column.
     expect(bottom.y).toBeGreaterThan(top.y + top.h / 2)
     expect(Math.abs(bottom.x - top.x)).toBeLessThan(top.w)
     // And the external long link actually pushed the box well clear of `outside`.
     const base = verifyMermaid('flowchart LR\n  subgraph S2\n    direction TB\n    top[top] --> bottom[bottom]\n  end\n  outside --> top')
-    const gap = (v: typeof long) => v.layout.nodes.find(n => n.id === 'top')!.x - (outside.x + outside.w)
-    expect(top.x - (outside.x + outside.w)).toBeGreaterThan(gap(base) + 40)
+    // Each layout's gap is measured against its OWN `outside` node.
+    const gap = (v: typeof long) => {
+      const node = (id: string) => v.layout.nodes.find(n => n.id === id)!
+      return node('top').x - (node('outside').x + node('outside').w)
+    }
+    expect(gap(long)).toBeGreaterThan(gap(base) + 40)
   })
 })
 

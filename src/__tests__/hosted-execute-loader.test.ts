@@ -4,6 +4,7 @@
 // every isolate request; real loader behavior is covered by website/e2e-mcp.sh.
 
 import { describe, expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
 import { createLoaderExecute, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, readCapped, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
 import pkg from '../../package.json'
 
@@ -43,8 +44,9 @@ describe('hosted execute loader glue', () => {
     expect(result).toEqual({ ok: true, value: 2, logs: [] })
     expect(requests).toHaveLength(1)
     const req = requests[0]!
-    // version + harness hash + wrap variant + code hash
-    expect(req.id).toBe(`exec-${await deployTag('HARNESS')}-e-${req.id.split('-').pop()}`)
+    // version + harness hash + wrap variant + SHA-256 of the user code
+    const codeHash = createHash('sha256').update('1 + 1').digest('hex')
+    expect(req.id).toBe(`exec-${await deployTag('HARNESS')}-e-${codeHash}`)
     expect(req.id).toMatch(new RegExp(`^exec-v${pkg.version.replace(/\./g, '\\.')}-[0-9a-f]{16}-e-[0-9a-f]{64}$`))
     expect(req.globalOutbound).toBeNull()
     expect(req.limits).toEqual({ cpuMs: 5000, subRequests: 0 })

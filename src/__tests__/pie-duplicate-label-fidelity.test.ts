@@ -5,6 +5,7 @@ import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
 
 const source = `pie showData
   "Alpha" : 10
@@ -212,11 +213,12 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
 })
 
 test('Pie entity prepass stays bounded on repeated style/hash candidates', () => {
-  for (const label of ['style:foo#'.repeat(1500), `style:foo#;${'style:foo#'.repeat(1500)}`]) {
-    const started = performance.now()
+  const labels = (n: number) => ['style:foo#'.repeat(n), `style:foo#;${'style:foo#'.repeat(n)}`]
+  for (const label of labels(1500)) {
     expect(parsePieChart(['pie', `"${label}" : 1`]).entries).toHaveLength(1)
-    expect(performance.now() - started).toBeLessThan(250)
   }
+  const { ratio } = measureGrowth(n => labels(n).map(label => parsePieChart(['pie', `"${label}" : 1`])), 250)
+  expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
 })
 
 test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene validation', () => {

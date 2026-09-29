@@ -3,6 +3,7 @@ import { renderMermaidASCII } from '../ascii/index.ts'
 import { asJourney, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
 
 const source = 'journey\n  section Work\n  First: 3: Me\n  Review: 3.5: Me\n  Last: 4: Me'
 
@@ -79,21 +80,24 @@ describe('Journey fractional score fidelity', () => {
   })
 
   test('malformed long task and score fields remain bounded', () => {
-    const spaces = ' '.repeat(65_536)
-    const cases = [
+    const cases = (spaces: string) => [
       [`journey\nTask${spaces}: bad`, 'invalid score bad'],
       [`journey\nTask${spaces}x`, 'Invalid user journey line'],
       [`journey\nTask: x${spaces}!`, 'invalid score'],
       [`journey\nTask: 3.5${spaces}!`, 'invalid score'],
     ] as const
-    const started = performance.now()
-    for (const [input, diagnostic] of cases) {
+    for (const [input, diagnostic] of cases(' '.repeat(65_536))) {
       expect(() => parseJourneyDiagram(input.split('\n'))).toThrow(diagnostic)
     }
     // The old overlapping lazy/whitespace quantifiers took multiple seconds
-    // on one of these inputs. Allow ample CI variance while rejecting that
-    // superlinear regression at an attacker-controlled 64 KiB statement.
-    expect(performance.now() - started).toBeLessThan(1_500)
+    // on one of these inputs at an attacker-controlled 64 KiB statement: a
+    // superlinear regression the growth ratio (4 KiB -> 64 KiB) rejects.
+    const { ratio } = measureGrowth(n => {
+      for (const [input] of cases(' '.repeat(n))) {
+        try { parseJourneyDiagram(input.split('\n')) } catch { /* diagnosed above */ }
+      }
+    }, 4_096)
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
   })
 
   test('bounded Mermaid numeric spellings normalize without truncation', () => {

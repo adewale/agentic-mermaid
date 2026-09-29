@@ -3,6 +3,7 @@ import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 const diagnostic = 'TERMINAL_CONTROL_CHARACTERS_REPLACED'
@@ -93,13 +94,14 @@ test('Pie escaped newline collapses adjacent authored whitespace like browser SV
 })
 
 test('Pie escaped newline paint normalization stays bounded after a long whitespace prefix', () => {
-  const prefix = ' \t'.repeat(20_000)
-  const source = `pie\n  "${prefix}X\\nY" : 1\n`
-  const started = performance.now()
-  const entry = parsePieChart(source.trim().split('\n')).entries[0]!
-  expect(entry.label).toBe(`${prefix}X\nY`)
+  const parseWithPrefix = (n: number) => {
+    const source = `pie\n  "${' \t'.repeat(n)}X\\nY" : 1\n`
+    return parsePieChart(source.trim().split('\n')).entries[0]!
+  }
+  const { ratio, result: entry } = measureGrowth(parseWithPrefix, 1_250)
+  expect(entry.label).toBe(`${' \t'.repeat(20_000)}X\nY`)
   expect(entry.displayLabel).toBe('X Y')
-  expect(performance.now() - started).toBeLessThan(250)
+  expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
 })
 
 test('all-zero Pie output does not claim a control replacement that never rendered', () => {

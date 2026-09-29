@@ -11,12 +11,15 @@ const ID_HEAD = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
 const ID_TAIL = [...'abcdefghijklmnopqrstuvwxyz0123456789-']
 const WORD_CHARS = [...'abcdefghijklmnopqrstuvwxyz']
 
+// `--` inside an id is link syntax: upstream Mermaid rejects `A--a --> B`,
+// so such ids are not valid node references and are not generated.
 const idArb = fc
   .tuple(
     fc.constantFrom(...ID_HEAD),
     fc.array(fc.constantFrom(...ID_TAIL), { maxLength: 5 }),
   )
   .map(([head, tail]) => `${head}${tail.join('')}`)
+  .filter(id => !id.includes('--'))
 
 const wordArb = fc
   .array(fc.constantFrom(...WORD_CHARS), { minLength: 1, maxLength: 8 })
@@ -240,12 +243,14 @@ describe('property-based parseMermaid', () => {
     )
   })
 
-  it('always produces edges whose endpoints exist as nodes', () => {
+  it('keeps every edge and materializes exactly the declared and referenced nodes', () => {
     const graphArb = fc
       .uniqueArray(nodeDefArb, { minLength: 2, maxLength: 5, selector: node => node.id })
       .chain(nodes =>
         fc.record({
           nodes: fc.constant(nodes),
+          // Only some nodes are defined up front; edges must create the rest.
+          declared: fc.subarray(nodes),
           edges: fc.uniqueArray(
             fc.record({
               from: fc.constantFrom(...nodes.map(node => node.id)),
@@ -262,19 +267,22 @@ describe('property-based parseMermaid', () => {
       )
 
     fc.assert(
-      fc.property(graphArb, ({ nodes, edges }) => {
+      fc.property(graphArb, ({ declared, edges }) => {
         const source = [
           'graph TD',
-          ...nodes.map(renderNodeDefinition),
+          ...declared.map(renderNodeDefinition),
           ...edges.map(edge => `${edge.from} -->${edge.label ? `|${edge.label}|` : ''} ${edge.to}`),
         ].join('\n')
 
         const graph = parseMermaid(source)
 
-        for (const edge of graph.edges) {
-          expect(graph.nodes.has(edge.source)).toBe(true)
-          expect(graph.nodes.has(edge.target)).toBe(true)
-        }
+        // Every edge survives, in order.
+        expect(graph.edges.map(edge => `${edge.source}->${edge.target}`))
+          .toEqual(edges.map(edge => `${edge.from}->${edge.to}`))
+        // Exactly the defined and referenced nodes exist: undeclared endpoints
+        // are created, and no phantom node appears.
+        const expectedNodes = new Set([...declared.map(node => node.id), ...edges.flatMap(edge => [edge.from, edge.to])])
+        expect([...graph.nodes.keys()].sort()).toEqual([...expectedNodes].sort())
       }),
       { numRuns: PROPERTY_RUNS, seed: PARSER_PROPERTY_SEED },
     )

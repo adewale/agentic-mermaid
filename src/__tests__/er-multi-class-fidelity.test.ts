@@ -4,6 +4,7 @@ import mermaid from 'mermaid'
 import { asEr, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
 
 const source = `erDiagram
   CUSTOMER ||--o{ ORDER : places
@@ -158,20 +159,24 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
     if (parsed.ok) expect(asEr(parsed.value)).toBeNull()
   })
 
-  test('large comma lists scan in bounded time', () => {
-    const classes = `${'hot,'.repeat(20_000)}hot`
-    const started = performance.now()
-    const native = parseErDiagram(['erDiagram', 'A ||--o{ B : x', `class A ${classes}`])
-    expect(native.entities[0]?.className?.split(' ')).toHaveLength(20_001)
-    expect(performance.now() - started).toBeLessThan(250)
+  test('large comma lists scan in linear time', () => {
+    const { ratio, result } = measureGrowth(
+      n => parseErDiagram(['erDiagram', 'A ||--o{ B : x', `class A ${'hot,'.repeat(n)}hot`]),
+      1_250,
+    )
+    expect(result.entities[0]?.className?.split(' ')).toHaveLength(20_001)
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
   })
 
   test('repeated valid class directives do not copy the entire prior assignment', () => {
-    const lines = ['erDiagram', 'A ||--o{ B : x', ...Array(200_000).fill('class A hot')]
-    const started = performance.now()
-    const native = parseErDiagram(lines)
-    expect(native.entities[0]?.className?.split(' ')).toHaveLength(200_000)
-    expect(performance.now() - started).toBeLessThan(1_500)
+    // Copying the prior assignment on every directive is quadratic in the
+    // directive count; the growth ratio exposes it.
+    const { ratio, result } = measureGrowth(
+      n => parseErDiagram(['erDiagram', 'A ||--o{ B : x', ...Array(n).fill('class A hot')]),
+      3_125,
+    )
+    expect(result.entities[0]?.className?.split(' ')).toHaveLength(50_000)
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
   })
 
   test('a large second class list avoids the JavaScript argument-count ceiling', () => {

@@ -197,11 +197,10 @@ describe('cli-surface fuzz: runBatchLine', () => {
 // ===========================================================================
 
 describe('cli-surface fuzz: renderMarkdownBlocks', () => {
-  it('never throws and returns one tagged result per fenced block', () => {
+  it('never throws and returns tagged results for arbitrary markdown', () => {
     const mdArb = fc.oneof(
       fc.string({ maxLength: 200 }),
       specialCharStringArb,
-      fc.string({ maxLength: 80 }).map(body => '```mermaid\n' + body + '\n```'),
     )
     fc.assert(
       fc.property(mdArb, fc.constantFrom('svg', 'ascii' as const), (md, format) => {
@@ -210,6 +209,21 @@ describe('cli-surface fuzz: renderMarkdownBlocks', () => {
         for (const b of blocks) {
           expect(typeof b.ok).toBe('boolean')
         }
+      }),
+      { numRuns: NUM_RUNS },
+    )
+  })
+
+  it('returns exactly one tagged result for a single fenced block, whatever its body', () => {
+    // A body without a backtick can neither close the fence early nor open
+    // another, so the document holds exactly one mermaid block.
+    const fencedArb = fc.string({ maxLength: 80 })
+      .filter(body => !body.includes('`'))
+      .map(body => '```mermaid\n' + body + '\n```')
+    fc.assert(
+      fc.property(fencedArb, fc.constantFrom('svg', 'ascii' as const), (md, format) => {
+        const blocks = renderMarkdownBlocks(md, format)
+        expect({ md, tags: blocks.map(b => typeof b.ok) }).toEqual({ md, tags: ['boolean'] })
       }),
       { numRuns: NUM_RUNS },
     )

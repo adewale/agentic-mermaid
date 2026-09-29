@@ -11,20 +11,23 @@ import { reduceSource } from '../../eval/shared/ddmin.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
+// A permutation of one fixed glyph multiset (narrow i/l, wide m/w): the tag
+// changes, its rendered text width does not.
+const sameWidthTagArb = fc.shuffledSubarray([...'qwzmilk'], { minLength: 7, maxLength: 7 }).map(xs => `s${xs.join('')}`)
 
-// Flowchart geometry is laid out by ELK and is id-order-independent (verified
-// 5/5 byte-identical under relabel). NOTE — a finding from building this:
-// STATE geometry is NOT relabel-invariant (the state→graph projection orders by
-// id), so it's deliberately excluded here and noted as a follow-up to
-// investigate (id-sensitive layout is a latent determinism concern).
-const GEOMETRIC_FAMILIES = ['flowchart'] as const
+// Flowchart nodes carry fixed labels (`["N0"]`), so any id relabel must leave
+// geometry byte-identical. State ids ARE the visible labels, so a relabel that
+// changes glyph widths legitimately resizes the boxes; state relabels keep the
+// width fixed and permute the glyphs instead (measured: arbitrary tags changed
+// 28/30 state layouts, same-width permutations 0/60).
+const GEOMETRIC_FAMILIES = { flowchart: tagArb, state: sameWidthTagArb } as const
 
 describe('GraphicsFuzz render-diff: relabeling preserves geometry', () => {
-  for (const family of GEOMETRIC_FAMILIES) {
-    const fam = METAMORPHIC_FAMILIES[family]
+  for (const [family, familyTagArb] of Object.entries(GEOMETRIC_FAMILIES)) {
+    const fam = METAMORPHIC_FAMILIES[family as keyof typeof GEOMETRIC_FAMILIES]
     test(`${family}: a node-id relabel renders byte-identical geometry`, () => {
       fc.assert(
-        fc.property(fc.integer({ min: fam.kRange[0], max: fam.kRange[1] }), tagArb, tagArb, (k, a, b) => {
+        fc.property(fc.integer({ min: fam.kRange[0], max: fam.kRange[1] }), familyTagArb, familyTagArb, (k, a, b) => {
           const sa = fam.build(k, a)
           const sb = fam.build(k, b)
           if (geometryEquivalent(sa, sb)) return

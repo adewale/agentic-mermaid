@@ -226,8 +226,9 @@ describe('editor-codec fuzz: draft persistence round-trip', () => {
       editor.value = value.trim() ? value : 'flowchart TD\n A --> B'
       api.saveEditorDraft()
       const draft = api.readEditorDraft()
-      // A within-cap, non-blank draft must restore; nothing here should throw.
-      if (draft) expect(draft.source).toBe(editor.value)
+      // Inputs are short and never blank, so every draft is within the cap and
+      // must restore.
+      expect(draft?.source).toBe(editor.value)
     }), { numRuns: NUM_RUNS })
   })
 })
