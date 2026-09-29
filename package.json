@@ -210,7 +210,7 @@
     "picomatch": "4.0.5",
     "qs": "6.15.3",
     "sharp": "0.35.4",
-    "undici": "7.29.0"
+    "undici": "7.29.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.5",
