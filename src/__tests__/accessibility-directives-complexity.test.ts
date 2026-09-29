@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { maskAccessibilityDirectivesForSourceMap, sourcePreservationSpans } from '../family-detection.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 test('whitespace-only accDescr is not an empty directive and stays bounded through the public parser', () => {
   const emptyDescription = `  accDescr${' '.repeat(48_000)}`

@@ -74,6 +74,9 @@ describe('xychart text stays on the canvas', () => {
           expect({ bar: [x, y, w, h], inside: x >= 0 && y >= 0 && x + w <= width! + 0.01 && y + h <= height! + 0.01 }).toEqual({ bar: [x, y, w, h], inside: true })
         }
         const box = new Resvg(textOnly(svg), { font: { loadSystemFonts: false, fontDirs: [FONT_DIR], defaultFontFamily: 'Inter' } }).getBBox()
+        // Every chart has at least one category label, so a missing text box
+        // means the bundled fonts failed to load, not that there is no text.
+        expect({ source, textBox: box !== undefined }).toEqual({ source, textBox: true })
         if (!box) return
         expect({ left: box.x >= -TOLERANCE, top: box.y >= -TOLERANCE, right: box.x + box.width <= width! + TOLERANCE, bottom: box.y + box.height <= height! + TOLERANCE })
           .toEqual({ left: true, top: true, right: true, bottom: true })

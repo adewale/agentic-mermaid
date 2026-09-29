@@ -3,7 +3,7 @@ import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermai
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { parseClassDiagram, parseClassRelationship } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 const cases = [
   { statement: 'classO .. classP : Link(Dashed)', kind: 'link-dashed', lineType: 1, label: 'Link(Dashed)' },

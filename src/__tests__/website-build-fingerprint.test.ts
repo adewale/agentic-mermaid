@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { build as buildWithEsbuild } from 'esbuild'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, normalize, relative, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import {
   WEBSITE_BUILD_ENVIRONMENT_KEYS,
   WEBSITE_BUILD_FINGERPRINT_PATHS,
@@ -16,14 +17,24 @@ const temporary: string[] = []
 afterEach(() => { for (const path of temporary.splice(0)) rmSync(path, { recursive: true, force: true }) })
 
 describe('website build fingerprint authority', () => {
-  test('enrolls every direct local module and runtime-read boundary', () => {
-    const build = readFileSync(join(REPO, 'website', 'build.ts'), 'utf8')
-    const imports = Array.from(build.matchAll(/(?:from\s+|import\s*\()\s*['"](\.{1,2}\/[^'"]+)['"]/g), match => match[1]!)
-    expect(imports.length).toBeGreaterThan(10)
-    for (const specifier of imports) {
-      const repoRelative = normalize(relative(REPO, resolve(REPO, 'website', specifier))).replaceAll('\\', '/')
-      expect(isWebsiteBuildFingerprintInput(repoRelative), specifier).toBe(true)
-    }
+  test('enrolls every local module the build bundles, transitively, and every runtime-read boundary', async () => {
+    // The bundler's own module graph, not a regex over build.ts: a module the
+    // build reaches only through another import must be enrolled too.
+    const bundled = await buildWithEsbuild({
+      entryPoints: [join(REPO, 'website', 'build.ts')],
+      absWorkingDir: REPO,
+      bundle: true,
+      write: false,
+      metafile: true,
+      platform: 'node',
+      format: 'esm',
+      packages: 'external',
+      external: ['bun', 'bun:*'],
+      logLevel: 'silent',
+    })
+    const modules = Object.keys(bundled.metafile.inputs)
+    expect(modules.length).toBeGreaterThan(100)
+    expect(modules.filter(path => !isWebsiteBuildFingerprintInput(path))).toEqual([])
 
     for (const path of [
       'scripts/site/editor.ts',
@@ -40,7 +51,7 @@ describe('website build fingerprint authority', () => {
     expect(isWebsiteBuildFingerprintInput('website/.wrangler/state/v3.json')).toBe(false)
     expect(isWebsiteBuildFingerprintInput('website/src/generated/deploy-version.ts')).toBe(false)
     expect(isWebsiteBuildFingerprintInput('src/__tests__/website-build.test.ts')).toBe(false)
-  })
+  }, 30_000)
 
   test('hashes contents, paths, missing inputs, and stable provenance', () => {
     const root = mkdtempSync(join(tmpdir(), 'am-website-fingerprint-'))

@@ -8,36 +8,39 @@ import { auditRouteContracts } from '../route-contracts.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { resolveRenderStyle } from '../styles.ts'
 
-const SUPPORTED_ENDPOINT_CASES = ([
-  ['INCLUDE_CHILDREN', false, 'X', 'A'],
-  ['INCLUDE_CHILDREN', false, 'X', 'B'],
-  ['INCLUDE_CHILDREN', false, 'X', 'Inner'],
-  ['INCLUDE_CHILDREN', false, 'X', 'Outer'],
-  ['INCLUDE_CHILDREN', false, 'A', 'X'],
-  ['INCLUDE_CHILDREN', false, 'A', 'B'],
-  ['INCLUDE_CHILDREN', false, 'A', 'Inner'],
-  ['INCLUDE_CHILDREN', false, 'B', 'X'],
-  ['INCLUDE_CHILDREN', false, 'B', 'A'],
-  ['INCLUDE_CHILDREN', false, 'Inner', 'X'],
-  ['INCLUDE_CHILDREN', false, 'Inner', 'A'],
-  ['INCLUDE_CHILDREN', false, 'Outer', 'X'],
-  ['SEPARATE', true, 'X', 'A'],
-  ['SEPARATE', true, 'X', 'Inner'],
-  ['SEPARATE', true, 'X', 'Outer'],
-  ['SEPARATE', true, 'A', 'X'],
-  ['SEPARATE', true, 'A', 'B'],
-  ['SEPARATE', true, 'A', 'Inner'],
-  ['SEPARATE', true, 'A', 'Outer'],
-  ['SEPARATE', true, 'B', 'A'],
-  ['SEPARATE', true, 'B', 'Inner'],
-  ['SEPARATE', true, 'Inner', 'X'],
-  ['SEPARATE', true, 'Inner', 'A'],
-  ['SEPARATE', true, 'Inner', 'B'],
-  ['SEPARATE', true, 'Inner', 'Outer'],
-  ['SEPARATE', true, 'Outer', 'X'],
-  ['SEPARATE', true, 'Outer', 'A'],
-  ['SEPARATE', true, 'Outer', 'Inner'],
-] as const).map(([mode, withDirectionOverride, from, to]) => [`${mode} ${from}->${to}`, withDirectionOverride, from, to] as const)
+// The whole bounded model: every ordered pair of distinct endpoints among a
+// top-level node (X), a node in Outer (A), a node in Inner (B), and the two
+// subgraphs themselves, under both hierarchy modes (SEPARATE is what a
+// direction override inside a subgraph selects).
+const ENDPOINTS = ['X', 'A', 'B', 'Inner', 'Outer'] as const
+const MODES = [['INCLUDE_CHILDREN', false], ['SEPARATE', true]] as const
+
+// Pairs that do NOT route cleanly today, each with its current failure. These
+// are product limitations, pinned below with test.failing so a fix is noticed:
+// BUG-42 (TODO.md): with direction overrides, an edge
+// between Inner's child and the enclosing Outer makes ELK throw
+// UnsupportedGraphException, so the render fails (CLI RENDER_FAILED).
+// BUG-43 (TODO.md): other edges between a subgraph and
+// its own descendants, or across both levels, break a hard rubric metric or a
+// route contract (verify reports them; the render does not fail).
+const KNOWN_UNSUPPORTED: Readonly<Record<string, string>> = {
+  'INCLUDE_CHILDREN A->Outer': 'BUG-43 offOutlineEndpoints',
+  'INCLUDE_CHILDREN B->Inner': 'BUG-43 edgeThroughNode (through A)',
+  'INCLUDE_CHILDREN B->Outer': 'BUG-43 edgeThroughNode (through X)',
+  'INCLUDE_CHILDREN Inner->B': 'BUG-43 offOutlineEndpoints',
+  'INCLUDE_CHILDREN Inner->Outer': 'BUG-43 ROUTE_CONTAINER_MISANCHOR',
+  'INCLUDE_CHILDREN Outer->A': 'BUG-43 offOutlineEndpoints',
+  'INCLUDE_CHILDREN Outer->B': 'BUG-43 edgeThroughNode (through A)',
+  'INCLUDE_CHILDREN Outer->Inner': 'BUG-43 ROUTE_CONTAINER_MISANCHOR',
+  'SEPARATE X->B': 'BUG-43 offOutlineEndpoints',
+  'SEPARATE B->Outer': 'BUG-42 ELK UnsupportedGraphException',
+  'SEPARATE Outer->B': 'BUG-42 ELK UnsupportedGraphException',
+}
+
+const ALL_ENDPOINT_CASES = MODES.flatMap(([mode, withDirectionOverride]) =>
+  ENDPOINTS.flatMap(from => ENDPOINTS.filter(to => to !== from).map(to => [`${mode} ${from}->${to}`, withDirectionOverride, from, to] as const)))
+const SUPPORTED_ENDPOINT_CASES = ALL_ENDPOINT_CASES.filter(([name]) => !(name in KNOWN_UNSUPPORTED))
+const UNSUPPORTED_ENDPOINT_CASES = ALL_ENDPOINT_CASES.filter(([name]) => name in KNOWN_UNSUPPORTED)
 
 function nestedGraph(withDirectionOverride: boolean, from: string, to: string): string {
   return `flowchart LR
@@ -66,7 +69,18 @@ function assertCleanHierarchyCase(source: string, from: string, to: string): voi
 }
 
 describe('bounded hierarchy endpoint model', () => {
+  test('covers the whole model: 2 modes x 20 ordered endpoint pairs', () => {
+    expect(ALL_ENDPOINT_CASES).toHaveLength(40)
+    expect(Object.keys(KNOWN_UNSUPPORTED).filter(name => !ALL_ENDPOINT_CASES.some(([caseName]) => caseName === name))).toEqual([])
+  })
+
   test.each(SUPPORTED_ENDPOINT_CASES)('%s routes without stale coordinates', (_name, withDirectionOverride, from, to) => {
+    assertCleanHierarchyCase(nestedGraph(withDirectionOverride, from, to), from, to)
+  })
+
+  // Pinned limitations (see KNOWN_UNSUPPORTED). A case that starts passing
+  // fails here: move it back to the supported set.
+  test.failing.each(UNSUPPORTED_ENDPOINT_CASES)('%s (known unsupported) routes without stale coordinates', (_name, withDirectionOverride, from, to) => {
     assertCleanHierarchyCase(nestedGraph(withDirectionOverride, from, to), from, to)
   })
 })

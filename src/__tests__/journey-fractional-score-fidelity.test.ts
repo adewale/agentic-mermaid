@@ -3,7 +3,7 @@ import { renderMermaidASCII } from '../ascii/index.ts'
 import { asJourney, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
-import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
 const source = 'journey\n  section Work\n  First: 3: Me\n  Review: 3.5: Me\n  Last: 4: Me'
 

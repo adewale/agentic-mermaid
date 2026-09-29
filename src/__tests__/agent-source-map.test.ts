@@ -3,7 +3,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
 import type { SourceSpan } from '../agent/types.ts'
 import { sourcePreservationSpans } from '../family-detection.ts'
-import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 function textAt(source: string, span: SourceSpan | undefined): string | undefined {
   return span ? source.slice(span.start.offset, span.end.offset) : undefined

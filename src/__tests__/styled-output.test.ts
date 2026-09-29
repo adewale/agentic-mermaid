@@ -5,7 +5,8 @@
 //
 // Regenerate after an INTENTIONAL styled-rendering change:
 //   UPDATE_STYLED_BASELINE=1 bun test src/__tests__/styled-output.test.ts
-// The baseline lives under testdata/, so golden-drift review applies.
+// The baseline lives under testdata/, so golden-drift review applies. A missing
+// baseline fails; only the explicit update variable writes one.
 
 import { describe, test, expect } from 'bun:test'
 import { plugin } from 'bun'
@@ -18,8 +19,6 @@ import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownSt
 import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 import { renderedTextReady } from './helpers/rendered-text.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
-
-ensureWebsiteBuilt()
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
@@ -76,29 +75,27 @@ describe('styled output', () => {
     }
     expect(Object.keys(records).length).toBe(fixtures.length * LOOKS.length)
 
-    if (UPDATE || !existsSync(BASELINE)) {
+    if (UPDATE) {
       const sorted: Record<string, string> = {}
       for (const key of Object.keys(records).sort()) sorted[key] = records[key]!
       writeFileSync(BASELINE, JSON.stringify(sorted, null, 2) + '\n')
       console.log(`styled-output: baseline written (${Object.keys(records).length} records)`)
       return
     }
+    // A deleted or renamed baseline must fail, never silently re-bless itself.
+    expect({ baseline: BASELINE, exists: existsSync(BASELINE) }).toEqual({ baseline: BASELINE, exists: true })
     const baseline = JSON.parse(readFileSync(BASELINE, 'utf8')) as Record<string, string>
-    for (const [key, hash] of Object.entries(records)) {
-      if (baseline[key] === undefined) {
-        throw new Error(`styled-output: ${key} missing from baseline — regenerate with UPDATE_STYLED_BASELINE=1`)
-      }
-      if (baseline[key] !== hash) {
-        throw new Error(`styled-output: drift for ${key} — regenerate deliberately with UPDATE_STYLED_BASELINE=1 + [approve-goldens]`)
-      }
-    }
-    // Stale keys rot silently otherwise: a removed fixture or style must
-    // shrink the styled baseline too.
-    const stale = Object.keys(baseline).filter(k => !(k in records))
-    if (stale.length > 0) {
-      throw new Error(`styled-output: ${stale.length} stale baseline records (e.g. ${stale[0]}) — regenerate with UPDATE_STYLED_BASELINE=1`)
-    }
-  }, 20_000)
+    // Report every offending fixture#style key at once. Stale keys rot silently
+    // otherwise: a removed fixture or style must shrink the baseline too.
+    // Regenerate deliberately with UPDATE_STYLED_BASELINE=1 + [approve-goldens].
+    const keys = Object.keys(records).sort()
+    expect({
+      missingFromBaseline: keys.filter(key => baseline[key] === undefined),
+      drifted: keys.filter(key => baseline[key] !== undefined && baseline[key] !== records[key]),
+      stale: Object.keys(baseline).filter(key => !(key in records)).sort(),
+    }).toEqual({ missingFromBaseline: [], drifted: [], stale: [] })
+    // 15-22 s observed on a loaded 4-core runner; 20 s timed out once.
+  }, 60_000)
 
   test('transparent styled output stays transparent across every family fixture', () => {
     for (const fixture of fixtures) {
@@ -317,6 +314,9 @@ describe('bundled fonts', () => {
   })
 
   test('hosted PNG worker loads and verifies every hosted face, and reports legibility warnings', async () => {
+    // The only test here that needs website/src/generated (the Worker's fonts
+    // and wasm), so only it pays for the website build.
+    ensureWebsiteBuilt()
     // The Worker's .ttf/.wasm imports are Wrangler-owned module rules. Serve
     // them as the same bytes here so the real worker module runs natively.
     const loadedAssets: string[] = []
@@ -342,7 +342,7 @@ describe('bundled fonts', () => {
     const { png, warnings } = await renderMermaidPNGWasm('flowchart LR\n  A[Start] -- go --> B[Finish]\n', { fitTo: { width: 100 } })
     expect(Array.from(png.subarray(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'BELOW_READABLE_SIZE', cause: 'fitTo' }))
-  })
+  }, 180_000)
 })
 
 const LOOKS_WITH_BACKENDS = [

@@ -3,8 +3,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import { runCli } from '../cli/index.ts'
-import { captureCli as capture } from './helpers/p00-cli-capture.ts'
-import { useTempDirs } from './helpers/p00-temp-dir.ts'
+import { captureCli as capture } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs('am-cli-err-')
 const tmp = (content: string): string => temp.file('input.mmd', content)

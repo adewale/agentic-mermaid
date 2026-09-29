@@ -115,17 +115,24 @@ function translucentConnectors(scene: SceneDoc): TranslucentConnector[] {
   return out
 }
 
-function expectCompositedVisible(mark: TranslucentConnector, bg: string, where: string): void {
+/** Checks every concrete stroke color of `mark` against an opaque page and
+ *  returns how many comparisons it actually made: a non-opaque or unparseable
+ *  page, or a non-concrete (e.g. `var(--…)`) stroke, is skipped, so callers
+ *  that expect coverage must assert the count. */
+function expectCompositedVisible(mark: TranslucentConnector, bg: string, where: string): number {
   const bgRgba = tryParseCssColor(bg)
-  if (!bgRgba || bgRgba[3] !== 1) return
+  if (!bgRgba || bgRgba[3] !== 1) return 0
   const bgHex = toHex(bgRgba[0], bgRgba[1], bgRgba[2])
+  let evaluated = 0
   for (const color of mark.colors) {
     const strokeHex = concreteHex(color)
     if (!strokeHex) continue
     const blended = mark.mixBlendMode === 'multiply' ? multiplyHex(strokeHex, bgHex) : strokeHex
     const effective = mixHex(blended, bgHex, mark.opacity * 100)
     expect({ where, mark: mark.id, color, wcagOk: wcagContrastRatio(effective, bgHex)! >= 1.25, apcaOk: apcaContrast(effective, bgHex)! >= 15 }).toEqual({ where, mark: mark.id, color, wcagOk: true, apcaOk: true })
+    evaluated++
   }
+  return evaluated
 }
 
 function multiplyHex(foreground: string, background: string): string {
@@ -146,10 +153,14 @@ describe('scene effective-paint contract (translucent connectors)', () => {
   })
 
   test('the gate is not vacuous: the sankey census scene carries translucent connectors', () => {
-    const { scene } = lowerScene('sankey', SECTION_B_FAMILY_CENSUS_FIXTURES.sankey!)
+    const { scene, bg } = lowerScene('sankey', SECTION_B_FAMILY_CENSUS_FIXTURES.sankey!)
     const marks = translucentConnectors(scene)
     expect(marks.length).toBeGreaterThanOrEqual(4)
     expect(marks.every(mark => mark.colors.length === 5)).toBe(true)
+    // Every sampled color is concrete and composited against an opaque page;
+    // none is silently skipped (e.g. a stroke that became `var(--…)`).
+    const evaluated = marks.reduce((sum, mark) => sum + expectCompositedVisible(mark, bg, 'sankey (default theme)'), 0)
+    expect(evaluated).toBe(marks.length * 5)
   })
 
   test('sankey dark-page ribbons use normal compositing because multiply cannot brighten a dark backdrop', () => {
@@ -157,7 +168,8 @@ describe('scene effective-paint contract (translucent connectors)', () => {
     const marks = translucentConnectors(scene)
     expect(marks.length).toBeGreaterThanOrEqual(4)
     expect(marks.every(mark => mark.mixBlendMode === 'normal')).toBe(true)
-    for (const mark of marks) expectCompositedVisible(mark, bg, 'sankey (dark theme)')
+    const evaluated = marks.reduce((sum, mark) => sum + expectCompositedVisible(mark, bg, 'sankey (dark theme)'), 0)
+    expect(evaluated).toBe(marks.length * 5)
   })
 
   test('sankey local gradient references are declared and dangling references fail validation', () => {

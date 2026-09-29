@@ -954,7 +954,14 @@ describe('Workers Static Assets website contract', () => {
         .toBe(removeWebsiteExampleAccessibleName(editorSvg))
 
       const catalogEntry = basic ?? catalog.richExamples.find((entry: any) => entry.id === id)
-      if (catalogEntry) expect(catalogEntry.editorUrl, `${id}: HTML/JSON Editor URL parity`).toBe(href)
+      // The per-family Style + Palette cards are the only articles the JSON
+      // catalog does not list; every other card must be there, with its URL.
+      if (id.startsWith('style-palette-')) {
+        expect(catalogEntry, `${id}: style-palette cards are not in the JSON catalog`).toBeUndefined()
+        continue
+      }
+      expect(catalogEntry, `${id}: listed in the JSON catalog`).toBeDefined()
+      expect(catalogEntry.editorUrl, `${id}: HTML/JSON Editor URL parity`).toBe(href)
     }
   })
 
@@ -993,9 +1000,9 @@ describe('Workers Static Assets website contract', () => {
     const examplesCss = index.match(/<link rel="stylesheet" href="\/(examples-[a-f0-9]{12}\.css)">/)?.[1]
     expect(examplesCss).toBeDefined()
     expect(examplesCss).toContain(createHash('sha256').update(read(examplesCss!)).digest('hex').slice(0, 12))
-    for (const contract of ['data-example-state', 'Retry loading examples', 'response.status !== 200', "essence !== 'text/html'", 'fragment must have exactly one root', 'inFlight.delete(section)', 'location.assign(link.href)']) {
-      expect(loaderSource, contract).toContain(contract)
-    }
+    // The loader's behaviour (status/content-type/root validation, retry,
+    // de-duplicated requests, navigation fallback) is exercised in a real
+    // browser by website-browser-a11y.test.ts, not by grepping its source.
     expect(read('_redirects')).toContain('/examples/style-palette /examples/style-palette/ 308')
     expect(read('_redirects')).toContain('/examples/corpus /examples/corpus/ 308')
     expect(read('sitemap.xml')).toContain('<loc>https://agentic-mermaid.dev/examples/style-palette/</loc>')
@@ -1200,7 +1207,7 @@ describe('Workers Static Assets website contract', () => {
     const mermaidRuntime = files().filter((f) => /^vendor\/mermaid-[a-f0-9]{12}\.min\.js$/.test(f))
     const comparisonScriptRel = comparisons.match(/<script src="\/(generated\/inline-[a-f0-9]{12}\.js)"><\/script>/)?.[1]
     expect(comparisonScriptRel).toBeDefined()
-    const comparisonScript = read(comparisonScriptRel!)
+    expect(read(comparisonScriptRel!).length, 'comparison script ships').toBeGreaterThan(0)
     expect(mermaidRuntime.length).toBe(1)
     expect(comparisons).toContain(`data-mermaid-runtime="/${mermaidRuntime[0]}"`)
     expect(comparisons.match(/class="comparison-case(?: |")/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
@@ -1230,35 +1237,11 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisons).toContain('edit typed source, verify it, then pass style and palette render options')
     expect(comparisons.indexOf('id="comparison-style-matrix-title"')).toBeGreaterThan(comparisons.lastIndexOf('id="gitgraph"'))
     expect(comparisons).not.toContain('>Focus view</button>')
-    expect(comparisonScript).toContain('lightboxOpenLabel')
     expect(comparisons).toContain('data-comparison-dialog')
-    expect(comparisonScript).toContain('comparison-detail-controls')
-    expect(comparisonScript).toContain('comparison-pair-control')
-    expect(comparisonScript).toContain('comparison-zoom-control')
-    expect(comparisonScript).toContain('comparison-source-tools')
-    expect(comparisonScript).toContain('data-comparison-source-editor')
-    expect(comparisonScript).toContain('data-comparison-pair')
-    expect(comparisonScript).toContain('data-comparison-zoom')
-    expect(comparisonScript).toContain('data-zoom-step')
-    expect(comparisonScript).toContain('data-zoom-reset')
-    expect(comparisonScript).toContain('fitWidthForPanel')
-    expect(comparisonScript).toContain('shortLandscape')
-    expect(comparisonScript).toContain('editorHrefForSection')
-    expect(comparisonScript).toContain('updateSourceControls')
-    expect(comparisonScript).toContain('openComparison')
-    expect(comparisonScript).toContain('setLightboxTriggers')
-    expect(comparisonScript).toContain('data-comparison-open')
     expect(comparisons).toContain('Open larger comparison')
-    expect(comparisonScript).toContain("button.addEventListener('click'")
-    expect(comparisonScript).toContain("group.addEventListener('click'")
-    expect(comparisonScript).toContain("group.addEventListener('keydown'")
-    expect(comparisonScript).toContain("value: 'agentic-mermaid'")
-    expect(comparisonScript).toContain("value: 'agentic-beautiful'")
-    expect(comparisonScript).toContain("value: 'mermaid-beautiful'")
-    expect(comparisonScript).toContain("role: 'tab'")
-    expect(comparisonScript).toContain("'data-detail-tab': 'compare'")
-    expect(comparisonScript).toContain("'data-detail-tab': 'first'")
-    expect(comparisonScript).toContain("'data-detail-tab': 'second'")
+    // The lightbox's pair/view/zoom controls, source link and keyboard opening
+    // are exercised in a real browser (website-browser-a11y.test.ts), not by
+    // grepping the bundled script for its private identifiers.
     for (const { id } of BUILTIN_FAMILY_METADATA) {
       expect(comparisons).toContain(`id="${id}"`)
       expect(comparisons).toContain(`id="comparison-mermaid-${id}"`)
@@ -1293,12 +1276,8 @@ describe('Workers Static Assets website contract', () => {
       expect(section).toContain('comparison-note')
     }
     expect(comparisons).toContain('Beautiful Mermaid does not render this family')
-    expect(comparisonScript).toContain('loadMermaidRuntime')
-    // Panels render one at a time as they near the viewport (IntersectionObserver
-    // + sequential yield), never as one whole-page synchronous batch.
-    expect(comparisonScript).toContain('mermaid.run({ nodes: [panel] })')
-    expect(comparisonScript).toContain('IntersectionObserver')
-    expect(comparisonScript).not.toContain("mermaid.run({ querySelector: '.comparison-mermaid' })")
+    // Lazy, per-panel Mermaid rendering is asserted in the browser lane
+    // (website-browser-a11y.test.ts: few panels processed at load, all after a walk).
     expect(comparisons).not.toContain('comparison-empty')
     expect(comparisons).not.toContain('fonts.googleapis.com')
     expect(comparisons).not.toContain('@import url(')

@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { costRelativeToLinearScan } from './helpers/complexity.ts'
 
 const source = `sequenceDiagram
   participant Alice
@@ -60,9 +61,12 @@ test('native and agent retain sender-spaced central messages and exactly two act
 })
 
 test('spaced central-start parsing stays bounded on malformed long tails', () => {
-  const started = performance.now()
-  expect(parseSequenceMessageLine(`Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`)).toBeNull()
-  expect(performance.now() - started).toBeLessThan(500)
+  const line = `Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`
+  expect(parseSequenceMessageLine(line)).toBeNull()
+  // Linear rejection costs a few plain scans of the line (3.5-7.5x measured,
+  // idle and under load); backtracking over either space run costs tens of
+  // thousands.
+  expect(costRelativeToLinearScan(line, () => parseSequenceMessageLine(line))).toBeLessThan(100)
 })
 
 test('sender-spaced central fallback does not accept forms Mermaid rejects', () => {

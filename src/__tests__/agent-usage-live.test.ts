@@ -6,7 +6,7 @@ import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScri
 import { AGENT_USAGE_SUPPORTED_FAMILIES } from '../../eval/agent-usage/render-quality.ts'
 import { checkAgentUsageTaskSource, DEFAULT_CASES, FULL_EVAL_CASES } from '../../eval/agent-usage/run.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
-import { useTempDirs } from './helpers/p00-temp-dir.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs()
 

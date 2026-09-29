@@ -76,7 +76,9 @@ describe('forward-compatible unregistered family envelopes', () => {
     ] as const) {
       const result = parseRegisteredMermaid(source)
       expect(result.ok).toBe(true)
-      if (!result.ok || result.value.body.kind !== 'preserved') continue
+      if (!result.ok) continue
+      expect(result.value.body.kind).toBe('preserved')
+      if (result.value.body.kind !== 'preserved') continue
       const { spans } = result.value.body
       expect(spans.header.start.offset).toBe(expectedHeaderStart)
       expect(source.slice(spans.header.start.offset, spans.header.end.offset)).toBe('futureDiagram-v99')
@@ -141,7 +143,9 @@ describe('forward-compatible unregistered family envelopes', () => {
     for (const fixture of fixtures) {
       const parsed = parseRegisteredMermaid(fixture.source)
       expect(parsed.ok).toBe(true)
-      if (!parsed.ok || parsed.value.body.kind !== 'preserved') continue
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('preserved')
+      if (parsed.value.body.kind !== 'preserved') continue
       expect(parsed.value.body.preservation.header).toBe(fixture.semanticHeader)
       const span = parsed.value.body.spans.header
       expect(fixture.source.slice(span.start.offset, span.end.offset)).toBe(fixture.authoredHeader)

@@ -104,7 +104,9 @@ radar-beta
     expect(svg).toContain('.radar-axis-line { stroke: #111111; stroke-width: 2.5; }')
     expect(svg).toContain('.radar-axis-label { fill: #111111; }')
     expect(svg).toContain('.radar-ring { stroke: #222222; stroke-width: 1.5; stroke-opacity: 0.4;')
-    expect(svg).toContain('.radar-ring-outer { stroke-width: 2.0999999999999996; stroke-opacity: 0.4; }')
+    // The emphasized outer ring is 1.4x the configured 1.5, printed as 2.1
+    // (not the raw float product 2.0999999999999996).
+    expect(svg).toContain('.radar-ring-outer { stroke-width: 2.1; stroke-opacity: 0.4; }')
     expect(svg).toContain('.radar-area { stroke-width: 3; fill-opacity: 0.3;')
     expect(svg).toContain('font-size="14"')
     expect(svg).toContain('width="16" height="16"')

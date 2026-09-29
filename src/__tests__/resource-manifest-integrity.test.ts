@@ -81,6 +81,14 @@ function expectCode(run: () => unknown, code: ResourceResolutionError['code']): 
   }
 }
 
+/** A working `node` (NODE_BINARY wins), or undefined when none is installed. */
+const NODE = (() => {
+  for (const candidate of [process.env.NODE_BINARY, 'node'].filter((value): value is string => Boolean(value))) {
+    try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
+  }
+  return undefined
+})()
+
 describe('content-addressed installed resource manifest', () => {
   test('uses descriptor canonicalization only on platforms that expose a descriptor path', () => {
     expect(openedResourceDescriptorPath('linux', 7)).toBe('/proc/self/fd/7')
@@ -107,14 +115,10 @@ describe('content-addressed installed resource manifest', () => {
     }
   })
 
-  test('plain Node verifies shipped resources when /dev/fd realpath is not canonical', async () => {
-    const node = (() => {
-      for (const candidate of [process.env.NODE_BINARY, 'node'].filter((value): value is string => Boolean(value))) {
-        try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
-      }
-      return undefined
-    })()
-    if (!node) return
+  // Needs a real Node binary; a runner without one reports this as skipped
+  // rather than passing with no assertions.
+  test.skipIf(!NODE)('plain Node verifies shipped resources when /dev/fd realpath is not canonical', async () => {
+    const node = NODE!
 
     // Bundle the resolver itself so this regression exercises plain Node, not
     // Bun's macOS /dev/fd canonicalization and not a possibly stale dist/ tree.

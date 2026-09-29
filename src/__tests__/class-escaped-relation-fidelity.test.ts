@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { parseClassDiagram, parseClassRelationship } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 const cases = [
   { statement: '`A B` --> C', from: 'A B', to: 'C', kind: 'association', lineType: 0, type1: 'none', type2: 3 },

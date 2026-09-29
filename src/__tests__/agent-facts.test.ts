@@ -6,7 +6,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { describeMermaidFacts, describeMermaidFactsSource, checkMermaid } from '../agent/facts.ts'
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { captureCli as capture } from './helpers/p00-cli-capture.ts'
+import { captureCli as capture } from './helpers/cli-capture.ts'
 
 function facts(source: string): string[] {
   const parsed = parseMermaid(source)

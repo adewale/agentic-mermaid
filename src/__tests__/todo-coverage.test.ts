@@ -1,3 +1,6 @@
+// Cross-family smoke checks first written to close items on an old TODO list
+// (hence the file name). The describe names state the behaviour; the
+// per-family integration suites own the detailed contracts.
 import { describe, expect, it } from 'bun:test'
 
 import { renderMermaidSVG } from '../index.ts'
@@ -24,7 +27,7 @@ const themeCases = [
   ['er', `erDiagram\n  CUSTOMER ||--o{ ORDER : places`, 'class="entity"'],
 ] as const
 
-describe('TODO coverage – theme rendering across diagram families', () => {
+describe('enriched light and dark palettes render across diagram families', () => {
   for (const [name, source, marker] of themeCases) {
     it(`${name} renders with light and dark enriched palettes`, () => {
       for (const theme of [githubLight, githubDark]) {
@@ -38,7 +41,7 @@ describe('TODO coverage – theme rendering across diagram families', () => {
   }
 })
 
-describe('TODO coverage – SVG structural snapshots', () => {
+describe('semantic SVG markers per family', () => {
   it('timeline and xychart emit stable semantic SVG markers', () => {
     expect(renderMermaidSVG(themeCases[0][1])).toContain('class="timeline-period"')
     expect(renderMermaidSVG(themeCases[1][1])).toContain('data-xychart-colors')
@@ -52,7 +55,7 @@ describe('TODO coverage – SVG structural snapshots', () => {
   })
 })
 
-describe('TODO coverage – sequence renderer and ASCII regressions', () => {
+describe('sequence renderer and ASCII output', () => {
   it('renders semantic sequence SVG components directly', () => {
     const parsed = parseSequenceDiagram(['sequenceDiagram', 'participant A as Alice', 'participant B as Bob', 'A->>B: Hello'])
     const positioned = layoutSequenceDiagram(parsed)
@@ -74,7 +77,7 @@ describe('TODO coverage – sequence renderer and ASCII regressions', () => {
   })
 })
 
-describe('TODO coverage – class and ER layout/renderer units', () => {
+describe('class and ER layout and renderer units', () => {
   it('lays out class nodes and relationships with finite positive dimensions', () => {
     const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'Animal <|-- Dog', 'class Animal', 'class Dog']))
     expect(positioned.classes).toHaveLength(2)
@@ -121,7 +124,7 @@ describe('TODO coverage – class and ER layout/renderer units', () => {
   })
 })
 
-describe('TODO coverage – accessibility for sequence, class, and ER', () => {
+describe('accessibility metadata for sequence, class, and ER', () => {
   it('routes sequence accTitle and accDescr into SVG accessibility metadata', () => {
     const svg = renderMermaidSVG(`sequenceDiagram
       accTitle: Auth exchange

@@ -14,7 +14,7 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asJourney } from '../agent/types.ts'
 import { hasJourneyStatementDelimiter } from '../journey/parse-core.ts'
-import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
 function rendererParse(text: string) {
   return parseJourneyDiagram(preprocessMermaidLines(text))

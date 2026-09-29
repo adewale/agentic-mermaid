@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BOOLEAN_FLAGS, COMMAND_FLAGS, COMMAND_POSITIONALS, FLAG_SPECS, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
 import { parseFlagsBlock, booleanFlagReads } from './helpers/cli-flag-parsing.ts'
-import { captureCli } from './helpers/p00-cli-capture.ts'
+import { captureCli } from './helpers/cli-capture.ts'
 
 /** runCli with stdout and stderr captured together (diagnostics go to either). */
 function capture(argv: string[]): { code: number; output: string } {

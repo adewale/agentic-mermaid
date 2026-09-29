@@ -11,7 +11,7 @@ import { runCli } from '../cli/index.ts'
 import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
-import { captureCli as capture } from './helpers/p00-cli-capture.ts'
+import { captureCli as capture } from './helpers/cli-capture.ts'
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {

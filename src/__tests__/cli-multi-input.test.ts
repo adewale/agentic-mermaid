@@ -5,8 +5,8 @@ import { mkdtempSync, readFileSync, renameSync, rmSync, watch as fsWatch, writeF
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
-import { captureCli as capture } from './helpers/p00-cli-capture.ts'
-import { useTempDirs } from './helpers/p00-temp-dir.ts'
+import { captureCli as capture } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs('am-multi-input-')
 const tmp = (content: string): string => temp.file('input.mmd', content)

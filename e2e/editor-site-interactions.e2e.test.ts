@@ -144,7 +144,11 @@ describe('editor and site interactions in a real browser', () => {
   }, 60_000)
 
   test('Cmd/Ctrl+C in the source is the browser copy, never an app-level SVG copy', async () => {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    // A fake clock (flowing naturally until runFor) lets the test advance the
+    // page's timers by an exact interval instead of sleeping on the runner.
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    await context.clock.install()
+    const page = await context.newPage()
     await page.addInitScript(() => {
       const writes: string[] = []
       ;(window as any).__appClipboardWrites = writes
@@ -163,14 +167,14 @@ describe('editor and site interactions in a real browser', () => {
     await page.keyboard.press('ControlOrMeta+A')
     for (const chord of ['Control+c', 'Meta+c', 'Control+Shift+c']) await page.keyboard.press(chord)
     // Any app handler would have written synchronously and toasted within one
-    // toast replacement interval; allow that interval to elapse in-page.
-    await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 250)))
+    // toast replacement interval; fire every page timer due in that interval.
+    await context.clock.runFor(250)
     const observed = await page.evaluate(() => ({
       writes: (window as any).__appClipboardWrites as string[],
       copyToasts: ((window as any).__toasts as string[]).filter(message => /cop(?:y|ied)/i.test(message)),
     }))
     expect(observed).toEqual({ writes: [], copyToasts: [] })
-    await page.close()
+    await context.close()
   }, 60_000)
 
   test('copy feedback keeps the homepage copy button width while its label changes', async () => {

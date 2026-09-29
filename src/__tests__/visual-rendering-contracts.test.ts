@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'bun:test'
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
+import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.ts'
 import {
   bluePixel,
   colorPixelBox,
+  colorPixelBoxInRaster,
   colorPixelCount,
+  colorPixelCountInRaster,
   hexPixel,
   nonWhitePixel,
+  renderSvgPixels,
 } from './helpers/raster.ts'
-
-const visualSnapshotDir = join(import.meta.dir, '..', '..', 'docs', 'layout-characterization', 'visual-snapshots')
-const visualSnapshotFiles = readdirSync(visualSnapshotDir).filter(file => file.endsWith('.svg')).sort()
 
 describe('visual rendering contracts', () => {
   it('renders linkStyle stroke color and width as visible pixels, not just SVG attributes', () => {
@@ -64,13 +63,17 @@ describe('visual rendering contracts', () => {
     expect(colorPixelCount(svg, hexPixel('#050505')), 'architecture group border pixels').toBeGreaterThan(100)
   })
 
-  for (const file of visualSnapshotFiles) {
-    it(`rasterizes ${file} into a nonblank inspectable surface`, () => {
-      const svg = readFileSync(join(visualSnapshotDir, file), 'utf8')
-      const visible = colorPixelBox(svg, nonWhitePixel)
-      expect(visible.width, `${file} visible width`).toBeGreaterThan(16)
-      expect(visible.height, `${file} visible height`).toBeGreaterThan(16)
-      expect(colorPixelCount(svg, nonWhitePixel), `${file} visible pixels`).toBeGreaterThan(100)
+  // The current render of every registered family's example, not a committed
+  // snapshot: a regression that blanks a family must fail here.
+  for (const family of knownBuiltinFamilies()) {
+    const example = builtinFamilyMetadata(family)?.example
+    it(`rasterizes the ${family} example into a nonblank inspectable surface`, () => {
+      expect(example, `${family} registers an example`).toBeDefined()
+      const raster = renderSvgPixels(renderMermaidSVG(example!, { embedFontImport: false }))
+      const visible = colorPixelBoxInRaster(raster, nonWhitePixel)
+      expect(visible.width, `${family} visible width`).toBeGreaterThan(16)
+      expect(visible.height, `${family} visible height`).toBeGreaterThan(16)
+      expect(colorPixelCountInRaster(raster, nonWhitePixel), `${family} visible pixels`).toBeGreaterThan(100)
     })
   }
 })

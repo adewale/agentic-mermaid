@@ -169,9 +169,8 @@ describe('property-based mermaid source normalization', () => {
 describe('property-based parseMermaid', () => {
   // Pinned seed: unpinned runs made these properties CI seed-lotteries (the
   // Cartesian-product property above failed only on rare rolled seeds; 2026-07
-  // audit). Pin at each assertion instead of mutating process-global state, so
-  // the guarantee remains valid when this file and the policy epilogue land in
-  // different Bun shards.
+  // audit). Pin at each assertion instead of mutating process-global state, as
+  // fc-seed-policy.test.ts requires.
   const PARSER_PROPERTY_SEED = 20260702
 
   it('is invariant to blank lines, comments, and surrounding whitespace', () => {

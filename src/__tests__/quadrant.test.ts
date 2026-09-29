@@ -175,16 +175,6 @@ describe('quadrant geometry', () => {
   const midY = plot.y + plot.size / 2
   const byLabel = (l: string) => positioned.points.find(p => p.label === l)!
 
-  it('point [0.9, 0.9] lands in quadrant 1 (top-right) region', () => {
-    const p = layoutQuadrantChart(parse('quadrantChart\n  P: [0.9, 0.9]')).points[0]!
-    // top-right: cx beyond center-x, cy above center-y (smaller pixel y).
-    expect(p.cx).toBeGreaterThan(midX)
-    expect(p.cy).toBeLessThan(midY)
-    // and inside the plot bounds
-    expect(p.cx).toBeLessThanOrEqual(plot.x + plot.size)
-    expect(p.cy).toBeGreaterThanOrEqual(plot.y)
-  })
-
   it('Q1 (top-right): cx > midX and cy < midY', () => {
     const p = byLabel('Q1')
     expect(p.cx).toBeGreaterThan(midX)
@@ -289,10 +279,6 @@ describe('quadrant SVG integration', () => {
     expect(svg).toContain('Campaign A')
     expect(svg).toContain('Campaign B')
     expect(renderMermaidASCII(styled)).toContain('Campaign C')
-  })
-
-  it('is deterministic — two renders are byte-identical', () => {
-    expect(renderMermaidSVG(CLASSIC)).toBe(renderMermaidSVG(CLASSIC))
   })
 
   it('has no nondeterminism across many renders', () => {

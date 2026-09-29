@@ -101,6 +101,34 @@ async function gotoApp(url: string, options: { clearDraft?: boolean } = {}): Pro
   }
 }
 
+/**
+ * Run `body` in its own BrowserContext with Playwright's fake clock installed,
+ * then restore the shared context. The clock belongs to the context, so
+ * installing it on the shared one would leak fake time into every later test.
+ * It flows naturally until `pausePageClock`.
+ */
+async function withFakeClock(body: () => Promise<void>): Promise<void> {
+  const shared = { context, page, cdpSession }
+  context = await browser.newContext({ viewport: page.viewportSize() })
+  await context.clock.install()
+  try {
+    await body()
+  } finally {
+    await context.close().catch(() => {})
+    ;({ context, page, cdpSession } = shared)
+  }
+}
+
+/** Freeze the fake clock so timing-sensitive UI (toast dismissal, momentum
+ *  coast) advances only by explicit `page.clock.runFor`, independent of runner
+ *  load. The clock keeps running while the target is computed, so it pauses
+ *  one second ahead (never in the past); call it only while nothing
+ *  timing-sensitive is in flight, and `page.clock.resume()` before loading a
+ *  page that must render. */
+async function pausePageClock(): Promise<void> {
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000))
+}
+
 function editorHash(source: string, config = ROUNDED_FILL_CONFIG, palette = 'salmon'): string {
   return 'deflate:' + deflateRawSync(Buffer.from(JSON.stringify({ source, palette, config }), 'utf8')).toString('base64url')
 }
@@ -488,111 +516,133 @@ pie showData
   }, 60_000)
 
   it('retargets preview zoom and pauses a focused toast without blocking its eventual dismissal', async () => {
-    await gotoApp(`${BASE}/editor`)
-    await page.waitForSelector('#code-editor', { timeout: 30_000 })
-    await waitForEditorRender(60_000)
-
-    await page.click('#zoom-label')
-    await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '100%', undefined, { timeout: 10_000 })
-    await page.click('#zoom-in-btn')
-    await page.click('#zoom-in-btn')
-    await page.click('#zoom-in-btn')
-    await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '195%', undefined, { timeout: 10_000 })
-
-    await page.click('#pan-btn')
-    await page.evaluate(() => {
-      const body = document.getElementById('preview-body')!
-      const pointer = (type: string, pointerId: number, clientX: number, clientY: number) => body.dispatchEvent(new PointerEvent(type, {
-        bubbles: true, cancelable: true, pointerId, pointerType: 'touch', clientX, clientY,
-      }))
-      pointer('pointerdown', 1, 120, 160)
-      pointer('pointerdown', 2, 220, 160)
-      pointer('pointermove', 2, 300, 160)
-      pointer('pointerup', 2, 300, 160)
-      pointer('pointerup', 1, 120, 160)
-    })
-    await page.waitForFunction(() => Number.parseInt(document.getElementById('zoom-label')?.textContent || '0', 10) > 195, undefined, { timeout: 10_000 })
-
-    // The generated editor runs from a local HTTP origin, so clipboard access
-    // intentionally fails and exercises the same user-visible toast path.
-    await page.click('#copy-text-output-btn')
-    await page.locator('#toast.show').waitFor({ state: 'visible', timeout: 10_000 })
-    await page.locator('#toast').focus()
-    // Programmatic activation preserves focus on the status node, exercising
-    // replacement while a reader is still holding the pause.
-    await page.evaluate(() => (document.getElementById('copy-text-output-btn') as HTMLButtonElement).click())
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    await new Promise((resolve) => setTimeout(resolve, 2600))
-    expect(await page.locator('#toast').evaluate((el) => el.classList.contains('show'))).toBe(true)
-    await page.locator('#zoom-label').focus()
-    await page.waitForFunction(() => !document.getElementById('toast')?.classList.contains('show'), undefined, { timeout: 4_000 })
-
-    await page.click('#export-chevron-btn')
-    await page.keyboard.press('Escape')
-    expect(await page.locator('#export-dropdown').evaluate((el) => ({ inert: (el as HTMLElement).inert, closing: el.classList.contains('closing') }))).toEqual({ inert: true, closing: true })
-    await page.waitForFunction(() => !document.getElementById('export-dropdown')?.classList.contains('closing'), undefined, { timeout: 1_000 })
-  }, 60_000)
-
-  it('lets an ordinary pointer grab preview momentum and suppresses coast under reduced motion', async () => {
-    async function preparePannablePreview() {
+    await withFakeClock(async () => {
       await gotoApp(`${BASE}/editor`)
       await page.waitForSelector('#code-editor', { timeout: 30_000 })
       await waitForEditorRender(60_000)
+
       await page.click('#zoom-label')
       await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '100%', undefined, { timeout: 10_000 })
-      for (let i = 0; i < 6; i++) await page.click('#zoom-in-btn')
-      await page.waitForFunction(() => Number.parseInt(document.getElementById('zoom-label')?.textContent || '0', 10) >= 380, undefined, { timeout: 10_000 })
+      await page.click('#zoom-in-btn')
+      await page.click('#zoom-in-btn')
+      await page.click('#zoom-in-btn')
+      await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '195%', undefined, { timeout: 10_000 })
+
       await page.click('#pan-btn')
-    }
-    async function flingLeft(stationaryBeforeReleaseMs = 0) {
-      const box = await page.locator('#preview-body').boundingBox()
-      expect(box).not.toBeNull()
-      const x = box!.x + box!.width * 0.6
-      const y = box!.y + box!.height * 0.5
-      await page.mouse.move(x, y)
-      await page.mouse.down()
-      await new Promise((resolve) => setTimeout(resolve, 24))
-      await page.mouse.move(x - 140, y)
-      if (stationaryBeforeReleaseMs) await new Promise((resolve) => setTimeout(resolve, stationaryBeforeReleaseMs))
-      await page.mouse.up()
-    }
+      await page.evaluate(() => {
+        const body = document.getElementById('preview-body')!
+        const pointer = (type: string, pointerId: number, clientX: number, clientY: number) => body.dispatchEvent(new PointerEvent(type, {
+          bubbles: true, cancelable: true, pointerId, pointerType: 'touch', clientX, clientY,
+        }))
+        pointer('pointerdown', 1, 120, 160)
+        pointer('pointerdown', 2, 220, 160)
+        pointer('pointermove', 2, 300, 160)
+        pointer('pointerup', 2, 300, 160)
+        pointer('pointerup', 1, 120, 160)
+      })
+      await page.waitForFunction(() => Number.parseInt(document.getElementById('zoom-label')?.textContent || '0', 10) > 195, undefined, { timeout: 10_000 })
 
-    await preparePannablePreview()
-    await flingLeft()
-    await new Promise((resolve) => setTimeout(resolve, 40))
-    const beforeGrab = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
-    await new Promise((resolve) => setTimeout(resolve, 120))
-    expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBeGreaterThan(beforeGrab)
-    // A release after a deliberate stationary hold must not reuse old drag velocity.
-    await preparePannablePreview()
-    await flingLeft(150)
-    const afterStationaryRelease = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
-    await new Promise((resolve) => setTimeout(resolve, 160))
-    expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBe(afterStationaryRelease)
+      // From here the toast's timers run on the paused fake clock: the 80 ms
+      // replacement and the 2500 ms dismissal fire only when the test says so.
+      await pausePageClock()
+      // The generated editor runs from a local HTTP origin, so clipboard access
+      // intentionally fails and exercises the same user-visible toast path.
+      await page.click('#copy-text-output-btn')
+      await page.locator('#toast.show').waitFor({ state: 'visible', timeout: 10_000 })
+      await page.locator('#toast').focus()
+      // Programmatic activation preserves focus on the status node, exercising
+      // replacement while a reader is still holding the pause.
+      await page.evaluate(() => (document.getElementById('copy-text-output-btn') as HTMLButtonElement).click())
+      await page.clock.runFor(150)
+      expect(await page.locator('#toast').evaluate((el) => ({ show: el.classList.contains('show'), replacing: el.classList.contains('replacing') })))
+        .toEqual({ show: true, replacing: false })
+      // Well past the 2500 ms duration, the focused toast is still paused on screen.
+      await page.clock.runFor(2600)
+      expect(await page.locator('#toast').evaluate((el) => el.classList.contains('show'))).toBe(true)
+      // Moving focus away resumes it, and it dismisses after its remaining time.
+      await page.locator('#zoom-label').focus()
+      await page.clock.runFor(2600)
+      expect(await page.locator('#toast').evaluate((el) => el.classList.contains('show'))).toBe(false)
+      await page.clock.resume()
 
-    // Start a fresh coast and grab it promptly, before it can reach its scroll bound.
-    await preparePannablePreview()
-    await flingLeft()
-    await new Promise((resolve) => setTimeout(resolve, 16))
-    await page.click('#pan-btn')
-    const box = await page.locator('#preview-body').boundingBox()
-    await page.mouse.move(box!.x + box!.width * 0.6, box!.y + box!.height * 0.5)
-    await page.mouse.down()
-    await page.mouse.up()
-    const afterGrab = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
-    await new Promise((resolve) => setTimeout(resolve, 120))
-    expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBe(afterGrab)
+      await page.click('#export-chevron-btn')
+      await page.keyboard.press('Escape')
+      expect(await page.locator('#export-dropdown').evaluate((el) => ({ inert: (el as HTMLElement).inert, closing: el.classList.contains('closing') }))).toEqual({ inert: true, closing: true })
+      await page.waitForFunction(() => !document.getElementById('export-dropdown')?.classList.contains('closing'), undefined, { timeout: 1_000 })
+    })
+  }, 60_000)
 
-    try {
+  it('lets an ordinary pointer grab preview momentum and suppresses coast under reduced motion', async () => {
+    await withFakeClock(async () => {
+      // Each preview runs on a paused fake clock once it is ready: pointer
+      // samples read performance.now() and the coast runs on requestAnimationFrame,
+      // so velocity and coast distance depend only on the runFor steps below.
+      async function preparePannablePreview() {
+        await context.clock.resume() // the clock is per context: let the new page load and render
+        await gotoApp(`${BASE}/editor`)
+        await page.waitForSelector('#code-editor', { timeout: 30_000 })
+        await waitForEditorRender(60_000)
+        await page.click('#zoom-label')
+        await page.waitForFunction(() => document.getElementById('zoom-label')?.textContent === '100%', undefined, { timeout: 10_000 })
+        for (let i = 0; i < 6; i++) await page.click('#zoom-in-btn')
+        await page.waitForFunction(() => Number.parseInt(document.getElementById('zoom-label')?.textContent || '0', 10) >= 380, undefined, { timeout: 10_000 })
+        await page.click('#pan-btn')
+        await pausePageClock()
+      }
+      async function flingLeft(stationaryBeforeReleaseMs = 0) {
+        const box = await page.locator('#preview-body').boundingBox()
+        expect(box).not.toBeNull()
+        const x = box!.x + box!.width * 0.6
+        const y = box!.y + box!.height * 0.5
+        await page.mouse.move(x, y)
+        await page.mouse.down()
+        await page.clock.runFor(24)
+        await page.mouse.move(x - 140, y)
+        if (stationaryBeforeReleaseMs) await page.clock.runFor(stationaryBeforeReleaseMs)
+        await page.mouse.up()
+      }
+      const scrollLeft = () => page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
+
       await preparePannablePreview()
-      await page.emulateMedia({ reducedMotion: 'reduce' })
       await flingLeft()
-      const afterRelease = await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)
-      await new Promise((resolve) => setTimeout(resolve, 160))
-      expect(await page.locator('#preview-body').evaluate((el) => (el as HTMLElement).scrollLeft)).toBe(afterRelease)
-    } finally {
-      await page.emulateMedia({ reducedMotion: 'no-preference' })
-    }
+      await page.clock.runFor(40)
+      const beforeGrab = await scrollLeft()
+      await page.clock.runFor(120)
+      expect(await scrollLeft()).toBeGreaterThan(beforeGrab)
+      // A release after a deliberate stationary hold must not reuse old drag velocity.
+      await preparePannablePreview()
+      await flingLeft(150)
+      const afterStationaryRelease = await scrollLeft()
+      await page.clock.runFor(160)
+      expect(await scrollLeft()).toBe(afterStationaryRelease)
+
+      // Start a fresh coast and grab it promptly, before it can reach its scroll bound.
+      await preparePannablePreview()
+      await flingLeft()
+      await page.clock.runFor(16)
+      const coasting = await scrollLeft()
+      await page.clock.runFor(16)
+      expect(await scrollLeft()).toBeGreaterThan(coasting) // the coast is live when grabbed
+      await page.click('#pan-btn')
+      const box = await page.locator('#preview-body').boundingBox()
+      await page.mouse.move(box!.x + box!.width * 0.6, box!.y + box!.height * 0.5)
+      await page.mouse.down()
+      await page.mouse.up()
+      const afterGrab = await scrollLeft()
+      await page.clock.runFor(120)
+      expect(await scrollLeft()).toBe(afterGrab)
+
+      try {
+        await preparePannablePreview()
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        await flingLeft()
+        const afterRelease = await scrollLeft()
+        await page.clock.runFor(160)
+        expect(await scrollLeft()).toBe(afterRelease)
+      } finally {
+        await page.emulateMedia({ reducedMotion: 'no-preference' })
+      }
+    })
   }, 60_000)
 
   it('commits button zoom immediately under reduced motion', async () => {

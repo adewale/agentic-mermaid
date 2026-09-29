@@ -3,7 +3,7 @@ import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermai
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseClassAnnotationStatement, parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 // Mermaid 11.16 official syntax: classDiagram.html#annotations-on-classes.
 const sources = [

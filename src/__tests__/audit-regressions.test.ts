@@ -10,8 +10,8 @@ import { handleRequest as handleLocalRequest } from '../mcp/server.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 import { dependencyStartupMessage } from '../../bin/dependency-error.ts'
 import { createMcpHandler, type McpCache } from '../../website/src/mcp-handler.ts'
-import { captureCli } from './helpers/p00-cli-capture.ts'
-import { useTempDirs } from './helpers/p00-temp-dir.ts'
+import { captureCli } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs('am-audit-regressions-')
 

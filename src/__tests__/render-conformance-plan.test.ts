@@ -35,8 +35,8 @@ import {
 // tracks machine speed, so a cap sized to the fastest machine turns "this box
 // is slower than CI" into a red test — at 60s it fired on a machine completing
 // the portfolio in ~62s with every oracle passing. The ceiling that actually
-// matters, portfolio SIZE, is asserted directly by the corePlan.length bound
-// below and enforced by test-quality-lint.
+// matters, portfolio SIZE, is asserted directly by the corePlan.length and
+// mixedPlan.length bounds in "declares exact finite domains…" below.
 const RENDER_PORTFOLIO_TIMEOUT_MS = 240_000
 
 const corePlan = buildRenderConformancePlan()

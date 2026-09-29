@@ -3,7 +3,7 @@ import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
-import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 import { renderMermaidSVG } from '../index.ts'
 
 const diagnostic = 'TERMINAL_CONTROL_CHARACTERS_REPLACED'

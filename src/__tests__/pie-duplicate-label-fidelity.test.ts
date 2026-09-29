@@ -5,7 +5,7 @@ import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parsePieChart } from '../pie/parser.ts'
-import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
 const source = `pie showData
   "Alpha" : 10

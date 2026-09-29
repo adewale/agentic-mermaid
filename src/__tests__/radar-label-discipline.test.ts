@@ -32,6 +32,16 @@ function axisBox(a: PositionedRadarAxis): Box {
 function overlaps(A: Box, B: Box, tol = 0.5): boolean {
   return A.left < B.right - tol && B.left < A.right - tol && A.top < B.bottom - tol && B.top < A.bottom - tol
 }
+
+/** Every overlapping pair among `boxes`, as `{ pair: [i, j] }`, so a failure
+ *  names the colliding labels instead of reporting a bare `false`. */
+function overlappingPairs(boxes: readonly Box[]): Array<{ pair: [number, number] }> {
+  const out: Array<{ pair: [number, number] }> = []
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) if (overlaps(boxes[i]!, boxes[j]!)) out.push({ pair: [i, j] })
+  }
+  return out
+}
 function tickBox(t: PositionedRadarChart['tickLabels'][number]): Box {
   return { left: t.x - t.w / 2, right: t.x + t.w / 2, top: t.y - t.h / 2, bottom: t.y + t.h / 2 }
 }
@@ -68,11 +78,7 @@ describe('radar label discipline — reverse-flow lessons', () => {
     const dense = layout('radar-beta\n axis a, b, c, d\n curve x{1,2,3,4}\n ticks 64\n max 64', { tickLabels: true })
     expect(dense.tickLabels.length).toBeLessThan(64)
     expect(dense.tickLabels.at(-1)?.text).toBe('64')
-    for (let i = 0; i < dense.tickLabels.length; i++) {
-      for (let j = i + 1; j < dense.tickLabels.length; j++) {
-        expect(overlaps(tickBox(dense.tickLabels[i]!), tickBox(dense.tickLabels[j]!))).toBe(false)
-      }
-    }
+    expect(overlappingPairs(dense.tickLabels.map(tickBox))).toEqual([])
   })
 
   test('R6 — derived label ink is contrast-guarded without repainting authored color', () => {
@@ -147,13 +153,8 @@ ${DEMO}`
 
   test('R1 (de-collision) — no two axis-label boxes overlap, including the maximum axis count', () => {
     const maxAxes = `radar-beta\n${Array.from({ length: 256 }, (_v, i) => ` axis a${i}["Metric ${i}"]`).join('\n')}\n max 5`
-    for (const chart of [layout(DEMO), layout(DENSE), layout(maxAxes)]) {
-      const boxes = chart.axes.map(axisBox)
-      for (let i = 0; i < boxes.length; i++) {
-        for (let j = i + 1; j < boxes.length; j++) {
-          expect(overlaps(boxes[i]!, boxes[j]!)).toBe(false)
-        }
-      }
+    for (const [name, chart] of [['DEMO', layout(DEMO)], ['DENSE', layout(DENSE)], ['256 axes', layout(maxAxes)]] as const) {
+      expect({ chart: name, overlapping: overlappingPairs(chart.axes.map(axisBox)) }).toEqual({ chart: name, overlapping: [] })
     }
   })
 
@@ -207,9 +208,8 @@ radar-beta
         bottom: Math.max(item.y + item.swatchSize, item.textY + textHeight / 2),
       }
     }
-    for (let i = 1; i < sorted.length; i++) {
-      expect(overlaps(rowBox(sorted[i - 1]!), rowBox(sorted[i]!))).toBe(false)
-    }
+    const adjacentOverlaps = sorted.slice(1).flatMap((item, i) => overlaps(rowBox(sorted[i]!), rowBox(item)) ? [{ pair: [i, i + 1] }] : [])
+    expect(adjacentOverlaps).toEqual([])
   })
 
   test('grow-the-canvas — every axis-label box stays inside the canvas bounds', () => {

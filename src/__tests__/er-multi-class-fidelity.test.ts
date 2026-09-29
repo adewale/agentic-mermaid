@@ -4,7 +4,7 @@ import mermaid from 'mermaid'
 import { asEr, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/p01-growth.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
 const source = `erDiagram
   CUSTOMER ||--o{ ORDER : places

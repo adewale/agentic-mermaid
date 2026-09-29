@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { costRelativeToLinearScan } from './helpers/complexity.ts'
 
 const activationSource = `sequenceDiagram
   Alice-->>+Bob: Hello
@@ -98,9 +99,12 @@ test('spaced central connection retains its endpoint without inventing a partici
 })
 
 test('a long malformed whitespace tail is rejected without marker backtracking', () => {
-  const start = performance.now()
-  expect(parseSequenceMessageLine(`Alice->>${' '.repeat(64_000)}:missing`)).toBeNull()
-  expect(performance.now() - start).toBeLessThan(500)
+  const line = `Alice->>${' '.repeat(64_000)}:missing`
+  expect(parseSequenceMessageLine(line)).toBeNull()
+  // Linear rejection costs about one plain scan of the line (0.2-0.9x measured,
+  // idle and under load); marker backtracking over the 64K spaces costs
+  // tens of thousands of scans.
+  expect(costRelativeToLinearScan(line, () => parseSequenceMessageLine(line))).toBeLessThan(100)
 })
 
 test('the reviewed gallery source draws the activation, deactivation, and central messages', () => {

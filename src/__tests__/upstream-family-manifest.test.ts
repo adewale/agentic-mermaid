@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   BUILTIN_FAMILY_METADATA,
   detectRegisteredFamilyFromFirstLine,
@@ -421,7 +423,8 @@ describe('synthetic family registration', () => {
       expect(knownFamilies().slice(-1)).toEqual(['family:acme/future'])
       expect(renderMermaidSVG('futureDiagram\n  A -> B')).toContain('>future</text>')
       expect(renderMermaidASCII('futureDiagram\n  A -> B', { colorMode: 'none' })).toBe('future')
-      const cliFile = `/tmp/agentic-mermaid-extension-${Date.now()}.mmd`
+      const cliDir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-extension-'))
+      const cliFile = join(cliDir, 'future.mmd')
       writeFileSync(cliFile, 'futureDiagram\n  A -> B')
       const chunks: string[] = []
       const originalWrite = process.stdout.write
@@ -438,6 +441,7 @@ describe('synthetic family registration', () => {
         })
       } finally {
         process.stdout.write = originalWrite
+        rmSync(cliDir, { recursive: true, force: true })
       }
       expect(projectPositionedView(descriptor.id, { width: 80, height: 24 })).toEqual({
         version: 1,

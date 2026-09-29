@@ -235,14 +235,27 @@ esac
 describe('publish-mcp job: pinned publisher binary', () => {
   const install = step('publish-mcp', 'Install MCP Registry publisher')
 
-  function installWith(digest: string | undefined) {
+  // Built once and reused: tar embeds the file mtime (and gzip a timestamp),
+  // so two separately built archives differ whenever the builds straddle a
+  // second boundary, and "serve the archive whose digest we just took" flaked.
+  let servedArchive: Buffer | undefined
+  function servedArchiveBytes(): Buffer {
+    if (servedArchive) return servedArchive
     const dir = tempDir()
     const staging = join(dir, 'staging')
     mkdirSync(staging)
     writeFileSync(join(staging, 'mcp-publisher'), '#!/bin/sh\n')
     const archive = join(dir, 'served.tar.gz')
     expect(spawnSync('tar', ['--create', '--gzip', '--file', archive, '-C', staging, 'mcp-publisher']).status).toBe(0)
-    rmSync(staging, { recursive: true, force: true })
+    servedArchive = readFileSync(archive)
+    return servedArchive
+  }
+
+  function installWith(digest: string | undefined) {
+    const archiveBytes = servedArchiveBytes()
+    const dir = tempDir()
+    const archive = join(dir, 'served.tar.gz')
+    writeFileSync(archive, archiveBytes)
     stub(dir, 'curl', `output=
 url=
 while [ "$#" -gt 0 ]; do

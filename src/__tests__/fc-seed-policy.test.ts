@@ -32,8 +32,8 @@ describe('fast-check seed policy (preload)', () => {
   })
 
   test('suite-specific regression seeds use per-assert options', () => {
-    // Shards are separate processes, so a cross-file epilogue cannot detect a
-    // global reset in another shard. Keep process-global configuration owned
+    // Test files run in separate processes, so no test can detect a global
+    // reset in another file at runtime. Keep process-global configuration owned
     // by the preload; every regression seed elsewhere must be supplied to
     // fc.assert instead.
     const offenders = testFilesUnder(import.meta.dir)

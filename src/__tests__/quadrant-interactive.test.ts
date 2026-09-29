@@ -36,10 +36,10 @@ describe('quadrant interactive tooltips', () => {
     expect(renderMermaidSVG(SRC, { interactive: true })).toBe(renderMermaidSVG(SRC, { interactive: true }))
   })
 
-  it('the shared primitive produces the exact markup xychart historically shipped', () => {
-    // Byte-parity pin for the extraction: prefix "xychart" must reproduce the
-    // legacy strings (class names, geometry, baseline shift) exactly, so the
-    // xychart renderer keeps its committed interactive markup.
+  it('the shared primitive keeps xychart\'s tooltip class names and hover selectors', () => {
+    // Fragment checks, not byte parity: prefix "xychart" must reproduce the
+    // legacy class names and hover selectors the xychart renderer shipped
+    // before the extraction. Geometry is not pinned here.
     const tip = tooltipMarkup('xychart', 100, 50, '42')
     expect(tip).toContain('<g class="xychart-tip">')
     expect(tip).toContain('class="xychart-tip xychart-tip-bg"')

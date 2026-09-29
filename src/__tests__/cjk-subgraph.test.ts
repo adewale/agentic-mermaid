@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { asFlowchart, parseRegisteredMermaid } from '../agent/index.ts'
 import { renderMermaidASCII } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
-import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 function count(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
