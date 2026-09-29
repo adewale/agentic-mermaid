@@ -17,6 +17,7 @@ import {
   asciiToMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid,
   describeMermaid, describeMermaidTree, describeMermaidFacts, analyzeMermaid, checkMermaid,
 } from '../agent/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
@@ -28,11 +29,9 @@ const SPECIAL_CHARS = [
   '\0', '￿', '​', 'é', '☃', '-->', '==>', 'graph', 'end', 'subgraph',
 ]
 const specialStringArb = fc.array(fc.constantFrom(...SPECIAL_CHARS), { maxLength: 60 }).map(c => c.join(''))
-const headers = [
-  'graph TD', 'flowchart LR', 'stateDiagram-v2', 'sequenceDiagram', 'classDiagram', 'erDiagram',
-  'timeline', 'journey', 'architecture-beta', 'xychart-beta', 'pie', 'quadrantChart', 'gantt',
-  'mindmap', 'gitGraph',
-]
+// Every registered header keyword plus each family's example header line, from the
+// registry: the hand-written list this replaces had no radar or sankey header.
+const headers = [...new Set(BUILTIN_FAMILY_METADATA.flatMap(family => [...family.headers, family.example.split('\n')[0]!]))]
 // Header + random body: exercises the "valid-family-then-garbage" path, where readers do real
 // projection work rather than bailing at the family-detection gate.
 const sourceArb = fc.oneof(
@@ -106,11 +105,9 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
 // A valid diagram per family, with content, in canonical source, so the typed readers run
 // their full projection over real content. (The empty `createMermaid` base does not do: an
 // empty pie, xychart or radar serializes to a bare header that reparses as opaque, which
-// used to skip those three families silently.)
-const FAMILIES: DiagramKind[] = [
-  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'architecture',
-  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'radar',
-]
+// used to skip those three families silently.) The family list comes from the registry; the
+// hand-written one it replaces had left sankey out.
+const FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id) as DiagramKind[]
 const CORPUS = FAMILIES.map(fam => {
   const generator = METAMORPHIC_FAMILIES[fam]
   const parsed = parseMermaid(generator.build(generator.kRange[0], 'q'))
