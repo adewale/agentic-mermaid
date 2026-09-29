@@ -52,9 +52,10 @@ executable regressions for the unsafe paths we want the affordances to prevent:
 markdown-only Mermaid fences, whole-source regeneration, prose/CLI advice
 instead of Code Mode, serialize-without-verify, ignored verify results, and
 opaque mutation attempts. The corpus is intentionally expected to fail:
-`agent-usage.test.ts` either classifies raw non-Code-Mode responses or replays
-executable snippets through `runAgentUsageEval` and asserts the deterministic
-oracle rejects them.
+`agent-usage.test.ts` replays the executable snippets through
+`runAgentUsageEval` and asserts the deterministic oracle rejects them. The
+raw non-Code-Mode responses are kept as a record of observed mistakes; no
+production code classifies them, so no test checks them.
 
 ## Layer 4 — Stored, live, and subagent Code Mode evals
 

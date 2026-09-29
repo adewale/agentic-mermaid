@@ -267,7 +267,9 @@ issue carrying the seed, path, and counterexample
 forever as a fast-check `examples` entry on the property: seeds and paths do not
 survive fast-check upgrades, `examples` do. Its first local run found a real
 Architecture routing counterexample (`AM_FC_SEED=1102132276` in
-`architecture-layout.test.ts`) that the pinned seed never reached.
+`architecture-layout.test.ts`) that the pinned seed never reached. It is not
+fixed yet: the shrunk case is an `examples` entry inside an `it.failing` pin
+that names BUG-37 in `TODO.md`.
 
 Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with

@@ -232,9 +232,10 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   on every surface (model, SVG, ASCII, meta, facts, metrics) and upstream's DB
   text. Assert the surfaces agree and match upstream, replace the bench's
   self-harvested `labelsContain` values with upstream-harvested ones, and post a
-  base-vs-head diff of changed label text on pull requests. It flags BUG-2, 19
-  and 20 on existing corpus cases; image contact sheets would not, because most
-  of these defects render identically before and after a change.
+  base-vs-head diff of changed label text on pull requests. It flags BUG-19 and
+  BUG-20 on existing corpus cases, and would have flagged the untrimmed labels
+  fixed in #359; image contact sheets would not, because most of these defects
+  render identically before and after a change.
 - [ ] **TEST-9 — Widen the upstream differentials** (`todo`). The flowchart and
   sequence generators still omit characters and constructs where defects live:
   entity codes other than `#quot;`, `\n`, markdown strings, `@{}`, `style` lines
@@ -368,6 +369,7 @@ and the steering with the fix.
 - [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
 - [ ] **BUG-38 — An empty Pie, XYChart or Radar diagram does not survive a round trip** (`todo`). `createMermaid('pie')` serializes to a bare `pie` header, which re-parses as an opaque body, so typed mutation is lost after the first save. The same holds for `xychart-beta` and `radar-beta`; an empty flowchart stays typed.
 - [ ] **BUG-39 — Flowchart `A--a --> A--a` is accepted** (`todo`). Upstream rejects it; ours reads an edge from `A` to a node `A--a` labelled `a`. The flowchart differential's generator excludes such ids.
+- [ ] **BUG-40 — A gitGraph with no commits verifies clean** (`todo`). `verifyMermaid(createMermaid('gitgraph'))` returns no warnings and an empty layout, although `EMPTY_DIAGRAM` is documented to fire for a bare header, as it does for every other family. Pinned in `agent-create.test.ts`.
 
 ## Non-goals
 

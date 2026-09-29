@@ -3,17 +3,21 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { buildLlmsTxt, buildCapabilities } from '../cli/index.ts'
+import { buildLlmsTxt, buildCapabilities, COMMAND_FLAGS } from '../cli/index.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
 describe('#6430 llms.txt', () => {
-  test('contains every CLI verb', () => {
+  // The verb set comes from the CLI's own command table, and each verb must
+  // open a bullet in the "CLI verbs" list (a bare substring check passed for
+  // `parse` because the prose mentions parsing).
+  const listsVerb = (txt: string, verb: string) => new RegExp(`^- ${verb.replace(/-/g, '\\-')}\\b`, 'm').test(txt)
+  test('lists every CLI verb from the command table as a bullet', () => {
     const txt = buildLlmsTxt()
-    for (const verb of ['render', 'parse', 'verify', 'mutate', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt', 'init-agent']) {
-      expect(txt).toContain(verb)
-    }
+    const verbs = Object.keys(COMMAND_FLAGS)
+    expect(verbs.length).toBeGreaterThan(10)
+    expect(verbs.filter(verb => !listsVerb(txt, verb))).toEqual([])
   })
 
   test('contains every output format from capabilities', () => {
