@@ -155,7 +155,7 @@ describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', ()
 describe('ParsedDiagram render source authority', () => {
   it('flowchart layout, SVG, and terminal receipts all retain canonical authored order', () => {
     const parsed = parseMermaid('flowchart LR\n  A --> B')
-    expect(parsed.ok).toBe(true)
+    expect(parsed.ok && parsed.value.body.kind).toBe('flowchart')
     if (!parsed.ok || parsed.value.body.kind !== 'flowchart') return
     const staleBody = structuredClone(parsed.value)
     if (staleBody.body.kind !== 'flowchart') return
@@ -169,6 +169,13 @@ describe('ParsedDiagram render source authority', () => {
       svg.receipt.sharedRequestDigest,
       terminal.receipt.sharedRequestDigest,
     ]).size).toBe(1)
+    // The digest covers the source text only; the geometry proves the stale RL
+    // body was not rendered: every surface keeps the authored LR order.
+    const layoutX = (id: string) => layout.layout.nodes.find(node => node.id === id)!.x
+    const svgX = (id: string) => Number(svg.svg.match(new RegExp(`<g class="node" data-id="${id}"[\\s\\S]*?<rect[^>]* x="([\\d.]+)"`))![1])
+    const labelRow = terminal.text.split('\n').find(row => row.includes(' A ') && row.includes(' B '))!
+    expect({ layout: layoutX('A') < layoutX('B'), svg: svgX('A') < svgX('B'), terminal: labelRow.indexOf(' A ') < labelRow.indexOf(' B ') })
+      .toEqual({ layout: true, svg: true, terminal: true })
   })
 })
 
@@ -235,9 +242,11 @@ describe('non-graph adapters: debug certificates stay family-specific (#26/#38)'
     if (!p.ok) return
     const layout = layoutMermaid(p.value, { debug: true })
     const edge = layout.edges[0]!
-    expect(Number(edge.label?.x)).toBe(140)
-    expect(Number(edge.label?.y)).toBe(86)
-    expect(edge.label?.text).toBe('hello')
+    // Oracle: the x/y of the <text> element the SVG renderer draws for the message.
+    const text = renderMermaidSVGWithReceipt(p.value).svg.match(/<text x="([\d.]+)" y="([\d.]+)"[^>]*>hello<\/text>/)
+    expect(text).not.toBeNull()
+    expect({ text: edge.label?.text, x: Number(edge.label?.x), y: Number(edge.label?.y) })
+      .toEqual({ text: 'hello', x: Number(text![1]), y: Number(text![2]) })
   })
 
   it('sequence self-message debug certificate uses the rendered loop geometry', () => {

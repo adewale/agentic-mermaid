@@ -86,32 +86,29 @@ describe('LLM-as-judge harness', () => {
     }
   })
 
-  test('aggregateScores: median + overall', async () => {
-    const sample = loadStratifiedSample(2)
-    const requests = sample
-      .map(e => buildJudgeRequest(e.family, e.source, `${e.origin}#${e.index}`))
-      .filter((r): r is JudgeRequest => r !== null)
-    const scores = await runWithJudge(requests, mockJudge)
-    const agg = aggregateScores(scores)
-    expect(agg.count).toBe(scores.length)
-    expect(agg.medianReadability).toBeGreaterThanOrEqual(1)
-    expect(agg.overallMedian).toBeGreaterThanOrEqual(1)
+  test('aggregateScores: per-axis medians and the median of per-diagram means', () => {
+    const score = (origin: string, readability: number, faithfulness: number, aesthetics: number): JudgeScore =>
+      ({ origin, readability, faithfulness, aesthetics, notes: [] })
+    // Per-diagram means: 4, 2, 4, 3, 3 → median 3.
+    const scores = [score('a', 5, 4, 3), score('b', 1, 2, 3), score('c', 4, 4, 4), score('d', 2, 5, 2), score('e', 3, 1, 5)]
+    expect(aggregateScores(scores)).toEqual({ count: 5, medianReadability: 3, medianFaithfulness: 4, medianAesthetics: 3, overallMedian: 3 })
+    expect(aggregateScores([])).toEqual({ count: 0, medianReadability: 0, medianFaithfulness: 0, medianAesthetics: 0, overallMedian: 0 })
   })
 
-  test('CI gate: mock judge median ≥ 3.5 across stratified sample', async () => {
+  // Harness wiring, not a quality gate: the scores come from this file's mock
+  // judge, so this proves the sample → request → judge → aggregate pipeline runs
+  // end to end and that the mock's floor holds.
+  test('harness wiring: mock-judged stratified sample aggregates to a median ≥ 3.5', async () => {
     const sample = loadStratifiedSample(3)
     const requests = sample
       .map(e => buildJudgeRequest(e.family, e.source, `${e.origin}#${e.index}`))
       .filter((r): r is JudgeRequest => r !== null)
     const scores = await runWithJudge(requests, mockJudge)
     const agg = aggregateScores(scores)
-    // Mock judge: passes when quality metrics fall within reasonable bounds.
     // A real judge would assert ≥ 4.0; the mock floor is documented at 3.5
     // because the mock penalty function is coarse.
-    expect({ n: agg.count, overall: agg.overallMedian }).toEqual({
-      n: agg.count,
-      overall: expect.any(Number),
-    })
+    expect(agg.count).toBe(requests.length)
+    expect(agg.count).toBeGreaterThan(0)
     expect(agg.overallMedian).toBeGreaterThanOrEqual(3.5)
   })
 })

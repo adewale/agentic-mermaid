@@ -205,7 +205,14 @@ describe('Class Diagram Arrow Directions', () => {
         Client ..> Server`
       const result = renderMermaidASCII(diagram, { useAscii: true })
 
-      expect(result).toContain('v')
+      // "Server" itself contains a `v`, so locate the arrowhead: the row just
+      // above the Server box's top border, in the dotted connector's column.
+      const lines = result.split('\n')
+      const serverTop = lines.findIndex(l => l.includes('| Server |')) - 1
+      const arrowRow = lines[serverTop - 1]!
+      const connectorCol = lines[serverTop - 2]!.indexOf(':')
+      expect(connectorCol).toBeGreaterThan(0)
+      expect({ row: arrowRow.trim(), col: arrowRow.indexOf('v') }).toEqual({ row: 'v', col: connectorCol })
     })
   })
 

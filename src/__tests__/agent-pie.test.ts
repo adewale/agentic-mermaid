@@ -277,7 +277,7 @@ describe('pie round-trip property', () => {
     fc.constantFrom(0.1, 2.5, 3.14, 99.99, 0.5),
   )
 
-  test('parse(render(parse(src))) is identity on generated charts', () => {
+  test('parse(serialize(parse(src))) is identity on generated charts', () => {
     fc.assert(
       fc.property(
         fc.boolean(),

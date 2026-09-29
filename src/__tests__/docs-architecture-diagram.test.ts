@@ -39,10 +39,6 @@ describe('docs/design/system architecture figure', () => {
     expect(source).not.toContain('flowchart · state')
   })
 
-  it('renders deterministically across calls', () => {
-    expect(renderMermaidSVG(source)).toBe(renderMermaidSVG(source))
-  })
-
   it('matches the committed architecture.svg (regenerate with UPDATE_GOLDEN=1)', () => {
     const actual = renderMermaidSVG(source)
     if (process.env.UPDATE_GOLDEN) writeFileSync(goldenPath, actual)

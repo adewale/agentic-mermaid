@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { existsSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createArtifactStore } from '../mcp/artifacts.ts'
@@ -23,6 +24,27 @@ function tempDir(): string {
   return dir
 }
 
+// Session teardown after an aborted SSE stream completes asynchronously on the
+// server. Retry the observation until it reaches the expected state (bounded
+// attempts) instead of sleeping a fixed interval and hoping teardown finished.
+async function eventually<T>(observe: () => Promise<T>, settled: (value: T) => boolean, attempts = 200): Promise<T> {
+  let value = await observe()
+  for (let i = 1; i < attempts && !settled(value); i++) {
+    await new Promise(resolve => setTimeout(resolve, 5))
+    value = await observe()
+  }
+  return value
+}
+
+// Some hosts (including sandboxed CI containers) have no IPv6 loopback; probe
+// once so the IPv6 test skips there with a reason instead of failing on
+// EAFNOSUPPORT.
+const HAS_IPV6_LOOPBACK = await new Promise<boolean>(resolve => {
+  const probe = createServer()
+  probe.once('error', () => resolve(false))
+  probe.listen(0, '::1', () => probe.close(() => resolve(true)))
+})
+
 function parseToolPayload(r: Awaited<ReturnType<typeof handleRequest>>): any {
   const result = r!.result as { content: Array<{ text: string }> }
   return JSON.parse(result.content[0]!.text)
@@ -43,7 +65,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(await readRequestBody(request as any)).toBe('{"source":"東🚀"}')
   })
 
-  test('IPv6 loopback spellings advertise bracketed URLs and serve requests', async () => {
+  test.skipIf(!HAS_IPV6_LOOPBACK)(`IPv6 loopback spellings advertise bracketed URLs and serve requests${HAS_IPV6_LOOPBACK ? '' : ' (skipped: this host has no ::1 loopback)'}`, async () => {
     for (const host of ['::1', '0:0:0:0:0:0:0:1']) {
       const started = await startHttpServer({ host, port: 0, artifactDir: tempDir() })
       servers.push(started)
@@ -332,9 +354,8 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(refused.status).toBe(503)
     await first.body?.cancel()
     firstController.abort()
-    await new Promise(resolve => setTimeout(resolve, 10))
     const replacementController = new AbortController()
-    const replacement = await fetch(`${started.url}/sse`, { signal: replacementController.signal })
+    const replacement = await eventually(() => fetch(`${started.url}/sse`, { signal: replacementController.signal }), response => response.status !== 503)
     expect(replacement.status).toBe(200)
     await replacement.body?.cancel()
     replacementController.abort()
@@ -374,12 +395,11 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
 
     await reader.cancel()
     controller.abort()
-    await new Promise(resolve => setTimeout(resolve, 10))
-    const stale = await fetch(endpoint, {
+    const stale = await eventually(() => fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'ping' }),
-    })
+    }), response => response.status === 404)
     expect(stale.status).toBe(404)
   })
 })

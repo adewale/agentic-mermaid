@@ -16,10 +16,6 @@ import {
 } from '../../scripts/characterization/visual-quality.ts'
 import { knownBuiltinFamilies } from '../agent/index.ts'
 import {
-  buildPng as buildIssue38StylePermutationPng,
-  OUTPUT_PATH as ISSUE38_STYLE_PERMUTATION_PATH,
-} from '../../scripts/pr-assets/issue-38-style-permutations.ts'
-import {
   buildPng as buildFamilyElevationStylePalettePng,
   OUTPUT_PATH as FAMILY_ELEVATION_STYLE_PALETTE_PATH,
 } from '../../scripts/pr-assets/family-elevation-style-palette.ts'
@@ -30,11 +26,6 @@ describe('characterisation generated artifacts', () => {
   it('contact sheets are in sync with their generators', () => {
     expect(readFileSync(CONTACT_SHEET_PATH, 'utf8')).toBe(buildContactSheet())
     expect(readFileSync(FAMILY_CONTACT_SHEET_PATH, 'utf8')).toBe(buildFamilyContactSheet())
-  })
-
-  it('issue #38 style permutation PNG is in sync with its generator', () => {
-    expect(existsSync(ISSUE38_STYLE_PERMUTATION_PATH)).toBe(true)
-    expect(readFileSync(ISSUE38_STYLE_PERMUTATION_PATH)).toEqual(Buffer.from(buildIssue38StylePermutationPng()))
   })
 
   it('family-elevation Style + Palette evidence is in sync with its generator', () => {
@@ -48,7 +39,9 @@ describe('characterisation generated artifacts', () => {
     ], { cwd: ROOT })
     expect(result.exitCode, result.stderr.toString()).toBe(0)
     expect(result.stdout.toString()).toContain('Style-switch contact sheet is synchronized')
-  }, 30_000)
+    // The subprocess renders every family in every Style (~29 s under the
+    // coverage-instrumented parallel gate), so 30 s left no headroom.
+  }, 120_000)
 
   it('visual quality report and SVG snapshots are in sync with their generator', () => {
     for (const [path, expected] of buildVisualQualityArtifacts()) {

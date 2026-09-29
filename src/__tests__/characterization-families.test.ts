@@ -214,6 +214,15 @@ function renderAll(src: string) {
   }
 }
 
+// One render per canonical case feeds every surface assertion below; only the
+// determinism test renders a second time, to compare against it.
+const renderedCases = new Map<string, ReturnType<typeof renderAll>>()
+function renderCase(src: string): ReturnType<typeof renderAll> {
+  let rendered = renderedCases.get(src)
+  if (!rendered) renderedCases.set(src, rendered = renderAll(src))
+  return rendered
+}
+
 function assertPngSignature(bytes: Uint8Array) {
   expect(bytes.length).toBeGreaterThan(8)
   expect(Array.from(bytes.slice(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -256,7 +265,7 @@ describe('characterisation · families · universal invariants', () => {
 
   it('all registered families render through Unicode, ASCII, SVG, and PNG surfaces', () => {
     for (const { source } of RENDERER_CASES) {
-      const { unicode, ascii, svg, png } = renderAll(source)
+      const { unicode, ascii, svg, png } = renderCase(source)
       expect(unicode.length).toBeGreaterThan(0)
       expect(ascii.length).toBeGreaterThan(0)
       expect(svg).toContain('<svg')
@@ -267,7 +276,7 @@ describe('characterisation · families · universal invariants', () => {
 
   it('all registered families preserve sentinel labels on text renderers', () => {
     for (const { source, labels } of RENDERER_CASES) {
-      const { unicode, ascii, svg } = renderAll(source)
+      const { unicode, ascii, svg } = renderCase(source)
       for (const label of labels) {
         expect(unicode).toContain(label)
         expect(ascii).toContain(label)
@@ -278,7 +287,7 @@ describe('characterisation · families · universal invariants', () => {
 
   it('all registered families are byte-stable across repeated renders', () => {
     for (const { source } of RENDERER_CASES) {
-      const first = renderAll(source)
+      const first = renderCase(source)
       const second = renderAll(source)
       expect(second.unicode).toBe(first.unicode)
       expect(second.ascii).toBe(first.ascii)
@@ -289,7 +298,7 @@ describe('characterisation · families · universal invariants', () => {
 
   it('all registered families emit clean SVG, Unicode, and 7-bit ASCII', () => {
     for (const { source } of RENDERER_CASES) {
-      const { unicode, ascii, svg } = renderAll(source)
+      const { unicode, ascii, svg } = renderCase(source)
       expect(unicode).not.toMatch(/\x1b\[[0-9;]*m/)
       expect(unicode).not.toMatch(/\b(?:NaN|Infinity|undefined)\b/)
       expect(ascii).not.toMatch(/\x1b\[[0-9;]*m/)

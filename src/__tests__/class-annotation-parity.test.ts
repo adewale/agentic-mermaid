@@ -3,6 +3,7 @@ import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermai
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseClassAnnotationStatement, parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
 
 // Mermaid 11.16 official syntax: classDiagram.html#annotations-on-classes.
 const sources = [
@@ -244,14 +245,12 @@ describe('Class official annotation forms', () => {
   })
 
   test('annotation scanning stays linear at the public 64 KiB source limit', () => {
-    const malformed = `class ${' '.repeat(65_000)}x`
-    const start = performance.now()
-    expect(parseClassAnnotationStatement(malformed)).toBeNull()
-    expect(performance.now() - start).toBeLessThan(1_000)
-    const labelWithDelimiters = `class Shape["${'<<'.repeat(30_000)}"] <<interface>>`
-    const labelStart = performance.now()
-    expect(parseClassAnnotationStatement(labelWithDelimiters)?.annotation).toBe('interface')
-    expect(performance.now() - labelStart).toBeLessThan(1_000)
+    expectNearLinearGrowth('malformed annotation statement', size => {
+      expect(parseClassAnnotationStatement(`class ${' '.repeat(size)}x`)).toBeNull()
+    }, 65_000)
+    expectNearLinearGrowth('annotation after a delimiter-heavy label', size => {
+      expect(parseClassAnnotationStatement(`class Shape["${'<<'.repeat(size)}"] <<interface>>`)?.annotation).toBe('interface')
+    }, 30_000)
   })
 
   test('a lone inline-annotated class renders a sized box carrying its stereotype', () => {

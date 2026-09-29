@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'bun:test'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { buildSubagentPromptEvalRequest, extractUpdatedMermaidSource, finalizeSubagentPromptEval, prepareSubagentPromptEval, recordSubagentPromptEvalResponse, subagentPromptEvalCaseInventory } from '../../eval/agent-usage/capture-subagent-prompt-eval.ts'
 import { buildLiveEvalSystemPrompt, buildLiveEvalUserPrompt, extractCodeModeScript, type LiveTranscript, resolveLiveModelConfig, runLiveAgentUsageEval } from '../../eval/agent-usage/live.ts'
 import { AGENT_USAGE_SUPPORTED_FAMILIES } from '../../eval/agent-usage/render-quality.ts'
-import { checkAgentUsageTaskSource, DEFAULT_CASES, FULL_EVAL_CASES, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
+import { checkAgentUsageTaskSource, DEFAULT_CASES, FULL_EVAL_CASES } from '../../eval/agent-usage/run.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { useTempDirs } from './helpers/p00-temp-dir.ts'
+
+const temp = useTempDirs()
 
 const TRANSCRIPT_ROOT = join(import.meta.dir, '..', '..', 'eval', 'agent-usage', 'transcripts')
 const REQUIRED_RELEASE_TRANSCRIPT_DIR = 'pi-subagent-release-2026-06-10'
@@ -51,7 +53,7 @@ describe('live agent-usage eval harness', () => {
 
   test('subagent prompt capture prepares harness-agnostic requests and gates responses with the oracle', async () => {
     const c = DEFAULT_CASES[0]!
-    const dir = mkdtempSync(join(tmpdir(), 'am-subagent-prompt-eval-'))
+    const dir = temp.dir('am-subagent-prompt-eval-')
     const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'pi-subagent', model: 'delegate-test', surface: 'homepage', caseIds: [c.id], capturedAt: '2026-06-30T00:00:00.000Z' })
     const request = readFileSync(manifest.requests[0]!.requestPath, 'utf8')
     expect(request).toContain('Use one fresh subagent per request')
@@ -86,7 +88,7 @@ describe('live agent-usage eval harness', () => {
       expect(inventory.filter(c => c.family === family).map(c => c.kind).sort()).toEqual(['create', 'mutate'])
     }
 
-    const dir = mkdtempSync(join(tmpdir(), 'am-complete-subagent-eval-'))
+    const dir = temp.dir('am-complete-subagent-eval-')
     const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'unit', model: 'unit' })
     expect(manifest.schemaVersion).toBe(2)
     expect(manifest.requests.map(r => r.caseId)).toEqual(inventory.map(c => c.id))
@@ -95,7 +97,7 @@ describe('live agent-usage eval harness', () => {
 
   test('subagent prompt capture can gate raw chat prompt responses separately from Code Mode', async () => {
     const c = DEFAULT_CASES.find(c => c.id === 'author_api_sequence_source')!
-    const dir = mkdtempSync(join(tmpdir(), 'am-subagent-chat-eval-'))
+    const dir = temp.dir('am-subagent-chat-eval-')
     const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 'weakest-test', surface: 'homepage', mode: 'chat', caseIds: [c.id], capturedAt: '2026-06-30T00:00:00.000Z' })
     const request = readFileSync(manifest.requests[0]!.requestPath, 'utf8')
     expect(request).toContain('Mode: raw chat prompt')
@@ -120,7 +122,7 @@ describe('live agent-usage eval harness', () => {
     const bare = 'sequenceDiagram\n  participant User\n  participant App\n  participant API\n  User->>App: Export\n  App->>API: Render SVG\n  API-->>App: SVG string\n  App-->>User: Download'
     expect(extractUpdatedMermaidSource(bare)).toBe(bare)
 
-    const dir = mkdtempSync(join(tmpdir(), 'am-bare-chat-eval-'))
+    const dir = temp.dir('am-bare-chat-eval-')
     const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat', caseIds: [c.id] })
     writeFileSync(manifest.requests[0]!.responsePath, bare)
     const summary = await finalizeSubagentPromptEval({ runDir: dir })
@@ -141,7 +143,7 @@ describe('live agent-usage eval harness', () => {
     const placeholder = FULL_EVAL_CASES.find(c => c.id === 'author_state_source')!
     const missing = FULL_EVAL_CASES.find(c => c.id === 'author_class_source')!
     const bare = 'sequenceDiagram\n  participant User\n  participant App\n  participant API\n  User->>App: Export\n  App->>API: Render SVG\n  API-->>App: SVG string\n  App-->>User: Download'
-    const dir = mkdtempSync(join(tmpdir(), 'am-capture-integrity-eval-'))
+    const dir = temp.dir('am-capture-integrity-eval-')
     const manifest = prepareSubagentPromptEval({
       outDir: dir,
       provider: 'unit',
@@ -165,7 +167,7 @@ describe('live agent-usage eval harness', () => {
   test('request digests prevent grading a response against a changed prompt', async () => {
     const c = FULL_EVAL_CASES.find(c => c.id === 'author_api_sequence_source')!
     const bare = 'sequenceDiagram\n  participant User\n  participant App\n  participant API\n  User->>App: Export\n  App->>API: Render SVG\n  API-->>App: SVG string\n  App-->>User: Download'
-    const dir = mkdtempSync(join(tmpdir(), 'am-request-digest-eval-'))
+    const dir = temp.dir('am-request-digest-eval-')
     const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat', caseIds: [c.id] })
     const request = manifest.requests[0]!
     writeFileSync(request.responsePath, bare)
@@ -191,7 +193,7 @@ describe('live agent-usage eval harness', () => {
     const source = 'stateDiagram-v2\n  [*] --> Red\n  Red --> Green\n  Green --> Yellow\n  Yellow --> Red'
     const body = (verification: string, trace: string) => `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\n${verification}\n\n## Trace\n${trace}\n`
     const run = async (response: string) => {
-      const dir = mkdtempSync(join(tmpdir(), 'am-trace-eval-'))
+      const dir = temp.dir('am-trace-eval-')
       const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 't', surface: 'homepage', mode: 'chat', caseIds: [id], capturedAt: '2026-06-30T00:00:00.000Z' })
       writeFileSync(manifest.requests[0]!.responsePath, response)
       await finalizeSubagentPromptEval({ runDir: dir })
@@ -222,7 +224,7 @@ describe('live agent-usage eval harness', () => {
     const source = 'classDiagram\n  class Animal\n  class Duck {\n    +quack()\n  }'
     const body = (trace: string) => `## Updated Mermaid\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n## Verification\nok: true, warnings: [].\n\n## Trace\n${trace}\n`
     const run = async (response: string) => {
-      const dir = mkdtempSync(join(tmpdir(), 'am-decl-eval-'))
+      const dir = temp.dir('am-decl-eval-')
       const manifest = prepareSubagentPromptEval({ outDir: dir, provider: 'claude-subagent', model: 't', surface: 'homepage', mode: 'chat', caseIds: [id], capturedAt: '2026-06-30T00:00:00.000Z' })
       writeFileSync(manifest.requests[0]!.responsePath, response)
       await finalizeSubagentPromptEval({ runDir: dir })
@@ -247,7 +249,11 @@ describe('live agent-usage eval harness', () => {
     await expect(runLiveAgentUsageEval({ provider: 'anthropic', model: 'unused', apiKey: 'unused', maxTokens: 1, temperature: 0 }, { caseIds: ['nope'] })).rejects.toThrow('Unknown live eval case')
   })
 
-  test('committed live-model transcripts remain honest across the parser API break', async () => {
+  // Archival integrity, not a replay: every committed code-mode transcript
+  // predates the parser API break (its scripts call the removed
+  // mermaid.parseMermaid), so none can run against the current SDK. Chat-mode
+  // transcripts are re-checked by the current task oracle and verifier.
+  test('committed live-model transcripts are intact archival evidence', () => {
     const dirs = committedTranscriptDirs()
     const dirNames = dirs.map(d => basename(d))
     expect(dirNames).toContain(REQUIRED_RELEASE_TRANSCRIPT_DIR)
@@ -284,23 +290,9 @@ describe('live agent-usage eval harness', () => {
       // sole public parser remains immutable evidence of the API at capture
       // time. Do not rewrite or adapt those scripts in memory: doing so would
       // reintroduce the removed parseMermaid compatibility surface into the
-      // current evaluator.
-      const removedParserScripts = transcripts.filter(t => /\bmermaid\.parseMermaid\s*\(/.test(t.script))
-      if (removedParserScripts.length > 0) {
-        expect(removedParserScripts).toHaveLength(transcripts.length)
-        expect(removedParserScripts.every(t => t.result.ok)).toBe(true)
-        continue
-      }
-      const replayCases = transcripts.map(t => {
-        const c = byId.get(t.caseId)
-        expect(c).toBeDefined()
-        return { ...c!, script: t.script }
-      })
-      const replay = await runAgentUsageEval(replayCases)
-      expect(replay.ok).toBe(true)
-      expect(replay.passed).toBe(replay.total)
-      expect(replay.safePathRate).toBe(1)
-      expect(replay.structuredPathRate).toBe(1)
+      // current evaluator. A transcript captured on the current API fails this
+      // line; replay it through runAgentUsageEval when one is committed.
+      expect(transcripts.filter(t => !/\bmermaid\.parseMermaid\s*\(/.test(t.script)).map(t => t.caseId)).toEqual([])
     }
   })
 })

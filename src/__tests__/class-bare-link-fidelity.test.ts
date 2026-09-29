@@ -3,6 +3,7 @@ import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermai
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { parseClassDiagram, parseClassRelationship } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
 
 const cases = [
   { statement: 'classO .. classP : Link(Dashed)', kind: 'link-dashed', lineType: 1, label: 'Link(Dashed)' },
@@ -140,22 +141,18 @@ describe('Class markerless link fidelity', () => {
       expect(renderMermaidSVG(memberSource)).toContain('data-id="A"')
     }
 
-    const malformed = `A${'..'.repeat(32_000)} B`
-    const start = performance.now()
-    expect(parseClassRelationship(malformed)).toBeNull()
-    expect(performance.now() - start).toBeLessThan(500)
-    const agentStart = performance.now()
-    const parsed = parseRegisteredMermaid(`classDiagram\n${malformed}`)
-    expect(parsed.ok).toBe(true)
-    if (parsed.ok) {
-      expect(parsed.value.body.kind).toBe('opaque')
-      expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
-    }
-    expect(performance.now() - agentStart).toBeLessThan(500)
-    const longEndpoint = `${'A'.repeat(60_000)}--B : x:y`
-    const longStart = performance.now()
-    expect(parseRegisteredMermaid(`classDiagram\n${longEndpoint}`).ok).toBe(true)
-    expect(performance.now() - longStart).toBeLessThan(500)
+    const malformed = (size: number) => `A${'..'.repeat(size)} B`
+    expectNearLinearGrowth('malformed dotted relationship', size => {
+      expect(parseClassRelationship(malformed(size))).toBeNull()
+    }, 32_000)
+    expectNearLinearGrowth('malformed dotted relationship through parse + verify', size => {
+      const parsed = parseRegisteredMermaid(`classDiagram\n${malformed(size)}`)
+      expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+      if (parsed.ok) expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+    }, 32_000)
+    expectNearLinearGrowth('long relationship endpoint', size => {
+      expect(parseRegisteredMermaid(`classDiagram\n${'A'.repeat(size)}--B : x:y`).ok).toBe(true)
+    }, 60_000)
   })
 
   test('pinned-invalid bare labels fail loudly without becoming marked arrows', () => {

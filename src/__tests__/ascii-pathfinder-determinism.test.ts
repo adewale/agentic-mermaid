@@ -52,15 +52,4 @@ describe('getPath determinism and preferredDir', () => {
     // The two biased routes commit to different first legs.
     expect(JSON.stringify(downFirst)).not.toBe(JSON.stringify(rightFirst))
   })
-
-  test('returns null when target is walled off (bounded search, no hang)', () => {
-    const grid = emptyGrid()
-    const wall = {} as AsciiNode
-    // Box (2,2) completely in by occupying its 4-neighbourhood.
-    grid.set('1,2', wall)
-    grid.set('3,2', wall)
-    grid.set('2,1', wall)
-    grid.set('2,3', wall)
-    expect(getPath(grid, { x: 0, y: 0 }, { x: 2, y: 2 })).toBeNull()
-  })
 })

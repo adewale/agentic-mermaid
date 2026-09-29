@@ -5,6 +5,10 @@ import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseAuthoredClassInteraction, parseClassDiagram, parseClassInteraction } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 
+// The class parser's diagnostic for a link/click statement it refuses. Matching
+// it (not any throw) keeps a crash from passing as "diagnosed, not omitted".
+const UNRECOGNIZED_LINK = /Unrecognized class link statement/
+
 const links = [
   'link A "https://example.com/docs" "API reference"',
   'click A href "https://example.com/docs" "API reference"',
@@ -69,7 +73,7 @@ describe('Class safe-link tooltip fidelity', () => {
   test('malformed trailing text cannot silently disappear', () => {
     const statement = 'link A "https://example.com/docs" "API reference" garbage'
     expect(parseClassInteraction(statement)).toBeNull()
-    expect(() => parseClassDiagram(`classDiagram\nclass A\n${statement}`.split('\n'))).toThrow()
+    expect(() => parseClassDiagram(`classDiagram\nclass A\n${statement}`.split('\n'))).toThrow(UNRECOGNIZED_LINK)
     const parsed = parseRegisteredMermaid(`classDiagram\nclass A\n${statement}`)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
@@ -82,8 +86,8 @@ describe('Class safe-link tooltip fidelity', () => {
     expect(await renderMermaidSVGAsync(source)).toBe(expected)
 
     const unsupportedTarget = `${source} _self`
-    expect(() => renderMermaidSVG(unsupportedTarget)).toThrow()
-    await expect(renderMermaidSVGAsync(unsupportedTarget)).rejects.toThrow()
+    expect(() => renderMermaidSVG(unsupportedTarget)).toThrow(UNRECOGNIZED_LINK)
+    await expect(renderMermaidSVGAsync(unsupportedTarget)).rejects.toThrow(UNRECOGNIZED_LINK)
   })
 
   test('Mermaid-valid navigation targets remain diagnosed, not silently omitted', () => {
@@ -96,7 +100,7 @@ describe('Class safe-link tooltip fidelity', () => {
     ] as const) {
       const source = `classDiagram\nclass \`${id}\`\n${statement}`
       expect(parseAuthoredClassInteraction(statement)).toBeNull()
-      expect(() => parseClassDiagram(source.split('\n'))).toThrow()
+      expect(() => parseClassDiagram(source.split('\n'))).toThrow(UNRECOGNIZED_LINK)
       const parsed = parseRegisteredMermaid(source)
       expect(parsed.ok).toBe(true)
       if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
@@ -190,7 +194,7 @@ describe('Class safe-link tooltip fidelity', () => {
   test('action records classify the full URL and decode the same entity-quoted syntax as rendering', () => {
     const unsafeWhitespace = 'classDiagram\nclass A\nlink A "https://ok.example\tjavascript:evil" "tip"'
     expect(parseClassInteraction('link A "https://ok.example\tjavascript:evil" "tip"')).toBeNull()
-    expect(() => parseClassDiagram(unsafeWhitespace.split('\n'))).toThrow()
+    expect(() => parseClassDiagram(unsafeWhitespace.split('\n'))).toThrow(UNRECOGNIZED_LINK)
     const unsafeParsed = parseRegisteredMermaid(unsafeWhitespace)
     expect(unsafeParsed.ok).toBe(true)
     if (unsafeParsed.ok) expect(collectActionRecords(unsafeParsed.value)[0]).toEqual(expect.objectContaining({
@@ -266,7 +270,7 @@ describe('Class safe-link tooltip fidelity', () => {
       expect.objectContaining({ href: 'https://example.com', tooltip: 'Tip', security: 'safe', line: 2 }),
     ])
     const unrelated = 'classDiagram\nclass A&#10;class B\nlink A "https://example.com" "Tip" _self ""'
-    expect(() => renderMermaidSVG(unrelated)).toThrow()
+    expect(() => renderMermaidSVG(unrelated)).toThrow(UNRECOGNIZED_LINK)
     const unrelatedParsed = parseRegisteredMermaid(unrelated)
     expect(unrelatedParsed.ok).toBe(true)
     if (unrelatedParsed.ok) {
@@ -274,9 +278,9 @@ describe('Class safe-link tooltip fidelity', () => {
       expect(collectActionRecords(unrelatedParsed.value)[0]?.tooltip).toBeUndefined()
     }
     const sameLine = 'classDiagram\nclass A&#10;link A "https://example.com" "Tip" _self ""'
-    expect(() => renderMermaidSVG(sameLine)).toThrow()
+    expect(() => renderMermaidSVG(sameLine)).toThrow(UNRECOGNIZED_LINK)
     const splitTooltip = 'classDiagram\nclass A\nlink A "https://example.com" "First&#10;Second"'
-    expect(() => renderMermaidSVG(splitTooltip)).toThrow()
+    expect(() => renderMermaidSVG(splitTooltip)).toThrow(UNRECOGNIZED_LINK)
     const parsed = parseRegisteredMermaid(splitTooltip)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(collectActionRecords(parsed.value)).toEqual([])
@@ -309,7 +313,7 @@ describe('Class safe-link tooltip fidelity', () => {
       expect.objectContaining({ target: 'A', href: 'https://example.com', security: 'safe', line: 5 }),
     ])
     const notAComment = 'classDiagram\nclass A\nlink A "https://example.com" "tip" &percnt;&percnt; trailing'
-    expect(() => renderMermaidSVG(notAComment)).toThrow()
+    expect(() => renderMermaidSVG(notAComment)).toThrow(UNRECOGNIZED_LINK)
   })
 
   test('authored quote boundaries survive entities used in otherwise valid link syntax', () => {
@@ -328,7 +332,7 @@ describe('Class safe-link tooltip fidelity', () => {
       expect(parsed.ok).toBe(true)
       if (parsed.ok) expect(asClass(parsed.value)?.body.classes[0]?.tooltip).toBe('tip')
     }
-    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink&#32;A "https://example.com" "tip" _self ""')).toThrow()
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink&#32;A "https://example.com" "tip" _self ""')).toThrow(UNRECOGNIZED_LINK)
     expect(renderMermaidSVG('classDiagram\nclass A\nlink A https&#58;//example.com')).toContain('data-href="https://example.com"')
   })
 
@@ -355,9 +359,9 @@ describe('Class safe-link tooltip fidelity', () => {
       expect(asClass(parsed.value)?.body.classes[0]?.tooltip).toBe('x\uE000y')
     }
     expect(renderMermaidSVG(source)).toContain('<title>x\uE000y</title>')
-    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com&#34;tail')).toThrow()
-    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com"tail"')).toThrow()
-    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com "tail"')).toThrow()
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com&#34;tail')).toThrow(UNRECOGNIZED_LINK)
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com"tail"')).toThrow(UNRECOGNIZED_LINK)
+    expect(() => renderMermaidSVG('classDiagram\nclass A\nlink A https://example.com "tail"')).toThrow(UNRECOGNIZED_LINK)
   })
 
   test('literal percent pairs in an unquoted URL preserve the pre-existing destination', () => {
@@ -369,7 +373,7 @@ describe('Class safe-link tooltip fidelity', () => {
   test('control characters in tooltip cannot become trusted action text or invalid XML', () => {
     const source = 'classDiagram\nclass A\nlink A "https://example.com" "x\u0001y"'
     expect(parseClassInteraction(source.split('\n')[2]!)).toBeNull()
-    expect(() => renderMermaidSVG(source)).toThrow()
+    expect(() => renderMermaidSVG(source)).toThrow(UNRECOGNIZED_LINK)
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
@@ -388,7 +392,7 @@ describe('Class safe-link tooltip fidelity', () => {
       expect(serializeMermaid(controlParsed.value)).not.toContain('\u001b')
       expect(collectActionRecords(controlParsed.value)).toEqual([])
     }
-    expect(() => renderMermaidSVG(encodedControl)).toThrow()
+    expect(() => renderMermaidSVG(encodedControl)).toThrow(UNRECOGNIZED_LINK)
 
   })
 
@@ -405,7 +409,7 @@ describe('Class safe-link tooltip fidelity', () => {
     const rawParsed = parseRegisteredMermaid(raw)
     expect(rawParsed.ok).toBe(true)
     if (rawParsed.ok) expect(rawParsed.value.body.kind).toBe('opaque')
-    expect(() => renderMermaidSVG(raw)).toThrow()
+    expect(() => renderMermaidSVG(raw)).toThrow(UNRECOGNIZED_LINK)
 
     const encodedUrl = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; "tip"'
     expect(renderMermaidSVG(encodedUrl)).toContain('<title>tip</title>')
@@ -413,7 +417,7 @@ describe('Class safe-link tooltip fidelity', () => {
     expect(typedEncoded.ok).toBe(true)
     if (typedEncoded.ok) expect(asClass(typedEncoded.value)?.body.classes[0]?.tooltip).toBe('tip')
     const encodedUrlWithRawTarget = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; "tip" _self ""'
-    expect(() => renderMermaidSVG(encodedUrlWithRawTarget)).toThrow()
+    expect(() => renderMermaidSVG(encodedUrlWithRawTarget)).toThrow(UNRECOGNIZED_LINK)
     const rejected = parseRegisteredMermaid(encodedUrlWithRawTarget)
     expect(rejected.ok).toBe(true)
     if (rejected.ok) {
@@ -421,7 +425,7 @@ describe('Class safe-link tooltip fidelity', () => {
       expect(collectActionRecords(rejected.value)[0]?.tooltip).toBeUndefined()
     }
     const fullyEncodedTarget = 'classDiagram\nclass A\nlink A &quot;https://example.com&quot; &quot;tip&quot; _self &quot;&quot;'
-    expect(() => renderMermaidSVG(fullyEncodedTarget)).toThrow()
+    expect(() => renderMermaidSVG(fullyEncodedTarget)).toThrow(UNRECOGNIZED_LINK)
     const encodedRejected = parseRegisteredMermaid(fullyEncodedTarget)
     expect(encodedRejected.ok).toBe(true)
     if (encodedRejected.ok) {

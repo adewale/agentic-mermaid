@@ -5,20 +5,11 @@ import { mkdtempSync, readFileSync, renameSync, rmSync, watch as fsWatch, writeF
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
+import { captureCli as capture } from './helpers/p00-cli-capture.ts'
+import { useTempDirs } from './helpers/p00-temp-dir.ts'
 
-function tmp(content: string): string {
-  const p = join(tmpdir(), `mi-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`)
-  writeFileSync(p, content)
-  return p
-}
-function capture(fn: () => number): { code: number; out: string } {
-  const chunks: string[] = []
-  const orig = process.stdout.write.bind(process.stdout)
-  process.stdout.write = ((s: string) => { chunks.push(String(s)); return true }) as typeof process.stdout.write
-  let code = -1
-  try { code = fn() } finally { process.stdout.write = orig }
-  return { code, out: chunks.join('') }
-}
+const temp = useTempDirs('am-multi-input-')
+const tmp = (content: string): string => temp.file('input.mmd', content)
 
 describe('#930 pathname watch lifecycle', () => {
   test('observes atomic rename-over saves and subsequent writes to the replacement inode', async () => {

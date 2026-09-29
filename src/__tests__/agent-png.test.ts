@@ -2,6 +2,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidPNG } from '../agent/png.ts'
+import { decodePng } from './helpers/png-pixels.ts'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 
@@ -52,14 +53,14 @@ describe('renderMermaidPNG', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     const png = await renderMermaidPNG(r.value)
-    expect(checkMagic(png)).toBe(true)
+    // The parsed diagram and its source string rasterize to the same bytes.
+    expect(Buffer.from(png).equals(Buffer.from(await renderMermaidPNG('flowchart LR\n  A --> B')))).toBe(true)
   })
 
-  test('background option works', async () => {
-    // We can't easily assert color from PNG bytes without a decoder,
-    // but two different backgrounds must produce different PNGs.
-    const white = await renderMermaidPNG('flowchart LR\n  A --> B', { background: 'white' })
-    const black = await renderMermaidPNG('flowchart LR\n  A --> B', { background: 'black' })
-    expect(white).not.toEqual(black)
+  test('background option paints the canvas in the requested colour', async () => {
+    const corner = async (background: string) =>
+      Array.from(decodePng(await renderMermaidPNG('flowchart LR\n  A --> B', { background })).rgba.slice(0, 4))
+    expect({ white: await corner('white'), black: await corner('black'), red: await corner('#ff0000') })
+      .toEqual({ white: [255, 255, 255, 255], black: [0, 0, 0, 255], red: [255, 0, 0, 255] })
   })
 })

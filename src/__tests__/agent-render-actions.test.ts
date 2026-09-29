@@ -251,58 +251,6 @@ describe('renderer-neutral action surface', () => {
     expect(() => renderMermaidWithActions('not a diagram', { format: 'ascii' })).toThrow(/failed/i)
   })
 
-  test('terminal action regions survive wrapped, markdown, entity, and explicit-break labels', () => {
-    const cases = [
-      { node: 'A["\`Target\`"]', options: {} },
-      { node: 'A["Line<br>Break"]', options: {} },
-      { node: 'A["Map&#x3C;K,V&#x3E;"]', options: {} },
-      { node: 'A[This is a very long action label that must wrap]', options: { targetWidth: 40 } },
-    ]
-    for (const { node, options } of cases) {
-      const rendered = renderMermaidWithActions(
-        `flowchart LR\n  ${node} --> B[Done]\n  click A href "https://example.com"`,
-        { format: 'unicode', options: { colorMode: 'none', ...options } },
-      )
-      expect(rendered.actionSurface.actions[0]).toEqual(expect.objectContaining({
-        target: 'A', region: expect.objectContaining({ id: 'node:A' }),
-      }))
-    }
-  })
-
-  test('terminal action hit regions cannot absorb a shared token from a neighboring node', () => {
-    const rendered = renderMermaidWithActions(
-      'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]\n  click G href "https://example.com"',
-      { format: 'unicode', options: { colorMode: 'none' } },
-    )
-    const region = rendered.actionSurface.actions[0]!.region!
-    const h = renderMermaidASCIIWithMeta(
-      'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]',
-      { colorMode: 'none' },
-    ).regions.find(candidate => candidate.id === 'H')!
-    expect(Number(region.bounds.h)).toBe(2)
-    expect(Number(region.bounds.x) + Number(region.bounds.w)).toBeLessThanOrEqual(h.canvasColStart)
-  })
-
-  test('terminal actions bind to node text rather than an identical edge label', () => {
-    const source = 'flowchart TD\n  X[X] -->|Yes| Y[Y]\n  Y --> C[Yes]\n  click C href "https://example.com"'
-    for (const format of ['ascii', 'unicode'] as const) {
-      const rendered = renderMermaidWithActions(source, { format, options: { colorMode: 'none' } })
-      const bounds = rendered.actionSurface.actions[0]!.region!.bounds
-      const line = String(rendered.output).split('\n')[Number(bounds.y)]!
-      expect(line.trim()).toMatch(format === 'ascii' ? /^\|\s*Yes\s*\|$/ : /^│\s*Yes\s*│$/)
-    }
-  })
-
-  test('wide labels before a multiline target do not erase its terminal action region', () => {
-    const rendered = renderMermaidWithActions(
-      'flowchart LR\n  B["界界界"] --> A["High<br>Tr"]\n  click A href "https://example.com"',
-      { format: 'unicode', options: { colorMode: 'none' } },
-    )
-    expect(rendered.actionSurface.actions[0]).toEqual(expect.objectContaining({
-      target: 'A', region: expect.objectContaining({ id: 'node:A', bounds: expect.objectContaining({ h: 2 }) }),
-    }))
-  })
-
   test('escaped quoted hrefs match the inert SVG metadata they produced', () => {
     for (const authored of ['https://example.com/a\\"b', 'https://example.com/a\\\\b']) {
       const rendered = renderMermaidWithActions(

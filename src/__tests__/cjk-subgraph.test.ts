@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { asFlowchart, parseRegisteredMermaid } from '../agent/index.ts'
 import { renderMermaidASCII } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
+import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
 
 function count(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
@@ -42,12 +43,8 @@ describe('CJK flowchart subgraph identifiers', () => {
   })
 
   test('scans a near-limit unterminated bracket declaration without quadratic backtracking', () => {
-    const source = `flowchart TD\nsubgraph ${'['.repeat(60_000)}x\nA\nend`
-    const started = performance.now()
-    const parsed = parseRegisteredMermaid(source)
-    const elapsed = performance.now() - started
-
-    expect(parsed.ok).toBe(true)
-    expect(elapsed).toBeLessThan(1_000)
+    expectNearLinearGrowth('unterminated bracket subgraph declaration', size => {
+      expect(parseRegisteredMermaid(`flowchart TD\nsubgraph ${'['.repeat(size)}x\nA\nend`).ok).toBe(true)
+    }, 60_000)
   })
 })

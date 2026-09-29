@@ -327,7 +327,7 @@ describe('quadrant round-trip property', () => {
     fc.integer({ min: 0, max: 100 }).map(n => n / 100),
   )
 
-  test('parse(render(parse(src))) is identity on generated charts', () => {
+  test('parse(serialize(parse(src))) is identity on generated charts', () => {
     fc.assert(
       fc.property(
         fc.option(axisArb, { nil: undefined }),

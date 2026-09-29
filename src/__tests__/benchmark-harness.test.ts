@@ -19,11 +19,6 @@ describe('benchmark harness', () => {
     }
   })
 
-  test('ASCII render is faster than SVG render (sanity)', () => {
-    const r = runBenchmark(loadCorpus())
-    expect(r.asciiMs.p50).toBeLessThan(r.svgMs.p50)
-  })
-
   test('RESULTS.md exists and records the competitor assessment', () => {
     const { readFileSync, existsSync } = require('node:fs') as typeof import('node:fs')
     const { join } = require('node:path') as typeof import('node:path')

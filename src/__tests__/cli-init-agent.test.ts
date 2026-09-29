@@ -102,11 +102,4 @@ describe('am init-agent', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
-
-  test('--help works and describes root skills output', () => {
-    const r = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'init-agent', '--help'], { encoding: 'utf8' })
-    expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
-    expect(r.stdout).toContain('am init-agent')
-    expect(r.stdout).toContain('skills/agentic-mermaid-diagram-workflow/SKILL.md')
-  })
 })

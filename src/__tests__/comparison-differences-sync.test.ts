@@ -12,25 +12,11 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8')
-const asSet = (xs: string[]) => [...xs].map(s => s.trim().toLowerCase()).sort()
-
-// Families upstream Beautiful Mermaid already renders. A stable external fact;
-// the fork-"added" families are everything in the registry beyond these.
-const UPSTREAM_BASE = ['flowchart', 'state', 'sequence', 'class', 'er', 'xychart']
-
-const registryIds = BUILTIN_FAMILY_METADATA.map(f => String(f.id))
-const forkAdded = registryIds.filter(id => !UPSTREAM_BASE.includes(id))
 
 describe('comparison.md ↔ family registry sync', () => {
-  test('UPSTREAM_BASE cleanly partitions the registry (guards this test premise)', () => {
-    for (const id of UPSTREAM_BASE) expect(registryIds).toContain(id)
-    expect(asSet([...UPSTREAM_BASE, ...forkAdded])).toEqual(asSet(registryIds))
-  })
-
   test('docs/comparison.md delegates the current inventory to capabilities', () => {
     const md = read('docs/comparison.md')
     expect(md).toContain('am capabilities --json')

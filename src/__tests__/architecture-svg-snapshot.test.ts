@@ -6,7 +6,13 @@ import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const snapshotDir = join(import.meta.dir, 'testdata', 'svg')
 
+// Reviewed whole-SVG goldens: they pin the exact geometry and markup of the
+// architecture renderer, so any drift (layout, routing, labels, theming) needs
+// a deliberate regeneration. Semantic properties of the same scenes are
+// asserted in architecture-integration.test.ts.
+
 describe('renderMermaidSVG – architecture snapshots', () => {
+  // Groups, a junction, a side-anchored edge, and a labelled edge into the junction.
   it('matches the representative architecture golden SVG', () => {
     const actual = renderMermaidSVG(`architecture-beta
       group edge(cloud)[Edge]
@@ -21,6 +27,8 @@ describe('renderMermaidSVG – architecture snapshots', () => {
     expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
   })
 
+  // Frontmatter theme + themeVariables overridden by an init directive, the
+  // architecture config block, and escaped markup in group, service and edge labels.
   it('matches the themed architecture golden SVG', () => {
     const actual = renderMermaidSVG(`---
 config:

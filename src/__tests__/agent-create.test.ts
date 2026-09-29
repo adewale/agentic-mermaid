@@ -2,22 +2,35 @@ import { describe, expect, test } from 'bun:test'
 import {
   createMermaid, buildMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
 } from '../agent/core.ts'
+import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
 
-const ALL_KINDS: DiagramKind[] = [
-  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er',
-  'journey', 'architecture', 'xychart', 'pie', 'quadrant', 'gantt',
-]
+// Derived from the registry, so a new family is enrolled here automatically.
+const ALL_KINDS: BuiltinFamilyId[] = BUILTIN_FAMILY_METADATA.map(f => f.id)
+
+// What verify says about the blank diagram createMermaid returns. Mindmap
+// grammar requires a root, so its blank slate carries a placeholder root node.
+const BLANK_VERIFY = {
+  flowchart: 'EMPTY_DIAGRAM', state: 'EMPTY_DIAGRAM', sequence: 'EMPTY_DIAGRAM', timeline: 'EMPTY_DIAGRAM',
+  class: 'EMPTY_DIAGRAM', er: 'EMPTY_DIAGRAM', journey: 'EMPTY_DIAGRAM', architecture: 'EMPTY_DIAGRAM',
+  xychart: 'EMPTY_DIAGRAM', pie: 'EMPTY_DIAGRAM', quadrant: 'EMPTY_DIAGRAM', gantt: 'EMPTY_DIAGRAM',
+  mindmap: 'placeholder root', gitgraph: 'EMPTY_DIAGRAM', radar: 'EMPTY_DIAGRAM', sankey: 'EMPTY_DIAGRAM',
+} as const satisfies Record<BuiltinFamilyId, 'EMPTY_DIAGRAM' | 'placeholder root'>
 
 describe('createMermaid', () => {
-  test('returns an empty STRUCTURED body for every built-in family', () => {
-    for (const kind of ALL_KINDS) {
+  for (const kind of ALL_KINDS) {
+    // Known product bug BUG-40 (TODO.md): a zero-commit gitGraph verifies clean
+    // with an empty layout, although the EMPTY_DIAGRAM catalog entry says a bare
+    // header fires it.
+    const pin = kind === 'gitgraph' ? test.failing : test
+    pin(`returns a blank STRUCTURED ${kind} body that verify reports as ${BLANK_VERIFY[kind]}`, () => {
       const d = createMermaid(kind)
-      expect(d.kind).toBe(kind)
-      expect(d.body.kind).not.toBe('opaque')
-      expect(verifyMermaid(d).warnings.some(w => w.code === 'EMPTY_DIAGRAM')).toBe(true)
-    }
-  })
+      expect({ kind: d.kind, body: d.body.kind }).toEqual({ kind, body: kind })
+      const codes = verifyMermaid(d).warnings.map(w => w.code)
+      if (BLANK_VERIFY[kind] === 'EMPTY_DIAGRAM') expect(codes).toContain('EMPTY_DIAGRAM')
+      else expect({ codes, serialized: serializeMermaid(d) }).toEqual({ codes: [], serialized: 'mindmap\n  root\n' })
+    })
+  }
   test('serializes to the family header', () => {
     expect(serializeMermaid(createMermaid('flowchart'))).toStartWith('flowchart TD')
     expect(serializeMermaid(createMermaid('er'))).toStartWith('erDiagram')
@@ -54,25 +67,30 @@ describe('buildMermaid', () => {
     expect(verifyMermaid(r.value).ok).toBe(true)
   })
   test('every family can be authored from a blank slate', () => {
-    const cases: Array<[DiagramKind, object[]]> = [
-      ['state', [{ kind: 'add_state', id: 'Idle' }, { kind: 'add_transition', from: '[*]', to: 'Idle' }]],
-      ['sequence', [{ kind: 'add_participant', id: 'A' }, { kind: 'add_participant', id: 'B' }, { kind: 'add_message', from: 'A', to: 'B', text: 'hi' }]],
-      ['timeline', [{ kind: 'add_section', label: 'S' }, { kind: 'add_period', sectionIndex: 0, label: '2024', events: ['e1'] }]],
-      ['class', [{ kind: 'add_class', id: 'Animal', members: ['+name: string'] }]],
-      ['er', [{ kind: 'add_entity', id: 'USER' }, { kind: 'add_entity', id: 'ORDER' }, { kind: 'add_relation', from: 'USER', to: 'ORDER', leftCard: 'one-only', rightCard: 'zero-or-many' }]],
-      ['journey', [{ kind: 'set_title', title: 'J' }, { kind: 'add_section', label: 'S' }, { kind: 'add_task', sectionIndex: 0, text: 't', score: 3 }]],
-      ['architecture', [{ kind: 'add_service', id: 'api', label: 'API' }, { kind: 'add_service', id: 'db', label: 'DB' }, { kind: 'add_edge', from: 'api', to: 'db', fromSide: 'R', toSide: 'L' }]],
-      ['xychart', [{ kind: 'set_title', title: 'X' }, { kind: 'add_series', kind2: 'bar', values: [1, 2, 3] }]],
-      ['pie', [{ kind: 'add_slice', label: 'A', value: 3 }]],
-      ['quadrant', [{ kind: 'add_point', label: 'p', x: 0.5, y: 0.5 }]],
-      ['gantt', [{ kind: 'add_section', label: 'S' }, { kind: 'add_task', sectionIndex: 0, label: 'T1', start: '2026-01-01', end: '3d' }]],
-    ]
+    const cases = Object.entries({
+      flowchart: [{ kind: 'add_node', id: 'A', label: 'A' }, { kind: 'add_edge', from: 'A', to: 'B' }],
+      state: [{ kind: 'add_state', id: 'Idle' }, { kind: 'add_transition', from: '[*]', to: 'Idle' }],
+      sequence: [{ kind: 'add_participant', id: 'A' }, { kind: 'add_participant', id: 'B' }, { kind: 'add_message', from: 'A', to: 'B', text: 'hi' }],
+      timeline: [{ kind: 'add_section', label: 'S' }, { kind: 'add_period', sectionIndex: 0, label: '2024', events: ['e1'] }],
+      class: [{ kind: 'add_class', id: 'Animal', members: ['+name: string'] }],
+      er: [{ kind: 'add_entity', id: 'USER' }, { kind: 'add_entity', id: 'ORDER' }, { kind: 'add_relation', from: 'USER', to: 'ORDER', leftCard: 'one-only', rightCard: 'zero-or-many' }],
+      journey: [{ kind: 'set_title', title: 'J' }, { kind: 'add_section', label: 'S' }, { kind: 'add_task', sectionIndex: 0, text: 't', score: 3 }],
+      architecture: [{ kind: 'add_service', id: 'api', label: 'API' }, { kind: 'add_service', id: 'db', label: 'DB' }, { kind: 'add_edge', from: 'api', to: 'db', fromSide: 'R', toSide: 'L' }],
+      xychart: [{ kind: 'set_title', title: 'X' }, { kind: 'add_series', kind2: 'bar', values: [1, 2, 3] }],
+      pie: [{ kind: 'add_slice', label: 'A', value: 3 }],
+      quadrant: [{ kind: 'add_point', label: 'p', x: 0.5, y: 0.5 }],
+      gantt: [{ kind: 'add_section', label: 'S' }, { kind: 'add_task', sectionIndex: 0, label: 'T1', start: '2026-01-01', end: '3d' }],
+      mindmap: [{ kind: 'add_node', id: 'Idea', label: 'Idea', parent: 'root' }],
+      gitgraph: [{ kind: 'append_commit', id: 'c1' }, { kind: 'create_branch', name: 'dev' }, { kind: 'append_commit', id: 'c2' }],
+      radar: [{ kind: 'add_axis', id: 'a', label: 'A' }, { kind: 'add_axis', id: 'b', label: 'B' }, { kind: 'add_axis', id: 'c', label: 'C' }, { kind: 'add_curve', id: 'x', label: 'X', values: [1, 2, 3] }],
+      sankey: [{ kind: 'add_link', source: 'Coal', target: 'Power', value: 5 }],
+    } satisfies Record<BuiltinFamilyId, object[]>) as Array<[BuiltinFamilyId, object[]]>
+    expect(cases.map(([kind]) => kind)).toEqual(ALL_KINDS)
     for (const [kind, ops] of cases) {
       const r = buildMermaid(kind, ops as never[])
-      expect(r.ok).toBe(true)
-      if (!r.ok) continue
+      if (!r.ok) throw new Error(`${kind}: ${JSON.stringify(r.error)}`)
       const reparsed = parseMermaid(serializeMermaid(r.value))
-      expect(reparsed.ok && reparsed.value.body.kind).toBe(kind)
+      expect({ kind, reparsed: reparsed.ok && reparsed.value.body.kind }).toEqual({ kind, reparsed: kind })
     }
   })
   test('a failing op reports its index', () => {

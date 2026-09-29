@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli } from '../cli/index.ts'
+import { captureCli as capture } from './helpers/p00-cli-capture.ts'
+import { useTempDirs } from './helpers/p00-temp-dir.ts'
 
 const SOURCE = `---
 config:
@@ -14,25 +15,15 @@ stateDiagram-v2
 `
 const LEGIBILITY_SOURCE = 'flowchart LR\n  A[Start] -- go --> B[Finish]\n'
 
+const temp = useTempDirs('am-config-warning-')
+
 function fixture(): { source: string; png: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'am-config-warning-'))
+  const dir = temp.dir()
   const source = join(dir, 'state.mmd')
   writeFileSync(source, SOURCE)
   return { source, png: join(dir, 'state.png') }
 }
 
-function capture(fn: () => number): { code: number; out: string; err: string } {
-  const out: string[] = []
-  const err: string[] = []
-  const originalOut = process.stdout.write.bind(process.stdout)
-  const originalErr = process.stderr.write.bind(process.stderr)
-  ;(process.stdout as any).write = (chunk: string) => { out.push(chunk); return true }
-  ;(process.stderr as any).write = (chunk: string) => { err.push(chunk); return true }
-  try { return { code: fn(), out: out.join(''), err: err.join('') } } finally {
-    ;(process.stdout as any).write = originalOut
-    ;(process.stderr as any).write = originalErr
-  }
-}
 
 describe('CLI render config diagnostics', () => {
   test('SVG warns on stderr and includes the qualified warning in --json', () => {
@@ -55,7 +46,7 @@ describe('CLI render config diagnostics', () => {
   })
 
   test('PNG reports a below-floor label warning on stderr and in JSON', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-legibility-warning-'))
+    const dir = temp.dir('am-legibility-warning-')
     const source = join(dir, 'flow.mmd')
     writeFileSync(source, LEGIBILITY_SOURCE)
 

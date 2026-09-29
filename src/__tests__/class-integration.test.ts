@@ -4,6 +4,14 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 
+// Every class SVG defines all marker ids in <defs>, so marker assertions must
+// read the drawn relationship element's own marker reference.
+function relationshipTag(svg: string): string {
+  const tag = svg.match(/<polyline class="class-relationship"[^>]*>/)?.[0]
+  if (!tag) throw new Error('no class-relationship element in SVG')
+  return tag
+}
+
 describe('renderMermaidSVG – class diagrams', () => {
   it('renders a basic class diagram to valid SVG', () => {
     const svg = renderMermaidSVG(`classDiagram
@@ -42,8 +50,8 @@ describe('renderMermaidSVG – class diagrams', () => {
       Animal <|-- Dog`)
     expect(svg).toContain('Animal')
     expect(svg).toContain('Dog')
-    // Inheritance uses a hollow triangle marker
-    expect(svg).toContain('cls-inherit')
+    // Inheritance uses a hollow triangle marker at the parent end
+    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-inherit)"')
   })
 
   it('repaints endpoint markers after class boxes so node fills cannot occlude them', () => {
@@ -63,27 +71,27 @@ describe('renderMermaidSVG – class diagrams', () => {
   it('renders composition with filled diamond', () => {
     const svg = renderMermaidSVG(`classDiagram
       Car *-- Engine`)
-    expect(svg).toContain('cls-composition')
+    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-composition)"')
   })
 
   it('renders aggregation with hollow diamond', () => {
     const svg = renderMermaidSVG(`classDiagram
       University o-- Department`)
-    expect(svg).toContain('cls-aggregation')
+    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-aggregation)"')
   })
 
   it('renders dependency with dashed line', () => {
     const svg = renderMermaidSVG(`classDiagram
       Service ..> Repository`)
-    expect(svg).toContain('stroke-dasharray')
-    expect(svg).toContain('cls-arrow')
+    expect(relationshipTag(svg)).toContain('stroke-dasharray')
+    expect(relationshipTag(svg)).toContain('marker-end="url(#cls-arrow)"')
   })
 
   it('renders realization with dashed line and triangle', () => {
     const svg = renderMermaidSVG(`classDiagram
       Bird ..|> Flyable`)
-    expect(svg).toContain('stroke-dasharray')
-    expect(svg).toContain('cls-inherit')
+    expect(relationshipTag(svg)).toContain('stroke-dasharray')
+    expect(relationshipTag(svg)).toContain('marker-end="url(#cls-inherit)"')
   })
 
   it('renders relationship labels', () => {

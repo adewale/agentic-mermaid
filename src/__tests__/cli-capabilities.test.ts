@@ -129,7 +129,7 @@ describe('am capabilities', () => {
   // can lift it into their own JSON Schema toolchain.
   it('emitted JSON conforms to capabilities.schema.json required fields and enums', () => {
     const schemaPath = join(import.meta.dir, '__fixtures__', 'capabilities.schema.json')
-    if (!existsSync(schemaPath)) return // schema is optional; CI fixture
+    expect(existsSync(schemaPath)).toBe(true)
     const schema = JSON.parse(readFileSync(schemaPath, 'utf8'))
     const cap = buildCapabilities()
     expect(schema.type).toBe('object')

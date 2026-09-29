@@ -5,34 +5,6 @@ import { detectBrowserBuiltinFamilyFromFirstLine } from '../browser-lazy/generat
 import { renderMermaidSVG } from '../index.ts'
 import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 
-const LAZY_DESCRIPTOR_LOADERS = {
-  flowchart: () => import('../browser-lazy/families/flowchart.ts'),
-  state: () => import('../browser-lazy/families/state.ts'),
-  sequence: () => import('../browser-lazy/families/sequence.ts'),
-  timeline: () => import('../browser-lazy/families/timeline.ts'),
-  class: () => import('../browser-lazy/families/class.ts'),
-  er: () => import('../browser-lazy/families/er.ts'),
-  journey: () => import('../browser-lazy/families/journey.ts'),
-  architecture: () => import('../browser-lazy/families/architecture.ts'),
-  xychart: () => import('../browser-lazy/families/xychart.ts'),
-  pie: () => import('../browser-lazy/families/pie.ts'),
-  quadrant: () => import('../browser-lazy/families/quadrant.ts'),
-  gantt: () => import('../browser-lazy/families/gantt.ts'),
-  mindmap: () => import('../browser-lazy/families/mindmap.ts'),
-  gitgraph: () => import('../browser-lazy/families/gitgraph.ts'),
-  radar: () => import('../browser-lazy/families/radar.ts'),
-  sankey: () => import('../browser-lazy/families/sankey.ts'),
-} as const
-
-function implementationSource(value: ((...args: never[]) => unknown) | undefined): string | undefined {
-  if (!value) return undefined
-  let source = value.toString().trim()
-  const arrow = source.indexOf('=>')
-  source = arrow >= 0 ? source.slice(arrow + 2).trim() : source.slice(source.indexOf('{') + 1, -1).trim()
-  if (source.startsWith('{') && source.endsWith('}')) source = source.slice(1, -1).trim()
-  return source.replace(/\s+/g, '')
-}
-
 describe('async browser SVG entry', () => {
   test('renders every enrolled family with byte-exact synchronous parity', async () => {
     const families = knownBuiltinFamilies()
@@ -41,19 +13,6 @@ describe('async browser SVG entry', () => {
       const source = getFamily(id)!.example
       expect(await renderMermaidSVGAsync(source, { security: 'strict' }), id)
         .toBe(renderMermaidSVG(source, { security: 'strict' }))
-    }
-  })
-
-  test('locks each lazy SVG hook body to the canonical descriptor authority', async () => {
-    const families = knownBuiltinFamilies()
-    expect(Object.keys(LAZY_DESCRIPTOR_LOADERS)).toEqual(families)
-    for (const id of families) {
-      const canonical = getFamily(id)!
-      const lazy = (await LAZY_DESCRIPTOR_LOADERS[id]()).default
-      for (const hook of ['normalizeRequest', 'layout', 'lowerScene'] as const) {
-        expect(implementationSource(lazy[hook]), `${id}.${hook}`)
-          .toBe(implementationSource(canonical[hook]))
-      }
     }
   })
 

@@ -20,22 +20,20 @@ interface Point {
   y: number
 }
 
-/**
- * Determine if a segment is primarily vertical (dy > dx).
- */
-function isVerticalSegment(p1: Point, p2: Point, tolerance = 1): boolean {
-  const dx = Math.abs(p2.x - p1.x)
-  const dy = Math.abs(p2.y - p1.y)
-  return dy > dx || dx < tolerance
-}
+/** Orthogonality tolerance for float noise; router segments are exactly axis-aligned. */
+const AXIS_EPS = 0.5
 
 /**
- * Determine if a segment is primarily horizontal (dx > dy).
+ * A strictly vertical, non-degenerate segment. A steep diagonal is not
+ * vertical, and a zero-length segment is neither vertical nor horizontal.
  */
-function isHorizontalSegment(p1: Point, p2: Point, tolerance = 1): boolean {
-  const dx = Math.abs(p2.x - p1.x)
-  const dy = Math.abs(p2.y - p1.y)
-  return dx > dy || dy < tolerance
+function isVerticalSegment(p1: Point, p2: Point): boolean {
+  return Math.abs(p2.x - p1.x) < AXIS_EPS && Math.abs(p2.y - p1.y) >= AXIS_EPS
+}
+
+/** A strictly horizontal, non-degenerate segment. */
+function isHorizontalSegment(p1: Point, p2: Point): boolean {
+  return Math.abs(p2.y - p1.y) < AXIS_EPS && Math.abs(p2.x - p1.x) >= AXIS_EPS
 }
 
 /**
@@ -121,6 +119,7 @@ describe('Edge Approach Direction', () => {
 
       const processorNode = positioned.nodes.find((n) => n.id === 'Processor')
       expect(processorNode).toBeDefined()
+      expect(positioned.edges.filter(edge => edge.target === 'Processor')).toHaveLength(2)
 
       // Both edges should approach Processor with vertical final segments
       for (const edge of positioned.edges) {
@@ -143,6 +142,7 @@ describe('Edge Approach Direction', () => {
         Processor --> Output
         Processor --> Log`)
       const positioned = layoutGraphSync(parsed, {})
+      expect(positioned.edges).toHaveLength(4)
 
       // Check all edges
       for (const edge of positioned.edges) {
@@ -195,6 +195,7 @@ describe('Edge Approach Direction', () => {
         Input --> Processor
         Config --> Processor`)
       const positioned = layoutGraphSync(parsed, {})
+      expect(positioned.edges.filter(edge => edge.target === 'Processor')).toHaveLength(2)
 
       for (const edge of positioned.edges) {
         if (edge.target === 'Processor') {
@@ -212,6 +213,7 @@ describe('Edge Approach Direction', () => {
         A --> B
         A --> C`)
       const positioned = layoutGraphSync(parsed, {})
+      expect(positioned.edges.filter(edge => edge.source === 'A')).toHaveLength(2)
 
       for (const edge of positioned.edges) {
         if (edge.source === 'A') {
@@ -229,6 +231,7 @@ describe('Edge Approach Direction', () => {
         A --> B
         A --> C`)
       const positioned = layoutGraphSync(parsed, {})
+      expect(positioned.edges.filter(edge => edge.source === 'A')).toHaveLength(2)
 
       for (const edge of positioned.edges) {
         if (edge.source === 'A') {

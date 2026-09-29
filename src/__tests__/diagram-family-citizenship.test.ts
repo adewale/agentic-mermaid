@@ -108,15 +108,13 @@ describe('diagram-family citizenship ratchet (issue #41)', () => {
     for (const [family, row] of Object.entries(matrix.families)) {
       for (const [surface, cell] of Object.entries(row.cells) as Array<[SurfaceId, Cell]>) {
         expect({ family, surface, status: cell.status }).toEqual({ family, surface, status: expect.stringMatching(/^(satisfied|exception)$/) })
-        expect({ family, surface, evidence: cell.evidence.length }).toEqual({ family, surface, evidence: expect.any(Number) })
-        expect(cell.evidence.length).toBeGreaterThan(0)
+        expect({ family, surface, hasEvidence: cell.evidence.length > 0 }).toEqual({ family, surface, hasEvidence: true })
         for (const evidence of cell.evidence) {
           expect({ family, surface, evidence, exists: repoPathExists(evidence) }).toEqual({ family, surface, evidence, exists: true })
         }
         if (cell.status === 'exception') {
           expect({ family, surface, allowed: TRACKED_EXCEPTION_SURFACES.has(surface) }).toEqual({ family, surface, allowed: true })
-          expect({ family, surface, tracked: cell.tracked?.length ?? 0 }).toEqual({ family, surface, tracked: expect.any(Number) })
-          expect(cell.tracked?.length ?? 0).toBeGreaterThan(0)
+          expect({ family, surface, isTracked: (cell.tracked?.length ?? 0) > 0 }).toEqual({ family, surface, isTracked: true })
           for (const ref of cell.tracked ?? []) {
             if (ref.startsWith('TODO:')) {
               const id = ref.slice('TODO:'.length)

@@ -462,7 +462,7 @@ describe('journey verify + render', () => {
 
 describe('journey round-trip property', () => {
   const textArb = fc.stringMatching(/^[A-Za-z][A-Za-z ]{0,18}[A-Za-z]$/)
-  test('parse(render(parse(src))) is identity on generated journeys', () => {
+  test('parse(serialize(parse(src))) is identity on generated journeys', () => {
     fc.assert(
       fc.property(
         fc.array(

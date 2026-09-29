@@ -3,6 +3,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
 import type { SourceSpan } from '../agent/types.ts'
 import { sourcePreservationSpans } from '../family-detection.ts'
+import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
 
 function textAt(source: string, span: SourceSpan | undefined): string | undefined {
   return span ? source.slice(span.start.offset, span.end.offset) : undefined
@@ -601,36 +602,23 @@ A -->|lab| B`
 
   test('maps near-limit hyphenated ids without quadratic label scanning', () => {
     const id = `A${'-a'.repeat(25_000)}`
-    const source = `flowchart LR\n${id}`
-    const started = performance.now()
-    const parsed = parseMermaid(source)
-    const elapsed = performance.now() - started
-
+    const parsed = parseMermaid(`flowchart LR\n${id}`)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.value.source.nodes.get(id)).toEqual({ line: 2, col: 1 })
-    expect(elapsed).toBeLessThan(2_000)
 
-    const packed = `flowchart LR\n${'A;'.repeat(10_000)}B-->C`
-    const packedStarted = performance.now()
-    const packedParsed = parseMermaid(packed)
-    const packedElapsed = performance.now() - packedStarted
-    expect(packedParsed.ok).toBe(true)
-    expect(packedElapsed).toBeLessThan(2_000)
-
-    const textLabel = `flowchart LR\nA -- x; ${'y; '.repeat(16_000)}z --> B`
-    const textLabelStarted = performance.now()
-    const textLabelParsed = parseMermaid(textLabel)
-    const textLabelElapsed = performance.now() - textLabelStarted
-    expect(textLabelParsed.ok).toBe(true)
-    expect(textLabelElapsed).toBeLessThan(2_000)
-
-    const quoted = `flowchart LR\nA["${'x -- '.repeat(2_000)}x"];${Array.from({ length: 100 }, (_, index) => `N${index}`).join(';')}`
-    const quotedStarted = performance.now()
-    const quotedParsed = parseMermaid(quoted)
-    const quotedElapsed = performance.now() - quotedStarted
-    expect(quotedParsed.ok).toBe(true)
-    expect(quotedElapsed).toBeLessThan(2_000)
+    expectNearLinearGrowth('hyphenated id', size => {
+      expect(parseMermaid(`flowchart LR\nA${'-a'.repeat(size)}`).ok).toBe(true)
+    }, 25_000)
+    expectNearLinearGrowth('packed statements', size => {
+      expect(parseMermaid(`flowchart LR\n${'A;'.repeat(size)}B-->C`).ok).toBe(true)
+    }, 10_000)
+    expectNearLinearGrowth('semicolon-bearing text label', size => {
+      expect(parseMermaid(`flowchart LR\nA -- x; ${'y; '.repeat(size)}z --> B`).ok).toBe(true)
+    }, 16_000)
+    expectNearLinearGrowth('quoted label with edge-like text', size => {
+      expect(parseMermaid(`flowchart LR\nA["${'x -- '.repeat(size)}x"];${Array.from({ length: 100 }, (_, index) => `N${index}`).join(';')}`).ok).toBe(true)
+    }, 2_000)
   })
 
   test('indexes line starts once for many mapped objects', () => {
@@ -649,7 +637,6 @@ A -->|lab| B`
     const larger = parseTimed(8_000)
     expect(smaller.parsed.ok).toBe(true)
     expect(larger.parsed.ok).toBe(true)
-    expect(larger.elapsed).toBeLessThan(2_000)
     expect(larger.elapsed).toBeLessThan(smaller.elapsed * 12 + 1_000)
     if (larger.parsed.ok) {
       const last = larger.parsed.value.source.spans!.nodes.get('N7999')!
@@ -658,38 +645,27 @@ A -->|lab| B`
   })
 
   test('keeps same-line and repeated-node chains within a linear-time envelope', () => {
-    const timed = (source: string) => {
-      const started = performance.now()
-      const parsed = parseMermaid(source)
-      return { parsed, elapsed: performance.now() - started }
-    }
-    const unique = timed(`flowchart LR\n${Array.from({ length: 2_400 }, (_, index) => `N${index}`).join('-->')}`)
-    const repeated = timed(`flowchart LR\n${Array.from({ length: 150 }, () => 'A').join('-->')}`)
-    expect(unique.parsed.ok).toBe(true)
-    expect(repeated.parsed.ok).toBe(true)
-    expect(unique.elapsed).toBeLessThan(2_000)
-    expect(repeated.elapsed).toBeLessThan(2_000)
-
-    const shaped = timed(`flowchart LR\n${Array.from({ length: 9_600 }, (_, index) => `N${index}[L${index}]`).join('-->')}`)
-    expect(shaped.parsed.ok).toBe(true)
-    expect(shaped.elapsed).toBeLessThan(1_500)
+    expectNearLinearGrowth('same-line chain of unique nodes', size => {
+      expect(parseMermaid(`flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}`).join('-->')}`).ok).toBe(true)
+    }, 2_400)
+    expectNearLinearGrowth('same-line chain of one repeated node', size => {
+      expect(parseMermaid(`flowchart LR\n${Array.from({ length: size }, () => 'A').join('-->')}`).ok).toBe(true)
+    }, 150)
+    expectNearLinearGrowth('same-line chain of shaped nodes', size => {
+      expect(parseMermaid(`flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}[L${index}]`).join('-->')}`).ok).toBe(true)
+    }, 9_600)
   })
 
   test('indexes preservation coordinates and merges accessibility spans linearly', () => {
-    const titles = `flowchart LR\n${Array.from({ length: 16_000 }, (_, index) => `accTitle: T${index}`).join('\n')}`
-    let started = performance.now()
-    const titleSpans = sourcePreservationSpans(titles, 'flowchart LR')
-    const titleElapsed = performance.now() - started
-    expect(titleSpans.accessibilityDirectives).toHaveLength(16_000)
-    expect(titleElapsed).toBeLessThan(1_000)
-
-    const mixed = `flowchart LR\n${Array.from({ length: 4_000 }, (_, index) =>
-      `accDescr {\naccTitle: hidden ${index}\n}\naccTitle: visible ${index}`).join('\n')}`
-    started = performance.now()
-    const mixedSpans = sourcePreservationSpans(mixed, 'flowchart LR')
-    const mixedElapsed = performance.now() - started
-    expect(mixedSpans.accessibilityDirectives).toHaveLength(8_000)
-    expect(mixedElapsed).toBeLessThan(750)
+    expectNearLinearGrowth('accTitle preservation spans', size => {
+      const titles = `flowchart LR\n${Array.from({ length: size }, (_, index) => `accTitle: T${index}`).join('\n')}`
+      expect(sourcePreservationSpans(titles, 'flowchart LR').accessibilityDirectives).toHaveLength(size)
+    }, 16_000)
+    expectNearLinearGrowth('mixed accDescr/accTitle preservation spans', size => {
+      const mixed = `flowchart LR\n${Array.from({ length: size }, (_, index) =>
+        `accDescr {\naccTitle: hidden ${index}\n}\naccTitle: visible ${index}`).join('\n')}`
+      expect(sourcePreservationSpans(mixed, 'flowchart LR').accessibilityDirectives).toHaveLength(2 * size)
+    }, 4_000)
   })
 
   test('keeps compact labels inside statement and grammar boundaries', () => {

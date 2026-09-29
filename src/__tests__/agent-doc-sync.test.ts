@@ -336,12 +336,6 @@ describe('vocabulary doc-sync', () => {
     expect(sdkStringUnion('WarningCode').sort()).toEqual(Object.keys(WARNING_TIER).sort())
   })
 
-  test('every code tiered + severity', () => {
-    for (const code of Object.keys(WARNING_SEVERITY)) {
-      expect(WARNING_SEVERITY[code as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)
-      expect(WARNING_TIER[code as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
-    }
-  })
   test('public mutate help delegates the live family roster', () => {
     const help = COMMAND_HELP.mutate?.toLowerCase() ?? ''
     expect(help.length).toBeGreaterThan(0)

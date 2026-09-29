@@ -167,7 +167,9 @@ describe('class namespaces — SVG rendering', () => {
 
   it('uses the display label when one is given', () => {
     const svg = renderMermaidSVG(NS_LABELED)
-    expect(svg).toContain('Authentication Service')
+    // The drawn title text, not the data-label attribute that also carries it.
+    expect(svg).toContain('>Authentication Service</text>')
+    expect(svg).not.toContain('>Auth</text>')
   })
 
   it('namespace-free diagrams render without namespace chrome', () => {

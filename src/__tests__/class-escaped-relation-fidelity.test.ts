@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { parseClassDiagram, parseClassRelationship } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { expectNearLinearGrowth } from './helpers/p00-growth.ts'
 
 const cases = [
   { statement: '`A B` --> C', from: 'A B', to: 'C', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
@@ -369,10 +370,9 @@ describe('Class escaped relationship IDs', () => {
   })
 
   test('long malformed marked links remain bounded', () => {
-    const malformed = `A${'-->'.repeat(20_000)} \`B C\``
-    const start = performance.now()
-    expect(parseClassRelationship(malformed)).toBeNull()
-    expect(performance.now() - start).toBeLessThan(500)
+    expectNearLinearGrowth('long malformed marked link', size => {
+      expect(parseClassRelationship(`A${'-->'.repeat(size)} \`B C\``)).toBeNull()
+    }, 20_000)
   })
 
   test('a reserved-word escaped endpoint draws one directed relationship between both classes', () => {

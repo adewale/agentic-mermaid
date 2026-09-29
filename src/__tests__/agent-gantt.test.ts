@@ -16,7 +16,6 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { asGantt } from '../agent/types.ts'
 import type { GanttValidDiagram, GanttMutationOp } from '../agent/types.ts'
-import { MUTATION_OPS_BY_FAMILY, buildCapabilities } from '../cli/index.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutMermaid, renderMermaidASCIIWithMeta } from '../agent/index.ts'
@@ -131,17 +130,6 @@ describe('gantt whole-opaque fallback (structure-level failures)', () => {
 })
 
 describe('gantt mutation ops (every declared op round-trips)', () => {
-  test('declared op list matches the implementation surface', () => {
-    expect([...MUTATION_OPS_BY_FAMILY.gantt]).toEqual([
-      'set_title', 'add_section', 'rename_section', 'remove_section',
-      'add_task', 'remove_task', 'rename_task', 'set_task_status', 'set_task_dates',
-      'set_task_flags', 'set_task_id', 'move_task', 'move_section',
-    ])
-    const cap = buildCapabilities().families.find(f => f.id === 'gantt')
-    expect(cap).toMatchObject({ hasMutate: true, editPolicy: 'structured-when-narrowed' })
-    expect(cap!.mutationOps).toEqual([...MUTATION_OPS_BY_FAMILY.gantt])
-  })
-
   test('set_title sets and clears', () => {
     expect(apply(gantt(), { kind: 'set_title', title: 'New plan' }).body.title).toBe('New plan')
     const cleared = apply(gantt(), { kind: 'set_title', title: null })

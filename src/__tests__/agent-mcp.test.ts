@@ -1,12 +1,17 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
-import { describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { runCli } from '../cli/index.ts'
 import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { captureCli as capture } from './helpers/p00-cli-capture.ts'
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {
@@ -302,14 +307,13 @@ describe('sandbox — isolation + sad paths', () => {
     // is deliberately the expensive part. Before the commit watchdog this ran
     // outside node:vm's timeout and could occupy the MCP process indefinitely.
     const source = 'flowchart TD\n' + Array.from({ length: 1_200 }, (_, index) => `N${index} --> N${index + 1}`).join('\n')
-    const startedAt = performance.now()
     const r = await executeInSandbox(`return mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value`, { timeoutMs: 2_000 })
-    const elapsedMs = performance.now() - startedAt
     expect(r.ok).toBe(false)
+    // The commit-phase watchdog fired: the error names the deadline and phase.
     expect(r.error).toContain('timed out after 2000ms while committing the result')
-    // Error/log projection adds a small scheduling tail after the watchdog,
-    // but result work must remain tightly bounded rather than scale with layout.
-    expect(elapsedMs).toBeLessThan(3_000)
+    // Result work must stay bounded rather than scale with layout; the test's
+    // own 5 s timeout is that bound (a wall-clock assertion on top of it only
+    // flaked under load).
   }, 5_000)
 
   test('the post-close commit watchdog never exposes a raw host callable', async () => {
@@ -561,7 +565,6 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'finite number 1..5' }))
   })
   test('transport maximum caps execute even when the request omits timeoutMs', async () => {
-    const started = performance.now()
     const r = await handleRequest(
       {
         jsonrpc: '2.0',
@@ -573,17 +576,20 @@ describe('MCP — JSON-RPC happy + sad', () => {
     )
     const payload = JSON.parse((r!.result as any).content[0].text)
     expect(payload.ok).toBe(false)
-    expect(payload.error).toMatch(/timed out|timeout/i)
-    expect(performance.now() - started).toBeLessThan(1_000)
+    // The reported deadline is the 25 ms transport cap, not the default
+    // sandbox timeout, so the cap applied without timing the call.
+    const deadline = Number(String(payload.error).match(/timed out after (\d+)ms/)?.[1])
+    expect(deadline).toBeGreaterThan(0)
+    expect(deadline).toBeLessThanOrEqual(25)
   })
 
-  test('unknown tool → error', async () => {
+  test('unknown tool → -32602 naming the tool', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope', arguments: {} } })
-    expect(r!.error).toBeDefined()
+    expect(r).toMatchObject({ id: 4, error: { code: -32602, message: 'Unknown tool: nope' } })
   })
-  test('missing code arg → error', async () => {
+  test('missing code arg → -32602 naming the argument', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'execute', arguments: {} } })
-    expect(r!.error).toBeDefined()
+    expect(r).toMatchObject({ id: 5, error: { code: -32602, message: expect.stringContaining('arguments.code is required') } })
   })
   test('tool schemas reject malformed local arguments before handlers run', async () => {
     const malformed = [
@@ -623,9 +629,9 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(malformedWithoutId?.error?.code).toBe(-32600)
     expect(malformedWithoutId?.id).toBeNull()
   })
-  test('malformed params on tools/call do not throw', async () => {
+  test('malformed params on tools/call are rejected as -32602, not thrown', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: null })
-    expect(r!.error).toBeDefined()
+    expect(r).toMatchObject({ id: 7, error: { code: -32602, message: expect.stringContaining('tools/call requires an object') } })
   })
 })
 
@@ -712,49 +718,34 @@ describe('MCP bin shim', () => {
 })
 
 describe('CLI — sad paths via runCli', () => {
-  // Capture stdout
-  function capture(fn: () => number): { code: number; out: string; err: string } {
-    const chunks: string[] = [],
-      errors: string[] = []
-    const orig = process.stdout.write.bind(process.stdout)
-    const origErr = process.stderr.write.bind(process.stderr)
-    ;(process.stdout as any).write = (s: string) => {
-      chunks.push(s)
-      return true
-    }
-    ;(process.stderr as any).write = (s: string) => {
-      errors.push(s)
-      return true
-    }
-    let code: number
-    try {
-      code = fn()
-    } finally {
-      ;(process.stdout as any).write = orig
-      ;(process.stderr as any).write = origErr
-    }
-    return { code, out: chunks.join(''), err: errors.join('') }
+  let dir = ''
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'am-cli-sad-'))
+  })
+  afterAll(() => rmSync(dir, { recursive: true, force: true }))
+  const tmpFile = (name: string, content: string): string => {
+    const path = join(dir, name)
+    writeFileSync(path, content)
+    return path
   }
 
+
   test('render parse failures exit 2 with PARSE_FAILED, not INTERNAL', () => {
-    const tmp = `/tmp/cli-render-invalid-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'flowchart XX\n  A --> B\n')
+    const tmp = tmpFile('render-invalid.mmd', 'flowchart XX\n  A --> B\n')
     const { code, out } = capture(() => runCli(['render', tmp, '--format', 'svg', '--json']))
     expect(code).toBe(2)
     expect(out).toContain('PARSE_FAILED')
   })
 
   test('mutate on structured architecture preserves typed accessibility directives (B04)', () => {
-    const tmp = `/tmp/cli-architecture-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'architecture-beta\n  service api(server)[API]\n')
+    const tmp = tmpFile('architecture.mmd', 'architecture-beta\n  service api(server)[API]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_service","id":"db","label":"Database","icon":"database"}', '--json']))
     expect(code).toBe(0)
     const payload = JSON.parse(out)
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('service db(database)[Database]')
 
-    const accessibleTmp = `/tmp/cli-architecture-accessible-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(accessibleTmp, 'architecture-beta\n  accTitle: A11y\n  service api(server)[API]\n')
+    const accessibleTmp = tmpFile('architecture-accessible.mmd', 'architecture-beta\n  accTitle: A11y\n  service api(server)[API]\n')
     const accessible = capture(() => runCli(['mutate', accessibleTmp, '--op', '{"kind":"add_service","id":"db","label":"DB"}', '--json']))
     expect(accessible.code).toBe(0)
     const accessiblePayload = JSON.parse(accessible.out)
@@ -763,46 +754,40 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate on structured journey succeeds (BUILD-15); opaque journey stays unsupported', () => {
-    const tmp = `/tmp/cli-journey-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'journey\n  section Work\n  Code: 4: Me\n')
+    const tmp = tmpFile('journey.mmd', 'journey\n  section Work\n  Code: 4: Me\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5,"actors":["Me"]}', '--json']))
     expect(code).toBe(0)
     const payload = JSON.parse(out)
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('Review: 5: Me')
 
-    const opaqueTmp = `/tmp/cli-journey-opaque-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(opaqueTmp, 'journey\n  Code: 9: Me\n')
+    const opaqueTmp = tmpFile('journey-opaque.mmd', 'journey\n  Code: 9: Me\n')
     const opaque = capture(() => runCli(['mutate', opaqueTmp, '--op', '{"kind":"add_task","sectionIndex":0,"text":"Review","score":5}', '--json']))
     expect(opaque.code).toBe(2)
     expect(JSON.parse(opaque.out).error.code).toBe('UNSUPPORTED_FAMILY')
   })
 
   test('mutate on structured xychart preserves delimiter-bearing quoted text', () => {
-    const tmp = `/tmp/cli-xychart-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'xychart-beta\n  x-axis [Jan, Feb]\n  bar [1, 2]\n')
+    const tmp = tmpFile('xychart.mmd', 'xychart-beta\n  x-axis [Jan, Feb]\n  bar [1, 2]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_series","kind2":"line","name":"Mobile","values":[3,4]}', '--json']))
     expect(code).toBe(0)
     const payload = JSON.parse(out)
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('line Mobile [3, 4]')
 
-    const accessibleTmp = `/tmp/cli-xychart-accessible-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(accessibleTmp, 'xychart-beta\n  accTitle: Sales chart\n  bar [1, 2]\n')
+    const accessibleTmp = tmpFile('xychart-accessible.mmd', 'xychart-beta\n  accTitle: Sales chart\n  bar [1, 2]\n')
     const accessible = capture(() => runCli(['mutate', accessibleTmp, '--op', '{"kind":"set_title","title":"X"}', '--json']))
     expect(accessible.code).toBe(0)
     expect(JSON.parse(accessible.out).source).toContain('accTitle: Sales chart')
 
-    const quotedTmp = `/tmp/cli-xychart-quoted-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(quotedTmp, 'xychart-beta\n  title "Quoted [supported]"\n  bar [1, 2]\n')
+    const quotedTmp = tmpFile('xychart-quoted.mmd', 'xychart-beta\n  title "Quoted [supported]"\n  bar [1, 2]\n')
     const quoted = capture(() => runCli(['mutate', quotedTmp, '--op', '{"kind":"set_y_axis","axis":{"range":{"min":0,"max":5}}}', '--json']))
     expect(quoted.code).toBe(0)
     expect(JSON.parse(quoted.out).source).toContain('title "Quoted [supported]"')
   })
 
   test('mutate on sequence-with-notes (BUILD-18: structured-with-segments) succeeds and keeps the note', () => {
-    const tmp = `/tmp/cli-seqnote-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking\n')
+    const tmp = tmpFile('seqnote.mmd', 'sequenceDiagram\n  A->>B: Hi\n  Note over A: thinking\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"add_message","from":"A","to":"B","text":"x"}']))
     expect(code).toBe(0)
     // The Note rides along verbatim; the new message lands after it.
@@ -811,8 +796,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate verifies before emitting and exits 3 when the result is invalid', () => {
-    const tmp = `/tmp/cli-mutate-invalid-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Only]\n')
+    const tmp = tmpFile('mutate-invalid.mmd', 'flowchart TD\n  A[Only]\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"remove_node","id":"A"}', '--json']))
     expect(code).toBe(3)
     const payload = JSON.parse(out)
@@ -823,8 +807,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate --json includes verify warnings on success', () => {
-    const tmp = `/tmp/cli-mutate-warning-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A --> B\n')
+    const tmp = tmpFile('mutate-warning.mmd', 'flowchart TD\n  A --> B\n')
     const long = 'X'.repeat(80)
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_node', id: 'C', label: long }), '--json']))
     expect(code).toBe(0)
@@ -835,8 +818,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('mutate supports class diagrams through the public CLI surface', () => {
-    const tmp = `/tmp/cli-class-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'classDiagram\n  class Animal\n')
+    const tmp = tmpFile('class.mmd', 'classDiagram\n  class Animal\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_class', id: 'Duck', members: ['+quack()'] })]))
     expect(code).toBe(0)
     expect(out).toContain('Duck')
@@ -847,18 +829,15 @@ describe('CLI — sad paths via runCli', () => {
     // Was 2 in Loop ≤6 (when verify-failed shared an exit code with arg
     // errors); Loop 7 split out a dedicated EXIT_VERIFY_FAILED=3 so a CI
     // script can branch on cause-of-failure.
-    const tmp = `/tmp/cli-empty-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, '')
+    const tmp = tmpFile('empty.mmd', '')
     const { code } = capture(() => runCli(['verify', tmp]))
     expect(code).toBe(3)
   })
 
   test('verify resolves and safely admits file-backed Styles so constraints match render', () => {
-    const stamp = Date.now()
-    const source = `/tmp/cli-verify-style-${stamp}.mmd`
-    const style = `/tmp/cli-verify-style-${stamp}.json`
+    const source = tmpFile('verify-style.mmd', 'flowchart TD\n  A[Alpha]\n')
+    const style = join(dir, 'verify-style.json')
     const fs = require('node:fs') as typeof import('node:fs')
-    fs.writeFileSync(source, 'flowchart TD\n  A[Alpha]\n')
     try {
       fs.writeFileSync(
         style,
@@ -903,8 +882,7 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('verify rejects malformed label caps and unknown suppression codes', () => {
-    const tmp = `/tmp/cli-verify-options-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A --> B\n')
+    const tmp = tmpFile('verify-options.mmd', 'flowchart TD\n  A --> B\n')
     for (const args of [
       ['verify', tmp, '--label-cap', 'nope'],
       ['verify', tmp, '--label-cap', '1.5'],
@@ -924,35 +902,30 @@ describe('CLI — sad paths via runCli', () => {
     expect(v.out).not.toEqual(g.out)
   })
 
+  // `am serialize` reads the parse JSON on stdin, so it runs as a subprocess.
+  const amSerialize = (json: string) => {
+    const r = spawnSync('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'serialize'], { input: json, encoding: 'utf8' })
+    return { code: r.status, out: r.stdout, err: r.stderr }
+  }
+
   test('REGRESSION: am parse | am serialize supports structured payload families', () => {
-    const { synthesizeFromGraph, serializeMermaid } = require('../agent/serialize.ts')
-    for (const src of ['classDiagram\n  class Animal\n', 'timeline\n  title Plan\n  2024 : Alpha\n', 'erDiagram\n  CUSTOMER {\n    string id\n  }\n']) {
-      const tmp = `/tmp/cli-structured-${Date.now()}-${Math.random()}.mmd`
-      require('node:fs').writeFileSync(tmp, src)
-      const parsed = capture(() => runCli(['parse', tmp]))
+    const sources = ['classDiagram\n  class Animal\n', 'timeline\n  title Plan\n  2024 : Alpha\n', 'erDiagram\n  CUSTOMER {\n    string id\n  }\n']
+    sources.forEach((src, i) => {
+      const parsed = capture(() => runCli(['parse', tmpFile(`structured-${i}.mmd`, src)]))
       expect(parsed.code).toBe(0)
-      const payload = JSON.parse(parsed.out)
-      const r = synthesizeFromGraph(payload)
-      expect(r.ok).toBe(true)
-      expect(serializeMermaid(r.value).trim()).toContain(src.trim().split('\n')[0])
-    }
+      const serialized = amSerialize(parsed.out)
+      expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
+      expect(serialized.out.trim()).toContain(src.trim().split('\n')[0]!)
+    })
   })
 
   test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', () => {
-    const tmp = `/tmp/cli-styled-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Start] --> B[End]\n  classDef hot fill:#f00\n  class A hot\n  style B stroke:#0f0\n  linkStyle 0 stroke:#00f\n')
+    const tmp = tmpFile('styled.mmd', 'flowchart TD\n  A[Start] --> B[End]\n  classDef hot fill:#f00\n  class A hot\n  style B stroke:#0f0\n  linkStyle 0 stroke:#00f\n')
     const parsed = capture(() => runCli(['parse', tmp]))
     expect(parsed.code).toBe(0)
-    const tmpJson = `/tmp/cli-styled-json-${Date.now()}.json`
-    require('node:fs').writeFileSync(tmpJson, parsed.out)
-    // Feed the parse JSON back through serialize via a stdin shim: write to fd 0
-    // is awkward in-process, so re-synthesize directly to assert the data path.
-    const { synthesizeFromGraph } = require('../agent/serialize.ts')
-    const { serializeMermaid } = require('../agent/serialize.ts')
-    const payload = JSON.parse(parsed.out)
-    const r = synthesizeFromGraph(payload)
-    expect(r.ok).toBe(true)
-    const out = serializeMermaid(r.value)
+    const serialized = amSerialize(parsed.out)
+    expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
+    const out = serialized.out
     expect(out).toContain('classDef hot fill:#f00')
     expect(out).toContain('class A hot')
     expect(out).toContain('style B stroke:#0f0')
@@ -960,12 +933,11 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   test('format idempotent over 3 rounds', () => {
-    const tmp = `/tmp/cli-fmt-${Date.now()}.mmd`
-    require('node:fs').writeFileSync(tmp, 'flowchart TD\n  A[Alpha] --> B{D}\n  B -->|yes| C((End))\n')
+    const tmp = tmpFile('fmt.mmd', 'flowchart TD\n  A[Alpha] --> B{D}\n  B -->|yes| C((End))\n')
     const r1 = capture(() => runCli(['format', tmp]))
-    require('node:fs').writeFileSync(tmp, r1.out)
+    writeFileSync(tmp, r1.out)
     const r2 = capture(() => runCli(['format', tmp]))
-    require('node:fs').writeFileSync(tmp, r2.out)
+    writeFileSync(tmp, r2.out)
     const r3 = capture(() => runCli(['format', tmp]))
     expect(r2.out).toEqual(r1.out)
     expect(r3.out).toEqual(r1.out)

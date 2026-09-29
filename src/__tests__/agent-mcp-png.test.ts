@@ -3,6 +3,7 @@
 import { describe, test, expect } from 'bun:test'
 import { join } from 'node:path'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { decodePng } from './helpers/png-pixels.ts'
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const REPO = join(import.meta.dir, '..', '..')
@@ -80,17 +81,16 @@ describe('MCP — render_png tool', () => {
   })
 
   test('honors background option', async () => {
-    const white = await handleRequest({
-      jsonrpc: '2.0', id: 4, method: 'tools/call',
-      params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', background: 'white' } },
-    })
-    const black = await handleRequest({
-      jsonrpc: '2.0', id: 5, method: 'tools/call',
-      params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', background: 'black' } },
-    })
-    const a = JSON.parse((white!.result as { content: Array<{ text: string }> }).content[0]!.text) as { png_base64: string }
-    const b = JSON.parse((black!.result as { content: Array<{ text: string }> }).content[0]!.text) as { png_base64: string }
-    expect(a.png_base64).not.toBe(b.png_base64)
+    const corner = async (id: number, background: string) => {
+      const response = await handleRequest({
+        jsonrpc: '2.0', id, method: 'tools/call',
+        params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', background } },
+      })
+      const { png_base64 } = JSON.parse((response!.result as { content: Array<{ text: string }> }).content[0]!.text) as { png_base64: string }
+      return Array.from(decodePng(Buffer.from(png_base64, 'base64')).rgba.slice(0, 4))
+    }
+    expect({ white: await corner(4, 'white'), black: await corner(5, 'black') })
+      .toEqual({ white: [255, 255, 255, 255], black: [0, 0, 0, 255] })
   })
 
   test('style and seed are accepted only through the canonical options object', async () => {
@@ -149,43 +149,17 @@ describe('MCP — render_png tool', () => {
     })
   })
 
-  // Regression: a real client session that runs Code Mode `execute` (a node:vm
-  // sandbox) and then `render_png` must not crash the server. Bun before 1.4.0
-  // left the sandbox's vm `timeout` armed after the call returned and killed
-  // the render that followed (#298); bun-version.ts refuses those releases. This runs
-  // the actual shipped stdio bin out-of-process so a crash would surface as a
-  // non-zero exit / missing response rather than killing the test runner.
-  test('stdio server survives execute then render_png in one session', async () => {
-    const proc = Bun.spawn(['bun', 'run', join(REPO, 'bin/agentic-mermaid-mcp.ts')], {
-      cwd: REPO, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
-    })
-    const requests = [
-      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'png-test', version: '0' } } },
-      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return 1' } } },
-      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', output: 'base64' } } },
-    ]
-    proc.stdin.write(requests.map(r => JSON.stringify(r)).join('\n') + '\n')
-    await proc.stdin.end()
-    const stdout = await new Response(proc.stdout).text()
-    const exit = await proc.exited
-    // On Bun 1.2.19-1.3.12 that kill is a crash (SIGILL, exit 132), so the
-    // render_png response never arrives.
-    expect(exit).toBe(0)
-    const responses = stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as { id: number; result?: { content: Array<{ text: string }> } })
-    const pngResponse = responses.find(r => r.id === 3)
-    expect(pngResponse).toBeDefined()
-    const payload = JSON.parse(pngResponse!.result!.content[0]!.text) as { ok: boolean; png_base64?: string }
-    expect(payload.ok).toBe(true)
-    expect(Buffer.from(payload.png_base64!, 'base64').length).toBeGreaterThan(100)
-  }, STDIO_RENDER_REGRESSION_TIMEOUT_MS)
-
-  // Regression (#298): Bun 1.2.15-1.3.14 left a sandbox call's node:vm
-  // watchdog armed until the next macrotask turn, with the last vm call's 50ms
-  // deadline. A render_png sent beside execute rendered in that window, was
-  // terminated mid-call, and left the server spinning without answering. This
-  // render takes far longer than 50ms, so on those Bun releases it hangs on
-  // every run; the spawn timeout kills it rather than leaving it spinning.
-  test('stdio server answers a render_png sent beside execute', async () => {
+  // Regression (#298): a real client session runs Code Mode `execute` (a
+  // node:vm sandbox) and then `render_png` through the actual shipped stdio
+  // bin, out-of-process, so a crash surfaces as an exit code or a missing
+  // response rather than killing the test runner. Bun 1.2.15-1.3.14 left the
+  // sandbox call's vm watchdog armed until the next macrotask turn, with the
+  // last vm call's 50ms deadline; a render_png sent beside execute rendered in
+  // that window, was terminated mid-call (a SIGILL crash on some releases) or
+  // left the server spinning. This render takes far longer than 50ms, so on
+  // those releases it fails every run; the spawn timeout kills a spinning
+  // server. bun-version.ts refuses those releases.
+  test('stdio server survives execute then answers a render_png sent beside it', async () => {
     const edges = Array.from({ length: 40 }, (_, i) => `  N${i}[Step ${i}] --> N${(i * 7 + 3) % 40}[Step ${(i * 7 + 3) % 40}]`)
     const proc = Bun.spawn(['bun', 'run', join(REPO, 'bin/agentic-mermaid-mcp.ts')], {
       cwd: REPO, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
@@ -202,7 +176,8 @@ describe('MCP — render_png tool', () => {
     expect(await proc.exited).toBe(0)
     const responses = stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as { id: number; result?: { content: Array<{ text: string }> } })
     expect(responses.map(r => r.id).sort()).toEqual([1, 2, 3])
-    const payload = JSON.parse(responses.find(r => r.id === 3)!.result!.content[0]!.text) as { ok: boolean }
+    const payload = JSON.parse(responses.find(r => r.id === 3)!.result!.content[0]!.text) as { ok: boolean; png_base64?: string }
     expect(payload.ok).toBe(true)
+    expect(Buffer.from(payload.png_base64!, 'base64').subarray(0, PNG_MAGIC.length)).toEqual(Buffer.from(PNG_MAGIC))
   }, STDIO_RENDER_REGRESSION_TIMEOUT_MS)
 })

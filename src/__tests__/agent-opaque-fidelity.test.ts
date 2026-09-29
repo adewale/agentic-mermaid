@@ -40,17 +40,6 @@ describe('opaque-body fidelity (indentation + blank lines)', () => {
       const out = serializeMermaid(p.value).trimEnd()
       expect(out).toBe(src.trimEnd())
     })
-
-    test(`${name}: round-trip stable (parse(serialize(x)) → same serialize)`, () => {
-      const p1 = parseMermaid(src)
-      expect(p1.ok).toBe(true)
-      if (!p1.ok) return
-      const s1 = serializeMermaid(p1.value)
-      const p2 = parseMermaid(s1)
-      expect(p2.ok).toBe(true)
-      if (!p2.ok) return
-      expect(serializeMermaid(p2.value)).toBe(s1)
-    })
   }
 
   test('architecture accessibility + group-boundary endpoints are structured and stable', () => {

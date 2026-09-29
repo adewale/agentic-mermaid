@@ -4,13 +4,12 @@
  * These tests ensure that:
  *   1. All built-in palette definitions have required color properties
  *   2. Every built-in family in the checked family registry renders
- *   3. All public exports from src/index.ts are real (not undefined)
- *   4. Package.json keywords include all supported diagram types
+ *   3. Package.json keywords include all supported diagram types
  */
 import { describe, expect, it } from 'bun:test'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { architectureToMermaidGraph, DEFAULTS, fromShikiTheme, inlineResolvedColors, parseArchitectureDiagram, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, renderMermaidSVGAsync, resolveColors } from '../index.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import type { DiagramColors } from '../theme.ts'
 
@@ -23,20 +22,6 @@ describe('built-in palette catalog — required color properties', () => {
 
   it('has at least 5 themes registered', () => {
     expect(palettes.length).toBeGreaterThanOrEqual(5)
-  })
-
-  it('every theme has a bg property that is a non-empty string', () => {
-    for (const { colors } of palettes) {
-      expect(typeof colors.bg).toBe('string')
-      expect(colors.bg.length).toBeGreaterThan(0)
-    }
-  })
-
-  it('every theme has a fg property that is a non-empty string', () => {
-    for (const { colors } of palettes) {
-      expect(typeof colors.fg).toBe('string')
-      expect(colors.fg.length).toBeGreaterThan(0)
-    }
   })
 
   it('bg and fg are always valid hex colors', () => {
@@ -101,66 +86,7 @@ describe('diagram type coverage — all documented types render to SVG', () => {
 })
 
 // ============================================================================
-// 3. All public exports from src/index.ts are real (not undefined)
-// ============================================================================
-
-describe('public API exports — all are defined', () => {
-  it('renderMermaidSVG is a function', () => {
-    expect(typeof renderMermaidSVG).toBe('function')
-    expect(renderMermaidSVG).toBeDefined()
-    expect(renderMermaidSVG.length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('renderMermaidSVGAsync is a function', () => {
-    expect(typeof renderMermaidSVGAsync).toBe('function')
-    expect(renderMermaidSVGAsync).toBeDefined()
-    expect(renderMermaidSVGAsync.length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('DEFAULTS has bg and fg', () => {
-    expect(DEFAULTS).toBeDefined()
-    expect(typeof DEFAULTS.bg).toBe('string')
-    expect(typeof DEFAULTS.fg).toBe('string')
-  })
-
-  it('fromShikiTheme is a function', () => {
-    expect(typeof fromShikiTheme).toBe('function')
-    expect(fromShikiTheme).toBeDefined()
-    expect(fromShikiTheme.length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('resolveColors is a function', () => {
-    expect(typeof resolveColors).toBe('function')
-    expect(resolveColors).toBeDefined()
-    expect(resolveColors.length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('inlineResolvedColors is a function', () => {
-    expect(typeof inlineResolvedColors).toBe('function')
-    expect(inlineResolvedColors).toBeDefined()
-    expect(inlineResolvedColors.length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('parseRegisteredMermaid is a function', () => {
-    expect(typeof parseRegisteredMermaid).toBe('function')
-    expect(parseRegisteredMermaid).toBeDefined()
-    expect(parseRegisteredMermaid.length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('renderMermaidASCII is defined', () => {
-    expect(typeof renderMermaidASCII).toBe('function')
-    expect(renderMermaidASCII).toBeDefined()
-  })
-
-  it('architecture parser exports are defined', () => {
-    expect(typeof parseArchitectureDiagram).toBe('function')
-    expect(typeof architectureToMermaidGraph).toBe('function')
-    expect(parseArchitectureDiagram).toBeDefined()
-  })
-})
-
-// ============================================================================
-// 4. Package.json keywords include all supported diagram types
+// 3. Package.json keywords include all supported diagram types
 // ============================================================================
 
 describe('package.json keywords — cover all supported diagram types', () => {

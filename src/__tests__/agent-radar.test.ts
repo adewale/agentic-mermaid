@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { parseRadarChart } from '../radar/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
-import type { RadarBody, RadarMutationOp, RadarValidDiagram } from '../agent/index.ts'
+import type { RadarBody, RadarMutationOp, RadarValidDiagram, SankeyValidDiagram } from '../agent/index.ts'
 import type { RadarRuntimeConfig } from '../index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
@@ -110,15 +110,25 @@ describe('radar agent surface', () => {
     if (!result.ok) expect(result.error[0]).toEqual(expect.objectContaining({ code: 'INVALID_PAYLOAD', message: expect.stringContaining('exactly 1 value') }))
   })
 
-  test('public radar types, config, and blank-slate overloads stay precise', () => {
+  // Type precision is a compile-time contract: `bun run typecheck` fails if an
+  // accepted case stops compiling or a @ts-expect-error case starts compiling.
+  function compileTimeRadarContract(): void {
     const config: RadarRuntimeConfig = { width: 480, tickLabels: true }
+    // @ts-expect-error tickLabels is a boolean switch, not free text.
+    const badConfig: RadarRuntimeConfig = { tickLabels: 'yes' }
     const created: RadarValidDiagram = createMermaid('radar')
+    // @ts-expect-error the radar overload returns a radar diagram, not the generic union.
+    const notSankey: SankeyValidDiagram = createMermaid('radar')
     const op: RadarMutationOp = { kind: 'add_axis', id: 'quality' }
+    // @ts-expect-error add_axis requires an axis id.
+    const badOp: RadarMutationOp = { kind: 'add_axis' }
     const body: RadarBody = created.body
     const built = buildMermaid('radar', [op, { kind: 'add_curve', id: 'now', values: [1] }, { kind: 'set_config', max: 5 }])
-    expect(config.width).toBe(480)
-    expect(body.kind).toBe('radar')
-    expect(built.ok).toBe(true)
+    void [config, badConfig, notSankey, badOp, body, built]
+  }
+  void compileTimeRadarContract
+
+  test('the Code Mode SDK declaration exposes the radar config block', () => {
     expect(SDK_DECLARATION).toContain('radar?: {')
   })
 

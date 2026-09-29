@@ -19,6 +19,23 @@ function findNodeBinary(): string | null {
   return null
 }
 
+// Cross-runtime tests need a Node binary (and some the built dist/agent.js).
+// CI's `unit` job (ci.yml) builds dist and provides Node precisely for these
+// contracts, so a missing prerequisite there is a broken pipeline: fail loudly
+// instead of skipping. Elsewhere (local runs, the red-green job, which never
+// builds dist) skip and say why in the test name.
+type TestBody = () => void | Promise<unknown>
+function testRequiring(prerequisites: Record<string, boolean>): (name: string, body: TestBody) => void {
+  const missing = Object.entries(prerequisites).filter(([, ok]) => !ok).map(([name]) => name)
+  if (missing.length === 0) return (name, body) => test(name, body)
+  if (process.env.GITHUB_JOB === 'unit') {
+    return name => test(name, () => {
+      throw new Error(`CI unit job is missing cross-runtime prerequisites: ${missing.join(', ')}`)
+    })
+  }
+  return (name, body) => test.skip(`${name} (skipped: missing ${missing.join(', ')})`, body)
+}
+
 const DIRECTIONS = ['TD', 'BT', 'LR', 'RL'] as const
 const NODE_COUNTS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
 const DENSITY = ['sparse', 'dense', 'star'] as const
@@ -54,8 +71,13 @@ function expectRelativeAxisOrder(before: Map<string, { x: number; y: number }>, 
   }
 }
 
-describe('determinism grid (in-process)', () => {
-  for (const dir of DIRECTIONS) for (const n of NODE_COUNTS) for (const density of DENSITY) {
+// A second call in the same process must see no state the first one left
+// behind (memo or cache pollution). Byte-level cross-process and cross-runtime
+// determinism is gated below and by layout-equivalence.test.ts, so one size per
+// direction and density is enough here; the full 120-case grid added nothing.
+describe('determinism grid (in-process, repeat call)', () => {
+  const n = NODE_COUNTS[NODE_COUNTS.length - 1]!
+  for (const dir of DIRECTIONS) for (const density of DENSITY) {
     test(`${dir} ${n} ${density}`, () => {
       const src = makeDiagram(dir, n, density)
       expect(JSON.stringify(verifyMermaid(src).layout)).toEqual(JSON.stringify(verifyMermaid(src).layout))
@@ -148,7 +170,7 @@ describe('determinism — locale-independent ordering authority', () => {
   })
 
   const NODE = findNodeBinary()
-  const fn = NODE ? test : test.skip
+  const fn = testRequiring({ node: NODE !== null })
   fn('Scene shell bytes are identical under English and Swedish Node locales', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'agentic-mermaid-locale-'))
     try {
@@ -211,7 +233,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
-  const fn = haveNode && haveDist ? test : test.skip
+  const fn = testRequiring({ node: haveNode, 'dist/agent.js': haveDist })
   for (const src of [
     'flowchart LR\n  A --> B',
     'flowchart TD\n  A --> B\n  B --> C\n  C --> D',
@@ -251,7 +273,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
     try { require('@resvg/resvg-js'); return true } catch { return false }
   })()
 
-  const fn = haveNode && haveDist && haveResvg ? test : test.skip
+  const fn = testRequiring({ node: haveNode, 'dist/agent.js': haveDist, '@resvg/resvg-js': haveResvg })
   fn(`bun PNG SHA-256 ≡ node PNG SHA-256 on ${process.platform}/${process.arch} (with warm-up)`, async () => {
     // Module-level import already gives us renderMermaidPNG; import lazily so
     // skip path doesn't fail on environments without resvg.
@@ -291,7 +313,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
-  const fn = haveNode && haveDist ? test : test.skip
+  const fn = testRequiring({ node: haveNode, 'dist/agent.js': haveDist })
   for (const src of [
     'flowchart LR\n  A --> B',
     'flowchart TD\n  A --> B\n  B --> C\n  C --> D',

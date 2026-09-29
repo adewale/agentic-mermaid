@@ -66,10 +66,9 @@ describe('quality metrics — deterministic', () => {
   })
 
   test('repeated calls produce identical metrics (determinism)', () => {
-    const flow = corpus.find(e => e.source.includes('-->'))
-    if (!flow) return
-    const p = parseMermaid(flow.source)
-    if (!p.ok || p.value.kind !== 'flowchart') return
+    const p = parseMermaid('flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Done]\n  B -->|no| A')
+    expect(p.ok && p.value.kind).toBe('flowchart')
+    if (!p.ok) return
     const a = measureQuality(layoutMermaid(p.value))
     const b = measureQuality(layoutMermaid(p.value))
     expect(a).toEqual(b)
@@ -403,7 +402,9 @@ describe('quality regression baseline (flowchart corpus median + p90)', () => {
       medianWhitespace: p50(metrics.map(m => m.whitespaceBalance)),
     }
     // Baseline floors observed from this corpus. Regression-only.
+    // Observed at 399c5873: median 0, p90 0, max 1 crossing over 111 diagrams.
     expect(summary.medianCrossings).toBeLessThanOrEqual(2)
+    expect(summary.p90Crossings).toBeLessThanOrEqual(1)
     expect(summary.medianLegibility).toBeGreaterThanOrEqual(0.3)  // mermaid docs use long labels; relaxed
     expect(summary.medianWhitespace).toBeGreaterThan(0)
     expect(summary.medianWhitespace).toBeLessThan(0.99)

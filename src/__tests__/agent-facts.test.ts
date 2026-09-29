@@ -6,6 +6,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { describeMermaidFacts, describeMermaidFactsSource, checkMermaid } from '../agent/facts.ts'
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
+import { captureCli as capture } from './helpers/p00-cli-capture.ts'
 
 function facts(source: string): string[] {
   const parsed = parseMermaid(source)
@@ -13,14 +14,6 @@ function facts(source: string): string[] {
   return describeMermaidFacts(parsed.value)
 }
 
-function capture(fn: () => number): { code: number; out: string } {
-  const chunks: string[] = []
-  const orig = process.stdout.write.bind(process.stdout)
-  ;(process.stdout as any).write = (s: string) => { chunks.push(String(s)); return true }
-  let code = 0
-  try { code = fn() } finally { (process.stdout as any).write = orig }
-  return { code, out: chunks.join('') }
-}
 
 describe('deterministic Mermaid facts', () => {
   const cases: Array<{ family: string; source: string; expected: string[] }> = [

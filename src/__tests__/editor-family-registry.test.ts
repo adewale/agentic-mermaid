@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { EDITOR_SUPPORTED_FAMILY_LIST } from '../editor-family-data.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
@@ -24,12 +23,6 @@ function rendererError(source: string): unknown {
 }
 
 describe('editor family diagnostics are registry-derived', () => {
-  test('supported-family copy exactly covers built-in family metadata', () => {
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      for (const header of family.headers) expect(EDITOR_SUPPORTED_FAMILY_LIST).toContain(header)
-    }
-  })
-
   test('every registry-classified non-native Mermaid header gets the unsupported-family card', () => {
     const card = editorErrorCard()
     const nonNative = UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family => family.headers

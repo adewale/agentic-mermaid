@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
+import { decodePng, inkColumns } from './helpers/png-pixels.ts'
 
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -289,7 +290,7 @@ describe('connector named edge-case conformance', () => {
     }
   })
 
-  test('edge-case SVG from every backend remains rasterizable PNG input', () => {
+  test('edge-case SVG from every backend rasterizes both subpaths without bridging the gap', () => {
     const node = connector('raster-edge-case', {
       geometry: {
         kind: 'path', d: 'M 10 20 L 50 20 M 90 20 L 130 20',
@@ -303,8 +304,15 @@ describe('connector named edge-case conformance', () => {
 
     for (const backend of BACKENDS) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="40" viewBox="0 0 140 40">${draw(node, backend)}</svg>`
-      const png = new Resvg(svg).render().asPng()
+      // Opaque white canvas so untouched pixels do not read as (transparent black) ink.
+      const png = new Resvg(svg, { background: '#ffffff' }).render().asPng()
       expect([...png.slice(0, 8)], backend.id).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+      // Both subpaths leave ink and the move-to gap between them stays empty
+      // (a backend that joined the subpaths would ink x = 60..80).
+      const ink = new Set(inkColumns(decodePng(png), 0, 140, 10, 30))
+      const inked = (x0: number, x1: number) => Array.from({ length: x1 - x0 }, (_, i) => x0 + i).filter(x => ink.has(x)).length
+      expect({ backend: backend.id, first: inked(15, 45) > 20, gap: inked(60, 80), second: inked(95, 125) > 20 })
+        .toEqual({ backend: backend.id, first: true, gap: 0, second: true })
     }
   })
 })
