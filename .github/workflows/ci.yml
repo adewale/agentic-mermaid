@@ -14,6 +14,10 @@ jobs:
   unit:
     name: Unit tests (${{ matrix.shard }})
     runs-on: ubuntu-latest
+    # A shard takes about five minutes. Every job is bounded: on #360 a shard
+    # finished all of its files and then hung in the runner's teardown until
+    # GitHub's six-hour default cancelled it.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -106,6 +110,7 @@ jobs:
   quality:
     name: Quality gates
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -229,6 +234,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [unit, quality, mcp-conformance]
     if: ${{ always() }}
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -387,6 +393,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, e2e, red-green, expire-label-approvals]
     if: ${{ always() }}
+    timeout-minutes: 5
     steps:
       - name: Require every CI lane to pass
         env:
