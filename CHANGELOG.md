@@ -112,8 +112,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   by severity.
 - Updated the `brace-expansion` development override to the first 5.x release
   patched for GHSA-rgw5-rvv9-x895.
-- Updated the transitive `fast-uri` override to 3.1.6 (first raised to 3.1.5
-  for GHSA-7p8r-x3mc-p8w7) and pinned transitive `undici` to 7.29.0 for
+- Updated the transitive `fast-uri` override to 3.1.7 for GHSA-qw65-cvwx-89v3
+  and GHSA-58mr-gqgx-xq4g (first raised to 3.1.5 for GHSA-7p8r-x3mc-p8w7, then
+  3.1.6) and pinned transitive `undici` to 7.29.0 for
   GHSA-4cwx-7wf7-3272.
 - Pinned transitive `ip-address` to 10.4.0 (first pinned to 10.3.1 for
   GHSA-mwp4-54f8-5fhr).
