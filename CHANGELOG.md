@@ -5,6 +5,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Flowchart labels read Mermaid's `#quot;` as `"`, and a `\` inside a quoted
+  label is literal, as upstream has no escapes there. The serializer writes
+  `"` as `#quot;`, so labels containing `"` or `\` round-trip and upstream
+  reads the output.
+- An apostrophe in a flowchart label no longer hides the statement separators
+  after it (`A[it's];B[y]`).
+- Serialized flowchart labels and subgraph titles are quoted wherever upstream
+  would reject the bare form (a bracket, `|`, `"`, `@` or `;`, or a leading
+  `/`, `\`, `-` or `~~~`); a rectangle labelled `/a/` no longer re-parses as a
+  lean shape.
+- The ASCII render's layout data projects flowchart labels with their `*` and
+  `~`, as drawn.
 - A later bare `participant X` or `actor X` no longer changes a sequence
   participant that already exists; as upstream Mermaid does, only a naming
   declaration (`as …` or a metadata alias) changes its label and type.

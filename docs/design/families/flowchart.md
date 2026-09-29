@@ -155,9 +155,15 @@ Upstream schema verified 2026-07-10
 - Typed mutations (`add_node`, `set_label`, `add_edge`, `add_subgraph`) trim
   their `label` the same way, so the typed body holds the label its
   serialized source re-parses to.
-- The serializer quotes a node label or subgraph title that contains `;`, the
-  statement separator, and writes an empty label as `" "` because upstream
-  rejects `""`.
+- A quoted string has no escapes, as upstream: a `"` always closes it and a
+  `\` is literal. `#quot;` is Mermaid's spelling of a `"` inside a label; the
+  parser reads it as `"` (other entity codes stay literal, see TODO.md). An
+  apostrophe never delimits a string, so `A[it's];B[y]` is two statements.
+- `@{ label }` values are YAML, so the serializer writes `\` as `\\` there.
+- The serializer writes `"` as `#quot;` and quotes a label or subgraph title
+  whenever upstream rejects the bare form: a bracket, `|`, `"`, `@` or `;`, or
+  a leading `/`, `\`, `-` or `~~~`. It writes an empty label as `" "` because
+  upstream rejects `""`.
 
 ## Mutation menu
 
@@ -194,8 +200,10 @@ Every op round-trips: serialize → render-parse reproduces the edit (P3;
   quoted labels across legacy shapes, and the shared Unicode identifier
   grammar keeps CJK bare/shaped nodes connected rather than emptying the graph.
 - `property-upstream-flowchart.test.ts` — grammar differential against pinned
-  upstream Mermaid, including literal `*`/`~`, boundary whitespace and `;` in
-  labels, and serialize → re-parse round-trip.
+  upstream Mermaid, including literal `*`/`~`, boundary whitespace, `;`, `"`,
+  `\` and `'` in labels, serialize → re-parse round-trip, and upstream reading
+  our serialized output as the same diagram. The generator skips sources
+  upstream's preprocessor rewrites (see BUG-18 in TODO.md).
 - `flowchart-markdown-strings.test.ts` — styled bold/italic runs and metrics,
   balanced formatting across wraps, explicit breaks, default auto-wrap,
   verbatim opaque round-trip, and the exact #102 sample.

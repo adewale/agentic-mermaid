@@ -297,6 +297,15 @@ and the steering with the fix.
 - [ ] **BUG-15 — Sequence `properties` lines create no participant** (`todo`). `properties P: {…}` creates P upstream; both our parsers ignore it, so participant order differs.
 - [ ] **BUG-16 — Sequence naming re-declaration keeps old links** (`todo`). Upstream resets the actor's links to `{}` when `participant X as Y` re-declares a known participant; ours keeps them.
 - [ ] **BUG-17 — Sequence box membership of an already-created participant** (`todo`). `A->>B` then `box` / `participant A` / `end`: upstream leaves the box's actor list empty (but sets `A.box`); ours puts A in the box.
+- [ ] **BUG-18 — Flowchart: emulate upstream's HTML-tag rewrite or not** (`owner-decision`). Upstream's preprocessor (`cleanupText`) treats a `<word … >` span as an HTML tag and rewrites `="…"` inside it to `='…'`, so it rejects `A -->|"<a="| B["b"] --> C` and silently mangles `A["<a"] --- B["x"] --- C["c="] --- D["d"] --> E` (C's label swallows D). We parse both as written. The flowchart differential's generator skips these sources.
+- [ ] **BUG-19 — Flowchart entity codes other than `#quot;` stay literal** (`todo`). Upstream renders `#9829;` as ♥, `#35;` as `#` and `#amp;` as `&` in labels; ours shows the code. Decoding `#lt;`/`#gt;` must not inject formatting tags.
+- [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
+- [ ] **BUG-21 — Flowchart `A>x;y]` is rejected** (`todo`). Upstream treats the `;` as label text; our statement splitter does not treat `>…]` as a bracket.
+- [ ] **BUG-22 — Flowchart `@{` inside a quoted label makes the diagram opaque** (`todo`). The unsupported-syntax gate reads `A["x a@{y"]` as metadata, so typed labels containing `@{` re-parse as opaque.
+- [ ] **BUG-23 — Flowchart literal backslash-n becomes a line break** (`todo`). Upstream keeps the two characters; typed labels containing them don't round-trip. Likewise a typed label containing the literal text `#quot;` re-parses as `"`.
+- [ ] **BUG-24 — Flowchart `@{ label }` YAML escapes** (`todo`). We unescape only `\\`, `\"` and `\'`; upstream's YAML also handles `\t`, `\a`, `\x41` and `''`, and rejects `'a}b;c'`, which we accept.
+- [ ] **BUG-25 — ASCII draws formatting tags literally** (`todo`). Flowchart markdown strings, `<b>` labels and sequence/state emphasis are drawn with their tags in ASCII/Unicode output, while the meta projection strips them, so `projectedText` differs from the drawing there.
+- [ ] **BUG-26 — Flowchart source-map scanners still honour `\` escapes and `'` quotes** (`todo`). `flowchart-body.ts` and `source-map-spans.ts` disagree with the parser on those lines, so spans can be wrong.
 
 ## Non-goals
 

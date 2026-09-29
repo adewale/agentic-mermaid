@@ -6,7 +6,8 @@
 //   (ii)  parseRegisteredMermaid accepts it as a structured flowchart;
 //   (iii) vertices, edges (endpoints, stroke, arrowheads, label) and subgraphs
 //         agree with upstream's flowchart DB;
-//   (iv)  parse → serialize → re-parse preserves all of the above.
+//   (iv)  parse → serialize → re-parse preserves all of the above;
+//   (v)   upstream reads the serialized source as the same diagram.
 //
 // Upstream runs in a child process (helpers/upstream-mermaid.ts), so the async
 // property keeps shrinking against it: a disagreement is reported as a minimal
@@ -14,7 +15,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { asFlowchart, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { asFlowchart, type FlowchartMutationOp, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { MermaidEdge, MermaidGraph, MermaidSubgraph } from '../types.ts'
 import { startUpstreamMermaid, type UpstreamMermaid, type UpstreamParse } from './helpers/upstream-mermaid.ts'
@@ -50,7 +51,9 @@ const DIRECTIONS: Direction[] = ['TB', 'TD', 'BT', 'RL', 'LR']
 // Node ids never collide with subgraph ids (S0, S1, …) or grammar keywords.
 const NODE_IDS = ['A', 'B', 'C', 'D', 'E', 'n1', 'n_2', 'Node3', 'k-1']
 const WORDS = ['alpha', 'Beta', 'gamma', 'D4', 'echo', 'Fox', 'go', 'ok', 'x9', 'Zed']
-const QUOTED_CHARS = 'abcXYZ019 ()[]{}<>:,.!?-_/&=+\'*~;'.split('')
+// Upstream's quoted strings have no escapes: `\` is literal, and a label
+// spells `"` as the `#quot;` entity code (a bare one closes the string).
+const QUOTED_CHARS = [...'abcXYZ019 ()[]{}<>:,.!?-_/&=+\'*~;\\'.split(''), '#quot;']
 // Edge operators with a fixed spelling; labelled forms are built below.
 const ARROWS = ['-->', '---', '-.->', '==>', '-.-', '===', '--o', '--x', '<-->']
 
@@ -134,7 +137,17 @@ function printFlowchart(chart: Flowchart): string {
   return lines.join('\n')
 }
 
-const sourceArb = flowchartArb.map(printFlowchart)
+/** Upstream's preprocessor (`cleanupText`) reads a `<word …>` span as an HTML
+ *  tag and rewrites each `="…"` inside it to `='…'`. Quoted labels can form
+ *  one: `<` and a word character in one label, a later label ending in `=`,
+ *  and a `>` after it (an arrow, say). The rewrite moves upstream's string
+ *  delimiters, so upstream rejects the source or parses other labels; that is
+ *  preprocessing, not flowchart grammar, so the generator never emits it. */
+function rewrittenByUpstreamPreprocess(source: string): boolean {
+  return /<\w[^>]*="[^">]*"[^>]*>/.test(source)
+}
+
+const sourceArb = flowchartArb.map(printFlowchart).filter(source => !rewrittenByUpstreamPreprocess(source))
 
 // ---------------------------------------------------------------------------
 // One comparable projection for both parsers
@@ -168,14 +181,19 @@ function ours(graph: MermaidGraph): Projection {
 
 const UPSTREAM_TYPE_TO_OURS = Object.fromEntries(Object.entries(SHAPES).map(([name, shape]) => [shape.upstream, name]))
 
+/** Upstream's DB keeps an entity code as a placeholder that its renderer
+ *  turns into the entity (`#quot;` → `ﬂ°quot¶ß` → `&quot;`); compare the `"`
+ *  it displays, which our parser decodes. */
+const displayed = (text: string): string => text.replace(/ﬂ°quot¶ß/g, '"')
+
 function theirs(parsed: Extract<UpstreamParse, { ok: true }>): Projection {
   const db = parsed.flowchart
   if (!db) throw new Error(`upstream diagram type ${parsed.type} exposes no flowchart DB`)
   return {
     // A vertex never given a shape is a plain rectangle labelled by its id.
-    vertices: db.vertices.map(v => `${v.id} ${v.type ? UPSTREAM_TYPE_TO_OURS[v.type] ?? `upstream:${v.type}` : 'rectangle'} : ${v.text}`).sort(),
-    edges: db.edges.map(e => `${e.start} ${e.end} ${e.stroke} ${e.type} : ${e.text}`),
-    subgraphs: db.subgraphs.map(s => `${s.id} : ${s.title}`).sort(),
+    vertices: db.vertices.map(v => `${v.id} ${v.type ? UPSTREAM_TYPE_TO_OURS[v.type] ?? `upstream:${v.type}` : 'rectangle'} : ${displayed(v.text)}`).sort(),
+    edges: db.edges.map(e => `${e.start} ${e.end} ${e.stroke} ${e.type} : ${displayed(e.text)}`),
+    subgraphs: db.subgraphs.map(s => `${s.id} : ${displayed(s.title)}`).sort(),
   }
 }
 
@@ -214,6 +232,8 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       'quoted label': /[[({>]"/,
       'quoted label with `*` or `~`': /"[^"\n]*[*~][^"\n]*"/,
       'quoted label with `;`': /"[^"\n]*;[^"\n]*"/,
+      'quoted label with `\\`': /"[^"\n]*\\[^"\n]*"/,
+      'quoted label with `#quot;`': /"[^"\n]*#quot;[^"\n]*"/,
       'quoted label with boundary whitespace': /"(?: [^"\n]*|[^"\n]* )"/,
       'unquoted label': /\w\[[a-zA-Z]/,
       '-->': / --> /,
@@ -231,7 +251,21 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(missing).toEqual([])
   })
 
-  test('(i)–(iv) upstream and our parser agree on every generated flowchart', async () => {
+  test('the generator never emits a source that upstream preprocessing rewrites', async () => {
+    // A random-seed run found this: `<a="| A["` lies inside a `<a …>` "tag"
+    // that the `>` of the second arrow closes, so upstream rejects it.
+    const rewritten = 'flowchart TB\n  subgraph S0\n    A -->|"<a="| A["a"] --> A\n  end'
+    expect(rewrittenByUpstreamPreprocess(rewritten)).toBe(true)
+    expect((await upstream.parse(rewritten)).ok).toBe(false)
+    // With no `>` after it there is no tag, and upstream parses the labels.
+    const untouched = rewritten.replace('] --> A', '] --- A')
+    expect(rewrittenByUpstreamPreprocess(untouched)).toBe(false)
+    expect((await upstream.parse(untouched)).ok).toBe(true)
+    // The seed reproduces such sources from the unfiltered grammar.
+    expect(fc.sample(sourceArb, { numRuns: 5000, seed: 7 }).filter(rewrittenByUpstreamPreprocess)).toEqual([])
+  })
+
+  test('(i)–(v) upstream and our parser agree on every generated flowchart', async () => {
     await fc.assert(
       fc.asyncProperty(sourceArb, async source => {
         const upstreamParse = await upstream.parse(source)
@@ -255,6 +289,11 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
         expect({ serialized, ...ours(parseOurs(serialized)) }).toEqual({ serialized, ...expected })
         const reparsed = parseRegisteredMermaid(serialized)
         expect(reparsed.ok && countStructuralElements(reparsed.value)).toEqual(countStructuralElements(parsed.value))
+        // (v) the serialized source is Mermaid that upstream reads the same way.
+        if (rewrittenByUpstreamPreprocess(serialized)) return
+        const upstreamReparse = await upstream.parse(serialized)
+        expect({ serialized, upstream: upstreamReparse.ok ? theirs(upstreamReparse) : upstreamReparse.error })
+          .toEqual({ serialized, upstream: expected })
       }),
       { numRuns: 100 },
     )
@@ -262,7 +301,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
 
   // Divergences this property found, now fixed: each source agrees with
   // upstream, matches the recorded projection, and survives serialize →
-  // re-parse. Returns the serialized source.
+  // re-parse, by our parser and by upstream. Returns the serialized source.
   async function agreesWithUpstream(source: string, expected: Partial<Projection>): Promise<string> {
     const upstreamParse = await upstream.parse(source)
     if (!upstreamParse.ok) throw new Error(`upstream rejected:\n${source}`)
@@ -273,6 +312,9 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     if (!parsed.ok) throw new Error(`our parser rejected:\n${source}`)
     const serialized = serializeMermaid(parsed.value)
     expect({ serialized, ...ours(parseOurs(serialized)) }).toEqual({ serialized, ...projection })
+    const upstreamReparse = await upstream.parse(serialized)
+    expect({ serialized, upstream: upstreamReparse.ok ? theirs(upstreamReparse) : upstreamReparse.error })
+      .toEqual({ serialized, upstream: projection })
     return serialized
   }
 
@@ -307,5 +349,75 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(node.split('\n')).toContain('  A>";a"] --> B')
     const title = await agreesWithUpstream('flowchart TB\n  subgraph S0 ["};a"]\n    A\n  end', { subgraphs: ['S0 : };a'] })
     expect(title.split('\n')).toContain('  subgraph S0["};a"]')
+  })
+
+  test('quoted labels have no escapes: `\\` stays literal and `"` is written `#quot;`', async () => {
+    // A `\` before the closing quote used to escape it and `\\` read as one
+    // backslash, while the serializer wrote `\"`, which upstream rejects.
+    const serialized = await agreesWithUpstream('flowchart TB\n  A["a#quot;b\\\\c"] -->|"(e#quot;|q\\"| B\n  B --> C>";\\"];', {
+      vertices: ['A rectangle : a"b\\\\c', 'B rectangle : B', 'C asymmetric : ;\\'],
+      edges: ['A B normal arrow_point : (e"|q\\', 'B C normal arrow_point : '],
+    })
+    expect(serialized.split('\n')).toEqual(expect.arrayContaining(['  A["a#quot;b\\\\c"] -->|"(e#quot;|q\\"| B', '  B --> C>";\\"]']))
+    // An apostrophe is label text, not a string delimiter, so it cannot expose
+    // the `;` of a later `#quot;` to the statement splitter, nor hide the `;`
+    // of a text-arrow label from it.
+    await agreesWithUpstream('flowchart TB\n  A[it\'s] -- a;b --> B["\']x#quot;"];C', {
+      vertices: ['A rectangle : it\'s', 'B rectangle : \']x"', 'C rectangle : C'],
+      edges: ['A B normal arrow_point : a;b'],
+    })
+  })
+
+  test('a `@{ label }` value is YAML upstream: `\\` is written `\\\\` and `"` as `#quot;`', async () => {
+    const labels = async (source: string) => {
+      const upstreamParse = await upstream.parse(source)
+      if (!upstreamParse.ok) throw new Error(`upstream rejected:\n${source}`)
+      return { source, ours: parseOurs(source).nodes.get('A')?.label, upstream: displayed(upstreamParse.flowchart!.vertices[0]!.text) }
+    }
+    const source = 'flowchart TB\n  A@{ shape: manual-input, label: "a\\\\b#quot;c" }'
+    expect(await labels(source)).toEqual({ source, ours: 'a\\b"c', upstream: 'a\\b"c' })
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(`our parser rejected:\n${source}`)
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toContain('label: "a\\\\b#quot;c"')
+    expect(await labels(serialized)).toEqual({ source: serialized, ours: 'a\\b"c', upstream: 'a\\b"c' })
+  })
+
+  test('every subgraph title is written in a form upstream parses', async () => {
+    // Upstream rejects each of these titles bare, and a title holding `"` and
+    // a `;` after a closing delimiter (`x"};a`) had no form that re-parsed.
+    const titles = [
+      ['"x#quot;};a"', 'x"};a'], ['"a(b)"', 'a(b)'], ['"a]b"', 'a]b'], ['"a|b"', 'a|b'],
+      ['"a@b"', 'a@b'], ['"/a/"', '/a/'], ['"\\a"', '\\a'], ['"~~~a"', '~~~a'],
+    ]
+    for (const [authored, title] of titles) {
+      const serialized = await agreesWithUpstream(`flowchart TB\n  subgraph S0 [${authored}]\n    A\n  end`, { subgraphs: [`S0 : ${title}`] })
+      expect(serialized.split('\n')).toContain(`  subgraph S0[${authored}]`)
+    }
+  })
+
+  test('typed labels holding `"`, `\\`, `@` or delimiters serialize to a source both parsers read back', async () => {
+    const parsed = parseRegisteredMermaid('flowchart TB\n  A --> B')
+    const start = parsed.ok ? asFlowchart(parsed.value) : undefined
+    if (!start) throw new Error('the starting flowchart did not parse')
+    for (const label of ['say "hi"', 'a|b\\', '(x\\', 'x"};a', '/lean/', '-dash', '~~~t', 'user@example.com', '"']) {
+      let diagram = start
+      const ops: FlowchartMutationOp[] = [
+        { kind: 'set_label', target: 'A', label },
+        { kind: 'add_edge', from: 'A', to: 'C', label },
+        { kind: 'add_subgraph', id: 'G', label, members: ['B'] },
+      ]
+      for (const op of ops) {
+        const result = mutate(diagram, op)
+        if (!result.ok) throw new Error(result.error.message)
+        diagram = result.value
+      }
+      const expected = ours(diagram.body.graph)
+      const serialized = serializeMermaid(diagram)
+      expect({ serialized, ...ours(parseOurs(serialized)) }).toEqual({ serialized, ...expected })
+      const upstreamParse = await upstream.parse(serialized)
+      expect({ serialized, upstream: upstreamParse.ok ? theirs(upstreamParse) : upstreamParse.error })
+        .toEqual({ serialized, upstream: expected })
+    }
   })
 })

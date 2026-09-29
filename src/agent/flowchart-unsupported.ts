@@ -170,13 +170,10 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   let depth = 0
   let inQuote = false
   let pipes = 0
-  let escaped = false
   for (const ch of statement) {
     if (inQuote) {
-      // Backslash escapes only exist inside quoted labels (consumeQuotedNode);
-      // outside quotes `\` is literal — lean/trapezoid shapes spell `A[\x\]`.
-      if (escaped) { escaped = false; continue }
-      if (ch === '\\') { escaped = true; continue }
+      // Quoted labels have no escapes, as upstream: `\` is literal and the
+      // next `"` closes the label.
       if (ch === '"') inQuote = false
       continue
     }

@@ -199,8 +199,12 @@ interface ParsedLabelText {
  * (flowchart-body.ts). Upstream keeps it in a `@{ label }` value, which renders
  * the same; trimming there too lets the serializer's bracket form re-parse to
  * the same label.
+ * Upstream's quoted strings have no escapes: a `"` always closes one and `\`
+ * is literal. A label spells `"` as Mermaid's `#quot;` entity code, decoded
+ * here (after quote stripping, so it never reads as a delimiter); the
+ * serializer writes `"` the same way.
  * `alreadyUnquoted` marks callers whose grammar consumed the double quotes
- * (consumeQuotedNode, parseMetadataLabel).
+ * (consumeQuotedShapeNode, applyNodeMetadata).
  */
 function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
   const unquoted = !alreadyUnquoted && raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
@@ -208,9 +212,13 @@ function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
     : raw
   const quoteConsumed = alreadyUnquoted || unquoted !== raw
   if (quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')) {
-    return { text: markdownStringToFormattedText(unquoted.slice(1, -1).trim()), markdown: true }
+    return { text: decodeQuotEntity(markdownStringToFormattedText(unquoted.slice(1, -1).trim())), markdown: true }
   }
-  return { text: normalizePlainLabel(unquoted.trim()), markdown: false }
+  return { text: decodeQuotEntity(normalizePlainLabel(unquoted.trim())), markdown: false }
+}
+
+function decodeQuotEntity(text: string): string {
+  return text.replace(/#quot;/g, '"')
 }
 
 function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: string } {
@@ -233,26 +241,25 @@ function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: s
   return { id, label }
 }
 
-/** Shared statement splitter for renderer and source-side action analysis. */
+/** Shared statement splitter for renderer and source-side action analysis.
+ *  As upstream's lexer, it has no `'` strings and no `\` escapes: an
+ *  apostrophe is label text, and the next `"` closes a quoted label. */
 export function splitFlowchartStatements(line: string): string[] {
   const out: string[] = []
   const textArrowLabelRanges = flowchartTextArrowLabelRanges(line)
   let textArrowRangeIndex = 0
   let start = 0
   let depth = 0
-  let quote: '"' | "'" | '`' | null = null
-  let escaped = false
+  let quote: '"' | '`' | null = null
   let inPipeLabel = false
 
   for (let i = 0; i < line.length; i++) {
     const ch = line[i]!
-    if (escaped) { escaped = false; continue }
-    if (ch === '\\') { escaped = true; continue }
     if (quote) {
       if (ch === quote) quote = null
       continue
     }
-    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue }
+    if (ch === '"' || ch === '`') { quote = ch; continue }
     if (ch === '|' && depth === 0) { inPipeLabel = !inPipeLabel; continue }
     if (inPipeLabel) continue
     if (ch === '[' || ch === '(' || ch === '{') depth++
@@ -895,12 +902,8 @@ const ARROW_REGEX = /^(<)?(~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,
 function closingWholePipeLabelQuote(text: string): number {
   const open = text.slice(1).search(/\S/) + 1
   if (open < 1 || text[open] !== '"') return -1
-  let escaped = false
   for (let index = open + 1; index < text.length; index++) {
-    const char = text[index]!
-    if (escaped) { escaped = false; continue }
-    if (char === '\\') { escaped = true; continue }
-    if (char === '"' && /^\s*\|/.test(text.slice(index + 1))) return index
+    if (text[index] === '"' && /^\s*\|/.test(text.slice(index + 1))) return index
   }
   return -1
 }
@@ -932,12 +935,8 @@ function closingWholeTextArrowLabelQuote(text: string, start: number): number {
   const relativeOpen = text.slice(start).search(/\S/)
   const open = relativeOpen < 0 ? -1 : start + relativeOpen
   if (open < start || text[open] !== '"') return -1
-  let escaped = false
   for (let index = open + 1; index < text.length; index++) {
-    const char = text[index]!
-    if (escaped) { escaped = false; continue }
-    if (char === '\\') { escaped = true; continue }
-    if (char === '"' && /^\s*(?:-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/.test(text.slice(index + 1))) return index
+    if (text[index] === '"' && /^\s*(?:-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/.test(text.slice(index + 1))) return index
   }
   return -1
 }
@@ -1356,17 +1355,9 @@ function consumeQuotedShapeNode(
   for (const spec of QUOTED_SHAPE_DELIMITERS) {
     if (!suffix.startsWith(`${spec.open}"`)) continue
     const quoteStart = spec.open.length
-    let quoteEnd = -1
-    let escaped = false
-    for (let i = quoteStart + 1; i < suffix.length; i++) {
-      const ch = suffix[i]!
-      if (escaped) { escaped = false; continue }
-      if (ch === '\\') { escaped = true; continue }
-      if (ch === '"') { quoteEnd = i; break }
-    }
+    const quoteEnd = suffix.indexOf('"', quoteStart + 1)
     if (quoteEnd < 0 || !suffix.startsWith(spec.close, quoteEnd + 1)) continue
-    const raw = suffix.slice(quoteStart + 1, quoteEnd).replace(/\\(["\\])/g, '$1')
-    const parsed = parseLabelText(raw, true)
+    const parsed = parseLabelText(suffix.slice(quoteStart + 1, quoteEnd), true)
     defineNode(graph, subgraphStack, {
       id: identifier.id,
       label: parsed.text,
