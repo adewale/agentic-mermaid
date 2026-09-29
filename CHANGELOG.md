@@ -5,6 +5,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Compositing a translucent colour over another no longer returns channel
+  values a rounding error above 255 (`#0F05` over white).
 - ER entities keep their subgraph and position through serialization when the
   relation that created or placed them is removed but another relation still
   uses them; entities that must come before a subgraph's entities are declared
