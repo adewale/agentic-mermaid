@@ -227,6 +227,25 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   separately from the 2,800-case pathological corpus. Keep it non-blocking and
   make no route repair unless the issue's representative-witness and
   non-regression decision gate passes.
+- [ ] **TEST-8 — Label-text census** (`todo`). For every case in the docs
+  corpus, the upstream bench and the official fences, record each label's text
+  on every surface (model, SVG, ASCII, meta, facts, metrics) and upstream's DB
+  text. Assert the surfaces agree and match upstream, replace the bench's
+  self-harvested `labelsContain` values with upstream-harvested ones, and post a
+  base-vs-head diff of changed label text on pull requests. It flags BUG-2, 19
+  and 20 on existing corpus cases; image contact sheets would not, because most
+  of these defects render identically before and after a change.
+- [ ] **TEST-9 — Widen the upstream differentials** (`todo`). The flowchart and
+  sequence generators still omit characters and constructs where defects live:
+  entity codes other than `#quot;`, `\n`, markdown strings, `@{}`, `style` lines
+  and subgraph membership (flowchart); `* # \ < >`, `activate`, `box`,
+  `properties` and `links` (sequence). Add ER, class and state DBs to the upstream
+  worker, and compare what upstream displays (the Pie browser oracle's
+  approach), not only its DB.
+- [ ] **TEST-10 — Random-order, fresh-process finder lane** (`todo`). Two
+  order-dependent failures (resvg initialization, the Bun `node:vm` timer)
+  surfaced only by accident. Run the suite nightly in shuffled file order and
+  each file alone.
 
 ## Consolidation / dedup backlog
 
@@ -247,7 +266,11 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   Migrate one family at a time behind differential and unknown-line tests. For
   Class/ER/Sequence/Gantt, do not project from a lossy final AST that discards
   statement order or opaque segments; expose a shared statement parser/event
-  stream consumed by both surfaces instead.
+  stream consumed by both surfaces instead. For Sequence and ER, that stream
+  carries creation events (create, name, place in group or box, links,
+  properties) folded once by both surfaces, and the serializer checks its output
+  by folding the events of its own re-parse. That closes the creation-order
+  class: BUG-9 to BUG-17, and BUG-27/29 for flowchart subgraphs and `style`.
 - [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanically
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
@@ -264,6 +287,23 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   transport schemas not already projected from the family, StyleSpec, or
   RenderOptions descriptors. Generate only proven duplicates while retaining
   transport-neutral `applyOps` and tool dispatch.
+- [ ] **CONS-46 — One text codec per grammar context** (`todo`). Most Known
+  defects are one codec re-implemented per stage (parse, serialize, render,
+  ASCII, meta, metrics, source map) and per family. Build, per grammar context
+  (flowchart bracket/pipe/title/`@{}`, sequence alias/message/note, ER quoted
+  text, class label), a `decode`/`encode` pair layered as lexical quoting, then
+  one shared Mermaid entity layer (port `src/pie/parser.ts`'s), then display
+  (`<br>`, `\n`, markdown only in markdown strings, never baked in at parse
+  time). Every surface consumes one displayed-text value per label. Guard with
+  `decode(encode(x)) === x` and "upstream reads `encode(x)` as `x`" over the
+  context's full alphabet. Closes BUG-19, 23, 24, 25, 30, 31, 32; `@{}` uses the
+  bundled `yaml` core schema, which gives upstream's answer on every BUG-24 case.
+- [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
+  17 hand-written quote/bracket scanners lex the flowchart line (parser,
+  statement splitter, unsupported-syntax gate, analyze masks, source map), and a
+  rule change reaches only some of them (BUG-21, 22, 26). Emit tokens with spans
+  once; derive the source map from spans instead of re-lexing, and lint against
+  new ad-hoc quote scanners.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry.
@@ -312,6 +352,11 @@ and the steering with the fix.
 - [ ] **BUG-30 — ER quoted text accepts and writes `\"`** (`todo`). Upstream has no escapes in ER quoted strings and rejects `A["a\"b"]` and `A ||--o{ B : "l\"m"`; `src/er/parser.ts` unescapes them and `quoteErText` writes them, so serialized ER text containing `"` is source upstream can't read. Write `"` as `#quot;`, as flowchart does.
 - [ ] **BUG-31 — Sequence and ER aliases get markdown emphasis at parse time, and the serializer rewrites the source** (`todo`). Upstream stores `participant A as *x* y` and `A["p*q*"]` as written; ours stores `<i>x</i> y` and `p<i>q</i>`, so any typed edit writes `as <i>x</i> y` and `A["p<i>q</i>"]`.
 - [ ] **BUG-32 — Sequence message text differs between the renderer and the typed body** (`todo`). For `A->>B: m*a*n c\nd` the renderer draws `m<i>a</i>n` and a line break, while the typed body stores `m*a*n` and `c\nd`, as upstream's DB does.
+- [ ] **BUG-33 — ER relations written without spaces go opaque** (`todo`). `id1||--||id2 : label` parses upstream; ours falls back to an opaque body with `UNSUPPORTED_SYNTAX`. Pinned in `official-fence-corpus.test.ts`.
+- [ ] **BUG-34 — A Gantt task line with a trailing `%%` comment fails to schedule** (`todo`). `Task :a1, 2024-01-01, 2024-01-05 %% comment` gives `GANTT_BAD_DATE` ("Invalid end date \"2024-01-05 %% comment\""). Pinned in `official-fence-corpus.test.ts`.
+- [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
+- [ ] **BUG-36 — Out-of-range `linkStyle` is accepted silently** (`todo`). `linkStyle 99` on a one-edge flowchart verifies `ok` with no warning; upstream rejects it. Pinned in `linkstyle.test.ts`.
+- [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
 
 ## Non-goals
 

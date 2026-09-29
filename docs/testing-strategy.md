@@ -436,6 +436,56 @@ lowest honest tier and one shipped-boundary proof where packaging, transport,
 or generation can change the result. A test that silently returns because its
 environment is unavailable is not evidence for a CI-required capability.
 
+## What makes a good test
+
+The sections above say which oracles the suite uses. This one is the standard
+each test is held to. A good test catches a real regression, for the right
+reason, cheaply, and says clearly what broke.
+
+1. **It can fail.** Breaking the behaviour it names turns it red. Check this
+   by mutating the code under test, not by reading the assertion. The common
+   failures are an assertion something else always satisfies (`toContain('v')`
+   when a label contains a `v`; a marker id that every SVG defines in
+   `<defs>`), and a fixture that never reaches the code (suppressing a warning
+   the input never raises).
+2. **It tests behaviour through a stable seam**: the API, CLI, MCP tool,
+   rendered output or a documented contract. It does not grep source text,
+   compare `Function.prototype.toString()`, or pin private names.
+3. **Its expectation comes from outside the code**: a specification, pinned
+   upstream Mermaid, a metamorphic relation, a property, or a reviewed golden
+   whose meaning is stated. A value harvested from our own output and pasted
+   back is not an oracle. The upstream bench's self-harvested labels once
+   pinned a wrong ellipse label as correct.
+4. **It has one reason to fail and a readable failure.** The name states the
+   behaviour; the assertion is object-shaped and carries the case, not a bare
+   `toBe(true)` over a conjunction.
+5. **It is deterministic and hermetic.** Pinned seeds, no wall clock, no
+   sleeps, no network, no dependence on file order, no leaked temp files or
+   environment variables.
+6. **It asserts something it did not set.** No assertion on a value the test
+   just assigned, on a mock's configured return, or on a `Record` completeness
+   that `tsc` already enforces. An early `return` or an `if (x) expect(…)`
+   that can skip every assertion is a missing assertion: assert the
+   precondition, or use `test.skipIf` with a reason. A property whose success
+   branch can go unexercised counts how often it ran and fails at zero.
+7. **It is not redundant**, and it does not make a doc or a second list copy
+   data the code owns; iterate the registry instead of a hand list of
+   families.
+8. **Its label is honest.** A test that pins a known bug says so and names
+   the `TODO.md` entry. A regression guard that cannot discriminate says so.
+9. **Its cost is proportionate.** Expensive work (renders, layouts, PNG
+   rasterization, a website build) is done once per file and shared.
+10. **It reads as arrange, act, assert**, with many cases as a table.
+
+Files worth copying: `src/__tests__/property-upstream-flowchart.test.ts`
+(grammar-generated differential against pinned upstream),
+`src/__tests__/property-er-model.test.ts` (model-based test with a shadow
+model), `src/__tests__/release-publish-steps.test.ts` (runs workflow shell
+steps with stub tools), `src/__tests__/theme-color-admission.test.ts`
+(table-driven across output routes), and
+`src/__tests__/property-validator-surface-fuzz.test.ts` (the non-vacuity
+counter).
+
 ## Why the suite is shaped this way
 
 - **Cheap-and-deterministic gates per PR; expensive-and-noisy gates
