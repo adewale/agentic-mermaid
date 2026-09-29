@@ -45,6 +45,7 @@ environment, `globalOutbound: null`, no subrequests, and a bounded CPU budget.
 The isolate configuration is the security boundary. The hardened SDK facade is
 kept for behavioural parity with the local server.
 
+<!-- complete: hosted-mcp-tools -->
 Hosted execution has a per-call cost, so common pure operations do not enter
 the sandbox. `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`,
 and `describe_sdk` run as ordinary Worker calls whose successful deterministic

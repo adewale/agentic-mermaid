@@ -13,6 +13,8 @@ import { BUILTIN_FAMILY_METADATA, getFamily } from '../../src/agent/families.ts'
 import { WARNING_SEVERITY, WARNING_TIER, type WarningCode, type WarningTier } from '../../src/agent/types.ts'
 import { WARNING_CATALOG } from '../../src/agent/warning-catalog.ts'
 import { COMMAND_FLAGS } from '../../src/cli/index.ts'
+import { SUPPORTED_PROTOCOL_VERSIONS } from '../../src/mcp/hosted-server.ts'
+import { HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../../src/mcp/server.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../../src/mcp/tool-names.ts'
 import { CLI_RENDER_FORMATS } from '../../src/render-contract.ts'
 import { EXISTING_DIAGRAM_WORKFLOW, NEW_DIAGRAM_POLICY } from '../../src/shared/agent-workflow.ts'
@@ -56,6 +58,9 @@ export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>>
   'new-diagram-policy': () => NEW_DIAGRAM_POLICY,
   'hosted-mcp-tools': () => inlineToolList(HOSTED_MCP_TOOL_NAMES),
   'local-mcp-tools': () => inlineToolList(LOCAL_MCP_TOOL_NAMES),
+  'hosted-protocol-versions': () => inlineToolList(SUPPORTED_PROTOCOL_VERSIONS),
+  'stdio-protocol-versions': () => inlineToolList(STDIO_PROTOCOL_VERSIONS),
+  'http-sse-protocol-versions': () => inlineToolList(HTTP_SSE_PROTOCOL_VERSIONS),
   'cli-verbs': () => ticked(Object.keys(COMMAND_FLAGS)),
   'render-formats': () => ticked(CLI_RENDER_FORMATS),
   'warning-codes:structural': () => ticked(codesInTier('structural')),

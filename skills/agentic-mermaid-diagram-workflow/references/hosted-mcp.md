@@ -44,6 +44,7 @@ synonym is still an invalid call.
 
 ## Direct tools
 
+<!-- complete: hosted-mcp-tools -->
 - `verify({ source })` returns structural `ok`, detected `family`, `summary`,
   `warnings`, and layout counts. Confirm the family as well as `ok`.
 - `describe({ source, format })` uses `text` for prose, `json` for an AX tree,

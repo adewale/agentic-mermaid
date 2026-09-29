@@ -16,6 +16,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    `ROUTE_STALE_AFTER_NODE_MOVE`) should always be zero — they are
    route-contract tripwires (see `docs/design/system/route-contracts.md`), and
    any hit means the layout pipeline regressed, not the diagram.
+   <!-- complete: warning-codes:geometric -->
 
 3. **Perceptual metrics fall in the default `QualityBounds` band:**
 
@@ -116,6 +117,7 @@ geometry assertions, screenshot/PNG review, or human inspection.
   degrades to an empty layout instead of throwing. What `nodes` / `edges` /
   `groups` mean per family:
 
+  <!-- complete: family-ids -->
   | Family        | nodes                              | edges        | groups               |
   |---------------|------------------------------------|--------------|----------------------|
   | flowchart     | graph nodes (ELK)                  | graph edges  | subgraphs            |

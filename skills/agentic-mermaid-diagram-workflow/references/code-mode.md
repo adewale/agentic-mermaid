@@ -1,5 +1,6 @@
 # Code Mode (structured edit channel)
 
+<!-- complete: local-mcp-tools -->
 `agentic-mermaid-mcp` exposes a primary Code Mode tool, `execute(code)`, plus
 narrow `describe_sdk`, `render_png`, and `describe` helpers. The initial
 `execute` declaration contains only the core SDK. Call

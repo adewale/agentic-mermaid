@@ -239,6 +239,7 @@ am render diagram.mmd --format ascii > diagram.txt
 
 MCP channel:
 
+<!-- complete: hosted-mcp-tools -->
 - Local MCP: use Code Mode for parse/narrow/mutate/verify/serialize.
 - Local MCP: use the `render_png` helper for base64 PNG bytes when the host needs a raster artifact.
 - Local HTTP/SSE mode: use `render_png` with `output: "file"` or `output: "url"` when the host wants a managed artifact instead of inline base64.
@@ -281,20 +282,24 @@ Unsupported typed mutation is a stop signal, not a prompt to fake structure. Eit
 
 Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 errors unless you fully understand the consequence.
 
-| Code | Meaning |
-|---|---|
-| `EMPTY_DIAGRAM` | Nothing renderable |
-| `EDGE_MISANCHORED` | Edge endpoint is not attached to a real target |
-| `OFF_CANVAS` | Node or edge segment lies outside canvas bounds |
-| `GROUP_BREACH` | Member lies outside its group bounds |
-| `UNKNOWN_SHAPE` | Shape fell back because the name is unrecognized |
-| `LABEL_OVERFLOW` | Label exceeds `labelCharCap` |
-| `UNRESOLVABLE_SCHEDULE` | Gantt parses but its schedule cannot resolve; render would fail |
-| `RENDER_FAILED` | Any family: verifies structurally but the strict render parser rejects the canonical source; `reason` carries the renderer error |
+<!-- BEGIN GENERATED: warning-table:structural -->
+| Code | Severity | Description |
+|---|---|---|
+| `EMPTY_DIAGRAM` | error | Diagram contains no renderable elements |
+| `EDGE_MISANCHORED` | error | Edge endpoint does not attach to a real node / participant |
+| `OFF_CANVAS` | error | Node or edge segment lies outside the canvas |
+| `GROUP_BREACH` | error | Member node lies outside its group's bounds |
+| `UNKNOWN_SHAPE` | warning | Shape name unrecognized; default used |
+| `LABEL_OVERFLOW` | warning | A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\n` split lines, XML entities count as one character, and formatting tags are stripped. Payload includes `charCount` and `limit`. Character-based, no font-table dependency. |
+| `UNRESOLVABLE_SCHEDULE` | error | The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (unknown task reference, bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error. |
+| `RENDER_FAILED` | error | Any family: the source parses but the strict render parser, layout, or theme colors reject it, so rendering would fail. Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. |
+<!-- END GENERATED: warning-table:structural -->
 
-Tier 2 warnings are advisory geometric checks — route tripwires for flowchart/state, plus boundary-anchor/overlap checks on class/ER entity boxes: `NODE_OVERLAP`, `ROUTE_SELF_CROSS`, and the route-contract tripwires `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`.
+Tier 2 warnings are advisory geometric checks — route tripwires for flowchart/state, plus boundary-anchor/overlap checks on class/ER entity boxes: <!-- BEGIN GENERATED: warning-codes:geometric -->`NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`<!-- END GENERATED: warning-codes:geometric -->.
 
-Tier 3 covers advisory lint plus caller-selected inspect-only Brand policy: `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`. `LABELS_HIDDEN` lists the XY chart category names and bar value labels the layout could not fit. `BAR_RANGE_EXCLUDES_ZERO` reports a bar chart whose authored value range excludes zero, naming the baseline the bars start from. `VALUES_OUTSIDE_RANGE` names, per series, the values an authored range leaves outside it, which bars draw stopped at the range edge and lines draw past the plot. `FLOW_IMBALANCE` reports a sankey intermediate node whose received total differs from its emitted total, naming the node and the unaccounted amount. `LOW_CONTRAST` preserves authored paint and reports its foreground, final opaque background, ratio, and minimum; transparent output is not measured because its host backdrop is unknown. Brand constraints inspect final contrast, accent-area, or mono-role evidence without repainting or relayout. Advisory findings do not flip `verify.ok`; `BRAND_CONSTRAINT_ERROR` does only because the caller explicitly selected `action: "error"`.
+Tier 3 covers advisory lint plus caller-selected inspect-only Brand policy: <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Advisory findings do not flip `verify.ok`; `BRAND_CONSTRAINT_ERROR` does only because the caller explicitly selected `action: "error"`.
+
+Each code's page under <https://agentic-mermaid.dev/warnings/> says what triggers it and how to clear it, and the tier tables in [`AGENT_NATIVE.md`](../AGENT_NATIVE.md#2-verifiable-rendering) describe every code; both are generated from `src/agent/warning-catalog.ts`.
 
 ## Common anti-patterns
 

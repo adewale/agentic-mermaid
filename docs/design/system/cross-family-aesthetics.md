@@ -189,6 +189,7 @@ legend labels wrap with reserved rows (R3). Renders and tests in §3.
 `✅` present/strong · `⚠️` partial or degrades · `❌` absent (and would help) ·
 `N/A` no referent for this family. Columns are the union concerns (L-numbers from §1).
 
+<!-- complete: family-ids -->
 | Family | L1 sig-shape sketch | L2 scaffold recedes | L3 shared hue | L4 translucent + bead | L5+R label discipline | L6 one-scale | L7 wire-or-warn | L8 ASCII parity | Top opportunity |
 |---|---|---|---|---|---|---|---|---|---|
 | **radar** (ref) | ✅ pie-slice | ✅ grid | ✅ canonical | ✅ | ✅ **full union** (§3) | ✅ | ✅ | ✅ | Delivered — de-collision, leaders, knockout ticks, wrap compression, legend rows |

@@ -55,6 +55,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Docs that list every family, MCP tool, CLI verb, render format or warning
+  code are generated from the registry or marked `<!-- complete: <registry> -->`;
+  a marked list that misses any member fails the doc checks, so a change that
+  adds two members at once can no longer leave a list behind. A new doc check
+  fails on a relative link, backticked repository path, or `bun run`/`npm run`
+  script that does not exist. The MCP protocol-version lists are generated
+  from the server constants, and `AGENT_NATIVE.md` and the agent-usage runbook
+  now list `describe_sdk` among the hosted tools.
 - Warning-code descriptions have one source, `src/agent/warning-catalog.ts`,
   and a code without a description fails typecheck. The website's per-code
   pages, the `AGENT_NATIVE.md` warning tables and the tier notes printed by

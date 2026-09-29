@@ -68,17 +68,18 @@ un-instrumentable third party (hosted MCP over the network, no shared filesystem
 can't write to the log. Code mode (`--mode code`) is always observed: it replays
 the script through the sandbox trace linter.
 
-**Without the repo (true third party):** the npm package is unpublished, so the
-only channel is the hosted MCP. This measures whether the agent can drive the
+**Without the repo (true third party):** the agent gets no checkout and no npm
+package, so the only channel is the hosted MCP. This measures whether the agent can drive the
 HTTP MCP itself — the honest from-scratch condition.
 
+<!-- complete: hosted-mcp-tools -->
 ```
 You are a third-party agent. You do NOT have the agentic-mermaid repo or npm
 package. Read <run-dir>/requests/<case>.md and follow its "Task prompt under
 test". For ALL verification/mutation use ONLY the hosted MCP over HTTP:
 POST https://agentic-mermaid.dev/mcp with content-type: application/json and a
-JSON-RPC tools/call body (tools: execute, render_svg, render_ascii, render_png,
-verify, describe, mutate, build). For an edit, send Code Mode JS to the `execute` tool
+JSON-RPC tools/call body (tools: execute, describe_sdk, render_svg, render_ascii,
+render_png, verify, describe, mutate, build). For an edit, send Code Mode JS to the `execute` tool
 (mermaid.parseRegisteredMermaid → asX → mutate → verifyMermaid → serializeMermaid). Do NOT
 read, import, or run any local agentic-mermaid checkout. Return ONLY the chat
 response (Updated Mermaid / Verification / Trace) to the orchestrator; name the

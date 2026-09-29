@@ -29,6 +29,7 @@ modeled subset. Silent loss is never an acceptable level.
 
 ## Current family levels
 
+<!-- complete: family-ids -->
 | Family | Body preservation level | L4 traceability status |
 |---|---|---|
 | flowchart | L3 for modeled graph syntax; L1 for unsupported syntax/metadata forms | Partial L4: nodes/edges/groups/labels/source map, route certs, action analysis, region MVP |

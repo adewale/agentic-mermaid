@@ -1,7 +1,9 @@
 # MCP Code Mode rationale
 
+<!-- complete: local-mcp-tools -->
 Local `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The local helper tools (`describe_sdk`, `render_png`, and `describe`) are narrow conveniences, not a second full authoring API.
 
+<!-- complete: hosted-mcp-tools -->
 There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see the [as-built record](./project/archive/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite, with one explicit host-policy divergence: both hosted `renderMermaidSVG*` execute methods and the direct `render_svg` tool force `security: 'strict'` and `embedFontImport: false`, even if agent code asks for weaker values. Local Code Mode retains the library's caller-selectable policy.
 
 ## Why the MCP server exists
@@ -48,6 +50,7 @@ Local MCP keeps only three helpers:
 - `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. Local and hosted tools share portable `scale`, `background`, `minLabelPx`, and mutually exclusive `fitTo.width`/`fitTo.height` controls; local additionally accepts trusted-host `fontDirs`/`loadSystemFonts` remedies. Both return deterministic configuration and raster-legibility warnings, with native hosts also reporting glyph coverage. For clients that cannot comfortably carry large base64 payloads, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport. Because those modes create managed files, the local tool is annotated as non-read-only and non-idempotent.
 - `describe(source)` exists because one-shot natural-language summaries are common for screen readers, docs, and context compaction.
 
+<!-- complete: hosted-mcp-tools -->
 The hosted endpoint adds the same direct discovery tool (`describe_sdk`) and direct pure tools (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`) because every hosted `execute` contacts a Dynamic Worker; schema discovery and common render/verify calls should be ordinary Worker invocations eligible for the private compute cache. Hosted `mutate` and `build` are the only declarative authoring tools, and they exist to apply typed op lists with the verify-before-emit contract without asking a weaker model to write JavaScript. They do not introduce a separate mutation engine.
 
 Direct render tools accept shared render fields only through the canonical

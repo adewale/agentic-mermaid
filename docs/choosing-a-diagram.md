@@ -10,6 +10,7 @@ renders and what mutates is `am capabilities --json`, not this page.
 
 ## Start from the reader's task
 
+<!-- complete: family-ids -->
 | The reader must | First choice | Reach for instead when |
 |---|---|---|
 | Follow steps and decisions to an outcome | Flowchart | The subject reacts to events rather than proceeding through steps: state |
@@ -106,17 +107,15 @@ and round-trips as an opaque body; what stops is structured mutation.
 Choosing well is checkable. After authoring or editing, run `verifyMermaid`
 (or `am verify`):
 
-- **Tier 1 — structural:** `EMPTY_DIAGRAM`, `EDGE_MISANCHORED`,
-  `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`,
-  `UNRESOLVABLE_SCHEDULE`, and `RENDER_FAILED` must be empty before committing;
-  they mean the source or render contract is broken, not merely ugly.
+- **Tier 1 — structural:** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural -->
+  must be empty before committing; they mean the source or render contract is
+  broken, not merely ugly.
 - **Tier 2 — geometric:** `NODE_OVERLAP` and route warnings flag layouts
   worth a look; suppress them only when the geometry is intentional.
-- **Tier 3 — lint:** family-specific mistakes this page warns about include
-  `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `UNREACHABLE_NODE`,
-  `DUPLICATE_EDGE`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`,
-  `VALUES_OUTSIDE_RANGE`, and
-  `LOW_CONTRAST` against the resolved background.
+- **Tier 3 — lint:** the codes cited above name the family-specific mistakes
+  this page warns about. Each code's page under
+  <https://agentic-mermaid.dev/warnings/> says what triggers it and how to
+  clear it.
 
 Two checks no lint sees: give the diagram a title or `accTitle` that states
 the reader's question, and read the ASCII render in a terminal once, because
