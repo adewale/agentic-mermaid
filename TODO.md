@@ -289,7 +289,9 @@ or a generator steers around it, the entry names the test; remove the pin
 and the steering with the fix.
 
 - [ ] **BUG-7 — Sequence `actor` after first use changes the participant's kind** (`todo`). When a message or note has already created a participant, a later bare `actor X` makes ours switch its kind to actor; upstream keeps it a participant (`note left of Carol: hi` then `actor Carol`). The declare-before-use steering in `src/__tests__/property-upstream-sequence.test.ts` hides it.
-- [ ] **BUG-8 — ER entity loses its subgraph when its placing relation goes** (`todo`). An entity still used by another relation, but first placed inside a subgraph by a relation that was removed, re-parses outside the subgraph and in a different position (`A` inside `subgraph G`, also in a top-level `H ||--o{ A`).
+- [ ] **BUG-9 — ER `add_attribute` can move an entity ahead of others** (`todo`). It inserts the declaration before the first relation naming the entity, so re-parse creates it before that relation's other end; the serializer compensates unless that end belongs to a subgraph (`D ||--o{ B`, then `subgraph G` / `D ||--o{ B` / `end`, `add_attribute B` re-parses as B before D). Inserting after that relation keeps the order.
+- [ ] **BUG-10 — ER order a declaration in the entity's own subgraph cannot keep** (`todo`). A top-level entity whose body position falls between two entities of one subgraph (`D ||--o{ C : r0` / `subgraph G0` / `D` / `E` / `end`, remove `r0` → D, E, C), or a `style`-created entity inside a subgraph, re-parses in a different position. About 0.6% of fuzzed edits.
+- [ ] **BUG-11 — ER subgraph precedence differs between the typed body and the renderer** (`owner-decision`). The typed body lets a later declaration inside a subgraph override the subgraph an earlier relation gave the entity; `src/er/parser.ts` keeps the first and still lists the entity in both (`subgraph G2` / `C ||--o{ A` / `end` / `subgraph G1` / `A` / `end`). Pick one rule for both parsers.
 
 ## Non-goals
 

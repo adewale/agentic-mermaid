@@ -5,6 +5,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- ER entities keep their subgraph and position through serialization when the
+  relation that created or placed them is removed but another relation still
+  uses them; entities that must come before a subgraph's entities are declared
+  before it opens.
+- An ER entity that only a `style` line creates keeps its `class` through
+  serialization.
 - Flowchart plain labels keep `*`, `**` and `~~` as literal text, as upstream
   Mermaid does; only markdown strings (`` "`…`" ``) format them. `LABEL_OVERFLOW`
   counts those characters as drawn.
