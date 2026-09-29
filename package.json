@@ -129,7 +129,7 @@
     "harvest:upstream:refresh-check": "bun run eval/mermaid-upstream-suite-bench/refresh-check.ts",
     "build": "tsup && bun run build:browser && bun run build:browser:lazy",
     "build:browser": "tsup --config tsup.browser.config.ts",
-    "build:browser:lazy": "bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts && bun run check:browser-lazy",
+    "build:browser:lazy": "bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts",
     "check:browser-lazy": "bun run scripts/build/browser-lazy-report.ts",
     "generate:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts",
     "check:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts --check",
