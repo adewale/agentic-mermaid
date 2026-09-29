@@ -246,6 +246,15 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   order-dependent failures (resvg initialization, the Bun `node:vm` timer)
   surfaced only by accident. Run the suite nightly in shuffled file order and
   each file alone.
+- [ ] **TEST-11 — Run the CJK font tests in CI** (`todo`). The two CJK cases in
+  `png-fonts.test.ts` skip unless `fonts-wqy` is installed, and no workflow
+  installs it, so they never run. Install the font in the unit job and make the
+  skip fail when `CI=true`.
+- [ ] **TEST-12 — Sweep for Bun's asymmetric-matcher write-back** (`todo`). In
+  Bun 1.4.2, `toMatchObject`/`toEqual` with `expect.any`, `arrayContaining` or
+  `closeTo` overwrite the checked field of the received object with the matcher,
+  so a later read of that field sees the matcher, not the data. Find tests that
+  read an object after such an assertion, and report the bug upstream.
 
 ## Consolidation / dedup backlog
 
@@ -357,6 +366,8 @@ and the steering with the fix.
 - [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
 - [ ] **BUG-36 — Out-of-range `linkStyle` is accepted silently** (`todo`). `linkStyle 99` on a one-edge flowchart verifies `ok` with no warning; upstream rejects it. Pinned in `linkstyle.test.ts`.
 - [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
+- [ ] **BUG-38 — An empty Pie, XYChart or Radar diagram does not survive a round trip** (`todo`). `createMermaid('pie')` serializes to a bare `pie` header, which re-parses as an opaque body, so typed mutation is lost after the first save. The same holds for `xychart-beta` and `radar-beta`; an empty flowchart stays typed.
+- [ ] **BUG-39 — Flowchart `A--a --> A--a` is accepted** (`todo`). Upstream rejects it; ours reads an edge from `A` to a node `A--a` labelled `a`. The flowchart differential's generator excludes such ids.
 
 ## Non-goals
 

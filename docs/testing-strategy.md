@@ -326,9 +326,13 @@ This is where we approximate aesthetics deterministically:
 - **layout rubric / visual-rubric** — hard violations (must be 0) plus soft
   thresholds (crossings, bends, port-anchored rate).
 - **heuristic-tracker** — baseline-comparison of routing metrics with
-  improvement/regression deltas, now gated per PR (`heuristic-tracker.test.ts`):
-  hard violations must stay 0 and no tracked example may regress on a soft
-  metric without a reviewed `baseline.json` update in the same change.
+  improvement/regression deltas. `heuristic-tracker.test.ts` gates the
+  portable part per PR: every tracked example scores without error and hard
+  violations stay 0. The soft-metric comparison (bends, crossings, straight
+  counts) is not gated, because those integers come from floating-point ELK
+  geometry that differs across machines; run
+  `bun run eval/heuristic-tracker/run.ts` to see soft deltas when tuning
+  routing.
 - **route-contract tripwires** — `ROUTE_*` codes that must stay 0; any hit
   means the layout pipeline regressed, not the diagram.
 - **chart-honesty pixel oracle** (`chart-honesty-text-*.test.ts`,
