@@ -32,6 +32,63 @@ editing surface. Source lives in `src/`; the layout pipeline is in
 
 Layout is **deterministic**: identical input must produce identical geometry.
 
+## How we work (read before changing code or tests)
+
+These rules exist because the repo once fell into a loop where every small
+behaviour change had to regenerate a dozen committed derived files, satisfy
+gates that tested other tests, and match Mermaid quirk-for-quirk. Work split
+into tiny near-identical steps, each paying the full integration cost.
+
+### Mermaid is our input language, not our spec
+
+Write strictly, read generously, warn.
+
+1. What we **write** (serializers, `createMermaid`) must be valid Mermaid 11.16.
+2. What we **read** may be more generous than Mermaid. If the author's meaning
+   is clear, parse and draw it, and have `verify` report `UNSUPPORTED_SYNTAX`
+   saying Mermaid rejects it (see `journeySemicolonExtensionWarnings`). Reject
+   only when we cannot tell what was meant.
+3. For source Mermaid accepts, keep the author's meaning. Where Mermaid's
+   behaviour is a quirk (it drops information, or orders things by accident),
+   choose the sensible behaviour and record it in `docs/project/divergences.md`.
+4. Rendering, layout, styling and text display are ours. Never test them
+   against Mermaid.
+5. A difference from Mermaid is a bug only when it shows up without mentioning
+   Mermaid: lost or garbled content, a crash, a wrong drawing, our own surfaces
+   (renderer, typed body, serializer, ASCII) disagreeing, or output Mermaid
+   cannot read. Otherwise it is a divergence, not a backlog item.
+
+### Tests protect behaviour, not other tests
+
+Before adding a test, answer: what behaviour or public contract does it
+protect; what credible regression makes it fail; why existing coverage does not
+already catch it. Then:
+
+- Test at the owning boundary, once. Extend a table-driven case instead of
+  adding a near-duplicate test or file.
+- No tests of tests: no "has teeth" examples for lint tables, no allow-list
+  staleness checks, no tests of test helpers.
+- No copied inventories, manifests or export lists, no source greps, and no
+  expected values produced by the code under test.
+
+### Don't commit derived artifacts
+
+If a file can be generated from the repo, generate it in the build or in CI and
+gitignore it (as `website/public/` is). Don't commit it and don't add a test
+that compares a committed copy with a fresh one. Don't hash our own inputs for
+provenance or change detection. Hashes belong only on bytes we ship or fetch.
+Committed exceptions: reviewed rendering goldens under `src/__tests__/testdata/`
+and files production code imports at runtime.
+
+### Change shape
+
+- One coherent change per commit, at the owning boundary: all the sites of one
+  rule together, not one commit per bug.
+- Locally run typecheck, lint and the tests that exercise what you changed. The
+  full suite runs in CI (3 shards, about 4 minutes); don't run it locally per
+  commit.
+- Parallel agents only on disjoint files, at most 2–3 at a time.
+
 ## Pull requests — use the `good-pr` skill
 
 Before opening or updating a PR, use the **good-pr** skill
