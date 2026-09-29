@@ -250,8 +250,8 @@ mutating process-global configuration).
 - Finder mode (deliberate randomness): `AM_FC_SEED=random bun run test`.
 - The policy is itself gated: `fc-seed-policy.test.ts` fails if the preload is
   unwired and source-checks every test file so suite-specific seeds cannot use
-  process-global overrides in another shard; `zzz-fc-seed-policy-epilogue.test.ts`
-  also catches runtime drift within its own process.
+  process-global overrides. That source check is the guard: CI runs files in
+  parallel processes, so no test can observe another file's runtime state.
 
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,

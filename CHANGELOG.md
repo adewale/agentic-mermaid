@@ -5,6 +5,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- `llms.txt` lists `am serialize` among the CLI verbs.
+- Radar's emphasized outer ring draws with `stroke-width: 2.1` instead of
+  `2.0999999999999996`.
 - Flowchart labels read Mermaid's `#quot;` as `"`, and a `\` inside a quoted
   label is literal, as upstream has no escapes there. The serializer writes
   `"` as `#quot;`, so labels containing `"` or `\` round-trip and upstream
