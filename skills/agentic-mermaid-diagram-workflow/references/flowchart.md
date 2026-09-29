@@ -13,6 +13,8 @@ MutationOps: the live list and field shapes come from `am capabilities --json`
 edge, shape, direction, subgraph, and class/style ops. remove_node cascades to
 incident edges; add_edge implicit-declares missing endpoints.
 
-Verify Tier 1: EMPTY_DIAGRAM, EDGE_MISANCHORED, OFF_CANVAS, GROUP_BREACH,
-UNKNOWN_SHAPE, LABEL_OVERFLOW (char-cap, default 40), RENDER_FAILED.
-Tier 2: NODE_OVERLAP, ROUTE_SELF_CROSS, ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND, ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR, ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
+Verify: every Tier 1 code except the Gantt-only UNRESOLVABLE_SCHEDULE can fire
+on a flowchart (LABEL_OVERFLOW caps a label line at 40 characters by default),
+and so can every Tier 2 geometric code. `am capabilities --json` lists the codes
+by tier (`warningCodes`); each code's page under
+https://agentic-mermaid.dev/warnings/ says what triggers it and how to clear it.

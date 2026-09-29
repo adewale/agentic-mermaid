@@ -34,6 +34,17 @@ describe('flowchart SourceMap', () => {
     expect(parsed.value.source.edges.get('edge#1:B->A')).toEqual({ line: 7, col: 1 })
   })
 
+  test('maps a label whose `"` is spelled `#quot;` to its authored text', () => {
+    const source = 'flowchart LR\n  A["say #quot;hi#quot;"] -->|"e #quot;q#quot;"| B\n  subgraph S["t #quot;x#quot;"]\n    C\n  end'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const labels = parsed.value.source.spans!.labels
+    expect(textAt(source, labels.get('node:A'))).toBe('say #quot;hi#quot;')
+    expect(textAt(source, labels.get('edge#0:A->B'))).toBe('e #quot;q#quot;')
+    expect(textAt(source, labels.get('group:S'))).toBe('t #quot;x#quot;')
+  })
+
   test('maps edge and node labels after the id/operator when text repeats endpoint ids', () => {
     const parsed = parseMermaid(`flowchart LR
   A[A] -->|A| B

@@ -489,15 +489,35 @@ describe('round-trip stability', () => {
       expect(serializeMermaid(parse(out))).toBe(out)
     }
   })
-  test('typed mutations preserve boundary whitespace in labels', () => {
-    const original = flowchart('flowchart TD\n  A --> B')
-    const changed = mutate(original, { kind: 'add_edge', from: 'A', to: 'A', label: ' a ' })
-    expect(changed.ok).toBe(true)
-    if (!changed.ok) return
-    const source = serializeMermaid(changed.value)
-    expect(source).toContain('A -->|" a "| A')
+  test('typed mutations trim boundary whitespace in labels, as parsing does', () => {
+    // Upstream's flowchart DB trims labels, so `C[" c "]` parses to "c"; a
+    // typed edit stores what its serialized source re-parses to, and an edge
+    // label that trims to nothing is no label.
+    const labels = (d: FlowchartValidDiagram) => ({
+      nodes: [...d.body.graph.nodes.values()].map(node => node.label),
+      edges: d.body.graph.edges.map(edge => edge.label),
+      subgraphs: d.body.graph.subgraphs.map(subgraph => subgraph.label),
+    })
+    expect(labels(flowchart('flowchart TD\n  subgraph G [" g "]\n    C[" c "]\n  end\n  A -->|" a "| A\n  A -->|" "| B')))
+      .toEqual({ nodes: ['c', 'A', 'B'], edges: ['a', undefined], subgraphs: ['g'] })
+    const ops: FlowchartMutationOp[] = [
+      { kind: 'add_node', id: 'C', label: ' c ' },
+      { kind: 'add_edge', from: 'A', to: 'A', label: ' a ' },
+      { kind: 'add_edge', from: 'A', to: 'B', label: '  ' },
+      { kind: 'add_subgraph', id: 'G', label: ' g ', members: ['C'] },
+    ]
+    let changed = flowchart('flowchart TD\n  A --> B')
+    for (const op of ops) {
+      const result = mutate(changed, op)
+      if (!result.ok) throw new Error(result.error.message)
+      changed = result.value
+    }
+    expect(labels(changed)).toEqual({ nodes: ['A', 'B', 'c'], edges: [undefined, 'a', undefined], subgraphs: ['g'] })
+    const source = serializeMermaid(changed)
+    expect(source).toContain('  subgraph G[g]\n    C[c]\n')
+    expect(source).toContain('  A -->|a| A\n  A --> B\n')
     const reparsed = flowchart(source)
-    expect(reparsed.body.graph.edges.at(-1)?.label).toBe(' a ')
+    expect(labels(reparsed)).toEqual({ nodes: ['c', 'A', 'B'], edges: [undefined, 'a', undefined], subgraphs: ['g'] })
     expect(serializeMermaid(reparsed)).toBe(source)
   })
   test('property: flowchart mutation commands preserve a shadow model and stay parseable', () => {
@@ -554,8 +574,9 @@ describe('round-trip stability', () => {
         real.diagram = result.value
 
         switch (action.kind) {
+          // Labels are stored trimmed, as parsing them would (see above).
           case 'add_node':
-            model.nodes.set(action.id, action.label)
+            model.nodes.set(action.id, action.label.trim())
             break
           case 'rename_node': {
             const oldLabel = model.nodes.get(action.from)!
@@ -572,12 +593,12 @@ describe('round-trip stability', () => {
             model.edges = model.edges.filter(edge => edge.from !== action.id && edge.to !== action.id)
             break
           case 'set_label':
-            model.nodes.set(action.id, action.label)
+            model.nodes.set(action.id, action.label.trim())
             break
           case 'add_edge':
             if (!model.nodes.has(action.from)) model.nodes.set(action.from, action.from)
             if (!model.nodes.has(action.to)) model.nodes.set(action.to, action.to)
-            model.edges.push({ from: action.from, to: action.to, label: action.label })
+            model.edges.push({ from: action.from, to: action.to, label: action.label?.trim() || undefined })
             break
           case 'remove_edge': {
             const index = model.edges.findIndex(edge => edge.from === action.from && edge.to === action.to)

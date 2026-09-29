@@ -145,37 +145,23 @@ function colourInputArb(family: DiagramKind): fc.Arbitrary<RenderOptions> {
 
 const geometry = (svg: string) => normalizeSvg(svg, { stripPaint: true })
 
-// KNOWN BUG, found by MR5 and pinned rather than fixed here: a pie `pieN` or
-// radar `cScaleN` palette with a gap (only `pie2`, say) builds a sparse
-// paletteOverrides array, which the render contract's JSON snapshot refuses
-// with an internal TypeError, so the diagram does not render at all.
-//   %%{init: {"themeVariables": {"pie2": "#000000"}}}%%
-//   pie
-//     "a" : 1
-// Once fixed, the pinned expectation below turns red: delete this entry.
-const SPARSE_PALETTE_BUG = /could not be snapshotted: data must not contain a sparse array at \$\.familyConfig\.visual\.paletteOverrides/
-const SPARSE_PALETTE_KEYS: Partial<Record<DiagramKind, (index: number) => string>> = {
-  pie: index => `pie${index + 1}`,
-  radar: index => `cScale${index}`,
-}
-
-function hasSparsePalette(family: DiagramKind, colours: RenderOptions): boolean {
-  const key = SPARSE_PALETTE_KEYS[family]
-  const vars = colours.mermaidConfig?.themeVariables
-  if (!key || !vars) return false
-  const set = Array.from({ length: 12 }, (_, index) => Object.hasOwn(vars, key(index)))
-  const firstGap = set.indexOf(false)
-  return firstGap >= 0 && set.lastIndexOf(true) > firstGap
-}
-
 describe('MR5 colour invariance: colour inputs never move geometry', () => {
-  test('known bug: a gapped pie or radar palette fails the render instead of drawing', () => {
-    const pie = '%%{init: {"themeVariables": {"pie2": "#000000"}}}%%\npie\n  "a" : 1\n  "b" : 2'
-    const radar = '%%{init: {"themeVariables": {"cScale1": "#000000"}}}%%\nradar-beta\n  axis a, b, c\n  curve x{1,2,3}\n  max 5'
-    expect(() => renderMermaidSVG(pie)).toThrow(SPARSE_PALETTE_BUG)
-    expect(() => renderMermaidSVG(radar)).toThrow(SPARSE_PALETTE_BUG)
-    // The gap is the trigger: the same colour in the first slot renders.
-    expect(renderMermaidSVG(pie.replace('pie2', 'pie1'))).toContain('<svg')
+  // Found by MR5: a `pieN` or `cScaleN` set without its predecessors once built
+  // a sparse paletteOverrides array that the render contract refused to
+  // snapshot, so the diagram did not render at all.
+  test('a gapped pie or radar palette paints its slot and keeps the defaults elsewhere', () => {
+    const cases = [
+      ['pie2', 'pie\n  "a" : 1\n  "b" : 2\n  "c" : 3'],
+      ['cScale1', 'radar-beta\n  axis a, b, c\n  curve x{1,2,3}\n  curve y{2,3,1}\n  curve z{3,1,2}\n  max 5'],
+    ] as const
+    const fills = (svg: string) => [...svg.matchAll(/class="(?:pie-slice|radar-area)"[^>]*fill="([^"]+)"/g)].map(match => match[1])
+    for (const [key, body] of cases) {
+      const defaults = fills(renderMermaidSVG(body))
+      expect(defaults).toHaveLength(3)
+      expect(defaults).not.toContain('#000000')
+      const gapped = fills(renderMermaidSVG(`%%{init: {"themeVariables": {"${key}": "#000000"}}}%%\n${body}`))
+      expect(gapped, key).toEqual([defaults[0], '#000000', defaults[2]])
+    }
   })
 
   test('the paint-free projection strips paint but keeps geometry', () => {
@@ -190,10 +176,6 @@ describe('MR5 colour invariance: colour inputs never move geometry', () => {
       fc.assert(
         fc.property(kArb(fam), tagArb, colourInputArb(fam.family), (k, tag, colours) => {
           const source = fam.build(k, tag)
-          if (hasSparsePalette(fam.family, colours)) {
-            expect(() => renderMermaidSVG(source, { ...colours, ...quiet })).toThrow(SPARSE_PALETTE_BUG)
-            return
-          }
           const diagram = parse(source)
           expect(layoutMermaid(diagram, { ...colours, ...quiet })).toEqual(layoutMermaid(diagram, quiet))
           expect(geometry(renderMermaidSVG(source, { ...colours, ...quiet }))).toBe(geometry(renderMermaidSVG(source, quiet)))

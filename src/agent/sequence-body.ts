@@ -15,6 +15,9 @@
 //   - Unbalanced `end` / unclosed block / un-segmentable input → return null
 //                         so the caller falls back to a whole-body opaque body
 //                         (the old behavior, still lossless).
+//   - Participants that preserved lines declare or name (a box's declarations,
+//     a note, a message inside an opaque block) are still typed participants,
+//     created in Mermaid's order; only their source stays verbatim.
 //
 // The serializer emits statements in order: opaque-block lines verbatim,
 // structured lines canonical. Round-trip guarantee: every original non-blank
@@ -28,7 +31,7 @@ import type {
   SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { parseActorDeclaration, parseActorLinks, parseSequenceCreateLine, parseSequenceMessageLine, parseSequenceNoteLine } from '../sequence/parser.ts'
 import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from '../sequence/block-keywords.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
@@ -40,9 +43,9 @@ import { appendOpaqueSegment } from './opaque-segments.ts'
 // belongs here: its `end` used to hit the stray-`end` rule below and collapse
 // EVERY boxed diagram to the whole-body opaque fallback; as a preserved
 // segment the box rides along verbatim while the rest of the
-// diagram keeps its typed ops. Participants declared inside a box are part of
-// the segment and stay invisible to ops. Direct-message alt/opt/loop/par
-// blocks are promoted to typed fragments below.
+// diagram keeps its typed ops. Declarations inside a box stay part of the
+// segment, though the participants they declare are typed. Direct-message
+// alt/opt/loop/par blocks are promoted to typed fragments below.
 const BLOCK_END_RE = /^end\b/i
 
 /**
@@ -73,6 +76,28 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   const ensureKnown = (id: string) => {
     if (!seen.has(id)) { participants.push({ id, label: id, kind: 'participant' }); seen.add(id) }
   }
+  // As in Mermaid, a declaration creates an unknown participant, while a known
+  // one changes only under a naming declaration, which replaces its label and
+  // kind in place.
+  const declareParticipant = ({ participant, aliased }: DeclaredParticipant): number => {
+    const index = participants.findIndex(p => p.id === participant.id)
+    if (index < 0) {
+      participants.push(participant); seen.add(participant.id)
+      return participants.length - 1
+    }
+    if (aliased) {
+      const renamed = { ...participants[index]!, ...participant }
+      if (!participant.declaration) delete renamed.declaration
+      participants[index] = renamed
+    }
+    return index
+  }
+  const declarePreserved = (line: string) => {
+    for (const named of preservedLineParticipants(line)) {
+      if (named.declared) declareParticipant(named.declared)
+      else ensureKnown(named.id)
+    }
+  }
 
   // Walk the raw lines so opaque segments capture original indentation. Track a
   // parallel index into trimmedLines is unnecessary: we trim each raw line for
@@ -89,26 +114,14 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     }
 
     if (/^(participant|actor)\b/i.test(line)) {
-      let part
-      try { part = parseActorDeclaration(line) } catch {
+      const declared = parseDeclarationLine(line)
+      // Mermaid ignores a bare re-declaration of a known participant, so keep
+      // that line verbatim rather than re-render it from a participant it
+      // does not change.
+      if (!declared || (seen.has(declared.participant.id) && !declared.aliased)) {
         appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue
       }
-      // A metadata-looking declaration that does not match the closed grammar
-      // remains losslessly opaque; never reinterpret `A@{` as an actor ID.
-      if (!part || (line.includes('@{') && !/^\s*(?:participant|actor)\s+[^\s@]+@\{[\s\S]+\}(?:\s+as\s+.+)?$/i.test(line))) {
-        appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue
-      }
-      const declaration = line.toLowerCase().startsWith('actor ') ? 'actor' as const : 'participant' as const
-      const { id, label, type: kind } = part
-      const declarationField = kind === declaration ? {} : { declaration }
-      if (!seen.has(id)) {
-        participants.push({ id, label, kind, ...declarationField }); seen.add(id)
-        statements.push({ kind: 'participant', ref: participants.length - 1 })
-      } else {
-        const idx = participants.findIndex(p => p.id === id)
-        participants[idx] = { ...participants[idx]!, label, kind, ...declarationField }
-        statements.push({ kind: 'participant', ref: idx })
-      }
+      statements.push({ kind: 'participant', ref: declareParticipant(declared) })
       i++
       continue
     }
@@ -168,13 +181,16 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
         }
         statements.push({ kind: 'fragment', fragment })
       } else {
+        for (const blockLine of blockLines) declarePreserved(blockLine)
         appendOpaqueSegment(statements, dropBlankEdges(blockLines), sequenceOpaqueBlock)
       }
       continue
     }
 
-    // Any other unmodeled single line (Note…, activate/deactivate, autonumber,
-    // title…) joins an adjacent opaque-block segment, kept verbatim.
+    // Any other unmodeled single line (Note…, create, activate/deactivate,
+    // autonumber, title…) joins an adjacent opaque-block segment, kept
+    // verbatim, and still declares the participants it names.
+    declarePreserved(line)
     appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
     i++
   }
@@ -183,6 +199,42 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
 }
 
 const sequenceOpaqueBlock = (lines: string[]): SequenceStatement => ({ kind: 'opaque-block', lines })
+
+interface DeclaredParticipant { participant: SequenceParticipant; aliased: boolean }
+
+/** A `participant`/`actor` line as a typed declaration, or null when it must
+ * stay preserved source: malformed, an unknown type, or metadata outside the
+ * closed grammar (never reinterpret `A@{` as an actor ID). */
+function parseDeclarationLine(line: string): DeclaredParticipant | null {
+  let part
+  try { part = parseActorDeclaration(line) } catch { return null }
+  if (!part || (line.includes('@{') && !/^\s*(?:participant|actor)\s+[^\s@]+@\{[\s\S]+\}(?:\s+as\s+.+)?$/i.test(line))) return null
+  const declaration = /^actor\b/i.test(line) ? 'actor' as const : 'participant' as const
+  const { id, label, type: kind } = part
+  return { participant: { id, label, kind, ...(kind === declaration ? {} : { declaration }) }, aliased: part.aliased }
+}
+
+/** The participants a preserved line declares or names, in the order Mermaid
+ * creates them. Checks follow the renderer's precedence; `activate` and
+ * `destroy` create nothing upstream. */
+function preservedLineParticipants(rawLine: string): Array<{ id: string; declared?: DeclaredParticipant }> {
+  const line = rawLine.trim()
+  if (!line || isSequenceCommentLine(line)) return []
+  if (/^(?:participant|actor)\b/i.test(line)) {
+    const declared = parseDeclarationLine(line)
+    return declared ? [{ id: declared.participant.id, declared }] : []
+  }
+  const links = parseActorLinks(line)
+  if (links) return [{ id: links.actorId }]
+  // Creating a known participant is an upstream error, never a rename.
+  const created = parseSequenceCreateLine(line)
+  if (created) return [{ id: created.id, declared: { participant: { id: created.id, label: created.label, kind: created.type }, aliased: false } }]
+  const note = parseSequenceNoteLine(line)
+  if (note) return note.actorIds.map(id => ({ id }))
+  if (parseSequenceBlockOpener(line) || parseSequenceBlockContinuation(line)) return []
+  const message = parseSequenceMessageLine(line)
+  return message ? [{ id: message.from }, { id: message.to }] : []
+}
 
 function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLine> & {}): SequenceMessage {
   return {
@@ -291,13 +343,16 @@ export function renderSequence(body: SequenceBody): string {
   const lines: string[] = ['sequenceDiagram']
 
   if (body.statements.length > 0) {
-    // Segment-preserving path: emit statements in order.
+    // Segment-preserving path: emit statements in order. A declaration after
+    // the participant's first mention keeps its alias even when that is the
+    // id, since Mermaid ignores a bare re-declaration.
+    const mentioned = new Set<string>()
     for (const st of body.statements) {
       if (st.kind === 'opaque-block') {
         for (const l of st.lines) lines.push(l)
       } else if (st.kind === 'participant') {
         const p = body.participants[st.ref]
-        if (p) lines.push(renderParticipant(p))
+        if (p) lines.push(renderParticipant(p, mentioned.has(p.id)))
       } else if (st.kind === 'actor-links') {
         for (const [label, href] of Object.entries(st.links)) lines.push(`  link ${st.actorId}: ${label} @ ${href}`)
       } else if (st.kind === 'fragment') {
@@ -306,6 +361,7 @@ export function renderSequence(body: SequenceBody): string {
         const m = body.messages[st.ref]
         if (m) lines.push(renderMessage(m))
       }
+      for (const id of statementParticipantIds(st, body.participants, body.messages)) mentioned.add(id)
     }
     return lines.join('\n') + '\n'
   }
@@ -324,11 +380,23 @@ function renderFragment(fragment: SequenceFragment): string[] {
   return lines
 }
 
-function renderParticipant(p: SequenceParticipant): string {
+function renderParticipant(p: SequenceParticipant, redeclared: boolean): string {
   const tag = p.declaration ?? (p.kind === 'actor' ? 'actor' : 'participant')
   const metadata = p.kind !== 'participant' && p.kind !== 'actor' ? `@{ "type": "${p.kind}" }` : ''
   const label = p.label.replace(/\r?\n/g, '<br/>')
-  return `  ${tag} ${p.id}${metadata}${label !== p.id ? ` as ${label}` : ''}`
+  return `  ${tag} ${p.id}${metadata}${label !== p.id || redeclared ? ` as ${label}` : ''}`
+}
+
+/** The participant ids a statement names, in the order Mermaid meets them. */
+function statementParticipantIds(statement: SequenceStatement, participants: SequenceParticipant[], messages: SequenceMessage[]): string[] {
+  const endpoints = (message: SequenceMessage | undefined) => message ? [message.from, message.to] : []
+  switch (statement.kind) {
+    case 'participant': return participants[statement.ref] ? [participants[statement.ref]!.id] : []
+    case 'message': return endpoints(messages[statement.ref])
+    case 'fragment': return statement.fragment.branches.flatMap(branch => branch.messages.flatMap(endpoints))
+    case 'actor-links': return [statement.actorId]
+    case 'opaque-block': return statement.lines.flatMap(line => preservedLineParticipants(line).map(named => named.id))
+  }
 }
 
 function renderMessage(m: SequenceMessage): string {
@@ -419,15 +487,17 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
         return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
       }
       p.label = label
-      // As in Mermaid, a participant's first declaration places it and its
-      // last aliased declaration names it. The label only survives serialize →
+      // As in Mermaid, a participant's first mention places it and its last
+      // aliased declaration names it. The label only survives serialize →
       // re-parse through a declaration statement: when the naming declaration
       // is preserved source (a boxed `participant A as …`), declare the new
-      // label right after it; an implicit (message-only) participant is
-      // declared at the top.
+      // label right after it. An implied participant is declared right after
+      // the statement that creates it, where the declaration renames it in
+      // place; ahead of that statement it could jump a participant the
+      // statement creates first (`A->>B`, relabelling B).
       const ref = participants.indexOf(p)
       const naming = namingDeclaration(statements, ref, p.id)
-      if (naming === undefined) statements.unshift({ kind: 'participant', ref })
+      if (naming === undefined) statements.splice(creatingStatement(statements, participants, messages, p.id) + 1, 0, { kind: 'participant', ref })
       else if (naming.preserved) statements.splice(naming.index + 1, 0, { kind: 'participant', ref })
       break
     }
@@ -550,6 +620,13 @@ function namingDeclaration(statements: SequenceStatement[], ref: number, id: str
     if (statement.kind === 'opaque-block' && statement.lines.some(line => aliased.test(line))) return { index, preserved: true }
   }
   return undefined
+}
+
+/** Index of the first statement that names participant `id` (and so creates
+ * it on re-parse); the last statement when none does. */
+function creatingStatement(statements: SequenceStatement[], participants: SequenceParticipant[], messages: SequenceMessage[], id: string): number {
+  const index = statements.findIndex(statement => statementParticipantIds(statement, participants, messages).includes(id))
+  return index < 0 ? statements.length - 1 : index
 }
 
 function opaqueBlocksReference(statements: SequenceStatement[], id: string): boolean {

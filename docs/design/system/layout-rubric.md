@@ -74,7 +74,7 @@ bun run rubric:visual          # renders both batteries, writes HTML galleries
 bun test src/__tests__/layout-rubric.test.ts   # same gates in CI + property oracles
 ```
 
-For PR review expectations, see [`../contributing/visual-review-evidence.md`](../../contributing/visual-review-evidence.md).
+For PR review expectations, see [`../../contributing/visual-review-evidence.md`](../../contributing/visual-review-evidence.md).
 
 - **Simple battery** (~120): every routing pattern (chain, diamond chain,
   labeled fan-out, fan-out×3, fan-in, reciprocal, retry, cycle, skip edge,

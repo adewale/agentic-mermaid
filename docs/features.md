@@ -73,11 +73,15 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 
 ## Verification tiers
 
-- **Tier 1 (structural, universal):** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`<!-- END GENERATED: warning-codes:structural -->. `RENDER_FAILED` is structural, so a clean verify proves the source actually renders.
+- **Tier 1 (structural, universal):** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural -->. `RENDER_FAILED` is structural, so a clean verify proves the source actually renders.
 - **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** <!-- BEGIN GENERATED: warning-codes:geometric -->`NODE_OVERLAP`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`<!-- END GENERATED: warning-codes:geometric -->.
-- **Tier 3 (lint and inspect-only policy):** <!-- BEGIN GENERATED: warning-codes:lint -->`BRAND_CONSTRAINT_ERROR`, `DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`<!-- END GENERATED: warning-codes:lint -->. FLOW_IMBALANCE flags a sankey intermediate node whose inflow and outflow differ (conservation is the domain's defining property). LABELS_HIDDEN lists the XY chart category names and bar value labels the layout could not fit; BAR_RANGE_EXCLUDES_ZERO flags a bar chart whose authored value range excludes zero, so bar lengths stop encoding value; VALUES_OUTSIDE_RANGE names the values an authored range leaves outside it, which the chart draws clipped or off the plot. Brand constraints inspect final contrast, accent area, or monochrome role paint without repainting/relayout; only the caller-selected `action: "error"` code flips `verify.ok`.
+- **Tier 3 (lint and inspect-only policy):** <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Only the caller-selected `action: "error"` Brand constraint code flips `verify.ok`.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).
+
+Each code's page under <https://agentic-mermaid.dev/warnings/> says what triggers it and
+how to clear it; the tier tables in [`AGENT_NATIVE.md`](../AGENT_NATIVE.md#2-verifiable-rendering)
+describe every code. Both are generated from `src/agent/warning-catalog.ts`.
 
 ## Accessibility
 
@@ -109,6 +113,7 @@ Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.de
 
 ## MCP server
 
+<!-- complete: local-mcp-tools -->
 Local `agentic-mermaid-mcp` is Code Mode-first: `execute(code)` runs synchronous
 JavaScript in a local `node:vm` sandbox with a typed `mermaid.*` SDK declaration,
 plus narrow `describe_sdk`, `render_png`, and `describe` helpers. The initial
@@ -118,8 +123,9 @@ HTTP/SSE via `agentic-mermaid-mcp --transport http`; local `render_png` can
 return base64 bytes or managed file/URL artifacts with MIME type, byte count, and
 SHA-256 metadata.
 
+<!-- complete: hosted-mcp-tools -->
 The hosted endpoint at `https://agentic-mermaid.dev/mcp` is stateless
-Streamable HTTP. It exposes nine bounded MCP JSON-RPC tools: `execute` in a
+Streamable HTTP. It exposes bounded MCP JSON-RPC tools: `execute` in a
 Cloudflare Dynamic Worker isolate, pure `describe_sdk` / `render_svg` /
 `render_ascii` / `render_png` / `verify` / `describe`, and declarative `mutate` / `build` for
 structured edits. Hosted inputs are capped at 64 KB, PNG is base64-only, and the

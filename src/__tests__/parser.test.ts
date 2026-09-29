@@ -543,7 +543,8 @@ describe('parseMermaid – quoted shape labels and Unicode identifiers', () => {
       chars => {
         const label = chars.join('')
         const graph = parseMermaid(`flowchart TD\n  A("${label}") --> B`)
-        expect(graph.nodes.get('A')?.label).toBe(label)
+        // Boundary whitespace trims, as in upstream's flowchart DB.
+        expect(graph.nodes.get('A')?.label).toBe(label.trim())
         expect(graph.edges).toHaveLength(1)
       },
     ), { numRuns: 60 })

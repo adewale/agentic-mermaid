@@ -753,7 +753,7 @@ type GanttMutationOp =
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:
 //   <br> splits lines, XML entities decode to one char),
 //   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail),
-//   RENDER_FAILED (strict renderer rejected the canonical source).
+//   RENDER_FAILED (the strict render parser, layout, or theme colors rejected the source).
 // Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS, and the
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
 // ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR,

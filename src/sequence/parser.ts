@@ -217,10 +217,10 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (!actorIds.has(id)) {
         actorIds.add(id)
         diagram.actors.push({ id, label, type })
-      } else if (label !== id) {
+      } else if (actorDeclaration.aliased) {
         // As in Mermaid, re-declaring a participant with an alias renames it
-        // (`participant A` in a box, then `participant A as Alice`); a bare
-        // re-declaration changes nothing.
+        // and sets its type (`participant A` in a box, then `participant A as
+        // Alice`); a bare re-declaration changes nothing, even its type.
         const actor = diagram.actors.find(candidate => candidate.id === id)!
         actor.label = label
         actor.type = type
@@ -289,11 +289,9 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     }
 
     // --- create / destroy lifecycle directives ---
-    const createMatch = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
-    if (createMatch) {
-      const type = createMatch[1]!.toLowerCase() as 'participant' | 'actor'
-      const id = createMatch[2]!
-      const label = normalizeBrTags(createMatch[3]?.trim() ?? id)
+    const created = parseSequenceCreateLine(line)
+    if (created) {
+      const { id, label, type } = created
       if (!actorIds.has(id)) {
         actorIds.add(id)
         diagram.actors.push({ id, label, type })
@@ -308,27 +306,17 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     }
 
     // --- Note ---
-    // "Note left of A: text" / "Note right of A: text" / "Note over A,B: text"
-    const noteMatch = line.match(/^Note\s+(left of|right of|over)\s+([^:]+):\s*(.+)$/i)
-    if (noteMatch) {
-      const posStr = noteMatch[1]!.toLowerCase()
-      const actorsStr = noteMatch[2]!.trim()
-      const text = normalizeBrTags(noteMatch[3]!.trim())
-      const noteActorIds = actorsStr.split(',').map(s => s.trim())
-
+    const note = parseSequenceNoteLine(line)
+    if (note) {
       // Ensure actors exist
-      for (const aid of noteActorIds) {
+      for (const aid of note.actorIds) {
         ensureActor(diagram, actorIds, aid)
       }
 
-      let position: 'left' | 'right' | 'over' = 'over'
-      if (posStr === 'left of') position = 'left'
-      else if (posStr === 'right of') position = 'right'
-
       diagram.notes.push({
-        actorIds: noteActorIds,
-        text,
-        position,
+        actorIds: note.actorIds,
+        text: normalizeBrTags(note.text),
+        position: note.position,
         afterIndex: diagram.messages.length - 1,
       })
       continue
@@ -423,7 +411,12 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
 const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundary', 'control', 'entity', 'database', 'collections', 'queue'])
 
-export function parseActorDeclaration(line: string): Actor | null {
+/** A `participant`/`actor` declaration. `aliased` records whether it names the
+ *  actor (`as …` or a metadata alias): Mermaid lets only a naming declaration
+ *  change an actor that already exists. */
+export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { aliased: boolean }
+
+export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {
   const metadata = line.match(/^(participant|actor)\s+([^\s@]+)@\{([\s\S]+)\}(?:\s+as\s+(.+))?$/i)
   if (metadata) {
     const baseType = metadata[1]!.toLowerCase() as 'participant' | 'actor'
@@ -442,14 +435,27 @@ export function parseActorDeclaration(line: string): Actor | null {
     if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw new Error(`Unknown sequence actor type '${requested}'`)
     const type = requested as SequenceActorType
     // Upstream gives an explicit external `as` alias precedence over inline
-    // metadata so the authored presentation name remains visible.
-    const alias = metadata[4]?.trim() ?? (typeof values.alias === 'string' ? values.alias : undefined)
-    return { id, label: normalizeBrTags(alias ?? id), type }
+    // metadata so the authored presentation name remains visible. An empty
+    // metadata alias names nothing there.
+    const alias = metadata[4]?.trim() ?? (typeof values.alias === 'string' && values.alias ? values.alias : undefined)
+    return { id, label: normalizeBrTags(alias ?? id), type, aliased: alias !== undefined }
   }
   const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!ordinary) return null
   const id = ordinary[2]!
-  return { id, label: normalizeBrTags(ordinary[3]?.trim() ?? id), type: ordinary[1]!.toLowerCase() as 'participant' | 'actor' }
+  return {
+    id, label: normalizeBrTags(ordinary[3]?.trim() ?? id),
+    type: ordinary[1]!.toLowerCase() as 'participant' | 'actor', aliased: ordinary[3] !== undefined,
+  }
+}
+
+/** One `create participant|actor X [as Label]` grammar shared by renderer and
+ *  agent parsers. */
+export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label' | 'type'> | null {
+  const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
+  if (!match) return null
+  const id = match[2]!
+  return { id, label: normalizeBrTags(match[3]?.trim() ?? id), type: match[1]!.toLowerCase() as 'participant' | 'actor' }
 }
 
 export function parseActorLinks(line: string): { actorId: string; links: Record<string, string> } | null {
@@ -466,6 +472,19 @@ export function parseActorLinks(line: string): { actorId: string; links: Record<
     for (const [label, href] of Object.entries(parsed)) if (typeof href === 'string' && /^(?:https?:|mailto:)/i.test(href)) links[label] = href
     return Object.keys(links).length > 0 ? { actorId: multiple[1]!, links } : null
   } catch { return null }
+}
+
+/** One note-line grammar shared by renderer and agent parsers:
+ *  "Note left of A: text" / "Note right of A: text" / "Note over A,B: text". */
+export function parseSequenceNoteLine(line: string): Pick<Note, 'actorIds' | 'text' | 'position'> | null {
+  const match = line.match(/^Note\s+(left of|right of|over)\s+([^:]+):\s*(.+)$/i)
+  if (!match) return null
+  const placement = match[1]!.toLowerCase()
+  return {
+    actorIds: match[2]!.trim().split(',').map(id => id.trim()),
+    text: match[3]!.trim(),
+    position: placement === 'left of' ? 'left' : placement === 'right of' ? 'right' : 'over',
+  }
 }
 
 function isMessageArrow(value: string): boolean {

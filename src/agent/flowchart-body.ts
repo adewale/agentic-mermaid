@@ -316,11 +316,20 @@ function edgeIntervalLabelRanges(
   ].sort((left, right) => left.start - right.start)
 }
 
+/** The spellings a parsed label may have in source: as parsed, with `<br>`
+ *  as `\n`, and with `"` as the `#quot;` it is decoded from. */
+function labelSpellings(label: string): string[] {
+  const spellings = [label]
+  const escaped = label.replace(/<br\s*\/?\s*>/gi, '\\n')
+  if (escaped !== label) spellings.push(escaped)
+  const entity = label.replace(/"/g, '#quot;')
+  if (entity !== label) spellings.push(entity)
+  return spellings
+}
+
 function labelColumnInRanges(line: string, label: string, ranges: readonly TextRange[]): number {
   if (!label || label.trim().length === 0) return -1
-  const variants = [label]
-  const escaped = label.replace(/<br\s*\/?\s*>/gi, '\\n')
-  if (escaped !== label) variants.push(escaped)
+  const variants = labelSpellings(label)
   for (const range of ranges) {
     for (const variant of variants) {
       const column = line.indexOf(variant, range.start)
@@ -519,10 +528,10 @@ function edgeMentions(
 
 function labelColumn(line: string, label: string, afterCol: number): number {
   if (!label || label.trim().length === 0) return -1
-  const direct = line.indexOf(label, Math.max(0, afterCol))
-  if (direct >= 0) return direct
-  const escaped = label.replace(/<br\s*\/?\s*>/gi, '\\n')
-  if (escaped !== label) return line.indexOf(escaped, Math.max(0, afterCol))
+  for (const spelling of labelSpellings(label)) {
+    const column = line.indexOf(spelling, Math.max(0, afterCol))
+    if (column >= 0) return column
+  }
   return -1
 }
 
@@ -613,7 +622,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   // shape declaration) inside the block first makes round-trip stable.
   const membersDeclared = new Set<string>()
   const renderSubgraph = (sg: MermaidGraph['subgraphs'][number], indent: string) => {
-    lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${sg.label}]` : ''}`)
+    lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${escapeNodeLabel(sg.label)}]` : ''}`)
     if (sg.direction) lines.push(`${indent}  direction ${sg.direction}`)
     for (const child of sg.children) renderSubgraph(child, indent + '  ')
     for (const nid of sg.nodeIds) {
@@ -647,7 +656,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const [id, style] of graph.nodeStyles) lines.push(`  style ${id} ${styleProps(style)}`)
   for (const [idx, style] of graph.linkStyles) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
   for (const node of graph.nodes.values()) {
-    if (node.href) lines.push(`  click ${node.id} href ${quoteLabel(node.href)}`)
+    if (node.href) lines.push(`  click ${node.id} href ${quoteValue(node.href)}`)
   }
 
   return lines.join('\n') + '\n'
@@ -662,9 +671,9 @@ function renderShape(node: MermaidNode): string {
   // typed serializer can reproduce it without falling back to an opaque body.
   if (node.icon !== undefined || node.image !== undefined) {
     const entries = [
-      node.icon !== undefined ? `icon: ${quoteLabel(node.icon)}` : `img: ${quoteLabel(node.image!)}`,
+      node.icon !== undefined ? `icon: ${quoteValue(node.icon)}` : `img: ${quoteValue(node.image!)}`,
       ...(node.iconForm ? [`form: ${node.iconForm}`] : []),
-      ...(node.label !== node.id ? [`label: ${quoteLabel(node.label)}`] : []),
+      ...(node.label !== node.id ? [`label: ${quoteMetadataLabel(node.label)}`] : []),
     ]
     return `@{ ${entries.join(', ')} }`
   }
@@ -672,10 +681,10 @@ function renderShape(node: MermaidNode): string {
   // — the AUTHORED alias round-trips verbatim (repo #44); the label uses the
   // same quoting table as every other emitted label.
   if (node.authoredShape !== undefined) {
-    const label = node.label !== node.id ? `, label: ${quoteLabel(node.label)}` : ''
+    const label = node.label !== node.id ? `, label: ${quoteMetadataLabel(node.label)}` : ''
     return `@{ shape: ${node.authoredShape}${label} }`
   }
-  const lbl = escapeLabel(node.label)
+  const lbl = escapeNodeLabel(node.label)
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
@@ -703,21 +712,45 @@ function renderShape(node: MermaidNode): string {
   }
 }
 
-/** The ONE quoted-label escaping used by every serialization site (bracket
- *  labels and `@{ label: … }` metadata): `<br>`-normalized, `"` and `\`
- *  backslash-escaped — exactly the form the parser's quoted-label grammar
- *  reads back. */
+/** The ONE quoted-label form for bracket, pipe and subgraph labels,
+ *  `<br>`-normalized. Upstream's quoted strings have no escapes (a `"` always
+ *  closes one and `\` is literal), so a `"` is written as Mermaid's `#quot;`
+ *  entity code, which the parser decodes back. */
 function quoteLabel(label: string): string {
-  const normalized = label.replace(/\r?\n/g, '<br>')
+  return `"${label.replace(/\r?\n/g, '<br>').replace(/"/g, '#quot;')}"`
+}
+
+/** A `@{ label: … }` value is a YAML double-quoted scalar upstream, so its `\`
+ *  is escaped as well; parseMetadataEntries reads `\\` back. */
+function quoteMetadataLabel(label: string): string {
+  return quoteLabel(label.replace(/\\/g, '\\\\'))
+}
+
+/** A `click` href or `icon`/`img` value: `"` and `\` backslash-escaped, the
+ *  form their parsers read back. */
+function quoteValue(value: string): string {
+  const normalized = value.replace(/\r?\n/g, '<br>')
   return `"${normalized.replace(/["\\]/g, '\\$&')}"`
 }
 
 function escapeLabel(label: string): string {
   const normalized = label.replace(/\r?\n/g, '<br>')
-  // Bare Mermaid labels trim boundary whitespace when parsed. Quote them so
-  // typed mutations preserve the exact semantic label across serialization.
-  if (normalized !== normalized.trim() || /[\[\]{}()|]/.test(normalized)) return quoteLabel(label)
+  // Mermaid rejects an empty quoted label; a lone space trims back to empty.
+  if (normalized.trim() === '') return '" "'
+  // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
+  // `~~~` (its invisible-link token). `#quot;` is only written inside quotes.
+  if (/[\[\]{}()|"@]|^~~~/.test(normalized)) return quoteLabel(label)
   return normalized
+}
+
+/** `;` separates statements and no bracket shields it in an asymmetric
+ *  `A>x]` node or after a title's closing delimiter (`[};a]`), and a leading
+ *  `/` or `\` after `[` opens a lean or trapezoid shape (`-` after `(`, an
+ *  ellipse), so a node label or subgraph title holding either is quoted. (A
+ *  pipe label needs no quotes for these: the statement splitter skips `|…|`.)
+ *  A title's line break stays on the `subgraph` line as `<br>`. */
+function escapeNodeLabel(label: string): string {
+  return /;|^[-/\\]/.test(label) ? quoteLabel(label) : escapeLabel(label)
 }
 
 function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {
@@ -775,6 +808,9 @@ function styleProps(props: Record<string, string>): string {
 
 // ---- Mutator ----------------------------------------------------------------
 
+// Label inputs are trimmed exactly as the parser trims authored labels (and
+// upstream's flowchart DB does), so a typed edit stores the label that its
+// serialized source re-parses to.
 export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
   const graph = cloneGraph(body.graph)
   const done = (): Result<FlowchartBody, MutationError> => ok({ kind: 'flowchart', graph })
@@ -786,7 +822,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
         return err({ code: 'INVALID_OP', message: `Unknown shape "${op.shape}" — pass a geometry (${GEOMETRY_SHAPES.join(', ')}) or a Mermaid v11 @{ shape } name/alias (e.g. manual-input, document, delay)` })
       }
       graph.nodes.set(op.id, {
-        id: op.id, label: op.label, shape: resolved.shape,
+        id: op.id, label: op.label.trim(), shape: resolved.shape,
         ...(resolved.semanticShape !== undefined ? { semanticShape: resolved.semanticShape, authoredShape: resolved.authoredShape } : {}),
       })
       if (op.parent) {
@@ -827,16 +863,16 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     case 'set_label': {
       if (graph.nodes.has(op.target)) {
         const n = graph.nodes.get(op.target)!
-        graph.nodes.set(op.target, { ...n, label: op.label })
+        graph.nodes.set(op.target, { ...n, label: op.label.trim() })
         return done()
       }
       const idx = findEdgeIndexById(graph, op.target)
-      if (idx >= 0) { graph.edges[idx]!.label = op.label; return done() }
+      if (idx >= 0) { graph.edges[idx]!.label = edgeLabelInput(op.label); return done() }
       return err({ code: 'NODE_NOT_FOUND', message: `Target "${op.target}" matches no node or edge` })
     }
     case 'add_edge': {
       ensureNode(graph, op.from); ensureNode(graph, op.to)
-      graph.edges.push({ source: op.from, target: op.to, label: op.label, style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: true })
+      graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: true })
       return done()
     }
     case 'remove_edge': {
@@ -878,7 +914,7 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
         if (!graph.nodes.has(memberId)) return err({ code: 'NODE_NOT_FOUND', message: `Member node "${memberId}" not found — add_node it first` })
         members.push(memberId)
       }
-      const sg: MermaidSubgraph = { id: op.id, label: op.label ?? op.id, nodeIds: [], children: [] }
+      const sg: MermaidSubgraph = { id: op.id, label: op.label?.trim() ?? op.id, nodeIds: [], children: [] }
       if (op.parent !== undefined && op.parent !== null) {
         const parent = findSubgraph(graph, op.parent)
         if (!parent) return err({ code: 'GROUP_NOT_FOUND', message: `Parent subgraph "${op.parent}" not found` })
@@ -955,6 +991,11 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
 }
 
 // ---- Op helpers ---------------------------------------------------------
+
+/** An edge label that trims to nothing is no label, as `-->|" "|` parses. */
+function edgeLabelInput(label: string | undefined): string | undefined {
+  return label?.trim() || undefined
+}
 
 /** Runtime NodeShape vocabulary for set_shape/add_node — mirrors the
  *  NodeShape type (the op-schema enum is transcribed from the same list). */

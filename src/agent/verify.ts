@@ -618,11 +618,12 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
   }
   for (const [id, node] of graph.nodes) {
     if (!KNOWN_SHAPES.has(node.shape)) warnings.push({ code: 'UNKNOWN_SHAPE', node: id, shape: String(node.shape) })
-    const w = labelOverflowWarning(id, node.label, cap)
+    // Parsed labels already carry their formatting as tags; a literal `*` is drawn.
+    const w = labelOverflowWarning(id, node.label, cap, 'plain')
     if (w) warnings.push(w)
   }
   for (const edge of graph.edges) {
-    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, edge.label, cap) : null
+    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, edge.label, cap, 'plain') : null
     if (w) warnings.push(w)
   }
   for (const n of positioned.nodes) {

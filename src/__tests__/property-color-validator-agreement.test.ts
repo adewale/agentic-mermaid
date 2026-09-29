@@ -90,6 +90,13 @@ describe('color validators admit only what their parsers read', () => {
     }), { numRuns: NUM_RUNS })
   })
 
+  test('compositing a translucent color stays within 0..255', () => {
+    // Found by the property below: the blend overshot 255 by a rounding error.
+    const composite = compositeCssColor('#0F05', '#ffffff')!
+    expect(composite.map(Math.round)).toEqual([170, 255, 170])
+    expect(channelsInRange(composite)).toBe(true)
+  })
+
   test('whatever the scene admits, the contrast math reads without throwing', () => {
     fc.assert(fc.property(anyTextArb, text => {
       if (safeCssPaint(text) === undefined) return

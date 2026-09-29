@@ -40,6 +40,7 @@ config resolves route-certificate, subgraph-routing, and link-grammar ranges
 from source-adjacent markers; inserting code above the behavior cannot silently
 move those lanes onto unrelated lines.
 
+<!-- complete: family-ids -->
 Beyond the lanes documented here, configs exist for every built-in renderable
 family except Sankey (no profile yet) through named profiles in
 `stryker.config.mjs`: flowchart uses `mutation-test -- routes`;

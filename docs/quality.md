@@ -3,7 +3,7 @@
 A diagram is considered **good looking** when it satisfies, in order:
 
 1. **All Tier 1 structural checks pass.** None of
-   <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`<!-- END GENERATED: warning-codes:structural -->
+   <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural -->
    fires (`LABEL_OVERFLOW` default cap: 40 chars).
    This is non-negotiable — fix the source before judging visuals.
 
@@ -16,6 +16,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    `ROUTE_STALE_AFTER_NODE_MOVE`) should always be zero — they are
    route-contract tripwires (see `docs/design/system/route-contracts.md`), and
    any hit means the layout pipeline regressed, not the diagram.
+   <!-- complete: warning-codes:geometric -->
 
 3. **Perceptual metrics fall in the default `QualityBounds` band:**
 
@@ -116,6 +117,7 @@ geometry assertions, screenshot/PNG review, or human inspection.
   degrades to an empty layout instead of throwing. What `nodes` / `edges` /
   `groups` mean per family:
 
+  <!-- complete: family-ids -->
   | Family        | nodes                              | edges        | groups               |
   |---------------|------------------------------------|--------------|----------------------|
   | flowchart     | graph nodes (ELK)                  | graph edges  | subgraphs            |

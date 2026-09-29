@@ -5,6 +5,7 @@ across several surfaces; this hub points at each.
 
 ## Families with a dedicated design note
 
+<!-- complete: family-ids -->
 | Family | Design note | Notable cross-cutting surface |
 |---|---|---|
 | Architecture (`architecture-beta`) | [`architecture-beta.md`](./architecture-beta.md) | ops from `describeOps('architecture')`; level in [`source-preservation-ladder.md`](../system/source-preservation-ladder.md) |

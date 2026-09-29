@@ -47,9 +47,9 @@ describe('markdown strings — node labels', () => {
     expect(svg).toMatch(/<tspan font-weight="bold"[^>]*>world<\/tspan>/)
   })
 
-  it('non-markdown labels keep today\'s pipeline (bold tags, quotes)', () => {
+  it('non-markdown labels keep emphasis markers literal, as upstream does', () => {
     const graph = parseGraph('flowchart TD\n  A["plain **bold**"] --> B\n')
-    expect(graph.nodes.get('A')!.label).toBe('plain <b>bold</b>')
+    expect(graph.nodes.get('A')!.label).toBe('plain **bold**')
     expect(graph.nodes.get('A')!.markdownLabel).toBeUndefined()
   })
 

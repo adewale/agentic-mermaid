@@ -40,7 +40,7 @@ import { stateBodyToGraph } from '../agent/state-body.ts'
 import type { ClassBody, ClassRelationKind } from '../agent/types.ts'
 import { prepareRenderInput } from '../agent/render-input.ts'
 import { ParsedDiagramFamilyMismatchError } from '../render-contract.ts'
-import { normalizeBrTags } from '../multiline-utils.ts'
+import { normalizeBrTags, normalizePlainLabel } from '../multiline-utils.ts'
 import { plainTextFromInlineFormatting } from '../shared/inline-format.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { graphemes } from '../shared/graphemes.ts'
@@ -162,7 +162,9 @@ function deriveWarnings(source: string, regions: AsciiRegion[]): AsciiWarning[] 
   return []
 }
 
-interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind; preserveEntitySpelling?: true }
+// `plainEmphasis`: flowchart labels draw `*` and `~` literally, so their
+// projection skips the markdown-lite step that other families render.
+interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind; preserveEntitySpelling?: true; plainEmphasis?: true }
 
 function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node', preserveEntitySpelling = false): void {
   const normalized = preserveEntitySpelling ? label : label?.trim()
@@ -188,7 +190,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
   for (const c of sorted) {
     const candidateKey = `${c.kind ?? 'node'}\u0000${c.id}`
     if (used.has(candidateKey)) continue
-    const match = matchProjectedLabel(lines, c.label, occupied, (c.kind ?? 'node') === 'node', c.preserveEntitySpelling === true)
+    const match = matchProjectedLabel(lines, c.label, occupied, (c.kind ?? 'node') === 'node', c.preserveEntitySpelling === true, c.plainEmphasis === true)
     if (!match) continue
     out.push({
       kind: c.kind ?? 'node',
@@ -198,7 +200,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
       canvasColStart: match.colStart,
       canvasColEnd: match.colEnd,
       ...(match.rowSpan > 1 ? { rowSpan: match.rowSpan } : {}),
-      projectedText: projectedLabelText(c.label, c.preserveEntitySpelling !== true),
+      projectedText: projectedLabelText(c.label, c.preserveEntitySpelling !== true, c.plainEmphasis === true),
       authoredTextCells: match.authoredTextCells,
     })
     used.add(candidateKey)
@@ -278,10 +280,11 @@ function preferredOccurrences(
     || a.colStart - b.colStart)
 }
 
-function projectedLabelText(label: string, decodeEntities = true): string {
+function projectedLabelText(label: string, decodeEntities = true, plainEmphasis = false): string {
   // Pie passes a final visible projection. Entity-produced tag lookalikes
   // are literal text and must not be stripped as authored formatting.
-  const formatted = decodeEntities ? plainTextFromInlineFormatting(normalizeBrTags(label)) : label
+  const normalize = plainEmphasis ? normalizePlainLabel : normalizeBrTags
+  const formatted = decodeEntities ? plainTextFromInlineFormatting(normalize(label)) : label
   const safe = sanitizeTerminalText(decodeEntities ? decodeXML(formatted) : formatted, true)
   return decodeEntities ? safe.replace(/^[`]|[`]$/g, '').trim() : safe
 }
@@ -324,8 +327,9 @@ function matchProjectedLabel(
   occupied: Map<number, Array<readonly [number, number]>>,
   preferNodeTextBand: boolean,
   preserveEntitySpelling = false,
+  plainEmphasis = false,
 ): ProjectedLabelMatch | undefined {
-  const projected = projectedLabelText(label, !preserveEntitySpelling)
+  const projected = projectedLabelText(label, !preserveEntitySpelling, plainEmphasis)
   for (const text of new Set([label, projected])) {
     const occurrence = preferredOccurrences(lines, occurrencesOf(lines, text, occupied), preferNodeTextBand)[0]
     if (occurrence) return claimOccurrences([occurrence], occupied)
@@ -686,7 +690,7 @@ function candidatesForDiagram(source: string): Candidate[] {
       }
     }
     visit(graphBody.subgraphs)
-    return out
+    return out.map(candidate => ({ ...candidate, plainEmphasis: true }))
   }
   if (d.kind === 'pie' && d.body.kind === 'opaque') {
     // Escaped terminal controls make the typed agent body opaque, while the

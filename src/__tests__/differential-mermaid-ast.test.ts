@@ -72,7 +72,10 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
     // implementation — investigate before re-pinning.
     // Sequence docs case 30 now agrees after restoring its two spaced-marker
     // messages, reducing the genuine divergence count from six to five.
-    const BASELINE: Record<string, number> = { flowchart: 5, sequence: 5, er: 5 }
+    // Cases 26–28 (nested `par`, `critical`) now count the participants their
+    // preserved blocks create, exactly as pinned upstream Mermaid lists them;
+    // mermaid-ast projects none there, raising the count from five to eight.
+    const BASELINE: Record<string, number> = { flowchart: 5, sequence: 8, er: 5 }
     const byFamily: Record<string, number> = {}
     let checked = 0
     for (const e of corpus) {

@@ -55,6 +55,30 @@ describe('renderMermaidASCIIWithMeta', () => {
     }
   })
 
+  test('flowchart projected text keeps the `*` and `~` the drawing shows', () => {
+    const rendered = renderMermaidASCIIWithMeta(
+      'flowchart LR\n  A[*a* and ~~s~~] --> B[**b**]\n  subgraph S[*t*]\n    C\n  end',
+      { colorMode: 'none' },
+    )
+    const lines = rendered.ascii.split('\n')
+    for (const [id, text] of [['A', '*a* and ~~s~~'], ['B', '**b**'], ['S', '*t*']] as const) {
+      const region = rendered.regions.find(candidate => candidate.id === id)!
+      expect({ id, projectedText: region.projectedText }).toEqual({ id, projectedText: text })
+      expect(lines[region.canvasRow]!.slice(region.canvasColStart, region.canvasColEnd)).toBe(text)
+    }
+    // A wrapped label maps through its projected tokens, markers included.
+    const wrapped = renderMermaidASCIIWithMeta(
+      'flowchart RL\n  A[*alpha* beta gamma delta ~~eps~~ zeta eta] --> B[Alpha]',
+      { colorMode: 'none', targetWidth: 30 },
+    ).regions.find(candidate => candidate.id === 'A')!
+    expect(wrapped.authoredTextCells!.map(cell => cell.glyph).join('')).toBe('*alpha*betagammadelta~~eps~~zetaeta')
+    // Families that render markdown-lite emphasis still project without markers.
+    const mindmap = renderMermaidASCIIWithMeta('mindmap\n  root((*Root* ~~x~~))', { colorMode: 'none' })
+    const root = mindmap.regions.find(candidate => candidate.id === 'root')!
+    expect(root.projectedText).toBe('Root x')
+    expect(mindmap.ascii.split('\n')[root.canvasRow]!.slice(root.canvasColStart, root.canvasColEnd)).toBe('Root x')
+  })
+
   test('wrapped label tokens stay within one rendered node', () => {
     const rendered = renderMermaidASCIIWithMeta(
       'flowchart RL\n  A[Alpha Beta] --> B[Alpha]\n  click A href https://example.com/a',

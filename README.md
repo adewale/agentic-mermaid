@@ -139,6 +139,7 @@ For multi-step MCP edits, connect `agentic-mermaid-mcp` and use Code Mode `execu
 
 Agentic Mermaid ships a Model Context Protocol server so MCP-capable agents can render and safely edit diagrams without shelling out.
 
+<!-- complete: local-mcp-tools -->
 - **Self-hosted (default).** `agentic-mermaid-mcp` runs a stdio server exposing `execute` (Code Mode sandbox), `describe_sdk` (one family's mutation schema on demand), `render_png`, and `describe`. Package runners can use `npx -y agentic-mermaid mcp`; the `mcp` argument routes the package-name binary to the same stdio server. Add `--transport http` for HTTP/SSE with managed PNG file/URL artifacts. See [`docs/mcp-http-transport.md`](./docs/mcp-http-transport.md) and [`docs/mcp-code-mode-rationale.md`](./docs/mcp-code-mode-rationale.md).
 - **Hosted.** A stateless Streamable HTTP endpoint is available at `https://agentic-mermaid.dev/mcp` (tools: <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->; 64 KB input caps). Call `describe_sdk` for compact signatures or exact fields before authoring unfamiliar ops. It is MCP JSON-RPC only, not a REST render API. Hosted `execute` runs the same `mermaid.*` facade in a Cloudflare Dynamic Worker isolate with no network; hosted PNG returns base64 only.
 

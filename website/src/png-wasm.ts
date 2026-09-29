@@ -55,7 +55,11 @@ const FONT_INPUTS = Object.freeze([
 
 async function initializeRasterResources(): Promise<void> {
   await Promise.all(FONT_INPUTS.map(({ entry, bytes }) => verifyResourceBytes(entry, bytes)))
-  await initWasm(resvgWasmModule)
+  // resvg-wasm initializes once per process, whoever calls it; a second call
+  // throws even though the module is ready.
+  await initWasm(resvgWasmModule).catch((error: unknown) => {
+    if (!/already initialized/i.test(String(error))) throw error
+  })
 }
 
 export async function renderMermaidPNGWasm(source: string, opts: RenderOptions & PortablePngOutputOptions = {}): Promise<PngRasterResult> {

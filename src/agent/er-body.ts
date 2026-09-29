@@ -219,6 +219,33 @@ function normalizeErQuotedIdLabel(id: string): string {
   return id.replace(/<br\s*\/?>/gi, '\n')
 }
 
+/** A trailing `style` line re-creates an entity by itself only when there is
+ * nothing else (attributes, an alias, a subgraph) to declare. */
+function styleCreatesErEntity(entity: ErEntity): boolean {
+  return entity.style !== undefined && entity.attributes.length === 0 && !entity.groupId
+    && renderErEntityReference(entity) === renderErEntityReference({ ...entity, label: undefined })
+}
+
+/** The subgraph parseErBody gives each entity the statements name: that of its
+ * last declaration inside one, else that of its first relation inside one. */
+function statementErGroups(body: ErBody): Map<string, string> {
+  const declared = new Map<string, string>()
+  const related = new Map<string, string>()
+  const openGroups: string[] = []
+  for (const statement of body.statements ?? []) {
+    if (statement.kind === 'group-open') openGroups.push(statement.id)
+    else if (statement.kind === 'group-close') openGroups.pop()
+    const group = openGroups.at(-1)
+    if (group === undefined) continue
+    if (statement.kind === 'entity') declared.set(statement.id, group)
+    else if (statement.kind === 'relation') {
+      const relation = body.relations[statement.ref]
+      for (const id of relation ? [relation.from, relation.to] : []) if (!related.has(id)) related.set(id, group)
+    }
+  }
+  return new Map([...related, ...declared])
+}
+
 export function renderEr(body: ErBody): string {
   const lines: string[] = ['erDiagram']
   const entityById = new Map(body.entities.map(entity => [entity.id, entity]))
@@ -244,29 +271,109 @@ export function renderEr(body: ErBody): string {
     lines.push(`  ${fromRef} ${left}${link}${right} ${toRef} : ${label === '' || label.includes(' ') ? quoteErText(label) : label}`)
   }
 
+  const styleCreated = new Set<string>()
   if (body.statements) {
-    for (const statement of body.statements) {
+    // Re-parsing creates each entity at the first statement that names it and
+    // puts it in the subgraph statementErGroups reports. Where either would
+    // differ from the body, declare the entity inside its own subgraph, before
+    // the statement that creates a later entity (or before that statement's
+    // subgraph opens), so the source re-parses to the same entities, in the
+    // same order and subgraphs.
+    const { entities, statements } = body
+    const order = new Map(entities.map((entity, index) => [entity.id, index]))
+    const statementGroups = statementErGroups(body)
+    const regroup = new Set(entities.filter(entity => statementGroups.get(entity.id) !== entity.groupId).map(entity => entity.id))
+    const created = new Set<string>()
+    let firstUncreated = 0
+    // Entities whose declaration, attributes included, is already written; a
+    // later declaration only places the entity in its subgraph.
+    const declared = new Set<string>()
+    const openGroups: string[] = []
+    const declare = (entity: ErEntity): void => {
+      if (declared.has(entity.id)) lines.push(`  ${renderErEntityReference(entity)}`)
+      else pushEntity(entity)
+      declared.add(entity.id)
+      created.add(entity.id)
+      regroup.delete(entity.id)
+    }
+    const uncreatedHere = (entity: ErEntity): boolean => !created.has(entity.id) && entity.groupId === openGroups.at(-1)
+    const declareBefore = (limit: number): void => {
+      while (firstUncreated < entities.length && created.has(entities[firstUncreated]!.id)) firstUncreated++
+      for (const entity of entities.slice(firstUncreated, limit)) if (uncreatedHere(entity)) declare(entity)
+    }
+    const creates = (ids: string[]): void => {
+      const fresh = [...new Set(ids)].filter(id => order.has(id) && !created.has(id)).map(id => order.get(id)!)
+      if (fresh.length === 0) return
+      // A relation creates both ends, in source order: when they are not the
+      // next two entities, declare what must come before the later one.
+      const [first, second] = fresh as [number, number?]
+      const inPlace = second === undefined || (first < second && !entities.slice(first + 1, second).some(uncreatedHere))
+      declareBefore(inPlace ? first : Math.max(first, second))
+      for (const at of fresh) created.add(entities[at]!.id)
+    }
+    // The first body position a subgraph will create: an entity its
+    // statements name, or one that belongs inside it.
+    const firstCreatedWithin = (openAt: number): number => {
+      const groups = new Set<string>()
+      const named = new Set<string>()
+      for (let index = openAt, depth = 0; index < statements.length; index++) {
+        const statement = statements[index]!
+        if (statement.kind === 'group-open') { groups.add(statement.id); depth++ }
+        else if (statement.kind === 'group-close' && --depth === 0) break
+        else if (statement.kind === 'entity') named.add(statement.id)
+        else if (statement.kind === 'relation') {
+          const relation = body.relations[statement.ref]
+          if (relation) named.add(relation.from).add(relation.to)
+        }
+      }
+      const at = entities.findIndex(entity => !created.has(entity.id)
+        && (named.has(entity.id) || (entity.groupId !== undefined && groups.has(entity.groupId))))
+      return at < 0 ? 0 : at
+    }
+
+    statements.forEach((statement, index) => {
       if (statement.kind === 'entity') {
         const entity = entityById.get(statement.id)
-        if (entity) pushEntity(entity)
+        if (entity && !declared.has(entity.id)) {
+          creates([entity.id])
+          pushEntity(entity)
+          declared.add(entity.id)
+        }
       } else if (statement.kind === 'relation') {
         const relation = body.relations[statement.ref]
-        if (relation) pushRelation(relation)
+        if (relation) {
+          creates([relation.from, relation.to])
+          pushRelation(relation)
+        }
       } else if (statement.kind === 'direction') {
         const direction = statement.groupId ? groupById.get(statement.groupId)?.direction : body.direction
         if (direction) lines.push(`  direction ${direction}`)
       } else if (statement.kind === 'group-open') {
+        declareBefore(firstCreatedWithin(index))
         const group = groupById.get(statement.id)
         if (group) {
           const id = /\s/.test(group.id) ? quoteErText(group.id) : group.id
           lines.push(`  subgraph ${id}${group.label !== group.id ? ` [${group.label}]` : ''}`)
         }
+        openGroups.push(statement.id)
       } else if (statement.kind === 'group-close') {
+        // Last chance to create or place this subgraph's own entities. Re-parse
+        // keeps only an entity's first declaration as a statement, so a second
+        // one goes last, where it will be written again.
+        const own = entities.filter(entity => entity.groupId === openGroups.at(-1))
+        for (const entity of own) if (!created.has(entity.id) || (regroup.has(entity.id) && !declared.has(entity.id))) declare(entity)
+        for (const entity of own) if (regroup.has(entity.id)) declare(entity)
+        openGroups.pop()
         lines.push('  end')
       } else {
         for (const line of statement.lines) lines.push(`  ${line}`)
       }
-    }
+    })
+    // Trailing `style` lines re-create the last entities by themselves.
+    let styleFrom = entities.length
+    while (styleFrom > 0 && !created.has(entities[styleFrom - 1]!.id) && styleCreatesErEntity(entities[styleFrom - 1]!)) styleFrom--
+    for (const entity of entities.slice(0, styleFrom)) if (!created.has(entity.id)) declare(entity)
+    for (const entity of entities.slice(styleFrom)) styleCreated.add(entity.id)
   } else {
     if (body.direction) lines.push(`  direction ${body.direction}`)
     for (const entity of body.entities) pushEntity(entity)
@@ -275,8 +382,12 @@ export function renderEr(body: ErBody): string {
 
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const entity of body.entities) {
-    if (entity.className) lines.push(`  class ${renderErEntityReference({ ...entity, label: undefined })} ${entity.className.trim().split(/[ \t]+/).join(',')}`)
-    if (entity.style) lines.push(`  style ${renderErEntityReference({ ...entity, label: undefined })} ${serializeStyleProps(entity.style)}`)
+    const reference = renderErEntityReference({ ...entity, label: undefined })
+    const classLine = entity.className ? `  class ${reference} ${entity.className.trim().split(/[ \t]+/).join(',')}` : undefined
+    const styleLine = entity.style ? `  style ${reference} ${serializeStyleProps(entity.style)}` : undefined
+    // `class` applies only to an entity that exists, so it follows the `style`
+    // line that creates one.
+    for (const line of styleCreated.has(entity.id) ? [styleLine, classLine] : [classLine, styleLine]) if (line) lines.push(line)
   }
   return lines.join('\n') + '\n'
 }

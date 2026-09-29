@@ -282,18 +282,30 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **SRC-1 — Segment-preserving Class and Timeline bodies** (`todo`). Preserve typed mutation around unmodeled statements without violating byte-for-byte opaque fallback. Add parser/serializer closure and adversarial reorder tests before promotion.
 - [ ] **SRC-2 — Positional comments for Flowchart and State** (`todo`). Replace announced `COMMENT_DROPPED` loss with positionally anchored opaque segments that survive typed mutation.
 
-## Known defects pinned by tests
+## Known defects
 
-Found by the property and model tests from #357. Each test pins today's wrong
-behaviour and turns red when the defect is fixed; delete the pin, and its
-generator steering, with the fix.
+Found by the property and model tests. Where a test pins the wrong behaviour
+or a generator steers around it, the entry names the test; remove the pin
+and the steering with the fix.
 
-- [ ] **BUG-1 — Flowchart plain labels get markdown formatting** (`todo`). `*a*`, `**b**` and `~~c~~` in a non-markdown label render as italic, bold and strike; upstream keeps the characters. Pinned as KD2 in `src/__tests__/property-upstream-flowchart.test.ts`.
-- [ ] **BUG-2 — Flowchart label boundary whitespace** (`owner-decision`). Node labels and quoted edge labels keep leading and trailing spaces; upstream trims them. `agent.test.ts` asserts the current behaviour, so decide which contract wins. Pinned as KD3 in `property-upstream-flowchart.test.ts`.
-- [ ] **BUG-3 — `;` breaks Flowchart round-trip** (`todo`). The serializer drops the quotes from a `;`-bearing label in an asymmetric node (`A>";a"]`) or a subgraph title, and our own parser then rejects the output. Pinned as KD4 in `property-upstream-flowchart.test.ts`.
-- [ ] **BUG-4 — Sequence participant named only by a note** (`todo`). The typed body omits it, although upstream declares it and our renderer draws it. Pinned as KS1 in `src/__tests__/property-upstream-sequence.test.ts`.
-- [ ] **BUG-5 — ER entity lost after its only relation is removed** (`todo`). An entity that only a relation declared disappears from the serialized source once that relation goes (`remove_relation`, or `remove_entity` on the other endpoint), although the typed body and its facts still list it. Pinned in `src/__tests__/property-er-model.test.ts`.
-- [ ] **BUG-6 — Gapped Pie or Radar palette fails the render** (`todo`). A `pieN` or `cScaleN` theme variable set without its predecessors builds a sparse palette array that the render contract refuses to snapshot, so the diagram does not render. Pinned in `src/__tests__/property-invariance-colour.test.ts`.
+- [ ] **BUG-9 — ER `add_attribute` can move an entity ahead of others** (`todo`). It inserts the declaration before the first relation naming the entity, so re-parse creates it before that relation's other end; the serializer compensates unless that end belongs to a subgraph (`D ||--o{ B`, then `subgraph G` / `D ||--o{ B` / `end`, `add_attribute B` re-parses as B before D). Inserting after that relation keeps the order.
+- [ ] **BUG-10 — ER order a declaration in the entity's own subgraph cannot keep** (`todo`). A top-level entity whose body position falls between two entities of one subgraph (`D ||--o{ C : r0` / `subgraph G0` / `D` / `E` / `end`, remove `r0` → D, E, C), or a `style`-created entity inside a subgraph, re-parses in a different position. About 0.6% of fuzzed edits.
+- [ ] **BUG-11 — ER subgraph precedence differs between the typed body and the renderer** (`owner-decision`). The typed body lets a later declaration inside a subgraph override the subgraph an earlier relation gave the entity; `src/er/parser.ts` keeps the first and still lists the entity in both (`subgraph G2` / `C ||--o{ A` / `end` / `subgraph G1` / `A` / `end`). Pick one rule for both parsers.
+- [ ] **BUG-12 — Sequence renderer creates actors on `activate`/`deactivate`** (`todo`). Upstream creates none: `activate Z` then `A->>Z` gives A, Z upstream but Z, A in ours, and a phantom Z inside a `rect`. The typed body already matches upstream.
+- [ ] **BUG-13 — Sequence `add_participant` or indexed `add_message` can reorder participants on re-parse** (`todo`). A new participant is declared or first used ahead of existing ones (`A->>B: hi`, `add_participant C` re-parses as C, A, B).
+- [ ] **BUG-14 — Sequence metadata alias precedence** (`todo`). `participant B@{ "alias": "Y" } as B` is labelled Y upstream but B in ours (renderer and typed body).
+- [ ] **BUG-15 — Sequence `properties` lines create no participant** (`todo`). `properties P: {…}` creates P upstream; both our parsers ignore it, so participant order differs.
+- [ ] **BUG-16 — Sequence naming re-declaration keeps old links** (`todo`). Upstream resets the actor's links to `{}` when `participant X as Y` re-declares a known participant; ours keeps them.
+- [ ] **BUG-17 — Sequence box membership of an already-created participant** (`todo`). `A->>B` then `box` / `participant A` / `end`: upstream leaves the box's actor list empty (but sets `A.box`); ours puts A in the box.
+- [ ] **BUG-18 — Flowchart: emulate upstream's HTML-tag rewrite or not** (`owner-decision`). Upstream's preprocessor (`cleanupText`) treats a `<word … >` span as an HTML tag and rewrites `="…"` inside it to `='…'`, so it rejects `A -->|"<a="| B["b"] --> C` and silently mangles `A["<a"] --- B["x"] --- C["c="] --- D["d"] --> E` (C's label swallows D). We parse both as written. The flowchart differential's generator skips these sources.
+- [ ] **BUG-19 — Flowchart entity codes other than `#quot;` stay literal** (`todo`). Upstream renders `#9829;` as ♥, `#35;` as `#` and `#amp;` as `&` in labels; ours shows the code. Decoding `#lt;`/`#gt;` must not inject formatting tags.
+- [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
+- [ ] **BUG-21 — Flowchart `A>x;y]` is rejected** (`todo`). Upstream treats the `;` as label text; our statement splitter does not treat `>…]` as a bracket.
+- [ ] **BUG-22 — Flowchart `@{` inside a quoted label makes the diagram opaque** (`todo`). The unsupported-syntax gate reads `A["x a@{y"]` as metadata, so typed labels containing `@{` re-parse as opaque.
+- [ ] **BUG-23 — Flowchart literal backslash-n becomes a line break** (`todo`). Upstream keeps the two characters; typed labels containing them don't round-trip. Likewise a typed label containing the literal text `#quot;` re-parses as `"`.
+- [ ] **BUG-24 — Flowchart `@{ label }` YAML escapes** (`todo`). We unescape only `\\`, `\"` and `\'`; upstream's YAML also handles `\t`, `\a`, `\x41` and `''`, and rejects `'a}b;c'`, which we accept.
+- [ ] **BUG-25 — ASCII draws formatting tags literally** (`todo`). Flowchart markdown strings, `<b>` labels and sequence/state emphasis are drawn with their tags in ASCII/Unicode output, while the meta projection strips them, so `projectedText` differs from the drawing there.
+- [ ] **BUG-26 — Flowchart source-map scanners still honour `\` escapes and `'` quotes** (`todo`). `flowchart-body.ts` and `source-map-spans.ts` disagree with the parser on those lines, so spans can be wrong.
 
 ## Non-goals
 

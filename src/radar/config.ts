@@ -57,8 +57,9 @@ export interface RadarVisualConfig {
   /** Mermaid's global themeVariables.fontSize, used by the radar title. */
   titleFontSize?: number
   titleColor?: string
-  /** cScale0..11 per-curve fill overrides, index i = curve i (cycling at 12). */
-  paletteOverrides?: Array<string | undefined>
+  /** cScale0..11 per-curve fill overrides, index i = curve i (cycling at 12);
+   *  null or missing entries use the derived palette. */
+  paletteOverrides?: Array<string | null>
 }
 
 export const RADAR_WIRED_CONFIG_FIELDS = [
@@ -164,14 +165,16 @@ export function resolveRadarVisualConfig(
     config.titleFontSize = titleFontSize
   }
 
-  // cScale0..cScale11 per-curve color overrides (themeVariables).
-  const overrides: Array<string | undefined> = []
+  // cScale0..cScale11 per-curve color overrides (themeVariables). A gap
+  // (cScale1 without cScale0) becomes null, not a hole: the render contract
+  // snapshots this config as JSON, which has no sparse arrays.
+  const overrides: Array<string | null> = []
   let sawOverride = false
   for (let i = 0; i < 12; i++) {
     const c = drawableAuthoredCssPaint(getFrontmatterScalar<string>(frontmatter, ['themeVariables', `cScale${i}`]))
     if (c) { overrides[i] = c; sawOverride = true }
   }
-  if (sawOverride) config.paletteOverrides = overrides
+  if (sawOverride) config.paletteOverrides = Array.from(overrides, c => c ?? null)
 
   return config
 }

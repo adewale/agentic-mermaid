@@ -5,6 +5,55 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Flowchart labels read Mermaid's `#quot;` as `"`, and a `\` inside a quoted
+  label is literal, as upstream has no escapes there. The serializer writes
+  `"` as `#quot;`, so labels containing `"` or `\` round-trip and upstream
+  reads the output.
+- An apostrophe in a flowchart label no longer hides the statement separators
+  after it (`A[it's];B[y]`).
+- Serialized flowchart labels and subgraph titles are quoted wherever upstream
+  would reject the bare form (a bracket, `|`, `"`, `@` or `;`, or a leading
+  `/`, `\`, `-` or `~~~`); a rectangle labelled `/a/` no longer re-parses as a
+  lean shape.
+- The ASCII render's layout data projects flowchart labels with their `*` and
+  `~`, as drawn.
+- A later bare `participant X` or `actor X` no longer changes a sequence
+  participant that already exists; as upstream Mermaid does, only a naming
+  declaration (`as …` or a metadata alias) changes its label and type.
+- Sequence participants that only a preserved block creates (`rect`,
+  `critical`, `break`, `box`, nested blocks, a note inside a `loop`, a
+  `create` line) are now part of the typed body, facts and structural counts,
+  in upstream's order; the blocks stay byte-for-byte.
+- `set_participant_label` on a participant no declaration names now declares
+  it right after the statement that first names it, so re-parsing keeps the
+  participant order.
+- Compositing a translucent colour over another no longer returns channel
+  values a rounding error above 255 (`#0F05` over white).
+- ER entities keep their subgraph and position through serialization when the
+  relation that created or placed them is removed but another relation still
+  uses them; entities that must come before a subgraph's entities are declared
+  before it opens.
+- An ER entity that only a `style` line creates keeps its `class` through
+  serialization.
+- Flowchart plain labels keep `*`, `**` and `~~` as literal text, as upstream
+  Mermaid does; only markdown strings (`` "`…`" ``) format them. `LABEL_OVERFLOW`
+  counts those characters as drawn.
+- Flowchart node, edge and subgraph labels trim leading and trailing
+  whitespace, as upstream does, and typed `add_node`, `set_label`, `add_edge`
+  and `add_subgraph` trim their labels the same way. Label whitespace is no
+  longer preserved.
+- Serialized flowcharts quote a node label or subgraph title containing `;`,
+  and write a subgraph title's line break as `<br>`, so the output re-parses.
+- Sequence participants that only a note names (`note left of A: …`,
+  `note over A,B: …`) are now part of the typed body, facts, describe output
+  and structural counts, in the order upstream Mermaid creates them.
+- ER entities that only a relation declared no longer disappear from the
+  serialized source when that relation is removed; the serializer declares
+  them in place, inside their subgraph.
+- Pie and Radar diagrams with a gapped palette theme variable (only `pie2`, or
+  only `cScale1`) now render instead of failing with an internal snapshot
+  error; the set slot uses the authored colour and the others keep their
+  defaults, as upstream Mermaid does.
 - Bounded horizontal XYChart terminal allocation by output width and kept
   target-subgraph frames disjoint from outside nodes and sibling containers.
 - Preserved valid Unicode subgraph identifiers and rejected malformed explicit
@@ -36,6 +85,24 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Docs that list every family, MCP tool, CLI verb, render format or warning
+  code are generated from the registry or marked `<!-- complete: <registry> -->`;
+  a marked list that misses any member fails the doc checks, so a change that
+  adds two members at once can no longer leave a list behind. A new doc check
+  fails on a relative link, backticked repository path, or `bun run`/`npm run`
+  script that does not exist. The MCP protocol-version lists are generated
+  from the server constants, and `AGENT_NATIVE.md` and the agent-usage runbook
+  now list `describe_sdk` among the hosted tools.
+- Warning-code descriptions have one source, `src/agent/warning-catalog.ts`,
+  and a code without a description fails typecheck. The website's per-code
+  pages, the `AGENT_NATIVE.md` warning tables and the tier notes printed by
+  `am --agent-instructions` are generated from it. Descriptions that
+  contradicted `verify` are corrected: `RENDER_FAILED` also covers
+  unrecognized headers, invalid theme colors and layout errors;
+  `INEFFECTIVE_CONFIG` also covers unknown fields and invalid values;
+  `LABELS_HIDDEN` covers quadrant point labels; `ROUTE_UNEXPLAINED_BEND`
+  applies to flowchart and state, not class and ER; and `NODE_OVERLAP` is
+  listed for every family it checks.
 - Agent guidance now says one thing everywhere: write Mermaid source directly for
   a new diagram, then parse, verify, and render it; use `buildMermaid` /
   `createMermaid` when generating a diagram programmatically, and typed
@@ -45,8 +112,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   by severity.
 - Updated the `brace-expansion` development override to the first 5.x release
   patched for GHSA-rgw5-rvv9-x895.
-- Updated the transitive `fast-uri` override to 3.1.6 (first raised to 3.1.5
-  for GHSA-7p8r-x3mc-p8w7) and pinned transitive `undici` to 7.29.0 for
+- Updated the transitive `fast-uri` override to 3.1.7 for GHSA-qw65-cvwx-89v3
+  and GHSA-58mr-gqgx-xq4g (first raised to 3.1.5 for GHSA-7p8r-x3mc-p8w7, then
+  3.1.6) and pinned transitive `undici` to 7.29.0 for
   GHSA-4cwx-7wf7-3272.
 - Pinned transitive `ip-address` to 10.4.0 (first pinned to 10.3.1 for
   GHSA-mwp4-54f8-5fhr).

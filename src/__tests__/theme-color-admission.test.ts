@@ -116,9 +116,7 @@ const FAMILIES: readonly FamilyAdmission[] = [
       'pieSectionTextColor', 'pieTitleTextColor', 'pieLegendTextColor',
     ),
     refusesNone: theme('pieSectionTextColor', 'pieTitleTextColor', 'pieLegendTextColor'),
-    // pie2..pie12 admit none too, but a slice fill authored without every lower
-    // index currently fails in the Pie normalizer (sparse paletteOverrides).
-    admitsNone: theme('pie1', 'pieStrokeColor', 'pieOuterStrokeColor'),
+    admitsNone: theme(...indexed('pie', 1, 12), 'pieStrokeColor', 'pieOuterStrokeColor'),
     sinks: {
       'themeVariables.pie1': 'fill="',
       'themeVariables.pieStrokeColor': '.pie-slice { stroke: ',

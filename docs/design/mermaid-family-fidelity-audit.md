@@ -24,6 +24,7 @@ Parser acceptance alone does not count. Source preservation alone does not count
 
 ## Audit result
 
+<!-- complete: family-ids -->
 | Family | Mermaid 11.16 syntax authority | Domain convention | Required visual signature | Executable evidence | Renderer evidence |
 |---|---|---|---|---|---|
 | Flowchart | [Mermaid Flowchart](https://mermaid.js.org/syntax/flowchart.html) | [Wikipedia: Flowchart](https://en.wikipedia.org/wiki/Flowchart) | Directed node-link topology, semantically distinct shapes, exposed endpoints and arrowheads. | `flowchart-parser-conformance.test.ts`, `flowchart-v11-shapes.test.ts`, `closing-the-gap.test.ts` | [`flowchart-v11-shapes-after.png`](./families/flowchart-v11-shapes-after.png) |

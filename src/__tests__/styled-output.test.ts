@@ -16,6 +16,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
 import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
+import { renderedTextReady } from './helpers/rendered-text.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 ensureWebsiteBuilt()
@@ -329,6 +330,9 @@ describe('bundled fonts', () => {
       },
     })
     const { renderMermaidPNGWasm } = await import('../../website/src/png-wasm.ts')
+    // Another module in this process may already have initialized resvg-wasm,
+    // which allows one initialization per process. Do that first on purpose.
+    await renderedTextReady()
     expect(loadedAssets.filter(file => file.endsWith('.ttf')).sort())
       .toEqual(HOSTED_FONT_RESOURCES.map(font => font.file).sort())
 

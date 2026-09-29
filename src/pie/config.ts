@@ -39,8 +39,8 @@ export interface PieVisualConfig {
   legendPosition: PieLegendPosition
   /** Static slice label to emphasize, or `hover` for interactive-only emphasis. */
   highlightSlice?: string
-  /** pie1..pie12 fills, index = source order; unset entries use the derived palette. */
-  paletteOverrides: Array<string | undefined>
+  /** pie1..pie12 fills, index = source order; null or missing entries use the derived palette. */
+  paletteOverrides: Array<string | null>
   strokeColor?: string
   strokeWidth?: number
   outerStrokeWidth?: number
@@ -105,6 +105,9 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
     const fill = safeCssPaint(vars[`pie${i + 1}`])
     if (fill !== undefined) config.paletteOverrides[i] = fill
   }
+  // A gap (pie2 without pie1) becomes null, not a hole: the render contract
+  // snapshots this config as JSON, which has no sparse arrays.
+  config.paletteOverrides = Array.from(config.paletteOverrides, fill => fill ?? null)
 
   const strokeColor = safeCssPaint(vars.pieStrokeColor)
   if (strokeColor !== undefined) config.strokeColor = strokeColor

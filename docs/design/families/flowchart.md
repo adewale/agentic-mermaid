@@ -2,7 +2,7 @@
 
 Status: living contract for the flowchart-family elevation
 (plan §Flowchart items 3, 6, 7, 8; repo issues #44 and #102).
-Last updated: 2026-07-13.
+Last updated: 2026-09-28.
 
 Flowchart is the flagship family: the legacy `src/parser.ts` grammar feeds the
 ELK layout engine (`src/layout-engine.ts`), the SceneGraph SVG renderer
@@ -143,6 +143,28 @@ Upstream schema verified 2026-07-10
 - A direction-less `flowchart` header now defaults to `TD`, so the exact
   upstream markdown fixture renders and is imported into the executable bench.
 
+## Plain label text — upstream parity
+
+- A plain (non-markdown) node, edge or subgraph label keeps `*`, `**` and
+  `~~` as literal characters; only a markdown string formats them.
+- Every label trims its boundary whitespace, quoted or not, as upstream's
+  flowchart DB does. A `@{ label }` value trims too (upstream keeps it, but it
+  renders the same), so the bracket form the serializer emits re-parses to
+  the same label. A node or subgraph label that trims to nothing is empty; an
+  edge label that trims to nothing is no label.
+- Typed mutations (`add_node`, `set_label`, `add_edge`, `add_subgraph`) trim
+  their `label` the same way, so the typed body holds the label its
+  serialized source re-parses to.
+- A quoted string has no escapes, as upstream: a `"` always closes it and a
+  `\` is literal. `#quot;` is Mermaid's spelling of a `"` inside a label; the
+  parser reads it as `"` (other entity codes stay literal, see TODO.md). An
+  apostrophe never delimits a string, so `A[it's];B[y]` is two statements.
+- `@{ label }` values are YAML, so the serializer writes `\` as `\\` there.
+- The serializer writes `"` as `#quot;` and quotes a label or subgraph title
+  whenever upstream rejects the bare form: a bracket, `|`, `"`, `@` or `;`, or
+  a leading `/`, `\`, `-` or `~~~`. It writes an empty label as `" "` because
+  upstream rejects `""`.
+
 ## Mutation menu
 
 Operations follow the shared prescriptive-error contract and are derived through
@@ -177,6 +199,11 @@ Every op round-trips: serialize → render-parse reproduces the edit (P3;
 - `parser.test.ts` — one quote-aware shape scanner covers delimiters inside
   quoted labels across legacy shapes, and the shared Unicode identifier
   grammar keeps CJK bare/shaped nodes connected rather than emptying the graph.
+- `property-upstream-flowchart.test.ts` — grammar differential against pinned
+  upstream Mermaid, including literal `*`/`~`, boundary whitespace, `;`, `"`,
+  `\` and `'` in labels, serialize → re-parse round-trip, and upstream reading
+  our serialized output as the same diagram. The generator skips sources
+  upstream's preprocessor rewrites (see BUG-18 in TODO.md).
 - `flowchart-markdown-strings.test.ts` — styled bold/italic runs and metrics,
   balanced formatting across wraps, explicit breaks, default auto-wrap,
   verbatim opaque round-trip, and the exact #102 sample.

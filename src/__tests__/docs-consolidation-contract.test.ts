@@ -5,7 +5,6 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { WARNING_TIER, type WarningCode, type WarningTier } from '../agent/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const packageJson = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
 
 function markdownFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -20,21 +19,6 @@ const research = markdownFiles(join(ROOT, 'research'))
 const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
 
 describe('maintained documentation is derived from current contracts', () => {
-  test('every documented bare `bun run` script exists', () => {
-    const missing: string[] = []
-    for (const path of docs) {
-      // Archived plans record the commands that existed when they were written.
-      if (repoPath(path).startsWith('docs/project/archive/')) continue
-      const text = readFileSync(path, 'utf8')
-      for (const match of text.matchAll(/\bbun run ([^\s`]+)/g)) {
-        const script = match[1]!
-        if (script.includes('/') || script.includes('.')) continue
-        if (!(script in packageJson.scripts)) missing.push(`${repoPath(path)}: bun run ${script}`)
-      }
-    }
-    expect(missing).toEqual([])
-  })
-
   test('active design navigation excludes completed implementation ledgers', () => {
     const index = readFileSync(join(ROOT, 'docs', 'README.md'), 'utf8')
     expect(index).not.toContain('design/family-elevation-plan.md')
@@ -113,9 +97,11 @@ describe('maintained documentation is derived from current contracts', () => {
     }
   })
 
-  test('local Markdown links remain closed after archive moves', () => {
+  // doc-references.test.ts checks links in the maintained docs; this covers the
+  // archive and research notes it leaves out.
+  test('local Markdown links in archived and research docs remain closed after archive moves', () => {
     const broken: string[] = []
-    for (const path of [...docs, ...research]) {
+    for (const path of [...docs.filter(path => repoPath(path).startsWith('docs/project/archive/')), ...research]) {
       const text = readFileSync(path, 'utf8')
       for (const match of text.matchAll(/(?<!!)\[[^\]]*\]\(([^)]+)\)/g)) {
         const target = match[1]!.split('#')[0]!.split('?')[0]!

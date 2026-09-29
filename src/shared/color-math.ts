@@ -263,8 +263,9 @@ export function compositeCssColor(color: string, background: string): [number, n
   const bgAlpha = bg[3]
   const outAlpha = fg[3] + bgAlpha * (1 - fg[3])
   if (outAlpha <= 0) return null
+  // Clamp: the blend can overshoot 255 by a rounding error (`#0F05` over white).
   return [0, 1, 2].map(index =>
-    (fg[index]! * fg[3] + bg[index]! * bgAlpha * (1 - fg[3])) / outAlpha,
+    Math.min(255, Math.max(0, (fg[index]! * fg[3] + bg[index]! * bgAlpha * (1 - fg[3])) / outAlpha)),
   ) as [number, number, number]
 }
 

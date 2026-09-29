@@ -48,6 +48,7 @@ describe('verify — unclosed flowchart delimiters are reported, not silent', ()
     expect(syntaxes('flowchart LR\n  A>flag] --> B[Box]')).toEqual([])       // asymmetric closer without opener
     expect(syntaxes("flowchart TD\n  A[Don't panic] --> B")).toEqual([])     // apostrophe is not a quote
     expect(syntaxes('flowchart TD\n  A["says [hi]"] --> B')).toEqual([])     // brackets inside quotes
+    expect(syntaxes('flowchart TD\n  A["(a\\"] --> B')).toEqual([])          // `\` is literal; the `"` closes
     expect(syntaxes('flowchart TD\n  subgraph Photos (2024\n    A --> B\n  end')).toEqual([]) // free-text subgraph label
   })
 })

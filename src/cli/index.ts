@@ -345,7 +345,7 @@ Always emits JSON: {ok, warnings[], layout}.
                     inspect-only Brand constraints evaluate the styled Scene.
 Error codes flip ok=false:
 ${codesWithSeverity('error')}.
-RENDER_FAILED: the source verifies structurally but the render parser rejects it.
+RENDER_FAILED: the strict render parser, layout, or theme colors reject the source.
 BRAND_CONSTRAINT_ERROR: only when a Style constraint explicitly selects action=error.
 Warning codes:
 ${codesWithSeverity('warning')}.

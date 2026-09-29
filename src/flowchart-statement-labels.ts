@@ -6,18 +6,15 @@ export interface FlowchartTextRange { start: number; end: number }
 function topLevelText(line: string): string {
   const visible = Array<string>(line.length).fill(' ')
   let depth = 0
-  let quote: '"' | "'" | '`' | undefined
+  let quote: '"' | '`' | undefined
   let pipeLabel = false
-  let escaped = false
   for (let index = 0; index < line.length; index++) {
     const char = line[index]!
     if (quote) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = undefined
+      if (char === quote) quote = undefined
       continue
     }
-    if (char === '"' || char === "'" || char === '`') { quote = char; continue }
+    if (char === '"' || char === '`') { quote = char; continue }
     if (char === '|' && depth === 0) { pipeLabel = !pipeLabel; continue }
     if (pipeLabel) continue
     if (char === '[' || char === '(' || char === '{') { depth++; continue }
