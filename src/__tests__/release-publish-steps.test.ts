@@ -3,13 +3,15 @@
 // tools, the way mcp-publish-recovery.test.ts executes the MCP Registry step.
 // Assertions are on what the shell does (exit status, which commands it
 // reaches, what it asks the registry for), not on the text of the scripts.
-import { afterEach, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
@@ -22,14 +24,8 @@ function step(job: string, name: string): Step & { run: string } {
   return found as Step & { run: string }
 }
 
-const tempDirs: string[] = []
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
-})
-
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-release-step-'))
-  tempDirs.push(dir)
+  const dir = temp.dir('agentic-mermaid-release-step-')
   mkdirSync(join(dir, 'bin'))
   return dir
 }

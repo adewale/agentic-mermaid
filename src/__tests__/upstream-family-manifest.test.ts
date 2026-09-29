@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   BUILTIN_FAMILY_METADATA,
@@ -33,6 +32,9 @@ import {
   validateUpstreamMermaidManifest,
   type UpstreamMermaidManifest,
 } from '../upstream-mermaid-manifest.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 function syntheticFamily(localId: string, header: string): FamilyDescriptor {
   const id = canonicalExtensionId('family', localId) as ExternalFamilyId
@@ -424,23 +426,19 @@ describe('synthetic family registration', () => {
       expect(knownFamilies().slice(-1)).toEqual(['family:acme/future'])
       expect(renderMermaidSVG('futureDiagram\n  A -> B')).toContain('>future</text>')
       expect(renderMermaidASCII('futureDiagram\n  A -> B', { colorMode: 'none' })).toBe('future')
-      const cliDir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-extension-'))
+      const cliDir = temp.dir('agentic-mermaid-extension-')
       const cliFile = join(cliDir, 'future.mmd')
       writeFileSync(cliFile, 'futureDiagram\n  A -> B')
-      try {
-        const svg = captureCli(() => runCli(['render', cliFile, '--format', 'svg']))
-        expect(svg.code).toBe(0)
-        expect(svg.out).toContain('>future</text>')
-        const layout = captureCli(() => runCli(['render', cliFile, '--format', 'layout']))
-        expect(layout.code).toBe(0)
-        expect(JSON.parse(layout.out)).toMatchObject({
-          version: 1,
-          bounds: { w: 80, h: 24 },
-          receipt: { output: 'layout' },
-        })
-      } finally {
-        rmSync(cliDir, { recursive: true, force: true })
-      }
+      const svg = captureCli(() => runCli(['render', cliFile, '--format', 'svg']))
+      expect(svg.code).toBe(0)
+      expect(svg.out).toContain('>future</text>')
+      const layout = captureCli(() => runCli(['render', cliFile, '--format', 'layout']))
+      expect(layout.code).toBe(0)
+      expect(JSON.parse(layout.out)).toMatchObject({
+        version: 1,
+        bounds: { w: 80, h: 24 },
+        receipt: { output: 'layout' },
+      })
       expect(projectPositionedView(descriptor.id, { width: 80, height: 24 })).toEqual({
         version: 1,
         nodes: [{

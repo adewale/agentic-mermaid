@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { describeMermaidFacts, describeMermaidFactsSource, checkMermaid } from '../agent/facts.ts'
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 function facts(source: string): string[] {
   const parsed = parseMermaid(source)
@@ -119,18 +121,14 @@ describe('facts through Code Mode and CLI surfaces', () => {
   })
 
   test('am describe --format facts emits newline facts; --json wraps facts', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-facts-'))
-    try {
-      const file = join(dir, 'diagram.mmd')
-      writeFileSync(file, 'stateDiagram-v2\n  Processing --> [*] : done')
-      const text = capture(() => runCli(['describe', file, '--format', 'facts']))
-      expect(text.code).toBe(0)
-      expect(text.out.split('\n')).toContain('edge Processing -> [*] : done')
-      const json = capture(() => runCli(['describe', file, '--format', 'facts', '--json']))
-      expect(json.code).toBe(0)
-      expect(JSON.parse(json.out).facts).toContain('edge Processing -> [*] : done')
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
+    const dir = temp.dir('am-facts-')
+    const file = join(dir, 'diagram.mmd')
+    writeFileSync(file, 'stateDiagram-v2\n  Processing --> [*] : done')
+    const text = capture(() => runCli(['describe', file, '--format', 'facts']))
+    expect(text.code).toBe(0)
+    expect(text.out.split('\n')).toContain('edge Processing -> [*] : done')
+    const json = capture(() => runCli(['describe', file, '--format', 'facts', '--json']))
+    expect(json.code).toBe(0)
+    expect(JSON.parse(json.out).facts).toContain('edge Processing -> [*] : done')
   })
 })

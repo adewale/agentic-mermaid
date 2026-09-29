@@ -1,27 +1,25 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createArtifactStore } from '../mcp/artifacts.ts'
 import { handleRequest, readRequestBody, startHttpServer, type HttpMcpServer, HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../mcp/server.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const textDecoder = new TextDecoder()
 
 let servers: HttpMcpServer[] = []
-let temps: string[] = []
 
 afterEach(async () => {
   for (const s of servers.splice(0)) await s.close().catch(() => {})
-  for (const t of temps.splice(0)) rmSync(t, { recursive: true, force: true })
 })
 
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-mcp-test-'))
-  temps.push(dir)
-  return dir
+  return temp.dir('agentic-mermaid-mcp-test-')
 }
 
 // Session teardown after an aborted SSE stream completes asynchronously on the

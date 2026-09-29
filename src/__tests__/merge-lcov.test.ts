@@ -1,18 +1,13 @@
-import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { describe, expect, test } from 'bun:test'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { mergeLcovTracefiles } from '../../scripts/ci/merge-lcov.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-const temporaryDirectories: string[] = []
-
-afterEach(() => {
-  for (const directory of temporaryDirectories.splice(0)) rmSync(directory, { recursive: true, force: true })
-})
+const temp = useTempDirs()
 
 function tracefile(contents: string): string {
-  const directory = mkdtempSync(join(tmpdir(), 'agentic-mermaid-lcov-'))
-  temporaryDirectories.push(directory)
+  const directory = temp.dir('agentic-mermaid-lcov-')
   const path = join(directory, 'lcov.info')
   writeFileSync(path, contents)
   return path

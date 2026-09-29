@@ -5,10 +5,12 @@
 
 import { describe, test, expect } from 'bun:test'
 import { execFileSync, execSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { evaluateGoldenDrift, githubPushBeforeSha, goldenDriftCommands, parseGitStatusPorcelainZ, APPROVE_TOKEN, type GoldenDriftFacts } from '../../scripts/ci/golden-drift.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const commit = (sha: string, goldenFiles: string[] = [], commitMessage = 'chore: something') => ({ sha, goldenFiles, commitMessage })
 const base: GoldenDriftFacts = { uncommittedGoldenFiles: [], headGoldenFiles: [], commits: [commit('abc123')] }
@@ -169,7 +171,7 @@ describe('goldenDriftCommands', () => {
 
   // base -> golden (moves a golden and a non-golden file) -> tip (unrelated).
   function repository() {
-    const cwd = mkdtempSync(join(tmpdir(), 'golden-drift-commands-'))
+    const cwd = temp.dir('golden-drift-commands-')
     const vcs = (...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
     const record = (files: Record<string, string>, message: string) => {
       for (const [file, content] of Object.entries(files)) {
@@ -203,26 +205,18 @@ describe('goldenDriftCommands', () => {
   // golden change re-fails the gate.
   test('range modes select the net golden change and every commit in the range, oldest first', () => {
     const repo = repository()
-    try {
-      const merge = selected(repo.cwd, goldenDriftCommands({ parents: [repo.base, repo.tip], pushBefore: null, goldenDir: DIR }))
-      expect(merge).toEqual({ files: [GOLDEN], commits: [repo.golden, repo.tip] })
-      const push = selected(repo.cwd, goldenDriftCommands({ parents: [repo.tip], pushBefore: repo.base, goldenDir: DIR }))
-      expect(push).toEqual({ files: [GOLDEN], commits: [repo.golden, repo.tip] })
-    } finally {
-      rmSync(repo.cwd, { recursive: true, force: true })
-    }
+    const merge = selected(repo.cwd, goldenDriftCommands({ parents: [repo.base, repo.tip], pushBefore: null, goldenDir: DIR }))
+    expect(merge).toEqual({ files: [GOLDEN], commits: [repo.golden, repo.tip] })
+    const push = selected(repo.cwd, goldenDriftCommands({ parents: [repo.tip], pushBefore: repo.base, goldenDir: DIR }))
+    expect(push).toEqual({ files: [GOLDEN], commits: [repo.golden, repo.tip] })
   })
 
   test('a lone non-merge commit with no push payload reads that commit alone', () => {
     const repo = repository()
-    try {
-      const commands = goldenDriftCommands({ parents: [repo.golden], pushBefore: null, goldenDir: DIR })
-      expect(selected(repo.cwd, commands)).toEqual({ files: [], commits: [repo.tip] })
-      repo.vcs('checkout', '--quiet', repo.golden)
-      expect(selected(repo.cwd, commands)).toEqual({ files: [GOLDEN], commits: [repo.golden] })
-    } finally {
-      rmSync(repo.cwd, { recursive: true, force: true })
-    }
+    const commands = goldenDriftCommands({ parents: [repo.golden], pushBefore: null, goldenDir: DIR })
+    expect(selected(repo.cwd, commands)).toEqual({ files: [], commits: [repo.tip] })
+    repo.vcs('checkout', '--quiet', repo.golden)
+    expect(selected(repo.cwd, commands)).toEqual({ files: [GOLDEN], commits: [repo.golden] })
   })
 
   // Reading a range of messages requires the range to be in the checkout. This

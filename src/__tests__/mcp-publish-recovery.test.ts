@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, test } from 'bun:test'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, expect, test } from 'bun:test'
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { parse as parseYaml } from 'yaml'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 const SERVER = JSON.parse(readFileSync(join(REPO, 'server.json'), 'utf8')) as { name: string; version: string }
@@ -12,11 +14,6 @@ const publishStep = workflow.jobs['publish-mcp'].steps.find(
   (step: { name?: string }) => step.name === 'Publish or recover the exact MCP Registry metadata',
 )
 const run = publishStep?.run as string | undefined
-const tempDirs: string[] = []
-
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
-})
 
 type RegistryState =
   | 'match' | 'absent' | 'mismatch'
@@ -28,8 +25,7 @@ function executeRecovery(
   options: { publishStatus?: number; loginStatus?: number } = {},
 ) {
   if (!run) throw new Error('missing MCP recovery workflow step')
-  const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-mcp-recovery-'))
-  tempDirs.push(dir)
+  const dir = temp.dir('agentic-mermaid-mcp-recovery-')
   const bin = join(dir, 'bin')
   mkdirSync(bin, { recursive: true })
 

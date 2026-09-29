@@ -4,12 +4,14 @@
 // op-error rate directly, instead of inferring retries from excess call counts.
 
 import { describe, test, expect, afterEach } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate, mutateChecked } from '../agent/mutate.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const SRC = 'stateDiagram-v2\n  [*] --> Idle\n  Idle --> Processing : start'
 
@@ -20,7 +22,7 @@ function parseState(): MutableValidDiagram {
 }
 
 function withTraceLog(fn: (log: string) => void): Array<{ verb: string; ok?: boolean }> {
-  const dir = mkdtempSync(join(tmpdir(), 'am-trace-'))
+  const dir = temp.dir('am-trace-')
   const log = join(dir, 'trace.jsonl')
   const prev = process.env.AM_TRACE_LOG
   process.env.AM_TRACE_LOG = log
@@ -30,7 +32,6 @@ function withTraceLog(fn: (log: string) => void): Array<{ verb: string; ok?: boo
   } finally {
     if (prev === undefined) delete process.env.AM_TRACE_LOG
     else process.env.AM_TRACE_LOG = prev
-    rmSync(dir, { recursive: true, force: true })
   }
 }
 

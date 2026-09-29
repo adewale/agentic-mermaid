@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   cleanHeadCommit,
@@ -10,6 +9,9 @@ import {
   verifiedBaselineCases,
   type BaselineFile,
 } from '../../scripts/pr-assets/palette-rollout-evidence.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const ROOT = join(import.meta.dir, '..', '..')
 const BASELINE_DIR = join(ROOT, 'eval', 'palette-rollout', 'baseline')
@@ -37,46 +39,38 @@ describe('palette rollout evidence integrity', () => {
   })
 
   test('accepts a reviewed development-line commit after a squash merge', () => {
-    const repo = mkdtempSync(join(tmpdir(), 'palette-baseline-squash-'))
-    try {
-      git(repo, 'init', '--quiet')
-      git(repo, 'config', 'user.name', 'Palette Evidence')
-      git(repo, 'config', 'user.email', 'evidence@example.test')
-      writeFileSync(join(repo, 'source.txt'), 'base\n')
-      git(repo, 'add', 'source.txt')
-      git(repo, 'commit', '--quiet', '-m', 'base')
-      const base = git(repo, 'rev-parse', 'HEAD')
+    const repo = temp.dir('palette-baseline-squash-')
+    git(repo, 'init', '--quiet')
+    git(repo, 'config', 'user.name', 'Palette Evidence')
+    git(repo, 'config', 'user.email', 'evidence@example.test')
+    writeFileSync(join(repo, 'source.txt'), 'base\n')
+    git(repo, 'add', 'source.txt')
+    git(repo, 'commit', '--quiet', '-m', 'base')
+    const base = git(repo, 'rev-parse', 'HEAD')
 
-      git(repo, 'checkout', '--quiet', '-b', 'development-line')
-      writeFileSync(join(repo, 'source.txt'), 'reviewed baseline\n')
-      git(repo, 'commit', '--quiet', '-am', 'reviewed baseline')
-      const baseline = git(repo, 'rev-parse', 'HEAD')
+    git(repo, 'checkout', '--quiet', '-b', 'development-line')
+    writeFileSync(join(repo, 'source.txt'), 'reviewed baseline\n')
+    git(repo, 'commit', '--quiet', '-am', 'reviewed baseline')
+    const baseline = git(repo, 'rev-parse', 'HEAD')
 
-      git(repo, 'checkout', '--quiet', '-b', 'squash-result', base)
-      writeFileSync(join(repo, 'source.txt'), 'squash result\n')
-      git(repo, 'commit', '--quiet', '-am', 'squash merge')
-      const ancestry = Bun.spawnSync(['git', 'merge-base', '--is-ancestor', baseline, 'HEAD'], { cwd: repo })
-      expect(ancestry.exitCode).toBe(1)
-      expect(() => verifyBaselineCommit(baseline, repo)).not.toThrow()
-    } finally {
-      rmSync(repo, { recursive: true, force: true })
-    }
+    git(repo, 'checkout', '--quiet', '-b', 'squash-result', base)
+    writeFileSync(join(repo, 'source.txt'), 'squash result\n')
+    git(repo, 'commit', '--quiet', '-am', 'squash merge')
+    const ancestry = Bun.spawnSync(['git', 'merge-base', '--is-ancestor', baseline, 'HEAD'], { cwd: repo })
+    expect(ancestry.exitCode).toBe(1)
+    expect(() => verifyBaselineCommit(baseline, repo)).not.toThrow()
   })
 
   test('only assigns a commit identity to a completely clean worktree', () => {
-    const repo = mkdtempSync(join(tmpdir(), 'palette-baseline-git-'))
-    try {
-      git(repo, 'init', '--quiet')
-      writeFileSync(join(repo, 'tracked.txt'), 'committed\n')
-      git(repo, 'add', 'tracked.txt')
-      git(repo, '-c', 'user.name=Palette Evidence', '-c', 'user.email=evidence@example.test', 'commit', '--quiet', '-m', 'baseline')
+    const repo = temp.dir('palette-baseline-git-')
+    git(repo, 'init', '--quiet')
+    writeFileSync(join(repo, 'tracked.txt'), 'committed\n')
+    git(repo, 'add', 'tracked.txt')
+    git(repo, '-c', 'user.name=Palette Evidence', '-c', 'user.email=evidence@example.test', 'commit', '--quiet', '-m', 'baseline')
 
-      expect(cleanHeadCommit(repo)).toMatch(/^[0-9a-f]{40}$/)
-      writeFileSync(join(repo, 'untracked.txt'), 'not committed\n')
-      expect(() => cleanHeadCommit(repo)).toThrow('Refusing to record a palette baseline from a dirty worktree')
-    } finally {
-      rmSync(repo, { recursive: true, force: true })
-    }
+    expect(cleanHeadCommit(repo)).toMatch(/^[0-9a-f]{40}$/)
+    writeFileSync(join(repo, 'untracked.txt'), 'not committed\n')
+    expect(() => cleanHeadCommit(repo)).toThrow('Refusing to record a palette baseline from a dirty worktree')
   })
 
   test('the committed report matches a fresh render and clears the automatic improvement gate', () => {

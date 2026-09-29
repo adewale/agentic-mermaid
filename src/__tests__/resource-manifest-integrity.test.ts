@@ -1,17 +1,9 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { tmpdir } from 'node:os'
 import { HOSTED_FONT_RESOURCES, RESOURCE_MANIFEST, validateResourceManifest } from '../font-manifest.ts'
 import {
   NodeResourceResolver,
@@ -20,17 +12,15 @@ import {
 } from '../node-resource-resolver.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { snapshotResourceManifest, verifyResourceBytes, type ResourceManifest, type ResourceManifestEntry } from '../resource-manifest.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-const roots: string[] = []
+const temp = useTempDirs()
+
 const PACKAGE_VERSION = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')).version as string
 const ESCAPED_PACKAGE_VERSION = PACKAGE_VERSION.replaceAll('.', '\\.')
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
 
 function fixtureRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'agentic-mermaid-resource-'))
-  roots.push(root)
+  const root = temp.dir('agentic-mermaid-resource-')
   mkdirSync(join(root, 'assets', 'fonts'), { recursive: true })
   writeFileSync(join(root, 'LICENSE.txt'), 'fixture licence')
   return root
@@ -122,8 +112,7 @@ describe('content-addressed installed resource manifest', () => {
 
     // Bundle the resolver itself so this regression exercises plain Node, not
     // Bun's macOS /dev/fd canonicalization and not a possibly stale dist/ tree.
-    const outdir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-node-resolver-'))
-    roots.push(outdir)
+    const outdir = temp.dir('agentic-mermaid-node-resolver-')
     const build = await Bun.build({
       entrypoints: [join(import.meta.dir, '..', 'node-resource-resolver.ts')],
       outdir,

@@ -2,10 +2,12 @@
 // SKIPS invalid diagrams instead of failing the whole file.
 
 import { describe, test, expect } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMarkdownBlocks, runCli } from '../cli/index.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const MD = `# Doc
 
@@ -49,7 +51,7 @@ describe('#543 render-markdown skip-bad-diagrams', () => {
   })
 
   test('CLI accepts render-markdown --ascii before or after the file argument', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-render-md-'))
+    const dir = temp.dir('am-render-md-')
     const tmp = join(dir, 'doc.md')
     writeFileSync(tmp, MD)
     const capture = (argv: string[]) => {
@@ -59,15 +61,11 @@ describe('#543 render-markdown skip-bad-diagrams', () => {
       try { expect(runCli(argv)).toBe(0) } finally { (process.stdout as any).write = orig }
       return JSON.parse(chunks.join('')) as { blocks: Array<{ format?: string; output?: string }> }
     }
-    try {
-      for (const argv of [['render-markdown', tmp, '--ascii'], ['render-markdown', '--ascii', tmp]]) {
-        const { blocks } = capture(argv)
-        // The default format is svg, so an ignored --ascii would still yield 3 blocks.
-        expect({ argv, count: blocks.length, format: blocks[0]!.format, svg: blocks.some(b => b.output?.includes('<svg')) })
-          .toEqual({ argv, count: 3, format: 'ascii', svg: false })
-      }
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
+    for (const argv of [['render-markdown', tmp, '--ascii'], ['render-markdown', '--ascii', tmp]]) {
+      const { blocks } = capture(argv)
+      // The default format is svg, so an ignored --ascii would still yield 3 blocks.
+      expect({ argv, count: blocks.length, format: blocks[0]!.format, svg: blocks.some(b => b.output?.includes('<svg')) })
+        .toEqual({ argv, count: 3, format: 'ascii', svg: false })
     }
   })
 

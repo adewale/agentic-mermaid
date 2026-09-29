@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { detectRegisteredFamilyFromFirstLine, type ExternalFamilyId, type FamilyDescriptor, getFamily, layoutMermaid, layoutMermaidWithReceipt, parseRegisteredMermaid, registerFamily, renderMermaidSVG, SCENE_VALIDATION_LIMITS, serializeMermaid, verifyMermaid } from '../agent/index.ts'
@@ -11,6 +10,9 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { captureCli } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const EVIDENCE = 'src/__tests__/extension-family-public-api.test.ts'
 
@@ -692,7 +694,7 @@ descriptorUpgradeDiagram
     }
     const source = 'transportParseDiagram\n  extension payload'
     const unregister = registerFamily(descriptor)
-    const directory = mkdtempSync(join(tmpdir(), 'agentic-mermaid-open-parse-'))
+    const directory = temp.dir('agentic-mermaid-open-parse-')
     const path = join(directory, 'extension.mmd')
     writeFileSync(path, source)
     try {
@@ -737,7 +739,6 @@ descriptorUpgradeDiagram
       expect(executed).toMatchObject({ ok: true, value: { kind: descriptor.id, source: `${source}\n` } })
       expect(SDK_DECLARATION).toContain('parseRegisteredMermaid(source: string): Result<ParsedDiagram')
     } finally {
-      rmSync(directory, { recursive: true, force: true })
       unregister()
     }
   })

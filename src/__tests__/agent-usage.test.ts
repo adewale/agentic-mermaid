@@ -1,8 +1,7 @@
 // Loop 13 M6: agent-usage validation harness — scenarios + anti-pattern linter.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync, mkdtempSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
@@ -15,6 +14,9 @@ import { handleRequest } from '../mcp/server.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid, serializeMermaid, mutate, buildMermaid } from '../agent/index.ts'
 import { asFlowchart } from '../agent/types.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -184,7 +186,7 @@ describe('homepage prompt eval contract', () => {
   })
 
   test('subagent prompt capture keeps the homepage surface fetch-only', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-homepage-fetch-only-'))
+    const dir = temp.dir('am-homepage-fetch-only-')
     const c = DEFAULT_CASES.find(c => c.id === 'state_add_done_transition')!
     const manifest = prepareSubagentPromptEval({
       outDir: dir,
@@ -203,7 +205,6 @@ describe('homepage prompt eval contract', () => {
     expect(request).toContain('Task:\nAdd a done transition')
     expect(request).not.toContain('Run `verifyMermaid` at every commit point')
     expect(request).not.toContain('Before returning, confirm the specific change')
-    rmSync(dir, { recursive: true, force: true })
   })
 
   test('the pointer targets start.md and does not duplicate its protocol', () => {
@@ -709,7 +710,7 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
   }
 
   test('am CLI logs invoked verbs to AM_TRACE_LOG, and nothing when unset', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-trace-'))
+    const dir = temp.dir('am-trace-')
     const log = join(dir, 'calls.jsonl')
     const origWrite = process.stdout.write.bind(process.stdout)
     const origTraceLog = process.env.AM_TRACE_LOG
@@ -727,12 +728,11 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
     } finally {
       ;(process.stdout as unknown as { write: typeof origWrite }).write = origWrite
       restoreTraceLog(origTraceLog)
-      rmSync(dir, { recursive: true, force: true })
     }
   })
 
   test('the library and hosted-MCP channels log through the SAME sink (not just the CLI)', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-sink-'))
+    const dir = temp.dir('am-sink-')
     const log = join(dir, 'calls.jsonl')
     const verbs = () => new Set(fsReadFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l).verb))
     const origTraceLog = process.env.AM_TRACE_LOG
@@ -756,12 +756,11 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
       expect(seen.has('build')).toBe(true)
     } finally {
       restoreTraceLog(origTraceLog)
-      rmSync(dir, { recursive: true, force: true })
     }
   })
 
   test('a correct diagram with a terse trace passes the correctness gate; observed log overrides prose', async () => {
-    const runDir = mkdtempSync(join(tmpdir(), 'subeval-'))
+    const runDir = temp.dir('subeval-')
     prepareSubagentPromptEval({
       provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat',
       caseIds: ['cache_between_api_and_db', 'pie_add_docs_slice'],
@@ -792,7 +791,5 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
     // Both are diagram-correct either way — the split keeps that visible.
     expect(read('cache_between_api_and_db').taskOk).toBe(true)
     expect(read('pie_add_docs_slice').taskOk).toBe(true)
-
-    rmSync(runDir, { recursive: true, force: true })
   })
 })

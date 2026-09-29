@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { build as buildWithEsbuild } from 'esbuild'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import {
   WEBSITE_BUILD_ENVIRONMENT_KEYS,
@@ -11,10 +10,11 @@ import {
   isWebsiteBuildFingerprintInput,
   runStableFingerprintBuild,
 } from '../../scripts/site/website-build-fingerprint.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
-const temporary: string[] = []
-afterEach(() => { for (const path of temporary.splice(0)) rmSync(path, { recursive: true, force: true }) })
 
 describe('website build fingerprint authority', () => {
   test('enrolls every local module the build bundles, transitively, and every runtime-read boundary', async () => {
@@ -54,8 +54,7 @@ describe('website build fingerprint authority', () => {
   }, 30_000)
 
   test('hashes contents, paths, missing inputs, and stable provenance', () => {
-    const root = mkdtempSync(join(tmpdir(), 'am-website-fingerprint-'))
-    temporary.push(root)
+    const root = temp.dir('am-website-fingerprint-')
     const first = join(root, 'inputs', 'first.txt')
     mkdirSync(dirname(first), { recursive: true })
     writeFileSync(first, 'alpha')
@@ -128,8 +127,7 @@ describe('website build fingerprint authority', () => {
     expect(WEBSITE_BUILD_FINGERPRINT_PATHS).toContain('shared')
     expect(WEBSITE_BUILD_FINGERPRINT_PATHS).toContain('eval/mindmap-gitgraph-content-corpus')
 
-    const root = mkdtempSync(join(tmpdir(), 'am-website-fingerprint-'))
-    temporary.push(root)
+    const root = temp.dir('am-website-fingerprint-')
     for (const path of ['website/source/input.txt', 'website/public/output.txt', 'website/.wrangler/state/cache.txt', 'website/src/generated/value.ts']) {
       mkdirSync(dirname(join(root, path)), { recursive: true })
       writeFileSync(join(root, path), path)

@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { buildContactSheetPlan } from './helpers/render-conformance-plan.ts'
 import { validateContactSheetReview, type ContactSheetReview } from '../../scripts/ci/test-portfolio-visual-review.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -40,7 +42,7 @@ describe('plan-derived contact sheets', () => {
   test('generates a real before/after change probe plus adjacent controls', () => {
     const directory = join(ROOT, 'eval', 'test-portfolio', 'contact-sheets')
     const rowId = JSON.parse(readFileSync(join(directory, 'citizenship.manifest.json'), 'utf8')).rows[0].id
-    const output = mkdtempSync(join(tmpdir(), 'am-change-contact-sheet-'))
+    const output = temp.dir('am-change-contact-sheet-')
     const generated = spawnSync('bun', [
       'run', 'scripts/pr-assets/test-portfolio-contact-sheet.ts',
       '--kind', 'change', '--row-id', rowId,

@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
@@ -26,6 +25,9 @@ import {
   sectionATransportReceiptProjection,
 } from './helpers/section-a-transport-fixture.ts'
 import { captureCli } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const { source: SOURCE, options: OPTIONS } = SECTION_A_TRANSPORT_FIXTURE
 
@@ -86,7 +88,7 @@ describe('Section A transport and backend parity receipts', () => {
 
   test('the canonical SVG sentinel crosses library, CLI, local MCP, hosted MCP, and website adapters unchanged', async () => {
     const library = renderMermaidSVGWithReceipt(SOURCE, OPTIONS)
-    const dir = mkdtempSync(join(tmpdir(), 'am-section-a-transport-'))
+    const dir = temp.dir('am-section-a-transport-')
     const input = join(dir, 'sentinel.mmd')
     writeFileSync(input, SOURCE)
     const cliRun = captureCli(() => runCli([
@@ -282,7 +284,7 @@ architecture-beta
       fitTo: { width: 64 },
       options: { style },
     }), hostedContext()))
-    const dir = mkdtempSync(join(tmpdir(), 'am-section-a-png-'))
+    const dir = temp.dir('am-section-a-png-')
     const input = join(dir, 'diagram.mmd')
     const output = join(dir, 'diagram.png')
     writeFileSync(input, SOURCE)

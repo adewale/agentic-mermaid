@@ -1,9 +1,8 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
@@ -12,6 +11,9 @@ import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {
@@ -720,9 +722,8 @@ describe('MCP bin shim', () => {
 describe('CLI — sad paths via runCli', () => {
   let dir = ''
   beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), 'am-cli-sad-'))
+    dir = temp.dir('am-cli-sad-')
   })
-  afterAll(() => rmSync(dir, { recursive: true, force: true }))
   const tmpFile = (name: string, content: string): string => {
     const path = join(dir, name)
     writeFileSync(path, content)

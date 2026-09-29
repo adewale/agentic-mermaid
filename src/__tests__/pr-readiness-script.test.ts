@@ -1,19 +1,19 @@
-import { afterEach, describe, expect, test } from 'bun:test'
-import { cpSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { describe, expect, test } from 'bun:test'
+import { cpSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const SCRIPT = join(import.meta.dir, '..', '..', 'scripts', 'ci', 'check-pr-readiness.sh')
-const directories: string[] = []
 
 function run(cwd: string, command: string[]) {
   return spawnSync(command[0]!, command.slice(1), { cwd, encoding: 'utf8', env: process.env })
 }
 
 function fixture(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'pr-readiness-'))
-  directories.push(directory)
+  const directory = temp.dir('pr-readiness-')
   writeFileSync(join(directory, 'README.md'), 'base\n')
   cpSync(SCRIPT, join(directory, 'check.sh'))
   for (const command of [
@@ -32,10 +32,6 @@ function commit(directory: string, file: string, content: string): void {
   expect(run(directory, ['git', 'add', '.']).status).toBe(0)
   expect(run(directory, ['git', 'commit', '-m', 'change']).status).toBe(0)
 }
-
-afterEach(() => {
-  while (directories.length > 0) rmSync(directories.pop()!, { recursive: true, force: true })
-})
 
 describe('PR readiness script exit contract', () => {
   test('ordinary non-UI changes complete successfully when grep finds no tests or UI files', () => {
