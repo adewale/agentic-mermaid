@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="453" height="489" viewBox="0 0 453 489" style="--bg:#f8faf7;--fg:#17211c;--line:#24523b;--accent:#0f766e;--muted:#4f665a;--surface:#f0f5ef;--border:#24523b;--font:Share Tech Mono;background:#f8faf7" aria-labelledby="quadrant-ynohw9-title" aria-roledescription="quadrant chart" id="quadrant-ynohw9" role="img" class="am-1l64frx1n4w0p5">
+<title id="quadrant-ynohw9-title">REACH AND ENGAGEMENT</title>
+<style>
+  .am-1l64frx1n4w0p5 text { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  svg.am-1l64frx1n4w0p5 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #17211c;
+    --_text-sec:      #4f665a;
+    --_text-muted:    #4f665a;
+    --_text-faint:    #7e8581;
+    --_line:          #24523b;
+    --_arrow:         #0f766e;
+    --_node-fill:     #f0f5ef;
+    --_node-stroke:   #24523b;
+    --_group-fill:    #f8faf7;
+    --_group-hdr:     #edefec;
+    --_inner-stroke:  #dde0dd;
+    --_key-badge:     #e2e4e1;
+  }
+</style>
+<style>
+  .am-1l64frx1n4w0p5 .quadrant-region { stroke: none; }
+  .am-1l64frx1n4w0p5 .quadrant-divider { stroke: #17211c; stroke-width: 1.8; }
+  .am-1l64frx1n4w0p5 .quadrant-border { stroke: #17211c; stroke-width: 1.5; }
+  .am-1l64frx1n4w0p5 .quadrant-label { fill: #17211c; }
+  .am-1l64frx1n4w0p5 .quadrant-point { fill: #0f766e; stroke: #17211c; stroke-width: 1.6; }
+  .am-1l64frx1n4w0p5 .quadrant-point-label { fill: #17211c; }
+  .am-1l64frx1n4w0p5 .quadrant-axis-label { fill: #17211c; }
+  .am-1l64frx1n4w0p5 .quadrant-title { fill: #17211c; }
+</style>
+<rect width="453" height="489" fill="#f8faf7" data-backdrop="page" />
+<rect class="quadrant-region" x="49" y="60" width="190" height="190" fill="#ecf3f0" data-quadrant="2" data-id="plate:2" data-role="plate" />
+<rect class="quadrant-region" x="239" y="60" width="190" height="190" fill="#e1ede9" data-quadrant="1" data-id="plate:1" data-role="plate" />
+<rect class="quadrant-region" x="49" y="250" width="190" height="190" fill="#e1ede9" data-quadrant="3" data-id="plate:3" data-role="plate" />
+<rect class="quadrant-region" x="239" y="250" width="190" height="190" fill="#ecf3f0" data-quadrant="4" data-id="plate:4" data-role="plate" />
+<line class="quadrant-divider" x1="239" y1="60" x2="239" y2="440" />
+<line class="quadrant-divider" x1="49" y1="250" x2="429" y2="250" />
+<rect class="quadrant-border" x="49" y="60" width="380" height="380" fill="none" />
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="144" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" letter-spacing="0.05" dy="3.8499999999999996" textLength="59.37" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">PROMOTE</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="334" y="155" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" letter-spacing="0.05" dy="3.8499999999999996" textLength="49.42" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">EXPAND</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="144" y="345" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" letter-spacing="0.05" dy="3.8499999999999996" textLength="84.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">RE-EVALUATE</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="334" y="345" class="quadrant-label" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" letter-spacing="0.05" dy="3.8499999999999996" textLength="54.09" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">IMPROVE</text>
+<circle class="quadrant-point" cx="391" cy="136" r="6" data-label="CAMPAIGN A" data-x="0.9" data-y="0.8" data-id="point:CAMPAIGN A" data-role="point" />
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="381" y="136" class="quadrant-point-label" text-anchor="end" dominant-baseline="middle" font-size="12" font-weight="700" dy="4.199999999999999" textLength="78.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CAMPAIGN A</text>
+<circle class="quadrant-point" cx="125" cy="174" r="6" data-label="CAMPAIGN B" data-x="0.2" data-y="0.7" data-id="point:CAMPAIGN B" data-role="point" />
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="135" y="174" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="700" dy="4.199999999999999" textLength="78.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CAMPAIGN B</text>
+<circle class="quadrant-point" cx="163" cy="364" r="6" data-label="CAMPAIGN C" data-x="0.3" data-y="0.2" data-id="point:CAMPAIGN C" data-role="point" />
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="173" y="364" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="700" dy="4.199999999999999" textLength="78.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CAMPAIGN C</text>
+<circle class="quadrant-point" cx="353" cy="326" r="6" data-label="CAMPAIGN D" data-x="0.8" data-y="0.3" data-id="point:CAMPAIGN D" data-role="point" />
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="363" y="326" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="700" dy="4.199999999999999" textLength="78.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">CAMPAIGN D</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="quadrant-axis-label" x="53" y="454" text-anchor="start" font-size="10" font-weight="700" textLength="62.7" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">LOW REACH</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="quadrant-axis-label" x="425" y="454" text-anchor="end" font-size="10" font-weight="700" textLength="63.3" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">HIGH REACH</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="quadrant-axis-label" x="34" y="436" text-anchor="start" font-size="10" font-weight="700" transform="rotate(-90 34 436)" textLength="100.5" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">LOW ENGAGEMENT</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="quadrant-axis-label" x="34" y="64" text-anchor="end" font-size="10" font-weight="700" transform="rotate(-90 34 64)" textLength="101.1" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">HIGH ENGAGEMENT</text>
+<text paint-order="stroke" stroke="#f8faf7" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="239" y="33" class="quadrant-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="700" letter-spacing="0.05" dy="6.3" data-id="title" data-role="title" textLength="246.65" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">REACH AND ENGAGEMENT</text>
+</svg>

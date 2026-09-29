@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="462.48" height="271" viewBox="0 0 462.48 271" style="--bg:#08111f;--fg:#e6f4ff;--line:#5a7c99;--accent:#2dd4bf;--muted:#8aa6bf;--surface:#102033;--border:#2e4c63;--font:Inter;background:#08111f" aria-roledescription="pie chart" role="img" class="am-0tj42o71d53i9t">
+<style>
+  .am-0tj42o71d53i9t text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0tj42o71d53i9t {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #e6f4ff;
+    --_text-sec:      #8aa6bf;
+    --_text-muted:    #8aa6bf;
+    --_text-faint:    #808c98;
+    --_line:          #5a7c99;
+    --_arrow:         #2dd4bf;
+    --_node-fill:     #102033;
+    --_node-stroke:   #2e4c63;
+    --_group-fill:    #08111f;
+    --_group-hdr:     #131c2a;
+    --_inner-stroke:  #232c3a;
+    --_key-badge:     #1e2835;
+  }
+</style>
+<style>
+  .am-0tj42o71d53i9t .pie-slice { stroke: #e6f4ff; stroke-width: 1.4; }
+  .am-0tj42o71d53i9t .pie-slice.highlighted { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
+  .am-0tj42o71d53i9t .pie-slice.highlighted-on-hover:hover { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
+  .am-0tj42o71d53i9t .pie-legend-swatch { stroke: #e6f4ff; stroke-width: 1.4; }
+  .am-0tj42o71d53i9t .pie-legend-text { fill: #e6f4ff; }
+  .am-0tj42o71d53i9t .pie-title { fill: #e6f4ff; }
+  .am-0tj42o71d53i9t .pie-slice.pie-dim { opacity: 0.4; }
+  .am-0tj42o71d53i9t .pie-legend-swatch.pie-dim { opacity: 0.4; }
+</style>
+<rect width="462.48" height="271" fill="#08111f" data-backdrop="page" />
+<path class="pie-slice highlighted" d="M 119 152 L 119 57 A 95 95 0 0 1 129.72 246.39 Z" fill="#2dd4bf" data-label="Images" data-value="48.2" data-percent="48.2%" data-highlighted="true" data-id="slice:Images" data-role="pie-slice" />
+<path class="pie-slice pie-dim" d="M 119 152 L 129.72 246.39 A 95 95 0 0 1 25.91 133.03 Z" fill="#83edf6" data-label="Video" data-value="30" data-percent="30.0%" data-id="slice:Video" data-role="pie-slice" />
+<path class="pie-slice pie-dim" d="M 119 152 L 25.91 133.03 A 95 95 0 0 1 66.59 72.76 Z" fill="#1e9476" data-label="Documents" data-value="12.5" data-percent="12.5%" data-id="slice:Documents" data-role="pie-slice" />
+<path class="pie-slice pie-dim" d="M 119 152 L 66.59 72.76 A 95 95 0 0 1 119 57 Z" fill="#79afc4" data-label="Other" data-value="9.3" data-percent="9.3%" data-id="slice:Other" data-role="pie-slice" />
+<text x="190.14" y="147.97" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#000000" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">48%</text>
+<text x="66.45" y="200.12" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#e6f4ff" dy="4.199999999999999" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">30%</text>
+<text x="59.94" y="112.14" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#e6f4ff" dy="4.199999999999999" textLength="19.584" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">13%</text>
+<text x="98.48" y="83.77" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#e6f4ff" dy="4.199999999999999" textLength="16.848" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">9%</text>
+<rect class="pie-legend-swatch" x="246" y="112" width="14" height="14" rx="2" ry="2" fill="#2dd4bf" />
+<text x="268" y="119" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" dy="4.8999999999999995" textLength="138.18" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Images [48.2] (48.2%)</text>
+<rect class="pie-legend-swatch pie-dim" x="246" y="134" width="14" height="14" rx="2" ry="2" fill="#83edf6" />
+<text x="268" y="141" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" dy="4.8999999999999995" textLength="118.02" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Video [30] (30.0%)</text>
+<rect class="pie-legend-swatch pie-dim" x="246" y="156" width="14" height="14" rx="2" ry="2" fill="#1e9476" />
+<text x="268" y="163" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" dy="4.8999999999999995" textLength="154.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Documents [12.5] (12.5%)</text>
+<rect class="pie-legend-swatch pie-dim" x="246" y="178" width="14" height="14" rx="2" ry="2" fill="#79afc4" />
+<text x="268" y="185" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" dy="4.8999999999999995" textLength="111.3" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Other [9.3] (9.3%)</text>
+<text x="231.24" y="30.5" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" letter-spacing="0.06" dy="4.55" data-id="title" data-role="title" textLength="98.49" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">STORAGE USE</text>
+</svg>

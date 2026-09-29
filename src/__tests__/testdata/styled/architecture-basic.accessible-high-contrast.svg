@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="679.73" height="402.3" viewBox="0 0 679.73 402.3" style="--bg:#ffffff;--fg:#050505;--line:#111111;--accent:#005fcc;--muted:#333333;--surface:#ffffff;--border:#050505;--font:Inter;background:#ffffff;--arch-group-fill:#ffffff;--arch-group-stroke:#050505;--arch-group-label:#050505;--arch-service-fill:#ffffff;--arch-service-stroke:#050505;--arch-service-label:#050505;--arch-edge-stroke:#050505;--arch-edge-label:#050505" class="am-04xsfds0kt4ubg">
+<style>
+  .am-04xsfds0kt4ubg text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-04xsfds0kt4ubg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #050505;
+    --_text-sec:      #333333;
+    --_text-muted:    #333333;
+    --_text-faint:    #787878;
+    --_line:          #111111;
+    --_arrow:         #005fcc;
+    --_node-fill:     #ffffff;
+    --_node-stroke:   #050505;
+    --_group-fill:    #ffffff;
+    --_group-hdr:     #f3f3f3;
+    --_inner-stroke:  #e1e1e1;
+    --_key-badge:     #e6e6e6;
+  }
+</style>
+<style>
+  .am-04xsfds0kt4ubg .architecture-group-frame { fill: #ffffff; stroke: none; }
+  .am-04xsfds0kt4ubg .architecture-group-band { fill: #f2f7fc; stroke: none; }
+  .am-04xsfds0kt4ubg .architecture-group-outline { fill: none; stroke: #050505; stroke-width: 2.2; }
+  .am-04xsfds0kt4ubg .architecture-group-label { fill: #333333; }
+  .am-04xsfds0kt4ubg .architecture-service-card { fill: #ffffff; stroke: none; }
+  .am-04xsfds0kt4ubg .architecture-service-outline { fill: none; stroke: #050505; stroke-width: 2.4; }
+  .am-04xsfds0kt4ubg .architecture-service-label { fill: #050505; }
+  .am-04xsfds0kt4ubg .architecture-edge { fill: none; stroke: #111111; stroke-width: 2.6; stroke-linejoin: round; }
+  .am-04xsfds0kt4ubg .architecture-edge-label-bg { fill: #fefefe; stroke: #d4d4d4; stroke-width: 0.75; }
+  .am-04xsfds0kt4ubg .architecture-edge-label-text { fill: #333333; }
+  .am-04xsfds0kt4ubg .architecture-junction-ring { fill: #ffffff; stroke: #005fcc; stroke-width: 1.25; }
+  .am-04xsfds0kt4ubg .architecture-junction-core { fill: #c2d9f3; stroke: #005fcc; stroke-width: 0.75; }
+  .am-04xsfds0kt4ubg .architecture-icon-mark { fill: none; stroke: #005fcc; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .am-04xsfds0kt4ubg .architecture-icon-glyph { fill: #005fcc; }
+</style>
+<rect width="679.73" height="402.3" fill="#ffffff" data-backdrop="page" />
+<defs>
+  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#005fcc" stroke="#005fcc" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#005fcc" stroke="#005fcc" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="architecture-group" data-id="api" data-label="API" data-role="group">
+  <rect class="architecture-group-frame" x="40" y="40" width="599.73" height="322.3" rx="8" ry="8" data-id="group-frame:api" data-role="group" />
+  <path class="architecture-group-band" d="M48,40 H631.73 A8,8 0 0 1 639.73,48 V68 H40 V48 A8,8 0 0 1 48,40 Z" />
+  <rect class="architecture-group-outline" x="40" y="40" width="599.73" height="322.3" rx="8" ry="8" data-id="group-outline:api" data-role="group" />
+  <g class="architecture-icon" data-icon="cloud">
+  <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" />
+<circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.9440000000000004" />
+<circle class="architecture-icon-mark" cx="60.944" cy="54.2944" r="2.208" />
+<path class="architecture-icon-mark" d="M 52.9952 56.355199999999996 H 62.8576" />
+</g>
+  <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="14" font-weight="700" dy="4.8999999999999995" textLength="25.62" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">API</text>
+</g>
+<path class="architecture-edge" data-from="db" data-to="server" data-from-side="L" data-to-side="R" data-from-boundary="item" data-to-boundary="item" d="M451.65999999999997,314.25 L442.66,314.25 Q433.65999999999997,314.25 433.66,305.25 L433.66,131.05 Q433.65999999999997,122.05 424.66,122.05 L415.65999999999997,122.05" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:db-&gt;server#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="db to server" />
+<path class="architecture-edge" data-from="disk" data-to="server" data-from-side="T" data-to-side="B" data-from-boundary="item" data-to-boundary="item" d="M149.035,188.1 L149.035,179.1 Q149.035,170.1 158.035,170.1 L330.805,170.1 Q339.80499999999995,170.1 339.805,161.1 L339.80499999999995,152.1" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:disk-&gt;server#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="disk to server" />
+<g class="architecture-service" data-id="db" data-label="Database" data-role="service">
+  <rect class="architecture-service-card" x="451.65999999999997" y="284.2" width="170.07" height="60.1" rx="8" ry="8" data-id="service-card:db" data-role="service" />
+  <rect class="architecture-service-outline" x="451.65999999999997" y="284.2" width="170.07" height="60.1" rx="8" ry="8" data-id="service-outline:db" data-role="service" />
+  <g class="architecture-icon" data-icon="database">
+  <ellipse class="architecture-icon-mark" cx="488.65999999999997" cy="311.37" rx="4.32" ry="1.8" />
+<path class="architecture-icon-mark" d="M 484.34 311.37 V 317.85" />
+<path class="architecture-icon-mark" d="M 492.97999999999996 311.37 V 317.85" />
+<ellipse class="architecture-icon-mark" cx="488.65999999999997" cy="314.61" rx="4.32" ry="1.8" />
+<ellipse class="architecture-icon-mark" cx="488.65999999999997" cy="317.85" rx="4.32" ry="1.8" />
+</g>
+  <text x="517.26" y="314.25" class="architecture-service-label" text-anchor="start" font-size="17" font-weight="700" dy="5.949999999999999" textLength="80.07" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Database</text>
+</g>
+<g class="architecture-service" data-id="disk" data-label="Storage" data-role="service">
+  <rect class="architecture-service-card" x="70.12" y="188.1" width="157.82999999999998" height="60.1" rx="8" ry="8" data-id="service-card:disk" data-role="service" />
+  <rect class="architecture-service-outline" x="70.12" y="188.1" width="157.82999999999998" height="60.1" rx="8" ry="8" data-id="service-outline:disk" data-role="service" />
+  <g class="architecture-icon" data-icon="disk">
+  <circle class="architecture-icon-mark" cx="107.12" cy="218.15" r="4.68" />
+<circle class="architecture-icon-mark" cx="107.12" cy="218.15" r="1.6199999999999999" />
+</g>
+  <text x="135.72" y="218.15" class="architecture-service-label" text-anchor="start" font-size="17" font-weight="700" dy="5.949999999999999" textLength="67.83" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Storage</text>
+</g>
+<g class="architecture-service" data-id="server" data-label="Server" data-role="service">
+  <rect class="architecture-service-card" x="263.95" y="92" width="151.70999999999998" height="60.1" rx="8" ry="8" data-id="service-card:server" data-role="service" />
+  <rect class="architecture-service-outline" x="263.95" y="92" width="151.70999999999998" height="60.1" rx="8" ry="8" data-id="service-outline:server" data-role="service" />
+  <g class="architecture-icon" data-icon="server">
+  <rect class="architecture-icon-mark" x="296.99" y="117.72999999999999" width="7.92" height="8.64" rx="0" ry="0" />
+<path class="architecture-icon-mark" d="M 298.07 120.61 H 303.83" />
+<path class="architecture-icon-mark" d="M 298.07 123.13 H 303.83" />
+</g>
+  <text x="329.55" y="122.05" class="architecture-service-label" text-anchor="start" font-size="17" font-weight="700" dy="5.949999999999999" textLength="61.71" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Server</text>
+</g>
+</svg>

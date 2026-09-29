@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="648" height="448" viewBox="0 0 648 448" style="--bg:#f7f5ef;--fg:#1a1a1e;--line:#26262b;--accent:#26262b;--border:#26262b;--font:Caveat;background:#f7f5ef" aria-roledescription="sankey diagram" role="img" class="am-04i406j1jc8k3k">
+<style>
+  .am-04i406j1jc8k3k text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-04i406j1jc8k3k {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #1a1a1e;
+    --_text-sec:      #4b4a4c;
+    --_text-muted:    #656465;
+    --_text-faint:    #807f7e;
+    --_line:          #26262b;
+    --_arrow:         #26262b;
+    --_node-fill:     #f0eee9;
+    --_node-stroke:   #26262b;
+    --_group-fill:    #f7f5ef;
+    --_group-hdr:     #eceae5;
+    --_inner-stroke:  #dcdbd6;
+    --_key-badge:     #e1dfda;
+  }
+</style>
+<rect width="648" height="448" fill="#f7f5ef" data-backdrop="page" />
+<g data-backdrop="paper-ruled">
+  <line x1="0" y1="26" x2="648" y2="26" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="52" x2="648" y2="52" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="78" x2="648" y2="78" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="104" x2="648" y2="104" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="130" x2="648" y2="130" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="156" x2="648" y2="156" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="182" x2="648" y2="182" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="208" x2="648" y2="208" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="234" x2="648" y2="234" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="260" x2="648" y2="260" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="286" x2="648" y2="286" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="312" x2="648" y2="312" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="338" x2="648" y2="338" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="364" x2="648" y2="364" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="390" x2="648" y2="390" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="416" x2="648" y2="416" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="442" x2="648" y2="442" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+</g>
+<defs>
+  <linearGradient id="sankey-gradient-1" gradientUnits="userSpaceOnUse" x1="34" y1="67.18" x2="319" y2="160.1">
+    <stop offset="0%" stop-color="#26262b" />
+    <stop offset="100%" stop-color="#28358a" />
+  </linearGradient>
+  <linearGradient id="sankey-gradient-2" gradientUnits="userSpaceOnUse" x1="34" y1="188.62" x2="319" y2="254.54">
+    <stop offset="0%" stop-color="#8c79d8" />
+    <stop offset="100%" stop-color="#28358a" />
+  </linearGradient>
+  <linearGradient id="sankey-gradient-3" gradientUnits="userSpaceOnUse" x1="329" y1="153.85" x2="614" y2="139.48">
+    <stop offset="0%" stop-color="#28358a" />
+    <stop offset="100%" stop-color="#050f40" />
+  </linearGradient>
+  <linearGradient id="sankey-gradient-4" gradientUnits="userSpaceOnUse" x1="329" y1="307.71" x2="614" y2="320.35">
+    <stop offset="0%" stop-color="#28358a" />
+    <stop offset="100%" stop-color="#bea4e5" />
+  </linearGradient>
+  <linearGradient id="sankey-gradient-5" gradientUnits="userSpaceOnUse" x1="329" y1="365.23" x2="614" y2="404.87">
+    <stop offset="0%" stop-color="#28358a" />
+    <stop offset="100%" stop-color="#3c5a87" />
+  </linearGradient>
+</defs>
+<path stroke-opacity="0" class="sankey-link" d="M 34 67.18 C 176.5 67.18, 176.5 160.1, 319 160.1" fill="none" stroke="url(#sankey-gradient-1)" stroke-width="86.35" opacity="0.5" style="mix-blend-mode:multiply" data-source="Coal" data-target="Electricity generation" data-value="127.93" data-relationship="flow" data-direction="forward" data-id="link:Coal-&gt;Electricity generation" data-role="edge" data-from="Coal" data-to="Electricity generation" role="graphics-symbol" aria-roledescription="relation" aria-label="Coal to Electricity generation" />
+<path d="M34 67.18 C177.94 66.67, 176.57 161.79, 318.08 159.01 M34.88 67.74 C177.95 68.24, 176.58 158.99, 320.5 158.3" fill="none" stroke="url(#sankey-gradient-1)" stroke-width="86.35" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="0.5" style="mix-blend-mode:multiply" />
+<path stroke-opacity="0" class="sankey-link" d="M 34 188.62 C 176.5 188.62, 176.5 254.54, 319 254.54" fill="none" stroke="url(#sankey-gradient-2)" stroke-width="102.53" opacity="0.5" style="mix-blend-mode:multiply" data-source="Gas" data-target="Electricity generation" data-value="151.89" data-relationship="flow" data-direction="forward" data-id="link:Gas-&gt;Electricity generation" data-role="edge" data-from="Gas" data-to="Electricity generation" role="graphics-symbol" aria-roledescription="relation" aria-label="Gas to Electricity generation" />
+<path d="M34 188.62 C175.43 187.53, 177.2 253.75, 320 253.73 M33.6 188.61 C175.48 186.56, 177.62 256.29, 317.45 255.9" fill="none" stroke="url(#sankey-gradient-2)" stroke-width="102.53" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="0.5" style="mix-blend-mode:multiply" />
+<path stroke-opacity="0" class="sankey-link" d="M 329 153.85 C 471.5 153.85, 471.5 139.48, 614 139.48" fill="none" stroke="url(#sankey-gradient-3)" stroke-width="230.96" opacity="0.5" style="mix-blend-mode:multiply" data-source="Electricity generation" data-target="Industry" data-value="342.16" data-relationship="flow" data-direction="forward" data-id="link:Electricity generation-&gt;Industry" data-role="edge" data-from="Electricity generation" data-to="Industry" role="graphics-symbol" aria-roledescription="relation" aria-label="Electricity generation to Industry" />
+<path d="M329 153.85 C471.77 153.04, 472.67 140.29, 613 140.61 M329.42 154.01 C469.93 154.16, 469.47 137.69, 615.31 139.35" fill="none" stroke="url(#sankey-gradient-3)" stroke-width="230.96" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="0.5" style="mix-blend-mode:multiply" />
+<path stroke-opacity="0" class="sankey-link" d="M 329 307.71 C 471.5 307.71, 471.5 320.35, 614 320.35" fill="none" stroke="url(#sankey-gradient-4)" stroke-width="76.77" opacity="0.5" style="mix-blend-mode:multiply" data-source="Electricity generation" data-target="Homes" data-value="113.73" data-relationship="flow" data-direction="forward" data-id="link:Electricity generation-&gt;Homes" data-role="edge" data-from="Electricity generation" data-to="Homes" role="graphics-symbol" aria-roledescription="relation" aria-label="Electricity generation to Homes" />
+<path d="M329 307.71 C472.83 309, 470.81 318.71, 614.35 321.27 M327.56 305.79 C470.01 308.91, 471.51 319.01, 612.88 320.38" fill="none" stroke="url(#sankey-gradient-4)" stroke-width="76.77" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="0.5" style="mix-blend-mode:multiply" />
+<path stroke-opacity="0" class="sankey-link" d="M 329 365.23 C 471.5 365.23, 471.5 404.87, 614 404.87" fill="none" stroke="url(#sankey-gradient-5)" stroke-width="38.27" opacity="0.5" style="mix-blend-mode:multiply" data-source="Electricity generation" data-target="Losses" data-value="56.69" data-relationship="flow" data-direction="forward" data-id="link:Electricity generation-&gt;Losses" data-role="edge" data-from="Electricity generation" data-to="Losses" role="graphics-symbol" aria-roledescription="relation" aria-label="Electricity generation to Losses" />
+<path d="M329 365.23 C472.91 364.95, 471.67 405.31, 615.75 405.68 M330.63 366.02 C470.84 366.98, 472.45 403.68, 613.59 406" fill="none" stroke="url(#sankey-gradient-5)" stroke-width="38.27" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="0.5" style="mix-blend-mode:multiply" />
+<rect style="stroke:none" class="sankey-node" x="24" y="24" width="10" height="86.35" fill="#26262b" stroke="#26262b" stroke-width="1" data-label="Coal" data-value="127.93" data-layer="0" data-id="Coal" data-role="bar" />
+<path d="M23.55 23.56 C27.04 23.54, 30.56 24.3, 34.25 23.94 M23.66 23.73 C26.87 24.29, 29.15 23.72, 34.02 24.05 M35.34 25.12 C32.88 52.52, 33.97 79.13, 35.97 111.96 M33.82 24.58 C33.81 50.14, 34.29 76.18, 34.28 110.99 M34.05 110.43 C31.68 110.55, 28.48 109.72, 24.2 109.64 M34.08 110.06 C31.04 110.48, 29.33 110.21, 24.02 110.18 M23.27 109.96 C22.88 92.42, 21.55 71.47, 23.81 25.19 M24.24 109.65 C23.24 77.39, 24.54 45.86, 23.75 24.13" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+<rect style="stroke:none" class="sankey-node" x="319" y="38.37" width="10" height="346" fill="#28358a" stroke="#26262b" stroke-width="1" data-label="Electricity generation" data-value="512.58" data-layer="1" data-id="Electricity generation" data-role="bar" />
+<path d="M319.25 38.82 C322.28 38.6, 324.63 38.14, 329.44 38.9 M318.82 37.95 C321.41 38.28, 322.89 38.34, 329.38 37.92 M328.42 39.53 C330.01 141.2, 329.09 245.97, 330.15 384.49 M328.42 37.99 C327.71 126.83, 327.55 214.71, 328.69 384.66 M328.34 385.26 C324.7 384.14, 321.84 384.3, 318.9 384.5 M329.4 384.34 C324.91 384.73, 321.13 384.03, 318.64 384.04 M317.95 383.13 C315.97 251.11, 316.39 117.35, 320.15 38.13 M318.74 384.96 C316.74 301.89, 317.08 219.77, 318.77 38.34" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+<rect style="stroke:none" class="sankey-node" x="24" y="137.35" width="10" height="102.53" fill="#8c79d8" stroke="#26262b" stroke-width="1" data-label="Gas" data-value="151.89" data-layer="0" data-id="Gas" data-role="bar" />
+<path d="M24.11 137.81 C25.12 137.91, 27.71 137.61, 33.82 137.51 M24.44 137.74 C27.48 137.43, 31.41 137.37, 34.07 137.76 M32.03 135.92 C33.91 162.23, 33.23 187.24, 35.75 238.05 M34.98 138 C33.98 171.99, 34.8 204.52, 33.23 239.08 M33.86 239.02 C31.4 239.94, 27.56 240.15, 24.08 240.59 M34.4 240.38 C30.45 239.8, 26.35 240.27, 24.14 240.24 M25.1 241.34 C26.69 206.63, 24.05 174.21, 23.46 136.62 M24.78 239.84 C23.68 200.28, 23.5 161.77, 23.39 137.2" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+<rect style="stroke:none" class="sankey-node" x="614" y="24" width="10" height="230.96" fill="#050f40" stroke="#26262b" stroke-width="1" data-label="Industry" data-value="342.16" data-layer="2" data-id="Industry" data-role="bar" />
+<path d="M613.28 24.52 C617.19 24.49, 620.06 23.66, 623.48 23.95 M613.77 24.11 C616.39 23.73, 618.27 24.24, 623.83 23.61 M623.84 22.32 C625.39 96.08, 625.37 165.14, 623.52 255.43 M624.31 24.73 C622.49 116.1, 623.94 207.33, 624.74 254.65 M624.62 254.09 C621.15 254.57, 620.49 255.12, 614.21 255.06 M624.04 255.25 C620.51 255.39, 618.03 255.46, 614.23 254.69 M614.45 254.27 C614.69 183.67, 614.05 108.05, 615.1 25.41 M613.83 255.15 C614.13 207.96, 613.42 160.89, 614.08 24.81" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+<rect style="stroke:none" class="sankey-node" x="614" y="281.96" width="10" height="76.77" fill="#bea4e5" stroke="#26262b" stroke-width="1" data-label="Homes" data-value="113.73" data-layer="2" data-id="Homes" data-role="bar" />
+<path d="M613.24 281.98 C616.62 282.08, 619.54 280.95, 623.62 281.88 M613.57 282.39 C617.69 281.59, 622.31 282.3, 623.5 281.87 M623.79 282.91 C623.25 304.96, 622.23 333.5, 624.91 359.94 M624.52 282.43 C624.43 310.46, 624.03 339.22, 623.33 358.99 M624.92 357.98 C621.96 358.93, 618.54 357.99, 613.01 358.98 M623.87 358.31 C620.63 359.05, 617.4 358.77, 613.58 359.01 M615.88 360.13 C612.4 336.02, 612.09 315.16, 613.04 280.69 M614.08 358.65 C614.56 333.69, 613.94 308.83, 613.8 282.62" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+<rect style="stroke:none" class="sankey-node" x="614" y="385.73" width="10" height="38.27" fill="#3c5a87" stroke="#26262b" stroke-width="1" data-label="Losses" data-value="56.69" data-layer="2" data-id="Losses" data-role="bar" />
+<path d="M613.99 386.7 C617.97 385.14, 621.15 385.25, 623.1 385.14 M614.22 385.48 C615.82 385.55, 618.4 386.25, 623.76 385.34 M625.92 387.07 C624.5 397.83, 622.61 406.46, 622.96 422.01 M624.11 385.64 C624.53 394.32, 624.23 403.89, 623.08 423.66 M623.59 423.95 C620.9 424.09, 616.05 423.08, 614.14 423.17 M624.45 424.48 C620.84 423.84, 618.27 423.76, 614.19 423.7 M613.32 425.16 C613.17 415.73, 613.58 408.22, 613.95 387.3 M614.57 423.23 C613.92 412.7, 614.67 402.55, 614.83 384.84" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+<text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="40" y="67.18" class="sankey-node-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#1a1a1e"><tspan x="40" dy="-3.9000000000000012" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Coal</tspan><tspan x="40" dy="16.900000000000002" textLength="37.518" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">127.93</tspan></text>
+<text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="335" y="211.37" class="sankey-node-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#1a1a1e"><tspan x="335" dy="-3.9000000000000012" textLength="127.179" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Electricity generation</tspan><tspan x="335" dy="16.900000000000002" textLength="37.518" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">512.58</tspan></text>
+<text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="40" y="188.62" class="sankey-node-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#1a1a1e"><tspan x="40" dy="-3.9000000000000012" textLength="25.662" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gas</tspan><tspan x="40" dy="16.900000000000002" textLength="33.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">151.89</tspan></text>
+<text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="608" y="139.48" class="sankey-node-label" text-anchor="end" dominant-baseline="middle" font-size="13" font-weight="500" fill="#1a1a1e"><tspan x="608" dy="-3.9000000000000012" textLength="50.856" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Industry</tspan><tspan x="608" dy="16.900000000000002" textLength="37.518" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">342.16</tspan></text>
+<text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="608" y="320.35" class="sankey-node-label" text-anchor="end" dominant-baseline="middle" font-size="13" font-weight="500" fill="#1a1a1e"><tspan x="608" dy="-3.9000000000000012" textLength="41.964" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Homes</tspan><tspan x="608" dy="16.900000000000002" textLength="33.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">113.73</tspan></text>
+<text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="608" y="404.87" class="sankey-node-label" text-anchor="end" dominant-baseline="middle" font-size="13" font-weight="500" fill="#1a1a1e"><tspan x="608" dy="-3.9000000000000012" textLength="47.892" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Losses</tspan><tspan x="608" dy="16.900000000000002" textLength="34.554" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">56.69</tspan></text>
+</svg>
