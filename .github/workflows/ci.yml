@@ -61,6 +61,12 @@ jobs:
         if: ${{ matrix.shard == '1/3' }}
         run: bun run scripts/ci/published-version.ts
 
+      # The file manifest proves which files ship; publint and attw prove the
+      # shipped exports resolve and carry types for Node ESM and bundlers.
+      - name: Lint the packed package's exports and types
+        if: ${{ matrix.shard == '1/3' }}
+        run: bun run lint:package
+
       - name: Run test shard (coverage = under-tested finder, NOT an adequacy target)
         # The pass/fail of this suite is the gate. Coverage is merged from all
         # three shards only to locate under-tested files — it is deliberately
