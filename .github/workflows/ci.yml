@@ -28,8 +28,9 @@ jobs:
           # Keep CI on the known-good runtime used for local/release validation.
           # `latest` moved underneath this PR and made coverage runs flaky.
           # Every workflow pins the same Bun: at least engines.bun, and one
-          # toolchain so the payload delta's base and head builds compare like
-          # with like (bun-version.test.ts).
+          # toolchain per commit (bun-version.test.ts). The payload delta builds
+          # the base with the Bun the base pins (scripts/ci/base-bun.ts), so a
+          # PR that changes the pin shows the toolchain's effect.
           bun-version: 1.4.2
           no-cache: true
 
@@ -296,8 +297,9 @@ jobs:
           # Keep CI on the known-good runtime used for local/release validation.
           # `latest` moved underneath this PR and made coverage runs flaky.
           # Every workflow pins the same Bun: at least engines.bun, and one
-          # toolchain so the payload delta's base and head builds compare like
-          # with like (bun-version.test.ts).
+          # toolchain per commit (bun-version.test.ts). The payload delta builds
+          # the base with the Bun the base pins (scripts/ci/base-bun.ts), so a
+          # PR that changes the pin shows the toolchain's effect.
           bun-version: 1.4.2
           no-cache: true
 
@@ -362,11 +364,16 @@ jobs:
         run: |
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
           git worktree add --detach ../payload-base "$BASE_SHA"
-          (cd ../payload-base && bun install --frozen-lockfile && bun run build)
+          # Build the base with the Bun the base pins, so a PR that upgrades Bun
+          # shows the upgrade's effect instead of building both sides with it.
+          base_bun_bin=$(bun run scripts/ci/base-bun.ts --base ../payload-base)
+          base_path="${base_bun_bin:+$base_bun_bin:}$PATH"
+          head_bun=$(command -v bun)
+          (cd ../payload-base && PATH="$base_path" bun install --frozen-lockfile && PATH="$base_path" bun run build)
           bun run build
           bun run scripts/build/browser-lazy-report.ts --measure-only --json > head-lazy.json
           bun run scripts/build/browser-lazy-report.ts --root ../payload-base --measure-only --json > base-lazy.json
-          bun run scripts/site/website-payload-report.ts --root ../payload-base --report base-site.json
+          PATH="$base_path" "$head_bun" run scripts/site/website-payload-report.ts --root ../payload-base --report base-site.json
           allow=()
           if bun run scripts/ci/label-approval.ts check --label payload-growth-approved; then allow=(--allow-growth); fi
           bun run scripts/ci/payload-delta.ts --base-lazy base-lazy.json --head-lazy head-lazy.json \
