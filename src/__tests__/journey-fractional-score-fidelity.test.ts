@@ -1,28 +1,19 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { asJourney, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 const source = 'journey\n  section Work\n  First: 3: Me\n  Review: 3.5: Me\n  Last: 4: Me'
 
 describe('Journey fractional score fidelity', () => {
-  test('pinned Mermaid 11.16 assigns exact fractional task scores', () => {
-    const probe = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
-        process.stdout.write(JSON.stringify(diagram.db.getTasks().map(task => task.score)))
-      `],
-      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([3, 3.5, 4])
+  test('pinned Mermaid 11.16 assigns exact fractional task scores', async () => {
+    expect(await upstream.projectAll([source], diagram => diagram.db.getTasks().map((task: any) => task.score))).toEqual([[3, 3.5, 4]])
   })
 
   test('native and agent models retain 3.5 through serialize and mutation', () => {

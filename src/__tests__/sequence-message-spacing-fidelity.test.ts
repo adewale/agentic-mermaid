@@ -1,8 +1,12 @@
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
 import { costRelativeToLinearScan } from './helpers/complexity.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 const activationSource = `sequenceDiagram
   Alice-->>+Bob: Hello
@@ -28,31 +32,15 @@ function svgTexts(svg: string): string[] {
 }
 const drawnTexts = (source: string): string[] => svgTexts(renderMermaidSVG(source))
 
-test('pinned Mermaid 11.16 accepts spaced activation and central-connection messages', () => {
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const result = []
-    for (const source of ${JSON.stringify([activationSource, centralSource])}) {
-      const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-      result.push(diagram.db.getMessages()
-        .filter(message => message.to)
-        .map(message => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) })))
-    }
-    process.stdout.write(JSON.stringify(result))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
-    [
-      { from: 'Alice', to: 'Bob', text: 'Hello', central: false },
-      { from: 'Bob', to: 'Alice', text: 'Hi', central: false },
-    ],
-    [{ from: 'Alice', to: 'Bob', text: 'Hello', central: true }],
-  ])
+test('pinned Mermaid 11.16 accepts spaced activation and central-connection messages', async () => {
+  const messages = (source: string) => upstream.project(source, diagram => diagram.db.getMessages()
+    .filter((message: any) => message.to)
+    .map((message: any) => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) })))
+  expect(await messages(activationSource)).toEqual({ ok: true, value: [
+    { from: 'Alice', to: 'Bob', text: 'Hello', central: false },
+    { from: 'Bob', to: 'Alice', text: 'Hi', central: false },
+  ] })
+  expect(await messages(centralSource)).toEqual({ ok: true, value: [{ from: 'Alice', to: 'Bob', text: 'Hello', central: true }] })
 })
 
 test('spaced activation marker retains the second message and deactivation across routes', () => {

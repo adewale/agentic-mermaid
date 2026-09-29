@@ -1,9 +1,16 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { asClass, mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid } from '../agent/index.ts'
 import { collectActionRecords } from '../agent/analyze.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseAuthoredClassInteraction, parseClassDiagram, parseClassInteraction } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
+
+/** Class A's tooltip under pinned Mermaid for each source, which it must accept. */
+const upstreamTooltips = (sources: readonly string[]) => upstream.projectAll(sources, diagram => diagram.db.getClasses().get('A')?.tooltip)
 
 // The class parser's diagnostic for a link/click statement it refuses. Matching
 // it (not any throw) keeps a crash from passing as "diagnosed, not omitted".
@@ -15,26 +22,11 @@ const links = [
 ] as const
 
 describe('Class safe-link tooltip fidelity', () => {
-  test('pinned Mermaid 11.16 assigns both safe-link forms the same tooltip', () => {
-    const probe = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const result = []
-        for (const statement of ${JSON.stringify(links)}) {
-          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\nclass A\\n' + statement)
-          const cls = diagram.db.getClasses().get('A')
-          result.push({ link: cls?.link, tooltip: cls?.tooltip })
-        }
-        process.stdout.write(JSON.stringify(result))
-      `],
-      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
+  test('pinned Mermaid 11.16 assigns both safe-link forms the same tooltip', async () => {
+    expect(await upstream.projectAll(links.map(statement => `classDiagram\nclass A\n${statement}`), diagram => {
+      const cls = diagram.db.getClasses().get('A')
+      return { link: cls?.link, tooltip: cls?.tooltip }
+    })).toEqual([
       { link: 'https://example.com/docs', tooltip: 'API reference' },
       { link: 'https://example.com/docs', tooltip: 'API reference' },
     ])
@@ -117,21 +109,9 @@ describe('Class safe-link tooltip fidelity', () => {
     }
   })
 
-  test('pinned Mermaid ignores quoted text after a trailing comment', () => {
+  test('pinned Mermaid ignores quoted text after a trailing comment', async () => {
     const statement = 'link A "https://example.com" "one" %%bad "garbage"'
-    const probe = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\nclass A\\n' + ${JSON.stringify(statement)})
-        process.stdout.write(JSON.stringify(diagram.db.getClasses().get('A')?.tooltip))
-      `], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toBe('one')
+    expect(await upstreamTooltips([`classDiagram\nclass A\n${statement}`])).toEqual(['one'])
     expect(parseClassInteraction(statement)?.tooltip).toBe('one')
     const source = `classDiagram\nclass A\n${statement}`
     expect(renderMermaidSVG(source)).toContain('<title>one</title>')
@@ -155,33 +135,16 @@ describe('Class safe-link tooltip fidelity', () => {
     ])
   })
 
-  test('pinned Mermaid and local models preserve literal tooltip backslashes and tight token boundaries', () => {
+  test('pinned Mermaid and local models preserve literal tooltip backslashes and tight token boundaries', async () => {
     const statements = [
       String.raw`link A "https://example.com" "A\\B"`,
       'link A "https://example.com" "Tip"%%comment',
       'link A "https://example.com""Tip"',
       String.raw`link A "https://example.com" "Tip\"%%comment`,
     ]
-    const probe = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const result = []
-        for (const statement of ${JSON.stringify(statements)}) {
-          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\nclass A\\n' + statement)
-          result.push(diagram.db.getClasses().get('A')?.tooltip)
-        }
-        process.stdout.write(JSON.stringify(result))
-      `],
-      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(probe.exitCode).toBe(0)
-    const upstream = JSON.parse(new TextDecoder().decode(probe.stdout)) as string[]
-    expect(statements.map(statement => parseClassInteraction(statement)?.tooltip)).toEqual(upstream)
-    expect(upstream).toEqual([String.raw`A\\B`, 'Tip', 'Tip', 'Tip\\'])
+    const tooltips = await upstreamTooltips(statements.map(statement => `classDiagram\nclass A\n${statement}`))
+    expect(statements.map(statement => parseClassInteraction(statement)?.tooltip)).toEqual(tooltips)
+    expect(tooltips).toEqual([String.raw`A\\B`, 'Tip', 'Tip', 'Tip\\'])
     const parsed = parseRegisteredMermaid(`classDiagram\nclass A\n${statements[0]}`)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
@@ -213,7 +176,7 @@ describe('Class safe-link tooltip fidelity', () => {
     }))
   })
 
-  test('entity-quoted text inside a tooltip stays coherent across the structured and rendered surfaces', () => {
+  test('entity-quoted text inside a tooltip stays coherent across the structured and rendered surfaces', async () => {
     const statement = 'link A "https://example.com" "A &quot;quote&quot;"'
     const source = `classDiagram\nclass A\n${statement}`
     const parsed = parseRegisteredMermaid(source)
@@ -241,24 +204,7 @@ describe('Class safe-link tooltip fidelity', () => {
     if (percentParsed.ok) expect(asClass(percentParsed.value)?.body.classes[0]?.tooltip).toBe('A " %% text " after')
     expect(renderMermaidWithActions(percentEntity, { format: 'svg' }).actionSurface.actions[0]?.tooltip).toBe('A " %% text " after')
     expect(renderMermaidWithActions(percentEntity, { format: 'ascii', options: { colorMode: 'none' } }).actionSurface.actions[0]?.tooltip).toBe('A " %% text " after')
-    const upstream = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const sources = ${JSON.stringify([spacedEntity, percentEntity])}
-        const tooltips = []
-        for (const source of sources) {
-          const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-          tooltips.push(diagram.db.getClasses().get('A')?.tooltip)
-        }
-        process.stdout.write(JSON.stringify(tooltips))
-      `], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(upstream.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(upstream.stdout))).toEqual([
+    expect(await upstreamTooltips([spacedEntity, percentEntity])).toEqual([
       'A &quot; hello &quot;!', 'A &quot; %% text &quot; after',
     ])
   })

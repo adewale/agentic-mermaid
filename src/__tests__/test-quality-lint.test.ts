@@ -69,12 +69,33 @@ const RULES: readonly LintRule[] = [
       return new RegExp(`expect\\(\\s*(?:typeof\\s+${binding}\\s*\\)\\s*\\.\\s*toBe\\(\\s*['"]\\w+['"]\\s*\\)|${binding}\\s*\\)\\s*\\.\\s*toBeDefined\\(\\s*\\))`)
     },
   },
+  {
+    // A child process that imports upstream Mermaid for one probe: a cold start
+    // the test waits on synchronously, and a child whose exit is lost holds the
+    // test until its timeout with no output. Ask the one long-lived worker
+    // instead: startUpstreamMermaid() in helpers/upstream-mermaid.ts, whose
+    // project() runs a projection of the parsed diagram.
+    name: 'cold upstream Mermaid probe',
+    re: /\bimport\(\s*['"]mermaid['"]\s*\)/,
+  },
 ]
 
 // Deliberate exceptions to a rule, each with its reason. An entry matches a
 // finding by file, rule and a fragment of the offending line, and an entry that
 // no longer matches anything fails the lint, so the list cannot rot.
 const ALLOWED: readonly AllowEntry[] = [
+  {
+    file: 'src/__tests__/helpers/upstream-mermaid.ts',
+    rule: 'cold upstream Mermaid probe',
+    fragment: 'const { default: mermaid } = await',
+    reason: 'the shared worker itself: the one place a child imports upstream Mermaid',
+  },
+  {
+    file: 'src/__tests__/journey-extension-receipt.ts',
+    rule: 'cold upstream Mermaid probe',
+    fragment: 'const { default: mermaid } = await',
+    reason: 'the fidelity artifact generator builds this receipt synchronously, so it cannot await the worker',
+  },
   {
     file: 'src/__tests__/website-browser-a11y.test.ts',
     rule: 'ad-hoc sleep',
@@ -113,7 +134,7 @@ function findTestQualitySmells() {
 }
 
 describe('test-quality lint (testing-best-practices guardrails)', () => {
-  test('tests do not carry truthy assertions, fixed waits, ad-hoc sleeps or type tautologies', () => {
+  test('tests do not carry truthy assertions, fixed waits, ad-hoc sleeps, type tautologies or cold Mermaid probes', () => {
     expect(unexcused(findTestQualitySmells(), ALLOWED)).toEqual([])
   })
 
@@ -151,6 +172,9 @@ describe('test-quality lint (testing-best-practices guardrails)', () => {
       [otherTest, "import type { Verify } from '../agent/index.ts'\nconst verify = load()\nexpect(typeof verify).toBe" + "('function')", []],
       // Prose in a comment is not an assertion.
       [otherTest, "import { verify } from 'x'\n// expect(typeof verify).toBe" + "('function')", []],
+      [otherTest, "const { default: mermaid } = await im" + "port('mermaid')", ['cold upstream Mermaid probe']],
+      // An in-process import starts no child.
+      [otherTest, "import mermaid from 'merm" + "aid'", []],
     ]
     for (const [file, example, rules] of examples) {
       const findings = lintSource(file, example, RULES)

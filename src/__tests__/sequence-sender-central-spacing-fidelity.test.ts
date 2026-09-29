@@ -1,8 +1,12 @@
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
 import { costRelativeToLinearScan } from './helpers/complexity.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 const source = `sequenceDiagram
   participant Alice
@@ -17,24 +21,13 @@ function texts(svg: string): string[] {
     .filter(Boolean)
 }
 
-test('pinned Mermaid 11.16 treats sender-spaced central markers as messages', () => {
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
-    process.stdout.write(JSON.stringify(diagram.db.getMessages()
-      .filter(message => message.to)
-      .map(message => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) }))))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
+test('pinned Mermaid 11.16 treats sender-spaced central markers as messages', async () => {
+  expect(await upstream.project(source, diagram => diagram.db.getMessages()
+    .filter((message: any) => message.to)
+    .map((message: any) => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) })))).toEqual({ ok: true, value: [
     { from: 'Alice', to: 'Bob', text: 'Reverse', central: true },
     { from: 'Alice', to: 'Bob', text: 'Dual', central: true },
-  ])
+  ] })
 })
 
 test('native and agent retain sender-spaced central messages and exactly two actors', () => {
@@ -69,7 +62,7 @@ test('spaced central-start parsing stays bounded on malformed long tails', () =>
   expect(costRelativeToLinearScan(line, () => parseSequenceMessageLine(line))).toBeLessThan(100)
 })
 
-test('sender-spaced central fallback does not accept forms Mermaid rejects', () => {
+test('sender-spaced central fallback does not accept forms Mermaid rejects', async () => {
   const rejected = [
     'Alice ()->>+Bob: Invalid activation',
     'Alice ()->>-Bob: Invalid deactivation',
@@ -91,89 +84,31 @@ test('sender-spaced central fallback does not accept forms Mermaid rejects', () 
     'Alice ()->> participant: Invalid directive receiver',
     'Alice ()->> accDescr: Invalid accessibility receiver',
   ]
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const lines = ${JSON.stringify(rejected)}
-    const accepted = []
-    for (const line of lines) {
-      try {
-        await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  participant Alice\\n  participant Bob\\n  ' + line)
-        accepted.push(true)
-      } catch {
-        accepted.push(false)
-      }
-    }
-    process.stdout.write(JSON.stringify(accepted))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(rejected.map(() => false))
+  expect(await Promise.all(rejected.map(line => upstream.accepts(`sequenceDiagram\n  participant Alice\n  participant Bob\n  ${line}`))))
+    .toEqual(rejected.map(() => false))
   for (const line of rejected) expect(parseSequenceMessageLine(line)).toBeNull()
 })
 
-test('a title-like line is not promoted to a central message', () => {
+test('a title-like line is not promoted to a central message', async () => {
   const line = 'title ()->> Bob: A title, not a message'
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const diagram = await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  ' + ${JSON.stringify(line)})
-    process.stdout.write(JSON.stringify(diagram.db.getMessages().filter(message => message.to).length))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toBe(0)
+  expect(await upstream.project(`sequenceDiagram\n  ${line}`, diagram => diagram.db.getMessages().filter((message: any) => message.to).length))
+    .toEqual({ ok: true, value: 0 })
   expect(parseSequenceMessageLine(line)).toBeNull()
 })
 
-test('ambiguous punctuation senders do not gain a false central-connection claim', () => {
+const centralMessages = (senders: readonly string[]) => upstream.projectAll(senders.map(sender => `sequenceDiagram\n  ${sender} ()->> Bob: x`), diagram => {
+  const message = diagram.db.getMessages().find((candidate: any) => candidate.to)
+  return { from: message.from, central: Boolean(message.centralConnection) }
+})
+
+test('ambiguous punctuation senders do not gain a false central-connection claim', async () => {
   const senders = ['A-B', 'A/B', 'A(B)']
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const senders = ${JSON.stringify(senders)}
-    const messages = []
-    for (const sender of senders) {
-      const diagram = await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  ' + sender + ' ()->> Bob: x')
-      const message = diagram.db.getMessages().find(candidate => candidate.to)
-      messages.push({ from: message.from, central: Boolean(message.centralConnection) })
-    }
-    process.stdout.write(JSON.stringify(messages))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(senders.map(from => ({ from: `${from} ()`, central: false })))
+  expect(await centralMessages(senders)).toEqual(senders.map(from => ({ from: `${from} ()`, central: false })))
   for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toBeNull()
 })
 
-test('non-numeric punctuation and alphanumeric senders retain upstream central meaning', () => {
+test('non-numeric punctuation and alphanumeric senders retain upstream central meaning', async () => {
   const senders = ['.', '1.', '..', '1..', '1A', 'A_B', 'é']
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const senders = ${JSON.stringify(senders)}
-    const messages = []
-    for (const sender of senders) {
-      const diagram = await mermaid.mermaidAPI.getDiagramFromText('sequenceDiagram\\n  ' + sender + ' ()->> Bob: x')
-      const message = diagram.db.getMessages().find(candidate => candidate.to)
-      messages.push({ from: message.from, central: Boolean(message.centralConnection) })
-    }
-    process.stdout.write(JSON.stringify(messages))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(senders.map(from => ({ from, central: true })))
+  expect(await centralMessages(senders)).toEqual(senders.map(from => ({ from, central: true })))
   for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toMatchObject({ from: sender, centralStart: true })
 })
