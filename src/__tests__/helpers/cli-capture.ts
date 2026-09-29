@@ -7,7 +7,7 @@ export interface CapturedCli {
   err: string
 }
 
-export function captureCli(run: () => number): CapturedCli {
+function intercept(): { result: (code: number) => CapturedCli; restore: () => void } {
   const out: string[] = []
   const err: string[] = []
   const decoder = new TextDecoder()
@@ -16,11 +16,30 @@ export function captureCli(run: () => number): CapturedCli {
   const originalErr = process.stderr.write
   process.stdout.write = ((chunk: unknown) => { out.push(text(chunk)); return true }) as typeof process.stdout.write
   process.stderr.write = ((chunk: unknown) => { err.push(text(chunk)); return true }) as typeof process.stderr.write
+  return {
+    result: code => ({ code, out: out.join(''), err: err.join('') }),
+    restore: () => {
+      process.stdout.write = originalOut
+      process.stderr.write = originalErr
+    },
+  }
+}
+
+export function captureCli(run: () => number): CapturedCli {
+  const capture = intercept()
   try {
-    const code = run()
-    return { code, out: out.join(''), err: err.join('') }
+    return capture.result(run())
   } finally {
-    process.stdout.write = originalOut
-    process.stderr.write = originalErr
+    capture.restore()
+  }
+}
+
+/** The same capture around an async entry point (e.g. runAmCli). */
+export async function captureCliAsync(run: () => Promise<number>): Promise<CapturedCli> {
+  const capture = intercept()
+  try {
+    return capture.result(await run())
+  } finally {
+    capture.restore()
   }
 }

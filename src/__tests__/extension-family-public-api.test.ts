@@ -10,6 +10,7 @@ import { createTracingMermaid } from '../mcp/facade.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { captureCli } from './helpers/cli-capture.ts'
 
 const EVIDENCE = 'src/__tests__/extension-family-public-api.test.ts'
 
@@ -713,18 +714,9 @@ descriptorUpgradeDiagram
         example: descriptor.example,
       })
 
-      const chunks: string[] = []
-      const originalWrite = process.stdout.write
-      process.stdout.write = ((chunk: unknown) => {
-        chunks.push(String(chunk))
-        return true
-      }) as typeof process.stdout.write
-      try {
-        expect(runCli(['parse', path])).toBe(0)
-      } finally {
-        process.stdout.write = originalWrite
-      }
-      expect(JSON.parse(chunks.join(''))).toMatchObject({
+      const parsed = captureCli(() => runCli(['parse', path]))
+      expect(parsed.code).toBe(0)
+      expect(JSON.parse(parsed.out)).toMatchObject({
         kind: descriptor.id,
         body: { kind: 'extension', family: descriptor.id, source },
       })

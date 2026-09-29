@@ -25,6 +25,7 @@ import {
   SECTION_A_TRANSPORT_FIXTURE,
   sectionATransportReceiptProjection,
 } from './helpers/section-a-transport-fixture.ts'
+import { captureCli } from './helpers/cli-capture.ts'
 
 const { source: SOURCE, options: OPTIONS } = SECTION_A_TRANSPORT_FIXTURE
 
@@ -48,17 +49,6 @@ function hostedContext(): HostedMcpContext {
       const rendered = renderMermaidPNGWithReceipt(source, options)
       return { ...rendered, warnings: [], runtime: PNG_WASM_RUNTIME }
     },
-  }
-}
-
-function captureStdout(run: () => number): { code: number; stdout: string } {
-  const chunks: string[] = []
-  const original = process.stdout.write
-  process.stdout.write = ((chunk: unknown) => { chunks.push(String(chunk)); return true }) as typeof process.stdout.write
-  try {
-    return { code: run(), stdout: chunks.join('') }
-  } finally {
-    process.stdout.write = original
   }
 }
 
@@ -99,13 +89,13 @@ describe('Section A transport and backend parity receipts', () => {
     const dir = mkdtempSync(join(tmpdir(), 'am-section-a-transport-'))
     const input = join(dir, 'sentinel.mmd')
     writeFileSync(input, SOURCE)
-    const cliRun = captureStdout(() => runCli([
+    const cliRun = captureCli(() => runCli([
       'render', input,
       '--format', 'svg',
       '--options', JSON.stringify(OPTIONS),
       '--json',
     ]))
-    const cli = JSON.parse(cliRun.stdout) as { svg: string; receipt: typeof library.receipt }
+    const cli = JSON.parse(cliRun.out) as { svg: string; receipt: typeof library.receipt }
     const local = payloadOf(await handleRequest(call('execute', {
       code: `return mermaid.renderMermaidSVGWithReceipt(${JSON.stringify(SOURCE)}, ${JSON.stringify(OPTIONS)})`,
     })))
@@ -296,7 +286,7 @@ architecture-beta
     const input = join(dir, 'diagram.mmd')
     const output = join(dir, 'diagram.png')
     writeFileSync(input, SOURCE)
-    const cli = captureStdout(() => runCli([
+    const cli = captureCli(() => runCli([
       'render', input,
       '--format', 'png',
       '--output', output,
@@ -305,7 +295,7 @@ architecture-beta
       '--fit-width', '64',
       '--json',
     ]))
-    const payload = JSON.parse(cli.stdout) as {
+    const payload = JSON.parse(cli.out) as {
       ok: boolean
       receipt: typeof library.receipt
       runtime: typeof PNG_NAPI_RUNTIME

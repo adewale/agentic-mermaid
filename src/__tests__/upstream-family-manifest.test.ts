@@ -24,6 +24,7 @@ import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { canonicalExtensionId, createExtensionIdentity, ExtensionCollisionError } from '../shared/extension-identity.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { runCli } from '../cli/index.ts'
+import { captureCli } from './helpers/cli-capture.ts'
 import {
   UPSTREAM_MERMAID_MANIFEST,
   canonicalUpstreamInventory,
@@ -426,21 +427,18 @@ describe('synthetic family registration', () => {
       const cliDir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-extension-'))
       const cliFile = join(cliDir, 'future.mmd')
       writeFileSync(cliFile, 'futureDiagram\n  A -> B')
-      const chunks: string[] = []
-      const originalWrite = process.stdout.write
-      process.stdout.write = ((chunk: unknown) => { chunks.push(String(chunk)); return true }) as typeof process.stdout.write
       try {
-        expect(runCli(['render', cliFile, '--format', 'svg'])).toBe(0)
-        expect(chunks.join('')).toContain('>future</text>')
-        chunks.length = 0
-        expect(runCli(['render', cliFile, '--format', 'layout'])).toBe(0)
-        expect(JSON.parse(chunks.join(''))).toMatchObject({
+        const svg = captureCli(() => runCli(['render', cliFile, '--format', 'svg']))
+        expect(svg.code).toBe(0)
+        expect(svg.out).toContain('>future</text>')
+        const layout = captureCli(() => runCli(['render', cliFile, '--format', 'layout']))
+        expect(layout.code).toBe(0)
+        expect(JSON.parse(layout.out)).toMatchObject({
           version: 1,
           bounds: { w: 80, h: 24 },
           receipt: { output: 'layout' },
         })
       } finally {
-        process.stdout.write = originalWrite
         rmSync(cliDir, { recursive: true, force: true })
       }
       expect(projectPositionedView(descriptor.id, { width: 80, height: 24 })).toEqual({

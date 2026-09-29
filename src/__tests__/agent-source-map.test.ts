@@ -626,22 +626,16 @@ A -->|lab| B`
       { length: count },
       (_, index) => `N${index}`,
     ).join('\n')}`
-    const parseTimed = (count: number) => {
-      const source = sourceFor(count)
-      const started = performance.now()
-      const parsed = parseMermaid(source)
-      return { source, parsed, elapsed: performance.now() - started }
+    const source = sourceFor(8_000)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      const last = parsed.value.source.spans!.nodes.get('N7999')!
+      expect(last.start).toEqual({ offset: source.lastIndexOf('N7999'), line: 8_001, col: 1 })
     }
-
-    const smaller = parseTimed(1_000)
-    const larger = parseTimed(8_000)
-    expect(smaller.parsed.ok).toBe(true)
-    expect(larger.parsed.ok).toBe(true)
-    expect(larger.elapsed).toBeLessThan(smaller.elapsed * 12 + 1_000)
-    if (larger.parsed.ok) {
-      const last = larger.parsed.value.source.spans!.nodes.get('N7999')!
-      expect(last.start).toEqual({ offset: larger.source.lastIndexOf('N7999'), line: 8_001, col: 1 })
-    }
+    expectNearLinearGrowth('mapped objects', size => {
+      expect(parseMermaid(sourceFor(size)).ok).toBe(true)
+    }, 8_000)
   })
 
   test('keeps same-line and repeated-node chains within a linear-time envelope', () => {

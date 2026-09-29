@@ -14,6 +14,7 @@ import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { runAmCli } from '../cli/run-entrypoint.ts'
 import { MCP_CLI_HELP, MCP_FLAG_SPECS, parseMcpCliOptions } from '../mcp/mcp-cli.ts'
 import { isCliRenderFormat } from '../render-contract.ts'
+import { captureCli, captureCliAsync } from './helpers/cli-capture.ts'
 import { handMaintainedText, maintainedMarkdownFiles, REPO_ROOT } from './helpers/maintained-docs.ts'
 
 // ---------------------------------------------------------------------------
@@ -171,31 +172,10 @@ function invocations(snippet: string): Invocation[] {
 // Checking against the CLI's own authorities
 // ---------------------------------------------------------------------------
 
-/** Swap process.stdout/stderr writes for a buffer until `restore()`. */
-function captureOutput(): { text: () => string; restore: () => void } {
-  const chunks: string[] = []
-  const { write: out } = process.stdout
-  const { write: err } = process.stderr
-  const sink = ((chunk: string | Uint8Array) => {
-    chunks.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk))
-    return true
-  }) as typeof process.stdout.write
-  process.stdout.write = sink
-  process.stderr.write = sink
-  return { text: () => chunks.join(''), restore: () => { process.stdout.write = out; process.stderr.write = err } }
-}
-
 const cliVerdicts = new Map<string, boolean>()
 function cliAccepts(argv: string[]): boolean {
   const key = argv.join('\0')
-  if (!cliVerdicts.has(key)) {
-    const capture = captureOutput()
-    try {
-      cliVerdicts.set(key, runCli(argv) === 0)
-    } finally {
-      capture.restore()
-    }
-  }
+  if (!cliVerdicts.has(key)) cliVerdicts.set(key, captureCli(() => runCli(argv)).code === 0)
   return cliVerdicts.get(key)!
 }
 
@@ -336,14 +316,7 @@ describe('doc CLI invocation extractor', () => {
   })
 
   test('`am mcp …` reaches the MCP CLI, as the extractor assumes', async () => {
-    const capture = captureOutput()
-    let code: number
-    try {
-      code = await runAmCli(['mcp', '--help'])
-    } finally {
-      capture.restore()
-    }
-    expect({ code, output: capture.text() }).toEqual({ code: 0, output: MCP_CLI_HELP })
+    expect(await captureCliAsync(() => runAmCli(['mcp', '--help']))).toEqual({ code: 0, out: MCP_CLI_HELP, err: '' })
   })
 })
 
