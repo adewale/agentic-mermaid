@@ -7,11 +7,10 @@
 // newest deployable main commit and fails once main has carried undeployed
 // commits for longer than the allowed drift.
 //
-// The decision is a pure function, unit-tested in
-// src/__tests__/production-freshness.test.ts. The CLI wrapper reads the live
-// build stamp (a read-only GET) and the git facts, then maps the verdict to a
-// GitHub annotation and exit code. .github/workflows/production-freshness.yml
-// runs it on a schedule.
+// The decision is a pure function. The CLI wrapper reads the live build stamp
+// (a read-only GET) and the git facts, then maps the verdict to a GitHub
+// annotation and exit code. .github/workflows/production-freshness.yml runs it
+// on a schedule.
 
 import { execFileSync } from 'node:child_process'
 
