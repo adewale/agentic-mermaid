@@ -203,7 +203,7 @@ Every op round-trips: serialize → render-parse reproduces the edit (P3;
   upstream Mermaid, including literal `*`/`~`, boundary whitespace, `;`, `"`,
   `\` and `'` in labels, serialize → re-parse round-trip, and upstream reading
   our serialized output as the same diagram. The generator skips sources
-  upstream's preprocessor rewrites (see BUG-18 in TODO.md).
+  upstream's preprocessor rewrites (BUG-18 in [#363](https://github.com/adewale/agentic-mermaid/issues/363)).
 - `flowchart-markdown-strings.test.ts` — styled bold/italic runs and metrics,
   balanced formatting across wraps, explicit breaks, default auto-wrap,
   verbatim opaque round-trip, and the exact #102 sample.

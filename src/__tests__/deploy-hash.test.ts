@@ -14,9 +14,11 @@ ensureWebsiteBuilt()
 const bytes = (s: string) => new TextEncoder().encode(s)
 
 describe('computeDeployVersion', () => {
-  test('is deterministic for identical inputs', () => {
-    const parts = [bytes('worker'), bytes('harness'), bytes('wasm')]
-    expect(computeDeployVersion('0.1.0', parts)).toBe(computeDeployVersion('0.1.0', parts))
+  // The only guard for the "stable otherwise" half of the contract above: the
+  // change-detection tests below would still pass if the hash were random.
+  test('is stable for equal inputs built separately', () => {
+    const parts = () => [bytes('worker'), bytes('harness'), bytes('wasm')]
+    expect(computeDeployVersion('0.1.0', parts())).toBe(computeDeployVersion('0.1.0', parts()))
   })
 
   test('changes when any single part changes — every part is covered', () => {

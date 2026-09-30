@@ -1,30 +1,20 @@
 // Loop 13 M4 (#959) + M5 (#930): multi-input rendering + watch re-render step.
 
 import { describe, test, expect } from 'bun:test'
-import { mkdtempSync, readFileSync, renameSync, rmSync, watch as fsWatch, writeFileSync } from 'node:fs'
+import { readFileSync, renameSync, watch as fsWatch, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { runCli, renderFileOnce, watchPathForChanges } from '../cli/index.ts'
+import { captureCli as capture } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-function tmp(content: string): string {
-  const p = join(tmpdir(), `mi-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`)
-  writeFileSync(p, content)
-  return p
-}
-function capture(fn: () => number): { code: number; out: string } {
-  const chunks: string[] = []
-  const orig = process.stdout.write.bind(process.stdout)
-  process.stdout.write = ((s: string) => { chunks.push(String(s)); return true }) as typeof process.stdout.write
-  let code = -1
-  try { code = fn() } finally { process.stdout.write = orig }
-  return { code, out: chunks.join('') }
-}
+const temp = useTempDirs('am-multi-input-')
+const tmp = (content: string): string => temp.file('input.mmd', content)
 
 describe('#930 pathname watch lifecycle', () => {
   test('observes atomic rename-over saves and subsequent writes to the replacement inode', async () => {
     // Watch an owned directory, not the shared OS /tmp root: Bun's Linux
     // fs.watch implementation may inspect unrelated protected service dirs.
-    const dir = mkdtempSync(join(tmpdir(), 'am-watch-'))
+    const dir = temp.dir('am-watch-')
     const input = join(dir, 'input.mmd')
     writeFileSync(input, 'flowchart TD\n A --> B')
     const replacement = `${input}.replacement`
@@ -57,12 +47,11 @@ describe('#930 pathname watch lifecycle', () => {
       expect(observed).toEqual(['flowchart TD\n A --> C', 'flowchart TD\n A --> D'])
     } finally {
       handle.close()
-      rmSync(dir, { recursive: true, force: true })
     }
   })
 
   test('metadata polling observes changes when the host event source stays silent', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-watch-poll-'))
+    const dir = temp.dir('am-watch-poll-')
     const input = join(dir, 'input.mmd')
     writeFileSync(input, 'flowchart TD\n A --> B')
     const silentWatch = (() => ({ close() {} })) as unknown as typeof fsWatch
@@ -77,7 +66,6 @@ describe('#930 pathname watch lifecycle', () => {
       await changed
     } finally {
       handle.close()
-      rmSync(dir, { recursive: true, force: true })
     }
   })
 })

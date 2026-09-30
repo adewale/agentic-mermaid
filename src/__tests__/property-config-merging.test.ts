@@ -66,20 +66,6 @@ function deepMapArb(depth: number): fc.Arbitrary<MermaidFrontmatterMap> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Collect all leaf values from a frontmatter map recursively. */
-function collectLeaves(map: MermaidFrontmatterMap): MermaidConfigValue[] {
-  const leaves: MermaidConfigValue[] = []
-  for (const value of Object.values(map)) {
-    if (value === undefined) continue
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      leaves.push(...collectLeaves(value))
-    } else {
-      leaves.push(value)
-    }
-  }
-  return leaves
-}
-
 /** Check that a value is a valid scalar (string, number, boolean, null). */
 function isScalar(value: unknown): value is MermaidFrontmatterScalar {
   return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
@@ -322,7 +308,7 @@ describe('property-based config merging', () => {
     )
   })
 
-  it('config round-trip stability: normalizeMermaidSource called twice produces identical config keys', () => {
+  it('config round-trip stability: re-normalizing the stripped text keeps the body and drops the frontmatter config', () => {
     const simpleConfigArb = fc.record({
       theme: fc.option(fc.constantFrom('dark', 'forest', 'neutral'), { nil: undefined }),
       fontFamily: fc.option(fc.constantFrom('Fira Code', 'Menlo'), { nil: undefined }),
@@ -345,19 +331,14 @@ describe('property-based config merging', () => {
         // Second call uses the output text (frontmatter stripped)
         const second = normalizeMermaidSource(first.text)
 
-        // The second call has no frontmatter, so its config should be empty/default
-        // The key invariant: the second call should not crash and should produce
-        // a valid config. Config keys from the first call that come from frontmatter
-        // should be absent in the second (since frontmatter was stripped).
-        const firstKeys = Object.keys(first.config).filter(k => first.config[k] !== undefined).sort()
-        const secondKeys = Object.keys(second.config).filter(k => second.config[k] !== undefined).sort()
+        // The first call reads exactly the generated frontmatter keys.
+        const definedKeys = (config: Record<string, unknown>) => Object.keys(config).filter(k => config[k] !== undefined).sort()
+        const generatedKeys = Object.keys(configInput).filter(k => configInput[k as keyof typeof configInput] !== undefined).sort()
+        expect(definedKeys(first.config)).toEqual(generatedKeys)
 
-        // Second config should be a subset (empty or subset) since no frontmatter
-        for (const key of secondKeys) {
-          // Any key in second must also be structurally valid
-          const val = second.config[key]
-          expect(val !== undefined).toBe(true)
-        }
+        // The stripped text carries no frontmatter, so its config is exactly
+        // that of the bare body: no frontmatter key survives or leaks.
+        expect(definedKeys(second.config)).toEqual(definedKeys(normalizeMermaidSource('graph TD\nA --> B').config))
 
         // Body lines must be identical between first and second call
         expect(second.lines).toEqual(first.lines)
@@ -384,12 +365,11 @@ describe('property-based config merging', () => {
     )
   })
 
-  it('adversarial YAML: deeply nested maps (5+ levels) produce config without crashing', () => {
+  it('adversarial YAML: deeply nested maps (5+ levels) merge onto an empty base unchanged', () => {
     fc.assert(
       fc.property(deepMapArb(6), (map) => {
-        // Should not throw
         const merged = mergeFrontmatterMaps({}, map)
-        expect(allLeavesAreFiniteScalars(merged)).toBe(true)
+        expect(mapsEqual(merged, map)).toBe(true)
       }),
       { numRuns: NUM_RUNS },
     )
@@ -490,22 +470,6 @@ describe('property-based config merging', () => {
           }
         },
       ),
-      { numRuns: NUM_RUNS },
-    )
-  })
-
-  it('adversarial YAML: deeply nested maps only have finite/string values at leaf positions', () => {
-    fc.assert(
-      fc.property(deepMapArb(7), (map) => {
-        const leaves = collectLeaves(map)
-        for (const leaf of leaves) {
-          if (typeof leaf === 'number') {
-            expect(Number.isFinite(leaf)).toBe(true)
-          } else if (leaf !== null) {
-            expect(['string', 'boolean'].includes(typeof leaf)).toBe(true)
-          }
-        }
-      }),
       { numRuns: NUM_RUNS },
     )
   })

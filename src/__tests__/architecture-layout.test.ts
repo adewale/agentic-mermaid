@@ -116,59 +116,96 @@ describe('layoutArchitectureDiagram', () => {
     expect(group.width).toBeGreaterThanOrEqual(ARCHITECTURE_GROUP_ICON_TITLE_OFFSET + titleWidth)
   })
 
+  // Random multi-group diagrams: 1-2 cloud groups of 2-3 services, optional
+  // junctions, and up to five side-anchored edges between services.
+  const sides = ['L', 'R', 'T', 'B']
+  const groupedArchitectureArb = fc.record({
+    groups: fc.integer({ min: 1, max: 2 }),
+    svcPerGroup: fc.array(fc.integer({ min: 2, max: 3 }), { minLength: 2, maxLength: 2 }),
+    junctions: fc.array(fc.boolean(), { minLength: 2, maxLength: 2 }),
+    edges: fc.array(fc.record({ a: fc.nat(5), b: fc.nat(5), sa: fc.nat(3), sb: fc.nat(3) }), { maxLength: 5 }),
+  }).map(({ groups, svcPerGroup, junctions, edges }) => {
+    const lines = ['architecture-beta']
+    const svc: string[] = []
+    for (let g = 0; g < groups; g++) {
+      lines.push(`  group g${g}(cloud)[Group ${g}]`)
+      for (let s = 0; s < svcPerGroup[g]!; s++) {
+        const id = `s${g}_${s}`
+        svc.push(id)
+        lines.push(`  service ${id}(server)[Svc ${id}] in g${g}`)
+      }
+      if (junctions[g]) lines.push(`  junction j${g} in g${g}`)
+    }
+    for (const e of edges) {
+      const A = svc[e.a % svc.length]!, B = svc[e.b % svc.length]!
+      if (A !== B) lines.push(`  ${A}:${sides[e.sa]} --> ${sides[e.sb]}:${B}`)
+    }
+    return lines.join('\n')
+  })
+
+
+  // Each invariant is reported by name and element, so a failing run says which
+  // one broke instead of returning a bare false.
+  const GROUP_EPS = 0.5
+  function groupedLayoutViolations(source: string): string[] {
+    const result = layout(source)
+    const violations: string[] = []
+    const groupById = new Map(result.groups.map(g => [g.id, g]))
+    for (const n of [...result.services, ...result.junctions]) {
+      const g = n.parentId ? groupById.get(n.parentId) : undefined
+      if (g && !(n.x >= g.x - GROUP_EPS && n.y >= g.y - GROUP_EPS
+        && n.x + n.width <= g.x + g.width + GROUP_EPS && n.y + n.height <= g.y + g.height + GROUP_EPS)) {
+        violations.push(`containment: ${n.id} escapes ${g.id}`)
+      }
+    }
+    result.services.forEach((service, index) => {
+      for (const other of result.services.slice(index + 1)) {
+        if (boxesOverlap(service, other)) violations.push(`card overlap: ${service.id} / ${other.id}`)
+      }
+    })
+    const rootGroups = result.groups.filter(group => !group.parentId)
+    rootGroups.forEach((group, index) => {
+      for (const other of rootGroups.slice(index + 1)) {
+        if (boxesOverlap(group, other)) violations.push(`root group overlap: ${group.id} / ${other.id}`)
+      }
+    })
+    for (const edge of result.edges) {
+      const id = `${edge.source.id}->${edge.target.id}`
+      if (!edge.obstacleFree) violations.push(`router reports obstacle: ${id}`)
+      for (const service of result.services) {
+        if (service.id !== edge.source.id && service.id !== edge.target.id && routeCrossesBoxInterior(edge.points, service)) {
+          violations.push(`route through card: ${id} crosses ${service.id}`)
+        }
+      }
+    }
+    return violations
+  }
+
   // Property: containment is a structural invariant, not a property of one
   // example — for ANY architecture, every service/junction declared `in` a group
-  // must lie within that group's frame. Generates random multi-group diagrams.
-  it('every grouped service/junction stays inside its parent frame (property)', () => {
-    const sides = ['L', 'R', 'T', 'B']
-    const arb = fc.record({
-      groups: fc.integer({ min: 1, max: 2 }),
-      svcPerGroup: fc.array(fc.integer({ min: 2, max: 3 }), { minLength: 2, maxLength: 2 }),
-      junctions: fc.array(fc.boolean(), { minLength: 2, maxLength: 2 }),
-      edges: fc.array(fc.record({ a: fc.nat(5), b: fc.nat(5), sa: fc.nat(3), sb: fc.nat(3) }), { maxLength: 5 }),
-    }).map(({ groups, svcPerGroup, junctions, edges }) => {
-      const lines = ['architecture-beta']
-      const svc: string[] = []
-      for (let g = 0; g < groups; g++) {
-        lines.push(`  group g${g}(cloud)[Group ${g}]`)
-        for (let s = 0; s < svcPerGroup[g]!; s++) {
-          const id = `s${g}_${s}`
-          svc.push(id)
-          lines.push(`  service ${id}(server)[Svc ${id}] in g${g}`)
-        }
-        if (junctions[g]) lines.push(`  junction j${g} in g${g}`)
-      }
-      for (const e of edges) {
-        const A = svc[e.a % svc.length]!, B = svc[e.b % svc.length]!
-        if (A !== B) lines.push(`  ${A}:${sides[e.sa]} --> ${sides[e.sb]}:${B}`)
-      }
-      return lines.join('\n')
-    })
-
-    const EPS = 0.5
+  // must lie within that group's frame, cards and root groups never overlap, and
+  // edges route clear of every other card.
+  it('grouped layouts keep containment, card/group separation, and card-clear routes (property)', () => {
     fc.assert(
-      fc.property(arb, source => {
-        const result = layout(source)
-        const groupById = new Map(result.groups.map(g => [g.id, g]))
-        const contained = (n: { parentId?: string; x: number; y: number; width: number; height: number }) => {
-          const g = n.parentId ? groupById.get(n.parentId) : undefined
-          if (!g) return true
-          return n.x >= g.x - EPS && n.y >= g.y - EPS
-            && n.x + n.width <= g.x + g.width + EPS && n.y + n.height <= g.y + g.height + EPS
-        }
-        const servicePairsClear = result.services.every((service, index) =>
-          result.services.slice(index + 1).every(other => !boxesOverlap(service, other)))
-        const rootGroups = result.groups.filter(group => !group.parentId)
-        const rootGroupPairsClear = rootGroups.every((group, index) =>
-          rootGroups.slice(index + 1).every(other => !boxesOverlap(group, other)))
-        const routesClearCards = result.edges.every(edge =>
-          edge.obstacleFree && result.services
-            .filter(service => service.id !== edge.source.id && service.id !== edge.target.id)
-            .every(service => !routeCrossesBoxInterior(edge.points, service)))
-        return result.services.every(contained) && result.junctions.every(contained)
-          && servicePairsClear && rootGroupPairsClear && routesClearCards
+      fc.property(groupedArchitectureArb, source => {
+        expect(groupedLayoutViolations(source)).toEqual([])
       }),
       { numRuns: 300 },
+    )
+  })
+
+  // Known product bug BUG-37: the router sends s0_0:T --> T:s0_1 through card
+  // s0_2 (obstacleFree false). The nightly finder found it at
+  // AM_FC_SEED=1102132276; this is its shrunk counterexample, pinned as an
+  // `examples` entry. When BUG-37 is fixed this pin fails: move the example
+  // into the property above (keep it forever) and delete this test.
+  const BUG_37_SOURCE = 'architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0'
+  it.failing('BUG-37: the AM_FC_SEED=1102132276 counterexample routes an edge through a card', () => {
+    fc.assert(
+      fc.property(groupedArchitectureArb, source => {
+        expect(groupedLayoutViolations(source)).toEqual([])
+      }),
+      { examples: [[BUG_37_SOURCE]], numRuns: 1 },
     )
   })
 

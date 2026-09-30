@@ -7,15 +7,14 @@
  *    through ONE table (src/flowchart-shapes.ts) to a semantic shape id plus a
  *    rendering geometry (an existing NodeShape);
  *  - exact-equivalent names (rect, rounded, stadium, cyl, diam, hex, lean-r,
- *    lean-l, trap-b, trap-t, circle, dbl-circ, fr-rect, odd, sm-circ) render
- *    the SAME geometry as the legacy bracket syntax and emit NO warning;
- *  - approximate names render the documented nearest geometry and emit a
- *    Tier-3 UNSUPPORTED_SYNTAX `flowchart_shape_substitution` lint naming the
- *    substitution (never UNKNOWN_SHAPE for a documented name);
+ *    lean-l, trap-b, trap-t, circle, dbl-circ, fr-rect, odd) render the SAME
+ *    geometry as the legacy bracket syntax;
+ *  - every documented name draws its own native semantic geometry: verify is
+ *    ok, with no `flowchart_shape_substitution` lint and no UNKNOWN_SHAPE;
  *  - the agent body is STRUCTURED for shape/label metadata, serialization
  *    keeps the authored spelling, and round-trip is byte-stable;
- *  - undocumented shape names and icon/img metadata keep today's opaque
- *    fallback + flowchart_node_metadata lint.
+ *  - undocumented shape names keep the opaque fallback + flowchart_node_metadata
+ *    lint; icon metadata is typed, round-trips canonically, and renders natively.
  */
 import { describe, it, expect } from 'bun:test'
 
@@ -170,18 +169,16 @@ describe('v11 shapes — render parser', () => {
 })
 
 describe('v11 shapes — verify contract', () => {
-  it('documented names never emit UNKNOWN_SHAPE', () => {
-    for (const canonical of Object.keys(DOCUMENTED)) {
-      const warnings = verifyMermaid(metaSource(canonical)).warnings
-      expect(warnings).not.toContainEqual(expect.objectContaining({ code: 'UNKNOWN_SHAPE' }))
-    }
-  })
-
-  it('every documented semantic geometry is native and substitution-free', () => {
+  // UNKNOWN_SHAPE is warning-severity, so `ok` alone does not exclude it.
+  it('every documented semantic geometry is native: no substitution lint, never UNKNOWN_SHAPE', () => {
     for (const canonical of Object.keys(DOCUMENTED)) {
       const result = verifyMermaid(metaSource(canonical))
-      expect(result.ok, canonical).toBe(true)
-      expect(result.warnings, canonical).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_shape_substitution' }))
+      expect({
+        canonical,
+        ok: result.ok,
+        unknownShape: result.warnings.some(w => w.code === 'UNKNOWN_SHAPE'),
+        substitution: result.warnings.some(w => 'syntax' in w && w.syntax === 'flowchart_shape_substitution'),
+      }).toEqual({ canonical, ok: true, unknownShape: false, substitution: false })
     }
   })
 

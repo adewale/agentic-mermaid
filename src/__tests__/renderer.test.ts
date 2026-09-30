@@ -151,6 +151,14 @@ describe('renderSvg – node shapes', () => {
     expect(svg).toContain('points="140,100 180,140 140,180 100,140"')
   })
 
+  it('strips invalid CSS identifier characters from node class names', () => {
+    // Parse and typed ops refuse such names (renderer-css-classes.test.ts); a
+    // positioned graph built directly still cannot inject into the attribute.
+    const graph = makeGraph({ nodes: [makeNode({ classNames: ['my.class', 'a/b', 'x"y', '.'] })] })
+    const svg = renderSvg(graph, lightColors)
+    expect(svg).toContain('class="node myclass ab xy"')
+  })
+
   it('renders node labels as <text> elements', () => {
     const graph = makeGraph({ nodes: [makeNode({ label: 'My Node' })] })
     const svg = renderSvg(graph, lightColors)
@@ -191,11 +199,11 @@ describe('renderSvg – new shapes (Batch 1)', () => {
     const node = makeNode({ shape: 'hexagon', width: 100, height: 40 })
     const graph = makeGraph({ nodes: [node] })
     const svg = renderSvg(graph, lightColors)
-    expect(svg).toContain('<polygon')
-    // 6 points means 6 coordinate pairs separated by spaces
-    const polygonMatch = svg.match(/points="([^"]+)"/)
-    const points = polygonMatch?.[1]?.split(' ') ?? []
-    expect(points.length).toBe(6)
+    // Select the node's own polygon: the first `points=` in the document is the
+    // arrowhead marker in <defs>, whose "0 0, 8 2.5, 0 5" also splits into 6 tokens.
+    const nodePolygon = svg.match(/<polygon points="([^"]+)"[^>]*data-id="node-shape:A"/)
+    // Flat sides inset by h/4 = 10; the pointed vertices sit at mid-height (y = 100 + 40/2).
+    expect(nodePolygon?.[1]).toBe('110,100 190,100 200,120 190,140 110,140 100,120')
   })
 })
 

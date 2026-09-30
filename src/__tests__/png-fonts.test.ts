@@ -9,8 +9,7 @@
 // any ink there is label overflow.
 
 import { describe, test, expect } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { renderMermaidPNG, type PngFontWarning } from '../agent/png.ts'
@@ -18,6 +17,9 @@ import { renderMermaidSVG } from '../index.ts'
 import { runCli } from '../cli/index.ts'
 import { PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME, pngNapiRuntimeProvenance } from '../png-contract.ts'
 import { decodePng, inkColumns } from './helpers/png-pixels.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const JOURNEY_LONG_LABEL = `journey
   title Onboarding
@@ -84,7 +86,13 @@ const EMOJI_SRC = 'flowchart LR\n  A[🚀 Launch] --> B[Done]'
 /** A CJK-capable font directory available on many Linux CI images; the
  *  escape-hatch tests skip (with the plumbing still covered by the warning
  *  tests) when it is absent. */
+// Host-dependent: the two fontDirs tests below need a CJK-capable font and
+// SKIP where WenQuanYi (Debian/Ubuntu `fonts-wqy-*`) is not installed. No CI
+// workflow installs it today, so CI does not run them. They come back in CI
+// once a workflow installs the package (or a CJK subset font is vendored as a
+// fixture); until then they run only on hosts that have it.
 const CJK_FONT_DIR = '/usr/share/fonts/truetype/wqy'
+const HAS_CJK_FONT = existsSync(CJK_FONT_DIR)
 
 function collectWarnings(source: string, opts: Parameters<typeof renderMermaidPNG>[1] = {}): { png: Uint8Array; warnings: PngFontWarning[] } {
   const warnings: PngFontWarning[] = []
@@ -136,7 +144,7 @@ describe('PNG glyph-coverage warnings', () => {
 })
 
 describe('fontDirs escape hatch', () => {
-  test.skipIf(!existsSync(CJK_FONT_DIR))('a CJK-capable fontDirs clears the warning and changes the rendered bytes', () => {
+  test.skipIf(!HAS_CJK_FONT)('a CJK-capable fontDirs clears the warning and changes the rendered bytes', () => {
     const bare = collectWarnings(CJK_SRC)
     const withFonts = collectWarnings(CJK_SRC, { fontDirs: [CJK_FONT_DIR] })
     expect(withFonts.warnings.filter(w => w.script === 'CJK')).toEqual([])
@@ -169,7 +177,7 @@ function captureCli(argv: string[]): { code: number; out: string; err: string } 
 }
 
 function tmpPngRun(source: string, extraFlags: string[] = []): { code: number; out: string; err: string; outFile: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'am-png-fonts-'))
+  const dir = temp.dir('am-png-fonts-')
   const inFile = join(dir, 'in.mmd')
   const outFile = join(dir, 'out.png')
   writeFileSync(inFile, source)
@@ -179,7 +187,7 @@ function tmpPngRun(source: string, extraFlags: string[] = []): { code: number; o
 
 describe('am render --format png font flags', () => {
   test('PNG-only controls are rejected for non-PNG formats', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-png-only-flags-'))
+    const dir = temp.dir('am-png-only-flags-')
     const input = join(dir, 'in.mmd')
     writeFileSync(input, 'flowchart LR\n  A --> B')
     for (const flag of [['--scale', '2'], ['--bg', '#fff'], ['--fit-width', '64'], ['--system-fonts']]) {
@@ -212,7 +220,7 @@ describe('am render --format png font flags', () => {
     expect(err).not.toContain('PNG_FONT_COVERAGE')
   })
 
-  test.skipIf(!existsSync(CJK_FONT_DIR))('--font-dirs silences the CJK warning', () => {
+  test.skipIf(!HAS_CJK_FONT)('--font-dirs silences the CJK warning', () => {
     const { code, err, outFile } = tmpPngRun(CJK_SRC, ['--font-dirs', CJK_FONT_DIR])
     expect(code).toBe(0)
     expect(err).not.toContain('PNG_FONT_COVERAGE')

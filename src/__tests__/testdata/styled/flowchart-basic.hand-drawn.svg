@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="216.057" height="371.6" viewBox="0 0 216.057 371.6" style="--bg:#f7f5ef;--fg:#1a1a1e;--line:#26262b;--accent:#26262b;--border:#26262b;--font:Caveat;background:#f7f5ef" class="am-0kkxnee01o734y">
+<style>
+  .am-0kkxnee01o734y text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-0kkxnee01o734y {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #1a1a1e;
+    --_text-sec:      #4b4a4c;
+    --_text-muted:    #656465;
+    --_text-faint:    #807f7e;
+    --_line:          #26262b;
+    --_arrow:         #26262b;
+    --_node-fill:     #f0eee9;
+    --_node-stroke:   #26262b;
+    --_group-fill:    #f7f5ef;
+    --_group-hdr:     #eceae5;
+    --_inner-stroke:  #dcdbd6;
+    --_key-badge:     #e1dfda;
+  }
+</style>
+<rect width="216.057" height="371.6" fill="#f7f5ef" data-backdrop="page" />
+<g data-backdrop="paper-ruled">
+  <line x1="0" y1="26" x2="216.057" y2="26" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="52" x2="216.057" y2="52" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="78" x2="216.057" y2="78" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="104" x2="216.057" y2="104" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="130" x2="216.057" y2="130" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="156" x2="216.057" y2="156" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="182" x2="216.057" y2="182" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="208" x2="216.057" y2="208" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="234" x2="216.057" y2="234" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="260" x2="216.057" y2="260" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="286" x2="216.057" y2="286" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="312" x2="216.057" y2="312" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="338" x2="216.057" y2="338" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="364" x2="216.057" y2="364" stroke="#26262b" stroke-width="0.5" opacity="0.14" />
+</g>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#26262b" stroke="#26262b" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#26262b" stroke="#26262b" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline stroke-opacity="0" class="edge" data-from="Start" data-to="Parse" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="108.0285,76.9 108.0285,124.9" fill="none" stroke="#26262b" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Start-&gt;Parse#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Start to Parse" />
+<path d="M108.03 76.68 C109.15 94.01, 105.73 114.31, 106.58 124.53 M108.35 76.6 C108.53 91.18, 107.93 102.95, 107.04 125.07" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" class="edge" data-from="Parse" data-to="Render" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="108.0285,161.8 108.0285,209.8" fill="none" stroke="#26262b" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Parse-&gt;Render#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Parse to Render" />
+<path d="M106.7 159.99 C109.92 175.13, 108.11 190.85, 106.12 208.68 M107.85 161.14 C109.3 179.51, 107.66 197.89, 107.16 209.13" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" class="edge" data-from="Render" data-to="Done" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="108.0285,246.70000000000002 108.0285,294.70000000000005" fill="none" stroke="#26262b" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Render-&gt;Done#0" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Render to Done" />
+<path d="M107.52 246.75 C109.67 262.66, 107.34 277.6, 106.88 294.92 M108.42 246.38 C108.39 262.82, 107.66 278.08, 107.61 295.33" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<g class="node" data-id="Start" data-label="Start" data-shape="rectangle" data-role="node">
+  <path d="M74.46 41.56 C99.62 38.31, 124.59 41.96, 141.28 39.13 M73.02 40.02 C101.3 40.51, 129.4 39.07, 142.74 39.8 M142.16 41.13 C141.24 50.75, 144.79 57.89, 143.98 76.53 M142.84 39.73 C142.46 48.19, 142.43 56.04, 142.08 76.78 M141.08 77.76 C128.33 77.11, 110.78 76.29, 71.55 77.33 M143.94 76.21 C120.73 77.73, 99.56 77.95, 72.71 77.78 M72.46 77.58 C74.68 64.05, 73.67 51.1, 71.14 38.73 M72.19 77.33 C73.62 68.37, 72.87 59.83, 73.95 40.99" fill="none" stroke="#26262b" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" data-id="node-shape:Start" data-role="node" />
+  <text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="108.0285" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#1a1a1e" dy="4.55" textLength="30.108" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Start</text>
+</g>
+<g class="node" data-id="Parse" data-label="Parse request" data-shape="rectangle" data-role="node">
+  <path d="M45.13 125.18 C73.37 124.53, 102.93 126.79, 170.06 125.24 M44.48 125.67 C91.07 126.48, 134.95 127.05, 171.36 124.45 M171.53 125.68 C171.38 134.96, 171.69 148.49, 171.84 163.76 M170.7 125.09 C171.45 135.6, 170.75 147.84, 172.12 162.67 M169.67 162.99 C133.6 161.95, 94.96 159.23, 45.39 163.04 M171.25 161.71 C132.29 161.15, 91.98 162.52, 45.35 161.21 M43.01 160.06 C43.52 154.05, 43.7 147.48, 44.53 126.07 M43.47 162.73 C45.11 148.53, 45.32 136.16, 45.07 125.55" fill="none" stroke="#26262b" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" data-id="node-shape:Parse" data-role="node" />
+  <text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="108.0285" y="143.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#1a1a1e" dy="4.55" textLength="87.165" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Parse request</text>
+</g>
+<g class="node" data-id="Render" data-label="Render diagram" data-shape="rectangle" data-role="node">
+  <path d="M41.59 208.18 C75.25 210.44, 110 207.69, 177.09 211.22 M40.7 210.05 C75.02 210.34, 112.6 209.84, 176.65 208.87 M175 209.3 C175.9 218.48, 177.19 229.16, 175.04 247.98 M175.44 208.81 C176.31 217.77, 175.13 227.6, 175.52 245.84 M174.55 247.7 C127.82 249.59, 79.2 246.02, 40.94 245.88 M175.93 246.07 C142.16 246.05, 107 246.59, 39.28 246.69 M40.34 247.57 C39.26 234.83, 39.53 225.64, 41.8 209.14 M39.49 247.52 C39.86 233.55, 39.51 223.12, 39.87 210.63" fill="none" stroke="#26262b" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" data-id="node-shape:Render" data-role="node" />
+  <text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="108.0285" y="228.25" text-anchor="middle" font-size="13" font-weight="500" fill="#1a1a1e" dy="4.55" textLength="96.057" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Render diagram</text>
+</g>
+<g class="node" data-id="Done" data-label="Done" data-shape="rectangle" data-role="node">
+  <path d="M71.62 296.52 C93.78 294.46, 115.27 294.63, 145.98 295.51 M70.68 294.6 C95.16 295.46, 119.2 294.5, 143.64 295.21 M144.2 295.22 C145.58 301.66, 144.98 313.03, 144 333.03 M144.78 293.9 C143.5 303.76, 145.37 314.96, 143.94 331.1 M144.62 333.38 C119.45 330.3, 92.1 331.15, 72.99 330.85 M144.02 330.74 C116.68 330.89, 88.53 330.57, 72.01 331.16 M69.9 331.25 C72.3 319.73, 71.41 311.4, 73.2 294.35 M71.28 332.42 C71.26 322.34, 71.2 312.8, 71.84 295.12" fill="none" stroke="#26262b" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" data-id="node-shape:Done" data-role="node" />
+  <text paint-order="stroke" stroke="#f7f5ef" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="108.0285" y="313.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#1a1a1e" dy="4.55" textLength="33.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Done</text>
+</g>
+</svg>

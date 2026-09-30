@@ -45,8 +45,9 @@ The audit and controlled rollout changed the plan in twelve ways.
    fails the product if an allowed 1,000-slice input takes seconds. The ΔE
    guarantee is therefore bounded at 24 and the large-count path has expected
    linear work. Portable CI asserts the real branch and its operation counts;
-   wall-clock observations live in `eval/palette-performance/report.json` with
-   their machine, protocol, input hashes, and limitations. Every prototype must
+   wall-clock observations are recorded on demand by
+   `eval/palette-performance/run.ts --record` with their machine, protocol, and
+   limitations. Every prototype must
    declare an input-size budget and a degraded-tail rule.
 
 2. **A threshold needs a corpus, not one friendly example.** The 0.10 ΔE claim
@@ -79,13 +80,12 @@ The audit and controlled rollout changed the plan in twelve ways.
    express ownership. Ancestor walks must be cycle-safe without arbitrary
    depth cutoffs.
 
-8. **Visual evidence needs its own reproducibility contract.** The rollout now
-   freezes pre-change SVGs, extracts the categorical colors actually serialized
-   by each renderer, and writes a machine-readable comparison plus a contact
-   sheet. `--check` recomputes the baseline metrics from the frozen SVGs,
-   re-renders every case, and fails when the rebuilt report differs from the
-   committed `report.json` or no longer clears the automatic improvement gate;
-   it checks behaviour, not input hashes or contact-sheet pixels.
+8. **Visual evidence needs its own reproducibility contract.** The rollout
+   froze pre-change SVGs, extracted the categorical colors actually serialized
+   by each renderer, and wrote a machine-readable comparison plus a contact
+   sheet. That committed evidence and its `--check` gate have since been
+   removed; `src/__tests__/categorical-palette-rollout.test.ts` checks the
+   palette contract against current renders.
 
 9. **A controlled rollout is a compatibility policy, not a global recolor.**
    Counts up to six retain each family's existing derived colors byte-for-byte
@@ -161,9 +161,7 @@ Reuse the existing evaluator; do not create a second quality system.
    deterministic family fuzzers, all built-in themes where color is involved,
    and adversarial boundary inputs.
 6. **Keep visual evidence.** Any generation or geometry change needs
-   before/after renders and snapshot review in every affected family. The
-   palette rollout operationalizes this rule in
-   `scripts/pr-assets/palette-rollout-evidence.ts`.
+   before/after renders and snapshot review in every affected family.
 7. **Gate determinism and cost.** Preserve byte identity and deterministically
    assert that the intended bounded algorithmic path engaged. Keep p50/p95
    observations over a fixed corpus in a separate, provenance-bound report;

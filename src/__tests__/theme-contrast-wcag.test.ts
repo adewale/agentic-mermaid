@@ -7,6 +7,8 @@
 // even the 3:1 floor). This test fails if MIX.textMuted (or textSec) regresses.
 import { describe, it, expect } from 'bun:test'
 import { resolveColors, DEFAULTS } from '../theme.ts'
+import { layoutMermaid, measureQuality, parseRegisteredMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { renderedTextPairs } from '../../scripts/characterization/visual-quality.ts'
 
 // --- WCAG 2.x relative luminance + contrast ratio (sRGB) ---
 function parseHex(hex: string): [number, number, number] {
@@ -57,5 +59,26 @@ describe('diagram text contrast (WCAG AA)', () => {
     expect(cPrimary).toBeGreaterThan(cSec)
     expect(cSec).toBeGreaterThan(cMuted)
     expect(cMuted).toBeGreaterThan(cFaint)
+  })
+})
+
+/** Weakest WCAG ratio over every text run and the surface it is painted on. */
+function renderedMinimumTextContrast(source: string): number | null {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error(`could not parse: ${source}`)
+  const svg = renderMermaidSVG(source, { embedFontImport: false })
+  return measureQuality(layoutMermaid(parsed.value), { textPairs: renderedTextPairs(svg) }).minimumTextContrast
+}
+
+describe('rendered text contrast', () => {
+  it('pie slice labels clear AA against their slice', () => {
+    // Slice labels take the higher-contrast of black and white against their
+    // slice, so the pie's weakest text clears WCAG AA (it was 3.68:1).
+    expect(renderedMinimumTextContrast('pie title Pets\n  "Cats" : 4\n  "Dogs" : 6\n  "Birds" : 2')).toBeGreaterThanOrEqual(AA)
+  })
+
+  it('class diagram text keeps its default-theme contrast', () => {
+    const source = 'classDiagram\n  class Animal\n  class Dog\n  class Cat\n  Animal <|-- Dog\n  Animal <|-- Cat'
+    expect(renderedMinimumTextContrast(source)).toBeCloseTo(13.54, 2)
   })
 })

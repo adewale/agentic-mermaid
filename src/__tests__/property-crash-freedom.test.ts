@@ -39,17 +39,32 @@ const specialLinesArb = fc.array(specialCharStringArb, { minLength: 0, maxLength
 // Helper: assert a function either returns a value or throws an Error
 // ---------------------------------------------------------------------------
 
+// The engine's own error classes. A parser reports bad input with a plain
+// Error (or a subclass it defines); one of these escaping means the parser
+// itself crashed: a TypeError from reading a property of undefined, a
+// RangeError from runaway recursion, a ReferenceError, or a SyntaxError from a
+// regex built out of input.
+const ENGINE_CRASHES = [TypeError, RangeError, ReferenceError, SyntaxError] as const
+
 function assertNoUndefinedCrash(fn: () => unknown): void {
+  let outcome: { returned: unknown } | { thrown: unknown }
   try {
-    const result = fn()
-    // If it returns, the result must be defined (not undefined from an
-    // unexpected code path) -- though we mainly care about no crash.
-    expect(result).toBeDefined()
+    outcome = { returned: fn() }
   } catch (error) {
-    // A clean Error is acceptable; anything else (e.g. TypeError on
-    // undefined access, or non-Error throw) is a bug.
-    expect(error).toBeInstanceOf(Error)
+    outcome = { thrown: error }
   }
+  // Checked outside the try so a failed expectation is never mistaken for a
+  // clean parser Error.
+  if ('returned' in outcome) {
+    // A return must be a value, not undefined from an unexpected code path.
+    expect(outcome.returned).toBeDefined()
+    return
+  }
+  const error = outcome.thrown
+  // Non-Error throws are bugs too.
+  expect(error).toBeInstanceOf(Error)
+  const crash = ENGINE_CRASHES.find(kind => error instanceof kind)
+  expect({ engineCrash: crash ? `${crash.name}: ${(error as Error).message}` : null }).toEqual({ engineCrash: null })
 }
 
 // ===========================================================================

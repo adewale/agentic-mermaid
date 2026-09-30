@@ -39,16 +39,18 @@ describe('renderMermaidASCII with maxWidth', () => {
 
   test('maxWidth does not affect single-word labels', () => {
     const src = 'flowchart LR\n  A[Start] --> B[End]'
-    const out = renderMermaidASCII(src, { maxWidth: 20 })
-    expect(out).toContain('Start')
-    expect(out).toContain('End')
+    // Nothing fits the wrap budget worse than it already does, so the render
+    // is byte-identical to the unbounded one.
+    expect(renderMermaidASCII(src, { maxWidth: 20 })).toBe(renderMermaidASCII(src))
   })
 
   test('maxWidth preserves <br/> in already-wrapped labels', () => {
     const src = 'flowchart LR\n  A["line one<br/>line two"] --> B[End]'
-    const out = renderMermaidASCII(src, { maxWidth: 40 })
-    expect(out).toContain('line one')
-    expect(out).toContain('line two')
+    const rows = renderMermaidASCII(src, { maxWidth: 40 }).split('\n')
+    const one = rows.findIndex(row => row.includes('line one'))
+    const two = rows.findIndex(row => row.includes('line two'))
+    // The authored break survives: the halves sit on consecutive rows, not joined.
+    expect({ one: one >= 0, gap: two - one }).toEqual({ one: true, gap: 1 })
   })
 
   test('omitted maxWidth is identical to default render', () => {

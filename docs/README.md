@@ -13,7 +13,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
 | [`style-authoring.md`](./style-authoring.md) | Style model, stack semantics, field reference, rubric, and validation commands. |
 | [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, CLI commands, and the documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototypes. |
-| [`design/families/style-switch-contact-sheet.html`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/style-switch-contact-sheet.html) | Self-contained interactive contact sheet for every registered family and every built-in Look/Palette Style resource. |
+| `design/families/style-switch-contact-sheet.html` | Self-contained interactive contact sheet for every registered family and every built-in Look/Palette Style resource; no longer committed, generate it with `bun run gallery:style-switch`. |
 | [`custom-fonts.md`](./custom-fonts.md) | How custom Styles select and resolve fonts across SVG, PNG, browser, and MCP surfaces. |
 | [`react.md`](./react.md) | Browser-safe React rendering with CSS variables. |
 | [`browser.md`](./browser.md) | Framework-neutral pre-rendering, Alpine and plain-JS adapters, the classic `<script src>` bundle, and the shipped lazy all-family browser renderer. |
@@ -85,7 +85,6 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`contributing/releasing.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/releasing.md) | How to cut an npm release (GitHub Release → provenance publish) and flip the "published" copy. |
 | [`layout-characterization/README.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
 | [`svg-semantic-contract.md`](./svg-semantic-contract.md) | Typed Scene identity, geometry, references, and accessibility contract. |
-| [`mutation-testing.md`](./mutation-testing.md) | Mutation lanes, survivor handling, and fault-sensitivity evidence. |
 | [`project/divergences.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/divergences.md) | Deliberate divergences and guardrails. |
 | [`project/lessons-learned.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
 | [`research/tanstack-charts-learnings.md`](https://github.com/adewale/agentic-mermaid/blob/main/research/tanstack-charts-learnings.md) | External survey: what TanStack Charts v0 validates about the agent-native bet, what is worth adopting, and where we deliberately diverge. |

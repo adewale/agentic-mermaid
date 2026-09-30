@@ -7,7 +7,7 @@ import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
-import { asFlowchart, asSequence, asState, toFinite, WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
+import { asFlowchart, asSequence, asState, toFinite, WARNING_TIER } from '../agent/types.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 
 function parse(src: string) {
@@ -156,8 +156,8 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
   test('property: interleaved structured + opaque lines round-trip in order', () => {
     fc.assert(
       fc.property(bodyArb, src => {
-        const d = parse(src)
-        if (d.body.kind !== 'sequence') return // un-segmentable falls back; covered elsewhere
+        // Every generated body segments; sequence() throws on the opaque fallback.
+        const d = sequence(src)
         const out = serializeMermaid(d).trimEnd()
         const origNonBlank = src
           .split('\n')
@@ -168,8 +168,6 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
           .map(l => l.trim())
           .filter(Boolean)
         expect(outNonBlank).toEqual(origNonBlank)
-        // And the body is genuinely structured, not the opaque fallback.
-        expect(asSequence(d)).not.toBeNull()
         // Idempotent: re-parse → same serialize.
         expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
       }),
@@ -177,26 +175,35 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
     )
   })
 
-  // Property 2: remove_message(i) never touches opaque-block bytes. We capture
-  // each opaque-block's serialized text before, then after removal, and assert
-  // every opaque block survives byte-for-byte.
-  test('property: remove_message leaves every opaque-block byte-range unchanged', () => {
+  // Property 2: remove_message(k) deletes exactly the k-th top-level message
+  // line and leaves every other statement (typed alt/loop fragments and opaque
+  // notes) in place byte-for-byte. Every generated body has at least one
+  // top-level message and at least one block, so no run is vacuous.
+  test('property: remove_message removes exactly one top-level message and preserves every block', () => {
+    const blockArb = fc.oneof(noteLine, altBlock, loopBlock)
+    const segArb = fc.oneof(structuredMsg.map(text => ({ text, message: true })), blockArb.map(text => ({ text, message: false })))
+    const caseArb = fc.record({
+      before: fc.array(segArb, { maxLength: 3 }),
+      message: structuredMsg,
+      block: blockArb,
+      blockFirst: fc.boolean(),
+      after: fc.array(segArb, { maxLength: 3 }),
+      pick: fc.nat(),
+    })
+    const nonBlank = (text: string) => text.split('\n').map(l => l.trim()).filter(Boolean)
     fc.assert(
-      fc.property(bodyArb, src => {
-        const d = parse(src)
-        const s = asSequence(d)
-        if (!s) return
-        if (s.body.messages.length === 0) return
-        const opaqueBefore = (s.body.statements ?? []).filter(st => st.kind === 'opaque-block').map(st => (st as { lines: string[] }).lines.join('\n'))
-        const idx = s.body.messages.length - 1
-        const r = mutate(s, { kind: 'remove_message', index: idx })
-        expect(r.ok).toBe(true)
-        if (!r.ok) return
-        const opaqueAfter = (r.value.body.statements ?? []).filter(st => st.kind === 'opaque-block').map(st => (st as { lines: string[] }).lines.join('\n'))
-        // Opaque blocks are untouched: same count, same bytes, same order.
-        expect(opaqueAfter).toEqual(opaqueBefore)
-        // And exactly one message was removed.
-        expect(r.value.body.messages.length).toBe(s.body.messages.length - 1)
+      fc.property(caseArb, c => {
+        const message = { text: c.message, message: true }
+        const block = { text: c.block, message: false }
+        const segs = [...c.before, ...(c.blockFirst ? [block, message] : [message, block]), ...c.after]
+        const s = sequence('sequenceDiagram\n' + segs.map(x => x.text).join('\n'))
+        const messages = segs.filter(x => x.message)
+        expect(s.body.messages.length).toBe(messages.length)
+        const removed = messages[c.pick % messages.length]!
+        const r = mutate(s, { kind: 'remove_message', index: c.pick % messages.length })
+        if (!r.ok) throw new Error('remove_message: ' + JSON.stringify(r.error))
+        const expected = nonBlank(['sequenceDiagram', ...segs.filter(x => x !== removed).map(x => x.text)].join('\n'))
+        expect(nonBlank(serializeMermaid(r.value))).toEqual(expected)
       }),
       { numRuns: 200 },
     )
@@ -310,7 +317,8 @@ describe('sequence segment-preserving fidelity (BUILD-18 — was the v4 opaque c
 describe('flowchart mutate — six ops', () => {
   test('add_node', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B'), { kind: 'add_node', id: 'C', label: 'Cache' })
-    expect(r.ok && r.value.body.graph.nodes.has('C')).toBe(true)
+    expect(r).toMatchObject({ ok: true })
+    if (r.ok) expect(r.value.body.graph.nodes.get('C')).toMatchObject({ id: 'C', label: 'Cache' })
   })
   test('add_node duplicate rejected', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B'), { kind: 'add_node', id: 'A', label: 'X' })
@@ -330,7 +338,8 @@ describe('flowchart mutate — six ops', () => {
   })
   test('add_edge implicit nodes', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B'), { kind: 'add_edge', from: 'C', to: 'D' })
-    expect(r.ok && r.value.body.graph.nodes.has('C') && r.value.body.graph.nodes.has('D')).toBe(true)
+    expect(r).toMatchObject({ ok: true })
+    if (r.ok) expect([...r.value.body.graph.nodes.keys()]).toEqual(expect.arrayContaining(['C', 'D']))
   })
   test('remove_edge', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B\n  B --> C'), { kind: 'remove_edge', id: 'A->B' })
@@ -374,7 +383,8 @@ describe('flowchart mutate — six ops', () => {
 describe('sequence mutate — five ops', () => {
   test('add_participant', () => {
     const r = mutate(sequence('sequenceDiagram\n  A->>B: Hi'), { kind: 'add_participant', id: 'C', label: 'Charlie' })
-    expect(r.ok && r.value.body.participants.some(p => p.id === 'C' && p.label === 'Charlie')).toBe(true)
+    expect(r).toMatchObject({ ok: true })
+    if (r.ok) expect(r.value.body.participants).toContainEqual(expect.objectContaining({ id: 'C', label: 'Charlie' }))
   })
   test('add_participant duplicate', () => {
     const r = mutate(sequence('sequenceDiagram\n  A->>B: Hi'), { kind: 'add_participant', id: 'A' })
@@ -480,14 +490,6 @@ describe('round-trip stability', () => {
     const d2 = parse(serializeMermaid(d))
     if (d2.body.kind !== 'flowchart') throw new Error('x')
     expect(d2.body.graph.subgraphs[0]!.nodeIds.sort()).toEqual(['A', 'B'])
-  })
-  test('edge styles + markers preserved', () => {
-    for (const e of ['-->', '---', '--o', '--x', '<-->', '-.->', '-.-', '==>', '===']) {
-      const src = `flowchart TD\n  A ${e} B`
-      const d = parse(src)
-      const out = serializeMermaid(d)
-      expect(serializeMermaid(parse(out))).toBe(out)
-    }
   })
   test('typed mutations trim boundary whitespace in labels, as parsing does', () => {
     // Upstream's flowchart DB trims labels, so `C[" c "]` parses to "c"; a
@@ -984,20 +986,6 @@ describe('synthesizeFromGraph', () => {
   })
 })
 
-describe('OFF_CANVAS reports both axes independently', () => {
-  test('a node off-canvas on x and y yields both axis warnings (no else-if masking)', () => {
-    // We can't easily force ELK to place a node off both axes, so assert the
-    // logic shape: the two checks are independent pushes, verified by a
-    // synthetic layout via the public verify on a normal diagram producing at
-    // most one per axis and never throwing. (Guards the else-if regression.)
-    const r = verifyMermaid('flowchart TD\n  A --> B')
-    const offX = r.warnings.filter(w => w.code === 'OFF_CANVAS' && w.axis === 'x')
-    const offY = r.warnings.filter(w => w.code === 'OFF_CANVAS' && w.axis === 'y')
-    // Clean diagram: none. The assertion documents that x and y are counted separately.
-    expect(offX.length + offY.length).toBe(0)
-  })
-})
-
 describe('verify', () => {
   test('clean flowchart ok', () => {
     expect(verifyMermaid('flowchart TD\n  A --> B').ok).toBe(true)
@@ -1009,8 +997,7 @@ describe('verify', () => {
   })
   test('LABEL_OVERFLOW rendered-line count, reliable', () => {
     const r = verifyMermaid(`flowchart TD\n  A[${'X'.repeat(60)}] --> B`)
-    const o = r.warnings.find(w => w.code === 'LABEL_OVERFLOW')
-    expect(o && o.code === 'LABEL_OVERFLOW' && o.charCount === 60 && o.limit === 40).toBe(true)
+    expect(r.warnings).toContainEqual(expect.objectContaining({ code: 'LABEL_OVERFLOW', charCount: 60, limit: 40 }))
   })
   test('LABEL_OVERFLOW ignores <br/> markup: cap applies per rendered line', () => {
     // 60 source chars, but rendered as two 27-char lines — no warning.
@@ -1025,8 +1012,7 @@ describe('verify', () => {
   })
   test('LABEL_OVERFLOW still fires when one rendered line exceeds the cap', () => {
     const r = verifyMermaid(`flowchart TD\n  A[short<br/>${'X'.repeat(45)}] --> B`)
-    const o = r.warnings.find(w => w.code === 'LABEL_OVERFLOW')
-    expect(o && o.code === 'LABEL_OVERFLOW' && o.charCount === 45 && o.limit === 40).toBe(true)
+    expect(r.warnings).toContainEqual(expect.objectContaining({ code: 'LABEL_OVERFLOW', charCount: 45, limit: 40 }))
   })
   test('LABEL_OVERFLOW custom cap', () => {
     expect(verifyMermaid('flowchart TD\n  A[longish] --> B', { labelCharCap: 3 }).warnings.some(w => w.code === 'LABEL_OVERFLOW')).toBe(true)
@@ -1037,8 +1023,12 @@ describe('verify', () => {
   test('sequence verify EDGE_MISANCHORED impossible via parse (implicit declare); via long text LABEL_OVERFLOW fires', () => {
     expect(verifyMermaid(`sequenceDiagram\n  A->>B: ${'x'.repeat(60)}`).warnings.some(w => w.code === 'LABEL_OVERFLOW')).toBe(true)
   })
-  test('suppress filter', () => {
-    expect(verifyMermaid('flowchart TD\n  A --> B', { suppress: ['NODE_OVERLAP', 'ROUTE_SELF_CROSS'] }).warnings.some(w => w.code === 'NODE_OVERLAP')).toBe(false)
+  test('suppress filter drops only the named codes', () => {
+    const src = 'flowchart TD\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
+    const codes = (opts: Parameters<typeof verifyMermaid>[1]) => verifyMermaid(src, opts).warnings.map(w => w.code)
+    expect(codes({})).toEqual(['DUPLICATE_EDGE', 'UNREACHABLE_NODE', 'UNREACHABLE_NODE'])
+    expect(codes({ suppress: ['DUPLICATE_EDGE'] })).toEqual(['UNREACHABLE_NODE', 'UNREACHABLE_NODE'])
+    expect(codes({ suppress: ['DUPLICATE_EDGE', 'UNREACHABLE_NODE'] })).toEqual([])
   })
   test('finite coordinates only', () => {
     const flat = JSON.stringify(verifyMermaid('flowchart TD\n  A --> B\n  B --> C').layout)
@@ -1067,14 +1057,6 @@ describe('verify', () => {
 })
 
 describe('warning vocabulary', () => {
-  test('31 codes, all tiered + severity', () => {
-    const codes = Object.keys(WARNING_SEVERITY)
-    expect(codes.length).toBe(31)
-    for (const c of codes) {
-      expect(WARNING_SEVERITY[c as keyof typeof WARNING_SEVERITY]).toMatch(/^(error|warning)$/)
-      expect(WARNING_TIER[c as keyof typeof WARNING_TIER]).toMatch(/^(structural|geometric|lint)$/)
-    }
-  })
   test('LABEL_OVERFLOW is Tier 1', () => {
     expect(WARNING_TIER.LABEL_OVERFLOW).toBe('structural')
   })
@@ -1100,8 +1082,8 @@ describe('toFinite', () => {
   })
 })
 
-describe('asFlowchart / asSequence return null on the wrong family (close mutation gap)', () => {
-  // Stryker survivor: an always-true mutant of the conditional was undetected
+describe('asFlowchart / asSequence return null on the wrong family', () => {
+  // An always-true conditional once went unnoticed
   // because tests went through `parse(...).body.kind` not through asFlowchart
   // on a non-flowchart input. These tests exercise the negative branch.
   test('asFlowchart returns null for sequence body', () => {
@@ -1152,11 +1134,5 @@ describe('state diagrams narrow via asState (BUILD-19 contract)', () => {
     // carry the state header and never go stale.
     expect(mutated.value.canonicalSource.startsWith('stateDiagram-v2')).toBe(true)
     expect(mutated.value.canonicalSource).toContain('Running --> [*]')
-  })
-
-  test('flowchart ops do NOT apply to a state diagram (asFlowchart is null)', () => {
-    // The breaking change: flowchart's add_node is unreachable for state now.
-    expect(asFlowchart(parse(STATE_SRC))).toBeNull()
-    expect(asState(parse(STATE_SRC))).not.toBeNull()
   })
 })

@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { renderSourceToFormatWithReceipt } from '../cli/index.ts'
-import { FIDELITY_CAPABILITY_REPORT } from '../fidelity-capability-report.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import {
   handleHostedRequest,
@@ -12,7 +11,6 @@ import {
 import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { renderWebsiteSVGWithReceipt } from '../../website/src/rendering.ts'
-import { discoverFidelityRegistry } from './fidelity/registry.ts'
 import type { RenderOptions } from '../types.ts'
 
 const OPTIONS = Object.freeze({
@@ -22,6 +20,10 @@ const OPTIONS = Object.freeze({
   fg: '#172033',
   accent: '#2563eb',
 })
+// A trimmed edge label, an unknown XYChart statement, and an unsupported family.
+const NATIVE_SOURCE = 'flowchart TD\n  A -->|" a "| B\n'
+const XYCHART_UNKNOWN_STATEMENT_SOURCE = 'xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n'
+const UNSUPPORTED_FAMILY_SOURCE = 'block-beta\n  columns 1\n  A'
 const ALTERNATE_OPTIONS = Object.freeze({
   security: 'strict' as const,
   padding: 31,
@@ -83,17 +85,8 @@ async function svgArtifacts(source: string, options: RenderOptions = OPTIONS): P
 }
 
 describe('issue #248 fidelity route conformance', () => {
-  test('diagnostic comparison rejects a route that returns an artifact', () => {
-    expect(() => diagnosticFrom(() => ({ svg: '<svg />' }))).toThrow('Expected the route to reject')
-  })
-
   test('a native construct crosses library, CLI, browser/editor, website, and hosted MCP unchanged', async () => {
-    const registry = await discoverFidelityRegistry()
-    const fidelityCase = registry.cases.find(candidate => candidate.id === 'flowchart.links.boundary-whitespace-mutation-closure')!
-    const capability = FIDELITY_CAPABILITY_REPORT.features.find(feature => feature.featureId === fidelityCase.featureId)!
-    expect(capability.disposition).toBe('native')
-
-    const artifacts = await svgArtifacts(fidelityCase.source)
+    const artifacts = await svgArtifacts(NATIVE_SOURCE)
     const authority = artifacts.library!
     for (const [surface, artifact] of Object.entries(artifacts)) {
       expect(artifact.svg, surface).toBe(authority.svg)
@@ -170,46 +163,34 @@ describe('issue #248 fidelity route conformance', () => {
   })
 
   test('an unknown XYChart statement has the same diagnosed rejection at every adapter boundary', async () => {
-    const registry = await discoverFidelityRegistry()
-    const fidelityCase = registry.cases.find(candidate => candidate.id === 'xychart.syntax.unknown-statement-render-seam')!
-    const capability = FIDELITY_CAPABILITY_REPORT.features.find(feature => feature.featureId === fidelityCase.featureId)!
-    expect(capability.disposition).toBe('diagnosed')
-    expect(capability.surfaces.render).toBe('diagnosed')
-    expect(capability.diagnostics.render).toEqual(['RENDER_FAILED'])
-
-    const authority = diagnosticFrom(() => renderMermaidSVGWithReceipt(fidelityCase.source, OPTIONS))
+    const authority = diagnosticFrom(() => renderMermaidSVGWithReceipt(XYCHART_UNKNOWN_STATEMENT_SOURCE, OPTIONS))
     expect(authority).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
     const direct = {
-      cli: diagnosticFrom(() => renderSourceToFormatWithReceipt(fidelityCase.source, 'svg', OPTIONS)),
-      browserEditor: diagnosticFrom(() => BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(fidelityCase.source, OPTIONS)),
-      website: diagnosticFrom(() => renderWebsiteSVGWithReceipt(fidelityCase.source, OPTIONS)),
+      cli: diagnosticFrom(() => renderSourceToFormatWithReceipt(XYCHART_UNKNOWN_STATEMENT_SOURCE, 'svg', OPTIONS)),
+      browserEditor: diagnosticFrom(() => BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(XYCHART_UNKNOWN_STATEMENT_SOURCE, OPTIONS)),
+      website: diagnosticFrom(() => renderWebsiteSVGWithReceipt(XYCHART_UNKNOWN_STATEMENT_SOURCE, OPTIONS)),
     }
     for (const [surface, diagnostic] of Object.entries(direct)) expect(diagnostic, surface).toEqual(authority)
 
     const hosted = payloadOf(await handleHostedRequest(
-      call('render_svg', { source: fidelityCase.source, options: OPTIONS }),
+      call('render_svg', { source: XYCHART_UNKNOWN_STATEMENT_SOURCE, options: OPTIONS }),
       hostedContext(),
     ))
     expect(hosted).toMatchObject({ ok: false, isError: true, error: authority })
   })
 
   test('a diagnosed unsupported construct preserves the same typed diagnostic at every adapter boundary', async () => {
-    const registry = await discoverFidelityRegistry()
-    const fidelityCase = registry.cases.find(candidate => candidate.id === 'block.family.accurately-diagnosed-unsupported')!
-    const capability = FIDELITY_CAPABILITY_REPORT.features.find(feature => feature.featureId === fidelityCase.featureId)!
-    expect(capability.disposition).toBe('diagnosed')
-    expect(capability.diagnostics.render).toEqual(['UNSUPPORTED_FAMILY'])
-
-    const authority = diagnosticFrom(() => renderMermaidSVGWithReceipt(fidelityCase.source, OPTIONS))
+    const authority = diagnosticFrom(() => renderMermaidSVGWithReceipt(UNSUPPORTED_FAMILY_SOURCE, OPTIONS))
+    expect(authority).toMatchObject({ code: 'UNSUPPORTED_FAMILY' })
     const direct = {
-      cli: diagnosticFrom(() => renderSourceToFormatWithReceipt(fidelityCase.source, 'svg', OPTIONS)),
-      browserEditor: diagnosticFrom(() => BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(fidelityCase.source, OPTIONS)),
-      website: diagnosticFrom(() => renderWebsiteSVGWithReceipt(fidelityCase.source, OPTIONS)),
+      cli: diagnosticFrom(() => renderSourceToFormatWithReceipt(UNSUPPORTED_FAMILY_SOURCE, 'svg', OPTIONS)),
+      browserEditor: diagnosticFrom(() => BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(UNSUPPORTED_FAMILY_SOURCE, OPTIONS)),
+      website: diagnosticFrom(() => renderWebsiteSVGWithReceipt(UNSUPPORTED_FAMILY_SOURCE, OPTIONS)),
     }
     for (const [surface, diagnostic] of Object.entries(direct)) expect(diagnostic, surface).toEqual(authority)
 
     const hosted = payloadOf(await handleHostedRequest(
-      call('render_svg', { source: fidelityCase.source, options: OPTIONS }),
+      call('render_svg', { source: UNSUPPORTED_FAMILY_SOURCE, options: OPTIONS }),
       hostedContext(),
     ))
     expect(hosted).toMatchObject({ ok: false, isError: true, error: authority })

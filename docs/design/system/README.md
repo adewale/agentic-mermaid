@@ -29,22 +29,18 @@ the same resolved appearance and report losses rather than silently ignoring
 graphical style. Typed parse, serialize, mutate, and verify hooks remain on the
 same family descriptor identity.
 
-## This figure is dogfooded and drift-proof
+## This figure is dogfooded
 
 The diagram is authored as Mermaid ([`architecture.mmd`](./architecture.mmd)) and
-rendered to [`architecture.svg`](./architecture.svg) **by our own renderer**. A
-determinism snapshot test
-([`src/__tests__/docs-architecture-diagram.test.ts`](../../../src/__tests__/docs-architecture-diagram.test.ts))
-re-renders the source and asserts (a) the render is deterministic across calls and
-(b) it matches the committed SVG — so the picture can never silently drift from the
-code it describes. Regenerate after an intentional source change:
+rendered to [`architecture.svg`](./architecture.svg) **by our own renderer**.
+Re-render it after changing the source:
 
 ```
-UPDATE_GOLDEN=1 bun test src/__tests__/docs-architecture-diagram.test.ts
+bun run bin/am.ts render docs/design/system/architecture.mmd --format svg --output docs/design/system/architecture.svg
 ```
 
 This is the documentation half of the abstraction work: docs *about* the system are
-produced *by* the system, and pinned the same way we pin layout determinism.
+produced *by* the system.
 
 ## Read next
 

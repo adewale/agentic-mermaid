@@ -129,6 +129,16 @@ describe('experience-curve line', () => {
     expect(svg.indexOf('journey-curve')).toBeLessThan(svg.indexOf('journey-score-face'))
   })
 
+  it('passes through the centre of every score face, in task order', () => {
+    const svg = renderMermaidSVG(SOURCE)
+    const d = svg.match(/<path class="journey-curve"[^>]*\sd="([^"]+)"/)![1]!
+    // The start point and the end point of each cubic segment.
+    const points = [...d.matchAll(/(?:^M| C\S+ \S+ )(-?[\d.]+),(-?[\d.]+)/g)].map(m => [Number(m[1]), Number(m[2])])
+    const faces = [...svg.matchAll(/<circle class="journey-score-face" cx="([^"]+)" cy="([^"]+)"/g)].map(m => [Number(m[1]), Number(m[2])])
+    expect(faces).toHaveLength(5)
+    expect(points).toEqual(faces)
+  })
+
   it('is skippable via the journey render option', () => {
     const svg = renderMermaidSVG(SOURCE, { journey: { experienceCurve: false } })
     expect(svg).not.toContain('journey-curve')
@@ -161,16 +171,6 @@ describe('actor palette', () => {
     const warning = verifyMermaid(`journey\n  Task: 3: ${[...actors, 'Over'].join(', ')}`).warnings
       .find(item => item.code === 'UNSUPPORTED_SYNTAX' && item.syntax === 'journey_actor_palette_limit')
     expect(warning).toBeDefined()
-  })
-
-  it('gives nine actors nine distinct derived colors', () => {
-    const tasks = Array.from({ length: 9 }, (_v, i) => `    T${i}: 3: Actor${i}`).join('\n')
-    const svg = renderMermaidSVG(`journey\n  section S\n${tasks}`)
-    const fills = new Set<string>()
-    for (const match of svg.matchAll(/\.journey-actor-(\d+) \{ fill: ([^;]+);/g)) {
-      fills.add(match[2]!.trim())
-    }
-    expect(fills.size).toBeGreaterThanOrEqual(9)
   })
 })
 

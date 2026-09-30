@@ -80,26 +80,6 @@ describe('ASCII edge styles', () => {
     })
   })
 
-  describe('solid edges (default)', () => {
-    it('renders solid edges with ─ in unicode mode', () => {
-      const result = renderMermaidASCII(`
-        graph LR
-          A --> B
-      `)
-      expect(result).toContain('─')
-      expect(result).not.toContain('┄')
-      expect(result).not.toContain('━')
-    })
-
-    it('renders solid edges with - in ascii mode', () => {
-      const result = renderMermaidASCII(`
-        graph LR
-          A --> B
-      `, { useAscii: true })
-      expect(result).toContain('-')
-    })
-  })
-
   describe('dotted edges (-.->)', () => {
     it('renders dotted edges with ┄ in unicode mode', () => {
       const result = renderMermaidASCII(`

@@ -166,15 +166,12 @@ describe('class — verify', () => {
   })
 
   test('orphan relation → EDGE_MISANCHORED', () => {
-    // Build manually to bypass parser (parser would create both classes via upsert)
-    const r1 = mutate(asClass(parse('classDiagram\n  class A'))!, { kind: 'add_class', id: 'B' })
-    if (!r1.ok) throw new Error()
-    const r2 = mutate(r1.value, { kind: 'add_relation', from: 'A', to: 'B', relKind: 'inheritance' })
-    if (!r2.ok) throw new Error()
-    const r3 = mutate(r2.value, { kind: 'remove_class', id: 'B' })  // removes the relation too actually
-    if (!r3.ok) throw new Error()
-    // Cascade should have removed the relation, so no orphan
-    const v = verifyMermaid(r3.value)
-    expect(v.warnings.filter(w => w.code === 'EDGE_MISANCHORED')).toEqual([])
+    // The parser upserts both endpoints and remove_class cascades, so neither
+    // can produce an orphan: doctor the body to drop class B but keep A <|-- B.
+    const c = asClass(parse('classDiagram\n  class A\n  class B\n  A <|-- B'))!
+    const orphaned = { ...c, body: { ...c.body, classes: c.body.classes.filter(k => k.id !== 'B') } }
+    const v = verifyMermaid(orphaned)
+    expect(v.warnings).toContainEqual({ code: 'EDGE_MISANCHORED', edge: 'rel#0:A->B', from: 'A' })
+    expect(v.ok).toBe(false)
   })
 })

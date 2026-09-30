@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
 
+/** Asserts each part appears and each starts on a later row than the one
+ *  before it (a `<br>` that collapsed to a space would put them on one row).
+ *  Returns the rows so callers can check spacing. */
+function expectStacked(ascii: string, ...parts: string[]): number[] {
+  const rows = ascii.split('\n')
+  const at = parts.map(part => rows.findIndex(row => row.includes(part)))
+  expect({ parts, found: at.every(row => row >= 0), stacked: at.every((row, i) => i === 0 || row > at[i - 1]!) })
+    .toEqual({ parts, found: true, stacked: true })
+  return at
+}
+
 describe('ASCII multi-line labels', () => {
   describe('flowchart nodes', () => {
     it('renders multi-line node labels', () => {
@@ -41,8 +52,7 @@ describe('ASCII multi-line labels', () => {
   describe('flowchart edge labels', () => {
     it('renders multi-line edge labels', () => {
       const ascii = renderMermaidASCII('graph TD\n  A --> B\n  A -->|Line1<br>Line2| C', { useAscii: false })
-      expect(ascii).toContain('Line1')
-      expect(ascii).toContain('Line2')
+      expectStacked(ascii, 'Line1', 'Line2')
     })
   })
 
@@ -53,8 +63,7 @@ describe('ASCII multi-line labels', () => {
           A[Node]
         end
       `, { useAscii: false })
-      expect(ascii).toContain('Group')
-      expect(ascii).toContain('Header')
+      expectStacked(ascii, 'Group', 'Header')
     })
   })
 
@@ -64,8 +73,7 @@ describe('ASCII multi-line labels', () => {
         participant A as Actor<br>One
         A->>A: msg
       `, { useAscii: false })
-      expect(ascii).toContain('Actor')
-      expect(ascii).toContain('One')
+      expectStacked(ascii, 'Actor', 'One')
     })
 
     it('renders multi-line message labels', () => {
@@ -74,8 +82,7 @@ describe('ASCII multi-line labels', () => {
         participant B
         A->>B: Line1<br>Line2
       `, { useAscii: false })
-      expect(ascii).toContain('Line1')
-      expect(ascii).toContain('Line2')
+      expectStacked(ascii, 'Line1', 'Line2')
     })
 
     it('splits multi-line self-arrow labels into separate rows (bug 3.1)', () => {
@@ -101,8 +108,7 @@ describe('ASCII multi-line labels', () => {
         A->>A: self
         Note over A: Note line 1<br>Note line 2
       `, { useAscii: false })
-      expect(ascii).toContain('Note line 1')
-      expect(ascii).toContain('Note line 2')
+      expectStacked(ascii, 'Note line 1', 'Note line 2')
     })
   })
 
@@ -111,16 +117,14 @@ describe('ASCII multi-line labels', () => {
       const ascii = renderMermaidASCII(`classDiagram
         class MyClass["Long<br>Name"]
       `, { useAscii: false })
-      expect(ascii).toContain('Long')
-      expect(ascii).toContain('Name')
+      expectStacked(ascii, 'Long', 'Name')
     })
 
     it('renders multi-line relationship labels', () => {
       const ascii = renderMermaidASCII(`classDiagram
         A --> B : uses<br>implements
       `, { useAscii: false })
-      expect(ascii).toContain('uses')
-      expect(ascii).toContain('implements')
+      expectStacked(ascii, 'uses', 'implements')
     })
   })
 
@@ -131,55 +135,47 @@ describe('ASCII multi-line labels', () => {
           string id
         }
       `, { useAscii: false })
-      expect(ascii).toContain('Entity')
-      expect(ascii).toContain('Name')
+      expectStacked(ascii, 'Entity', 'Name')
     })
 
-    it('renders multi-line relationship labels', () => {
+    it('renders multi-line ER relationship labels', () => {
       const ascii = renderMermaidASCII(`erDiagram
         A ||--o{ B : "has<br>many"
       `, { useAscii: false })
-      expect(ascii).toContain('has')
-      expect(ascii).toContain('many')
+      expectStacked(ascii, 'has', 'many')
     })
   })
 
   describe('edge cases', () => {
     it('handles empty lines from consecutive <br>', () => {
       const ascii = renderMermaidASCII('graph TD\n  A[Line1<br><br>Line3]', { useAscii: false })
-      expect(ascii).toContain('Line1')
-      expect(ascii).toContain('Line3')
+      // The empty middle line keeps its row.
+      const [line1, line3] = expectStacked(ascii, 'Line1', 'Line3')
+      expect(line3! - line1!).toBe(2)
     })
 
     it('handles single-line labels (no <br>)', () => {
       const ascii = renderMermaidASCII('graph TD\n  A[SingleLine]', { useAscii: false })
-      expect(ascii).toContain('SingleLine')
+      expect(ascii.split('\n').filter(row => row.includes('SingleLine'))).toHaveLength(1)
     })
 
     it('handles very long lines', () => {
       const long = 'A'.repeat(30)
       const ascii = renderMermaidASCII(`graph TD\n  A[${long}<br>Short]`, { useAscii: false })
-      expect(ascii).toContain(long)
-      expect(ascii).toContain('Short')
+      expectStacked(ascii, long, 'Short')
     })
 
     it('handles mixed short and long lines', () => {
       const ascii = renderMermaidASCII('graph TD\n  A[Short<br>VeryLongSecondLine<br>Med]', { useAscii: false })
-      expect(ascii).toContain('Short')
-      expect(ascii).toContain('VeryLongSecondLine')
-      expect(ascii).toContain('Med')
+      expectStacked(ascii, 'Short', 'VeryLongSecondLine', 'Med')
     })
   })
 
   describe('multiline-utils functions', () => {
-    it('splitLines splits on newlines', () => {
+    it('splitLines puts each <br> segment on its own row, in order', () => {
       // Test through the rendering pipeline
       const ascii = renderMermaidASCII('graph TD\n  A[One<br>Two<br>Three]', { useAscii: false })
-      const lines = ascii.split('\n')
-      // All three words should appear on separate lines
-      expect(lines.some(l => l.includes('One'))).toBe(true)
-      expect(lines.some(l => l.includes('Two'))).toBe(true)
-      expect(lines.some(l => l.includes('Three'))).toBe(true)
+      expectStacked(ascii, 'One', 'Two', 'Three')
     })
 
     it('maxLineWidth uses longest line for box sizing', () => {

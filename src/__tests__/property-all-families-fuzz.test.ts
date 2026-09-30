@@ -13,8 +13,9 @@
 // It is driven off METAMORPHIC_FAMILIES, so a new diagram family is fuzzed the
 // moment it joins that registry — no per-family wiring here. A citizenship gate
 // fails if the registry drifts from the central family list, so a new family
-// CANNOT ship without a fuzz generator. The seed is pinned for cross-run
-// reproducibility (a gap in the rest of the property suite).
+// CANNOT ship without a fuzz generator. Its per-assert seeds (SEED) pin
+// cross-run reproducibility; the rest of the property suite is pinned by the
+// fc-seed.preload.ts global seed.
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'

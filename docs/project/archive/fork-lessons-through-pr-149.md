@@ -690,7 +690,7 @@ The important distinction is between a **supported-family blocker** and a
 lost silently, or an agent is sent down an unsafe path. A backfill gap means
 the family is usable through the current public contract, but lacks one of the
 higher-confidence evidence lanes Gantt now has. The matrix in
-`docs/contributing/diagram-family-citizenship.matrix.json` records those cells
+`docs/contributing/diagram-family-citizenship.matrix.json` (since removed) recorded those cells
 as `exception` only when they point at `TODO.md`/issues; CI fails if an
 exception is untracked or appears on a core surface.
 

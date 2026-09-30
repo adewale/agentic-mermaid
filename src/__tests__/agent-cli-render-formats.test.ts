@@ -1,52 +1,25 @@
 // Loop 9 M3 + M4 — `am render --format layout|unicode|ascii` round-trips.
 
 import { describe, test, expect } from 'bun:test'
+import { layoutMermaid, parseRegisteredMermaid } from '../agent/index.ts'
 import { runCli } from '../cli/index.ts'
+import { captureCli as capture } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-function capture(fn: () => number): { code: number; out: string } {
-  const chunks: string[] = []
-  const orig = process.stdout.write.bind(process.stdout)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(process.stdout as any).write = (s: string) => { chunks.push(s); return true }
-  let code: number
-  try { code = fn() } finally { (process.stdout as any).write = orig }
-  return { code, out: chunks.join('') }
-}
 
-function withStdin<T>(input: string, fn: () => T): T {
-  const orig = process.stdin
-  const fakeStdin = { isTTY: false } as unknown as typeof process.stdin
-  Object.defineProperty(process, 'stdin', { value: fakeStdin, configurable: true })
-  // Stub readFileSync(0) by piping through the existing readSourceArg which
-  // reads fd 0; instead we pass through `am batch` which expects stdin. For
-  // these tests we use temp files via the FS.
-  void input
-  try { return fn() } finally { Object.defineProperty(process, 'stdin', { value: orig, configurable: true }) }
-}
-void withStdin // unused
-
-function tmpFile(source: string): string {
-  const { writeFileSync, mkdtempSync } = require('node:fs') as typeof import('node:fs')
-  const { tmpdir } = require('node:os') as typeof import('node:os')
-  const { join } = require('node:path') as typeof import('node:path')
-  const d = mkdtempSync(join(tmpdir(), 'am-render-fmt-'))
-  const p = join(d, 'in.mmd')
-  writeFileSync(p, source)
-  return p
-}
+const temp = useTempDirs('am-render-fmt-')
+const tmpFile = (source: string): string => temp.file('in.mmd', source)
 
 describe('am render --format layout', () => {
-  test('emits stable layout JSON for flowchart', () => {
-    const f = tmpFile('flowchart TD\n  A --> B\n  B --> C\n')
-    const { code, out } = capture(() => runCli(['render', '--format', 'layout', f]))
+  test('emits the library layout JSON for flowchart (CLI ≡ layoutMermaid, plus a receipt)', () => {
+    const source = 'flowchart TD\n  A --> B\n  B --> C\n'
+    const { code, out } = capture(() => runCli(['render', '--format', 'layout', tmpFile(source)]))
     expect(code).toBe(0)
-    const payload = JSON.parse(out) as { nodes: unknown[]; edges: unknown[]; bounds: { w: number; h: number } }
-    expect(Array.isArray(payload.nodes)).toBe(true)
-    expect(Array.isArray(payload.edges)).toBe(true)
-    expect(payload.bounds).toBeDefined()
-    expect(typeof payload.bounds.w).toBe('number')
-    expect(typeof payload.bounds.h).toBe('number')
-    expect(payload.nodes.length).toBeGreaterThanOrEqual(3)
+    const { receipt, ...layout } = JSON.parse(out) as { receipt: unknown }
+    expect(receipt).toEqual(expect.objectContaining({ sharedRequestDigest: expect.any(String) }))
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture must parse')
+    expect(layout).toEqual(JSON.parse(JSON.stringify(layoutMermaid(parsed.value))))
   })
   test('certificates flag includes route certificates without changing default JSON', () => {
     const f = tmpFile('flowchart LR\n  A --> B\n  B --> C\n')

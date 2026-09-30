@@ -15,6 +15,7 @@ import { parsePieChart } from '../pie/parser.ts'
 import { layoutPieChart, slicePath } from '../pie/layout.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 
 function parse(src: string) {
   return parsePieChart(toMermaidLines(src))
@@ -174,11 +175,6 @@ describe('pie SVG integration', () => {
     expect(svg).toContain('[386]')
     expect(svg).toContain('Dogs')
   })
-
-  it('has no Math.random/Date.now nondeterminism across many renders', () => {
-    const first = renderMermaidSVG(src)
-    for (let i = 0; i < 5; i++) expect(renderMermaidSVG(src)).toBe(first)
-  })
 })
 
 // ---------------------------------------------------------------------------
@@ -223,26 +219,28 @@ describe('pie property tests', () => {
         const sum = positioned.slices.reduce((s, sl) => s + sl.fraction, 0)
         expect(sum).toBeCloseTo(1, 6)
 
+        // Each label is its own legend entry (`<label> (<pct>%)`), not merely a
+        // substring somewhere in the SVG. Alphanumeric labels pass through XML
+        // escaping unchanged.
         const svg = renderMermaidSVG(src)
-        for (const [label] of unique) {
-          // Alphanumeric labels pass through XML escaping unchanged.
-          expect(svg).toContain(label)
-        }
+        const legend = [...svg.matchAll(/class="pie-legend-text"[^>]*>([^<]*) \([\d.]+%\)<\/text>/g)].map(m => m[1])
+        expect(legend.sort()).toEqual(unique.map(([label]) => label).sort())
       }),
       { numRuns: 60 },
     )
   })
 
-  it('parser round-trips entry count and values stably', () => {
+  it('parser recovers the generated entries, and serialize -> parse preserves them', () => {
     fc.assert(
       fc.property(entriesArb, (entries) => {
         const seen = new Set<string>()
         const unique = entries.filter(([l]) => (seen.has(l) ? false : (seen.add(l), true)))
         const src = 'pie\n' + unique.map(([l, v]) => `  "${l}" : ${v}`).join('\n')
-        const a = parsePieChart(toMermaidLines(src))
-        const b = parsePieChart(toMermaidLines(src))
-        expect(a.entries).toEqual(b.entries)
-        expect(a.entries).toHaveLength(unique.length)
+        const generated = unique.map(([label, value]) => ({ label, value }))
+        expect(parsePieChart(toMermaidLines(src)).entries).toEqual(generated)
+        const agent = parseRegisteredMermaid(src)
+        if (!agent.ok) throw new Error(`agent parse failed: ${JSON.stringify(agent.error)}`)
+        expect(parsePieChart(toMermaidLines(serializeMermaid(agent.value))).entries).toEqual(generated)
       }),
       { numRuns: 60 },
     )

@@ -3,6 +3,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import { applyOps } from '../agent/core.ts'
 
 function nodeG(svg: string, id: string): string | undefined {
   return svg.split('\n').find(l => l.includes(`data-id="${id}"`))?.trim()
@@ -47,13 +48,19 @@ describe('#81 external CSS class emission', () => {
     expect(svg).not.toContain('::hot')
   })
 
-  test('class names with invalid CSS chars are sanitized', () => {
-    // ::: shorthand class with a dotted/odd name — must not break the class attr.
+  test('hyphenated class names survive intact in the class attribute', () => {
     const svg = renderMermaidSVG('flowchart TD\n  A:::my-class\n  classDef my-class fill:#0f0')
-    const a = nodeG(svg, 'A')
     // hyphen is a valid CSS ident char, so it survives
-    expect(a).toContain('my-class')
-    // and the attribute is still well-formed (no stray quotes)
-    expect(a).toMatch(/class="[A-Za-z0-9 _-]+"/)
+    expect(nodeG(svg, 'A')).toContain('class="node my-class"')
+  })
+
+  test('class names with invalid CSS chars are refused before they reach the class attribute', () => {
+    // The parser and the typed op both refuse them, so the renderer's own
+    // sanitizer (renderer.test.ts) is defence in depth, not the first line.
+    for (const source of ['flowchart TD\n  A:::my.class', 'flowchart TD\n  A\n  class A a/b']) {
+      expect(() => renderMermaidSVG(source)).toThrow(/Invalid flowchart statement/)
+    }
+    const op = applyOps({ source: 'flowchart TD\n  A --> B', ops: [{ kind: 'set_node_class', id: 'A', className: 'x"y' }] })
+    expect(op).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
   })
 })

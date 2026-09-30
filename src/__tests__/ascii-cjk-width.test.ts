@@ -42,11 +42,12 @@ describe('ASCII CJK/fullwidth display width', () => {
   it('sizes unicode node boxes by visual width, not JavaScript string length', () => {
     const output = renderMermaidASCII('graph TD\n  A[开始]')
     const lines = output.split('\n').filter(Boolean)
-    const top = lines.find(line => line.includes('┌')) ?? ''
-    const label = lines.find(line => line.includes('开始')) ?? ''
-    expect(top).toContain('────')
-    expect(label).toContain('开始')
-    expect(label).toContain('│')
+    const top = (lines.find(line => line.includes('┌')) ?? '').trim()
+    const label = (lines.find(line => line.includes('开始')) ?? '').trim()
+    // '开始' is 2 JS chars but 4 terminal columns: the box interior is those 4
+    // columns plus one padding cell per side, and ┐ lines up with the closing │.
+    expect({ top, label }).toEqual({ top: '┌──────┐', label: '│ 开始 │' })
+    expect(visualWidth(label)).toBe(visualWidth(top))
   })
 
   it('keeps CJK target labels visible in connected diagrams', () => {
@@ -80,11 +81,12 @@ describe('ASCII CJK/fullwidth display width', () => {
 
   it('centers CJK sequence message labels on the arrow (bug 3.3)', () => {
     // CJK label between two participants — Loop 7 fix uses visualWidth, not
-    // .length, so the label centers on terminal columns. The canvas pads
-    // each wide glyph with a follow-cell, so the rendered row reads
-    // "你 好 世 界" (single space between glyphs); we check each character
-    // sits in monotonically increasing positions and the label is
-    // roughly centered between the two lifelines.
+    // .length, so the label centers on terminal columns. Each wide glyph
+    // fills two terminal cells with no spacer glyph, so the row reads
+    // "你好世界" (see the self-arrow test below). Positions are measured in
+    // display columns (visualWidth of the row prefix), not string indices;
+    // we check the glyphs sit in order and the label is roughly centered
+    // between the two lifelines.
     const output = renderMermaidASCII(`sequenceDiagram
       participant A
       participant B
@@ -94,17 +96,20 @@ describe('ASCII CJK/fullwidth display width', () => {
     const lines = output.split('\n')
     const labelRow = lines.find(l => l.includes('你') && l.includes('世'))!
     expect(labelRow).toBeDefined()
-    const pos = ['你', '好', '世', '界'].map(c => labelRow.indexOf(c))
+    const col = (index: number) => visualWidth(labelRow.slice(0, index))
+    expect(labelRow).toContain('你好世界')
+    const pos = ['你', '好', '世', '界'].map(c => col(labelRow.indexOf(c)))
     for (let i = 1; i < pos.length; i++) expect(pos[i]).toBeGreaterThan(pos[i - 1]!)
     // Lifelines │ should sit on either side of the label cluster.
-    const leftWall = labelRow.indexOf('│')
-    const rightWall = labelRow.lastIndexOf('│')
+    const leftWall = col(labelRow.indexOf('│'))
+    const rightWall = col(labelRow.lastIndexOf('│'))
     expect(leftWall).toBeLessThan(pos[0]!)
     expect(rightWall).toBeGreaterThan(pos[pos.length - 1]!)
     // Center-ish: distance from left wall to first glyph and from last
     // glyph to right wall must be within a couple of cells of each other.
-    const leftSlack = pos[0]! - leftWall
-    const rightSlack = rightWall - pos[pos.length - 1]!
+    // Empty cells between each wall and the label (the last glyph is 2 wide).
+    const leftSlack = pos[0]! - (leftWall + 1)
+    const rightSlack = rightWall - (pos[pos.length - 1]! + 2)
     expect(Math.abs(leftSlack - rightSlack)).toBeLessThanOrEqual(3)
   })
 

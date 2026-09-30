@@ -13,7 +13,6 @@ import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { visualWidth } from '../ascii/width.ts'
-import { measureTextWidth } from '../text-metrics.ts'
 import { contrastRatio } from '../shared/color-math.ts'
 import { DEFAULTS } from '../theme.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
@@ -102,7 +101,8 @@ describe('Mindmap full-family citizenship', () => {
     expect(connectors).toHaveLength(first.edges.length)
     first.edges.forEach((edge, index) => {
       const connector = connectors[index]!
-      expect(connector.kind).toBe('connector')
+      expect({ index, kind: connector.kind, geometry: connector.kind === 'connector' ? connector.route.geometry.kind : null })
+        .toEqual({ index, kind: 'connector', geometry: 'path' })
       if (connector.kind !== 'connector' || connector.route.geometry.kind !== 'path') return
       const [start, control1, control2, end] = edge.points
       expect(connector.route.geometry.points).not.toEqual(edge.points)
@@ -243,24 +243,27 @@ describe('GitGraph full-family citizenship', () => {
   test('sizes every direction for the displayed commit message, including rotation', () => {
     const message = 'A deliberately long release message '.repeat(8).trim()
     for (const direction of ['LR', 'TB', 'BT'] as const) {
-      const layout = layoutGitGraph(parseGitGraph(`gitGraph ${direction}:\n  commit id:"x" msg:"${message}"`))
-      const commit = layout.commits[0]!
-      const origin = direction === 'LR'
-        ? { x: commit.x, y: commit.y + 24, anchor: 'middle' as const, angle: 45 }
-        : { x: commit.x + 14, y: commit.y + 4, anchor: 'start' as const, angle: 0 }
-      const width = measureTextWidth(message, 11, 500)
-      const left = origin.anchor === 'middle' ? -width / 2 : 0
-      const corners = [[left, -11], [left + width, -11], [left, 3], [left + width, 3]].map(([x, y]) => {
-        const radians = origin.angle * Math.PI / 180
-        return {
-          x: origin.x + x! * Math.cos(radians) - y! * Math.sin(radians),
-          y: origin.y + x! * Math.sin(radians) + y! * Math.cos(radians),
-        }
-      })
-      expect(Math.min(...corners.map(point => point.x)), `${direction} min x`).toBeGreaterThanOrEqual(0)
-      expect(Math.min(...corners.map(point => point.y)), `${direction} min y`).toBeGreaterThanOrEqual(0)
-      expect(Math.max(...corners.map(point => point.x)), `${direction} max x`).toBeLessThanOrEqual(layout.width)
-      expect(Math.max(...corners.map(point => point.y)), `${direction} max y`).toBeLessThanOrEqual(layout.height)
+      // Everything comes from the rendered SVG: the message's anchor point,
+      // alignment, font size, rotation, and fitted textLength, and the canvas.
+      const svg = renderMermaidSVG(`gitGraph ${direction}:\n  commit id:"x" msg:"${message}"`)
+      const [, canvasW, canvasH] = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)!.map(Number)
+      const tag = svg.match(/<text class="git-commit-label"[^>]*>/)![0]
+      const attr = (name: string) => tag.match(new RegExp(` ${name}="([^"]+)"`))?.[1]
+      const [x, y, size, width] = ['x', 'y', 'font-size', 'textLength'].map(name => Number(attr(name)))
+      const angle = Number(attr('transform')?.match(/rotate\(([-\d.]+)/)?.[1] ?? 0)
+      const left = attr('text-anchor') === 'middle' ? -width! / 2 : 0
+      // The glyph box: textLength wide, 1em above the baseline, 0.3em below it.
+      const radians = angle * Math.PI / 180
+      const corners = [[left, -size!], [left + width!, -size!], [left, 0.3 * size!], [left + width!, 0.3 * size!]].map(([dx, dy]) => ({
+        x: x! + dx! * Math.cos(radians) - dy! * Math.sin(radians),
+        y: y! + dx! * Math.sin(radians) + dy! * Math.cos(radians),
+      }))
+      const box = {
+        minX: Math.min(...corners.map(point => point.x)), minY: Math.min(...corners.map(point => point.y)),
+        maxX: Math.max(...corners.map(point => point.x)), maxY: Math.max(...corners.map(point => point.y)),
+      }
+      expect({ direction, rotated: angle !== 0, inside: box.minX >= 0 && box.minY >= 0 && box.maxX <= canvasW! && box.maxY <= canvasH! })
+        .toEqual({ direction, rotated: direction === 'LR', inside: true })
     }
   })
 

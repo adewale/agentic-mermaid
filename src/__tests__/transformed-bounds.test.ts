@@ -13,7 +13,14 @@ describe('transformed bounds geometry kernel', () => {
     close(box.y1, 3 * Math.SQRT2)
   })
 
-  test('every transformed source corner is contained in the returned AABB', () => {
+  test('the returned AABB is exactly the extent of the four rotated source corners', () => {
+    // Independent oracle: the textbook rotation (SVG rotate(angle, cx, cy)),
+    // not the module's rotatePoint. Equality (not just containment) also
+    // rules out a box that is merely too large.
+    const rotated = (x: number, y: number, cx: number, cy: number, degrees: number) => {
+      const t = degrees * Math.PI / 180
+      return { x: cx + (x - cx) * Math.cos(t) - (y - cy) * Math.sin(t), y: cy + (x - cx) * Math.sin(t) + (y - cy) * Math.cos(t) }
+    }
     fc.assert(fc.property(
       fc.record({
         x0: fc.double({ min: -1_000, max: 1_000, noNaN: true }),
@@ -27,14 +34,23 @@ describe('transformed bounds geometry kernel', () => {
       ({ x0, y0, width, height, cx, cy, angle }) => {
         const source = { x0, y0, x1: x0 + width, y1: y0 + height }
         const bounds = rotateBoxBounds(source, { x: cx, y: cy }, angle)
-        for (const [x, y] of [[source.x0, source.y0], [source.x1, source.y0], [source.x0, source.y1], [source.x1, source.y1]]) {
-          const point = rotatePoint({ x: x!, y: y! }, { x: cx, y: cy }, angle)
-          expect(point.x).toBeGreaterThanOrEqual(bounds.x0 - 1e-9)
-          expect(point.x).toBeLessThanOrEqual(bounds.x1 + 1e-9)
-          expect(point.y).toBeGreaterThanOrEqual(bounds.y0 - 1e-9)
-          expect(point.y).toBeLessThanOrEqual(bounds.y1 + 1e-9)
+        const corners = [[source.x0, source.y0], [source.x1, source.y0], [source.x0, source.y1], [source.x1, source.y1]]
+          .map(([x, y]) => rotated(x!, y!, cx, cy, angle))
+        const expected = {
+          x0: Math.min(...corners.map(p => p.x)), y0: Math.min(...corners.map(p => p.y)),
+          x1: Math.max(...corners.map(p => p.x)), y1: Math.max(...corners.map(p => p.y)),
+        }
+        for (const side of ['x0', 'y0', 'x1', 'y1'] as const) {
+          expect({ side, withinTolerance: Math.abs(bounds[side] - expected[side]) < 1e-6 }).toEqual({ side, withinTolerance: true })
         }
       },
     ), { numRuns: 200 })
+  })
+
+  test('rotatePoint agrees with the textbook rotation', () => {
+    close(rotatePoint({ x: 4, y: 0 }, { x: 0, y: 0 }, 45).x, 2 * Math.SQRT2)
+    close(rotatePoint({ x: 4, y: 0 }, { x: 0, y: 0 }, 45).y, 2 * Math.SQRT2)
+    close(rotatePoint({ x: 3, y: 1 }, { x: 1, y: 1 }, 90).x, 1)
+    close(rotatePoint({ x: 3, y: 1 }, { x: 1, y: 1 }, 90).y, 3)
   })
 })

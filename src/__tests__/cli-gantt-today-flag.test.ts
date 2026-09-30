@@ -4,10 +4,12 @@
 // x.mmd --gantt-toady 2024-01-05` exited 0 with no marker and no complaint).
 
 import { describe, test, expect } from 'bun:test'
-import { writeFileSync, mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli, FLAG_SPECS } from '../cli/index.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 function capture(fn: () => number): { code: number; out: string; err: string } {
   const outChunks: string[] = []
@@ -29,7 +31,7 @@ function capture(fn: () => number): { code: number; out: string; err: string } {
 }
 
 function tmpFile(source: string): string {
-  const p = join(mkdtempSync(join(tmpdir(), 'am-gantt-cli-')), 'in.mmd')
+  const p = join(temp.dir('am-gantt-cli-'), 'in.mmd')
   writeFileSync(p, source)
   return p
 }

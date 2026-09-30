@@ -3,13 +3,15 @@
 // tools, the way mcp-publish-recovery.test.ts executes the MCP Registry step.
 // Assertions are on what the shell does (exit status, which commands it
 // reaches, what it asks the registry for), not on the text of the scripts.
-import { afterEach, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
@@ -22,14 +24,8 @@ function step(job: string, name: string): Step & { run: string } {
   return found as Step & { run: string }
 }
 
-const tempDirs: string[] = []
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
-})
-
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-release-step-'))
-  tempDirs.push(dir)
+  const dir = temp.dir('agentic-mermaid-release-step-')
   mkdirSync(join(dir, 'bin'))
   return dir
 }
@@ -235,14 +231,27 @@ esac
 describe('publish-mcp job: pinned publisher binary', () => {
   const install = step('publish-mcp', 'Install MCP Registry publisher')
 
-  function installWith(digest: string | undefined) {
+  // Built once and reused: tar embeds the file mtime (and gzip a timestamp),
+  // so two separately built archives differ whenever the builds straddle a
+  // second boundary, and "serve the archive whose digest we just took" flaked.
+  let servedArchive: Buffer | undefined
+  function servedArchiveBytes(): Buffer {
+    if (servedArchive) return servedArchive
     const dir = tempDir()
     const staging = join(dir, 'staging')
     mkdirSync(staging)
     writeFileSync(join(staging, 'mcp-publisher'), '#!/bin/sh\n')
     const archive = join(dir, 'served.tar.gz')
     expect(spawnSync('tar', ['--create', '--gzip', '--file', archive, '-C', staging, 'mcp-publisher']).status).toBe(0)
-    rmSync(staging, { recursive: true, force: true })
+    servedArchive = readFileSync(archive)
+    return servedArchive
+  }
+
+  function installWith(digest: string | undefined) {
+    const archiveBytes = servedArchiveBytes()
+    const dir = tempDir()
+    const archive = join(dir, 'served.tar.gz')
+    writeFileSync(archive, archiveBytes)
     stub(dir, 'curl', `output=
 url=
 while [ "$#" -gt 0 ]; do

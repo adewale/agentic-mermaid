@@ -40,6 +40,9 @@ describe('#7540 unique SVG ids across diagrams', () => {
 
   test('custom-stroke markers (suffixed ids) are also namespaced', () => {
     const a = renderMermaidSVG('flowchart TD\n A-->B\n linkStyle 0 stroke:#f00', { idPrefix: 'q-' })
+    // The custom stroke emits a color-suffixed marker, and the edge uses it.
+    expect(ids(a)).toContain('q-arrowhead-23f00')
+    expect(refs(a)).toContain('q-arrowhead-23f00')
     expect(ids(a).every(i => i.startsWith('q-'))).toBe(true)
     const declared = new Set(ids(a))
     for (const r of refs(a)) expect(declared.has(r)).toBe(true)

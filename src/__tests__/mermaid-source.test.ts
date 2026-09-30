@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
 import {
+  detectDiagramType,
   getFrontmatterMap,
   getFrontmatterScalar,
   mermaidInitDirectiveIdentity,
@@ -149,5 +152,17 @@ flowchart TD
     expect(() => normalizeMermaidSource(`%%{init: &root { safe: true, self: *root }}%%
 flowchart TD
   A --> B`)).toThrow('must be acyclic')
+  })
+})
+
+describe('detectDiagramType', () => {
+  // SVG and ASCII rendering route through this detector; the agent parser must
+  // land every family on the same kind.
+  it('routes every built-in family example to the kind the agent parser assigns', () => {
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const parsed = parseRegisteredMermaid(family.example)
+      expect({ family: family.id, detected: detectDiagramType(family.example), parsed: parsed.ok ? parsed.value.kind : parsed.error })
+        .toEqual({ family: family.id, detected: family.id, parsed: family.id })
+    }
   })
 })

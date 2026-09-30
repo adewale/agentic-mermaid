@@ -16,10 +16,10 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asState, asFlowchart } from '../agent/types.ts'
-import type { StateValidDiagram, StateMutationOp, StateNode, MutationError } from '../agent/types.ts'
+import type { LayoutWarning, StateValidDiagram, StateMutationOp, StateNode, StateTransition, MutationError } from '../agent/types.ts'
 import { parseMermaid as parseLegacy } from '../parser.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
-import { describeMermaid } from '../agent/describe.ts'
+import { describeMermaid, describeMermaidTree } from '../agent/describe.ts'
 
 const SRC = `stateDiagram-v2
   [*] --> Idle
@@ -381,13 +381,9 @@ describe('state differential — canonical source re-parses 1:1 under the LEGACY
 describe('state verify — geometric Tier 2 projection (parity with flowchart)', () => {
   // State diagrams project to a MermaidGraph and run the SAME verifyGraph as
   // flowcharts. Prove parity: a state source and the equivalent flowchart
-  // source produce the same Tier 2 (NODE_OVERLAP / ROUTE_SELF_CROSS) verdict,
-  // and state verify produces a real geometric layout (not the empty layout).
+  // source produce the same graph-verifier warnings, and state verify
+  // produces a real geometric layout (not the empty layout).
   const STATE = `stateDiagram-v2
-  A --> B
-  B --> C
-  C --> A`
-  const FLOW = `flowchart TD
   A --> B
   B --> C
   C --> A`
@@ -421,26 +417,21 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     expect(v.ok).toBe(true)
   })
 
-  test('Tier 2 codes are reachable for state (same code path as flowchart)', () => {
-    // Suppressing Tier 2 on a state diagram is honored — proves the geometric
-    // detectors run in the state path (otherwise suppression would be a no-op).
-    const r = parseMermaid(STATE)
-    expect(r.ok).toBe(true)
-    if (!r.ok) return
-    const codes = new Set(verifyMermaid(r.value).warnings.map(w => w.code))
-    const suppressed = new Set(
-      verifyMermaid(r.value, { suppress: ['NODE_OVERLAP', 'ROUTE_SELF_CROSS'] }).warnings.map(w => w.code),
-    )
-    expect(suppressed.has('NODE_OVERLAP')).toBe(false)
-    expect(suppressed.has('ROUTE_SELF_CROSS')).toBe(false)
-    // Parity: the state and flowchart projections of the same graph agree on
-    // which Tier 2 codes fire.
-    const flowR = parseMermaid(FLOW)
-    expect(flowR.ok).toBe(true)
-    if (!flowR.ok) return
-    const flowTier2 = new Set([...verifyMermaid(flowR.value).warnings].filter(w => w.code === 'NODE_OVERLAP' || w.code === 'ROUTE_SELF_CROSS').map(w => w.code))
-    const stateTier2 = new Set([...codes].filter(c => c === 'NODE_OVERLAP' || c === 'ROUTE_SELF_CROSS'))
-    expect(stateTier2).toEqual(flowTier2)
+  test('state runs the flowchart graph verifier: graph-path warnings match the flowchart projection', () => {
+    // Real layouts never overlap, so NODE_OVERLAP / ROUTE_SELF_CROSS cannot be
+    // forced from source. DUPLICATE_EDGE and UNREACHABLE_NODE are emitted only
+    // by the flowchart graph verifier (the same pass that holds the Tier 2
+    // geometric checks), so seeing them on a state diagram proves the state
+    // path runs it, and suppressing one of them proves suppression is honored.
+    const body = '  [*] --> A\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
+    const expected: LayoutWarning[] = [
+      { code: 'DUPLICATE_EDGE', edge: 'A->B#2', duplicateOf: 'A->B#1', from: 'A', to: 'B' },
+      { code: 'UNREACHABLE_NODE', node: 'C' },
+      { code: 'UNREACHABLE_NODE', node: 'D' },
+    ]
+    expect(verifyMermaid(`stateDiagram-v2\n${body}`).warnings).toEqual(expected)
+    expect(verifyMermaid(`flowchart TD\n${body.replace('[*]', 'S')}`).warnings).toEqual(expected)
+    expect(verifyMermaid(`stateDiagram-v2\n${body}`, { suppress: ['DUPLICATE_EDGE'] }).warnings).toEqual(expected.slice(1))
   })
 
   test('dense state source: geometric path runs and lays out every state', () => {
@@ -488,6 +479,20 @@ describe('state fast-check round-trip property', () => {
   // survives the round-trip with the same state/transition shape.
   const id = fc.string({ minLength: 1, maxLength: 4 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s))
 
+  const shape = (states: StateNode[], transitions: StateTransition[]): unknown => ({
+    states: states.map(s => ({ id: s.id, children: s.states ? shape(s.states, s.transitions ?? []) : null })),
+    transitions: transitions.map(t => `${t.from}->${t.to}`),
+  })
+  // `state()` throws unless the source parses to a structured state body, so a
+  // regression to opaque fails the property instead of passing it vacuously.
+  const roundTripsAsState = (src: string): void => {
+    const d = state(src)
+    const s1 = serializeMermaid(d)
+    const d2 = state(s1)
+    expect({ src, reserialized: serializeMermaid(d2), shape: shape(d2.body.states, d2.body.transitions) })
+      .toEqual({ src, reserialized: s1, shape: shape(d.body.states, d.body.transitions) })
+  }
+
   const simpleMachine = fc.record({
     states: fc.uniqueArray(id, { minLength: 1, maxLength: 4 }),
   }).chain(({ states }) => {
@@ -503,12 +508,7 @@ describe('state fast-check round-trip property', () => {
       const lines = ['stateDiagram-v2']
       for (const t of transitions) lines.push(`  ${t.from} --> ${t.to}`)
       const src = lines.join('\n') + '\n'
-      const r = parseMermaid(src)
-      if (!r.ok) return true
-      if (r.value.body.kind !== 'state') return true
-      const s1 = serializeMermaid(r.value)
-      const r2 = parseMermaid(s1)
-      return r2.ok && serializeMermaid(r2.value) === s1
+      return roundTripsAsState(src)
     }), { numRuns: 200 })
   })
 
@@ -524,12 +524,7 @@ describe('state fast-check round-trip property', () => {
       lines.push(`    ${inner[inner.length - 1]} --> [*]`)
       lines.push('  }')
       const src = lines.join('\n') + '\n'
-      const r = parseMermaid(src)
-      if (!r.ok) return true
-      if (r.value.body.kind !== 'state') return true
-      const s1 = serializeMermaid(r.value)
-      const r2 = parseMermaid(s1)
-      return r2.ok && serializeMermaid(r2.value) === s1
+      return roundTripsAsState(src)
     }), { numRuns: 100 })
   })
 })
@@ -551,9 +546,16 @@ describe('state semantic read-back', () => {
 
 describe('state describe (prose + AX tree)', () => {
   test('AX tree exposes states as nodes and transitions as edges', () => {
-    // describeMermaidTree is exercised through the public describe surface.
-    const d = state()
-    const node = d.body.states.find(s => s.id === 'Active') as StateNode
-    expect(node.label).toBe('In Progress')
+    const tree = describeMermaidTree(state())
+    expect({ kind: tree.kind, nodes: tree.nodes, edges: tree.edges }).toEqual({
+      kind: 'state',
+      nodes: [{ id: 'Active', label: 'In Progress' }, { id: 'Idle', label: 'Idle' }],
+      edges: [
+        { from: '[*]', to: 'Idle' },
+        { from: 'Idle', to: 'Active', label: 'start' },
+        { from: 'Active', to: 'Idle', label: 'pause' },
+        { from: 'Active', to: '[*]', label: 'done' },
+      ],
+    })
   })
 })

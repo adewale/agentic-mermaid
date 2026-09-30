@@ -4,8 +4,7 @@
 // the repository and re-recorded on Linux for every change. The route and lazy
 // family byte ceilings (website-payload-budgets.ts, browser-lazy-budgets.json)
 // keep generous headroom and bound accumulated growth; this check bounds each
-// PR's growth and reports every delta in the job summary. The decision logic is
-// unit-tested in src/__tests__/payload-delta.test.ts.
+// PR's growth and reports every delta in the job summary.
 
 import { appendFileSync, readFileSync } from 'node:fs'
 

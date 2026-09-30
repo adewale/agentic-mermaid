@@ -13,8 +13,7 @@
 // Loaded via bunfig.toml [test].preload, so it applies to every current and
 // future *.test.ts without per-file wiring. Suites that preserve a seed which
 // exposed a real bug use per-call `seed:` options, which win over the global
-// without mutating process state. fc-seed-policy.test.ts gates both this file
-// and that source-level convention against being unwired.
+// without mutating process state.
 import fc from 'fast-check'
 
 export const DEFAULT_FC_SEED = 20260702

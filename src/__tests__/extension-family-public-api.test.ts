@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { detectRegisteredFamilyFromFirstLine, type ExternalFamilyId, type FamilyDescriptor, getFamily, layoutMermaid, layoutMermaidWithReceipt, parseRegisteredMermaid, registerFamily, renderMermaidSVG, SCENE_VALIDATION_LIMITS, serializeMermaid, verifyMermaid } from '../agent/index.ts'
@@ -10,6 +9,10 @@ import { createTracingMermaid } from '../mcp/facade.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { captureCli } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const EVIDENCE = 'src/__tests__/extension-family-public-api.test.ts'
 
@@ -169,7 +172,7 @@ describe('registered family public layout and verify APIs', () => {
     const unregister = registerFamily(descriptor)
     try {
       const parsed = parseRegisteredMermaid(source)
-      expect(parsed.ok).toBe(true)
+      expect(parsed.ok && parsed.value.body.kind).toBe('extension')
       if (!parsed.ok || parsed.value.body.kind !== 'extension') return
       expect(parsed.value.body.source).toBe(source)
       expect(parsed.value.body.data).toEqual({ parsed: true })
@@ -232,7 +235,7 @@ describe('registered family public layout and verify APIs', () => {
     const unregister = registerFamily(descriptor)
     try {
       const parsed = parseRegisteredMermaid(source)
-      expect(parsed.ok).toBe(true)
+      expect(parsed.ok && parsed.value.body.kind).toBe('extension')
       if (!parsed.ok || parsed.value.body.kind !== 'extension') return
       expect(parsed.value.meta.wrapperSource).toBe(wrapper)
       expect(parsed.value.body.source).toBe(body)
@@ -441,7 +444,7 @@ family payload
     const unregister = registerFamily(descriptor)
     try {
       const parsed = parseRegisteredMermaid('parseDataSnapshotDiagram\n  payload')
-      expect(parsed.ok).toBe(true)
+      expect(parsed.ok && parsed.value.body.kind).toBe('extension')
       if (!parsed.ok || parsed.value.body.kind !== 'extension') return
       const data = parsed.value.body.data as typeof owned
       expect(data).not.toBe(owned)
@@ -691,7 +694,7 @@ descriptorUpgradeDiagram
     }
     const source = 'transportParseDiagram\n  extension payload'
     const unregister = registerFamily(descriptor)
-    const directory = mkdtempSync(join(tmpdir(), 'agentic-mermaid-open-parse-'))
+    const directory = temp.dir('agentic-mermaid-open-parse-')
     const path = join(directory, 'extension.mmd')
     writeFileSync(path, source)
     try {
@@ -713,18 +716,9 @@ descriptorUpgradeDiagram
         example: descriptor.example,
       })
 
-      const chunks: string[] = []
-      const originalWrite = process.stdout.write
-      process.stdout.write = ((chunk: unknown) => {
-        chunks.push(String(chunk))
-        return true
-      }) as typeof process.stdout.write
-      try {
-        expect(runCli(['parse', path])).toBe(0)
-      } finally {
-        process.stdout.write = originalWrite
-      }
-      expect(JSON.parse(chunks.join(''))).toMatchObject({
+      const parsed = captureCli(() => runCli(['parse', path]))
+      expect(parsed.code).toBe(0)
+      expect(JSON.parse(parsed.out)).toMatchObject({
         kind: descriptor.id,
         body: { kind: 'extension', family: descriptor.id, source },
       })
@@ -745,7 +739,6 @@ descriptorUpgradeDiagram
       expect(executed).toMatchObject({ ok: true, value: { kind: descriptor.id, source: `${source}\n` } })
       expect(SDK_DECLARATION).toContain('parseRegisteredMermaid(source: string): Result<ParsedDiagram')
     } finally {
-      rmSync(directory, { recursive: true, force: true })
       unregister()
     }
   })

@@ -14,7 +14,6 @@
       "**/*.jsonc",
       "!eval/agent-usage/transcripts/**",
       "!eval/mermaid-upstream-suite-bench/upstream-*/**",
-      "!docs/project/upstream-mermaid-manifest.json",
       "!src/__tests__/testdata/**"
     ]
   },

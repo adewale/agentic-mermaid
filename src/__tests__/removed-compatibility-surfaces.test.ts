@@ -7,10 +7,10 @@ import * as agentApi from '../agent/index.ts'
 import * as asciiApi from '../ascii/index.ts'
 import { parseMcpCliOptions } from '../mcp/mcp-cli.ts'
 import { knownStyles, resolveStyleReference } from '../scene/style-registry.ts'
-import { FAMILY_DESCRIPTOR_CONTRACT_VERSION, FAMILY_CONFORMANCE_VERSION } from '../agent/families.ts'
+import { FAMILY_DESCRIPTOR_CONTRACT_VERSION, getFamily } from '../agent/families.ts'
+import { registerFamily } from '../agent/family-registration.ts'
 import { RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS } from '../render-contract.ts'
-import { SCENE_CONTRACT_VERSION } from '../scene/version.ts'
-import { SCENE_VALIDATION_VERSION } from '../scene/scene-validation.ts'
+import { createExtensionIdentity } from '../shared/extension-identity.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -80,12 +80,18 @@ describe('removed compatibility surfaces stay removed', () => {
     expect(editor.readEditorDraft()).toMatchObject({ source: 'flowchart TD\n  Current --> Tab' })
   })
 
-  test('breaking contract generations reject v1 negotiation', () => {
-    expect(RENDER_CONTRACT_VERSION).toBe(2)
-    expect(SCENE_CONTRACT_VERSION).toBe(2)
-    expect(SCENE_VALIDATION_VERSION).toBe(2)
-    expect(FAMILY_DESCRIPTOR_CONTRACT_VERSION).toBe(2)
-    expect(FAMILY_CONFORMANCE_VERSION).toBe(2)
+  test('a v1 family descriptor is refused at registration', () => {
+    // The descriptor contract is the one version a caller negotiates at
+    // runtime. The same descriptor fails on the version alone at v1, and gets
+    // past that check (to a later, unrelated admission rule) at v2.
+    const id = 'family:acme/contract-probe'
+    const identity = createExtensionIdentity({ id, kind: 'family', version: '1.0.0', compatibility: { core: '^0.4.0' }, provenance: { owner: 'acme', source: 'test' } })
+    const descriptor = { ...getFamily('flowchart')!, id, identity, headers: ['contractProbe'], aliases: [] }
+    expect(() => registerFamily({ ...descriptor, contractVersion: 1 } as never)).toThrow(/uses an unsupported descriptor contract/)
+    expect(() => registerFamily({ ...descriptor, contractVersion: FAMILY_DESCRIPTOR_CONTRACT_VERSION } as never)).not.toThrow(/unsupported descriptor contract/)
+  })
+
+  test('render output evidence names only the current render contract', () => {
     for (const descriptor of RENDER_OUTPUT_DESCRIPTORS) {
       expect(descriptor.evidence).toContain(`render-contract@${RENDER_CONTRACT_VERSION}`)
       expect(descriptor.evidence).not.toContain('render-contract@1')

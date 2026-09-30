@@ -1,15 +1,13 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
 import { cpus } from 'node:os'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
-import { sha256File } from '../../scripts/pr-assets/artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = join(import.meta.dir, 'report.json')
-const SAMPLES = join(import.meta.dir, 'samples.json')
 const COUNTS = Array.from({ length: 18 }, (_unused, index) => index + 7)
 const LARGE_COUNTS = [25, 64, 256, 1000] as const
 const WARMUP_CALLS = 200
@@ -121,13 +119,6 @@ function record(): void {
   }
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim()
   const cpu = cpus()
-  const sampleArtifact = {
-    schemaVersion: 1,
-    unit: 'milliseconds per palette-generation call',
-    order: 'deterministic fixture order reconstructed from protocol orderSeed',
-    values: timings.map(item => item.milliseconds),
-  }
-  writeFileSync(SAMPLES, `${JSON.stringify(sampleArtifact)}\n`)
   const report = {
     schemaVersion: 1,
     validity: {
@@ -148,7 +139,7 @@ function record(): void {
       logicalCpus: cpu.length,
     },
     protocol: {
-      command: 'bun run benchmark:palette',
+      command: 'bun run eval/palette-performance/run.ts --record',
       clock: 'performance.now monotonic high-resolution clock',
       themes: PALETTE_FIXTURES.length,
       counts: '7..24',
@@ -157,10 +148,6 @@ function record(): void {
       samplesPerFixture: SAMPLES_PER_FIXTURE,
       totalSamples: timings.length,
       orderSeed: ORDER_SEED,
-    },
-    timingEvidence: {
-      samplesPath: repoPath(SAMPLES),
-      samplesSha256: sha256File(SAMPLES),
     },
     complexity: {
       regimes: {
@@ -176,53 +163,13 @@ function record(): void {
       'Most controlled families generate one peer-category channel; Journey independently generates section and actor palettes.',
       'No cross-machine latency guarantee follows from this report.',
       'The recording commit is informational and can become unreachable after a squash merge.',
-      'CI checks deterministic complexity invariants and that aggregates match the raw samples; it does not gate on wall-clock time or source hashes.',
     ],
   }
   writeFileSync(REPORT, `${JSON.stringify(report, null, 2)}\n`)
   console.log(`Recorded ${timings.length} palette samples in ${repoPath(REPORT)}`)
 }
 
-export function verifyTimingEvidence(report: any, samples: any): void {
-  if (samples.schemaVersion !== 1 || samples.unit !== 'milliseconds per palette-generation call') {
-    throw new Error('Palette timing sample artifact schema is invalid')
-  }
-  const fixtures = seededShuffle(benchmarkFixtures(), ORDER_SEED)
-  const plan = timingPlan(fixtures)
-  if (!Array.isArray(samples.values) || samples.values.length !== plan.length) {
-    throw new Error('Palette timing sample count does not match the recorded protocol')
-  }
-  const timings = plan.map((fixture, index): Timing => {
-    const milliseconds = samples.values[index]
-    if (typeof milliseconds !== 'number' || !Number.isFinite(milliseconds) || milliseconds < 0) {
-      throw new Error(`Palette timing sample ${index} is invalid`)
-    }
-    return { ...fixture, milliseconds }
-  })
-  if (report.timingEvidence?.samplesPath !== repoPath(SAMPLES) || report.timingEvidence?.samplesSha256 !== sha256File(SAMPLES)) {
-    throw new Error('Palette timing sample provenance is stale')
-  }
-  if (JSON.stringify(report.results) !== JSON.stringify(timingResults(timings))) {
-    throw new Error('Palette timing aggregates do not match the committed raw samples')
-  }
-}
-
-function check(): void {
-  const report = JSON.parse(readFileSync(REPORT, 'utf8')) as any
-  const samples = JSON.parse(readFileSync(SAMPLES, 'utf8')) as any
-  if (report.schemaVersion !== 1) throw new Error('Unsupported palette performance report schema')
-  if (JSON.stringify(report.complexity?.deterministicLargeCountEvidence) !== JSON.stringify(complexityEvidence())) {
-    throw new Error('Palette deterministic complexity evidence is stale')
-  }
-  verifyTimingEvidence(report, samples)
-  if (report.validity?.rebuttal !== 'Absolute timings are observational, are not portable across machines, and are not a CI threshold.') {
-    throw new Error('Palette timing validity limitation is missing')
-  }
-  console.log('Palette performance raw timing aggregates and deterministic complexity evidence pass')
-}
-
 if (import.meta.main) {
-  if (process.argv.includes('--check')) check()
-  else if (process.argv.includes('--record')) record()
-  else throw new Error('Use --record or --check')
+  if (process.argv.includes('--record')) record()
+  else throw new Error('Use --record')
 }

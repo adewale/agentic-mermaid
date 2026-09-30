@@ -14,10 +14,12 @@ import fc from 'fast-check'
 
 import {
   describeMermaidSource, describeMermaidFactsSource, analyzeMermaidSource, checkMermaidSource,
-  asciiToMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, createMermaid,
+  asciiToMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid,
   describeMermaid, describeMermaidTree, describeMermaidFacts, analyzeMermaid, checkMermaid,
 } from '../agent/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
+import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 const NUM_RUNS = 250
 
@@ -27,11 +29,9 @@ const SPECIAL_CHARS = [
   '\0', '￿', '​', 'é', '☃', '-->', '==>', 'graph', 'end', 'subgraph',
 ]
 const specialStringArb = fc.array(fc.constantFrom(...SPECIAL_CHARS), { maxLength: 60 }).map(c => c.join(''))
-const headers = [
-  'graph TD', 'flowchart LR', 'stateDiagram-v2', 'sequenceDiagram', 'classDiagram', 'erDiagram',
-  'timeline', 'journey', 'architecture-beta', 'xychart-beta', 'pie', 'quadrantChart', 'gantt',
-  'mindmap', 'gitGraph',
-]
+// Every registered header keyword plus each family's example header line, from the
+// registry: the hand-written list this replaces had no radar or sankey header.
+const headers = [...new Set(BUILTIN_FAMILY_METADATA.flatMap(family => [...family.headers, family.example.split('\n')[0]!]))]
 // Header + random body: exercises the "valid-family-then-garbage" path, where readers do real
 // projection work rather than bailing at the family-detection gate.
 const sourceArb = fc.oneof(
@@ -102,13 +102,18 @@ describe('read-surface fuzz: source readers are total and deterministic', () => 
   })
 })
 
-// A valid diagram per family (created structurally, then serialized to canonical source),
-// so the typed readers run their full projection over real content, not just the empty base.
-const FAMILIES: DiagramKind[] = [
-  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'architecture',
-  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'radar',
-]
-const CORPUS = FAMILIES.map(fam => serializeMermaid(createMermaid(fam)))
+// A valid diagram per family, with content, in canonical source, so the typed readers run
+// their full projection over real content. (The empty `createMermaid` base does not do: an
+// empty pie, xychart or radar serializes to a bare header that reparses as opaque, which
+// used to skip those three families silently.) The family list comes from the registry; the
+// hand-written one it replaces had left sankey out.
+const FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id) as DiagramKind[]
+const CORPUS = FAMILIES.map(fam => {
+  const generator = METAMORPHIC_FAMILIES[fam]
+  const parsed = parseMermaid(generator.build(generator.kRange[0], 'q'))
+  if (!parsed.ok) throw new Error(`${fam}: metamorphic base build failed to parse`)
+  return serializeMermaid(parsed.value)
+})
 
 describe('read-surface fuzz: typed readers deterministic over the family corpus', () => {
   it('describe / describeTree / facts / analyze / checkMermaid are byte-stable per diagram', () => {
@@ -118,7 +123,8 @@ describe('read-surface fuzz: typed readers deterministic over the family corpus'
       if (!parsed.ok) return
       const d = parsed.value
       // parseMermaid yields structured families or an opaque fallback; the typed readers below
-      // require a ValidDiagram (non-opaque). Every CORPUS entry is a structured family anyway.
+      // require a ValidDiagram (non-opaque). Every CORPUS entry must be a structured family.
+      expect({ source, body: d.body.kind === 'opaque' ? 'opaque' : 'structured' }).toEqual({ source, body: 'structured' })
       if (d.body.kind === 'opaque') return
       const valid = d as never
       expect(describeMermaid(valid)).toBe(describeMermaid(valid))

@@ -549,7 +549,7 @@ Reviewed at Lieflat Charts commit
 
 Upstream Mermaid at `mermaid@11.16.0`
 ([`f3dea58`](https://github.com/mermaid-js/mermaid/tree/f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc)),
-the version pinned in `docs/project/upstream-mermaid-manifest.json`:
+the version pinned in `docs/project/upstream-mermaid-policy.json`:
 `packages/mermaid/src/diagrams/xychart/chartBuilder/components/plot/barPlot.ts`,
 `packages/mermaid/src/diagrams/xychart/xychartDb.ts`, and
 `packages/mermaid/src/mermaidAPI.ts`.

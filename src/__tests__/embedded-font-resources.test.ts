@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import {
   verifyEmbeddedFontResourceFiles,
   type EmbeddedFontResourceFile,
@@ -10,12 +9,9 @@ import {
 import { ResourceResolutionError } from '../node-resource-resolver.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import type { ResourceManifest } from '../resource-manifest.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-const roots: string[] = []
-
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
+const temp = useTempDirs()
 
 function fixture(): {
   manifest: ResourceManifest
@@ -23,8 +19,7 @@ function fixture(): {
   fontBytes: Uint8Array
   fontSource: string
 } {
-  const root = mkdtempSync(join(tmpdir(), 'agentic-mermaid-embedded-fixture-'))
-  roots.push(root)
+  const root = temp.dir('agentic-mermaid-embedded-fixture-')
   const fontBytes = new Uint8Array([0x00, 0x01, 0x00, 0x00, 0x07])
   const fontSource = join(root, 'opaque-font-asset')
   const licenseSource = join(root, 'opaque-license-asset')

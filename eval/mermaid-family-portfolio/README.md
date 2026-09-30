@@ -13,11 +13,10 @@ family corpus, then the registry discovery and editor examples. Mindmap,
 GitGraph, radar, Sankey, and the
 sparsely documented families therefore receive the same weight as flowchart.
 
-Regenerate and verify with:
+Generate it (into gitignored `corpus.json` and `provenance.json`) with:
 
 ```sh
 bun run eval:family-portfolio
-bun test src/__tests__/mermaid-family-portfolio.test.ts
 ```
 
 Reports should publish both this portfolio's family-macro result and the full

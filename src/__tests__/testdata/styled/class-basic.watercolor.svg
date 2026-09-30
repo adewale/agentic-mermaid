@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="317.8" viewBox="0 0 360 317.8" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-017mia504ciarm">
+<style>
+  .am-017mia504ciarm text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  .am-017mia504ciarm .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-017mia504ciarm {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #31302c;
+    --_text-sec:      #5e5d58;
+    --_text-muted:    #767571;
+    --_text-faint:    #8f8d89;
+    --_line:          #4d4a44;
+    --_arrow:         #7a6a52;
+    --_node-fill:     #ead9b9;
+    --_node-stroke:   #5a564e;
+    --_group-fill:    #fdfbf6;
+    --_group-hdr:     #f3f1ec;
+    --_inner-stroke:  #e5e3de;
+    --_key-badge:     #e9e7e2;
+  }
+</style>
+<rect width="360" height="317.8" fill="#fdfbf6" data-backdrop="page" />
+<defs>
+  <marker id="cls-inherit" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto-start-reverse" overflow="visible">
+    <polygon points="0 0, 12 5, 0 10" fill="#fdfbf6" stroke="#7a6a52" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-composition" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#7a6a52" stroke="#7a6a52" stroke-width="1" />
+  </marker>
+  <marker id="cls-aggregation" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto-start-reverse" viewBox="0 0 14 12" overflow="hidden">
+    <polygon points="7 1, 13 6, 7 11, 1 6" fill="#fdfbf6" stroke="#7a6a52" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto-start-reverse" overflow="visible">
+    <polyline points="0 0, 8 3, 0 6" fill="none" stroke="#7a6a52" stroke-width="1.5" />
+  </marker>
+  <marker id="cls-lollipop" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse" viewBox="0 0 14 14" overflow="hidden">
+    <circle cx="7" cy="7" r="5" fill="#fdfbf6" stroke="#7a6a52" stroke-width="1.5" />
+  </marker>
+</defs>
+<polyline stroke-opacity="0" class="class-relationship" data-from="Animal" data-to="Dog" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" points="100,148.9 100,208.9" fill="none" stroke="#4d4a44" stroke-width="1" marker-start="url(#cls-inherit)" data-relationship="inheritance" data-direction="reverse" data-id="rel:Animal-&gt;Dog#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Dog" />
+<path d="M101.24 149.89 C101.67 170.28, 101.2 192.77, 100.63 210.03" fill="none" stroke="#4d4a44" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" class="class-relationship" data-from="Animal" data-to="Cat" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" points="140,148.9 140,158.9 260,158.9 260,208.9" fill="none" stroke="#4d4a44" stroke-width="1" marker-start="url(#cls-inherit)" data-relationship="inheritance" data-direction="reverse" data-id="rel:Animal-&gt;Cat#0" data-role="relationship" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Cat" />
+<path d="M139.17 149.49 C139.73 152.91, 140.04 156.2, 139.2 158.79 M138.28 157.1 C169.81 158.78, 196.18 159.77, 261.02 158.18 M260.57 158.08 C259.26 169.26, 260.03 180.97, 258.89 209.26" fill="none" stroke="#4d4a44" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<g class="class-node" data-id="Animal" data-label="Animal" data-role="class-box">
+  <path d="M60.301,38.52 L179.928,41.27 L180.69,148.181 L61.205,149.355 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" data-id="class:Animal:box" data-role="class-box" />
+  <path d="M60.301,38.52 L179.928,41.27 L180.69,148.181 L61.205,149.355 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M61.07 41.4 C94.13 39.45, 125.48 40.69, 179.75 38.69 M179.79 39.89 C179.13 66.64, 179.5 92.75, 181.47 149.08 M181.19 148.6 C152.66 147.63, 127.59 147.74, 60.55 150.61 M59.82 149.32 C59.05 109.85, 58.81 74.98, 59.24 41.01" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M60,40 H180 V72.9 H60 Z" fill="#f3f1ec" fill-opacity="0.3" stroke="#f3f1ec" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M59.62 39.89 C88.2 38.63, 119.55 40.64, 180.34 38.7 M181.44 38.6 C180.15 48.86, 180.16 57.66, 180.66 71.85 M179.14 74.3 C134.07 75.27, 86.36 74.83, 58.56 72.68 M60.96 71.14 C58.5 62.23, 61.46 50.36, 59.16 38.47" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="120" y="56.45" text-anchor="middle" font-size="13" font-weight="700" fill="#31302c" dy="4.55" textLength="42.51" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Animal</text>
+  <line x1="60" y1="72.9" x2="180" y2="72.9" stroke="#5a564e" stroke-width="0.75" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="68" y="86.9" class="mono" dy="0.35em" font-size="11" font-weight="400" data-id="member:Animal:name" data-role="member" textLength="79.2" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#31302c">+</tspan><tspan fill="#5e5d58">String name</tspan></text>
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="68" y="106.9" class="mono" dy="0.35em" font-size="11" font-weight="400" data-id="member:Animal:age" data-role="member" textLength="52.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#31302c">+</tspan><tspan fill="#5e5d58">int age</tspan></text>
+  <line x1="60" y1="120.9" x2="180" y2="120.9" stroke="#5a564e" stroke-width="0.75" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="68" y="134.9" class="mono" dy="0.35em" font-size="11" font-weight="400" data-id="member:Animal:eat" data-role="member" textLength="46.2" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#61605c">+ </tspan><tspan fill="#5e5d58">eat()</tspan></text>
+</g>
+<g class="class-node" data-id="Dog" data-label="Dog" data-role="class-box">
+  <path d="M38.693,210.276 L159.59,210.244 L161.151,277.485 L38.53,277.453 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" data-id="class:Dog:box" data-role="class-box" />
+  <path d="M38.693,210.276 L159.59,210.244 L161.151,277.485 L38.53,277.453 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M40.12 207.97 C74.01 209.66, 106.69 208.6, 159.28 210.2 M158.51 207.58 C161.41 233.53, 159.8 260.55, 159.14 279.45 M159.62 277.9 C123.66 277.02, 88.24 277.76, 39.7 279.5 M39.28 276.34 C39.46 259.78, 41.43 241.7, 40.34 208.29" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M40,208.9 H160 V241.8 H40 Z" fill="#f3f1ec" fill-opacity="0.3" stroke="#f3f1ec" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M40.05 210.58 C73.41 208.52, 102.91 208.03, 158.5 208.55 M160.55 210.49 C159.4 215.74, 159.94 227.4, 160.65 242.9 M161.03 241.14 C118.05 241.81, 77.56 243.5, 38.78 241.86 M40.06 241 C41.52 230.33, 40.36 216.97, 41.73 209.79" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="100" y="225.35000000000002" text-anchor="middle" font-size="13" font-weight="700" fill="#31302c" dy="4.55" textLength="26.91" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Dog</text>
+  <line x1="40" y1="241.8" x2="160" y2="241.8" stroke="#5a564e" stroke-width="0.75" />
+  <line x1="40" y1="249.8" x2="160" y2="249.8" stroke="#5a564e" stroke-width="0.75" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="48" y="263.8" class="mono" dy="0.35em" font-size="11" font-weight="400" data-id="member:Dog:bark" data-role="member" textLength="52.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#61605c">+ </tspan><tspan fill="#5e5d58">bark()</tspan></text>
+</g>
+<g class="class-node" data-id="Cat" data-label="Cat" data-role="class-box">
+  <path d="M200.387,209.028 L320.596,208.201 L319.427,277.654 L199.86,278.838 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" data-id="class:Cat:box" data-role="class-box" />
+  <path d="M200.387,209.028 L320.596,208.201 L319.427,277.654 L199.86,278.838 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M199.88 210.57 C226.82 210.09, 252.45 208.63, 320.6 209.61 M318.4 208.91 C321 225.65, 318.73 240.37, 321.52 278.6 M321.75 277.84 C281.7 277.61, 242.46 277.22, 198.36 279.37 M201.29 277.57 C198.79 253.41, 200.7 226.01, 198.32 207.19" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M200,208.9 H320 V241.8 H200 Z" fill="#f3f1ec" fill-opacity="0.3" stroke="#f3f1ec" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M200.79 210.63 C239.32 210.01, 278.39 209.89, 318.65 210.29 M319.37 208.32 C318.87 217.86, 319.23 225.41, 321.18 241.2 M318.37 240.84 C291.2 242.64, 259.78 241.88, 199.66 243.47 M201.06 242.92 C199.53 233.64, 201.25 225.93, 200.6 209.31" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="260" y="225.35000000000002" text-anchor="middle" font-size="13" font-weight="700" fill="#31302c" dy="4.55" textLength="22.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Cat</text>
+  <line x1="200" y1="241.8" x2="320" y2="241.8" stroke="#5a564e" stroke-width="0.75" />
+  <line x1="200" y1="249.8" x2="320" y2="249.8" stroke="#5a564e" stroke-width="0.75" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="208" y="263.8" class="mono" dy="0.35em" font-size="11" font-weight="400" data-id="member:Cat:meow" data-role="member" textLength="52.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#61605c">+ </tspan><tspan fill="#5e5d58">meow()</tspan></text>
+</g>
+<polyline class="class-marker-overlay" points="100,148.9 100,208.9" fill="none" stroke="#4d4a44" stroke-width="1" stroke-opacity="0" marker-start="url(#cls-inherit)" pointer-events="none" aria-hidden="true" />
+<polyline class="class-marker-overlay" points="140,148.9 140,158.9 260,158.9 260,208.9" fill="none" stroke="#4d4a44" stroke-width="1" stroke-opacity="0" marker-start="url(#cls-inherit)" pointer-events="none" aria-hidden="true" />
+
+
+</svg>

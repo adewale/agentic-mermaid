@@ -138,7 +138,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
           id: `ring:${k}`,
           role: 'grid',
           geometry: { kind: 'polygon', points: ring.points },
-          paint: { fill: 'none', stroke: graticuleColor, strokeWidth: String(ring.emphasized ? graticuleStrokeWidth * 1.4 : graticuleStrokeWidth) },
+          paint: { fill: 'none', stroke: graticuleColor, strokeWidth: String(ring.emphasized ? outerRingStrokeWidth(graticuleStrokeWidth) : graticuleStrokeWidth) },
         },
         `<polygon class="${cls}" points="${pts}" fill="none" />`,
       ))
@@ -148,7 +148,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
           id: `ring:${k}`,
           role: 'grid',
           geometry: { kind: 'circle', cx: chart.cx, cy: chart.cy, r: ring.r },
-          paint: { fill: 'none', stroke: graticuleColor, strokeWidth: String(ring.emphasized ? graticuleStrokeWidth * 1.4 : graticuleStrokeWidth) },
+          paint: { fill: 'none', stroke: graticuleColor, strokeWidth: String(ring.emphasized ? outerRingStrokeWidth(graticuleStrokeWidth) : graticuleStrokeWidth) },
         },
         `<circle class="${cls}" cx="${chart.cx}" cy="${chart.cy}" r="${ring.r}" fill="none" />`,
       ))
@@ -380,6 +380,10 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
 
 function round2(n: number): number { return Math.round(n * 100) / 100 }
 
+/** The emphasized outer ring is 1.4x the graticule stroke, rounded so a
+ *  configured width never prints a float artefact (1.5 x 1.4 = 2.0999999999999996). */
+function outerRingStrokeWidth(graticuleStrokeWidth: number): number { return round2(graticuleStrokeWidth * 1.4) }
+
 function openRadarSvgTag(
   chart: PositionedRadarChart,
   colors: DiagramColors,
@@ -429,7 +433,7 @@ function radarStyles(
 ): string {
   return `<style>
   .radar-ring { stroke: ${graticuleColor}; stroke-width: ${graticuleStrokeWidth}; stroke-opacity: ${graticuleOpacity}; fill: none; }
-  .radar-ring-outer { stroke-width: ${graticuleStrokeWidth * 1.4}; stroke-opacity: ${graticuleOpacity}; }
+  .radar-ring-outer { stroke-width: ${outerRingStrokeWidth(graticuleStrokeWidth)}; stroke-opacity: ${graticuleOpacity}; }
   .radar-axis-line { stroke: ${axisColor}; stroke-width: ${axisStrokeWidth}; }
   .radar-leader { stroke: ${graticuleColor}; stroke-width: 1; stroke-opacity: 0.5; }
   .radar-area { stroke-width: ${style.nodeLineWidth}; fill-opacity: ${curveOpacity}; stroke-linejoin: round; }

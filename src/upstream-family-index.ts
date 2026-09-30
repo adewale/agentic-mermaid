@@ -1,17 +1,24 @@
 import rawIndex from './upstream-mermaid-family-index.json'
 import { compareCodePointStrings } from './shared/deterministic-order.ts'
-import type {
-  UpstreamFamilyDescriptor,
-  UpstreamHeaderDescriptor,
-} from './upstream-mermaid-manifest.ts'
 
-/** Compact runtime projection of the full audit manifest. */
+export type AgenticHeaderStatus = 'native' | 'unsupported' | 'inventory-only'
+
+export interface UpstreamHeaderDescriptor {
+  value: string
+  agenticStatus: AgenticHeaderStatus
+}
+
+export interface UpstreamFamilyDescriptor {
+  id: string
+  headers: UpstreamHeaderDescriptor[]
+}
+
+/** Header routing for every public family of the pinned Mermaid version,
+ * written by scripts/generate-upstream-family-index.ts. */
 export interface UpstreamMermaidFamilyIndex {
-  schemaVersion: 1
+  schemaVersion: 2
   provenance: {
     version: string
-    commit: string
-    inventorySha256: string
   }
   families: UpstreamFamilyDescriptor[]
 }

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getFamily, getFamilyConformanceReport, knownFamilies } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily, getFamilyConformanceReport, knownBuiltinFamilies, knownFamilies } from '../agent/families.ts'
 import { WARNING_SEVERITY } from '../agent/types.ts'
 import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { CLI_RENDER_FORMATS, cliRenderFormatJsonSchema } from '../render-contract.ts'
@@ -94,6 +94,14 @@ describe('am capabilities', () => {
       expect(f.narrower!.startsWith('as')).toBe(true)
       expect(Array.isArray(f.headers) && f.headers!.length > 0).toBe(true)
     }
+    // The built-in metadata, the family registry, and the mutation table name
+    // the same families, and the registry's headers are the ones advertised.
+    const builtinIds = new Set<string>(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    expect(builtinIds).toEqual(new Set(knownBuiltinFamilies()))
+    expect(builtinIds).toEqual(new Set(Object.keys(MUTATION_OPS_BY_FAMILY)))
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      expect(cap.families.find(entry => entry.id === family.id)?.headers).toEqual(family.headers)
+    }
   })
 
   it('advertises mutation ops for every mutable family', () => {
@@ -129,7 +137,7 @@ describe('am capabilities', () => {
   // can lift it into their own JSON Schema toolchain.
   it('emitted JSON conforms to capabilities.schema.json required fields and enums', () => {
     const schemaPath = join(import.meta.dir, '__fixtures__', 'capabilities.schema.json')
-    if (!existsSync(schemaPath)) return // schema is optional; CI fixture
+    expect(existsSync(schemaPath)).toBe(true)
     const schema = JSON.parse(readFileSync(schemaPath, 'utf8'))
     const cap = buildCapabilities()
     expect(schema.type).toBe('object')

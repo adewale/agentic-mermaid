@@ -1,6 +1,6 @@
 # Complexity-aware test portfolio plan
 
-Status: implemented and measured; tracked by `TODO.md` **TEST-3** until the configured release rows execute and the 30-merge observation window exists. Structured contact-sheet review remains available as advisory evidence after the owner removed it as a publication gate in #200. The executable before/candidate authorities are `eval/test-portfolio/{baseline,candidate}.json`.
+Status: implemented and measured; tracked by `TODO.md` **TEST-3** until the configured release rows execute and the 30-merge observation window exists. Structured contact-sheet review remains available as advisory evidence after the owner removed it as a publication gate in #200. The before/candidate reports and their tests are no longer published; the measurements below are the record.
 
 ## Decision
 
@@ -30,7 +30,7 @@ The aim is not merely fewer tests. The aim is a portfolio where every row has a 
 
 ### Immutable baseline captured on 2026-07-19
 
-Source: clean detached worktree at `cb2412b15b48ae41e55ace80f613be3723072d49`. Environment: macOS arm64, Apple M2 Ultra, Bun 1.3.13, warm frozen dependency install. Repository `bunfig.toml` coverage instrumentation was enabled for every `bun test` observation. These single-run numbers are diagnostics, not portable pass/fail thresholds; the machine-readable authority is [`eval/test-portfolio/baseline.json`](../../eval/test-portfolio/baseline.json).
+Source: clean detached worktree at `cb2412b15b48ae41e55ace80f613be3723072d49`. Environment: macOS arm64, Apple M2 Ultra, Bun 1.3.13, warm frozen dependency install. Repository `bunfig.toml` coverage instrumentation was enabled for every `bun test` observation. These single-run numbers are diagnostics, not portable pass/fail thresholds; the machine-readable baseline report is no longer published.
 
 | Surface | Baseline cases/work | Local serial time |
 |---|---:|---:|
@@ -469,7 +469,7 @@ Shadow execution was bounded to the migration: the pinned old suite ran on the c
 
 ## Before/after measurement contract
 
-The versioned [`baseline.json`](../../eval/test-portfolio/baseline.json) and [`candidate.json`](../../eval/test-portfolio/candidate.json) reports use schema version 1, disclose environment/provenance, and distinguish measurements, configured-but-unexecuted rows, pending human evidence and future observations.
+The versioned `baseline.json` and `candidate.json` reports (no longer published) used schema version 1, disclose environment/provenance, and distinguish measurements, configured-but-unexecuted rows, pending human evidence and future observations.
 
 | Metric | Before | Candidate target | After |
 |---|---:|---:|---:|

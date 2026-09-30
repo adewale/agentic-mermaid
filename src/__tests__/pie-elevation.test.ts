@@ -238,8 +238,11 @@ describe('pie donut mode', () => {
   })
 
   it('keeps on-slice labels in donut mode (upstream keeps textPosition placement)', () => {
-    const p = layout('pie\n  "A" : 2\n  "B" : 1', { donutHole: 0.3 })
-    expect(p.slices[0]!.pctLabel).toBeDefined()
+    const p = layout('pie\n  "A" : 1\n  "B" : 1', { donutHole: 0.3 })
+    const a = p.slices[0]!.pctLabel!
+    // First slice spans 0..π: the label sits at radius * 0.75 on its mid-angle,
+    // exactly where a full pie puts it, not moved into the ring.
+    expect({ x: a.x, y: a.y }).toEqual({ x: expect.closeTo(p.cx + p.radius * 0.75, 1), y: expect.closeTo(p.cy, 1) })
   })
 })
 
@@ -250,10 +253,8 @@ describe('pie donut mode', () => {
 /** Bounding boxes of every rendered legend row (swatch + measured text). */
 function legendBoxes(p: PositionedPieChart) {
   return p.legend.map(item => {
-    // Pre-elevation layouts carry no `lines`; recompose what the renderer
-    // draws (label lines, value/percent riding on the last line).
-    const fallback = `${item.label}${p.showData ? ` [${item.value}]` : ''} (${formatPiePercent(item.fraction)})`.split('\n')
-    const lines = item.lines ?? fallback
+    // The layout's own display lines (value/percent riding on the last line).
+    const lines = item.lines
     const textW = Math.max(...lines.map(l => measureTextWidth(l, LEGEND_FONT.size, LEGEND_FONT.weight)))
     const textH = lines.length * LEGEND_LINE_HEIGHT
     return {
@@ -404,7 +405,11 @@ pie showData
 
   it('keeps meaningful text at full contrast while graphical siblings dim', () => {
     const svg = renderMermaidSVG(donut('Potassium'), { embedFontImport: false })
-    expect(wcagCssContrastRatio('#27272A', '#FFFFFF')).toBeGreaterThanOrEqual(4.5)
+    // The legend ink the stylesheet actually paints, against the page it sits on.
+    const legendInk = svg.match(/\.pie-legend-text \{ fill: (#[0-9A-Fa-f]{3,8}); \}/)?.[1]
+    const page = svg.match(/<svg [^>]*style="[^"]*background:(#[0-9A-Fa-f]{3,8})/)?.[1]
+    if (legendInk === undefined || page === undefined) throw new Error('fixture must expose the legend ink and page background')
+    expect(wcagCssContrastRatio(legendInk, page)).toBeGreaterThanOrEqual(4.5)
     expect(svg).not.toMatch(/<(?:text|tspan)[^>]*\bopacity="0\.4"/)
     expect(svg).not.toMatch(/class="pie-(?:legend-text|slice-label)[^"]*pie-dim/)
     const dimmedSliceFill = svg.match(/class="pie-slice pie-dim"[^>]*fill="([^"]+)"/)?.[1]
@@ -668,24 +673,13 @@ describe('pie high-count palette', () => {
   // olive) as identical because HSL hue compresses in that region — the very
   // non-uniformity idea #1 moves the palette off of. 0.06 sits above the ~0.02
   // JND and above the 0.053 the pre-OKLCH HSL ladder degenerated to, so
-  // reverting to the HSL ramp turns this test red.
+  // reverting to the HSL ramp turns the rendered-palette tests below red. (The
+  // palette itself is held to the stricter 0.10 floor at counts 7-24.)
   const DISTINCT_FLOOR = 0.06
   const distinguishable = (a: string, b: string): boolean => {
     const d = deltaEOK(a, b)
     return d !== null && d >= DISTINCT_FLOOR
   }
-
-  it('15 slices on the default light theme are pairwise distinguishable', () => {
-    const cols = pieSliceColors(15, { accent: '#3b82f6', bg: '#ffffff' })
-    expect(new Set(cols).size).toBe(15)
-    for (let i = 0; i < cols.length; i++) {
-      for (let j = i + 1; j < cols.length; j++) {
-        if (!distinguishable(cols[i]!, cols[j]!)) {
-          throw new Error(`palette degenerates: ${i}:${cols[i]} vs ${j}:${cols[j]}`)
-        }
-      }
-    }
-  })
 
   it('enforces the minimum ΔE_OK collision floor across realistic slice counts (idea #2)', () => {
     // The old HSL two-tier ladder let the worst pair fall to ΔE_OK ≈ 0.053;

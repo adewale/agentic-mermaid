@@ -52,9 +52,10 @@ executable regressions for the unsafe paths we want the affordances to prevent:
 markdown-only Mermaid fences, whole-source regeneration, prose/CLI advice
 instead of Code Mode, serialize-without-verify, ignored verify results, and
 opaque mutation attempts. The corpus is intentionally expected to fail:
-`agent-usage.test.ts` either classifies raw non-Code-Mode responses or replays
-executable snippets through `runAgentUsageEval` and asserts the deterministic
-oracle rejects them.
+`agent-usage.test.ts` replays the executable snippets through
+`runAgentUsageEval` and asserts the deterministic oracle rejects them. The
+raw non-Code-Mode responses are kept as a record of observed mistakes; no
+production code classifies them, so no test checks them.
 
 ## Layer 4 — Stored, live, and subagent Code Mode evals
 
@@ -101,12 +102,11 @@ by `live.ts` when model credentials are available:
 4. Replay the captured script through the same sandbox, linter, and structural oracle whenever the transcript test runs.
 5. Write one JSON transcript per task plus `summary.json` under `transcripts/<timestamp>/`.
 
-`safePathRate` counts all acceptable task routes; `structuredPathRate` counts only cases where typed mutation is required. `baseline.json` records the deterministic stored-script baseline. Committed
+`safePathRate` counts all acceptable task routes; `structuredPathRate` counts only cases where typed mutation is required. `src/__tests__/agent-usage.test.ts` requires every default stored script to pass. Committed
 `pi-subagent-2026-05-26` and `pi-subagent-release-2026-06-10` transcript sets
-capture live subagent-backed passes and replay through the deterministic oracle
-in `agent-usage-live.test.ts`. Direct API-backed Anthropic/OpenAI-compatible
-transcripts remain on-demand because they require credentials and are
-nondeterministic; PR CI keeps deterministic replay checks.
+capture live subagent-backed passes as archival evidence. Direct API-backed
+Anthropic/OpenAI-compatible transcripts remain on-demand because they require
+credentials and are nondeterministic; PR CI runs the stored Code Mode scripts.
 
 ## Comparing prompt variants (is a change better or worse?)
 

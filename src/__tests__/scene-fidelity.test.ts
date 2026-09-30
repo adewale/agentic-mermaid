@@ -17,6 +17,7 @@ import type { SceneDoc } from '../scene/ir.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
+import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 
 interface Lowered {
   id: string
@@ -26,15 +27,17 @@ interface Lowered {
 
 /** Mirror the built-in renderMermaidSVG dispatch through its sole graphical
  * waist (before the resolve() post-pass, which is scene-independent). */
-function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc } | undefined {
+function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc } | { dropped: string } | undefined {
   const request = resolveRenderRequest(source, options, 'svg')
   const family = resolvedRenderExecutionPlanOf(request).family
   if (!family?.layout || !family.lowerScene) return undefined
   let layout: ReturnType<typeof positionResolvedFamily>
   try {
     layout = positionResolvedFamily(family.id, request)
-  } catch {
-    return undefined // diagrams that legitimately fail are the equivalence gate's concern
+  } catch (error) {
+    // Diagrams that legitimately fail are the equivalence gate's concern, but
+    // every drop is recorded so a layout regression cannot shrink the corpus.
+    return { dropped: error instanceof Error ? error.message : String(error) }
   }
   const ctx = {
     positioned: layout.positioned,
@@ -49,20 +52,32 @@ function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneD
   return { doc: family.lowerScene(ctx) }
 }
 
-function lowerAll(): Lowered[] {
-  const out: Lowered[] = []
+function lowerAll(): { scenes: Lowered[]; dropped: Array<{ id: string; reason: string }> } {
+  const scenes: Lowered[] = []
+  const dropped: Array<{ id: string; reason: string }> = []
   for (const sample of collectSamples()) {
     const lowered = lowerSample(sample.source)
-    if (lowered) out.push({ id: sample.id, family: sample.family, ...lowered })
+    if (!lowered) continue
+    if ('dropped' in lowered) dropped.push({ id: sample.id, reason: lowered.dropped })
+    else scenes.push({ id: sample.id, family: sample.family, ...lowered })
   }
-  return out
+  return { scenes, dropped }
 }
 
 describe('scene fidelity', () => {
-  const scenes = lowerAll()
+  const { scenes, dropped } = lowerAll()
 
-  test('the corpus exercises at least one lowered family', () => {
-    expect(scenes.length).toBeGreaterThan(0)
+  test('the corpus exercises every built-in family with a scene lowering', () => {
+    const lowering = Object.entries(BUILTIN_RENDER_HOOKS).filter(([, hooks]) => 'lowerScene' in hooks).map(([id]) => id).sort()
+    expect(lowering.length).toBeGreaterThan(0)
+    expect([...new Set(scenes.map(scene => scene.family))].sort()).toEqual(lowering)
+  })
+
+  test('only the known-unrenderable corpus samples drop out before lowering', () => {
+    // gantt/6 has no tasks (GANTT_EMPTY, correct). gantt/10 is BUG-34: a task
+    // line with a trailing `%% comment` fails with GANTT_BAD_DATE. When BUG-34
+    // is fixed, gantt/10 lowers and joins the fidelity corpus: drop it here.
+    expect(dropped.map(sample => sample.id).sort()).toEqual(['corpus/gantt/10', 'corpus/gantt/6'])
   })
 
   test('semantic fields agree with canonical serialization for every lowered mark', () => {

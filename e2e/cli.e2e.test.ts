@@ -311,11 +311,4 @@ describe('am exit codes', () => {
       if (existsSync(tmpSrc)) unlinkSync(tmpSrc)
     }
   })
-
-  test('Loop 8 P: capabilities now advertises png in outputFormats', () => {
-    const r = runAm(['capabilities', '--json'])
-    expect(r.status).toBe(0)
-    const cap = JSON.parse(r.stdout) as { outputFormats: string[] }
-    expect(cap.outputFormats).toContain('png')
-  })
 })

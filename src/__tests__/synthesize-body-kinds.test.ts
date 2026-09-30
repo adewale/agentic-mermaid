@@ -8,9 +8,15 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
-import { synthesizeFromGraph } from '../agent/serialize.ts'
+import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.ts'
 import type { ValidDiagramPayload } from '../agent/types.ts'
+
+/** The JSON payload `am parse` emits and `am serialize` reads back: Maps
+ *  become records (the CLI's replacer), everything else is plain JSON. */
+function toWirePayload(diagram: { kind: string; body: unknown }): ValidDiagramPayload {
+  return JSON.parse(JSON.stringify({ kind: diagram.kind, body: diagram.body }, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value))
+}
 
 describe('synthesizeFromGraph accepts every declared body kind', () => {
   it('publicly types the registered structured radar payload without a cast', () => {
@@ -38,14 +44,12 @@ describe('synthesizeFromGraph accepts every declared body kind', () => {
       const parsed = parseMermaid(meta.example)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) return
-      const result = synthesizeFromGraph({
-        kind: parsed.value.kind,
-        body: parsed.value.body as never,
-      })
+      const result = synthesizeFromGraph(toWirePayload(parsed.value))
       expect(result.ok).toBe(true)
       if (!result.ok) return
-      expect(result.value.body.kind).toBe(parsed.value.body.kind)
-      expect(result.value.canonicalSource.length).toBeGreaterThan(0)
+      // Nothing is lost on the way through: same body, same canonical source.
+      expect(result.value.body).toEqual(parsed.value.body)
+      expect(result.value.canonicalSource).toBe(serializeMermaid(parsed.value))
     })
   }
 

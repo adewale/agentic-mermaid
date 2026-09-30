@@ -1,17 +1,9 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { tmpdir } from 'node:os'
 import { HOSTED_FONT_RESOURCES, RESOURCE_MANIFEST, validateResourceManifest } from '../font-manifest.ts'
 import {
   NodeResourceResolver,
@@ -20,17 +12,15 @@ import {
 } from '../node-resource-resolver.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 import { snapshotResourceManifest, verifyResourceBytes, type ResourceManifest, type ResourceManifestEntry } from '../resource-manifest.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-const roots: string[] = []
+const temp = useTempDirs()
+
 const PACKAGE_VERSION = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')).version as string
 const ESCAPED_PACKAGE_VERSION = PACKAGE_VERSION.replaceAll('.', '\\.')
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
 
 function fixtureRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'agentic-mermaid-resource-'))
-  roots.push(root)
+  const root = temp.dir('agentic-mermaid-resource-')
   mkdirSync(join(root, 'assets', 'fonts'), { recursive: true })
   writeFileSync(join(root, 'LICENSE.txt'), 'fixture licence')
   return root
@@ -81,6 +71,14 @@ function expectCode(run: () => unknown, code: ResourceResolutionError['code']): 
   }
 }
 
+/** A working `node` (NODE_BINARY wins), or undefined when none is installed. */
+const NODE = (() => {
+  for (const candidate of [process.env.NODE_BINARY, 'node'].filter((value): value is string => Boolean(value))) {
+    try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
+  }
+  return undefined
+})()
+
 describe('content-addressed installed resource manifest', () => {
   test('uses descriptor canonicalization only on platforms that expose a descriptor path', () => {
     expect(openedResourceDescriptorPath('linux', 7)).toBe('/proc/self/fd/7')
@@ -107,19 +105,14 @@ describe('content-addressed installed resource manifest', () => {
     }
   })
 
-  test('plain Node verifies shipped resources when /dev/fd realpath is not canonical', async () => {
-    const node = (() => {
-      for (const candidate of [process.env.NODE_BINARY, 'node'].filter((value): value is string => Boolean(value))) {
-        try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
-      }
-      return undefined
-    })()
-    if (!node) return
+  // Needs a real Node binary; a runner without one reports this as skipped
+  // rather than passing with no assertions.
+  test.skipIf(!NODE)('plain Node verifies shipped resources when /dev/fd realpath is not canonical', async () => {
+    const node = NODE!
 
     // Bundle the resolver itself so this regression exercises plain Node, not
     // Bun's macOS /dev/fd canonicalization and not a possibly stale dist/ tree.
-    const outdir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-node-resolver-'))
-    roots.push(outdir)
+    const outdir = temp.dir('agentic-mermaid-node-resolver-')
     const build = await Bun.build({
       entrypoints: [join(import.meta.dir, '..', 'node-resource-resolver.ts')],
       outdir,

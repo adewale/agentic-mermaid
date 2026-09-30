@@ -1,28 +1,28 @@
 // Styled-output goldens + determinism properties for the style backends
-// (SPEC §8: derived oracles for the styled paths; exact bytes stay reserved
-// for the crisp path, styled output is hash-pinned per pinned rough.js /
-// perfect-freehand versions).
+// (SPEC §8: derived oracles for the styled paths, pinned per the locked
+// rough.js / perfect-freehand versions).
 //
-// Regenerate after an INTENTIONAL styled-rendering change:
+// Goldens: normalised SVGs under testdata/styled/, one row per built-in
+// family and per non-default look (see GOLDEN_CASES). Regenerate after an
+// INTENTIONAL styled-rendering change, review the diff, and commit it with an
+// [approve-goldens] line:
 //   UPDATE_STYLED_BASELINE=1 bun test src/__tests__/styled-output.test.ts
-// The baseline lives under testdata/, so golden-drift review applies.
+// A missing or stale golden fails; only the update variable writes them.
 
 import { describe, test, expect } from 'bun:test'
 import { plugin } from 'bun'
-import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { renderMermaidSVG, verifyNoExternalRefs, getStyle, inferBackend, knownStyleDescriptors, resolveStyleStack, validateStyleSpec } from '../index.ts'
 import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 import { renderedTextReady } from './helpers/rendered-text.ts'
+import { normalizeSvg } from './helpers/svg-normalize.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
-ensureWebsiteBuilt()
-
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
-const BASELINE = join(import.meta.dir, 'testdata', 'styled-output-baseline.json')
+const GOLDENS = join(import.meta.dir, 'testdata', 'styled')
 const UPDATE = process.env.UPDATE_STYLED_BASELINE === '1'
 
 // One registry projection owns both the golden matrix and hosted discovery.
@@ -46,6 +46,54 @@ function fixtureSources(): Array<{ name: string; source: string }> {
     .map(name => ({ name, source: readFileSync(join(FIXTURES, name), 'utf8') }))
 }
 
+// Row i pairs family i with look i, each list cycling, so every family's
+// styled renderer and every look is pinned byte-for-byte and the backends
+// spread across families (a full family × look matrix is ~7 MB of SVG). The
+// other pairs are covered by render-conformance-plan.test.ts, which renders
+// every family × look pair with semantic, finite, security and palette
+// oracles; the flowchart/journey layout-stress fixtures add layout cases,
+// pinned by layout-equivalence, and all of them render styled in the
+// transparent test below.
+const GOLDEN_CASES = Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.length, LOOKS.length) }, (_, i) => {
+  const family = BUILTIN_FAMILY_METADATA[i % BUILTIN_FAMILY_METADATA.length]!.id
+  const style = LOOKS[i % LOOKS.length]!
+  return { family, style, fixture: `${family}-basic.mmd`, golden: `${family}-basic.${style.replace(/[^a-z0-9-]/g, '-')}.svg` }
+})
+
+/** A line diff (longest common subsequence): `-N: …` is golden line N,
+ *  `+N: …` rendered line N; at most `shown` entries. */
+function changedLines(golden: string, rendered: string, shown = 20): string[] {
+  const a = golden.split('\n')
+  const b = rendered.split('\n')
+  const common = Array.from({ length: a.length + 1 }, () => new Uint32Array(b.length + 1))
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      common[i]![j] = a[i] === b[j] ? common[i + 1]![j + 1]! + 1 : Math.max(common[i + 1]![j]!, common[i]![j + 1]!)
+    }
+  }
+  const out: string[] = []
+  let i = 0
+  let j = 0
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) {
+      i++
+      j++
+    } else if (i < a.length && (j === b.length || common[i + 1]![j]! >= common[i]![j + 1]!)) {
+      out.push(`-${++i}: ${a[i - 1]}`)
+    } else {
+      out.push(`+${++j}: ${b[j - 1]}`)
+    }
+  }
+  return out.length > shown ? [...out.slice(0, shown), `… ${out.length - shown} more changed line(s)`] : out
+}
+
+/** What changed between a golden and a render; empty when they are equal. */
+function goldenDiff(golden: string, rendered: string): string[] {
+  if (normalizeSvg(golden) === normalizeSvg(rendered)) return []
+  const changed = changedLines(normalizeSvg(golden, { maskStyleScope: true }), normalizeSvg(rendered, { maskStyleScope: true }))
+  return changed.length > 0 ? changed : ['only the root style-scope class differs']
+}
+
 describe('styled output', () => {
   const fixtures = fixtureSources()
 
@@ -65,40 +113,40 @@ describe('styled output', () => {
     }
   })
 
-  test('every style × fixture renders once and is hash-stable against the committed baseline', () => {
-    const records: Record<string, string> = {}
-    for (const fixture of fixtures) {
-      for (const style of LOOKS) {
-        const key = `${fixture.name}#${style}`
-        const svg = renderMermaidSVG(fixture.source, { style })
-        records[key] = createHash('sha256').update(svg).digest('hex')
+  for (const { style, fixture, golden } of GOLDEN_CASES) {
+    test(`${fixture} × ${style} matches testdata/styled/${golden}`, () => {
+      const svg = renderMermaidSVG(readFileSync(join(FIXTURES, fixture), 'utf8'), { style })
+      const path = join(GOLDENS, golden)
+      if (UPDATE) {
+        mkdirSync(GOLDENS, { recursive: true })
+        writeFileSync(path, svg)
       }
-    }
-    expect(Object.keys(records).length).toBe(fixtures.length * LOOKS.length)
+      // A deleted or renamed golden must fail, never silently re-bless itself.
+      expect({ golden, exists: existsSync(path) }).toEqual({ golden, exists: true })
+      expect({ golden, changed: goldenDiff(readFileSync(path, 'utf8'), svg) }).toEqual({ golden, changed: [] })
+    })
+  }
 
-    if (UPDATE || !existsSync(BASELINE)) {
-      const sorted: Record<string, string> = {}
-      for (const key of Object.keys(records).sort()) sorted[key] = records[key]!
-      writeFileSync(BASELINE, JSON.stringify(sorted, null, 2) + '\n')
-      console.log(`styled-output: baseline written (${Object.keys(records).length} records)`)
-      return
-    }
-    const baseline = JSON.parse(readFileSync(BASELINE, 'utf8')) as Record<string, string>
-    for (const [key, hash] of Object.entries(records)) {
-      if (baseline[key] === undefined) {
-        throw new Error(`styled-output: ${key} missing from baseline — regenerate with UPDATE_STYLED_BASELINE=1`)
-      }
-      if (baseline[key] !== hash) {
-        throw new Error(`styled-output: drift for ${key} — regenerate deliberately with UPDATE_STYLED_BASELINE=1 + [approve-goldens]`)
-      }
-    }
-    // Stale keys rot silently otherwise: a removed fixture or style must
-    // shrink the styled baseline too.
-    const stale = Object.keys(baseline).filter(k => !(k in records))
-    if (stale.length > 0) {
-      throw new Error(`styled-output: ${stale.length} stale baseline records (e.g. ${stale[0]}) — regenerate with UPDATE_STYLED_BASELINE=1`)
-    }
-  }, 20_000)
+  test('every styled golden belongs to a case', () => {
+    // A removed family or look must take its golden with it.
+    const expected = new Set(GOLDEN_CASES.map(({ golden }) => golden))
+    const stale = () => readdirSync(GOLDENS).filter(file => !expected.has(file)).sort()
+    if (UPDATE) for (const file of stale()) rmSync(join(GOLDENS, file))
+    expect(stale()).toEqual([])
+  })
+
+  test('a golden diff lists only the changed lines', () => {
+    const scoped = (scope: string, fill: string) => `<svg class="${scope}">\n<rect class="${scope}" fill="${fill}"/>\n<text class="${scope}">A</text>\n</svg>`
+    // Any paint change renames the scope class on every line; the diff still
+    // names just the rect.
+    expect(goldenDiff(scoped('am-aaaaaaaaaaaaaa', '#fff'), scoped('am-bbbbbbbbbbbbbb', '#000'))).toEqual([
+      '-2: <rect class="am-scope" fill="#fff"/>',
+      '+2: <rect class="am-scope" fill="#000"/>',
+    ])
+    expect(goldenDiff(scoped('am-aaaaaaaaaaaaaa', '#fff'), scoped('am-bbbbbbbbbbbbbb', '#fff'))).toEqual(['only the root style-scope class differs'])
+    expect(goldenDiff('<svg>\n</svg>', '<svg>\n<a/>\n</svg>\n')).toEqual(['+2: <a/>'])
+    expect(goldenDiff('<svg/>\r\n', '<svg/>')).toEqual([])
+  })
 
   test('transparent styled output stays transparent across every family fixture', () => {
     for (const fixture of fixtures) {
@@ -317,6 +365,9 @@ describe('bundled fonts', () => {
   })
 
   test('hosted PNG worker loads and verifies every hosted face, and reports legibility warnings', async () => {
+    // The only test here that needs website/src/generated (the Worker's fonts
+    // and wasm), so only it pays for the website build.
+    ensureWebsiteBuilt()
     // The Worker's .ttf/.wasm imports are Wrangler-owned module rules. Serve
     // them as the same bytes here so the real worker module runs natively.
     const loadedAssets: string[] = []
@@ -342,7 +393,7 @@ describe('bundled fonts', () => {
     const { png, warnings } = await renderMermaidPNGWasm('flowchart LR\n  A[Start] -- go --> B[Finish]\n', { fitTo: { width: 100 } })
     expect(Array.from(png.subarray(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'BELOW_READABLE_SIZE', cause: 'fitTo' }))
-  })
+  }, 180_000)
 })
 
 const LOOKS_WITH_BACKENDS = [

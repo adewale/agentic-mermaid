@@ -11,6 +11,7 @@ import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { layoutGantt, resolveTicks, GANTT_MAX_TICKS } from '../gantt/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { resolveRenderRequest, resolvedFamilyRenderContextOf } from '../render-contract.ts'
 
 function layoutOf(src: string, options: Parameters<typeof layoutGantt>[2] = {}) {
@@ -152,7 +153,9 @@ describe('gantt layout — axes and markers', () => {
 
   // upstream: mermaid-js/mermaid#1301 — gantt axis/bar overlap on long date ranges
   test('long-range axis labels stay clear of task bars (#1301)', () => {
-    const { layout } = layoutOf(`gantt
+    // Positions come from the rendered <text>/<rect> elements, not from copied
+    // renderer offsets. A middle-baseline label spans y ± fontSize/2.
+    const svg = renderMermaidSVG(`gantt
       title Multi-year roadmap
       dateFormat YYYY-MM-DD
       axisFormat %Y
@@ -162,16 +165,19 @@ describe('gantt layout — axes and markers', () => {
         Build :b, after a, 520d
         Launch :c, after b, 180d
     `)
-    const axisLabelHalfHeight = 6
-    const topAxisLabelBottom = layout.plot.y - 10 + axisLabelHalfHeight
-    const bottomAxisLabelTop = layout.plot.y + layout.plot.h + 12 - axisLabelHalfHeight
-    const firstBarTop = Math.min(...layout.bars.map(b => b.y))
-    const lastBarBottom = Math.max(...layout.bars.map(b => b.y + b.h))
+    const bars = [...svg.matchAll(/<rect class="gantt-bar[^"]*"[^>]* y="([\d.]+)"[^>]* height="([\d.]+)"/g)]
+      .map(m => ({ top: Number(m[1]), bottom: Number(m[1]) + Number(m[2]) }))
+    const barsTop = Math.min(...bars.map(b => b.top))
+    const barsBottom = Math.max(...bars.map(b => b.bottom))
+    const labels = [...svg.matchAll(/<text class="gantt-axis-label"[^>]* y="([\d.]+)"[^>]* font-size="([\d.]+)"[^>]*>([^<]*)</g)]
+      .map(m => ({ text: m[3]!, top: Number(m[1]) - Number(m[2]) / 2, bottom: Number(m[1]) + Number(m[2]) / 2 }))
+    const side = (l: (typeof labels)[number]) => l.bottom <= barsTop ? 'above' : l.top >= barsBottom ? 'below' : `overlaps bars: ${l.text}`
 
-    expect(layout.topAxis).toBe(true)
-    expect(layout.ticks.length).toBeGreaterThan(1)
-    expect(topAxisLabelBottom).toBeLessThanOrEqual(firstBarTop)
-    expect(bottomAxisLabelTop).toBeGreaterThanOrEqual(lastBarBottom)
+    expect(bars).toHaveLength(3)
+    const sides = labels.map(side)
+    // topAxis draws every year label on both sides of the bars, none on them.
+    expect({ above: sides.filter(s => s === 'above').length > 1, below: sides.filter(s => s === 'below').length > 1, overlapping: sides.filter(s => s.startsWith('overlaps')) })
+      .toEqual({ above: true, below: true, overlapping: [] })
   })
 
   test('ticks are bounded even with a 1minute interval over months (mermaid PR #7197)', () => {
@@ -193,6 +199,7 @@ describe('gantt layout — axes and markers', () => {
       A :a, 2024-01-03, 21d
     `)
     const ticks = resolveTicks(schedule, model)
+    expect(ticks.length).toBeGreaterThan(0)
     for (const t of ticks) {
       const dow = new Date(t.time).getUTCDay()
       expect(dow).toBe(1) // Monday

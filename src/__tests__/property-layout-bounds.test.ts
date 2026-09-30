@@ -278,6 +278,9 @@ describe('property-based architecture layout bounds', () => {
 
         const positionedGroup = positioned.groups.find(g => g.id === group)
         expect(positionedGroup).toBeDefined()
+        // Every `in group` service keeps its parent, so the bounds loop below
+        // checks all of them rather than possibly none.
+        expect(positioned.services.filter(service => service.parentId === group)).toHaveLength(services.length)
 
         for (const service of positioned.services) {
           if (service.parentId === group) {
@@ -446,6 +449,8 @@ describe('property-based sequence layout bounds', () => {
         const diagram = parseSequenceDiagram(lines)
         const positioned = layoutSequenceDiagram(diagram)
 
+        // The +/- pair opens and closes exactly one activation on the target.
+        expect(positioned.activations).toHaveLength(1)
         for (const activation of positioned.activations) {
           expectFinite(activation.x, 'activation.x')
           expectFinite(activation.topY, 'activation.topY')

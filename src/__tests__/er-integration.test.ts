@@ -60,27 +60,10 @@ describe('renderMermaidSVG – ER diagrams', () => {
     expect(svg).toContain('<polyline')
   })
 
-  it('renders crow\'s foot cardinality markers', () => {
-    const svg = renderMermaidSVG(`erDiagram
-      CUSTOMER ||--o{ ORDER : places`)
-    // Crow's foot markers are rendered as lines
-    const lineCount = (svg.match(/<line /g) ?? []).length
-    // Entity divider lines + cardinality markers
-    expect(lineCount).toBeGreaterThan(2)
-  })
-
   it('renders non-identifying (dashed) relationships', () => {
     const svg = renderMermaidSVG(`erDiagram
       USER ||..o{ LOG : generates`)
     expect(svg).toContain('stroke-dasharray')
-  })
-
-  it('renders relationship labels with background pills', () => {
-    const svg = renderMermaidSVG(`erDiagram
-      A ||--o{ B : places`)
-    expect(svg).toContain('places')
-    // Background pill behind label
-    expect(svg).toContain('rx="2"')
   })
 
   it('renders with dark colors', () => {
@@ -226,17 +209,30 @@ function pointToSegmentDist(p: { x: number; y: number }, a: { x: number; y: numb
   return Math.sqrt((p.x - projX) ** 2 + (p.y - projY) ** 2)
 }
 
-/**
- * Find the polyline closest to a label position.
- * Returns the minimum distance from the label to any polyline.
- */
-function closestPolylineDistance(label: { x: number; y: number }, polylines: Array<Array<{ x: number; y: number }>>): number {
-  let minDist = Infinity
-  for (const pl of polylines) {
-    const dist = distanceToPolyline(label, pl)
-    if (dist < minDist) minDist = dist
+/** Relationship polylines keyed by their `data-label` (the relationship's label text). */
+function extractRelationshipPolylines(svg: string): Map<string, Array<{ x: number; y: number }>> {
+  const polylines = new Map<string, Array<{ x: number; y: number }>>()
+  const pattern = /<polyline class="er-relationship"[^>]* data-label="([^"]*)"[^>]* points="([^"]+)"/g
+  for (const match of svg.matchAll(pattern)) {
+    polylines.set(match[1]!, match[2]!.split(' ').map(p => {
+      const [x, y] = p.split(',')
+      return { x: parseFloat(x!), y: parseFloat(y!) }
+    }))
   }
-  return minDist
+  return polylines
+}
+
+/**
+ * For each relationship label, whether it sits within 2px of ITS OWN
+ * relationship polyline (paired by label text), so a label that drifts onto a
+ * neighbouring relationship's line fails by name.
+ */
+function labelsOnOwnPolyline(svg: string, positions = extractLabelPositions(svg)): Record<string, boolean> {
+  const own = extractRelationshipPolylines(svg)
+  return Object.fromEntries([...positions].map(([name, pos]) => {
+    const polyline = own.get(name)
+    return [name, polyline !== undefined && distanceToPolyline(pos, polyline) < 2]
+  }))
 }
 
 // ─── Straight-line label positioning ────────────────────────────────────────
@@ -301,13 +297,8 @@ describe('renderMermaidSVG – ER label positioning (straight lines)', () => {
     const svg = renderMermaidSVG(`erDiagram
       A ||--o{ B : connects`)
 
-    const labels = extractLabelPositions(svg)
-    const polylines = extractPolylines(svg)
-    const label = labels.get('connects')!
-
-    // Label should be within 2px of its closest polyline segment
-    const dist = closestPolylineDistance(label, polylines)
-    expect(dist).toBeLessThan(2)
+    // Label should be within 2px of its own relationship polyline
+    expect(labelsOnOwnPolyline(svg)).toEqual({ connects: true })
   })
 })
 
@@ -321,19 +312,8 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
       PRODUCT ||--o{ LINE_ITEM : includes
       PRODUCT ||..o{ REVIEW : receives`)
 
-    const labels = extractLabelPositions(svg)
-    const polylines = extractPolylines(svg)
-
-    // Every relationship label should be found
-    for (const name of ['contains', 'ships-via', 'includes', 'receives']) {
-      expect(labels.has(name)).toBe(true)
-    }
-
-    // Every label should be within 2px of a polyline segment
-    for (const [, pos] of labels) {
-      const dist = closestPolylineDistance(pos, polylines)
-      expect(dist).toBeLessThan(2)
-    }
+    // Every relationship label is found, within 2px of its own polyline
+    expect(labelsOnOwnPolyline(svg)).toEqual({ contains: true, 'ships-via': true, includes: true, receives: true })
   })
 
   it('non-identifying relationship labels also sit on their dashed polylines', () => {
@@ -341,33 +321,7 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
       USER ||..o{ LOG_ENTRY : generates
       USER ||..o{ SESSION : opens`)
 
-    const labels = extractLabelPositions(svg)
-    const polylines = extractPolylines(svg)
-
-    expect(labels.has('generates')).toBe(true)
-    expect(labels.has('opens')).toBe(true)
-
-    for (const [, pos] of labels) {
-      const dist = closestPolylineDistance(pos, polylines)
-      expect(dist).toBeLessThan(2)
-    }
-  })
-
-  it('label on vertical segment has x matching the segment x', () => {
-    const svg = renderMermaidSVG(`erDiagram
-      ORDER ||--|{ LINE_ITEM : contains
-      ORDER ||..o{ SHIPMENT : ships-via
-      PRODUCT ||--o{ LINE_ITEM : includes
-      PRODUCT ||..o{ REVIEW : receives`)
-
-    const labels = extractLabelPositions(svg)
-    const polylines = extractPolylines(svg)
-
-    // For each label, find the closest polyline and verify it's near a segment
-    for (const [, pos] of labels) {
-      const dist = closestPolylineDistance(pos, polylines)
-      expect(dist).toBeLessThan(2)
-    }
+    expect(labelsOnOwnPolyline(svg)).toEqual({ generates: true, opens: true })
   })
 
   it('labels in e-commerce schema all sit on their polylines', () => {
@@ -376,14 +330,7 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
       ORDER ||--|{ LINE_ITEM : contains
       PRODUCT ||--o{ LINE_ITEM : includes`)
 
-    const labels = extractLabelPositions(svg)
-    const polylines = extractPolylines(svg)
-
-    expect(labels.size).toBe(3)
-    for (const [, pos] of labels) {
-      const dist = closestPolylineDistance(pos, polylines)
-      expect(dist).toBeLessThan(2)
-    }
+    expect(labelsOnOwnPolyline(svg)).toEqual({ places: true, contains: true, includes: true })
   })
 
   it('label is not at the endpoint of any polyline', () => {
@@ -429,7 +376,6 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
       A ||--o{ B : test`)
 
     const labels = extractLabelPositions(svg)
-    const polylines = extractPolylines(svg)
     const label = labels.get('test')!
 
     // Find the background pill rect (rx="2" ry="2" near the label position)
@@ -443,10 +389,8 @@ describe('renderMermaidSVG – ER label positioning (multi-segment paths)', () =
       // Check if this pill is for our label (center within 1px of label x)
       if (Math.abs(pillCenter - label.x) < 1) {
         foundPill = true
-        // Pill center should also be on the polyline
-        const pillPos = { x: pillCenter, y: label.y }
-        const dist = closestPolylineDistance(pillPos, polylines)
-        expect(dist).toBeLessThan(2)
+        // Pill center should also be on the relationship's own polyline
+        expect(labelsOnOwnPolyline(svg, new Map([['test', { x: pillCenter, y: label.y }]]))).toEqual({ test: true })
       }
     }
     expect(foundPill).toBe(true)

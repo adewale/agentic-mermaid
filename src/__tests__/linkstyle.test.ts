@@ -24,7 +24,9 @@ describe('linkStyle – parser', () => {
     expect(g.linkStyles.get(0)).toEqual({ stroke: '#00ff00' })
   })
 
-  it('ignores linkStyle lines silently (no crash) when index out of range', () => {
+  // Known-difference pin BUG-36 (#363): upstream Mermaid rejects an out-of-range
+  // index; we store it with no diagnostic. When #363 decides BUG-36, this pin flips.
+  it('BUG-36 pin: an out-of-range linkStyle index is stored silently, without a diagnostic', () => {
     const g = parseMermaid('graph TD\n  A --> B\n  linkStyle 99 stroke:#ff0000')
     expect(g.linkStyles.get(99)).toEqual({ stroke: '#ff0000' })
     expect(g.edges).toHaveLength(1)
@@ -70,8 +72,11 @@ describe('linkStyle – SVG integration', () => {
     const svg = renderMermaidSVG(
       'graph TD\n  A --> B\n  B --> C\n  linkStyle default stroke:#888\n  linkStyle 0 stroke:#ff0000'
     )
-    expect(svg).toContain('stroke="#ff0000"')
-    expect(svg).toContain('stroke="#888"')
+    const strokes = Object.fromEntries(
+      [...svg.matchAll(/<polyline class="edge" data-from="(\w+)" data-to="(\w+)"[^>]* stroke="([^"]+)"/g)]
+        .map(([, from, to, stroke]) => [`${from}->${to}`, stroke]),
+    )
+    expect(strokes).toEqual({ 'A->B': '#ff0000', 'B->C': '#888' })
   })
 
   it('arrowhead color matches custom stroke color', () => {

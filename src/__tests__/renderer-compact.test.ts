@@ -103,9 +103,10 @@ describe('Loop 8 M3 — SVG compact mode', () => {
   })
 
   it('default (no compact option) preserves the existing wire format', () => {
-    // Back-compat: omitting `compact` defaults to false. The output should
-    // contain newlines and unrounded floats, just as before Loop 8.
+    // Back-compat: omitting `compact` defaults to false — byte-identical to an
+    // explicit `compact: false`, and not the compact form.
     const svg = renderMermaidSVG(SRC)
-    expect(svg).toContain('\n')
+    expect(svg).toBe(renderMermaidSVG(SRC, { compact: false }))
+    expect(svg).not.toBe(renderMermaidSVG(SRC, { compact: true }))
   })
 })

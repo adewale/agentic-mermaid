@@ -44,7 +44,7 @@ bun run bin/am.ts render docs/design/families/<name>-demo.mmd --format png \
 
 The Gantt completion image additionally uses `ganttToday: '2024-01-08'`; the dependency image
 uses `{ gantt: { dependencyArrows: true, criticalPath: true } }` through `renderMermaidPNG`.
-The all-family Style + Palette sheet and gallery evidence are generated and checked with:
+The all-family Style + Palette sheet (not committed) and gallery evidence are generated with:
 
 ```bash
 bun run scripts/pr-assets/family-elevation-style-palette.ts
@@ -60,5 +60,5 @@ bun run gallery:pie-highlight
 - **Mutation ops:** generated — `describeOps(family)` / `opSignatures(family)`, or `families[].opFields` in `am capabilities --json`.
 - **Structured/opaque scope and shared op conventions:** [`AGENT_NATIVE.md`](../../../AGENT_NATIVE.md).
 - **Source-preservation level (L0–L4):** [`source-preservation-ladder.md`](../system/source-preservation-ladder.md).
-- **Cross-surface citizenship matrix:** [`diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md).
+- **Cross-surface citizenship checklist:** [`diagram-family-citizenship.md`](../../contributing/diagram-family-citizenship.md).
 - **Mermaid syntax references:** `skills/agentic-mermaid-diagram-workflow/references/`.

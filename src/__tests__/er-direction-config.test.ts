@@ -59,10 +59,13 @@ describe('er direction statement', () => {
     expect(b.y + b.height).toBeLessThan(a.y + 0.5)
   })
 
-  it('a direction-RL ER diagram renders end-to-end', () => {
+  it('a direction-RL ER diagram renders end-to-end with the target left of the source', () => {
     const svg = renderMermaidSVG('erDiagram\n  direction RL\n  CUSTOMER ||--o{ ORDER : places')
-    expect(svg).toContain('CUSTOMER')
-    expect(svg).toContain('ORDER')
+    const box = (id: string) => {
+      const m = svg.match(new RegExp(`<rect x="([\\d.]+)" y="[\\d.]+" width="([\\d.]+)"[^>]*data-id="entity-rect:${id}"`))!
+      return { left: Number(m[1]), right: Number(m[1]) + Number(m[2]) }
+    }
+    expect(box('ORDER').right).toBeLessThan(box('CUSTOMER').left)
   })
 })
 
@@ -115,10 +118,19 @@ describe('er config section — wire-or-warn', () => {
   })
 
   it('er.nodeSpacing/rankSpacing are wired into the rendered geometry', () => {
-    const base = renderMermaidSVG(withConfig('    rankSpacing: 90'))
-    const spaced = renderMermaidSVG(withConfig('    rankSpacing: 320'))
-    const width = (svg: string) => Number(svg.match(/viewBox="0 0 ([\d.]+) /)![1])
-    expect(width(spaced)).toBeGreaterThan(width(base) + 180)
+    const viewBox = (svg: string) => {
+      const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)!
+      return { w: Number(m[1]), h: Number(m[2]) }
+    }
+    // rankSpacing widens the LR flow between A and B.
+    const base = viewBox(renderMermaidSVG(withConfig('    rankSpacing: 90')))
+    const spaced = viewBox(renderMermaidSVG(withConfig('    rankSpacing: 320')))
+    expect(spaced.w).toBeGreaterThan(base.w + 180)
+    // nodeSpacing separates the siblings B and C, stacked across the LR flow.
+    const siblings = 'erDiagram\n  A ||--o{ B : x\n  A ||--o{ C : y'
+    const near = viewBox(renderMermaidSVG(withConfig('    nodeSpacing: 70', siblings)))
+    const far = viewBox(renderMermaidSVG(withConfig('    nodeSpacing: 220', siblings)))
+    expect(far.h).toBeGreaterThan(near.h + 100)
   })
 
   it('documented-but-unwired er config keys emit INEFFECTIVE_CONFIG', () => {

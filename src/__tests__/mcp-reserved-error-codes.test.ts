@@ -178,7 +178,7 @@ describe('the allowed codes are the ones actually emitted', () => {
   const context = (): HostedMcpContext => ({ async execute() { return { ok: true, value: 42, logs: [] } } })
 
   test('an unsupported protocol version yields -32022 with the supported list', async () => {
-    const handler = createMcpHandler({ hosted: { context: context() } } as never)
+    const handler = createMcpHandler({ context: context(), cacheVersion: 'test', onEvent: () => {} })
     const response = await handler(new Request('https://agentic-mermaid.dev/mcp', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'mcp-protocol-version': '1999-01-01' },

@@ -212,21 +212,27 @@ describe('cross-hierarchy orthogonalizer — orthogonalizeEdgePoints', () => {
 // HEURISTIC #20 — ELK crash degradation ladder (`layoutGraphSync`).
 //
 // What it pins: ELK's bundled (GWT-compiled) engine can throw internal
-// exceptions on rare dense multigraphs. Crash-freedom is part of this
-// renderer's contract, so `layoutGraphSync` retries through a ladder of
-// progressively plainer ELK option sets (drop feedbackEdges, then
-// post-compaction, then forced model order / high-degree treatment) and only
-// rethrows if *every* tier fails. The route-contract pass then repairs
-// whatever the surviving tier produced.
+// exceptions, or return a nominal success with NaN geometry, on rare graphs.
+// Crash-freedom is part of this renderer's contract, so `layoutGraphSync`
+// retries through a ladder of progressively plainer ELK option sets (tier 1
+// drops feedbackEdges, tier 2 also drops post-compaction, tier 3 also drops
+// forced model order / high-degree treatment) and only rethrows if *every*
+// tier fails. The route-contract pass then repairs whatever the surviving tier
+// produced.
 //
-// PINNED TRIGGER (issue #34): this 3-node/9-edge dense cyclic multigraph is a
-// deterministic bundled-ELK failure for tier 0 (`elk.layered.feedbackEdges:
-// true`): `java.lang.IllegalStateException: Invalid hitboxes for scanline
-// constraint calculation.` Turning feedbackEdges off (tier 1) succeeds, which
-// pins the actual crash → fallback → valid-layout transition instead of merely
-// asserting broad crash-freedom on stress inputs.
+// Each ladder fixture below first proves, against raw ELK, that the tiers
+// beneath its rescuing tier really fail today. If an ELK or conversion change
+// makes a fixture succeed earlier, that precondition fails loudly instead of
+// the test passing without touching the ladder. No known fixture reaches
+// tier 3. The fixtures were found by fuzzing small self-loop graphs.
+//
+// HISTORIC TRIGGER (issue #34): the 3-node/9-edge dense cyclic multigraph
+// below USED to be a deterministic tier-0 failure (`IllegalStateException:
+// Invalid hitboxes for scanline constraint calculation`). Issue #117's feedback
+// port hints now avoid it, so it no longer reaches the ladder; it stays pinned
+// as a regression guard for those hints.
 // ============================================================================
-const ELK_TIER0_HITBOX_CRASH = `flowchart TD
+const ISSUE_34_HISTORIC_TIER0_CRASH = `flowchart TD
   N0 --> N2
   N1 --> N0
   N2 --> N1
@@ -237,7 +243,22 @@ const ELK_TIER0_HITBOX_CRASH = `flowchart TD
   N0 --> N1
   N0 --> N1`
 
-describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
+// Tier-1 options, the first rung of the ladder (see layoutGraphSync).
+const TIER1_OVERRIDES = { 'elk.layered.feedbackEdges': 'false' }
+
+/** What raw ELK does with a graph under the given option overrides. */
+function rawElkOutcome(src: string, overrides: Record<string, string> = {}): 'ok' | 'nan' | 'throw' {
+  const elkGraph = convertToElkFormat(parseMermaid(src))
+  elkGraph.layoutOptions = { ...elkGraph.layoutOptions, ...overrides }
+  try {
+    const result = elkLayoutSync(elkGraph)
+    return JSON.stringify(result, (_key, value) => (typeof value === 'number' && !Number.isFinite(value) ? 'NaN' : value)).includes('"NaN"') ? 'nan' : 'ok'
+  } catch {
+    return 'throw'
+  }
+}
+
+describe('ELK degradation ladder — layoutGraphSync', () => {
   const assertFinitePositionedGraph = (positioned: ReturnType<typeof layoutGraphSync>) => {
     expect(positioned.nodes.length).toBeGreaterThan(0)
     for (const n of positioned.nodes) {
@@ -256,11 +277,14 @@ describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
 
   const assertValidLayout = (src: string) => {
     const graph = parseMermaid(src)
-    assertFinitePositionedGraph(layoutGraphSync(graph))
+    const positioned = layoutGraphSync(graph)
+    assertFinitePositionedGraph(positioned)
+    expect({ nodes: positioned.nodes.map(n => n.id).sort(), edges: positioned.edges.length })
+      .toEqual({ nodes: [...graph.nodes.keys()].sort(), edges: graph.edges.length })
   }
 
-  it('issue #34: tier-0 ELK hitbox fixture is now avoided by route port hints', () => {
-    const graph = parseMermaid(ELK_TIER0_HITBOX_CRASH)
+  it('issue #34: the historic tier-0 ELK hitbox fixture is now avoided by route port hints', () => {
+    const graph = parseMermaid(ISSUE_34_HISTORIC_TIER0_CRASH)
 
     // Issue #117's narrow feedback-port slice gives ELK enough endpoint intent
     // that this historic tier-0 crash fixture no longer reaches the fallback
@@ -273,19 +297,63 @@ describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
     expect(positioned.edges.length).toBe(9)
   })
 
-  it('a dense bidirectional complete digraph (K8 both ways) lays out without throwing', () => {
+  // Tier 0 returns NaN geometry; tier 1 (feedbackEdges off) succeeds.
+  it('tier 1 rescues a tier-0 NaN layout (dotted self-loop inside a labelled cycle)', () => {
+    const src = 'flowchart LR\n  N1 --> N2\n  N0 -.-> N0\n  N2 -->|lab| N1\n  N0 -.-> N2'
+    expect({ tier0: rawElkOutcome(src), tier1: rawElkOutcome(src, TIER1_OVERRIDES) })
+      .toEqual({ tier0: 'nan', tier1: 'ok' })
+    assertValidLayout(src)
+  })
+
+  // Tiers 0 and 1 both return NaN geometry; tier 2 (post-compaction off) succeeds.
+  it('tier 2 rescues a disconnected node beside a self-loop (NaN at tiers 0 and 1)', () => {
+    const src = 'flowchart TD\n  N0[N0]\n  N1[N1]\n  N0 --> N0'
+    expect({ tier0: rawElkOutcome(src), tier1: rawElkOutcome(src, TIER1_OVERRIDES) })
+      .toEqual({ tier0: 'nan', tier1: 'nan' })
+    assertValidLayout(src)
+  })
+
+  // Tiers 0 and 1 both THROW (the #34 hitbox exception); tier 2 succeeds.
+  it('tier 2 rescues an ELK hitbox exception (labelled and dotted self-loops, rounded node)', () => {
+    const src = 'flowchart TD\n  N2(N2)\n  N3 -->|lab| N3\n  N2 -.-> N2'
+    expect({ tier0: rawElkOutcome(src), tier1: rawElkOutcome(src, TIER1_OVERRIDES) })
+      .toEqual({ tier0: 'throw', tier1: 'throw' })
+    assertValidLayout(src)
+  })
+})
+
+// Dense and feedback-heavy graphs of the class the ladder was built for. Today
+// raw ELK lays all three out at tier 0, so these are crash-freedom smoke tests,
+// not ladder tests: they guard against a regression that makes ELK (or the
+// route-contract pass) fail outright on dense input.
+describe('dense-graph crash-freedom smoke (tier 0 succeeds today)', () => {
+  const layoutIsFinite = (src: string) => {
+    const graph = parseMermaid(src)
+    const positioned = layoutGraphSync(graph)
+    const numbers = [
+      ...positioned.nodes.flatMap(n => [n.x, n.y, n.width, n.height]),
+      ...positioned.edges.flatMap(e => e.points.flatMap(p => [p.x, p.y])),
+    ]
+    return {
+      nodes: positioned.nodes.length,
+      edges: positioned.edges.length,
+      nonFinite: numbers.filter(v => !Number.isFinite(v)).length,
+    }
+  }
+
+  it('a dense bidirectional complete digraph (K8 both ways) lays out', () => {
     // 8 nodes, every ordered pair connected => 56 edges with many feedback
-    // edges and high-degree nodes — the structural class the ladder exists for.
+    // edges and high-degree nodes.
     let src = 'flowchart TD\n'
     for (let i = 0; i < 8; i++) {
       for (let j = i + 1; j < 8; j++) {
         src += `  N${i} --> N${j}\n  N${j} --> N${i}\n`
       }
     }
-    expect(() => assertValidLayout(src)).not.toThrow()
+    expect(layoutIsFinite(src)).toEqual({ nodes: 8, edges: 56, nonFinite: 0 })
   })
 
-  it('a dense parallel multigraph lays out without throwing', () => {
+  it('a dense parallel multigraph lays out', () => {
     // 6 nodes, 3 parallel duplicate edges per ordered pair => 90 edges.
     let src = 'flowchart LR\n'
     for (let i = 0; i < 6; i++) {
@@ -294,19 +362,15 @@ describe('ELK degradation ladder — layoutGraphSync crash-freedom', () => {
         for (let k = 0; k < 3; k++) src += `  N${i} --> N${j}\n`
       }
     }
-    expect(() => assertValidLayout(src)).not.toThrow()
+    expect(layoutIsFinite(src)).toEqual({ nodes: 6, edges: 90, nonFinite: 0 })
   })
 
-  it('degrades a nominal ELK success with NaN geometry for a disconnected self-loop', () => {
-    assertValidLayout('flowchart TD\n  N0[N0]\n  N1[N1]\n  N0 --> N0')
-  })
-
-  it('a large cyclic graph with self-loops lays out without throwing', () => {
+  it('a large cyclic graph with self-loops lays out', () => {
     // Cycle of 20 with a self-loop on every node — feedback-heavy.
     let src = 'flowchart TD\n'
     for (let i = 0; i < 20; i++) {
       src += `  N${i} --> N${(i + 1) % 20}\n  N${i} --> N${i}\n`
     }
-    expect(() => assertValidLayout(src)).not.toThrow()
+    expect(layoutIsFinite(src)).toEqual({ nodes: 20, edges: 40, nonFinite: 0 })
   })
 })

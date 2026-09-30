@@ -47,9 +47,10 @@ function dayStr(offset: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
 }
 
-function toSource(tasks: GenTask[], opts: { excludes?: string; axisFormat?: string } = {}): string {
+function toSource(tasks: GenTask[], opts: { excludes?: string; includes?: number[]; axisFormat?: string } = {}): string {
   const lines = ['gantt', '  dateFormat YYYY-MM-DD']
   if (opts.excludes) lines.push(`  excludes ${opts.excludes}`)
+  if (opts.includes?.length) lines.push(`  includes ${opts.includes.map(dayStr).join(', ')}`)
   if (opts.axisFormat) lines.push(`  axisFormat ${opts.axisFormat}`)
   tasks.forEach((t, i) => {
     const tags = t.milestone ? 'milestone, ' : ''
@@ -100,21 +101,30 @@ describe('gantt scheduler properties (generated DAGs)', () => {
     }), { numRuns: 60 })
   })
 
+  // Weekend days re-included by `includes`: offsets of Saturdays and Sundays
+  // from 2024-01-06 (a Saturday) across the first ~15 weeks.
+  const genIncludedWeekendDays = fc.uniqueArray(fc.nat({ max: 29 }), { maxLength: 6 })
+    .map(picks => picks.map(k => 5 + 7 * Math.floor(k / 2) + (k % 2)))
+
   test('duration tasks keep their working-day count under excludes+includes', () => {
-    fc.assert(fc.property(genTaskList, tasks => {
-      const s = scheduleOf(toSource(tasks, { excludes: 'weekends' }))
+    fc.assert(fc.property(genTaskList, genIncludedWeekendDays, (tasks, includes) => {
+      const s = scheduleOf(toSource(tasks, { excludes: 'weekends', includes }))
+      // Independent calendar oracle: Saturdays and Sundays are excluded unless
+      // explicitly re-included.
+      const included = new Set(includes.map(offset => Date.UTC(2024, 0, 1) + offset * DAY_MS))
+      const excluded = (d: number) => [0, 6].includes(new Date(d).getUTCDay()) && !included.has(d)
       tasks.forEach((t, i) => {
         const task = s.tasks[i]!
-        if (task.manualEnd) return
+        expect({ i, manualEnd: Boolean(task.manualEnd) }).toEqual({ i, manualEnd: false })
         // Upstream boundary (adopted 2026-07, family-elevation-plan §Gantt
         // item 6): the exclude walk counts days in (start, end] — a task
         // starting on an excluded day gets that day free — so the working-day
         // conservation law counts the same window.
         let working = 0
         for (let d = task.start + DAY_MS; d <= task.end; d += DAY_MS) {
-          if (!s.isExcludedDay(d)) working++
+          if (!excluded(d)) working++
         }
-        expect(working).toBe(t.durationDays)
+        expect({ i, working }).toEqual({ i, working: t.durationDays })
       })
     }), { numRuns: 60 })
   })
@@ -269,6 +279,9 @@ describe('compact lane packing properties', () => {
       const lanes = packCompactLanes(intervals)
       expect(packCompactLanes(intervals)).toEqual(lanes)
       const byLane = new Map<number, Array<{ start: number; end: number }>>()
+      // First fit, in input order: a task takes the LOWEST lane whose latest
+      // occupant has ended by its start, so every lower lane is still busy.
+      const latestEnd = new Map<number, number>()
       intervals.forEach((iv, i) => {
         const lane = lanes[i]!
         const peers = byLane.get(lane) ?? []
@@ -278,6 +291,9 @@ describe('compact lane packing properties', () => {
         }
         peers.push(iv)
         byLane.set(lane, peers)
+        const lowerLanesBusy = Array.from({ length: lane }, (_, k) => (latestEnd.get(k) ?? -Infinity) > iv.start)
+        expect({ i, lane, lowerLanesBusy: lowerLanesBusy.every(Boolean) }).toEqual({ i, lane, lowerLanesBusy: true })
+        latestEnd.set(lane, iv.end)
       })
     }), { numRuns: 120 })
   })

@@ -36,11 +36,9 @@ const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
 }
 
 describe('targetWidth hard terminal contract', () => {
-  test('fits a long mixed-width flowchart without mutating caller source', () => {
+  test('fits a long mixed-width flowchart', () => {
     const source = 'flowchart TD\n  A["日本語 👩‍💻 descriptive label with many words"] --> B["Done"]'
-    const before = source
     const output = renderMermaidASCII(source, { targetWidth: 32, colorMode: 'none' })
-    expect(source).toBe(before)
     expect(outputWidth(output)).toBeLessThanOrEqual(32)
     expect(output).toContain('日本語')
     expect(output).toContain('👩‍💻')

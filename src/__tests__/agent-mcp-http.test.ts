@@ -1,27 +1,47 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { createArtifactStore } from '../mcp/artifacts.ts'
 import { handleRequest, readRequestBody, startHttpServer, type HttpMcpServer, HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../mcp/server.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 const textDecoder = new TextDecoder()
 
 let servers: HttpMcpServer[] = []
-let temps: string[] = []
 
 afterEach(async () => {
   for (const s of servers.splice(0)) await s.close().catch(() => {})
-  for (const t of temps.splice(0)) rmSync(t, { recursive: true, force: true })
 })
 
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-mcp-test-'))
-  temps.push(dir)
-  return dir
+  return temp.dir('agentic-mermaid-mcp-test-')
 }
+
+// Session teardown after an aborted SSE stream completes asynchronously on the
+// server. Retry the observation until it reaches the expected state (bounded
+// attempts) instead of sleeping a fixed interval and hoping teardown finished.
+async function eventually<T>(observe: () => Promise<T>, settled: (value: T) => boolean, attempts = 200): Promise<T> {
+  let value = await observe()
+  for (let i = 1; i < attempts && !settled(value); i++) {
+    await new Promise(resolve => setTimeout(resolve, 5))
+    value = await observe()
+  }
+  return value
+}
+
+// Some hosts (including sandboxed CI containers) have no IPv6 loopback; probe
+// once so the IPv6 test skips there with a reason instead of failing on
+// EAFNOSUPPORT.
+const HAS_IPV6_LOOPBACK = await new Promise<boolean>(resolve => {
+  const probe = createServer()
+  probe.once('error', () => resolve(false))
+  probe.listen(0, '::1', () => probe.close(() => resolve(true)))
+})
 
 function parseToolPayload(r: Awaited<ReturnType<typeof handleRequest>>): any {
   const result = r!.result as { content: Array<{ text: string }> }
@@ -43,7 +63,7 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(await readRequestBody(request as any)).toBe('{"source":"東🚀"}')
   })
 
-  test('IPv6 loopback spellings advertise bracketed URLs and serve requests', async () => {
+  test.skipIf(!HAS_IPV6_LOOPBACK)(`IPv6 loopback spellings advertise bracketed URLs and serve requests${HAS_IPV6_LOOPBACK ? '' : ' (skipped: this host has no ::1 loopback)'}`, async () => {
     for (const host of ['::1', '0:0:0:0:0:0:0:1']) {
       const started = await startHttpServer({ host, port: 0, artifactDir: tempDir() })
       servers.push(started)
@@ -332,9 +352,8 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     expect(refused.status).toBe(503)
     await first.body?.cancel()
     firstController.abort()
-    await new Promise(resolve => setTimeout(resolve, 10))
     const replacementController = new AbortController()
-    const replacement = await fetch(`${started.url}/sse`, { signal: replacementController.signal })
+    const replacement = await eventually(() => fetch(`${started.url}/sse`, { signal: replacementController.signal }), response => response.status !== 503)
     expect(replacement.status).toBe(200)
     await replacement.body?.cancel()
     replacementController.abort()
@@ -374,12 +393,11 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
 
     await reader.cancel()
     controller.abort()
-    await new Promise(resolve => setTimeout(resolve, 10))
-    const stale = await fetch(endpoint, {
+    const stale = await eventually(() => fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'ping' }),
-    })
+    }), response => response.status === 404)
     expect(stale.status).toBe(404)
   })
 })

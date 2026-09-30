@@ -125,41 +125,24 @@ describe('Diagonal validation', () => {
   const asciiDir = join(testdataDir, 'ascii')
   const unicodeDir = join(testdataDir, 'unicode')
 
+  // The golden runner above byte-compares every render with its fixture's
+  // expected text, so checking the expected text covers the same renders (same
+  // options) without rendering every fixture a second time.
   it('ASCII output should never contain diagonal characters', () => {
-    // Test all ASCII golden files
     const files = readdirSync(asciiDir).filter((f) => f.endsWith('.txt'))
+    expect(files.length).toBeGreaterThan(0)
     for (const file of files) {
-      const content = readFileSync(join(asciiDir, file), 'utf-8')
-      const { mermaid, paddingX, paddingY } = parseAsciiGoldenFixture(content)
-      const output = renderMermaidASCII(mermaid, {
-        useAscii: true,
-        boxBorderPadding: paddingX,
-        paddingY: paddingY,
-      })
-
-      // Check for diagonal characters
-      for (const char of DIAGONAL_CHARS.ascii) {
-        expect(output).not.toContain(char)
-      }
+      const { expected } = parseAsciiGoldenFixture(readFileSync(join(asciiDir, file), 'utf-8'))
+      expect({ file, diagonals: [...DIAGONAL_CHARS.ascii].filter(char => expected.includes(char)) }).toEqual({ file, diagonals: [] })
     }
   })
 
   it('Unicode output should never contain diagonal characters', () => {
-    // Test all Unicode golden files
     const files = readdirSync(unicodeDir).filter((f) => f.endsWith('.txt'))
+    expect(files.length).toBeGreaterThan(0)
     for (const file of files) {
-      const content = readFileSync(join(unicodeDir, file), 'utf-8')
-      const { mermaid, paddingX, paddingY } = parseAsciiGoldenFixture(content)
-      const output = renderMermaidASCII(mermaid, {
-        useAscii: false,
-        boxBorderPadding: paddingX,
-        paddingY: paddingY,
-      })
-
-      // Check for diagonal characters
-      for (const char of DIAGONAL_CHARS.unicode) {
-        expect(output).not.toContain(char)
-      }
+      const { expected } = parseAsciiGoldenFixture(readFileSync(join(unicodeDir, file), 'utf-8'))
+      expect({ file, diagonals: [...DIAGONAL_CHARS.unicode].filter(char => expected.includes(char)) }).toEqual({ file, diagonals: [] })
     }
   })
 

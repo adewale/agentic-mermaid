@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="706" height="218" viewBox="0 0 706 218" style="--bg:#17362f;--fg:#f5f1df;--line:#ece6cf;--accent:#ffe08a;--muted:#c7d2c4;--surface:#17362f;--border:#f3ecd5;--font:Caveat;background:#17362f" class="am-1hw1ecx1cmsec2">
+<style>
+  .am-1hw1ecx1cmsec2 text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-1hw1ecx1cmsec2 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #f5f1df;
+    --_text-sec:      #c7d2c4;
+    --_text-muted:    #c7d2c4;
+    --_text-faint:    #8f9b8e;
+    --_line:          #ece6cf;
+    --_arrow:         #ffe08a;
+    --_node-fill:     #17362f;
+    --_node-stroke:   #f3ecd5;
+    --_group-fill:    #17362f;
+    --_group-hdr:     #223f38;
+    --_inner-stroke:  #324c44;
+    --_key-badge:     #2d4941;
+  }
+</style>
+<style>
+  .am-1hw1ecx1cmsec2 .gantt-section-band { fill: #17362f; opacity: 0.07; }
+  .am-1hw1ecx1cmsec2 .gantt-grid-line { stroke: #f5f1df; stroke-width: 1.8; opacity: 0.6; }
+  .am-1hw1ecx1cmsec2 .gantt-bar { fill: #ffe08a; stroke: #f5f1df; stroke-width: 0.75; opacity: 0.92; }
+  .am-1hw1ecx1cmsec2 .gantt-bar-active { fill: #ffe08a; stroke: #f5f1df; stroke-width: 1.5; opacity: 1; }
+  .am-1hw1ecx1cmsec2 .gantt-bar-done { fill: #c7d2c4; opacity: 0.55; }
+  .am-1hw1ecx1cmsec2 .gantt-bar-crit { fill: #f5f1df; stroke: #f5f1df; stroke-width: 1.5; opacity: 0.95; }
+  .am-1hw1ecx1cmsec2 .gantt-milestone { fill: #ffe08a; stroke: #f5f1df; stroke-width: 1; }
+  .am-1hw1ecx1cmsec2 .gantt-milestone-crit { fill: #f5f1df; stroke: #f5f1df; stroke-width: 1.5; }
+  .am-1hw1ecx1cmsec2 .gantt-vert-marker { stroke: #f5f1df; stroke-width: 2; stroke-dasharray: 6 3; }
+  .am-1hw1ecx1cmsec2 .gantt-today-marker { stroke: #f5f1df; stroke-width: 2; stroke-dasharray: 4 3; }
+  .am-1hw1ecx1cmsec2 .gantt-title { fill: #f5f1df; }
+  .am-1hw1ecx1cmsec2 .gantt-section-label { fill: #f5f1df; }
+  .am-1hw1ecx1cmsec2 .gantt-task-label { fill: #f5f1df; }
+  .am-1hw1ecx1cmsec2 .gantt-axis-label { fill: #f5f1df; }
+</style>
+<rect width="706" height="218" fill="#17362f" data-backdrop="page" />
+<rect class="gantt-section-band" x="88" y="16" width="600" height="90" data-id="section-band:Build#0" data-role="section" />
+<line class="gantt-grid-line" x1="88" y1="16" x2="88" y2="178" />
+<line class="gantt-grid-line" x1="208" y1="16" x2="208" y2="178" />
+<line class="gantt-grid-line" x1="328" y1="16" x2="328" y2="178" />
+<line class="gantt-grid-line" x1="448" y1="16" x2="448" y2="178" />
+<line class="gantt-grid-line" x1="568" y1="16" x2="568" y2="178" />
+<line class="gantt-grid-line" x1="688" y1="16" x2="688" y2="178" />
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-axis-label" x="88" y="190" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" textLength="26.403" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-01</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-axis-label" x="208" y="190" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" textLength="30.849" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-02</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-axis-label" x="328" y="190" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" textLength="30.849" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-03</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-axis-label" x="448" y="190" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" textLength="30.849" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-04</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-axis-label" x="568" y="190" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" textLength="30.849" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-05</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-axis-label" x="688" y="190" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="500" textLength="30.849" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-06</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-section-label" x="8" y="31" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" data-id="section-label:Build#0" data-role="section" textLength="35.7" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Build</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-section-label" x="8" y="127" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" data-id="section-label:Release#0" data-role="section" textLength="57.54" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Release</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-task-label" x="16" y="57" text-anchor="start" dominant-baseline="middle" font-size="16" font-weight="700" textLength="42.72" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Spec</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-task-label" x="16" y="87" text-anchor="start" dominant-baseline="middle" font-size="16" font-weight="700" textLength="60" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Render</text>
+<text paint-order="stroke" stroke="#17362f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="gantt-task-label" x="16" y="153" text-anchor="start" dominant-baseline="middle" font-size="16" font-weight="700" textLength="36.96" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Ship</text>
+<rect style="stroke:none" class="gantt-bar" x="88" y="46" width="240" height="22" rx="3" ry="3" data-task="spec" data-id="task:spec" data-role="task" />
+<path d="M91.21 44.56 C150.89 45.3, 212.54 46.46, 323.56 47.75 M90.22 45.54 C169.03 47.49, 247.64 47.59, 324.57 45.2 M325 46 C325.22 44.05, 326.71 46.73, 326.61 47.58 M326.48 47.65 C329.82 44.88, 325.64 45.44, 330.6 47.82 M326.88 47.26 C329.61 55.82, 326.95 57.22, 329.58 66.82 M327.05 48.83 C327.65 55.77, 328.51 59.75, 328.81 65.91 M328 65 C328.14 64.97, 325.21 70.38, 324.98 69.13 M329.78 64.85 C329.03 69.49, 324.91 69.79, 324.08 67 M324.91 68.4 C257.85 67.79, 194.08 67.12, 89.57 68.16 M326.04 68.28 C251.03 65.24, 177.16 65.14, 90.94 67.68 M91 68 C91.19 69.22, 86.13 68.39, 86.03 65.73 M90.98 66.86 C88.99 65.68, 87.94 65.8, 86.87 65.72 M87.58 64.32 C88.51 60.92, 88.37 55.73, 87.53 47.32 M88.23 65.18 C88.33 58.97, 88.78 52.27, 87.6 48.13 M88 49 C86 45.87, 88.13 46.49, 91.03 46.12 M87.38 48.44 C88.21 46.4, 86.95 44.88, 89.01 46.76 M91 46 C91 46, 91 46, 91 46 M91 46 C91 46, 91 46, 91 46" fill="none" stroke="#f5f1df" stroke-width="1.4249999999999998" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.92" />
+<rect style="stroke:none" class="gantt-bar" x="328" y="76" width="360" height="22" rx="3" ry="3" data-task="render" data-id="task:render" data-role="task" />
+<path d="M329.49 75.86 C428.12 74.15, 527.69 73.54, 685.2 75.14 M331.49 75.75 C446.3 74.51, 559.69 74.74, 685.44 75.85 M685 76 C689.46 78.33, 686.39 76.03, 689.8 78.22 M685.93 77.72 C684.44 76.58, 686.94 79.45, 690.16 77.04 M687.21 77.01 C689.66 84.43, 688.83 87.28, 687.47 94.49 M688.92 78.28 C688.06 82, 688.73 85.34, 687.78 95.69 M688 95 C688.47 99.43, 689.3 95.73, 685.66 99.27 M689.85 96.01 C685.8 94.74, 687.18 98.56, 686.37 98.78 M685.55 98.1 C590.87 97.31, 497.42 99.15, 329.81 97.45 M684.83 97.33 C580.08 99.63, 474.43 99.85, 330.76 98.52 M331 98 C327.54 98.4, 327.49 98.43, 326.04 96.47 M328.78 95.97 C329.02 95.27, 329.68 95.73, 325.33 97.35 M328.75 93.01 C328.64 91.54, 328.51 87.73, 327.91 77.48 M328.18 94.25 C327.84 92.33, 328.55 86.75, 327.89 79.72 M328 79 C328.33 77.3, 328.11 77.82, 331.84 73.51 M330.16 77.14 C330.01 78.51, 330.92 78.31, 328.43 73.75 M331 76 C331 76, 331 76, 331 76 M331 76 C331 76, 331 76, 331 76" fill="none" stroke="#f5f1df" stroke-width="1.4249999999999998" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.92" />
+<path style="stroke:none" class="gantt-milestone" d="M 677 142 L 688 153 L 677 164 L 666 153 Z" data-task="ship" data-id="task:ship" data-role="milestone" />
+<path d="M677.09 140.65 C682.17 147.3, 686.34 149.88, 688.42 153.79 M676.51 142.71 C681.17 146.75, 684.74 149.04, 687.73 153.64 M688.45 151.78 C685.91 157.36, 681.3 158.84, 676.15 164.38 M688.55 152.77 C685.21 155.59, 681.71 159.32, 677.57 163.94 M676.28 162.67 C675.23 162.55, 671.54 156.08, 665.31 152.11 M676.24 164.36 C673.31 159.69, 669.11 156.78, 666.91 152.85 M666.26 152.82 C667.64 150.73, 671.83 148.23, 676.42 140.14 M666.24 152.06 C669.26 148.56, 672.92 144.44, 677.27 141.96" fill="none" stroke="#f5f1df" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

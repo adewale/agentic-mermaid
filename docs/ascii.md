@@ -86,9 +86,7 @@ not for reconstructing arbitrary Mermaid source.
 ## Supported families
 
 Family support is registry-driven rather than maintained as a second list in
-this guide. Run `am capabilities --json` for live discovery; the generated
-[Section A capability matrix](./project/section-a-capability-report.md) records
-terminal projection support and named losses for every registered family.
+this guide. Run `am capabilities --json` for live discovery.
 
 Style appearance is projected to terminal colors and glyphs. Use a
 receipt-bearing render API to compare its `appearanceDigest` with graphical

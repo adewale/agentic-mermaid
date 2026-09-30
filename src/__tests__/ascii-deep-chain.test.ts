@@ -16,23 +16,15 @@ describe('ASCII deep chains — no fixed level-tracker limit', () => {
     return s
   }
 
-  it('renders a 30-edge TD chain (past the old level-100 cliff)', () => {
-    const out = renderMermaidASCII(chain(30, 'TD'))
-    expect(out).toContain('N0')
-    expect(out).toContain('N30')
-  })
-
-  it('renders a 100-edge TD chain with every node present', () => {
+  it('renders a 100-edge TD chain (past the old level-100 cliff) with every node present', () => {
     const out = renderMermaidASCII(chain(100, 'TD'))
-    for (let i = 0; i <= 100; i += 10) expect(out).toContain(`N${i}`)
+    // Word boundaries so N1 is not satisfied by N10..N19 or N100.
+    const missing = Array.from({ length: 101 }, (_, i) => `N${i}`).filter(id => !new RegExp(`\\b${id}\\b`).test(out))
+    expect(missing).toEqual([])
   })
 
   it('renders a 30-edge LR chain (level growth along x)', () => {
     const out = renderMermaidASCII(chain(30, 'LR'))
     expect(out).toContain('N30')
-  })
-
-  it('deep-chain output is deterministic', () => {
-    expect(renderMermaidASCII(chain(40, 'TD'))).toBe(renderMermaidASCII(chain(40, 'TD')))
   })
 })

@@ -1,257 +1,70 @@
+// SVG output must be well-formed XML even when labels are full of XML
+// metacharacters. The oracle is a real XML parser: resvg (usvg on roxmltree)
+// refuses an unescaped `&` or `<`, a broken attribute, or misnested tags, so a
+// label that leaks unescaped into the markup fails here. The finite-number and
+// `undefined` checks are the same leak guards property-all-families-fuzz runs
+// with plain labels; this file's job is escaping.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { Resvg } from '@resvg/resvg-js'
 
 import { renderMermaidSVG } from '../index.ts'
 
 const PROPERTY_RUNS = 100
-const WORD_CHARS = [...'abcdefghijklmnopqrstuvwxyz']
-const ACCENT_COLOR = '#7A0000'
 
-const wordArb = fc
-  .array(fc.constantFrom(...WORD_CHARS), { minLength: 1, maxLength: 8 })
-  .map(chars => chars.join(''))
+// Label pieces that exercise XML escaping without tripping Mermaid syntax:
+// `&`, `<`, `>`, `'`, an already-escaped entity, and non-ASCII. `<`/`>` stay
+// space-separated so they never form a tag-like `<word>` (see the pinned
+// BUG below), and `#` is left out because Sequence reads `#…#` as an entity
+// boundary (a diagnosed limitation, not an escaping question).
+const LABEL_PIECES = ['a', 'Zed', '&', ' < ', ' > ', "'", 'ü', '😀', '&amp;', '&lt;', '42']
 
-const shortLabelArb = fc
-  .array(fc.constantFrom(...WORD_CHARS), { minLength: 1, maxLength: 20 })
-  .map(chars => chars.join(''))
+const labelArb = fc
+  .array(fc.constantFrom(...LABEL_PIECES), { minLength: 1, maxLength: 6 })
+  .map(pieces => pieces.join('').trim())
+  .filter(label => label.length > 0)
 
-const idArb = fc
-  .tuple(
-    fc.constantFrom(...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')),
-    fc.array(fc.constantFrom(...'abcdefghijklmnopqrstuvwxyz0123456789'.split('')), { maxLength: 5 }),
-  )
-  .map(([head, tail]) => `${head}${tail.join('')}`)
-
-function assertSvgWellFormed(svg: string): void {
-  // 1. Contains <svg and </svg>
-  expect(svg).toContain('<svg')
-  expect(svg).toContain('</svg>')
-
-  // 2. No NaN or Infinity in numeric attribute positions
-  // Match any attribute value that is literally NaN or Infinity
-  expect(svg).not.toMatch(/="[^"]*\bNaN\b[^"]*"/)
-  expect(svg).not.toMatch(/="[^"]*\bInfinity\b[^"]*"/)
-
-  // 3. No undefined as literal string in attributes
-  expect(svg).not.toMatch(/="[^"]*\bundefined\b[^"]*"/)
+/** Parse the SVG as XML and fail with the parser's reason and the source. */
+function expectWellFormedXml(svg: string, source: string): void {
+  let parseError: string | undefined
+  try {
+    new Resvg(svg, { font: { loadSystemFonts: false } })
+  } catch (error) {
+    parseError = error instanceof Error ? error.message : String(error)
+  }
+  expect({ source, parseError }).toEqual({ source, parseError: undefined })
+  expect(svg).not.toMatch(/="[^"]*\b(?:NaN|Infinity|undefined)\b[^"]*"/)
 }
 
-function assertAccentColor(svg: string): void {
-  // 4. When rendered with accent #7A0000, inline style contains --accent:#7A0000
-  expect(svg).toContain(`--accent:${ACCENT_COLOR}`)
-}
+const FAMILY_SOURCES: ReadonlyArray<readonly [string, (label: string) => string]> = [
+  ['flowchart', label => `graph TD\n  A[${label}] -->|${label}| B[${label}]`],
+  ['sequence', label => `sequenceDiagram\n  A->>B: ${label}\n  B-->>A: ${label}`],
+  ['class', label => `classDiagram\n  class A {\n    +f(${label}) int\n  }\n  A <|-- B : ${label}`],
+  ['er', label => `erDiagram\n  CUSTOMER ||--o{ ORDER : "${label}"`],
+  ['timeline', label => `timeline\n  title ${label}\n  2024 : ${label}`],
+  ['journey', label => `journey\n  title ${label}\n  section ${label}\n  ${label}: 5: me`],
+  ['architecture', label => `architecture-beta\n  service api(server)[${label}]`],
+  ['xychart', label => `xychart\n  title "${label}"\n  x-axis ["${label}", "b"]\n  bar [1, 2]`],
+]
 
-// ============================================================================
-// Flowchart
-// ============================================================================
-
-describe('SVG well-formedness: flowchart', () => {
-  it('produces well-formed SVG for random flowcharts', () => {
-    const flowchartArb = fc.record({
-      labelA: shortLabelArb,
-      labelB: shortLabelArb,
-      edgeLabel: fc.option(shortLabelArb, { nil: undefined }),
-    })
-
+describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
+  it.each(FAMILY_SOURCES)('%s', (_family, sourceFor) => {
     fc.assert(
-      fc.property(flowchartArb, ({ labelA, labelB, edgeLabel }) => {
-        const edgePart = edgeLabel ? `|${edgeLabel}|` : ''
-        const source = `graph TD\n  A[${labelA}] -->${edgePart} B[${labelB}]`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
+      fc.property(labelArb, label => {
+        const source = sourceFor(label)
+        expectWellFormedXml(renderMermaidSVG(source), source)
       }),
       { numRuns: PROPERTY_RUNS },
     )
   })
-})
 
-// ============================================================================
-// Sequence Diagram
-// ============================================================================
-
-describe('SVG well-formedness: sequenceDiagram', () => {
-  it('produces well-formed SVG for random sequence diagrams', () => {
-    const seqArb = fc.record({
-      actorA: idArb,
-      actorB: idArb,
-      message: shortLabelArb,
-    }).filter(({ actorA, actorB }) => actorA !== actorB)
-
-    fc.assert(
-      fc.property(seqArb, ({ actorA, actorB, message }) => {
-        const source = `sequenceDiagram\n  ${actorA}->>${actorB}: ${message}`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
-      }),
-      { numRuns: PROPERTY_RUNS },
-    )
-  })
-})
-
-// ============================================================================
-// Class Diagram
-// ============================================================================
-
-describe('SVG well-formedness: classDiagram', () => {
-  it('produces well-formed SVG for random class diagrams', () => {
-    const classArb = fc.record({
-      classA: idArb,
-      classB: idArb,
-    }).filter(({ classA, classB }) => classA !== classB)
-
-    fc.assert(
-      fc.property(classArb, ({ classA, classB }) => {
-        const source = `classDiagram\n  ${classA} <|-- ${classB}`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
-      }),
-      { numRuns: PROPERTY_RUNS },
-    )
-  })
-})
-
-// ============================================================================
-// ER Diagram
-// ============================================================================
-
-describe('SVG well-formedness: erDiagram', () => {
-  it('produces well-formed SVG for random ER diagrams', () => {
-    const erArb = fc.record({
-      entityA: idArb,
-      entityB: idArb,
-      rel: wordArb,
-    }).filter(({ entityA, entityB }) => entityA !== entityB)
-
-    fc.assert(
-      fc.property(erArb, ({ entityA, entityB, rel }) => {
-        const source = `erDiagram\n  ${entityA} ||--o{ ${entityB} : ${rel}`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
-      }),
-      { numRuns: PROPERTY_RUNS },
-    )
-  })
-})
-
-// ============================================================================
-// Timeline
-// ============================================================================
-
-describe('SVG well-formedness: timeline', () => {
-  it('produces well-formed SVG for random timeline diagrams', () => {
-    const timelineArb = fc.record({
-      title: shortLabelArb,
-      year: fc.integer({ min: 1900, max: 2100 }),
-      event: shortLabelArb,
-    })
-
-    fc.assert(
-      fc.property(timelineArb, ({ title, year, event }) => {
-        const source = `timeline\n  title ${title}\n  ${year} : ${event}`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
-      }),
-      { numRuns: PROPERTY_RUNS },
-    )
-  })
-})
-
-// ============================================================================
-// Journey
-// ============================================================================
-
-describe('SVG well-formedness: journey', () => {
-  it('produces well-formed SVG for random journey diagrams', () => {
-    // Multi-section, multi-task shapes: the single-section/single-task arb
-    // this replaces could not reach section tiling, the experience curve, or
-    // multi-actor dot rows.
-    const journeyArb = fc.record({
-      title: shortLabelArb,
-      sections: fc.array(fc.record({
-        label: shortLabelArb,
-        tasks: fc.array(fc.record({
-          task: shortLabelArb,
-          score: fc.integer({ min: 1, max: 5 }),
-          actors: fc.array(wordArb, { minLength: 0, maxLength: 3 }),
-        }), { minLength: 1, maxLength: 4 }),
-      }), { minLength: 1, maxLength: 4 }),
-    })
-
-    fc.assert(
-      fc.property(journeyArb, ({ title, sections }) => {
-        const body = sections.flatMap(s => [
-          `  section ${s.label}`,
-          ...s.tasks.map(t => `  ${t.task}: ${t.score}${t.actors.length ? `: ${t.actors.join(', ')}` : ''}`),
-        ])
-        const source = `journey\n  title ${title}\n${body.join('\n')}`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
-      }),
-      { numRuns: PROPERTY_RUNS },
-    )
-  })
-})
-
-// ============================================================================
-// Architecture
-// ============================================================================
-
-describe('SVG well-formedness: architecture', () => {
-  it('produces well-formed SVG for random architecture diagrams', () => {
-    const archArb = fc.record({
-      serviceId: wordArb,
-      label: shortLabelArb,
-    })
-
-    fc.assert(
-      fc.property(archArb, ({ serviceId, label }) => {
-        const source = `architecture-beta\n  service ${serviceId}(server)[${label}]`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
-      }),
-      { numRuns: PROPERTY_RUNS },
-    )
-  })
-})
-
-// ============================================================================
-// XY Chart
-// ============================================================================
-
-describe('SVG well-formedness: xychart', () => {
-  it('produces well-formed SVG for random xy charts', () => {
-    const xyArb = fc.record({
-      labels: fc.array(wordArb, { minLength: 2, maxLength: 5 }),
-      values: fc.array(fc.integer({ min: 0, max: 100 }), { minLength: 2, maxLength: 5 }),
-    }).map(({ labels, values }) => {
-      // Align lengths
-      const len = Math.min(labels.length, values.length)
-      return { labels: labels.slice(0, len), values: values.slice(0, len) }
-    })
-
-    fc.assert(
-      fc.property(xyArb, ({ labels, values }) => {
-        const source = `xychart\n  x-axis [${labels.join(', ')}]\n  bar [${values.join(', ')}]`
-        const svg = renderMermaidSVG(source, { accent: ACCENT_COLOR })
-
-        assertSvgWellFormed(svg)
-        assertAccentColor(svg)
-      }),
-      { numRuns: PROPERTY_RUNS },
-    )
+  // Known product bug BUG-41 (TODO.md): an unknown inline tag between
+  // label text (`a<c>d`, `x<y>z`) makes SVG rendering throw "Scene validation
+  // failed: text … not found in crisp" (CLI: RENDER_FAILED) instead of
+  // rendering; ASCII renders it literally. When fixed, this starts passing:
+  // drop `.failing` and let the generator emit tag-like sequences.
+  it.failing('flowchart: a label with an unknown inline tag renders well-formed XML', () => {
+    const source = 'graph TD\n  A[a<c>d] --> B'
+    expectWellFormedXml(renderMermaidSVG(source), source)
   })
 })

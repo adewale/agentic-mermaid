@@ -72,7 +72,8 @@ for (const s of STYLES) {
 // Structural: required fields present and a bundled font named.
 for (const s of STYLES) {
   test(`style "${s.name}" is well-formed`, () => {
-    expect(s.name && s.label && s.font && s.fontFile).toBeTruthy()
+    const missing = (['name', 'label', 'font', 'fontFile'] as const).filter(field => !s[field])
+    expect({ style: s.name, missing }).toEqual({ style: s.name, missing: [] })
     expect(relLuminance(s.colors.bg)).toBeGreaterThanOrEqual(0) // parses
   })
 }
@@ -123,7 +124,7 @@ test('restyle preserves rounded rectangle geometry', () => {
   const styled = restyle(raw, transit, { backdrop: false })
   const d = styled.match(/<path d="([^"]+)"[^>]*stroke="#[0-9a-fA-F]{6}"/)?.[1]
 
-  expect(d).toBeTruthy()
+  expect(d).toBeDefined()
   expect(d!.match(/L/g)?.length ?? 0).toBeGreaterThan(8)
   expect(styled).not.toContain('<rect')
 })

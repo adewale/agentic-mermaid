@@ -12,7 +12,7 @@ import { toMermaidLines } from '../mermaid-source.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
+import { getFamily } from '../agent/families.ts'
 import { parseGitGraph } from '../gitgraph/parser.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { measureTextWidth } from '../text-metrics.ts'
@@ -345,9 +345,17 @@ pie
       const t = Math.max(0, Math.min(1, ((x - line.x1) * dx + (y - line.y1) * dy) / (dx * dx + dy * dy || 1)))
       return Math.hypot(x - line.x1 - t * dx, y - line.y1 - t * dy)
     }
+    // Proper crossing by orientation: each segment's endpoints lie strictly on
+    // opposite sides of the other. Endpoint clearance alone misses an X whose
+    // four endpoints are all far from the other leader.
+    const orient = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) => Math.sign((bx - ax) * (cy - ay) - (by - ay) * (cx - ax))
+    const crosses = (a: typeof leaders[number], b: typeof leaders[number]) =>
+      orient(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1) * orient(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2) < 0 &&
+      orient(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1) * orient(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2) < 0
     for (let i = 0; i < leaders.length; i++) for (let j = i + 1; j < leaders.length; j++) {
       const a = leaders[i]!, b = leaders[j]!
       if (Math.hypot(a.x1 - b.x1, a.y1 - b.y1) <= 0.5) continue
+      expect({ i, j, crosses: crosses(a, b) }).toEqual({ i, j, crosses: false })
       expect(Math.min(pointDistance(a.x1, a.y1, b), pointDistance(a.x2, a.y2, b), pointDistance(b.x1, b.y1, a), pointDistance(b.x2, b.y2, a))).toBeGreaterThanOrEqual(3)
     }
     for (const leader of leaders) for (const region of layout.regions.filter(region => region.label)) {
@@ -435,15 +443,6 @@ gitGraph
       expect(Math.min(...corners.map(point => point.y))).toBeGreaterThanOrEqual(0)
       expect(Math.max(...corners.map(point => point.x))).toBeLessThanOrEqual(positioned.width)
       expect(Math.max(...corners.map(point => point.y))).toBeLessThanOrEqual(positioned.height)
-    }
-  })
-
-  test('every registered family satisfies the Closing The Gap render contract', () => {
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      const parsed = parseMermaid(family.example)
-      expect(parsed.ok, family.id).toBe(true)
-      expect(renderMermaidSVG(family.example, { embedFontImport: false }), family.id).toContain('<svg')
-      expect(renderMermaidASCII(family.example), family.id).not.toBe('')
     }
   })
 })

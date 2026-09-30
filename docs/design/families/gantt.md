@@ -357,13 +357,6 @@ Scheduler properties should use finite generated DAGs, not arbitrary line string
 - increasing font size changes row metrics but not resolved dates;
 - generated tick count stays under a fixed cap.
 
-### Mutation-testing diagnostic
-
-`bun run mutation-test -- gantt` remains an opt-in survivor harvest over the Gantt
-parser, scheduler, layout, terminal renderer, and agent body. It has no break
-floor or release authority; any acceptance claim needs separately retained and
-reviewed evidence.
-
 ## Historical rollout sequence (completed)
 
 This is the order in which the shipped surface was assembled, not a current

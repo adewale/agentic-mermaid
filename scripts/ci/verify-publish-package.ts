@@ -22,11 +22,11 @@ const REQUIRED_PACKAGE_FILES = [
 ] as const
 
 /** esbuild and tsup name split chunks and declaration bundles by content hash
- * (`chunk-3PBMBDZH.js`, `index-CUL2V04U.d.ts`), so every source edit renames
- * them. The reviewed manifest pins which files ship and how many hashed chunks
- * there are, not the hash text. */
+ * (`chunk-3PBMBDZH.js`, `index-yjBOajL_.d.ts`; the alphabet includes `_` and
+ * `-`), so every source edit renames them. The reviewed manifest pins which
+ * files ship and how many hashed chunks there are, not the hash text. */
 export function normalizePackagePath(path: string): string {
-  return path.replace(/-([A-Za-z0-9]{8})(\.js|\.d\.ts)$/, (whole, hash: string, extension: string) =>
+  return path.replace(/-([A-Za-z0-9_-]{8})(\.js|\.d\.ts)$/, (whole, hash: string, extension: string) =>
     /[A-Z0-9]/.test(hash) ? `-[hash]${extension}` : whole)
 }
 

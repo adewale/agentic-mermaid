@@ -439,7 +439,7 @@ describe('xychart round-trip property', () => {
     fc.constantFrom(0.1, -0.5, 2.5, 3.14, -42, 0, 100),
   )
 
-  test('parse(render(parse(src))) is identity on generated charts', () => {
+  test('parse(serialize(parse(src))) is identity on generated charts', () => {
     fc.assert(
       fc.property(
         fc.option(nameArb, { nil: undefined }),

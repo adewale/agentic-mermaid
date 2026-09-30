@@ -118,13 +118,10 @@ describe('gantt excluded-day shading — SVG', () => {
     expect(svg).not.toContain('gantt-excluded-band')
   })
 
+  // Three byte-identical renders of WEEKENDS: this also covers in-process determinism.
   test('shading is independent of the dependency/critical-path overlay options', () => {
     const plain = renderMermaidSVG(WEEKENDS)
     expect(renderMermaidSVG(WEEKENDS, { gantt: {} })).toBe(plain)
     expect(renderMermaidSVG(WEEKENDS, { gantt: { dependencyArrows: false, criticalPath: false } })).toBe(plain)
-  })
-
-  test('rendering with shading is deterministic', () => {
-    expect(renderMermaidSVG(WEEKENDS)).toBe(renderMermaidSVG(WEEKENDS))
   })
 })

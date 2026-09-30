@@ -276,12 +276,16 @@ describe('xychart ASCII – titles and axes', () => {
   })
 
   it('renders without title when not specified', () => {
-    const result = render(`xychart-beta
+    const body = `
       x-axis [A, B]
-      bar [10, 20]`)
-    // First non-empty line should be chart content, not a title
-    const lines = result.split('\n').filter(l => l.trim().length > 0)
-    expect(lines.length).toBeGreaterThan(0)
+      bar [10, 20]`
+    const untitled = render(`xychart-beta${body}`)
+    const titled = render(`xychart-beta\n      title "My Chart"${body}`)
+    // The chart starts at the plot's axis line, and is exactly the titled chart
+    // without its title row and the blank row under it.
+    expect(untitled.split('\n')[0]).toMatch(/^\s*│$/)
+    expect(titled.split('\n').slice(0, 2).map(l => l.trim())).toEqual(['My Chart', ''])
+    expect(untitled).toBe(titled.split('\n').slice(2).join('\n'))
   })
 })
 

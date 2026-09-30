@@ -24,10 +24,20 @@ const sources = {
   'Sankey node': 'sankey-beta\nLine1<br/>Line2,B,10',
 } as const
 
+/** The raw text content of every drawn <text>/<tspan>. */
+function drawnText(svg: string): string {
+  return [...svg.matchAll(/<(?:text|tspan)\b[^>]*>([^<]*)/g)].map(match => match[1]!).join(' ')
+}
+
 describe('Scene text fidelity with a break in the first word', () => {
+  // Regression guard for #318: the render must not be rejected, and the words on
+  // both sides of the break must still be drawn. Whether `<br>` then displays as
+  // a line break is a separate per-family display question (several of these
+  // families draw it literally today; see CONS-46), not asserted here.
   for (const [position, source] of Object.entries(sources)) {
     it(`renders ${position} without a false text-loss error`, () => {
-      expect(renderMermaidSVG(source)).toContain('<svg')
+      const drawn = drawnText(renderMermaidSVG(source))
+      expect({ position, line1: drawn.includes('Line1'), line2: drawn.includes('Line2') }).toEqual({ position, line1: true, line2: true })
     })
   }
 

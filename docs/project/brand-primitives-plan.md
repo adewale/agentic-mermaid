@@ -6,12 +6,11 @@ B0–B3/B5 is implemented by the generated evidence and contracts below; B4 was
 not promoted. Root `TODO.md` contains only remaining actionable work, so the
 completed Section B item was removed rather than retained as a checked backlog
 entry. Section A evidence lives in its
-[landing record](./archive/section-a-rendering-contract-2026-07.md) and is
-projected from the registries into the [generated capability
-report](./section-a-capability-report.md). The upstream
-compatibility baseline is the version-pinned
-[`UpstreamMermaidManifest`](./upstream-mermaid-manifest.json), never a count or
-roster copied into prose.
+[landing record](./archive/section-a-rendering-contract-2026-07.md); the
+generated capability report that projected it is no longer published. The
+upstream compatibility baseline is the version-pinned
+[`upstream-mermaid-policy.json`](./upstream-mermaid-policy.json) and the family
+index generated from it, never a count or roster copied into prose.
 
 ## Decision
 
@@ -809,6 +808,11 @@ gates.
 
 ### One upstream manifest
 
+> The committed `UpstreamMermaidManifest` and its hash inventory have since been
+> removed. Runtime routing reads `src/upstream-mermaid-family-index.json`, which
+> `bun run upstream-family-index` rewrites from the pinned package and the
+> reviewed policy on a Mermaid upgrade. The plan below is kept as written.
+
 The committed `UpstreamMermaidManifest` is generated from the pinned Mermaid
 package, official docs navigation/pages (including pages missing from navigation),
 config schema, detector registry, beta policy, external first-party registrations,
@@ -1065,7 +1069,7 @@ institutionalize the same ambiguity at a larger scale.
 
 | Concern | Canonical authority | Derived consumers |
 |---|---|---|
-| upstream Mermaid inventory | `UpstreamMermaidManifest` | upgrade diff, compatibility/adoption review, syntax fixtures, maturity labels |
+| upstream Mermaid inventory | `upstream-mermaid-policy.json` (the `UpstreamMermaidManifest` was removed) | runtime family index, compatibility/adoption review |
 | shipped family and capabilities | `FamilyDescriptor` registry | types/narrowers, routing, CLI/MCP/editor/site/docs, citizenship matrix |
 | public brand/style fields | the existing `StyleSpec` field descriptors + generated JSON Schema | the single `style` stack, validator, docs, and generated controls for every enrolled surface; a promoted BrandPack expands to the same records |
 | semantic roles/channels | `SCENE_ROLE_DESCRIPTORS`/centralized role traits + family channel declarations | Scene types, role-style applicability/fallback, brand consumption census, bindings, and constraints |
@@ -1269,7 +1273,7 @@ checklists or imply that independently owned work is complete.
 
 | Boundary | Permanent invariant | Generated or machine-evidence authority | Ongoing TODO owner and independent scope |
 |---|---|---|---|
-| A0 — truth and characterization | Claims use the applicable checked state vocabulary for their dimension; family syntax, transport, output, backend and realization states are never mixed into one ambiguous scale. Registries, current precedence, routing, fields and capability behavior are characterized before they change. | Generated Section A capability report; `section-a-capability-report.test.ts`; `section-a-render-contract.test.ts`. | New gaps are promoted only in `TODO.md`; characterization evidence in the landing archive is not a backlog. |
+| A0 — truth and characterization | Claims use the applicable checked state vocabulary for their dimension; family syntax, transport, output, backend and realization states are never mixed into one ambiguous scale. Registries, current precedence, routing, fields and capability behavior are characterized before they change. | `section-a-render-contract.test.ts` (the Section A capability report is no longer published). | New gaps are promoted only in `TODO.md`; characterization evidence in the landing archive is not a backlog. |
 | A1 — identities and registries | Shared `ExtensionIdentity` rules feed typed, kind-specific family, backend, resource, Palette and Look registries; external executable families and backends declare compatible core ranges before hooks run, Scene consumers also declare Scene ranges, and deterministic discovery exposes only committed registrations. Light Tufte is solely `look:tufte`; its duplicate palette, ambiguous bare input, and the `default` compatibility alias are retired. | Registry descriptors and generated discovery projections; `extension-registries.test.ts`; `style-spec-authority.test.ts`; `family-registration-conformance.test.ts`. | Future extension work remains root-TODO work; an evidence-promoted BrandPack registry belongs to Section B B4. |
 | A2 — request and appearance waist | One immutable `ResolvedRenderRequest` and one internal `ResolvedAppearance` normalize precedence once; checked shared/output field descriptors project validation and receipts into every transport and output adapter, with every shared-field×surface cell declared `forwarded`, `host-enforced`, or `unavailable`. Family-specific fields also declare applicability: a supplied field must affect that family or emit a stable `RENDER_OPTION_NOT_APPLICABLE` diagnostic instead of changing identity silently. | RenderOptions/StyleSpec generated artifacts, the generated shared-field×surface matrix, applicability diagnostics, and request/appearance digests; `render-options-authority.test.ts`; `section-a-transport-parity.test.ts`. | New surfaces from `BUILD-27`, `BUILD-28`, and `BUILD-29` must enroll in this contract when they land; they do not reopen or block Section A. |
 | A3 — essential primitives | Versioned typed Scene marks make connectors, routes, markers, hit geometry, identity and accessibility semantic inputs; terminal projections declare each lossy or unsupported feature instead of reconstructing graphical output. | Scene/Connector schema, capability report and conformance fixtures; `scene-connector-contract.test.ts`; `terminal-projection-security.test.ts`. | Family cell-grid topology remains family-owned; Section A does not claim terminal pixel or topology parity. |

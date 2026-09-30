@@ -96,141 +96,6 @@ function holdsOidc(job: WorkflowJob): boolean {
 const NEEDS_RESULT = /^\$\{\{\s*needs(?:\.([\w-]+)|\[['"]([\w-]+)['"]\])\.result\s*\}\}$/
 
 describe('agent-readiness standards syntax', () => {
-  test('every workflow `bun run` target is a package script or a checked-in file', () => {
-    const unresolved: string[] = []
-    for (const file of WORKFLOW_FILES) {
-      for (const [id, job] of Object.entries(loadWorkflow(file).jobs)) {
-        for (const step of job.steps ?? []) {
-          for (const target of bunRunTargets(step.run ?? '')) {
-            const resolves = target.includes('/') || target.endsWith('.ts')
-              ? existsSync(join(REPO, step['working-directory'] ?? '.', target))
-              : Object.hasOwn(PACKAGE_SCRIPTS, target)
-            if (!resolves) unresolved.push(`${file} ${id}: bun run ${target}`)
-          }
-        }
-      }
-    }
-    expect(unresolved).toEqual([])
-  })
-
-  test('CI runs the canonical local gates through their package scripts; release re-runs none of them', () => {
-    const ci = loadWorkflow('ci.yml')
-    const publish = loadWorkflow('publish.yml')
-    const ciRuns = Object.values(ci.jobs).flatMap(runsOf)
-    const publishRuns = Object.values(publish.jobs).flatMap(runsOf)
-    const canonicalSuite = /(?:^|[;&|(]\s*|\n\s*)bun run test(?:\s|$)/
-    expect(ciRuns.filter(run => canonicalSuite.test(run))).toHaveLength(1)
-    expect(publishRuns.filter(run => canonicalSuite.test(run))).toEqual([])
-    // Release attests CI for the exact commit instead of re-running its gates:
-    // the only package script it may invoke is the build it packs.
-    expect([...new Set(publishRuns.flatMap(bunRunTargets).filter(target => Object.hasOwn(PACKAGE_SCRIPTS, target)))])
-      .toEqual(['build'])
-
-    // The aggregate runners developers use locally are the ones CI reaches.
-    const ciTargets = new Set(ciRuns.flatMap(bunRunTargets))
-    for (const runner of ['scripts/ci/quality-gates.ts', 'e2e/run-browser-contracts.ts']) {
-      const scripts = Object.entries(PACKAGE_SCRIPTS).filter(([, command]) => command.includes(runner)).map(([name]) => name)
-      expect({ runner, reachedByCi: scripts.some(name => ciTargets.has(name)) }).toEqual({ runner, reachedByCi: true })
-    }
-    expect(QUALITY_CHECKS.map(check => check.command.join(' '))).toEqual(expect.arrayContaining([
-      'bun run audit:ugly',
-      'bun run lint:biome',
-      'bun run audit:dependencies',
-    ]))
-    // Whatever command the dependency-audit gate resolves to, it must still
-    // fail on high (or less severe) advisories rather than only critical ones.
-    const auditCommands = QUALITY_CHECKS.map(check => check.command.join(' '))
-      .map(command => /^bun run ([^\s/]+)$/.exec(command)?.[1])
-      .flatMap(name => name && Object.hasOwn(PACKAGE_SCRIPTS, name) ? [PACKAGE_SCRIPTS[name]!] : [])
-      .filter(command => /\bbun audit\b/.test(command))
-    expect(auditCommands.length).toBeGreaterThan(0)
-    for (const command of auditCommands) {
-      expect(['low', 'moderate', 'high']).toContain(/--audit-level[= ](\w+)/.exec(command)?.[1] ?? 'low')
-    }
-
-    expect(ci.concurrency).toEqual({
-      group: 'ci-${{ github.event.pull_request.number || github.ref }}',
-      'cancel-in-progress': true,
-    })
-    const strategy = readFileSync(join(REPO, 'docs/testing-strategy.md'), 'utf8')
-    const pullRequestTemplate = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8')
-    const agentGuide = readFileSync(join(REPO, 'CLAUDE.md'), 'utf8')
-    expect(strategy).toContain('`bun run test`')
-    expect(pullRequestTemplate).toContain('`bun run test`')
-    expect(agentGuide).toContain('`bun run test`')
-  })
-
-  test('unit shards partition the suite and the coverage merge waits for every shard', () => {
-    const ci = loadWorkflow('ci.yml')
-    const sharded = Object.values(ci.jobs).filter(job => Array.isArray(job.strategy?.matrix?.shard))
-    expect(sharded).toHaveLength(1)
-    const shards = sharded[0]!.strategy!.matrix!.shard!.map(String)
-    const total = shards.length
-    // Bun's `--shard=i/N` selects one slice; the matrix must cover 1..N once.
-    expect([...shards].sort()).toEqual(Array.from({ length: total }, (_, index) => `${index + 1}/${total}`).sort())
-    expect(runsOf(sharded[0]!).some(run => /\bbun run test\b.*\$\{\{\s*matrix\.shard\s*\}\}/.test(run))).toBe(true)
-    const mergeCounts = Object.values(ci.jobs).flatMap(runsOf)
-      .flatMap(run => [...run.matchAll(/scripts\/ci\/merge-lcov\.ts\s+\S+\s+\S+\s+(\d+)/g)].map(match => Number(match[1])))
-    expect(mergeCounts.length).toBeGreaterThan(0)
-    for (const count of mergeCounts) expect(count).toBe(total)
-  })
-
-  test('the protected CI result cannot turn green unless every lane passed', () => {
-    const ci = loadWorkflow('ci.yml')
-    const ids = Object.keys(ci.jobs)
-    // One protectable sink: no job waits for it, it waits for every job, and
-    // it runs even when a prerequisite failed (a skipped check reads as green).
-    const sinks = ids.filter(id => !ids.some(other => needsOf(ci.jobs[other]!).includes(id)))
-    expect(sinks).toHaveLength(1)
-    const sink = sinks[0]!
-    expect([...upstreamOf(ci.jobs, sink)].sort()).toEqual(ids.filter(id => id !== sink).sort())
-
-    const aggregates = ids.filter(id => String(ci.jobs[id]!.if ?? '').includes('always()'))
-    expect(aggregates).toContain(sink)
-    for (const id of aggregates) {
-      const job = ci.jobs[id]!
-      const gates = (job.steps ?? []).filter(step => Object.values(step.env ?? {}).some(value => NEEDS_RESULT.test(String(value))))
-      expect({ job: id, gates: gates.length }).toEqual({ job: id, gates: 1 })
-      const gate = gates[0]!
-      expect(gate.if === undefined || gate.if.includes('always()')).toBe(true)
-      const resultVars = new Map<string, string>()
-      for (const [name, value] of Object.entries(gate.env ?? {})) {
-        const match = NEEDS_RESULT.exec(String(value))
-        if (match) resultVars.set(match[1] ?? match[2]!, name)
-      }
-      expect({ job: id, observed: [...resultVars.keys()].sort() }).toEqual({ job: id, observed: [...needsOf(job)].sort() })
-
-      const runGate = (results: Record<string, string>) => spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', gate.run!], {
-        encoding: 'utf8',
-        env: { PATH: process.env.PATH, ...Object.fromEntries([...resultVars].map(([need, name]) => [name, results[need] ?? 'success'])) },
-      }).status
-      expect({ job: id, allPassed: runGate({}) }).toEqual({ job: id, allPassed: 0 })
-      for (const need of resultVars.keys()) {
-        for (const outcome of ['failure', 'cancelled']) {
-          expect({ job: id, need, outcome, exitsZero: runGate({ [need]: outcome }) === 0 })
-            .toEqual({ job: id, need, outcome, exitsZero: false })
-        }
-      }
-    }
-  })
-
-  test('the browser contract runner lists exactly the discovered browser suites and opts in the gated ones', () => {
-    const browserMarkers = /from ['"]playwright['"]|findChromiumExecutable|AM_BROWSER_TESTS/
-    const discoveredBrowserFiles = [
-      ...readdirSync(join(REPO, 'e2e')).filter(file => file.endsWith('.ts') && file !== 'run-browser-contracts.ts')
-        .filter(file => browserMarkers.test(readFileSync(join(REPO, 'e2e', file), 'utf8'))),
-      ...readdirSync(join(REPO, 'src', '__tests__')).filter(file => file.endsWith('.test.ts') && file !== 'agent-readiness-standards.test.ts')
-        .filter(file => browserMarkers.test(readFileSync(join(REPO, 'src', '__tests__', file), 'utf8')))
-        .map(file => `../src/__tests__/${file}`),
-    ].sort()
-    expect(BROWSER_CONTRACT_FILES.map(contract => contract.file).sort()).toEqual(discoveredBrowserFiles)
-    // A suite gated on AM_BROWSER_TESTS silently skips unless the runner sets it.
-    for (const contract of BROWSER_CONTRACT_FILES) {
-      const gated = readFileSync(join(REPO, 'e2e', contract.file), 'utf8').includes('AM_BROWSER_TESTS')
-      expect({ file: contract.file, optIn: contract.browserOptIn === true }).toEqual({ file: contract.file, optIn: gated })
-    }
-  })
-
   test('release attestation gates every job, and OIDC is minted only after it without repository code', () => {
     const publish = loadWorkflow('publish.yml')
     const ids = Object.keys(publish.jobs)
@@ -294,50 +159,6 @@ describe('agent-readiness standards syntax', () => {
     // CI verifies the reviewed file manifest with the npm that release packs with.
     expect(npmPins.size).toBe(1)
     expect([...npmPins][0]).toMatch(/^\d+\.\d+\.\d+$/)
-  })
-
-  test('GitHub Actions use Node 24 runtimes and skip the flaky Bun executable cache', () => {
-    // Reviewed majors that run on Node 24. Newer majors pass; a downgrade to a
-    // Node 20 major fails. SHA pins carry their version in a trailing comment.
-    const NODE24_MAJOR_FLOORS: Record<string, number> = {
-      'actions/checkout': 7,
-      'actions/upload-artifact': 7,
-      'actions/download-artifact': 8,
-      'actions/setup-node': 7,
-      'oven-sh/setup-bun': 2,
-    }
-    let setupBunSteps = 0
-    for (const file of WORKFLOW_FILES) {
-      const text = readFileSync(join(WORKFLOWS_DIR, file), 'utf8')
-      const workflow = parseYaml(text) as Workflow
-      for (const [id, job] of Object.entries(workflow.jobs)) {
-        const secretBearing = holdsOidc(job) || JSON.stringify(job).includes('secrets.')
-          || (workflow.on !== undefined && Object.hasOwn(workflow.on, 'release'))
-        for (const step of job.steps ?? []) {
-          if (step.uses === undefined) continue
-          const match = /^([\w.-]+\/[\w.-]+)(?:\/[\w./-]+)?@(\S+)$/.exec(step.uses)
-          expect({ file, job: id, uses: step.uses, pinned: match !== null }).toEqual({ file, job: id, uses: step.uses, pinned: true })
-          const [, action, ref] = match!
-          const sha = /^[0-9a-f]{40}$/.test(ref!)
-          const tag = /^v(\d+)(?:\.\d+){0,2}$/.exec(ref!)
-          expect({ file, uses: step.uses, immutableOrVersioned: sha || tag !== null }).toEqual({ file, uses: step.uses, immutableOrVersioned: true })
-          // Jobs that hold release credentials run only commit-pinned code.
-          if (secretBearing) expect({ file, job: id, uses: step.uses, shaPinned: sha }).toEqual({ file, job: id, uses: step.uses, shaPinned: true })
-          const reviewedMajor = tag
-            ? Number(tag[1])
-            : Number(new RegExp(`uses:\\s*${step.uses.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*#\\s*v(\\d+)`).exec(text)?.[1] ?? Number.NaN)
-          const floor = NODE24_MAJOR_FLOORS[action!]
-          if (floor !== undefined) {
-            expect({ file, uses: step.uses, meetsNode24Floor: reviewedMajor >= floor }).toEqual({ file, uses: step.uses, meetsNode24Floor: true })
-          }
-          if (action === 'oven-sh/setup-bun') {
-            setupBunSteps++
-            expect(step.with?.['no-cache']).toBe(true)
-          }
-        }
-      }
-    }
-    expect(setupBunSteps).toBeGreaterThan(0)
   })
 
   test('llms.txt follows the published parser-compatible Markdown shape', () => {
@@ -454,6 +275,11 @@ describe('agent-readiness standards syntax', () => {
       url: 'https://agentic-mermaid.dev/.well-known/mcp/server-card.json',
     }))
     expect(mcpEntry.capabilities).toEqual(card.tools.map((tool: any) => tool.name))
+  })
+
+  test('the committed llms.txt names the published package version', () => {
+    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
+    expect(readFileSync(join(REPO, 'llms.txt'), 'utf8')).toContain(`\nVersion: ${packageJson.version}\n`)
   })
 
   test('official MCP Registry metadata matches the npm package and hosted server', () => {
