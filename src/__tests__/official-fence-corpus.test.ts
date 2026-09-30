@@ -68,7 +68,7 @@ flowchart:official-syntax/flowchart.md#101 [ Opaque Unsupported ] # click callba
 flowchart:official-syntax/flowchart.md#102 [ Opaque Unsupported ] # click hrefs with link targets are preserved but never executable
 # Gantt
 gantt:official-syntax/gantt.md#6 [ VerifyError RenderError ] # settings-only snippet has no tasks: diagnosed EMPTY_DIAGRAM where Mermaid draws an empty chart
-gantt:official-syntax/gantt.md#10 [ VerifyError RenderError ] # known-bug pin BUG-34 (TODO.md): a trailing '%%' comment on a task line is read into the end date (GANTT_BAD_DATE); Mermaid 11.16 parses it
+gantt:official-syntax/gantt.md#10 [ VerifyError RenderError ] # known-difference pin BUG-34 (#363): a trailing '%%' comment on a task line is read into the end date (GANTT_BAD_DATE); Mermaid 11.16 parses it
 # GitGraph
 gitgraph:official-syntax/gitgraph.md#14 [ Opaque Unsupported VerifyError RenderError ] # duplicate commit id "Boston" is rejected by design (receipt gitgraph.official.main-branch-duplicate-id-diagnosed)
 # Sequence: structured bodies with source-preserved opaque segments.

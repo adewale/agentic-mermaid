@@ -24,8 +24,8 @@ describe('linkStyle – parser', () => {
     expect(g.linkStyles.get(0)).toEqual({ stroke: '#00ff00' })
   })
 
-  // Known-bug pin BUG-36 (TODO.md): upstream Mermaid rejects an out-of-range
-  // index; we store it with no diagnostic. When BUG-36 is fixed this pin flips.
+  // Known-difference pin BUG-36 (#363): upstream Mermaid rejects an out-of-range
+  // index; we store it with no diagnostic. When #363 decides BUG-36, this pin flips.
   it('BUG-36 pin: an out-of-range linkStyle index is stored silently, without a diagnostic', () => {
     const g = parseMermaid('graph TD\n  A --> B\n  linkStyle 99 stroke:#ff0000')
     expect(g.linkStyles.get(99)).toEqual({ stroke: '#ff0000' })

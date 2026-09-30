@@ -280,7 +280,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   carries creation events (create, name, place in group or box, links,
   properties) folded once by both surfaces, and the serializer checks its output
   by folding the events of its own re-parse. That closes the creation-order
-  class: BUG-9 to BUG-17, and BUG-27/29 for flowchart subgraphs and `style`.
+  defects BUG-9, BUG-10 and BUG-13.
 - [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanically
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
@@ -338,16 +338,18 @@ Found by the property and model tests. Where a test pins the wrong behaviour
 or a generator steers around it, the entry names the test; remove the pin
 and the steering with the fix.
 
+Only differences a user sees without comparing against Mermaid are listed
+here (see "Mermaid is our input language, not our spec" in `CLAUDE.md`).
+Differences that exist only against Mermaid, such as which subgraph wins a
+tie, participant creation order, sources only Mermaid rejects and display
+choices, are collected in
+[#363](https://github.com/adewale/agentic-mermaid/issues/363) for one
+investigation of the class rather than per-item fixes.
+
 - [ ] **BUG-9 — ER `add_attribute` can move an entity ahead of others** (`todo`). It inserts the declaration before the first relation naming the entity, so re-parse creates it before that relation's other end; the serializer compensates unless that end belongs to a subgraph (`D ||--o{ B`, then `subgraph G` / `D ||--o{ B` / `end`, `add_attribute B` re-parses as B before D). Inserting after that relation keeps the order.
 - [ ] **BUG-10 — ER order a declaration in the entity's own subgraph cannot keep** (`todo`). A top-level entity whose body position falls between two entities of one subgraph (`D ||--o{ C : r0` / `subgraph G0` / `D` / `E` / `end`, remove `r0` → D, E, C), or a `style`-created entity inside a subgraph, re-parses in a different position. About 0.6% of fuzzed edits.
-- [ ] **BUG-11 — ER subgraph precedence differs between the typed body and the renderer** (`todo`). The typed body lets a later declaration inside a subgraph override the subgraph an earlier relation gave the entity; `src/er/parser.ts` keeps the first and still lists the entity in both (`subgraph G2` / `C ||--o{ A` / `end` / `subgraph G1` / `A` / `end`). Pinned 11.16 has no ER subgraphs (it reads `subgraph G` as entities); upstream added them in 11.17 (mermaid-js/mermaid#7792) with `makeUniq`: the first subgraph to close keeps the entity, which is listed once. Use that rule in both parsers, as BUG-27 does for flowchart, and correct the "Mermaid 11.16 ER subgraphs" comment in `src/er/parser.ts`.
-- [ ] **BUG-12 — Sequence renderer creates actors on `activate`/`deactivate`** (`todo`). Upstream creates none: `activate Z` then `A->>Z` gives A, Z upstream but Z, A in ours, and a phantom Z inside a `rect`. The typed body already matches upstream.
 - [ ] **BUG-13 — Sequence `add_participant` or indexed `add_message` can reorder participants on re-parse** (`todo`). A new participant is declared or first used ahead of existing ones (`A->>B: hi`, `add_participant C` re-parses as C, A, B).
 - [ ] **BUG-14 — Sequence metadata alias precedence** (`todo`). `participant B@{ "alias": "Y" } as B` is labelled Y upstream but B in ours (renderer and typed body).
-- [ ] **BUG-15 — Sequence `properties` and `details` lines create no participant** (`todo`). `properties P: {…}` creates P upstream; both our parsers ignore it, so participant order differs. Upstream's grammar routes `details` through the same `actor` rule, so it likely creates one too (not run: upstream's `addDetails` needs a DOM).
-- [ ] **BUG-16 — Sequence naming re-declaration keeps old links** (`todo`). Upstream resets the actor's links to `{}` when `participant X as Y` re-declares a known participant; ours keeps them.
-- [ ] **BUG-17 — Sequence box membership of an already-created participant** (`todo`). `A->>B` then `box` / `participant A` / `end`: upstream leaves the box's actor list empty (but sets `A.box`); ours puts A in the box.
-- [ ] **BUG-18 — Flowchart: emulate upstream's HTML-tag rewrite or not** (`owner-decision`). Upstream's preprocessor (`cleanupText`) treats a `<word … >` span as an HTML tag and rewrites `="…"` inside it to `='…'`, so it rejects `A -->|"<a="| B["b"] --> C` and silently mangles `A["<a"] --- B["x"] --- C["c="] --- D["d"] --> E` (C's label swallows D). We parse both as written. The flowchart differential's generator skips these sources.
 - [ ] **BUG-19 — Entity codes stay literal in flowchart (other than `#quot;`), sequence and ER text** (`todo`). Upstream renders `#9829;` as ♥, `#35;` as `#` and `#amp;` as `&` in labels, aliases and messages; ours shows the code. Decoding `#lt;`/`#gt;` must not inject formatting tags. `src/pie/parser.ts` already implements upstream's full entity pipeline and has a browser oracle; reuse it.
 - [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
 - [ ] **BUG-21 — Flowchart `A>x;y]` is rejected** (`todo`). Upstream treats the `;` as label text; our statement splitter does not treat `>…]` as a bracket.
@@ -356,19 +358,14 @@ and the steering with the fix.
 - [ ] **BUG-24 — Flowchart `@{ label }` YAML escapes** (`todo`). We unescape only `\\`, `\"` and `\'`; upstream's YAML also handles `\t`, `\a`, `\x41` and `''`, and rejects `'a}b;c'`, which we accept.
 - [ ] **BUG-25 — ASCII draws formatting tags literally** (`todo`). Flowchart markdown strings, `<b>` labels and sequence/state emphasis are drawn with their tags in ASCII/Unicode output, while the meta projection strips them, so `projectedText` differs from the drawing there.
 - [ ] **BUG-26 — Flowchart source-map scanners still honour `\` escapes and `'` quotes** (`todo`). `flowchart-body.ts` and `source-map-spans.ts` disagree with the parser on those lines, so spans can be wrong.
-- [ ] **BUG-27 — A flowchart node re-defined in a second subgraph belongs to both** (`todo`). `subgraph S0` / `A[x]` / `end` / `subgraph S1` / `A[y]` / `B` / `end` / `A --> B` lays out two nodes with id `A`, and `verify` fails with two `GROUP_BREACH` warnings. Upstream's `makeUniq` leaves A only in S0, the first subgraph to close. `defineNode` → `trackInSubgraph` in `src/parser.ts` has no uniqueness check.
 - [ ] **BUG-28 — Invalid YAML frontmatter is ignored silently** (`todo`). `---` / `title: [unclosed` / `---` renders, and `verify` returns `ok: true` with no warning; upstream rejects the diagram. `parseYamlDocument` in `src/mermaid-source.ts` swallows the error. Report it, at least as a warning.
-- [ ] **BUG-29 — Flowchart `style X` creates no node** (`todo`). Upstream creates X at the `style` line (`style Z fill:#f00` then `A --> Z` orders Z before A, and a node that is only styled is drawn); ours orders A, Z and draws nothing for a style-only node.
 - [ ] **BUG-30 — ER quoted text accepts and writes `\"`** (`todo`). Upstream has no escapes in ER quoted strings and rejects `A["a\"b"]` and `A ||--o{ B : "l\"m"`; `src/er/parser.ts` unescapes them and `quoteErText` writes them, so serialized ER text containing `"` is source upstream can't read. Write `"` as `#quot;`, as flowchart does.
 - [ ] **BUG-31 — Sequence and ER aliases get markdown emphasis at parse time, and the serializer rewrites the source** (`todo`). Upstream stores `participant A as *x* y` and `A["p*q*"]` as written; ours stores `<i>x</i> y` and `p<i>q</i>`, so any typed edit writes `as <i>x</i> y` and `A["p<i>q</i>"]`.
 - [ ] **BUG-32 — Sequence message text differs between the renderer and the typed body** (`todo`). For `A->>B: m*a*n c\nd` the renderer draws `m<i>a</i>n` and a line break, while the typed body stores `m*a*n` and `c\nd`, as upstream's DB does.
 - [ ] **BUG-33 — ER relations written without spaces go opaque** (`todo`). `id1||--||id2 : label` parses upstream; ours falls back to an opaque body with `UNSUPPORTED_SYNTAX`. Pinned in `official-fence-corpus.test.ts`.
-- [ ] **BUG-34 — A Gantt task line with a trailing `%%` comment fails to schedule** (`todo`). `Task :a1, 2024-01-01, 2024-01-05 %% comment` gives `GANTT_BAD_DATE` ("Invalid end date \"2024-01-05 %% comment\""). Pinned in `official-fence-corpus.test.ts`.
 - [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
-- [ ] **BUG-36 — Out-of-range `linkStyle` is accepted silently** (`todo`). `linkStyle 99` on a one-edge flowchart verifies `ok` with no warning; upstream rejects it. Pinned in `linkstyle.test.ts`.
 - [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
 - [ ] **BUG-38 — An empty Pie, XYChart or Radar diagram does not survive a round trip** (`todo`). `createMermaid('pie')` serializes to a bare `pie` header, which re-parses as an opaque body, so typed mutation is lost after the first save. The same holds for `xychart-beta` and `radar-beta`; an empty flowchart stays typed.
-- [ ] **BUG-39 — Flowchart `A--a --> A--a` is accepted** (`todo`). Upstream rejects it; ours reads an edge from `A` to a node `A--a` labelled `a`. The flowchart differential's generator excludes such ids.
 - [ ] **BUG-40 — A gitGraph with no commits verifies clean** (`todo`). `verifyMermaid(createMermaid('gitgraph'))` returns no warnings and an empty layout, although `EMPTY_DIAGRAM` is documented to fire for a bare header, as it does for every other family. Pinned in `agent-create.test.ts`.
 - [ ] **BUG-41 — An unknown inline tag in a label fails the SVG render** (`todo`). `graph TD` / `A[a<c>d] --> B` throws "Scene validation failed … not found in crisp" (`am render`: `RENDER_FAILED`); sequence, ER, journey, architecture and XYChart labels fail the same way, while ASCII draws the text. Present before #359. Pinned in `property-svg-wellformedness.test.ts`.
 - [ ] **BUG-42 — ELK throws on an edge between a nested subgraph's node and its enclosing subgraph** (`todo`). With `direction TB` overrides, `B --> Outer` or `Outer --> B` (B inside Inner inside Outer) raises `UnsupportedGraphException` and the render fails. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
