@@ -16,9 +16,10 @@
  *   projectEntityMarkers(text)   markers → displayed characters
  *   decodeMermaidEntities(text)  toEntityMarkers, then projectEntityMarkers
  *   encodeMermaidEntities(text)  the writer: decodeMermaidEntities inverts it
- * The two display functions live in ./mermaid-entity-display.ts, which loads
- * the HTML5 named-reference table; this module (markers and the writer) does
- * not, so grammars can use it without pulling the table into their bundle.
+ * The two display functions live in ./mermaid-entity-display.ts, which uses
+ * the HTML5 named-reference table for names beyond XML's five; this module
+ * (markers and the writer) does not, so grammars can use it without pulling
+ * the table into their bundle.
  */
 
 /** Characters an entity must never produce (C0 controls, DEL and C1). */
@@ -27,6 +28,11 @@ export const TERMINAL_CONTROL_RE = /[\u0000-\u001f\u007f-\u009f]/
 const ENTITY_CODE_RE = /#\w+;/g
 /** Upstream's markers: `ﬂ°°123¶ß` (digits) or `ﬂ°name¶ß`. */
 export const ENTITY_MARKER_RE = /ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g
+
+/** The five names XML defines. Every other name resolves only through the HTML5 table. */
+export const XML_NAMED_ENTITIES: ReadonlyMap<string, string> = new Map([
+  ['amp', '&'], ['apos', "'"], ['gt', '>'], ['lt', '<'], ['quot', '"'],
+])
 
 /**
  * Upstream's first `encodeEntities` step, per physical line: strip the last

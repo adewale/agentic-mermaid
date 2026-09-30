@@ -1,17 +1,17 @@
 /**
  * The display half of Mermaid's entity codes (see ./mermaid-entities.ts):
  * what a marker shows once the browser resolves upstream's `&name;` /
- * `&#123;` output. It needs the full HTML5 named-reference table, so it lives
- * apart from the marker layer: only a family that displays decoded entities
- * (Pie, and Flowchart through flowchart-labels.ts) loads the table.
+ * `&#123;` output. Numeric codes and the five XML names resolve here; any
+ * other name needs the full HTML5 table, which ./html-entity-table.ts holds so
+ * the lazy browser build can fetch it only when a diagram uses one.
  *
  * Projection refuses a terminal control character (C0, DEL, C1): no entity
  * may smuggle one into SVG, ASCII or ANSI output. Authored raw controls are
  * the caller's concern; only entity-produced ones are refused here.
  */
 
-import { decodeHTML } from 'entities/decode'
-import { ENTITY_MARKER_RE, TERMINAL_CONTROL_RE, toEntityMarkers } from './mermaid-entities.ts'
+import { decodeHtmlEntityReference } from './html-entity-table.ts'
+import { ENTITY_MARKER_RE, TERMINAL_CONTROL_RE, toEntityMarkers, XML_NAMED_ENTITIES } from './mermaid-entities.ts'
 import { syntaxError } from './syntax-error.ts'
 
 const windows1252 = new TextDecoder('windows-1252')
@@ -42,7 +42,7 @@ export function projectEntityMarkers(text: string, refusal: EntityRefusal = DEFA
           ? windows1252.decode(Uint8Array.of(codePoint))
           : String.fromCodePoint(codePoint)
     } else {
-      decoded = decodeHTML(`&${named!};`)
+      decoded = XML_NAMED_ENTITIES.get(named!) ?? decodeHtmlEntityReference(`&${named!};`)
     }
     if (TERMINAL_CONTROL_RE.test(decoded)) {
       throw syntaxError({

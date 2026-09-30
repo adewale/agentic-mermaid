@@ -165,7 +165,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   keys. `@{ label/icon/img }` values are written as YAML double-quoted strings.
 - The lazy browser renderer detects the family from the header line alone and
   loads the source normalizer with the family. Its initial download falls from
-  42.2 KB to 4.3 KB gzip; each family's download grows by at most 1.5%.
+  42.2 KB to 4.4 KB gzip. The HTML5 named-entity table (about 23 KB gzip) is
+  fetched only when a diagram displays a named entity other than `#amp;`,
+  `#lt;`, `#gt;`, `#quot;` or `#apos;`, so Pie's download shrinks by about
+  21 KB and no family's grows by more than 1.6%.
 - Internal rules that had several copies now have one: a body-utils module for
   optional fields, insert positions and label overflow; one plain-record
   check, deep-freeze and Scene walk; one set of Code Mode membrane traps; one
