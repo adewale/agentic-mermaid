@@ -134,6 +134,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   removed.
 - Updated React browser recipes to use the lazy browser entry, with asynchronous
   loading, cancellation, and visible error handling.
+- MCP `execute` returns the value of a script's trailing expression statement,
+  so `const x = 5; x` yields 5 instead of `null`; previously only a script that
+  was one bare expression returned a value without an explicit `return`
+  ([#274](https://github.com/adewale/agentic-mermaid/issues/274)).
 
 ### Added
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
