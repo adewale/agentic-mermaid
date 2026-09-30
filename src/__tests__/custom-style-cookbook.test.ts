@@ -184,9 +184,13 @@ describe('custom style cookbook docs', () => {
   })
 
   it('keeps cookbook screenshots in sync with the generator', () => {
+    // Compare digests, not whole Buffers: a drifted PNG then reports which file
+    // is stale instead of an unreadable byte diff. Regenerate with
+    // `bun run gallery:custom-styles`.
+    const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
     for (const { path, png } of buildCookbookScreenshots()) {
       expect(existsSync(path), path).toBe(true)
-      expect(readFileSync(path)).toEqual(Buffer.from(png))
+      expect({ path, sha256: sha(readFileSync(path)) }).toEqual({ path, sha256: sha(png) })
     }
   })
 })

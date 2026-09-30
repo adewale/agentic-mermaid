@@ -306,10 +306,10 @@ describe('architecture verify + render', () => {
 })
 
 // Upstream v11.16.0 align directives (PR #7708; plan §Architecture 2, probe
-// p8). Shipped as option (b): parsed and modeled once (src/architecture/
-// align.ts), preserved losslessly through serialization, rendered WITHOUT the
-// placement constraint, and announced by a Tier-3 UNSUPPORTED_SYNTAX lint that
-// names the construct — lint never flips verify.ok.
+// p8). Parsed and modeled once (src/architecture/align.ts), preserved
+// losslessly through serialization, and honored as a placement constraint, so
+// verify no longer raises the UNSUPPORTED_SYNTAX lint it once used to announce
+// them.
 describe('architecture align directives (upstream v11.16.0)', () => {
   const ALIGN_SRC = `architecture-beta
   group api(cloud)[API]
@@ -425,7 +425,7 @@ describe('architecture round-trip property', () => {
   const iconArb = fc.constantFrom('server', 'database', 'cloud', 'disk')
   const sideArb = fc.constantFrom('L', 'R', 'T', 'B')
 
-  test('parse(render(parse(src))) is identity on generated architectures', () => {
+  test('parse(serialize(parse(src))) is identity on generated architectures', () => {
     fc.assert(
       fc.property(
         fc.uniqueArray(idArb, { minLength: 2, maxLength: 5 }),

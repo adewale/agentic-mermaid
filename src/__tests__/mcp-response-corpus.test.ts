@@ -257,9 +257,13 @@ async function buildCorpus() {
   return { local, hosted }
 }
 
+// Every test reads the same corpus; build it once.
+let corpusBuild: ReturnType<typeof buildCorpus> | undefined
+const sharedCorpus = () => (corpusBuild ??= buildCorpus())
+
 describe('MCP response corpus', () => {
   test('matches the recorded surface for both servers', async () => {
-    const corpus = await buildCorpus()
+    const corpus = await sharedCorpus()
     if (UPDATE) {
       writeFileSync(BASELINE, `${JSON.stringify(corpus, null, 2)}\n`)
       return
@@ -291,7 +295,7 @@ describe('MCP response corpus', () => {
   // it claims to cover. Every successful modern entry must show the one field
   // only the modern path adds.
   test('the modern corpus entries actually took the modern path', async () => {
-    const corpus = await buildCorpus()
+    const corpus = await sharedCorpus()
     for (const surface of ['local', 'hosted'] as const) {
       const calls = (corpus[surface] as Record<string, any>).calls
       const modern = Object.entries(calls).filter(([label]) => label.startsWith('modern/'))
@@ -320,9 +324,19 @@ describe('MCP response corpus', () => {
     expect(MCP_SERVER_VERSION).toBe(pkg.version)
   })
 
-  test('every registered tool on both surfaces is represented', async () => {
-    const corpus = await buildCorpus()
-    expect((corpus.local.tools as Array<{ name: string }>).map(t => t.name)).toEqual(LOCAL_TOOLS.map(t => t.name))
-    expect((corpus.hosted.tools as Array<{ name: string }>).map(t => t.name)).toEqual(HOSTED_TOOLS.map(t => t.name))
+  // The corpus records the registries (LOCAL_TOOLS / HOSTED_TOOLS); this proves
+  // they are what each server's live tools/list actually advertises, entry for
+  // entry, so a tool that the wire adds, drops, or rewrites cannot hide behind
+  // a registry the corpus mirrors.
+  test('the recorded tool entries are exactly what each live tools/list advertises', async () => {
+    const corpus = await sharedCorpus()
+    const listRequest: JsonRpcRequest = { jsonrpc: '2.0', id: 30, method: 'tools/list' }
+    const live = {
+      local: (await handleRequest(listRequest))?.result as { tools: McpToolDefinition[] },
+      hosted: (await handleHostedRequest(listRequest, hostedContext()))?.result as { tools: McpToolDefinition[] },
+    }
+    for (const surface of ['local', 'hosted'] as const) {
+      expect({ surface, tools: live[surface].tools.map(toolEntry) }).toEqual({ surface, tools: corpus[surface].tools as ReturnType<typeof toolEntry>[] })
+    }
   })
 })

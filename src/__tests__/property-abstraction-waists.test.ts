@@ -13,7 +13,7 @@ import { normalizeFamilyLayoutResult, positionResolvedFamily } from '../position
 import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { DEFAULTS } from '../theme.ts'
-import type { EdgeRouteCertificate, FamilyEdgeRouteCertificate, LayoutRouteCertificate, PositionedDiagram, RegionContainmentCertificate, RenderContext, RenderOptions, RouteCertificate } from '../types.ts'
+import type { EdgeRouteCertificate, FamilyEdgeRouteCertificate, PositionedDiagram, RegionContainmentCertificate, RenderContext, RenderOptions, RouteCertificate } from '../types.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 const RUNS = 24
@@ -581,15 +581,6 @@ describe('property: layout certificate proof waist', () => {
     fc.assert(
       fc.property(regionCert, cert => {
         expect(layoutCertificateProof(cert)).toBe('region-containment')
-      }),
-      { numRuns: RUNS },
-    )
-  })
-
-  test('classification is stable over repeated proof checks', () => {
-    fc.assert(
-      fc.property(fc.oneof(flowchartCert, familyEdgeCert, regionCert), (cert: LayoutRouteCertificate) => {
-        expect(layoutCertificateProof(cert)).toBe(layoutCertificateProof(cert))
       }),
       { numRuns: RUNS },
     )

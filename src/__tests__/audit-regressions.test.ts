@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { rmSync, writeFileSync } from 'node:fs'
 import { applyOps, buildChecked } from '../agent/apply.ts'
 import { describeMermaid, describeMermaidSource } from '../agent/describe.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
@@ -11,6 +10,10 @@ import { handleRequest as handleLocalRequest } from '../mcp/server.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 import { dependencyStartupMessage } from '../../bin/dependency-error.ts'
 import { createMcpHandler, type McpCache } from '../../website/src/mcp-handler.ts'
+import { captureCli } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs('am-audit-regressions-')
 
 const toolCall = (name: string, args: Record<string, unknown>, id: number | string = 1) => ({
   jsonrpc: '2.0' as const, id, method: 'tools/call', params: { name, arguments: args },
@@ -20,27 +23,6 @@ function payload(response: Awaited<ReturnType<typeof handleHostedRequest>>): any
   return JSON.parse((response?.result as any).content[0].text)
 }
 
-function captureCli(run: () => number): { code: number; output: string; stdout: string; stderr: string } {
-  const stdout: string[] = []
-  const stderr: string[] = []
-  const original = process.stdout.write
-  const originalError = process.stderr.write
-  process.stdout.write = ((chunk: string | Uint8Array) => {
-    stdout.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk))
-    return true
-  }) as typeof process.stdout.write
-  process.stderr.write = ((chunk: string | Uint8Array) => {
-    stderr.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk))
-    return true
-  }) as typeof process.stderr.write
-  try {
-    const code = run()
-    return { code, output: stdout.join(''), stdout: stdout.join(''), stderr: stderr.join('') }
-  } finally {
-    process.stdout.write = original
-    process.stderr.write = originalError
-  }
-}
 
 describe('reported contract regressions', () => {
   test('sequence fragments are typed, visible in read-back, and editable', () => {
@@ -55,7 +37,7 @@ describe('reported contract regressions', () => {
     S-->>U: denied
   end`
     const parsed = parseMermaid(source)
-    expect(parsed.ok).toBe(true)
+    expect(parsed.ok && parsed.value.body.kind).toBe('sequence')
     if (!parsed.ok || parsed.value.body.kind !== 'sequence') return
     expect(parsed.value.body.statements?.some(statement => statement.kind === 'fragment')).toBe(true)
     const prose = describeMermaid(parsed.value)
@@ -152,12 +134,11 @@ describe('reported contract regressions', () => {
 
   test('CLI describe cannot exit successfully when verify reports RENDER_FAILED', () => {
     const source = 'pie\n  "A" : notanumber'
-    const path = `/tmp/agentic-mermaid-describe-${process.pid}-${Date.now()}.mmd`
-    writeFileSync(path, source)
+    const path = temp.file('describe.mmd', source)
     for (const format of ['text', 'json', 'facts']) {
       const result = captureCli(() => runCli(['describe', path, '--format', format, '--json']))
       expect(result.code).toBe(3)
-      expect(JSON.parse(result.output)).toEqual(expect.objectContaining({
+      expect(JSON.parse(result.out)).toEqual(expect.objectContaining({
         ok: false,
         family: 'pie',
         warnings: expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]),
@@ -166,16 +147,11 @@ describe('reported contract regressions', () => {
   })
 
   test('CLI describe keeps verify failures human-readable outside JSON mode', () => {
-    const path = `/tmp/agentic-mermaid-describe-text-${process.pid}-${Date.now()}.mmd`
-    writeFileSync(path, 'pie\n  "A" : notanumber\n')
-    try {
-      const result = captureCli(() => runCli(['describe', path, '--format', 'text']))
-      expect(result.code).toBe(3)
-      expect(result.stdout).toBe('')
-      expect(result.stderr).toContain('describe: verify failed:')
-    } finally {
-      rmSync(path, { force: true })
-    }
+    const path = temp.file('describe-text.mmd', 'pie\n  "A" : notanumber\n')
+    const result = captureCli(() => runCli(['describe', path, '--format', 'text']))
+    expect(result.code).toBe(3)
+    expect(result.out).toBe('')
+    expect(result.err).toContain('describe: verify failed:')
   })
 
   test('ER build ordering and batch ASCII are faithful', () => {
@@ -215,13 +191,16 @@ describe('reported contract regressions', () => {
       .toContainEqual(expect.objectContaining({ code: 'UNKNOWN_SHAPE', node: 'api', shape: 'architecture-icon:definitely-not-an-icon' }))
   })
 
-  test('timeout zero is invalid and source-checkout dependency failures are prescriptive', async () => {
+  test('execute timeoutMs must be a positive finite integer (zero included) on both servers', async () => {
     for (const timeoutMs of [0, -1, 0.5, 1.5, Number.POSITIVE_INFINITY, 'bad']) {
       const response = await handleHostedRequest(toolCall('execute', { code: 'return 1', timeoutMs }), { execute: async () => ({ ok: true, value: null, logs: [] }) })
       expect({ timeoutMs, error: response?.error }).toEqual({ timeoutMs, error: expect.objectContaining({ code: -32602 }) })
       const local = await handleLocalRequest(toolCall('execute', { code: 'return 1', timeoutMs }) as any)
       expect({ timeoutMs, error: local?.error }).toEqual({ timeoutMs, error: expect.objectContaining({ code: -32602 }) })
     }
+  })
+
+  test('source-checkout dependency failures prescribe bun install', () => {
     expect(dependencyStartupMessage(new Error("Cannot find module 'entities'"))).toContain('bun install')
   })
 })

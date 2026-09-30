@@ -91,10 +91,13 @@ describe('sankey SVG renderer · config wiring', () => {
 
   test('linkColor: source paints ribbons with the source node color', () => {
     const svg = renderMermaidSVG(configured('    linkColor: source'))
-    const coalFill = svg.match(/class="sankey-node"[^/]*data-label="Coal"/) ? svg.match(/fill="(#[0-9a-fA-F]{6})"[^/]*data-label="Coal"/)?.[1] : undefined
-    const ribbonStroke = svg.match(/class="sankey-link"[^/]*stroke="(#[0-9a-fA-F]{6})"/)?.[1]
-    expect(ribbonStroke).toBeDefined()
-    if (coalFill) expect(ribbonStroke).toBe(coalFill)
+    const nodeFill = Object.fromEntries([...svg.matchAll(/<rect class="sankey-node" [^>]*fill="(#[0-9a-fA-F]{6})"[^>]*data-label="([^"]+)"/g)].map(m => [m[2], m[1]]))
+    const ribbons = [...svg.matchAll(/<path class="sankey-link" [^>]*stroke="(#[0-9a-fA-F]{6})"[^>]*data-source="([^"]+)" data-target="([^"]+)"/g)]
+      .map(m => ({ link: `${m[2]}->${m[3]}`, stroke: m[1] }))
+    expect(ribbons.map(r => r.link)).toEqual(['Coal->Electricity', 'Gas->Electricity', 'Electricity->Homes', 'Electricity->Industry'])
+    expect(ribbons).toEqual(ribbons.map(r => ({ link: r.link, stroke: nodeFill[r.link.split('->')[0]!] })))
+    // The sources carry distinct colors, so one shared stroke could not pass.
+    expect(new Set(ribbons.map(r => r.stroke)).size).toBe(3)
   })
 
   test('linkColor accepts a static CSS color', () => {
@@ -110,6 +113,17 @@ describe('sankey SVG renderer · config wiring', () => {
     expect(svg).toContain('<stop offset="100%"')
     expect(svg).toContain('stroke="url(#sankey-gradient-1)"')
     expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+  })
+
+  test('each gradient runs from its ribbon source end to its target end', () => {
+    const svg = renderMermaidSVG(BASIC)
+    const gradients = new Map([...svg.matchAll(/<linearGradient id="([^"]+)" gradientUnits="userSpaceOnUse" x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)">/g)]
+      .map(m => [m[1]!, [m[2], m[3], m[4], m[5]].map(Number)]))
+    const ribbons = [...svg.matchAll(/<path class="sankey-link" d="M (\S+) (\S+) C [^"]*, (\S+) (\S+)" [^>]*stroke="url\(#([^)]+)\)"/g)]
+    expect(ribbons).toHaveLength(4)
+    for (const [, sx, sy, tx, ty, id] of ribbons) {
+      expect(gradients.get(id!)).toEqual([sx, sy, tx, ty].map(Number))
+    }
   })
 
   test('gradient resources and references are namespaced together', () => {
@@ -176,20 +190,25 @@ describe('sankey SVG renderer · config wiring', () => {
     expect(Number(dims(large)[2])).toBeGreaterThan(Number(dims(small)[2]))
   })
 
-  test('every nodeAlignment renders and moves pure sinks as documented', () => {
-    // With `left`, the orphan-free sink chain compresses to its depth; with
-    // `justify` (default) pure sinks flush to the last layer. Assert both parse
-    // and produce different geometry for a diagram where the policies disagree.
-    const body = 'sankey-beta\n  A,B,10\n  B,C,10\n  D,C,5'
-    const justify = renderMermaidSVG(configured('    showValues: false', body))
-    const left = renderMermaidSVG(configured('    showValues: false\n    nodeAlignment: left', body))
-    const layerOf = (svg: string, label: string) => Number(svg.match(new RegExp(`data-label="${label}"[^/]*data-layer="(\\d+)"`))![1])
-    // D is a pure source feeding the final sink: justify keeps it at depth 0.
-    expect(layerOf(justify, 'D')).toBe(0)
-    expect(layerOf(left, 'D')).toBe(0)
-    for (const svg of [renderMermaidSVG(configured('    nodeAlignment: right', body)), renderMermaidSVG(configured('    nodeAlignment: center', body))]) {
-      expect(svg).toContain('</svg>')
+  test('every nodeAlignment places short sources and sinks as d3-sankey documents', () => {
+    // A-B-C is the three-layer spine. D is a pure source that feeds only the
+    // final node; E is a pure sink that stops one layer short. The four policies
+    // disagree on exactly these two nodes (d3-sankey's sankeyLeft / Right /
+    // Center / Justify): left and justify keep sources at depth 0, right and
+    // center pull them next to their target; justify and right push sinks to the
+    // last layer, left and center keep them at their depth.
+    const body = 'sankey-beta\n  A,B,10\n  B,C,10\n  D,C,5\n  A,E,5'
+    const layers = (alignment: string) => {
+      const svg = renderMermaidSVG(configured(`    showValues: false\n    nodeAlignment: ${alignment}`, body))
+      return Object.fromEntries([...svg.matchAll(/data-label="(\w+)"[^/]*data-layer="(\d+)"/g)].map(m => [m[1], Number(m[2])]))
     }
+    expect(layers('justify')).toEqual({ A: 0, B: 1, C: 2, D: 0, E: 2 })
+    expect(layers('left')).toEqual({ A: 0, B: 1, C: 2, D: 0, E: 1 })
+    expect(layers('right')).toEqual({ A: 0, B: 1, C: 2, D: 1, E: 2 })
+    expect(layers('center')).toEqual({ A: 0, B: 1, C: 2, D: 1, E: 1 })
+    // justify is the default.
+    const unset = renderMermaidSVG(configured('    showValues: false', body))
+    expect(unset).toBe(renderMermaidSVG(configured('    showValues: false\n    nodeAlignment: justify', body)))
   })
 
   test('frontmatter title renders centered above the chart', () => {

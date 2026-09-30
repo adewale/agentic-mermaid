@@ -128,7 +128,10 @@ describe('priority-based hiding is a last resort with source-order priority', ()
   it('hidden labels drop only later source-order points (prefix keeps, suffix hides)', () => {
     const hiddenIdx = positioned.points.map((p, i) => (p.labelHidden ? i : -1)).filter(i => i >= 0)
     const visibleIdx = positioned.points.map((p, i) => (!p.labelHidden ? i : -1)).filter(i => i >= 0)
-    expect(Math.min(...hiddenIdx)).toBeGreaterThan(Math.max(0, ...visibleIdx.slice(0, 1)))
+    expect(hiddenIdx.length).toBeGreaterThan(0)
+    expect(visibleIdx.length).toBeGreaterThan(0)
+    // Every hidden point comes after every visible one: no visible label follows a hidden one.
+    expect(Math.min(...hiddenIdx)).toBeGreaterThan(Math.max(...visibleIdx))
   })
 })
 

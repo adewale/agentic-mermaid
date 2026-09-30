@@ -17,7 +17,6 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   { id: 'website', label: 'Verify website and Worker artifacts', command: ['bun', 'run', 'website:check'] },
   { id: 'sketch', label: 'Run sketch prototype style checks', command: ['bun', 'run', 'sketch:check'] },
   { id: 'rendered-corpora', label: 'Audit rendered corpora and family structural evidence', command: ['bun', 'run', 'audit:ugly'] },
-  // lint:contracts are ordinary unit tests and already run in the unit shards.
   { id: 'lint', label: 'Lint TypeScript', command: ['bun', 'run', 'lint:biome'] },
   { id: 'typecheck', label: 'Type check', command: ['bun', 'run', 'typecheck'] },
   { id: 'hero', label: 'Check README hero image freshness', command: ['bun', 'run', 'hero:check'] },

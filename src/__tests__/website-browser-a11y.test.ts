@@ -189,9 +189,12 @@ describeBrowser('website browser accessibility smoke', () => {
         // registered family, then wait for the drain to finish.
         await page.evaluate(async () => {
           const step = window.innerHeight
+          // Two frames per stop: IntersectionObserver computes at the rendering
+          // step, so each scroll position is observed before the next one.
+          const nextFrames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
           for (let y = 0; y <= document.documentElement.scrollHeight; y += step) {
             window.scrollTo(0, y)
-            await new Promise((resolve) => setTimeout(resolve, 50))
+            await nextFrames()
           }
         })
         await page.waitForFunction(
@@ -219,6 +222,58 @@ describeBrowser('website browser accessibility smoke', () => {
     }
     await page.close()
   }, 30_000)
+
+  // Behaviour coverage for the comparison lightbox's detail controls; the
+  // website-build contract no longer greps the bundled script for their code.
+  test('comparison lightbox switches pair, view and zoom, links the section source, and opens from the keyboard', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.goto(baseUrl + '/comparisons/', { waitUntil: 'networkidle' })
+    // Mermaid panels render lazily near the viewport, never as one whole-page batch.
+    expect(await page.locator('.comparison-mermaid[data-processed="true"]').count()).toBeLessThan(BUILTIN_FAMILY_METADATA.length)
+    const section = page.locator('section.comparison-case#flowchart')
+    const editorHref = await section.getAttribute('data-comparison-editor-href')
+    expect(editorHref).toMatch(/^\/editor\/#deflate:/)
+    await section.locator('[data-comparison-open]').click()
+    const dialog = page.locator('.comparison-dialog[open]')
+    expect(await dialog.count()).toBe(1)
+    const grid = dialog.locator('.comparison-grid')
+    const visibleSlots = () => grid.locator('.comparison-panel:not([hidden])').evaluateAll(panels => panels.map(panel => [panel.getAttribute('data-comparison-engine'), panel.getAttribute('data-comparison-slot')]))
+    const tabState = () => dialog.locator('[role="tab"]').evaluateAll(tabs => tabs.map(tab => [tab.getAttribute('data-detail-tab'), tab.textContent, tab.getAttribute('aria-selected')]))
+
+    // Opens on the first available pair, side by side, with the section's source.
+    expect(await dialog.locator('[data-comparison-source-editor]').getAttribute('href')).toBe(editorHref)
+    expect(await grid.getAttribute('data-comparison-pair')).toBe('agentic-mermaid')
+    expect(await tabState()).toEqual([['compare', 'Side by side', 'true'], ['first', 'Agentic Mermaid', 'false'], ['second', 'Mermaid', 'false']])
+    expect((await visibleSlots()).sort()).toEqual([['agentic', 'first'], ['mermaid', 'second']])
+
+    // A single-view tab shows only that engine.
+    await dialog.locator('[data-detail-tab="second"]').click()
+    expect(await grid.getAttribute('data-detail-view')).toBe('second')
+    expect(await visibleSlots()).toEqual([['mermaid', 'second']])
+
+    // Another pair relabels the tabs and returns to side by side.
+    await dialog.locator('input[name="comparison-pair"][value="agentic-beautiful"]').check()
+    expect(await grid.getAttribute('data-comparison-pair')).toBe('agentic-beautiful')
+    expect(await tabState()).toEqual([['compare', 'Side by side', 'true'], ['first', 'Agentic Mermaid', 'false'], ['second', 'Beautiful Mermaid', 'false']])
+    expect((await visibleSlots()).sort()).toEqual([['agentic', 'first'], ['beautiful', 'second']])
+
+    // Zoom steps by a quarter and resets.
+    const zoomValue = dialog.locator('[data-comparison-zoom-value]')
+    await dialog.getByRole('button', { name: 'Zoom in' }).click()
+    expect({ label: await zoomValue.textContent(), grid: await grid.getAttribute('data-comparison-zoom') }).toEqual({ label: '125%', grid: '1.25' })
+    await dialog.getByRole('button', { name: 'Reset zoom' }).click()
+    expect({ label: await zoomValue.textContent(), grid: await grid.getAttribute('data-comparison-zoom') }).toEqual({ label: '100%', grid: '1' })
+
+    // Closing restores the grid to the page; Enter on the grid reopens it.
+    await dialog.locator('.comparison-dialog-close').click()
+    await page.waitForFunction(() => document.querySelector('.comparison-dialog[open]') === null)
+    expect(await section.locator('.comparison-grid').count()).toBe(1)
+    await section.locator('[data-comparison-lightbox-panel]').evaluate((grid: HTMLElement) => {
+      grid.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    })
+    expect(await page.locator('.comparison-dialog[open]').count()).toBe(1)
+    await page.close()
+  }, 60_000)
 
   test('mobile hamburger exposes every destination and preserves no-JS navigation', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
@@ -542,8 +597,20 @@ describeBrowser('website browser accessibility smoke', () => {
   }, 60_000)
 
   test('design motion specimen supports keyboard and direct manipulation without reduced-motion coast', async () => {
-    const page = await browser.newPage({ viewport: { width: 390, height: 900 } })
+    // Pointer samples read performance.now() and the coast runs on
+    // requestAnimationFrame, so a paused fake clock makes velocity and coast
+    // depend only on the runFor steps below, not on runner load.
+    const context = await browser.newContext({ viewport: { width: 390, height: 900 } })
+    await context.clock.install()
+    const page = await context.newPage()
     const trackTransform = () => page.locator('.dz-motion-track').evaluate((el) => (el as HTMLElement).style.transform)
+    async function openSpecimen() {
+      await context.clock.resume()
+      await page.goto(baseUrl + '/about/design/', { waitUntil: 'networkidle' })
+      await page.waitForFunction(() => Boolean((document.querySelector('.dz-motion-track') as HTMLElement | null)?.style.transform), undefined, { timeout: 2_000 })
+      // Pause ahead of the running clock so the target is never in the past.
+      await context.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000))
+    }
     async function dragLeft(stationaryBeforeReleaseMs = 0) {
       const strip = page.locator('[data-motion-strip]')
       await strip.scrollIntoViewIfNeeded()
@@ -553,44 +620,40 @@ describeBrowser('website browser accessibility smoke', () => {
       const y = box!.y + box!.height / 2
       await page.mouse.move(x, y)
       await page.mouse.down()
-      await new Promise((resolve) => setTimeout(resolve, 24))
+      await context.clock.runFor(24)
       await page.mouse.move(x - box!.width * 0.5, y)
-      if (stationaryBeforeReleaseMs) await new Promise((resolve) => setTimeout(resolve, stationaryBeforeReleaseMs))
+      if (stationaryBeforeReleaseMs) await context.clock.runFor(stationaryBeforeReleaseMs)
       const beforeRelease = await trackTransform()
       await page.mouse.up()
       return beforeRelease
     }
 
-    await page.goto(baseUrl + '/about/design/', { waitUntil: 'networkidle' })
-    await page.waitForFunction(() => Boolean((document.querySelector('.dz-motion-track') as HTMLElement | null)?.style.transform), undefined, { timeout: 2_000 })
-    const strip = page.locator('[data-motion-strip]')
-    await strip.focus()
-    const beforeKeyboard = await trackTransform()
-    await page.keyboard.press('ArrowRight')
-    expect(await trackTransform()).not.toBe(beforeKeyboard)
-    const beforeDrag = await trackTransform()
-    const afterNormalRelease = await dragLeft()
-    expect(afterNormalRelease).not.toBe(beforeDrag)
-    await new Promise((resolve) => setTimeout(resolve, 120))
-    expect(await trackTransform()).not.toBe(afterNormalRelease)
-
-    // A release after holding still must not reuse the preceding drag velocity.
-    await page.goto(baseUrl + '/about/design/', { waitUntil: 'networkidle' })
-    await page.waitForFunction(() => Boolean((document.querySelector('.dz-motion-track') as HTMLElement | null)?.style.transform), undefined, { timeout: 2_000 })
-    const afterStationaryRelease = await dragLeft(150)
-    await new Promise((resolve) => setTimeout(resolve, 180))
-    expect(await trackTransform()).toBe(afterStationaryRelease)
-
     try {
+      await openSpecimen()
+      const strip = page.locator('[data-motion-strip]')
+      await strip.focus()
+      const beforeKeyboard = await trackTransform()
+      await page.keyboard.press('ArrowRight')
+      expect(await trackTransform()).not.toBe(beforeKeyboard)
+      const beforeDrag = await trackTransform()
+      const afterNormalRelease = await dragLeft()
+      expect(afterNormalRelease).not.toBe(beforeDrag)
+      await context.clock.runFor(120)
+      expect(await trackTransform()).not.toBe(afterNormalRelease)
+
+      // A release after holding still must not reuse the preceding drag velocity.
+      await openSpecimen()
+      const afterStationaryRelease = await dragLeft(150)
+      await context.clock.runFor(180)
+      expect(await trackTransform()).toBe(afterStationaryRelease)
+
       await page.emulateMedia({ reducedMotion: 'reduce' })
-      await page.goto(baseUrl + '/about/design/', { waitUntil: 'networkidle' })
-      await page.waitForFunction(() => Boolean((document.querySelector('.dz-motion-track') as HTMLElement | null)?.style.transform), undefined, { timeout: 2_000 })
+      await openSpecimen()
       const afterRelease = await dragLeft()
-      await new Promise((resolve) => setTimeout(resolve, 180))
+      await context.clock.runFor(180)
       expect(await trackTransform()).toBe(afterRelease)
     } finally {
-      await page.emulateMedia({ reducedMotion: 'no-preference' })
-      await page.close()
+      await context.close()
     }
   }, 30_000)
 

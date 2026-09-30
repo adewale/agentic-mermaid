@@ -9,27 +9,11 @@
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { getPath } from '../ascii/pathfinder.ts'
-import type { AsciiNode, GridCoord } from '../ascii/types.ts'
-import { gridKey } from '../ascii/types.ts'
+import type { AsciiNode } from '../ascii/types.ts'
 
 describe('#66 A* OOM guard', () => {
-  test('unreachable target returns null instead of hanging', () => {
-    // Wall off the target completely: surround (5,5) with occupied cells.
-    const grid = new Map<string, AsciiNode>()
-    const fake = { name: 'x' } as unknown as AsciiNode
-    const offsets: Array<[number, number]> = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]]
-    for (const [dx, dy] of offsets) {
-      grid.set(gridKey({ x: 5 + dx, y: 5 + dy }), fake)
-    }
-    const from: GridCoord = { x: 0, y: 0 }
-    const to: GridCoord = { x: 5, y: 5 }
-    const start = Date.now()
-    const path = getPath(grid, from, to)
-    const elapsed = Date.now() - start
-    // The walled target is unreachable → null, and fast (bounded search).
-    expect(path).toBeNull()
-    expect(elapsed).toBeLessThan(2000)
-  })
+  // The walled-off (unreachable) target case is covered by
+  // ascii-pathfinder-units.test.ts ("fully walled-off target returns null").
 
   test('reachable target still routes normally', () => {
     const grid = new Map<string, AsciiNode>()
@@ -39,15 +23,14 @@ describe('#66 A* OOM guard', () => {
     expect(path![path!.length - 1]).toEqual({ x: 3, y: 0 })
   })
 
-  test('a wide pathological graph renders without hanging', () => {
-    // Many parallel chains — exercises many getPath calls.
+  test('a wide pathological graph renders every node without hanging', () => {
+    // Many parallel chains — exercises many getPath calls. A hang is caught by
+    // the test timeout, not a wall-clock assertion.
     let src = 'flowchart LR\n'
     for (let i = 0; i < 30; i++) src += `  A${i} --> B${i}\n`
-    const start = Date.now()
     const out = renderMermaidASCII(src)
-    const elapsed = Date.now() - start
-    expect(out.length).toBeGreaterThan(0)
-    expect(elapsed).toBeLessThan(10_000)
+    const ids = Array.from({ length: 30 }, (_, i) => [`A${i}`, `B${i}`]).flat()
+    expect(ids.filter(id => !new RegExp(`\\b${id}\\b`).test(out))).toEqual([])
   })
 })
 

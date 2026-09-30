@@ -30,6 +30,26 @@ describe('OKLab / OKLCH conversions', () => {
     expect(Math.hypot(black.a, black.b)).toBeLessThan(1e-3)
   })
 
+  // Published references (Björn Ottosson's OKLab definition, as tabulated by
+  // CSS Color 4 implementations). Anchors, round-trips and monotonicity cannot
+  // catch an a/b axis swap, a sign flip or a scale error; these can.
+  it('matches the published OKLab values of the sRGB primaries', () => {
+    const references: Record<string, { L: number; a: number; b: number }> = {
+      '#ff0000': { L: 0.627955, a: 0.224863, b: 0.125846 },
+      '#00ff00': { L: 0.866440, a: -0.233888, b: 0.179498 },
+      '#0000ff': { L: 0.452014, a: -0.032457, b: -0.311528 },
+    }
+    for (const [hex, expected] of Object.entries(references)) {
+      const { L, a, b } = hexToOklab(hex)!
+      expect({ hex, L, a, b }).toEqual({
+        hex,
+        L: expect.closeTo(expected.L, 5),
+        a: expect.closeTo(expected.a, 5),
+        b: expect.closeTo(expected.b, 5),
+      })
+    }
+  })
+
   it('hex → OKLCH → hex round-trips exactly for in-gamut colors', () => {
     fc.assert(
       fc.property(hexColorArb, hex => {
@@ -103,6 +123,23 @@ describe('APCA lightness contrast', () => {
   it('is polarity-signed: dark-on-light positive, light-on-dark negative', () => {
     expect(apcaLc('#000000', '#ffffff')!).toBeGreaterThan(50)
     expect(apcaLc('#ffffff', '#000000')!).toBeLessThan(-50)
+  })
+
+  // Reference text/background pairs published with APCA 0.0.98G-4g (apca-w3).
+  it('matches the published APCA reference Lc values', () => {
+    const references: Array<[string, string, number]> = [
+      ['#888888', '#ffffff', 63.056469930209424],
+      ['#ffffff', '#888888', -68.54146436644962],
+      ['#000000', '#aaaaaa', 58.146262578561334],
+      ['#aaaaaa', '#000000', -56.24113336839742],
+      ['#112233', '#ddeeff', 91.66830811481631],
+      ['#ddeeff', '#112233', -93.06770049484275],
+      ['#112233', '#444444', 8.32326136957393],
+      ['#444444', '#112233', -7.526878460278154],
+    ]
+    for (const [text, background, lc] of references) {
+      expect({ text, background, lc: apcaLc(text, background) }).toEqual({ text, background, lc: expect.closeTo(lc, 3) })
+    }
   })
 
   it('a color against itself has zero contrast', () => {

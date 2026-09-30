@@ -1,8 +1,6 @@
 // Nightly finder report: turns a failing random-seed property sweep log into
 // one issue body, so a counterexample found off the PR gate is never lost.
-// The decision logic is a pure function unit-tested in
-// src/__tests__/nightly-finder-report.test.ts; nightly-finder.yml posts the
-// result with the GitHub CLI.
+// nightly-finder.yml posts the result with the GitHub CLI.
 
 export const FINDER_ISSUE_TITLE = 'Nightly finder: random-seed property counterexamples'
 

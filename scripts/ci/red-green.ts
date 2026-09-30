@@ -9,8 +9,7 @@
 // changed tests keep their helpers and fixtures; only the changed test files
 // run. A test that cannot even import against the base (a new API) counts as
 // red — it does discriminate. Pure refactors that touch tests opt out with the
-// `no-red-green` PR label (ci.yml). The decision logic is unit-tested in
-// src/__tests__/red-green.test.ts.
+// `no-red-green` PR label (ci.yml).
 
 import { cpSync, existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'

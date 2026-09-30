@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460.05" height="363.2" viewBox="0 0 460.05 363.2" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" aria-labelledby="radar-rvqfas-title" aria-roledescription="radar chart" id="radar-rvqfas" role="img" class="am-0pffrx7127vuku">
+<title id="radar-rvqfas-title">Team skills</title>
+<style>
+  .am-0pffrx7127vuku text { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0pffrx7127vuku {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #171512;
+    --_text-sec:      #5f5a52;
+    --_text-muted:    #5f5a52;
+    --_text-faint:    #82807c;
+    --_line:          #24211d;
+    --_arrow:         #1d4ed8;
+    --_node-fill:     #faf5ea;
+    --_node-stroke:   #24211d;
+    --_group-fill:    #fffdf8;
+    --_group-hdr:     #f3f1ed;
+    --_inner-stroke:  #e3e1dc;
+    --_key-badge:     #e8e6e1;
+  }
+</style>
+<style>
+  .am-0pffrx7127vuku .radar-ring { stroke: #171512; stroke-width: 1; stroke-opacity: 0.7; fill: none; }
+  .am-0pffrx7127vuku .radar-ring-outer { stroke-width: 1.4; stroke-opacity: 0.7; }
+  .am-0pffrx7127vuku .radar-axis-line { stroke: #171512; stroke-width: 1; }
+  .am-0pffrx7127vuku .radar-leader { stroke: #171512; stroke-width: 1; stroke-opacity: 0.5; }
+  .am-0pffrx7127vuku .radar-area { stroke-width: 1.45; fill-opacity: 0.5; stroke-linejoin: round; }
+  .am-0pffrx7127vuku .radar-dot { stroke: #171512; stroke-width: 1.2; }
+  .am-0pffrx7127vuku .radar-axis-label { fill: #000000; }
+  .am-0pffrx7127vuku .radar-tick-box { fill: #fffdf8; stroke: #171512; stroke-opacity: 0.35; stroke-width: 0.75; }
+  .am-0pffrx7127vuku .radar-tick-label { fill: #000000; }
+  .am-0pffrx7127vuku .radar-legend-swatch { stroke: #171512; stroke-width: 1; }
+  .am-0pffrx7127vuku .radar-legend-text { fill: #171512; }
+  .am-0pffrx7127vuku .radar-title { fill: #171512; }
+</style>
+<rect width="460.05" height="363.2" fill="#fffdf8" data-backdrop="page" />
+<circle class="radar-ring" cx="186.34" cy="195.6" r="24" fill="none" />
+<circle class="radar-ring" cx="186.34" cy="195.6" r="48" fill="none" />
+<circle class="radar-ring" cx="186.34" cy="195.6" r="72" fill="none" />
+<circle class="radar-ring" cx="186.34" cy="195.6" r="96" fill="none" />
+<circle class="radar-ring radar-ring-outer" cx="186.34" cy="195.6" r="120" fill="none" />
+<line class="radar-axis-line" x1="186.34" y1="195.6" x2="186.34" y2="75.6" />
+<line class="radar-axis-line" x1="186.34" y1="195.6" x2="290.26" y2="135.6" />
+<line class="radar-axis-line" x1="186.34" y1="195.6" x2="290.26" y2="255.6" />
+<line class="radar-axis-line" x1="186.34" y1="195.6" x2="186.34" y2="315.6" />
+<line class="radar-axis-line" x1="186.34" y1="195.6" x2="82.42" y2="255.6" />
+<line class="radar-axis-line" x1="186.34" y1="195.6" x2="82.42" y2="135.6" />
+<path class="radar-area" d="M 186.34 99.6 C 221.67 99.6 279.66 113.16 290.26 135.6 C 300.86 158.04 266.36 213.24 248.69 231.6 C 231.02 249.96 211.07 241.56 186.34 243.6 C 161.61 245.64 120.87 261.96 103.2 243.6 C 85.53 225.24 68.29 160.08 82.42 135.6 C 96.55 111.12 151.01 99.6 186.34 99.6 Z" fill="#1d4ed8" stroke="#1d4ed8" fill-opacity="0.5" data-curve="Alice" data-id="curve:alice" data-role="pie-slice" />
+<path class="radar-area" d="M 186.34 123.6 C 207.54 119.52 251.81 125.16 269.48 147.6 C 287.15 170.04 304.39 231.12 290.26 255.6 C 276.13 280.08 214.61 295.68 186.34 291.6 C 158.07 287.52 131.05 252 123.98 231.6 C 116.91 211.2 134.17 189.96 144.77 171.6 C 155.37 153.24 165.14 127.68 186.34 123.6 Z" fill="#0a4293" stroke="#0a4293" fill-opacity="0.5" data-curve="Bob" data-id="curve:bob" data-role="pie-slice" />
+<circle class="radar-dot" cx="186.34" cy="99.6" r="3" fill="#1d4ed8" data-id="dot:alice:0" data-role="point" />
+<circle class="radar-dot" cx="290.26" cy="135.6" r="3" fill="#1d4ed8" data-id="dot:alice:1" data-role="point" />
+<circle class="radar-dot" cx="248.69" cy="231.6" r="3" fill="#1d4ed8" data-id="dot:alice:2" data-role="point" />
+<circle class="radar-dot" cx="186.34" cy="243.6" r="3" fill="#1d4ed8" data-id="dot:alice:3" data-role="point" />
+<circle class="radar-dot" cx="103.2" cy="243.6" r="3" fill="#1d4ed8" data-id="dot:alice:4" data-role="point" />
+<circle class="radar-dot" cx="82.42" cy="135.6" r="3" fill="#1d4ed8" data-id="dot:alice:5" data-role="point" />
+<circle class="radar-dot" cx="186.34" cy="123.6" r="3" fill="#0a4293" data-id="dot:bob:0" data-role="point" />
+<circle class="radar-dot" cx="269.48" cy="147.6" r="3" fill="#0a4293" data-id="dot:bob:1" data-role="point" />
+<circle class="radar-dot" cx="290.26" cy="255.6" r="3" fill="#0a4293" data-id="dot:bob:2" data-role="point" />
+<circle class="radar-dot" cx="186.34" cy="291.6" r="3" fill="#0a4293" data-id="dot:bob:3" data-role="point" />
+<circle class="radar-dot" cx="123.98" cy="231.6" r="3" fill="#0a4293" data-id="dot:bob:4" data-role="point" />
+<circle class="radar-dot" cx="144.77" cy="171.6" r="3" fill="#0a4293" data-id="dot:bob:5" data-role="point" />
+<text class="radar-axis-label" aria-label="Design" x="186.34" y="57.8" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="600"><tspan x="186.34" dy="0em" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Design</tspan></text>
+<text class="radar-axis-label" aria-label="Code" x="305.68" y="126.7" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="600"><tspan x="305.68" dy="0em" textLength="32.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Code</tspan></text>
+<text class="radar-axis-label" aria-label="Comms" x="305.68" y="264.5" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="600"><tspan x="305.68" dy="0em" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Comms</tspan></text>
+<text class="radar-axis-label" aria-label="Ops" x="186.34" y="333.4" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="600"><tspan x="186.34" dy="0em" textLength="24.84" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Ops</tspan></text>
+<text class="radar-axis-label" aria-label="Data" x="67" y="264.5" text-anchor="end" dominant-baseline="middle" font-size="12" font-weight="600"><tspan x="67" dy="0em" textLength="27.72" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Data</tspan></text>
+<text class="radar-axis-label" aria-label="Testing" x="67" y="126.7" text-anchor="end" dominant-baseline="middle" font-size="12" font-weight="600"><tspan x="67" dy="0em" textLength="45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Testing</tspan></text>
+<rect class="radar-legend-swatch" x="377.8" y="174.73" width="14" height="14" rx="2" ry="2" fill="#1d4ed8" fill-opacity="0.5" />
+<text class="radar-legend-text" x="399.8" y="181.73" text-anchor="start" dominant-baseline="middle" font-size="15" font-weight="700"><tspan x="399.8" dy="0em" textLength="38.25" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alice</tspan></text>
+<rect class="radar-legend-swatch" x="377.8" y="202.48" width="14" height="14" rx="2" ry="2" fill="#0a4293" fill-opacity="0.5" />
+<text class="radar-legend-text" x="399.8" y="209.48" text-anchor="start" dominant-baseline="middle" font-size="15" font-weight="700"><tspan x="399.8" dy="0em" textLength="31.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Bob</tspan></text>
+<text class="radar-title" x="186.34" y="28" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="700" data-id="title" data-role="title" textLength="65.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Team skills</text>
+</svg>

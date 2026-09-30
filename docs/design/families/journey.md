@@ -39,9 +39,7 @@ rejects that source. `verifyMermaid` emits
 authored line number. Write one statement per line for portable Mermaid.
 HTML entities like `&amp;` retain their semicolons as literal label text in
 Agentic Mermaid. Semicolons in inline `accTitle`/`accDescr` values are also
-literal accessibility text, not statement separators. The extension has its
-own cross-surface receipt in `docs/project/agentic-extension-receipts.json`;
-it is excluded from the upstream Mermaid feature capability projection.
+literal accessibility text, not statement separators.
 
 Quoted labels are normalized the same way other Agentic Mermaid diagram
 parsers normalize Mermaid labels. `<br>` is converted to multi-line text for

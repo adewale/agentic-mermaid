@@ -1,7 +1,6 @@
-// Move 10: the golden-snapshot drift gate, as testable code instead of inline
-// YAML. The decision logic (the trickiest new CI behavior) is a pure function
-// unit-tested in src/__tests__/golden-drift.test.ts; the CLI wrapper gathers the
-// git facts and maps the verdict to GitHub annotations + exit code. ci.yml calls
+// The golden-snapshot drift gate. The decision logic is a pure function; the
+// CLI wrapper gathers the git facts and maps the verdict to GitHub annotations
+// + exit code. ci.yml calls
 // `bun run scripts/ci/golden-drift.ts`.
 
 export interface GoldenDriftFacts {

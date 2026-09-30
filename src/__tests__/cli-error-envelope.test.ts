@@ -1,30 +1,13 @@
 // Loop 12 M1: CLI error envelope carries structured ParseError[] in `details`
 // rather than JSON-stringifying it into `message`.
 
-import { afterAll, describe, test, expect } from 'bun:test'
+import { describe, test, expect } from 'bun:test'
 import { runCli } from '../cli/index.ts'
+import { captureCli as capture } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-function capture(fn: () => number): { code: number; out: string } {
-  const chunks: string[] = []
-  const orig = process.stdout.write.bind(process.stdout)
-  process.stdout.write = ((s: string) => { chunks.push(typeof s === 'string' ? s : String(s)); return true }) as typeof process.stdout.write
-  let code = -1
-  try { code = fn() } finally { process.stdout.write = orig }
-  return { code, out: chunks.join('') }
-}
-
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-const scratchRoot = mkdtempSync(join(tmpdir(), 'am-cli-err-'))
-afterAll(() => rmSync(scratchRoot, { recursive: true, force: true }))
-
-function tmp(content: string): string {
-  const p = join(scratchRoot, `cli-err-${Date.now()}-${Math.random().toString(36).slice(2)}.mmd`)
-  writeFileSync(p, content)
-  return p
-}
+const temp = useTempDirs('am-cli-err-')
+const tmp = (content: string): string => temp.file('input.mmd', content)
 
 describe('M1 CLI structured error envelope', () => {
   test('am parse error: message is a human string, details is the ParseError[]', () => {

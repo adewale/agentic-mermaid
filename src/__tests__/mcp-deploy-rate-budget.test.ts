@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PROBE_HELPER_PATH = join(ROOT, 'scripts', 'ci', 'mcp-probe.sh')
@@ -19,10 +21,6 @@ const INTERVAL = deployJob.env.MCP_REQUEST_INTERVAL_SECONDS!
 // Every deployment step that talks to the production /mcp endpoint.
 const productionMcpSteps = deployJob.steps.filter(step => step.run?.includes(PRODUCTION_MCP))
 
-const tempDirs: string[] = []
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
-})
 
 function envelope(value: unknown): string {
   return JSON.stringify({ jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: JSON.stringify(value) }], isError: false } })
@@ -33,8 +31,7 @@ function envelope(value: unknown): string {
  * every pause and every request, so pacing is observed rather than read.
  */
 function executeStep(step: Step, responses: { execute?: unknown } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-deploy-probe-'))
-  tempDirs.push(dir)
+  const dir = temp.dir('agentic-mermaid-deploy-probe-')
   for (const linked of ['scripts', 'website', 'src', 'package.json']) symlinkSync(join(ROOT, linked), join(dir, linked))
   mkdirSync(join(dir, 'bin'))
   mkdirSync(join(dir, 'node_modules', '.bin'), { recursive: true })

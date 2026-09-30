@@ -118,7 +118,9 @@ describe('deterministic custom-font geometry', () => {
     const empty = '<svg><text font-size="14"></text></svg>'
     expect(fitUncalibratedSvgText(empty, 'Acme Wide')).toBe(empty)
     const nested = '<svg><text font-size="14"><a href="#local">Linked</a></text></svg>'
-    expect(fitUncalibratedSvgText(nested, 'Acme Wide')).toContain('<text font-size="14" textLength=')
+    // Measured on the visible text "Linked", not on the <a> markup around it.
+    const linked = Math.round(measureFormattedTextWidth('Linked', 14, 400) * 1000) / 1000
+    expect(fitUncalibratedSvgText(nested, 'Acme Wide')).toContain(`<text font-size="14" textLength="${linked}"`)
   })
 
   test('repeated wide glyphs remain inside estimator-sized node geometry for every bundled face', () => {

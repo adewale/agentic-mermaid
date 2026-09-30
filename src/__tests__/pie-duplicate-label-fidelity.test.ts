@@ -1,10 +1,12 @@
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
 import { decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const source = `pie showData
   "Alpha" : 10
@@ -12,19 +14,12 @@ const source = `pie showData
   "Alpha" : 30
 `
 
-function upstreamSections(sourceText: string): Array<[string, number]> {
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(sourceText)})
-    process.stdout.write(JSON.stringify([...diagram.db.getSections()]))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  return JSON.parse(new TextDecoder().decode(probe.stdout)) as Array<[string, number]>
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
+
+async function upstreamSections(sourceText: string): Promise<Array<[string, number]>> {
+  const [sections] = await upstream.projectAll([sourceText], diagram => [...diagram.db.getSections()] as Array<[string, number]>)
+  return sections!
 }
 
 function slicesInSvg(svg: string): Array<[string, number]> {
@@ -36,8 +31,8 @@ function drawnSlices(sourceText: string): Array<[string, number]> {
   return slicesInSvg(renderMermaidSVG(sourceText))
 }
 
-test('pinned Mermaid Pie DB keeps the first value of a duplicate label', () => {
-  expect(upstreamSections(source)).toEqual([['Alpha', 10], ['Beta', 20]])
+test('pinned Mermaid Pie DB keeps the first value of a duplicate label', async () => {
+  expect(await upstreamSections(source)).toEqual([['Alpha', 10], ['Beta', 20]])
   const chart = parsePieChart(source.trim().split('\n'))
   expect(chart.entries).toEqual([{ label: 'Alpha', value: 10 }, { label: 'Beta', value: 20 }])
   expect(chart.hasDuplicateSourceLabels).toBe(true)
@@ -53,9 +48,9 @@ test('duplicate source remains verbatim and diagnosed instead of mutating an amb
   expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'pie_opaque' }))
 })
 
-test('Pie label identity is case-sensitive and preserves distinct literal br spellings', () => {
+test('Pie label identity is case-sensitive and preserves distinct literal br spellings', async () => {
   const distinct = `pie\n  "A" : 1\n  "a" : 2\n  "A<br>B" : 3\n  "A<br/>B" : 4`
-  expect(upstreamSections(distinct)).toEqual([['A', 1], ['a', 2], ['A<br>B', 3], ['A<br/>B', 4]])
+  expect(await upstreamSections(distinct)).toEqual([['A', 1], ['a', 2], ['A<br>B', 3], ['A<br/>B', 4]])
   const chart = parsePieChart(distinct.split('\n'))
   expect(chart.entries.map(entry => entry.value)).toEqual([1, 2, 3, 4])
   expect(chart.hasDuplicateSourceLabels).toBeUndefined()
@@ -71,9 +66,9 @@ test('Pie label identity is case-sensitive and preserves distinct literal br spe
   ])
 })
 
-test('pinned Mermaid consumes escapes before arbitrary label characters for first-wins identity', () => {
+test('pinned Mermaid consumes escapes before arbitrary label characters for first-wins identity', async () => {
   const duplicate = `pie showData\n  "A\\B" : 1\n  "AB" : 2`
-  expect(upstreamSections(duplicate)).toEqual([['AB', 1]])
+  expect(await upstreamSections(duplicate)).toEqual([['AB', 1]])
   expect(parsePieChart(duplicate.split('\n'))).toMatchObject({
     entries: [{ label: 'AB', value: 1 }], hasDuplicateSourceLabels: true,
   })
@@ -83,15 +78,15 @@ test('pinned Mermaid consumes escapes before arbitrary label characters for firs
   if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
 
   const distinct = `pie\n  "A\\\\B" : 1\n  "A\\B" : 2`
-  expect(upstreamSections(distinct)).toEqual([['A\\B', 1], ['AB', 2]])
+  expect(await upstreamSections(distinct)).toEqual([['A\\B', 1], ['AB', 2]])
   const chart = parsePieChart(distinct.split('\n'))
   expect(chart.entries).toEqual([{ label: 'A\\B', value: 1 }, { label: 'AB', value: 2 }])
   expect(chart.hasDuplicateSourceLabels).toBeUndefined()
 })
 
-test('pinned Mermaid converts escaped controls before Pie label identity while agent source stays lossless', () => {
+test('pinned Mermaid converts escaped controls before Pie label identity while agent source stays lossless', async () => {
   const escaped = `pie\n  "A\\nB" : 1\n`
-  expect(upstreamSections(escaped)).toEqual([['A\nB', 1]])
+  expect(await upstreamSections(escaped)).toEqual([['A\nB', 1]])
   expect(parsePieChart(escaped.split('\n')).entries).toEqual([{ label: 'A\nB', displayLabel: 'A B', value: 1 }])
   const parsed = parseRegisteredMermaid(escaped)
   expect(parsed.ok).toBe(true)
@@ -101,10 +96,10 @@ test('pinned Mermaid converts escaped controls before Pie label identity while a
   }
 })
 
-test('entity spelling remains part of the upstream Pie key through public render and typed mutation', () => {
+test('entity spelling remains part of the upstream Pie key through public render and typed mutation', async () => {
   const encoded = `pie showData\n  "A&amp;B" : 1\n  "A&B" : 2\n`
   const sections: Array<[string, number]> = [['A&amp;B', 1], ['A&B', 2]]
-  expect(upstreamSections(encoded)).toEqual(sections)
+  expect(await upstreamSections(encoded)).toEqual(sections)
   expect(parsePieChart(encoded.trim().split('\n')).entries).toEqual(sections.map(([label, value]) => ({ label, value })))
   expect(drawnSlices(encoded)).toEqual(sections)
   const parsed = parseRegisteredMermaid(encoded)
@@ -164,22 +159,22 @@ test('Pie terminal, width, HTML and metadata projections keep entity-distinct ro
   if (typeof withActions.output === 'string') expect(withActions.output.split('\n')).toHaveLength(2)
 })
 
-test('Pie grammar entities remain decoded while section-label entity spelling remains authored', () => {
+test('Pie grammar entities remain decoded while section-label entity spelling remains authored', async () => {
   for (const encoded of ['pie&#32;showData\n  "A" : 1', 'pie\n  "A" &#58; 1', 'pie\n  "A" : &#49;']) {
     expect(drawnSlices(encoded)).toEqual([['A', 1]])
     expect(renderMermaidASCII(encoded, { colorMode: 'none' })).toContain('A  ')
   }
   for (const label of ['A&quot;B']) {
     const encoded = `pie\n  "${label}" : 1`
-    expect(upstreamSections(encoded)).toEqual([[label, 1]])
+    expect(await upstreamSections(encoded)).toEqual([[label, 1]])
     expect(drawnSlices(encoded)).toEqual([[label, 1]])
     expect(renderMermaidASCII(encoded, { colorMode: 'none' })).toStartWith(`${label}  `)
   }
 })
 
-test('numeric entity spelling collides with Mermaid’s pre-parser marker in first-wins identity', () => {
+test('numeric entity spelling collides with Mermaid’s pre-parser marker in first-wins identity', async () => {
   const source = 'pie\n  "A&#35;B" : 1\n  "A&ﬂ°°35¶ßB" : 2\n'
-  expect(upstreamSections(source)).toEqual([['A&ﬂ°°35¶ßB', 1]])
+  expect(await upstreamSections(source)).toEqual([['A&ﬂ°°35¶ßB', 1]])
   expect(parsePieChart(source.trim().split('\n'))).toMatchObject({
     entries: [{ label: 'A&#35;B', value: 1 }], hasDuplicateSourceLabels: true,
   })
@@ -191,7 +186,7 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
     expect(serializeMermaid(parsed.value)).toBe(source)
   }
   const escaped = 'pie\n  "A#\\35;B" : 1\n  "Aﬂ°°35¶ßB" : 2\n'
-  expect(upstreamSections(escaped)).toEqual([['A#35;B', 1], ['Aﬂ°°35¶ßB', 2]])
+  expect(await upstreamSections(escaped)).toEqual([['A#35;B', 1], ['Aﬂ°°35¶ßB', 2]])
   expect(parsePieChart(escaped.trim().split('\n')).entries).toEqual([
     { label: 'A#35;B', value: 1 }, { label: 'Aﬂ°°35¶ßB', displayLabel: 'A#B', value: 2 },
   ])
@@ -200,11 +195,11 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
   expect(renderMermaidASCIIWithMeta(escaped, { colorMode: 'none' }).regions.map(region => region.projectedText))
     .toEqual(['A#35;B', 'A#B'])
   const prepass = 'pie\n  "styleX:#35;" : 1\n  "styleX:#35" : 2\n'
-  expect(upstreamSections(prepass)).toEqual([['styleX:#35', 1]])
+  expect(await upstreamSections(prepass)).toEqual([['styleX:#35', 1]])
   expect(parsePieChart(prepass.trim().split('\n'))).toMatchObject({ hasDuplicateSourceLabels: true })
   expect(drawnSlices(prepass)).toHaveLength(1)
   const separated = 'pie\n  "style:x#;\u2028classDef:x#;" : 1\n  "style:x#\u2028classDef:x#" : 2\n'
-  expect(upstreamSections(separated)).toEqual([['style:x#\u2028classDef:x#', 1]])
+  expect(await upstreamSections(separated)).toEqual([['style:x#\u2028classDef:x#', 1]])
   expect(parsePieChart(separated.trim().split('\n'))).toMatchObject({
     entries: [{ label: 'style:x#;\u2028classDef:x#;', value: 1 }],
     hasDuplicateSourceLabels: true,
@@ -212,17 +207,18 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
 })
 
 test('Pie entity prepass stays bounded on repeated style/hash candidates', () => {
-  for (const label of ['style:foo#'.repeat(1500), `style:foo#;${'style:foo#'.repeat(1500)}`]) {
-    const started = performance.now()
+  const labels = (n: number) => ['style:foo#'.repeat(n), `style:foo#;${'style:foo#'.repeat(n)}`]
+  for (const label of labels(1500)) {
     expect(parsePieChart(['pie', `"${label}" : 1`]).entries).toHaveLength(1)
-    expect(performance.now() - started).toBeLessThan(250)
   }
+  const { ratio } = measureGrowth(n => labels(n).map(label => parsePieChart(['pie', `"${label}" : 1`])), 250)
+  expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
 })
 
-test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene validation', () => {
+test('XML-disallowed escaped controls receive a Pie-level diagnosis before Scene validation', async () => {
   for (const control of ['0', 'b', 'f', 'v']) {
     const input = `pie\n  "A\\${control}B" : 1\n`
-    expect(upstreamSections(input)).toHaveLength(1)
+    expect(await upstreamSections(input)).toHaveLength(1)
     expect(() => parsePieChart(input.trim().split('\n'))).toThrow(/Pie slice label contains an XML-disallowed control character/)
     expect(() => renderMermaidSVG(input)).toThrow(/Pie slice label contains an XML-disallowed control character/)
     const parsed = parseRegisteredMermaid(input)

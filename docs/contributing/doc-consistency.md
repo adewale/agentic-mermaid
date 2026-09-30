@@ -7,8 +7,9 @@ at. It is not copied by hand. Hand copies are how the repo ended up
 recommending two different ways to author a new diagram for months, and how
 six docs kept listing a stale hosted tool set.
 
-Four checks run in `bun run test`. Prose claims need an occasional audit by
-hand.
+Two checks run in `bun run test`: generated blocks are current, and every
+documented CLI invocation is one the CLI accepts. Everything else — registry
+lists, links, paths, scripts, and prose claims — is audited by hand.
 
 ## Generated blocks
 
@@ -40,41 +41,20 @@ something the catalog does not, such as which codes a family can raise.
 
 ## Registry lists
 
-`src/__tests__/doc-enumerations.test.ts` reads every maintained doc (the set
-in `src/__tests__/helpers/maintained-docs.ts`) as paragraphs, lists, tables,
-and code blocks, and holds each one to two rules.
-
-**Complete lists declare themselves.** A hand-written unit that names every
-member of a registry fails unless it carries a marker, inside the unit or
-alone on the line directly above it:
+A hand-written unit that names every member of a registry declares itself
+with a marker, inside the unit or alone on the line directly above it, so the
+audit knows it must stay complete:
 
 ```md
 <!-- complete: hosted-mcp-tools -->
 - `verify({ source })` returns structural `ok`, …
 ```
 
-A marked unit must name every member, so a list that falls behind fails
-however many members it is missing — the case where a pull request adds two
-tools at once. The registry ids are the doc-block ids where one exists:
-`family-ids`, `hosted-mcp-tools`, `local-mcp-tools`, `cli-verbs`,
-`render-formats`, `warning-codes:structural`, `warning-codes:geometric`,
-`warning-codes:lint`, plus `warning-codes` for every code. A unit names a
-family by id, label, header, or narrower; a tool as `` `name` `` or
-`` `name(…)` `` (bare inside a code block); a CLI verb as `` `<verb>` `` or
-`am <verb>`; a render format as `` `svg` `` or `--format svg`; a warning code by
-its name. A marker covers the registries inside it: a marked list of every
-hosted tool is also a list of every local tool. A plain list does not need a
-marker; generate it. A file whose header says "Do not edit by hand" is
-generated as a whole and is not checked.
-
-**Near-complete lists are stale.** An unmarked unit that names all but a few
-members of a registry (n−k of n, with 1 ≤ k ≤ n/6) is almost always a copy
-that fell behind. Small subsets pass.
-
-Fix a finding by generating the list, marking it, adding the missing name, or
-pointing at the registry. If the unit is a deliberate subset, a status note
-that happens to name every member, or a list another test pins, add it to
-`NOT_A_COPY` with the reason.
+The registry ids are the doc-block ids where one exists (`family-ids`,
+`hosted-mcp-tools`, `local-mcp-tools`, `cli-verbs`, `render-formats`,
+`warning-codes:<tier>`). An unmarked list that names all but a few members
+of a registry is almost always a copy that fell behind: generate it, mark
+it, or point at the registry instead.
 
 ## Documented CLI commands
 
@@ -83,32 +63,6 @@ that happens to name every member, or a list another test pins, add it to
 inline code in the maintained docs, `llms.txt`, the `init-agent` bundle, and
 the CLI's own help text. Each verb, flag, and `--format` value must be one
 the CLI accepts (`COMMAND_FLAGS`, `CLI_RENDER_FORMATS`, `MCP_FLAG_SPECS`).
-
-## Links, paths, and scripts
-
-`src/__tests__/doc-references.test.ts` reads the maintained docs outside
-generated blocks and fails when:
-
-- a relative Markdown link does not resolve to a file or directory;
-- a backticked repository path does not exist. A path is a token that starts
-  with a tracked top-level directory (`src/…`, `scripts/…`, `.github/…`), a
-  `./` or `../` file name, or an all-caps root document name such as
-  `TODO.md`. It may be relative to the repository root or to the doc's own
-  directory, and may carry a line suffix (`src/cli/index.ts:12-40`). Shell
-  fences are read too; other fences hold example output and are not.
-- `bun run <script>` or `npm run <script>` names no `package.json` script.
-
-URLs, anchors, site routes (`/warnings/`), placeholders (`<file>`, `…`, `*`,
-`{a,b}`), and paths into gitignored build output such as `website/public` are
-skipped. A doc that names a path on purpose although it does not exist here —
-a deleted file in a lesson, a path on an upstream branch — adds it to
-`NAMED_BUT_ABSENT` with the reason.
-
-Backticked code symbols are not checked. Measured over the maintained docs,
-every `UPPER_SNAKE` constant or `camelCase()` call missing from the code was a
-JavaScript builtin, a third-party or upstream Mermaid API, an illustration,
-a name a plan proposes, or history; a rule would have needed a larger
-allowlist than it had findings.
 
 ## Audit by hand
 
@@ -125,9 +79,8 @@ consistency. The maintained set is `git ls-files '*.md'` minus the
 exclusions in `src/__tests__/helpers/maintained-docs.ts`. Text between
 `<!-- BEGIN GENERATED` and `<!-- END GENERATED` markers is generated; skip it.
 
-Skip anything the checks above already enforce: registry lists, CLI verbs,
-flags, and formats, relative links, repository paths that do not exist, and
-package scripts. Look for:
+Skip generated blocks and the CLI verbs, flags, and formats the tests
+enforce. Look for:
 
 1. A claim that contradicts the code: a default value, a function, type, or
    constant name, a path that exists but is the wrong one, a count ("nine
@@ -137,6 +90,10 @@ package scripts. Look for:
    `Instructions_for_agents.md`, `AGENT_NATIVE.md`, `llms.txt`, and the skills.
 3. Stale status: "not yet published", "planned", "experimental", a version
    number, or a TODO item that the code or `CHANGELOG.md` shows is done.
+4. A list marked `<!-- complete: … -->` that misses a registry member, or an
+   unmarked list that names nearly all of one.
+5. A relative link or backticked repository path that does not resolve, or a
+   `bun run <script>` that names no `package.json` script.
 
 Report only findings you verified against the code or another doc. For each
 one, give the file and line, the claim, the evidence (a code path or the

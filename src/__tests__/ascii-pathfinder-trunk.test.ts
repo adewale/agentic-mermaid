@@ -10,6 +10,25 @@ import { describe, test, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { createHash } from 'node:crypto'
 
+// T-junction glyphs that lie outside every node box. Box corners (┐ └) and the
+// edge-exit tees drawn on a box border (└─┬─┘, │ A ├──) are not trunk forks, so
+// only a junction off every box proves that a shared trunk splits.
+function offBoxJunctions(out: string): string[] {
+  const rows = out.split('\n')
+  const inBox = rows.map(row => Array.from(row, () => false))
+  rows.forEach((row, top) => {
+    for (let left = row.indexOf('┌'); left >= 0; left = row.indexOf('┌', left + 1)) {
+      const right = row.indexOf('┐', left)
+      let bottom = top + 1
+      while (bottom < rows.length && rows[bottom]![left] !== '└') bottom++
+      for (let y = top; y <= bottom && y < rows.length; y++) for (let x = left; x <= right; x++) inBox[y]![x] = true
+    }
+  })
+  const junctions: string[] = []
+  rows.forEach((row, y) => Array.from(row).forEach((ch, x) => { if ('┬├┼┤┴'.includes(ch) && !inBox[y]![x]) junctions.push(`${ch}@${y},${x}`) }))
+  return junctions
+}
+
 describe('#113 fanout trunk-sharing', () => {
   test('1→{B,C,D} fanout renders a shared trunk with a fork connector', () => {
     const out = renderMermaidASCII('flowchart TD\n  A --> B\n  A --> C\n  A --> D')
@@ -19,8 +38,10 @@ describe('#113 fanout trunk-sharing', () => {
     expect(out).toContain('B')
     expect(out).toContain('C')
     expect(out).toContain('D')
-    // Branch/junction glyph present (shared trunk forks rather than N separate lines).
-    expect(out).toMatch(/[├┬┐┼]/)
+    // One trunk forks three ways: two T-junctions on the connector row, off every box.
+    const junctions = offBoxJunctions(out)
+    expect(junctions.map(j => j[0])).toEqual(['├', '┬'])
+    expect(new Set(junctions.map(j => j.split('@')[1]!.split(',')[0])).size).toBe(1)
   })
 
   test('no floating connectors — every branch glyph connects to a line', () => {
@@ -35,7 +56,8 @@ describe('#113 fanout trunk-sharing', () => {
 
   test('LR fanout also produces a clean trunk', () => {
     const out = renderMermaidASCII('flowchart LR\n  A --> B\n  A --> C\n  A --> D')
-    expect(out).toMatch(/[├┬┼└┐]/)
+    // The vertical trunk leaving A tees off to C before turning into D.
+    expect(offBoxJunctions(out).map(j => j[0])).toEqual(['├'])
     for (const id of ['A', 'B', 'C', 'D']) expect(out).toContain(id)
   })
 
@@ -95,5 +117,6 @@ describe('#113 fanout trunk-sharing', () => {
     const out = renderMermaidASCII('flowchart TD\n  A --> B')
     expect(out).toContain('A')
     expect(out).toContain('B')
+    expect(offBoxJunctions(out)).toEqual([])
   })
 })

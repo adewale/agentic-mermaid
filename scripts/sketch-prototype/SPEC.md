@@ -18,8 +18,7 @@ Current authorities are:
   the customization architecture and Section B design;
 - [`docs/project/archive/section-a-rendering-contract-2026-07.md`](../../docs/project/archive/section-a-rendering-contract-2026-07.md),
   the Section A implementation record (implemented and verified by PR #163); and
-- the generated Section A capability report and executable registries for the
-  current implementation contract.
+- the executable registries for the current implementation contract.
 
 For production behavior, inspect `src/scene/`, the family registry, and their
 conformance tests. Historical research details can be recovered from Git

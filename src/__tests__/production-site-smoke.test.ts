@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { runSiteSmoke } from '../../scripts/site/smoke-live-site.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const ROOT = join(import.meta.dir, '..', '..')
 const EXPECTED_SHA = '0123456789abcdef0123456789abcdef01234567'
@@ -154,21 +156,17 @@ describe('production website smoke deployment wiring', () => {
     const promoted = siteSmokes.find(({ index }) => index > promoteIndex)!.step
     expect(promoted.id).toBeDefined()
     for (const [smokeStatus, verified] of [[0, true], [1, false]] as const) {
-      const dir = mkdtempSync(join(tmpdir(), 'agentic-mermaid-site-smoke-'))
-      try {
-        mkdirSync(join(dir, 'bin'))
-        writeFileSync(join(dir, 'bin', 'bun'), `#!/usr/bin/env bash\nexit ${smokeStatus}\n`)
-        chmodSync(join(dir, 'bin', 'bun'), 0o755)
-        writeFileSync(join(dir, 'output'), '')
-        spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', promoted.run!], {
-          cwd: dir,
-          env: { ...process.env, GITHUB_OUTPUT: join(dir, 'output'), PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
-        })
-        expect({ smokeStatus, verified: readFileSync(join(dir, 'output'), 'utf8').includes('verified=true') })
-          .toEqual({ smokeStatus, verified })
-      } finally {
-        rmSync(dir, { recursive: true, force: true })
-      }
+      const dir = temp.dir('agentic-mermaid-site-smoke-')
+      mkdirSync(join(dir, 'bin'))
+      writeFileSync(join(dir, 'bin', 'bun'), `#!/usr/bin/env bash\nexit ${smokeStatus}\n`)
+      chmodSync(join(dir, 'bin', 'bun'), 0o755)
+      writeFileSync(join(dir, 'output'), '')
+      spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', promoted.run!], {
+        cwd: dir,
+        env: { ...process.env, GITHUB_OUTPUT: join(dir, 'output'), PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
+      })
+      expect({ smokeStatus, verified: readFileSync(join(dir, 'output'), 'utf8').includes('verified=true') })
+        .toEqual({ smokeStatus, verified })
     }
   })
 

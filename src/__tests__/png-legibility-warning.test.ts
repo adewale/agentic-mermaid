@@ -102,10 +102,18 @@ describe('BELOW_READABLE_SIZE raster legibility warning', () => {
   })
 
   test('uses the final rounded raster height at the width-fit warning boundary', () => {
-    // The nominal width ratio puts 11px text just below 9px, but the approved
-    // 97px integer height puts it just above. A pre-allocation oracle warned.
-    expect(11 * (283 / 346.638)).toBeLessThan(PNG_DEFAULT_MIN_LABEL_PX)
-    expect(legibilityWarnings(SOURCE, { fitTo: { width: 283 } })).toHaveLength(0)
+    // Find, from the SOURCE's real intrinsic size, a fitTo width whose nominal
+    // width ratio puts 11px text just below the floor while the rounded integer
+    // raster height puts it at or above. A pre-allocation oracle warned there.
+    const svg = renderMermaidSVG(SOURCE)
+    const natural = svgIntrinsicDimensions(svg)!
+    const floorWidth = Math.floor(PNG_DEFAULT_MIN_LABEL_PX * natural.width / 11)
+    const boundary = Array.from({ length: 8 }, (_, i) => floorWidth - 4 + i).find(width => {
+      const raster = pngRasterDimensions(svg, resolvePortablePngOutputPolicy({ fitTo: { width } }))
+      return 11 * width / natural.width < PNG_DEFAULT_MIN_LABEL_PX && 11 * raster.height / natural.height >= PNG_DEFAULT_MIN_LABEL_PX
+    })
+    expect(boundary).toBeDefined()
+    expect(legibilityWarnings(SOURCE, { fitTo: { width: boundary! } })).toHaveLength(0)
   })
 
   test('fitTo height uses the exact finalized vertical scale', () => {

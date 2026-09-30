@@ -66,6 +66,9 @@ describe('publish package manifest', () => {
   test('only hash-shaped suffixes are normalized', () => {
     expect(normalizePackagePath('dist/browser-lazy/chunks/render-core-WUVDAAI7.js')).toBe('dist/browser-lazy/chunks/render-core-[hash].js')
     expect(normalizePackagePath('dist/mcp-cli-TL7YE3YV.js')).toBe('dist/mcp-cli-[hash].js')
+    // tsup names declaration bundles with base64url hashes, which may hold `_` or `-`.
+    expect(normalizePackagePath('dist/index-yjBOajL_.d.ts')).toBe('dist/index-[hash].d.ts')
+    expect(normalizePackagePath('dist/index-B2-6PImU.d.ts')).toBe('dist/index-[hash].d.ts')
     expect(normalizePackagePath('dist/agent-core.js')).toBe('dist/agent-core.js')
     expect(normalizePackagePath('docs/examples-overview.md')).toBe('docs/examples-overview.md')
     expect(normalizePackagePath('dist/something-sequence.js')).toBe('dist/something-sequence.js')

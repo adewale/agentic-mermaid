@@ -14,7 +14,7 @@
 //      legitimately diverge in documented classes: mermaid-ast counts sequence
 //      alt/loop/opt blocks as messages, which we model as opaque segments; and
 //      it counts nested-subgraph membership differently than our flattened
-//      node universe. The per-family divergence profile is PINNED so a
+//      node universe. The set of diverging corpus entries is PINNED so a
 //      regression that introduces a new disagreement fails — surfacing it as a
 //      real bug or a new oracle quirk to classify, exactly like
 //      eval/mermaid-docs-corpus/divergences.json.
@@ -75,8 +75,18 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
     // Cases 26–28 (nested `par`, `critical`) now count the participants their
     // preserved blocks create, exactly as pinned upstream Mermaid lists them;
     // mermaid-ast projects none there, raising the count from five to eight.
-    const BASELINE: Record<string, number> = { flowchart: 5, sequence: 8, er: 5 }
-    const byFamily: Record<string, number> = {}
+    // Pinned by corpus key (family:origin#index), not per-family counts, so one
+    // case being fixed while another starts diverging cannot cancel out.
+    const BASELINE = [
+      'flowchart:syntax/flowchart.md#84', 'flowchart:syntax/flowchart.md#85', 'flowchart:syntax/flowchart.md#96',
+      'flowchart:syntax/flowchart.md#97', 'flowchart:syntax/flowchart.md#103',
+      'sequence:syntax/sequenceDiagram.md#15', 'sequence:syntax/sequenceDiagram.md#23', 'sequence:syntax/sequenceDiagram.md#24',
+      'sequence:syntax/sequenceDiagram.md#25', 'sequence:syntax/sequenceDiagram.md#26', 'sequence:syntax/sequenceDiagram.md#27',
+      'sequence:syntax/sequenceDiagram.md#28', 'sequence:syntax/sequenceDiagram.md#33',
+      'er:syntax/entityRelationshipDiagram.md#12', 'er:syntax/entityRelationshipDiagram.md#13', 'er:syntax/entityRelationshipDiagram.md#14',
+      'er:syntax/entityRelationshipDiagram.md#16', 'er:syntax/entityRelationshipDiagram.md#17',
+    ]
+    const diverging: string[] = []
     let checked = 0
     for (const e of corpus) {
       const ours = parseMermaid(e.source)
@@ -86,9 +96,9 @@ describe('differential: our counter ↔ mermaid-ast (independent parser)', () =>
       const b = countViaMermaidAst(e.source)
       if (b === null) continue
       checked++
-      if (!eq(a, b)) byFamily[e.family] = (byFamily[e.family] ?? 0) + 1
+      if (!eq(a, b)) diverging.push(`${e.family}:${e.origin}#${e.index}`)
     }
     expect(checked).toBeGreaterThanOrEqual(60)  // the oracle actually ran broadly
-    expect(byFamily).toEqual(BASELINE)
+    expect(diverging).toEqual(BASELINE)
   })
 })

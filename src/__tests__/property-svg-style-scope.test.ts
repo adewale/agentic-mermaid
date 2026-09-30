@@ -191,11 +191,20 @@ describe('every render scopes its styles to its own root', () => {
 
 const FONT_DIR = join(import.meta.dir, '..', '..', 'assets', 'fonts')
 
+const RESVG_FONTS = { loadSystemFonts: false, fontDirs: [FONT_DIR], defaultFontFamily: 'Inter' }
+
 function pixels(svg: string): Uint8Array {
-  return new Resvg(svg, { fitTo: { mode: 'zoom', value: 1 }, font: { loadSystemFonts: false, fontDirs: [FONT_DIR], defaultFontFamily: 'Inter' } }).render().pixels
+  return new Resvg(svg, { fitTo: { mode: 'zoom', value: 1 }, font: RESVG_FONTS }).render().pixels
 }
 
 describe('scoping preserves raster output', () => {
+  // Precondition for the pixel comparison below: if the bundled fonts failed to
+  // load, both rasters would be text-free and label styling would go unchecked.
+  it('rasterizes text with the bundled fonts', () => {
+    const text = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text x="4" y="30" font-family="Inter" font-size="20">Ag</text></svg>'
+    expect(new Resvg(text, { font: RESVG_FONTS }).getBBox()).toBeDefined()
+  })
+
   it('rasterizes the scoped and unscoped SVG to identical pixels', () => {
     fc.assert(
       fc.property(renderCaseArb, input => {

@@ -66,11 +66,11 @@ describe('upstream export migration', () => {
     expect(undocumented, 'upstream exports dropped without a migration line in docs/fork-differences.md').toEqual([])
   })
 
-  test('the documented removals are genuinely absent from the fork entry', () => {
-    if (!existsSync(UPSTREAM_DTS) || !existsSync(FORK_DTS)) return
+  test.skipIf(!MIGRATION_INPUTS_PRESENT)('the documented removals are genuinely absent from the fork entry', () => {
     const upstream = new Set(exportedNames(readFileSync(UPSTREAM_DTS, 'utf8')))
     const fork = new Set(exportedNames(readFileSync(FORK_DTS, 'utf8')))
     const documented = documentedRemovals(readFileSync(FORK_DIFFERENCES, 'utf8'))
+    expect(documented.length, 'migration table parsed').toBeGreaterThan(0)
 
     // Guards the other direction without a second hard-coded authority: every
     // migration row must still name a real upstream export that is absent here.

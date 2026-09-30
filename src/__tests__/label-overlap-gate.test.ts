@@ -37,16 +37,22 @@ describe('label overlap gate', () => {
     mindmap: 0, gitgraph: 0,
   }
   for (const [fam, g] of Object.entries(gen)) {
-    test(`${fam}: fuzz affected-case count within ratchet (≤${CEILINGS[fam]})`, () => {
+    test(`${fam}: fuzz cases all render, affected-case count within ratchet (≤${CEILINGS[fam]})`, () => {
       let hit = 0
+      // A render crash is its own failure, never an overlap hit hiding under the ceiling.
+      const crashes: string[] = []
       for (let i = 0; i < 40; i++) {
         let findings
         try {
           const f = audit(renderMermaidSVG(g(i)))
           findings = fam === 'sequence' ? f.filter(x => x.kind !== 'BOX-BOX') : f
-        } catch { hit++; continue }
+        } catch (error) {
+          crashes.push(`case ${i}: ${error instanceof Error ? error.message : String(error)}`)
+          continue
+        }
         if (findings.length) hit++
       }
+      expect({ fam, crashes }).toEqual({ fam, crashes: [] })
       expect(hit).toBeLessThanOrEqual(CEILINGS[fam]!)
     })
   }

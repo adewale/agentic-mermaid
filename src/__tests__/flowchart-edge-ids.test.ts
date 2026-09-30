@@ -11,7 +11,9 @@
  *  - ops (remove_edge, set_label) target edges by authored ID as well as by
  *    the endpoint form `A->B`/`A->B#k`;
  *  - the flowchart_edge_id UNSUPPORTED_SYNTAX lint is retired (modeled now);
- *    edge METADATA (`e1@{ animate: true }`) stays opaque + linted.
+ *  - edge METADATA (`e1@{ animate: true }`) is typed on the structured body,
+ *    round-trips byte-identically, and renders natively without the
+ *    flowchart_edge_metadata lint.
  */
 import { describe, it, expect } from 'bun:test'
 
@@ -178,16 +180,22 @@ describe('flowchart edge IDs — verify contract', () => {
   it('no longer warns UNSUPPORTED_SYNTAX flowchart_edge_id', () => {
     const verify = verifyMermaid(SOURCE)
     expect(verify.ok).toBe(true)
+    expect(verify.layout.edges.map(e => `${e.from}->${e.to}`)).toEqual(['A->B'])
     expect(verify.warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_edge_id' }))
   })
 
-  it('edge METADATA statements are typed, round-trip, and render natively', () => {
+  it('edge METADATA statements are typed, round-trip, render natively, and never become a phantom node', () => {
     const source = 'flowchart LR\n  A e1@==> B\n  e1@{ animate: true }\n'
+    const graph = parseGraph(source)
+    expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B'])
+    expect(graph.edges.map(e => `${e.source}->${e.target}:${e.style}`)).toEqual(['A->B:thick'])
+    expect(graph.edges[0]).toMatchObject({ animate: true })
     const diagram = parseAgent(source)
     expect(diagram.body.kind).toBe('flowchart')
     if (diagram.body.kind !== 'flowchart') return
     expect(diagram.body.graph.edges[0]).toMatchObject({ id: 'e1', animate: true })
     expect(serializeMermaid(diagram)).toBe(source)
+    expect(renderMermaidSVG(source)).toContain('data-animate="true"')
     const syntaxes = verifyMermaid(source).warnings
       .map(w => (w.code === 'UNSUPPORTED_SYNTAX' ? (w as { syntax?: string }).syntax : ''))
       .filter(Boolean)

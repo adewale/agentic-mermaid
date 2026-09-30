@@ -6,6 +6,7 @@
  */
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { decodeXML } from 'entities'
 import { escapeXml, escapeAttr } from '../multiline-utils.ts'
 
 describe('escapeXml / escapeAttr', () => {
@@ -29,7 +30,13 @@ describe('escapeXml / escapeAttr', () => {
     ))
   })
 
-  test('escaping is injective on the special characters', () => {
+  // Injective: an independent XML decoder recovers every input, so no two
+  // inputs share an output and nothing (such as a deleted character) is lost.
+  test('escaping is injective: decoding the output recovers the input', () => {
+    fc.assert(fc.property(fc.string(), s => decodeXML(escapeXml(s)) === s))
+  })
+
+  test('each special character maps to its entity, and escaping is not idempotent', () => {
     expect(escapeXml(`&<>"'`)).toBe('&amp;&lt;&gt;&quot;&#39;')
     // Double-escaping must not happen at the helper level twice in a row for
     // already-escaped input to stay analyzable: escaping is deliberately not

@@ -4,12 +4,11 @@
   "evidenceSystems": [
     {
       "id": "characterization",
-      "authority": "docs/layout-characterization/README.md",
-      "freshnessGate": "src/__tests__/characterization-generated-artifacts.test.ts"
+      "authority": "docs/layout-characterization/README.md"
     },
     {
       "id": "citizenship",
-      "authority": "docs/contributing/diagram-family-citizenship.matrix.json",
+      "authority": "docs/contributing/diagram-family-citizenship.md",
       "freshnessGate": "src/__tests__/diagram-family-citizenship.test.ts"
     },
     {
@@ -141,7 +140,7 @@
       "id": "generated-delivery",
       "surface": "generated artifacts",
       "familyScope": "registry",
-      "evidence": ["src/__tests__/characterization-generated-artifacts.test.ts", "src/__tests__/section-b-visual-evidence.test.ts"]
+      "evidence": ["src/__tests__/section-b-visual-evidence.test.ts"]
     }
   ]
 }

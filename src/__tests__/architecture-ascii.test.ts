@@ -115,21 +115,6 @@ config:
     expect(ascii).toContain('Service B')
   })
 
-  it('renders nested groups with indentation', () => {
-    const ascii = renderMermaidASCII(`architecture-beta
-      group outer(cloud)[Outer]
-      group inner(server)[Inner] in outer
-      service api(server)[API] in inner`)
-
-    expect(ascii).toContain('Outer')
-    expect(ascii).toContain('Inner')
-    expect(ascii).toContain('[server] API')
-    // Inner group should be indented relative to outer
-    const outerLine = ascii.split('\n').find((l: string) => l.includes('Outer'))!
-    const innerLine = ascii.split('\n').find((l: string) => l.includes('Inner'))!
-    expect(innerLine.indexOf('Inner')).toBeGreaterThan(outerLine.indexOf('Outer'))
-  })
-
   it('renders services without icons', () => {
     const ascii = renderMermaidASCII(`architecture-beta
       service plain[Plain Service]`)
@@ -180,18 +165,20 @@ config:
     expect(renderMermaidASCII(source, { useAscii: true, colorMode: 'none', targetWidth: 56 })).toBe(ascii)
   })
 
-  it('keeps nested group and service labels spatially contained', () => {
-    const ascii = renderMermaidASCII(`architecture-beta
+  it('keeps nested group and service labels indented and spatially contained (Unicode and ASCII)', () => {
+    for (const useAscii of [false, true]) {
+      const ascii = renderMermaidASCII(`architecture-beta
       group outer(cloud)[Outer]
       group inner(server)[Inner] in outer
-      service api(server)[API] in inner`, { useAscii: true })
-    const rows = ascii.split('\n')
-    const outerTop = rows.findIndex(line => line.includes('Outer'))
-    const innerTop = rows.findIndex(line => line.includes('Inner'))
-    const serviceRow = rows.findIndex(line => line.includes('[server] API'))
-    expect(outerTop).toBeLessThan(innerTop)
-    expect(innerTop).toBeLessThan(serviceRow)
-    expect(rows[innerTop]!.indexOf('Inner')).toBeGreaterThan(rows[outerTop]!.indexOf('Outer'))
-    expect(rows[serviceRow]!.indexOf('[server] API')).toBeGreaterThan(rows[innerTop]!.indexOf('+'))
+      service api(server)[API] in inner`, { useAscii })
+      const rows = ascii.split('\n')
+      const outerTop = rows.findIndex(line => line.includes('Outer'))
+      const innerTop = rows.findIndex(line => line.includes('Inner'))
+      const serviceRow = rows.findIndex(line => line.includes('[server] API'))
+      expect({ useAscii, outerAboveInner: outerTop >= 0 && outerTop < innerTop, innerAboveService: innerTop < serviceRow })
+        .toEqual({ useAscii, outerAboveInner: true, innerAboveService: true })
+      expect(rows[innerTop]!.indexOf('Inner')).toBeGreaterThan(rows[outerTop]!.indexOf('Outer'))
+      expect(rows[serviceRow]!.indexOf('[server] API')).toBeGreaterThan(rows[innerTop]!.indexOf(useAscii ? '+' : '┌'))
+    }
   })
 })

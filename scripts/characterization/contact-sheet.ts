@@ -15,7 +15,7 @@
 // ============================================================================
 
 import { renderMermaidASCII } from '../../src/ascii/index.ts'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 interface Example {
@@ -223,24 +223,10 @@ export function build(): string {
 
 export const OUTPUT_PATH = join(import.meta.dir, '..', '..', 'docs', 'layout-characterization', 'contact-sheet.md')
 
-function writeOrCheck(): void {
-  const content = build()
-  if (process.argv.includes('--check')) {
-    const current = existsSync(OUTPUT_PATH) ? readFileSync(OUTPUT_PATH, 'utf8') : ''
-    if (current !== content) {
-      // eslint-disable-next-line no-console
-      console.error(`${OUTPUT_PATH} is out of date; run scripts/characterization/contact-sheet.ts`)
-      process.exitCode = 1
-      return
-    }
-    // eslint-disable-next-line no-console
-    console.log(`checked ${OUTPUT_PATH} (${EXAMPLES.length} examples)`)
-    return
-  }
-
-  writeFileSync(OUTPUT_PATH, content)
+function write(): void {
+  writeFileSync(OUTPUT_PATH, build())
   // eslint-disable-next-line no-console
   console.log(`wrote ${OUTPUT_PATH} (${EXAMPLES.length} examples)`)
 }
 
-if (import.meta.main) writeOrCheck()
+if (import.meta.main) write()

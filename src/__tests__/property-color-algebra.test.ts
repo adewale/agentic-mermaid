@@ -169,7 +169,8 @@ describe('svgOpenTag produces valid opening tag', () => {
 
         expect(tag.startsWith('<svg')).toBe(true)
         expect(tag).toContain('xmlns')
-        expect(tag).toContain('viewBox')
+        // The viewBox carries exactly the requested dimensions.
+        expect(tag).toContain(`viewBox="0 0 ${w} ${h}"`)
         expect(tag).toContain('style=')
         expect(tag.endsWith('>')).toBe(true)
 

@@ -9,12 +9,11 @@
 // with the label sitting on it (`─center*─`) and stray corner detours.
 //
 // Invariants asserted here are charset-independent and complement the golden
-// fixture (testdata/unicode/td_fanout_labeled.txt).
+// fixture (testdata/unicode/td_fanout_labeled.txt), which ascii.test.ts's
+// golden runner checks.
 
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidASCII } from '../index.ts'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 const TB_SRC = `flowchart TB
     Src["Source"]
@@ -80,17 +79,5 @@ describe('#111 labeled TB fan-out shares one trunk, labels on vertical drops', (
   test('(d) no stray + corners or diagonal arrowheads', () => {
     expect(out).not.toContain('+')
     expect(out).not.toMatch(/[◢◣◤◥]/)
-  })
-
-  test('matches the committed golden fixture', () => {
-    const golden = readFileSync(
-      join(import.meta.dir, 'testdata', 'unicode', 'td_fanout_labeled.txt'),
-      'utf8',
-    )
-    // The fixture stores `<mermaid>\n---\n<expected>`; compare the expected half,
-    // normalizing trailing whitespace per line.
-    const expected = golden.split('\n---\n')[1] ?? golden
-    const norm = (s: string) => s.split('\n').map(l => l.replace(/\s+$/, '')).join('\n').replace(/\n+$/, '')
-    expect(norm(out)).toBe(norm(expected))
   })
 })

@@ -1,5 +1,4 @@
-// Unit tests for the A* pathfinder internals, written to kill mutation-testing
-// survivors (see docs/mutation-testing.md). The golden corpus never observes
+// Unit tests for the A* pathfinder internals. The golden corpus never observes
 // these behaviors directly — preferred-direction ordering only decides ties
 // between equal-cost paths, and mergePath's guards only matter for degenerate
 // inputs — so each contract is pinned here at the unit level through the

@@ -344,10 +344,9 @@ describe('syntax range — bidirectional <--> edges through the route contracts'
     const back = findEdge(edges, 'B', 'A')
     expect(forward.routeCertificate?.routeClass).toBe('primary-forward')
     expect(back.routeCertificate?.routeClass).toBe('feedback')
-    // Two distinct lanes — feedback never shares the forward lane.
-    if (isStraight(forward) && isStraight(back)) {
-      expect(Math.abs(forward.points[0]!.y - back.points[0]!.y)).toBeGreaterThan(1)
-    }
+    // Two distinct straight lanes — feedback never shares the forward lane.
+    expect({ forwardStraight: isStraight(forward), backStraight: isStraight(back) }).toEqual({ forwardStraight: true, backStraight: true })
+    expect(Math.abs(forward.points[0]!.y - back.points[0]!.y)).toBeGreaterThan(1)
   })
 
   it('dotted bidirectional <-.-> straightens like solid and keeps its style', () => {

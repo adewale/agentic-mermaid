@@ -5,6 +5,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- `llms.txt` lists `am serialize` among the CLI verbs.
+- Radar's emphasized outer ring draws with `stroke-width: 2.1` instead of
+  `2.0999999999999996`.
 - Flowchart labels read Mermaid's `#quot;` as `"`, and a `\` inside a quoted
   label is literal, as upstream has no escapes there. The serializer writes
   `"` as `#quot;`, so labels containing `"` or `\` round-trip and upstream
@@ -85,6 +88,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- The npm package no longer ships `docs/mutation-testing.md`; mutation testing
+  and its CI jobs are gone. The repository no longer commits generated reports,
+  receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records
+  how contributors decide what is a bug, what to test and what to commit.
 - Docs that list every family, MCP tool, CLI verb, render format or warning
   code are generated from the registry or marked `<!-- complete: <registry> -->`;
   a marked list that misses any member fails the doc checks, so a change that
@@ -114,8 +121,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   patched for GHSA-rgw5-rvv9-x895.
 - Updated the transitive `fast-uri` override to 3.1.7 for GHSA-qw65-cvwx-89v3
   and GHSA-58mr-gqgx-xq4g (first raised to 3.1.5 for GHSA-7p8r-x3mc-p8w7, then
-  3.1.6) and pinned transitive `undici` to 7.29.0 for
-  GHSA-4cwx-7wf7-3272.
+  3.1.6) and pinned transitive `undici` to 7.29.1 for GHSA-rfgv-xxqx-mfg5 and
+  GHSA-w293-vg96-wgc3 (first pinned to 7.29.0 for GHSA-4cwx-7wf7-3272).
 - Pinned transitive `ip-address` to 10.4.0 (first pinned to 10.3.1 for
   GHSA-mwp4-54f8-5fhr).
 - CI, release, and deploy now run on Bun 1.4.2 (was 1.3.13), and

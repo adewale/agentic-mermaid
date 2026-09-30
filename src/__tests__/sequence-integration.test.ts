@@ -42,8 +42,16 @@ describe('renderMermaidSVG – sequence diagrams', () => {
     const svg = renderMermaidSVG(`sequenceDiagram
       A->>B: Request
       B-->>A: Response`)
-    // Dashed lines have stroke-dasharray
-    expect(svg).toContain('stroke-dasharray')
+    // Select each message's own line: the lifelines are always dashed, so a bare
+    // `stroke-dasharray` search would pass for an all-solid diagram.
+    const messageLine = (from: string, to: string) =>
+      svg.match(new RegExp(`<line [^>]*data-from="${from}" data-to="${to}"[^>]*>`))?.[0]
+    const request = messageLine('A', 'B')
+    const response = messageLine('B', 'A')
+    expect(request).toBeDefined()
+    expect(response).toBeDefined()
+    expect(request).not.toContain('stroke-dasharray')
+    expect(response).toContain('stroke-dasharray="6 4"')
     expect(svg).toContain('Request')
     expect(svg).toContain('Response')
   })

@@ -3,6 +3,15 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
+import { getStyle } from '../scene/style-registry.ts'
+
+/** The catalog's colors for a built-in palette, so expectations track the catalog. */
+const paletteColors = (name: string): BuiltinPaletteDefinition['colors'] =>
+  (BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteDefinition[]).find(p => p.inputName === name)!.colors
+
+/** The declarations of one class rule in the rendered stylesheet. */
+const ruleOf = (svg: string, cls: string) => svg.match(new RegExp(`\\.${cls} \\{ ([^}]*) \\}`))?.[1] ?? ''
 
 const source = `journey
   title My working day
@@ -16,10 +25,10 @@ describe('renderMermaidSVG – journey themes', () => {
   it('renders correctly with the built-in light theme palette', () => {
     const svg = renderMermaidSVG(source, { style: 'github-light' })
 
-    expect(svg).toContain('--bg:#ffffff')
-    expect(svg).toContain('--fg:#1f2328')
-    expect(svg).toContain('--accent:#0969da')
-    expect(svg).toContain('--line:#d1d9e0')
+    const { bg, fg, accent, line } = paletteColors('github-light')
+    for (const [token, value] of [['bg', bg], ['fg', fg], ['accent', accent], ['line', line]]) {
+      expect(svg).toContain(`--${token}:${value}`)
+    }
     expect(svg).toContain('class="journey-task-box"')
     expect(svg).toContain('class="journey-score-marker"')
     expect(svg).not.toContain('NaN')
@@ -28,10 +37,10 @@ describe('renderMermaidSVG – journey themes', () => {
   it('renders correctly with the built-in dark theme palette', () => {
     const svg = renderMermaidSVG(source, { style: 'github-dark' })
 
-    expect(svg).toContain('--bg:#0d1117')
-    expect(svg).toContain('--fg:#e6edf3')
-    expect(svg).toContain('--accent:#4493f8')
-    expect(svg).toContain('--line:#3d444d')
+    const { bg, fg, accent, line } = paletteColors('github-dark')
+    for (const [token, value] of [['bg', bg], ['fg', fg], ['accent', accent], ['line', line]]) {
+      expect(svg).toContain(`--${token}:${value}`)
+    }
     expect(svg).toContain('class="journey-task-box"')
     expect(svg).toContain('class="journey-score-marker"')
     expect(svg).not.toContain('NaN')
@@ -75,14 +84,16 @@ journey
 
   it('uses Agentic palette/style colors for Journey-specific channels', () => {
     const svg = renderMermaidSVG(source, { style: 'look:tufte' })
+    const { bg, fg, accent } = getStyle('look:tufte')!.colors!
+    const color = (cls: string, property: string) => ruleOf(svg, cls).match(new RegExp(`(?:^|; )${property}: (#[0-9A-Fa-f]+)`))?.[1]
 
-    expect(svg).toContain('--accent:#a00000')
-    expect(svg).not.toContain('#facc15')
-    expect(svg).not.toContain('#8a6d1d')
-    expect(svg).not.toContain('#16a34a')
-    expect(svg).not.toContain('#d97706')
-    expect(svg).not.toContain('#7c3aed')
-    expect(svg).not.toContain('#db2777')
-    expect(svg).not.toContain('#0891b2')
+    expect(svg).toContain(`--accent:${accent}`)
+    // The journey-only channels follow the style's palette, not fixed defaults.
+    expect({
+      baseline: color('journey-baseline', 'stroke'),
+      scoreFace: color('journey-score-face', 'stroke'),
+      title: color('journey-title', 'fill'),
+      actorDot: color('journey-actor-dot', 'stroke'),
+    }).toEqual({ baseline: accent, scoreFace: accent, title: fg, actorDot: bg })
   })
 })

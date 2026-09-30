@@ -3,22 +3,13 @@
 // from the CLI, and unknown flags were silently swallowed (probe: `am render
 // x.mmd --gantt-toady 2024-01-05` exited 0 with no marker and no complaint).
 
-import { afterAll, describe, test, expect } from 'bun:test'
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, test, expect } from 'bun:test'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli, FLAG_SPECS } from '../cli/index.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-const tempDirs: string[] = []
-afterAll(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
-})
-
-function tempDir(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), prefix))
-  tempDirs.push(dir)
-  return dir
-}
+const temp = useTempDirs()
 
 function capture(fn: () => number): { code: number; out: string; err: string } {
   const outChunks: string[] = []
@@ -40,7 +31,7 @@ function capture(fn: () => number): { code: number; out: string; err: string } {
 }
 
 function tmpFile(source: string): string {
-  const p = join(tempDir('am-gantt-cli-'), 'in.mmd')
+  const p = join(temp.dir('am-gantt-cli-'), 'in.mmd')
   writeFileSync(p, source)
   return p
 }

@@ -7,12 +7,14 @@
  * wrangler/gh/npm/curl, in the style of mcp-publish-recovery.test.ts, so these
  * tests observe what each gate does rather than how it is spelled.
  */
-import { afterEach, describe, expect, test } from 'bun:test'
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, expect, test } from 'bun:test'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { parse as parseYaml } from 'yaml'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 const WORKFLOW = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'deploy-cloudflare.yml'), 'utf8')) as {
@@ -69,8 +71,8 @@ function guardAllows(condition: string | undefined, context: { event: string; ou
   return Boolean(new Function('outputs', 'event', `return (${js});`)(context.outputs, context.event))
 }
 
-const tempDirs: string[] = []
-afterEach(() => { for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
+/** Root of the most recent runStep fixture, for tests that read its files. */
+let lastStepRoot = ''
 
 interface StepRun {
   status: number | null
@@ -94,8 +96,8 @@ function runStep(name: string, options: {
 } = {}): StepRun {
   const target = step(name)
   if (!target.run) throw new Error(`${name} has no run script`)
-  const root = mkdtempSync(join(tmpdir(), 'am-deploy-step-'))
-  tempDirs.push(root)
+  const root = temp.dir('am-deploy-step-')
+  lastStepRoot = root
   const bin = join(root, '.stub-bin')
   mkdirSync(bin, { recursive: true })
   mkdirSync(join(root, 'website'), { recursive: true })
@@ -335,7 +337,7 @@ describe('deploy workflow gates (executed with stubs)', () => {
   test('the site build is stamped with the validated commit and a UTC build time', () => {
     const built = runStep('Build the site bundle', { stubs: { bun: 'printf "%s|%s|%s\\n" "$*" "$SITE_GIT_SHA" "$SITE_BUILD_TIME" > "$MOCK_ROOT/build"' } })
     expect(built.status).toBe(0)
-    const [args, gitSha, buildTime] = readFileSync(join(tempDirs.at(-1)!, 'build'), 'utf8').trim().split('|')
+    const [args, gitSha, buildTime] = readFileSync(join(lastStepRoot, 'build'), 'utf8').trim().split('|')
     expect({ args, gitSha }).toEqual({ args: 'run website', gitSha: SHA })
     expect(buildTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
   })

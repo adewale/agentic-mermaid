@@ -193,12 +193,15 @@ describe('corner-case fuzz gate: structurally HARD-clean + deterministic across 
     }, 60_000)
   }
 
-  test('determinism: re-layout is byte-identical across families', () => {
-    for (let i = 0; i < 60; i++) {
+  // Whole positioned graphs (nodes, edges, labels, sizes) compared byte for
+  // byte on a handful of each generator's cases; the broad flowchart sweep is
+  // property-all-families-fuzz's job.
+  test('determinism: re-layout is byte-identical on every corner-case generator', () => {
+    for (let i = 0; i < 6; i++) {
       const src = [chainedHubs, mixedFanin, broad][i % 3]!(i * 7 + 1)
-      const a = layoutGraphSync(parseMermaid(src)), b = layoutGraphSync(parseMermaid(src))
-      const same = a.nodes.every((n, j) => Math.abs(n.x - b.nodes[j]!.x) < 1e-9 && Math.abs(n.y - b.nodes[j]!.y) < 1e-9)
-      expect(same).toBe(true)
+      const a = JSON.stringify(layoutGraphSync(parseMermaid(src)))
+      const b = JSON.stringify(layoutGraphSync(parseMermaid(src)))
+      expect({ case: i, identical: a === b }).toEqual({ case: i, identical: true })
     }
   }, 30_000)
 })

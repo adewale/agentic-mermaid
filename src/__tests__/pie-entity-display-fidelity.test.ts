@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
 import { decodeHTML, decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -6,6 +6,10 @@ import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { measureTextWidth } from '../text-metrics.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 const cases = [
   { sourceLabel: 'A&#35;B', display: 'A&#B', xml: 'A&amp;#B' },
@@ -77,7 +81,7 @@ test('Pie authored formatting-looking text remains literal across SVG, terminal,
   }
 })
 
-test('pinned Mermaid Pie DB retains authored markup-like title and section strings', () => {
+test('pinned Mermaid Pie DB retains authored markup-like title and section strings', async () => {
   const pairs = [
     ['A<br>B', 'T<br>itle'],
     ['A<br/>B', 'T<br/>itle'],
@@ -85,22 +89,7 @@ test('pinned Mermaid Pie DB retains authored markup-like title and section strin
     ['A**B**', 'T**itle**'],
   ] as const
   const sources = pairs.map(([label, title]) => `pie showData\n  title ${title}\n  "${label}" : 1\n`)
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const results = []
-    for (const source of ${JSON.stringify(sources)}) {
-      const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-      results.push({ title: diagram.db.getDiagramTitle(), sections: [...diagram.db.getSections()] })
-    }
-    process.stdout.write(JSON.stringify(results))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(
+  expect(await upstream.projectAll(sources, diagram => ({ title: diagram.db.getDiagramTitle(), sections: [...diagram.db.getSections()] }))).toEqual(
     pairs.map(([label, title]) => ({ title, sections: [[label, 1]] })),
   )
 })
@@ -215,7 +204,7 @@ test('entity-encoded Pie directive grammar does not consume authored title entit
   }
 })
 
-test('pinned Mermaid Pie DB and SVG entity cleanup witness title display independently', () => {
+test('pinned Mermaid Pie DB and SVG entity cleanup witness title display independently', async () => {
   for (const [sourceTitle, expectedMarker, expectedDisplay] of [
     ['A#65;B', 'Aﬂ°°65¶ßB', 'AAB'],
     ['A&#65;B', 'A&ﬂ°°65¶ßB', 'A&AB'],
@@ -225,20 +214,9 @@ test('pinned Mermaid Pie DB and SVG entity cleanup witness title display indepen
     ['&#32;X', '&ﬂ°°32¶ßX', '& X'],
   ] as const) {
     const source = `pie\n  title ${sourceTitle}\n  "X" : 1\n`
-    const script = `
-      import DOMPurify from 'dompurify'
-      DOMPurify.addHook = () => {}
-      DOMPurify.sanitize = text => text
-      const { default: mermaid } = await import('mermaid')
-      mermaid.initialize({ startOnLoad: false })
-      const diagram = await mermaid.mermaidAPI.getDiagramFromText(${JSON.stringify(source)})
-      process.stdout.write(JSON.stringify(diagram.db.getDiagramTitle()))
-    `
-    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-    expect(probe.exitCode).toBe(0)
-    const marker = JSON.parse(new TextDecoder().decode(probe.stdout)) as string
+    const [marker] = await upstream.projectAll([source], diagram => diagram.db.getDiagramTitle() as string)
     expect(marker).toBe(expectedMarker)
-    const finalReference = marker.replaceAll('ﬂ°°', '&#').replaceAll('ﬂ°', '&').replaceAll('¶ß', ';')
+    const finalReference = marker!.replaceAll('ﬂ°°', '&#').replaceAll('ﬂ°', '&').replaceAll('¶ß', ';')
     expect(decodeHTML(finalReference)).toBe(expectedDisplay)
     expect(decodeXML(titleXml(source))).toBe(expectedDisplay)
   }
@@ -366,26 +344,12 @@ test('full named HTML references follow pinned Pie marker cleanup and reject nam
   }
 })
 
-test('pinned Mermaid Pie parser retains named-reference markers before browser cleanup', () => {
+test('pinned Mermaid Pie parser retains named-reference markers before browser cleanup', async () => {
   const names = ['reg', 'euro', 'trade', 'frac12', 'NotEqualTilde', 'notit', 'REG', 'Euro', 'unknown']
-  const script = `
-    import DOMPurify from 'dompurify'
-    DOMPurify.addHook = () => {}
-    DOMPurify.sanitize = text => text
-    const { default: mermaid } = await import('mermaid')
-    mermaid.initialize({ startOnLoad: false })
-    const out = []
-    for (const name of ${JSON.stringify(names)}) {
-      const source = 'pie\\n  "A#' + name + ';B" : 1\\n'
-      const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-      await diagram.parser.parse(diagram.text)
-      out.push([...diagram.db.getSections().keys()][0])
-    }
-    process.stdout.write(JSON.stringify(out))
-  `
-  const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-  expect(probe.exitCode).toBe(0)
-  const markers = JSON.parse(new TextDecoder().decode(probe.stdout)) as string[]
+  const markers = await upstream.projectAll(names.map(name => `pie\n  "A#${name};B" : 1\n`), async diagram => {
+    await diagram.parser.parse(diagram.text)
+    return [...diagram.db.getSections().keys()][0] as string
+  })
   expect(markers).toEqual(names.map(name => `Aﬂ°${name}¶ßB`))
 })
 

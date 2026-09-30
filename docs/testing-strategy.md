@@ -7,14 +7,11 @@ than it looks, this document says so — an honest map is more useful than a
 flattering one.
 
 For the *definition* of "good looking" and the determinism guarantees, see
-[`quality.md`](./quality.md). For mutation specifics, see
-[`mutation-testing.md`](./mutation-testing.md). For the layout/visual
+[`quality.md`](./quality.md). For the layout/visual
 contracts, see [`layout-characterization/README.md`](./layout-characterization/README.md).
-The current measured complexity-aware and registry-derived interaction
-portfolio is specified in
+The complexity-aware and registry-derived interaction portfolio is specified in
 [`project/complexity-aware-test-portfolio-plan.md`](./project/complexity-aware-test-portfolio-plan.md);
-its immutable before and measured candidate reports live under
-`eval/test-portfolio/`.
+its measured before/candidate reports are no longer published.
 
 ## Local CI parity
 
@@ -30,8 +27,8 @@ Committed galleries and before/after sheets are dated review snapshots, not
 gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
-gaps, the palette rollout and harmony reports, and the Section B sheet, which
-is regenerated in memory and byte-compared). Committed text/JSON generated
+gaps and the Section B sheet, which is regenerated in memory and
+byte-compared). Committed text/JSON generated
 from source is refreshed with `bun run generate`, and its unit test fails when
 it is stale. There are no input-hash receipts.
 
@@ -64,7 +61,6 @@ audit-clean").
 | **Derived (golden)** | Output matches a previously-blessed artifact | ASCII goldens, SVG snapshots, contact sheets, screenshot baselines |
 | **Derived (differential)** | Our output agrees with an external reference corpus | mermaid-docs corpus, MermaidSeqBench, upstream-suite bench |
 | **Metamorphic** | Related inputs produce related outputs (no ground truth needed) | round-trip idempotence, cross-process/cross-runtime determinism |
-| **Pseudo / fault sensitivity** | Selected seeded faults make the intended tests fail | incremental Stryker gate, sabotage suite |
 | **Heuristic / perceptual** | Geometry falls inside human-plausible bounds | `measureQuality`/`checkQuality`, ugly-detector, layout rubric, heuristic-tracker |
 | **Human / model** | Subjective quality on the axis nothing else covers | LLM-as-judge (periodic), manual visual review |
 
@@ -78,8 +74,8 @@ whether it gates per-PR, and what it does *not* prove.
 families. **Tier-2** (geometric) and **Tier-3** (lint) are advisory.
 
 Alongside it sit the **contract gates**: `am capabilities --json` schema
-tests, `doc-sync`/`agent-doc-sync` tests, and the diagram-family
-citizenship matrix. For an agent-native product the docs, schemas, CLI
+tests, the `agent-doc-sync` tests, and the behavioural
+diagram-family citizenship loop. For an agent-native product the docs, schemas, CLI
 help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
 like code, not treated as prose.
 
@@ -112,10 +108,9 @@ Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. Th
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
 list also fails if any contract executes zero positive tests, while independent
 lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites.
-Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep;
-the committed citizenship manifest and pending review state remain cheap
-per-PR contracts. Structured human review is recommended for visual releases
-and remains hash-bound when recorded, but it is advisory rather than a package-publication gate.
+Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep.
+Human review is recommended for visual releases, but it is advisory rather than
+a package-publication gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
@@ -162,17 +157,13 @@ sources we did not write:
   `f3dea583…` compatibility revision and account for all 26/69 official spec
   blocks in a dedicated executable oracle.
 - **Official-fence corpus** (`official-fence-corpus.test.ts`) — every one of
-  the 481 official syntax fences on the 31 pinned upstream pages, matched to
-  the manifest by digest. The 331 fences of rendered families must parse to a
+  the 481 official syntax fences on the 31 pinned upstream pages named by the
+  upstream policy. The 331 fences of rendered families must parse to a
   structured body, verify, render, and keep their structural counts through
   serialize → re-parse; the 150 fences of unrendered families must be
   diagnosed `UNSUPPORTED_FAMILY` with their bytes preserved. Deviations live in
   one small expectations table (`id [ outcomes ] # reason`); a new deviation
   and an unexpected pass both fail, so the table cannot go stale.
-- **Construct fidelity cases** (`fidelity-receipts.test.ts`) — classify pinned
-  constructs per surface with semantic oracles (shapes, measured text widths,
-  marks inside the viewBox), and regenerate the shipped capability report in
-  memory. No raw-observation receipt or whole-SVG hash is committed.
 - **Grammar-based differentials** (`property-upstream-flowchart.test.ts`,
   `property-upstream-sequence.test.ts`) — recursive `fc.letrec` grammars
   generate sources that pinned upstream Mermaid 11.16 must accept; ours must
@@ -248,10 +239,8 @@ mutating process-global configuration).
 
 - Reproduce a specific roll: `AM_FC_SEED=<int> bun test <file>`.
 - Finder mode (deliberate randomness): `AM_FC_SEED=random bun run test`.
-- The policy is itself gated: `fc-seed-policy.test.ts` fails if the preload is
-  unwired and source-checks every test file so suite-specific seeds cannot use
-  process-global overrides in another shard; `zzz-fc-seed-policy-epilogue.test.ts`
-  also catches runtime drift within its own process.
+- A suite that needs its own regression seed passes it to `fc.assert`
+  options; process-global configuration belongs to the preload alone.
 
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,
@@ -267,7 +256,9 @@ issue carrying the seed, path, and counterexample
 forever as a fast-check `examples` entry on the property: seeds and paths do not
 survive fast-check upgrades, `examples` do. Its first local run found a real
 Architecture routing counterexample (`AM_FC_SEED=1102132276` in
-`architecture-layout.test.ts`) that the pinned seed never reached.
+`architecture-layout.test.ts`) that the pinned seed never reached. It is not
+fixed yet: the shrunk case is an `examples` entry inside an `it.failing` pin
+that names BUG-37 in `TODO.md`.
 
 Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
@@ -276,33 +267,15 @@ repeatable from the same knob.
 
 ## 5. Pseudo-oracles — do selected seeded faults make the suite fail?
 
-Tests can be green while missing faults. Two bounded gates challenge selected
-behaviors:
+Tests can be green while missing faults. The red-green-refactor cycle is the
+defence: write the test, watch it fail for the right reason, then fix.
 
-- **Incremental mutation testing (Stryker)** — mutates the small, pure
-  faithfulness counter on every PR. A full run takes about one minute and its
-  measured floor is enforced. Broader ASCII, route, and family configs remain
-  available as opt-in survivor harvests, not scheduled gates. A *survived*
-  mutant is a test gap until classified; the historical catalogs record
-  reviewed performance guards and unreachable-by-convention cases. Mutation
-  testing has earned its keep when focused: it falsified an audit assumption
-  and found dead code the unit tests couldn't.
-- **Sabotage suite** (`eval/sabotage/route-regressions.ts`) — deliberately
-  reverts a fixed bug in a detached worktree and asserts the suite goes
-  **red**, proving nine named route/link regression tests actually bite.
 - **Red → green** (`scripts/ci/red-green.ts`, the `red-green` CI job) — when a
   pull request changes production source and tests, at least one changed test
   must fail against the base branch's production code. This mechanically
   checks the "tests that fail when the fix is reverted" rule for every PR,
   instead of a hand-written probe per fix. Pure refactors opt out with the
   `no-red-green` label.
-
-The broad scheduled mutation matrix was retired after 26 consecutive scheduled
-runs produced no success and its final repair grew to 39 coverage workers (41
-jobs total). The configs still
-emit useful local scores and JSON reports, but have no break floors and carry no
-acceptance authority. `docs/mutation-testing.md` records the commands, survivor
-history, retained operational evidence, and re-enrollment criteria.
 
 **Why this matters:** line coverage is reported per-PR as one merged LCOV
 artifact assembled from the three unit shards, but it is a weak
@@ -326,9 +299,13 @@ This is where we approximate aesthetics deterministically:
 - **layout rubric / visual-rubric** — hard violations (must be 0) plus soft
   thresholds (crossings, bends, port-anchored rate).
 - **heuristic-tracker** — baseline-comparison of routing metrics with
-  improvement/regression deltas, now gated per PR (`heuristic-tracker.test.ts`):
-  hard violations must stay 0 and no tracked example may regress on a soft
-  metric without a reviewed `baseline.json` update in the same change.
+  improvement/regression deltas. `heuristic-tracker.test.ts` gates the
+  portable part per PR: every tracked example scores without error and hard
+  violations stay 0. The soft-metric comparison (bends, crossings, straight
+  counts) is not gated, because those integers come from floating-point ELK
+  geometry that differs across machines; run
+  `bun run eval/heuristic-tracker/run.ts` to see soft deltas when tuning
+  routing.
 - **route-contract tripwires** — `ROUTE_*` codes that must stay 0; any hit
   means the layout pipeline regressed, not the diagram.
 - **chart-honesty pixel oracle** (`chart-honesty-text-*.test.ts`,
@@ -362,21 +339,15 @@ match a human designer's eye; they catch the worst regressions"
   layout/rendering changes (`contributing/visual-review-evidence.md`).
 
 **Runs:** the real LLM judge is **periodic / pre-release only** — model
-spend plus nondeterminism make it unfit for a per-PR gate. In CI it is
-replaced by a deterministic mock.
-**Protocol hardening (Move 1):** the readability/aesthetics axes of the CI
-mock are still derived from the perceptual metrics (it is a wiring stub), but
-the **faithfulness** axis now comes from `independentFaithfulness()` — a
+spend plus nondeterminism make it unfit for a per-PR gate, and it has no CI
+stand-in. Its **faithfulness** axis comes from `independentFaithfulness()` — a
 structural parse → serialize → re-parse count check that does *not* consult
-`measureQuality`, removing the circularity on that axis. The real judge has
+`measureQuality`. The judge has
 primitives for the documented LLM-judge biases (Zheng et al., NeurIPS 2023):
 `judgePairwiseDebiased` scores both orders and trusts only an agreeing verdict
 (position bias), `assertJudgeIndependence` refuses a judge from the same model
 family that authored the diagram (self-enhancement), and `JudgeReference`
 threads a golden anchor (reference-guided scoring).
-**Known limitation:** the mock's readability/aesthetics axes remain
-metric-derived, so they cannot independently validate those metrics — only a
-real judge run can.
 
 ## What runs where
 
@@ -399,8 +370,7 @@ table here, which would drift. In broad strokes:
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
   suite; failures become an issue, never a blocked PR.
-- **Manual / periodic:** opt-in broad Stryker survivor harvests,
-  `layout-compare` before/after, the benchmark vs competitors, and the real
+- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.
 
 ## Boundary-contract matrix — lessons applied from the 2026-07 agent audit
@@ -436,6 +406,71 @@ lowest honest tier and one shipped-boundary proof where packaging, transport,
 or generation can change the result. A test that silently returns because its
 environment is unavailable is not evidence for a CI-required capability.
 
+## What makes a good test
+
+The sections above say which oracles the suite uses. This one is the standard
+each test is held to. A good test catches a real regression, for the right
+reason, cheaply, and says clearly what broke.
+
+1. **It can fail.** Breaking the behaviour it names turns it red. Check this
+   by mutating the code under test, not by reading the assertion. The common
+   failures are an assertion something else always satisfies (`toContain('v')`
+   when a label contains a `v`; a marker id that every SVG defines in
+   `<defs>`), and a fixture that never reaches the code (suppressing a warning
+   the input never raises).
+2. **It tests behaviour through a stable seam**: the API, CLI, MCP tool,
+   rendered output or a documented contract. It does not grep source text,
+   compare `Function.prototype.toString()`, or pin private names.
+3. **Its expectation comes from outside the code**: a specification, pinned
+   upstream Mermaid, a metamorphic relation, a property, or a reviewed golden
+   whose meaning is stated. A value harvested from our own output and pasted
+   back is not an oracle. The upstream bench's self-harvested labels once
+   pinned a wrong ellipse label as correct.
+4. **It has one reason to fail and a readable failure.** The name states the
+   behaviour; the assertion is object-shaped and carries the case, not a bare
+   `toBe(true)` over a conjunction.
+5. **It is deterministic and hermetic.** Pinned seeds, no wall clock, no
+   sleeps, no network, no dependence on file order, no leaked temp files or
+   environment variables.
+6. **It asserts something it did not set.** No assertion on a value the test
+   just assigned, on a mock's configured return, or on a `Record` completeness
+   that `tsc` already enforces. An early `return` or an `if (x) expect(…)`
+   that can skip every assertion is a missing assertion: assert the
+   precondition, or use `test.skipIf` with a reason. A property whose success
+   branch can go unexercised counts how often it ran and fails at zero.
+7. **It is not redundant**, and it does not make a doc or a second list copy
+   data the code owns; iterate the registry instead of a hand list of
+   families.
+8. **Its label is honest.** A test that pins a known bug says so and names
+   the `TODO.md` entry. A regression guard that cannot discriminate says so.
+9. **Its cost is proportionate.** Expensive work (renders, layouts, PNG
+   rasterization, a website build) is done once per file and shared.
+10. **It reads as arrange, act, assert**, with many cases as a table.
+
+Shared helpers carry the common arrangements: `src/__tests__/helpers/temp-dir.ts`
+for temporary directories that are removed after the file,
+`src/__tests__/helpers/cli-capture.ts` for in-process CLI output, and
+`src/__tests__/helpers/complexity.ts` for growth checks in place of wall-clock
+ceilings.
+
+A test protects observable behaviour or an independent public contract
+(API, package contents, security, protocol, config, shipped bytes, and the
+agent-facing runtime docs: `llms.txt`, CLI help, MCP instructions,
+`am --agent-instructions`). There are no tests of tests: no lint over test
+source, no grep over production source, no check that a doc's prose or a
+second list matches the code, and no test of an eval or CI helper for its own
+sake. Determinism is proven on output (`agent-determinism.test.ts`,
+`ascii-determinism.test.ts`), not by banning tokens in source.
+
+Files worth copying: `src/__tests__/property-upstream-flowchart.test.ts`
+(grammar-generated differential against pinned upstream),
+`src/__tests__/property-er-model.test.ts` (model-based test with a shadow
+model), `src/__tests__/release-publish-steps.test.ts` (runs workflow shell
+steps with stub tools), `src/__tests__/theme-color-admission.test.ts`
+(table-driven across output routes), and
+`src/__tests__/property-validator-surface-fuzz.test.ts` (the non-vacuity
+counter).
+
 ## Why the suite is shaped this way
 
 - **Cheap-and-deterministic gates per PR; expensive-and-noisy gates
@@ -459,9 +494,8 @@ These are real today and are the natural targets for *enhancing* existing
 gates rather than adding new machinery:
 
 1. The per-PR aesthetic signal is still the weakest gate; the metrics are
-   admittedly rough. The CI LLM mock's readability/aesthetics axes remain
-   metric-derived (only its faithfulness axis is now independent), so it
-   cannot validate those metrics — only a real periodic judge run can.
+   admittedly rough, and nothing per-PR validates them independently — only a
+   real periodic judge run can.
 2. Automatic mutation assurance is deliberately narrow: PR feedback uses the
    fast incremental faithfulness-counter lane plus nine focused sabotage probes;
    diff-scoped mutation of each PR's changed lines is tracked in issue #355.

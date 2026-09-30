@@ -7,6 +7,7 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
+import { costRelativeToLinearScan } from './helpers/complexity.ts'
 
 const MULTILINE = `sequenceDiagram
   participant A as Alice
@@ -57,12 +58,17 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     const bodyLine = `A->>B: ${'#59;'.repeat(16_000)}`
     const source = `sequenceDiagram\n${bodyLine}`
     expect(Buffer.byteLength(source)).toBeLessThan(64 * 1024)
-    const started = performance.now()
     expect(splitSequenceStatementLines(source.split('\n'))).toEqual(['sequenceDiagram', bodyLine])
     expect(parseRegisteredMermaid(source).ok).toBe(true)
     // A growing-prefix/suffix copy at every entity took seconds through the
-    // public parser even below the hosted 64 KiB input limit.
-    expect(performance.now() - started).toBeLessThan(1_000)
+    // public parser even below the hosted 64 KiB input limit: tens of thousands
+    // of plain scans of the source. The whole linear parse costs 170-1010 scans
+    // (measured idle and under load).
+    const cost = costRelativeToLinearScan(source, () => {
+      splitSequenceStatementLines(source.split('\n'))
+      parseRegisteredMermaid(source)
+    })
+    expect(cost).toBeLessThan(5_000)
   })
 
   test('block boundaries and continuations have the same message order', () => {

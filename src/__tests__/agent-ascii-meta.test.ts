@@ -2,7 +2,28 @@
 // node ids and whose column ranges line up with the rendered characters.
 
 import { describe, test, expect } from 'bun:test'
-import { ASCII_ROUTE_PARITY_CONTRACT, renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { renderMermaidWithActions } from '../agent/index.ts'
+import { ASCII_ROUTE_PARITY_CONTRACT, renderMermaidASCIIWithMeta, type AsciiRegion } from '../ascii/meta.ts'
+import { visualWidth } from '../ascii/multiline-utils.ts'
+
+// Region columns are terminal display cells, not string indices: a wide glyph
+// earlier on the row shifts every later string index by one per glyph.
+function cellSlice(line: string, start: number, end: number): string {
+  let column = 0
+  let out = ''
+  for (const { segment } of new Intl.Segmenter().segment(line)) {
+    if (column >= start && column < end) out += segment
+    column += visualWidth(segment)
+  }
+  return out
+}
+
+/** The rendered text a region covers, one trimmed line per spanned row. */
+function regionText(ascii: string, region: AsciiRegion): string {
+  const lines = ascii.split('\n')
+  return Array.from({ length: region.rowSpan ?? 1 }, (_, i) =>
+    cellSlice(lines[region.canvasRow + i] ?? '', region.canvasColStart, region.canvasColEnd).trim()).join('\n')
+}
 
 describe('renderMermaidASCIIWithMeta', () => {
   test('flowchart: every node id appears in regions', () => {
@@ -16,15 +37,10 @@ describe('renderMermaidASCIIWithMeta', () => {
   test('flowchart: col ranges actually match rendered characters', () => {
     const src = 'flowchart LR\n  Alpha --> Beta\n'
     const { ascii, regions } = renderMermaidASCIIWithMeta(src)
-    const lines = ascii.split('\n')
-    for (const r of regions) {
-      const line = lines[r.canvasRow]
-      expect(line).toBeDefined()
-      const slice = line!.slice(r.canvasColStart, r.canvasColEnd)
-      // The slice should contain the node id or its label substring.
-      expect(slice.length).toBe(r.canvasColEnd - r.canvasColStart)
-      expect(slice.trim().length).toBeGreaterThan(0)
-    }
+    expect(regions.map(r => ({ id: r.id, text: regionText(ascii, r) }))).toEqual([
+      { id: 'Alpha', text: 'Alpha' },
+      { id: 'Beta', text: 'Beta' },
+    ])
   })
 
   test('flowchart with labels: label string is what regions point at', () => {
@@ -39,19 +55,22 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(lines[byId.B!.canvasRow]!.slice(byId.B!.canvasColStart, byId.B!.canvasColEnd)).toContain('Dashboard')
   })
 
-  test('flowchart projected labels retain stable regions after terminal normalization and wrapping', () => {
+  // One table for both surfaces: the meta region must cover exactly the
+  // rendered label, and the terminal action for a clicked node binds to it.
+  test('projected labels keep exact regions and action targets after normalization and wrapping', () => {
     const cases = [
-      { source: 'flowchart LR\n  A["\`Target\`"] --> B[Done]', options: {} },
-      { source: 'flowchart LR\n  A["Line<br>Break"] --> B[Done]', options: {} },
-      { source: 'flowchart LR\n  A["Map&#x3C;K,V&#x3E;"] --> B[Done]', options: {} },
-      {
-        source: 'flowchart LR\n  A[This is a very long action label that must wrap] --> B[Done]',
-        options: { targetWidth: 40 },
-      },
+      { node: 'A["\`Target\`"]', options: {}, text: 'Target' },
+      { node: 'A["Line<br>Break"]', options: {}, text: 'Line\nBreak' },
+      { node: 'A["Map&#x3C;K,V&#x3E;"]', options: {}, text: 'Map<K,V>' },
+      { node: 'A[This is a very long action label that must wrap]', options: { targetWidth: 40 }, text: 'This is a\nvery long\naction label\nthat must\nwrap' },
     ]
-    for (const { source, options } of cases) {
+    for (const { node, options, text } of cases) {
+      const source = `flowchart LR\n  ${node} --> B[Done]`
       const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none', ...options })
-      expect(rendered.regions).toContainEqual(expect.objectContaining({ id: 'A', kind: 'node' }))
+      const region = rendered.regions.find(r => r.id === 'A')
+      expect({ node, kind: region?.kind, text: region && regionText(rendered.ascii, region) }).toEqual({ node, kind: 'node', text })
+      const actions = renderMermaidWithActions(`${source}\n  click A href "https://example.com"`, { format: 'unicode', options: { colorMode: 'none', ...options } })
+      expect(actions.actionSurface.actions[0]).toEqual(expect.objectContaining({ target: 'A', region: expect.objectContaining({ id: 'node:A' }) }))
     }
   })
 
@@ -90,26 +109,32 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(a.canvasColStart).toBeGreaterThanOrEqual(b.canvasColEnd)
   })
 
-  test('multiline label tokens cannot escape into a neighboring node', () => {
-    const rendered = renderMermaidASCIIWithMeta(
-      'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]',
-      { colorMode: 'none' },
-    )
+  test('multiline label tokens (and action hit regions) cannot escape into a neighboring node', () => {
+    const source = 'flowchart TD\n  F{F?} -->|Yes| G["High level<br>Tr"]\n  F -->|No| H["Dumb Tr<br>S"]'
+    const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
     const g = rendered.regions.find(region => region.id === 'G')!
     const h = rendered.regions.find(region => region.id === 'H')!
     expect(g.rowSpan).toBe(2)
     expect(g.canvasColEnd).toBeLessThanOrEqual(h.canvasColStart)
+    const action = renderMermaidWithActions(`${source}\n  click G href "https://example.com"`, { format: 'unicode', options: { colorMode: 'none' } })
+    const bounds = action.actionSurface.actions[0]!.region!.bounds
+    expect(Number(bounds.h)).toBe(2)
+    expect(Number(bounds.x) + Number(bounds.w)).toBeLessThanOrEqual(h.canvasColStart)
   })
 
-  test('multiline regions remain mapped after a wide display-cell prefix', () => {
-    const rendered = renderMermaidASCIIWithMeta(
-      'flowchart LR\n  B["界界界"] --> A["High<br>Tr"]\n  click A href "https://example.com"',
-      { colorMode: 'none' },
-    )
-    expect(rendered.regions.find(region => region.id === 'A')).toEqual(expect.objectContaining({ rowSpan: 2 }))
+  test('multiline regions (and action regions) remain mapped after a wide display-cell prefix', () => {
+    const source = 'flowchart LR\n  B["界界界"] --> A["High<br>Tr"]\n  click A href "https://example.com"'
+    const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
+    const a = rendered.regions.find(region => region.id === 'A')!
+    // Each wide glyph before A shifts string indices, not display columns.
+    expect({ rowSpan: a.rowSpan, text: regionText(rendered.ascii, a) }).toEqual({ rowSpan: 2, text: 'High\nTr' })
+    const action = renderMermaidWithActions(source, { format: 'unicode', options: { colorMode: 'none' } })
+    expect(action.actionSurface.actions[0]).toEqual(expect.objectContaining({
+      target: 'A', region: expect.objectContaining({ id: 'node:A', bounds: expect.objectContaining({ h: 2 }) }),
+    }))
   })
 
-  test('node regions prefer boxed labels over identical edge labels', () => {
+  test('node regions and terminal actions prefer boxed labels over identical edge labels', () => {
     const source = 'flowchart TD\n  X[X] -->|Yes| Y[Y]\n  Y --> C[Yes]\n  click C href "https://example.com"'
     for (const useAscii of [true, false]) {
       const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none', useAscii })
@@ -117,6 +142,10 @@ describe('renderMermaidASCIIWithMeta', () => {
       const line = rendered.ascii.split('\n')[region.canvasRow]!
       expect(line.slice(region.canvasColStart, region.canvasColEnd)).toBe('Yes')
       expect(line.trim()).toMatch(useAscii ? /^\|\s*Yes\s*\|$/ : /^│\s*Yes\s*│$/)
+      const action = renderMermaidWithActions(source, { format: useAscii ? 'ascii' : 'unicode', options: { colorMode: 'none' } })
+      const bounds = action.actionSurface.actions[0]!.region!.bounds
+      const actionLine = String(action.output).split('\n')[Number(bounds.y)]!
+      expect(actionLine.trim()).toMatch(useAscii ? /^\|\s*Yes\s*\|$/ : /^│\s*Yes\s*│$/)
     }
   })
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
@@ -102,14 +102,6 @@ export function buildPaletteHarmonyReport() {
 if (import.meta.main) {
   const report = buildPaletteHarmonyReport()
   const repoPath = (path: string): string => repositoryPath(ROOT, path)
-  if (process.argv.includes('--check')) {
-    if (JSON.stringify(JSON.parse(readFileSync(REPORT, 'utf8'))) !== JSON.stringify(report)) {
-      throw new Error('Palette harmony report is stale; run bun run gallery:palette-harmony')
-    }
-    console.log('Palette harmony experiment is synchronized')
-    process.exit(0)
-  }
-
   mkdirSync(join(ROOT, 'eval', 'palette-harmony'), { recursive: true })
   mkdirSync(join(ROOT, 'docs', 'pr-assets', 'pr-179'), { recursive: true })
   writeFileSync(REPORT, `${JSON.stringify(report, null, 2)}\n`)

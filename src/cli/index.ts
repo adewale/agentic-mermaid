@@ -1427,6 +1427,7 @@ you haven't inspected.
 - render --style <names|file.json> --seed N — styled graphical/terminal output; comma-separate to stack (--style hand-drawn,dracula)
 - styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
+- serialize — ValidDiagram JSON on stdin → canonical source (the inverse of parse)
 - verify — structural validation (exit 3 if invalid)
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
 - preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection

@@ -25,7 +25,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
@@ -42,8 +42,29 @@ const GLOBAL = 'agenticMermaid'
 /** Every family carries a canonical `example`; a registry smaller than this means something is wrong. */
 const MIN_EXPECTED_FAMILIES = 10
 
+/** Newest modification time among the bundle's build inputs: production
+ *  source, the tsup configs, and package.json. Tests are not inputs, and
+ *  `generated/` directories are written by the build itself. */
+function newestBuildInputMtime(): number {
+  let newest = 0
+  const visit = (path: string): void => {
+    const stat = statSync(path)
+    if (stat.isDirectory()) {
+      for (const entry of readdirSync(path)) if (entry !== '__tests__' && entry !== 'generated') visit(join(path, entry))
+    } else {
+      newest = Math.max(newest, stat.mtimeMs)
+    }
+  }
+  visit(join(REPO, 'src'))
+  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts']) visit(join(REPO, file))
+  return newest
+}
+
 function ensureBrowserBundle() {
-  if (existsSync(BUNDLE) && existsSync(LAZY_ENTRY) && existsSync(LAZY_METAFILE)) return
+  const outputs = [BUNDLE, LAZY_ENTRY, LAZY_METAFILE]
+  // Reuse a local dist only when it is newer than every input: a stale bundle
+  // could otherwise fake parity with (or mask a break in) the current source.
+  if (outputs.every(existsSync) && Math.min(...outputs.map(path => statSync(path).mtimeMs)) >= newestBuildInputMtime()) return
   const build = spawnSync('bun', ['run', 'build'], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
   if (build.status !== 0 || !existsSync(BUNDLE)) {
     throw new Error(`\`bun run build\` did not produce ${BUNDLE} (status ${build.status}).\n${build.stderr ?? ''}`)

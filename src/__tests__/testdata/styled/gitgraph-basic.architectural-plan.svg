@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="645.384" height="348.266" viewBox="0 0 645.384 348.266" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" aria-labelledby="gitgraph-title" aria-roledescription="git graph" role="img" class="am-1qn7vzl025o6t8">
+<style>
+  .am-1qn7vzl025o6t8 text { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  svg.am-1qn7vzl025o6t8 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #202a2f;
+    --_text-sec:      #60727a;
+    --_text-muted:    #60727a;
+    --_text-faint:    #858885;
+    --_line:          #38535e;
+    --_arrow:         #1f6f8b;
+    --_node-fill:     #fffaf0;
+    --_node-stroke:   #38535e;
+    --_group-fill:    #fbf7ea;
+    --_group-hdr:     #f0ede1;
+    --_inner-stroke:  #e1ded4;
+    --_key-badge:     #e5e3d7;
+  }
+</style>
+<rect width="645.384" height="348.266" fill="#fbf7ea" data-backdrop="page" />
+<title id="gitgraph-title">Git graph</title>
+<g class="git-branch" data-id="branch:main" data-branch="main" data-role="group">
+  <rect class="git-branch-label-background" x="82.28" y="79.266" width="37.72" height="18" rx="4" fill="#e7ebe1" stroke="#1f6f8b" stroke-width="1" />
+  <line class="git-branch-line" data-branch="main" x1="130" y1="92.266" x2="482.584" y2="92.266" stroke="#1f6f8b" stroke-width="3" opacity="0.86" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="git-branch-label" data-branch="main" x="120" y="92.266" text-anchor="end" font-size="12" font-weight="600" fill="#1f6f8b" textLength="27.72" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">main</text>
+</g>
+<g class="git-branch" data-id="branch:feature" data-branch="feature" data-role="group">
+  <rect class="git-branch-label-background" x="67.88" y="161.266" width="52.12" height="18" rx="4" fill="#eaeee4" stroke="#3996a5" stroke-width="1" />
+  <line class="git-branch-line" data-branch="feature" x1="130" y1="174.266" x2="271.262" y2="174.266" stroke="#3996a5" stroke-width="3" opacity="0.86" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="git-branch-label" data-branch="feature" x="120" y="174.266" text-anchor="end" font-size="12" font-weight="600" fill="#317480" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">feature</text>
+</g>
+<polyline stroke-opacity="0" class="git-edge git-edge-parent" data-from="base" data-to="work" points="177.262,92.266 224.262,92.266 224.262,174.266 271.262,174.266" fill="none" stroke="#3996a5" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="base-&gt;work" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="base to work" />
+<path d="M177.14 92.11 C189.86 92.47, 202.09 92.5, 224.35 92.55 M224.55 92.56 C223.95 121.87, 224.34 152.04, 223.92 174.22 M224.2 174.61 C238.15 174.28, 252.56 173.97, 271.52 174.55" fill="none" stroke="#3996a5" stroke-width="2.9" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" class="git-edge git-edge-parent" data-from="base" data-to="release" points="177.262,92.266 271.262,92.266 271.262,92.266 365.262,92.266" fill="none" stroke="#1f6f8b" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="base-&gt;release" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="base to release" />
+<path d="M176.99 92.41 C211.25 92.52, 244.85 91.94, 271.4 92.01 M271.26 92.27 C271.26 92.27, 271.26 92.27, 271.26 92.27 M271.33 92.19 C302.5 92.21, 334.05 92.41, 365.41 92.26" fill="none" stroke="#1f6f8b" stroke-width="2.9" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" class="git-edge git-edge-parent" data-from="release" data-to="merge" points="365.262,92.266 423.923,92.266 423.923,92.266 482.584,92.266" fill="none" stroke="#1f6f8b" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="release-&gt;merge" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="release to merge" />
+<path d="M365.05 91.93 C381.56 92.45, 397.36 91.92, 424.28 91.99 M423.92 92.27 C423.92 92.27, 423.92 92.27, 423.92 92.27 M424.15 92.49 C446.44 92.41, 468.95 91.94, 482.75 92.54" fill="none" stroke="#1f6f8b" stroke-width="2.9" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" class="git-edge git-edge-merge" data-from="work" data-to="merge" points="271.262,174.266 376.923,174.266 376.923,92.266 482.584,92.266" fill="none" stroke="#1f6f8b" stroke-width="2.5" data-relationship="merge" data-direction="forward" data-id="work-&gt;merge" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="work to merge" />
+<path d="M271.54 174.56 C308.95 174.17, 345.96 174.45, 376.81 174.55 M377.18 174 C376.69 142.37, 376.89 109.89, 377.09 92.24 M376.96 92.23 C415.95 91.89, 454.56 92.32, 482.81 92.45" fill="none" stroke="#1f6f8b" stroke-width="3.625" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<g class="git-commit type-normal" data-id="base" data-branch="main" data-commit-type="NORMAL" data-role="node">
+  <circle cx="177.262" cy="92.266" r="8" fill="#d3dfd9" stroke="#1f6f8b" stroke-width="2" />
+  <rect class="git-commit-label-background" x="136.222" y="105.266" width="82.08" height="17" rx="3" fill="#fbf7ea" fill-opacity="0.94" stroke="#1f6f8b" stroke-width="0.75" transform="rotate(45 177.262 116.266)" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="git-commit-label" x="177.262" y="116.266" text-anchor="middle" font-size="11" fill="#576870" transform="rotate(45 177.262 116.266)" textLength="55.11" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Foundation</text>
+</g>
+<g class="git-commit type-normal" data-id="work" data-branch="feature" data-commit-type="NORMAL" data-role="node">
+  <circle cx="271.262" cy="174.266" r="8" fill="#d8e6de" stroke="#3996a5" stroke-width="2" />
+  <rect class="git-commit-label-background" x="245.897" y="187.266" width="50.73" height="17" rx="3" fill="#fbf7ea" fill-opacity="0.94" stroke="#3996a5" stroke-width="0.75" transform="rotate(45 271.262 198.266)" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="git-commit-label" x="271.262" y="198.266" text-anchor="middle" font-size="11" fill="#576870" transform="rotate(45 271.262 198.266)" textLength="25.41" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Build</text>
+</g>
+<g class="git-commit type-normal" data-id="release" data-branch="main" data-commit-type="NORMAL" data-role="node">
+  <circle cx="365.262" cy="92.266" r="8" fill="#d3dfd9" stroke="#1f6f8b" stroke-width="2" />
+  <rect class="git-commit-label-background" x="333" y="105.266" width="64.524" height="17" rx="3" fill="#fbf7ea" fill-opacity="0.94" stroke="#1f6f8b" stroke-width="0.75" transform="rotate(45 365.262 116.266)" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="git-commit-label" x="365.262" y="116.266" text-anchor="middle" font-size="11" fill="#576870" transform="rotate(45 365.262 116.266)" textLength="38.478" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">release</text>
+</g>
+<g class="git-commit type-merge" data-id="merge" data-branch="main" data-commit-type="MERGE" data-role="node">
+  <circle cx="482.584" cy="92.266" r="10" fill="#1f6f8b" stroke="#1f6f8b" stroke-width="2" />
+  <circle cx="482.584" cy="92.266" r="5" fill="none" stroke="#fbf7ea" stroke-width="1.5" />
+  <rect class="git-commit-label-background" x="391.384" y="105.266" width="182.4" height="17" rx="3" fill="#fbf7ea" fill-opacity="0.94" stroke="#1f6f8b" stroke-width="0.75" transform="rotate(45 482.584 116.266)" />
+  <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" class="git-commit-label" x="482.584" y="116.266" text-anchor="middle" font-size="11" fill="#576870" transform="rotate(45 482.584 116.266)" textLength="150.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">merged branch feature into main</text>
+</g>
+</svg>

@@ -2,15 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { denseDag, diamondFan } from '../../eval/degenerate-etn/generators.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import {
-  allocateRoutePorts,
-  classifyRoutes,
-  closeRouteContracts,
-  findLabelSlot,
-  findRouteHitches,
-  labelRect,
-  straightLaneFor,
-} from '../route-contracts.ts'
+import { closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 
 describe('final route-contract closer invariants (issue #88)', () => {
@@ -32,48 +24,18 @@ describe('final route-contract closer invariants (issue #88)', () => {
     const graph = parseMermaid(diamondFan(269))
     const positioned = layoutGraphSync(graph)
     const edge = positioned.edges.find(item => item.source === 'D' && item.target === 'T1')!
-    const source = positioned.nodes.find(node => node.id === edge.source)!
-    const target = positioned.nodes.find(node => node.id === edge.target)!
-    const style = resolveRenderStyle({})
-    const classes = classifyRoutes(graph)
-    const axis = { main: 'x', cross: 'y', sign: -1 } as const
-    const looseContext = {
-      nodes: positioned.nodes,
-      edges: positioned.edges,
-      axis,
-      style,
-      classes,
-      sideUse: allocateRoutePorts(positioned, graph, classes).sideUse,
-    }
 
-    const lane = straightLaneFor(edge, source, target, looseContext, axis)
-    expect(lane).not.toBeNull()
-    if (lane === null) throw new Error('expected the legacy loose-label proof to find a lane')
-
-    // Intersect that horizontal RL lane with the source diamond's left facet
-    // and the rectangular target's right side.
-    const sourceCenterY = source.y + source.height / 2
-    const sourceHalfWidth = source.width / 2
-    const sourceHalfHeight = source.height / 2
-    const sourceX = source.x + sourceHalfWidth * (Math.abs(lane - sourceCenterY) / sourceHalfHeight)
-    const start = { x: sourceX, y: lane }
-    const end = { x: target.x + target.width, y: lane }
-    const looseSlot = findLabelSlot(edge, start, end, looseContext)
-    expect(looseSlot).not.toBeNull()
-    if (looseSlot === null) throw new Error('expected a slot under the legacy 2px clearance')
-
-    const candidateRect = labelRect({ ...edge, labelPosition: looseSlot }, style)
-    const neighborRect = labelRect(positioned.edges[0]!, style)
-    if (!candidateRect || !neighborRect) throw new Error('expected both settled label pills')
-    const verticalGap = Math.max(candidateRect.y, neighborRect.y) -
-      Math.min(candidateRect.y + candidateRect.h, neighborRect.y + neighborRect.h)
-    expect(verticalGap).toBeGreaterThanOrEqual(2)
-    expect(verticalGap).toBeLessThan(16)
-
-    const finalContext = { ...looseContext, finalLabelClearance: true }
-    expect(findLabelSlot(edge, start, end, finalContext)).toBeNull()
-    expect(straightLaneFor(edge, source, target, finalContext, axis)).toBeNull()
-    expect(edge.points).toHaveLength(4)
+    // Under the legacy 2px label clearance this RL edge had a straight lane.
+    // The final closer's label-halo clearance refuses it because the settled
+    // D->T0 pill sits inside the halo, so the edge keeps its bend, and its
+    // certificate names that label as the blocker.
+    const certificate = edge.routeCertificate
+    expect({
+      points: edge.points.length,
+      invariant: certificate?.invariant,
+      directLaneClear: certificate?.directLaneClear,
+      blockedByNeighbourLabel: certificate?.directLaneBlockedBy?.some(b => b.kind === 'label' && b.id === 'D->T0'),
+    }).toEqual({ points: 4, invariant: 'explained-detour', directLaneClear: false, blockedByNeighbourLabel: true })
     expect(findRouteHitches(positioned, graph)).toEqual([])
   })
 

@@ -29,6 +29,7 @@ import fc from 'fast-check'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
@@ -39,9 +40,12 @@ const SEED = 0x0decaf
 function offences(id: string, source: string): string[] {
   let graph
   try {
-    graph = parseMermaid(source)
-  } catch {
-    return [] // non-flowchart / unparseable by the core parser: out of this gate's scope
+    // Strip frontmatter the way the render path does, so corpus entries with a
+    // `---` config block are checked too.
+    graph = parseMermaid(normalizeMermaidSource(source).text)
+  } catch (error) {
+    // A flowchart the core parser rejects is an offence, never a silent pass.
+    return [`${id}: unparseable — ${error instanceof Error ? error.message : String(error)}`]
   }
   const positioned = layoutGraphSync(graph)
   return hardViolations(assessLayout(graph, positioned)).map(v => `${id}: ${v.metric} — ${v.detail}`)
@@ -70,7 +74,8 @@ describe('hard invariants: independent oracle over corpus + fuzz (target 0)', ()
       readFileSync(join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json'), 'utf8'),
     ) as Array<{ family: string; source: string; index: number }>
     const flowcharts = corpus.filter(e => e.family === 'flowchart')
-    // Guard against the gate silently passing by checking nothing.
+    // Guard against the gate silently passing by checking nothing: every entry
+    // must parse (an unparseable one is reported as an offence below).
     expect(flowcharts.length).toBeGreaterThanOrEqual(100)
 
     const offenders = flowcharts.flatMap(e => offences(`corpus/flowchart/${e.index}`, e.source))

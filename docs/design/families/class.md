@@ -45,9 +45,8 @@ annotation; verification reports `RENDER_FAILED` until the broader #260 work.
 Pinned Mermaid 11.16 also permits multiple annotations on one class. The
 current native class model has one annotation slot, so that case is explicitly
 diagnosed instead of rendering only the last annotation. Its agent body stays
-opaque and source-preserved. The construct receipt therefore keeps the
-feature-wide capability claim `diagnosed`, while separate executable inline
-and standalone-annotation cases prove native behavior. Broader Class
+opaque and source-preserved, while separate executable inline and
+standalone-annotation cases prove native behavior. Broader Class
 statement/event consolidation remains
 tracked by #260.
 

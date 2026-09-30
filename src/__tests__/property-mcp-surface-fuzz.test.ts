@@ -71,7 +71,16 @@ const requestArb = fc.record({
 }, { requiredKeys: ['jsonrpc', 'method'] })
 
 function assertWellFormedResponse(response: unknown, req: JsonRpcRequest): void {
-  if (response === null) return // notifications legitimately produce no reply.
+  // JSON-RPC 2.0: a notification (no `id` member) is never answered and every
+  // request is. The one silent request today is `notifications/initialized`
+  // sent WITH an id, which the legacy handshake swallows.
+  const notification = !Object.hasOwn(req, 'id')
+  if (response === null) {
+    expect({ method: req.method, answerable: !notification && req.method !== 'notifications/initialized' })
+      .toEqual({ method: req.method, answerable: false })
+    return
+  }
+  expect({ method: req.method, notification }).toEqual({ method: req.method, notification: false })
   expect(typeof response).toBe('object')
   const r = response as Record<string, unknown>
   expect(r.jsonrpc).toBe('2.0')

@@ -43,9 +43,9 @@ the `RouteClass`/port vocabulary. Everything larger forks per stack.
 
 This section records the audit-time layers. Its former registry-synchronized
 family table was removed because a historical snapshot must not be rewritten by
-changes to the current registry. The generated
-[Section A capability report](../section-a-capability-report.md) owns
-the live family scope and evidence.
+changes to the current registry. The `FamilyDescriptor` registry
+(`am capabilities --json`) owns the live family scope; the Section A capability
+report that projected it is no longer published.
 
 - **Domain IR (input):** `MermaidGraph` (flowchart, `types.ts:7`) + 10 family input types
   (`SequenceDiagram`, `ClassDiagram`, `ErDiagram`, `TimelineDiagram`, `JourneyDiagram`,

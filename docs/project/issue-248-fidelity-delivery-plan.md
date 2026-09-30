@@ -1,6 +1,9 @@
 # Delivery plan for issue #248
 
-Status: in progress.
+Status: superseded. The construct-receipt harness, the fidelity capability
+report, and the receipts it describes have been removed
+(see “How we work” in `CLAUDE.md`); their product assertions live in the
+families' ordinary tests.
 
 This document turns [issue #248](https://github.com/adewale/agentic-mermaid/issues/248)
 into an implementation sequence. The issue remains the source of truth for the

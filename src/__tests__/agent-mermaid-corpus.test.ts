@@ -111,9 +111,16 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
     gantt:        { minParse: 1.00, minVerify: 0.80, minRoundTrip: 1.00 },
   }
 
-  test('divergence ledger entries are executable and documented', () => {
+  // The ledger is closed: no docs-corpus example needs a divergence entry (the
+  // unledgered-divergence test below enforces that). Adding an entry means
+  // deleting this pin, which switches on the executable-entry test after it.
+  test('the divergence ledger is committed and currently empty', () => {
+    expect(existsSync(DIVERGENCES_PATH)).toBe(true)
+    expect(divergences).toEqual([])
+  })
+
+  test.skipIf(divergences.length === 0)('divergence ledger entries are executable and documented (skipped while the ledger is empty)', () => {
     const readme = readFileSync(join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'README.md'), 'utf8')
-    expect(Array.isArray(divergences)).toBe(true)
     for (const d of divergences) {
       expect({ id: d.id, documented: readme.includes('divergences.json') }).toEqual({ id: d.id, documented: true })
       expect(d.reason.length).toBeGreaterThan(5)

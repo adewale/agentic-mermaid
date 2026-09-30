@@ -80,20 +80,17 @@ describe('timeline parsing — structured', () => {
   })
 
   test('multi-event period via colon-separated text', () => {
-    const d = parse('timeline\n  2020 : A : B : C')
-    if (d.body.kind !== 'timeline') return
+    const d = timeline('timeline\n  2020 : A : B : C')
     expect(d.body.sections[0]!.periods[0]!.events.map(e => e.text)).toEqual(['A', 'B', 'C'])
   })
 
   test('continuation line `: text` adds event to previous period', () => {
-    const d = parse('timeline\n  2020 : First\n  : Second')
-    if (d.body.kind !== 'timeline') return
+    const d = timeline('timeline\n  2020 : First\n  : Second')
     expect(d.body.sections[0]!.periods[0]!.events.map(e => e.text)).toEqual(['First', 'Second'])
   })
 
   test('no title, implicit section is created on first period', () => {
-    const d = parse('timeline\n  2020 : A')
-    if (d.body.kind !== 'timeline') return
+    const d = timeline('timeline\n  2020 : A')
     expect(d.body.title).toBeUndefined()
     expect(d.body.sections.length).toBe(1)
     expect(d.body.sections[0]!.label).toBeUndefined()
@@ -455,8 +452,7 @@ describe('timeline direction (upstream `timeline TD` contract)', () => {
     expect(serializeMermaid(d).startsWith('timeline LR\n')).toBe(true)
   })
   test('bare header keeps direction unset and serializes bare', () => {
-    const d = parse('timeline\n  2020 : A')
-    if (d.body.kind !== 'timeline') return
+    const d = timeline('timeline\n  2020 : A')
     expect(d.body.direction).toBeUndefined()
     expect(serializeMermaid(d).startsWith('timeline\n')).toBe(true)
   })

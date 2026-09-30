@@ -86,11 +86,15 @@ describe('fork / join / choice — parse + render', () => {
 
   test('SVG: bars render filled, choice renders as a diamond polygon', () => {
     const svg = renderMermaidSVG(FORK_SRC)
-    expect(svg).toContain('data-shape="state-fork"')
-    expect(svg).toContain('data-shape="state-join"')
-    const choice = svg.split('\n').find(l => l.includes('data-shape="state-choice"'))
-    expect(choice).toBeDefined()
-    expect(svg).toMatch(/data-shape="state-choice"[\s\S]{0,400}?<polygon/)
+    const shapeOf = (id: string) => {
+      const element = svg.match(new RegExp(`<(\\w+) ([^>]*)data-id="node-shape:${id}"`))
+      return { id, element: element?.[1], fill: element?.[2]?.match(/fill="([^"]+)"/)?.[1], points: element?.[2]?.match(/points="([^"]+)"/)?.[1]?.split(' ').length }
+    }
+    // Fork and join bars are solid ink (the default foreground), never an
+    // outline with fill="none".
+    expect(shapeOf('fork1')).toEqual({ id: 'fork1', element: 'rect', fill: '#27272A', points: undefined })
+    expect(shapeOf('join1')).toEqual({ id: 'join1', element: 'rect', fill: '#27272A', points: undefined })
+    expect(shapeOf('choice1')).toMatchObject({ id: 'choice1', element: 'polygon', points: 4 })
   })
 
   test('agent body models stereotypes structured (no opaque fallback)', () => {

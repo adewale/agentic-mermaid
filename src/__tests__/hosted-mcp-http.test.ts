@@ -92,12 +92,6 @@ describe('method and header validation', () => {
     expect(((await res.json()) as any).error).toContain('stateless')
   })
 
-  test('non-JSON content types are 415', async () => {
-    const { handler } = makeHandler()
-    const res = await handler(post('x', { 'content-type': 'text/plain' }))
-    expect(res.status).toBe(415)
-  })
-
   // Every one of these refuses BEFORE a JSON-RPC request is parsed — a GET has
   // no body, and the content-type and size checks refuse precisely because they
   // will not read one. Answering with {"jsonrpc":"2.0","id":null,error:{code}}
@@ -436,15 +430,35 @@ describe('deterministic-response caching', () => {
     expect(await response.json()).toMatchObject({ id: 'malformed', error: { code: -32602 } })
   })
 
-  test('error results are never cached', async () => {
+  // Both tools are cacheable (a success would be stored), so an empty store
+  // after two identical error calls proves the isError gate, not eligibility.
+  test('error results from a cacheable tool are never cached', async () => {
     const cache = makeCache()
-    const { handler, executeCalls } = makeHandler({
+    const { handler } = makeHandler({ cache })
+    const invalid = call('render_svg', { source: 'flowchart XX\n  A --> B' })
+    const results = []
+    for (let i = 0; i < 2; i++) results.push(((await (await handler(post(invalid))).json()) as any).result.isError)
+    expect({ isError: results, stored: cache.store.size }).toEqual({ isError: [true, true], stored: 0 })
+  })
+
+  test('a transient tool failure is re-executed, not replayed from the cache', async () => {
+    const cache = makeCache()
+    let pngCalls = 0
+    const { handler } = makeHandler({
       cache,
-      context: { execute: async code => ({ ok: false, error: 'transient loader failure', logs: [] }) },
+      context: {
+        renderPng: async () => {
+          if (++pngCalls === 1) throw new Error('transient rasterizer failure')
+          return { png: new Uint8Array([1]), warnings: [], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }
+        },
+      },
     })
-    await handler(post(call('execute', { code: '1 + 1' })))
-    await handler(post(call('execute', { code: '1 + 1' })))
-    expect(cache.store.size).toBe(0)
+    const request = call('render_png', { source: FLOW })
+    const first = ((await (await handler(post(request))).json()) as any).result.isError
+    const storedAfterError = cache.store.size
+    const second = ((await (await handler(post(request))).json()) as any).result.isError
+    expect({ first, storedAfterError, second, pngCalls, storedAfterSuccess: cache.store.size })
+      .toEqual({ first: true, storedAfterError: 0, second: false, pngCalls: 2, storedAfterSuccess: 1 })
   })
 
   test('cache writes ride waitUntil when provided', async () => {

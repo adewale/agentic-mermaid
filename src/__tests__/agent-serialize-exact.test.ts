@@ -1,7 +1,6 @@
 // Exact-string assertions for serialize.ts. Round-trip tests catch structural
-// regressions; these kill mutation-testing survivors that produce parseable
-// but subtly-wrong output. Targeted at the StringLiteral / ConditionalExpression
-// clusters Stryker surfaced.
+// regressions; these pin exact output, so a change that stays parseable but is
+// subtly wrong still fails.
 
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
@@ -108,7 +107,7 @@ describe('sequence participant tag emission', () => {
 })
 
 describe('sequence arrow literal forms', () => {
-  // Every style → exact arrow string. Kills the case-literal mutants Stryker found.
+  // Every style → exact arrow string.
   const cases: Array<[string, string]> = [
     ['->>', '->>'],
     ['-->>', '-->>'],

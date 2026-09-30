@@ -58,12 +58,15 @@ describe('quadrant chartWidth/chartHeight are wired to canvas size', () => {
     expect(svg).toContain('viewBox="0 0 400 400"')
   })
 
-  it('a titled chart never exceeds the configured box', () => {
+  it('a titled chart never exceeds the configured box and fills its constraining dimension', () => {
     const positioned = layoutWith({ chartWidth: 420, chartHeight: 380 }, `quadrantChart\n  title Sized\n  A: [0.5, 0.5]`)
-    expect(positioned.width).toBeLessThanOrEqual(420)
-    expect(positioned.height).toBeLessThanOrEqual(380)
-    // The plot stays square and the constraining dimension is met.
-    expect(Math.max(positioned.width, positioned.height + 0)).toBeGreaterThan(300)
+    // The plot is square, so the shorter budget (height, once the title takes
+    // its share) constrains it: the chart meets 380 exactly and comes in
+    // narrower than 420 rather than stretching.
+    expect(positioned.height).toBe(380)
+    expect(positioned.width).toBeLessThan(420)
+    expect(positioned.plot.x + positioned.plot.size).toBeLessThanOrEqual(positioned.width)
+    expect(positioned.plot.y + positioned.plot.size).toBeLessThanOrEqual(positioned.height)
   })
 
   it('default geometry without config is unchanged (380px plot)', () => {

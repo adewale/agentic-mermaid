@@ -24,13 +24,19 @@ function withAccessibility(example: string): string {
   return lines.join('\n')
 }
 
-describe('SVG accessibility conformance (all families)', () => {
-  for (const kind of knownBuiltinFamilies()) {
+const cases: Array<readonly [name: string, source: string]> = [
+  ...knownBuiltinFamilies().flatMap(kind => {
     const meta = builtinFamilyMetadata(kind)
-    if (!meta) continue
+    return meta ? [[kind, withAccessibility(meta.example)] as const] : []
+  }),
+  // The multiline block form `accDescr { … }` takes a separate parse path.
+  ['class (accDescr block)', `classDiagram\n  accTitle: ${ACC_TITLE}\n  accDescr {\n    ${ACC_DESCR}\n  }\n  Animal <|-- Dog`],
+]
 
-    it(`${kind}: accTitle/accDescr produce singly-wired <title>/<desc>`, () => {
-      const svg = renderMermaidSVG(withAccessibility(meta.example))
+describe('SVG accessibility conformance (all families)', () => {
+  for (const [name, source] of cases) {
+    it(`${name}: accTitle/accDescr produce singly-wired <title>/<desc>`, () => {
+      const svg = renderMermaidSVG(source)
       const openTag = svg.match(/<svg[^>]*>/)?.[0]
       expect(openTag).toBeDefined()
 

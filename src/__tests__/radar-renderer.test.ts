@@ -77,13 +77,16 @@ describe('radar SVG renderer', () => {
   test('disambiguates semantic identities for duplicate upstream curve and axis ids', () => {
     const svg = renderMermaidSVG('radar-beta\n  axis a, a\n  curve x{1,2}\n  curve x{2,1}\n  max 3')
     const ids = [...svg.matchAll(/data-id="([^"]+)"/g)].map(match => match[1]!)
-    expect(new Set(ids).size).toBe(ids.length)
+    // Curves share the id `x`, so each carries its occurrence; dots carry the
+    // curve occurrence and the axis index, which keeps the two `a` axes apart.
+    expect(ids).toEqual(['curve:x#0', 'curve:x#1', 'dot:x#0:0', 'dot:x#0:1', 'dot:x#1:0', 'dot:x#1:1'])
   })
 
   test('duplicate semantic identities use per-key occurrence, stable under unrelated insertion', () => {
     const ids = (source: string) => [...renderMermaidSVG(source).matchAll(/data-id="(curve:x#[^"]+|dot:x#[^"]+)"/g)].map(match => match[1]!)
     const base = ids('radar-beta\n axis a, b\n curve x{1,2}\n curve x{2,1}\n max 3')
     const inserted = ids('radar-beta\n axis a, b\n curve y{1,1}\n curve x{1,2}\n curve x{2,1}\n max 3')
+    expect(base).toEqual(['curve:x#0', 'curve:x#1', 'dot:x#0:0', 'dot:x#0:1', 'dot:x#1:0', 'dot:x#1:1'])
     expect(inserted).toEqual(base)
   })
 
@@ -91,10 +94,12 @@ describe('radar SVG renderer', () => {
     expect(renderMermaidSVG(BASIC)).toBe(renderMermaidSVG(BASIC))
   })
 
+  // Regression guard, not a styled-geometry oracle: the stack applies its
+  // palette and both curves still draw, with no non-finite numbers.
   test('renders across a Look × Palette pair without NaN or empty geometry', () => {
     const svg = renderMermaidSVG(BASIC, { style: ['hand-drawn', 'dracula'] } as never)
-    expect(svg.startsWith('<svg')).toBe(true)
-    expect(svg).not.toContain('NaN')
-    expect(svg.length).toBeGreaterThan(500)
+    expect(svg).toContain('--bg:#282a36') // dracula's page
+    expect((svg.match(/data-id="curve:/g) ?? []).length).toBe(2)
+    expect(svg).not.toMatch(/NaN|Infinity/)
   })
 })

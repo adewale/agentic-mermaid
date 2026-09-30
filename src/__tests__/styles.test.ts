@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { estimateTextWidth, FONT_SIZES, FONT_WEIGHTS, NODE_PADDING, STROKE_WIDTHS, ARROW_HEAD } from '../styles.ts'
+import { measureTextWidth } from '../text-metrics.ts'
 import { DEFAULTS, fromShikiTheme, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { DiagramColors } from '../theme.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
@@ -120,40 +121,14 @@ describe('fromShikiTheme', () => {
 // Text width estimation
 // ============================================================================
 
+// Width behaviour (length, size, weight, empty-text padding) is owned and
+// tested by measureTextWidth in text-metrics.test.ts; this only pins the
+// delegation, so the two cannot drift apart.
 describe('estimateTextWidth', () => {
-  it('returns a positive number for non-empty text', () => {
-    const width = estimateTextWidth('Hello', 13, 500)
-    expect(width).toBeGreaterThan(0)
-  })
-
-  it('returns minimum padding for empty text', () => {
-    // Empty text still returns minimum padding (fontSize * 0.15) for layout safety
-    expect(estimateTextWidth('', 13, 500)).toBeCloseTo(1.95, 1)
-  })
-
-  it('scales with text length', () => {
-    const short = estimateTextWidth('Hi', 13, 500)
-    const long = estimateTextWidth('Hello World', 13, 500)
-    expect(long).toBeGreaterThan(short)
-  })
-
-  it('scales with font size', () => {
-    const small = estimateTextWidth('Text', 11, 500)
-    const large = estimateTextWidth('Text', 16, 500)
-    expect(large).toBeGreaterThan(small)
-  })
-
-  it('heavier weights produce wider estimates', () => {
-    const regular = estimateTextWidth('Text', 13, 400)
-    const bold = estimateTextWidth('Text', 13, 600)
-    expect(bold).toBeGreaterThan(regular)
-  })
-
-  it('produces reasonable widths for typical node labels', () => {
-    // A 5-character label at 13px/500w should be roughly 35px (5 * 13 * 0.55)
-    const width = estimateTextWidth('Hello', FONT_SIZES.nodeLabel, FONT_WEIGHTS.nodeLabel)
-    expect(width).toBeGreaterThan(25)
-    expect(width).toBeLessThan(60)
+  it('delegates to measureTextWidth for every script and weight', () => {
+    for (const [text, size, weight] of [['', 13, 500], ['Hello', 13, 500], ['Hello World', 11, 400], ['漢字 😀 Ω', 16, 600]] as const) {
+      expect({ text, width: estimateTextWidth(text, size, weight) }).toEqual({ text, width: measureTextWidth(text, size, weight) })
+    }
   })
 })
 

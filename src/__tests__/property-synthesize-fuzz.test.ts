@@ -9,16 +9,18 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
 import { synthesizeFromGraph, serializeMermaid, parseRegisteredMermaid as parseMermaid, createMermaid } from '../agent/index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
 
 const NUM_RUNS = 400
 
-const FAMILIES: DiagramKind[] = [
-  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'architecture',
-  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'radar',
-]
+// Every registered built-in family, from the registry (a hand-written list had
+// silently left sankey out of this untrusted boundary).
+const FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id) as DiagramKind[]
+/** The `am parse` JSON wire shape: Maps become records, as the CLI's replacer does. */
+const toWire = (value: unknown) => JSON.parse(JSON.stringify(value, (_key, v) => v instanceof Map ? Object.fromEntries(v) : v))
 // Real payloads (the `am parse` JSON shape) for every family — the round-trip seed corpus.
-const REAL_PAYLOADS = FAMILIES.map(fam => JSON.parse(JSON.stringify(createMermaid(fam))))
+const REAL_PAYLOADS = FAMILIES.map(fam => ({ family: fam, payload: toWire(createMermaid(fam)) }))
 
 const junkValue = fc.oneof(
   fc.string({ maxLength: 12 }), fc.integer(), fc.double(), fc.boolean(),
@@ -41,7 +43,7 @@ const payloadArb = fc.oneof(
   fc.anything(),
   fc.record({ kind: fc.oneof(fc.constantFrom(...FAMILIES), fc.string({ maxLength: 6 })), body: bodyArb, meta: fc.oneof(fc.constant(undefined), fc.object({ maxDepth: 1 })) }, { requiredKeys: [] }),
   // A real payload with one corrupted top-level field.
-  fc.tuple(fc.constantFrom(...REAL_PAYLOADS), fc.constantFrom('kind', 'body', 'meta'), junkValue).map(([base, key, v]) => ({ ...base, [key]: v })),
+  fc.tuple(fc.constantFrom(...REAL_PAYLOADS.map(real => real.payload)), fc.constantFrom('kind', 'body', 'meta'), junkValue).map(([base, key, v]) => ({ ...base, [key]: v })),
 )
 
 describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () => {
@@ -74,9 +76,8 @@ describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () =
 
 // A minimal createMermaid(fam) is a non-degenerate diagram for every family EXCEPT radar,
 // whose empty base (no axes) is not a serializable radar — so it is legitimately not
-// round-trippable and is exercised only by the crash-freedom/determinism suites above. Round-
-// trip is asserted for the payloads synthesizeFromGraph actually accepts.
-const ROUND_TRIP_PAYLOADS = REAL_PAYLOADS.filter(p => synthesizeFromGraph(p as never).ok)
+// round-trippable and is exercised only by the crash-freedom/determinism suites above.
+const NOT_ROUND_TRIPPABLE: readonly DiagramKind[] = ['radar']
 
 describe('synthesize fuzz: real payloads round-trip', () => {
   it('rejects malformed and family-inconsistent payloads instead of emitting invalid source', () => {
@@ -99,17 +100,20 @@ describe('synthesize fuzz: real payloads round-trip', () => {
     if (result.ok) expect(Array.isArray(result.value.meta.comments)).toBe(true)
   })
 
-  it('a parsed diagram survives parse -> JSON -> synthesizeFromGraph -> serialize', () => {
-    // Guard against silently dropping the whole corpus: at least the graph families must synthesize.
-    expect(ROUND_TRIP_PAYLOADS.length).toBeGreaterThanOrEqual(FAMILIES.length - 1)
-    fc.assert(fc.property(fc.constantFrom(...ROUND_TRIP_PAYLOADS), payload => {
+  it('every family\'s created diagram survives JSON -> synthesizeFromGraph -> serialize -> parse unchanged', () => {
+    // A deterministic loop, not constantFrom sampling: every family is visited.
+    for (const { family, payload } of REAL_PAYLOADS) {
       const r = synthesizeFromGraph(payload as never)
-      expect(r.ok).toBe(true)
-      if (!r.ok) return
+      if (NOT_ROUND_TRIPPABLE.includes(family)) {
+        expect({ family, ok: r.ok }).toEqual({ family, ok: false })
+        continue
+      }
+      expect({ family, ok: r.ok }).toEqual({ family, ok: true })
+      if (!r.ok) continue
       const source = serializeMermaid(r.value)
+      expect({ family, source }).toEqual({ family, source: serializeMermaid(createMermaid(family)) })
       const reparsed = parseMermaid(source)
-      expect(reparsed.ok).toBe(true)
-      if (reparsed.ok) expect(reparsed.value.kind).toBe(r.value.kind)
-    }), { numRuns: ROUND_TRIP_PAYLOADS.length })
+      expect({ family, reparsed: reparsed.ok && reparsed.value.kind }).toEqual({ family, reparsed: family })
+    }
   })
 })

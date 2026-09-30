@@ -739,7 +739,7 @@ describe('renderMermaidSVGAsync – HTML entity decoding', () => {
     expect(svg).not.toContain('&amp;lt;')
   })
 
-  it('decodes entities in class diagram generics', async () => {
+  it('escapes class diagram ~T~ generics exactly once', async () => {
     const svg = await renderMermaidSVGAsync(`classDiagram
       class MyService~T~
       MyService --> Handler : uses
@@ -754,9 +754,9 @@ describe('renderMermaidSVGAsync – HTML entity decoding', () => {
     const svgRaw = await renderMermaidSVGAsync('graph LR\n  A[List<Item>]')
     const svgEncoded = await renderMermaidSVGAsync('graph LR\n  A[List&lt;Item&gt;]')
 
-    // Both should contain the same single-encoded entity in SVG
+    expect(svgRaw).toBe(svgEncoded)
+    // ...and that output carries the single-encoded entity
     expect(svgRaw).toContain('List&lt;Item&gt;')
-    expect(svgEncoded).toContain('List&lt;Item&gt;')
   })
 })
 

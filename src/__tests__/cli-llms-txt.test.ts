@@ -3,17 +3,22 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { buildLlmsTxt, buildCapabilities } from '../cli/index.ts'
+import { buildLlmsTxt, buildCapabilities, COMMAND_FLAGS } from '../cli/index.ts'
+import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
 describe('#6430 llms.txt', () => {
-  test('contains every CLI verb', () => {
+  // The verb set comes from the CLI's own command table, and each verb must
+  // open a bullet in the "CLI verbs" list (a bare substring check passed for
+  // `parse` because the prose mentions parsing).
+  const listsVerb = (txt: string, verb: string) => new RegExp(`^- ${verb.replace(/-/g, '\\-')}\\b`, 'm').test(txt)
+  test('lists every CLI verb from the command table as a bullet', () => {
     const txt = buildLlmsTxt()
-    for (const verb of ['render', 'parse', 'verify', 'mutate', 'format', 'describe', 'capabilities', 'batch', 'render-markdown', 'llms-txt', 'init-agent']) {
-      expect(txt).toContain(verb)
-    }
+    const verbs = Object.keys(COMMAND_FLAGS)
+    expect(verbs.length).toBeGreaterThan(10)
+    expect(verbs.filter(verb => !listsVerb(txt, verb))).toEqual([])
   })
 
   test('contains every output format from capabilities', () => {
@@ -27,6 +32,18 @@ describe('#6430 llms.txt', () => {
     const txt = buildLlmsTxt()
     for (const f of buildCapabilities().families) {
       expect(txt).toContain(f.id)
+    }
+  })
+
+  test('llms.txt and the init-agent bundle name the narrower of every family capabilities advertises', () => {
+    const narrowers = buildCapabilities().families.flatMap(family => family.narrower ? [family.narrower] : [])
+    expect(narrowers.length).toBeGreaterThan(0)
+    for (const [surface, text] of [
+      ['llms.txt', buildLlmsTxt()],
+      ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
+      ['init-agent skill bundle', INIT_SKILL_MD],
+    ] as const) {
+      expect({ surface, missing: narrowers.filter(narrower => !text.includes(narrower)) }).toEqual({ surface, missing: [] })
     }
   })
 

@@ -1,6 +1,5 @@
-import { afterAll, describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, expect, test } from 'bun:test'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
@@ -25,17 +24,10 @@ import {
   SECTION_A_TRANSPORT_FIXTURE,
   sectionATransportReceiptProjection,
 } from './helpers/section-a-transport-fixture.ts'
+import { captureCli } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
 
-const tempDirs: string[] = []
-afterAll(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
-})
-
-function tempDir(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), prefix))
-  tempDirs.push(dir)
-  return dir
-}
+const temp = useTempDirs()
 
 const { source: SOURCE, options: OPTIONS } = SECTION_A_TRANSPORT_FIXTURE
 
@@ -59,17 +51,6 @@ function hostedContext(): HostedMcpContext {
       const rendered = renderMermaidPNGWithReceipt(source, options)
       return { ...rendered, warnings: [], runtime: PNG_WASM_RUNTIME }
     },
-  }
-}
-
-function captureStdout(run: () => number): { code: number; stdout: string } {
-  const chunks: string[] = []
-  const original = process.stdout.write
-  process.stdout.write = ((chunk: unknown) => { chunks.push(String(chunk)); return true }) as typeof process.stdout.write
-  try {
-    return { code: run(), stdout: chunks.join('') }
-  } finally {
-    process.stdout.write = original
   }
 }
 
@@ -107,16 +88,16 @@ describe('Section A transport and backend parity receipts', () => {
 
   test('the canonical SVG sentinel crosses library, CLI, local MCP, hosted MCP, and website adapters unchanged', async () => {
     const library = renderMermaidSVGWithReceipt(SOURCE, OPTIONS)
-    const dir = tempDir('am-section-a-transport-')
+    const dir = temp.dir('am-section-a-transport-')
     const input = join(dir, 'sentinel.mmd')
     writeFileSync(input, SOURCE)
-    const cliRun = captureStdout(() => runCli([
+    const cliRun = captureCli(() => runCli([
       'render', input,
       '--format', 'svg',
       '--options', JSON.stringify(OPTIONS),
       '--json',
     ]))
-    const cli = JSON.parse(cliRun.stdout) as { svg: string; receipt: typeof library.receipt }
+    const cli = JSON.parse(cliRun.out) as { svg: string; receipt: typeof library.receipt }
     const local = payloadOf(await handleRequest(call('execute', {
       code: `return mermaid.renderMermaidSVGWithReceipt(${JSON.stringify(SOURCE)}, ${JSON.stringify(OPTIONS)})`,
     })))
@@ -303,11 +284,11 @@ architecture-beta
       fitTo: { width: 64 },
       options: { style },
     }), hostedContext()))
-    const dir = tempDir('am-section-a-png-')
+    const dir = temp.dir('am-section-a-png-')
     const input = join(dir, 'diagram.mmd')
     const output = join(dir, 'diagram.png')
     writeFileSync(input, SOURCE)
-    const cli = captureStdout(() => runCli([
+    const cli = captureCli(() => runCli([
       'render', input,
       '--format', 'png',
       '--output', output,
@@ -316,7 +297,7 @@ architecture-beta
       '--fit-width', '64',
       '--json',
     ]))
-    const payload = JSON.parse(cli.stdout) as {
+    const payload = JSON.parse(cli.out) as {
       ok: boolean
       receipt: typeof library.receipt
       runtime: typeof PNG_NAPI_RUNTIME

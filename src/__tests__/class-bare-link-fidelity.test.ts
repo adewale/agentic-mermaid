@@ -1,8 +1,13 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { parseClassDiagram, parseClassRelationship } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 const cases = [
   { statement: 'classO .. classP : Link(Dashed)', kind: 'link-dashed', lineType: 1, label: 'Link(Dashed)' },
@@ -20,28 +25,14 @@ const cases = [
 ] as const
 
 describe('Class markerless link fidelity', () => {
-  test('pinned Mermaid 11.16 gives both bare links two endpoints and no markers', () => {
-    const script = `
-      import DOMPurify from 'dompurify'
-      DOMPurify.addHook = () => {}
-      DOMPurify.sanitize = text => text
-      const { default: mermaid } = await import('mermaid')
-      mermaid.initialize({ startOnLoad: false })
-      const statements = ${JSON.stringify(cases.map(item => item.statement))}
-      const result = []
-      for (const statement of statements) {
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
-        const relation = diagram.db.getRelations()[0]
-        result.push({ classes: [...diagram.db.getClasses().keys()], from: relation?.id1, to: relation?.id2,
-          lineType: relation?.relation.lineType, type1: relation?.relation.type1, type2: relation?.relation.type2,
-          title: relation?.title, relationTitle1: relation?.relationTitle1, relationTitle2: relation?.relationTitle2 })
-      }
-      process.stdout.write(JSON.stringify(result))
-    `
-    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-    expect(probe.exitCode).toBe(0)
-    const upstream = JSON.parse(new TextDecoder().decode(probe.stdout)) as Array<Record<string, unknown>>
-    expect(upstream).toEqual(cases.map(item => ({
+  test('pinned Mermaid 11.16 gives both bare links two endpoints and no markers', async () => {
+    const relations: Array<Record<string, unknown>> = await upstream.projectAll(cases.map(item => `classDiagram\n${item.statement}`), diagram => {
+      const relation = diagram.db.getRelations()[0]
+      return { classes: [...diagram.db.getClasses().keys()], from: relation?.id1, to: relation?.id2,
+        lineType: relation?.relation.lineType, type1: relation?.relation.type1, type2: relation?.relation.type2,
+        title: relation?.title, relationTitle1: relation?.relationTitle1, relationTitle2: relation?.relationTitle2 }
+    })
+    expect(relations).toEqual(cases.map(item => ({
       classes: item.statement.startsWith('classO') ? ['classO', 'classP'] : ['A', 'B'],
       from: item.statement.startsWith('classO') ? 'classO' : 'A',
       to: item.statement.startsWith('classO') ? 'classP' : 'B',
@@ -140,25 +131,21 @@ describe('Class markerless link fidelity', () => {
       expect(renderMermaidSVG(memberSource)).toContain('data-id="A"')
     }
 
-    const malformed = `A${'..'.repeat(32_000)} B`
-    const start = performance.now()
-    expect(parseClassRelationship(malformed)).toBeNull()
-    expect(performance.now() - start).toBeLessThan(500)
-    const agentStart = performance.now()
-    const parsed = parseRegisteredMermaid(`classDiagram\n${malformed}`)
-    expect(parsed.ok).toBe(true)
-    if (parsed.ok) {
-      expect(parsed.value.body.kind).toBe('opaque')
-      expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
-    }
-    expect(performance.now() - agentStart).toBeLessThan(500)
-    const longEndpoint = `${'A'.repeat(60_000)}--B : x:y`
-    const longStart = performance.now()
-    expect(parseRegisteredMermaid(`classDiagram\n${longEndpoint}`).ok).toBe(true)
-    expect(performance.now() - longStart).toBeLessThan(500)
+    const malformed = (size: number) => `A${'..'.repeat(size)} B`
+    expectNearLinearGrowth('malformed dotted relationship', size => {
+      expect(parseClassRelationship(malformed(size))).toBeNull()
+    }, 32_000)
+    expectNearLinearGrowth('malformed dotted relationship through parse + verify', size => {
+      const parsed = parseRegisteredMermaid(`classDiagram\n${malformed(size)}`)
+      expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+      if (parsed.ok) expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+    }, 32_000)
+    expectNearLinearGrowth('long relationship endpoint', size => {
+      expect(parseRegisteredMermaid(`classDiagram\n${'A'.repeat(size)}--B : x:y`).ok).toBe(true)
+    }, 60_000)
   })
 
-  test('pinned-invalid bare labels fail loudly without becoming marked arrows', () => {
+  test('pinned-invalid bare labels fail loudly without becoming marked arrows', async () => {
     const statements = [
       'A .. B : a:b',
       'Foo--B : a:b',
@@ -178,24 +165,7 @@ describe('Class markerless link fidelity', () => {
       'A .. note',
       '`note` -- B',
     ]
-    const upstreamReject = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const results = []
-        for (const statement of ${JSON.stringify(statements)}) {
-          try { await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement); results.push('accepted') }
-          catch { results.push('rejected') }
-        }
-        process.stdout.write(JSON.stringify(results))
-      `],
-      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(upstreamReject.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(upstreamReject.stdout))).toEqual(statements.map(() => 'rejected'))
+    expect(await Promise.all(statements.map(statement => upstream.accepts(`classDiagram\n${statement}`)))).toEqual(statements.map(() => false))
     for (const statement of statements) {
       const invalidSource = `classDiagram\nclass A\nclass B\nclass Foo\nclass out\n${statement}`
       expect(parseClassRelationship(statement)).toBeNull()
@@ -212,29 +182,12 @@ describe('Class markerless link fidelity', () => {
     }
   })
 
-  test('source-normalizer label gaps remain diagnosed, not falsely native', () => {
+  test('source-normalizer label gaps remain diagnosed, not falsely native', async () => {
     // Upstream accepts both; the shared source projection currently trims a
     // whitespace-only suffix and decodes numeric entities before native parse.
     // Until that seam is repaired under #260, keep them opaque and fail loud.
     const statements = ['A .. B : ', 'A .. B : a&#58;b']
-    const upstreamProbe = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const results = []
-        for (const statement of ${JSON.stringify(statements)}) {
-          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
-          results.push(diagram.db.getRelations().length)
-        }
-        process.stdout.write(JSON.stringify(results))
-      `],
-      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(upstreamProbe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(upstreamProbe.stdout))).toEqual([1, 1])
+    expect(await upstream.projectAll(statements.map(statement => `classDiagram\n${statement}`), diagram => diagram.db.getRelations().length)).toEqual([1, 1])
     for (const statement of statements) {
       const source = `classDiagram\n${statement}`
       const parsed = parseRegisteredMermaid(source)
@@ -248,26 +201,9 @@ describe('Class markerless link fidelity', () => {
     }
   })
 
-  test('accepted endpoint tokens include escaped reserved IDs without overclaiming other ID grammar', () => {
+  test('accepted endpoint tokens include escaped reserved IDs without overclaiming other ID grammar', async () => {
     const statements = ['`o` .. B', 'A .. `o`', '`class` -- B', '`A$B` .. C', '0 -- B', 'Class -- B']
-    const upstreamProbe = Bun.spawnSync({
-      cmd: [process.execPath, '-e', `
-        import DOMPurify from 'dompurify'
-        DOMPurify.addHook = () => {}
-        DOMPurify.sanitize = text => text
-        const { default: mermaid } = await import('mermaid')
-        mermaid.initialize({ startOnLoad: false })
-        const results = []
-        for (const statement of ${JSON.stringify(statements)}) {
-          const diagram = await mermaid.mermaidAPI.getDiagramFromText('classDiagram\\n' + statement)
-          results.push(diagram.db.getRelations().length)
-        }
-        process.stdout.write(JSON.stringify(results))
-      `],
-      cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe',
-    })
-    expect(upstreamProbe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(upstreamProbe.stdout))).toEqual(statements.map(() => 1))
+    expect(await upstream.projectAll(statements.map(statement => `classDiagram\n${statement}`), diagram => diagram.db.getRelations().length)).toEqual(statements.map(() => 1))
     for (const statement of statements) {
       const source = `classDiagram\n${statement}`
       expect(parseClassDiagram(source.split('\n')).relationships).toHaveLength(1)

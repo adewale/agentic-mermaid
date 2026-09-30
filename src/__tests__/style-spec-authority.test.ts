@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { RoleStyles, SemanticBinding } from '../scene/style-registry.ts'
 import {
   EXACT_ROLE_STYLE_CONTRACT,
@@ -18,6 +17,9 @@ import {
   styleSpecTypeScriptDeclaration,
   validateStyleSpec,
 } from '../scene/style-registry.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const ROOT = join(import.meta.dir, '..', '..')
 // Registered only inside child processes by site-probe.preload.ts.
@@ -179,20 +181,16 @@ describe('StyleSpec has one projected field authority', () => {
     expect(renderSvg).toMatch(new RegExp(`registered Look \\([^)]*${PROBE_LOOK}[^)]*\\)`))
     expect(renderSvg).toMatch(new RegExp(`Palette \\([^)]*${PROBE_PALETTE}[^)]*\\)`))
 
-    const out = join(mkdtempSync(join(tmpdir(), 'am-style-authority-')), 'editor.html')
-    try {
-      run([join(ROOT, 'scripts', 'site', 'editor.ts')], { ...probeEnv, AM_TEST_REDIRECT_WRITE: out })
-      const html = readFileSync(out, 'utf8')
-      const styleItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-style="([^"]+)"[^>]*>([^<]*)<\/button>/g), match => [match[1], match[2]])
-      const themeItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-theme="([^"]*)"[^>]*>(?:<span[^>]*><\/span>)?([^<]*)<\/button>/g), match => [match[1], match[2]])
-      expect(styleItems).toContainEqual([PROBE_LOOK, probeLabel])
-      expect(themeItems).toContainEqual([PROBE_PALETTE, probeLabel])
-      // Kind routing: a Look is never offered as a palette and vice versa.
-      expect(styleItems.map(item => item[0])).not.toContain(PROBE_PALETTE)
-      expect(themeItems.map(item => item[0])).not.toContain(PROBE_LOOK)
-    } finally {
-      rmSync(dirname(out), { recursive: true, force: true })
-    }
+    const out = join(temp.dir('am-style-authority-'), 'editor.html')
+    run([join(ROOT, 'scripts', 'site', 'editor.ts')], { ...probeEnv, AM_TEST_REDIRECT_WRITE: out })
+    const html = readFileSync(out, 'utf8')
+    const styleItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-style="([^"]+)"[^>]*>([^<]*)<\/button>/g), match => [match[1], match[2]])
+    const themeItems = Array.from(html.matchAll(/<button class="theme-dropdown-item[^"]*"[^>]*data-theme="([^"]*)"[^>]*>(?:<span[^>]*><\/span>)?([^<]*)<\/button>/g), match => [match[1], match[2]])
+    expect(styleItems).toContainEqual([PROBE_LOOK, probeLabel])
+    expect(themeItems).toContainEqual([PROBE_PALETTE, probeLabel])
+    // Kind routing: a Look is never offered as a palette and vice versa.
+    expect(styleItems.map(item => item[0])).not.toContain(PROBE_PALETTE)
+    expect(themeItems.map(item => item[0])).not.toContain(PROBE_LOOK)
   }, 60_000)
 
   test('removed Tufte and default bare inputs have no metadata or public resolution', () => {

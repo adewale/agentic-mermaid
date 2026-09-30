@@ -188,18 +188,10 @@ describe('characterisation · Tier A · universal invariants', () => {
     )
   })
 
-  // P2. Determinism. render(x) is byte-identical across runs. This is the
-  // keystone that makes golden/approval tests valid. Kills mutants that
-  // replace the deterministic MinHeap FIFO tie-break, label-segment tie-break,
-  // or stable root sort with order-dependent or random behaviour.
-  it('P2 determinism — byte-identical across repeated renders', () => {
-    fc.assert(
-      fc.property(generalGraphArb, ({ src }) => {
-        expect(renderMermaidASCII(src, U)).toBe(renderMermaidASCII(src, U))
-      }),
-      { numRuns: RUNS },
-    )
-  })
+  // P2 (determinism) is observed on output: ascii-determinism.test.ts
+  // re-renders the docs corpus and the tie-break fixtures. A reordered (but
+  // still deterministic) tie-break is P2-invisible;
+  // ascii-pathfinder-determinism pins the FIFO route exactly.
 
   // P3. Orthogonality. No diagonal connector glyphs: every edge is Manhattan
   // (90° bends only). This is the defining invariant of the A* router. Kills
@@ -234,20 +226,17 @@ describe('characterisation · Tier A · universal invariants', () => {
 describe('characterisation · Tier B · structural (trees & chains)', () => {
   // P5. Node conservation over generated trees. P10 separately locks the
   // reciprocal-cycle regression without overclaiming every dense topology.
-  it('P5 node conservation — every tree node is rendered', () => {
-    fc.assert(
-      fc.property(fc.constantFrom<Dir>('TD', 'LR'), (dir) =>
-        fc.assert(
-          fc.property(outTreeArb(dir), ({ src, ns }) => {
-            const out = renderMermaidASCII(src, U)
-            for (const id of ns) expect(out).toContain(id)
-          }),
-          { numRuns: 40 },
-        ),
-      ),
-      { numRuns: 1 },
-    )
-  })
+  for (const dir of ['TD', 'LR'] as const) {
+    it(`P5 node conservation (${dir}) — every tree node is rendered`, () => {
+      fc.assert(
+        fc.property(outTreeArb(dir), ({ src, ns }) => {
+          const out = renderMermaidASCII(src, U)
+          for (const id of ns) expect(out).toContain(id)
+        }),
+        { numRuns: 40 },
+      )
+    })
+  }
 
   // P6. Box non-overlap (trees). Drawn node boxes occupy disjoint regions.
   // Holds for out-trees; the 3×3 reservation + stride-4 collision shift
@@ -272,30 +261,39 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
   // strictly downstream of u's along the flow axis (below for TD, right for
   // LR). This is the Sugiyama layer-assignment essence. Kills mutants that
   // change the childLevel stride or the flow-axis direction.
+  // detectBoxes misses a few boxes (296/298 TD and 290/298 LR edges resolve
+  // at the pinned seed), so an edge whose boxes are not found is skipped; the
+  // 95% floor keeps a detectBoxes or label regression from making P7 vacuous.
   it('P7 monotone layering (TD) — child below parent', () => {
+    let edgesSeen = 0, edgesChecked = 0
     fc.assert(
       fc.property(outTreeArb('TD'), ({ src, edges }) => {
         const m = new Map(detectBoxes(renderMermaidASCII(src, U)).map((b) => [b.label, b]))
         for (const [u, v] of edges) {
+          edgesSeen++
           const su = m.get(u), sv = m.get(v)
-          if (su && sv) expect(sv.top).toBeGreaterThan(su.top)
+          if (su && sv) { edgesChecked++; expect(sv.top).toBeGreaterThan(su.top) }
         }
       }),
       { numRuns: RUNS },
     )
+    expect(edgesChecked).toBeGreaterThanOrEqual(0.95 * edgesSeen)
   })
 
   it('P7 monotone layering (LR) — child right of parent', () => {
+    let edgesSeen = 0, edgesChecked = 0
     fc.assert(
       fc.property(outTreeArb('LR'), ({ src, edges }) => {
         const m = new Map(detectBoxes(renderMermaidASCII(src, U)).map((b) => [b.label, b]))
         for (const [u, v] of edges) {
+          edgesSeen++
           const su = m.get(u), sv = m.get(v)
-          if (su && sv) expect(sv.left).toBeGreaterThan(su.left)
+          if (su && sv) { edgesChecked++; expect(sv.left).toBeGreaterThan(su.left) }
         }
       }),
       { numRuns: RUNS },
     )
+    expect(edgesChecked).toBeGreaterThanOrEqual(0.95 * edgesSeen)
   })
 
   // P8. Structural round-trip (chains). Rendering a linear chain then parsing

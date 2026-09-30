@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
+import { mermaidConfigKeys } from './helpers/mermaid-config-keys.ts'
 
 const CHART = 'xychart-beta\n  x-axis [Jan, Feb]\n  y-axis "Sales" 0 --> 10\n  bar [3, 7]'
 const UNWIRED = [
@@ -18,7 +18,7 @@ function withConfig(config: object): string {
 
 describe('pinned XY Chart configuration dispositions (#248)', () => {
   test('every explicitly diagnosed key is in the pinned Mermaid 11.16 schema', () => {
-    const pinned = new Set(UPSTREAM_MERMAID_MANIFEST.semanticInventory.configKeys.map(key => key.id))
+    const pinned = new Set(mermaidConfigKeys().map(key => key.id))
     for (const { path } of [...UNWIRED, WIRED]) expect(pinned.has(path), path).toBe(true)
   })
 

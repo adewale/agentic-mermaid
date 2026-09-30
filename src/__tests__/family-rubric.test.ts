@@ -196,11 +196,34 @@ describe('family rubric hard metrics discriminate', () => {
     expect(r.metrics.regionIntrusions).toBe(0)
   })
 
-  it('every hard metric is exercised by this file', () => {
-    // Guard against a new hard metric landing without a discriminating test.
-    expect([...FAMILY_HARD_METRICS].sort()).toEqual(
-      ['groupBreaches', 'groupOverlaps', 'nodeOverlaps', 'nonFiniteGeometry', 'offCanvas'],
-    )
+  // One synthetic bad layout per hard metric. Iterating FAMILY_HARD_METRICS
+  // (not a copied list) means a new hard metric fails here, by name, until it
+  // has a layout that trips it.
+  const HARD_METRIC_TRIGGERS: Record<string, Parameters<typeof looseLayout>[0]> = {
+    nonFiniteGeometry: { nodes: [{ id: 'a', x: Number.NaN, y: 0, w: 10, h: 10, shape: 'rectangle', label: 'A' }] },
+    offCanvas: { nodes: [{ id: 'a', x: 190, y: 10, w: 50, h: 20, shape: 'rectangle', label: 'A' }] },
+    nodeOverlaps: {
+      nodes: [
+        { id: 'a', x: 10, y: 10, w: 50, h: 20, shape: 'rectangle', label: 'A' },
+        { id: 'b', x: 30, y: 15, w: 50, h: 20, shape: 'rectangle', label: 'B' },
+      ],
+    },
+    groupBreaches: { groups: [{ id: 'g', x: 0, y: 0, w: 40, h: 90, members: ['b'], label: 'G' }] },
+    groupOverlaps: {
+      groups: [
+        { id: 'g1', x: 0, y: 0, w: 100, h: 50, members: [], label: 'G1' },
+        { id: 'g2', x: 60, y: 10, w: 100, h: 50, members: [], label: 'G2' },
+      ],
+    },
+  }
+
+  it('every hard metric has a synthetic layout that trips it as a HARD violation', () => {
+    for (const metric of FAMILY_HARD_METRICS) {
+      const trigger = HARD_METRIC_TRIGGERS[metric]
+      expect({ metric, hasTrigger: trigger !== undefined }).toEqual({ metric, hasTrigger: true })
+      const hard = familyHardViolations(assessRenderedLayout(looseLayout(trigger))).map(v => v.metric)
+      expect({ metric, flagged: hard.includes(metric) }).toEqual({ metric, flagged: true })
+    }
   })
 })
 

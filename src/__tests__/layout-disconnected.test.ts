@@ -44,6 +44,18 @@ function getBoundingBox(items: Array<{ x: number; y: number; width: number; heig
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
+type Box = { x: number; y: number; width: number; height: number }
+
+/** How two boxes sit relative to each other: side by side (x ranges disjoint,
+ *  y ranges shared), stacked (the reverse), or anything else. */
+function arrangement(a: Box, b: Box): 'side-by-side' | 'stacked' | 'other' {
+  const xDisjoint = a.x + a.width <= b.x || b.x + b.width <= a.x
+  const yDisjoint = a.y + a.height <= b.y || b.y + b.height <= a.y
+  if (xDisjoint && !yDisjoint) return 'side-by-side'
+  if (yDisjoint && !xDisjoint) return 'stacked'
+  return 'other'
+}
+
 // ============================================================================
 // Two disconnected subgraphs (the original bug)
 // ============================================================================
@@ -114,11 +126,7 @@ describe('layoutGraph – two disconnected subgraphs', () => {
     const s2 = result.groups.find(g => g.label === 'Second')!
 
     // In LR mode, subgraphs should be stacked vertically (perpendicular to flow)
-    // One should be above the other
-    const isVerticallyArranged =
-      (s1.y + s1.height <= s2.y) || (s2.y + s2.height <= s1.y)
-
-    expect(isVerticallyArranged).toBe(true)
+    expect(arrangement(s1, s2)).toBe('stacked')
   })
 
   it('respects direction for stacking (TD = horizontal)', () => {
@@ -137,13 +145,8 @@ describe('layoutGraph – two disconnected subgraphs', () => {
     const s1 = result.groups.find(g => g.label === 'First')!
     const s2 = result.groups.find(g => g.label === 'Second')!
 
-    // ELK may arrange disconnected components in various ways
-    // The key requirement is that they don't overlap
-    const noOverlap =
-      (s1.x + s1.width <= s2.x) || (s2.x + s2.width <= s1.x) ||
-      (s1.y + s1.height <= s2.y) || (s2.y + s2.height <= s1.y)
-
-    expect(noOverlap).toBe(true)
+    // In TD mode, subgraphs should sit side by side (perpendicular to flow)
+    expect(arrangement(s1, s2)).toBe('side-by-side')
   })
 })
 
@@ -244,16 +247,16 @@ describe('layoutGraph – mixed connected and disconnected', () => {
     const parsed = parseMermaid(source)
     const result = layoutGraphSync(parsed)
 
-    const nodeD = result.nodes.find(n => n.id === 'D')!
-    const connectedNodes = result.nodes.filter(n => n.id !== 'D')
+    expect(result.nodes.map(n => n.id).sort()).toEqual(['A', 'B', 'C', 'D'])
 
-    // Isolated node should not overlap with any connected node
-    for (const node of connectedNodes) {
-      expect(
-        rectanglesOverlap(nodeD, node),
-        `Node D overlaps with node ${node.id}`
-      ).toBe(false)
+    // The isolated node is its own component; no two nodes overlap
+    const overlapping: string[] = []
+    for (let i = 0; i < result.nodes.length; i++) {
+      for (let j = i + 1; j < result.nodes.length; j++) {
+        if (rectanglesOverlap(result.nodes[i]!, result.nodes[j]!)) overlapping.push(`${result.nodes[i]!.id}/${result.nodes[j]!.id}`)
+      }
     }
+    expect(overlapping).toEqual([])
   })
 })
 
@@ -298,24 +301,6 @@ describe('layoutGraph – quality preservation', () => {
 // ============================================================================
 
 describe('layoutGraph – disconnected edge cases', () => {
-  it('handles single node as its own component', () => {
-    const source = `graph LR
-      A --> B
-      C[Isolated]`
-
-    const parsed = parseMermaid(source)
-    const result = layoutGraphSync(parsed)
-
-    expect(result.nodes.length).toBe(3)
-
-    // All nodes positioned without overlap
-    for (let i = 0; i < result.nodes.length; i++) {
-      for (let j = i + 1; j < result.nodes.length; j++) {
-        expect(rectanglesOverlap(result.nodes[i]!, result.nodes[j]!)).toBe(false)
-      }
-    }
-  })
-
   it('handles empty subgraph with disconnected nodes', () => {
     const source = `graph LR
       subgraph Empty
@@ -353,7 +338,7 @@ describe('layoutGraph – disconnected edge cases', () => {
 // Full render tests (SVG output)
 // ============================================================================
 
-describe('renderMermaidSVGAsync – disconnected components', () => {
+describe('renderMermaidSVG – disconnected components', () => {
   it('renders two disconnected subgraphs to valid SVG', () => {
     const source = `graph LR
       subgraph Today [Today]

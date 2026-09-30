@@ -57,14 +57,14 @@ describe('radar ASCII renderer', () => {
   })
 
   test('retains axis structure when no curve is drawable', () => {
+    // One empty bar row per axis, labels padded to a shared gutter.
     const axisOnly = renderMermaidASCII('radar-beta\n axis a, b, c\n max 5', { colorMode: 'none' })
-    expect(axisOnly).toContain('a')
-    expect(axisOnly).toContain('b')
-    expect(axisOnly).toContain('c')
+    expect(axisOnly).toBe('a  │\nb  │\nc  │')
 
+    // A curve with the wrong arity is listed and flagged, not plotted; the axes stay.
     const mismatched = renderMermaidASCII('radar-beta\n axis alpha, beta\n curve bad{1}\n max 5', { colorMode: 'none' })
-    expect(mismatched).toContain('alpha')
-    expect(mismatched).toContain('beta')
+    expect(mismatched).toContain('! bad: expected 2 values, got 1; not plotted')
+    expect(mismatched.split('\n').slice(-2)).toEqual(['alpha  │', 'beta   │'])
   })
 
   test('is deterministic', () => {

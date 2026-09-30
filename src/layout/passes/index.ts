@@ -800,13 +800,11 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     return [tgt]
   }
   type RankConstraint = { source: string; target: string }
-  // mutation-scope:feedback-link-rank-distance:start
   const rankConstraint = (i: number): RankConstraint => {
     const edge = graph.edges[i]!
     if (classes[i] === 'feedback') return { source: edge.target, target: edge.source }
     return { source: edge.source, target: edge.target }
   }
-  // mutation-scope:feedback-link-rank-distance:end
 
   // Main-axis entry/exit of an endpoint that may be a node OR a subgraph box.
   const mainSpan = (id: string): { start: number; size: number } | null => {
@@ -948,9 +946,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const delta = f.sign === 1
       ? behind[f.main] + nodeMainSize(behind, graph.direction) + DEFAULTS.nodeSpacing - ahead[f.main]
       : ahead[f.main] + nodeMainSize(ahead, graph.direction) + DEFAULTS.nodeSpacing - behind[f.main]
-    // mutation-scope:link-rank-packing-closure:start
     moveSet(separationUnit(ahead.id, behind.id), f.sign === 1 ? delta : -delta)
-    // mutation-scope:link-rank-packing-closure:end
   }
 
   // Grow/translate every container so it still encloses its (possibly moved) members.

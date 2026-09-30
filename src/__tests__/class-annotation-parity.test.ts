@@ -1,8 +1,13 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseClassAnnotationStatement, parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 // Mermaid 11.16 official syntax: classDiagram.html#annotations-on-classes.
 const sources = [
@@ -17,26 +22,10 @@ const sources = [
 ]
 
 describe('Class official annotation forms', () => {
-  test('pinned Mermaid 11.16 DB distinguishes one annotation from two', () => {
-    // Class DB calls DOMPurify in Node; isolate an identity sanitizer shim in
-    // a child process. This probes grammar/DB semantics, never output safety.
-    const script = `
-      import DOMPurify from 'dompurify'
-      DOMPurify.addHook = () => {}
-      DOMPurify.sanitize = text => text
-      const { default: mermaid } = await import('mermaid')
-      mermaid.initialize({ startOnLoad: false })
-      const sources = ${JSON.stringify([...sources, 'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape'])}
-      const annotations = []
-      for (const source of sources) {
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-        annotations.push(diagram.db.getClasses().get('Shape').annotations)
-      }
-      process.stdout.write(JSON.stringify(annotations))
-    `
-    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-    expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([
+  test('pinned Mermaid 11.16 DB distinguishes one annotation from two', async () => {
+    const annotations = await upstream.projectAll([...sources, 'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape'],
+      diagram => diagram.db.getClasses().get('Shape').annotations)
+    expect(annotations).toEqual([
       ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
     ])
   })
@@ -105,31 +94,16 @@ describe('Class official annotation forms', () => {
     }
   })
 
-  test('pinned Mermaid rejects unsupported tokens and separate annotation before a class exists', () => {
-    const script = `
-      import DOMPurify from 'dompurify'
-      DOMPurify.addHook = () => {}
-      DOMPurify.sanitize = text => text
-      const { default: mermaid } = await import('mermaid')
-      mermaid.initialize({ startOnLoad: false })
-      const sources = ${JSON.stringify([
-        'classDiagram\n<<interface>> Shape',
-        'classDiagram\nclass Shape <<interface name>>',
-        'classDiagram\nclass Shape <<interface-name>>',
-      ])}
-      const rejected = []
-      for (const source of sources) {
-        try { await mermaid.mermaidAPI.getDiagramFromText(source); rejected.push(false) }
-        catch { rejected.push(true) }
-      }
-      process.stdout.write(JSON.stringify(rejected))
-    `
-    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-    expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual([true, true, true])
+  test('pinned Mermaid rejects unsupported tokens and separate annotation before a class exists', async () => {
+    const sources = [
+      'classDiagram\n<<interface>> Shape',
+      'classDiagram\nclass Shape <<interface name>>',
+      'classDiagram\nclass Shape <<interface-name>>',
+    ]
+    expect(await Promise.all(sources.map(upstream.accepts))).toEqual([false, false, false])
   })
 
-  test('body annotations retain Mermaid 11.16 broad raw tokens, including empty and nested delimiters', () => {
+  test('body annotations retain Mermaid 11.16 broad raw tokens, including empty and nested delimiters', async () => {
     const cases = [
       ['class Shape { << interface >> }', ' interface '],
       ['class Shape {\n<< interface >>\n}', ' interface '],
@@ -138,23 +112,8 @@ describe('Class official annotation forms', () => {
       ['class Shape { <<<foo>>> }', '<foo>'],
       ['class Shape {\n<<foo>>bar>>\n}', 'foo>>bar'],
     ] as const
-    const script = `
-      import DOMPurify from 'dompurify'
-      DOMPurify.addHook = () => {}
-      DOMPurify.sanitize = text => text
-      const { default: mermaid } = await import('mermaid')
-      mermaid.initialize({ startOnLoad: false })
-      const sources = ${JSON.stringify(cases.map(([body]) => `classDiagram\n${body}`))}
-      const annotations = []
-      for (const source of sources) {
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-        annotations.push(diagram.db.getClasses().get('Shape').annotations)
-      }
-      process.stdout.write(JSON.stringify(annotations))
-    `
-    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-    expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(cases.map(([, annotation]) => [annotation]))
+    expect(await upstream.projectAll(cases.map(([body]) => `classDiagram\n${body}`), diagram => diagram.db.getClasses().get('Shape').annotations))
+      .toEqual(cases.map(([, annotation]) => [annotation]))
 
     for (const [body, annotation] of cases) {
       const source = `classDiagram\n${body}`
@@ -178,30 +137,16 @@ describe('Class official annotation forms', () => {
     if (parsed.ok) expect(parsed.value.body.kind).toBe('opaque')
   })
 
-  test('annotation delimiter is outside quoted labels, generics, and backtick IDs', () => {
+  test('annotation delimiter is outside quoted labels, generics, and backtick IDs', async () => {
     const cases = [
       { source: 'classDiagram\nclass Shape["<<Vector>>"] <<interface>>', id: 'Shape', label: '<<Vector>>', renders: true },
       { source: 'classDiagram\nclass Box~List<<T>>~ <<interface>>', id: 'Box', label: 'Box', renders: false },
       { source: 'classDiagram\nclass `A<<B>>` <<interface>>', id: 'A<<B>>', label: 'A<<B>>', renders: false },
     ] as const
-    const script = `
-      import DOMPurify from 'dompurify'
-      DOMPurify.addHook = () => {}
-      DOMPurify.sanitize = text => text
-      const { default: mermaid } = await import('mermaid')
-      mermaid.initialize({ startOnLoad: false })
-      const sources = ${JSON.stringify(cases.map(entry => entry.source))}
-      const classes = []
-      for (const source of sources) {
-        const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-        const [id, cls] = [...diagram.db.getClasses()][0]
-        classes.push({ id, label: cls.label, annotations: cls.annotations })
-      }
-      process.stdout.write(JSON.stringify(classes))
-    `
-    const probe = Bun.spawnSync({ cmd: [process.execPath, '-e', script], cwd: process.cwd(), stdout: 'pipe', stderr: 'pipe' })
-    expect(probe.exitCode).toBe(0)
-    expect(JSON.parse(new TextDecoder().decode(probe.stdout))).toEqual(cases.map(entry => ({
+    expect(await upstream.projectAll(cases.map(entry => entry.source), diagram => {
+      const [id, cls] = [...diagram.db.getClasses()][0]
+      return { id, label: cls.label, annotations: cls.annotations }
+    })).toEqual(cases.map(entry => ({
       id: entry.id, label: entry.label, annotations: ['interface'],
     })))
 
@@ -244,14 +189,12 @@ describe('Class official annotation forms', () => {
   })
 
   test('annotation scanning stays linear at the public 64 KiB source limit', () => {
-    const malformed = `class ${' '.repeat(65_000)}x`
-    const start = performance.now()
-    expect(parseClassAnnotationStatement(malformed)).toBeNull()
-    expect(performance.now() - start).toBeLessThan(1_000)
-    const labelWithDelimiters = `class Shape["${'<<'.repeat(30_000)}"] <<interface>>`
-    const labelStart = performance.now()
-    expect(parseClassAnnotationStatement(labelWithDelimiters)?.annotation).toBe('interface')
-    expect(performance.now() - labelStart).toBeLessThan(1_000)
+    expectNearLinearGrowth('malformed annotation statement', size => {
+      expect(parseClassAnnotationStatement(`class ${' '.repeat(size)}x`)).toBeNull()
+    }, 65_000)
+    expectNearLinearGrowth('annotation after a delimiter-heavy label', size => {
+      expect(parseClassAnnotationStatement(`class Shape["${'<<'.repeat(size)}"] <<interface>>`)?.annotation).toBe('interface')
+    }, 30_000)
   })
 
   test('a lone inline-annotated class renders a sized box carrying its stereotype', () => {

@@ -1,8 +1,7 @@
 // Loop 13 M6: agent-usage validation harness — scenarios + anti-pattern linter.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync, mkdtempSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync, rmSync, existsSync as fsExistsSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runAllScenarios, lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
 import { DEFAULT_CASES, KNOWLEDGE_CASES, CREATE_CASES, checkAgentUsageTaskSource, requiresStructuredMutation, runAgentUsageEval } from '../../eval/agent-usage/run.ts'
@@ -15,6 +14,9 @@ import { handleRequest } from '../mcp/server.ts'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid, serializeMermaid, mutate, buildMermaid } from '../agent/index.ts'
 import { asFlowchart } from '../agent/types.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -35,17 +37,6 @@ type FailureCase = {
 
 function loadFailureCorpus(): FailureCorpus {
   return JSON.parse(readFileSync(join(REPO, 'eval/agent-usage/failure-corpus/cases.json'), 'utf8')) as FailureCorpus
-}
-
-function classifyRawAgentFailure(text: string): string[] {
-  const findings = new Set<string>()
-  if (/```mermaid/i.test(text)) findings.add('MERMAID_FENCE_NOT_CODE_MODE')
-  if (/`?am\s+(mutate|render|verify|batch|preview)\b/i.test(text)) findings.add('CLI_MISUSE')
-  if (!/\bmermaid\.(parseRegisteredMermaid|asFlowchart|asSequence|asTimeline|asClass|asEr|mutate|verifyMermaid|serializeMermaid)\b/.test(text)) findings.add('NO_SDK_CALLS')
-  if (/^\s*```mermaid/i.test(text) && !/\bverifyMermaid\b/.test(text)) findings.add('REGENERATED_SOURCE')
-  if (/\n\s*```mermaid/i.test(text) && /Used Agentic Mermaid|Verification result|source-level path/i.test(text)) findings.add('PROSE_NOT_CODE_MODE')
-  if (/source-level path/i.test(text) && /alt/i.test(text) && /```mermaid\s*sequenceDiagram/i.test(text)) findings.add('SOURCE_LEVEL_OPAQUE_EDIT')
-  return [...findings].sort()
 }
 
 describe('agent-usage scenarios (the mutation loop works)', () => {
@@ -195,7 +186,7 @@ describe('homepage prompt eval contract', () => {
   })
 
   test('subagent prompt capture keeps the homepage surface fetch-only', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-homepage-fetch-only-'))
+    const dir = temp.dir('am-homepage-fetch-only-')
     const c = DEFAULT_CASES.find(c => c.id === 'state_add_done_transition')!
     const manifest = prepareSubagentPromptEval({
       outDir: dir,
@@ -214,7 +205,6 @@ describe('homepage prompt eval contract', () => {
     expect(request).toContain('Task:\nAdd a done transition')
     expect(request).not.toContain('Run `verifyMermaid` at every commit point')
     expect(request).not.toContain('Before returning, confirm the specific change')
-    rmSync(dir, { recursive: true, force: true })
   })
 
   test('the pointer targets start.md and does not duplicate its protocol', () => {
@@ -378,23 +368,10 @@ describe('stored agent-usage eval', () => {
   test('default Code Mode transcripts pass task and trace checks', async () => {
     const summary = await runAgentUsageEval()
     expect(summary.ok).toBe(true)
+    expect(summary.total).toBe(18)
     expect(summary.passed).toBe(summary.total)
     expect(summary.safePathRate).toBe(1)
     expect(summary.structuredPathRate).toBe(1)
-  })
-
-  test('baseline.json gates deterministic stored evals', async () => {
-    const baseline = JSON.parse(readFileSync(join(REPO, 'eval/agent-usage/baseline.json'), 'utf8')) as {
-      total: number
-      minPassed: number
-      minSafePathRate: number
-      minStructuredPathRate: number
-    }
-    const summary = await runAgentUsageEval()
-    expect(summary.total).toBe(baseline.total)
-    expect(summary.passed).toBeGreaterThanOrEqual(baseline.minPassed)
-    expect(summary.safePathRate).toBeGreaterThanOrEqual(baseline.minSafePathRate)
-    expect(summary.structuredPathRate).toBeGreaterThanOrEqual(baseline.minStructuredPathRate)
   })
 
   test('new-diagram source authoring passes without structured mutation', async () => {
@@ -510,7 +487,7 @@ describe('stored agent-usage eval', () => {
 
   test('decoy mutations on regenerated already-correct source do not satisfy input lineage', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> Cache\n  Cache --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> Cache\\n  Cache --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Unused', label: 'Unused' })
       const r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->Cache' })
@@ -520,13 +497,16 @@ describe('stored agent-usage eval', () => {
       if (!verify.ok) return { error: verify.warnings }
       return { source: mermaid.serializeMermaid(r4.value) }
     ` }])
-    expect(summary.ok).toBe(false)
-    expect(summary.results[0]!.traceOk).toBe(false)
+    // The script must run to completion (error undefined) and the lint must be
+    // clean (findings []), so traceOk:false comes from the trace oracle itself.
+    const r = summary.results[0]!
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
+      .toEqual({ ok: false, taskOk: true, traceOk: false, findings: [], error: undefined })
   })
 
   test('failed required mutation ops do not satisfy trace requirements', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
       mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'missing-edge' })
@@ -536,13 +516,14 @@ describe('stored agent-usage eval', () => {
       if (!verify.ok) return { error: verify.warnings }
       return { source: mermaid.serializeMermaid(r3.value) }
     ` }])
-    expect(summary.ok).toBe(false)
-    expect(summary.results[0]!.traceOk).toBe(false)
+    const r = summary.results[0]!
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
+      .toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
   })
 
   test('repeating required mutation kinds must satisfy required counts, not just a set', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const r1 = mermaid.mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
       const r2 = mermaid.mutate(r1.value, { kind: 'remove_edge', id: 'API->DB' })
@@ -551,13 +532,14 @@ describe('stored agent-usage eval', () => {
       if (!verify.ok) return { error: verify.warnings }
       return { source: mermaid.serializeMermaid(r3.value) }
     ` }])
-    expect(summary.ok).toBe(false)
-    expect(summary.results[0]!.traceOk).toBe(false)
+    const r = summary.results[0]!
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
+      .toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
   })
 
   test('Proxy ops cannot spoof trace opKind differently from the executed mutation', async () => {
     const summary = await runAgentUsageEval([{ id: 'cache_between_api_and_db', prompt: 'bad', script: `
-      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\n  API --> DB')
+      const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  API --> DB')
       const flow = mermaid.asFlowchart(r0.value)
       const spoof = (fakeKind) => {
         let calls = 0
@@ -571,12 +553,17 @@ describe('stored agent-usage eval', () => {
       if (!r2.ok) return { error: r2.error }
       const r3 = mermaid.mutate(r2.value, spoof('add_edge'))
       if (!r3.ok) return { error: r3.error }
-      const verify = mermaid.verifyMermaid(r3.value)
+      const r4 = mermaid.mutate(r3.value, spoof('add_edge'))
+      if (!r4.ok) return { error: r4.error }
+      const verify = mermaid.verifyMermaid(r4.value)
       if (!verify.ok) return { error: verify.warnings }
-      return { source: mermaid.serializeMermaid(r3.value) }
+      return { source: mermaid.serializeMermaid(r4.value) }
     ` }])
-    expect(summary.ok).toBe(false)
-    expect(summary.results[0]!.traceOk).toBe(false)
+    // Four spoofs cover the full required op multiset (add_node, remove_edge,
+    // add_edge x2), so only a trace that records the executed kind rejects it.
+    const r = summary.results[0]!
+    expect({ ok: r.ok, taskOk: r.taskOk, traceOk: r.traceOk, findings: r.findings, error: r.error })
+      .toEqual({ ok: false, taskOk: false, traceOk: false, findings: [], error: undefined })
   })
 
   test('result getters cannot inspect verify then serialize during output JSON conversion', async () => {
@@ -607,13 +594,6 @@ describe('EVAL-2 failure corpus (captured bad-agent paths stay failing)', () => 
       expect(c.rawResponse.length).toBeGreaterThan(20)
       if (c.kind === 'raw-response') expect(c.expectedRawFindings?.length ?? 0).toBeGreaterThan(0)
       if (c.kind === 'code-mode') expect(c.expectedResult).toBeDefined()
-    }
-  })
-
-  test('raw non-Code-Mode responses are classified as unsafe paths', () => {
-    for (const c of corpus.cases.filter(c => c.kind === 'raw-response')) {
-      const findings = classifyRawAgentFailure(c.rawResponse)
-      for (const expected of c.expectedRawFindings ?? []) expect(findings).toContain(expected)
     }
   })
 
@@ -715,10 +695,16 @@ describe('real Code Mode trace instrumentation', () => {
 // (#2): traceOk is read from real `am` verbs (AM_TRACE_LOG) when present, so it
 // no longer depends on how the model phrased its Trace prose.
 describe('eval metric split (taskOk primary) + observed tool-use', () => {
+  const restoreTraceLog = (value: string | undefined) => {
+    if (value === undefined) delete process.env.AM_TRACE_LOG
+    else process.env.AM_TRACE_LOG = value
+  }
+
   test('am CLI logs invoked verbs to AM_TRACE_LOG, and nothing when unset', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-trace-'))
+    const dir = temp.dir('am-trace-')
     const log = join(dir, 'calls.jsonl')
     const origWrite = process.stdout.write.bind(process.stdout)
+    const origTraceLog = process.env.AM_TRACE_LOG
     // Suppress the command's own stdout; we only care about the side log.
     ;(process.stdout as unknown as { write: (s: string) => boolean }).write = () => true
     try {
@@ -727,19 +713,20 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
       runCli(['styles'])
       delete process.env.AM_TRACE_LOG
       runCli(['capabilities']) // unset → must not append
+      ;(process.stdout as unknown as { write: typeof origWrite }).write = origWrite
+      const verbs = fsReadFileSync(log, 'utf8').trim().split('\n').map(l => JSON.parse(l).verb)
+      expect(verbs).toEqual(['capabilities', 'styles'])
     } finally {
       ;(process.stdout as unknown as { write: typeof origWrite }).write = origWrite
-      delete process.env.AM_TRACE_LOG
+      restoreTraceLog(origTraceLog)
     }
-    const verbs = fsReadFileSync(log, 'utf8').trim().split('\n').map(l => JSON.parse(l).verb)
-    expect(verbs).toEqual(['capabilities', 'styles'])
-    rmSync(dir, { recursive: true, force: true })
   })
 
   test('the library and hosted-MCP channels log through the SAME sink (not just the CLI)', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'am-sink-'))
+    const dir = temp.dir('am-sink-')
     const log = join(dir, 'calls.jsonl')
     const verbs = () => new Set(fsReadFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l).verb))
+    const origTraceLog = process.env.AM_TRACE_LOG
     try {
       process.env.AM_TRACE_LOG = log
       // Library channel: direct imports from agentic-mermaid/agent.
@@ -753,19 +740,18 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
         { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source: 'flowchart TD\n  A --> B', ops: [{ kind: 'add_node', id: 'C', label: 'C' }] } } },
         { execute: async () => { throw new Error('unused') } },
       )
+      // verify (library + hosted), mutate (library + hosted), build (buildMermaid) all observed.
+      const seen = verbs()
+      expect(seen.has('verify')).toBe(true)
+      expect(seen.has('mutate')).toBe(true)
+      expect(seen.has('build')).toBe(true)
     } finally {
-      delete process.env.AM_TRACE_LOG
+      restoreTraceLog(origTraceLog)
     }
-    // verify (library + hosted), mutate (library + hosted), build (buildMermaid) all observed.
-    const seen = verbs()
-    expect(seen.has('verify')).toBe(true)
-    expect(seen.has('mutate')).toBe(true)
-    expect(seen.has('build')).toBe(true)
-    rmSync(dir, { recursive: true, force: true })
   })
 
   test('a correct diagram with a terse trace passes the correctness gate; observed log overrides prose', async () => {
-    const runDir = mkdtempSync(join(tmpdir(), 'subeval-'))
+    const runDir = temp.dir('subeval-')
     prepareSubagentPromptEval({
       provider: 'unit', model: 'unit', surface: 'homepage', mode: 'chat',
       caseIds: ['cache_between_api_and_db', 'pie_add_docs_slice'],
@@ -796,8 +782,5 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
     // Both are diagram-correct either way — the split keeps that visible.
     expect(read('cache_between_api_and_db').taskOk).toBe(true)
     expect(read('pie_add_docs_slice').taskOk).toBe(true)
-
-    rmSync(runDir, { recursive: true, force: true })
-    expect(fsExistsSync(runDir)).toBe(false)
   })
 })

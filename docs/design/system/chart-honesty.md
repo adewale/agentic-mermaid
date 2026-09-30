@@ -109,11 +109,10 @@ Nothing in this contract depends on remembering to add a family to a list:
    builds each family at random sizes with its metamorphic generator
    (required for every family by citizenship), adds a random frontmatter
    title of 1 to 14 words, and checks the result in a random style.
-4. **Citizenship.** The `chartHonesty` surface of the
-   [citizenship matrix](../../contributing/diagram-family-citizenship.md)
-   must cite the partition file that checks the family. The citizenship test
-   checks that the partitions cover the registry exactly, and that every
-   family has a sample whose frontmatter title it must draw.
+4. **Citizenship.** `chartHonesty` is a surface of the
+   [citizenship checklist](../../contributing/diagram-family-citizenship.md):
+   every family lands in one partition and has a sample whose frontmatter
+   title it must draw.
 
 The oracle sees only what a sample draws, so a change that gives text a new
 surface to sit on (a new fill, band, or background) adds a sample that puts

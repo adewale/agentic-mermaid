@@ -141,9 +141,19 @@ describe('sankey agent surface · blank-slate authoring and SDK projection', () 
     }
   })
 
-  test('public sankey types, config, and the Code Mode SDK declaration stay precise', () => {
+  // Type precision is a compile-time contract: `bun run typecheck` fails if an
+  // accepted case stops compiling or a @ts-expect-error case starts compiling.
+  function compileTimeSankeyConfig(): void {
     const config: SankeyRuntimeConfig = { nodeAlignment: 'left', showValues: false, nodeWidth: 12 }
-    expect(config.nodeAlignment).toBe('left')
+    // @ts-expect-error nodeAlignment is the closed d3-sankey alignment union.
+    const badAlignment: SankeyRuntimeConfig = { nodeAlignment: 'diagonal' }
+    // @ts-expect-error nodeWidth is numeric.
+    const badWidth: SankeyRuntimeConfig = { nodeWidth: '12' }
+    void [config, badAlignment, badWidth]
+  }
+  void compileTimeSankeyConfig
+
+  test('the Code Mode SDK declaration exposes precise sankey types', () => {
     expect(SDK_DECLARATION).toContain("interface SankeyBody { kind: 'sankey'; links: SankeyBodyLink[] }")
     expect(SDK_DECLARATION).toContain('type SankeyMutationOp =')
     expect(SDK_DECLARATION).toContain('asSankey(d: ValidDiagram): SankeyValidDiagram | null')

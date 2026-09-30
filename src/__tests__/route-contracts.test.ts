@@ -323,7 +323,7 @@ describe('certificates', () => {
     }
   })
 
-  it('a feedback edge whose reverse lane is blocked stays a feedback-detour with blockers', () => {
+  it('a feedback edge whose parallel lanes are all blocked keeps its outer loop and names the blockers', () => {
     // C -> A in a TD chain must route around B; B blocks the span-center lanes
     // but ELK's outer channel is clear, so this one straightens. Block that
     // channel too by flanking B with siblings on both sides.
@@ -334,17 +334,11 @@ describe('certificates', () => {
       B --> C
       C --> A`))
     const e = findEdge(positioned.edges, 'C', 'A')
-    expect(e.routeCertificate?.routeClass).toBe('feedback')
-    if (e.points.length > 2) {
-      // The flanking siblings block every parallel lane; the route keeps its
-      // certified loop (outer channel when it escapes the node band).
-      expect(['outer-feedback', 'feedback-detour']).toContain(e.routeCertificate?.invariant ?? 'missing')
-      expect(e.routeCertificate?.directLaneClear).toBe(false)
-      expect(e.routeCertificate?.directLaneBlockedBy?.length).toBeGreaterThan(0)
-    } else {
-      // If layout left a clear outer lane after all, the certificate must prove it.
-      expect(e.routeCertificate?.directLaneClear).toBe(true)
-    }
+    // The flanking siblings block every parallel lane, so the route keeps its
+    // certified loop through the outer channel instead of straightening.
+    expect(e.points.length).toBeGreaterThan(2)
+    expect(e.routeCertificate).toMatchObject({ routeClass: 'feedback', invariant: 'outer-feedback', directLaneClear: false })
+    expect(e.routeCertificate?.directLaneBlockedBy).toContainEqual({ kind: 'span', id: 'C->A' })
   })
 
   it('straight forward lanes certify as straight (natively or by proof)', () => {
@@ -489,11 +483,13 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     const e = findEdge(edges, 'B', 'C')
     expect(isStraightHorizontal(e)).toBe(true)
     expect(e.points[0]!.x).toBeGreaterThan(e.points[1]!.x) // forward flow runs right-to-left
+    // Horizontal flows loop the labelled feedback edge around the outside
+    // (like LR); vertical flows take a straight parallel lane instead (BT below).
     const back = findEdge(edges, 'C', 'B')
-    expect(['outer-feedback', 'straight']).toContain(back.routeCertificate?.invariant ?? 'missing')
+    expect({ invariant: back.routeCertificate?.invariant, points: back.points.length }).toEqual({ invariant: 'outer-feedback', points: 4 })
   })
 
-  it('BT: the forward lane straightens as a vertical lane; labeled feedback loops outside', () => {
+  it('BT: the forward lane straightens as a vertical lane; labeled feedback takes a straight parallel back-lane', () => {
     const edges = layoutEdges(`flowchart BT
       A[User] --> B[Login Page]
       B --> C{Valid?}
@@ -502,8 +498,12 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
     expect(e.points.length).toBe(2)
     expect(Math.abs(e.points[0]!.x - e.points[1]!.x)).toBeLessThan(0.01)
     expect(e.points[0]!.y).toBeGreaterThan(e.points[1]!.y) // forward flow runs bottom-to-top
+    // Unlike RL, a vertical flow puts the labelled feedback edge on its own
+    // straight lane beside the forward edge (as TD does), not around the outside.
     const back = findEdge(edges, 'C', 'B')
-    expect(['outer-feedback', 'straight']).toContain(back.routeCertificate?.invariant ?? 'missing')
+    expect({ invariant: back.routeCertificate?.invariant, points: back.points.length }).toEqual({ invariant: 'straight', points: 2 })
+    expect(Math.abs(back.points[0]!.x - e.points[0]!.x)).toBeGreaterThan(1) // a distinct lane, not the forward one
+    expect(back.points[0]!.y).toBeLessThan(back.points[1]!.y) // feedback runs top-to-bottom
   })
 })
 
@@ -749,15 +749,18 @@ describe('straightenable shape whitelist', () => {
     expect(isStraightHorizontal(findEdge(positioned.edges, 'B', 'A'))).toBe(true)
   })
 
-  it('non-straightenable shapes (circle) keep their routes and certify unverified-shape', () => {
+  it('non-straightenable shapes (cloud: a curved-path routing envelope) keep their routes and certify unverified-shape', () => {
+    // Circles used to be the example here; they now have exact boundary ports
+    // (see "circles join the straightenable set…"). Curved v11 path shapes such
+    // as cloud still route against a conservative envelope, which carries no
+    // attachment proof, so the straightener must leave them alone.
     const edges = layoutEdges(`flowchart LR
-      A((User)) --> B((Login))
+      A@{ shape: cloud, label: "User" } --> B@{ shape: cloud, label: "Login" }
       B --> A`)
     const fwd = findEdge(edges, 'A', 'B')
-    if (fwd.points.length > 2) {
-      expect(fwd.routeCertificate?.invariant).toBe('unverified-shape')
-    }
+    expect(fwd.routeCertificate).toMatchObject({ invariant: 'unverified-shape' })
     expect(fwd.routeCertificate?.straightened).toBeUndefined()
+    expect(fwd.routeCertificate?.sourcePort).toBeUndefined()
   })
 })
 
@@ -1804,13 +1807,19 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     }
   })
 
-  it.each(['LR', 'RL', 'TD', 'BT'] as const)('%s: a chain of diamonds runs vertex to vertex', dir => {
+  // The vertex a chained diamond emits from, and the one it enters, per flow
+  // direction: the leading and trailing vertices, never a facet midpoint.
+  it.each([
+    ['LR', 'E', 'W'],
+    ['RL', 'W', 'E'],
+    ['TD', 'S', 'N'],
+    ['BT', 'N', 'S'],
+  ] as const)('%s: a chain of diamonds runs vertex to vertex', (dir, sourcePort, targetPort) => {
     const positioned = layoutGraphSync(parseMermaid(`flowchart ${dir}\n  Q1{One} --> Q2{Two} --> Q3{Three}`))
     for (const [from, to] of [['Q1', 'Q2'], ['Q2', 'Q3']] as const) {
       const e = findEdge(positioned.edges, from, to)
-      expect(e.points.length).toBe(2)
-      expect(e.routeCertificate?.sourcePort).toBeDefined()
-      expect(e.routeCertificate?.targetPort).toBeDefined()
+      expect({ edge: `${from}->${to}`, points: e.points.length, sourcePort: e.routeCertificate?.sourcePort, targetPort: e.routeCertificate?.targetPort })
+        .toEqual({ edge: `${from}->${to}`, points: 2, sourcePort, targetPort })
     }
   })
 
@@ -1831,9 +1840,9 @@ describe('route contracts — properties', () => {
   // random CI flake (~1 run in 7; issue #83). This is the exact seed whose
   // generated counterexample exposed #83 — with the fix it passes, so the old
   // counterexample class is now a permanent deterministic regression check.
-  // Pin at each assertion instead of mutating process-global configuration.
-  // That keeps the regression seed exact even when Bun runs this file in a
-  // different CI shard from the repo-wide seed-policy epilogue.
+  // Pin at each assertion instead of mutating process-global configuration,
+  // so the regression seed stays exact without touching the preload's global
+  // seed that every other suite relies on (fc-seed-policy.test.ts).
   const ROUTE_CONTRACT_SEED = -1377631277
 
   const flowchartArb = fc

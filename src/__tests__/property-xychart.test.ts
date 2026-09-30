@@ -39,10 +39,10 @@ function expectInsidePlotArea(
   expect(Number.isFinite(rect.y)).toBe(true)
   expect(Number.isFinite(rect.width)).toBe(true)
   expect(Number.isFinite(rect.height)).toBe(true)
-  expect(rect.x >= plotArea.x - 0.0001).toBe(true)
-  expect(rect.y >= plotArea.y - 0.0001).toBe(true)
-  expect(rect.x + rect.width <= plotArea.x + plotArea.width + 0.0001).toBe(true)
-  expect(rect.y + rect.height <= plotArea.y + plotArea.height + 0.0001).toBe(true)
+  expect(rect.x).toBeGreaterThanOrEqual(plotArea.x - 0.0001)
+  expect(rect.y).toBeGreaterThanOrEqual(plotArea.y - 0.0001)
+  expect(rect.x + rect.width).toBeLessThanOrEqual(plotArea.x + plotArea.width + 0.0001)
+  expect(rect.y + rect.height).toBeLessThanOrEqual(plotArea.y + plotArea.height + 0.0001)
 }
 
 describe('property-based xychart parsing', () => {
@@ -100,8 +100,8 @@ describe('property-based xychart parsing', () => {
         const allValues = series.flatMap(entry => entry.values)
 
         expect(chart.yAxis.range).toBeDefined()
-        expect(chart.yAxis.range!.min <= Math.min(...allValues)).toBe(true)
-        expect(chart.yAxis.range!.max >= Math.max(...allValues)).toBe(true)
+        expect(chart.yAxis.range!.min).toBeLessThanOrEqual(Math.min(...allValues))
+        expect(chart.yAxis.range!.max).toBeGreaterThanOrEqual(Math.max(...allValues))
       }),
       { numRuns: PROPERTY_RUNS },
     )
@@ -173,10 +173,10 @@ describe('property-based xychart layout', () => {
 
         const positioned = layoutXYChart(chart)
 
-        expect(positioned.width > 0).toBe(true)
-        expect(positioned.height > 0).toBe(true)
-        expect(positioned.plotArea.width > 0).toBe(true)
-        expect(positioned.plotArea.height > 0).toBe(true)
+        expect(positioned.width).toBeGreaterThan(0)
+        expect(positioned.height).toBeGreaterThan(0)
+        expect(positioned.plotArea.width).toBeGreaterThan(0)
+        expect(positioned.plotArea.height).toBeGreaterThan(0)
 
         for (const bar of positioned.bars) {
           expectInsidePlotArea(positioned.plotArea, bar)
@@ -185,10 +185,10 @@ describe('property-based xychart layout', () => {
         for (const line of positioned.lines) {
           expect(line.points).toHaveLength(labels.length)
           for (const point of line.points) {
-            expect(point.x >= positioned.plotArea.x - 0.0001).toBe(true)
-            expect(point.x <= positioned.plotArea.x + positioned.plotArea.width + 0.0001).toBe(true)
-            expect(point.y >= positioned.plotArea.y - 0.0001).toBe(true)
-            expect(point.y <= positioned.plotArea.y + positioned.plotArea.height + 0.0001).toBe(true)
+            expect(point.x).toBeGreaterThanOrEqual(positioned.plotArea.x - 0.0001)
+            expect(point.x).toBeLessThanOrEqual(positioned.plotArea.x + positioned.plotArea.width + 0.0001)
+            expect(point.y).toBeGreaterThanOrEqual(positioned.plotArea.y - 0.0001)
+            expect(point.y).toBeLessThanOrEqual(positioned.plotArea.y + positioned.plotArea.height + 0.0001)
           }
         }
 

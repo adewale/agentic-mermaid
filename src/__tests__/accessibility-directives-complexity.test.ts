@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { maskAccessibilityDirectivesForSourceMap, sourcePreservationSpans } from '../family-detection.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 test('whitespace-only accDescr is not an empty directive and stays bounded through the public parser', () => {
   const emptyDescription = `  accDescr${' '.repeat(48_000)}`
@@ -11,10 +12,9 @@ test('whitespace-only accDescr is not an empty directive and stays bounded throu
     expect(sourcePreservationSpans(`journey\n${line}\nTask: 3: Me`, 'journey').accessibilityDirectives).toBeUndefined()
   }
 
-  const started = performance.now()
-  const parsed = parseRegisteredMermaid(`journey\n${emptyDescription}\nTask: 3: Me`)
-  expect(parsed.ok).toBe(true)
-  expect(performance.now() - started).toBeLessThan(1_000)
+  expectNearLinearGrowth('whitespace-only accDescr through the public parser', size => {
+    expect(parseRegisteredMermaid(`journey\n  accDescr${' '.repeat(size)}\nTask: 3: Me`).ok).toBe(true)
+  }, 48_000)
 })
 
 test('valid inline and block accDescr directives retain their text and suffix', () => {
@@ -40,10 +40,10 @@ test('valid inline and block accDescr directives retain their text and suffix', 
 })
 
 test('repeated unclosed accDescr blocks do not rescan the remaining source', () => {
-  const source = `journey\n${'accDescr: {\n'.repeat(12_000)}accTitle: hidden\nTask: 3: Me\n`
-  const started = performance.now()
-  expect(sourcePreservationSpans(source, 'journey').accessibilityDirectives).toBeUndefined()
-  expect(maskAccessibilityDirectivesForSourceMap(source)).toBe(source)
-  expect(parseRegisteredMermaid(source).ok).toBe(true)
-  expect(performance.now() - started).toBeLessThan(1_000)
+  expectNearLinearGrowth('repeated unclosed accDescr blocks', size => {
+    const source = `journey\n${'accDescr: {\n'.repeat(size)}accTitle: hidden\nTask: 3: Me\n`
+    expect(sourcePreservationSpans(source, 'journey').accessibilityDirectives).toBeUndefined()
+    expect(maskAccessibilityDirectivesForSourceMap(source)).toBe(source)
+    expect(parseRegisteredMermaid(source).ok).toBe(true)
+  }, 12_000)
 })

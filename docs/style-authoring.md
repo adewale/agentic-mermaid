@@ -130,9 +130,6 @@ BrandPack registry is deliberately **not promoted**. Render-time semver ranges,
 dependency solving, ambient resource loading, and a second inheritance system
 remain absent.
 
-The generated [Section B capability report](./project/section-b-capability-report.md)
-accounts for every role leaf, private-face projection, role fallback, admitted
-family role/channel, and built-in export.
 The [all-family evidence sheet](./design/families/section-b-brand-evidence.png)
 shows one deliberately distinctive sentinel plus three holdout styles; its receipt
 and honest hard-error baseline live in `eval/section-b-brand-evidence/`.

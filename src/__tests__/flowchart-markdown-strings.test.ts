@@ -82,8 +82,8 @@ describe('markdown strings — explicit line breaks', () => {
   it('renders one tspan per explicit line', () => {
     const svg = renderMermaidSVG('flowchart LR\n  A["`Line one\n  Line two`"] --> B\n')
     const nodeText = svg.split('data-id="A"')[1]!.split('</g>')[0]!
-    expect(nodeText).toContain('Line one')
-    expect(nodeText).toContain('Line two')
+    const lines = [...nodeText.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(m => m[1])
+    expect(lines).toEqual(['Line one', 'Line two'])
     expect(nodeText).not.toContain('`')
   })
 })
@@ -127,6 +127,7 @@ describe('markdown strings — agent contract (#102)', () => {
     expect(verify.warnings).toContainEqual(expect.objectContaining({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'flowchart_markdown_string',
+      line: 2,
     }))
   })
 

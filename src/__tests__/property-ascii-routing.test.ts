@@ -115,6 +115,27 @@ function boundedExtent(from: { x: number; y: number }, to: { x: number; y: numbe
   return { x: max.x + 4, y: max.y + 4 }
 }
 
+/** Independent reachability oracle: breadth-first search over the same
+ *  bounded extent, stepping orthogonally around the obstacles. */
+function reachableInExtent(from: { x: number; y: number }, to: { x: number; y: number }, obstacles: Array<{ x: number; y: number }>): boolean {
+  const bound = boundedExtent(from, to, obstacles)
+  const blocked = new Set(obstacles.map(point => `${point.x},${point.y}`))
+  const seen = new Set([`${from.x},${from.y}`])
+  const queue = [from]
+  for (let head = 0; head < queue.length; head++) {
+    const current = queue[head]!
+    if (current.x === to.x && current.y === to.y) return true
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const next = { x: current.x + dx, y: current.y + dy }
+      const key = `${next.x},${next.y}`
+      if (next.x < 0 || next.y < 0 || next.x > bound.x || next.y > bound.y || seen.has(key) || blocked.has(key)) continue
+      seen.add(key)
+      queue.push(next)
+    }
+  }
+  return false
+}
+
 function isOrthogonalStep(path: Array<{ x: number; y: number }>, index: number): boolean {
   const prev = path[index - 1]!
   const current = path[index]!
@@ -201,6 +222,8 @@ describe('property-based ASCII pathfinding', () => {
     fc.assert(
       fc.property(caseArb, ({ from, to, obstacles }) => {
         const path = getPath(occupiedGrid(obstacles), from, to)
+        // A null path must mean the target is really unreachable in the extent.
+        expect({ found: path !== null }).toEqual({ found: reachableInExtent(from, to, obstacles) })
         if (path === null) return
         const bound = boundedExtent(from, to, obstacles)
 
@@ -236,6 +259,7 @@ describe('property-based ASCII pathfinding', () => {
         })
 
         const path = getPath(grid, from, to)
+        expect({ found: path !== null }).toEqual({ found: reachableInExtent(from, to, obstacles) })
         if (path === null) return
 
         expect(path[0]).toEqual(from)

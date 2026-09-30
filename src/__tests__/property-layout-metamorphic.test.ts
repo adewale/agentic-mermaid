@@ -42,20 +42,6 @@ function counts(source: string): StructuralCount {
 // relabeling. base36 of an integer keeps it alphanumeric and leading-letter.
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
 
-describe('metamorphic: determinism (flowchart)', () => {
-  test('MR1 — identical source yields identical metrics', () => {
-    const fam = METAMORPHIC_FAMILIES.flowchart
-    fc.assert(
-      fc.property(fc.integer({ min: 2, max: 6 }), tagArb, (k, t) => {
-        const p = parseMermaid(fam.build(k, t))
-        if (!p.ok) return
-        expect(measureQuality(layoutMermaid(p.value))).toEqual(measureQuality(layoutMermaid(p.value)))
-      }),
-      { numRuns: 50 },
-    )
-  })
-})
-
 describe('metamorphic: relations across all renderable families', () => {
   // Move 5: a new family in the registry must declare metamorphic generators.
   test('every BUILTIN family has a metamorphic generator (citizenship)', () => {
@@ -112,14 +98,16 @@ describe('metamorphic: relations across all renderable families', () => {
       expect(measureQuality(layoutMermaid(p.value))).toEqual(measureQuality(layoutMermaid(p.value)))
     })
 
-    // Move 9: serialization determinism for every family — two serializations of
-    // the same diagram are byte-identical (a precondition for the round-trip and
-    // faithfulness gates to be meaningful).
+    // Move 9: serialization determinism for every family — two independent
+    // parses of the same source serialize byte-identically (a precondition for
+    // the round-trip and faithfulness gates to be meaningful). Separate parses,
+    // so parser state that leaks between calls shows up here.
     test(`${fam.family}: MR1 determinism — byte-identical serialization`, () => {
-      const p = parseMermaid(fam.build(fam.kRange[0], 'qseed'))
-      expect(p.ok).toBe(true)
-      if (!p.ok) return
-      expect(serializeMermaid(p.value)).toBe(serializeMermaid(p.value))
+      const source = fam.build(fam.kRange[0], 'qseed')
+      const first = parseMermaid(source)
+      const second = parseMermaid(source)
+      if (!first.ok || !second.ok) throw new Error(`${fam.family}: generated source failed to parse`)
+      expect(serializeMermaid(second.value)).toBe(serializeMermaid(first.value))
     })
 
     test(`${fam.family}: base build is structured + verifiable`, () => {

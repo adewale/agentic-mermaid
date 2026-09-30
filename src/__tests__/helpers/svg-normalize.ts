@@ -17,6 +17,11 @@
 export interface NormalizeSvgOptions {
   /** Drop paint-only attributes, declarations and elements. Default: false. */
   stripPaint?: boolean
+  /** Rename the root style-scope class to `am-scope`. It hashes the whole
+   *  output, so any change renames it on every line that carries it; masking
+   *  it lets a golden diff show only the lines that changed. Implied by
+   *  stripPaint. Default: false. */
+  maskStyleScope?: boolean
 }
 
 const PAINT_PROPERTIES = new Set([
@@ -79,7 +84,8 @@ function stripSvgPaint(svg: string): string {
 }
 
 export function normalizeSvg(svg: string, options: NormalizeSvgOptions = {}): string {
-  const text = options.stripPaint ? stripSvgPaint(svg) : svg
+  const painted = options.stripPaint ? stripSvgPaint(svg) : svg
+  const text = options.maskStyleScope ? painted.replace(STYLE_SCOPE_CLASS, 'am-scope') : painted
   return text
     .replaceAll('\r\n', '\n')
     .split('\n')

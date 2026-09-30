@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="537.5459999999999" height="173.8" viewBox="0 0 537.5459999999999 173.8" style="--bg:#fff5df;--fg:#2b2725;--line:#1f3d5a;--accent:#ff5a5f;--muted:#876a52;--surface:#ffd166;--border:#1f3d5a;--font:EB Garamond;background:#fff5df" aria-labelledby="mindmap-title" aria-roledescription="mindmap" role="img" class="am-1y2zs0m1ffwyxl">
+<style>
+  .am-1y2zs0m1ffwyxl text { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-1y2zs0m1ffwyxl {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #2b2725;
+    --_text-sec:      #876a52;
+    --_text-muted:    #876a52;
+    --_text-faint:    #8d867b;
+    --_line:          #1f3d5a;
+    --_arrow:         #ff5a5f;
+    --_node-fill:     #ffd166;
+    --_node-stroke:   #1f3d5a;
+    --_group-fill:    #fff5df;
+    --_group-hdr:     #f4ebd6;
+    --_inner-stroke:  #e6dcc9;
+    --_key-badge:     #eae0cc;
+  }
+</style>
+<rect width="537.5459999999999" height="173.8" fill="#fff5df" data-backdrop="page" />
+<title id="mindmap-title">Product</title>
+<path stroke-opacity="0" class="mindmap-edge" data-from="root" data-to="Research" data-branch-index="0" d="M 293.604 86.9 C 302.004 86.9 305.204 86.9 313.604 86.9" fill="none" stroke="#ff5a5f" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Research" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Research" />
+<path d="M293.6 86.9 C302.51 86.71, 303.91 88.09, 314.87 86.61" fill="none" stroke="#ff5a5f" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" />
+<path stroke-opacity="0" class="mindmap-edge" data-from="Research" data-to="Interviews" data-branch-index="0" d="M 398.834 86.9 C 407.234 86.9 410.434 49.45 418.834 49.45" fill="none" stroke="#ff5a5f" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Research-&gt;Interviews" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Research to Interviews" />
+<path d="M398.83 86.9 C406.16 88.01, 410.75 49, 419.52 49.17" fill="none" stroke="#ff5a5f" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" />
+<path stroke-opacity="0" class="mindmap-edge" data-from="Research" data-to="Evidence" data-branch-index="0" d="M 398.834 86.9 C 407.234 86.9 410.434 124.35 418.834 124.35" fill="none" stroke="#ff5a5f" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Research-&gt;Evidence" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Research to Evidence" />
+<path d="M398.83 86.9 C407.33 86.48, 409.51 124.79, 419.63 123.81" fill="none" stroke="#ff5a5f" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" />
+<path stroke-opacity="0" class="mindmap-edge" data-from="root" data-to="Delivery" data-branch-index="1" d="M 220.23 86.9 C 211.83 86.9 208.63 86.9 200.23 86.9" fill="none" stroke="#a50d26" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Delivery" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Delivery" />
+<path d="M220.23 86.9 C211.61 87.28, 208.12 87.73, 199.93 87.99" fill="none" stroke="#a50d26" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" />
+<path stroke-opacity="0" class="mindmap-edge" data-from="Delivery" data-to="Launch" data-branch-index="1" d="M 123.892 86.9 C 115.492 86.9 112.292 86.9 103.892 86.9" fill="none" stroke="#a50d26" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Delivery-&gt;Launch" data-role="edge" role="graphics-symbol" aria-roledescription="relation" aria-label="Delivery to Launch" />
+<path d="M123.89 86.9 C116.12 86.73, 113.6 86.33, 103.53 87.4" fill="none" stroke="#a50d26" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" />
+<g class="mindmap-node depth-0" data-id="root" data-label="Product" data-role="node">
+  <circle cx="256.917" cy="86.9" r="36.687" fill="#f5585c" stroke="#f5585c" stroke-width="1.5" />
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="256.917" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#2b2725" dy="4.55" textLength="49.374" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Research" data-label="Research" data-branch-index="0" data-parent-id="root" data-role="node">
+  <rect x="313.604" y="69.45" width="85.23" height="34.9" rx="16" ry="16" fill="#ffc7b9" stroke="#ff5a5f" stroke-width="1.5" />
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="356.219" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#2b2725" dy="4.55" textLength="61.23" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Research</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Interviews" data-label="Interviews" data-branch-index="0" data-parent-id="Research" data-role="node">
+  <rect x="418.834" y="32" width="86.712" height="34.9" rx="16" ry="16" fill="#ffd6c5" stroke="#ff5a5f" stroke-width="1.5" />
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="462.18999999999994" y="49.45" text-anchor="middle" font-size="13" font-weight="500" fill="#2b2725" dy="4.55" textLength="62.712" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Interviews</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Evidence" data-label="Evidence" data-branch-index="0" data-parent-id="Research" data-role="node">
+  <rect x="418.834" y="106.9" width="82.266" height="34.9" rx="16" ry="16" fill="#ffd6c5" stroke="#ff5a5f" stroke-width="1.5" />
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="459.9669999999999" y="124.35000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#2b2725" dy="4.55" textLength="58.266" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Evidence</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Delivery" data-label="Delivery" data-branch-index="1" data-parent-id="root" data-role="node">
+  <rect x="123.892" y="69.45" width="76.338" height="34.9" rx="16" ry="16" fill="#e4afa8" stroke="#a50d26" stroke-width="1.5" />
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="162.06099999999998" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#2b2725" dy="4.55" textLength="52.338" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delivery</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Launch" data-label="Launch" data-branch-index="1" data-parent-id="Delivery" data-role="node">
+  <rect x="32" y="69.45" width="71.892" height="34.9" rx="16" ry="16" fill="#edc7ba" stroke="#a50d26" stroke-width="1.5" />
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="67.946" y="86.9" text-anchor="middle" font-size="13" font-weight="500" fill="#2b2725" dy="4.55" textLength="47.892" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Launch</text>
+</g>
+</svg>
