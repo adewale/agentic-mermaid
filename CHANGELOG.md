@@ -88,6 +88,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- The npm package no longer ships `docs/mutation-testing.md`; mutation testing
+  and its CI jobs are gone. The repository no longer commits generated reports,
+  receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records
+  how contributors decide what is a bug, what to test and what to commit.
 - Docs that list every family, MCP tool, CLI verb, render format or warning
   code are generated from the registry or marked `<!-- complete: <registry> -->`;
   a marked list that misses any member fails the doc checks, so a change that
